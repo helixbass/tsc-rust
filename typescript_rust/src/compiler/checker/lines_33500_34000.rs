@@ -96,7 +96,7 @@ impl TypeChecker {
                 });
                 element_flags.push(ElementFlags::Optional);
                 if !is_omitted_expression(e) && !self.has_default_value(e) {
-                    self.report_implicit_any(e, &self.any_type(), None);
+                    self.report_implicit_any(e, &self.any_type(), None)?;
                 }
             }
         }
@@ -122,10 +122,10 @@ impl TypeChecker {
         };
         if is_in_js_file(Some(declaration)) {
             if self.is_empty_literal_type(&widened) {
-                self.report_implicit_any(declaration, &self.any_type(), None);
+                self.report_implicit_any(declaration, &self.any_type(), None)?;
                 return Ok(self.any_type());
             } else if self.is_empty_array_literal_type(&widened)? {
-                self.report_implicit_any(declaration, &self.any_array_type(), None);
+                self.report_implicit_any(declaration, &self.any_array_type(), None)?;
                 return Ok(self.any_array_type());
             }
         }
@@ -258,11 +258,11 @@ impl TypeChecker {
         node: &Node, /*MethodDeclaration*/
         check_mode: Option<CheckMode>,
     ) -> io::Result<Gc<Type>> {
-        self.check_grammar_method(node);
+        self.check_grammar_method(node)?;
 
         let node_as_method_declaration = node.as_method_declaration();
         if node_as_method_declaration.name().kind() == SyntaxKind::ComputedPropertyName {
-            self.check_computed_property_name(&node_as_method_declaration.name());
+            self.check_computed_property_name(&node_as_method_declaration.name())?;
         }
 
         let uninstantiated_type =
@@ -283,9 +283,9 @@ impl TypeChecker {
         if let Some(check_mode) = check_mode.filter(|check_mode| {
             check_mode.intersects(CheckMode::Inferential | CheckMode::SkipGenericFunctions)
         }) {
-            let call_signature = self.get_single_signature(type_, SignatureKind::Call, true);
+            let call_signature = self.get_single_signature(type_, SignatureKind::Call, true)?;
             let construct_signature =
-                self.get_single_signature(type_, SignatureKind::Construct, true);
+                self.get_single_signature(type_, SignatureKind::Construct, true)?;
             let signature = call_signature
                 .clone()
                 .or_else(|| construct_signature.clone());
@@ -306,7 +306,7 @@ impl TypeChecker {
                             SignatureKind::Construct
                         },
                         false,
-                    );
+                    )?;
                     if let Some(contextual_signature) =
                         contextual_signature
                             .as_ref()
@@ -323,9 +323,10 @@ impl TypeChecker {
                             context.signature.as_ref().try_map(|context_signature| {
                                 self.get_return_type_of_signature(context_signature.clone())
                             })?;
-                        let return_signature = return_type.as_ref().and_then(|return_type| {
-                            self.get_single_call_or_construct_signature(return_type)
-                        });
+                        let return_signature =
+                            return_type.as_ref().try_and_then(|return_type| {
+                                self.get_single_call_or_construct_signature(return_type)
+                            })?;
                         if return_signature.as_ref().matches(|return_signature| {
                             return_signature.maybe_type_parameters().is_none()
                                 && !every(
@@ -367,13 +368,15 @@ impl TypeChecker {
                                     self.has_inference_candidates(inference)
                                 }),
                             ) {
-                                self.apply_to_return_types(
+                                self.try_apply_to_return_types(
                                     instantiated_signature.clone(),
                                     contextual_signature.clone(),
                                     |source: &Type, target: &Type| {
-                                        self.infer_types(&inferences, source, target, None, None);
+                                        self.infer_types(&inferences, source, target, None, None)?;
+
+                                        Ok(())
                                     },
-                                );
+                                )?;
                                 if !self
                                     .has_overlapping_inferences(&context.inferences(), &inferences)
                                 {
@@ -549,7 +552,7 @@ impl TypeChecker {
         &self,
         func_type: &Type,
     ) -> io::Result<Option<Gc<Type>>> {
-        let signature = self.get_single_call_signature(func_type);
+        let signature = self.get_single_call_signature(func_type)?;
         signature
             .filter(|signature| signature.maybe_type_parameters().is_none())
             .try_map(|signature| self.get_return_type_of_signature(signature))

@@ -2,6 +2,7 @@ use gc::Gc;
 use std::{borrow::Borrow, io, ptr};
 
 use super::{intrinsic_type_kinds, is_instantiated_module};
+use crate::try_for_each;
 use crate::{
     SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface, __String,
     are_option_gcs_equal, cast_present, declaration_name_to_string, escape_leading_underscores,
@@ -167,16 +168,16 @@ impl TypeChecker {
             node_as_interface_declaration
                 .maybe_type_parameters()
                 .as_double_deref(),
-        );
+        )?;
         if self.produce_diagnostics {
             self.check_type_name_is_reserved(
                 &node_as_interface_declaration.name(),
                 &Diagnostics::Interface_name_cannot_be_0,
             );
 
-            self.check_exports_on_merged_declarations(node);
+            self.check_exports_on_merged_declarations(node)?;
             let symbol = self.get_symbol_of_node(node)?.unwrap();
-            self.check_type_parameter_lists_identical(&symbol);
+            self.check_type_parameter_lists_identical(&symbol)?;
 
             let first_interface_decl =
                 get_declaration_of_kind(&symbol, SyntaxKind::InterfaceDeclaration);
@@ -204,9 +205,9 @@ impl TypeChecker {
                             Some(&Diagnostics::Interface_0_incorrectly_extends_interface_1),
                             None,
                             None,
-                        );
+                        )?;
                     }
-                    self.check_index_constraints(&type_, &symbol, None);
+                    self.check_index_constraints(&type_, &symbol, None)?;
                 }
             }
             self.check_object_type_for_duplicate_declarations(node);
@@ -227,37 +228,43 @@ impl TypeChecker {
                         None,
                     );
                 }
-                self.check_type_reference_node(heritage_element);
+                self.check_type_reference_node(heritage_element)?;
                 None
             },
-        );
+        )?;
 
-        for_each(&node_as_interface_declaration.members, |member, _| {
-            self.check_source_element(Some(&**member));
-            Option::<()>::None
-        });
+        try_for_each(
+            &node_as_interface_declaration.members,
+            |member, _| -> io::Result<_> {
+                self.check_source_element(Some(&**member))?;
+                Ok(Option::<()>::None)
+            },
+        )?;
 
         if self.produce_diagnostics {
-            self.check_type_for_duplicate_index_signatures(node);
+            self.check_type_for_duplicate_index_signatures(node)?;
             self.register_for_unused_identifiers_check(node);
         }
 
         Ok(())
     }
 
-    pub(super) fn check_type_alias_declaration(&self, node: &Node /*TypeAliasDeclaration*/) {
+    pub(super) fn check_type_alias_declaration(
+        &self,
+        node: &Node, /*TypeAliasDeclaration*/
+    ) -> io::Result<()> {
         self.check_grammar_decorators_and_modifiers(node);
         let node_as_type_alias_declaration = node.as_type_alias_declaration();
         self.check_type_name_is_reserved(
             &node_as_type_alias_declaration.name(),
             &Diagnostics::Type_alias_name_cannot_be_0,
         );
-        self.check_exports_on_merged_declarations(node);
+        self.check_exports_on_merged_declarations(node)?;
         self.check_type_parameters(
             node_as_type_alias_declaration
                 .maybe_type_parameters()
                 .as_double_deref(),
-        );
+        )?;
         if node_as_type_alias_declaration.type_.kind() == SyntaxKind::IntrinsicKeyword {
             if !intrinsic_type_kinds.contains_key(
                 &&*node_as_type_alias_declaration
@@ -277,9 +284,11 @@ impl TypeChecker {
                 );
             }
         } else {
-            self.check_source_element(Some(&*node_as_type_alias_declaration.type_));
+            self.check_source_element(Some(&*node_as_type_alias_declaration.type_))?;
             self.register_for_unused_identifiers_check(node);
         }
+
+        Ok(())
     }
 
     pub(super) fn compute_enum_member_values(
@@ -423,7 +432,7 @@ impl TypeChecker {
                     None,
                     None,
                     None,
-                );
+                )?;
             }
         }
         Ok(value)
@@ -603,7 +612,7 @@ impl TypeChecker {
                 if let Some(declaration) = declaration.as_ref().try_filter(|declaration| {
                     self.is_block_scoped_name_declared_before_use(declaration, member)
                 })? {
-                    return Ok(self.get_enum_member_value(declaration));
+                    return self.get_enum_member_value(declaration);
                 }
                 self.error(
                     Some(expr),
@@ -649,7 +658,7 @@ impl TypeChecker {
 
         let node_as_enum_declaration = node.as_enum_declaration();
         self.check_collisions_for_declaration_name(node, node_as_enum_declaration.maybe_name());
-        self.check_exports_on_merged_declarations(node);
+        self.check_exports_on_merged_declarations(node)?;
         for member in &node_as_enum_declaration.members {
             self.check_enum_member(member);
         }
@@ -868,7 +877,7 @@ impl TypeChecker {
                                 self.check_module_augmentation_element(
                                     statement,
                                     is_global_augmentation,
-                                );
+                                )?;
                             }
                         }
                     }
@@ -907,7 +916,7 @@ impl TypeChecker {
         }
 
         if let Some(node_body) = node_as_module_declaration.body.as_ref() {
-            self.check_source_element(Some(&**node_body));
+            self.check_source_element(Some(&**node_body))?;
             if !is_global_scope_augmentation(node) {
                 self.register_for_unused_identifiers_check(node);
             }
@@ -929,7 +938,7 @@ impl TypeChecker {
                     .as_variable_declaration_list()
                     .declarations
                 {
-                    self.check_module_augmentation_element(decl, is_global_augmentation);
+                    self.check_module_augmentation_element(decl, is_global_augmentation)?;
                 }
             }
             SyntaxKind::ExportAssignment | SyntaxKind::ExportDeclaration => {
@@ -950,7 +959,7 @@ impl TypeChecker {
                 let name = node.as_named_declaration().maybe_name();
                 if is_binding_pattern(name.as_deref()) {
                     for el in &name.as_ref().unwrap().as_has_elements().elements() {
-                        self.check_module_augmentation_element(el, is_global_augmentation);
+                        self.check_module_augmentation_element(el, is_global_augmentation)?;
                     }
                 }
             }

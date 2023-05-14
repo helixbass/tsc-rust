@@ -113,7 +113,7 @@ impl TypeChecker {
         if matches!(report_errors, Some(true))
             && !self.declaration_belongs_to_private_ambient_member(element)
         {
-            self.report_implicit_any(element, &self.any_type(), None);
+            self.report_implicit_any(element, &self.any_type(), None)?;
         }
         Ok(if matches!(include_pattern_in_type, Some(true)) {
             self.non_inferrable_any_type()
@@ -180,7 +180,7 @@ impl TypeChecker {
                 members.insert(symbol.escaped_name().to_owned(), symbol);
                 Ok(Option::<()>::None)
             },
-        );
+        )?;
         let result = self.create_anonymous_type(
             Option::<&Symbol>::None,
             Gc::new(GcCell::new(members)),
@@ -191,7 +191,7 @@ impl TypeChecker {
             } else {
                 vec![]
             },
-        );
+        )?;
         let result_as_object_type = result.as_object_type();
         result_as_object_type.set_object_flags(result_as_object_type.object_flags() | object_flags);
         if include_pattern_in_type {
@@ -328,7 +328,7 @@ impl TypeChecker {
                 type_ = self.get_es_symbol_like_type_for_node(declaration)?;
             }
             if report_errors {
-                self.report_errors_from_widening(declaration, &type_, None);
+                self.report_errors_from_widening(declaration, &type_, None)?;
             }
 
             if type_.flags().intersects(TypeFlags::UniqueESSymbol)
@@ -358,7 +358,7 @@ impl TypeChecker {
 
         if report_errors {
             if !self.declaration_belongs_to_private_ambient_member(declaration) {
-                self.report_implicit_any(declaration, &type_, None);
+                self.report_implicit_any(declaration, &type_, None)?;
             }
         }
         Ok(type_)
@@ -447,13 +447,13 @@ impl TypeChecker {
                 }
                 let mut members = create_symbol_table(Option::<&[Gc<Symbol>]>::None);
                 members.insert("exports".to_owned(), result);
-                return Ok(self.create_anonymous_type(
+                return self.create_anonymous_type(
                     Some(symbol),
                     Gc::new(GcCell::new(members)),
                     vec![],
                     vec![],
                     vec![],
-                ));
+                );
             }
         }
         Debug_.assert_is_defined(&symbol.maybe_value_declaration(), None);

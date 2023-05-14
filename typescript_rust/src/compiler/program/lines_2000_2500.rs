@@ -83,7 +83,7 @@ impl Program {
             vec![]
         };
         let check_diagnostics = if include_bind_and_check_diagnostics {
-            type_checker.get_diagnostics(Some(source_file), cancellation_token)
+            type_checker.get_diagnostics(Some(source_file), cancellation_token)?
         } else {
             vec![]
         };
@@ -726,7 +726,7 @@ impl Program {
         self.run_with_cancellation_token(|| -> io::Result<_> {
             let resolver = self
                 .get_diagnostics_producing_type_checker()?
-                .get_emit_resolver(source_file, cancellation_token);
+                .get_emit_resolver(source_file, cancellation_token)?;
             Ok(get_declaration_diagnostics(
                 // TODO: should this be eg Some(NoOpWriteFileCallback::new()) instead?
                 self.get_emit_host(None),
@@ -857,14 +857,16 @@ impl Program {
         is_default_lib: bool,
         ignore_no_default_lib: bool,
         reason: Gc<FileIncludeReason>,
-    ) {
+    ) -> io::Result<()> {
         self.process_source_file(
             &normalize_path(file_name),
             is_default_lib,
             ignore_no_default_lib,
             None,
             reason,
-        );
+        )?;
+
+        Ok(())
     }
 
     pub fn file_reference_is_equal_to(&self, a: &FileReference, b: &FileReference) -> bool {

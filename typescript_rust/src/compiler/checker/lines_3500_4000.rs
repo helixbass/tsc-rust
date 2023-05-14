@@ -241,17 +241,17 @@ impl TypeChecker {
                         &symbol,
                         &default_only_type,
                         &reference_parent,
-                    )));
+                    )?));
                 }
 
                 if matches!(get_es_module_interop(&self.compiler_options), Some(true)) {
                     let mut sigs =
-                        self.get_signatures_of_structured_type(&type_, SignatureKind::Call);
+                        self.get_signatures_of_structured_type(&type_, SignatureKind::Call)?;
                     if
                     /* !sigs ||*/
                     sigs.is_empty() {
                         sigs = self
-                            .get_signatures_of_structured_type(&type_, SignatureKind::Construct);
+                            .get_signatures_of_structured_type(&type_, SignatureKind::Construct)?;
                     }
                     if
                     /*sigs &&*/
@@ -270,7 +270,7 @@ impl TypeChecker {
                             &symbol,
                             &module_type,
                             &reference_parent,
-                        )));
+                        )?));
                     }
                 }
             }
@@ -283,7 +283,7 @@ impl TypeChecker {
         symbol: &Symbol,
         module_type: &Type,
         reference_parent: &Node, /*ImportDeclaration | ImportCall*/
-    ) -> Gc<Symbol> {
+    ) -> io::Result<Gc<Symbol>> {
         let result: Gc<Symbol> = self
             .create_symbol(symbol.flags(), symbol.escaped_name().to_owned(), None)
             .into();
@@ -313,7 +313,7 @@ impl TypeChecker {
             *result.maybe_exports_mut() =
                 Some(Gc::new(GcCell::new((**symbol_exports).borrow().clone())));
         }
-        let resolved_module_type = self.resolve_structured_type_members(module_type);
+        let resolved_module_type = self.resolve_structured_type_members(module_type)?;
         let resolved_module_type_as_resolved_type = resolved_module_type.as_resolved_type();
         result_links.type_ = Some(self.create_anonymous_type(
             Some(result.clone()),
@@ -321,8 +321,8 @@ impl TypeChecker {
             vec![],
             vec![],
             resolved_module_type_as_resolved_type.index_infos().clone(),
-        ));
-        result
+        )?);
+        Ok(result)
     }
 
     pub(super) fn has_export_assignment_symbol(&self, module_symbol: &Symbol) -> bool {
@@ -380,7 +380,7 @@ impl TypeChecker {
             if self.should_treat_properties_of_external_module_as_exports(&type_) {
                 self.for_each_property_of_type(&type_, |symbol, escaped_name| {
                     cb(symbol, escaped_name)
-                });
+                })?;
             }
         }
 
@@ -591,7 +591,7 @@ impl TypeChecker {
                         exported_symbols.as_ref(),
                         Some(&mut lookup_table),
                         Some(&**node),
-                    );
+                    )?;
                 }
             }
             for (id, export_collision_tracker) in &lookup_table {
@@ -616,7 +616,7 @@ impl TypeChecker {
                 Some(&nested_symbols),
                 None,
                 Option::<&Node>::None,
-            );
+            )?;
         }
         Ok(Some(symbols))
     }
@@ -858,7 +858,7 @@ impl TypeChecker {
                                 {
                                     return self.get_symbol_of_node(&get_source_file_of_node(d));
                                 }
-                                self.check_expression_cached(&d_parent_left_expression, None);
+                                self.check_expression_cached(&d_parent_left_expression, None)?;
                                 return Ok((*self.get_node_links(&d_parent_left_expression))
                                     .borrow()
                                     .resolved_symbol

@@ -320,7 +320,7 @@ impl TypeChecker {
                 && self.get_type_only_alias_declaration(&symbol).is_none();
 
         if mark_alias {
-            self.mark_alias_symbol_as_referenced(&symbol);
+            self.mark_alias_symbol_as_referenced(&symbol)?;
         }
         // }
 
@@ -674,7 +674,7 @@ impl TypeChecker {
                 Some(&*symbol),
                 Option::<&Symbol>::None,
                 true,
-            );
+            )?;
         }
         Ok(
             if symbol.flags().intersects(meaning) || dont_resolve_alias {
@@ -795,7 +795,7 @@ impl TypeChecker {
         if let Some(init) = init {
             let init_symbol = self.get_symbol_of_node(&init)?;
             if let Some(init_symbol) = init_symbol {
-                return Ok(self.merge_js_symbols(&init_symbol, Some(symbol)));
+                return self.merge_js_symbols(&init_symbol, Some(symbol));
             }
         }
         Ok(None)

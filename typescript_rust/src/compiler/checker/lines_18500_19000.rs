@@ -107,7 +107,7 @@ impl CheckTypeRelatedTo {
                 Some(true),
                 None,
                 None,
-            );
+            )?;
         }
         Ok(Ternary::False)
     }
@@ -396,7 +396,7 @@ impl CheckTypeRelatedTo {
                                 self.type_checker
                                     .make_function_type_mapper(ReportUnmeasurableMarkers),
                             )),
-                        );
+                        )?;
                     }
                     if saved.intersects(RelationComparisonResult::ReportsUnreliable) {
                         self.type_checker.instantiate_type(
@@ -405,7 +405,7 @@ impl CheckTypeRelatedTo {
                                 self.type_checker
                                     .make_function_type_mapper(ReportUnreliableMarkers),
                             )),
-                        );
+                        )?;
                     }
                 }
                 return Ok(if entry.intersects(RelationComparisonResult::Succeeded) {
@@ -1378,7 +1378,7 @@ impl CheckTypeRelatedTo {
                         self.type_checker
                             .make_function_type_mapper(ReportUnreliableMarkers),
                     )),
-                );
+                )?;
             }
             if self
                 .type_checker
@@ -1554,7 +1554,7 @@ impl CheckTypeRelatedTo {
                         &source_extends,
                         Some(InferencePriority::NoConstraints | InferencePriority::AlwaysStrict),
                         None,
-                    );
+                    )?;
                     source_extends = self
                         .type_checker
                         .instantiate_type(&source_extends, Some(ctx.mapper()))?;

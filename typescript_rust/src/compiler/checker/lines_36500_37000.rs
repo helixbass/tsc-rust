@@ -3,6 +3,7 @@ use std::ptr;
 use std::{borrow::Borrow, io};
 
 use super::IterationUse;
+use crate::try_for_each;
 use crate::{
     add_related_info, are_option_gcs_equal, create_diagnostic_for_node, declaration_name_to_string,
     find_ancestor, for_each, for_each_child_bool, get_ancestor, get_combined_node_flags,
@@ -395,9 +396,9 @@ impl TypeChecker {
         &self,
         node: &Node, /*ParameterDeclaration | PropertyDeclaration | PropertySignature | VariableDeclaration | BindingElement*/
     ) -> io::Result<()> {
-        self.check_decorators(node);
+        self.check_decorators(node)?;
         if !is_binding_element(node) {
-            self.check_source_element(node.as_variable_like_declaration().maybe_type());
+            self.check_source_element(node.as_variable_like_declaration().maybe_type())?;
         }
 
         let node_name = node.as_named_declaration().maybe_name();
@@ -408,9 +409,9 @@ impl TypeChecker {
 
         let node_as_has_initializer = node.as_has_initializer();
         if node_name.kind() == SyntaxKind::ComputedPropertyName {
-            self.check_computed_property_name(&node_name);
+            self.check_computed_property_name(&node_name)?;
             if let Some(node_initializer) = node_as_has_initializer.maybe_initializer().as_ref() {
-                self.check_expression_cached(node_initializer, None);
+                self.check_expression_cached(node_initializer, None)?;
             }
         }
 
@@ -420,7 +421,7 @@ impl TypeChecker {
                 && node_as_binding_element.dot_dot_dot_token.is_some()
                 && self.language_version <= ScriptTarget::ES2018
             {
-                self.check_external_emit_helpers(node, ExternalEmitHelpers::Rest);
+                self.check_external_emit_helpers(node, ExternalEmitHelpers::Rest)?;
             }
             if let Some(node_property_name) =
                 node_as_binding_element
@@ -430,7 +431,7 @@ impl TypeChecker {
                         node_property_name.kind() == SyntaxKind::ComputedPropertyName
                     })
             {
-                self.check_computed_property_name(node_property_name);
+                self.check_computed_property_name(node_property_name)?;
             }
 
             let parent = node.parent().parent();
@@ -461,7 +462,7 @@ impl TypeChecker {
                                 parent_type,
                                 property,
                                 None,
-                            );
+                            )?;
                         }
                     }
                 }
@@ -473,16 +474,16 @@ impl TypeChecker {
                 && self.language_version < ScriptTarget::ES2015
                 && self.compiler_options.downlevel_iteration == Some(true)
             {
-                self.check_external_emit_helpers(node, ExternalEmitHelpers::Read);
+                self.check_external_emit_helpers(node, ExternalEmitHelpers::Read)?;
             }
 
-            for_each(
+            try_for_each(
                 &node_name.as_has_elements().elements(),
-                |element: &Gc<Node>, _| -> Option<()> {
-                    self.check_source_element(Some(&**element));
-                    None
+                |element: &Gc<Node>, _| -> io::Result<Option<()>> {
+                    self.check_source_element(Some(&**element))?;
+                    Ok(None)
                 },
-            );
+            )?;
         }
         if node_as_has_initializer.maybe_initializer().is_some()
             && is_parameter_declaration(node)
@@ -513,7 +514,7 @@ impl TypeChecker {
                         None,
                     )?;
                     if self.strict_null_checks && need_check_widened_type {
-                        self.check_non_null_non_void_type(&initializer_type, node);
+                        self.check_non_null_non_void_type(&initializer_type, node)?;
                     } else {
                         self.check_type_assignable_to_and_optionally_elaborate(
                             &initializer_type,
@@ -534,7 +535,7 @@ impl TypeChecker {
                             Some(node),
                         )?;
                     } else if self.strict_null_checks {
-                        self.check_non_null_non_void_type(&widened_type, node);
+                        self.check_non_null_non_void_type(&widened_type, node)?;
                     }
                 }
             }
@@ -542,7 +543,7 @@ impl TypeChecker {
         }
         let symbol = self.get_symbol_of_node(node)?.unwrap();
         if symbol.flags().intersects(SymbolFlags::Alias) && is_require_variable_declaration(node) {
-            self.check_alias_symbol(node);
+            self.check_alias_symbol(node)?;
             return Ok(());
         }
 
@@ -617,7 +618,7 @@ impl TypeChecker {
                     &type_,
                     node,
                     &declaration_type,
-                );
+                )?;
             }
             if let Some(node_initializer) = node_as_has_initializer.maybe_initializer().as_ref() {
                 self.check_type_assignable_to_and_optionally_elaborate(
@@ -649,12 +650,12 @@ impl TypeChecker {
             node.kind(),
             SyntaxKind::PropertyDeclaration | SyntaxKind::PropertySignature
         ) {
-            self.check_exports_on_merged_declarations(node);
+            self.check_exports_on_merged_declarations(node)?;
             if matches!(
                 node.kind(),
                 SyntaxKind::VariableDeclaration | SyntaxKind::BindingElement
             ) {
-                self.check_var_declared_names_not_shadowed(node);
+                self.check_var_declared_names_not_shadowed(node)?;
             }
             self.check_collisions_for_declaration_name(node, Some(&*node_name));
         }
@@ -733,19 +734,32 @@ impl TypeChecker {
             == get_selected_effective_modifier_flags(right, interesting_flags)
     }
 
-    pub(super) fn check_variable_declaration(&self, node: &Node /*VariableDeclaration*/) {
+    pub(super) fn check_variable_declaration(
+        &self,
+        node: &Node, /*VariableDeclaration*/
+    ) -> io::Result<()> {
         // tracing?.push(tracing.Phase.Check, "checkVariableDeclaration", { kind: node.kind, pos: node.pos, end: node.end });
-        self.check_grammar_variable_declaration(node);
-        self.check_variable_like_declaration(node);
+        self.check_grammar_variable_declaration(node)?;
+        self.check_variable_like_declaration(node)?;
         // tracing?.pop();
+
+        Ok(())
     }
 
-    pub(super) fn check_binding_element(&self, node: &Node /*BindingElement*/) {
+    pub(super) fn check_binding_element(
+        &self,
+        node: &Node, /*BindingElement*/
+    ) -> io::Result<()> {
         self.check_grammar_binding_element(node);
-        self.check_variable_like_declaration(node);
+        self.check_variable_like_declaration(node)?;
+
+        Ok(())
     }
 
-    pub(super) fn check_variable_statement(&self, node: &Node /*VariableStatement*/) {
+    pub(super) fn check_variable_statement(
+        &self,
+        node: &Node, /*VariableStatement*/
+    ) -> io::Result<()> {
         let node_as_variable_statement = node.as_variable_statement();
         if !self.check_grammar_decorators_and_modifiers(node)
             && !self.check_grammar_variable_declaration_list(
@@ -754,16 +768,18 @@ impl TypeChecker {
         {
             self.check_grammar_for_disallowed_let_or_const_statement(node);
         }
-        for_each(
+        try_for_each(
             &node_as_variable_statement
                 .declaration_list
                 .as_variable_declaration_list()
                 .declarations,
-            |declaration, _| -> Option<()> {
-                self.check_source_element(Some(&**declaration));
-                None
+            |declaration, _| -> io::Result<Option<()>> {
+                self.check_source_element(Some(&**declaration))?;
+                Ok(None)
             },
-        );
+        )?;
+
+        Ok(())
     }
 
     pub(super) fn check_expression_statement(
@@ -785,8 +801,8 @@ impl TypeChecker {
             &node_as_if_statement.expression,
             &type_,
             Some(&*node_as_if_statement.then_statement),
-        );
-        self.check_source_element(Some(&*node_as_if_statement.then_statement));
+        )?;
+        self.check_source_element(Some(&*node_as_if_statement.then_statement))?;
 
         if node_as_if_statement.then_statement.kind() == SyntaxKind::EmptyStatement {
             self.error(
@@ -796,7 +812,7 @@ impl TypeChecker {
             );
         }
 
-        self.check_source_element(node_as_if_statement.else_statement.as_deref());
+        self.check_source_element(node_as_if_statement.else_statement.as_deref())?;
 
         Ok(())
     }

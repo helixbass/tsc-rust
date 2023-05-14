@@ -324,7 +324,7 @@ impl TypeChecker {
                     }
                     return Ok(self
                         .find_applicable_index_info(
-                            &self.get_index_infos_of_structured_type(t),
+                            &self.get_index_infos_of_structured_type(t)?,
                             &self.get_string_literal_type(&unescape_leading_underscores(name)),
                         )?
                         .map(|index_info| index_info.type_.clone()));
@@ -376,7 +376,7 @@ impl TypeChecker {
                     &mut |t: &Type| {
                         Ok(self
                             .find_applicable_index_info(
-                                &self.get_index_infos_of_structured_type(t),
+                                &self.get_index_infos_of_structured_type(t)?,
                                 &name_type,
                             )?
                             .map(|index_info| index_info.type_.clone()))

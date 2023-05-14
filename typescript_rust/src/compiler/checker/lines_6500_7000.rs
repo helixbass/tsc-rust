@@ -52,7 +52,7 @@ impl NodeBuilder {
         symbol_table: Gc<GcCell<SymbolTable>>,
         context: &NodeBuilderContext,
         bundled: Option<bool>,
-    ) -> Vec<Gc<Node /*Statement*/>> {
+    ) -> io::Result<Vec<Gc<Node /*Statement*/>>> {
         SymbolTableToDeclarationStatements::new(
             context,
             self.type_checker.clone(),
@@ -210,7 +210,7 @@ impl SymbolTableToDeclarationStatements {
         self.adding_declare.set(adding_declare);
     }
 
-    pub fn call(&self) -> Vec<Gc<Node>> {
+    pub fn call(&self) -> io::Result<Vec<Gc<Node>>> {
         for_each_entry(
             &*(*self.symbol_table()).borrow(),
             |symbol: &Gc<Symbol>, name: &String| -> Option<()> {
@@ -235,11 +235,11 @@ impl SymbolTableToDeclarationStatements {
                 .insert(InternalSymbolName::ExportEquals.to_owned(), export_equals);
         }
 
-        self.visit_symbol_table(self.symbol_table(), None, None);
-        self.merge_redundant_statements(&{
+        self.visit_symbol_table(self.symbol_table(), None, None)?;
+        Ok(self.merge_redundant_statements(&{
             let value = self.results().clone();
             value
-        })
+        }))
     }
 
     pub(super) fn is_identifier_and_not_undefined(&self, node: Option<impl Borrow<Node>>) -> bool {
@@ -667,12 +667,12 @@ impl SymbolTableToDeclarationStatements {
         symbol_table: Gc<GcCell<SymbolTable>>,
         suppress_new_private_context: Option<bool>,
         property_as_alias: Option<bool>,
-    ) {
+    ) -> io::Result<()> {
         if suppress_new_private_context != Some(true) {
             self.deferred_privates_stack_mut().push(Default::default());
         }
         (*symbol_table).borrow().values().for_each(|symbol| {
-            self.serialize_symbol(symbol, false, property_as_alias == Some(true));
+            self.serialize_symbol(symbol, false, property_as_alias == Some(true))?;
         });
         if suppress_new_private_context != Some(true) {
             let deferred_privates_stack_last_values = {
@@ -684,11 +684,15 @@ impl SymbolTableToDeclarationStatements {
             };
             deferred_privates_stack_last_values
                 .iter()
-                .for_each(|symbol| {
-                    self.serialize_symbol(symbol, true, property_as_alias == Some(true));
-                });
+                .try_for_each(|symbol| -> io::Result<_> {
+                    self.sirialize_symbol(symbol, true, property_as_alias == Some(true))?;
+
+                    Ok(())
+                })?;
             self.deferred_privates_stack_mut().pop();
         }
+
+        Ok(())
     }
 
     pub(super) fn serialize_symbol(
@@ -696,10 +700,10 @@ impl SymbolTableToDeclarationStatements {
         symbol: &Symbol,
         is_private: bool,
         property_as_alias: bool,
-    ) {
+    ) -> io::Result<()> {
         let ref visited_sym = self.type_checker.get_merged_symbol(Some(symbol)).unwrap();
         if self.visited_symbols().contains(&get_symbol_id(visited_sym)) {
-            return;
+            return Ok(());
         }
         self.visited_symbols_mut()
             .insert(get_symbol_id(visited_sym));
@@ -721,7 +725,7 @@ impl SymbolTableToDeclarationStatements {
             let old_context = self.context();
             self.set_context(self.node_builder.clone_node_builder_context(self.context()));
             /*const result =*/
-            self.serialize_symbol_worker(symbol, is_private, property_as_alias);
+            self.serialize_symbol_worker(symbol, is_private, property_as_alias)?;
             if self.context().reported_diagnostic() {
                 self.oldcontext
                     .set_reported_diagnostic(self.context().reported_diagnostic());
@@ -729,6 +733,8 @@ impl SymbolTableToDeclarationStatements {
             self.set_context(old_context);
             return /*result*/;
         }
+
+        Ok(())
     }
 
     pub(super) fn serialize_symbol_worker(
@@ -799,10 +805,10 @@ impl SymbolTableToDeclarationStatements {
                 symbol,
                 &self.get_internal_symbol_name(symbol, symbol_name),
                 modifier_flags,
-            );
+            )?;
         }
         if symbol.flags().intersects(SymbolFlags::TypeAlias) {
-            self.serialize_type_alias(symbol, symbol_name, modifier_flags);
+            self.serialize_type_alias(symbol, symbol_name, modifier_flags)?;
         }
         if symbol.flags().intersects(
             SymbolFlags::BlockScopedVariable
@@ -974,7 +980,7 @@ impl SymbolTableToDeclarationStatements {
             }
         }
         if symbol.flags().intersects(SymbolFlags::Enum) {
-            self.serialize_enum(symbol, symbol_name, modifier_flags);
+            self.serialize_enum(symbol, symbol_name, modifier_flags)?;
         }
         if symbol.flags().intersects(SymbolFlags::Class) {
             if symbol.flags().intersects(SymbolFlags::Property)
@@ -988,13 +994,13 @@ impl SymbolTableToDeclarationStatements {
                     symbol,
                     &self.get_internal_symbol_name(symbol, symbol_name),
                     modifier_flags,
-                );
+                )?;
             } else {
                 self.serialize_as_class(
                     symbol,
                     &self.get_internal_symbol_name(symbol, symbol_name),
                     modifier_flags,
-                );
+                )?;
             }
         }
         if symbol
@@ -1003,24 +1009,24 @@ impl SymbolTableToDeclarationStatements {
             && (!is_const_merged_with_ns || self.is_type_only_namespace(symbol)?)
             || is_const_merged_with_ns_printable_as_signature_merge
         {
-            self.serialize_module(symbol, symbol_name, modifier_flags);
+            self.serialize_module(symbol, symbol_name, modifier_flags)?;
         }
         if symbol.flags().intersects(SymbolFlags::Interface)
             && !symbol.flags().intersects(SymbolFlags::Class)
         {
-            self.serialize_interface(symbol, symbol_name, modifier_flags);
+            self.serialize_interface(symbol, symbol_name, modifier_flags)?;
         }
         if symbol.flags().intersects(SymbolFlags::Alias) {
             self.serialize_as_alias(
                 symbol,
                 &self.get_internal_symbol_name(symbol, symbol_name),
                 modifier_flags,
-            );
+            )?;
         }
         if symbol.flags().intersects(SymbolFlags::Property)
             && symbol.escaped_name() == InternalSymbolName::ExportEquals
         {
-            self.serialize_maybe_alias_assignment(symbol);
+            self.serialize_maybe_alias_assignment(symbol)?;
         }
         if symbol.flags().intersects(SymbolFlags::ExportStar) {
             if let Some(symbol_declarations) = symbol.maybe_declarations().as_ref() {

@@ -475,13 +475,13 @@ impl TypeChecker {
                     self.check_external_emit_helpers(
                         node,
                         ExternalEmitHelpers::ClassPrivateFieldSet,
-                    );
+                    )?;
                 }
                 if assignment_kind != AssignmentKind::Definite {
                     self.check_external_emit_helpers(
                         node,
                         ExternalEmitHelpers::ClassPrivateFieldGet,
-                    );
+                    )?;
                 }
             }
 
@@ -555,7 +555,7 @@ impl TypeChecker {
             if is_any_like {
                 if is_identifier(left) {
                     if let Some(parent_symbol) = parent_symbol.as_ref() {
-                        self.mark_alias_referenced(parent_symbol, node);
+                        self.mark_alias_referenced(parent_symbol, node)?;
                     }
                 }
                 return Ok(if self.is_error_type(&apparent_type) {
@@ -580,7 +580,7 @@ impl TypeChecker {
                     || should_preserve_const_enums(&self.compiler_options)
                         && self.is_export_or_export_expression(node)
                 {
-                    self.mark_alias_referenced(parent_symbol, node);
+                    self.mark_alias_referenced(parent_symbol, node)?;
                 }
             }
         }
@@ -669,7 +669,7 @@ impl TypeChecker {
                                 left_type
                             },
                             is_unchecked_js,
-                        );
+                        )?;
                     }
                     return Ok(self.error_type());
                 }
@@ -730,7 +730,7 @@ impl TypeChecker {
                         );
                     }
                 }
-                self.check_property_not_used_before_declaration(prop, node, right);
+                self.check_property_not_used_before_declaration(prop, node, right)?;
                 self.mark_property_as_referenced(
                     prop,
                     Some(node),
@@ -745,7 +745,7 @@ impl TypeChecker {
                     &apparent_type,
                     prop,
                     None,
-                );
+                )?;
                 if self.is_assignment_to_readonly_entity(node, prop, assignment_kind)? {
                     self.error(
                         Some(right),

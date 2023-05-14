@@ -264,7 +264,7 @@ impl TypeChecker {
                                     early_symbols_ref.as_deref(),
                                     &mut late_symbols,
                                     member,
-                                );
+                                )?;
                             }
                         }
                     }
@@ -292,7 +292,7 @@ impl TypeChecker {
                                 early_symbols_ref.as_deref(),
                                 &mut late_symbols,
                                 member,
-                            );
+                            )?;
                         }
                     }
                 }
@@ -382,9 +382,9 @@ impl TypeChecker {
                     symbol.maybe_declarations().as_deref(),
                     Some(|declaration: &Gc<Node>| has_static_modifier(declaration)),
                 ) {
-                    self.get_exports_of_symbol(&parent);
+                    self.get_exports_of_symbol(&parent)?;
                 } else {
-                    self.get_members_of_symbol(&parent);
+                    self.get_members_of_symbol(&parent)?;
                 }
             }
             let mut links = links.borrow_mut();
@@ -533,7 +533,7 @@ impl TypeChecker {
                 call_signatures.clone(),
                 construct_signatures.clone(),
                 index_infos.clone(),
-            );
+            )?;
             let this_argument = last_or_undefined(&type_arguments);
             for base_type in base_types {
                 let instantiated_base_type = if let Some(this_argument) = this_argument {
@@ -579,7 +579,7 @@ impl TypeChecker {
             call_signatures,
             construct_signatures,
             index_infos,
-        );
+        )?;
 
         Ok(())
     }
@@ -593,7 +593,7 @@ impl TypeChecker {
             &*self.resolve_declared_members(type_)?,
             vec![],
             vec![],
-        );
+        )?;
 
         Ok(())
     }
@@ -618,7 +618,7 @@ impl TypeChecker {
         } else {
             concatenate(type_arguments, vec![type_.type_wrapper()])
         };
-        self.resolve_object_type_members(type_, &source, type_parameters, padded_type_arguments);
+        self.resolve_object_type_members(type_, &source, type_parameters, padded_type_arguments)?;
 
         Ok(())
     }

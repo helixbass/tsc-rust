@@ -215,7 +215,12 @@ pub fn read_json(
         return serde_json::Value::Object(serde_json::Map::new());
     }
     let json_text = json_text.unwrap();
-    let result = parse_config_file_text_to_json(path, json_text);
+    let result = match parse_config_file_text_to_json(path, json_text) {
+        Err(_) => {
+            return serde_json::Value::Object(serde_json::Map::new());
+        }
+        Ok(value) => value,
+    };
     if result.error.is_some() {
         return serde_json::Value::Object(serde_json::Map::new());
     }

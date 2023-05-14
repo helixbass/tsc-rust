@@ -948,8 +948,10 @@ impl EmitBinaryExpression {
         Self { trampoline }
     }
 
-    pub fn call(&self, node: &Node /*BinaryExpression*/) {
-        self.trampoline.call(node, ());
+    pub fn call(&self, node: &Node /*BinaryExpression*/) -> io::Result<()> {
+        self.trampoline.call(node, ())?;
+
+        Ok(())
     }
 }
 

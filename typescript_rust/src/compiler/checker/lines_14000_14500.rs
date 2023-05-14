@@ -504,7 +504,7 @@ impl TypeChecker {
                 Some(|t: &Gc<Type>| -> io::Result<_> {
                     Ok(t.flags().intersects(TypeFlags::Object)
                         && !self.is_generic_mapped_type(t)?
-                        && self.is_empty_resolved_type(&self.resolve_structured_type_members(t)))
+                        && self.is_empty_resolved_type(&self.resolve_structured_type_members(t)?))
                 }),
             )?;
         let len = types.len();
@@ -784,7 +784,7 @@ impl TypeChecker {
             if includes.intersects(TypeFlags::StringLiteral)
                 && includes.intersects(TypeFlags::TemplateLiteral)
             {
-                self.remove_string_literals_matched_by_template_literals(&mut type_set);
+                self.remove_string_literals_matched_by_template_literals(&mut type_set)?;
             }
             if union_reduction == UnionReduction::Subtype {
                 let maybe_type_set =

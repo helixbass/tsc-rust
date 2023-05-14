@@ -68,7 +68,7 @@ impl TypeChecker {
                     self.get_symbol_of_expando(&value_declaration, false)
                 })?;
             if let Some(expando) = expando {
-                let merged = self.merge_js_symbols(&symbol, Some(expando));
+                let merged = self.merge_js_symbols(&symbol, Some(expando))?;
                 if let Some(merged) = merged {
                     symbol = merged.clone();
                     links = merged.as_transient_symbol().symbol_links();
@@ -793,7 +793,7 @@ impl TypeChecker {
                 .flags()
                 .intersects(TypeFlags::Object | TypeFlags::Intersection)
             {
-                self.resolve_structured_type_members(&base_constructor_type);
+                self.resolve_structured_type_members(&base_constructor_type)?;
             }
             if !self.pop_type_resolution() {
                 self.error(
@@ -932,10 +932,10 @@ impl TypeChecker {
                     .intersects(SymbolFlags::Class | SymbolFlags::Interface)
                 {
                     if type_.symbol().flags().intersects(SymbolFlags::Class) {
-                        self.resolve_base_types_of_class(type_);
+                        self.resolve_base_types_of_class(type_)?;
                     }
                     if type_.symbol().flags().intersects(SymbolFlags::Interface) {
-                        self.resolve_base_types_of_interface(type_);
+                        self.resolve_base_types_of_interface(type_)?;
                     }
                 } else {
                     Debug_.fail(Some("type must be class or interface"));
@@ -949,7 +949,7 @@ impl TypeChecker {
                                 declaration.kind(),
                                 SyntaxKind::ClassDeclaration | SyntaxKind::InterfaceDeclaration
                             ) {
-                                self.report_circular_base_type(declaration, type_);
+                                self.report_circular_base_type(declaration, type_)?;
                             }
                         }
                     }

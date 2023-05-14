@@ -60,7 +60,7 @@ impl TypeChecker {
                             None,
                         )?);
                     } else {
-                        self.resolve_type_reference_name(node, meaning, None);
+                        self.resolve_type_reference_name(node, meaning, None)?;
                     }
                     type_ = Some(self.get_type_reference_type(node, symbol.as_ref().unwrap())?);
                 }
@@ -221,7 +221,7 @@ impl TypeChecker {
             },
         )?;
         if let Some(symbol) = symbol.as_ref() {
-            self.get_declared_type_of_symbol(symbol);
+            self.get_declared_type_of_symbol(symbol)?;
             if length(
                 (*self.get_symbol_links(symbol))
                     .borrow()
@@ -355,7 +355,7 @@ impl TypeChecker {
             *symbol.maybe_members_mut() = Some(members.clone());
 
             *self.maybe_deferred_global_import_meta_expression_type() =
-                Some(self.create_anonymous_type(Some(symbol), members, vec![], vec![], vec![]));
+                Some(self.create_anonymous_type(Some(symbol), members, vec![], vec![], vec![])?);
         }
         Ok(self
             .maybe_deferred_global_import_meta_expression_type()

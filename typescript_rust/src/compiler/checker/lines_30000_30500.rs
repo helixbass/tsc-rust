@@ -378,7 +378,7 @@ impl TypeChecker {
 
         let apparent_type = self.get_apparent_type(&func_type)?;
         if self.is_error_type(&apparent_type) {
-            return Ok(self.resolve_error_call(node));
+            return self.resolve_error_call(node);
         }
 
         let call_signatures = self.get_signatures_of_type(&apparent_type, SignatureKind::Call)?;
@@ -447,9 +447,9 @@ impl TypeChecker {
                     &apparent_type,
                     SignatureKind::Call,
                     related_information,
-                );
+                )?;
             }
-            return Ok(self.resolve_error_call(node));
+            return self.resolve_error_call(node);
         }
         if check_mode.intersects(CheckMode::SkipGenericFunctions)
             && node_as_call_expression.maybe_type_arguments().is_none()
@@ -474,7 +474,7 @@ impl TypeChecker {
                     None,
                 )?]),
             );
-            return Ok(self.resolve_error_call(node));
+            return self.resolve_error_call(node);
         }
 
         self.resolve_call(
@@ -544,7 +544,7 @@ impl TypeChecker {
 
         expression_type = self.get_apparent_type(&expression_type)?;
         if self.is_error_type(&expression_type) {
-            return Ok(self.resolve_error_call(node));
+            return self.resolve_error_call(node);
         }
 
         if self.is_type_any(Some(&*expression_type)) {
@@ -562,7 +562,7 @@ impl TypeChecker {
             self.get_signatures_of_type(&expression_type, SignatureKind::Construct)?;
         if !construct_signatures.is_empty() {
             if !self.is_constructor_accessible(node, &construct_signatures[0])? {
-                return Ok(self.resolve_error_call(node));
+                return self.resolve_error_call(node);
             }
             if construct_signatures
                 .iter()
@@ -573,7 +573,7 @@ impl TypeChecker {
                     &Diagnostics::Cannot_create_an_instance_of_an_abstract_class,
                     None,
                 );
-                return Ok(self.resolve_error_call(node));
+                return self.resolve_error_call(node);
             }
             let value_decl =
                 expression_type
@@ -591,7 +591,7 @@ impl TypeChecker {
                     &Diagnostics::Cannot_create_an_instance_of_an_abstract_class,
                     None,
                 );
-                return Ok(self.resolve_error_call(node));
+                return self.resolve_error_call(node);
             }
 
             return self.resolve_call(
@@ -650,8 +650,8 @@ impl TypeChecker {
             &expression_type,
             SignatureKind::Construct,
             None,
-        );
-        Ok(self.resolve_error_call(node))
+        )?;
+        self.resolve_error_call(node)
     }
 
     pub(super) fn type_has_protected_accessible_base(

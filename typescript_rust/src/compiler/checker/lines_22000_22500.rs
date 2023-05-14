@@ -109,7 +109,7 @@ impl InferTypes {
                         source,
                         intersection_type_variable,
                         InferencePriority::NakedTypeVariable,
-                    );
+                    )?;
                 }
                 return Ok(());
             }
@@ -151,7 +151,7 @@ impl InferTypes {
         } {
             for t in targets {
                 if self.get_inference_info_for_type(t).is_some() {
-                    self.infer_with_priority(source, t, InferencePriority::NakedTypeVariable);
+                    self.infer_with_priority(source, t, InferencePriority::NakedTypeVariable)?;
                 }
             }
         }
@@ -195,7 +195,7 @@ impl InferTypes {
                         } else {
                             InferencePriority::HomomorphicMappedType
                         },
-                    );
+                    )?;
                 }
             }
             return Ok(true);
@@ -205,7 +205,7 @@ impl InferTypes {
                 &*self.type_checker.get_index_type(source, None, None)?,
                 constraint_type,
                 InferencePriority::MappedTypeConstraint,
-            );
+            )?;
             let extended_constraint = self.type_checker.get_constraint_of_type(constraint_type)?;
             if matches!(
                 extended_constraint.as_ref(),
@@ -291,7 +291,7 @@ impl InferTypes {
                 self.type_checker
                     .get_false_type_from_conditional_type(target)?,
             ];
-            self.infer_to_multiple_types(source, &target_types, target.flags());
+            self.infer_to_multiple_types(source, &target_types, target.flags())?;
             self.set_priority(save_priority);
         }
 
@@ -529,7 +529,7 @@ impl InferTypes {
                                 } else {
                                     InferencePriority::None
                                 },
-                            );
+                            )?;
                         } else if middle_length == 1
                             && element_flags[start_length].intersects(ElementFlags::Rest)
                         {
@@ -560,21 +560,21 @@ impl InferTypes {
                     return Ok(());
                 }
                 if self.type_checker.is_array_type(target) {
-                    self.infer_from_index_types(source, target);
+                    self.infer_from_index_types(source, target)?;
                     return Ok(());
                 }
             }
-            self.infer_from_properties(source, target);
-            self.infer_from_signatures(source, target, SignatureKind::Call);
-            self.infer_from_signatures(source, target, SignatureKind::Construct);
-            self.infer_from_index_types(source, target);
+            self.infer_from_properties(source, target)?;
+            self.infer_from_signatures(source, target, SignatureKind::Call)?;
+            self.infer_from_signatures(source, target, SignatureKind::Construct)?;
+            self.infer_from_index_types(source, target)?;
         }
 
         Ok(())
     }
 
     pub(super) fn infer_from_properties(&self, source: &Type, target: &Type) -> io::Result<()> {
-        let properties = self.type_checker.get_properties_of_object_type(target);
+        let properties = self.type_checker.get_properties_of_object_type(target)?;
         for ref target_prop in properties {
             let source_prop = self.type_checker.get_property_of_type_(
                 source,
@@ -615,7 +615,7 @@ impl InferTypes {
                 self.type_checker
                     .get_erased_signature(target_signatures[target_len - len + i].clone())?,
                 skip_parameters,
-            );
+            )?;
         }
 
         Ok(())
@@ -710,7 +710,7 @@ impl InferTypes {
                         )?,
                         &target_info.type_,
                         priority,
-                    );
+                    )?;
                 }
             }
         }
@@ -719,7 +719,7 @@ impl InferTypes {
                 .type_checker
                 .get_applicable_index_info(source, &target_info.key_type)?;
             if let Some(source_info) = source_info.as_ref() {
-                self.infer_with_priority(&source_info.type_, &target_info.type_, priority);
+                self.infer_with_priority(&source_info.type_, &target_info.type_, priority)?;
             }
         }
 

@@ -313,8 +313,7 @@ impl TypeChecker {
                     .clone()
             })
             .try_and_then(|type_expression| {
-                Ok(self
-                    .get_single_call_signature(&*self.get_type_from_type_node_(&type_expression)?))
+                self.get_single_call_signature(&*self.get_type_from_type_node_(&type_expression)?)
             })
     }
 
@@ -777,7 +776,7 @@ impl TypeChecker {
         if let Some(inferred_type_parameters) = inferred_type_parameters {
             let return_signature = self.get_single_call_or_construct_signature(
                 &*self.get_return_type_of_signature(instantiated_signature.clone())?,
-            );
+            )?;
             if let Some(return_signature) = return_signature {
                 let new_return_signature = self.clone_signature(&return_signature);
                 *new_return_signature.maybe_type_parameters_mut() =

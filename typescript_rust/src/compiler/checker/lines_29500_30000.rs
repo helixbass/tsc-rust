@@ -6,6 +6,7 @@ use std::rc::Rc;
 use std::{cmp, io};
 
 use super::{CheckMode, CheckTypeContainingMessageChain, CheckTypeErrorOutputContainer};
+use crate::try_maybe_for_each;
 use crate::{
     add_related_info, are_option_gcs_equal, chain_diagnostic_messages,
     chain_diagnostic_messages_multiple, create_diagnostic_for_node,
@@ -704,20 +705,20 @@ impl TypeChecker {
                 || is_jsx_opening_or_self_closing_element
                 || node.as_has_expression().expression().kind() != SyntaxKind::SuperKeyword
             {
-                maybe_for_each(
+                try_maybe_for_each(
                     type_arguments.as_ref(),
-                    |type_argument: &Gc<Node>, _| -> Option<()> {
-                        self.check_source_element(Some(&**type_argument));
-                        None
+                    |type_argument: &Gc<Node>, _| -> io::Result<Option<()>> {
+                        self.check_source_element(Some(&**type_argument))?;
+                        Ok(None)
                     },
-                );
+                )?;
             }
         }
 
         let mut candidates_default = vec![];
         let candidates_out_array_is_some = candidates_out_array.is_some();
         let candidates = candidates_out_array.unwrap_or(&mut candidates_default);
-        self.reorder_candidates(signatures, candidates, call_chain_flags);
+        self.reorder_candidates(signatures, candidates, call_chain_flags)?;
         if candidates.is_empty() {
             if report_errors {
                 self.diagnostics().add(self.get_diagnostic_for_call_node(
@@ -726,7 +727,7 @@ impl TypeChecker {
                     None,
                 ));
             }
-            return Ok(self.resolve_error_call(node));
+            return self.resolve_error_call(node);
         }
 
         let args = self.get_effective_call_arguments(node)?;
@@ -848,7 +849,7 @@ impl TypeChecker {
                                 &mut arg_check_mode,
                                 &last,
                                 d,
-                            );
+                            )?;
                             self.diagnostics().add(d.clone());
                         }
                     } else {
@@ -966,7 +967,7 @@ impl TypeChecker {
                         &mut arg_check_mode,
                         &candidates_for_argument_error_present[0],
                         &diag,
-                    );
+                    )?;
                     self.diagnostics().add(diag);
                 }
             } else if let Some(candidate_for_argument_arity_error) =
@@ -988,7 +989,7 @@ impl TypeChecker {
                         .unwrap(),
                     true,
                     fallback_error,
-                );
+                )?;
             } else {
                 let signatures_with_correct_type_argument_arity =
                     filter(signatures, |s: &Gc<Signature>| {

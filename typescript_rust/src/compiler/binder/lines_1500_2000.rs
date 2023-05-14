@@ -662,7 +662,7 @@ impl BindBinaryExpressionFlow {
     }
 
     pub fn call(&self, node: &Node /*BinaryExpression*/) {
-        self.trampoline.call(node, ());
+        self.trampoline.call(node, ()).expect("infallible?");
     }
 }
 

@@ -269,14 +269,14 @@ impl TypeChecker {
     // this return type (should be wrapped in a BaseInterfaceType) (so only "knowing" consumers
     // should call this instead of the "default" .create_anonymous_type() which does the correct
     // wrapping for you)
-    pub(super) fn create_anonymous_type_returning_base_object_type<TSymbol: Borrow<Symbol>>(
+    pub(super) fn create_anonymous_type_returning_base_object_type(
         &self,
-        symbol: Option<TSymbol>,
+        symbol: Option<impl Borrow<Symbol>>,
         members: Gc<GcCell<SymbolTable>>,
         call_signatures: Vec<Gc<Signature>>,
         construct_signatures: Vec<Gc<Signature>>,
         index_infos: Vec<Gc<IndexInfo>>,
-    ) -> BaseObjectType {
+    ) -> io::Result<BaseObjectType> {
         let type_ = self.create_object_type(ObjectFlags::Anonymous, symbol);
         self.set_structured_type_members(
             &type_,
@@ -284,54 +284,54 @@ impl TypeChecker {
             call_signatures,
             construct_signatures,
             index_infos,
-        );
-        type_
+        )?;
+        Ok(type_)
     }
 
-    pub(super) fn create_anonymous_type<TSymbol: Borrow<Symbol>>(
+    pub(super) fn create_anonymous_type(
         &self,
-        symbol: Option<TSymbol>,
+        symbol: Option<impl Borrow<Symbol>>,
         members: Gc<GcCell<SymbolTable>>,
         call_signatures: Vec<Gc<Signature>>,
         construct_signatures: Vec<Gc<Signature>>,
         index_infos: Vec<Gc<IndexInfo>>,
-    ) -> Gc<Type> {
-        BaseInterfaceType::new(
+    ) -> io::Result<Gc<Type>> {
+        Ok(BaseInterfaceType::new(
             self.create_anonymous_type_returning_base_object_type(
                 symbol,
                 members,
                 call_signatures,
                 construct_signatures,
                 index_infos,
-            ),
+            )?,
             None,
             None,
             None,
             None,
         )
-        .into()
+        .into())
     }
 
     pub(super) fn get_resolved_type_without_abstract_construct_signatures(
         &self,
         type_: &Type, /*ResolvedType*/
-    ) -> Gc<Type> {
+    ) -> io::Result<Gc<Type>> {
         let type_as_resolved_type = type_.as_resolved_type();
         let type_construct_signatures = type_as_resolved_type.construct_signatures();
         if type_construct_signatures.is_empty() {
-            return type_.type_wrapper();
+            return Ok(type_.type_wrapper());
         }
         if let Some(type_object_type_without_abstract_construct_signatures) =
             type_as_resolved_type.maybe_object_type_without_abstract_construct_signatures()
         {
-            return type_object_type_without_abstract_construct_signatures;
+            return Ok(type_object_type_without_abstract_construct_signatures);
         }
         let construct_signatures =
             filter(&*type_construct_signatures, |signature: &Gc<Signature>| {
                 !signature.flags.intersects(SignatureFlags::Abstract)
             });
         if type_construct_signatures.len() == construct_signatures.len() {
-            return type_.type_wrapper();
+            return Ok(type_.type_wrapper());
         }
         let type_copy = self.create_anonymous_type(
             type_.maybe_symbol(),
@@ -339,13 +339,13 @@ impl TypeChecker {
             type_as_resolved_type.call_signatures().clone(),
             construct_signatures,
             type_as_resolved_type.index_infos().clone(),
-        );
+        )?;
         type_as_resolved_type
             .set_object_type_without_abstract_construct_signatures(Some(type_copy.clone()));
         type_copy
             .as_resolved_type()
             .set_object_type_without_abstract_construct_signatures(Some(type_copy.clone()));
-        type_copy
+        Ok(type_copy)
     }
 
     pub(super) fn for_each_symbol_table_in_scope<TReturn>(

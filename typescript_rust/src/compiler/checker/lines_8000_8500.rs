@@ -512,7 +512,7 @@ impl TypeChecker {
                 &result,
                 &mut visited,
                 export_symbol.maybe_declarations().as_deref(),
-            );
+            )?;
         }
         Ok(result.into_inner())
     }
@@ -560,7 +560,7 @@ impl TypeChecker {
                             result,
                             visited,
                             import_symbol.maybe_declarations().as_deref(),
-                        );
+                        )?;
                     }
                 }
             }
@@ -833,7 +833,7 @@ impl TypeChecker {
             vec![],
             vec![],
             self.get_index_infos_of_type(&source)?,
-        );
+        )?;
         let result_as_interface_type = result.as_interface_type();
         result_as_interface_type.set_object_flags(
             result_as_interface_type.object_flags() | ObjectFlags::ObjectRestType,

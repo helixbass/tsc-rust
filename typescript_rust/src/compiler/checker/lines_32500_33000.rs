@@ -38,7 +38,7 @@ impl TypeChecker {
                 i,
                 Some(properties),
                 right_is_this,
-            );
+            )?;
         }
         Ok(source_type.type_wrapper())
     }
@@ -70,7 +70,7 @@ impl TypeChecker {
                             object_literal_type,
                             prop,
                             None,
-                        );
+                        )?;
                     }
                 }
                 let element_type = self.get_indexed_access_type(
@@ -103,7 +103,7 @@ impl TypeChecker {
                     None
                 } else {
                     if self.language_version < ScriptTarget::ESNext {
-                        self.check_external_emit_helpers(property, ExternalEmitHelpers::Rest);
+                        self.check_external_emit_helpers(property, ExternalEmitHelpers::Rest)?;
                     }
                     let mut non_rest_names: Vec<Gc<Node /*PropertyName*/>> = vec![];
                     if let Some(all_properties) = all_properties {
@@ -152,7 +152,7 @@ impl TypeChecker {
         if self.language_version < ScriptTarget::ES2015
             && self.compiler_options.downlevel_iteration == Some(true)
         {
-            self.check_external_emit_helpers(node, ExternalEmitHelpers::Read);
+            self.check_external_emit_helpers(node, ExternalEmitHelpers::Read)?;
         }
         let possibly_out_of_bounds_type = self.check_iterated_type_or_element_type(
             IterationUse::Destructuring | IterationUse::PossiblyOutOfBounds,
@@ -185,7 +185,7 @@ impl TypeChecker {
                 i,
                 &type_,
                 check_mode,
-            );
+            )?;
         }
         Ok(source_type.type_wrapper())
     }
@@ -321,7 +321,7 @@ impl TypeChecker {
                     prop_object_assignment_initializer,
                     check_mode,
                     Option::<&Node>::None,
-                );
+                )?;
             }
             target = expr_or_assignment.as_shorthand_property_assignment().name();
         } else {
@@ -331,7 +331,7 @@ impl TypeChecker {
         if target.kind() == SyntaxKind::BinaryExpression
             && target.as_binary_expression().operator_token.kind() == SyntaxKind::EqualsToken
         {
-            self.check_binary_expression().call(&target, check_mode);
+            self.check_binary_expression().call(&target, check_mode)?;
             target = target.as_binary_expression().left.clone();
         }
         if target.kind() == SyntaxKind::ObjectLiteralExpression {
@@ -368,13 +368,13 @@ impl TypeChecker {
                 Some(target),
                 None,
                 None,
-            );
+            )?;
         }
         if is_private_identifier_property_access_expression(target) {
             self.check_external_emit_helpers(
                 &target.parent(),
                 ExternalEmitHelpers::ClassPrivateFieldSet,
-            );
+            )?;
         }
         Ok(source_type.type_wrapper())
     }
@@ -671,7 +671,7 @@ impl TypeChecker {
                             &left_type,
                             right,
                             &result_type,
-                        );
+                        )?;
                     }
                     result_type
                 }
@@ -765,13 +765,19 @@ impl TypeChecker {
                                     )?,
                             )
                         }),
-                    );
+                    )?;
                     return Ok(self.any_type());
                 }
                 let result_type = result_type.unwrap();
 
                 if operator == SyntaxKind::PlusEqualsToken {
-                    self.check_assignment_operator(operator, left, &left_type, right, &result_type);
+                    self.check_assignment_operator(
+                        operator,
+                        left,
+                        &left_type,
+                        right,
+                        &result_type,
+                    )?;
                 }
                 result_type
             }
@@ -803,7 +809,7 @@ impl TypeChecker {
                                         &self.number_or_big_int_type(),
                                     )?)
                         },
-                    );
+                    )?;
                 }
                 self.boolean_type()
             }
@@ -820,7 +826,7 @@ impl TypeChecker {
                         Ok(self.is_type_equality_comparable_to(left, right)?
                             || self.is_type_equality_comparable_to(right, left)?)
                     },
-                );
+                )?;
                 self.boolean_type()
             }
 
@@ -853,7 +859,7 @@ impl TypeChecker {
                     left_type.type_wrapper()
                 };
                 if operator == SyntaxKind::AmpersandAmpersandEqualsToken {
-                    self.check_assignment_operator(operator, left, left_type, right, right_type);
+                    self.check_assignment_operator(operator, left, left_type, right, right_type)?;
                 }
                 result_type
             }
@@ -876,7 +882,7 @@ impl TypeChecker {
                     left_type.type_wrapper()
                 };
                 if operator == SyntaxKind::BarBarEqualsToken {
-                    self.check_assignment_operator(operator, left, left_type, right, right_type);
+                    self.check_assignment_operator(operator, left, left_type, right, right_type)?;
                 }
                 result_type
             }
@@ -899,7 +905,7 @@ impl TypeChecker {
                     left_type.type_wrapper()
                 };
                 if operator == SyntaxKind::QuestionQuestionEqualsToken {
-                    self.check_assignment_operator(operator, left, left_type, right, right_type);
+                    self.check_assignment_operator(operator, left, left_type, right, right_type)?;
                 }
                 result_type
             }
@@ -909,7 +915,7 @@ impl TypeChecker {
                 } else {
                     AssignmentDeclarationKind::None
                 };
-                self.check_assignment_declaration(decl_kind, right_type);
+                self.check_assignment_declaration(decl_kind, right_type)?;
                 if self.is_assignment_declaration(left, right, decl_kind)? {
                     if !right_type.flags().intersects(TypeFlags::Object)
                         || !matches!(
@@ -922,11 +928,11 @@ impl TypeChecker {
                     {
                         self.check_assignment_operator(
                             operator, left, left_type, right, right_type,
-                        );
+                        )?;
                     }
                     left_type.type_wrapper()
                 } else {
-                    self.check_assignment_operator(operator, left, left_type, right, right_type);
+                    self.check_assignment_operator(operator, left, left_type, right, right_type)?;
                     self.get_regular_type_of_object_literal(right_type)?
                 }
             }
@@ -1154,7 +1160,7 @@ impl BinaryExpressionStateMachine for CheckBinaryExpressionStateMachine {
         operator_token: &Node, /*BinaryOperatorToken*/
         state: Rc<RefCell<WorkArea>>,
         node: &Node, /*BinaryExpression*/
-    ) {
+    ) -> io::Result<()> {
         if !(*state).borrow().skip {
             let left_type = self.get_last_result(state.clone());
             Debug_.assert_is_defined(&left_type, None);
@@ -1180,12 +1186,14 @@ impl BinaryExpressionStateMachine for CheckBinaryExpressionStateMachine {
                             } else {
                                 None
                             },
-                        );
+                        )?;
                 }
                 self.type_checker
                     .check_truthiness_of_type(&left_type, &node_as_binary_expression.left);
             }
         }
+
+        Ok(())
     }
 
     fn on_right(

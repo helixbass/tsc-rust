@@ -413,7 +413,7 @@ impl TypeChecker {
         }
 
         if node.flags().intersects(NodeFlags::Ambient) {
-            self.check_ambient_initializer(node);
+            self.check_ambient_initializer(node)?;
         }
 
         if is_property_declaration(node) && {
@@ -1267,13 +1267,13 @@ impl EmitResolver for EmitResolverCreateResolver {
     fn get_constant_value(
         &self,
         node_in: &Node, /*EnumMember | PropertyAccessExpression | ElementAccessExpression*/
-    ) -> Option<StringOrNumber> {
+    ) -> io::Result<Option<StringOrNumber>> {
         let node = get_parse_tree_node(
             Some(node_in),
             Some(|node: &Node| self.type_checker.can_have_constant_value(node)),
         );
         node.as_ref()
-            .and_then(|node| self.type_checker.get_constant_value(node))
+            .try_and_then(|node| self.type_checker.get_constant_value(node))
     }
 
     fn get_referenced_value_declaration(
@@ -1504,7 +1504,7 @@ impl EmitResolver for EmitResolverCreateResolver {
                         Some(flags),
                         Some(tracker.clone()),
                         bundled,
-                    ),
+                    )?,
             });
         }
         let sym = sym.unwrap();
@@ -1519,7 +1519,7 @@ impl EmitResolver for EmitResolverCreateResolver {
                     Some(flags),
                     Some(tracker.clone()),
                     bundled,
-                ),
+                )?,
         };
         Ok(ret)
     }

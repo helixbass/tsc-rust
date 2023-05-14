@@ -82,7 +82,7 @@ impl TypeChecker {
             None
         };
         for i in 2..node_as_call_expression.arguments.len() {
-            self.check_expression_cached(&node_as_call_expression.arguments[i], None);
+            self.check_expression_cached(&node_as_call_expression.arguments[i], None)?;
         }
 
         if specifier_type.flags().intersects(TypeFlags::Undefined)
@@ -111,7 +111,7 @@ impl TypeChecker {
                     None,
                     None,
                     None,
-                );
+                )?;
             }
         }
 
@@ -165,13 +165,13 @@ impl TypeChecker {
             new_symbol_links.target = self.resolve_symbol(Some(symbol), None)?;
         }
         member_table.insert(InternalSymbolName::Default.to_owned(), new_symbol);
-        Ok(self.create_anonymous_type(
+        self.create_anonymous_type(
             anonymous_symbol,
             Gc::new(GcCell::new(member_table)),
             vec![],
             vec![],
             vec![],
-        ))
+        )
     }
 
     pub(super) fn get_type_with_synthetic_default_only(
@@ -327,10 +327,10 @@ impl TypeChecker {
             );
         }
         if self.language_version < ScriptTarget::ES2015 {
-            self.check_external_emit_helpers(node, ExternalEmitHelpers::MakeTemplateObject);
+            self.check_external_emit_helpers(node, ExternalEmitHelpers::MakeTemplateObject)?;
         }
         let signature = self.get_resolved_signature_(node, None, None)?;
-        self.check_deprecated_signature(signature.clone(), node);
+        self.check_deprecated_signature(signature.clone(), node)?;
         self.get_return_type_of_signature(signature)
     }
 
@@ -423,7 +423,7 @@ impl TypeChecker {
             }
             return Ok(self.get_regular_type_of_literal_type(&expr_type));
         }
-        self.check_source_element(Some(type_));
+        self.check_source_element(Some(type_))?;
         expr_type = self.get_regular_type_of_object_literal(
             &*self.get_base_type_of_literal_type(&expr_type)?,
         )?;
@@ -437,7 +437,7 @@ impl TypeChecker {
                     err_node,
                     Some(Cow::Borrowed(&Diagnostics::Conversion_of_type_0_to_type_1_may_be_a_mistake_because_neither_type_sufficiently_overlaps_with_the_other_If_this_was_intentional_convert_the_expression_to_unknown_first)),
                     None,
-                );
+                )?;
             }
         }
         Ok(target_type)
@@ -502,7 +502,7 @@ impl TypeChecker {
                 if self.is_error_type(&type_) {
                     self.error_type()
                 } else {
-                    self.create_new_target_expression_type(&type_)
+                    self.create_new_target_expression_type(&type_)?
                 }
             }
             _ => Debug_.assert_never(node.as_meta_property().keyword_token, None),

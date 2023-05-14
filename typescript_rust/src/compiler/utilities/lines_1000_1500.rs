@@ -3,13 +3,12 @@ use regex::Regex;
 use std::borrow::Borrow;
 use std::convert::{TryFrom, TryInto};
 
-
 use crate::{
     concatenate, contains_gc, create_file_diagnostic, create_scanner, create_text_span,
-    create_text_span_from_bounds, every, for_each_child_bool,
-    get_combined_modifier_flags, get_combined_node_flags, get_emit_flags, get_end_line_position,
-    get_leading_comment_ranges, get_line_and_character_of_position, get_source_file_of_node,
-    get_trailing_comment_ranges, has_effective_readonly_modifier, has_static_modifier, is_accessor,
+    create_text_span_from_bounds, every, for_each_child_bool, get_combined_modifier_flags,
+    get_combined_node_flags, get_emit_flags, get_end_line_position, get_leading_comment_ranges,
+    get_line_and_character_of_position, get_source_file_of_node, get_trailing_comment_ranges,
+    has_effective_readonly_modifier, has_static_modifier, is_accessor,
     is_expression_with_type_arguments_in_class_extends_clause, is_function_declaration,
     is_function_like, is_identifier, is_import_type_node, is_jsdoc, is_jsx_text,
     is_literal_type_node, is_meta_property, is_parameter_property_declaration,
@@ -758,7 +757,7 @@ fn try_for_each_yield_expression_traverse<TError>(
             visitor(node)?;
             let operand = node.as_yield_expression().expression.as_ref();
             if let Some(operand) = operand {
-                try_for_each_yield_expression_traverse(operand, visitor);
+                try_for_each_yield_expression_traverse(operand, visitor)?;
             }
             return Ok(());
         }
@@ -775,7 +774,7 @@ fn try_for_each_yield_expression_traverse<TError>(
                         try_for_each_yield_expression_traverse(
                             &node_name.as_computed_property_name().expression,
                             visitor,
-                        );
+                        )?;
                         return Ok(());
                     }
                 }

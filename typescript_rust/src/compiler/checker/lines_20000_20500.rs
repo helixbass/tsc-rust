@@ -42,7 +42,7 @@ impl CheckTypeRelatedTo {
                         None,
                         None,
                     )?]),
-                );
+                )?;
             } else {
                 self.report_error(
                     Cow::Borrowed(&Diagnostics::_0_and_1_index_signatures_are_incompatible),
@@ -60,7 +60,7 @@ impl CheckTypeRelatedTo {
                             None,
                         )?,
                     ]),
-                );
+                )?;
             };
         }
         Ok(related)
@@ -151,7 +151,7 @@ impl CheckTypeRelatedTo {
                     self.type_checker
                         .type_to_string_(source, Option::<&Node>::None, None, None)?,
                 ]),
-            );
+            )?;
         }
         Ok(Ternary::False)
     }
@@ -190,9 +190,9 @@ impl CheckTypeRelatedTo {
         source_signature: &Signature,
         target_signature: &Signature,
         report_errors: bool,
-    ) -> bool {
+    ) -> io::Result<bool> {
         if source_signature.declaration.is_none() || target_signature.declaration.is_none() {
-            return true;
+            return Ok(true);
         }
         let source_signature_declaration = source_signature.declaration.as_ref().unwrap();
         let target_signature_declaration = target_signature.declaration.as_ref().unwrap();
@@ -207,19 +207,19 @@ impl CheckTypeRelatedTo {
         );
 
         if target_accessibility == ModifierFlags::Private {
-            return true;
+            return Ok(true);
         }
 
         if target_accessibility == ModifierFlags::Protected
             && source_accessibility != ModifierFlags::Private
         {
-            return true;
+            return Ok(true);
         }
 
         if target_accessibility != ModifierFlags::Protected
             && source_accessibility == ModifierFlags::None
         {
-            return true;
+            return Ok(true);
         }
 
         if report_errors {
@@ -235,10 +235,10 @@ impl CheckTypeRelatedTo {
                         .visibility_to_string(target_accessibility)
                         .to_owned(),
                 ]),
-            );
+            )?;
         }
 
-        false
+        Ok(false)
     }
 }
 
@@ -408,7 +408,7 @@ impl TypeChecker {
 
     pub(super) fn is_weak_type(&self, type_: &Type) -> bool {
         if type_.flags().intersects(TypeFlags::Object) {
-            let resolved = self.resolve_structured_type_members(type_);
+            let resolved = self.resolve_structured_type_members(type_)?;
             let resolved_as_resolved_type = resolved.as_resolved_type();
             return resolved_as_resolved_type.call_signatures().is_empty()
                 && resolved_as_resolved_type.construct_signatures().is_empty()

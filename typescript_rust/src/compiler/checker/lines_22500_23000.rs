@@ -685,7 +685,7 @@ impl TypeChecker {
         &self,
         type_: &Type, /*ObjectType*/
     ) -> io::Result<bool> {
-        let resolved = self.resolve_structured_type_members(type_);
+        let resolved = self.resolve_structured_type_members(type_)?;
         let resolved_as_resolved_type = resolved.as_resolved_type();
         let ret = !resolved_as_resolved_type.call_signatures().is_empty()
             || !resolved_as_resolved_type.construct_signatures().is_empty()

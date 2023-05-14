@@ -340,7 +340,7 @@ impl TypeChecker {
         let mut captured_by_arrow_function = false;
 
         if container.kind() == SyntaxKind::Constructor {
-            self.check_this_before_super(node, &container, &Diagnostics::super_must_be_called_before_accessing_this_in_the_constructor_of_a_derived_class);
+            self.check_this_before_super(node, &container, &Diagnostics::super_must_be_called_before_accessing_this_in_the_constructor_of_a_derived_class)?;
         }
 
         if container.kind() == SyntaxKind::ArrowFunction {
@@ -840,7 +840,7 @@ impl TypeChecker {
             self.check_this_before_super(
                 node, container.as_ref().unwrap(),
                 &Diagnostics::super_must_be_called_before_accessing_a_property_of_super_in_the_constructor_of_a_derived_class
-            );
+            )?;
         }
 
         if is_static(container.as_ref().unwrap()) || is_call_expression {

@@ -180,16 +180,19 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn get_single_call_signature(&self, type_: &Type) -> Option<Gc<Signature>> {
+    pub(super) fn get_single_call_signature(
+        &self,
+        type_: &Type,
+    ) -> io::Result<Option<Gc<Signature>>> {
         self.get_single_signature(type_, SignatureKind::Call, false)
     }
 
     pub(super) fn get_single_call_or_construct_signature(
         &self,
         type_: &Type,
-    ) -> Option<Gc<Signature>> {
-        self.get_single_signature(type_, SignatureKind::Call, false)
-            .or_else(|| self.get_single_signature(type_, SignatureKind::Construct, false))
+    ) -> io::Result<Option<Gc<Signature>>> {
+        self.get_single_signature(type_, SignatureKind::Call, false)?
+            .try_or_else(|| self.get_single_signature(type_, SignatureKind::Construct, false))
     }
 
     pub(super) fn get_single_signature(
@@ -197,9 +200,9 @@ impl TypeChecker {
         type_: &Type,
         kind: SignatureKind,
         allow_members: bool,
-    ) -> Option<Gc<Signature>> {
+    ) -> io::Result<Option<Gc<Signature>>> {
         if type_.flags().intersects(TypeFlags::Object) {
-            let resolved = self.resolve_structured_type_members(type_);
+            let resolved = self.resolve_structured_type_members(type_)?;
             let resolved_as_resolved_type = resolved.as_resolved_type();
             if allow_members
                 || resolved_as_resolved_type.properties().is_empty()
@@ -209,17 +212,19 @@ impl TypeChecker {
                     && resolved_as_resolved_type.call_signatures().len() == 1
                     && resolved_as_resolved_type.construct_signatures().is_empty()
                 {
-                    return Some(resolved_as_resolved_type.call_signatures()[0].clone());
+                    return Ok(Some(resolved_as_resolved_type.call_signatures()[0].clone()));
                 }
                 if kind == SignatureKind::Construct
                     && resolved_as_resolved_type.construct_signatures().len() == 1
                     && resolved_as_resolved_type.call_signatures().is_empty()
                 {
-                    return Some(resolved_as_resolved_type.construct_signatures()[0].clone());
+                    return Ok(Some(
+                        resolved_as_resolved_type.construct_signatures()[0].clone(),
+                    ));
                 }
             }
         }
-        None
+        Ok(None)
     }
 
     pub(super) fn instantiate_signature_in_context_of(
@@ -259,7 +264,7 @@ impl TypeChecker {
             },
         )?;
         if inference_context.is_none() {
-            self.apply_to_return_types(
+            self.try_apply_to_return_types(
                 contextual_signature.clone(),
                 signature.clone(),
                 |source: &Type, target: &Type| {
@@ -269,9 +274,11 @@ impl TypeChecker {
                         target,
                         Some(InferencePriority::ReturnType),
                         None,
-                    );
+                    )?;
+
+                    Ok(())
                 },
-            );
+            )?;
         }
         self.get_signature_instantiation(
             signature.clone(),
@@ -302,7 +309,7 @@ impl TypeChecker {
             &param_type,
             None,
             None,
-        );
+        )?;
         self.get_inferred_types(&context)
     }
 
@@ -363,7 +370,7 @@ impl TypeChecker {
                     .as_deref(),
                 );
                 let instantiated_type = self.instantiate_type(contextual_type, outer_mapper)?;
-                let contextual_signature = self.get_single_call_signature(&instantiated_type);
+                let contextual_signature = self.get_single_call_signature(&instantiated_type)?;
                 let inference_source_type = if let Some(ref contextual_signature_type_parameters) =
                     contextual_signature
                         .as_ref()
@@ -386,7 +393,7 @@ impl TypeChecker {
                     &inference_target_type,
                     Some(InferencePriority::ReturnType),
                     None,
-                );
+                )?;
                 let return_context = self.create_inference_context(
                     &signature.maybe_type_parameters().clone().unwrap(),
                     Some(signature.clone()),
@@ -407,7 +414,7 @@ impl TypeChecker {
                     &inference_target_type,
                     None,
                     None,
-                );
+                )?;
                 context.set_return_mapper(
                     if some(
                         Some(&**return_context.inferences()),
@@ -466,7 +473,7 @@ impl TypeChecker {
                 this_type,
                 None,
                 None,
-            );
+            )?;
         }
 
         for i in 0..arg_count {
@@ -479,7 +486,7 @@ impl TypeChecker {
                     Some(context.clone()),
                     check_mode,
                 )?;
-                self.infer_types(&context.inferences(), &arg_type, &param_type, None, None);
+                self.infer_types(&context.inferences(), &arg_type, &param_type, None, None)?;
             }
         }
 
@@ -492,7 +499,7 @@ impl TypeChecker {
                 Some(context.clone()),
                 check_mode,
             )?;
-            self.infer_types(&context.inferences(), &spread_type, rest_type, None, None);
+            self.infer_types(&context.inferences(), &spread_type, rest_type, None, None)?;
         }
 
         self.get_inferred_types(&context)
@@ -1015,7 +1022,7 @@ impl TypeChecker {
                         Some(&**arg),
                         &check_arg_type,
                         &param_type,
-                    );
+                    )?;
                     return Ok(Some(error_output_container.errors())) /*|| emptyArray*/;
                 }
             }
@@ -1070,7 +1077,7 @@ impl TypeChecker {
                     error_node,
                     &spread_type,
                     rest_type,
-                );
+                )?;
                 return Ok(Some(error_output_container.errors())) /*|| emptyArray*/;
             }
         }

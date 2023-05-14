@@ -84,7 +84,7 @@ pub fn execute_command_line(
                 watch_options.as_deref(),
                 &projects,
                 errors,
-            );
+            )?;
             return Ok(());
         }
     }
@@ -127,7 +127,7 @@ impl From<Rc<dyn EmitAndSemanticDiagnosticsBuilderProgram>>
 pub(super) fn report_watch_mode_without_sys_support(
     sys: &dyn System,
     report_diagnostic: &dyn DiagnosticReporter,
-) -> bool {
+) -> io::Result<bool> {
     if !sys.is_watch_file_supported() || !sys.is_watch_directory_supported() {
         report_diagnostic.call(Gc::new(
             create_compiler_diagnostic(
@@ -135,10 +135,10 @@ pub(super) fn report_watch_mode_without_sys_support(
                 Some(vec!["--watch".to_owned()]),
             )
             .into(),
-        ));
+        ))?;
         sys.exit(Some(ExitStatus::DiagnosticsPresent_OutputsSkipped));
     }
-    false
+    Ok(false)
 }
 
 pub(super) fn perform_build(
@@ -194,12 +194,12 @@ pub(super) fn perform_build(
                 Some(vec!["--build".to_owned()]),
             )
             .into(),
-        ));
+        ))?;
         sys.exit(Some(ExitStatus::DiagnosticsPresent_OutputsSkipped));
     }
 
     if matches!(build_options.watch, Some(true)) {
-        if report_watch_mode_without_sys_support(&**sys, &**report_diagnostic) {
+        if report_watch_mode_without_sys_support(&**sys, &**report_diagnostic)? {
             return Ok(());
         }
         let mut build_host = create_solution_builder_with_watch_host(
@@ -346,7 +346,7 @@ pub(super) fn perform_compilation(
         config_file_parsing_diagnostics: Some(get_config_file_parsing_diagnostics(config)),
         old_program: None,
     };
-    let program = create_program(program_options);
+    let program = create_program(program_options)?;
     let exit_status = emit_files_and_report_errors_and_get_exit_status(
         program.clone(),
         report_diagnostic,

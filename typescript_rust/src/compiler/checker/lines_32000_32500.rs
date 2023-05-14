@@ -78,7 +78,7 @@ impl TypeChecker {
                         vec![return_only_signature],
                         vec![],
                         vec![],
-                    );
+                    )?;
                     let return_only_type_as_object_flags_type =
                         return_only_type.as_object_flags_type();
                     return_only_type_as_object_flags_type.set_object_flags(
@@ -97,7 +97,7 @@ impl TypeChecker {
             self.check_grammar_for_generator(node);
         }
 
-        self.contextually_check_function_expression_or_object_literal_method(node, check_mode);
+        self.contextually_check_function_expression_or_object_literal_method(node, check_mode)?;
 
         self.get_type_of_symbol(&self.get_symbol_of_node(node)?.unwrap())
     }
@@ -140,7 +140,7 @@ impl TypeChecker {
                                 signature,
                                 contextual_signature.clone(),
                                 inference_context.as_ref().unwrap(),
-                            );
+                            )?;
                         }
                         let instantiated_contextual_signature =
                             if let Some(inference_context) = inference_context.as_ref() {
@@ -155,9 +155,9 @@ impl TypeChecker {
                         self.assign_contextual_parameter_types(
                             signature,
                             &instantiated_contextual_signature,
-                        );
+                        )?;
                     } else {
-                        self.assign_non_contextual_parameter_types(signature);
+                        self.assign_non_contextual_parameter_types(signature)?;
                     }
                 }
                 if contextual_signature.is_some()
@@ -169,7 +169,7 @@ impl TypeChecker {
                         *signature.maybe_resolved_return_type_mut() = Some(return_type);
                     }
                 }
-                self.check_signature_declaration(node);
+                self.check_signature_declaration(node)?;
             }
         }
 
@@ -190,7 +190,7 @@ impl TypeChecker {
         self.check_all_code_paths_in_non_void_function_return_or_throw(
             node,
             return_type.as_deref(),
-        );
+        )?;
 
         if let Some(node_body) = node.as_function_like_declaration().maybe_body().as_ref() {
             if get_effective_return_type_node(node).is_none() {
@@ -198,7 +198,7 @@ impl TypeChecker {
             }
 
             if node_body.kind() == SyntaxKind::Block {
-                self.check_source_element(Some(&**node_body));
+                self.check_source_element(Some(&**node_body))?;
             } else {
                 let expr_type = self.check_expression(node_body, None, None)?;
                 let return_or_promised_type = return_type
@@ -220,7 +220,7 @@ impl TypeChecker {
                             Some(&**node_body),
                             None,
                             None,
-                        );
+                        )?;
                     } else {
                         self.check_type_assignable_to_and_optionally_elaborate(
                             &expr_type,
@@ -229,7 +229,7 @@ impl TypeChecker {
                             Some(&**node_body),
                             None,
                             None,
-                        );
+                        )?;
                     }
                 }
             }
@@ -472,7 +472,7 @@ impl TypeChecker {
                     None,
                 );
             }
-            self.check_delete_expression_must_be_optional(&expr, symbol);
+            self.check_delete_expression_must_be_optional(&expr, symbol)?;
         }
         Ok(self.boolean_type())
     }
@@ -715,7 +715,7 @@ impl TypeChecker {
         }
         Ok(match node_as_prefix_unary_expression.operator {
             SyntaxKind::PlusToken | SyntaxKind::MinusToken | SyntaxKind::TildeToken => {
-                self.check_non_null_type(&operand_type, &node_as_prefix_unary_expression.operand);
+                self.check_non_null_type(&operand_type, &node_as_prefix_unary_expression.operand)?;
                 if self.maybe_type_of_kind(&operand_type, TypeFlags::ESSymbolLike) {
                     self.error(
                         Some(&*node_as_prefix_unary_expression.operand),
@@ -750,7 +750,7 @@ impl TypeChecker {
                 self.get_unary_result_type(&operand_type)?
             }
             SyntaxKind::ExclamationToken => {
-                self.check_truthiness_expression(&node_as_prefix_unary_expression.operand, None);
+                self.check_truthiness_expression(&node_as_prefix_unary_expression.operand, None)?;
                 let facts = self.get_type_facts(&operand_type, None)?
                     & (TypeFacts::Truthy | TypeFacts::Falsy);
                 match facts {
@@ -949,7 +949,7 @@ impl TypeChecker {
         let mut left_type = left_type.type_wrapper();
         if is_private_identifier(left) {
             if self.language_version < ScriptTarget::ESNext {
-                self.check_external_emit_helpers(left, ExternalEmitHelpers::ClassPrivateFieldIn);
+                self.check_external_emit_helpers(left, ExternalEmitHelpers::ClassPrivateFieldIn)?;
             }
             if (*self.get_node_links(left))
                 .borrow()
@@ -959,7 +959,7 @@ impl TypeChecker {
             {
                 let is_unchecked_js =
                     self.is_unchecked_js_suggestion(Some(left), right_type.maybe_symbol(), true);
-                self.report_nonexistent_property(left, right_type, is_unchecked_js);
+                self.report_nonexistent_property(left, right_type, is_unchecked_js)?;
             }
         } else {
             left_type = self.check_non_null_type(&left_type, left)?;

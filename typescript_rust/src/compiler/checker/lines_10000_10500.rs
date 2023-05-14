@@ -93,7 +93,7 @@ impl TypeChecker {
                                     *type_as_interface_type.maybe_resolved_base_types() =
                                         Some(Gc::new(resolved_base_types));
                                 } else {
-                                    self.report_circular_base_type(declaration, type_);
+                                    self.report_circular_base_type(declaration, type_)?;
                                 }
                             } else {
                                 self.error(
@@ -177,7 +177,7 @@ impl TypeChecker {
                     symbol.maybe_value_declaration().as_ref().try_and_then(
                         |value_declaration| self.get_assigned_class_symbol(value_declaration),
                     )?,
-                );
+                )?;
             if let Some(merged) = merged {
                 symbol = merged.clone();
                 links = merged.as_transient_symbol().symbol_links();
@@ -449,7 +449,7 @@ impl TypeChecker {
                 for declaration in symbol_declarations {
                     if declaration.kind() == SyntaxKind::EnumDeclaration {
                         for member in &declaration.as_enum_declaration().members {
-                            let value = self.get_enum_member_value(member);
+                            let value = self.get_enum_member_value(member)?;
                             let member_type =
                                 self.get_fresh_type_of_literal_type(&self.get_enum_literal_type(
                                     value.unwrap_or_else(|| Number::new(0.0).into()),

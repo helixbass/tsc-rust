@@ -243,7 +243,7 @@ impl TypeChecker {
                     head_message,
                     containing_message_chain.clone(),
                     Some(result_obj.clone()),
-                );
+                )?;
                 let diagnostic = result_obj.get_error(result_obj.errors_len() - 1).unwrap();
                 add_related_info(
                     &diagnostic,
@@ -285,7 +285,7 @@ impl TypeChecker {
         ) {
             return Ok(false);
         }
-        let source_sig = self.get_single_call_signature(source);
+        let source_sig = self.get_single_call_signature(source)?;
         if source_sig.is_none() {
             return Ok(false);
         }
@@ -1231,7 +1231,7 @@ impl TypeChecker {
                     .clone()
                     .unwrap_or_else(|| target_rest_type.clone().unwrap()),
                 report_unreliable_markers.clone(),
-            );
+            )?;
         }
         if source_rest_type.is_some() && target_rest_type.is_some() && source_count != target_count
         {
@@ -1280,7 +1280,7 @@ impl TypeChecker {
                                 &Diagnostics::The_this_types_of_each_signature_are_incompatible,
                             ),
                             None,
-                        );
+                        )?;
                     }
                     return Ok(Ternary::False);
                 }
@@ -1321,12 +1321,12 @@ impl TypeChecker {
                     let source_sig = if check_mode.intersects(SignatureCheckMode::Callback) {
                         None
                     } else {
-                        self.get_single_call_signature(&*self.get_non_nullable_type(source_type)?)
+                        self.get_single_call_signature(&*self.get_non_nullable_type(source_type)?)?
                     };
                     let target_sig = if check_mode.intersects(SignatureCheckMode::Callback) {
                         None
                     } else {
-                        self.get_single_call_signature(&*self.get_non_nullable_type(target_type)?)
+                        self.get_single_call_signature(&*self.get_non_nullable_type(target_type)?)?
                     };
                     let callbacks = matches!(
                         (source_sig.as_ref(), target_sig.as_ref()),
@@ -1402,7 +1402,7 @@ impl TypeChecker {
                                     )
                                     .to_owned(),
                                 ]),
-                            );
+                            )?;
                         }
                         return Ok(Ternary::False);
                     }
@@ -1476,7 +1476,7 @@ impl TypeChecker {
                                 None,
                                 None,
                             )?]),
-                        );
+                        )?;
                     }
                     return Ok(Ternary::False);
                 }
@@ -1523,7 +1523,7 @@ pub(super) struct ElaborationIteratorItem {
 }
 
 pub(super) type ErrorReporter<'a> =
-    &'a mut dyn FnMut(Cow<'static, DiagnosticMessage>, Option<Vec<String>>);
+    &'a mut dyn FnMut(Cow<'static, DiagnosticMessage>, Option<Vec<String>>) -> io::Result<()>;
 
 pub(super) trait CheckTypeContainingMessageChain: Trace + Finalize {
     fn get(&self) -> io::Result<Option<Rc<RefCell<DiagnosticMessageChain>>>>;

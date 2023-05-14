@@ -377,7 +377,7 @@ impl TypeChecker {
                     access_expression,
                     object_type,
                     self.get_index_info_of_type_(object_type, &self.number_type())?,
-                );
+                )?;
                 return self.try_map_type(
                     object_type,
                     &mut |t| -> io::Result<_> {
@@ -482,7 +482,7 @@ impl TypeChecker {
                     access_expression,
                     object_type,
                     Some(index_info),
-                );
+                )?;
                 return Ok(Some(
                     if access_flags.intersects(AccessFlags::IncludeUndefined) {
                         self.get_union_type(

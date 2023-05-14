@@ -1119,7 +1119,7 @@ pub fn write_file(
     data: &str,
     write_byte_order_mark: bool,
     source_files: Option<&[Gc<Node /*SourceFile*/>]>,
-) {
+) -> io::Result<()> {
     write_file.call(
         file_name,
         data,
@@ -1134,7 +1134,9 @@ pub fn write_file(
             ))
         }),
         source_files,
-    );
+    )?;
+
+    Ok(())
 }
 
 fn ensure_directories_exist<TCreateDirectory: Fn(&str), TDirectoryExists: Fn(&str) -> bool>(

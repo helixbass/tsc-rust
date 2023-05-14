@@ -340,7 +340,7 @@ impl Program {
                     source_file
                 },
                 cancellation_token,
-            );
+            )?;
 
         // performance.mark("beforeEmit");
 

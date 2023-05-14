@@ -685,7 +685,7 @@ pub trait BinaryExpressionStateMachine: Trace + Finalize {
         _operator_token: &Node, /*BinaryOperatorToken*/
         _user_state: Self::TState,
         _node: &Node, /*BinaryExpression*/
-    ) {
+    ) -> io::Result<()> {
         panic!("Shouldn't call default on_operator()")
     }
 

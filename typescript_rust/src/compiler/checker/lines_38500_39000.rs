@@ -7,6 +7,7 @@ use std::rc::Rc;
 use std::{borrow::Borrow, io};
 
 use super::CheckTypeContainingMessageChain;
+use crate::try_for_each;
 use crate::{
     __String, chain_diagnostic_messages, continue_if_none,
     create_diagnostic_for_node_from_message_chain, escape_leading_underscores, first, for_each,
@@ -56,9 +57,9 @@ impl TypeChecker {
             }
 
             if is_constructor_declaration(member) {
-                for_each(
+                try_for_each(
                     &member.as_constructor_declaration().parameters(),
-                    |param: &Gc<Node>, _| -> Option<()> {
+                    |param: &Gc<Node>, _| -> io::Result<Option<()>> {
                         if is_parameter_property_declaration(param, member) {
                             self.check_existing_member_for_override_modifier(
                                 node,
@@ -70,11 +71,11 @@ impl TypeChecker {
                                 param,
                                 true,
                                 None,
-                            );
+                            )?;
                         }
-                        None
+                        Ok(None)
                     },
-                );
+                )?;
             }
             self.check_existing_member_for_override_modifier(
                 node,
@@ -86,7 +87,7 @@ impl TypeChecker {
                 member,
                 false,
                 None,
-            );
+            )?;
         }
 
         Ok(())
@@ -306,7 +307,7 @@ impl TypeChecker {
                 Some(broad_diag),
                 None,
                 None,
-            );
+            )?;
         }
 
         Ok(())

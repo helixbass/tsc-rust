@@ -58,7 +58,7 @@ impl TypeChecker {
                         &*self.get_type_at_position(&context, i)?,
                         None,
                         None,
-                    );
+                    )?;
                 }
             }
         }
@@ -72,7 +72,7 @@ impl TypeChecker {
                 inference_context.non_fixing_mapper(),
                 None,
             )?;
-            self.assign_contextual_parameter_types(signature, &instantiated_context);
+            self.assign_contextual_parameter_types(signature, &instantiated_context)?;
             let rest_pos = self.get_parameter_count(&context)? - 1;
             self.infer_types(
                 &inference_context.inferences(),
@@ -80,7 +80,7 @@ impl TypeChecker {
                 rest_type,
                 None,
                 None,
-            );
+            )?;
         }
 
         Ok(())
@@ -115,7 +115,7 @@ impl TypeChecker {
                 self.assign_parameter_type(
                     signature.maybe_this_parameter().as_ref().unwrap(),
                     Some(self.get_type_of_symbol(context_this_parameter)?),
-                );
+                )?;
             }
         }
         let len = signature.parameters().len()
@@ -130,7 +130,7 @@ impl TypeChecker {
                 .is_none()
             {
                 let contextual_parameter_type = self.try_get_type_at_position(context, i)?;
-                self.assign_parameter_type(parameter, contextual_parameter_type);
+                self.assign_parameter_type(parameter, contextual_parameter_type)?;
             }
         }
         if signature_has_rest_parameter(signature) {
@@ -140,20 +140,25 @@ impl TypeChecker {
                     .is_none()
             {
                 let contextual_parameter_type = self.get_rest_type_at_position(context, len)?;
-                self.assign_parameter_type(parameter, Some(contextual_parameter_type));
+                self.assign_parameter_type(parameter, Some(contextual_parameter_type))?;
             }
         }
 
         Ok(())
     }
 
-    pub(super) fn assign_non_contextual_parameter_types(&self, signature: &Signature) {
+    pub(super) fn assign_non_contextual_parameter_types(
+        &self,
+        signature: &Signature,
+    ) -> io::Result<()> {
         if let Some(signature_this_parameter) = signature.maybe_this_parameter().as_ref() {
-            self.assign_parameter_type(signature_this_parameter, Option::<&Type>::None);
+            self.assign_parameter_type(signature_this_parameter, Option::<&Type>::None)?;
         }
         for parameter in signature.parameters() {
-            self.assign_parameter_type(parameter, Option::<&Type>::None);
+            self.assign_parameter_type(parameter, Option::<&Type>::None)?;
         }
+
+        Ok(())
     }
 
     pub(super) fn assign_parameter_type(
@@ -177,7 +182,7 @@ impl TypeChecker {
                     links.borrow_mut().type_ =
                         Some(self.get_type_from_binding_pattern(&declaration_name, None, None)?);
                 }
-                self.assign_binding_element_types(&declaration_name);
+                self.assign_binding_element_types(&declaration_name)?;
             }
         }
 
@@ -196,7 +201,7 @@ impl TypeChecker {
                         .borrow_mut()
                         .type_ = self.get_type_for_binding_element(element)?;
                 } else {
-                    self.assign_binding_element_types(&element_as_binding_element.name());
+                    self.assign_binding_element_types(&element_as_binding_element.name())?;
                 }
             }
         }
@@ -272,7 +277,10 @@ impl TypeChecker {
         Ok(promise_type)
     }
 
-    pub(super) fn create_new_target_expression_type(&self, target_type: &Type) -> Gc<Type> {
+    pub(super) fn create_new_target_expression_type(
+        &self,
+        target_type: &Type,
+    ) -> io::Result<Gc<Type>> {
         let symbol: Gc<Symbol> = self
             .create_symbol(SymbolFlags::None, "NewTargetExpression".to_owned(), None)
             .into();
@@ -405,21 +413,21 @@ impl TypeChecker {
                     func,
                     yield_type,
                     Some(WideningKind::GeneratorYield),
-                );
+                )?;
             }
             if let Some(return_type) = return_type.as_ref() {
                 self.report_errors_from_widening(
                     func,
                     return_type,
                     Some(WideningKind::FunctionReturn),
-                );
+                )?;
             }
             if let Some(next_type) = next_type.as_ref() {
                 self.report_errors_from_widening(
                     func,
                     next_type,
                     Some(WideningKind::GeneratorNext),
-                );
+                )?;
             }
 
             if matches!(return_type.as_ref(), Some(return_type) if self.is_unit_type(return_type))
@@ -559,11 +567,11 @@ impl TypeChecker {
                     );
                 }
 
-                (resolver.get_global_iterable_iterator_type)(self, true);
+                (resolver.get_global_iterable_iterator_type)(self, true)?;
                 return Ok(self.empty_object_type());
             }
 
-            (resolver.get_global_generator_type)(self, true);
+            (resolver.get_global_generator_type)(self, true)?;
             return Ok(self.empty_object_type());
         }
 

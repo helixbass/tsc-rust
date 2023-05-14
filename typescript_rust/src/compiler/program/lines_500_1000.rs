@@ -809,11 +809,11 @@ fn should_program_create_new_source_files(
     })
 }
 
-pub fn create_program(root_names_or_options: CreateProgramOptions) -> Gc<Box<Program>> {
+pub fn create_program(root_names_or_options: CreateProgramOptions) -> io::Result<Gc<Box<Program>>> {
     let create_program_options = root_names_or_options;
     let program = Program::new(create_program_options);
-    program.create();
-    program
+    program.create()?;
+    Ok(program)
 }
 
 impl Program {
@@ -1104,7 +1104,7 @@ impl Program {
                                                     index,
                                                 }
                                             ))
-                                        );
+                                        )?;
                                     }
                                 }
                             } else {
@@ -1117,7 +1117,7 @@ impl Program {
                                                 index,
                                             }
                                         ))
-                                    );
+                                    )?;
                                 } else if get_emit_module_kind(&parsed_ref.command_line.options) == ModuleKind::None {
                                     let mut got_common_source_directory: Option<String> = Default::default();
                                     for file_name in &parsed_ref.command_line.file_names {
@@ -1142,7 +1142,7 @@ impl Program {
                                                         index,
                                                     }
                                                 ))
-                                            );
+                                            )?;
                                         }
                                     }
                                 }
@@ -1153,7 +1153,7 @@ impl Program {
             }
 
             // tracing?.push(tracing.Phase.Program, "processRootFiles", { count: rootNames.length });
-            for_each(&*self.root_names(), |name, index| {
+            try_for_each(&*self.root_names(), |name, index| -> io::Result<_> {
                 self.process_root_file(
                     name,
                     false,
@@ -1162,9 +1162,9 @@ impl Program {
                         kind: FileIncludeKind::RootFile,
                         index,
                     })),
-                );
-                Option::<()>::None
-            });
+                )?;
+                Ok(Option::<()>::None)
+            })?;
             // tracing?.pop();
 
             let type_references = if !self.root_names().is_empty() {
@@ -1208,7 +1208,7 @@ impl Program {
                                     .and_then(|resolution| resolution.package_id.clone()),
                             },
                         )),
-                    );
+                    )?;
                 }
                 // tracing?.pop();
             }
@@ -1224,7 +1224,7 @@ impl Program {
                             kind: FileIncludeKind::LibFile,
                             index: None,
                         })),
-                    );
+                    )?;
                 } else {
                     try_maybe_for_each(
                         self.options.lib.as_ref(),
@@ -1237,10 +1237,10 @@ impl Program {
                                     kind: FileIncludeKind::LibFile,
                                     index: Some(index),
                                 })),
-                            );
+                            )?;
                             Ok(None)
                         },
-                    );
+                    )?;
                 }
             }
 
@@ -1801,6 +1801,7 @@ mod _FilesByNameValueDeriveTraceScope {
         }
     }
 }
+use crate::try_for_each;
 pub use _FilesByNameValueDeriveTraceScope::FilesByNameValue;
 
 pub trait ActualResolveModuleNamesWorker: Trace + Finalize {

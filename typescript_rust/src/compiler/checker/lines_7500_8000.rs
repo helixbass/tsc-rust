@@ -195,7 +195,7 @@ impl SymbolTableToDeclarationStatements {
                         } else {
                             ModifierFlags::Export
                         },
-                    );
+                    )?;
                 } else {
                     let statement = get_factory()
                         .create_variable_statement(

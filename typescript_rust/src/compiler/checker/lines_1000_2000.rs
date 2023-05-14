@@ -240,9 +240,9 @@ impl TypeChecker {
         &self,
         source_file: Option<&Node /*SourceFile*/>,
         cancellation_token: Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
-    ) -> Gc<Box<dyn EmitResolver>> {
-        self.get_diagnostics(source_file, cancellation_token);
-        self.emit_resolver()
+    ) -> io::Result<Gc<Box<dyn EmitResolver>>> {
+        self.get_diagnostics(source_file, cancellation_token)?;
+        Ok(self.emit_resolver())
     }
 
     pub(super) fn lookup_or_issue_error(
@@ -598,7 +598,7 @@ impl TypeChecker {
                     target_members.clone().unwrap(),
                     &(**source_members).borrow(),
                     Some(unidirectional),
-                );
+                )?;
             }
             if let Some(source_exports) = source.maybe_exports().as_ref() {
                 let mut target_exports = target.maybe_exports_mut();
@@ -611,7 +611,7 @@ impl TypeChecker {
                     target_exports.clone().unwrap(),
                     &(**source_exports).borrow(),
                     Some(unidirectional),
-                );
+                )?;
             }
             if !unidirectional {
                 self.record_merged_symbol(&target, source);
@@ -850,8 +850,8 @@ impl TypeChecker {
         let combined = Gc::new(GcCell::new(create_symbol_table(
             Option::<&[Gc<Symbol>]>::None,
         )));
-        self.merge_symbol_table(combined.clone(), &(*first).borrow(), None);
-        self.merge_symbol_table(combined.clone(), &(*second).borrow(), None);
+        self.merge_symbol_table(combined.clone(), &(*first).borrow(), None)?;
+        self.merge_symbol_table(combined.clone(), &(*second).borrow(), None)?;
         Some(combined)
     }
 
@@ -896,7 +896,7 @@ impl TypeChecker {
                 self.globals_rc(),
                 &mut module_augmentation.symbol().exports().borrow_mut(),
                 None,
-            );
+            )?;
         } else {
             let module_not_found_error = if !module_name
                 .parent()
@@ -963,11 +963,11 @@ impl TypeChecker {
                             if resolved_exports.contains_key(key)
                                 && !main_module_exports.contains_key(key)
                             {
-                                self.merge_symbol(resolved_exports.get(key).unwrap(), value, None);
+                                self.merge_symbol(resolved_exports.get(key).unwrap(), value, None)?;
                             }
                         }
                     }
-                    self.merge_symbol(&main_module, &module_augmentation.symbol(), None);
+                    self.merge_symbol(&main_module, &module_augmentation.symbol(), None)?;
                 }
             } else {
                 self.error(
@@ -2122,7 +2122,7 @@ impl TypeChecker {
                         self.check_resolved_block_scoped_variable(
                             &export_or_local_symbol,
                             error_location,
-                        );
+                        )?;
                     }
                 }
             }

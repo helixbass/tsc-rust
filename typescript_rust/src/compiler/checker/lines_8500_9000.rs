@@ -999,7 +999,7 @@ impl TypeChecker {
                 &self.filter_type(&widened, |t| t.flags().intersects(!TypeFlags::Nullable)),
                 &self.never_type(),
             ) {
-                self.report_implicit_any(&symbol_value_declaration, &self.any_type(), None);
+                self.report_implicit_any(&symbol_value_declaration, &self.any_type(), None)?;
                 return Ok(self.any_type());
             }
         }
@@ -1032,7 +1032,7 @@ impl TypeChecker {
                 if let Some(s_exports) = s.maybe_exports().as_deref() {
                     let s_exports = (*s_exports).borrow();
                     if !s_exports.is_empty() {
-                        self.merge_symbol_table(exports.clone(), &s_exports, None);
+                        self.merge_symbol_table(exports.clone(), &s_exports, None)?;
                     }
                 }
             }
@@ -1047,11 +1047,11 @@ impl TypeChecker {
             if let Some(s_exports) = s.maybe_exports().as_deref() {
                 let s_exports = (*s_exports).borrow();
                 if !s_exports.is_empty() {
-                    self.merge_symbol_table(exports.clone(), &s_exports, None);
+                    self.merge_symbol_table(exports.clone(), &s_exports, None)?;
                 }
             }
         }
-        let type_ = self.create_anonymous_type(symbol, exports, vec![], vec![], vec![]);
+        let type_ = self.create_anonymous_type(symbol, exports, vec![], vec![], vec![])?;
         let type_as_object_type = type_.as_object_type();
         type_as_object_type
             .set_object_flags(type_as_object_type.object_flags() | ObjectFlags::JSLiteral);
@@ -1083,7 +1083,7 @@ impl TypeChecker {
                     &declared_type,
                     declaration,
                     &type_,
-                );
+                )?;
             }
         }
         if let Some(symbol_parent) = symbol.maybe_parent() {
@@ -1129,14 +1129,14 @@ impl TypeChecker {
             }
             let get_func = self.get_type_of_property_of_type_(&object_lit_type, "get")?;
             if let Some(get_func) = get_func {
-                let get_sig = self.get_single_call_signature(&get_func);
+                let get_sig = self.get_single_call_signature(&get_func)?;
                 if let Some(get_sig) = get_sig {
                     return self.get_return_type_of_signature(get_sig);
                 }
             }
             let set_func = self.get_type_of_property_of_type_(&object_lit_type, "set")?;
             if let Some(set_func) = set_func {
-                let set_sig = self.get_single_call_signature(&set_func);
+                let set_sig = self.get_single_call_signature(&set_func)?;
                 if let Some(set_sig) = set_sig {
                     return self.get_type_of_first_parameter_of_signature(&set_sig);
                 }
@@ -1161,7 +1161,7 @@ impl TypeChecker {
             && kind == AssignmentDeclarationKind::ModuleExports
             && symbol.escaped_name() == InternalSymbolName::ExportEquals
         {
-            let exported_type = self.resolve_structured_type_members(&type_);
+            let exported_type = self.resolve_structured_type_members(&type_)?;
             let mut members = create_symbol_table(Option::<&[Gc<Symbol>]>::None);
             let exported_type_as_resolved_type = exported_type.as_resolved_type();
             copy_entries(
@@ -1283,7 +1283,7 @@ impl TypeChecker {
                     .construct_signatures()
                     .clone(),
                 exported_type_as_resolved_type.index_infos().clone(),
-            );
+            )?;
             let result_as_object_type = result.as_object_type();
             result_as_object_type.set_object_flags(
                 result_as_object_type.object_flags()
@@ -1304,7 +1304,7 @@ impl TypeChecker {
             return Ok(result);
         }
         if self.is_empty_array_literal_type(&type_)? {
-            self.report_implicit_any(expression, &self.any_array_type(), None);
+            self.report_implicit_any(expression, &self.any_array_type(), None)?;
             return Ok(self.any_array_type());
         }
         Ok(type_)

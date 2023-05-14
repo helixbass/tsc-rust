@@ -958,7 +958,7 @@ impl TypeChecker {
 
     pub(super) fn get_type_without_signatures(&self, type_: &Type) -> io::Result<Gc<Type>> {
         if type_.flags().intersects(TypeFlags::Object) {
-            let resolved = self.resolve_structured_type_members(type_);
+            let resolved = self.resolve_structured_type_members(type_)?;
             let resolved_as_resolved_type = resolved.as_resolved_type();
             if !resolved_as_resolved_type.construct_signatures().is_empty()
                 || !resolved_as_resolved_type.call_signatures().is_empty()

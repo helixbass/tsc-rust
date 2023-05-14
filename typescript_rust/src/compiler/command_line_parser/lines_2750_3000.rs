@@ -21,8 +21,8 @@ use crate::{
     set_watch_option_value, starts_with, CommandLineOption, CommandLineOptionInterface,
     CompilerOptions, ConfigFileSpecs, Debug_, Diagnostic, DiagnosticMessage,
     DiagnosticRelatedInformationInterface, Diagnostics, ExtendedConfigCacheEntry, Extension,
-    JsonConversionNotifier, ModuleResolutionKind, Node, NodeInterface, ParseConfigHost, Path,
-    TypeAcquisition, WatchOptions,
+    JsonConversionNotifier, ModuleResolutionKind, Node, NodeInterface, OptionTry, ParseConfigHost,
+    Path, TypeAcquisition, WatchOptions,
 };
 
 pub(super) fn create_compiler_diagnostic_only_if_json<TSourceFile: Borrow<Node>>(
@@ -138,7 +138,7 @@ pub(super) fn parse_config(
             .into(),
         ));
         return Ok(ParsedTsconfigBuilder::default()
-            .raw(json.or_else(|| convert_to_object(source_file.unwrap().borrow(), errors)))
+            .raw(json.try_or_else(|| convert_to_object(source_file.unwrap().borrow(), errors))?)
             .build()
             .unwrap());
     }
@@ -161,7 +161,7 @@ pub(super) fn parse_config(
             &base_path,
             config_file_name,
             errors.clone(),
-        )
+        )?
     };
 
     if own_config
@@ -345,7 +345,7 @@ pub(super) fn parse_own_config_of_json_source_file(
     base_path: &str,
     config_file_name: Option<&str>,
     errors: Gc<GcCell<Vec<Gc<Diagnostic>>>>,
-) -> ParsedTsconfig {
+) -> io::Result<ParsedTsconfig> {
     let mut options = get_default_compiler_options(config_file_name);
     let type_acquisition: RefCell<Option<TypeAcquisition>> = Default::default();
     let typing_options_type_acquisition: RefCell<Option<TypeAcquisition>> = Default::default();
@@ -368,7 +368,7 @@ pub(super) fn parse_own_config_of_json_source_file(
         &root_compiler_options,
     );
     let json =
-        convert_config_file_to_object(source_file, errors.clone(), true, Some(&options_iterator));
+        convert_config_file_to_object(source_file, errors.clone(), true, Some(&options_iterator))?;
 
     let mut type_acquisition = type_acquisition.borrow_mut();
     let typing_options_type_acquisition = typing_options_type_acquisition.borrow();
@@ -415,7 +415,7 @@ pub(super) fn parse_own_config_of_json_source_file(
 
     let watch_options = watch_options.borrow();
     let extended_config_path = extended_config_path.borrow();
-    ParsedTsconfig {
+    Ok(ParsedTsconfig {
         raw: json,
         options: Some(Gc::new(options)),
         watch_options: watch_options
@@ -425,7 +425,7 @@ pub(super) fn parse_own_config_of_json_source_file(
             .as_ref()
             .map(|type_acquisition| Rc::new(type_acquisition.clone())),
         extended_config_path: extended_config_path.clone(),
-    }
+    })
 }
 
 struct ParseOwnConfigOfJsonSourceFileOptionsIterator<'a, THost: ParseConfigHost + ?Sized> {

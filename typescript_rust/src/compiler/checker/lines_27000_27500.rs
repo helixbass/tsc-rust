@@ -63,7 +63,7 @@ impl TypeChecker {
             vec![],
             vec![],
             index_infos,
-        );
+        )?;
         let result_as_object_flags_type = result.as_object_flags_type();
         result_as_object_flags_type.set_object_flags(
             result_as_object_flags_type.object_flags()
@@ -114,8 +114,10 @@ impl TypeChecker {
     pub(super) fn check_jsx_self_closing_element_deferred(
         &self,
         node: &Node, /*JsxSelfClosingElement*/
-    ) {
-        self.check_jsx_opening_like_element_or_opening_fragment(node);
+    ) -> io::Result<()> {
+        self.check_jsx_opening_like_element_or_opening_fragment(node)?;
+
+        Ok(())
     }
 
     pub(super) fn check_jsx_self_closing_element(
@@ -134,7 +136,7 @@ impl TypeChecker {
         let node_as_jsx_element = node.as_jsx_element();
         self.check_jsx_opening_like_element_or_opening_fragment(
             &node_as_jsx_element.opening_element,
-        );
+        )?;
 
         if self.is_jsx_intrinsic_identifier(
             &node_as_jsx_element
@@ -142,7 +144,7 @@ impl TypeChecker {
                 .as_jsx_closing_element()
                 .tag_name,
         ) {
-            self.get_intrinsic_tag_symbol(&node_as_jsx_element.closing_element);
+            self.get_intrinsic_tag_symbol(&node_as_jsx_element.closing_element)?;
         } else {
             self.check_expression(
                 &node_as_jsx_element
@@ -154,7 +156,7 @@ impl TypeChecker {
             )?;
         }
 
-        self.check_jsx_children(node, None);
+        self.check_jsx_children(node, None)?;
 
         Ok(())
     }
@@ -176,7 +178,7 @@ impl TypeChecker {
         let node_as_jsx_fragment = node.as_jsx_fragment();
         self.check_jsx_opening_like_element_or_opening_fragment(
             &node_as_jsx_fragment.opening_fragment,
-        );
+        )?;
 
         let node_source_file = get_source_file_of_node(node);
         let node_source_file_as_source_file = node_source_file.as_source_file();
@@ -201,7 +203,7 @@ impl TypeChecker {
             );
         }
 
-        self.check_jsx_children(node, None);
+        self.check_jsx_children(node, None)?;
         self.get_jsx_element_type_at(node) /*|| anyType*/
     }
 
@@ -319,11 +321,11 @@ impl TypeChecker {
                 if !(*attributes_table).borrow().is_empty() {
                     spread = self.get_spread_type(
                         &spread,
-                        &self.create_jsx_attributes_type(
+                        &*self.create_jsx_attributes_type(
                             &mut object_flags,
                             &attributes,
                             attributes_table.clone(),
-                        ),
+                        )?,
                         attributes.maybe_symbol(),
                         object_flags,
                         false,
@@ -351,7 +353,7 @@ impl TypeChecker {
                             &expr_type,
                             all_attributes_table,
                             attribute_decl,
-                        );
+                        )?;
                     }
                 } else {
                     type_to_intersect = Some(
@@ -373,11 +375,11 @@ impl TypeChecker {
             if !(*attributes_table).borrow().is_empty() {
                 spread = self.get_spread_type(
                     &spread,
-                    &self.create_jsx_attributes_type(
+                    &*self.create_jsx_attributes_type(
                         &mut object_flags,
                         &attributes,
                         attributes_table.clone(),
-                    ),
+                    )?,
                     attributes.maybe_symbol(),
                     object_flags,
                     false,
@@ -492,7 +494,7 @@ impl TypeChecker {
                             vec![],
                             vec![],
                             vec![],
-                        ),
+                        )?,
                         attributes.maybe_symbol(),
                         object_flags,
                         false,
@@ -519,7 +521,7 @@ impl TypeChecker {
                     &mut object_flags,
                     &attributes,
                     attributes_table.clone(),
-                )
+                )?
             } else {
                 spread
             }
@@ -531,7 +533,7 @@ impl TypeChecker {
         object_flags: &mut ObjectFlags,
         attributes: &Node,
         attributes_table: Gc<GcCell<SymbolTable>>,
-    ) -> Gc<Type> {
+    ) -> io::Result<Gc<Type>> {
         *object_flags |= self.fresh_object_literal_flag;
         let result = self.create_anonymous_type(
             attributes.maybe_symbol(),
@@ -539,7 +541,7 @@ impl TypeChecker {
             vec![],
             vec![],
             vec![],
-        );
+        )?;
         let result_as_object_flags_type = result.as_object_flags_type();
         result_as_object_flags_type.set_object_flags(
             result_as_object_flags_type.object_flags()
@@ -547,7 +549,7 @@ impl TypeChecker {
                 | ObjectFlags::ObjectLiteral
                 | ObjectFlags::ContainsObjectOrArrayLiteral,
         );
-        result
+        Ok(result)
     }
 
     pub(super) fn check_jsx_children(

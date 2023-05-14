@@ -30,7 +30,7 @@ impl TypeChecker {
         let return_type = &iteration_types.return_type();
         let next_type = &iteration_types.next_type();
         if error_node.is_some() {
-            self.get_global_awaited_symbol(true);
+            self.get_global_awaited_symbol(true)?;
         }
         let error_node = error_node.map(|error_node| error_node.borrow().node_wrapper());
         Ok(self.create_iteration_types(
@@ -956,7 +956,7 @@ impl TypeChecker {
                     node_as_return_statement.expression.as_deref(),
                     None,
                     None,
-                );
+                )?;
                 // }
             }
         } else if container.kind() != SyntaxKind::Constructor

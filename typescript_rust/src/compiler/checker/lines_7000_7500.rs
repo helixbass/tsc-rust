@@ -392,7 +392,7 @@ impl SymbolTableToDeclarationStatements {
                 symbol
                     .flags()
                     .intersects(SymbolFlags::Function | SymbolFlags::Assignment),
-            );
+            )?;
         }
         if !merged_members.is_empty() {
             let containing_file =
@@ -539,9 +539,9 @@ impl SymbolTableToDeclarationStatements {
                                     .and_then(|p_declarations| p_declarations.get(0).cloned())
                                     .filter(|p_declarations_0| is_enum_member(p_declarations_0))
                                     .as_ref()
-                                    .and_then(|p_declarations_0| {
+                                    .try_and_then(|p_declarations_0| {
                                         self.type_checker.get_constant_value_(p_declarations_0)
-                                    });
+                                    })?;
                                 get_factory()
                                     .create_enum_member(
                                         unescape_leading_underscores(p.escaped_name()),
@@ -635,7 +635,7 @@ impl SymbolTableToDeclarationStatements {
                 local_name,
                 modifier_flags,
                 true,
-            );
+            )?;
         }
 
         Ok(())
@@ -672,7 +672,7 @@ impl SymbolTableToDeclarationStatements {
         local_name: &str,
         modifier_flags: ModifierFlags,
         suppress_new_private_context: bool,
-    ) {
+    ) -> io::Result<()> {
         if !props.is_empty() {
             let local_vs_remote_map = array_to_multi_map(
                 props,
@@ -732,7 +732,7 @@ impl SymbolTableToDeclarationStatements {
                 Gc::new(GcCell::new(create_symbol_table(Some(&local_props)))),
                 Some(suppress_new_private_context),
                 Some(true),
-            );
+            )?;
             self.set_context(old_context);
             self.set_adding_declare(old_adding_declare);
             let declarations = self.results().clone();
@@ -796,6 +796,8 @@ impl SymbolTableToDeclarationStatements {
             );
             self.add_result(&fakespace, modifier_flags);
         }
+
+        Ok(())
     }
 
     pub(super) fn is_namespace_member(&self, p: &Symbol) -> bool {
@@ -1318,7 +1320,7 @@ impl SymbolTableToDeclarationStatements {
                         Some(|declaration: &Gc<Node>| is_json_source_file(declaration)),
                     )
                 {
-                    self.serialize_maybe_alias_assignment(symbol);
+                    self.serialize_maybe_alias_assignment(symbol)?;
                     break 'case;
                 }
                 let is_local_import = !target.flags().intersects(SymbolFlags::ValueModule)
@@ -1371,7 +1373,7 @@ impl SymbolTableToDeclarationStatements {
                         Some(|declaration: &Gc<Node>| is_json_source_file(declaration)),
                     )
                 {
-                    self.serialize_maybe_alias_assignment(symbol);
+                    self.serialize_maybe_alias_assignment(symbol)?;
                     break 'case;
                 }
                 let is_local_import = !target.flags().intersects(SymbolFlags::ValueModule)
@@ -1628,7 +1630,7 @@ impl SymbolTableToDeclarationStatements {
                 );
             }
             SyntaxKind::ExportAssignment => {
-                self.serialize_maybe_alias_assignment(symbol);
+                self.serialize_maybe_alias_assignment(symbol)?;
             }
             SyntaxKind::BinaryExpression
             | SyntaxKind::PropertyAccessExpression
@@ -1636,7 +1638,7 @@ impl SymbolTableToDeclarationStatements {
                 if symbol.escaped_name() == InternalSymbolName::Default
                     || symbol.escaped_name() == InternalSymbolName::ExportEquals
                 {
-                    self.serialize_maybe_alias_assignment(symbol);
+                    self.serialize_maybe_alias_assignment(symbol)?;
                 } else {
                     self.serialize_export_specifier(
                         local_name,

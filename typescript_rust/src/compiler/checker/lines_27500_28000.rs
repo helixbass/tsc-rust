@@ -437,7 +437,7 @@ impl TypeChecker {
                         .get_type_only_alias_declaration(jsx_factory_sym)
                         .is_none()
                 {
-                    self.mark_alias_symbol_as_referenced(jsx_factory_sym);
+                    self.mark_alias_symbol_as_referenced(jsx_factory_sym)?;
                 }
             }
 
@@ -453,7 +453,7 @@ impl TypeChecker {
                         Some(&**local_jsx_namespace),
                         true,
                         None,
-                    );
+                    )?;
                 }
             }
         }
@@ -461,7 +461,7 @@ impl TypeChecker {
         if is_node_opening_like_element {
             let jsx_opening_like_node = node;
             let sig = self.get_resolved_signature_(jsx_opening_like_node, None, None)?;
-            self.check_deprecated_signature(sig.clone(), node);
+            self.check_deprecated_signature(sig.clone(), node)?;
             self.check_jsx_return_assignable_to_appropriate_bound(
                 self.get_jsx_reference_kind(jsx_opening_like_node)?,
                 &*self.get_return_type_of_signature(sig.clone())?,

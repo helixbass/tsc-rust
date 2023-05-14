@@ -71,7 +71,7 @@ impl TypeChecker {
             *type_.maybe_alias_type_arguments_mut() =
                 self.get_type_arguments_for_alias_symbol(alias_symbol)?;
             links.borrow_mut().resolved_type = Some(type_.clone());
-            self.get_constraint_type_from_mapped_type(&type_);
+            self.get_constraint_type_from_mapped_type(&type_)?;
         }
         let ret = (*links).borrow().resolved_type.clone().unwrap();
         Ok(ret)
@@ -212,7 +212,7 @@ impl TypeChecker {
                         &extends_type,
                         Some(InferencePriority::NoConstraints | InferencePriority::AlwaysStrict),
                         None,
-                    );
+                    )?;
                 }
                 combined_mapper = Some(if let Some(mapper) = mapper.as_ref() {
                     self.combine_type_mappers(Some(context.mapper().clone()), mapper.clone())
@@ -983,7 +983,7 @@ impl TypeChecker {
             vec![],
             vec![],
             self.get_index_infos_of_type(type_)?,
-        );
+        )?;
         let spread_as_object_type = spread.as_object_type();
         spread_as_object_type.set_object_flags(
             spread_as_object_type.object_flags()
@@ -1181,7 +1181,7 @@ impl TypeChecker {
             same_map(&index_infos, |info: &Gc<IndexInfo>, _| {
                 self.get_index_info_with_readonly(info, readonly)
             }),
-        );
+        )?;
         let spread_as_object_type = spread.as_object_type();
         spread_as_object_type.set_object_flags(
             spread_as_object_type.object_flags()

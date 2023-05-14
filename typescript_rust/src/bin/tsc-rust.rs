@@ -1,9 +1,10 @@
 use regex::Regex;
 use std::rc::Rc;
 
+use std::io;
 use typescript_rust::{execute_command_line, get_sys, Debug_, LogLevel, LoggingHost};
 
-fn main() {
+fn main() -> io::Result<()> {
     Debug_.set_logging_host(Some(Rc::new(LoggingHostConcrete::new())));
 
     if Debug_.is_debugging() {
@@ -26,7 +27,9 @@ fn main() {
     sys.set_blocking();
     // }
 
-    execute_command_line(sys.clone(), |_| {}, sys.args());
+    execute_command_line(sys.clone(), |_| {}, sys.args())?;
+
+    Ok(())
 }
 
 struct LoggingHostConcrete {}

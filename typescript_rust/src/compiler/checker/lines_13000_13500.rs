@@ -900,7 +900,7 @@ impl TypeChecker {
             if let Some(jsdoc_type) = jsdoc_type {
                 return Ok(jsdoc_type);
             } else {
-                self.resolve_type_reference_name(node, SymbolFlags::Type, None);
+                self.resolve_type_reference_name(node, SymbolFlags::Type, None)?;
                 return self.get_type_of_symbol(&symbol);
             }
         }
@@ -1082,31 +1082,31 @@ impl TypeChecker {
                 .escaped_text
             {
                 "String" => {
-                    self.check_no_type_arguments(node, Option::<&Symbol>::None);
+                    self.check_no_type_arguments(node, Option::<&Symbol>::None)?;
                     return Ok(Some(self.string_type()));
                 }
                 "Number" => {
-                    self.check_no_type_arguments(node, Option::<&Symbol>::None);
+                    self.check_no_type_arguments(node, Option::<&Symbol>::None)?;
                     return Ok(Some(self.number_type()));
                 }
                 "Boolean" => {
-                    self.check_no_type_arguments(node, Option::<&Symbol>::None);
+                    self.check_no_type_arguments(node, Option::<&Symbol>::None)?;
                     return Ok(Some(self.boolean_type()));
                 }
                 "Void" => {
-                    self.check_no_type_arguments(node, Option::<&Symbol>::None);
+                    self.check_no_type_arguments(node, Option::<&Symbol>::None)?;
                     return Ok(Some(self.void_type()));
                 }
                 "Undefined" => {
-                    self.check_no_type_arguments(node, Option::<&Symbol>::None);
+                    self.check_no_type_arguments(node, Option::<&Symbol>::None)?;
                     return Ok(Some(self.undefined_type()));
                 }
                 "Null" => {
-                    self.check_no_type_arguments(node, Option::<&Symbol>::None);
+                    self.check_no_type_arguments(node, Option::<&Symbol>::None)?;
                     return Ok(Some(self.null_type()));
                 }
                 "Function" | "function" => {
-                    self.check_no_type_arguments(node, Option::<&Symbol>::None);
+                    self.check_no_type_arguments(node, Option::<&Symbol>::None)?;
                     return Ok(Some(self.global_function_type()));
                 }
                 "array" => {
@@ -1156,12 +1156,12 @@ impl TypeChecker {
                                     vec![],
                                     vec![],
                                     index_info,
-                                )));
+                                )?));
                             }
                             return Ok(Some(self.any_type()));
                         }
                     }
-                    self.check_no_type_arguments(node, Option::<&Symbol>::None);
+                    self.check_no_type_arguments(node, Option::<&Symbol>::None)?;
                     return Ok(if !self.no_implicit_any {
                         Some(self.any_type())
                     } else {

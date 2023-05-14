@@ -42,19 +42,17 @@ pub(super) fn is_root_option_map(
     }
 }
 
-pub(super) fn convert_object_literal_expression_to_json<
-    TJsonConversionNotifier: JsonConversionNotifier,
->(
+pub(super) fn convert_object_literal_expression_to_json(
     return_value: bool,
     errors: Gc<GcCell<Push<Gc<Diagnostic>>>>,
     source_file: &Node, /*JsonSourceFile*/
-    json_conversion_notifier: Option<&TJsonConversionNotifier>,
+    json_conversion_notifier: Option<&impl JsonConversionNotifier>,
     known_root_options: Option<&CommandLineOption>,
     node: &Node, /*ObjectLiteralExpression*/
     known_options: Option<&HashMap<String, Gc<CommandLineOption>>>,
     extra_key_diagnostics: Option<&dyn DidYouMeanOptionsDiagnostics>,
     parent_option: Option<&str>,
-) -> Option<serde_json::Value> {
+) -> io::Result<Option<serde_json::Value>> {
     let mut result = if return_value {
         Some(serde_json::Map::new())
     } else {
@@ -156,7 +154,7 @@ pub(super) fn convert_object_literal_expression_to_json<
             known_root_options,
             &element_as_property_assignment.initializer,
             option,
-        );
+        )?;
         if let Some(key_text) = key_text {
             if return_value {
                 if let Some(value) = value.as_ref() {
@@ -185,7 +183,7 @@ pub(super) fn convert_object_literal_expression_to_json<
                                 &element_as_property_assignment.name(),
                                 value.as_ref(),
                                 &element_as_property_assignment.initializer,
-                            );
+                            )?;
                         } else if option.is_none() {
                             json_conversion_notifier.on_set_unknown_option_key_value_in_root(
                                 &key_text,
@@ -199,22 +197,20 @@ pub(super) fn convert_object_literal_expression_to_json<
             }
         }
     }
-    result.map(|result| serde_json::Value::Object(result))
+    Ok(result.map(|result| serde_json::Value::Object(result)))
 }
 
-pub(super) fn convert_array_literal_expression_to_json<
-    TJsonConversionNotifier: JsonConversionNotifier,
->(
+pub(super) fn convert_array_literal_expression_to_json(
     errors: Gc<GcCell<Push<Gc<Diagnostic>>>>,
     source_file: &Node, /*JsonSourceFile*/
-    json_conversion_notifier: Option<&TJsonConversionNotifier>,
+    json_conversion_notifier: Option<&impl JsonConversionNotifier>,
     return_value: bool,
     known_root_options: Option<&CommandLineOption>,
     elements: &NodeArray, /*<Expression>*/
     element_option: Option<&CommandLineOption>,
-) -> Option<serde_json::Value> {
+) -> io::Result<Option<serde_json::Value>> {
     if !return_value {
-        elements.iter().for_each(|element| {
+        elements.iter().try_for_each(|element| -> io::Result<_> {
             convert_property_value_to_json(
                 errors.clone(),
                 source_file,
@@ -224,37 +220,40 @@ pub(super) fn convert_array_literal_expression_to_json<
                 element,
                 element_option,
             );
-        });
-        return None;
+
+            Ok(())
+        })?;
+        return Ok(None);
     }
 
-    Some(serde_json::Value::Array(
-        elements
-            .iter()
-            .filter_map(|element| {
-                convert_property_value_to_json(
-                    errors.clone(),
-                    source_file,
-                    json_conversion_notifier,
-                    return_value,
-                    known_root_options,
-                    element,
-                    element_option,
-                )
-            })
-            .collect::<Vec<serde_json::Value>>(),
-    ))
+    Ok(Some(serde_json::Value::Array({
+        let mut results: Vec<serde_json::Value> = Default::default();
+        for element in elements {
+            if let Some(result) = convert_property_value_to_json(
+                errors.clone(),
+                source_file,
+                json_conversion_notifier,
+                return_value,
+                known_root_options,
+                element,
+                element_option,
+            )? {
+                results.push(result);
+            }
+        }
+        results
+    })))
 }
 
-pub(super) fn convert_property_value_to_json<TJsonConversionNotifier: JsonConversionNotifier>(
+pub(super) fn convert_property_value_to_json(
     errors: Gc<GcCell<Push<Gc<Diagnostic>>>>,
     source_file: &Node, /*JsonSourceFile*/
-    json_conversion_notifier: Option<&TJsonConversionNotifier>,
+    json_conversion_notifier: Option<&impl JsonConversionNotifier>,
     return_value: bool,
     known_root_options: Option<&CommandLineOption>,
     value_expression: &Node, /*Expression*/
     option: Option<&CommandLineOption>,
-) -> Option<serde_json::Value> {
+) -> io::Result<Option<serde_json::Value>> {
     let mut invalid_reported: Option<bool> = None;
     match value_expression.kind() {
         SyntaxKind::TrueKeyword => {
@@ -268,14 +267,14 @@ pub(super) fn convert_property_value_to_json<TJsonConversionNotifier: JsonConver
                     matches!(option, Some(option) if !matches!(option, CommandLineOption::CommandLineOptionOfBooleanType(_))),
                 ),
             );
-            return validate_value(
+            return Ok(validate_value(
                 invalid_reported,
                 option,
                 errors,
                 source_file,
                 value_expression,
                 Some(serde_json::Value::Bool(true)),
-            );
+            ));
         }
 
         SyntaxKind::FalseKeyword => {
@@ -289,14 +288,14 @@ pub(super) fn convert_property_value_to_json<TJsonConversionNotifier: JsonConver
                     matches!(option, Some(option) if !matches!(option, CommandLineOption::CommandLineOptionOfBooleanType(_))),
                 ),
             );
-            return validate_value(
+            return Ok(validate_value(
                 invalid_reported,
                 option,
                 errors,
                 source_file,
                 value_expression,
                 Some(serde_json::Value::Bool(false)),
-            );
+            ));
         }
 
         SyntaxKind::NullKeyword => {
@@ -308,14 +307,14 @@ pub(super) fn convert_property_value_to_json<TJsonConversionNotifier: JsonConver
                 option,
                 Some(matches!(option, Some(option) if option.name() == "extends")),
             );
-            return validate_value(
+            return Ok(validate_value(
                 invalid_reported,
                 option,
                 errors,
                 source_file,
                 value_expression,
                 Some(serde_json::Value::Null),
-            );
+            ));
         }
 
         SyntaxKind::StringLiteral => {
@@ -364,14 +363,14 @@ pub(super) fn convert_property_value_to_json<TJsonConversionNotifier: JsonConver
                     }
                 }
             }
-            return validate_value(
+            return Ok(validate_value(
                 invalid_reported,
                 option,
                 errors,
                 source_file,
                 value_expression,
                 Some(serde_json::Value::String(text.clone())),
-            );
+            ));
         }
 
         SyntaxKind::NumericLiteral => {
@@ -385,7 +384,7 @@ pub(super) fn convert_property_value_to_json<TJsonConversionNotifier: JsonConver
                     matches!(option, Some(option) if !matches!(option, CommandLineOption::CommandLineOptionOfNumberType(_))),
                 ),
             );
-            return validate_value(
+            return Ok(validate_value(
                 invalid_reported,
                 option,
                 errors,
@@ -396,7 +395,7 @@ pub(super) fn convert_property_value_to_json<TJsonConversionNotifier: JsonConver
                         .parse()
                         .unwrap(),
                 )),
-            );
+            ));
         }
 
         SyntaxKind::PrefixUnaryExpression => {
@@ -417,7 +416,7 @@ pub(super) fn convert_property_value_to_json<TJsonConversionNotifier: JsonConver
                         matches!(option, Some(option) if !matches!(option, CommandLineOption::CommandLineOptionOfNumberType(_))),
                     ),
                 );
-                return validate_value(
+                return Ok(validate_value(
                     invalid_reported,
                     option,
                     errors,
@@ -435,7 +434,7 @@ pub(super) fn convert_property_value_to_json<TJsonConversionNotifier: JsonConver
                         )
                         .unwrap(),
                     )),
-                );
+                ));
             }
         }
 
@@ -476,15 +475,15 @@ pub(super) fn convert_property_value_to_json<TJsonConversionNotifier: JsonConver
                     } else {
                         Some(option_name)
                     },
-                );
-                return validate_value(
+                )?;
+                return Ok(validate_value(
                     invalid_reported,
                     Some(option),
                     errors,
                     source_file,
                     value_expression,
                     converted,
-                );
+                ));
             } else {
                 let converted = convert_object_literal_expression_to_json(
                     return_value,
@@ -496,15 +495,15 @@ pub(super) fn convert_property_value_to_json<TJsonConversionNotifier: JsonConver
                     None,
                     None,
                     None,
-                );
-                return validate_value(
+                )?;
+                return Ok(validate_value(
                     invalid_reported,
                     option,
                     errors,
                     source_file,
                     value_expression,
                     converted,
-                );
+                ));
             }
         }
 
@@ -519,7 +518,7 @@ pub(super) fn convert_property_value_to_json<TJsonConversionNotifier: JsonConver
                     matches!(option, Some(option) if !matches!(option, CommandLineOption::CommandLineOptionOfListType(_))),
                 ),
             );
-            return validate_value(
+            return Ok(validate_value(
                 invalid_reported,
                 option,
                 errors.clone(),
@@ -538,8 +537,8 @@ pub(super) fn convert_property_value_to_json<TJsonConversionNotifier: JsonConver
                         }
                         _ => None,
                     }),
-                ),
-            );
+                )?,
+            ));
         }
 
         _ => (),
@@ -566,7 +565,7 @@ pub(super) fn convert_property_value_to_json<TJsonConversionNotifier: JsonConver
         ));
     }
 
-    None
+    Ok(None)
 }
 
 pub(super) fn validate_value(

@@ -5,6 +5,7 @@ use std::io;
 use std::rc::Rc;
 
 use super::{create_brackets_map, TempFlags};
+use crate::try_for_each_child;
 use crate::{
     base64_encode, combine_paths, compare_paths, compute_common_source_directory_of_filenames,
     create_diagnostic_collection, create_source_map_generator, create_text_writer,
@@ -647,7 +648,7 @@ fn emit_source_file_or_bundle(
         emitter_diagnostics,
         bundle_build_info.clone(),
         build_info_path,
-    );
+    )?;
     // tracing?.pop();
 
     if !*emit_skipped {
@@ -726,15 +727,15 @@ fn emit_build_info(
     emitter_diagnostics: &mut DiagnosticCollection,
     bundle: Option<Gc<GcCell<BundleBuildInfo>>>,
     build_info_path: Option<&str>,
-) {
+) -> io::Result<()> {
     if !build_info_path.is_non_empty() || target_source_file.is_some() || *emit_skipped {
-        return;
+        return Ok(());
     }
     let build_info_path = build_info_path.unwrap();
     let program = host.get_program_build_info();
     if host.is_emit_blocked(build_info_path) {
         *emit_skipped = true;
-        return;
+        return Ok(());
     }
     write_file(
         &EmitHostWriteFileCallback::new(host.clone()),
@@ -747,7 +748,9 @@ fn emit_build_info(
         }),
         false,
         None,
-    );
+    )?;
+
+    Ok(())
 }
 
 fn emit_js_file_or_bundle(
@@ -830,7 +833,7 @@ fn emit_js_file_or_bundle(
         &transform.transformed()[0],
         &printer,
         &(&*compiler_options).into(),
-    );
+    )?;
 
     transform.dispose();
     if let Some(bundle_build_info) = bundle_build_info.clone() {
@@ -949,9 +952,13 @@ fn emit_declaration_file_or_bundle(
         files_for_emit.clone()
     };
     if emit_only_dts_files == Some(true) && !get_emit_declarations(&compiler_options) {
-        files_for_emit.iter().for_each(|file_for_emit| {
-            collect_linked_aliases(&**resolver, file_for_emit);
-        });
+        files_for_emit
+            .iter()
+            .try_for_each(|file_for_emit| -> io::Result<_> {
+                collect_linked_aliases(&**resolver, file_for_emit)?;
+
+                Ok(())
+            })?;
     }
     let declaration_transform = transform_nodes(
         Some(resolver.clone()),
@@ -1027,7 +1034,7 @@ fn emit_declaration_file_or_bundle(
                 inline_source_map: None,
                 inline_sources: None,
             },
-        );
+        )?;
         if force_dts_emit == Some(true)
             && declaration_transform.transformed()[0].kind() == SyntaxKind::SourceFile
         {
@@ -1092,13 +1099,13 @@ impl PrintHandlers for EmitDeclarationFileOrBundlePrintHandlers {
     }
 }
 
-fn collect_linked_aliases(resolver: &dyn EmitResolver, node: &Node) {
+fn collect_linked_aliases(resolver: &dyn EmitResolver, node: &Node) -> io::Result<()> {
     if is_export_assignment(node) {
         let node_as_export_assignment = node.as_export_assignment();
         if node_as_export_assignment.expression.kind() == SyntaxKind::Identifier {
-            resolver.collect_linked_aliases(&node_as_export_assignment.expression, Some(true));
+            resolver.collect_linked_aliases(&node_as_export_assignment.expression, Some(true))?;
         }
-        return;
+        return Ok(());
     } else if is_export_specifier(node) {
         let node_as_export_specifier = node.as_export_specifier();
         resolver.collect_linked_aliases(
@@ -1107,14 +1114,16 @@ fn collect_linked_aliases(resolver: &dyn EmitResolver, node: &Node) {
                 .as_deref()
                 .unwrap_or(&*node_as_export_specifier.name),
             Some(true),
-        );
-        return;
+        )?;
+        return Ok(());
     }
-    for_each_child(
+    try_for_each_child(
         node,
         |node: &Node| collect_linked_aliases(resolver, node),
-        Option::<fn(&NodeArray)>::None,
-    );
+        Option::<fn(&NodeArray) -> io::Result<()>>::None,
+    )?;
+
+    Ok(())
 }
 
 fn print_source_file_or_bundle(
@@ -1129,7 +1138,7 @@ fn print_source_file_or_bundle(
     source_file_or_bundle: &Node, /*SourceFile | Bundle*/
     printer: &Printer,
     map_options: &SourceMapOptions,
-) {
+) -> io::Result<()> {
     let bundle = if source_file_or_bundle.kind() == SyntaxKind::Bundle {
         Some(source_file_or_bundle.node_wrapper())
     } else {
@@ -1206,7 +1215,7 @@ fn print_source_file_or_bundle(
                 &source_map,
                 false,
                 Some(&source_files),
-            );
+            )?;
         }
     } else {
         writer.write_line(None);
@@ -1219,9 +1228,11 @@ fn print_source_file_or_bundle(
         &writer.get_text(),
         compiler_options.emit_bom == Some(true),
         Some(&source_files),
-    );
+    )?;
 
     writer.clear();
+
+    Ok(())
 }
 
 #[derive(Default)]
@@ -2196,7 +2207,9 @@ impl Printer {
     }
 
     pub(super) fn emit_binary_expression(&self, node: &Node /*BinaryExpression*/) {
-        self.emit_binary_expression_rc().call(node)
+        self.emit_binary_expression_rc()
+            .call(node)
+            .expect("Don't _think_ this is actually fallible?")
     }
 
     pub fn print_node(

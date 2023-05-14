@@ -9,6 +9,7 @@ use std::io;
 use std::time;
 use std::time::SystemTime;
 
+use crate::OptionTry;
 use crate::{
     add_range, combine_paths, convert_to_relative_path, create_get_canonical_file_name,
     create_source_file, diagnostic_category_name, file_extension_is, for_each,
@@ -446,7 +447,7 @@ impl CompilerHost for CompilerHostConcrete {
                 text = Some("".to_owned());
             }
         }
-        Ok(text.map(|text| {
+        text.try_map(|text| {
             create_source_file(
                 file_name,
                 text,
@@ -454,7 +455,7 @@ impl CompilerHost for CompilerHostConcrete {
                 self.set_parent_nodes,
                 None,
             )
-        }))
+        })
     }
 
     fn get_default_lib_location(&self) -> Option<String> {

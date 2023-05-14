@@ -214,13 +214,13 @@ impl TypeChecker {
     pub(super) fn get_enum_member_value(
         &self,
         node: &Node, /*EnumMember*/
-    ) -> Option<StringOrNumber> {
-        self.compute_enum_member_values(&node.parent());
+    ) -> io::Result<Option<StringOrNumber>> {
+        self.compute_enum_member_values(&node.parent())?;
         let ret = (*self.get_node_links(node))
             .borrow()
             .enum_member_value
             .clone();
-        ret
+        Ok(ret)
     }
 
     pub(super) fn can_have_constant_value(&self, node: &Node) -> bool {
@@ -235,9 +235,9 @@ impl TypeChecker {
     pub(super) fn get_constant_value_(
         &self,
         node: &Node, /*EnumMember | AccessExpression*/
-    ) -> Option<StringOrNumber> {
+    ) -> io::Result<Option<StringOrNumber>> {
         if node.kind() == SyntaxKind::EnumMember {
-            return self.get_enum_member_value(node);
+            return Ok(self.get_enum_member_value(node))?;
         }
 
         let symbol = (*self.get_node_links(node))
@@ -254,7 +254,7 @@ impl TypeChecker {
             }
         }
 
-        None
+        Ok(None)
     }
 
     pub(super) fn is_function_type(&self, type_: &Type) -> io::Result<bool> {
@@ -752,7 +752,7 @@ impl TypeChecker {
                         );
                     }
                 }
-                self.merge_symbol_table(self.globals_rc(), &(*file.locals()).borrow(), None);
+                self.merge_symbol_table(self.globals_rc(), &(*file.locals()).borrow(), None)?;
             }
             if let Some(file_js_global_augmentations) =
                 file_as_source_file.maybe_js_global_augmentations().clone()
@@ -761,7 +761,7 @@ impl TypeChecker {
                     self.globals_rc(),
                     &(*file_js_global_augmentations).borrow(),
                     None,
-                );
+                )?;
             }
             if let Some(file_pattern_ambient_modules) = file_as_source_file
                 .maybe_pattern_ambient_modules()
@@ -810,7 +810,7 @@ impl TypeChecker {
                     if !is_global_scope_augmentation(&augmentation.parent()) {
                         continue;
                     }
-                    self.merge_module_augmentation(augmentation);
+                    self.merge_module_augmentation(augmentation)?;
                 }
             }
         }
@@ -870,7 +870,7 @@ impl TypeChecker {
                 vec![],
                 vec![],
                 vec![],
-            ));
+            )?);
         }
 
         *self.global_readonly_array_type.borrow_mut() = self
@@ -897,7 +897,7 @@ impl TypeChecker {
                     if is_global_scope_augmentation(&augmentation.parent()) {
                         continue;
                     }
-                    self.merge_module_augmentation(augmentation);
+                    self.merge_module_augmentation(augmentation)?;
                 }
             }
         }

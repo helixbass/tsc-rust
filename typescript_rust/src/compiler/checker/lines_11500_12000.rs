@@ -210,7 +210,7 @@ impl TypeChecker {
     pub(super) fn resolve_structured_type_members(
         &self,
         type_: &Type, /*StructuredType*/
-    ) -> Gc<Type /*ResolvedType*/> {
+    ) -> io::Result<Gc<Type /*ResolvedType*/>> {
         if !type_.as_resolvable_type().is_resolved() {
             if type_.flags().intersects(TypeFlags::Object) {
                 let type_as_object_type = type_.as_object_type();
@@ -218,50 +218,50 @@ impl TypeChecker {
                     .object_flags()
                     .intersects(ObjectFlags::Reference)
                 {
-                    self.resolve_type_reference_members(type_);
+                    self.resolve_type_reference_members(type_)?;
                 } else if type_as_object_type
                     .object_flags()
                     .intersects(ObjectFlags::ClassOrInterface)
                 {
-                    self.resolve_class_or_interface_members(type_);
+                    self.resolve_class_or_interface_members(type_)?;
                 } else if type_as_object_type
                     .object_flags()
                     .intersects(ObjectFlags::ReverseMapped)
                 {
-                    self.resolve_reverse_mapped_type_members(type_);
+                    self.resolve_reverse_mapped_type_members(type_)?;
                 } else if type_as_object_type
                     .object_flags()
                     .intersects(ObjectFlags::Anonymous)
                 {
-                    self.resolve_anonymous_type_members(type_);
+                    self.resolve_anonymous_type_members(type_)?;
                 } else if type_as_object_type
                     .object_flags()
                     .intersects(ObjectFlags::Mapped)
                 {
-                    self.resolve_mapped_type_members(type_);
+                    self.resolve_mapped_type_members(type_)?;
                 }
             } else if type_.flags().intersects(TypeFlags::Union) {
-                self.resolve_union_type_members(type_);
+                self.resolve_union_type_members(type_)?;
             } else if type_.flags().intersects(TypeFlags::Intersection) {
-                self.resolve_intersection_type_members(type_);
+                self.resolve_intersection_type_members(type_)?;
             }
         }
-        type_.type_wrapper()
+        Ok(type_.type_wrapper())
     }
 
     pub(super) fn get_properties_of_object_type(
         &self,
         type_: &Type,
-    ) -> impl ExactSizeIterator<Item = Gc<Symbol>> + Clone {
+    ) -> io::Result<impl ExactSizeIterator<Item = Gc<Symbol>> + Clone> {
         if type_.flags().intersects(TypeFlags::Object) {
-            return Either::Left(
-                self.resolve_structured_type_members(type_)
+            return Ok(Either::Left(
+                self.resolve_structured_type_members(type_)?
                     .as_resolved_type()
                     .properties()
                     .owned_iter(),
-            );
+            ));
         }
-        Either::Right(iter::empty())
+        Ok(Either::Right(iter::empty()))
     }
 
     pub(super) fn get_property_of_object_type(
@@ -270,7 +270,7 @@ impl TypeChecker {
         name: &str, /*__String*/
     ) -> io::Result<Option<Gc<Symbol>>> {
         if type_.flags().intersects(TypeFlags::Object) {
-            let resolved = self.resolve_structured_type_members(type_);
+            let resolved = self.resolve_structured_type_members(type_)?;
             let symbol = (*resolved.as_resolved_type().members())
                 .borrow()
                 .get(name)
@@ -331,7 +331,7 @@ impl TypeChecker {
             if type_.flags().intersects(TypeFlags::UnionOrIntersection) {
                 Either::Left(self.get_properties_of_union_or_intersection_type(&type_)?)
             } else {
-                Either::Right(self.get_properties_of_object_type(&type_))
+                Either::Right(self.get_properties_of_object_type(&type_)?)
             },
         )
     }
@@ -344,7 +344,7 @@ impl TypeChecker {
         let type_ = self.get_reduced_apparent_type(type_)?;
         if type_.flags().intersects(TypeFlags::StructuredType) {
             for (escaped_name, symbol) in &*(*self
-                .resolve_structured_type_members(&type_)
+                .resolve_structured_type_members(&type_)?
                 .as_resolved_type()
                 .members())
             .borrow()

@@ -4,6 +4,8 @@ use std::rc::Rc;
 use std::{borrow::Borrow, io};
 
 use super::MappedTypeModifiers;
+use crate::try_for_each;
+use crate::try_maybe_for_each;
 use crate::{
     add_related_info, are_option_gcs_equal, are_option_rcs_equal, create_diagnostic_for_node,
     filter, find_ancestor, for_each, for_each_child, get_class_extends_heritage_element,
@@ -43,13 +45,13 @@ impl TypeChecker {
         &self,
         node: &Node, /*ConstructorDeclaration*/
     ) -> io::Result<()> {
-        self.check_signature_declaration(node);
+        self.check_signature_declaration(node)?;
         if !self.check_grammar_constructor_type_parameters(node) {
             self.check_grammar_constructor_type_annotation(node);
         }
 
         let node_as_constructor_declaration = node.as_constructor_declaration();
-        self.check_source_element(node_as_constructor_declaration.maybe_body());
+        self.check_source_element(node_as_constructor_declaration.maybe_body())?;
 
         let symbol = self.get_symbol_of_node(node)?.unwrap();
         let first_declaration = get_declaration_of_kind(&symbol, node.kind());
@@ -58,7 +60,7 @@ impl TypeChecker {
             first_declaration.as_ref(),
             Some(first_declaration) if ptr::eq(node, &**first_declaration)
         ) {
-            self.check_function_or_constructor_symbol(&symbol);
+            self.check_function_or_constructor_symbol(&symbol)?;
         }
 
         if node_is_missing(node_as_constructor_declaration.maybe_body()) {
@@ -160,8 +162,8 @@ impl TypeChecker {
                 );
             }
 
-            self.check_decorators(node);
-            self.check_signature_declaration(node);
+            self.check_decorators(node)?;
+            self.check_signature_declaration(node)?;
             if node.kind() == SyntaxKind::GetAccessor {
                 if !node.flags().intersects(NodeFlags::Ambient)
                     && node_is_present(node_as_function_like_declaration.maybe_body())
@@ -237,7 +239,7 @@ impl TypeChecker {
                                     Some(&**getter),
                                     Some(&Diagnostics::The_return_type_of_a_get_accessor_must_be_assignable_to_its_set_accessor_type),
                                     None, None,
-                                );
+                                )?;
                             }
                         }
                     }
@@ -249,17 +251,19 @@ impl TypeChecker {
                 self.check_all_code_paths_in_non_void_function_return_or_throw(
                     node,
                     Some(&*return_type),
-                );
+                )?;
             }
         }
-        self.check_source_element(node_as_function_like_declaration.maybe_body());
+        self.check_source_element(node_as_function_like_declaration.maybe_body())?;
         self.set_node_links_for_private_identifier_scope(node);
 
         Ok(())
     }
 
-    pub(super) fn check_missing_declaration(&self, node: &Node) {
-        self.check_decorators(node);
+    pub(super) fn check_missing_declaration(&self, node: &Node) -> io::Result<()> {
+        self.check_decorators(node)?;
+
+        Ok(())
     }
 
     pub(super) fn get_effective_type_arguments(
@@ -382,13 +386,13 @@ impl TypeChecker {
                 }
             }
         }
-        maybe_for_each(
+        try_maybe_for_each(
             node_as_has_type_arguments.maybe_type_arguments().as_ref(),
-            |type_argument, _| {
-                self.check_source_element(Some(&**type_argument));
-                Option::<()>::None
+            |type_argument, _| -> io::Result<_> {
+                self.check_source_element(Some(&**type_argument))?;
+                Ok(Option::<()>::None)
             },
-        );
+        )?;
         let type_ = self.get_type_from_type_reference(node)?;
         if !self.is_error_type(&type_) {
             if node_as_has_type_arguments.maybe_type_arguments().is_some()
@@ -396,7 +400,7 @@ impl TypeChecker {
             {
                 let type_parameters = self.get_type_parameters_for_type_reference(node)?;
                 if let Some(type_parameters) = type_parameters.as_ref() {
-                    self.check_type_argument_constraints(node, type_parameters);
+                    self.check_type_argument_constraints(node, type_parameters)?;
                 }
             }
             let symbol = (*self.get_node_links(node))
@@ -472,34 +476,38 @@ impl TypeChecker {
         )?))
     }
 
-    pub(super) fn check_type_query(&self, node: &Node /*TypeQueryNode*/) {
-        self.get_type_from_type_query_node(node);
+    pub(super) fn check_type_query(&self, node: &Node /*TypeQueryNode*/) -> io::Result<()> {
+        self.get_type_from_type_query_node(node)?;
+
+        Ok(())
     }
 
     pub(super) fn check_type_literal(
         &self,
         node: &Node, /*TypeLiteralNode*/
     ) -> io::Result<()> {
-        for_each(
+        try_for_each(
             &node.as_type_literal_node().members,
-            |member: &Gc<Node>, _| -> Option<()> {
-                self.check_source_element(Some(&**member));
-                None
+            |member: &Gc<Node>, _| -> io::Result<Option<()>> {
+                self.check_source_element(Some(&**member))?;
+                Ok(None)
             },
-        );
+        )?;
         if self.produce_diagnostics {
             let type_ =
                 self.get_type_from_type_literal_or_function_or_constructor_type_node(node)?;
-            self.check_index_constraints(&type_, &type_.symbol(), None);
-            self.check_type_for_duplicate_index_signatures(node);
+            self.check_index_constraints(&type_, &type_.symbol(), None)?;
+            self.check_type_for_duplicate_index_signatures(node)?;
             self.check_object_type_for_duplicate_declarations(node);
         }
 
         Ok(())
     }
 
-    pub(super) fn check_array_type(&self, node: &Node /*ArrayTypeNode*/) {
-        self.check_source_element(Some(&*node.as_array_type_node().element_type));
+    pub(super) fn check_array_type(&self, node: &Node /*ArrayTypeNode*/) -> io::Result<()> {
+        self.check_source_element(Some(&*node.as_array_type_node().element_type))?;
+
+        Ok(())
     }
 
     pub(super) fn check_tuple_type(&self, node: &Node /*TupleTypeNode*/) -> io::Result<()> {
@@ -572,14 +580,14 @@ impl TypeChecker {
                 break;
             }
         }
-        for_each(
+        try_for_each(
             &node_as_tuple_type_node.elements,
-            |element: &Gc<Node>, _| -> Option<()> {
-                self.check_source_element(Some(&**element));
-                None
+            |element: &Gc<Node>, _| -> io::Result<Option<()>> {
+                self.check_source_element(Some(&**element))?;
+                Ok(None)
             },
-        );
-        self.get_type_from_type_node_(node);
+        )?;
+        self.get_type_from_type_node_(node)?;
 
         Ok(())
     }
@@ -587,15 +595,17 @@ impl TypeChecker {
     pub(super) fn check_union_or_intersection_type(
         &self,
         node: &Node, /*UnionOrIntersectionTypeNode*/
-    ) {
-        for_each(
+    ) -> io::Result<()> {
+        try_for_each(
             &node.as_union_or_intersection_type_node().types(),
-            |type_, _| {
-                self.check_source_element(Some(&**type_));
-                Option::<()>::None
+            |type_, _| -> io::Result<_> {
+                self.check_source_element(Some(&**type_))?;
+                Ok(Option::<()>::None)
             },
-        );
-        self.get_type_from_type_node_(node);
+        )?;
+        self.get_type_from_type_node_(node)?;
+
+        Ok(())
     }
 
     pub(super) fn check_indexed_access_index_type(
@@ -687,7 +697,7 @@ impl TypeChecker {
         self.check_indexed_access_index_type(
             &*self.get_type_from_indexed_access_type_node(node)?,
             node,
-        );
+        )?;
 
         Ok(())
     }
@@ -695,12 +705,12 @@ impl TypeChecker {
     pub(super) fn check_mapped_type(&self, node: &Node /*MappedTypeNode*/) -> io::Result<()> {
         self.check_grammar_mapped_type(node);
         let node_as_mapped_type_node = node.as_mapped_type_node();
-        self.check_source_element(Some(&*node_as_mapped_type_node.type_parameter));
-        self.check_source_element(node_as_mapped_type_node.name_type.as_deref());
-        self.check_source_element(node_as_mapped_type_node.type_.as_deref());
+        self.check_source_element(Some(&*node_as_mapped_type_node.type_parameter))?;
+        self.check_source_element(node_as_mapped_type_node.name_type.as_deref())?;
+        self.check_source_element(node_as_mapped_type_node.type_.as_deref())?;
 
         if node_as_mapped_type_node.type_.is_none() {
-            self.report_implicit_any(node, &self.any_type(), None);
+            self.report_implicit_any(node, &self.any_type(), None)?;
         }
 
         let type_ = self.get_type_from_mapped_type_node(node)?;
@@ -713,7 +723,7 @@ impl TypeChecker {
                 None,
                 None,
                 None,
-            );
+            )?;
         } else {
             let constraint_type = self.get_constraint_type_from_mapped_type(&type_)?;
             self.check_type_assignable_to(
@@ -725,7 +735,7 @@ impl TypeChecker {
                 None,
                 None,
                 None,
-            );
+            )?;
         }
 
         Ok(())
@@ -747,13 +757,20 @@ impl TypeChecker {
         false
     }
 
-    pub(super) fn check_this_type(&self, node: &Node /*ThisTypeNode*/) {
-        self.get_type_from_this_type_node(node);
+    pub(super) fn check_this_type(&self, node: &Node /*ThisTypeNode*/) -> io::Result<()> {
+        self.get_type_from_this_type_node(node)?;
+
+        Ok(())
     }
 
-    pub(super) fn check_type_operator(&self, node: &Node /*TypeOperatorNode*/) {
+    pub(super) fn check_type_operator(
+        &self,
+        node: &Node, /*TypeOperatorNode*/
+    ) -> io::Result<()> {
         self.check_grammar_type_operator_node(node);
-        self.check_source_element(Some(&*node.as_type_operator_node().type_));
+        self.check_source_element(Some(&*node.as_type_operator_node().type_))?;
+
+        Ok(())
     }
 
     pub(super) fn check_conditional_type(
@@ -769,7 +786,7 @@ impl TypeChecker {
         Ok(())
     }
 
-    pub(super) fn check_infer_type(&self, node: &Node /*InferTypeNode*/) {
+    pub(super) fn check_infer_type(&self, node: &Node /*InferTypeNode*/) -> io::Result<()> {
         if find_ancestor(Some(node), |n: &Node| {
             matches!(
                 n.maybe_parent().as_ref(),
@@ -788,8 +805,10 @@ impl TypeChecker {
                 None,
             );
         }
-        self.check_source_element(Some(&*node.as_infer_type_node().type_parameter));
+        self.check_source_element(Some(&*node.as_infer_type_node().type_parameter))?;
         self.register_for_unused_identifiers_check(node);
+
+        Ok(())
     }
 
     pub(super) fn check_template_literal_type(
@@ -807,19 +826,24 @@ impl TypeChecker {
                 None,
                 None,
                 None,
-            );
+            )?;
         }
-        self.get_type_from_type_node_(node);
+        self.get_type_from_type_node_(node)?;
 
         Ok(())
     }
 
-    pub(super) fn check_import_type(&self, node: &Node /*ImportTypeNode*/) {
-        self.check_source_element(Some(&*node.as_import_type_node().argument));
-        self.get_type_from_type_node_(node);
+    pub(super) fn check_import_type(&self, node: &Node /*ImportTypeNode*/) -> io::Result<()> {
+        self.check_source_element(Some(&*node.as_import_type_node().argument))?;
+        self.get_type_from_type_node_(node)?;
+
+        Ok(())
     }
 
-    pub(super) fn check_named_tuple_member(&self, node: &Node /*NamedTupleMember*/) {
+    pub(super) fn check_named_tuple_member(
+        &self,
+        node: &Node, /*NamedTupleMember*/
+    ) -> io::Result<()> {
         let node_as_named_tuple_member = node.as_named_tuple_member();
         if node_as_named_tuple_member.dot_dot_dot_token.is_some()
             && node_as_named_tuple_member.question_token.is_some()
@@ -844,8 +868,10 @@ impl TypeChecker {
                 None,
             );
         }
-        self.check_source_element(Some(&*node_as_named_tuple_member.type_));
-        self.get_type_from_type_node_(node);
+        self.check_source_element(Some(&*node_as_named_tuple_member.type_))?;
+        self.get_type_from_type_node_(node)?;
+
+        Ok(())
     }
 
     pub(super) fn is_private_within_ambient(&self, node: &Node) -> bool {

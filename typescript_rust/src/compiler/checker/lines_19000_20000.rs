@@ -394,7 +394,7 @@ impl CheckTypeRelatedTo {
                                     None, None, None
                                 )?
                             ])
-                        );
+                        )?;
                     } else {
                         self.report_error(
                             Cow::Borrowed(
@@ -429,7 +429,7 @@ impl CheckTypeRelatedTo {
                                     None,
                                 )?,
                             ]),
-                        );
+                        )?;
                     }
                 }
                 return Ok(Ternary::False);
@@ -459,7 +459,7 @@ impl CheckTypeRelatedTo {
                                 None, None,
                             )?,
                         ])
-                    );
+                    )?;
                 }
                 return Ok(Ternary::False);
             }
@@ -490,7 +490,7 @@ impl CheckTypeRelatedTo {
                             None,
                         )?,
                     ]),
-                );
+                )?;
             }
             return Ok(Ternary::False);
         }
@@ -546,7 +546,7 @@ impl CheckTypeRelatedTo {
                             None,
                         )?,
                     ]),
-                );
+                )?;
             }
             return Ok(Ternary::False);
         }
@@ -625,7 +625,7 @@ impl CheckTypeRelatedTo {
                                 target_name.into()
                             }).into_owned(),
                         ])
-                    );
+                    )?;
                     return Ok(());
                 }
             }
@@ -657,7 +657,7 @@ impl CheckTypeRelatedTo {
             self.report_error(
                 Cow::Borrowed(&Diagnostics::Property_0_is_missing_in_type_1_but_required_in_type_2),
                 Some(vec![prop_name.clone(), source_string, target_string]),
-            );
+            )?;
             if length(unmatched_property.maybe_declarations().as_deref()) > 0 {
                 self.associate_related_info(
                     create_diagnostic_for_node(
@@ -695,7 +695,7 @@ impl CheckTypeRelatedTo {
                         ).collect::<Result<Vec<_>, _>>()?.join(", "),
                         (props.len() - 4).to_string(),
                     ])
-                )
+                )?
             } else {
                 self.report_error(
                     Cow::Borrowed(&Diagnostics::Type_0_is_missing_the_following_properties_from_type_1_Colon_2),
@@ -718,7 +718,7 @@ impl CheckTypeRelatedTo {
                             )
                         ).collect::<Result<Vec<_>, _>>()?.join(", "),
                     ])
-                )
+                )?
             }
             if should_skip_elaboration && self.maybe_error_info().is_some() {
                 self.set_override_next_error_info(self.override_next_error_info() + 1);
@@ -790,7 +790,7 @@ impl CheckTypeRelatedTo {
                                 source_arity.to_string(),
                                 target_min_length.to_string(),
                             ]),
-                        );
+                        )?;
                     }
                     return Ok(Ternary::False);
                 }
@@ -804,7 +804,7 @@ impl CheckTypeRelatedTo {
                                 source_min_length.to_string(),
                                 target_arity.to_string(),
                             ]),
-                        );
+                        )?;
                     }
                     return Ok(Ternary::False);
                 }
@@ -818,14 +818,14 @@ impl CheckTypeRelatedTo {
                                 Some(vec![
                                     target_min_length.to_string(),
                                 ])
-                            );
+                            )?;
                         } else {
                             self.report_error(
                                 Cow::Borrowed(&Diagnostics::Target_allows_only_0_element_s_but_source_may_have_more),
                                 Some(vec![
                                     target_arity.to_string(),
                                 ])
-                            );
+                            )?;
                         }
                     }
                     return Ok(Ternary::False);
@@ -888,7 +888,7 @@ impl CheckTypeRelatedTo {
                                 Some(vec![
                                     i.to_string(),
                                 ])
-                            );
+                            )?;
                         }
                         return Ok(Ternary::False);
                     }
@@ -902,7 +902,7 @@ impl CheckTypeRelatedTo {
                                     source_index.to_string(),
                                     i.to_string(),
                                 ])
-                            );
+                            )?;
                         }
                         return Ok(Ternary::False);
                     }
@@ -915,7 +915,7 @@ impl CheckTypeRelatedTo {
                                 Some(vec![
                                     i.to_string(),
                                 ])
-                            );
+                            )?;
                         }
                         return Ok(Ternary::False);
                     }
@@ -1026,7 +1026,7 @@ impl CheckTypeRelatedTo {
                     target,
                     unmatched_property,
                     require_optional_properties,
-                );
+                )?;
             }
             return Ok(Ternary::False);
         }
@@ -1063,7 +1063,7 @@ impl CheckTypeRelatedTo {
                                         None,
                                     )?,
                                 ]),
-                            );
+                            )?;
                         }
                         return Ok(Ternary::False);
                     }
@@ -1121,14 +1121,14 @@ impl CheckTypeRelatedTo {
         let source_properties = self.exclude_properties(
             &self
                 .type_checker
-                .get_properties_of_object_type(source)
+                .get_properties_of_object_type(source)?
                 .collect_vec(),
             excluded_properties,
         );
         let target_properties = self.exclude_properties(
             &self
                 .type_checker
-                .get_properties_of_object_type(target)
+                .get_properties_of_object_type(target)?
                 .collect_vec(),
             excluded_properties,
         );
@@ -1210,7 +1210,7 @@ impl CheckTypeRelatedTo {
                     self.report_error(
                         Cow::Borrowed(&Diagnostics::Cannot_assign_an_abstract_constructor_type_to_a_non_abstract_constructor_type),
                         None,
-                    );
+                    )?;
                 }
                 return Ok(Ternary::False);
             }
@@ -1218,7 +1218,7 @@ impl CheckTypeRelatedTo {
                 &source_signatures[0],
                 &target_signatures[0],
                 report_errors,
-            ) {
+            )? {
                 return Ok(Ternary::False);
             }
         }
@@ -1299,11 +1299,11 @@ impl CheckTypeRelatedTo {
                         construct_signature_to_string(source_signature.clone())?,
                         construct_signature_to_string(target_signature.clone())?,
                     ]),
-                );
+                )?;
                 self.report_error(
                     Cow::Borrowed(&Diagnostics::Types_of_construct_signatures_are_incompatible),
                     None,
-                );
+                )?;
                 return Ok(result);
             }
         } else {
@@ -1343,7 +1343,7 @@ impl CheckTypeRelatedTo {
                                 None,
                             )?,
                         ]),
-                    );
+                    )?;
                 }
                 return Ok(Ternary::False);
             }
@@ -1532,7 +1532,7 @@ impl CheckTypeRelatedTo {
                     .get_properties_of_union_or_intersection_type(source)?,
             )
         } else {
-            Either::Right(self.type_checker.get_properties_of_object_type(source))
+            Either::Right(self.type_checker.get_properties_of_object_type(source)?)
         };
         for ref prop in props {
             if self.type_checker.is_ignored_jsx_property(source, prop) {
@@ -1578,7 +1578,7 @@ impl CheckTypeRelatedTo {
                                 None,
                                 None,
                             )?]),
-                        );
+                        )?;
                     }
                     return Ok(Ternary::False);
                 }

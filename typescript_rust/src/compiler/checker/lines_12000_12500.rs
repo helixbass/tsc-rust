@@ -560,7 +560,7 @@ impl TypeChecker {
     ) -> io::Result<Option<Gc<Symbol>>> {
         let type_ = self.get_reduced_apparent_type(type_)?;
         if type_.flags().intersects(TypeFlags::Object) {
-            let resolved = self.resolve_structured_type_members(&type_);
+            let resolved = self.resolve_structured_type_members(&type_)?;
             let symbol = (*resolved.as_resolved_type().members())
                 .borrow()
                 .get(name)
@@ -605,17 +605,17 @@ impl TypeChecker {
         &self,
         type_: &Type,
         kind: SignatureKind,
-    ) -> Vec<Gc<Signature>> {
+    ) -> io::Result<Vec<Gc<Signature>>> {
         if type_.flags().intersects(TypeFlags::StructuredType) {
-            let resolved = self.resolve_structured_type_members(type_);
+            let resolved = self.resolve_structured_type_members(type_)?;
             let resolved_as_resolved_type = resolved.as_resolved_type();
-            return if kind == SignatureKind::Call {
+            return Ok(if kind == SignatureKind::Call {
                 resolved_as_resolved_type.call_signatures().clone()
             } else {
                 resolved_as_resolved_type.construct_signatures().clone()
-            };
+            });
         }
-        vec![]
+        Ok(vec![])
     }
 
     pub fn get_signatures_of_type(
@@ -623,7 +623,7 @@ impl TypeChecker {
         type_: &Type,
         kind: SignatureKind,
     ) -> io::Result<Vec<Gc<Signature>>> {
-        Ok(self.get_signatures_of_structured_type(&*self.get_reduced_apparent_type(type_)?, kind))
+        self.get_signatures_of_structured_type(&*self.get_reduced_apparent_type(type_)?, kind)
     }
 
     pub(super) fn find_index_info(
@@ -702,16 +702,19 @@ impl TypeChecker {
                 && self.is_numeric_literal_name(&source.as_string_literal_type().value))
     }
 
-    pub(super) fn get_index_infos_of_structured_type(&self, type_: &Type) -> Vec<Gc<IndexInfo>> {
+    pub(super) fn get_index_infos_of_structured_type(
+        &self,
+        type_: &Type,
+    ) -> io::Result<Vec<Gc<IndexInfo>>> {
         if type_.flags().intersects(TypeFlags::StructuredType) {
-            let resolved = self.resolve_structured_type_members(type_);
-            return resolved.as_resolved_type().index_infos().clone();
+            let resolved = self.resolve_structured_type_members(type_)?;
+            return Ok(resolved.as_resolved_type().index_infos().clone());
         }
-        vec![]
+        Ok(vec![])
     }
 
     pub(super) fn get_index_infos_of_type(&self, type_: &Type) -> io::Result<Vec<Gc<IndexInfo>>> {
-        Ok(self.get_index_infos_of_structured_type(&*self.get_reduced_apparent_type(type_)?))
+        self.get_index_infos_of_structured_type(&*self.get_reduced_apparent_type(type_)?)
     }
 
     pub(super) fn get_index_info_of_type_(

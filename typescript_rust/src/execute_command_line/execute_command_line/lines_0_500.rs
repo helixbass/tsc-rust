@@ -850,7 +850,7 @@ pub(super) fn execute_command_line_worker(
                 None,
             )
             .into(),
-        ));
+        ))?;
         sys.exit(Some(ExitStatus::DiagnosticsPresent_OutputsSkipped));
     }
 
@@ -903,7 +903,7 @@ pub(super) fn execute_command_line_worker(
                 Some(vec!["watch".to_owned(), "listFilesOnly".to_owned()]),
             )
             .into(),
-        ));
+        ))?;
         sys.exit(Some(ExitStatus::DiagnosticsPresent_OutputsSkipped));
     }
 
@@ -915,7 +915,7 @@ pub(super) fn execute_command_line_worker(
                     None
                 )
                 .into(),
-            ));
+            ))?;
             sys.exit(Some(ExitStatus::DiagnosticsPresent_OutputsSkipped));
         }
 
@@ -932,7 +932,7 @@ pub(super) fn execute_command_line_worker(
                         Some(vec![command_line_options_project.to_owned()])
                     )
                     .into(),
-                ));
+                ))?;
                 sys.exit(Some(ExitStatus::DiagnosticsPresent_OutputsSkipped));
             }
         } else {
@@ -944,7 +944,7 @@ pub(super) fn execute_command_line_worker(
                         Some(vec![command_line_options_project.to_owned()]),
                     )
                     .into(),
-                ));
+                ))?;
                 sys.exit(Some(ExitStatus::DiagnosticsPresent_OutputsSkipped));
             }
         }
@@ -962,7 +962,7 @@ pub(super) fn execute_command_line_worker(
                     Some(vec![normalize_path(&sys.get_current_directory()?)]),
                 )
                 .into(),
-            ));
+            ))?;
         } else {
             print_version(&**sys);
             print_help(&**sys, &command_line);
@@ -1019,7 +1019,7 @@ pub(super) fn execute_command_line_worker(
             config_parse_result.options.clone().into(),
         );
         if is_watch_set(&config_parse_result.options) {
-            if report_watch_mode_without_sys_support(&**sys, &**report_diagnostic) {
+            if report_watch_mode_without_sys_support(&**sys, &**report_diagnostic)? {
                 return Ok(());
             }
             create_watch_of_config_file(
@@ -1039,7 +1039,7 @@ pub(super) fn execute_command_line_worker(
                 &config_parse_result,
             );
         } else {
-            perform_compilation(sys, cb, report_diagnostic, &config_parse_result);
+            perform_compilation(sys, cb, report_diagnostic, &config_parse_result)?;
         }
     } else {
         if matches!(command_line.options.show_config, Some(true)) {
@@ -1061,7 +1061,7 @@ pub(super) fn execute_command_line_worker(
             command_line_options.clone().into(),
         );
         if is_watch_set(&command_line_options) {
-            if report_watch_mode_without_sys_support(&**sys, &**report_diagnostic) {
+            if report_watch_mode_without_sys_support(&**sys, &**report_diagnostic)? {
                 return Ok(());
             }
             create_watch_of_files_and_compiler_options(
@@ -1077,7 +1077,7 @@ pub(super) fn execute_command_line_worker(
             perform_incremental_compilation(sys, cb, report_diagnostic, &command_line);
         } else {
             command_line.options = command_line_options;
-            perform_compilation(sys, cb, report_diagnostic, &command_line);
+            perform_compilation(sys, cb, report_diagnostic, &command_line)?;
         }
     }
 

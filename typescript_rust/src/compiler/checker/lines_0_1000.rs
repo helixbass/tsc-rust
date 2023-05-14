@@ -1147,14 +1147,14 @@ pub fn create_type_checker(
         vec![],
         vec![],
         vec![],
-    ));
+    )?);
     let empty_jsx_object_type = type_checker.create_anonymous_type(
         Option::<&Symbol>::None,
         type_checker.empty_symbols(),
         vec![],
         vec![],
         vec![],
-    );
+    )?;
     let empty_jsx_object_type_as_object_flags_type = empty_jsx_object_type.as_object_flags_type();
     empty_jsx_object_type_as_object_flags_type.set_object_flags(
         empty_jsx_object_type_as_object_flags_type.object_flags() | ObjectFlags::JsxAttributes,
@@ -1176,7 +1176,7 @@ pub fn create_type_checker(
         vec![],
         vec![],
         vec![],
-    ));
+    )?);
 
     let empty_generic_type = type_checker.create_anonymous_type_returning_base_object_type(
         Option::<&Symbol>::None,
@@ -1184,7 +1184,7 @@ pub fn create_type_checker(
         vec![],
         vec![],
         vec![],
-    );
+    )?;
     let empty_generic_type = BaseInterfaceType::new(empty_generic_type, None, None, None, None);
     empty_generic_type.genericize(HashMap::new());
     type_checker.empty_generic_type = Some(empty_generic_type.into());
@@ -1195,7 +1195,7 @@ pub fn create_type_checker(
         vec![],
         vec![],
         vec![],
-    );
+    )?;
     let any_function_type_as_object_flags_type = any_function_type.as_object_flags_type();
     any_function_type_as_object_flags_type.set_object_flags(
         any_function_type_as_object_flags_type.object_flags() | ObjectFlags::NonInferrableType,
@@ -1208,21 +1208,21 @@ pub fn create_type_checker(
         vec![],
         vec![],
         vec![],
-    ));
+    )?);
     type_checker.circular_constraint_type = Some(type_checker.create_anonymous_type(
         Option::<&Symbol>::None,
         type_checker.empty_symbols(),
         vec![],
         vec![],
         vec![],
-    ));
+    )?);
     type_checker.resolving_default_type = Some(type_checker.create_anonymous_type(
         Option::<&Symbol>::None,
         type_checker.empty_symbols(),
         vec![],
         vec![],
         vec![],
-    ));
+    )?);
 
     type_checker.marker_super_type = Some(
         type_checker
@@ -1337,7 +1337,7 @@ pub fn create_type_checker(
 
     *rc_wrapped.node_builder.borrow_mut() = Some(rc_wrapped.create_node_builder());
 
-    rc_wrapped.initialize_type_checker();
+    rc_wrapped.initialize_type_checker()?;
 
     *rc_wrapped.check_binary_expression.borrow_mut() =
         Some(Gc::new(rc_wrapped.create_check_binary_expression()));
@@ -1880,9 +1880,9 @@ impl TypeChecker {
         &self,
         location_in: &Node,
         meaning: SymbolFlags,
-    ) -> Vec<Gc<Symbol>> {
+    ) -> io::Result<Vec<Gc<Symbol>>> {
         let location = get_parse_tree_node(Some(location_in), Option::<fn(&Node) -> bool>::None);
-        location.map_or_else(
+        location.try_map_or_else(
             || vec![],
             |location| self.get_symbols_in_scope_(&location, meaning),
         )
@@ -2218,7 +2218,7 @@ impl TypeChecker {
     pub fn get_constant_value(
         &self,
         node_in: &Node, /*EnumMember | PropertyAccessExpression | ElementAccessExpression*/
-    ) -> Option<StringOrNumber> {
+    ) -> io::Result<Option<StringOrNumber>> {
         let node = get_parse_tree_node(
             Some(node_in),
             Some(|node: &Node| self.can_have_constant_value(node)),
@@ -2505,19 +2505,19 @@ impl TypeChecker {
         &self,
         file_in: &Node, /*SourceFile*/
         ct: Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
-    ) -> Vec<Gc<Diagnostic /*DiagnosticWithLocation*/>> {
+    ) -> io::Result<Vec<Gc<Diagnostic /*DiagnosticWithLocation*/>>> {
         let file = get_parse_tree_node(Some(file_in), Some(|node: &Node| is_source_file(node)))
             .unwrap_or_else(|| Debug_.fail(Some("Could not determine parsed source file.")));
         if skip_type_checking(&file, &self.compiler_options, |file_name| {
             TypeCheckerHost::is_source_of_project_reference_redirect(&**self.host, file_name)
         }) {
-            return vec![];
+            return Ok(vec![]);
         }
 
         let mut diagnostics: Option<Vec<Gc<Diagnostic>>>;
         self.set_cancellation_token(ct);
 
-        self.check_source_file(&file);
+        self.check_source_file(&file)?;
         Debug_.assert(
             (*self.get_node_links(&file))
                 .borrow()
@@ -2550,11 +2550,11 @@ impl TypeChecker {
                     diagnostics.as_mut().unwrap().push(diag);
                 }
             },
-        );
+        )?;
 
         self.set_cancellation_token(None);
 
-        diagnostics.unwrap_or_else(|| vec![])
+        Ok(diagnostics.unwrap_or_else(|| vec![]))
     }
 
     pub fn run_with_cancellation_token<TReturn, TCallback: FnMut(&TypeChecker) -> TReturn>(

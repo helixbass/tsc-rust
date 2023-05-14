@@ -74,7 +74,7 @@ impl Program {
                             file: file_as_source_file.path().clone(),
                             index,
                         })),
-                    );
+                    )?;
                 } else {
                     let unqualified_lib_name =
                         remove_suffix(remove_prefix(&lib_name, "lib."), ".d.ts");
@@ -205,7 +205,7 @@ impl Program {
                             index,
                         })),
                         resolution.package_id.as_ref(),
-                    );
+                    )?;
                 }
 
                 if is_from_node_modules_search == Some(true) {

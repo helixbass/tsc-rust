@@ -3,6 +3,8 @@ use indexmap::IndexMap;
 use std::{borrow::Borrow, io};
 
 use super::UnusedKind;
+use crate::try_for_each;
+use crate::try_maybe_for_each;
 use crate::{
     clear, compare_diagnostics, concatenate, contains_parse_error, for_each, for_each_child,
     get_host_signature_from_jsdoc, get_node_id, get_parameter_symbol_from_jsdoc,
@@ -46,17 +48,17 @@ impl TypeChecker {
 
     pub(super) fn check_source_element_worker(&self, node: &Node) -> io::Result<()> {
         if is_in_js_file(Some(node)) {
-            maybe_for_each(
+            try_maybe_for_each(
                 node.maybe_js_doc().as_ref(),
-                |jsdoc: &Gc<Node>, _| -> Option<()> {
+                |jsdoc: &Gc<Node>, _| -> io::Result<Option<()>> {
                     let tags = jsdoc.as_jsdoc().tags.as_ref();
-                    maybe_for_each(tags, |tag: &Gc<Node>, _| -> Option<()> {
-                        self.check_source_element(Some(&**tag));
-                        None
-                    });
-                    None
+                    try_maybe_for_each(tags, |tag: &Gc<Node>, _| -> io::Result<Option<()>> {
+                        self.check_source_element(Some(&**tag))?;
+                        Ok(None)
+                    })?;
+                    Ok(None)
                 },
-            );
+            )?;
         }
 
         let kind = node.kind();
@@ -88,80 +90,80 @@ impl TypeChecker {
 
         match kind {
             SyntaxKind::TypeParameter => {
-                self.check_type_parameter(node);
+                self.check_type_parameter(node)?;
             }
             SyntaxKind::Parameter => {
-                self.check_parameter(node);
+                self.check_parameter(node)?;
             }
             SyntaxKind::PropertyDeclaration => {
-                self.check_property_declaration(node);
+                self.check_property_declaration(node)?;
             }
             SyntaxKind::PropertySignature => {
-                self.check_property_signature(node);
+                self.check_property_signature(node)?;
             }
             SyntaxKind::ConstructorType
             | SyntaxKind::FunctionType
             | SyntaxKind::CallSignature
             | SyntaxKind::ConstructSignature
             | SyntaxKind::IndexSignature => {
-                self.check_signature_declaration(node);
+                self.check_signature_declaration(node)?;
             }
             SyntaxKind::MethodDeclaration | SyntaxKind::MethodSignature => {
-                self.check_method_declaration(node);
+                self.check_method_declaration(node)?;
             }
             SyntaxKind::ClassStaticBlockDeclaration => {
-                self.check_class_static_block_declaration(node);
+                self.check_class_static_block_declaration(node)?;
             }
             SyntaxKind::Constructor => {
-                self.check_constructor_declaration(node);
+                self.check_constructor_declaration(node)?;
             }
             SyntaxKind::GetAccessor | SyntaxKind::SetAccessor => {
-                self.check_accessor_declaration(node);
+                self.check_accessor_declaration(node)?;
             }
             SyntaxKind::TypeReference => {
-                self.check_type_reference_node(node);
+                self.check_type_reference_node(node)?;
             }
             SyntaxKind::TypePredicate => {
-                self.check_type_predicate(node);
+                self.check_type_predicate(node)?;
             }
             SyntaxKind::TypeQuery => {
-                self.check_type_query(node);
+                self.check_type_query(node)?;
             }
             SyntaxKind::TypeLiteral => {
-                self.check_type_literal(node);
+                self.check_type_literal(node)?;
             }
             SyntaxKind::ArrayType => {
-                self.check_array_type(node);
+                self.check_array_type(node)?;
             }
             SyntaxKind::TupleType => {
-                self.check_tuple_type(node);
+                self.check_tuple_type(node)?;
             }
             SyntaxKind::UnionType | SyntaxKind::IntersectionType => {
-                self.check_union_or_intersection_type(node);
+                self.check_union_or_intersection_type(node)?;
             }
             SyntaxKind::ParenthesizedType | SyntaxKind::OptionalType | SyntaxKind::RestType => {
-                self.check_source_element(node.as_has_type().maybe_type());
+                self.check_source_element(node.as_has_type().maybe_type())?;
             }
             SyntaxKind::ThisType => {
-                self.check_this_type(node);
+                self.check_this_type(node)?;
             }
             SyntaxKind::TypeOperator => {
-                self.check_type_operator(node);
+                self.check_type_operator(node)?;
             }
             SyntaxKind::ConditionalType => {
-                self.check_conditional_type(node);
+                self.check_conditional_type(node)?;
             }
             SyntaxKind::InferType => {
-                self.check_infer_type(node);
+                self.check_infer_type(node)?;
             }
             SyntaxKind::TemplateLiteralType => {
-                self.check_template_literal_type(node);
+                self.check_template_literal_type(node)?;
             }
             SyntaxKind::ImportType => {
-                self.check_import_type(node);
+                self.check_import_type(node)?;
             }
             SyntaxKind::NamedTupleMember => {
-                self.check_named_tuple_member(node);
+                self.check_named_tuple_member(node)?;
             }
             SyntaxKind::JSDocAugmentsTag => {
                 self.check_jsdoc_augments_tag(node);
@@ -172,22 +174,22 @@ impl TypeChecker {
             SyntaxKind::JSDocTypedefTag
             | SyntaxKind::JSDocCallbackTag
             | SyntaxKind::JSDocEnumTag => {
-                self.check_jsdoc_type_alias_tag(node);
+                self.check_jsdoc_type_alias_tag(node)?;
             }
             SyntaxKind::JSDocTemplateTag => {
-                self.check_jsdoc_template_tag(node);
+                self.check_jsdoc_template_tag(node)?;
             }
             SyntaxKind::JSDocTypeTag => {
-                self.check_jsdoc_type_tag(node);
+                self.check_jsdoc_type_tag(node)?;
             }
             SyntaxKind::JSDocParameterTag => {
-                self.check_jsdoc_parameter_tag(node);
+                self.check_jsdoc_parameter_tag(node)?;
             }
             SyntaxKind::JSDocPropertyTag => {
-                self.check_jsdoc_property_tag(node);
+                self.check_jsdoc_property_tag(node)?;
             }
             SyntaxKind::JSDocFunctionType => {
-                self.check_jsdoc_function_type(node);
+                self.check_jsdoc_function_type(node)?;
                 self.check_jsdoc_type_is_in_js_file(node);
                 try_for_each_child(
                     node,
@@ -208,10 +210,10 @@ impl TypeChecker {
                 )?;
             }
             SyntaxKind::JSDocVariadicType => {
-                self.check_jsdoc_variadic_type(node);
+                self.check_jsdoc_variadic_type(node)?;
             }
             SyntaxKind::JSDocTypeExpression => {
-                self.check_source_element(Some(&*node.as_jsdoc_type_expression().type_));
+                self.check_source_element(Some(&*node.as_jsdoc_type_expression().type_))?;
             }
             SyntaxKind::JSDocPublicTag
             | SyntaxKind::JSDocProtectedTag
@@ -219,100 +221,100 @@ impl TypeChecker {
                 self.check_jsdoc_accessibility_modifiers(node);
             }
             SyntaxKind::IndexedAccessType => {
-                self.check_indexed_access_type(node);
+                self.check_indexed_access_type(node)?;
             }
             SyntaxKind::MappedType => {
-                self.check_mapped_type(node);
+                self.check_mapped_type(node)?;
             }
             SyntaxKind::FunctionDeclaration => {
-                self.check_function_declaration(node);
+                self.check_function_declaration(node)?;
             }
             SyntaxKind::Block | SyntaxKind::ModuleBlock => {
-                self.check_block(node);
+                self.check_block(node)?;
             }
             SyntaxKind::VariableStatement => {
-                self.check_variable_statement(node);
+                self.check_variable_statement(node)?;
             }
             SyntaxKind::ExpressionStatement => {
-                self.check_expression_statement(node);
+                self.check_expression_statement(node)?;
             }
             SyntaxKind::IfStatement => {
-                self.check_if_statement(node);
+                self.check_if_statement(node)?;
             }
             SyntaxKind::DoStatement => {
-                self.check_do_statement(node);
+                self.check_do_statement(node)?;
             }
             SyntaxKind::WhileStatement => {
-                self.check_while_statement(node);
+                self.check_while_statement(node)?;
             }
             SyntaxKind::ForStatement => {
-                self.check_for_statement(node);
+                self.check_for_statement(node)?;
             }
             SyntaxKind::ForInStatement => {
-                self.check_for_in_statement(node);
+                self.check_for_in_statement(node)?;
             }
             SyntaxKind::ForOfStatement => {
-                self.check_for_of_statement(node);
+                self.check_for_of_statement(node)?;
             }
             SyntaxKind::ContinueStatement | SyntaxKind::BreakStatement => {
                 self.check_break_or_continue_statement(node);
             }
             SyntaxKind::ReturnStatement => {
-                self.check_return_statement(node);
+                self.check_return_statement(node)?;
             }
             SyntaxKind::WithStatement => {
-                self.check_with_statement(node);
+                self.check_with_statement(node)?;
             }
             SyntaxKind::SwitchStatement => {
-                self.check_switch_statement(node);
+                self.check_switch_statement(node)?;
             }
             SyntaxKind::LabeledStatement => {
-                self.check_labeled_statement(node);
+                self.check_labeled_statement(node)?;
             }
             SyntaxKind::ThrowStatement => {
-                self.check_throw_statement(node);
+                self.check_throw_statement(node)?;
             }
             SyntaxKind::TryStatement => {
-                self.check_try_statement(node);
+                self.check_try_statement(node)?;
             }
             SyntaxKind::VariableDeclaration => {
-                self.check_variable_declaration(node);
+                self.check_variable_declaration(node)?;
             }
             SyntaxKind::BindingElement => {
-                self.check_binding_element(node);
+                self.check_binding_element(node)?;
             }
             SyntaxKind::ClassDeclaration => {
-                self.check_class_declaration(node);
+                self.check_class_declaration(node)?;
             }
             SyntaxKind::InterfaceDeclaration => {
-                self.check_interface_declaration(node);
+                self.check_interface_declaration(node)?;
             }
             SyntaxKind::TypeAliasDeclaration => {
-                self.check_type_alias_declaration(node);
+                self.check_type_alias_declaration(node)?;
             }
             SyntaxKind::EnumDeclaration => {
-                self.check_enum_declaration(node);
+                self.check_enum_declaration(node)?;
             }
             SyntaxKind::ModuleDeclaration => {
-                self.check_module_declaration(node);
+                self.check_module_declaration(node)?;
             }
             SyntaxKind::ImportDeclaration => {
-                self.check_import_declaration(node);
+                self.check_import_declaration(node)?;
             }
             SyntaxKind::ImportEqualsDeclaration => {
-                self.check_import_equals_declaration(node);
+                self.check_import_equals_declaration(node)?;
             }
             SyntaxKind::ExportDeclaration => {
-                self.check_export_declaration(node);
+                self.check_export_declaration(node)?;
             }
             SyntaxKind::ExportAssignment => {
-                self.check_export_assignment(node);
+                self.check_export_assignment(node)?;
             }
             SyntaxKind::EmptyStatement | SyntaxKind::DebuggerStatement => {
                 self.check_grammar_statement_in_ambient_context(node);
             }
             SyntaxKind::MissingDeclaration => {
-                self.check_missing_declaration(node);
+                self.check_missing_declaration(node)?;
             }
             _ => (),
         }
@@ -330,10 +332,13 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn check_jsdoc_variadic_type(&self, node: &Node /*JSDocVariadicType*/) {
+    pub(super) fn check_jsdoc_variadic_type(
+        &self,
+        node: &Node, /*JSDocVariadicType*/
+    ) -> io::Result<()> {
         self.check_jsdoc_type_is_in_js_file(node);
         let node_as_base_jsdoc_unary_type = node.as_base_jsdoc_unary_type();
-        self.check_source_element(node_as_base_jsdoc_unary_type.type_.as_deref());
+        self.check_source_element(node_as_base_jsdoc_unary_type.type_.as_deref())?;
 
         let ref parent = node.parent();
         if is_parameter(parent) && is_jsdoc_function_type(&parent.parent()) {
@@ -347,7 +352,7 @@ impl TypeChecker {
                     None,
                 );
             }
-            return;
+            return Ok(());
         }
 
         if !is_jsdoc_type_expression(parent) {
@@ -365,12 +370,12 @@ impl TypeChecker {
                 &Diagnostics::JSDoc_may_only_appear_in_the_last_parameter_of_a_signature,
                 None,
             );
-            return;
+            return Ok(());
         }
 
         let param = get_parameter_symbol_from_jsdoc(param_tag);
         if param.is_none() {
-            return;
+            return Ok(());
         }
         let param = param.as_ref().unwrap();
 
@@ -391,6 +396,8 @@ impl TypeChecker {
                 None,
             );
         }
+
+        Ok(())
     }
 
     pub(super) fn get_type_from_jsdoc_variadic_type(
@@ -473,7 +480,10 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn check_deferred_nodes(&self, context: &Node /*SourceFile*/) {
+    pub(super) fn check_deferred_nodes(
+        &self,
+        context: &Node, /*SourceFile*/
+    ) -> io::Result<()> {
         let links = self.get_node_links(context);
         let links_deferred_nodes_is_some = {
             let value = (*links).borrow().deferred_nodes.is_some();
@@ -496,13 +506,15 @@ impl TypeChecker {
                         .cloned()
                         .unwrap();
                     value
-                });
+                })?;
                 i += 1;
             }
         }
+
+        Ok(())
     }
 
-    pub(super) fn check_deferred_node(&self, node: &Node) {
+    pub(super) fn check_deferred_node(&self, node: &Node) -> io::Result<()> {
         // tracing?.push(tracing.Phase.Check, "checkDeferredNode", { kind: node.kind, pos: node.pos, end: node.end });
         let save_current_node = self.maybe_current_node();
         self.set_current_node(Some(node.node_wrapper()));
@@ -513,33 +525,35 @@ impl TypeChecker {
             | SyntaxKind::TaggedTemplateExpression
             | SyntaxKind::Decorator
             | SyntaxKind::JsxOpeningElement => {
-                self.resolve_untyped_call(node);
+                self.resolve_untyped_call(node)?;
             }
             SyntaxKind::FunctionExpression
             | SyntaxKind::ArrowFunction
             | SyntaxKind::MethodDeclaration
             | SyntaxKind::MethodSignature => {
-                self.check_function_expression_or_object_literal_method_deferred(node);
+                self.check_function_expression_or_object_literal_method_deferred(node)?;
             }
             SyntaxKind::GetAccessor | SyntaxKind::SetAccessor => {
-                self.check_accessor_declaration(node);
+                self.check_accessor_declaration(node)?;
             }
             SyntaxKind::ClassExpression => {
-                self.check_class_expression_deferred(node);
+                self.check_class_expression_deferred(node)?;
             }
             SyntaxKind::JsxSelfClosingElement => {
-                self.check_jsx_self_closing_element_deferred(node);
+                self.check_jsx_self_closing_element_deferred(node)?;
             }
             SyntaxKind::JsxElement => {
-                self.check_jsx_element_deferred(node);
+                self.check_jsx_element_deferred(node)?;
             }
             _ => (),
         }
         self.set_current_node(save_current_node);
         // tracing?.pop();
+
+        Ok(())
     }
 
-    pub(super) fn check_source_file(&self, node: &Node /*SourceFile*/) {
+    pub(super) fn check_source_file(&self, node: &Node /*SourceFile*/) -> io::Result<()> {
         if is_logging {
             println!(
                 "checking source file: {}",
@@ -548,10 +562,12 @@ impl TypeChecker {
         }
         // tracing?.push(tracing.Phase.Check, "checkSourceFile", { path: node.path }, /*separateBeginAndEnd*/ true);
         // performance.mark("beforeCheck");
-        self.check_source_file_worker(node);
+        self.check_source_file_worker(node)?;
         // performance.mark("afterCheck");
         // performance.measure("Check", "beforeCheck", "afterCheck");
         // tracing?.pop();
+
+        Ok(())
     }
 
     pub(super) fn unused_is_error(&self, kind: UnusedKind, is_ambient: bool) -> bool {
@@ -575,7 +591,10 @@ impl TypeChecker {
             .unwrap_or_else(|| vec![])
     }
 
-    pub(super) fn check_source_file_worker(&self, node: &Node /*SourceFile*/) {
+    pub(super) fn check_source_file_worker(
+        &self,
+        node: &Node, /*SourceFile*/
+    ) -> io::Result<()> {
         let links = self.get_node_links(node);
         if !(*links)
             .borrow()
@@ -596,13 +615,16 @@ impl TypeChecker {
             clear(&mut self.potential_reflect_collisions());
 
             let node_as_source_file = node.as_source_file();
-            for_each(&node_as_source_file.statements(), |statement, _| {
-                self.check_source_element(Some(&**statement));
-                Option::<()>::None
-            });
-            self.check_source_element(Some(node_as_source_file.end_of_file_token()));
+            try_for_each(
+                &node_as_source_file.statements(),
+                |statement, _| -> io::Result<_> {
+                    self.check_source_element(Some(&**statement))?;
+                    Ok(Option::<()>::None)
+                },
+            )?;
+            self.check_source_element(Some(node_as_source_file.end_of_file_token()))?;
 
-            self.check_deferred_nodes(node);
+            self.check_deferred_nodes(node)?;
 
             if is_external_or_common_js_module(node) {
                 self.register_for_unused_identifiers_check(node);
@@ -624,7 +646,7 @@ impl TypeChecker {
                             self.diagnostics().add(diag);
                         }
                     },
-                );
+                )?;
             }
 
             if self.compiler_options.imports_not_used_as_values
@@ -632,11 +654,11 @@ impl TypeChecker {
                 && !node_as_source_file.is_declaration_file()
                 && is_external_module(node)
             {
-                self.check_imports_for_type_only_conversion(node);
+                self.check_imports_for_type_only_conversion(node)?;
             }
 
             if is_external_or_common_js_module(node) {
-                self.check_external_module_exports(node);
+                self.check_external_module_exports(node)?;
             }
 
             {
@@ -702,34 +724,36 @@ impl TypeChecker {
 
             links.borrow_mut().flags |= NodeCheckFlags::TypeChecked;
         }
+
+        Ok(())
     }
 
-    pub fn get_diagnostics<TSourceFile: Borrow<Node>>(
+    pub fn get_diagnostics(
         &self,
-        source_file: Option<TSourceFile /*SourceFile*/>,
+        source_file: Option<impl Borrow<Node> /*SourceFile*/>,
         ct: Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
-    ) -> Vec<Gc<Diagnostic>> {
+    ) -> io::Result<Vec<Gc<Diagnostic>>> {
         // try {
         self.set_cancellation_token(ct);
-        let ret = self.get_diagnostics_worker(source_file);
+        let ret = self.get_diagnostics_worker(source_file)?;
         // }
         // finally {
         self.set_cancellation_token(None);
         // }
-        ret
+        Ok(ret)
     }
 
-    pub(super) fn get_diagnostics_worker<TSourceFile: Borrow<Node>>(
+    pub(super) fn get_diagnostics_worker(
         &self,
-        source_file: Option<TSourceFile /*SourceFile*/>,
-    ) -> Vec<Gc<Diagnostic>> {
+        source_file: Option<impl Borrow<Node> /*SourceFile*/>,
+    ) -> io::Result<Vec<Gc<Diagnostic>>> {
         self.throw_if_non_diagnostics_producing();
         if let Some(source_file) = source_file {
             let source_file = source_file.borrow();
             let previous_global_diagnostics = self.diagnostics().get_global_diagnostics();
             let previous_global_diagnostics_size = previous_global_diagnostics.len();
 
-            self.check_source_file(source_file);
+            self.check_source_file(source_file)?;
 
             let semantic_diagnostics = self
                 .diagnostics()
@@ -741,21 +765,27 @@ impl TypeChecker {
                     &current_global_diagnostics,
                     |a: &Gc<Diagnostic>, b: &Gc<Diagnostic>| compare_diagnostics(&**a, &**b),
                 );
-                return concatenate(deferred_global_diagnostics, semantic_diagnostics);
+                return Ok(concatenate(
+                    deferred_global_diagnostics,
+                    semantic_diagnostics,
+                ));
             } else if previous_global_diagnostics_size == 0 && current_global_diagnostics.len() > 0
             {
-                return concatenate(current_global_diagnostics, semantic_diagnostics);
+                return Ok(concatenate(
+                    current_global_diagnostics,
+                    semantic_diagnostics,
+                ));
             }
-            return semantic_diagnostics;
+            return Ok(semantic_diagnostics);
         }
 
-        for_each(
+        try_for_each(
             &*self.host.get_source_files(),
-            |source_file: &Gc<Node>, _| -> Option<()> {
-                self.check_source_file(source_file);
-                None
+            |source_file: &Gc<Node>, _| -> io::Result<Option<()>> {
+                self.check_source_file(source_file)?;
+                Ok(None)
             },
-        );
-        self.diagnostics().get_diagnostics(None)
+        )?;
+        Ok(self.diagnostics().get_diagnostics(None))
     }
 }

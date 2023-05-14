@@ -857,30 +857,30 @@ impl TypeChecker {
     pub(super) fn check_grammar_variable_declaration(
         &self,
         node: &Node, /*VariableDeclaration*/
-    ) -> bool {
+    ) -> io::Result<bool> {
         let node_as_variable_declaration = node.as_variable_declaration();
         if !matches!(
             node.parent().parent().kind(),
             SyntaxKind::ForInStatement | SyntaxKind::ForOfStatement
         ) {
             if node.flags().intersects(NodeFlags::Ambient) {
-                self.check_ambient_initializer(node);
+                self.check_ambient_initializer(node)?;
             } else if node_as_variable_declaration.maybe_initializer().is_none() {
                 if is_binding_pattern(node_as_variable_declaration.maybe_name())
                     && !is_binding_pattern(node.maybe_parent())
                 {
-                    return self.grammar_error_on_node(
+                    return Ok(self.grammar_error_on_node(
                         node,
                         &Diagnostics::A_destructuring_declaration_must_have_an_initializer,
                         None,
-                    );
+                    ));
                 }
                 if is_var_const(node) {
-                    return self.grammar_error_on_node(
+                    return Ok(self.grammar_error_on_node(
                         node,
                         &Diagnostics::const_declarations_must_be_initialized,
                         None,
-                    );
+                    ));
                 }
             }
         }
@@ -898,14 +898,14 @@ impl TypeChecker {
             } else {
                 &*Diagnostics::A_definite_assignment_assertion_is_not_permitted_in_this_context
             };
-            return self.grammar_error_on_node(
+            return Ok(self.grammar_error_on_node(
                 node_as_variable_declaration
                     .exclamation_token
                     .as_ref()
                     .unwrap(),
                 message,
                 None,
-            );
+            ));
         }
 
         if (self.module_kind < ModuleKind::ES2015
@@ -926,9 +926,9 @@ impl TypeChecker {
 
         let check_let_const_names = is_let(node) || is_var_const(node);
 
-        check_let_const_names
+        Ok(check_let_const_names
             && self.check_grammar_name_in_let_or_const_declarations(
                 &node_as_variable_declaration.name(),
-            )
+            ))
     }
 }

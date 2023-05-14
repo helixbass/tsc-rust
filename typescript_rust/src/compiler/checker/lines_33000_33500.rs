@@ -30,7 +30,7 @@ impl TypeChecker {
         right_type: &Type,
     ) -> io::Result<()> {
         if kind == AssignmentDeclarationKind::ModuleExports {
-            for ref prop in self.get_properties_of_object_type(right_type) {
+            for ref prop in self.get_properties_of_object_type(right_type)? {
                 let prop_type = self.get_type_of_symbol(prop)?;
                 if matches!(
                     prop_type.maybe_symbol().as_ref(),
@@ -160,7 +160,7 @@ impl TypeChecker {
                     Some(right),
                     head_message,
                     None,
-                );
+                )?;
             }
         }
 
@@ -230,7 +230,7 @@ impl TypeChecker {
                 left_type,
                 right_type,
                 Some(types_are_compatible),
-            );
+            )?;
             return Ok(true);
         }
         Ok(false)
@@ -392,14 +392,17 @@ impl TypeChecker {
         let node_as_yield_expression = node.as_yield_expression();
         if node_as_yield_expression.asterisk_token.is_some() {
             if is_async && self.language_version < ScriptTarget::ESNext {
-                self.check_external_emit_helpers(node, ExternalEmitHelpers::AsyncDelegatorIncludes);
+                self.check_external_emit_helpers(
+                    node,
+                    ExternalEmitHelpers::AsyncDelegatorIncludes,
+                )?;
             }
 
             if !is_async
                 && self.language_version < ScriptTarget::ES2015
                 && self.compiler_options.downlevel_iteration == Some(true)
             {
-                self.check_external_emit_helpers(node, ExternalEmitHelpers::Values);
+                self.check_external_emit_helpers(node, ExternalEmitHelpers::Values)?;
             }
         }
 
@@ -447,7 +450,7 @@ impl TypeChecker {
                     node_as_yield_expression.expression.as_deref(),
                     None,
                     None,
-                );
+                )?;
             }
         }
 
@@ -509,7 +512,7 @@ impl TypeChecker {
             &node_as_conditional_expression.condition,
             &type_,
             Some(&*node_as_conditional_expression.when_true),
-        );
+        )?;
         let type1 =
             self.check_expression(&node_as_conditional_expression.when_true, check_mode, None)?;
         let type2 =

@@ -6,6 +6,7 @@ use super::{
     for_each_resolved_project_reference, get_implied_node_format_for_file, is_referenced_file,
     resolve_tripleslash_reference, FilesByNameValue, ForEachResolvedProjectReference,
 };
+use crate::try_maybe_for_each;
 use crate::{
     change_extension, combine_paths, file_extension_is, flatten, for_each, for_each_bool,
     for_each_child_returns, get_common_source_directory_of_config, get_emit_script_target,
@@ -404,16 +405,16 @@ impl Program {
                 self.source_files_found_searching_node_modules_mut()
                     .insert(file.as_source_file().path().to_string(), false);
                 if self.options.no_resolve != Some(true) {
-                    self.process_referenced_files(file, is_default_lib);
-                    self.process_type_reference_directives(file);
+                    self.process_referenced_files(file, is_default_lib)?;
+                    self.process_type_reference_directives(file)?;
                 }
                 if self.options.no_lib != Some(true) {
-                    self.process_lib_reference_directives(file);
+                    self.process_lib_reference_directives(file)?;
                 }
 
                 self.modules_with_elided_imports()
                     .insert(file.as_source_file().path().to_string(), false);
-                self.process_imported_modules(file);
+                self.process_imported_modules(file)?;
             } else if let Some(file) = file.as_ref().filter(|file| {
                 matches!(
                     self.modules_with_elided_imports()
@@ -425,7 +426,7 @@ impl Program {
                 if self.current_node_modules_depth() < self.max_node_module_js_depth {
                     self.modules_with_elided_imports()
                         .insert(file.as_source_file().path().to_string(), false);
-                    self.process_imported_modules(file);
+                    self.process_imported_modules(file)?;
                 }
             }
 
@@ -545,14 +546,14 @@ impl Program {
             ));
 
             if self.options.no_resolve != Some(true) {
-                self.process_referenced_files(file, is_default_lib);
-                self.process_type_reference_directives(file);
+                self.process_referenced_files(file, is_default_lib)?;
+                self.process_type_reference_directives(file)?;
             }
             if self.options.no_lib != Some(true) {
-                self.process_lib_reference_directives(file);
+                self.process_lib_reference_directives(file)?;
             }
 
-            self.process_imported_modules(file);
+            self.process_imported_modules(file)?;
 
             if is_default_lib {
                 self.processing_default_lib_files
@@ -791,15 +792,19 @@ impl Program {
         unimplemented!()
     }
 
-    pub fn process_referenced_files(&self, file: &Node /*SourceFile*/, is_default_lib: bool) {
+    pub fn process_referenced_files(
+        &self,
+        file: &Node, /*SourceFile*/
+        is_default_lib: bool,
+    ) -> io::Result<()> {
         let file_as_source_file = file.as_source_file();
-        maybe_for_each(
+        try_maybe_for_each(
             file_as_source_file
                 .maybe_referenced_files()
                 .as_ref()
                 .map(|file_referenced_files| (**file_referenced_files).borrow())
                 .as_deref(),
-            |ref_: &FileReference, index| -> Option<()> {
+            |ref_: &FileReference, index| -> io::Result<Option<()>> {
                 self.process_source_file(
                     &resolve_tripleslash_reference(
                         &ref_.file_name,
@@ -813,10 +818,12 @@ impl Program {
                         file: file_as_source_file.path().clone(),
                         index,
                     })),
-                );
-                None
+                )?;
+                Ok(None)
             },
-        );
+        )?;
+
+        Ok(())
     }
 
     pub fn process_type_reference_directives(
@@ -858,7 +865,7 @@ impl Program {
                     file: file_as_source_file.path().clone(),
                     index,
                 })),
-            );
+            )?;
         }
 
         Ok(())
@@ -869,14 +876,16 @@ impl Program {
         type_reference_directive: &str,
         resolved_type_reference_directive: Option<Gc<ResolvedTypeReferenceDirective>>,
         reason: Gc<FileIncludeReason>,
-    ) {
+    ) -> io::Result<()> {
         // tracing?.push(tracing.Phase.Program, "processTypeReferenceDirective", { directive: typeReferenceDirective, hasResolved: !!resolveModuleNamesReusingOldState, refKind: reason.kind, refPath: isReferencedFile(reason) ? reason.file : undefined });
         self.process_type_reference_directive_worker(
             type_reference_directive,
             resolved_type_reference_directive,
             reason,
-        )
+        )?;
         // tracing?.pop();
+
+        Ok(())
     }
 
     pub fn process_type_reference_directive_worker(
@@ -884,7 +893,7 @@ impl Program {
         type_reference_directive: &str,
         resolved_type_reference_directive: Option<Gc<ResolvedTypeReferenceDirective>>,
         reason: Gc<FileIncludeReason>,
-    ) {
+    ) -> io::Result<()> {
         let previous_resolution = (*self.resolved_type_reference_directives())
             .borrow()
             .get(type_reference_directive)
@@ -894,7 +903,7 @@ impl Program {
             previous_resolution.as_ref(),
             Some(previous_resolution) if previous_resolution.primary
         ) {
-            return;
+            return Ok(());
         }
         let mut save_resolution = true;
         if let Some(resolved_type_reference_directive) =
@@ -914,7 +923,7 @@ impl Program {
                     false,
                     resolved_type_reference_directive.package_id.as_ref(),
                     reason,
-                );
+                )?;
             } else {
                 if let Some(previous_resolution) = previous_resolution.as_ref() {
                     if resolved_type_reference_directive.resolved_file_name
@@ -961,7 +970,7 @@ impl Program {
                         false,
                         resolved_type_reference_directive.package_id.as_ref(),
                         reason,
-                    );
+                    )?;
                 }
             }
 
@@ -985,6 +994,8 @@ impl Program {
                     resolved_type_reference_directive,
                 );
         }
+
+        Ok(())
     }
 
     pub fn path_for_lib_file(&self, lib_file_name: &str) -> io::Result<String> {

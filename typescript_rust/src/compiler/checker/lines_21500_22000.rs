@@ -38,7 +38,7 @@ impl TypeChecker {
             &template_type,
             None,
             None,
-        );
+        )?;
         Ok(self
             .get_type_from_inference(&inference)?
             .unwrap_or_else(|| self.unknown_type()))
@@ -270,7 +270,7 @@ impl TypeChecker {
                 &vec![source.as_string_literal_type().value.clone()],
                 &vec![],
                 target,
-            )
+            )?
         } else if source.flags().intersects(TypeFlags::TemplateLiteral) {
             let source_as_template_literal_type = source.as_template_literal_type();
             if arrays_equal(
@@ -286,7 +286,7 @@ impl TypeChecker {
                     &source_as_template_literal_type.texts,
                     &source_as_template_literal_type.types,
                     target,
-                )
+                )?
             }
         } else {
             None
@@ -335,7 +335,7 @@ impl TypeChecker {
         source_texts: &[String],
         source_types: &[Gc<Type>],
         target: &Type, /*TemplateLiteralType*/
-    ) -> Option<Vec<Gc<Type>>> {
+    ) -> io::Result<Option<Vec<Gc<Type>>>> {
         let last_source_index = source_texts.len() - 1;
         let source_start_text = &source_texts[0];
         // TODO: should be using chars for any of this instead?
@@ -349,7 +349,7 @@ impl TypeChecker {
             || !source_start_text.starts_with(target_start_text)
             || !source_end_text.ends_with(target_end_text)
         {
-            return None;
+            return Ok(None);
         }
         let remaining_end_text = &source_end_text[0..source_end_text.len() - target_end_text.len()];
         let mut matches: Vec<Gc<Type>> = vec![];
@@ -375,7 +375,7 @@ impl TypeChecker {
                     }
                     s += 1;
                     if s == source_texts.len() {
-                        return None;
+                        return Ok(None);
                     }
                     p = 0;
                 }
@@ -389,7 +389,7 @@ impl TypeChecker {
                     source_types,
                     s,
                     p,
-                );
+                )?;
                 pos += delim.len();
             } else if pos
                 < self
@@ -408,7 +408,7 @@ impl TypeChecker {
                     source_types,
                     s,
                     p,
-                );
+                )?;
             } else if seg < last_source_index {
                 let s = seg + 1;
                 self.add_match(
@@ -421,9 +421,9 @@ impl TypeChecker {
                     source_types,
                     s,
                     0,
-                );
+                )?;
             } else {
-                return None;
+                return Ok(None);
             }
         }
         self.add_match(
@@ -442,8 +442,8 @@ impl TypeChecker {
                 last_source_index,
             )
             .len(),
-        );
-        Some(matches)
+        )?;
+        Ok(Some(matches))
     }
 
     pub(super) fn get_source_text<'args>(
@@ -665,7 +665,7 @@ impl InferTypes {
                     source_alias_type_arguments,
                     target.maybe_alias_type_arguments().as_ref().unwrap(),
                     &*self.type_checker.get_alias_variances(source_alias_symbol)?,
-                );
+                )?;
                 return Ok(());
             }
         }
@@ -706,7 +706,7 @@ impl InferTypes {
                 Option::<&Type>::None,
             )?;
             if sources.is_empty() {
-                self.infer_with_priority(&source, &target, InferencePriority::NakedTypeVariable);
+                self.infer_with_priority(&source, &target, InferencePriority::NakedTypeVariable)?;
                 return Ok(());
             }
             source = self.type_checker.get_union_type(
@@ -904,13 +904,13 @@ impl InferTypes {
         {
             let empty = self
                 .type_checker
-                .create_empty_object_type_from_string_literal(&source);
+                .create_empty_object_type_from_string_literal(&source)?;
             self.set_contravariant(!self.contravariant());
             self.infer_with_priority(
                 &empty,
                 &target.as_index_type().type_,
                 InferencePriority::LiteralKeyof,
-            );
+            )?;
             self.set_contravariant(!self.contravariant());
         } else if source.flags().intersects(TypeFlags::IndexedAccess)
             && target.flags().intersects(TypeFlags::IndexedAccess)
@@ -952,14 +952,14 @@ impl InferTypes {
                 &source,
                 target.as_union_or_intersection_type_interface().types(),
                 target.flags(),
-            );
+            )?;
         } else if source.flags().intersects(TypeFlags::Union) {
             let source_types = source.as_union_or_intersection_type_interface().types();
             for source_type in source_types {
                 self.infer_from_types(source_type, &target)?;
             }
         } else if target.flags().intersects(TypeFlags::TemplateLiteral) {
-            self.infer_to_template_literal_type(&source, &target);
+            self.infer_to_template_literal_type(&source, &target)?;
         } else {
             source = self.type_checker.get_reduced_type(&source)?;
             if !(self.priority().intersects(InferencePriority::NoConstraints)
@@ -1136,7 +1136,7 @@ impl InferTypes {
             if i < variances.len()
                 && variances[i] & VarianceFlags::VarianceMask == VarianceFlags::Contravariant
             {
-                self.infer_from_contravariant_types(&source_types[i], &target_types[i]);
+                self.infer_from_contravariant_types(&source_types[i], &target_types[i])?;
             } else {
                 self.infer_from_types(&source_types[i], &target_types[i])?;
             }

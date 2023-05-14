@@ -333,7 +333,7 @@ impl TypeChecker {
                 flags,
                 kind,
                 writer.clone(),
-            );
+            )?;
             writer.get_text()
         } else {
             try_using_single_line_string_writer(|writer: Gc<Box<dyn EmitTextWriter>>| {
@@ -689,9 +689,13 @@ impl NodeBuilder {
         flags: Option<NodeBuilderFlags>,
         tracker: Option<Gc<Box<dyn SymbolTracker>>>,
         bundled: Option<bool>,
-    ) -> Option<Vec<Gc<Node /*Statement*/>>> {
-        self.with_context(enclosing_declaration, flags, tracker, |context| {
-            Some(self.symbol_table_to_declaration_statements_(symbol_table, context, bundled))
+    ) -> io::Result<Option<Vec<Gc<Node /*Statement*/>>>> {
+        self.try_with_context(enclosing_declaration, flags, tracker, |context| {
+            Ok(Some(self.symbol_table_to_declaration_statements_(
+                symbol_table,
+                context,
+                bundled,
+            )?))
         })
     }
 

@@ -335,7 +335,7 @@ impl TypeChecker {
     ) -> io::Result<bool> {
         let prop = self.get_property_of_object_type(object_type, name)?;
         if let Some(prop) = prop.as_ref() {
-            let s = self.get_single_call_signature(&*self.get_type_of_symbol(prop)?);
+            let s = self.get_single_call_signature(&*self.get_type_of_symbol(prop)?)?;
             return Ok(matches!(
                 s.as_ref(),
                 Some(s) if self.get_min_argument_count(s, None)? >= 1 &&
@@ -799,13 +799,13 @@ impl TypeChecker {
         node: &Node, /*CallLikeExpression*/
     ) -> io::Result<Gc<Signature>> {
         if self.call_like_expression_may_have_type_arguments(node) {
-            maybe_for_each(
+            try_maybe_for_each(
                 node.as_has_type_arguments().maybe_type_arguments().as_ref(),
-                |type_argument: &Gc<Node>, _| -> Option<()> {
-                    self.check_source_element(Some(&**type_argument));
-                    None
+                |type_argument: &Gc<Node>, _| -> io::Result<Option<()>> {
+                    self.check_source_element(Some(&**type_argument))?;
+                    Ok(None)
                 },
-            );
+            )?;
         }
 
         if node.kind() == SyntaxKind::TaggedTemplateExpression {
@@ -827,9 +827,9 @@ impl TypeChecker {
     pub(super) fn resolve_error_call(
         &self,
         node: &Node, /*CallLikeExpression*/
-    ) -> Gc<Signature> {
-        self.resolve_untyped_call(node);
-        self.unknown_signature()
+    ) -> io::Result<Gc<Signature>> {
+        self.resolve_untyped_call(node)?;
+        Ok(self.unknown_signature())
     }
 
     pub(super) fn reorder_candidates(

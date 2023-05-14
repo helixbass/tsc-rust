@@ -778,7 +778,7 @@ impl TypeChecker {
                 immediate,
                 resolved.as_deref(),
                 false,
-            );
+            )?;
             return Ok(resolved);
         }
         let resolved = self.get_symbol_of_part_of_right_hand_side_of_import_equals(
@@ -788,7 +788,7 @@ impl TypeChecker {
         self.check_and_report_error_for_resolving_import_alias_to_type_only_symbol(
             node,
             resolved.as_deref(),
-        );
+        )?;
         Ok(resolved)
     }
 
@@ -863,7 +863,7 @@ impl TypeChecker {
             export_symbol,
             resolved.as_deref(),
             false,
-        );
+        )?;
         Ok(resolved)
     }
 
@@ -1069,7 +1069,7 @@ impl TypeChecker {
                     );
                 }
             } else {
-                self.report_non_default_export(&module_symbol, node);
+                self.report_non_default_export(&module_symbol, node)?;
             }
         } else if has_synthetic_default || has_default_only {
             let resolved = self
@@ -1082,7 +1082,7 @@ impl TypeChecker {
                 Some(&*module_symbol),
                 resolved.as_deref(),
                 false,
-            );
+            )?;
             return Ok(resolved);
         }
         self.mark_symbol_of_alias_declaration_if_type_only(
@@ -1090,7 +1090,7 @@ impl TypeChecker {
             export_default_symbol.as_deref(),
             Option::<&Symbol>::None,
             false,
-        );
+        )?;
         Ok(export_default_symbol)
     }
 
@@ -1188,7 +1188,7 @@ impl TypeChecker {
             immediate,
             resolved.as_deref(),
             false,
-        );
+        )?;
         Ok(resolved)
     }
 
@@ -1218,7 +1218,7 @@ impl TypeChecker {
             immediate,
             resolved.as_deref(),
             false,
-        );
+        )?;
         Ok(resolved)
     }
 
@@ -1295,7 +1295,7 @@ impl TypeChecker {
                 export_symbol,
                 resolved.as_deref(),
                 false,
-            );
+            )?;
             return Ok(resolved);
         }
         Ok(None)
@@ -1495,7 +1495,7 @@ impl TypeChecker {
                             declaration_name.into_owned(),
                             &module_symbol,
                             module_name,
-                        );
+                        )?;
                     }
                 }
             }
@@ -1701,7 +1701,7 @@ impl TypeChecker {
             Option::<&Symbol>::None,
             resolved.as_deref(),
             false,
-        );
+        )?;
         Ok(resolved)
     }
 
@@ -1732,7 +1732,7 @@ impl TypeChecker {
             Option::<&Symbol>::None,
             Some(&*resolved),
             false,
-        );
+        )?;
         Ok(resolved)
     }
 
@@ -1768,7 +1768,7 @@ impl TypeChecker {
             Option::<&Symbol>::None,
             resolved.as_deref(),
             false,
-        );
+        )?;
         Ok(resolved)
     }
 
@@ -1788,7 +1788,7 @@ impl TypeChecker {
             Option::<&Symbol>::None,
             resolved.as_deref(),
             false,
-        );
+        )?;
         Ok(resolved)
     }
 
@@ -1815,7 +1815,7 @@ impl TypeChecker {
         if alias_like.is_some() {
             return Ok(alias_like);
         }
-        self.check_expression_cached(expression, None);
+        self.check_expression_cached(expression, None)?;
         Ok((*self.get_node_links(expression))
             .borrow()
             .resolved_symbol

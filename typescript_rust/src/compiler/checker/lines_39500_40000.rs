@@ -3,6 +3,7 @@ use std::io;
 use gc::Gc;
 
 use super::{is_not_overload, is_not_overload_and_not_accessor};
+use crate::try_for_each;
 use crate::{
     are_option_gcs_equal, count_where, create_diagnostic_for_node, declaration_name_to_string,
     for_each, for_each_entry_bool, for_each_import_clause_declaration_bool,
@@ -253,9 +254,9 @@ impl TypeChecker {
     pub(super) fn check_import_binding(
         &self,
         node: &Node, /*ImportEqualsDeclaration | ImportClause | NamespaceImport | ImportSpecifier*/
-    ) {
+    ) -> io::Result<()> {
         self.check_collisions_for_declaration_name(node, node.as_named_declaration().maybe_name());
-        self.check_alias_symbol(node);
+        self.check_alias_symbol(node)?;
         if node.kind() == SyntaxKind::ImportSpecifier && {
             let node_as_import_specifier = node.as_import_specifier();
             id_text(
@@ -272,8 +273,10 @@ impl TypeChecker {
                         .maybe_implied_node_format()
                         == Some(ModuleKind::CommonJS))
         } {
-            self.check_external_emit_helpers(node, ExternalEmitHelpers::ImportDefault);
+            self.check_external_emit_helpers(node, ExternalEmitHelpers::ImportDefault)?;
         }
+
+        Ok(())
     }
 
     pub(super) fn check_assert_clause(
@@ -337,13 +340,13 @@ impl TypeChecker {
             {
                 let import_clause_as_import_clause = import_clause.as_import_clause();
                 if import_clause_as_import_clause.name.is_some() {
-                    self.check_import_binding(import_clause);
+                    self.check_import_binding(import_clause)?;
                 }
                 if let Some(import_clause_named_bindings) =
                     import_clause_as_import_clause.named_bindings.as_ref()
                 {
                     if import_clause_named_bindings.kind() == SyntaxKind::NamespaceImport {
-                        self.check_import_binding(import_clause_named_bindings);
+                        self.check_import_binding(import_clause_named_bindings)?;
                         if self.module_kind != ModuleKind::System
                             && (self.module_kind < ModuleKind::ES2015
                                 || get_source_file_of_node(node)
@@ -352,7 +355,10 @@ impl TypeChecker {
                                     == Some(ModuleKind::CommonJS))
                             && get_es_module_interop(&self.compiler_options) == Some(true)
                         {
-                            self.check_external_emit_helpers(node, ExternalEmitHelpers::ImportStar);
+                            self.check_external_emit_helpers(
+                                node,
+                                ExternalEmitHelpers::ImportStar,
+                            )?;
                         }
                     } else {
                         let module_existed = self.resolve_external_module_name_(
@@ -361,13 +367,13 @@ impl TypeChecker {
                             None,
                         )?;
                         if module_existed.is_some() {
-                            for_each(
+                            try_for_each(
                                 &import_clause_named_bindings.as_named_imports().elements,
-                                |element: &Gc<Node>, _| -> Option<()> {
-                                    self.check_import_binding(element);
-                                    None
+                                |element: &Gc<Node>, _| -> io::Result<Option<()>> {
+                                    self.check_import_binding(element)?;
+                                    Ok(None)
                                 },
-                            );
+                            )?;
                         }
                     }
                 }
@@ -393,9 +399,9 @@ impl TypeChecker {
         if is_internal_module_import_equals_declaration(node)
             || self.check_external_import_or_export_declaration(node)
         {
-            self.check_import_binding(node);
+            self.check_import_binding(node)?;
             if has_syntactic_modifier(node, ModifierFlags::Export) {
-                self.mark_export_as_referenced(node);
+                self.mark_export_as_referenced(node)?;
             }
             let node_as_import_equals_declaration = node.as_import_equals_declaration();
             if node_as_import_equals_declaration.module_reference.kind()
@@ -491,7 +497,7 @@ impl TypeChecker {
             )
             && self.language_version == ScriptTarget::ES3
         {
-            self.check_external_emit_helpers(node, ExternalEmitHelpers::CreateBinding);
+            self.check_external_emit_helpers(node, ExternalEmitHelpers::CreateBinding)?;
         }
 
         self.check_grammar_export_declaration(node);
@@ -503,13 +509,13 @@ impl TypeChecker {
                 .as_ref()
                 .filter(|node_export_clause| !is_namespace_export(node_export_clause))
             {
-                for_each(
+                try_for_each(
                     &node_export_clause.as_named_exports().elements,
-                    |element: &Gc<Node>, _| -> Option<()> {
-                        self.check_export_specifier(element);
-                        None
+                    |element: &Gc<Node>, _| -> io::Result<Option<()>> {
+                        self.check_export_specifier(element)?;
+                        Ok(None)
                     },
-                );
+                )?;
                 let in_ambient_external_module = node.parent().kind() == SyntaxKind::ModuleBlock
                     && is_ambient_module(&node.parent().parent());
                 let in_ambient_namespace_declaration = !in_ambient_external_module
@@ -553,7 +559,7 @@ impl TypeChecker {
                 } else if let Some(node_export_clause) =
                     node_as_export_declaration.export_clause.as_ref()
                 {
-                    self.check_alias_symbol(node_export_clause);
+                    self.check_alias_symbol(node_export_clause)?;
                 }
                 if self.module_kind != ModuleKind::System
                     && (self.module_kind < ModuleKind::ES2015
@@ -564,10 +570,13 @@ impl TypeChecker {
                 {
                     if node_as_export_declaration.export_clause.is_some() {
                         if get_es_module_interop(&self.compiler_options) == Some(true) {
-                            self.check_external_emit_helpers(node, ExternalEmitHelpers::ImportStar);
+                            self.check_external_emit_helpers(
+                                node,
+                                ExternalEmitHelpers::ImportStar,
+                            )?;
                         }
                     } else {
-                        self.check_external_emit_helpers(node, ExternalEmitHelpers::ExportStar);
+                        self.check_external_emit_helpers(node, ExternalEmitHelpers::ExportStar)?;
                     }
                 }
             }
@@ -704,7 +713,7 @@ impl TypeChecker {
         &self,
         node: &Node, /*ExportSpecifier*/
     ) -> io::Result<()> {
-        self.check_alias_symbol(node);
+        self.check_alias_symbol(node)?;
         let node_as_export_specifier = node.as_export_specifier();
         if get_emit_declarations(&self.compiler_options) {
             self.collect_linked_aliases(
@@ -713,7 +722,7 @@ impl TypeChecker {
                     .as_ref()
                     .unwrap_or(&node_as_export_specifier.name),
                 Some(true),
-            );
+            )?;
         }
         if node
             .parent()
@@ -763,7 +772,7 @@ impl TypeChecker {
                     ])
                 );
             } else {
-                self.mark_export_as_referenced(node);
+                self.mark_export_as_referenced(node)?;
                 let target = symbol.as_ref().try_map(|symbol| -> io::Result<_> {
                     Ok(if symbol.flags().intersects(SymbolFlags::Alias) {
                         self.resolve_alias(symbol)?
@@ -784,7 +793,7 @@ impl TypeChecker {
                             .as_ref()
                             .unwrap_or(&node_as_export_specifier.name),
                         None,
-                    );
+                    )?;
                 }
             }
         } else {
@@ -802,7 +811,7 @@ impl TypeChecker {
                         .unwrap_or(&node_as_export_specifier.name),
                 ) == "default"
             {
-                self.check_external_emit_helpers(node, ExternalEmitHelpers::ImportDefault);
+                self.check_external_emit_helpers(node, ExternalEmitHelpers::ImportDefault)?;
             }
         }
 
@@ -862,7 +871,7 @@ impl TypeChecker {
                 None,
                 None,
                 None,
-            );
+            )?;
         }
 
         if node_as_export_assignment.expression.kind() == SyntaxKind::Identifier {
@@ -870,7 +879,7 @@ impl TypeChecker {
             let sym =
                 self.resolve_entity_name(id, SymbolFlags::All, Some(true), Some(true), Some(node))?;
             if let Some(sym) = sym.as_ref() {
-                self.mark_alias_referenced(sym, id);
+                self.mark_alias_referenced(sym, id)?;
                 let target = if sym.flags().intersects(SymbolFlags::Alias) {
                     self.resolve_alias(sym)?
                 } else {
@@ -879,20 +888,20 @@ impl TypeChecker {
                 if Gc::ptr_eq(&target, &self.unknown_symbol())
                     || target.flags().intersects(SymbolFlags::Value)
                 {
-                    self.check_expression_cached(&node_as_export_assignment.expression, None);
+                    self.check_expression_cached(&node_as_export_assignment.expression, None)?;
                 }
             } else {
-                self.check_expression_cached(&node_as_export_assignment.expression, None);
+                self.check_expression_cached(&node_as_export_assignment.expression, None)?;
             }
 
             if get_emit_declarations(&self.compiler_options) {
-                self.collect_linked_aliases(&node_as_export_assignment.expression, Some(true));
+                self.collect_linked_aliases(&node_as_export_assignment.expression, Some(true))?;
             }
         } else {
-            self.check_expression_cached(&node_as_export_assignment.expression, None);
+            self.check_expression_cached(&node_as_export_assignment.expression, None)?;
         }
 
-        self.check_external_module_exports(container);
+        self.check_external_module_exports(container)?;
 
         if node.flags().intersects(NodeFlags::Ambient)
             && !is_entity_name_expression(&node_as_export_assignment.expression)

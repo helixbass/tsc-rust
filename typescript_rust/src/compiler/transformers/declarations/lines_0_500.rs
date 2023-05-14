@@ -602,7 +602,7 @@ impl TransformDeclarations {
                             self.collect_references(
                                 source_file,
                                 &mut self.refs_mut()
-                            );
+                            )?;
                             self.collect_libs(
                                 source_file,
                                 &mut self.libs_mut()
@@ -717,7 +717,7 @@ impl TransformDeclarations {
                                 self.collect_references(
                                     &source_file,
                                     &mut self.refs_mut(),
-                                );
+                                )?;
                                 self.record_type_reference_directives_if_necessary(
                                     source_file_as_unparsed_source.type_reference_directives.as_deref()
                                 );
@@ -749,9 +749,11 @@ impl TransformDeclarations {
                     bundle.synthetic_file_references.as_mut().unwrap(),
                     &output_file_path,
                 );
-                self.refs().values().for_each(|ref_: &Gc<Node>| {
-                    reference_visitor(ref_);
-                });
+                self.refs().values().try_for_each(|ref_: &Gc<Node>| -> io::Result<_> {
+                    reference_visitor(ref_)?;
+
+    Ok(())
+                })?;
             }
             return Ok(bundle.wrap());
         }
@@ -772,7 +774,7 @@ impl TransformDeclarations {
         self.set_refs(Some(Default::default()));
         {
             let mut refs = self.refs_mut();
-            self.collect_references(&self.current_source_file(), &mut refs);
+            self.collect_references(&self.current_source_file(), &mut refs)?;
         }
         self.set_libs(Some(Default::default()));
         {
@@ -793,9 +795,11 @@ impl TransformDeclarations {
             combined_statements = self
                 .factory
                 .create_node_array(self.transform_declarations_for_js(node, None)?, None);
-            self.refs().values().for_each(|ref_: &Gc<Node>| {
-                reference_visitor(ref_);
-            });
+            self.refs().values().try_for_each(|ref_: &Gc<Node>| -> io::Result<_> {
+                reference_visitor(ref_)?;
+
+    Ok(())
+            })?;
             self.set_emitted_imports(Some(filter(
                 &combined_statements,
                 |statement: &Gc<Node>| is_any_import_syntax(statement),
@@ -816,9 +820,11 @@ impl TransformDeclarations {
                 ),
                 Some(&*node_as_source_file.statements()),
             );
-            self.refs().values().for_each(|ref_: &Gc<Node>| {
-                reference_visitor(ref_);
-            });
+            self.refs().values().try_for_each(|ref_: &Gc<Node>| -> io::Result<_> {
+                reference_visitor(ref_)?;
+
+    Ok(())
+            })?;
             self.set_emitted_imports(Some(filter(
                 &combined_statements,
                 |statement: &Gc<Node>| is_any_import_syntax(statement),

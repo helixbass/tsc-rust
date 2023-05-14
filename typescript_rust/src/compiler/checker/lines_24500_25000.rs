@@ -581,10 +581,10 @@ impl TypeChecker {
         self.maybe_get_control_flow_container(node).unwrap()
     }
 
-    pub(super) fn is_symbol_assigned(&self, symbol: &Symbol) -> bool {
+    pub(super) fn is_symbol_assigned(&self, symbol: &Symbol) -> io::Result<bool> {
         let symbol_value_declaration = symbol.maybe_value_declaration();
         if symbol_value_declaration.is_none() {
-            return false;
+            return Ok(false);
         }
         let symbol_value_declaration = symbol_value_declaration.unwrap();
         let parent = get_root_declaration(&symbol_value_declaration).parent();
@@ -599,10 +599,10 @@ impl TypeChecker {
                 links.flags = links.flags | NodeCheckFlags::AssignmentsMarked;
             }
             if !self.has_parent_with_assignments_marked(&parent) {
-                self.mark_node_assignments(&parent);
+                self.mark_node_assignments(&parent)?;
             }
         }
-        symbol.maybe_is_assigned().unwrap_or(false)
+        Ok(symbol.maybe_is_assigned().unwrap_or(false))
     }
 
     pub(super) fn has_parent_with_assignments_marked(&self, node: &Node) -> bool {
@@ -668,7 +668,7 @@ impl TypeChecker {
                     declared_type.type_wrapper()
                 }
             } else {
-                self.report_circularity_error(&declaration.symbol());
+                self.report_circularity_error(&declaration.symbol())?;
                 declared_type.type_wrapper()
             },
         )
@@ -802,7 +802,7 @@ impl TypeChecker {
                         && self.is_export_or_export_expression(location)
                     || !self.is_const_enum_or_const_enum_only_module(&target)
                 {
-                    self.mark_alias_symbol_as_referenced(&symbol);
+                    self.mark_alias_symbol_as_referenced(&symbol)?;
                 } else {
                     self.mark_const_enum_alias_as_referenced(&symbol);
                 }
@@ -860,7 +860,7 @@ impl TypeChecker {
                 node
             )
         ) {
-            self.mark_alias_referenced(&symbol, node);
+            self.mark_alias_referenced(&symbol, node)?;
         }
 
         let local_or_export_symbol = self
@@ -1073,7 +1073,7 @@ impl TypeChecker {
         ) || is_object_literal_or_class_expression_method_or_accessor(&flow_container))
             && (self.is_const_variable(&local_or_export_symbol)
                 && !Gc::ptr_eq(&type_, &self.auto_array_type())
-                || is_parameter && !self.is_symbol_assigned(&local_or_export_symbol))
+                || is_parameter && !self.is_symbol_assigned(&local_or_export_symbol)?)
         {
             flow_container = self.get_control_flow_container(&flow_container);
         }

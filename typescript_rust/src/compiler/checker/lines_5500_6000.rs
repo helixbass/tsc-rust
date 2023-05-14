@@ -802,7 +802,7 @@ impl NodeBuilder {
                 &node.as_computed_property_name().expression,
                 context.maybe_enclosing_declaration(),
                 context,
-            );
+            )?;
         }
         let mut visited = try_visit_each_child(
             Some(node),
@@ -1231,7 +1231,7 @@ impl NodeBuilder {
                     for decl in ambient_decls.as_ref().unwrap() {
                         context
                             .tracker()
-                            .track_referenced_ambient_module(decl, symbol);
+                            .track_referenced_ambient_module(decl, symbol)?;
                     }
                 }
             }

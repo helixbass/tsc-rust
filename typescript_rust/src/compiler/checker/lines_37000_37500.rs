@@ -6,6 +6,7 @@ use std::{borrow::Borrow, io};
 use super::{
     get_iteration_types_key_from_iteration_type_kind, CheckMode, IterationTypeKind, IterationUse,
 };
+use crate::try_for_each;
 use crate::{
     append, IterationTypeCacheKey, SymbolInterface, __String, filter, for_each,
     for_each_child_bool, get_containing_function_or_class_static_block, get_function_flags,
@@ -61,20 +62,27 @@ impl TypeChecker {
         )
     }
 
-    pub(super) fn check_do_statement(&self, node: &Node /*DoStatement*/) {
+    pub(super) fn check_do_statement(&self, node: &Node /*DoStatement*/) -> io::Result<()> {
         self.check_grammar_statement_in_ambient_context(node);
 
         let node_as_do_statement = node.as_do_statement();
-        self.check_source_element(Some(&*node_as_do_statement.statement));
-        self.check_truthiness_expression(&node_as_do_statement.expression, None);
+        self.check_source_element(Some(&*node_as_do_statement.statement))?;
+        self.check_truthiness_expression(&node_as_do_statement.expression, None)?;
+
+        Ok(())
     }
 
-    pub(super) fn check_while_statement(&self, node: &Node /*WhileStatement*/) {
+    pub(super) fn check_while_statement(
+        &self,
+        node: &Node, /*WhileStatement*/
+    ) -> io::Result<()> {
         self.check_grammar_statement_in_ambient_context(node);
 
         let node_as_while_statement = node.as_while_statement();
-        self.check_truthiness_expression(&node_as_while_statement.expression, None);
-        self.check_source_element(Some(&*node_as_while_statement.statement));
+        self.check_truthiness_expression(&node_as_while_statement.expression, None)?;
+        self.check_source_element(Some(&*node_as_while_statement.statement))?;
+
+        Ok(())
     }
 
     pub(super) fn check_truthiness_of_type(&self, type_: &Type, node: &Node) -> Gc<Type> {
@@ -113,25 +121,25 @@ impl TypeChecker {
 
         if let Some(node_initializer) = node_as_for_statement.initializer.as_ref() {
             if node_initializer.kind() == SyntaxKind::VariableDeclarationList {
-                for_each(
+                try_for_each(
                     &node_initializer.as_variable_declaration_list().declarations,
-                    |declaration: &Gc<Node>, _| -> Option<()> {
-                        self.check_variable_declaration(declaration);
-                        None
+                    |declaration: &Gc<Node>, _| -> io::Result<Option<()>> {
+                        self.check_variable_declaration(declaration)?;
+                        Ok(None)
                     },
-                );
+                )?;
             } else {
                 self.check_expression(node_initializer, None, None)?;
             }
         }
 
         if let Some(node_condition) = node_as_for_statement.condition.as_ref() {
-            self.check_truthiness_expression(node_condition, None);
+            self.check_truthiness_expression(node_condition, None)?;
         }
         if let Some(node_incrementor) = node_as_for_statement.incrementor.as_ref() {
             self.check_expression(node_incrementor, None, None)?;
         }
-        self.check_source_element(Some(&*node_as_for_statement.statement));
+        self.check_source_element(Some(&*node_as_for_statement.statement))?;
         if node.maybe_locals().is_some() {
             self.register_for_unused_identifiers_check(node);
         }
@@ -163,17 +171,20 @@ impl TypeChecker {
                     == FunctionFlags::Async
                     && self.language_version < ScriptTarget::ESNext
                 {
-                    self.check_external_emit_helpers(node, ExternalEmitHelpers::ForAwaitOfIncludes);
+                    self.check_external_emit_helpers(
+                        node,
+                        ExternalEmitHelpers::ForAwaitOfIncludes,
+                    )?;
                 }
             }
         } else if self.compiler_options.downlevel_iteration == Some(true)
             && self.language_version < ScriptTarget::ES2015
         {
-            self.check_external_emit_helpers(node, ExternalEmitHelpers::ForOfIncludes);
+            self.check_external_emit_helpers(node, ExternalEmitHelpers::ForOfIncludes)?;
         }
 
         if node_as_for_of_statement.initializer.kind() == SyntaxKind::VariableDeclarationList {
-            self.check_for_in_or_for_of_variable_declaration(node);
+            self.check_for_in_or_for_of_variable_declaration(node)?;
         } else {
             let var_expr = &node_as_for_of_statement.initializer;
             let iterated_type = self.check_right_hand_side_of_for_of(node)?;
@@ -187,7 +198,7 @@ impl TypeChecker {
                     &iterated_type, /*|| errorType*/
                     None,
                     None,
-                );
+                )?;
             } else {
                 let left_type = self.check_expression(var_expr, None, None)?;
                 self.check_reference_expression(
@@ -204,12 +215,12 @@ impl TypeChecker {
                     Some(&*node_as_for_of_statement.expression),
                     None,
                     None,
-                );
+                )?;
                 // }
             }
         }
 
-        self.check_source_element(Some(&*node_as_for_of_statement.statement));
+        self.check_source_element(Some(&*node_as_for_of_statement.statement))?;
         if node.maybe_locals().is_some() {
             self.register_for_unused_identifiers_check(node);
         }
@@ -244,7 +255,7 @@ impl TypeChecker {
                     None,
                 );
             }
-            self.check_for_in_or_for_of_variable_declaration(node);
+            self.check_for_in_or_for_of_variable_declaration(node)?;
         } else {
             let var_expr = &node_as_for_in_statement.initializer;
             let left_type = self.check_expression(var_expr, None, None)?;
@@ -294,7 +305,7 @@ impl TypeChecker {
             );
         }
 
-        self.check_source_element(Some(&*node_as_for_in_statement.statement));
+        self.check_source_element(Some(&*node_as_for_in_statement.statement))?;
         if node.maybe_locals().is_some() {
             self.register_for_unused_identifiers_check(node);
         }
@@ -305,7 +316,7 @@ impl TypeChecker {
     pub(super) fn check_for_in_or_for_of_variable_declaration(
         &self,
         iteration_statement: &Node, /*ForInOrOfStatement*/
-    ) {
+    ) -> io::Result<()> {
         let variable_declaration_list = iteration_statement
             .as_has_initializer()
             .maybe_initializer()
@@ -313,8 +324,10 @@ impl TypeChecker {
         let variable_declaration_list = variable_declaration_list.as_variable_declaration_list();
         if !variable_declaration_list.declarations.is_empty() {
             let decl = &variable_declaration_list.declarations[0];
-            self.check_variable_declaration(decl);
+            self.check_variable_declaration(decl)?;
         }
+
+        Ok(())
     }
 
     pub(super) fn check_right_hand_side_of_for_of(
@@ -365,7 +378,7 @@ impl TypeChecker {
                 error_node.as_ref().unwrap(),
                 input_type,
                 allow_async_iterables,
-            );
+            )?;
             return Ok(None);
         }
 
@@ -410,7 +423,7 @@ impl TypeChecker {
                             Some(diagnostic),
                             None,
                             None,
-                        );
+                        )?;
                     }
                 }
             }
@@ -780,7 +793,7 @@ impl TypeChecker {
                         error_node,
                         type_,
                         use_.intersects(IterationUse::AllowsAsyncIterablesFlag),
-                    );
+                    )?;
                 }
                 return Ok(None);
             }
@@ -814,7 +827,7 @@ impl TypeChecker {
                         error_node,
                         type_,
                         use_.intersects(IterationUse::AllowsAsyncIterablesFlag),
-                    );
+                    )?;
                 }
                 self.set_cached_iteration_types(type_, cache_key, self.no_iteration_types());
                 return Ok(None);

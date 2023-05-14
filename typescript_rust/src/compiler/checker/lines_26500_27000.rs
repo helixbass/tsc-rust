@@ -536,7 +536,7 @@ impl TypeChecker {
                 } else {
                     ExternalEmitHelpers::SpreadArray
                 },
-            );
+            )?;
         }
 
         let array_or_iterable_type =
@@ -603,7 +603,7 @@ impl TypeChecker {
                         } else {
                             ExternalEmitHelpers::SpreadArray
                         },
-                    );
+                    )?;
                 }
                 let spread_type = self.check_expression(
                     &e.as_spread_element().expression,
@@ -979,7 +979,7 @@ impl TypeChecker {
                 .maybe_name()
                 .filter(|elem_name| is_computed_property_name(elem_name))
             {
-                self.check_computed_property_name(&elem_name);
+                self.check_computed_property_name(&elem_name)?;
             }
         }
 
@@ -1036,7 +1036,7 @@ impl TypeChecker {
                             None,
                             None,
                             None,
-                        );
+                        )?;
                         type_ = js_doc_type.clone();
                     } else if let Some(enum_tag) = enum_tag.as_ref()
                     /*&& enumTag.typeExpression*/
@@ -1054,7 +1054,7 @@ impl TypeChecker {
                             None,
                             None,
                             None,
-                        );
+                        )?;
                     }
                 }
                 object_flags |= get_object_flags(&type_) & ObjectFlags::PropagatingFlags;
@@ -1159,7 +1159,7 @@ impl TypeChecker {
                 };
             } else if member_decl.kind() == SyntaxKind::SpreadAssignment {
                 if self.language_version < ScriptTarget::ES2015 {
-                    self.check_external_emit_helpers(member_decl, ExternalEmitHelpers::Assign);
+                    self.check_external_emit_helpers(member_decl, ExternalEmitHelpers::Assign)?;
                 }
                 if !properties_array.is_empty() {
                     spread = self.get_spread_type(

@@ -45,19 +45,19 @@ impl TypeChecker {
         &self,
         location: &Node,
         meaning: SymbolFlags,
-    ) -> Vec<Gc<Symbol>> {
+    ) -> io::Result<Vec<Gc<Symbol>>> {
         if location.flags().intersects(NodeFlags::InWithStatement) {
-            return vec![];
+            return Ok(vec![]);
         }
 
         let mut symbols = create_symbol_table(Option::<&[Gc<Symbol>]>::None);
         let mut is_static_symbol = false;
 
         let mut location = Some(location.node_wrapper());
-        self.populate_symbols(&mut location, meaning, &mut symbols, &mut is_static_symbol);
+        self.populate_symbols(&mut location, meaning, &mut symbols, &mut is_static_symbol)?;
 
         symbols.remove(InternalSymbolName::This);
-        self.symbols_to_array(&symbols)
+        Ok(self.symbols_to_array(&symbols))
     }
 
     pub(super) fn populate_symbols(
@@ -481,7 +481,7 @@ impl TypeChecker {
         if is_entity_name(name) {
             let possible_import_node = self.is_import_type_qualifier_part(name);
             if let Some(possible_import_node) = possible_import_node.as_ref() {
-                self.get_type_from_type_node_(possible_import_node);
+                self.get_type_from_type_node_(possible_import_node)?;
                 let sym = (*self.get_node_links(name))
                     .borrow()
                     .resolved_symbol
@@ -586,9 +586,9 @@ impl TypeChecker {
                 }
 
                 if name.kind() == SyntaxKind::PropertyAccessExpression {
-                    self.check_property_access_expression(name, Some(CheckMode::Normal));
+                    self.check_property_access_expression(name, Some(CheckMode::Normal))?;
                 } else {
-                    self.check_qualified_name(name, Some(CheckMode::Normal));
+                    self.check_qualified_name(name, Some(CheckMode::Normal))?;
                 }
                 if (*links).borrow().resolved_symbol.is_none()
                     && is_jsdoc

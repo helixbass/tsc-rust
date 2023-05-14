@@ -31,11 +31,11 @@ impl TypeChecker {
             self.grammar_error_on_first_token(node_expression, &Diagnostics::Type_expected, None);
         }
 
-        self.check_source_element(node_as_type_parameter_declaration.constraint.as_deref());
-        self.check_source_element(node_as_type_parameter_declaration.default.as_deref());
+        self.check_source_element(node_as_type_parameter_declaration.constraint.as_deref())?;
+        self.check_source_element(node_as_type_parameter_declaration.default.as_deref())?;
         let type_parameter =
             self.get_declared_type_of_type_parameter(&self.get_symbol_of_node(node)?.unwrap());
-        self.get_base_constraint_of_type(&type_parameter);
+        self.get_base_constraint_of_type(&type_parameter)?;
         if !self.has_non_circular_type_parameter_default(&type_parameter)? {
             self.error(
                 node_as_type_parameter_declaration.default.as_deref(),
@@ -69,7 +69,7 @@ impl TypeChecker {
                 Some(&Diagnostics::Type_0_does_not_satisfy_the_constraint_1),
                 None,
                 None,
-            );
+            )?;
         }
         if self.produce_diagnostics {
             self.check_type_name_is_reserved(
@@ -87,7 +87,7 @@ impl TypeChecker {
     ) -> io::Result<()> {
         self.check_grammar_decorators_and_modifiers(node);
 
-        self.check_variable_like_declaration(node);
+        self.check_variable_like_declaration(node)?;
         let func = get_containing_function(node).unwrap();
         let node_as_parameter_declaration = node.as_parameter_declaration();
         if has_syntactic_modifier(node, ModifierFlags::ParameterPropertyModifier) {
@@ -349,7 +349,7 @@ impl TypeChecker {
         node: &Node, /*SignatureDeclaration*/
     ) -> io::Result<()> {
         if node.kind() == SyntaxKind::IndexSignature {
-            self.check_grammar_index_signature(node);
+            self.check_grammar_index_signature(node)?;
         } else if matches!(
             node.kind(),
             SyntaxKind::FunctionType
@@ -359,7 +359,7 @@ impl TypeChecker {
                 | SyntaxKind::Constructor
                 | SyntaxKind::ConstructSignature
         ) {
-            self.check_grammar_function_like_declaration(node);
+            self.check_grammar_function_like_declaration(node)?;
         }
 
         let function_flags = get_function_flags(Some(node));
@@ -367,35 +367,38 @@ impl TypeChecker {
             if function_flags & FunctionFlags::AsyncGenerator == FunctionFlags::AsyncGenerator
                 && self.language_version < ScriptTarget::ESNext
             {
-                self.check_external_emit_helpers(node, ExternalEmitHelpers::AsyncGeneratorIncludes);
+                self.check_external_emit_helpers(
+                    node,
+                    ExternalEmitHelpers::AsyncGeneratorIncludes,
+                )?;
             }
 
             if function_flags & FunctionFlags::AsyncGenerator == FunctionFlags::Async
                 && self.language_version < ScriptTarget::ES2017
             {
-                self.check_external_emit_helpers(node, ExternalEmitHelpers::Awaiter);
+                self.check_external_emit_helpers(node, ExternalEmitHelpers::Awaiter)?;
             }
 
             if function_flags & FunctionFlags::AsyncGenerator != FunctionFlags::Normal
                 && self.language_version < ScriptTarget::ES2015
             {
-                self.check_external_emit_helpers(node, ExternalEmitHelpers::Generator);
+                self.check_external_emit_helpers(node, ExternalEmitHelpers::Generator)?;
             }
         }
 
-        self.check_type_parameters(Some(&get_effective_type_parameter_declarations(node)));
+        self.check_type_parameters(Some(&get_effective_type_parameter_declarations(node)))?;
 
         let node_as_signature_declaration = node.as_signature_declaration();
-        for_each(
+        try_for_each(
             &node_as_signature_declaration.parameters(),
-            |parameter: &Gc<Node>, _| -> Option<()> {
-                self.check_parameter(parameter);
-                None
+            |parameter: &Gc<Node>, _| -> io::Result<Option<()>> {
+                self.check_parameter(parameter)?;
+                Ok(None)
             },
-        );
+        )?;
 
         if let Some(node_type) = node_as_signature_declaration.maybe_type().as_ref() {
-            self.check_source_element(Some(&**node_type));
+            self.check_source_element(Some(&**node_type))?;
         }
 
         if self.produce_diagnostics {
@@ -468,10 +471,10 @@ impl TypeChecker {
                             None,
                             None,
                             None,
-                        );
+                        )?;
                     }
                 } else if function_flags & FunctionFlags::AsyncGenerator == FunctionFlags::Async {
-                    self.check_async_function_return_type(node, return_type_node);
+                    self.check_async_function_return_type(node, return_type_node)?;
                 }
             }
             if !matches!(
@@ -783,7 +786,7 @@ impl TypeChecker {
         {
             self.check_grammar_computed_property_name(&node_as_named_declaration.name());
         }
-        self.check_variable_like_declaration(node);
+        self.check_variable_like_declaration(node)?;
 
         self.set_node_links_for_private_identifier_scope(node);
         if is_private_identifier(&node_as_named_declaration.name()) && has_static_modifier(node) {
@@ -841,7 +844,7 @@ impl TypeChecker {
             self.check_grammar_computed_property_name(&node_as_named_declaration.name());
         }
 
-        self.check_function_or_method_declaration(node);
+        self.check_function_or_method_declaration(node)?;
 
         if has_syntactic_modifier(node, ModifierFlags::Abstract)
             && node.kind() == SyntaxKind::MethodDeclaration

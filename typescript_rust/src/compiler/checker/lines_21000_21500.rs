@@ -46,7 +46,7 @@ impl TypeChecker {
             resolved_as_resolved_type.call_signatures().clone(),
             resolved_as_resolved_type.construct_signatures().clone(),
             resolved_as_resolved_type.index_infos().clone(),
-        );
+        )?;
         regular_new.set_flags(resolved.flags());
         let regular_new_as_object_flags_type = regular_new.as_object_flags_type();
         regular_new_as_object_flags_type.set_object_flags(
@@ -164,7 +164,7 @@ impl TypeChecker {
         context: Option<Rc<RefCell<WideningContext>>>,
     ) -> io::Result<Gc<Type>> {
         let mut members = create_symbol_table(Option::<&[Gc<Symbol>]>::None);
-        for ref prop in self.get_properties_of_object_type(type_) {
+        for ref prop in self.get_properties_of_object_type(type_)? {
             members.insert(
                 prop.escaped_name().to_owned(),
                 self.get_widened_property(prop, context.clone())?,
@@ -196,7 +196,7 @@ impl TypeChecker {
                     )))
                 },
             )?,
-        );
+        )?;
         let result_as_object_flags_type = result.as_object_flags_type();
         result_as_object_flags_type.set_object_flags(
             result_as_object_flags_type.object_flags()
@@ -320,7 +320,7 @@ impl TypeChecker {
                 }
             }
             if self.is_object_literal_type(type_) {
-                for ref p in self.get_properties_of_object_type(type_) {
+                for ref p in self.get_properties_of_object_type(type_)? {
                     let t = self.get_type_of_symbol(p)?;
                     if get_object_flags(&t).intersects(ObjectFlags::ContainsWideningType) {
                         if !self.report_widening_errors_in_type(&t)? {
@@ -565,7 +565,7 @@ impl TypeChecker {
                     .is_none())
         {
             if !self.report_widening_errors_in_type(type_)? {
-                self.report_implicit_any(declaration, type_, widening_kind);
+                self.report_implicit_any(declaration, type_, widening_kind)?;
             }
         }
 
@@ -909,11 +909,14 @@ impl TypeChecker {
                 )))
     }
 
-    pub(super) fn create_empty_object_type_from_string_literal(&self, type_: &Type) -> Gc<Type> {
+    pub(super) fn create_empty_object_type_from_string_literal(
+        &self,
+        type_: &Type,
+    ) -> io::Result<Gc<Type>> {
         let mut members = create_symbol_table(Option::<&[Gc<Symbol>]>::None);
         self.for_each_type(type_, |t: &Type| -> Option<()> {
             if !t.flags().intersects(TypeFlags::StringLiteral) {
-                return None;
+                return Ok(None);
             }
             let name = escape_leading_underscores(&t.as_string_literal_type().value).into_owned();
             let literal_prop: Gc<Symbol> = self

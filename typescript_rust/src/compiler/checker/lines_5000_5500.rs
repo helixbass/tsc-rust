@@ -473,7 +473,7 @@ impl NodeBuilder {
             return self.create_mapped_type_node_from_type(context, type_);
         }
 
-        let resolved = self.type_checker.resolve_structured_type_members(type_);
+        let resolved = self.type_checker.resolve_structured_type_members(type_)?;
         let resolved_as_resolved_type = resolved.as_resolved_type();
         if resolved_as_resolved_type.properties().is_empty()
             && resolved_as_resolved_type.index_infos().is_empty()
@@ -549,7 +549,7 @@ impl NodeBuilder {
             if type_element_count > 0 {
                 types.push(
                     self.type_checker
-                        .get_resolved_type_without_abstract_construct_signatures(&resolved),
+                        .get_resolved_type_without_abstract_construct_signatures(&resolved)?,
                 );
             }
             return Ok(self
@@ -1048,10 +1048,10 @@ impl NodeBuilder {
                     &properties[properties.len() - 1],
                     context,
                     &mut type_elements,
-                );
+                )?;
                 break;
             }
-            self.add_property_to_element_list(property_symbol, context, &mut type_elements);
+            self.add_property_to_element_list(property_symbol, context, &mut type_elements)?;
         }
         Ok(if !type_elements.is_empty() {
             Some(type_elements)
@@ -1142,7 +1142,7 @@ impl NodeBuilder {
                                 &name.as_element_access_expression().argument_expression,
                                 save_enclosing_declaration.as_deref(),
                                 context,
-                            );
+                            )?;
                         }
                     } else {
                         self.track_computed_name(
@@ -1153,7 +1153,7 @@ impl NodeBuilder {
                                 .expression(),
                             save_enclosing_declaration.as_deref(),
                             context,
-                        );
+                        )?;
                     }
                 }
             } else if context
@@ -1195,7 +1195,7 @@ impl NodeBuilder {
             .intersects(SymbolFlags::Function | SymbolFlags::Method)
             && self
                 .type_checker
-                .get_properties_of_object_type(&property_type)
+                .get_properties_of_object_type(&property_type)?
                 .peekable()
                 .is_empty_()
             && !self.type_checker.is_readonly_symbol(property_symbol)?

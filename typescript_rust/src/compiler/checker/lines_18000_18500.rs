@@ -227,7 +227,7 @@ impl CheckTypeRelatedTo {
             None,
         )?;
         if !self.incompatible_stack().is_empty() {
-            self.report_incompatible_stack();
+            self.report_incompatible_stack()?;
         }
         if self.overflow() {
             // tracing?.instant(tracing.Phase.CheckTypes, "checkTypeRelatedTo_DepthLimit", { sourceId: source.id, targetId: target.id, depth: sourceDepth, targetDepth });
@@ -379,18 +379,18 @@ impl CheckTypeRelatedTo {
         self.incompatible_stack().push((message, args));
     }
 
-    pub(super) fn report_incompatible_stack(&self) {
+    pub(super) fn report_incompatible_stack(&self) -> io::Result<()> {
         let mut stack = self.incompatible_stack().clone();
         *self.incompatible_stack() = vec![];
         let info = self.maybe_last_skipped_info().clone();
         *self.maybe_last_skipped_info() = None;
         if stack.len() == 1 {
             let (stack_0_error, stack_0_args) = stack.into_iter().next().unwrap();
-            self.report_error(Cow::Borrowed(stack_0_error), stack_0_args);
+            self.report_error(Cow::Borrowed(stack_0_error), stack_0_args)?;
             if let Some((info_0, info_1)) = info {
-                self.report_relation_error(None, &info_0, &info_1);
+                self.report_relation_error(None, &info_0, &info_1)?;
             }
-            return;
+            return Ok(());
         }
         let mut path = "".to_owned();
         let mut secondary_root_errors: Vec<(&'static DiagnosticMessage, Option<Vec<String>>)> =
@@ -458,37 +458,41 @@ impl CheckTypeRelatedTo {
                     &Diagnostics::The_types_of_0_are_incompatible_between_these_types
                 }),
                 Some(vec![path]),
-            );
+            )?;
         } else {
             secondary_root_errors.remove(0);
         }
         for (msg, args) in secondary_root_errors {
             let original_value = msg.maybe_elided_in_compatability_pyramid();
             msg.set_elided_in_compatability_pyramid(Some(false));
-            self.report_error(Cow::Borrowed(msg), args);
+            self.report_error(Cow::Borrowed(msg), args)?;
             msg.set_elided_in_compatability_pyramid(original_value);
         }
         if let Some((info_0, info_1)) = info {
-            self.report_relation_error(None, &info_0, &info_1);
+            self.report_relation_error(None, &info_0, &info_1)?;
         }
+
+        Ok(())
     }
 
     pub(super) fn report_error(
         &self,
         message: Cow<'static, DiagnosticMessage>,
         args: Option<Vec<String>>,
-    ) {
+    ) -> io::Result<()> {
         Debug_.assert(self.maybe_error_node().is_some(), None);
         if !self.incompatible_stack().is_empty() {
-            self.report_incompatible_stack();
+            self.report_incompatible_stack()?;
         }
         if matches!(message.maybe_elided_in_compatability_pyramid(), Some(true)) {
-            return;
+            return Ok(());
         }
         let error_info = {
             chain_diagnostic_messages(self.maybe_error_info().as_deref().cloned(), &message, args)
         };
         *self.maybe_error_info_mut() = Some(Rc::new(error_info));
+
+        Ok(())
     }
 
     pub(super) fn associate_related_info(&self, info: DiagnosticRelatedInformation) {
@@ -507,7 +511,7 @@ impl CheckTypeRelatedTo {
         target: &Type,
     ) -> io::Result<()> {
         if !self.incompatible_stack().is_empty() {
-            self.report_incompatible_stack();
+            self.report_incompatible_stack()?;
         }
         let (source_type, target_type) = self
             .type_checker
@@ -570,7 +574,7 @@ impl CheckTypeRelatedTo {
                             None,
                         )?,
                     ])
-                );
+                )?;
             } else {
                 *self.maybe_error_info_mut() = None;
                 self.report_error(
@@ -579,7 +583,7 @@ impl CheckTypeRelatedTo {
                         target_type.clone(),
                         generalized_source_type.clone(),
                     ])
-                );
+                )?;
             }
         }
 
@@ -619,7 +623,7 @@ impl CheckTypeRelatedTo {
                                     None,
                                 )?,
                             ]),
-                        );
+                        )?;
                         return Ok(());
                     }
                 }
@@ -642,7 +646,7 @@ impl CheckTypeRelatedTo {
         self.report_error(
             message.unwrap(),
             Some(vec![generalized_source_type, target_type]),
-        );
+        )?;
 
         Ok(())
     }
@@ -698,7 +702,7 @@ impl CheckTypeRelatedTo {
                     target_type,
                     source_type,
                 ])
-            );
+            )?;
         }
 
         Ok(())
@@ -731,7 +735,7 @@ impl CheckTypeRelatedTo {
                                 None,
                             )?,
                         ])
-                    );
+                    )?;
                 }
                 return Ok(false);
             }
@@ -759,7 +763,7 @@ impl CheckTypeRelatedTo {
                             None,
                         )?,
                     ])
-                );
+                )?;
             }
             return Ok(false);
         }
@@ -802,7 +806,7 @@ impl CheckTypeRelatedTo {
 
         let mut report_error = |message: Cow<'static, DiagnosticMessage>,
                                 args: Option<Vec<String>>| {
-            self.report_error(message, args);
+            self.report_error(message, args)?;
         };
 
         if original_source.flags().intersects(TypeFlags::Object)
@@ -829,7 +833,7 @@ impl CheckTypeRelatedTo {
                 &original_target,
                 Ternary::False,
                 get_object_flags(&original_source).intersects(ObjectFlags::JsxAttributes),
-            );
+            )?;
             return Ok(Ternary::False);
         }
 
@@ -923,7 +927,7 @@ impl CheckTypeRelatedTo {
                         } else {
                             &target
                         },
-                    );
+                    )?;
                 }
                 return Ok(Ternary::False);
             }
@@ -1007,12 +1011,12 @@ impl CheckTypeRelatedTo {
                             source_string,
                             target_string,
                         ])
-                    );
+                    )?;
                 } else {
                     self.report_error(
                         Cow::Borrowed(&Diagnostics::Type_0_has_no_properties_in_common_with_type_1),
                         Some(vec![source_string, target_string]),
-                    );
+                    )?;
                 }
             }
             return Ok(Ternary::False);
@@ -1146,7 +1150,7 @@ impl CheckTypeRelatedTo {
             &target,
             result,
             is_comparing_jsx_attributes,
-        );
+        )?;
         Ok(result)
     }
 
@@ -1188,7 +1192,7 @@ impl CheckTypeRelatedTo {
                 && target.flags().intersects(TypeFlags::Object)
             {
                 let current_error = self.maybe_error_info();
-                self.try_elaborate_array_like_errors(&source, &target, report_errors);
+                self.try_elaborate_array_like_errors(&source, &target, report_errors)?;
                 if !match (self.maybe_error_info().as_ref(), current_error.as_ref()) {
                     (None, None) => true,
                     (Some(error_info), Some(current_error)) => {
@@ -1202,7 +1206,7 @@ impl CheckTypeRelatedTo {
             if source.flags().intersects(TypeFlags::Object)
                 && target.flags().intersects(TypeFlags::Primitive)
             {
-                self.try_elaborate_errors_for_primitives_and_objects(&source, &target);
+                self.try_elaborate_errors_for_primitives_and_objects(&source, &target)?;
             } else if source.maybe_symbol().is_some()
                 && source.flags().intersects(TypeFlags::Object)
                 && Gc::ptr_eq(&self.type_checker.global_object_type(), &source)
@@ -1210,7 +1214,7 @@ impl CheckTypeRelatedTo {
                 self.report_error(
                     Cow::Borrowed(&Diagnostics::The_Object_type_is_assignable_to_very_few_other_types_Did_you_mean_to_use_the_any_type_instead),
                     None,
-                );
+                )?;
             } else if is_comparing_jsx_attributes
                 && target.flags().intersects(TypeFlags::Intersection)
             {
@@ -1244,7 +1248,7 @@ impl CheckTypeRelatedTo {
                 *self.maybe_last_skipped_info() = Some((source, target));
                 return Ok(()) /*result*/;
             }
-            self.report_relation_error(head_message, &source, &target);
+            self.report_relation_error(head_message, &source, &target)?;
         }
 
         Ok(())
@@ -1481,7 +1485,7 @@ impl CheckTypeRelatedTo {
                                         )?,
                                         suggestion
                                     ])
-                                );
+                                )?;
                             } else {
                                 self.report_error(
                                     Cow::Borrowed(
@@ -1496,7 +1500,7 @@ impl CheckTypeRelatedTo {
                                             None,
                                         )?,
                                     ]),
-                                );
+                                )?;
                             }
                         } else {
                             let object_literal_declaration =
@@ -1552,7 +1556,7 @@ impl CheckTypeRelatedTo {
                                         )?,
                                         suggestion
                                     ])
-                                );
+                                )?;
                             } else {
                                 self.report_error(
                                     Cow::Borrowed(&Diagnostics::Object_literal_may_only_specify_known_properties_and_0_does_not_exist_in_type_1),
@@ -1562,7 +1566,7 @@ impl CheckTypeRelatedTo {
                                             self.type_checker.type_to_string_(&error_target, Option::<&Node>::None, None, None)?
                                         ]
                                     )
-                                );
+                                )?;
                             }
                         }
                     }

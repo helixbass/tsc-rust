@@ -33,14 +33,14 @@ impl TypeChecker {
                 (error_reporter.as_mut().unwrap())(
                     Cow::Borrowed(&Diagnostics::A_this_based_type_guard_is_not_compatible_with_a_parameter_based_type_guard),
                     None
-                );
+                )?;
                 (error_reporter.as_mut().unwrap())(
                     Cow::Borrowed(&Diagnostics::Type_predicate_0_is_not_assignable_to_1),
                     Some(vec![
                         self.type_predicate_to_string_(source, Option::<&Node>::None, None, None)?,
                         self.type_predicate_to_string_(target, Option::<&Node>::None, None, None)?,
                     ]),
-                );
+                )?;
             }
             return Ok(Ternary::False);
         }
@@ -59,7 +59,7 @@ impl TypeChecker {
                             source.parameter_name.clone().unwrap(),
                             target.parameter_name.clone().unwrap(),
                         ]),
-                    );
+                    )?;
                     (error_reporter.as_mut().unwrap())(
                         Cow::Borrowed(&Diagnostics::Type_predicate_0_is_not_assignable_to_1),
                         Some(vec![
@@ -76,7 +76,7 @@ impl TypeChecker {
                                 None,
                             )?,
                         ]),
-                    );
+                    )?;
                 }
                 return Ok(Ternary::False);
             }
@@ -100,7 +100,7 @@ impl TypeChecker {
                     self.type_predicate_to_string_(source, Option::<&Node>::None, None, None)?,
                     self.type_predicate_to_string_(target, Option::<&Node>::None, None, None)?,
                 ]),
-            );
+            )?;
         }
         Ok(related)
     }
@@ -146,7 +146,7 @@ impl TypeChecker {
     pub(super) fn is_empty_object_type(&self, type_: &Type) -> io::Result<bool> {
         Ok(if type_.flags().intersects(TypeFlags::Object) {
             !self.is_generic_mapped_type(type_)?
-                && self.is_empty_resolved_type(&self.resolve_structured_type_members(type_))
+                && self.is_empty_resolved_type(&self.resolve_structured_type_members(type_)?)
         } else if type_.flags().intersects(TypeFlags::NonPrimitive) {
             true
         } else if type_.flags().intersects(TypeFlags::Union) {
