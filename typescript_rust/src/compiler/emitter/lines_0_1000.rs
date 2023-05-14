@@ -5,6 +5,10 @@ use std::io;
 use std::rc::Rc;
 
 use super::{create_brackets_map, TempFlags};
+use crate::change_extension;
+use crate::create_get_canonical_file_name;
+use crate::get_declaration_emit_extension_for_path;
+use crate::supported_js_extensions_flat;
 use crate::try_for_each_child;
 use crate::{
     base64_encode, combine_paths, compare_paths, compute_common_source_directory_of_filenames,
@@ -377,25 +381,61 @@ pub fn get_output_extension(file_name: &str, options: &CompilerOptions) -> Exten
     }
 }
 
-pub(crate) fn get_output_declaration_file_name(
-    _input_file_name: &str,
-    _config_file: &ParsedCommandLine,
-    _ignore_case: bool,
-    _get_common_source_directory: Option<&mut impl FnMut() -> String>,
+fn get_output_path_without_changing_ext(
+    input_file_name: &str,
+    config_file: &ParsedCommandLine,
+    ignore_case: bool,
+    output_dir: Option<&str>,
+    get_common_source_directory: Option<&mut impl FnMut() -> String>,
 ) -> String {
-    unimplemented!()
+    output_dir.non_empty().map_or_else(
+        || input_file_name.to_owned(),
+        |output_dir| {
+            resolve_path(
+                output_dir,
+                &[Some(&get_relative_path_from_directory(
+                    &get_common_source_directory.map_or_else(
+                        || get_common_source_directory_of_config(config_file, ignore_case),
+                        |get_common_source_directory| get_common_source_directory(),
+                    ),
+                    input_file_name,
+                    Option::<fn(&str) -> String>::None,
+                    Some(ignore_case),
+                ))],
+            )
+        },
+    )
 }
 
-pub(crate) fn get_common_source_directory<
-    TEmittedFiles: FnMut() -> Vec<String>,
-    TGetCanonicalFileName: FnMut(&str) -> String,
-    TCheckSourceFilesBelongToPath: FnMut(&str),
->(
+pub(crate) fn get_output_declaration_file_name(
+    input_file_name: &str,
+    config_file: &ParsedCommandLine,
+    ignore_case: bool,
+    get_common_source_directory: Option<&mut impl FnMut() -> String>,
+) -> String {
+    change_extension(
+        &get_output_path_without_changing_ext(
+            input_file_name,
+            config_file,
+            ignore_case,
+            config_file
+                .options
+                .declaration_dir
+                .as_deref()
+                .non_empty()
+                .or_else(|| config_file.options.out_dir.as_deref()),
+            get_common_source_directory,
+        ),
+        get_declaration_emit_extension_for_path(input_file_name),
+    )
+}
+
+pub(crate) fn get_common_source_directory(
     options: &CompilerOptions,
-    mut emitted_files: TEmittedFiles,
+    mut emitted_files: impl FnMut() -> Vec<String>,
     current_directory: &str,
-    get_canonical_file_name: TGetCanonicalFileName,
-    check_source_files_belong_to_path: Option<TCheckSourceFilesBelongToPath>,
+    get_canonical_file_name: impl FnMut(&str) -> String,
+    check_source_files_belong_to_path: Option<impl FnMut(&str)>,
 ) -> String {
     let mut common_source_directory: String;
     if let Some(options_root_dir) = options
@@ -438,11 +478,25 @@ pub(crate) fn get_common_source_directory<
 
 pub(crate) fn get_common_source_directory_of_config(
     command_line: &ParsedCommandLine,
-    _ignore_case: bool,
+    ignore_case: bool,
 ) -> String {
-    let _options = &command_line.options;
-    let _file_names = &command_line.file_names;
-    unimplemented!()
+    let options = &command_line.options;
+    let file_names = &command_line.file_names;
+    get_common_source_directory(
+        options,
+        || {
+            filter(file_names, |file: &String| {
+                !(options.no_emit_for_js_files == Some(true)
+                    && file_extension_is_one_of(file, &supported_js_extensions_flat))
+                    && !file_extension_is(file, Extension::Dts.to_str())
+            })
+        },
+        &get_directory_path(&normalize_slashes(
+            Debug_.check_defined(options.config_file_path.as_deref(), None),
+        )),
+        create_get_canonical_file_name(!ignore_case),
+        Option::<fn(&str)>::None,
+    )
 }
 
 pub(crate) fn emit_files(

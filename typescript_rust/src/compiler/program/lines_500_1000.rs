@@ -1704,6 +1704,12 @@ impl Program {
         self.resolved_project_references.borrow_mut()
     }
 
+    pub(super) fn maybe_project_reference_redirects(
+        &self,
+    ) -> GcCellRef<Option<HashMap<Path, Option<Gc<ResolvedProjectReference>>>>> {
+        self.project_reference_redirects.borrow()
+    }
+
     pub(super) fn maybe_project_reference_redirects_mut(
         &self,
     ) -> GcCellRefMut<Option<HashMap<Path, Option<Gc<ResolvedProjectReference>>>>> {

@@ -398,6 +398,7 @@ mod _CompilerOptionsDeriveTraceScope {
 
     #[derive(Builder, Clone, Debug, Default, Serialize, Trace, Finalize)]
     #[builder(setter(into, strip_option), default)]
+    #[serde(rename_all = "camelCase")]
     pub struct CompilerOptions {
         pub all: Option<bool>,
         pub allow_js: Option<bool>,

@@ -768,7 +768,7 @@ pub use rust_helpers::sys::{
     read_file_and_strip_leading_byte_order_mark, StatLike, Stats,
 };
 pub use rust_helpers::uri::encode_uri;
-pub use rust_helpers::vec::{GcVec, GcVecOwnedIter, VecExt, VecExtClone};
+pub use rust_helpers::vec::{GcVec, GcVecOwnedIter, VecExt, VecExtClone, VecExtOrd};
 pub use rust_helpers::weak_self::WeakSelf;
 pub use rust_helpers::{
     are_gc_slices_equal, are_option_gcs_equal, are_option_rcs_equal, are_rc_slices_equal,

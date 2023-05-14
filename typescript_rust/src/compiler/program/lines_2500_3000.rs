@@ -6,7 +6,6 @@ use super::{
     for_each_resolved_project_reference, get_implied_node_format_for_file, is_referenced_file,
     resolve_tripleslash_reference, FilesByNameValue, ForEachResolvedProjectReference,
 };
-use crate::try_maybe_for_each;
 use crate::{
     change_extension, combine_paths, file_extension_is, flatten, for_each, for_each_bool,
     for_each_child_returns, get_common_source_directory_of_config, get_emit_script_target,
@@ -21,6 +20,7 @@ use crate::{
     ResolvedProjectReference, ResolvedTypeReferenceDirective, ScriptReferenceHost, SourceFile,
     SourceFileLike, SourceOfProjectReferenceRedirect, Symbol,
 };
+use crate::{try_maybe_for_each, NonEmpty};
 
 impl Program {
     pub(super) fn get_node_at_position(
@@ -629,10 +629,11 @@ impl Program {
         &self,
         file_name: &str,
     ) -> Option<Gc<ResolvedProjectReference>> {
-        if match self.maybe_resolved_project_references_mut().as_ref() {
-            None => true,
-            Some(resolved_project_references) => resolved_project_references.is_empty(),
-        } || file_extension_is(file_name, Extension::Dts.to_str())
+        if !self
+            .maybe_resolved_project_references()
+            .as_ref()
+            .is_non_empty()
+            || file_extension_is(file_name, Extension::Dts.to_str())
             || file_extension_is(file_name, Extension::Json.to_str())
         {
             return None;
@@ -643,10 +644,21 @@ impl Program {
 
     pub fn get_project_reference_output_name(
         &self,
-        _referenced_project: &ResolvedProjectReference,
-        _file_name: &str,
+        referenced_project: &ResolvedProjectReference,
+        file_name: &str,
     ) -> String {
-        unimplemented!()
+        let out = out_file(&referenced_project.command_line.options);
+        out.non_empty().map_or_else(
+            || {
+                get_output_declaration_file_name(
+                    file_name,
+                    &referenced_project.command_line,
+                    !CompilerHost::use_case_sensitive_file_names(&**self.host()),
+                    Option::<&mut fn() -> String>::None,
+                )
+            },
+            |out| change_extension(out, Extension::Dts.to_str()),
+        )
     }
 
     pub fn get_resolved_project_reference_to_redirect(
@@ -787,9 +799,16 @@ impl Program {
 
     pub(super) fn get_resolved_project_reference_by_path(
         &self,
-        _project_reference_path: &Path,
+        project_reference_path: &Path,
     ) -> Option<Gc<ResolvedProjectReference>> {
-        unimplemented!()
+        self.maybe_project_reference_redirects()
+            .as_ref()
+            .and_then(|project_reference_redirects| {
+                project_reference_redirects
+                    .get(project_reference_path)
+                    .cloned()
+                    .flatten()
+            })
     }
 
     pub fn process_referenced_files(

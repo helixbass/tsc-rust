@@ -38,6 +38,21 @@ impl<TItem: Clone> VecExtClone for Vec<TItem> {
     }
 }
 
+pub trait VecExtOrd {
+    type Item: Ord;
+
+    fn and_sort(self) -> Self;
+}
+
+impl<TItem: Ord> VecExtOrd for Vec<TItem> {
+    type Item = TItem;
+
+    fn and_sort(mut self) -> Self {
+        self.sort();
+        self
+    }
+}
+
 #[derive(Clone, Debug, Trace, Finalize)]
 pub struct GcVec<TItem: Trace + Finalize + 'static>(Gc<Vec<TItem>>);
 

@@ -265,7 +265,7 @@ impl TestProjectReferencesOptions {
     }
 }
 
-mod project_references_meta_check {
+mod meta_check {
     use super::*;
 
     #[test]
@@ -306,7 +306,7 @@ mod project_references_meta_check {
     }
 }
 
-mod project_references_constraint_checking_for_settings {
+mod constraint_checking_for_settings {
     use serde_json::json;
     use typescript_rust::ScriptReferenceHost;
 
@@ -491,6 +491,304 @@ mod project_references_constraint_checking_for_settings {
                 &errs,
                 &Diagnostics::File_0_not_found,
             );
+        });
+    }
+
+    #[test]
+    fn test_errors_when_a_prepended_project_reference_doesnt_set_out_file() {
+        let spec = TestSpecification::from_iter([
+            (
+                "/primary".to_owned(),
+                TestProjectSpecificationBuilder::default()
+                    .files(HashMap::from_iter(
+                        [("/primary/a.ts", empty_module)].owned(),
+                    ))
+                    .references([Rc::new(
+                        ProjectReferenceBuilder::default()
+                            .path("../someProj")
+                            .prepend(true)
+                            .build()
+                            .unwrap(),
+                    )
+                    .into()])
+                    .build()
+                    .unwrap(),
+            ),
+            (
+                "/someProj".to_owned(),
+                TestProjectSpecificationBuilder::default()
+                    .files(HashMap::from_iter(
+                        [("/someProj/b.ts", "const x = 100;")].owned(),
+                    ))
+                    .build()
+                    .unwrap(),
+            ),
+        ]);
+        test_project_references(&spec, "/primary/tsconfig.json", |program: &Program, _| {
+            let errs = program.get_options_diagnostics(None);
+            assert_has_error(
+                "Reports an error about outFile not being set",
+                &errs,
+                &Diagnostics::Cannot_prepend_project_0_because_it_does_not_have_outFile_set,
+            );
+        });
+    }
+
+    #[test]
+    fn test_errors_when_a_prepended_project_reference_output_doesnt_exist() {
+        let spec = TestSpecification::from_iter([
+            (
+                "/primary".to_owned(),
+                TestProjectSpecificationBuilder::default()
+                    .files(HashMap::from_iter(
+                        [("/primary/a.ts", "const y = x;")].owned(),
+                    ))
+                    .references([Rc::new(
+                        ProjectReferenceBuilder::default()
+                            .path("../someProj")
+                            .prepend(true)
+                            .build()
+                            .unwrap(),
+                    )
+                    .into()])
+                    .build()
+                    .unwrap(),
+            ),
+            (
+                "/someProj".to_owned(),
+                TestProjectSpecificationBuilder::default()
+                    .files(HashMap::from_iter(
+                        [("/someProj/b.ts", "const x = 100;")].owned(),
+                    ))
+                    .options(
+                        CompilerOptionsBuilder::default()
+                            .out_file("foo.js")
+                            .build()
+                            .unwrap(),
+                    )
+                    .build()
+                    .unwrap(),
+            ),
+        ]);
+        test_project_references(&spec, "/primary/tsconfig.json", |program: &Program, _| {
+            let errs = program.get_options_diagnostics(None);
+            assert_has_error(
+                "Reports an error about outFile being missing",
+                &errs,
+                &Diagnostics::Output_file_0_from_project_1_does_not_exist,
+            );
+        });
+    }
+}
+
+mod path_mapping {
+    use super::*;
+
+    #[test]
+    fn test_redirects_to_the_output_d_ts_file() {
+        let spec = TestSpecification::from_iter([
+            (
+                "/alpha".to_owned(),
+                TestProjectSpecificationBuilder::default()
+                    .files(HashMap::from_iter(
+                        [("/alpha/a.ts", "export const m: number = 3;")].owned(),
+                    ))
+                    .output_files(HashMap::from_iter([("a.d.ts", empty_module)].owned()))
+                    .build()
+                    .unwrap(),
+            ),
+            (
+                "/beta".to_owned(),
+                TestProjectSpecificationBuilder::default()
+                    .files(HashMap::from_iter(
+                        [("/beta/b.ts", "import { m } from '../alpha/a'")].owned(),
+                    ))
+                    .references(["../alpha".to_owned().into()])
+                    .build()
+                    .unwrap(),
+            ),
+        ]);
+        test_project_references(&spec, "/beta/tsconfig.json", |program: &Program, _| {
+            assert_no_errors(
+                "File setup should be correct",
+                &program.get_options_diagnostics(None),
+            );
+            assert_has_error(
+                "Found a type error",
+                &program.get_semantic_diagnostics(None, None).unwrap(),
+                &Diagnostics::Module_0_has_no_exported_member_1,
+            );
+        });
+    }
+}
+
+mod nice_behavior {
+    use super::*;
+
+    #[test]
+    fn test_issues_a_nice_error_when_the_input_file_is_missing() {
+        let spec = TestSpecification::from_iter([
+            (
+                "/alpha".to_owned(),
+                TestProjectSpecificationBuilder::default()
+                    .files(HashMap::from_iter(
+                        [("/alpha/a.ts", "export const m: number = 3;")].owned(),
+                    ))
+                    .build()
+                    .unwrap(),
+            ),
+            (
+                "/beta".to_owned(),
+                TestProjectSpecificationBuilder::default()
+                    .files(HashMap::from_iter(
+                        [("/beta/b.ts", "import { m } from '../alpha/a'")].owned(),
+                    ))
+                    .references(["../alpha".to_owned().into()])
+                    .build()
+                    .unwrap(),
+            ),
+        ]);
+        test_project_references(&spec, "/beta/tsconfig.json", |program: &Program, _| {
+            assert_has_error(
+                "Issues a useful error",
+                &program.get_semantic_diagnostics(None, None).unwrap(),
+                &Diagnostics::Output_file_0_has_not_been_built_from_source_file_1,
+            );
+        });
+    }
+
+    #[test]
+    fn test_issues_a_nice_error_when_the_input_file_is_missing_when_module_reference_is_not_relative(
+    ) {
+        let spec = TestSpecification::from_iter([
+            (
+                "/alpha".to_owned(),
+                TestProjectSpecificationBuilder::default()
+                    .files(HashMap::from_iter(
+                        [("/alpha/a.ts", "export const m: number = 3;")].owned(),
+                    ))
+                    .build()
+                    .unwrap(),
+            ),
+            (
+                "/beta".to_owned(),
+                TestProjectSpecificationBuilder::default()
+                    .files(HashMap::from_iter(
+                        [("/beta/b.ts", "import { m } from '@alpha/a'")].owned(),
+                    ))
+                    .references(["../alpha".to_owned().into()])
+                    .options(
+                        CompilerOptionsBuilder::default()
+                            .base_url("./")
+                            .paths(HashMap::from_iter([("@alpha/*", ["/alpha/*"])].owned()))
+                            .build()
+                            .unwrap(),
+                    )
+                    .build()
+                    .unwrap(),
+            ),
+        ]);
+        test_project_references(&spec, "/beta/tsconfig.json", |program: &Program, _| {
+            assert_has_error(
+                "Issues a useful error",
+                &program.get_semantic_diagnostics(None, None).unwrap(),
+                &Diagnostics::Output_file_0_has_not_been_built_from_source_file_1,
+            );
+        });
+    }
+}
+
+mod behavior_changes_under_composite_true {
+    use typescript_rust::VecExtOrd;
+
+    use super::*;
+
+    #[test]
+    fn test_doesnt_infer_the_root_dir_from_source_paths() {
+        let spec = TestSpecification::from_iter([(
+            "/alpha".to_owned(),
+            TestProjectSpecificationBuilder::default()
+                .files(HashMap::from_iter(
+                    [("/alpha/src/a.ts", "export const m: number = 3;")].owned(),
+                ))
+                .options(
+                    CompilerOptionsBuilder::default()
+                        .declaration(true)
+                        .out_dir("bin")
+                        .build()
+                        .unwrap(),
+                )
+                .build()
+                .unwrap(),
+        )]);
+        test_project_references(
+            &spec,
+            "/alpha/tsconfig.json",
+            |program: &Program, host: &fakes::CompilerHost| {
+                program.emit(None, None, None, None, None, None).unwrap();
+                assert_that!(host
+                    .outputs()
+                    .iter()
+                    .map(|e| e.file.clone())
+                    .collect_vec()
+                    .and_sort())
+                .is_equal_to(
+                    [
+                        "/alpha/bin/src/a.d.ts",
+                        "/alpha/bin/src/a.js",
+                        "/alpha/bin/tsconfig.tsbuildinfo",
+                    ]
+                    .owned(),
+                );
+            },
+        );
+    }
+}
+
+mod errors_when_a_file_in_a_composite_project_occurs_outside_the_root {
+    use typescript_rust::ScriptReferenceHost;
+
+    use super::*;
+
+    #[test]
+    fn test_errors_when_a_file_is_outside_the_rootdir() {
+        let spec = TestSpecification::from_iter([(
+            "/alpha".to_owned(),
+            TestProjectSpecificationBuilder::default()
+                .files(HashMap::from_iter(
+                    [
+                        ("/alpha/src/a.ts", "import * from '../../beta/b'"),
+                        ("/beta/b.ts", "export { }"),
+                    ]
+                    .owned(),
+                ))
+                .options(
+                    CompilerOptionsBuilder::default()
+                        .declaration(true)
+                        .out_dir("bin")
+                        .build()
+                        .unwrap(),
+                )
+                .build()
+                .unwrap(),
+        )]);
+        test_project_references(&spec, "/alpha/tsconfig.json", |program: &Program, _| {
+            let semantic_diagnostics = program
+                .get_semantic_diagnostics(
+                    program.get_source_file("/alpha/src/a.ts").as_deref(),
+                    None,
+                )
+                .unwrap();
+            assert_has_error(
+                    "Issues an error about the rootDir",
+                    &semantic_diagnostics,
+                    &Diagnostics::File_0_is_not_under_rootDir_1_rootDir_is_expected_to_contain_all_source_files,
+                );
+            assert_has_error(
+                    "Issues an error about the fileList",
+                    &semantic_diagnostics,
+                    &Diagnostics::File_0_is_not_listed_within_the_file_list_of_project_1_Projects_must_list_all_files_or_use_an_include_pattern,
+                );
         });
     }
 }

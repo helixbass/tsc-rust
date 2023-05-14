@@ -62,10 +62,7 @@ pub fn file_extension_is(path: &str, extension: &str) -> bool {
     path.len() > extension.len() && ends_with(path, extension)
 }
 
-pub fn file_extension_is_one_of<TExtension: AsRef<str>>(
-    path: &str,
-    extensions: &[TExtension],
-) -> bool {
+pub fn file_extension_is_one_of(path: &str, extensions: &[impl AsRef<str>]) -> bool {
     for extension in extensions {
         let extension = extension.as_ref();
         if file_extension_is(path, extension) {
