@@ -32,7 +32,9 @@ use crate::{
 };
 
 mod try_visit_each_child;
+mod visit_each_child;
 pub use try_visit_each_child::{try_visit_each_child, try_visit_each_child_full};
+pub use visit_each_child::visit_each_child;
 
 pub fn visit_node(
     node: Option<impl Borrow<Node>>,
@@ -366,7 +368,7 @@ pub fn try_visit_parameter_list(
         Option::<
             fn(
                 Option<&NodeArray>,
-                Option<&mut dyn FnMut(&Node) -> VisitResult>,
+                Option<&mut dyn FnMut(&Node) -> io::Result<VisitResult>>,
                 Option<&dyn Fn(&Node) -> bool>,
                 Option<usize>,
                 Option<usize>,
@@ -477,31 +479,6 @@ pub fn try_visit_iteration_body(
         return Ok(context.factory().create_block(declarations, None).wrap());
     }
     Ok(updated)
-}
-
-pub fn visit_each_child(
-    node: Option<impl Borrow<Node>>,
-    mut visitor: impl FnMut(&Node) -> VisitResult,
-    context: &(impl TransformationContext + ?Sized),
-    mut nodes_visitor: Option<
-        impl FnMut(
-            Option<&NodeArray>,
-            Option<&mut dyn FnMut(&Node) -> VisitResult>,
-            Option<&dyn Fn(&Node) -> bool>,
-            Option<usize>,
-            Option<usize>,
-        ) -> Option<Gc<NodeArray>>,
-    >,
-    token_visitor: Option<impl Fn(&Node) -> VisitResult>,
-    mut node_visitor: Option<
-        impl FnMut(
-            Option<&Node>,
-            Option<&mut dyn FnMut(&Node) -> VisitResult>,
-            Option<&dyn Fn(&Node) -> bool>,
-            Option<&dyn Fn(&[Gc<Node>]) -> Gc<Node>>,
-        ) -> Option<Gc<Node>>,
-    >,
-) -> Option<Gc<Node>> {
 }
 
 fn extract_single_node(nodes: &[Gc<Node>]) -> Option<Gc<Node>> {

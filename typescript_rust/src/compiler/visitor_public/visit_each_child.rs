@@ -2,8 +2,8 @@ use gc::Gc;
 use std::{borrow::Borrow, io};
 
 use super::{
-    try_visit_function_body_full, try_visit_iteration_body, try_visit_lexical_environment,
-    try_visit_node, try_visit_nodes, try_visit_parameter_list_full,
+    visit_function_body, visit_iteration_body, visit_lexical_environment, visit_node, visit_nodes,
+    visit_parameter_list,
 };
 use crate::{
     is_array_binding_element, is_assert_clause, is_assert_entry, is_assertion_key,
@@ -35,85 +35,53 @@ use crate::{
     TransformationContext, VisitResult, VisitResultInterface,
 };
 
-pub fn try_visit_each_child(
+pub fn visit_each_child(
     node: Option<impl Borrow<Node>>,
-    visitor: impl FnMut(&Node) -> io::Result<VisitResult>,
-    context: &(impl TransformationContext + ?Sized),
-) -> io::Result<Option<Gc<Node>>> {
-    return try_visit_each_child_full(
-        node,
-        visitor,
-        context,
-        Option::<
-            fn(
-                Option<&NodeArray>,
-                Option<&mut dyn FnMut(&Node) -> io::Result<VisitResult>>,
-                Option<&dyn Fn(&Node) -> bool>,
-                Option<usize>,
-                Option<usize>,
-            ) -> io::Result<Option<Gc<NodeArray>>>,
-        >::None,
-        Option::<fn(&Node) -> io::Result<VisitResult>>::None,
-        Option::<
-            fn(
-                Option<&Node>,
-                Option<&mut dyn FnMut(&Node) -> io::Result<VisitResult>>,
-                Option<&dyn Fn(&Node) -> bool>,
-                Option<&dyn Fn(&[Gc<Node>]) -> Gc<Node>>,
-            ) -> io::Result<Option<Gc<Node>>>,
-        >::None,
-    );
-}
-
-pub fn try_visit_each_child_full(
-    node: Option<impl Borrow<Node>>,
-    mut visitor: impl FnMut(&Node) -> io::Result<VisitResult>,
+    mut visitor: impl FnMut(&Node) -> VisitResult,
     context: &(impl TransformationContext + ?Sized),
     mut nodes_visitor: Option<
         impl FnMut(
             Option<&NodeArray>,
-            Option<&mut dyn FnMut(&Node) -> io::Result<VisitResult>>,
+            Option<&mut dyn FnMut(&Node) -> VisitResult>,
             Option<&dyn Fn(&Node) -> bool>,
             Option<usize>,
             Option<usize>,
-        ) -> io::Result<Option<Gc<NodeArray>>>,
+        ) -> Option<Gc<NodeArray>>,
     >,
-    token_visitor: Option<impl Fn(&Node) -> io::Result<VisitResult>>,
+    token_visitor: Option<impl Fn(&Node) -> VisitResult>,
     mut node_visitor: Option<
         impl FnMut(
             Option<&Node>,
-            Option<&mut dyn FnMut(&Node) -> io::Result<VisitResult>>,
+            Option<&mut dyn FnMut(&Node) -> VisitResult>,
             Option<&dyn Fn(&Node) -> bool>,
             Option<&dyn Fn(&[Gc<Node>]) -> Gc<Node>>,
-        ) -> io::Result<Option<Gc<Node>>>,
+        ) -> Option<Gc<Node>>,
     >,
-) -> io::Result<Option<Gc<Node>>> {
-    let mut nodes_visitor =
-        move |nodes: Option<&NodeArray>,
-              visitor: Option<&mut dyn FnMut(&Node) -> io::Result<VisitResult>>,
-              test: Option<&dyn Fn(&Node) -> bool>,
-              start: Option<usize>,
-              count: Option<usize>|
-              -> io::Result<Option<Gc<NodeArray>>> {
-            if let Some(nodes_visitor) = nodes_visitor.as_mut() {
-                nodes_visitor(nodes, visitor, test, start, count)
-            } else {
-                try_visit_nodes(nodes, visitor, test, start, count)
-            }
-        };
-    let mut node_visitor =
-        move |node: Option<&Node>,
-              visitor: Option<&mut dyn FnMut(&Node) -> io::Result<VisitResult>>,
-              lift: Option<&dyn Fn(&Node) -> bool>,
-              test: Option<&dyn Fn(&[Gc<Node>]) -> Gc<Node>>|
-              -> io::Result<Option<Gc<Node>>> {
-            if let Some(node_visitor) = node_visitor.as_mut() {
-                node_visitor(node, visitor, lift, test)
-            } else {
-                try_visit_node(node, visitor, lift, test)
-            }
-        };
-    let node = return_ok_default_if_none!(node);
+) -> Option<Gc<Node>> {
+    let mut nodes_visitor = move |nodes: Option<&NodeArray>,
+                                  visitor: Option<&mut dyn FnMut(&Node) -> VisitResult>,
+                                  test: Option<&dyn Fn(&Node) -> bool>,
+                                  start: Option<usize>,
+                                  count: Option<usize>|
+          -> Option<Gc<NodeArray>> {
+        if let Some(nodes_visitor) = nodes_visitor.as_mut() {
+            nodes_visitor(nodes, visitor, test, start, count)
+        } else {
+            visit_nodes(nodes, visitor, test, start, count)
+        }
+    };
+    let mut node_visitor = move |node: Option<&Node>,
+                                 visitor: Option<&mut dyn FnMut(&Node) -> VisitResult>,
+                                 lift: Option<&dyn Fn(&Node) -> bool>,
+                                 test: Option<&dyn Fn(&[Gc<Node>]) -> Gc<Node>>|
+          -> Option<Gc<Node>> {
+        if let Some(node_visitor) = node_visitor.as_mut() {
+            node_visitor(node, visitor, lift, test)
+        } else {
+            visit_node(node, visitor, lift, test)
+        }
+    };
+    let node = node?;
     let node: &Node = node.borrow();
 
     let kind = node.kind();
@@ -121,12 +89,12 @@ pub fn try_visit_each_child_full(
     if kind > SyntaxKind::FirstToken && kind <= SyntaxKind::LastToken
         || kind == SyntaxKind::ThisType
     {
-        return Ok(Some(node.node_wrapper()));
+        return Some(node.node_wrapper());
     }
 
     let factory = context.factory();
 
-    Ok(match kind {
+    match kind {
         SyntaxKind::Identifier => {
             let node_as_identifier = node.as_identifier();
             Some(factory.update_identifier(
@@ -137,7 +105,7 @@ pub fn try_visit_each_child_full(
                     Some(&is_type_node_or_type_parameter_declaration),
                     None,
                     None,
-                )?,
+                ),
             ))
         }
         SyntaxKind::QualifiedName => {
@@ -150,14 +118,14 @@ pub fn try_visit_each_child_full(
                         Some(&mut visitor),
                         Some(&is_entity_name),
                         None,
-                    )?
+                    )
                     .unwrap(),
                     node_visitor(
                         Some(&node_as_qualified_name.right),
                         Some(&mut visitor),
                         Some(&is_identifier),
                         None,
-                    )?
+                    )
                     .unwrap(),
                 ),
             )
@@ -172,7 +140,7 @@ pub fn try_visit_each_child_full(
                         Some(&mut visitor),
                         Some(&is_expression),
                         None,
-                    )?
+                    )
                     .unwrap(),
                 ),
             )
@@ -187,20 +155,20 @@ pub fn try_visit_each_child_full(
                         Some(&mut visitor),
                         Some(&is_identifier),
                         None,
-                    )?
+                    )
                     .unwrap(),
                     node_visitor(
                         node_as_type_parameter_declaration.constraint.as_deref(),
                         Some(&mut visitor),
                         Some(&is_type_node),
                         None,
-                    )?,
+                    ),
                     node_visitor(
                         node_as_type_parameter_declaration.default.as_deref(),
                         Some(&mut visitor),
                         Some(&is_type_node),
                         None,
-                    )?,
+                    ),
                 ),
             )
         }
@@ -215,58 +183,58 @@ pub fn try_visit_each_child_full(
                         Some(&is_decorator),
                         None,
                         None,
-                    )?,
+                    ),
                     nodes_visitor(
                         node.maybe_modifiers().as_deref(),
                         Some(&mut |node: &Node| visitor(node)),
                         Some(&is_modifier),
                         None,
                         None,
-                    )?,
+                    ),
                     node_visitor(
                         node_as_parameter_declaration.dot_dot_dot_token.as_deref(),
                         Some(&mut |node: &Node| {
-                            Ok(if let Some(token_visitor) = token_visitor.as_ref() {
-                                token_visitor(node)?
+                            if let Some(token_visitor) = token_visitor.as_ref() {
+                                token_visitor(node)
                             } else {
                                 None
-                            })
+                            }
                         }),
                         Some(&is_dot_dot_dot_token),
                         None,
-                    )?,
+                    ),
                     node_visitor(
                         node_as_parameter_declaration.maybe_name().as_deref(),
                         Some(&mut visitor),
                         Some(&is_binding_name),
                         None,
-                    )?,
+                    ),
                     node_visitor(
                         node_as_parameter_declaration
                             .maybe_question_token()
                             .as_deref(),
                         Some(&mut |node: &Node| {
-                            Ok(if let Some(token_visitor) = token_visitor.as_ref() {
-                                token_visitor(node)?
+                            if let Some(token_visitor) = token_visitor.as_ref() {
+                                token_visitor(node)
                             } else {
                                 None
-                            })
+                            }
                         }),
                         Some(&is_question_token),
                         None,
-                    )?,
+                    ),
                     node_visitor(
                         node_as_parameter_declaration.maybe_type().as_deref(),
                         Some(&mut visitor),
                         Some(&is_type_node),
                         None,
-                    )?,
+                    ),
                     node_visitor(
                         node_as_parameter_declaration.maybe_initializer().as_deref(),
                         Some(&mut visitor),
                         Some(&is_expression),
                         None,
-                    )?,
+                    ),
                 ),
             )
         }
@@ -280,7 +248,7 @@ pub fn try_visit_each_child_full(
                         Some(&mut visitor),
                         Some(&is_expression),
                         None,
-                    )?
+                    )
                     .unwrap(),
                 ),
             )
@@ -296,32 +264,32 @@ pub fn try_visit_each_child_full(
                         Some(&is_modifier),
                         None,
                         None,
-                    )?,
+                    ),
                     node_visitor(
                         Some(&node_as_property_signature.name()),
                         Some(&mut visitor),
                         Some(&is_property_name),
                         None,
-                    )?
+                    )
                     .unwrap(),
                     node_visitor(
                         node_as_property_signature.maybe_question_token().as_deref(),
                         Some(&mut |node: &Node| {
-                            Ok(if let Some(token_visitor) = token_visitor.as_ref() {
-                                token_visitor(node)?
+                            if let Some(token_visitor) = token_visitor.as_ref() {
+                                token_visitor(node)
                             } else {
                                 None
-                            })
+                            }
                         }),
                         Some(&is_token),
                         None,
-                    )?,
+                    ),
                     node_visitor(
                         node_as_property_signature.maybe_type().as_deref(),
                         Some(&mut visitor),
                         Some(&is_type_node),
                         None,
-                    )?,
+                    ),
                 ),
             )
         }
@@ -336,20 +304,20 @@ pub fn try_visit_each_child_full(
                         Some(&is_decorator),
                         None,
                         None,
-                    )?,
+                    ),
                     nodes_visitor(
                         node.maybe_modifiers().as_deref(),
                         Some(&mut |node: &Node| visitor(node)),
                         Some(&is_modifier),
                         None,
                         None,
-                    )?,
+                    ),
                     node_visitor(
                         Some(&node_as_property_declaration.name()),
                         Some(&mut visitor),
                         Some(&is_property_name),
                         None,
-                    )?
+                    )
                     .unwrap(),
                     node_visitor(
                         node_as_property_declaration
@@ -359,19 +327,19 @@ pub fn try_visit_each_child_full(
                         Some(&mut visitor),
                         Some(&is_question_or_exclamation_token),
                         None,
-                    )?,
+                    ),
                     node_visitor(
                         node_as_property_declaration.maybe_type().as_deref(),
                         Some(&mut visitor),
                         Some(&is_type_node),
                         None,
-                    )?,
+                    ),
                     node_visitor(
                         node_as_property_declaration.maybe_initializer().as_deref(),
                         Some(&mut visitor),
                         Some(&is_expression),
                         None,
-                    )?,
+                    ),
                 ),
             )
         }
@@ -386,47 +354,47 @@ pub fn try_visit_each_child_full(
                         Some(&is_modifier),
                         None,
                         None,
-                    )?,
+                    ),
                     node_visitor(
                         Some(&node_as_method_signature.name()),
                         Some(&mut visitor),
                         Some(&is_property_name),
                         None,
-                    )?
+                    )
                     .unwrap(),
                     node_visitor(
                         node_as_method_signature.maybe_question_token().as_deref(),
                         Some(&mut |node: &Node| {
-                            Ok(if let Some(token_visitor) = token_visitor.as_ref() {
-                                token_visitor(node)?
+                            if let Some(token_visitor) = token_visitor.as_ref() {
+                                token_visitor(node)
                             } else {
                                 None
-                            })
+                            }
                         }),
                         Some(&is_question_token),
                         None,
-                    )?,
+                    ),
                     nodes_visitor(
                         node_as_method_signature.maybe_type_parameters().as_deref(),
                         Some(&mut |node: &Node| visitor(node)),
                         Some(&is_type_parameter_declaration),
                         None,
                         None,
-                    )?,
+                    ),
                     nodes_visitor(
                         Some(&node_as_method_signature.parameters()),
                         Some(&mut |node: &Node| visitor(node)),
                         Some(&is_parameter_declaration),
                         None,
                         None,
-                    )?
+                    )
                     .unwrap(),
                     node_visitor(
                         node_as_method_signature.maybe_type().as_deref(),
                         Some(&mut visitor),
                         Some(&is_type_node),
                         None,
-                    )?,
+                    ),
                 ),
             )
         }
@@ -441,45 +409,45 @@ pub fn try_visit_each_child_full(
                         Some(&is_decorator),
                         None,
                         None,
-                    )?,
+                    ),
                     nodes_visitor(
                         node.maybe_modifiers().as_deref(),
                         Some(&mut |node: &Node| visitor(node)),
                         Some(&is_modifier),
                         None,
                         None,
-                    )?,
+                    ),
                     node_visitor(
                         node_as_method_declaration.maybe_asterisk_token().as_deref(),
                         Some(&mut |node: &Node| {
-                            Ok(if let Some(token_visitor) = token_visitor.as_ref() {
-                                token_visitor(node)?
+                            if let Some(token_visitor) = token_visitor.as_ref() {
+                                token_visitor(node)
                             } else {
                                 None
-                            })
+                            }
                         }),
                         Some(&is_asterisk_token),
                         None,
-                    )?,
+                    ),
                     node_visitor(
                         Some(&node_as_method_declaration.name()),
                         Some(&mut visitor),
                         Some(&is_property_name),
                         None,
-                    )?
+                    )
                     .unwrap(),
                     node_visitor(
                         node_as_method_declaration.maybe_question_token().as_deref(),
                         Some(&mut |node: &Node| {
-                            Ok(if let Some(token_visitor) = token_visitor.as_ref() {
-                                token_visitor(node)?
+                            if let Some(token_visitor) = token_visitor.as_ref() {
+                                token_visitor(node)
                             } else {
                                 None
-                            })
+                            }
                         }),
                         Some(&is_question_token),
                         None,
-                    )?,
+                    ),
                     nodes_visitor(
                         node_as_method_declaration
                             .maybe_type_parameters()
@@ -488,41 +456,43 @@ pub fn try_visit_each_child_full(
                         Some(&is_type_parameter_declaration),
                         None,
                         None,
-                    )?,
-                    try_visit_parameter_list_full(
+                    ),
+                    visit_parameter_list(
                         Some(&node_as_method_declaration.parameters()),
                         |node: &Node| visitor(node),
                         context,
-                        Some(|
-                            nodes: Option<&NodeArray>,
-                            visitor: Option<&mut dyn FnMut(&Node) -> io::Result<VisitResult>>,
-                            test: Option<&dyn Fn(&Node) -> bool>,
-                            start: Option<usize>,
-                            count: Option<usize>
-                        | {
-                            nodes_visitor(nodes, visitor, test, start, count)
-                        }),
-                    )?
+                        Some(
+                            |nodes: Option<&NodeArray>,
+                             visitor: Option<&mut dyn FnMut(&Node) -> VisitResult>,
+                             test: Option<&dyn Fn(&Node) -> bool>,
+                             start: Option<usize>,
+                             count: Option<usize>|
+                             -> Option<Gc<NodeArray>> {
+                                nodes_visitor(nodes, visitor, test, start, count)
+                            },
+                        ),
+                    )
                     .unwrap(),
                     node_visitor(
                         node_as_method_declaration.maybe_type().as_deref(),
                         Some(&mut visitor),
                         Some(&is_type_node),
                         None,
-                    )?,
-                    try_visit_function_body_full(
+                    ),
+                    visit_function_body(
                         node_as_method_declaration.maybe_body().as_deref(),
                         |node: &Node| visitor(node),
                         context,
-                        Some(|
-                            node: Option<&Node>,
-                            visitor: Option<&mut dyn FnMut(&Node) -> io::Result<VisitResult>>,
-                            lift: Option<&dyn Fn(&Node) -> bool>,
-                            test: Option<&dyn Fn(&[Gc<Node>]) -> Gc<Node>>
-                        | {
-                            node_visitor(node, visitor, lift, test)
-                        }),
-                    )?,
+                        Some(
+                            |node: Option<&Node>,
+                             visitor: Option<&mut dyn FnMut(&Node) -> VisitResult>,
+                             lift: Option<&dyn Fn(&Node) -> bool>,
+                             test: Option<&dyn Fn(&[Gc<Node>]) -> Gc<Node>>|
+                             -> Option<Gc<Node>> {
+                                node_visitor(node, visitor, lift, test)
+                            },
+                        ),
+                    ),
                 ),
             )
         }
@@ -537,42 +507,42 @@ pub fn try_visit_each_child_full(
                         Some(&is_decorator),
                         None,
                         None,
-                    )?,
+                    ),
                     nodes_visitor(
                         node.maybe_modifiers().as_deref(),
                         Some(&mut |node: &Node| visitor(node)),
                         Some(&is_modifier),
                         None,
                         None,
-                    )?,
-                    try_visit_parameter_list_full(
+                    ),
+                    visit_parameter_list(
                         Some(&node_as_constructor_declaration.parameters()),
                         |node: &Node| visitor(node),
                         context,
-                        Some(|
-                            nodes: Option<&NodeArray>,
-                            visitor: Option<&mut dyn FnMut(&Node) -> io::Result<VisitResult>>,
-                            test: Option<&dyn Fn(&Node) -> bool>,
-                            start: Option<usize>,
-                            count: Option<usize>
-                        | {
-                            nodes_visitor(nodes, visitor, test, start, count)
-                        }),
-                    )?
+                        Some(
+                            |nodes: Option<&NodeArray>,
+                             visitor: Option<&mut dyn FnMut(&Node) -> VisitResult>,
+                             test: Option<&dyn Fn(&Node) -> bool>,
+                             start: Option<usize>,
+                             count: Option<usize>| {
+                                nodes_visitor(nodes, visitor, test, start, count)
+                            },
+                        ),
+                    )
                     .unwrap(),
-                    try_visit_function_body_full(
+                    visit_function_body(
                         node_as_constructor_declaration.maybe_body().as_deref(),
                         |node: &Node| visitor(node),
                         context,
-                        Some(|
-                            node: Option<&Node>,
-                            visitor: Option<&mut dyn FnMut(&Node) -> io::Result<VisitResult>>,
-                            lift: Option<&dyn Fn(&Node) -> bool>,
-                            test: Option<&dyn Fn(&[Gc<Node>]) -> Gc<Node>>
-                        | {
-                            node_visitor(node, visitor, lift, test)
-                        }),
-                    )?,
+                        Some(
+                            |node: Option<&Node>,
+                             visitor: Option<&mut dyn FnMut(&Node) -> VisitResult>,
+                             lift: Option<&dyn Fn(&Node) -> bool>,
+                             test: Option<&dyn Fn(&[Gc<Node>]) -> Gc<Node>>| {
+                                node_visitor(node, visitor, lift, test)
+                            },
+                        ),
+                    ),
                 )
             )
         }
@@ -587,55 +557,55 @@ pub fn try_visit_each_child_full(
                         Some(&is_decorator),
                         None,
                         None,
-                    )?,
+                    ),
                     nodes_visitor(
                         node.maybe_modifiers().as_deref(),
                         Some(&mut |node: &Node| visitor(node)),
                         Some(&is_modifier),
                         None,
                         None,
-                    )?,
+                    ),
                     node_visitor(
                         Some(&node_as_get_accessor_declaration.name()),
                         Some(&mut visitor),
                         Some(&is_property_name),
                         None,
-                    )?
+                    )
                     .unwrap(),
-                    try_visit_parameter_list_full(
+                    visit_parameter_list(
                         Some(&node_as_get_accessor_declaration.parameters()),
                         |node: &Node| visitor(node),
                         context,
-                        Some(|
-                            nodes: Option<&NodeArray>,
-                            visitor: Option<&mut dyn FnMut(&Node) -> io::Result<VisitResult>>,
-                            test: Option<&dyn Fn(&Node) -> bool>,
-                            start: Option<usize>,
-                            count: Option<usize>
-                        | {
-                            nodes_visitor(nodes, visitor, test, start, count)
-                        }),
-                    )?
+                        Some(
+                            |nodes: Option<&NodeArray>,
+                             visitor: Option<&mut dyn FnMut(&Node) -> VisitResult>,
+                             test: Option<&dyn Fn(&Node) -> bool>,
+                             start: Option<usize>,
+                             count: Option<usize>| {
+                                nodes_visitor(nodes, visitor, test, start, count)
+                            },
+                        ),
+                    )
                     .unwrap(),
                     node_visitor(
                         node_as_get_accessor_declaration.maybe_type().as_deref(),
                         Some(&mut visitor),
                         Some(&is_type_node),
                         None,
-                    )?,
-                    try_visit_function_body_full(
+                    ),
+                    visit_function_body(
                         node_as_get_accessor_declaration.maybe_body().as_deref(),
                         |node: &Node| visitor(node),
                         context,
-                        Some(|
-                            node: Option<&Node>,
-                            visitor: Option<&mut dyn FnMut(&Node) -> io::Result<VisitResult>>,
-                            lift: Option<&dyn Fn(&Node) -> bool>,
-                            test: Option<&dyn Fn(&[Gc<Node>]) -> Gc<Node>>
-                        | {
-                            node_visitor(node, visitor, lift, test)
-                        }),
-                    )?,
+                        Some(
+                            |node: Option<&Node>,
+                             visitor: Option<&mut dyn FnMut(&Node) -> VisitResult>,
+                             lift: Option<&dyn Fn(&Node) -> bool>,
+                             test: Option<&dyn Fn(&[Gc<Node>]) -> Gc<Node>>| {
+                                node_visitor(node, visitor, lift, test)
+                            },
+                        ),
+                    ),
                 )
             )
         }
@@ -650,49 +620,49 @@ pub fn try_visit_each_child_full(
                         Some(&is_decorator),
                         None,
                         None,
-                    )?,
+                    ),
                     nodes_visitor(
                         node.maybe_modifiers().as_deref(),
                         Some(&mut |node: &Node| visitor(node)),
                         Some(&is_modifier),
                         None,
                         None,
-                    )?,
+                    ),
                     node_visitor(
                         Some(&node_as_set_accessor_declaration.name()),
                         Some(&mut visitor),
                         Some(&is_property_name),
                         None,
-                    )?
+                    )
                     .unwrap(),
-                    try_visit_parameter_list_full(
+                    visit_parameter_list(
                         Some(&node_as_set_accessor_declaration.parameters()),
                         |node: &Node| visitor(node),
                         context,
-                        Some(|
-                            nodes: Option<&NodeArray>,
-                            visitor: Option<&mut dyn FnMut(&Node) -> io::Result<VisitResult>>,
-                            test: Option<&dyn Fn(&Node) -> bool>,
-                            start: Option<usize>,
-                            count: Option<usize>
-                        | {
-                            nodes_visitor(nodes, visitor, test, start, count)
-                        }),
-                    )?
+                        Some(
+                            |nodes: Option<&NodeArray>,
+                             visitor: Option<&mut dyn FnMut(&Node) -> VisitResult>,
+                             test: Option<&dyn Fn(&Node) -> bool>,
+                             start: Option<usize>,
+                             count: Option<usize>| {
+                                nodes_visitor(nodes, visitor, test, start, count)
+                            },
+                        ),
+                    )
                     .unwrap(),
-                    try_visit_function_body_full(
+                    visit_function_body(
                         node_as_set_accessor_declaration.maybe_body().as_deref(),
                         |node: &Node| visitor(node),
                         context,
-                        Some(|
-                            node: Option<&Node>,
-                            visitor: Option<&mut dyn FnMut(&Node) -> io::Result<VisitResult>>,
-                            lift: Option<&dyn Fn(&Node) -> bool>,
-                            test: Option<&dyn Fn(&[Gc<Node>]) -> Gc<Node>>
-                        | {
-                            node_visitor(node, visitor, lift, test)
-                        }),
-                    )?,
+                        Some(
+                            |node: Option<&Node>,
+                             visitor: Option<&mut dyn FnMut(&Node) -> VisitResult>,
+                             lift: Option<&dyn Fn(&Node) -> bool>,
+                             test: Option<&dyn Fn(&[Gc<Node>]) -> Gc<Node>>| {
+                                node_visitor(node, visitor, lift, test)
+                            },
+                        ),
+                    ),
                 )
             )
         }
@@ -709,27 +679,27 @@ pub fn try_visit_each_child_full(
                         Some(&is_decorator),
                         None,
                         None,
-                    )?,
+                    ),
                     nodes_visitor(
                         node.maybe_modifiers().as_deref(),
                         Some(&mut |node: &Node| visitor(node)),
                         Some(&is_modifier),
                         None,
                         None,
-                    )?,
-                    try_visit_function_body_full(
+                    ),
+                    visit_function_body(
                         Some(&node_as_class_static_block_declaration.body),
                         |node: &Node| visitor(node),
                         context,
-                        Some(|
-                            node: Option<&Node>,
-                            visitor: Option<&mut dyn FnMut(&Node) -> io::Result<VisitResult>>,
-                            lift: Option<&dyn Fn(&Node) -> bool>,
-                            test: Option<&dyn Fn(&[Gc<Node>]) -> Gc<Node>>
-                        | {
-                            node_visitor(node, visitor, lift, test)
-                        }),
-                    )?.unwrap(),
+                        Some(
+                            |node: Option<&Node>,
+                             visitor: Option<&mut dyn FnMut(&Node) -> VisitResult>,
+                             lift: Option<&dyn Fn(&Node) -> bool>,
+                             test: Option<&dyn Fn(&[Gc<Node>]) -> Gc<Node>>| {
+                                node_visitor(node, visitor, lift, test)
+                            },
+                        ),
+                    ).unwrap(),
                 )
             )
         }
@@ -746,21 +716,21 @@ pub fn try_visit_each_child_full(
                         Some(&is_type_parameter_declaration),
                         None,
                         None,
-                    )?,
+                    ),
                     nodes_visitor(
                         Some(&node_as_call_signature_declaration.parameters()),
                         Some(&mut |node: &Node| visitor(node)),
                         Some(&is_parameter_declaration),
                         None,
                         None,
-                    )?
+                    )
                     .unwrap(),
                     node_visitor(
                         node_as_call_signature_declaration.maybe_type().as_deref(),
                         Some(&mut visitor),
                         Some(&is_type_node),
                         None,
-                    )?,
+                    ),
                 ),
             )
         }
@@ -777,14 +747,14 @@ pub fn try_visit_each_child_full(
                         Some(&is_type_parameter_declaration),
                         None,
                         None,
-                    )?,
+                    ),
                     nodes_visitor(
                         Some(&node_as_construct_signature_declaration.parameters()),
                         Some(&mut |node: &Node| visitor(node)),
                         Some(&is_parameter_declaration),
                         None,
                         None,
-                    )?
+                    )
                     .unwrap(),
                     node_visitor(
                         node_as_construct_signature_declaration
@@ -793,7 +763,7 @@ pub fn try_visit_each_child_full(
                         Some(&mut visitor),
                         Some(&is_type_node),
                         None,
-                    )?,
+                    ),
                 ),
             )
         }
@@ -808,28 +778,28 @@ pub fn try_visit_each_child_full(
                         Some(&is_decorator),
                         None,
                         None,
-                    )?,
+                    ),
                     nodes_visitor(
                         node.maybe_modifiers().as_deref(),
                         Some(&mut |node: &Node| visitor(node)),
                         Some(&is_modifier),
                         None,
                         None,
-                    )?,
+                    ),
                     nodes_visitor(
                         Some(&node_as_index_signature_declaration.parameters()),
                         Some(&mut |node: &Node| visitor(node)),
                         Some(&is_parameter_declaration),
                         None,
                         None,
-                    )?
+                    )
                     .unwrap(),
                     node_visitor(
                         Some(&node_as_index_signature_declaration.maybe_type().unwrap()),
                         Some(&mut visitor),
                         Some(&is_type_node),
                         None,
-                    )?
+                    )
                     .unwrap(),
                 ),
             )
@@ -844,20 +814,20 @@ pub fn try_visit_each_child_full(
                         Some(&mut visitor),
                         Some(&is_asserts_keyword),
                         None,
-                    )?,
+                    ),
                     node_visitor(
                         Some(&node_as_type_predicate_node.parameter_name),
                         Some(&mut visitor),
                         Some(&is_identifier_or_this_type_node),
                         None,
-                    )?
+                    )
                     .unwrap(),
                     node_visitor(
                         node_as_type_predicate_node.maybe_type().as_deref(),
                         Some(&mut visitor),
                         Some(&is_type_node),
                         None,
-                    )?,
+                    ),
                 ),
             )
         }
@@ -871,7 +841,7 @@ pub fn try_visit_each_child_full(
                         Some(&mut visitor),
                         Some(&is_entity_name),
                         None,
-                    )?
+                    )
                     .unwrap(),
                     nodes_visitor(
                         node_as_type_reference_node
@@ -881,7 +851,7 @@ pub fn try_visit_each_child_full(
                         Some(&is_type_node),
                         None,
                         None,
-                    )?,
+                    ),
                 ),
             )
         }
@@ -898,21 +868,21 @@ pub fn try_visit_each_child_full(
                         Some(&is_type_parameter_declaration),
                         None,
                         None,
-                    )?,
+                    ),
                     nodes_visitor(
                         Some(&node_as_function_type_node.parameters()),
                         Some(&mut |node: &Node| visitor(node)),
                         Some(&is_parameter_declaration),
                         None,
                         None,
-                    )?
+                    )
                     .unwrap(),
                     node_visitor(
                         node_as_function_type_node.maybe_type().as_deref(),
                         Some(&mut visitor),
                         Some(&is_type_node),
                         None,
-                    )?,
+                    ),
                 ),
             )
         }
@@ -927,7 +897,7 @@ pub fn try_visit_each_child_full(
                         Some(&is_modifier),
                         None,
                         None,
-                    )?,
+                    ),
                     nodes_visitor(
                         node_as_constructor_type_node
                             .maybe_type_parameters()
@@ -936,21 +906,21 @@ pub fn try_visit_each_child_full(
                         Some(&is_type_parameter_declaration),
                         None,
                         None,
-                    )?,
+                    ),
                     nodes_visitor(
                         Some(&node_as_constructor_type_node.parameters()),
                         Some(&mut |node: &Node| visitor(node)),
                         Some(&is_parameter_declaration),
                         None,
                         None,
-                    )?
+                    )
                     .unwrap(),
                     node_visitor(
                         node_as_constructor_type_node.maybe_type().as_deref(),
                         Some(&mut visitor),
                         Some(&is_type_node),
                         None,
-                    )?,
+                    ),
                 ),
             )
         }
@@ -964,7 +934,7 @@ pub fn try_visit_each_child_full(
                         Some(&mut visitor),
                         Some(&is_entity_name),
                         None,
-                    )?
+                    )
                     .unwrap(),
                 ),
             )
@@ -980,7 +950,7 @@ pub fn try_visit_each_child_full(
                         Some(&is_type_element),
                         None,
                         None,
-                    )?
+                    )
                     .unwrap(),
                 ),
             )
@@ -995,7 +965,7 @@ pub fn try_visit_each_child_full(
                         Some(&mut visitor),
                         Some(&is_type_node),
                         None,
-                    )?
+                    )
                     .unwrap(),
                 ),
             )
@@ -1011,7 +981,7 @@ pub fn try_visit_each_child_full(
                         Some(&is_type_node),
                         None,
                         None,
-                    )?
+                    )
                     .unwrap(),
                 ),
             )
@@ -1026,7 +996,7 @@ pub fn try_visit_each_child_full(
                         Some(&mut visitor),
                         Some(&is_type_node),
                         None,
-                    )?
+                    )
                     .unwrap(),
                 ),
             )
@@ -1041,7 +1011,7 @@ pub fn try_visit_each_child_full(
                         Some(&mut visitor),
                         Some(&is_type_node),
                         None,
-                    )?
+                    )
                     .unwrap(),
                 ),
             )
@@ -1057,7 +1027,7 @@ pub fn try_visit_each_child_full(
                         Some(&is_type_node),
                         None,
                         None,
-                    )?
+                    )
                     .unwrap(),
                 ),
             )
@@ -1073,7 +1043,7 @@ pub fn try_visit_each_child_full(
                         Some(&is_type_node),
                         None,
                         None,
-                    )?
+                    )
                     .unwrap(),
                 ),
             )
@@ -1088,28 +1058,28 @@ pub fn try_visit_each_child_full(
                         Some(&mut visitor),
                         Some(&is_type_node),
                         None,
-                    )?
+                    )
                     .unwrap(),
                     node_visitor(
                         Some(&node_as_conditional_type_node.extends_type),
                         Some(&mut visitor),
                         Some(&is_type_node),
                         None,
-                    )?
+                    )
                     .unwrap(),
                     node_visitor(
                         Some(&node_as_conditional_type_node.true_type),
                         Some(&mut visitor),
                         Some(&is_type_node),
                         None,
-                    )?
+                    )
                     .unwrap(),
                     node_visitor(
                         Some(&node_as_conditional_type_node.false_type),
                         Some(&mut visitor),
                         Some(&is_type_node),
                         None,
-                    )?
+                    )
                     .unwrap(),
                 ),
             )
@@ -1124,7 +1094,7 @@ pub fn try_visit_each_child_full(
                         Some(&mut visitor),
                         Some(&is_type_parameter_declaration),
                         None,
-                    )?
+                    )
                     .unwrap(),
                 ),
             )
@@ -1139,21 +1109,21 @@ pub fn try_visit_each_child_full(
                         Some(&mut visitor),
                         Some(&is_type_node),
                         None,
-                    )?
+                    )
                     .unwrap(),
                     node_visitor(
                         node_as_import_type_node.qualifier.as_deref(),
                         Some(&mut visitor),
                         Some(&is_entity_name),
                         None,
-                    )?,
+                    ),
                     nodes_visitor(
                         node_as_import_type_node.maybe_type_arguments().as_deref(),
                         Some(&mut |node: &Node| visitor(node)),
                         Some(&is_type_node),
                         None,
                         None,
-                    )?,
+                    ),
                     Some(node_as_import_type_node.is_type_of()),
                 ),
             )
@@ -1168,26 +1138,26 @@ pub fn try_visit_each_child_full(
                         Some(&mut visitor),
                         Some(&is_dot_dot_dot_token),
                         None,
-                    )?,
+                    ),
                     node_visitor(
                         Some(&node_as_named_tuple_member.name),
                         Some(&mut visitor),
                         Some(&is_identifier),
                         None,
-                    )?
+                    )
                     .unwrap(),
                     node_visitor(
                         node_as_named_tuple_member.question_token.as_deref(),
                         Some(&mut visitor),
                         Some(&is_question_token),
                         None,
-                    )?,
+                    ),
                     node_visitor(
                         Some(&node_as_named_tuple_member.type_),
                         Some(&mut visitor),
                         Some(&is_type_node),
                         None,
-                    )?
+                    )
                     .unwrap(),
                 ),
             )
@@ -1202,7 +1172,7 @@ pub fn try_visit_each_child_full(
                         Some(&mut visitor),
                         Some(&is_type_node),
                         None,
-                    )?
+                    )
                     .unwrap(),
                 ),
             )
@@ -1217,7 +1187,7 @@ pub fn try_visit_each_child_full(
                         Some(&mut visitor),
                         Some(&is_type_node),
                         None,
-                    )?
+                    )
                     .unwrap(),
                 ),
             )
@@ -1232,14 +1202,14 @@ pub fn try_visit_each_child_full(
                         Some(&mut visitor),
                         Some(&is_type_node),
                         None,
-                    )?
+                    )
                     .unwrap(),
                     node_visitor(
                         Some(&node_as_indexed_access_type_node.index_type),
                         Some(&mut visitor),
                         Some(&is_type_node),
                         None,
-                    )?
+                    )
                     .unwrap(),
                 ),
             )
@@ -1252,47 +1222,47 @@ pub fn try_visit_each_child_full(
                     node_visitor(
                         node_as_mapped_type_node.readonly_token.as_deref(),
                         Some(&mut |node: &Node| {
-                            Ok(if let Some(token_visitor) = token_visitor.as_ref() {
-                                token_visitor(node)?
+                            if let Some(token_visitor) = token_visitor.as_ref() {
+                                token_visitor(node)
                             } else {
                                 None
-                            })
+                            }
                         }),
                         Some(&is_readonly_keyword_or_plus_or_minus_token),
                         None,
-                    )?,
+                    ),
                     node_visitor(
                         Some(&node_as_mapped_type_node.type_parameter),
                         Some(&mut visitor),
                         Some(&is_type_parameter_declaration),
                         None,
-                    )?
+                    )
                     .unwrap(),
                     node_visitor(
                         node_as_mapped_type_node.name_type.as_deref(),
                         Some(&mut visitor),
                         Some(&is_type_node),
                         None,
-                    )?,
+                    ),
                     node_visitor(
                         node_as_mapped_type_node.question_token.as_deref(),
                         Some(&mut visitor),
                         Some(&is_question_or_plus_or_minus_token),
                         None,
-                    )?,
+                    ),
                     node_visitor(
                         node_as_mapped_type_node.type_.as_deref(),
                         Some(&mut visitor),
                         Some(&is_type_node),
                         None,
-                    )?,
+                    ),
                     nodes_visitor(
                         node_as_mapped_type_node.members.as_deref(),
                         Some(&mut |node: &Node| visitor(node)),
                         Some(&is_type_element),
                         None,
                         None,
-                    )?,
+                    ),
                 ),
             )
         }
@@ -1306,7 +1276,7 @@ pub fn try_visit_each_child_full(
                         Some(&mut visitor),
                         Some(&is_expression),
                         None,
-                    )?
+                    )
                     .unwrap(),
                 ),
             )
@@ -1321,7 +1291,7 @@ pub fn try_visit_each_child_full(
                         Some(&mut visitor),
                         Some(&is_template_head),
                         None,
-                    )?
+                    )
                     .unwrap(),
                     nodes_visitor(
                         Some(&node_as_template_literal_type_node.template_spans),
@@ -1329,7 +1299,7 @@ pub fn try_visit_each_child_full(
                         Some(&is_template_literal_type_span),
                         None,
                         None,
-                    )?
+                    )
                     .unwrap(),
                 ),
             )
@@ -1344,14 +1314,14 @@ pub fn try_visit_each_child_full(
                         Some(&mut visitor),
                         Some(&is_type_node),
                         None,
-                    )?
+                    )
                     .unwrap(),
                     node_visitor(
                         Some(&node_as_template_literal_type_span.literal),
                         Some(&mut visitor),
                         Some(&is_template_middle_or_template_tail),
                         None,
-                    )?
+                    )
                     .unwrap(),
                 ),
             )
@@ -1367,7 +1337,7 @@ pub fn try_visit_each_child_full(
                         Some(&is_binding_element),
                         None,
                         None,
-                    )?
+                    )
                     .unwrap(),
                 ),
             )
@@ -1383,7 +1353,7 @@ pub fn try_visit_each_child_full(
                         Some(&is_array_binding_element),
                         None,
                         None,
-                    )?
+                    )
                     .unwrap(),
                 ),
             )
@@ -1396,34 +1366,34 @@ pub fn try_visit_each_child_full(
                     node_visitor(
                         node_as_binding_element.dot_dot_dot_token.as_deref(),
                         Some(&mut |node: &Node| {
-                            Ok(if let Some(token_visitor) = token_visitor.as_ref() {
-                                token_visitor(node)?
+                            if let Some(token_visitor) = token_visitor.as_ref() {
+                                token_visitor(node)
                             } else {
                                 None
-                            })
+                            }
                         }),
                         Some(&is_dot_dot_dot_token),
                         None,
-                    )?,
+                    ),
                     node_visitor(
                         node_as_binding_element.property_name.as_deref(),
                         Some(&mut visitor),
                         Some(&is_property_name),
                         None,
-                    )?,
+                    ),
                     node_visitor(
                         Some(&node_as_binding_element.name()),
                         Some(&mut visitor),
                         Some(&is_binding_name),
                         None,
-                    )?
+                    )
                     .unwrap(),
                     node_visitor(
                         node_as_binding_element.maybe_initializer().as_deref(),
                         Some(&mut visitor),
                         Some(&is_expression),
                         None,
-                    )?,
+                    ),
                 ),
             )
         }
@@ -1438,7 +1408,7 @@ pub fn try_visit_each_child_full(
                         Some(&is_expression),
                         None,
                         None,
-                    )?
+                    )
                     .unwrap(),
                 ),
             )
@@ -1454,7 +1424,7 @@ pub fn try_visit_each_child_full(
                         Some(&is_object_literal_element_like),
                         None,
                         None,
-                    )?
+                    )
                     .unwrap(),
                 ),
             )
@@ -1462,7 +1432,7 @@ pub fn try_visit_each_child_full(
         SyntaxKind::PropertyAccessExpression => {
             let node_as_property_access_expression = node.as_property_access_expression();
             if node.flags().intersects(NodeFlags::OptionalChain) {
-                return Ok(Some(
+                return Some(
                     factory.update_property_access_chain(
                         node,
                         node_visitor(
@@ -1470,31 +1440,31 @@ pub fn try_visit_each_child_full(
                             Some(&mut visitor),
                             Some(&is_expression),
                             None,
-                        )?
+                        )
                         .unwrap(),
                         node_visitor(
                             node_as_property_access_expression
                                 .question_dot_token
                                 .as_deref(),
                             Some(&mut |node: &Node| {
-                                Ok(if let Some(token_visitor) = token_visitor.as_ref() {
-                                    token_visitor(node)?
+                                if let Some(token_visitor) = token_visitor.as_ref() {
+                                    token_visitor(node)
                                 } else {
                                     None
-                                })
+                                }
                             }),
                             Some(&is_question_dot_token),
                             None,
-                        )?,
+                        ),
                         node_visitor(
                             Some(&node_as_property_access_expression.name()),
                             Some(&mut visitor),
                             Some(&is_member_name),
                             None,
-                        )?
+                        )
                         .unwrap(),
                     ),
-                ));
+                );
             }
             Some(
                 factory.update_property_access_expression(
@@ -1504,14 +1474,14 @@ pub fn try_visit_each_child_full(
                         Some(&mut visitor),
                         Some(&is_expression),
                         None,
-                    )?
+                    )
                     .unwrap(),
                     node_visitor(
                         Some(&node_as_property_access_expression.name()),
                         Some(&mut visitor),
                         Some(&is_member_name),
                         None,
-                    )?
+                    )
                     .unwrap(),
                 ),
             )
@@ -1519,7 +1489,7 @@ pub fn try_visit_each_child_full(
         SyntaxKind::ElementAccessExpression => {
             let node_as_element_access_expression = node.as_element_access_expression();
             if node.flags().intersects(NodeFlags::OptionalChain) {
-                return Ok(Some(
+                return Some(
                     factory.update_element_access_chain(
                         node,
                         node_visitor(
@@ -1527,31 +1497,31 @@ pub fn try_visit_each_child_full(
                             Some(&mut visitor),
                             Some(&is_expression),
                             None,
-                        )?
+                        )
                         .unwrap(),
                         node_visitor(
                             node_as_element_access_expression
                                 .question_dot_token
                                 .as_deref(),
                             Some(&mut |node: &Node| {
-                                Ok(if let Some(token_visitor) = token_visitor.as_ref() {
-                                    token_visitor(node)?
+                                if let Some(token_visitor) = token_visitor.as_ref() {
+                                    token_visitor(node)
                                 } else {
                                     None
-                                })
+                                }
                             }),
                             Some(&is_question_dot_token),
                             None,
-                        )?,
+                        ),
                         node_visitor(
                             Some(&node_as_element_access_expression.argument_expression),
                             Some(&mut visitor),
                             Some(&is_expression),
                             None,
-                        )?
+                        )
                         .unwrap(),
                     ),
-                ));
+                );
             }
             Some(
                 factory.update_element_access_expression(
@@ -1561,14 +1531,14 @@ pub fn try_visit_each_child_full(
                         Some(&mut visitor),
                         Some(&is_expression),
                         None,
-                    )?
+                    )
                     .unwrap(),
                     node_visitor(
                         Some(&node_as_element_access_expression.argument_expression),
                         Some(&mut visitor),
                         Some(&is_expression),
                         None,
-                    )?
+                    )
                     .unwrap(),
                 ),
             )
@@ -1576,7 +1546,7 @@ pub fn try_visit_each_child_full(
         SyntaxKind::CallExpression => {
             let node_as_call_expression = node.as_call_expression();
             if node.flags().intersects(NodeFlags::OptionalChain) {
-                return Ok(Some(
+                return Some(
                     factory.update_call_chain(
                         node,
                         node_visitor(
@@ -1584,37 +1554,37 @@ pub fn try_visit_each_child_full(
                             Some(&mut visitor),
                             Some(&is_expression),
                             None,
-                        )?
+                        )
                         .unwrap(),
                         node_visitor(
                             node_as_call_expression.question_dot_token.as_deref(),
                             Some(&mut |node: &Node| {
-                                Ok(if let Some(token_visitor) = token_visitor.as_ref() {
-                                    token_visitor(node)?
+                                if let Some(token_visitor) = token_visitor.as_ref() {
+                                    token_visitor(node)
                                 } else {
                                     None
-                                })
+                                }
                             }),
                             Some(&is_question_dot_token),
                             None,
-                        )?,
+                        ),
                         nodes_visitor(
                             node_as_call_expression.maybe_type_arguments().as_deref(),
                             Some(&mut |node: &Node| visitor(node)),
                             Some(&is_type_node),
                             None,
                             None,
-                        )?,
+                        ),
                         nodes_visitor(
                             Some(&node_as_call_expression.arguments),
                             Some(&mut |node: &Node| visitor(node)),
                             Some(&is_expression),
                             None,
                             None,
-                        )?
+                        )
                         .unwrap(),
                     ),
-                ));
+                );
             }
             Some(
                 factory.update_call_expression(
@@ -1624,7 +1594,7 @@ pub fn try_visit_each_child_full(
                         Some(&mut visitor),
                         Some(&is_expression),
                         None,
-                    )?
+                    )
                     .unwrap(),
                     nodes_visitor(
                         node_as_call_expression.maybe_type_arguments().as_deref(),
@@ -1632,14 +1602,14 @@ pub fn try_visit_each_child_full(
                         Some(&is_type_node),
                         None,
                         None,
-                    )?,
+                    ),
                     nodes_visitor(
                         Some(&node_as_call_expression.arguments),
                         Some(&mut |node: &Node| visitor(node)),
                         Some(&is_expression),
                         None,
                         None,
-                    )?
+                    )
                     .unwrap(),
                 ),
             )
@@ -1654,7 +1624,7 @@ pub fn try_visit_each_child_full(
                         Some(&mut visitor),
                         Some(&is_expression),
                         None,
-                    )?
+                    )
                     .unwrap(),
                     nodes_visitor(
                         node_as_new_expression.maybe_type_arguments().as_deref(),
@@ -1662,14 +1632,14 @@ pub fn try_visit_each_child_full(
                         Some(&is_type_node),
                         None,
                         None,
-                    )?,
+                    ),
                     nodes_visitor(
                         node_as_new_expression.arguments.as_deref(),
                         Some(&mut |node: &Node| visitor(node)),
                         Some(&is_expression),
                         None,
                         None,
-                    )?,
+                    ),
                 ),
             )
         }
@@ -1683,7 +1653,7 @@ pub fn try_visit_each_child_full(
                         Some(&mut visitor),
                         Some(&is_expression),
                         None,
-                    )?
+                    )
                     .unwrap(),
                     nodes_visitor(
                         node_as_tagged_template_expression
@@ -1693,13 +1663,13 @@ pub fn try_visit_each_child_full(
                         Some(&is_type_node),
                         None,
                         None,
-                    )?,
+                    ),
                     node_visitor(
                         Some(&node_as_tagged_template_expression.template),
                         Some(&mut visitor),
                         Some(&is_template_literal),
                         None,
-                    )?
+                    )
                     .unwrap(),
                 ),
             )
@@ -1714,14 +1684,14 @@ pub fn try_visit_each_child_full(
                         Some(&mut visitor),
                         Some(&is_type_node),
                         None,
-                    )?
+                    )
                     .unwrap(),
                     node_visitor(
                         Some(&node_as_type_assertion.expression),
                         Some(&mut visitor),
                         Some(&is_expression),
                         None,
-                    )?
+                    )
                     .unwrap(),
                 ),
             )
@@ -1736,7 +1706,7 @@ pub fn try_visit_each_child_full(
                         Some(&mut visitor),
                         Some(&is_expression),
                         None,
-                    )?
+                    )
                     .unwrap(),
                 ),
             )
@@ -1752,66 +1722,66 @@ pub fn try_visit_each_child_full(
                         Some(&is_modifier),
                         None,
                         None,
-                    )?,
+                    ),
                     node_visitor(
                         node_as_function_expression.maybe_asterisk_token().as_deref(),
                         Some(&mut |node: &Node| {
-                            Ok(if let Some(token_visitor) = token_visitor.as_ref() {
-                                token_visitor(node)?
+                            if let Some(token_visitor) = token_visitor.as_ref() {
+                                token_visitor(node)
                             } else {
                                 None
-                            })
+                            }
                         }),
                         Some(&is_asterisk_token),
                         None,
-                    )?,
+                    ),
                     node_visitor(
                         node_as_function_expression.maybe_name().as_deref(),
                         Some(&mut visitor),
                         Some(&is_identifier),
                         None,
-                    )?,
+                    ),
                     nodes_visitor(
                         node_as_function_expression.maybe_type_parameters().as_deref(),
                         Some(&mut |node: &Node| visitor(node)),
                         Some(&is_type_parameter_declaration),
                         None,
                         None,
-                    )?,
-                    try_visit_parameter_list_full(
+                    ),
+                    visit_parameter_list(
                         Some(&node_as_function_expression.parameters()),
                         |node: &Node| visitor(node),
                         context,
-                        Some(|
-                            nodes: Option<&NodeArray>,
-                            visitor: Option<&mut dyn FnMut(&Node) -> io::Result<VisitResult>>,
-                            test: Option<&dyn Fn(&Node) -> bool>,
-                            start: Option<usize>,
-                            count: Option<usize>
-                        | {
-                            nodes_visitor(nodes, visitor, test, start, count)
-                        }),
-                    )?
+                        Some(
+                            |nodes: Option<&NodeArray>,
+                             visitor: Option<&mut dyn FnMut(&Node) -> VisitResult>,
+                             test: Option<&dyn Fn(&Node) -> bool>,
+                             start: Option<usize>,
+                             count: Option<usize>| {
+                                nodes_visitor(nodes, visitor, test, start, count)
+                            },
+                        ),
+                    )
                     .unwrap(),
                     node_visitor(
                         node_as_function_expression.maybe_type().as_deref(),
                         Some(&mut visitor),
                         Some(&is_type_node),
                         None,
-                    )?,
-                    try_visit_function_body_full(
+                    ),
+                    visit_function_body(
                         Some(&node_as_function_expression.maybe_body().unwrap()),
                         |node: &Node| visitor(node),
                         context,
-                        Some(|
-                            node: Option<&Node>,
-                            visitor: Option<&mut dyn FnMut(&Node) -> io::Result<VisitResult>>,
-                            lift: Option<&dyn Fn(&Node) -> bool>,
-                            test: Option<&dyn Fn(&[Gc<Node>]) -> Gc<Node>>
-                        | {
-                            node_visitor(node, visitor, lift, test)
-                        }),
-                    )?.unwrap(),
+                        Some(
+                            |node: Option<&Node>,
+                             visitor: Option<&mut dyn FnMut(&Node) -> VisitResult>,
+                             lift: Option<&dyn Fn(&Node) -> bool>,
+                             test: Option<&dyn Fn(&[Gc<Node>]) -> Gc<Node>>| {
+                                node_visitor(node, visitor, lift, test)
+                            },
+                        ),
+                    ).unwrap(),
                 )
             )
         }
@@ -1826,61 +1796,61 @@ pub fn try_visit_each_child_full(
                         Some(&is_modifier),
                         None,
                         None,
-                    )?,
+                    ),
                     nodes_visitor(
                         node_as_arrow_function.maybe_type_parameters().as_deref(),
                         Some(&mut |node: &Node| visitor(node)),
                         Some(&is_type_parameter_declaration),
                         None,
                         None,
-                    )?,
-                    try_visit_parameter_list_full(
+                    ),
+                    visit_parameter_list(
                         Some(&node_as_arrow_function.parameters()),
                         |node: &Node| visitor(node),
                         context,
-                        Some(|
-                            nodes: Option<&NodeArray>,
-                            visitor: Option<&mut dyn FnMut(&Node) -> io::Result<VisitResult>>,
-                            test: Option<&dyn Fn(&Node) -> bool>,
-                            start: Option<usize>,
-                            count: Option<usize>
-                        | {
-                            nodes_visitor(nodes, visitor, test, start, count)
-                        }),
-                    )?
+                        Some(
+                            |nodes: Option<&NodeArray>,
+                             visitor: Option<&mut dyn FnMut(&Node) -> VisitResult>,
+                             test: Option<&dyn Fn(&Node) -> bool>,
+                             start: Option<usize>,
+                             count: Option<usize>| {
+                                nodes_visitor(nodes, visitor, test, start, count)
+                            },
+                        ),
+                    )
                     .unwrap(),
                     node_visitor(
                         node_as_arrow_function.maybe_type().as_deref(),
                         Some(&mut visitor),
                         Some(&is_type_node),
                         None,
-                    )?,
+                    ),
                     node_visitor(
                         Some(&node_as_arrow_function.equals_greater_than_token),
                         Some(&mut |node: &Node| {
-                            Ok(if let Some(token_visitor) = token_visitor.as_ref() {
-                                token_visitor(node)?
+                            if let Some(token_visitor) = token_visitor.as_ref() {
+                                token_visitor(node)
                             } else {
                                 None
-                            })
+                            }
                         }),
                         Some(&is_equals_greater_than_token),
                         None,
-                    )?
+                    )
                     .unwrap(),
-                    try_visit_function_body_full(
+                    visit_function_body(
                         Some(&node_as_arrow_function.maybe_body().unwrap()),
                         |node: &Node| visitor(node),
                         context,
-                        Some(|
-                            node: Option<&Node>,
-                            visitor: Option<&mut dyn FnMut(&Node) -> io::Result<VisitResult>>,
-                            lift: Option<&dyn Fn(&Node) -> bool>,
-                            test: Option<&dyn Fn(&[Gc<Node>]) -> Gc<Node>>
-                        | {
-                            node_visitor(node, visitor, lift, test)
-                        }),
-                    )?.unwrap(),
+                        Some(
+                            |node: Option<&Node>,
+                             visitor: Option<&mut dyn FnMut(&Node) -> VisitResult>,
+                             lift: Option<&dyn Fn(&Node) -> bool>,
+                             test: Option<&dyn Fn(&[Gc<Node>]) -> Gc<Node>>| {
+                                node_visitor(node, visitor, lift, test)
+                            },
+                        ),
+                    ).unwrap(),
                 )
             )
         }
@@ -1894,7 +1864,7 @@ pub fn try_visit_each_child_full(
                         Some(&mut visitor),
                         Some(&is_expression),
                         None,
-                    )?
+                    )
                     .unwrap(),
                 ),
             )
@@ -1909,7 +1879,7 @@ pub fn try_visit_each_child_full(
                         Some(&mut visitor),
                         Some(&is_expression),
                         None,
-                    )?
+                    )
                     .unwrap(),
                 ),
             )
@@ -1924,7 +1894,7 @@ pub fn try_visit_each_child_full(
                         Some(&mut visitor),
                         Some(&is_expression),
                         None,
-                    )?
+                    )
                     .unwrap(),
                 ),
             )
@@ -1939,7 +1909,7 @@ pub fn try_visit_each_child_full(
                         Some(&mut visitor),
                         Some(&is_expression),
                         None,
-                    )?
+                    )
                     .unwrap(),
                 ),
             )
@@ -1954,7 +1924,7 @@ pub fn try_visit_each_child_full(
                         Some(&mut visitor),
                         Some(&is_expression),
                         None,
-                    )?
+                    )
                     .unwrap(),
                 ),
             )
@@ -1969,7 +1939,7 @@ pub fn try_visit_each_child_full(
                         Some(&mut visitor),
                         Some(&is_expression),
                         None,
-                    )?
+                    )
                     .unwrap(),
                 ),
             )
@@ -1984,27 +1954,27 @@ pub fn try_visit_each_child_full(
                         Some(&mut visitor),
                         Some(&is_expression),
                         None,
-                    )?
+                    )
                     .unwrap(),
                     node_visitor(
                         Some(&node_as_binary_expression.operator_token),
                         Some(&mut |node: &Node| {
-                            Ok(if let Some(token_visitor) = token_visitor.as_ref() {
-                                token_visitor(node)?
+                            if let Some(token_visitor) = token_visitor.as_ref() {
+                                token_visitor(node)
                             } else {
                                 None
-                            })
+                            }
                         }),
                         Some(&is_binary_operator_token),
                         None,
-                    )?
+                    )
                     .unwrap(),
                     node_visitor(
                         Some(&node_as_binary_expression.right),
                         Some(&mut visitor),
                         Some(&is_expression),
                         None,
-                    )?
+                    )
                     .unwrap(),
                 ),
             )
@@ -2019,47 +1989,47 @@ pub fn try_visit_each_child_full(
                         Some(&mut visitor),
                         Some(&is_expression),
                         None,
-                    )?
+                    )
                     .unwrap(),
                     node_visitor(
                         Some(&node_as_conditional_expression.question_token),
                         Some(&mut |node: &Node| {
-                            Ok(if let Some(token_visitor) = token_visitor.as_ref() {
-                                token_visitor(node)?
+                            if let Some(token_visitor) = token_visitor.as_ref() {
+                                token_visitor(node)
                             } else {
                                 None
-                            })
+                            }
                         }),
                         Some(&is_question_token),
                         None,
-                    )?
+                    )
                     .unwrap(),
                     node_visitor(
                         Some(&node_as_conditional_expression.when_true),
                         Some(&mut visitor),
                         Some(&is_expression),
                         None,
-                    )?
+                    )
                     .unwrap(),
                     node_visitor(
                         Some(&node_as_conditional_expression.colon_token),
                         Some(&mut |node: &Node| {
-                            Ok(if let Some(token_visitor) = token_visitor.as_ref() {
-                                token_visitor(node)?
+                            if let Some(token_visitor) = token_visitor.as_ref() {
+                                token_visitor(node)
                             } else {
                                 None
-                            })
+                            }
                         }),
                         Some(&is_colon_token),
                         None,
-                    )?
+                    )
                     .unwrap(),
                     node_visitor(
                         Some(&node_as_conditional_expression.when_false),
                         Some(&mut visitor),
                         Some(&is_expression),
                         None,
-                    )?
+                    )
                     .unwrap(),
                 ),
             )
@@ -2074,7 +2044,7 @@ pub fn try_visit_each_child_full(
                         Some(&mut visitor),
                         Some(&is_template_head),
                         None,
-                    )?
+                    )
                     .unwrap(),
                     nodes_visitor(
                         Some(&node_as_template_expression.template_spans),
@@ -2082,7 +2052,7 @@ pub fn try_visit_each_child_full(
                         Some(&is_template_span),
                         None,
                         None,
-                    )?
+                    )
                     .unwrap(),
                 ),
             )
@@ -2094,21 +2064,21 @@ pub fn try_visit_each_child_full(
                 node_visitor(
                     node_as_yield_expression.asterisk_token.as_deref(),
                     Some(&mut |node: &Node| {
-                        Ok(if let Some(token_visitor) = token_visitor.as_ref() {
-                            token_visitor(node)?
+                        if let Some(token_visitor) = token_visitor.as_ref() {
+                            token_visitor(node)
                         } else {
                             None
-                        })
+                        }
                     }),
                     Some(&is_asterisk_token),
                     None,
-                )?,
+                ),
                 node_visitor(
                     node_as_yield_expression.expression.as_deref(),
                     Some(&mut visitor),
                     Some(&is_expression),
                     None,
-                )?,
+                ),
             ))
         }
         SyntaxKind::SpreadElement => {
@@ -2121,7 +2091,7 @@ pub fn try_visit_each_child_full(
                         Some(&mut visitor),
                         Some(&is_expression),
                         None,
-                    )?
+                    )
                     .unwrap(),
                 ),
             )
@@ -2137,41 +2107,41 @@ pub fn try_visit_each_child_full(
                         Some(&is_decorator),
                         None,
                         None,
-                    )?,
+                    ),
                     nodes_visitor(
                         node.maybe_modifiers().as_deref(),
                         Some(&mut |node: &Node| visitor(node)),
                         Some(&is_modifier),
                         None,
                         None,
-                    )?,
+                    ),
                     node_visitor(
                         node_as_class_expression.maybe_name().as_deref(),
                         Some(&mut visitor),
                         Some(&is_identifier),
                         None,
-                    )?,
+                    ),
                     nodes_visitor(
                         node_as_class_expression.maybe_type_parameters().as_deref(),
                         Some(&mut |node: &Node| visitor(node)),
                         Some(&is_type_parameter_declaration),
                         None,
                         None,
-                    )?,
+                    ),
                     nodes_visitor(
                         node_as_class_expression.maybe_heritage_clauses().as_deref(),
                         Some(&mut |node: &Node| visitor(node)),
                         Some(&is_heritage_clause),
                         None,
                         None,
-                    )?,
+                    ),
                     nodes_visitor(
                         Some(&node_as_class_expression.members()),
                         Some(&mut |node: &Node| visitor(node)),
                         Some(&is_class_element),
                         None,
                         None,
-                    )?
+                    )
                     .unwrap(),
                 ),
             )
@@ -2186,7 +2156,7 @@ pub fn try_visit_each_child_full(
                         Some(&mut visitor),
                         Some(&is_expression),
                         None,
-                    )?
+                    )
                     .unwrap(),
                     nodes_visitor(
                         node_as_expression_with_type_arguments
@@ -2196,7 +2166,7 @@ pub fn try_visit_each_child_full(
                         Some(&is_type_node),
                         None,
                         None,
-                    )?,
+                    ),
                 ),
             )
         }
@@ -2210,14 +2180,14 @@ pub fn try_visit_each_child_full(
                         Some(&mut visitor),
                         Some(&is_expression),
                         None,
-                    )?
+                    )
                     .unwrap(),
                     node_visitor(
                         Some(&node_as_as_expression.type_),
                         Some(&mut visitor),
                         Some(&is_type_node),
                         None,
-                    )?
+                    )
                     .unwrap(),
                 ),
             )
@@ -2225,7 +2195,7 @@ pub fn try_visit_each_child_full(
         SyntaxKind::NonNullExpression => {
             let node_as_non_null_expression = node.as_non_null_expression();
             if node.flags().intersects(NodeFlags::OptionalChain) {
-                return Ok(Some(
+                return Some(
                     factory.update_non_null_chain(
                         node,
                         node_visitor(
@@ -2233,10 +2203,10 @@ pub fn try_visit_each_child_full(
                             Some(&mut visitor),
                             Some(&is_expression),
                             None,
-                        )?
+                        )
                         .unwrap(),
                     ),
-                ));
+                );
             }
             Some(
                 factory.update_non_null_expression(
@@ -2246,7 +2216,7 @@ pub fn try_visit_each_child_full(
                         Some(&mut visitor),
                         Some(&is_expression),
                         None,
-                    )?
+                    )
                     .unwrap(),
                 ),
             )
@@ -2261,7 +2231,7 @@ pub fn try_visit_each_child_full(
                         Some(&mut visitor),
                         Some(&is_identifier),
                         None,
-                    )?
+                    )
                     .unwrap(),
                 ),
             )
@@ -2276,14 +2246,14 @@ pub fn try_visit_each_child_full(
                         Some(&mut visitor),
                         Some(&is_expression),
                         None,
-                    )?
+                    )
                     .unwrap(),
                     node_visitor(
                         Some(&node_as_template_span.literal),
                         Some(&mut visitor),
                         Some(&is_template_middle_or_template_tail),
                         None,
-                    )?
+                    )
                     .unwrap(),
                 ),
             )
@@ -2299,7 +2269,7 @@ pub fn try_visit_each_child_full(
                         Some(&is_statement),
                         None,
                         None,
-                    )?
+                    )
                     .unwrap(),
                 ),
             )
@@ -2315,13 +2285,13 @@ pub fn try_visit_each_child_full(
                         Some(&is_modifier),
                         None,
                         None,
-                    )?,
+                    ),
                     node_visitor(
                         Some(&node_as_variable_statement.declaration_list),
                         Some(&mut visitor),
                         Some(&is_variable_declaration_list),
                         None,
-                    )?
+                    )
                     .unwrap(),
                 ),
             )
@@ -2336,7 +2306,7 @@ pub fn try_visit_each_child_full(
                         Some(&mut visitor),
                         Some(&is_expression),
                         None,
-                    )?
+                    )
                     .unwrap(),
                 ),
             )
@@ -2351,21 +2321,21 @@ pub fn try_visit_each_child_full(
                         Some(&mut visitor),
                         Some(&is_expression),
                         None,
-                    )?
+                    )
                     .unwrap(),
                     node_visitor(
                         Some(&node_as_if_statement.then_statement),
                         Some(&mut visitor),
                         Some(&is_statement),
                         Some(&|nodes: &[Gc<Node>]| factory.lift_to_block(nodes)),
-                    )?
+                    )
                     .unwrap(),
                     node_visitor(
                         node_as_if_statement.else_statement.as_deref(),
                         Some(&mut visitor),
                         Some(&is_statement),
                         Some(&|nodes: &[Gc<Node>]| factory.lift_to_block(nodes)),
-                    )?,
+                    ),
                 ),
             )
         }
@@ -2374,17 +2344,17 @@ pub fn try_visit_each_child_full(
             Some(
                 factory.update_do_statement(
                     node,
-                    try_visit_iteration_body(
+                    visit_iteration_body(
                         &node_as_do_statement.statement,
                         |node: &Node| visitor(node),
                         context,
-                    )?,
+                    ),
                     node_visitor(
                         Some(&node_as_do_statement.expression),
                         Some(&mut visitor),
                         Some(&is_expression),
                         None,
-                    )?
+                    )
                     .unwrap(),
                 ),
             )
@@ -2399,13 +2369,13 @@ pub fn try_visit_each_child_full(
                         Some(&mut visitor),
                         Some(&is_expression),
                         None,
-                    )?
+                    )
                     .unwrap(),
-                    try_visit_iteration_body(
+                    visit_iteration_body(
                         &node_as_while_statement.statement,
                         |node: &Node| visitor(node),
                         context,
-                    )?,
+                    ),
                 ),
             )
         }
@@ -2418,24 +2388,24 @@ pub fn try_visit_each_child_full(
                     Some(&mut visitor),
                     Some(&is_for_initializer),
                     None,
-                )?,
+                ),
                 node_visitor(
                     node_as_for_statement.condition.as_deref(),
                     Some(&mut visitor),
                     Some(&is_expression),
                     None,
-                )?,
+                ),
                 node_visitor(
                     node_as_for_statement.incrementor.as_deref(),
                     Some(&mut visitor),
                     Some(&is_expression),
                     None,
-                )?,
-                try_visit_iteration_body(
+                ),
+                visit_iteration_body(
                     &node_as_for_statement.statement,
                     |node: &Node| visitor(node),
                     context,
-                )?,
+                ),
             ))
         }
         SyntaxKind::ForInStatement => {
@@ -2448,20 +2418,20 @@ pub fn try_visit_each_child_full(
                         Some(&mut visitor),
                         Some(&is_for_initializer),
                         None,
-                    )?
+                    )
                     .unwrap(),
                     node_visitor(
                         Some(&node_as_for_in_statement.expression),
                         Some(&mut visitor),
                         Some(&is_expression),
                         None,
-                    )?
+                    )
                     .unwrap(),
-                    try_visit_iteration_body(
+                    visit_iteration_body(
                         &node_as_for_in_statement.statement,
                         |node: &Node| visitor(node),
                         context,
-                    )?,
+                    ),
                 ),
             )
         }
@@ -2473,34 +2443,34 @@ pub fn try_visit_each_child_full(
                     node_visitor(
                         node_as_for_of_statement.await_modifier.as_deref(),
                         Some(&mut |node: &Node| {
-                            Ok(if let Some(token_visitor) = token_visitor.as_ref() {
-                                token_visitor(node)?
+                            if let Some(token_visitor) = token_visitor.as_ref() {
+                                token_visitor(node)
                             } else {
                                 None
-                            })
+                            }
                         }),
                         Some(&is_await_keyword),
                         None,
-                    )?,
+                    ),
                     node_visitor(
                         Some(&node_as_for_of_statement.initializer),
                         Some(&mut visitor),
                         Some(&is_for_initializer),
                         None,
-                    )?
+                    )
                     .unwrap(),
                     node_visitor(
                         Some(&node_as_for_of_statement.expression),
                         Some(&mut visitor),
                         Some(&is_expression),
                         None,
-                    )?
+                    )
                     .unwrap(),
-                    try_visit_iteration_body(
+                    visit_iteration_body(
                         &node_as_for_of_statement.statement,
                         |node: &Node| visitor(node),
                         context,
-                    )?,
+                    ),
                 ),
             )
         }
@@ -2513,7 +2483,7 @@ pub fn try_visit_each_child_full(
                     Some(&mut visitor),
                     Some(&is_identifier),
                     None,
-                )?,
+                ),
             ))
         }
         SyntaxKind::BreakStatement => {
@@ -2525,7 +2495,7 @@ pub fn try_visit_each_child_full(
                     Some(&mut visitor),
                     Some(&is_identifier),
                     None,
-                )?,
+                ),
             ))
         }
         SyntaxKind::ReturnStatement => {
@@ -2537,7 +2507,7 @@ pub fn try_visit_each_child_full(
                     Some(&mut visitor),
                     Some(&is_expression),
                     None,
-                )?,
+                ),
             ))
         }
         SyntaxKind::WithStatement => {
@@ -2550,14 +2520,14 @@ pub fn try_visit_each_child_full(
                         Some(&mut visitor),
                         Some(&is_expression),
                         None,
-                    )?
+                    )
                     .unwrap(),
                     node_visitor(
                         Some(&node_as_with_statement.statement),
                         Some(&mut visitor),
                         Some(&is_statement),
                         Some(&|nodes: &[Gc<Node>]| factory.lift_to_block(nodes)),
-                    )?
+                    )
                     .unwrap(),
                 ),
             )
@@ -2572,14 +2542,14 @@ pub fn try_visit_each_child_full(
                         Some(&mut visitor),
                         Some(&is_expression),
                         None,
-                    )?
+                    )
                     .unwrap(),
                     node_visitor(
                         Some(&node_as_switch_statement.case_block),
                         Some(&mut visitor),
                         Some(&is_case_block),
                         None,
-                    )?
+                    )
                     .unwrap(),
                 ),
             )
@@ -2594,14 +2564,14 @@ pub fn try_visit_each_child_full(
                         Some(&mut visitor),
                         Some(&is_identifier),
                         None,
-                    )?
+                    )
                     .unwrap(),
                     node_visitor(
                         Some(&node_as_labeled_statement.statement),
                         Some(&mut visitor),
                         Some(&is_statement),
                         Some(&|nodes: &[Gc<Node>]| factory.lift_to_block(nodes)),
-                    )?
+                    )
                     .unwrap(),
                 ),
             )
@@ -2616,7 +2586,7 @@ pub fn try_visit_each_child_full(
                         Some(&mut visitor),
                         Some(&is_expression),
                         None,
-                    )?
+                    )
                     .unwrap(),
                 ),
             )
@@ -2631,20 +2601,20 @@ pub fn try_visit_each_child_full(
                         Some(&mut visitor),
                         Some(&is_block),
                         None,
-                    )?
+                    )
                     .unwrap(),
                     node_visitor(
                         node_as_try_statement.catch_clause.as_deref(),
                         Some(&mut visitor),
                         Some(&is_catch_clause),
                         None,
-                    )?,
+                    ),
                     node_visitor(
                         node_as_try_statement.finally_block.as_deref(),
                         Some(&mut visitor),
                         Some(&is_block),
                         None,
-                    )?,
+                    ),
                 ),
             )
         }
@@ -2657,31 +2627,31 @@ pub fn try_visit_each_child_full(
                     Some(&mut visitor),
                     Some(&is_binding_name),
                     None,
-                )?,
+                ),
                 node_visitor(
                     node_as_variable_declaration.exclamation_token.as_deref(),
                     Some(&mut |node: &Node| {
-                        Ok(if let Some(token_visitor) = token_visitor.as_ref() {
-                            token_visitor(node)?
+                        if let Some(token_visitor) = token_visitor.as_ref() {
+                            token_visitor(node)
                         } else {
                             None
-                        })
+                        }
                     }),
                     Some(&is_exclamation_token),
                     None,
-                )?,
+                ),
                 node_visitor(
                     node_as_variable_declaration.maybe_type().as_deref(),
                     Some(&mut visitor),
                     Some(&is_type_node),
                     None,
-                )?,
+                ),
                 node_visitor(
                     node_as_variable_declaration.maybe_initializer().as_deref(),
                     Some(&mut visitor),
                     Some(&is_expression),
                     None,
-                )?,
+                ),
             ))
         }
         SyntaxKind::VariableDeclarationList => {
@@ -2695,7 +2665,7 @@ pub fn try_visit_each_child_full(
                         Some(&is_variable_declaration),
                         None,
                         None,
-                    )?
+                    )
                     .unwrap(),
                 ),
             )
@@ -2711,73 +2681,73 @@ pub fn try_visit_each_child_full(
                         Some(&is_decorator),
                         None,
                         None,
-                    )?,
+                    ),
                     nodes_visitor(
                         node.maybe_modifiers().as_deref(),
                         Some(&mut |node: &Node| visitor(node)),
                         Some(&is_modifier),
                         None,
                         None,
-                    )?,
+                    ),
                     node_visitor(
                         node_as_function_declaration.maybe_asterisk_token().as_deref(),
                         Some(&mut |node: &Node| {
-                            Ok(if let Some(token_visitor) = token_visitor.as_ref() {
-                                token_visitor(node)?
+                            if let Some(token_visitor) = token_visitor.as_ref() {
+                                token_visitor(node)
                             } else {
                                 None
-                            })
+                            }
                         }),
                         Some(&is_asterisk_token),
                         None,
-                    )?,
+                    ),
                     node_visitor(
                         node_as_function_declaration.maybe_name().as_deref(),
                         Some(&mut visitor),
                         Some(&is_identifier),
                         None,
-                    )?,
+                    ),
                     nodes_visitor(
                         node_as_function_declaration.maybe_type_parameters().as_deref(),
                         Some(&mut |node: &Node| visitor(node)),
                         Some(&is_type_parameter_declaration),
                         None,
                         None,
-                    )?,
-                    try_visit_parameter_list_full(
+                    ),
+                    visit_parameter_list(
                         Some(&node_as_function_declaration.parameters()),
                         |node: &Node| visitor(node),
                         context,
-                        Some(|
-                            nodes: Option<&NodeArray>,
-                            visitor: Option<&mut dyn FnMut(&Node) -> io::Result<VisitResult>>,
-                            test: Option<&dyn Fn(&Node) -> bool>,
-                            start: Option<usize>,
-                            count: Option<usize>
-                        | {
-                            nodes_visitor(nodes, visitor, test, start, count)
-                        }),
-                    )?
+                        Some(
+                            |nodes: Option<&NodeArray>,
+                             visitor: Option<&mut dyn FnMut(&Node) -> VisitResult>,
+                             test: Option<&dyn Fn(&Node) -> bool>,
+                             start: Option<usize>,
+                             count: Option<usize>| {
+                                nodes_visitor(nodes, visitor, test, start, count)
+                            },
+                        ),
+                    )
                     .unwrap(),
                     node_visitor(
                         node_as_function_declaration.maybe_type().as_deref(),
                         Some(&mut visitor),
                         Some(&is_type_node),
                         None,
-                    )?,
-                    try_visit_function_body_full(
+                    ),
+                    visit_function_body(
                         node_as_function_declaration.maybe_body().as_deref(),
                         |node: &Node| visitor(node),
                         context,
-                        Some(|
-                            node: Option<&Node>,
-                            visitor: Option<&mut dyn FnMut(&Node) -> io::Result<VisitResult>>,
-                            lift: Option<&dyn Fn(&Node) -> bool>,
-                            test: Option<&dyn Fn(&[Gc<Node>]) -> Gc<Node>>
-                        | {
-                            node_visitor(node, visitor, lift, test)
-                        }),
-                    )?,
+                        Some(
+                            |node: Option<&Node>,
+                             visitor: Option<&mut dyn FnMut(&Node) -> VisitResult>,
+                             lift: Option<&dyn Fn(&Node) -> bool>,
+                             test: Option<&dyn Fn(&[Gc<Node>]) -> Gc<Node>>| {
+                                node_visitor(node, visitor, lift, test)
+                            },
+                        ),
+                    ),
                 )
             )
         }
@@ -2792,27 +2762,27 @@ pub fn try_visit_each_child_full(
                         Some(&is_decorator),
                         None,
                         None,
-                    )?,
+                    ),
                     nodes_visitor(
                         node.maybe_modifiers().as_deref(),
                         Some(&mut |node: &Node| visitor(node)),
                         Some(&is_modifier),
                         None,
                         None,
-                    )?,
+                    ),
                     node_visitor(
                         node_as_class_declaration.maybe_name().as_deref(),
                         Some(&mut visitor),
                         Some(&is_identifier),
                         None,
-                    )?,
+                    ),
                     nodes_visitor(
                         node_as_class_declaration.maybe_type_parameters().as_deref(),
                         Some(&mut |node: &Node| visitor(node)),
                         Some(&is_type_parameter_declaration),
                         None,
                         None,
-                    )?,
+                    ),
                     nodes_visitor(
                         node_as_class_declaration
                             .maybe_heritage_clauses()
@@ -2821,14 +2791,14 @@ pub fn try_visit_each_child_full(
                         Some(&is_heritage_clause),
                         None,
                         None,
-                    )?,
+                    ),
                     nodes_visitor(
                         Some(&node_as_class_declaration.members()),
                         Some(&mut |node: &Node| visitor(node)),
                         Some(&is_class_element),
                         None,
                         None,
-                    )?
+                    )
                     .unwrap(),
                 ),
             )
@@ -2844,20 +2814,20 @@ pub fn try_visit_each_child_full(
                         Some(&is_decorator),
                         None,
                         None,
-                    )?,
+                    ),
                     nodes_visitor(
                         node.maybe_modifiers().as_deref(),
                         Some(&mut |node: &Node| visitor(node)),
                         Some(&is_modifier),
                         None,
                         None,
-                    )?,
+                    ),
                     node_visitor(
                         Some(&node_as_interface_declaration.name()),
                         Some(&mut visitor),
                         Some(&is_identifier),
                         None,
-                    )?
+                    )
                     .unwrap(),
                     nodes_visitor(
                         node_as_interface_declaration
@@ -2867,7 +2837,7 @@ pub fn try_visit_each_child_full(
                         Some(&is_type_parameter_declaration),
                         None,
                         None,
-                    )?,
+                    ),
                     nodes_visitor(
                         node_as_interface_declaration
                             .maybe_heritage_clauses()
@@ -2876,14 +2846,14 @@ pub fn try_visit_each_child_full(
                         Some(&is_heritage_clause),
                         None,
                         None,
-                    )?,
+                    ),
                     nodes_visitor(
                         Some(&node_as_interface_declaration.members()),
                         Some(&mut |node: &Node| visitor(node)),
                         Some(&is_type_element),
                         None,
                         None,
-                    )?
+                    )
                     .unwrap(),
                 ),
             )
@@ -2899,20 +2869,20 @@ pub fn try_visit_each_child_full(
                         Some(&is_decorator),
                         None,
                         None,
-                    )?,
+                    ),
                     nodes_visitor(
                         node.maybe_modifiers().as_deref(),
                         Some(&mut |node: &Node| visitor(node)),
                         Some(&is_modifier),
                         None,
                         None,
-                    )?,
+                    ),
                     node_visitor(
                         Some(&node_as_type_alias_declaration.name()),
                         Some(&mut visitor),
                         Some(&is_identifier),
                         None,
-                    )?
+                    )
                     .unwrap(),
                     nodes_visitor(
                         node_as_type_alias_declaration
@@ -2922,13 +2892,13 @@ pub fn try_visit_each_child_full(
                         Some(&is_type_parameter_declaration),
                         None,
                         None,
-                    )?,
+                    ),
                     node_visitor(
                         Some(&node_as_type_alias_declaration.maybe_type().unwrap()),
                         Some(&mut visitor),
                         Some(&is_type_node),
                         None,
-                    )?
+                    )
                     .unwrap(),
                 ),
             )
@@ -2944,20 +2914,20 @@ pub fn try_visit_each_child_full(
                         Some(&is_decorator),
                         None,
                         None,
-                    )?,
+                    ),
                     nodes_visitor(
                         node.maybe_modifiers().as_deref(),
                         Some(&mut |node: &Node| visitor(node)),
                         Some(&is_modifier),
                         None,
                         None,
-                    )?,
+                    ),
                     node_visitor(
                         Some(&node_as_enum_declaration.name()),
                         Some(&mut visitor),
                         Some(&is_identifier),
                         None,
-                    )?
+                    )
                     .unwrap(),
                     nodes_visitor(
                         Some(&node_as_enum_declaration.members),
@@ -2965,7 +2935,7 @@ pub fn try_visit_each_child_full(
                         Some(&is_enum_member),
                         None,
                         None,
-                    )?,
+                    ),
                 ),
             )
         }
@@ -2980,27 +2950,27 @@ pub fn try_visit_each_child_full(
                         Some(&is_decorator),
                         None,
                         None,
-                    )?,
+                    ),
                     nodes_visitor(
                         node.maybe_modifiers().as_deref(),
                         Some(&mut |node: &Node| visitor(node)),
                         Some(&is_modifier),
                         None,
                         None,
-                    )?,
+                    ),
                     node_visitor(
                         Some(&node_as_module_declaration.name()),
                         Some(&mut visitor),
                         Some(&is_module_name),
                         None,
-                    )?
+                    )
                     .unwrap(),
                     node_visitor(
                         node_as_module_declaration.body.as_deref(),
                         Some(&mut visitor),
                         Some(&is_module_body),
                         None,
-                    )?,
+                    ),
                 ),
             )
         }
@@ -3015,7 +2985,7 @@ pub fn try_visit_each_child_full(
                         Some(&is_statement),
                         None,
                         None,
-                    )?
+                    )
                     .unwrap(),
                 ),
             )
@@ -3031,7 +3001,7 @@ pub fn try_visit_each_child_full(
                         Some(&is_case_or_default_clause),
                         None,
                         None,
-                    )?
+                    )
                     .unwrap(),
                 ),
             )
@@ -3046,7 +3016,7 @@ pub fn try_visit_each_child_full(
                         Some(&mut visitor),
                         Some(&is_identifier),
                         None,
-                    )?
+                    )
                     .unwrap(),
                 ),
             )
@@ -3062,28 +3032,28 @@ pub fn try_visit_each_child_full(
                         Some(&is_decorator),
                         None,
                         None,
-                    )?,
+                    ),
                     nodes_visitor(
                         node.maybe_modifiers().as_deref(),
                         Some(&mut |node: &Node| visitor(node)),
                         Some(&is_modifier),
                         None,
                         None,
-                    )?,
+                    ),
                     node_as_import_equals_declaration.is_type_only,
                     node_visitor(
                         Some(&node_as_import_equals_declaration.name()),
                         Some(&mut visitor),
                         Some(&is_identifier),
                         None,
-                    )?
+                    )
                     .unwrap(),
                     node_visitor(
                         Some(&node_as_import_equals_declaration.module_reference),
                         Some(&mut visitor),
                         Some(&is_module_reference),
                         None,
-                    )?
+                    )
                     .unwrap(),
                 ),
             )
@@ -3099,33 +3069,33 @@ pub fn try_visit_each_child_full(
                         Some(&is_decorator),
                         None,
                         None,
-                    )?,
+                    ),
                     nodes_visitor(
                         node.maybe_modifiers().as_deref(),
                         Some(&mut |node: &Node| visitor(node)),
                         Some(&is_modifier),
                         None,
                         None,
-                    )?,
+                    ),
                     node_visitor(
                         node_as_import_declaration.import_clause.as_deref(),
                         Some(&mut visitor),
                         Some(&is_import_clause),
                         None,
-                    )?,
+                    ),
                     node_visitor(
                         Some(&node_as_import_declaration.module_specifier),
                         Some(&mut visitor),
                         Some(&is_expression),
                         None,
-                    )?
+                    )
                     .unwrap(),
                     node_visitor(
                         node_as_import_declaration.assert_clause.as_deref(),
                         Some(&mut visitor),
                         Some(&is_assert_clause),
                         None,
-                    )?,
+                    ),
                 ),
             )
         }
@@ -3140,7 +3110,7 @@ pub fn try_visit_each_child_full(
                         Some(&is_assert_entry),
                         None,
                         None,
-                    )?
+                    )
                     .unwrap(),
                     node_as_assert_clause.multi_line,
                 ),
@@ -3156,14 +3126,14 @@ pub fn try_visit_each_child_full(
                         Some(&mut visitor),
                         Some(&is_assertion_key),
                         None,
-                    )?
+                    )
                     .unwrap(),
                     node_visitor(
                         Some(&node_as_assert_entry.value),
                         Some(&mut visitor),
                         Some(&is_string_literal),
                         None,
-                    )?
+                    )
                     .unwrap(),
                 ),
             )
@@ -3178,13 +3148,13 @@ pub fn try_visit_each_child_full(
                     Some(&mut visitor),
                     Some(&is_identifier),
                     None,
-                )?,
+                ),
                 node_visitor(
                     node_as_import_clause.named_bindings.as_deref(),
                     Some(&mut visitor),
                     Some(&is_named_import_bindings),
                     None,
-                )?,
+                ),
             ))
         }
         SyntaxKind::NamespaceImport => {
@@ -3197,7 +3167,7 @@ pub fn try_visit_each_child_full(
                         Some(&mut visitor),
                         Some(&is_identifier),
                         None,
-                    )?
+                    )
                     .unwrap(),
                 ),
             )
@@ -3212,7 +3182,7 @@ pub fn try_visit_each_child_full(
                         Some(&mut visitor),
                         Some(&is_identifier),
                         None,
-                    )?
+                    )
                     .unwrap(),
                 ),
             )
@@ -3228,7 +3198,7 @@ pub fn try_visit_each_child_full(
                         Some(&is_import_specifier),
                         None,
                         None,
-                    )?
+                    )
                     .unwrap(),
                 ),
             )
@@ -3244,13 +3214,13 @@ pub fn try_visit_each_child_full(
                         Some(&mut visitor),
                         Some(&is_identifier),
                         None,
-                    )?,
+                    ),
                     node_visitor(
                         Some(&node_as_import_specifier.name),
                         Some(&mut visitor),
                         Some(&is_identifier),
                         None,
-                    )?
+                    )
                     .unwrap(),
                 ),
             )
@@ -3266,20 +3236,20 @@ pub fn try_visit_each_child_full(
                         Some(&is_decorator),
                         None,
                         None,
-                    )?,
+                    ),
                     nodes_visitor(
                         node.maybe_modifiers().as_deref(),
                         Some(&mut |node: &Node| visitor(node)),
                         Some(&is_modifier),
                         None,
                         None,
-                    )?,
+                    ),
                     node_visitor(
                         Some(&node_as_export_assignment.expression),
                         Some(&mut visitor),
                         Some(&is_expression),
                         None,
-                    )?
+                    )
                     .unwrap(),
                 ),
             )
@@ -3294,33 +3264,33 @@ pub fn try_visit_each_child_full(
                     Some(&is_decorator),
                     None,
                     None,
-                )?,
+                ),
                 nodes_visitor(
                     node.maybe_modifiers().as_deref(),
                     Some(&mut |node: &Node| visitor(node)),
                     Some(&is_modifier),
                     None,
                     None,
-                )?,
+                ),
                 node_as_export_declaration.is_type_only,
                 node_visitor(
                     node_as_export_declaration.export_clause.as_deref(),
                     Some(&mut visitor),
                     Some(&is_named_export_bindings),
                     None,
-                )?,
+                ),
                 node_visitor(
                     node_as_export_declaration.module_specifier.as_deref(),
                     Some(&mut visitor),
                     Some(&is_expression),
                     None,
-                )?,
+                ),
                 node_visitor(
                     node_as_export_declaration.assert_clause.as_deref(),
                     Some(&mut visitor),
                     Some(&is_assert_clause),
                     None,
-                )?,
+                ),
             ))
         }
         SyntaxKind::NamedExports => {
@@ -3334,7 +3304,7 @@ pub fn try_visit_each_child_full(
                         Some(&is_export_specifier),
                         None,
                         None,
-                    )?
+                    )
                     .unwrap(),
                 ),
             )
@@ -3350,13 +3320,13 @@ pub fn try_visit_each_child_full(
                         Some(&mut visitor),
                         Some(&is_identifier),
                         None,
-                    )?,
+                    ),
                     node_visitor(
                         Some(&node_as_export_specifier.name),
                         Some(&mut visitor),
                         Some(&is_identifier),
                         None,
-                    )?
+                    )
                     .unwrap(),
                 ),
             )
@@ -3371,7 +3341,7 @@ pub fn try_visit_each_child_full(
                         Some(&mut visitor),
                         Some(&is_expression),
                         None,
-                    )?
+                    )
                     .unwrap(),
                 ),
             )
@@ -3386,7 +3356,7 @@ pub fn try_visit_each_child_full(
                         Some(&mut visitor),
                         Some(&is_jsx_opening_element),
                         None,
-                    )?
+                    )
                     .unwrap(),
                     nodes_visitor(
                         Some(&node_as_jsx_element.children),
@@ -3394,14 +3364,14 @@ pub fn try_visit_each_child_full(
                         Some(&is_jsx_child),
                         None,
                         None,
-                    )?
+                    )
                     .unwrap(),
                     node_visitor(
                         Some(&node_as_jsx_element.closing_element),
                         Some(&mut visitor),
                         Some(&is_jsx_closing_element),
                         None,
-                    )?
+                    )
                     .unwrap(),
                 ),
             )
@@ -3416,7 +3386,7 @@ pub fn try_visit_each_child_full(
                         Some(&mut visitor),
                         Some(&is_jsx_tag_name_expression),
                         None,
-                    )?
+                    )
                     .unwrap(),
                     nodes_visitor(
                         node_as_jsx_self_closing_element
@@ -3426,13 +3396,13 @@ pub fn try_visit_each_child_full(
                         Some(&is_type_node),
                         None,
                         None,
-                    )?,
+                    ),
                     node_visitor(
                         Some(&node_as_jsx_self_closing_element.attributes),
                         Some(&mut visitor),
                         Some(&is_jsx_attributes),
                         None,
-                    )?
+                    )
                     .unwrap(),
                 ),
             )
@@ -3447,7 +3417,7 @@ pub fn try_visit_each_child_full(
                         Some(&mut visitor),
                         Some(&is_jsx_tag_name_expression),
                         None,
-                    )?
+                    )
                     .unwrap(),
                     nodes_visitor(
                         node_as_jsx_opening_element
@@ -3457,13 +3427,13 @@ pub fn try_visit_each_child_full(
                         Some(&is_type_node),
                         None,
                         None,
-                    )?,
+                    ),
                     node_visitor(
                         Some(&node_as_jsx_opening_element.attributes),
                         Some(&mut visitor),
                         Some(&is_jsx_attributes),
                         None,
-                    )?
+                    )
                     .unwrap(),
                 ),
             )
@@ -3478,7 +3448,7 @@ pub fn try_visit_each_child_full(
                         Some(&mut visitor),
                         Some(&is_jsx_tag_name_expression),
                         None,
-                    )?
+                    )
                     .unwrap(),
                 ),
             )
@@ -3493,7 +3463,7 @@ pub fn try_visit_each_child_full(
                         Some(&mut visitor),
                         Some(&is_jsx_opening_fragment),
                         None,
-                    )?
+                    )
                     .unwrap(),
                     nodes_visitor(
                         Some(&node_as_jsx_fragment.children),
@@ -3501,14 +3471,14 @@ pub fn try_visit_each_child_full(
                         Some(&is_jsx_child),
                         None,
                         None,
-                    )?
+                    )
                     .unwrap(),
                     node_visitor(
                         Some(&node_as_jsx_fragment.closing_fragment),
                         Some(&mut visitor),
                         Some(&is_jsx_closing_fragment),
                         None,
-                    )?
+                    )
                     .unwrap(),
                 ),
             )
@@ -3523,14 +3493,14 @@ pub fn try_visit_each_child_full(
                         Some(&mut visitor),
                         Some(&is_identifier),
                         None,
-                    )?
+                    )
                     .unwrap(),
                     node_visitor(
                         node_as_jsx_attribute.maybe_initializer().as_deref(),
                         Some(&mut visitor),
                         Some(&is_string_literal_or_jsx_expression),
                         None,
-                    )?,
+                    ),
                 ),
             )
         }
@@ -3545,7 +3515,7 @@ pub fn try_visit_each_child_full(
                         Some(&is_jsx_attribute_like),
                         None,
                         None,
-                    )?
+                    )
                     .unwrap(),
                 ),
             )
@@ -3560,7 +3530,7 @@ pub fn try_visit_each_child_full(
                         Some(&mut visitor),
                         Some(&is_expression),
                         None,
-                    )?
+                    )
                     .unwrap(),
                 ),
             )
@@ -3574,7 +3544,7 @@ pub fn try_visit_each_child_full(
                     Some(&mut visitor),
                     Some(&is_expression),
                     None,
-                )?,
+                ),
             ))
         }
         SyntaxKind::CaseClause => {
@@ -3587,7 +3557,7 @@ pub fn try_visit_each_child_full(
                         Some(&mut visitor),
                         Some(&is_expression),
                         None,
-                    )?
+                    )
                     .unwrap(),
                     nodes_visitor(
                         Some(&node_as_case_clause.statements),
@@ -3595,7 +3565,7 @@ pub fn try_visit_each_child_full(
                         Some(&is_statement),
                         None,
                         None,
-                    )?
+                    )
                     .unwrap(),
                 ),
             )
@@ -3611,7 +3581,7 @@ pub fn try_visit_each_child_full(
                         Some(&is_statement),
                         None,
                         None,
-                    )?
+                    )
                     .unwrap(),
                 ),
             )
@@ -3627,7 +3597,7 @@ pub fn try_visit_each_child_full(
                         Some(&is_expression_with_type_arguments),
                         None,
                         None,
-                    )?
+                    )
                     .unwrap(),
                 ),
             )
@@ -3642,13 +3612,13 @@ pub fn try_visit_each_child_full(
                         Some(&mut visitor),
                         Some(&is_variable_declaration),
                         None,
-                    )?,
+                    ),
                     node_visitor(
                         Some(&node_as_catch_clause.block),
                         Some(&mut visitor),
                         Some(&is_block),
                         None,
-                    )?
+                    )
                     .unwrap(),
                 ),
             )
@@ -3663,14 +3633,14 @@ pub fn try_visit_each_child_full(
                         Some(&mut visitor),
                         Some(&is_property_name),
                         None,
-                    )?
+                    )
                     .unwrap(),
                     node_visitor(
                         Some(&node_as_property_assignment.initializer),
                         Some(&mut visitor),
                         Some(&is_expression),
                         None,
-                    )?
+                    )
                     .unwrap(),
                 ),
             )
@@ -3685,7 +3655,7 @@ pub fn try_visit_each_child_full(
                         Some(&mut visitor),
                         Some(&is_identifier),
                         None,
-                    )?
+                    )
                     .unwrap(),
                     node_visitor(
                         node_as_shorthand_property_assignment
@@ -3694,7 +3664,7 @@ pub fn try_visit_each_child_full(
                         Some(&mut visitor),
                         Some(&is_expression),
                         None,
-                    )?,
+                    ),
                 ),
             )
         }
@@ -3708,7 +3678,7 @@ pub fn try_visit_each_child_full(
                         Some(&mut visitor),
                         Some(&is_expression),
                         None,
-                    )?
+                    )
                     .unwrap(),
                 ),
             )
@@ -3723,14 +3693,14 @@ pub fn try_visit_each_child_full(
                         Some(&mut visitor),
                         Some(&is_property_name),
                         None,
-                    )?
+                    )
                     .unwrap(),
                     node_visitor(
                         node_as_enum_member.maybe_initializer().as_deref(),
                         Some(&mut visitor),
                         Some(&is_expression),
                         None,
-                    )?,
+                    ),
                 ),
             )
         }
@@ -3738,11 +3708,22 @@ pub fn try_visit_each_child_full(
             let node_as_source_file = node.as_source_file();
             Some(factory.update_source_file(
                 node,
-                try_visit_lexical_environment(
+                visit_lexical_environment(
                     &node_as_source_file.statements(),
                     |node: &Node| visitor(node),
                     context,
-                )?,
+                    None,
+                    None,
+                    Option::<
+                        fn(
+                            Option<&NodeArray>,
+                            Option<&mut dyn FnMut(&Node) -> VisitResult>,
+                            Option<&dyn Fn(&Node) -> bool>,
+                            Option<usize>,
+                            Option<usize>,
+                        ) -> Option<Gc<NodeArray>>,
+                    >::None,
+                ),
                 None,
                 None,
                 None,
@@ -3760,7 +3741,7 @@ pub fn try_visit_each_child_full(
                         Some(&mut visitor),
                         Some(&is_expression),
                         None,
-                    )?
+                    )
                     .unwrap(),
                 ),
             )
@@ -3776,11 +3757,11 @@ pub fn try_visit_each_child_full(
                         Some(&is_expression),
                         None,
                         None,
-                    )?
+                    )
                     .unwrap(),
                 ),
             )
         }
         _ => Some(node.node_wrapper()),
-    })
+    }
 }
