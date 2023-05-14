@@ -1,71 +1,73 @@
 use gc::{Gc, GcCell};
-use std::borrow::Borrow;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::ptr;
 use std::rc::Rc;
+use std::{borrow::Borrow, io};
 
 use super::get_node_id;
 use crate::{
     __String, count_where, create_symbol_table, find, is_assertion_expression,
     is_const_type_reference, is_this_identifier, is_type_alias_declaration, is_type_operator_node,
-    length, map, maybe_map, some, symbol_name, AsDoubleDeref, BaseInterfaceType, CheckFlags,
-    DiagnosticMessage, Diagnostics, ElementFlags, GenericableTypeInterface,
-    HasTypeArgumentsInterface, InterfaceTypeInterface, InterfaceTypeWithDeclaredMembersInterface,
-    Node, NodeInterface, Number, ObjectFlags, Symbol, SymbolFlags, SymbolInterface, SyntaxKind,
-    TransientSymbolInterface, TupleType, Type, TypeChecker, TypeFlags, TypeInterface,
-    TypeReferenceInterface,
+    length, map, maybe_map, some, symbol_name, try_map, try_maybe_map, try_some, AsDoubleDeref,
+    BaseInterfaceType, CheckFlags, DiagnosticMessage, Diagnostics, ElementFlags,
+    GenericableTypeInterface, HasTypeArgumentsInterface, InterfaceTypeInterface,
+    InterfaceTypeWithDeclaredMembersInterface, Node, NodeInterface, Number, ObjectFlags, OptionTry,
+    Symbol, SymbolFlags, SymbolInterface, SyntaxKind, TransientSymbolInterface, TupleType, Type,
+    TypeChecker, TypeFlags, TypeInterface, TypeReferenceInterface,
 };
 
 impl TypeChecker {
     pub(super) fn get_type_from_jsdoc_nullable_type_node(
         &self,
         node: &Node, /*JSDocNullableType*/
-    ) -> Gc<Type> {
+    ) -> io::Result<Gc<Type>> {
         let type_ =
-            self.get_type_from_type_node_(node.as_base_jsdoc_unary_type().type_.as_ref().unwrap());
-        if self.strict_null_checks {
-            self.get_nullable_type(&type_, TypeFlags::Null)
+            self.get_type_from_type_node_(node.as_base_jsdoc_unary_type().type_.as_ref().unwrap())?;
+        Ok(if self.strict_null_checks {
+            self.get_nullable_type(&type_, TypeFlags::Null)?
         } else {
             type_
-        }
+        })
     }
 
     pub(super) fn get_type_from_type_reference(
         &self,
         node: &Node, /*TypeReferenceNode*/
-    ) -> Gc<Type> {
+    ) -> io::Result<Gc<Type>> {
         let links = self.get_node_links(node);
         if (*links).borrow().resolved_type.is_none() {
             if is_const_type_reference(node) && is_assertion_expression(&node.parent()) {
                 links.borrow_mut().resolved_symbol = Some(self.unknown_symbol());
-                let ret = self
-                    .check_expression_cached(&node.parent().as_has_expression().expression(), None);
+                let ret = self.check_expression_cached(
+                    &node.parent().as_has_expression().expression(),
+                    None,
+                )?;
                 links.borrow_mut().resolved_type = Some(ret.clone());
-                return ret;
+                return Ok(ret);
             }
             let mut symbol: Option<Gc<Symbol>> = None;
             let mut type_: Option<Gc<Type>> = None;
             let meaning = SymbolFlags::Type;
             if self.is_jsdoc_type_reference(node) {
-                type_ = self.get_intended_type_from_jsdoc_type_reference(node);
+                type_ = self.get_intended_type_from_jsdoc_type_reference(node)?;
                 if type_.is_none() {
-                    symbol = Some(self.resolve_type_reference_name(node, meaning, Some(true)));
+                    symbol = Some(self.resolve_type_reference_name(node, meaning, Some(true))?);
                     if Gc::ptr_eq(symbol.as_ref().unwrap(), &self.unknown_symbol()) {
                         symbol = Some(self.resolve_type_reference_name(
                             node,
                             meaning | SymbolFlags::Value,
                             None,
-                        ));
+                        )?);
                     } else {
-                        self.resolve_type_reference_name(node, meaning, None);
+                        self.resolve_type_reference_name(node, meaning, None)?;
                     }
-                    type_ = Some(self.get_type_reference_type(node, symbol.as_ref().unwrap()));
+                    type_ = Some(self.get_type_reference_type(node, symbol.as_ref().unwrap())?);
                 }
             }
             if type_.is_none() {
-                symbol = Some(self.resolve_type_reference_name(node, meaning, None));
-                type_ = Some(self.get_type_reference_type(node, symbol.as_ref().unwrap()));
+                symbol = Some(self.resolve_type_reference_name(node, meaning, None)?);
+                type_ = Some(self.get_type_reference_type(node, symbol.as_ref().unwrap())?);
             }
             {
                 let mut links = links.borrow_mut();
@@ -74,64 +76,65 @@ impl TypeChecker {
             }
         }
         let ret = (*links).borrow().resolved_type.clone().unwrap();
-        ret
+        Ok(ret)
     }
 
     pub(super) fn type_arguments_from_type_reference_node(
         &self,
         node: &Node, /*NodeWithTypeArguments*/
-    ) -> Option<Vec<Gc<Type>>> {
-        maybe_map(
+    ) -> io::Result<Option<Vec<Gc<Type>>>> {
+        try_maybe_map(
             node.as_has_type_arguments().maybe_type_arguments().as_ref(),
             |type_argument, _| self.get_type_from_type_node_(&**type_argument),
         )
+        .transpose()
     }
 
     pub(super) fn get_type_from_type_query_node(
         &self,
         node: &Node, /*TypeQueryNode*/
-    ) -> Gc<Type> {
+    ) -> io::Result<Gc<Type>> {
         let links = self.get_node_links(node);
         if (*links).borrow().resolved_type.is_none() {
             let node_as_type_query_node = node.as_type_query_node();
             let type_ = if is_this_identifier(Some(&*node_as_type_query_node.expr_name)) {
-                self.check_this_expression(&node_as_type_query_node.expr_name)
+                self.check_this_expression(&node_as_type_query_node.expr_name)?
             } else {
-                self.check_expression(&node_as_type_query_node.expr_name, None, None)
+                self.check_expression(&node_as_type_query_node.expr_name, None, None)?
             };
             links.borrow_mut().resolved_type =
-                Some(self.get_regular_type_of_literal_type(&self.get_widened_type(&type_)));
+                Some(self.get_regular_type_of_literal_type(&*self.get_widened_type(&type_)?));
         }
         let ret = (*links).borrow().resolved_type.clone().unwrap();
-        ret
+        Ok(ret)
     }
 
-    pub(super) fn get_type_of_global_symbol<TSymbol: Borrow<Symbol>>(
+    pub(super) fn get_type_of_global_symbol(
         &self,
-        symbol: Option<TSymbol>,
+        symbol: Option<impl Borrow<Symbol>>,
         arity: usize,
-    ) -> Gc<Type /*ObjectType*/> {
+    ) -> io::Result<Gc<Type /*ObjectType*/>> {
         if symbol.is_none() {
-            return if arity != 0 {
+            return Ok(if arity != 0 {
                 self.empty_generic_type()
             } else {
                 self.empty_object_type()
-            };
+            });
         }
         let symbol = symbol.unwrap();
         let symbol = symbol.borrow();
-        let type_ = self.get_declared_type_of_symbol(symbol);
+        let type_ = self.get_declared_type_of_symbol(symbol)?;
         if !type_.flags().intersects(TypeFlags::Object) {
             self.error(
                 self.get_type_declaration(symbol),
                 &Diagnostics::Global_type_0_must_be_a_class_or_interface_type,
                 Some(vec![symbol_name(symbol).into_owned()]),
             );
-            return if arity != 0 {
+            return Ok(if arity != 0 {
                 self.empty_generic_type()
             } else {
                 self.empty_object_type()
-            };
+            });
         }
         if length(
             type_
@@ -144,13 +147,13 @@ impl TypeChecker {
                 &Diagnostics::Global_type_0_must_have_1_type_parameter_s,
                 Some(vec![symbol_name(symbol).into_owned(), arity.to_string()]),
             );
-            return if arity != 0 {
+            return Ok(if arity != 0 {
                 self.empty_generic_type()
             } else {
                 self.empty_object_type()
-            };
+            });
         }
-        type_
+        Ok(type_)
     }
 
     pub(super) fn get_type_declaration(&self, symbol: &Symbol) -> Option<Gc<Node /*Declaration*/>> {
@@ -174,7 +177,7 @@ impl TypeChecker {
         &self,
         name: &str, /*__String*/
         report_errors: bool,
-    ) -> Option<Gc<Symbol>> {
+    ) -> io::Result<Option<Gc<Symbol>>> {
         self.get_global_symbol(
             name,
             SymbolFlags::Value,
@@ -190,7 +193,7 @@ impl TypeChecker {
         &self,
         name: &str, /*__String*/
         report_errors: bool,
-    ) -> Option<Gc<Symbol>> {
+    ) -> io::Result<Option<Gc<Symbol>>> {
         self.get_global_symbol(
             name,
             SymbolFlags::Type,
@@ -207,7 +210,7 @@ impl TypeChecker {
         name: &str, /*__String*/
         arity: usize,
         report_errors: bool,
-    ) -> Option<Gc<Symbol>> {
+    ) -> io::Result<Option<Gc<Symbol>>> {
         let symbol = self.get_global_symbol(
             name,
             SymbolFlags::Type,
@@ -216,9 +219,9 @@ impl TypeChecker {
             } else {
                 None
             },
-        );
+        )?;
         if let Some(symbol) = symbol.as_ref() {
-            self.get_declared_type_of_symbol(symbol);
+            self.get_declared_type_of_symbol(symbol)?;
             if length(
                 (*self.get_symbol_links(symbol))
                     .borrow()
@@ -240,10 +243,10 @@ impl TypeChecker {
                     &Diagnostics::Global_type_0_must_have_1_type_parameter_s,
                     Some(vec![symbol_name(symbol).into_owned(), arity.to_string()]),
                 );
-                return None;
+                return Ok(None);
             }
         }
-        symbol
+        Ok(symbol)
     }
 
     pub(super) fn get_global_symbol(
@@ -251,7 +254,7 @@ impl TypeChecker {
         name: &str, /*__String*/
         meaning: SymbolFlags,
         diagnostic: Option<&DiagnosticMessage>,
-    ) -> Option<Gc<Symbol>> {
+    ) -> io::Result<Option<Gc<Symbol>>> {
         self.resolve_name_(
             Option::<&Node>::None,
             name,
@@ -268,58 +271,61 @@ impl TypeChecker {
         name: &str, /*__String*/
         arity: usize,
         report_errors: bool,
-    ) -> Option<Gc<Type>> {
-        let symbol = self.get_global_type_symbol(name, report_errors);
-        if symbol.is_some() || report_errors {
-            Some(self.get_type_of_global_symbol(symbol, arity))
+    ) -> io::Result<Option<Gc<Type>>> {
+        let symbol = self.get_global_type_symbol(name, report_errors)?;
+        Ok(if symbol.is_some() || report_errors {
+            Some(self.get_type_of_global_symbol(symbol, arity)?)
         } else {
             None
-        }
+        })
     }
 
-    pub(super) fn get_global_typed_property_descriptor_type(&self) -> Gc<Type> {
+    pub(super) fn get_global_typed_property_descriptor_type(&self) -> io::Result<Gc<Type>> {
         if self
             .maybe_deferred_global_typed_property_descriptor_type()
             .is_none()
         {
             *self.maybe_deferred_global_typed_property_descriptor_type() = Some(
-                self.get_global_type("TypedPropertyDescriptor", 1, true)
+                self.get_global_type("TypedPropertyDescriptor", 1, true)?
                     .unwrap_or_else(|| self.empty_generic_type()),
             );
         }
-        self.maybe_deferred_global_typed_property_descriptor_type()
+        Ok(self
+            .maybe_deferred_global_typed_property_descriptor_type()
             .clone()
-            .unwrap()
+            .unwrap())
     }
 
-    pub(super) fn get_global_template_strings_array_type(&self) -> Gc<Type> {
+    pub(super) fn get_global_template_strings_array_type(&self) -> io::Result<Gc<Type>> {
         if self
             .maybe_deferred_global_template_strings_array_type()
             .is_none()
         {
             *self.maybe_deferred_global_template_strings_array_type() = Some(
-                self.get_global_type("TemplateStringsArray", 0, true)
+                self.get_global_type("TemplateStringsArray", 0, true)?
                     .unwrap_or_else(|| self.empty_object_type()),
             );
         }
-        self.maybe_deferred_global_template_strings_array_type()
+        Ok(self
+            .maybe_deferred_global_template_strings_array_type()
             .clone()
-            .unwrap()
+            .unwrap())
     }
 
-    pub(super) fn get_global_import_meta_type(&self) -> Gc<Type> {
+    pub(super) fn get_global_import_meta_type(&self) -> io::Result<Gc<Type>> {
         if self.maybe_deferred_global_import_meta_type().is_none() {
             *self.maybe_deferred_global_import_meta_type() = Some(
-                self.get_global_type("ImportMeta", 0, true)
+                self.get_global_type("ImportMeta", 0, true)?
                     .unwrap_or_else(|| self.empty_object_type()),
             );
         }
-        self.maybe_deferred_global_import_meta_type()
+        Ok(self
+            .maybe_deferred_global_import_meta_type()
             .clone()
-            .unwrap()
+            .unwrap())
     }
 
-    pub(super) fn get_global_import_meta_expression_type(&self) -> Gc<Type> {
+    pub(super) fn get_global_import_meta_expression_type(&self) -> io::Result<Gc<Type>> {
         if self
             .maybe_deferred_global_import_meta_expression_type()
             .is_none()
@@ -327,7 +333,7 @@ impl TypeChecker {
             let symbol: Gc<Symbol> = self
                 .create_symbol(SymbolFlags::None, "ImportMetaExpression".to_owned(), None)
                 .into();
-            let import_meta_type = self.get_global_import_meta_type();
+            let import_meta_type = self.get_global_import_meta_type()?;
 
             let meta_property_symbol: Gc<Symbol> = self
                 .create_symbol(
@@ -349,276 +355,327 @@ impl TypeChecker {
             *symbol.maybe_members_mut() = Some(members.clone());
 
             *self.maybe_deferred_global_import_meta_expression_type() =
-                Some(self.create_anonymous_type(Some(symbol), members, vec![], vec![], vec![]));
+                Some(self.create_anonymous_type(Some(symbol), members, vec![], vec![], vec![])?);
         }
-        self.maybe_deferred_global_import_meta_expression_type()
+        Ok(self
+            .maybe_deferred_global_import_meta_expression_type()
             .clone()
-            .unwrap()
+            .unwrap())
     }
 
-    pub(super) fn get_global_import_call_options_type(&self, report_errors: bool) -> Gc<Type> {
+    pub(super) fn get_global_import_call_options_type(
+        &self,
+        report_errors: bool,
+    ) -> io::Result<Gc<Type>> {
         if self
             .maybe_deferred_global_import_call_options_type()
             .is_none()
         {
             *self.maybe_deferred_global_import_call_options_type() =
-                self.get_global_type("ImportCallOptions", 0, report_errors);
+                self.get_global_type("ImportCallOptions", 0, report_errors)?;
         }
-        self.maybe_deferred_global_import_call_options_type()
+        Ok(self
+            .maybe_deferred_global_import_call_options_type()
             .clone()
-            .unwrap_or_else(|| self.empty_object_type())
+            .unwrap_or_else(|| self.empty_object_type()))
     }
 
     pub(super) fn get_global_es_symbol_constructor_symbol(
         &self,
         report_errors: bool,
-    ) -> Option<Gc<Symbol>> {
+    ) -> io::Result<Option<Gc<Symbol>>> {
         if self
             .maybe_deferred_global_es_symbol_constructor_symbol()
             .is_none()
         {
             *self.maybe_deferred_global_es_symbol_constructor_symbol() =
-                self.get_global_value_symbol("Symbol", report_errors);
+                self.get_global_value_symbol("Symbol", report_errors)?;
         }
-        self.maybe_deferred_global_es_symbol_constructor_symbol()
-            .clone()
+        Ok(self
+            .maybe_deferred_global_es_symbol_constructor_symbol()
+            .clone())
     }
 
     pub(super) fn get_global_es_symbol_constructor_type_symbol(
         &self,
         report_errors: bool,
-    ) -> Option<Gc<Symbol>> {
+    ) -> io::Result<Option<Gc<Symbol>>> {
         if self
             .maybe_deferred_global_es_symbol_constructor_type_symbol()
             .is_none()
         {
             *self.maybe_deferred_global_es_symbol_constructor_type_symbol() =
-                self.get_global_type_symbol("SymbolConstructor", report_errors);
+                self.get_global_type_symbol("SymbolConstructor", report_errors)?;
         }
-        self.maybe_deferred_global_es_symbol_constructor_type_symbol()
-            .clone()
+        Ok(self
+            .maybe_deferred_global_es_symbol_constructor_type_symbol()
+            .clone())
     }
 
-    pub(super) fn get_global_es_symbol_type(&self, report_errors: bool) -> Gc<Type> {
+    pub(super) fn get_global_es_symbol_type(&self, report_errors: bool) -> io::Result<Gc<Type>> {
         if self.maybe_deferred_global_es_symbol_type().is_none() {
             *self.maybe_deferred_global_es_symbol_type() =
-                self.get_global_type("Symbol", 0, report_errors);
+                self.get_global_type("Symbol", 0, report_errors)?;
         }
-        self.maybe_deferred_global_es_symbol_type()
+        Ok(self
+            .maybe_deferred_global_es_symbol_type()
             .clone()
-            .unwrap_or_else(|| self.empty_object_type())
+            .unwrap_or_else(|| self.empty_object_type()))
     }
 
-    pub(super) fn get_global_promise_type(&self, report_errors: bool) -> Gc<Type /*GenericType*/> {
+    pub(super) fn get_global_promise_type(
+        &self,
+        report_errors: bool,
+    ) -> io::Result<Gc<Type /*GenericType*/>> {
         if self.maybe_deferred_global_promise_type().is_none() {
             *self.maybe_deferred_global_promise_type() =
-                self.get_global_type("Promise", 1, report_errors);
+                self.get_global_type("Promise", 1, report_errors)?;
         }
-        self.maybe_deferred_global_promise_type()
+        Ok(self
+            .maybe_deferred_global_promise_type()
             .clone()
-            .unwrap_or_else(|| self.empty_generic_type())
+            .unwrap_or_else(|| self.empty_generic_type()))
     }
 
     pub(super) fn get_global_promise_like_type(
         &self,
         report_errors: bool,
-    ) -> Gc<Type /*GenericType*/> {
+    ) -> io::Result<Gc<Type /*GenericType*/>> {
         if self.maybe_deferred_global_promise_like_type().is_none() {
             *self.maybe_deferred_global_promise_like_type() =
-                self.get_global_type("PromiseLike", 1, report_errors);
+                self.get_global_type("PromiseLike", 1, report_errors)?;
         }
-        self.maybe_deferred_global_promise_like_type()
+        Ok(self
+            .maybe_deferred_global_promise_like_type()
             .clone()
-            .unwrap_or_else(|| self.empty_generic_type())
+            .unwrap_or_else(|| self.empty_generic_type()))
     }
 
     pub(super) fn get_global_promise_constructor_symbol(
         &self,
         report_errors: bool,
-    ) -> Option<Gc<Symbol>> {
+    ) -> io::Result<Option<Gc<Symbol>>> {
         if self
             .maybe_deferred_global_promise_constructor_symbol()
             .is_none()
         {
             *self.maybe_deferred_global_promise_constructor_symbol() =
-                self.get_global_value_symbol("Promise", report_errors);
+                self.get_global_value_symbol("Promise", report_errors)?;
         }
-        self.maybe_deferred_global_promise_constructor_symbol()
-            .clone()
+        Ok(self
+            .maybe_deferred_global_promise_constructor_symbol()
+            .clone())
     }
 
     pub(super) fn get_global_promise_constructor_like_type(
         &self,
         report_errors: bool,
-    ) -> Gc<Type /*GenericType*/> {
+    ) -> io::Result<Gc<Type /*GenericType*/>> {
         if self
             .maybe_deferred_global_promise_constructor_like_type()
             .is_none()
         {
             *self.maybe_deferred_global_promise_constructor_like_type() =
-                self.get_global_type("PromiseConstructorLike", 0, report_errors);
+                self.get_global_type("PromiseConstructorLike", 0, report_errors)?;
         }
-        self.maybe_deferred_global_promise_constructor_like_type()
+        Ok(self
+            .maybe_deferred_global_promise_constructor_like_type()
             .clone()
-            .unwrap_or_else(|| self.empty_object_type())
+            .unwrap_or_else(|| self.empty_object_type()))
     }
 
-    pub(super) fn get_global_async_iterable_type(&self, report_errors: bool) -> Gc<Type> {
+    pub(super) fn get_global_async_iterable_type(
+        &self,
+        report_errors: bool,
+    ) -> io::Result<Gc<Type>> {
         if self.maybe_deferred_global_async_iterable_type().is_none() {
             *self.maybe_deferred_global_async_iterable_type() =
-                self.get_global_type("AsyncIterable", 1, report_errors);
+                self.get_global_type("AsyncIterable", 1, report_errors)?;
         }
-        self.maybe_deferred_global_async_iterable_type()
+        Ok(self
+            .maybe_deferred_global_async_iterable_type()
             .clone()
-            .unwrap_or_else(|| self.empty_generic_type())
+            .unwrap_or_else(|| self.empty_generic_type()))
     }
 
-    pub(super) fn get_global_async_iterator_type(&self, report_errors: bool) -> Gc<Type> {
+    pub(super) fn get_global_async_iterator_type(
+        &self,
+        report_errors: bool,
+    ) -> io::Result<Gc<Type>> {
         if self.maybe_deferred_global_async_iterator_type().is_none() {
             *self.maybe_deferred_global_async_iterator_type() =
-                self.get_global_type("AsyncIterator", 3, report_errors);
+                self.get_global_type("AsyncIterator", 3, report_errors)?;
         }
-        self.maybe_deferred_global_async_iterator_type()
+        Ok(self
+            .maybe_deferred_global_async_iterator_type()
             .clone()
-            .unwrap_or_else(|| self.empty_generic_type())
+            .unwrap_or_else(|| self.empty_generic_type()))
     }
 
-    pub(super) fn get_global_async_iterable_iterator_type(&self, report_errors: bool) -> Gc<Type> {
+    pub(super) fn get_global_async_iterable_iterator_type(
+        &self,
+        report_errors: bool,
+    ) -> io::Result<Gc<Type>> {
         if self
             .maybe_deferred_global_async_iterable_iterator_type()
             .is_none()
         {
             *self.maybe_deferred_global_async_iterable_iterator_type() =
-                self.get_global_type("AsyncIterableIterator", 1, report_errors);
+                self.get_global_type("AsyncIterableIterator", 1, report_errors)?;
         }
-        self.maybe_deferred_global_async_iterable_iterator_type()
+        Ok(self
+            .maybe_deferred_global_async_iterable_iterator_type()
             .clone()
-            .unwrap_or_else(|| self.empty_generic_type())
+            .unwrap_or_else(|| self.empty_generic_type()))
     }
 
-    pub(super) fn get_global_async_generator_type(&self, report_errors: bool) -> Gc<Type> {
+    pub(super) fn get_global_async_generator_type(
+        &self,
+        report_errors: bool,
+    ) -> io::Result<Gc<Type>> {
         if self.maybe_deferred_global_async_generator_type().is_none() {
             *self.maybe_deferred_global_async_generator_type() =
-                self.get_global_type("AsyncGenerator", 3, report_errors);
+                self.get_global_type("AsyncGenerator", 3, report_errors)?;
         }
-        self.maybe_deferred_global_async_generator_type()
+        Ok(self
+            .maybe_deferred_global_async_generator_type()
             .clone()
-            .unwrap_or_else(|| self.empty_generic_type())
+            .unwrap_or_else(|| self.empty_generic_type()))
     }
 
-    pub(super) fn get_global_iterable_type(&self, report_errors: bool) -> Gc<Type> {
+    pub(super) fn get_global_iterable_type(&self, report_errors: bool) -> io::Result<Gc<Type>> {
         if self.maybe_deferred_global_iterable_type().is_none() {
             *self.maybe_deferred_global_iterable_type() =
-                self.get_global_type("Iterable", 1, report_errors);
+                self.get_global_type("Iterable", 1, report_errors)?;
         }
-        self.maybe_deferred_global_iterable_type()
+        Ok(self
+            .maybe_deferred_global_iterable_type()
             .clone()
-            .unwrap_or_else(|| self.empty_generic_type())
+            .unwrap_or_else(|| self.empty_generic_type()))
     }
 
-    pub(super) fn get_global_iterator_type(&self, report_errors: bool) -> Gc<Type> {
+    pub(super) fn get_global_iterator_type(&self, report_errors: bool) -> io::Result<Gc<Type>> {
         if self.maybe_deferred_global_iterator_type().is_none() {
             *self.maybe_deferred_global_iterator_type() =
-                self.get_global_type("Iterator", 3, report_errors);
+                self.get_global_type("Iterator", 3, report_errors)?;
         }
-        self.maybe_deferred_global_iterator_type()
+        Ok(self
+            .maybe_deferred_global_iterator_type()
             .clone()
-            .unwrap_or_else(|| self.empty_generic_type())
+            .unwrap_or_else(|| self.empty_generic_type()))
     }
 
-    pub(super) fn get_global_iterable_iterator_type(&self, report_errors: bool) -> Gc<Type> {
+    pub(super) fn get_global_iterable_iterator_type(
+        &self,
+        report_errors: bool,
+    ) -> io::Result<Gc<Type>> {
         if self
             .maybe_deferred_global_iterable_iterator_type()
             .is_none()
         {
             *self.maybe_deferred_global_iterable_iterator_type() =
-                self.get_global_type("IterableIterator", 1, report_errors);
+                self.get_global_type("IterableIterator", 1, report_errors)?;
         }
-        self.maybe_deferred_global_iterable_iterator_type()
+        Ok(self
+            .maybe_deferred_global_iterable_iterator_type()
             .clone()
-            .unwrap_or_else(|| self.empty_generic_type())
+            .unwrap_or_else(|| self.empty_generic_type()))
     }
 
-    pub(super) fn get_global_generator_type(&self, report_errors: bool) -> Gc<Type> {
+    pub(super) fn get_global_generator_type(&self, report_errors: bool) -> io::Result<Gc<Type>> {
         if self.maybe_deferred_global_generator_type().is_none() {
             *self.maybe_deferred_global_generator_type() =
-                self.get_global_type("Generator", 3, report_errors);
+                self.get_global_type("Generator", 3, report_errors)?;
         }
-        self.maybe_deferred_global_generator_type()
+        Ok(self
+            .maybe_deferred_global_generator_type()
             .clone()
-            .unwrap_or_else(|| self.empty_generic_type())
+            .unwrap_or_else(|| self.empty_generic_type()))
     }
 
-    pub(super) fn get_global_iterator_yield_result_type(&self, report_errors: bool) -> Gc<Type> {
+    pub(super) fn get_global_iterator_yield_result_type(
+        &self,
+        report_errors: bool,
+    ) -> io::Result<Gc<Type>> {
         if self
             .maybe_deferred_global_iterator_yield_result_type()
             .is_none()
         {
             *self.maybe_deferred_global_iterator_yield_result_type() =
-                self.get_global_type("IteratorYieldResult", 1, report_errors);
+                self.get_global_type("IteratorYieldResult", 1, report_errors)?;
         }
-        self.maybe_deferred_global_iterator_yield_result_type()
+        Ok(self
+            .maybe_deferred_global_iterator_yield_result_type()
             .clone()
-            .unwrap_or_else(|| self.empty_generic_type())
+            .unwrap_or_else(|| self.empty_generic_type()))
     }
 
-    pub(super) fn get_global_iterator_return_result_type(&self, report_errors: bool) -> Gc<Type> {
+    pub(super) fn get_global_iterator_return_result_type(
+        &self,
+        report_errors: bool,
+    ) -> io::Result<Gc<Type>> {
         if self
             .maybe_deferred_global_iterator_return_result_type()
             .is_none()
         {
             *self.maybe_deferred_global_iterator_return_result_type() =
-                self.get_global_type("IteratorReturnResult", 1, report_errors);
+                self.get_global_type("IteratorReturnResult", 1, report_errors)?;
         }
-        self.maybe_deferred_global_iterator_return_result_type()
+        Ok(self
+            .maybe_deferred_global_iterator_return_result_type()
             .clone()
-            .unwrap_or_else(|| self.empty_generic_type())
+            .unwrap_or_else(|| self.empty_generic_type()))
     }
 
     pub(super) fn get_global_type_or_undefined(
         &self,
         name: &str, /*__String*/
         arity: Option<usize>,
-    ) -> Option<Gc<Type /*ObjectType*/>> {
+    ) -> io::Result<Option<Gc<Type /*ObjectType*/>>> {
         let arity = arity.unwrap_or(0);
-        let symbol = self.get_global_symbol(name, SymbolFlags::Type, None);
-        symbol.map(|symbol| self.get_type_of_global_symbol(Some(symbol), arity))
+        let symbol = self.get_global_symbol(name, SymbolFlags::Type, None)?;
+        symbol.try_map(|symbol| self.get_type_of_global_symbol(Some(symbol), arity))
     }
 
-    pub(super) fn get_global_extract_symbol(&self) -> Option<Gc<Symbol>> {
+    pub(super) fn get_global_extract_symbol(&self) -> io::Result<Option<Gc<Symbol>>> {
         if self.maybe_deferred_global_extract_symbol().is_none() {
             *self.maybe_deferred_global_extract_symbol() = Some(
-                self.get_global_type_alias_symbol("Extract", 2, true)
+                self.get_global_type_alias_symbol("Extract", 2, true)?
                     .unwrap_or_else(|| self.unknown_symbol()),
             );
         }
-        self.maybe_deferred_global_extract_symbol()
+        Ok(self
+            .maybe_deferred_global_extract_symbol()
             .as_ref()
             .map(Clone::clone)
             .filter(|deferred_global_extract_symbol| {
                 !Gc::ptr_eq(deferred_global_extract_symbol, &self.unknown_symbol())
-            })
+            }))
     }
 
-    pub(super) fn get_global_omit_symbol(&self) -> Option<Gc<Symbol>> {
+    pub(super) fn get_global_omit_symbol(&self) -> io::Result<Option<Gc<Symbol>>> {
         if self.maybe_deferred_global_omit_symbol().is_none() {
             *self.maybe_deferred_global_omit_symbol() = Some(
-                self.get_global_type_alias_symbol("Omit", 2, true)
+                self.get_global_type_alias_symbol("Omit", 2, true)?
                     .unwrap_or_else(|| self.unknown_symbol()),
             );
         }
-        self.maybe_deferred_global_omit_symbol()
+        Ok(self
+            .maybe_deferred_global_omit_symbol()
             .as_ref()
             .map(Clone::clone)
             .filter(|deferred_global_omit_symbol| {
                 !Gc::ptr_eq(deferred_global_omit_symbol, &self.unknown_symbol())
-            })
+            }))
     }
 
-    pub(super) fn get_global_awaited_symbol(&self, report_errors: bool) -> Option<Gc<Symbol>> {
+    pub(super) fn get_global_awaited_symbol(
+        &self,
+        report_errors: bool,
+    ) -> io::Result<Option<Gc<Symbol>>> {
         if self.maybe_deferred_global_awaited_symbol().is_none() {
             *self.maybe_deferred_global_awaited_symbol() = self
-                .get_global_type_alias_symbol("Awaited", 1, report_errors)
+                .get_global_type_alias_symbol("Awaited", 1, report_errors)?
                 .or_else(|| {
                     if report_errors {
                         Some(self.unknown_symbol())
@@ -627,22 +684,24 @@ impl TypeChecker {
                     }
                 });
         }
-        self.maybe_deferred_global_awaited_symbol()
+        Ok(self
+            .maybe_deferred_global_awaited_symbol()
             .as_ref()
             .map(Clone::clone)
             .filter(|deferred_global_awaited_symbol| {
                 !Gc::ptr_eq(deferred_global_awaited_symbol, &self.unknown_symbol())
-            })
+            }))
     }
 
-    pub(super) fn get_global_big_int_type(&self, report_errors: bool) -> Gc<Type> {
+    pub(super) fn get_global_big_int_type(&self, report_errors: bool) -> io::Result<Gc<Type>> {
         if self.maybe_deferred_global_big_int_type().is_none() {
             *self.maybe_deferred_global_big_int_type() =
-                self.get_global_type("BigInt", 0, report_errors);
+                self.get_global_type("BigInt", 0, report_errors)?;
         }
-        self.maybe_deferred_global_big_int_type()
+        Ok(self
+            .maybe_deferred_global_big_int_type()
             .clone()
-            .unwrap_or_else(|| self.empty_object_type())
+            .unwrap_or_else(|| self.empty_object_type()))
     }
 
     pub(super) fn create_type_from_generic_global_type(
@@ -657,18 +716,21 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn create_typed_property_descriptor_type(&self, property_type: &Type) -> Gc<Type> {
-        self.create_type_from_generic_global_type(
-            &self.get_global_typed_property_descriptor_type(),
+    pub(super) fn create_typed_property_descriptor_type(
+        &self,
+        property_type: &Type,
+    ) -> io::Result<Gc<Type>> {
+        Ok(self.create_type_from_generic_global_type(
+            &*self.get_global_typed_property_descriptor_type()?,
             vec![property_type.type_wrapper()],
-        )
+        ))
     }
 
-    pub(super) fn create_iterable_type(&self, iterated_type: &Type) -> Gc<Type> {
-        self.create_type_from_generic_global_type(
-            &self.get_global_iterable_type(true),
+    pub(super) fn create_iterable_type(&self, iterated_type: &Type) -> io::Result<Gc<Type>> {
+        Ok(self.create_type_from_generic_global_type(
+            &*self.get_global_iterable_type(true)?,
             vec![iterated_type.type_wrapper()],
-        )
+        ))
     }
 
     pub(super) fn create_array_type(
@@ -721,15 +783,15 @@ impl TypeChecker {
     pub(super) fn get_array_or_tuple_target_type(
         &self,
         node: &Node, /*ArrayTypeNode | TupleTypeNode*/
-    ) -> Gc<Type /*GenericType*/> {
+    ) -> io::Result<Gc<Type /*GenericType*/>> {
         let readonly = self.is_readonly_type_operator(&node.parent());
         let element_type = self.get_array_element_type_node(node);
         if element_type.is_some() {
-            return if readonly {
+            return Ok(if readonly {
                 self.global_readonly_array_type()
             } else {
                 self.global_array_type()
-            };
+            });
         }
         let node_as_tuple_type_node = node.as_tuple_type_node();
         let element_flags = map(
@@ -755,27 +817,27 @@ impl TypeChecker {
         &self,
         node: &Node, /*TypeReferenceNode | ArrayTypeNode | TupleTypeNode*/
         has_default_type_arguments: Option<bool>,
-    ) -> bool {
-        self.get_alias_symbol_for_type_node(node).is_some()
+    ) -> io::Result<bool> {
+        Ok(self.get_alias_symbol_for_type_node(node)?.is_some()
             || self.is_resolved_by_type_alias(node)
                 && if node.kind() == SyntaxKind::ArrayType {
-                    self.may_resolve_type_alias(&node.as_array_type_node().element_type)
+                    self.may_resolve_type_alias(&node.as_array_type_node().element_type)?
                 } else if node.kind() == SyntaxKind::TupleType {
-                    some(
+                    try_some(
                         Some(&node.as_tuple_type_node().elements),
                         Some(|element: &Gc<Node>| self.may_resolve_type_alias(element)),
-                    )
+                    )?
                 } else {
                     matches!(has_default_type_arguments, Some(true))
-                        || some(
+                        || try_some(
                             node.as_type_reference_node()
                                 .maybe_type_arguments()
                                 .as_double_deref(),
                             Some(|type_argument: &Gc<Node>| {
                                 self.may_resolve_type_alias(type_argument)
                             }),
-                        )
-                }
+                        )?
+                })
     }
 
     pub(super) fn is_resolved_by_type_alias(&self, node: &Node) -> bool {
@@ -796,12 +858,12 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn may_resolve_type_alias(&self, node: &Node) -> bool {
-        match node.kind() {
+    pub(super) fn may_resolve_type_alias(&self, node: &Node) -> io::Result<bool> {
+        Ok(match node.kind() {
             SyntaxKind::TypeReference => {
                 self.is_jsdoc_type_reference(node)
                     || self
-                        .resolve_type_reference_name(node, SymbolFlags::Type, None)
+                        .resolve_type_reference_name(node, SymbolFlags::Type, None)?
                         .flags()
                         .intersects(SymbolFlags::TypeAlias)
             }
@@ -809,7 +871,7 @@ impl TypeChecker {
             SyntaxKind::TypeOperator => {
                 let node_as_type_operator_node = node.as_type_operator_node();
                 node_as_type_operator_node.operator != SyntaxKind::UniqueKeyword
-                    && self.may_resolve_type_alias(&node_as_type_operator_node.type_)
+                    && self.may_resolve_type_alias(&node_as_type_operator_node.type_)?
             }
             SyntaxKind::ParenthesizedType
             | SyntaxKind::OptionalType
@@ -818,7 +880,7 @@ impl TypeChecker {
             | SyntaxKind::JSDocNullableType
             | SyntaxKind::JSDocNonNullableType
             | SyntaxKind::JSDocTypeExpression => {
-                self.may_resolve_type_alias(&node.as_has_type().maybe_type().unwrap())
+                self.may_resolve_type_alias(&node.as_has_type().maybe_type().unwrap())?
             }
             SyntaxKind::RestType => {
                 let node_as_rest_type_node = node.as_rest_type_node();
@@ -828,35 +890,35 @@ impl TypeChecker {
                             .type_
                             .as_array_type_node()
                             .element_type,
-                    )
+                    )?
             }
-            SyntaxKind::UnionType | SyntaxKind::IntersectionType => some(
+            SyntaxKind::UnionType | SyntaxKind::IntersectionType => try_some(
                 Some(&node.as_union_or_intersection_type_node().types()),
                 Some(|type_: &Gc<Node>| self.may_resolve_type_alias(type_)),
-            ),
+            )?,
             SyntaxKind::IndexedAccessType => {
                 let node_as_indexed_access_type_node = node.as_indexed_access_type_node();
-                self.may_resolve_type_alias(&node_as_indexed_access_type_node.object_type)
-                    || self.may_resolve_type_alias(&node_as_indexed_access_type_node.index_type)
+                self.may_resolve_type_alias(&node_as_indexed_access_type_node.object_type)?
+                    || self.may_resolve_type_alias(&node_as_indexed_access_type_node.index_type)?
             }
             SyntaxKind::ConditionalType => {
                 let node_as_conditional_type_node = node.as_conditional_type_node();
-                self.may_resolve_type_alias(&node_as_conditional_type_node.check_type)
-                    || self.may_resolve_type_alias(&node_as_conditional_type_node.extends_type)
-                    || self.may_resolve_type_alias(&node_as_conditional_type_node.true_type)
-                    || self.may_resolve_type_alias(&node_as_conditional_type_node.false_type)
+                self.may_resolve_type_alias(&node_as_conditional_type_node.check_type)?
+                    || self.may_resolve_type_alias(&node_as_conditional_type_node.extends_type)?
+                    || self.may_resolve_type_alias(&node_as_conditional_type_node.true_type)?
+                    || self.may_resolve_type_alias(&node_as_conditional_type_node.false_type)?
             }
             _ => false,
-        }
+        })
     }
 
     pub(super) fn get_type_from_array_or_tuple_type_node(
         &self,
         node: &Node, /*ArrayTypeNode*/
-    ) -> Gc<Type> {
+    ) -> io::Result<Gc<Type>> {
         let links = self.get_node_links(node);
         if (*links).borrow().resolved_type.is_none() {
-            let target = self.get_array_or_tuple_target_type(node);
+            let target = self.get_array_or_tuple_target_type(node)?;
             if Gc::ptr_eq(&target, &self.empty_generic_type()) {
                 links.borrow_mut().resolved_type = Some(self.empty_object_type());
             } else if !(node.kind() == SyntaxKind::TupleType
@@ -867,7 +929,7 @@ impl TypeChecker {
                             .intersects(ElementFlags::Variadic)
                     }),
                 ))
-                && self.is_deferred_type_reference_node(node, None)
+                && self.is_deferred_type_reference_node(node, None)?
             {
                 links.borrow_mut().resolved_type = Some(
                     if node.kind() == SyntaxKind::TupleType
@@ -881,24 +943,24 @@ impl TypeChecker {
                             None,
                             Option::<&Symbol>::None,
                             None,
-                        )
+                        )?
                     },
                 );
             } else {
                 let element_types = if node.kind() == SyntaxKind::ArrayType {
-                    vec![self.get_type_from_type_node_(&node.as_array_type_node().element_type)]
+                    vec![self.get_type_from_type_node_(&node.as_array_type_node().element_type)?]
                 } else {
-                    map(
+                    try_map(
                         &node.as_tuple_type_node().elements,
                         |element: &Gc<Node>, _| self.get_type_from_type_node_(element),
-                    )
+                    )?
                 };
                 links.borrow_mut().resolved_type =
-                    Some(self.create_normalized_type_reference(&target, Some(element_types)));
+                    Some(self.create_normalized_type_reference(&target, Some(element_types))?);
             }
         }
         let ret = (*links).borrow().resolved_type.clone().unwrap();
-        ret
+        Ok(ret)
     }
 
     pub(super) fn is_readonly_type_operator(&self, node: &Node) -> bool {
@@ -912,7 +974,7 @@ impl TypeChecker {
         element_flags: Option<&[ElementFlags]>,
         readonly: Option<bool>,
         named_member_declarations: Option<&[Gc<Node /*NamedTupleMember | ParameterDeclaration*/>]>,
-    ) -> Gc<Type> {
+    ) -> io::Result<Gc<Type>> {
         let readonly = readonly.unwrap_or(false);
         let tuple_target = self.get_tuple_target_type(
             &element_flags
@@ -920,14 +982,14 @@ impl TypeChecker {
                 .unwrap_or_else(|| map(element_types, |_, _| ElementFlags::Required)),
             readonly,
             named_member_declarations,
-        );
-        if Gc::ptr_eq(&tuple_target, &self.empty_generic_type()) {
+        )?;
+        Ok(if Gc::ptr_eq(&tuple_target, &self.empty_generic_type()) {
             self.empty_object_type()
         } else if !element_types.is_empty() {
-            self.create_normalized_type_reference(&tuple_target, Some(element_types.to_owned()))
+            self.create_normalized_type_reference(&tuple_target, Some(element_types.to_owned()))?
         } else {
             tuple_target
-        }
+        })
     }
 
     pub(super) fn get_tuple_target_type(
@@ -935,13 +997,13 @@ impl TypeChecker {
         element_flags: &[ElementFlags],
         readonly: bool,
         named_member_declarations: Option<&[Gc<Node /*NamedTupleMember | ParameterDeclaration*/>]>,
-    ) -> Gc<Type /*GenericType*/> {
+    ) -> io::Result<Gc<Type /*GenericType*/>> {
         if element_flags.len() == 1 && element_flags[0].intersects(ElementFlags::Rest) {
-            return if readonly {
+            return Ok(if readonly {
                 self.global_readonly_array_type()
             } else {
                 self.global_array_type()
-            };
+            });
         }
         let key = format!(
             "{}{}{}",
@@ -982,10 +1044,10 @@ impl TypeChecker {
                 element_flags,
                 readonly,
                 named_member_declarations,
-            ));
+            )?);
             self.tuple_types().insert(key, type_.clone().unwrap());
         }
-        type_.unwrap()
+        Ok(type_.unwrap())
     }
 
     pub(super) fn create_tuple_target_type(
@@ -993,7 +1055,7 @@ impl TypeChecker {
         element_flags: &[ElementFlags],
         readonly: bool,
         named_member_declarations: Option<&[Gc<Node /*NamedTupleMember | ParameterDeclaration*/>]>,
-    ) -> Gc<Type /*TupleType*/> {
+    ) -> io::Result<Gc<Type /*TupleType*/>> {
         let arity = element_flags.len();
         let min_length = count_where(Some(element_flags), |f: &ElementFlags, _| {
             f.intersects(ElementFlags::Required | ElementFlags::Variadic)
@@ -1062,7 +1124,7 @@ impl TypeChecker {
                 Option::<&Symbol>::None,
                 None,
                 Option::<&Type>::None,
-            ));
+            )?);
         }
         properties.push(length_symbol);
         let type_ = self.create_object_type(
@@ -1104,6 +1166,6 @@ impl TypeChecker {
         type_as_interface_type.set_declared_construct_signatures(vec![]);
         type_as_interface_type.set_declared_index_infos(vec![]);
         type_as_interface_type.genericize(instantiations);
-        type_
+        Ok(type_)
     }
 }

@@ -14,6 +14,7 @@ use crate::{
     ReadonlyPragmaMap, Scanner, ScriptKind, ScriptTarget, SourceTextAsChars, SyntaxKind,
     TextChangeRange,
 };
+use std::io;
 
 pub enum ForEachChildRecursivelyCallbackReturn<TValue> {
     Skip,
@@ -87,14 +88,26 @@ pub fn for_each_child_recursively<
     None
 }
 
-pub fn for_each_child_recursively_bool<
-    TCBNode: FnMut(&Node, &Node) -> bool,
-    TCBNodes: FnMut(&NodeArray, &Node) -> bool,
->(
+pub fn for_each_child_recursively_bool(
     root_node: &Node,
-    mut cb_node: TCBNode,
-    mut cb_nodes: Option<TCBNodes>,
+    mut cb_node: impl FnMut(&Node, &Node) -> bool,
+    cb_nodes: Option<impl FnMut(&NodeArray, &Node) -> bool>,
 ) -> bool {
+    try_for_each_child_recursively_bool(
+        root_node,
+        |a: &Node, b: &Node| -> Result<_, ()> { Ok(cb_node(a, b)) },
+        cb_nodes.map(|mut cb_nodes| {
+            move |a: &NodeArray, b: &Node| -> Result<_, ()> { Ok(cb_nodes(a, b)) }
+        }),
+    )
+    .unwrap()
+}
+
+pub fn try_for_each_child_recursively_bool<TError>(
+    root_node: &Node,
+    mut cb_node: impl FnMut(&Node, &Node) -> Result<bool, TError>,
+    mut cb_nodes: Option<impl FnMut(&NodeArray, &Node) -> Result<bool, TError>>,
+) -> Result<bool, TError> {
     let mut queue: Vec<RcNodeOrNodeArray> = gather_possible_children(root_node);
     let mut parents: Vec<Gc<Node>> = vec![];
     while parents.len() < queue.len() {
@@ -106,9 +119,9 @@ pub fn for_each_child_recursively_bool<
         match current {
             RcNodeOrNodeArray::NodeArray(current) => {
                 if let Some(cb_nodes) = cb_nodes.as_mut() {
-                    let res = cb_nodes(&current, &parent);
+                    let res = cb_nodes(&current, &parent)?;
                     if res {
-                        return true;
+                        return Ok(true);
                     }
                 }
                 for current_child in current.to_vec().iter().rev() {
@@ -117,9 +130,9 @@ pub fn for_each_child_recursively_bool<
                 }
             }
             RcNodeOrNodeArray::RcNode(current) => {
-                let res = cb_node(&current, &parent);
+                let res = cb_node(&current, &parent)?;
                 if res {
-                    return true;
+                    return Ok(true);
                 }
                 if current.kind() >= SyntaxKind::FirstNode {
                     for child in gather_possible_children(&current) {
@@ -130,7 +143,7 @@ pub fn for_each_child_recursively_bool<
             }
         }
     }
-    false
+    Ok(false)
 }
 
 enum RcNodeOrNodeArray {
@@ -172,7 +185,7 @@ pub fn create_source_file(
     language_version: ScriptTarget,
     set_parent_nodes: Option<bool>,
     script_kind: Option<ScriptKind>,
-) -> Gc<Node /*SourceFile*/> {
+) -> io::Result<Gc<Node /*SourceFile*/>> {
     let set_parent_nodes = set_parent_nodes.unwrap_or(false);
     // tracing?.push(tracing.Phase.Parse, "createSourceFile", { path: fileName }, /*separateBeginAndEnd*/ true);
     // performance.mark("beforeParse");
@@ -187,7 +200,7 @@ pub fn create_source_file(
             None,
             Some(set_parent_nodes),
             Some(ScriptKind::JSON),
-        );
+        )?;
     } else {
         result = Parser().parse_source_file(
             file_name,
@@ -196,14 +209,14 @@ pub fn create_source_file(
             None,
             Some(set_parent_nodes),
             script_kind,
-        );
+        )?;
     }
     // perfLogger.logStopParseSourceFile();
 
     // performance.mark("afterParse");
     // performance.measure("Parse", "beforeParse", "afterParse");
     // tracing?.pop();
-    result
+    Ok(result)
 }
 
 pub fn parse_isolated_entity_name(
@@ -677,7 +690,7 @@ impl ParserType {
         syntax_cursor: Option<IncrementalParserSyntaxCursor>,
         set_parent_nodes: Option<bool>,
         script_kind: Option<ScriptKind>,
-    ) -> Gc<Node /*SourceFile*/> {
+    ) -> io::Result<Gc<Node /*SourceFile*/>> {
         if is_logging {
             println!("parsing source file: {}", file_name,);
         }
@@ -702,14 +715,14 @@ impl ParserType {
                 false,
                 None,
                 Option::<&JsonConversionNotifierDummy>::None,
-            );
+            )?;
             result_as_source_file.set_referenced_files(Default::default());
             result_as_source_file.set_type_reference_directives(Default::default());
             result_as_source_file.set_lib_reference_directives(Default::default());
             result_as_source_file.set_amd_dependencies(vec![]);
             result_as_source_file.set_has_no_default_lib(false);
             result_as_source_file.set_pragmas(ReadonlyPragmaMap::new());
-            return result;
+            return Ok(result);
         }
 
         self.initialize_state(
@@ -724,7 +737,7 @@ impl ParserType {
 
         self.clear_state();
 
-        result
+        Ok(result)
     }
 
     pub fn parse_isolated_entity_name(

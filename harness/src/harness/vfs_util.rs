@@ -117,7 +117,7 @@ pub mod vfs {
     }
 
     impl FileSystem {
-        pub fn new(ignore_case: bool, options: Option<FileSystemOptions>) -> Self {
+        pub fn new(ignore_case: bool, options: Option<FileSystemOptions>) -> io::Result<Self> {
             let options = options.unwrap_or_default();
             let FileSystemOptions {
                 time,
@@ -145,7 +145,7 @@ pub mod vfs {
             }
 
             if let Some(files) = files {
-                ret._apply_files(&files, "");
+                ret._apply_files(&files, "")?;
             }
 
             let mut cwd = options_cwd;
@@ -167,12 +167,12 @@ pub mod vfs {
 
             if let Some(cwd) = cwd.as_ref().filter(|cwd| !cwd.is_empty()) {
                 vpath::validate(cwd, Some(vpath::ValidationFlags::Absolute));
-                ret.mkdirp_sync(cwd);
+                ret.mkdirp_sync(cwd)?;
             }
 
             ret.set_cwd(Some(cwd.unwrap_or_else(|| "".to_owned())));
 
-            ret
+            Ok(ret)
         }
 
         fn maybe_cwd(&self) -> Ref<Option<String>> {
@@ -213,7 +213,7 @@ pub mod vfs {
             self._shadow_root.clone()
         }
 
-        pub fn shadow(this: Gc<Self>, ignore_case: Option<bool>) -> Self {
+        pub fn shadow(this: Gc<Self>, ignore_case: Option<bool>) -> io::Result<Self> {
             let ignore_case = ignore_case.unwrap_or(this.ignore_case);
             if !this.is_readonly() {
                 panic!("Cannot shadow a mutable file system.");
@@ -229,10 +229,10 @@ pub mod vfs {
                     cwd: None,
                     meta: None,
                 }),
-            );
+            )?;
             fs._shadow_root = Some(this.clone());
             fs.set_cwd(this.maybe_cwd().clone());
-            fs
+            Ok(fs)
         }
 
         pub fn time(&self) -> u128 {
@@ -259,20 +259,22 @@ pub mod vfs {
             *self._time.borrow_mut() = value;
         }
 
-        pub fn filemeta(&self, path: &str) -> Gc<GcCell<collections::Metadata<MetaValue>>> {
+        pub fn filemeta(
+            &self,
+            path: &str,
+        ) -> io::Result<Gc<GcCell<collections::Metadata<MetaValue>>>> {
             let WalkResult { node, .. } = self
                 ._walk(
                     &self._resolve(path),
                     None,
-                    Option::<fn(&NodeJSErrnoException, WalkResult) -> OnErrorReturn>::None,
-                )
+                    Option::<fn(&NodeJSErrnoException, WalkResult) -> io::Result<OnErrorReturn>>::None,
+                )?
                 .unwrap();
             if node.is_none() {
-                // throw createIOError("ENOENT");
-                panic!("ENOENT");
+                return io_error_from_name("ENOENT");
             }
             let ref node = node.unwrap();
-            self._filemeta(node)
+            Ok(self._filemeta(node))
         }
 
         pub fn _filemeta(&self, node: &Inode) -> Gc<GcCell<collections::Metadata<MetaValue>>> {
@@ -291,7 +293,7 @@ pub mod vfs {
                 .clone()
         }
 
-        pub fn cwd(&self) -> String {
+        pub fn cwd(&self) -> io::Result<String> {
             let _cwd = self._cwd.borrow();
             if is_option_str_empty(_cwd.as_deref()) {
                 panic!("The current working directory has not been set.");
@@ -301,50 +303,45 @@ pub mod vfs {
                 ._walk(
                     _cwd,
                     None,
-                    Option::<fn(&NodeJSErrnoException, WalkResult) -> OnErrorReturn>::None,
-                )
+                    Option::<fn(&NodeJSErrnoException, WalkResult) -> io::Result<OnErrorReturn>>::None,
+                )?
                 .unwrap();
             if node.is_none() {
-                // throw createIOError("ENOENT");
-                panic!("ENOENT");
+                return io_error_from_name("ENOENT");
             }
             let ref node = node.unwrap();
             if !is_directory(Some(node)) {
-                // throw createIOError("ENOTDIR");
-                panic!("ENOTDIR");
+                return io_error_from_name("ENOTDIR");
             }
-            _cwd.clone()
+            Ok(_cwd.clone())
         }
 
-        pub fn chdir(&self, path: &str) {
+        pub fn chdir(&self, path: &str) -> io::Result<()> {
             if self.is_readonly() {
-                // throw createIOError("EPERM");
-                panic!("EPERM");
+                return io_error_from_name("EPERM");
             }
             let path = self._resolve(path);
             let WalkResult { node, .. } = self
                 ._walk(
                     &path,
                     None,
-                    Option::<fn(&NodeJSErrnoException, WalkResult) -> OnErrorReturn>::None,
-                )
+                    Option::<fn(&NodeJSErrnoException, WalkResult) -> io::Result<OnErrorReturn>>::None,
+                )?
                 .unwrap();
             if node.is_none() {
-                // throw createIOError("ENOENT");
-                panic!("ENOENT");
+                return io_error_from_name("ENOENT");
             }
             let node = node.unwrap();
             if !is_directory(Some(&node)) {
-                // throw createIOError("ENOTDIR");
-                panic!("ENOTDIR");
+                return io_error_from_name("ENOTDIR");
             }
             self.set_cwd(Some(path));
+            Ok(())
         }
 
-        pub fn pushd(&self, path: Option<&str>) {
+        pub fn pushd(&self, path: Option<&str>) -> io::Result<()> {
             if self.is_readonly() {
-                // throw createIOError("EPERM");
-                panic!("EPERM");
+                return io_error_from_name("EPERM");
             }
             let path = path
                 .filter(|path| !path.is_empty())
@@ -361,23 +358,24 @@ pub mod vfs {
                         Some(_cwd) if path == _cwd
                     )
             }) {
-                self.chdir(&path);
+                self.chdir(&path)?;
             }
+            Ok(())
         }
 
-        pub fn popd(&self) {
+        pub fn popd(&self) -> io::Result<()> {
             if self.is_readonly() {
-                // throw createIOError("EPERM");
-                panic!("EPERM");
+                return io_error_from_name("EPERM");
             }
             let mut _dir_stack = self._dir_stack.borrow_mut();
             let path = _dir_stack.as_mut().and_then(|_dir_stack| _dir_stack.pop());
             if let Some(path) = path {
-                self.chdir(&path);
+                self.chdir(&path)?;
             }
+            Ok(())
         }
 
-        pub fn apply(&self, files: &FileSet) {
+        pub fn apply(&self, files: &FileSet) -> io::Result<()> {
             self._apply_files(
                 files,
                 {
@@ -386,13 +384,19 @@ pub mod vfs {
                 }
                 .as_deref()
                 .unwrap(),
-            );
+            )?;
+
+            Ok(())
         }
 
-        pub fn mount_sync(&self, source: &str, target: &str, resolver: Gc<FileSystemResolver>) {
+        pub fn mount_sync(
+            &self,
+            source: &str,
+            target: &str,
+            resolver: Gc<FileSystemResolver>,
+        ) -> io::Result<()> {
             if self.is_readonly() {
-                // throw createIOError("EROFS");
-                panic!("EROFS");
+                return io_error_from_name("EROFS");
             }
 
             let source = vpath::validate(source, Some(vpath::ValidationFlags::Absolute));
@@ -407,12 +411,11 @@ pub mod vfs {
                 ._walk(
                     &self._resolve(target),
                     Some(true),
-                    Option::<fn(&NodeJSErrnoException, WalkResult) -> OnErrorReturn>::None,
-                )
+                    Option::<fn(&NodeJSErrnoException, WalkResult) -> io::Result<OnErrorReturn>>::None,
+                )?
                 .unwrap();
             if existing_node.is_some() {
-                // throw createIOError("EEXIST");
-                panic!("EEXIST");
+                return io_error_from_name("EEXIST");
             }
 
             let time = self.time();
@@ -435,13 +438,14 @@ pub mod vfs {
                 Gc::new(node),
                 Some(time),
             );
+            Ok(())
         }
 
         pub fn rimraf_sync(&self, _path: &str) {
             unimplemented!()
         }
 
-        pub fn mkdirp_sync(&self, path: &str) {
+        pub fn mkdirp_sync(&self, path: &str) -> io::Result<()> {
             let path = self._resolve(path);
             let result = self
                 ._walk(
@@ -449,38 +453,40 @@ pub mod vfs {
                     Some(true),
                     Some(|error: &NodeJSErrnoException, result: WalkResult| {
                         if error.code.as_deref() == Some("ENOENT") {
-                            self._mkdir(result);
-                            return OnErrorReturn::Retry;
+                            self._mkdir(result)?;
+                            return Ok(OnErrorReturn::Retry);
                         }
-                        OnErrorReturn::Throw
+                        Ok(OnErrorReturn::Throw)
                     }),
-                )
+                )?
                 .unwrap();
 
             if result.node.is_none() {
-                self._mkdir(result);
+                self._mkdir(result)?;
             }
+
+            Ok(())
         }
 
-        pub fn exists_sync(&self, path: &str) -> bool {
+        pub fn exists_sync(&self, path: &str) -> io::Result<bool> {
             let result = self._walk(
                 &self._resolve(path),
                 Some(true),
-                Some(|_: &NodeJSErrnoException, _: WalkResult| OnErrorReturn::Stop),
-            );
-            matches!(
+                Some(|_: &NodeJSErrnoException, _: WalkResult| Ok(OnErrorReturn::Stop)),
+            )?;
+            Ok(matches!(
                 result,
                 Some(result) if result.node.is_some()
-            )
+            ))
         }
 
-        pub fn stat_sync(&self, path: &str) -> Stats {
+        pub fn stat_sync(&self, path: &str) -> io::Result<Stats> {
             self._stat(
                 self._walk(
                     &self._resolve(path),
                     None,
-                    Option::<fn(&NodeJSErrnoException, WalkResult) -> OnErrorReturn>::None,
-                )
+                    Option::<fn(&NodeJSErrnoException, WalkResult) -> io::Result<OnErrorReturn>>::None,
+                )?
                 .unwrap(),
             )
         }
@@ -489,14 +495,13 @@ pub mod vfs {
             unimplemented!()
         }
 
-        fn _stat(&self, entry: WalkResult) -> Stats {
+        fn _stat(&self, entry: WalkResult) -> io::Result<Stats> {
             let node = entry.node.as_ref();
             if node.is_none() {
-                // throw createIOError("ENOENT");
-                panic!("ENOENT");
+                return io_error_from_name("ENOENT");
             }
             let node = node.unwrap();
-            Stats::new(
+            Ok(Stats::new(
                 node.dev(),
                 node.ino(),
                 node.mode(),
@@ -515,31 +520,30 @@ pub mod vfs {
                 node.mtime_ms(),
                 node.ctime_ms(),
                 node.birthtime_ms(),
-            )
+            ))
         }
 
-        pub fn readdir_sync(&self, path: &str) -> Vec<String> {
+        pub fn readdir_sync(&self, path: &str) -> io::Result<Vec<String>> {
             let WalkResult { node, .. } = self
                 ._walk(
                     &self._resolve(path),
                     None,
-                    Option::<fn(&NodeJSErrnoException, WalkResult) -> OnErrorReturn>::None,
-                )
+                    Option::<fn(&NodeJSErrnoException, WalkResult) -> io::Result<OnErrorReturn>>::None,
+                )?
                 .unwrap();
             if node.is_none() {
-                // throw createIOError("ENOENT");
-                panic!("ENOENT");
+                return io_error_from_name("ENOENT");
             }
             let node = node.unwrap();
             if !is_directory(Some(&*node)) {
-                // throw createIOError("ENOTDIR");
-                panic!("ENOTDIR");
+                return io_error_from_name("ENOTDIR");
             }
-            self._get_links(&node)
+            Ok(self
+                ._get_links(&node)
                 .borrow()
                 .keys()
                 .map(ToOwned::to_owned)
-                .collect()
+                .collect())
         }
 
         pub fn _mkdir(
@@ -551,10 +555,9 @@ pub mod vfs {
                 basename,
                 ..
             }: WalkResult,
-        ) {
+        ) -> io::Result<()> {
             if existing_node.is_some() {
-                // throw createIOError("EEXIST");
-                panic!("EEXIST");
+                return io_error_from_name("EEXIST");
             }
             let time = self.time();
             let node = self._mknod(
@@ -574,6 +577,7 @@ pub mod vfs {
                 Gc::new(node),
                 Some(time),
             );
+            Ok(())
         }
 
         pub fn link_sync(&self, _oldpath: &str, _newpath: &str) {
@@ -584,10 +588,9 @@ pub mod vfs {
             unimplemented!()
         }
 
-        pub fn symlink_sync(&self, target: &str, linkpath: &str) {
+        pub fn symlink_sync(&self, target: &str, linkpath: &str) -> io::Result<()> {
             if self.is_readonly() {
-                // throw createIOError("EROFS");
-                panic!("EROFS");
+                return io_error_from_name("EROFS");
             }
 
             let WalkResult {
@@ -600,17 +603,15 @@ pub mod vfs {
                 ._walk(
                     &self._resolve(linkpath),
                     Some(true),
-                    Option::<fn(&NodeJSErrnoException, WalkResult) -> OnErrorReturn>::None,
-                )
+                    Option::<fn(&NodeJSErrnoException, WalkResult) -> io::Result<OnErrorReturn>>::None,
+                )?
                 .unwrap();
             if parent.is_none() {
-                // throw createIOError("EPERM");
-                panic!("EPERM");
+                return io_error_from_name("EPERM");
             }
             let parent = parent.unwrap();
             if existing_node.is_some() {
-                // throw createIOError("EEXIST");
-                panic!("EEXIST");
+                return io_error_from_name("EEXIST");
             }
 
             let time = self.time();
@@ -626,17 +627,18 @@ pub mod vfs {
                 Gc::new(node),
                 Some(time),
             );
+            Ok(())
         }
 
-        pub fn realpath_sync(&self, path: &str) -> String {
+        pub fn realpath_sync(&self, path: &str) -> io::Result<String> {
             let WalkResult { realpath, .. } = self
                 ._walk(
                     &self._resolve(path),
                     None,
-                    Option::<fn(&NodeJSErrnoException, WalkResult) -> OnErrorReturn>::None,
-                )
+                    Option::<fn(&NodeJSErrnoException, WalkResult) -> io::Result<OnErrorReturn>>::None,
+                )?
                 .unwrap();
-            realpath
+            Ok(realpath)
         }
 
         pub fn read_file_sync(
@@ -648,8 +650,8 @@ pub mod vfs {
                 ._walk(
                     &self._resolve(path),
                     None,
-                    Option::<fn(&NodeJSErrnoException, WalkResult) -> OnErrorReturn>::None,
-                )
+                    Option::<fn(&NodeJSErrnoException, WalkResult) -> io::Result<OnErrorReturn>>::None,
+                )?
                 .unwrap();
             if node.is_none() {
                 return io_error_from_name("ENOENT");
@@ -678,11 +680,10 @@ pub mod vfs {
             path: &str,
             data: TData,
             encoding: Option<&str>,
-        ) {
+        ) -> io::Result<()> {
             let data = data.into();
             if self.is_readonly() {
-                // throw createIOError("EROFS");
-                panic!("EROFS");
+                return io_error_from_name("EROFS");
             }
 
             let WalkResult {
@@ -695,12 +696,11 @@ pub mod vfs {
                 ._walk(
                     &self._resolve(path),
                     Some(false),
-                    Option::<fn(&NodeJSErrnoException, WalkResult) -> OnErrorReturn>::None,
-                )
+                    Option::<fn(&NodeJSErrnoException, WalkResult) -> io::Result<OnErrorReturn>>::None,
+                )?
                 .unwrap();
             if parent.is_none() {
-                // throw createIOError("EPERM");
-                panic!("EPERM");
+                return io_error_from_name("EPERM");
             }
             let ref parent = parent.unwrap();
 
@@ -718,12 +718,10 @@ pub mod vfs {
             });
 
             if is_directory(Some(node)) {
-                // throw createIOError("EISDIR");
-                panic!("EISDIR");
+                return io_error_from_name("EISDIR");
             }
             if !is_file(Some(node)) {
-                // throw createIOError("EBADF");
-                panic!("EBADF");
+                return io_error_from_name("EBADF");
             }
 
             node.as_file_inode().set_buffer(Some(match data {
@@ -737,6 +735,7 @@ pub mod vfs {
             ));
             node.set_mtime_ms(time);
             node.set_ctime_ms(time);
+            Ok(())
         }
 
         fn _mknod(&self, dev: u32, type_: u32, mode: u32, time: Option<u128>) -> Inode {
@@ -965,8 +964,10 @@ pub mod vfs {
             &self,
             path: &str,
             no_follow: Option<bool>,
-            mut on_error: Option<impl FnMut(&NodeJSErrnoException, WalkResult) -> OnErrorReturn>,
-        ) -> Option<WalkResult> {
+            mut on_error: Option<
+                impl FnMut(&NodeJSErrnoException, WalkResult) -> io::Result<OnErrorReturn>,
+            >,
+        ) -> io::Result<Option<WalkResult>> {
             let mut links = self._get_root_links();
             let mut parent: Option<Gc<Inode>> = None;
             let mut components = vpath::parse(path, None);
@@ -975,8 +976,7 @@ pub mod vfs {
             let mut retry = false;
             loop {
                 if depth >= 40 {
-                    // throw createIOError("ELOOP");
-                    panic!("ELOOP");
+                    return io_error_from_name("ELOOP");
                 }
                 let last_step = step == components.len() - 1;
                 let mut basename = components[step].clone();
@@ -990,13 +990,13 @@ pub mod vfs {
                     link_entry.map(|link_entry| link_entry.1.clone())
                 };
                 if last_step && (no_follow == Some(true) || !is_symlink(node.as_deref())) {
-                    return Some(WalkResult {
+                    return Ok(Some(WalkResult {
                         realpath: vpath::format(&components),
                         basename,
                         parent,
                         links: links.clone(),
                         node: node.clone(),
-                    });
+                    }));
                 }
                 if node.is_none() {
                     if self.trap_error(
@@ -1008,10 +1008,10 @@ pub mod vfs {
                         links.clone(),
                         create_io_error(IOErrorCode::ENOENT, None),
                         node.clone(),
-                    ) {
+                    )? {
                         continue;
                     }
-                    return None;
+                    return Ok(None);
                 }
                 let ref node = node.unwrap();
                 if is_symlink(Some(node)) {
@@ -1044,24 +1044,26 @@ pub mod vfs {
                     links.clone(),
                     create_io_error(IOErrorCode::ENOTDIR, None),
                     Some(node.clone()),
-                ) {
+                )? {
                     continue;
                 }
-                return None;
+                return Ok(None);
             }
         }
 
-        fn trap_error<TOnError: FnMut(&NodeJSErrnoException, WalkResult) -> OnErrorReturn>(
+        fn trap_error(
             &self,
             components: &[String],
             step: usize,
             retry: &mut bool,
-            on_error: Option<&mut TOnError>,
+            on_error: Option<
+                &mut impl FnMut(&NodeJSErrnoException, WalkResult) -> io::Result<OnErrorReturn>,
+            >,
             parent: Option<Gc<Inode /*DirectoryInode*/>>,
             links: Gc<GcCell<collections::SortedMap<String, Gc<Inode>>>>,
             error: NodeJSErrnoException,
             node: Option<Gc<Inode>>,
-        ) -> bool {
+        ) -> io::Result<bool> {
             let realpath = vpath::format(&components[..step + 1]);
             let basename = &components[step];
             let result = if !*retry && on_error.is_some() {
@@ -1074,18 +1076,18 @@ pub mod vfs {
                         links,
                         node,
                     },
-                )
+                )?
             } else {
                 OnErrorReturn::Throw
             };
             if result == OnErrorReturn::Stop {
-                return false;
+                return Ok(false);
             }
             if result == OnErrorReturn::Retry {
                 *retry = true;
-                return true;
+                return Ok(true);
             }
-            panic!("{}", error.message);
+            io_error_from_name(&error.message)
         }
 
         fn _resolve(&self, path: &str) -> String {
@@ -1108,12 +1110,12 @@ pub mod vfs {
             }
         }
 
-        fn _apply_files(&self, files: &FileSet, dirname: &str) {
+        fn _apply_files(&self, files: &FileSet, dirname: &str) -> io::Result<()> {
             let mut deferred: Vec<(FileSetValue /*Symlink | Link | Mount*/, String)> = vec![];
-            self._apply_files_worker(files, dirname, &mut deferred);
+            self._apply_files_worker(files, dirname, &mut deferred)?;
             for (entry, path) in deferred {
-                self.mkdirp_sync(&vpath::dirname(&path));
-                self.pushd(Some(&vpath::dirname(&path)));
+                self.mkdirp_sync(&vpath::dirname(&path))?;
+                self.pushd(Some(&vpath::dirname(&path)))?;
                 match entry {
                     FileSetValue::Symlink(entry) => {
                         if self.string_comparer.call(&vpath::dirname(&path), &path)
@@ -1121,8 +1123,11 @@ pub mod vfs {
                         {
                             panic!("Roots cannot be symbolic links.");
                         }
-                        self.symlink_sync(&vpath::resolve(dirname, &[Some(&entry.symlink)]), &path);
-                        self._apply_file_extended_options(&path, entry.meta.as_ref());
+                        self.symlink_sync(
+                            &vpath::resolve(dirname, &[Some(&entry.symlink)]),
+                            &path,
+                        )?;
+                        self._apply_file_extended_options(&path, entry.meta.as_ref())?;
                     }
                     FileSetValue::Link(entry) => {
                         if self.string_comparer.call(&vpath::dirname(&path), &path)
@@ -1133,27 +1138,31 @@ pub mod vfs {
                         self.link_sync(&entry.path, &path);
                     }
                     FileSetValue::Mount(entry) => {
-                        self.mount_sync(&entry.source, &path, entry.resolver.clone());
-                        self._apply_file_extended_options(&path, entry.meta.as_ref());
+                        self.mount_sync(&entry.source, &path, entry.resolver.clone())?;
+                        self._apply_file_extended_options(&path, entry.meta.as_ref())?;
                     }
                     _ => unreachable!(),
                 }
-                self.popd();
+                self.popd()?;
             }
+
+            Ok(())
         }
 
         fn _apply_file_extended_options(
             &self,
             path: &str,
             entry_meta: Option<&HashMap<String, Gc<documents::TextDocument>>>,
-        ) {
+        ) -> io::Result<()> {
             if let Some(meta) = entry_meta {
-                let filemeta = self.filemeta(path);
+                let filemeta = self.filemeta(path)?;
                 let mut filemeta = filemeta.borrow_mut();
                 for (key, value) in meta {
                     filemeta.set(key, value.clone().into());
                 }
             }
+
+            Ok(())
         }
 
         fn _apply_files_worker(
@@ -1161,7 +1170,7 @@ pub mod vfs {
             files: &FileSet,
             dirname: &str,
             deferred: &mut Vec<(FileSetValue /*Symlink | Link | Mount*/, String)>,
-        ) {
+        ) -> io::Result<()> {
             for (key, value) in files {
                 let value = normalize_file_set_entry(value.as_ref());
                 let path = if !dirname.is_empty() {
@@ -1186,20 +1195,22 @@ pub mod vfs {
                         {
                             panic!("Roots cannot be files.");
                         }
-                        self.mkdirp_sync(&vpath::dirname(&path));
-                        self.write_file_sync(&path, value.data.clone(), value.encoding.as_deref());
-                        self._apply_file_extended_options(&path, value.meta.as_ref());
+                        self.mkdirp_sync(&vpath::dirname(&path))?;
+                        self.write_file_sync(&path, value.data.clone(), value.encoding.as_deref())?;
+                        self._apply_file_extended_options(&path, value.meta.as_ref())?;
                     }
                     Some(FileSetValue::Directory(value)) => {
-                        self.mkdirp_sync(&path);
-                        self._apply_file_extended_options(&path, value.meta.as_ref());
-                        self._apply_files_worker(&value.files, &path, deferred);
+                        self.mkdirp_sync(&path)?;
+                        self._apply_file_extended_options(&path, value.meta.as_ref())?;
+                        self._apply_files_worker(&value.files, &path, deferred)?;
                     }
                     Some(value) => {
                         deferred.push((value.clone(), path));
                     }
                 }
             }
+
+            Ok(())
         }
     }
 
@@ -1416,7 +1427,7 @@ pub mod vfs {
         host: Gc<Box<dyn FileSystemResolverHost>>,
         ignore_case: bool,
         options: Option<FileSystemCreateOptions>,
-    ) -> FileSystem {
+    ) -> io::Result<FileSystem> {
         let FileSystemCreateOptions {
             documents,
             files,
@@ -1424,7 +1435,7 @@ pub mod vfs {
             time,
             meta,
         } = options.unwrap_or_default();
-        let fs = FileSystem::shadow(get_built_local(host, ignore_case), None);
+        let fs = FileSystem::shadow(get_built_local(host, ignore_case)?, None)?;
         if let Some(meta) = meta {
             for key in meta.keys() {
                 fs.meta()
@@ -1436,29 +1447,32 @@ pub mod vfs {
             fs.set_time(time);
         }
         if let Some(cwd) = cwd.filter(|cwd| !cwd.is_empty()) {
-            fs.mkdirp_sync(&cwd);
-            fs.chdir(&cwd);
+            fs.mkdirp_sync(&cwd)?;
+            fs.chdir(&cwd)?;
         }
         if let Some(documents) = documents {
             for document in documents {
-                fs.mkdirp_sync(&vpath::dirname(&document.file));
-                fs.write_file_sync(&document.file, document.text.clone(), Some("utf8"));
-                fs.filemeta(&document.file)
+                fs.mkdirp_sync(&vpath::dirname(&document.file))?;
+                fs.write_file_sync(&document.file, document.text.clone(), Some("utf8"))?;
+                fs.filemeta(&document.file)?
                     .borrow_mut()
                     .set("document", document.clone().into());
                 let symlink = document.meta.get("symlink");
                 if let Some(symlink) = symlink {
                     for link in symlink.split(",").map(|link| link.trim()) {
-                        fs.mkdirp_sync(&vpath::dirname(link));
-                        fs.symlink_sync(&vpath::resolve(&fs.cwd(), &[Some(&document.file)]), link);
+                        fs.mkdirp_sync(&vpath::dirname(link))?;
+                        fs.symlink_sync(
+                            &vpath::resolve(&fs.cwd()?, &[Some(&document.file)]),
+                            link,
+                        )?;
                     }
                 }
             }
         }
         if let Some(files) = files {
-            fs.apply(&files);
+            fs.apply(&files)?;
         }
-        fs
+        Ok(fs)
     }
 
     pub struct Stats {
@@ -2367,7 +2381,7 @@ pub mod vfs {
     fn get_built_local(
         host: Gc<Box<dyn FileSystemResolverHost>>,
         ignore_case: bool,
-    ) -> Gc<FileSystem> {
+    ) -> io::Result<Gc<FileSystem>> {
         if !matches!(
             maybe_built_local_host().as_ref(),
             Some(built_local_host) if Gc::ptr_eq(
@@ -2438,20 +2452,20 @@ pub mod vfs {
                     )]))),
                     time: None,
                 }),
-            ))));
+            )?)));
             maybe_built_local_ci().unwrap().make_readonly();
         }
         if ignore_case {
-            return maybe_built_local_ci().unwrap();
+            return Ok(maybe_built_local_ci().unwrap());
         }
         if maybe_built_local_cs().is_none() {
             set_built_local_cs(Some(Gc::new(FileSystem::shadow(
                 maybe_built_local_ci().unwrap(),
                 Some(false),
-            ))));
+            )?)));
             maybe_built_local_cs().unwrap().make_readonly();
         }
-        maybe_built_local_cs().unwrap()
+        Ok(maybe_built_local_cs().unwrap())
     }
 
     fn normalize_file_set_entry(value: Option<&FileSetValue>) -> Option<Cow<'_, FileSetValue>> {

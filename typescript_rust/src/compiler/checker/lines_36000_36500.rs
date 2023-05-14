@@ -1,10 +1,11 @@
 use gc::Gc;
 use std::borrow::{Borrow, Cow};
 use std::collections::{HashMap, HashSet};
-use std::ptr;
 use std::rc::Rc;
+use std::{io, ptr};
 
 use super::{get_node_id, UnusedKind};
+use crate::try_for_each;
 use crate::{
     cast_present, create_diagnostic_for_node, create_file_diagnostic, first, for_each,
     get_class_extends_heritage_element, get_effective_jsdoc_host, get_effective_return_type_node,
@@ -20,7 +21,7 @@ use crate::{
     is_variable_declaration, last, node_is_missing, node_is_present, parameter_is_this_keyword,
     range_of_node, range_of_type_parameters, symbol_name, try_add_to_set, try_cast, CharacterCodes,
     Debug_, Diagnostic, Diagnostics, FunctionFlags, JSDocTagInterface, ModifierFlags,
-    NamedDeclarationInterface, Node, NodeFlags, NodeInterface, ScriptTarget,
+    NamedDeclarationInterface, Node, NodeFlags, NodeInterface, OptionTry, ScriptTarget,
     SignatureDeclarationInterface, SymbolFlags, SymbolInterface, SyntaxKind, TextRange,
     TypeChecker,
 };
@@ -140,9 +141,9 @@ impl TypeChecker {
     pub(super) fn check_function_or_method_declaration(
         &self,
         node: &Node, /*FunctionDeclaration | MethodDeclaration | MethodSignature*/
-    ) {
-        self.check_decorators(node);
-        self.check_signature_declaration(node);
+    ) -> io::Result<()> {
+        self.check_decorators(node)?;
+        self.check_signature_declaration(node)?;
         let function_flags = get_function_flags(Some(node));
 
         let node_as_signature_declaration = node.as_signature_declaration();
@@ -151,11 +152,11 @@ impl TypeChecker {
             .as_ref()
             .filter(|node_name| node_name.kind() == SyntaxKind::ComputedPropertyName)
         {
-            self.check_computed_property_name(node_name);
+            self.check_computed_property_name(node_name)?;
         }
 
-        if self.has_bindable_name(node) {
-            let symbol = self.get_symbol_of_node(node).unwrap();
+        if self.has_bindable_name(node)? {
+            let symbol = self.get_symbol_of_node(node)?.unwrap();
             let local_symbol = node.maybe_local_symbol().unwrap_or_else(|| symbol.clone());
 
             let first_declaration =
@@ -176,11 +177,11 @@ impl TypeChecker {
                 first_declaration.as_ref(),
                 Some(first_declaration) if ptr::eq(node, &**first_declaration)
             ) {
-                self.check_function_or_constructor_symbol(&local_symbol);
+                self.check_function_or_constructor_symbol(&local_symbol)?;
             }
 
             if symbol.maybe_parent().is_some() {
-                self.check_function_or_constructor_symbol(&symbol);
+                self.check_function_or_constructor_symbol(&symbol)?;
             }
         }
 
@@ -189,21 +190,21 @@ impl TypeChecker {
         } else {
             node.as_function_like_declaration().maybe_body()
         };
-        self.check_source_element(body.as_deref());
+        self.check_source_element(body.as_deref())?;
         self.check_all_code_paths_in_non_void_function_return_or_throw(
             node,
-            self.get_return_type_from_annotation(node),
-        );
+            self.get_return_type_from_annotation(node)?,
+        )?;
 
         if self.produce_diagnostics && get_effective_return_type_node(node).is_none() {
             if node_is_missing(body.as_deref()) && !self.is_private_within_ambient(node) {
-                self.report_implicit_any(node, &self.any_type(), None);
+                self.report_implicit_any(node, &self.any_type(), None)?;
             }
 
             if function_flags.intersects(FunctionFlags::Generator)
                 && node_is_present(body.as_deref())
             {
-                self.get_return_type_of_signature(self.get_signature_from_declaration_(node));
+                self.get_return_type_of_signature(self.get_signature_from_declaration_(node)?)?;
             }
         }
 
@@ -213,13 +214,14 @@ impl TypeChecker {
                 .as_ref()
                 .and_then(|type_tag| type_tag.as_jsdoc_type_like_tag().maybe_type_expression())
                 .as_ref()
-                .filter(|type_tag_type_expression| {
-                    self.get_contextual_call_signature(
-                        &self.get_type_from_type_node_(type_tag_type_expression),
-                        node,
-                    )
-                    .is_none()
-                })
+                .try_filter(|type_tag_type_expression| -> io::Result<_> {
+                    Ok(self
+                        .get_contextual_call_signature(
+                            &*self.get_type_from_type_node_(type_tag_type_expression)?,
+                            node,
+                        )?
+                        .is_none())
+                })?
             {
                 self.error(
                     Some(&*type_tag_type_expression.as_jsdoc_type_expression().type_),
@@ -228,6 +230,8 @@ impl TypeChecker {
                 );
             }
         }
+
+        Ok(())
     }
 
     pub(super) fn register_for_unused_identifiers_check(
@@ -244,18 +248,16 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn check_unused_identifiers<
-        TAddDiagnostic: FnMut(&Node, UnusedKind, Gc<Diagnostic>),
-    >(
+    pub(super) fn check_unused_identifiers(
         &self,
         potentially_unused_identifiers: &[Gc<Node /*PotentiallyUnusedIdentifier*/>],
-        mut add_diagnostic: TAddDiagnostic, /*AddUnusedDiagnostic*/
-    ) {
+        mut add_diagnostic: impl FnMut(&Node, UnusedKind, Gc<Diagnostic>), /*AddUnusedDiagnostic*/
+    ) -> io::Result<()> {
         for node in potentially_unused_identifiers {
             match node.kind() {
                 SyntaxKind::ClassDeclaration | SyntaxKind::ClassExpression => {
-                    self.check_unused_class_members(node, &mut add_diagnostic);
-                    self.check_unused_type_parameters(node, &mut add_diagnostic);
+                    self.check_unused_class_members(node, &mut add_diagnostic)?;
+                    self.check_unused_type_parameters(node, &mut add_diagnostic)?;
                 }
                 SyntaxKind::SourceFile
                 | SyntaxKind::ModuleDeclaration
@@ -276,7 +278,7 @@ impl TypeChecker {
                     if node.as_function_like_declaration().maybe_body().is_some() {
                         self.check_unused_locals_and_parameters(node, &mut add_diagnostic);
                     }
-                    self.check_unused_type_parameters(node, &mut add_diagnostic);
+                    self.check_unused_type_parameters(node, &mut add_diagnostic)?;
                 }
                 SyntaxKind::MethodSignature
                 | SyntaxKind::CallSignature
@@ -285,7 +287,7 @@ impl TypeChecker {
                 | SyntaxKind::ConstructorType
                 | SyntaxKind::TypeAliasDeclaration
                 | SyntaxKind::InterfaceDeclaration => {
-                    self.check_unused_type_parameters(node, &mut add_diagnostic);
+                    self.check_unused_type_parameters(node, &mut add_diagnostic)?;
                 }
                 SyntaxKind::InferType => {
                     self.check_unused_infer_type_parameter(node, &mut add_diagnostic);
@@ -296,6 +298,8 @@ impl TypeChecker {
                 ),
             }
         }
+
+        Ok(())
     }
 
     pub(super) fn error_unused_local<TAddDiagnostic: FnMut(&Node, UnusedKind, Gc<Diagnostic>)>(
@@ -322,13 +326,11 @@ impl TypeChecker {
         is_identifier(node) && id_text(node).chars().next() == Some(CharacterCodes::underscore)
     }
 
-    pub(super) fn check_unused_class_members<
-        TAddDiagnostic: FnMut(&Node, UnusedKind, Gc<Diagnostic>),
-    >(
+    pub(super) fn check_unused_class_members(
         &self,
         node: &Node, /*ClassDeclaration | ClassExpression*/
-        add_diagnostic: &mut TAddDiagnostic,
-    ) {
+        add_diagnostic: &mut impl FnMut(&Node, UnusedKind, Gc<Diagnostic>),
+    ) -> io::Result<()> {
         for member in &node.as_class_like_declaration().members() {
             match member.kind() {
                 SyntaxKind::MethodDeclaration
@@ -338,7 +340,7 @@ impl TypeChecker {
                     if !(member.kind() == SyntaxKind::SetAccessor
                         && member.symbol().flags().intersects(SymbolFlags::GetAccessor))
                     {
-                        let symbol = self.get_symbol_of_node(member).unwrap();
+                        let symbol = self.get_symbol_of_node(member)?.unwrap();
                         if match symbol.maybe_is_referenced() {
                             None => true,
                             Some(symbol_is_referenced) => symbol_is_referenced == SymbolFlags::None,
@@ -360,7 +362,7 @@ impl TypeChecker {
                                             None,
                                             None,
                                             None,
-                                        )]),
+                                        )?]),
                                     )
                                     .into(),
                                 ),
@@ -399,6 +401,8 @@ impl TypeChecker {
                 _ => Debug_.fail(Some("Unexpected class member")),
             }
         }
+
+        Ok(())
     }
 
     pub(super) fn check_unused_infer_type_parameter<
@@ -428,20 +432,18 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn check_unused_type_parameters<
-        TAddDiagnostic: FnMut(&Node, UnusedKind, Gc<Diagnostic>),
-    >(
+    pub(super) fn check_unused_type_parameters(
         &self,
         node: &Node, /*ClassLikeDeclaration | SignatureDeclaration | InterfaceDeclaration | TypeAliasDeclaration*/
-        add_diagnostic: &mut TAddDiagnostic,
-    ) {
-        let symbol = self.get_symbol_of_node(node).unwrap();
+        add_diagnostic: &mut impl FnMut(&Node, UnusedKind, Gc<Diagnostic>),
+    ) -> io::Result<()> {
+        let symbol = self.get_symbol_of_node(node)?.unwrap();
         let declarations = symbol.maybe_declarations();
         if match declarations.as_ref() {
             None => true,
             Some(declarations) => !ptr::eq(&**last(declarations), node),
         } {
-            return;
+            return Ok(());
         }
 
         let type_parameters = get_effective_type_parameter_declarations(node);
@@ -525,6 +527,8 @@ impl TypeChecker {
                 );
             }
         }
+
+        Ok(())
     }
 
     pub(super) fn is_type_parameter_unused(
@@ -933,27 +937,38 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn check_block(&self, node: &Node /*Block (actually | ModuleBlock)*/) {
+    pub(super) fn check_block(
+        &self,
+        node: &Node, /*Block (actually | ModuleBlock)*/
+    ) -> io::Result<()> {
         if node.kind() == SyntaxKind::Block {
             self.check_grammar_statement_in_ambient_context(node);
         }
         let node_as_has_statements = node.as_has_statements();
         if is_function_or_module_block(node) {
             let save_flow_analysis_disabled = self.flow_analysis_disabled();
-            for_each(&node_as_has_statements.statements(), |statement, _| {
-                self.check_source_element(Some(&**statement));
-                Option::<()>::None
-            });
+            try_for_each(
+                &node_as_has_statements.statements(),
+                |statement, _| -> io::Result<_> {
+                    self.check_source_element(Some(&**statement))?;
+                    Ok(Option::<()>::None)
+                },
+            )?;
             self.set_flow_analysis_disabled(save_flow_analysis_disabled);
         } else {
-            for_each(&node_as_has_statements.statements(), |statement, _| {
-                self.check_source_element(Some(&**statement));
-                Option::<()>::None
-            });
+            try_for_each(
+                &node_as_has_statements.statements(),
+                |statement, _| -> io::Result<_> {
+                    self.check_source_element(Some(&**statement))?;
+                    Ok(Option::<()>::None)
+                },
+            )?;
         }
         if node.maybe_locals().is_some() {
             self.register_for_unused_identifiers_check(node);
         }
+
+        Ok(())
     }
 
     pub(super) fn check_collision_with_arguments_in_generated_code(

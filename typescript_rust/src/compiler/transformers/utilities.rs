@@ -1,4 +1,4 @@
-use std::borrow::Borrow;
+use std::{borrow::Borrow, io};
 
 use gc::{Finalize, Gc, Trace};
 
@@ -64,6 +64,15 @@ pub fn add_prologue_directives_and_initial_super_call(
     _result: &mut Vec<Gc<Node /*Statement*/>>,
     _visitor: impl FnMut(&Node) -> VisitResult,
 ) -> usize {
+    unimplemented!()
+}
+
+pub fn try_add_prologue_directives_and_initial_super_call(
+    _factory: &NodeFactory<impl 'static + BaseNodeFactory + Trace + Finalize>,
+    _ctor: &Node, /*ConstructorDeclaration*/
+    _result: &mut Vec<Gc<Node /*Statement*/>>,
+    _visitor: impl FnMut(&Node) -> io::Result<VisitResult>,
+) -> io::Result<usize> {
     unimplemented!()
 }
 

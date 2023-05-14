@@ -1,26 +1,28 @@
 use gc::{Finalize, Gc, Trace};
 use itertools::Either;
-use std::borrow::Borrow;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::ptr;
 use std::rc::Rc;
+use std::{borrow::Borrow, io};
 
 use super::CheckTypeContainingMessageChain;
+use crate::try_for_each;
 use crate::{
-    __String, chain_diagnostic_messages, create_diagnostic_for_node_from_message_chain,
-    escape_leading_underscores, first, for_each, get_check_flags,
-    get_class_like_declaration_of_symbol, get_declaration_modifier_flags_from_symbol,
-    get_effective_base_type_node, get_name_of_declaration, get_text_of_property_name,
-    has_abstract_modifier, has_ambient_modifier, has_effective_modifier, has_override_modifier,
-    has_syntactic_modifier, is_binary_expression, is_constructor_declaration, is_identifier,
-    is_in_js_file, is_parameter_property_declaration, is_property_declaration, is_static, length,
-    maybe_filter, maybe_for_each, some, symbol_name, unescape_leading_underscores, CheckFlags,
-    Debug_, DiagnosticMessage, DiagnosticMessageChain, Diagnostics, GcHashMap,
-    HasInitializerInterface, InterfaceTypeInterface, Matches, MemberOverrideStatus, ModifierFlags,
-    NamedDeclarationInterface, Node, NodeFlags, NodeInterface, SignatureDeclarationInterface,
-    SignatureKind, Symbol, SymbolFlags, SymbolInterface, SyntaxKind, TransientSymbolInterface,
-    Type, TypeChecker, TypeInterface,
+    __String, chain_diagnostic_messages, continue_if_none,
+    create_diagnostic_for_node_from_message_chain, escape_leading_underscores, first, for_each,
+    get_check_flags, get_class_like_declaration_of_symbol,
+    get_declaration_modifier_flags_from_symbol, get_effective_base_type_node,
+    get_name_of_declaration, get_text_of_property_name, has_abstract_modifier,
+    has_ambient_modifier, has_effective_modifier, has_override_modifier, has_syntactic_modifier,
+    is_binary_expression, is_constructor_declaration, is_identifier, is_in_js_file,
+    is_parameter_property_declaration, is_property_declaration, is_static, length, maybe_filter,
+    maybe_for_each, some, symbol_name, unescape_leading_underscores, CheckFlags, Debug_,
+    DiagnosticMessage, DiagnosticMessageChain, Diagnostics, GcHashMap, HasInitializerInterface,
+    InterfaceTypeInterface, Matches, MemberOverrideStatus, ModifierFlags,
+    NamedDeclarationInterface, Node, NodeFlags, NodeInterface, OptionTry,
+    SignatureDeclarationInterface, SignatureKind, Symbol, SymbolFlags, SymbolInterface, SyntaxKind,
+    TransientSymbolInterface, Type, TypeChecker, TypeInterface,
 };
 
 impl TypeChecker {
@@ -30,24 +32,24 @@ impl TypeChecker {
         type_: &Type, /*InterfaceType*/
         type_with_this: &Type,
         static_type: &Type, /*ObjectType*/
-    ) {
+    ) -> io::Result<()> {
         let base_type_node = get_effective_base_type_node(node);
         let base_types = if base_type_node.is_some() {
-            Some(self.get_base_types(type_))
+            Some(self.get_base_types(type_)?)
         } else {
             None
         };
         let base_with_this = base_types
             .as_ref()
             .filter(|base_types| !base_types.is_empty())
-            .map(|base_types| {
+            .try_map(|base_types| {
                 self.get_type_with_this_argument(
                     &*first(base_types),
                     type_.as_interface_type().maybe_this_type(),
                     None,
                 )
-            });
-        let base_static_type = self.get_base_constructor_type_of_class(type_);
+            })?;
+        let base_static_type = self.get_base_constructor_type_of_class(type_)?;
 
         for member in &node.as_class_like_declaration().members() {
             if has_ambient_modifier(member) {
@@ -55,9 +57,9 @@ impl TypeChecker {
             }
 
             if is_constructor_declaration(member) {
-                for_each(
+                try_for_each(
                     &member.as_constructor_declaration().parameters(),
-                    |param: &Gc<Node>, _| -> Option<()> {
+                    |param: &Gc<Node>, _| -> io::Result<Option<()>> {
                         if is_parameter_property_declaration(param, member) {
                             self.check_existing_member_for_override_modifier(
                                 node,
@@ -69,11 +71,11 @@ impl TypeChecker {
                                 param,
                                 true,
                                 None,
-                            );
+                            )?;
                         }
-                        None
+                        Ok(None)
                     },
-                );
+                )?;
             }
             self.check_existing_member_for_override_modifier(
                 node,
@@ -85,31 +87,33 @@ impl TypeChecker {
                 member,
                 false,
                 None,
-            );
+            )?;
         }
+
+        Ok(())
     }
 
-    pub(super) fn check_existing_member_for_override_modifier<TBaseWithThis: Borrow<Type>>(
+    pub(super) fn check_existing_member_for_override_modifier(
         &self,
         node: &Node,        /*ClassLikeDeclaration*/
         static_type: &Type, /*ObjectType*/
         base_static_type: &Type,
-        base_with_this: Option<TBaseWithThis>,
+        base_with_this: Option<impl Borrow<Type>>,
         type_: &Type, /*InterfaceType*/
         type_with_this: &Type,
         member: &Node, /*ClassElement | ParameterPropertyDeclaration*/
         member_is_parameter_property: bool,
         report_errors: Option<bool>,
-    ) -> MemberOverrideStatus {
+    ) -> io::Result<MemberOverrideStatus> {
         let report_errors = report_errors.unwrap_or(true);
         let declared_prop =
             if let Some(member_name) = member.as_named_declaration().maybe_name().as_ref() {
-                self.get_symbol_at_location_(member_name, None)
+                self.get_symbol_at_location_(member_name, None)?
             } else {
-                self.get_symbol_at_location_(member, None)
+                self.get_symbol_at_location_(member, None)?
             };
         if declared_prop.is_none() {
-            return MemberOverrideStatus::Ok;
+            return Ok(MemberOverrideStatus::Ok);
         }
         let declared_prop = declared_prop.unwrap();
 
@@ -143,7 +147,7 @@ impl TypeChecker {
         member_is_parameter_property: bool,
         member_name: &str,
         error_node: Option<impl Borrow<Node>>,
-    ) -> MemberOverrideStatus {
+    ) -> io::Result<MemberOverrideStatus> {
         let is_js = is_in_js_file(Some(node));
         let node_in_ambient_context = node.flags().intersects(NodeFlags::Ambient);
         if let Some(base_with_this) = base_with_this.filter(|_| {
@@ -161,11 +165,11 @@ impl TypeChecker {
             } else {
                 base_with_this
             };
-            let prop = self.get_property_of_type_(this_type, &member_escaped_name, None);
-            let base_prop = self.get_property_of_type_(base_type, &member_escaped_name, None);
+            let prop = self.get_property_of_type_(this_type, &member_escaped_name, None)?;
+            let base_prop = self.get_property_of_type_(base_type, &member_escaped_name, None)?;
 
             let base_class_name =
-                self.type_to_string_(base_with_this, Option::<&Node>::None, None, None);
+                self.type_to_string_(base_with_this, Option::<&Node>::None, None, None)?;
             if prop
                 .as_ref()
                 .matches(|_| base_prop.is_none() && member_has_override_modifier)
@@ -187,7 +191,7 @@ impl TypeChecker {
                     Some(|declaration: &Gc<Node>| has_abstract_modifier(declaration)),
                 );
                 if member_has_override_modifier {
-                    return MemberOverrideStatus::Ok;
+                    return Ok(MemberOverrideStatus::Ok);
                 }
 
                 if !base_has_abstract {
@@ -207,7 +211,7 @@ impl TypeChecker {
                         };
                         self.error(error_node, diag, Some(vec![base_class_name]));
                     }
-                    return MemberOverrideStatus::NeedsOverride;
+                    return Ok(MemberOverrideStatus::NeedsOverride);
                 } else if member_has_abstract_modifier && base_has_abstract {
                     if error_node.is_some() {
                         self.error(
@@ -218,12 +222,12 @@ impl TypeChecker {
                             ])
                         );
                     }
-                    return MemberOverrideStatus::NeedsOverride;
+                    return Ok(MemberOverrideStatus::NeedsOverride);
                 }
             }
         } else if member_has_override_modifier {
             if error_node.is_some() {
-                let class_name = self.type_to_string_(type_, Option::<&Node>::None, None, None);
+                let class_name = self.type_to_string_(type_, Option::<&Node>::None, None, None)?;
                 self.error(
                     error_node,
                     if is_js {
@@ -236,10 +240,10 @@ impl TypeChecker {
                     ])
                 );
             }
-            return MemberOverrideStatus::HasInvalidOverride;
+            return Ok(MemberOverrideStatus::HasInvalidOverride);
         }
 
-        MemberOverrideStatus::Ok
+        Ok(MemberOverrideStatus::Ok)
     }
 
     pub(super) fn issue_member_specific_error(
@@ -248,7 +252,7 @@ impl TypeChecker {
         type_with_this: &Type,
         base_with_this: &Type,
         broad_diag: &'static DiagnosticMessage,
-    ) {
+    ) -> io::Result<()> {
         let mut issued_member_error = false;
         let node_as_class_like_declaration = node.as_class_like_declaration();
         for member in &node_as_class_like_declaration.members() {
@@ -259,17 +263,17 @@ impl TypeChecker {
             let declared_prop = member_as_named_declaration
                 .maybe_name()
                 .as_ref()
-                .and_then(|member_name| self.get_symbol_at_location_(member_name, None))
-                .or_else(|| self.get_symbol_at_location_(member, None));
+                .try_and_then(|member_name| self.get_symbol_at_location_(member_name, None))?
+                .try_or_else(|| self.get_symbol_at_location_(member, None))?;
             if let Some(declared_prop) = declared_prop.as_ref() {
                 let prop =
-                    self.get_property_of_type_(type_with_this, declared_prop.escaped_name(), None);
+                    self.get_property_of_type_(type_with_this, declared_prop.escaped_name(), None)?;
                 let base_prop =
-                    self.get_property_of_type_(base_with_this, declared_prop.escaped_name(), None);
+                    self.get_property_of_type_(base_with_this, declared_prop.escaped_name(), None)?;
                 if let (Some(prop), Some(base_prop)) = (prop.as_ref(), base_prop.as_ref()) {
                     if !self.check_type_assignable_to(
-                        &self.get_type_of_symbol(prop),
-                        &self.get_type_of_symbol(base_prop),
+                        &*self.get_type_of_symbol(prop)?,
+                        &*self.get_type_of_symbol(base_prop)?,
                         Some(
                             member_as_named_declaration
                                 .maybe_name()
@@ -285,7 +289,7 @@ impl TypeChecker {
                             ),
                         ))),
                         None,
-                    ) {
+                    )? {
                         issued_member_error = true;
                     }
                 }
@@ -303,16 +307,18 @@ impl TypeChecker {
                 Some(broad_diag),
                 None,
                 None,
-            );
+            )?;
         }
+
+        Ok(())
     }
 
     pub(super) fn check_base_type_accessibility(
         &self,
         type_: &Type,
         node: &Node, /*ExpressionWithTypeArguments*/
-    ) {
-        let signatures = self.get_signatures_of_type(type_, SignatureKind::Construct);
+    ) -> io::Result<()> {
+        let signatures = self.get_signatures_of_type(type_, SignatureKind::Construct)?;
         if !signatures.is_empty() {
             let declaration = signatures[0].declaration.as_ref();
             if matches!(
@@ -329,47 +335,50 @@ impl TypeChecker {
                             self.get_fully_qualified_name(
                                 &type_.symbol(),
                                 Option::<&Node>::None
-                            )
+                            )?
                         ])
                     );
                 }
             }
         }
+
+        Ok(())
     }
 
     pub fn get_member_override_modifier_status(
         &self,
         node: &Node,   /*ClassLikeDeclaration*/
         member: &Node, /*ClassElement*/
-    ) -> MemberOverrideStatus {
+    ) -> io::Result<MemberOverrideStatus> {
         let member_name = member.as_named_declaration().maybe_name();
         if member_name.is_none() {
-            return MemberOverrideStatus::Ok;
+            return Ok(MemberOverrideStatus::Ok);
         }
         let member_name = member_name.unwrap();
 
-        let symbol = self.get_symbol_of_node(node).unwrap();
-        let type_ = self.get_declared_type_of_symbol(&symbol);
-        let type_with_this = self.get_type_with_this_argument(&type_, Option::<&Type>::None, None);
-        let static_type = self.get_type_of_symbol(&symbol);
+        let symbol = self.get_symbol_of_node(node)?.unwrap();
+        let type_ = self.get_declared_type_of_symbol(&symbol)?;
+        let type_with_this =
+            self.get_type_with_this_argument(&type_, Option::<&Type>::None, None)?;
+        let static_type = self.get_type_of_symbol(&symbol)?;
 
         let base_type_node = get_effective_base_type_node(node);
         let base_types = if base_type_node.is_some() {
-            Some(self.get_base_types(&type_))
+            Some(self.get_base_types(&type_)?)
         } else {
             None
         };
         let base_with_this = base_types
             .as_ref()
             .filter(|base_types| !base_types.is_empty())
-            .map(|base_types| {
+            .try_map(|base_types| {
                 self.get_type_with_this_argument(
                     &*first(base_types),
                     type_.as_interface_type().maybe_this_type(),
                     None,
                 )
-            });
-        let base_static_type = self.get_base_constructor_type_of_class(&type_);
+            })?;
+        let base_static_type = self.get_base_constructor_type_of_class(&type_)?;
 
         let member_has_override_modifier = if member.maybe_parent().is_some() {
             has_override_modifier(member)
@@ -424,19 +433,16 @@ impl TypeChecker {
         &self,
         type_: &Type,     /*InterfaceType*/
         base_type: &Type, /*BaseType*/
-    ) {
-        let base_properties = self.get_properties_of_type(base_type);
+    ) -> io::Result<()> {
+        let base_properties = self.get_properties_of_type(base_type)?;
         'base_property_check: for ref base_property in base_properties {
             let base = self.get_target_symbol(base_property);
 
             if base.flags().intersects(SymbolFlags::Prototype) {
                 continue;
             }
-            let base_symbol = self.get_property_of_object_type(type_, base.escaped_name());
-            if base_symbol.is_none() {
-                continue;
-            }
-            let base_symbol = base_symbol.unwrap();
+            let base_symbol =
+                continue_if_none!(self.get_property_of_object_type(type_, base.escaped_name())?);
             let derived = self.get_target_symbol(&base_symbol);
             let base_declaration_flags = get_declaration_modifier_flags_from_symbol(&base, None);
 
@@ -448,12 +454,12 @@ impl TypeChecker {
 
                 if base_declaration_flags.intersects(ModifierFlags::Abstract) && /* !derivedClassDecl ||*/ !has_syntactic_modifier(&derived_class_decl, ModifierFlags::Abstract)
                 {
-                    for other_base_type in &self.get_base_types(type_) {
+                    for other_base_type in &self.get_base_types(type_)? {
                         if ptr::eq(&**other_base_type, base_type) {
                             continue;
                         }
                         let base_symbol =
-                            self.get_property_of_object_type(other_base_type, base.escaped_name());
+                            self.get_property_of_object_type(other_base_type, base.escaped_name())?;
                         let derived_elsewhere = base_symbol
                             .as_ref()
                             .map(|base_symbol| self.get_target_symbol(base_symbol));
@@ -474,12 +480,12 @@ impl TypeChecker {
                                     base_property,
                                     Option::<&Node>::None,
                                     None, None, None
-                                ),
+                                )?,
                                 self.type_to_string_(
                                     base_type,
                                     Option::<&Node>::None,
                                     None, None,
-                                ),
+                                )?,
                             ])
                         );
                     } else {
@@ -491,17 +497,17 @@ impl TypeChecker {
                                     type_,
                                     Option::<&Node>::None,
                                     None, None,
-                                ),
+                                )?,
                                 self.symbol_to_string_(
                                     base_property,
                                     Option::<&Node>::None,
                                     None, None, None
-                                ),
+                                )?,
                                 self.type_to_string_(
                                     base_type,
                                     Option::<&Node>::None,
                                     None, None,
-                                ),
+                                )?,
                             ])
                         );
                     }
@@ -560,9 +566,9 @@ impl TypeChecker {
                                     None,
                                     None,
                                     None,
-                                ),
-                                self.type_to_string_(base_type, Option::<&Node>::None, None, None),
-                                self.type_to_string_(type_, Option::<&Node>::None, None, None),
+                                )?,
+                                self.type_to_string_(base_type, Option::<&Node>::None, None, None)?,
+                                self.type_to_string_(type_, Option::<&Node>::None, None, None)?,
                             ]),
                         );
                     } else if self.use_define_for_class_fields {
@@ -604,7 +610,7 @@ impl TypeChecker {
                                         &prop_name,
                                         type_,
                                         constructor.as_ref().unwrap(),
-                                    )
+                                    )?
                                 {
                                     let error_message = &Diagnostics::Property_0_will_overwrite_the_base_property_in_1_If_this_is_intentional_add_an_initializer_Otherwise_add_a_declare_modifier_or_remove_the_redundant_declaration;
                                     self.error(
@@ -618,13 +624,13 @@ impl TypeChecker {
                                                 None,
                                                 None,
                                                 None,
-                                            ),
+                                            )?,
                                             self.type_to_string_(
                                                 &base_type,
                                                 Option::<&Node>::None,
                                                 None,
                                                 None,
-                                            ),
+                                            )?,
                                         ]),
                                     );
                                 }
@@ -653,13 +659,15 @@ impl TypeChecker {
                         .or_else(|| derived.maybe_value_declaration()),
                     error_message,
                     Some(vec![
-                        self.type_to_string_(base_type, Option::<&Node>::None, None, None),
-                        self.symbol_to_string_(&base, Option::<&Node>::None, None, None, None),
-                        self.type_to_string_(type_, Option::<&Node>::None, None, None),
+                        self.type_to_string_(base_type, Option::<&Node>::None, None, None)?,
+                        self.symbol_to_string_(&base, Option::<&Node>::None, None, None, None)?,
+                        self.type_to_string_(type_, Option::<&Node>::None, None, None)?,
                     ]),
                 );
             }
         }
+
+        Ok(())
     }
 
     pub(super) fn get_non_interhited_properties<TProperties, TPropertiesItem>(
@@ -667,7 +675,7 @@ impl TypeChecker {
         type_: &Type, /*InterfaceType*/
         base_types: &[Gc<Type /*BaseType*/>],
         properties: TProperties,
-    ) -> impl Iterator<Item = Gc<Symbol>> + Clone
+    ) -> io::Result<impl Iterator<Item = Gc<Symbol>> + Clone>
     where
         TProperties: IntoIterator<Item = TPropertiesItem> + Clone,
         TPropertiesItem: Borrow<Gc<Symbol>>,
@@ -675,7 +683,9 @@ impl TypeChecker {
     {
         let properties = properties.into_iter();
         if length(Some(base_types)) == 0 {
-            return Either::Left(properties.map(|property| property.borrow().clone()));
+            return Ok(Either::Left(
+                properties.map(|property| property.borrow().clone()),
+            ));
         }
         let mut seen: HashMap<__String, Gc<Symbol>> = Default::default();
         for_each(properties, |p, _| -> Option<()> {
@@ -686,11 +696,11 @@ impl TypeChecker {
 
         let type_as_interface_type = type_.as_interface_type();
         for base in base_types {
-            let properties = self.get_properties_of_type(&self.get_type_with_this_argument(
+            let properties = self.get_properties_of_type(&*self.get_type_with_this_argument(
                 base,
                 type_as_interface_type.maybe_this_type(),
                 None,
-            ));
+            )?)?;
             for ref prop in properties {
                 let existing = seen.get(prop.escaped_name());
                 if matches!(
@@ -698,29 +708,29 @@ impl TypeChecker {
                     Some(existing) if !self.is_property_identical_to(
                         existing,
                         prop
-                    )
+                    )?
                 ) {
                     seen.remove(prop.escaped_name());
                 }
             }
         }
 
-        Either::Right(GcHashMap::from(seen).owned_values())
+        Ok(Either::Right(GcHashMap::from(seen).owned_values()))
     }
 
     pub(super) fn check_inherited_properties_are_identical(
         &self,
         type_: &Type, /*InterfaceType*/
         type_node: &Node,
-    ) -> bool {
-        let base_types = self.get_base_types(type_);
+    ) -> io::Result<bool> {
+        let base_types = self.get_base_types(type_)?;
         if base_types.len() < 2 {
-            return true;
+            return Ok(true);
         }
 
         let mut seen: HashMap<__String, InheritanceInfoMap> = HashMap::new();
         maybe_for_each(
-            self.resolve_declared_members(type_)
+            self.resolve_declared_members(type_)?
                 .as_interface_type_with_declared_members()
                 .maybe_declared_properties()
                 .as_ref(),
@@ -739,11 +749,11 @@ impl TypeChecker {
 
         let type_as_interface_type = type_.as_interface_type();
         for base in &base_types {
-            let properties = self.get_properties_of_type(&self.get_type_with_this_argument(
+            let properties = self.get_properties_of_type(&*self.get_type_with_this_argument(
                 base,
                 type_as_interface_type.maybe_this_type(),
                 None,
-            ));
+            )?)?;
             for ref prop in properties {
                 let existing = seen.get(prop.escaped_name());
                 match existing {
@@ -759,7 +769,7 @@ impl TypeChecker {
                     Some(existing) => {
                         let is_inherited_property = !ptr::eq(&*existing.containing_type, type_);
                         if is_inherited_property
-                            && !self.is_property_identical_to(&existing.prop, prop)
+                            && !self.is_property_identical_to(&existing.prop, prop)?
                         {
                             ok = false;
 
@@ -768,9 +778,9 @@ impl TypeChecker {
                                 Option::<&Node>::None,
                                 None,
                                 None,
-                            );
+                            )?;
                             let type_name2 =
-                                self.type_to_string_(base, Option::<&Node>::None, None, None);
+                                self.type_to_string_(base, Option::<&Node>::None, None, None)?;
 
                             let mut error_info = chain_diagnostic_messages(
                                 None,
@@ -782,7 +792,7 @@ impl TypeChecker {
                                         None,
                                         None,
                                         None,
-                                    ),
+                                    )?,
                                     type_name1.clone(),
                                     type_name2.clone(),
                                 ]),
@@ -795,7 +805,7 @@ impl TypeChecker {
                                         type_,
                                         Option::<&Node>::None,
                                         None, None,
-                                    ),
+                                    )?,
                                     type_name1,
                                     type_name2,
                                 ])
@@ -812,7 +822,7 @@ impl TypeChecker {
             }
         }
 
-        ok
+        Ok(ok)
     }
 }
 
@@ -841,8 +851,8 @@ impl IssueMemberSpecificErrorContainingMessageChain {
 }
 
 impl CheckTypeContainingMessageChain for IssueMemberSpecificErrorContainingMessageChain {
-    fn get(&self) -> Option<Rc<RefCell<DiagnosticMessageChain>>> {
-        Some(Rc::new(RefCell::new(
+    fn get(&self) -> io::Result<Option<Rc<RefCell<DiagnosticMessageChain>>>> {
+        Ok(Some(Rc::new(RefCell::new(
             chain_diagnostic_messages(
                 None,
                 &Diagnostics::Property_0_in_type_1_is_not_assignable_to_the_same_property_in_base_type_2,
@@ -851,20 +861,20 @@ impl CheckTypeContainingMessageChain for IssueMemberSpecificErrorContainingMessa
                         &self.declared_prop,
                         Option::<&Node>::None,
                         None, None, None,
-                    ),
+                    )?,
                     self.type_checker.type_to_string_(
                         &self.type_with_this,
                         Option::<&Node>::None,
                         None, None,
-                    ),
+                    )?,
                     self.type_checker.type_to_string_(
                         &self.base_with_this,
                         Option::<&Node>::None,
                         None, None,
-                    ),
+                    )?,
                 ])
             )
-        )))
+        ))))
     }
 }
 

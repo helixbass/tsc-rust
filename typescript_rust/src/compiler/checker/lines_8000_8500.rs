@@ -3,107 +3,111 @@ use std::borrow::{Borrow, Cow};
 use std::cell::RefCell;
 use std::collections::HashSet;
 use std::convert::{TryFrom, TryInto};
-use std::ptr;
+use std::{io, ptr};
 
 use super::{get_symbol_id, NodeBuilderContext, TypeFacts};
 use crate::{
     are_option_gcs_equal, create_printer, create_symbol_table, declaration_name_to_string,
     escape_string, factory, find_ancestor, first_defined, get_check_flags,
     get_combined_modifier_flags, get_declaration_modifier_flags_from_symbol,
-    get_emit_script_target, get_first_identifier, get_name_of_declaration, get_root_declaration,
-    has_effective_modifier, is_ambient_module, is_bindable_object_define_property_call,
-    is_binding_pattern, is_call_expression, is_computed_property_name,
-    is_external_module_augmentation, is_identifier_text,
+    get_emit_script_target, get_factory, get_first_identifier, get_name_of_declaration,
+    get_root_declaration, has_effective_modifier, is_ambient_module,
+    is_bindable_object_define_property_call, is_binding_pattern, is_call_expression,
+    is_computed_property_name, is_external_module_augmentation, is_identifier_text,
     is_internal_module_import_equals_declaration, is_left_hand_side_expression, is_source_file,
     map, maybe_for_each, maybe_get_source_file_of_node, parse_base_node_factory,
-    parse_node_factory, push_if_unique_gc, set_parent, set_text_range, starts_with, symbol_name,
-    try_add_to_set, using_single_line_string_writer, walk_up_parenthesized_types, CharacterCodes,
-    CheckFlags, EmitHint, EmitTextWriter, InterfaceTypeInterface, InternalSymbolName, LiteralType,
-    ModifierFlags, NamedDeclarationInterface, Node, NodeArray, NodeBuilderFlags, NodeFlags,
-    NodeInterface, ObjectFlags, ObjectFlagsTypeInterface, PrinterOptionsBuilder, Symbol,
-    SymbolFlags, SymbolId, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags,
-    TypeFormatFlags, TypeInterface, TypePredicate, TypePredicateKind, TypeReferenceInterface,
-    TypeSystemEntity, TypeSystemPropertyName, UnionOrIntersectionTypeInterface,
+    parse_node_factory, push_if_unique_gc, return_ok_default_if_none, return_ok_none_if_none,
+    set_parent, set_text_range, starts_with, symbol_name, try_add_to_set, try_map,
+    try_maybe_for_each, try_using_single_line_string_writer, using_single_line_string_writer,
+    walk_up_parenthesized_types, CharacterCodes, CheckFlags, EmitHint, EmitTextWriter,
+    InterfaceTypeInterface, InternalSymbolName, LiteralType, ModifierFlags,
+    NamedDeclarationInterface, Node, NodeArray, NodeBuilderFlags, NodeFlags, NodeInterface,
+    ObjectFlags, ObjectFlagsTypeInterface, OptionTry, PrinterOptionsBuilder, Symbol, SymbolFlags,
+    SymbolId, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeFormatFlags,
+    TypeInterface, TypePredicate, TypePredicateKind, TypeReferenceInterface, TypeSystemEntity,
+    TypeSystemPropertyName, UnionOrIntersectionTypeInterface,
 };
 
 impl TypeChecker {
-    pub fn type_predicate_to_string_<TEnclosingDeclaration: Borrow<Node>>(
+    pub fn type_predicate_to_string_(
         &self,
         type_predicate: &TypePredicate,
-        enclosing_declaration: Option<TEnclosingDeclaration>,
+        enclosing_declaration: Option<impl Borrow<Node>>,
         flags: Option<TypeFormatFlags>,
         writer: Option<Gc<Box<dyn EmitTextWriter>>>,
-    ) -> String {
+    ) -> io::Result<String> {
         let flags = flags.unwrap_or(TypeFormatFlags::UseAliasDefinedOutsideCurrentScope);
-        if let Some(writer) = writer {
+        Ok(if let Some(writer) = writer {
             self.type_predicate_to_string_worker(
                 type_predicate,
                 enclosing_declaration,
                 flags,
                 writer.clone(),
-            );
+            )?;
             writer.get_text()
         } else {
-            using_single_line_string_writer(|writer| {
+            try_using_single_line_string_writer(|writer| {
                 self.type_predicate_to_string_worker(
                     type_predicate,
                     enclosing_declaration,
                     flags,
                     writer,
                 )
-            })
-        }
+            })?
+        })
     }
 
-    pub(super) fn type_predicate_to_string_worker<TEnclosingDeclaration: Borrow<Node>>(
+    pub(super) fn type_predicate_to_string_worker(
         &self,
         type_predicate: &TypePredicate,
-        enclosing_declaration: Option<TEnclosingDeclaration>,
+        enclosing_declaration: Option<impl Borrow<Node>>,
         flags: TypeFormatFlags,
         writer: Gc<Box<dyn EmitTextWriter>>,
-    ) {
+    ) -> io::Result<()> {
         let enclosing_declaration = enclosing_declaration
             .map(|enclosing_declaration| enclosing_declaration.borrow().node_wrapper());
-        let predicate = factory.with(|factory_| {
-            factory_
-                .create_type_predicate_node(
-                    if matches!(
-                        type_predicate.kind,
-                        TypePredicateKind::AssertsThis | TypePredicateKind::AssertsIdentifier
-                    ) {
-                        Some(factory_.create_token(SyntaxKind::AssertsKeyword).wrap())
-                    } else {
-                        None
-                    },
-                    if matches!(
-                        type_predicate.kind,
-                        TypePredicateKind::Identifier | TypePredicateKind::AssertsIdentifier
-                    ) {
-                        factory_
-                            .create_identifier(
-                                type_predicate.parameter_name.as_ref().unwrap(),
-                                Option::<Gc<NodeArray>>::None,
-                                None,
-                            )
-                            .wrap()
-                    } else {
-                        factory_.create_this_type_node().wrap()
-                    },
-                    type_predicate.type_.as_ref().and_then(|type_| {
-                        self.node_builder().type_to_type_node(
-                            type_,
-                            enclosing_declaration.as_deref(),
-                            Some(
-                                self.to_node_builder_flags(Some(flags))
-                                    | NodeBuilderFlags::IgnoreErrors
-                                    | NodeBuilderFlags::WriteTypeParametersInQualifiedName,
-                            ),
+        let predicate = get_factory()
+            .create_type_predicate_node(
+                if matches!(
+                    type_predicate.kind,
+                    TypePredicateKind::AssertsThis | TypePredicateKind::AssertsIdentifier
+                ) {
+                    Some(
+                        get_factory()
+                            .create_token(SyntaxKind::AssertsKeyword)
+                            .wrap(),
+                    )
+                } else {
+                    None
+                },
+                if matches!(
+                    type_predicate.kind,
+                    TypePredicateKind::Identifier | TypePredicateKind::AssertsIdentifier
+                ) {
+                    get_factory()
+                        .create_identifier(
+                            type_predicate.parameter_name.as_ref().unwrap(),
+                            Option::<Gc<NodeArray>>::None,
                             None,
                         )
-                    }),
-                )
-                .wrap()
-        });
+                        .wrap()
+                } else {
+                    get_factory().create_this_type_node().wrap()
+                },
+                type_predicate.type_.as_ref().try_and_then(|type_| {
+                    self.node_builder().type_to_type_node(
+                        type_,
+                        enclosing_declaration.as_deref(),
+                        Some(
+                            self.to_node_builder_flags(Some(flags))
+                                | NodeBuilderFlags::IgnoreErrors
+                                | NodeBuilderFlags::WriteTypeParametersInQualifiedName,
+                        ),
+                        None,
+                    )
+                })?,
+            )
+            .wrap();
         let printer = create_printer(
             PrinterOptionsBuilder::default()
                 .remove_comments(Some(true))
@@ -123,9 +127,11 @@ impl TypeChecker {
             writer,
         );
         // return writer;
+
+        Ok(())
     }
 
-    pub(super) fn format_union_types(&self, types: &[Gc<Type>]) -> Vec<Gc<Type>> {
+    pub(super) fn format_union_types(&self, types: &[Gc<Type>]) -> io::Result<Vec<Gc<Type>>> {
         let mut result: Vec<Gc<Type>> = vec![];
         let mut flags: TypeFlags = TypeFlags::None;
         let mut i = 0;
@@ -139,7 +145,7 @@ impl TypeChecker {
                     let base_type = if t.flags().intersects(TypeFlags::BooleanLiteral) {
                         self.boolean_type()
                     } else {
-                        self.get_base_type_of_enum_literal_type(t)
+                        self.get_base_type_of_enum_literal_type(t)?
                     };
                     if base_type.flags().intersects(TypeFlags::Union) {
                         let base_type_as_union_type = base_type.as_union_type();
@@ -168,7 +174,7 @@ impl TypeChecker {
         if flags.intersects(TypeFlags::Undefined) {
             result.push(self.undefined_type());
         }
-        result /*|| types*/
+        Ok(result) /*|| types*/
     }
 
     pub(super) fn visibility_to_string(&self, flags: ModifierFlags) -> &'static str /*>*/ {
@@ -181,7 +187,10 @@ impl TypeChecker {
         "public"
     }
 
-    pub(super) fn get_type_alias_for_type_literal(&self, type_: &Type) -> Option<Gc<Symbol>> {
+    pub(super) fn get_type_alias_for_type_literal(
+        &self,
+        type_: &Type,
+    ) -> io::Result<Option<Gc<Symbol>>> {
         if let Some(type_symbol) = type_.maybe_symbol() {
             if type_symbol.flags().intersects(SymbolFlags::TypeLiteral) {
                 if let Some(type_symbol_declarations) = type_symbol.maybe_declarations().as_deref()
@@ -194,7 +203,7 @@ impl TypeChecker {
                 }
             }
         }
-        None
+        Ok(None)
     }
 
     pub(super) fn is_top_level_in_external_module_augmentation(&self, node: &Node) -> bool {
@@ -467,7 +476,7 @@ impl TypeChecker {
         &self,
         node: &Node, /*Identifier*/
         set_visibility: Option<bool>,
-    ) -> Option<Vec<Gc<Node>>> {
+    ) -> io::Result<Option<Vec<Gc<Node>>>> {
         let mut export_symbol: Option<Gc<Symbol>> = None;
         if
         /*node.parent &&*/
@@ -483,7 +492,7 @@ impl TypeChecker {
                 Some(node.node_wrapper()),
                 false,
                 None,
-            );
+            )?;
         } else if node.parent().kind() == SyntaxKind::ExportSpecifier {
             export_symbol = self.get_target_of_export_specifier(
                 &node.parent(),
@@ -492,7 +501,7 @@ impl TypeChecker {
                     | SymbolFlags::Namespace
                     | SymbolFlags::Alias,
                 None,
-            );
+            )?;
         }
         let result: RefCell<Option<Vec<Gc<Node>>>> = RefCell::new(None);
         if let Some(export_symbol) = export_symbol {
@@ -503,9 +512,9 @@ impl TypeChecker {
                 &result,
                 &mut visited,
                 export_symbol.maybe_declarations().as_deref(),
-            );
+            )?;
         }
-        result.into_inner()
+        Ok(result.into_inner())
     }
 
     pub(super) fn build_visible_node_list(
@@ -514,8 +523,8 @@ impl TypeChecker {
         result: &RefCell<Option<Vec<Gc<Node>>>>,
         visited: &mut HashSet<SymbolId>,
         declarations: Option<&[Gc<Node /*Declaration*/>]>,
-    ) {
-        maybe_for_each(declarations, |declaration: &Gc<Node>, _| {
+    ) -> io::Result<()> {
+        try_maybe_for_each(declarations, |declaration: &Gc<Node>, _| -> io::Result<_> {
             let result_node = self
                 .get_any_import_syntax(declaration)
                 .unwrap_or_else(|| declaration.node_wrapper());
@@ -541,7 +550,7 @@ impl TypeChecker {
                     Option::<Gc<Node>>::None,
                     false,
                     None,
-                );
+                )?;
                 if let Some(import_symbol) = import_symbol
                 /*&& visited*/
                 {
@@ -551,12 +560,14 @@ impl TypeChecker {
                             result,
                             visited,
                             import_symbol.maybe_declarations().as_deref(),
-                        );
+                        )?;
                     }
                 }
             }
-            Option::<()>::None
-        });
+            Ok(Option::<()>::None)
+        })?;
+
+        Ok(())
     }
 
     pub(super) fn push_type_resolution(
@@ -673,46 +684,53 @@ impl TypeChecker {
         .parent()
     }
 
-    pub(super) fn get_type_of_prototype_property(&self, prototype: &Symbol) -> Gc<Type> {
+    pub(super) fn get_type_of_prototype_property(
+        &self,
+        prototype: &Symbol,
+    ) -> io::Result<Gc<Type>> {
         let class_type =
-            self.get_declared_type_of_symbol(&self.get_parent_of_symbol(prototype).unwrap());
-        if let Some(class_type_type_parameters) = class_type
-            .as_interface_type()
-            .maybe_type_parameters()
-            .as_deref()
-        {
-            self.create_type_reference(
-                &class_type,
-                Some(map(class_type_type_parameters, |_, _| self.any_type())),
-            )
-        } else {
-            class_type
-        }
+            self.get_declared_type_of_symbol(&self.get_parent_of_symbol(prototype)?.unwrap())?;
+        Ok(
+            if let Some(class_type_type_parameters) = class_type
+                .as_interface_type()
+                .maybe_type_parameters()
+                .as_deref()
+            {
+                self.create_type_reference(
+                    &class_type,
+                    Some(map(class_type_type_parameters, |_, _| self.any_type())),
+                )
+            } else {
+                class_type
+            },
+        )
     }
 
     pub(super) fn get_type_of_property_of_type_(
         &self,
         type_: &Type,
         name: &str, /*__String*/
-    ) -> Option<Gc<Type>> {
-        let prop = self.get_property_of_type_(type_, name, None)?;
-        Some(self.get_type_of_symbol(&prop))
+    ) -> io::Result<Option<Gc<Type>>> {
+        let prop = return_ok_none_if_none!(self.get_property_of_type_(type_, name, None)?);
+        Ok(Some(self.get_type_of_symbol(&prop)?))
     }
 
     pub(super) fn get_type_of_property_or_index_signature(
         &self,
         type_: &Type,
         name: &str, /*__String*/
-    ) -> Gc<Type> {
-        self.get_type_of_property_of_type_(type_, name)
-            .or_else(|| {
-                self.get_applicable_index_info_for_name(type_, name)
-                    .map(|index_info| index_info.type_.clone())
-            })
-            .unwrap_or_else(|| self.unknown_type())
+    ) -> io::Result<Gc<Type>> {
+        Ok(self
+            .get_type_of_property_of_type_(type_, name)?
+            .try_or_else(|| -> io::Result<_> {
+                Ok(self
+                    .get_applicable_index_info_for_name(type_, name)?
+                    .map(|index_info| index_info.type_.clone()))
+            })?
+            .unwrap_or_else(|| self.unknown_type()))
     }
 
-    pub(super) fn is_type_any<TType: Borrow<Type>>(&self, type_: Option<TType>) -> bool {
+    pub(super) fn is_type_any(&self, type_: Option<impl Borrow<Type>>) -> bool {
         match type_ {
             Some(type_) => {
                 let type_ = type_.borrow();
@@ -730,51 +748,57 @@ impl TypeChecker {
     pub(super) fn get_type_for_binding_element_parent(
         &self,
         node: &Node, /*BindingElementGrandparent*/
-    ) -> Option<Gc<Type>> {
-        let symbol = self.get_symbol_of_node(node);
+    ) -> io::Result<Option<Gc<Type>>> {
+        let symbol = self.get_symbol_of_node(node)?;
         symbol
             .as_ref()
             .and_then(|symbol| (*self.get_symbol_links(symbol)).borrow().type_.clone())
-            .or_else(|| self.get_type_for_variable_like_declaration(node, false))
+            .try_or_else(|| self.get_type_for_variable_like_declaration(node, false))
     }
 
-    pub(super) fn get_rest_type<TSymbol: Borrow<Symbol>>(
+    pub(super) fn get_rest_type(
         &self,
         source: &Type,
         properties: &[Gc<Node /*PropertyName*/>],
-        symbol: Option<TSymbol>,
-    ) -> Gc<Type> {
+        symbol: Option<impl Borrow<Symbol>>,
+    ) -> io::Result<Gc<Type>> {
         let source = self.filter_type(source, |t| !t.flags().intersects(TypeFlags::Nullable));
         if source.flags().intersects(TypeFlags::Never) {
-            return self.empty_object_type();
+            return Ok(self.empty_object_type());
         }
         let symbol = symbol.map(|symbol| symbol.borrow().symbol_wrapper());
         if source.flags().intersects(TypeFlags::Union) {
-            return self
-                .map_type(
+            return Ok(self
+                .try_map_type(
                     &source,
-                    &mut |t| Some(self.get_rest_type(t, properties, symbol.as_deref())),
+                    &mut |t| {
+                        Ok(Some(self.get_rest_type(
+                            t,
+                            properties,
+                            symbol.as_deref(),
+                        )?))
+                    },
                     None,
-                )
-                .unwrap();
+                )?
+                .unwrap());
         }
         let omit_key_type = self.get_union_type(
-            &map(properties, |property: &Gc<Node>, _| {
+            &try_map(properties, |property: &Gc<Node>, _| {
                 self.get_literal_type_from_property_name(property)
-            }),
+            })?,
             None,
             Option::<&Symbol>::None,
             None,
             Option::<&Type>::None,
-        );
-        if self.is_generic_object_type(&source) || self.is_generic_index_type(&omit_key_type) {
+        )?;
+        if self.is_generic_object_type(&source)? || self.is_generic_index_type(&omit_key_type)? {
             if omit_key_type.flags().intersects(TypeFlags::Never) {
-                return source;
+                return Ok(source);
             }
 
-            let omit_type_alias = self.get_global_omit_symbol();
+            let omit_type_alias = self.get_global_omit_symbol()?;
             if omit_type_alias.is_none() {
-                return self.error_type();
+                return Ok(self.error_type());
             }
             let omit_type_alias = omit_type_alias.unwrap();
             return self.get_type_alias_instantiation(
@@ -785,21 +809,21 @@ impl TypeChecker {
             );
         }
         let mut members = create_symbol_table(Option::<&[Gc<Symbol>]>::None);
-        for prop in self.get_properties_of_type(&source) {
+        for prop in self.get_properties_of_type(&source)? {
             if !self.is_type_assignable_to(
-                &self.get_literal_type_from_property(
+                &*self.get_literal_type_from_property(
                     &prop,
                     TypeFlags::StringOrNumberLiteralOrUnique,
                     None,
-                ),
+                )?,
                 &omit_key_type,
-            ) && !get_declaration_modifier_flags_from_symbol(&prop, None)
+            )? && !get_declaration_modifier_flags_from_symbol(&prop, None)
                 .intersects(ModifierFlags::Private | ModifierFlags::Protected)
                 && self.is_spreadable_property(&prop)
             {
                 members.insert(
                     prop.escaped_name().to_owned(),
-                    self.get_spread_symbol(&prop, false),
+                    self.get_spread_symbol(&prop, false)?,
                 );
             }
         }
@@ -808,40 +832,43 @@ impl TypeChecker {
             Gc::new(GcCell::new(members)),
             vec![],
             vec![],
-            self.get_index_infos_of_type(&source),
-        );
+            self.get_index_infos_of_type(&source)?,
+        )?;
         let result_as_interface_type = result.as_interface_type();
         result_as_interface_type.set_object_flags(
             result_as_interface_type.object_flags() | ObjectFlags::ObjectRestType,
         );
-        result
+        Ok(result)
     }
 
-    pub(super) fn is_generic_type_with_undefined_constraint(&self, type_: &Type) -> bool {
-        type_.flags().intersects(TypeFlags::Instantiable)
+    pub(super) fn is_generic_type_with_undefined_constraint(
+        &self,
+        type_: &Type,
+    ) -> io::Result<bool> {
+        Ok(type_.flags().intersects(TypeFlags::Instantiable)
             && self.maybe_type_of_kind(
                 &self
-                    .get_base_constraint_of_type(type_)
+                    .get_base_constraint_of_type(type_)?
                     .unwrap_or_else(|| self.unknown_type()),
                 TypeFlags::Undefined,
-            )
+            ))
     }
 
-    pub(super) fn get_non_undefined_type(&self, type_: &Type) -> Gc<Type> {
-        let type_or_constraint = if self.some_type(type_, |type_| {
+    pub(super) fn get_non_undefined_type(&self, type_: &Type) -> io::Result<Gc<Type>> {
+        let type_or_constraint = if self.try_some_type(type_, |type_| {
             self.is_generic_type_with_undefined_constraint(type_)
-        }) {
-            self.map_type(
+        })? {
+            self.try_map_type(
                 type_,
                 &mut |t| {
-                    Some(if t.flags().intersects(TypeFlags::Instantiable) {
-                        self.get_base_constraint_or_type(t)
+                    Ok(Some(if t.flags().intersects(TypeFlags::Instantiable) {
+                        self.get_base_constraint_or_type(t)?
                     } else {
                         t.type_wrapper()
-                    })
+                    }))
                 },
                 None,
-            )
+            )?
             .unwrap()
         } else {
             type_.type_wrapper()
@@ -853,30 +880,29 @@ impl TypeChecker {
         &self,
         node: &Node, /*BindingElement | PropertyAssignment | ShorthandPropertyAssignment | Expression*/
         declared_type: &Type,
-    ) -> Gc<Type> {
-        let reference = self.get_synthetic_element_access(node);
-        if let Some(reference) = reference {
+    ) -> io::Result<Gc<Type>> {
+        let reference = self.get_synthetic_element_access(node)?;
+        Ok(if let Some(reference) = reference {
             self.get_flow_type_of_reference(
                 &reference,
                 declared_type,
                 Option::<&Type>::None,
                 Option::<&Node>::None,
-            )
+            )?
         } else {
             declared_type.type_wrapper()
-        }
+        })
     }
 
     pub(super) fn get_synthetic_element_access(
         &self,
         node: &Node, /*BindingElement | PropertyAssignment | ShorthandPropertyAssignment | Expression*/
-    ) -> Option<Gc<Node /*ElementAccessExpression*/>> {
-        let parent_access = self.get_parent_element_access(node)?;
-        let ret = parent_access
-            .maybe_flow_node()
-            .clone()
-            .and_then(|parent_access_flow_node| {
-                let prop_name = self.get_destructuring_property_name(node)?;
+    ) -> io::Result<Option<Gc<Node /*ElementAccessExpression*/>>> {
+        let parent_access = return_ok_default_if_none!(self.get_parent_element_access(node)?);
+        let ret = parent_access.maybe_flow_node().clone().try_and_then(
+            |parent_access_flow_node| -> io::Result<_> {
+                let prop_name =
+                    return_ok_default_if_none!(self.get_destructuring_property_name(node)?);
                 let literal = parse_node_factory.with(|parse_node_factory_| {
                     parse_node_factory_
                         .create_string_literal(prop_name, None, None)
@@ -904,8 +930,9 @@ impl TypeChecker {
                     set_parent(&lhs_expr, Some(&*result));
                 }
                 result.set_flow_node(Some(parent_access_flow_node));
-                Some(result)
-            });
-        ret
+                Ok(Some(result))
+            },
+        )?;
+        Ok(ret)
     }
 }

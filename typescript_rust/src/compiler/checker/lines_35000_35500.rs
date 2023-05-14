@@ -1,7 +1,7 @@
 use gc::Gc;
-use std::borrow::Borrow;
 use std::ptr;
 use std::rc::Rc;
+use std::{borrow::Borrow, io};
 
 use super::{DeclarationSpaces, TypeFacts};
 use crate::{
@@ -10,8 +10,9 @@ use crate::{
     get_module_instance_state, get_name_of_declaration, has_syntactic_modifier, is_ambient_module,
     is_computed_property_name, is_entity_name_expression, is_export_assignment,
     is_private_identifier, is_property_name_literal, is_static, maybe_for_each, node_is_missing,
-    node_is_present, Debug_, DiagnosticMessage, Diagnostics, ModifierFlags, ModuleInstanceState,
-    Node, NodeArray, NodeInterface, ReadonlyTextRange, Symbol, SymbolInterface, SyntaxKind, Type,
+    node_is_present, return_ok_none_if_none, try_map, try_maybe_for_each, Debug_,
+    DiagnosticMessage, Diagnostics, ModifierFlags, ModuleInstanceState, Node, NodeArray,
+    NodeInterface, OptionTry, ReadonlyTextRange, Symbol, SymbolInterface, SyntaxKind, Type,
     TypeChecker, TypeFlags, TypeInterface,
 };
 
@@ -122,17 +123,20 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn check_exports_on_merged_declarations(&self, node: &Node /*Declaration*/) {
+    pub(super) fn check_exports_on_merged_declarations(
+        &self,
+        node: &Node, /*Declaration*/
+    ) -> io::Result<()> {
         if !self.produce_diagnostics {
-            return;
+            return Ok(());
         }
 
         let mut symbol = node.maybe_local_symbol();
         if symbol.is_none() {
-            symbol = self.get_symbol_of_node(node);
+            symbol = self.get_symbol_of_node(node)?;
             let symbol = symbol.as_ref().unwrap();
             if symbol.maybe_export_symbol().is_none() {
-                return;
+                return Ok(());
             }
         }
         let symbol = symbol.unwrap();
@@ -141,14 +145,14 @@ impl TypeChecker {
             get_declaration_of_kind(&symbol, node.kind()).as_ref(),
             Some(declaration) if ptr::eq(&**declaration, node)
         ) {
-            return;
+            return Ok(());
         }
 
         let mut exported_declaration_spaces = DeclarationSpaces::None;
         let mut non_exported_declaration_spaces = DeclarationSpaces::None;
         let mut default_exported_declaration_spaces = DeclarationSpaces::None;
         for d in symbol.maybe_declarations().as_ref().unwrap() {
-            let declaration_spaces = self.get_declaration_spaces(d);
+            let declaration_spaces = self.get_declaration_spaces(d)?;
             let effective_declaration_flags = self
                 .get_effective_declaration_flags(d, ModifierFlags::Export | ModifierFlags::Default);
 
@@ -175,7 +179,7 @@ impl TypeChecker {
             || common_declaration_spaces_for_default_and_non_default != DeclarationSpaces::None
         {
             for d in symbol.maybe_declarations().as_ref().unwrap() {
-                let declaration_spaces = self.get_declaration_spaces(d);
+                let declaration_spaces = self.get_declaration_spaces(d)?;
 
                 let name = get_name_of_declaration(Some(&**d));
                 if declaration_spaces
@@ -201,14 +205,16 @@ impl TypeChecker {
                 }
             }
         }
+
+        Ok(())
     }
 
     pub(super) fn get_declaration_spaces(
         &self,
         decl: &Node, /*Declaration*/
-    ) -> DeclarationSpaces {
+    ) -> io::Result<DeclarationSpaces> {
         let d = decl;
-        match d.kind() {
+        Ok(match d.kind() {
             SyntaxKind::InterfaceDeclaration
             | SyntaxKind::TypeAliasDeclaration
             | SyntaxKind::JSDocTypedefTag
@@ -239,33 +245,33 @@ impl TypeChecker {
                     node.as_binary_expression().right.clone()
                 };
                 if !is_entity_name_expression(&expression) {
-                    return DeclarationSpaces::ExportValue;
+                    return Ok(DeclarationSpaces::ExportValue);
                 }
 
                 let d = expression;
                 let mut result = DeclarationSpaces::None;
-                let target = self.resolve_alias(&self.get_symbol_of_node(&d).unwrap());
-                maybe_for_each(
+                let target = self.resolve_alias(&self.get_symbol_of_node(&d)?.unwrap())?;
+                try_maybe_for_each(
                     target.maybe_declarations().as_deref(),
-                    |d: &Gc<Node>, _| -> Option<()> {
-                        result |= self.get_declaration_spaces(d);
-                        None
+                    |d: &Gc<Node>, _| -> io::Result<Option<()>> {
+                        result |= self.get_declaration_spaces(d)?;
+                        Ok(None)
                     },
-                );
+                )?;
                 result
             }
             SyntaxKind::ImportEqualsDeclaration
             | SyntaxKind::NamespaceImport
             | SyntaxKind::ImportClause => {
                 let mut result = DeclarationSpaces::None;
-                let target = self.resolve_alias(&self.get_symbol_of_node(&d).unwrap());
-                maybe_for_each(
+                let target = self.resolve_alias(&self.get_symbol_of_node(&d)?.unwrap())?;
+                try_maybe_for_each(
                     target.maybe_declarations().as_deref(),
-                    |d: &Gc<Node>, _| -> Option<()> {
-                        result |= self.get_declaration_spaces(d);
-                        None
+                    |d: &Gc<Node>, _| -> io::Result<Option<()>> {
+                        result |= self.get_declaration_spaces(d)?;
+                        Ok(None)
                     },
-                );
+                )?;
                 result
             }
             SyntaxKind::VariableDeclaration
@@ -274,56 +280,60 @@ impl TypeChecker {
             | SyntaxKind::ImportSpecifier
             | SyntaxKind::Identifier => DeclarationSpaces::ExportValue,
             _ => Debug_.fail_bad_syntax_kind(d, None),
-        }
+        })
     }
 
-    pub(super) fn get_awaited_type_of_promise<TErrorNode: Borrow<Node>>(
+    pub(super) fn get_awaited_type_of_promise(
         &self,
         type_: &Type,
-        error_node: Option<TErrorNode>,
+        error_node: Option<impl Borrow<Node>>,
         diagnostic_message: Option<&DiagnosticMessage>,
         args: Option<Vec<String>>,
-    ) -> Option<Gc<Type>> {
+    ) -> io::Result<Option<Gc<Type>>> {
         let error_node = error_node.map(|error_node| error_node.borrow().node_wrapper());
-        let promised_type = self.get_promised_type_of_promise(type_, error_node.as_deref());
-        promised_type.as_ref().and_then(|promised_type| {
+        let promised_type = self.get_promised_type_of_promise(type_, error_node.as_deref())?;
+        promised_type.as_ref().try_and_then(|promised_type| {
             self.get_awaited_type_(promised_type, error_node, diagnostic_message, args)
         })
     }
 
-    pub(super) fn get_promised_type_of_promise<TErrorNode: Borrow<Node>>(
+    pub(super) fn get_promised_type_of_promise(
         &self,
         type_: &Type,
-        error_node: Option<TErrorNode>,
-    ) -> Option<Gc<Type>> {
+        error_node: Option<impl Borrow<Node>>,
+    ) -> io::Result<Option<Gc<Type>>> {
         if self.is_type_any(Some(type_)) {
-            return None;
+            return Ok(None);
         }
 
         let type_as_promise = type_;
         if let Some(type_as_promise_promised_type_of_promise) =
             type_as_promise.maybe_promised_type_of_promise().as_ref()
         {
-            return Some(type_as_promise_promised_type_of_promise.clone());
+            return Ok(Some(type_as_promise_promised_type_of_promise.clone()));
         }
 
-        if self.is_reference_to_type(type_, &self.get_global_promise_type(false)) {
-            let ret = self.get_type_arguments(type_)[0].clone();
+        if self.is_reference_to_type(type_, &*self.get_global_promise_type(false)?) {
+            let ret = self.get_type_arguments(type_)?[0].clone();
             *type_as_promise.maybe_promised_type_of_promise() = Some(ret.clone());
-            return Some(ret);
+            return Ok(Some(ret));
         }
 
-        if self.all_types_assignable_to_kind(type_, TypeFlags::Primitive | TypeFlags::Never, None) {
-            return None;
+        if self.all_types_assignable_to_kind(
+            type_,
+            TypeFlags::Primitive | TypeFlags::Never,
+            None,
+        )? {
+            return Ok(None);
         }
 
-        let then_function = self.get_type_of_property_of_type_(type_, "then");
+        let then_function = self.get_type_of_property_of_type_(type_, "then")?;
         if self.is_type_any(then_function.as_deref()) {
-            return None;
+            return Ok(None);
         }
 
         let then_signatures = if let Some(then_function) = then_function.as_ref() {
-            self.get_signatures_of_type(then_function, SignatureKind::Call)
+            self.get_signatures_of_type(then_function, SignatureKind::Call)?
         } else {
             vec![]
         };
@@ -335,27 +345,27 @@ impl TypeChecker {
                     None,
                 );
             }
-            return None;
+            return Ok(None);
         }
 
         let onfulfilled_parameter_type = self.get_type_with_facts(
-            &self.get_union_type(
-                &map(&then_signatures, |then_signature: &Gc<Signature>, _| {
+            &*self.get_union_type(
+                &try_map(&then_signatures, |then_signature: &Gc<Signature>, _| {
                     self.get_type_of_first_parameter_of_signature(then_signature)
-                }),
+                })?,
                 None,
                 Option::<&Symbol>::None,
                 None,
                 Option::<&Type>::None,
-            ),
+            )?,
             TypeFacts::NEUndefinedOrNull,
-        );
+        )?;
         if self.is_type_any(Some(&*onfulfilled_parameter_type)) {
-            return None;
+            return Ok(None);
         }
 
         let onfulfilled_parameter_signatures =
-            self.get_signatures_of_type(&onfulfilled_parameter_type, SignatureKind::Call);
+            self.get_signatures_of_type(&onfulfilled_parameter_type, SignatureKind::Call)?;
         if onfulfilled_parameter_signatures.is_empty() {
             if error_node.is_some() {
                 self.error(
@@ -364,23 +374,23 @@ impl TypeChecker {
                     None,
                 );
             }
-            return None;
+            return Ok(None);
         }
 
         let ret = self.get_union_type(
-            &map(
+            &try_map(
                 &onfulfilled_parameter_signatures,
                 |signature: &Gc<Signature>, _| {
                     self.get_type_of_first_parameter_of_signature(signature)
                 },
-            ),
+            )?,
             Some(UnionReduction::Subtype),
             Option::<&Symbol>::None,
             None,
             Option::<&Type>::None,
-        );
+        )?;
         *type_as_promise.maybe_promised_type_of_promise() = Some(ret.clone());
-        Some(ret)
+        Ok(Some(ret))
     }
 
     pub(super) fn check_awaited_type(
@@ -390,34 +400,38 @@ impl TypeChecker {
         error_node: &Node,
         diagnostic_message: &DiagnosticMessage,
         args: Option<Vec<String>>,
-    ) -> Gc<Type> {
+    ) -> io::Result<Gc<Type>> {
         let awaited_type = if with_alias {
-            self.get_awaited_type_(type_, Some(error_node), Some(diagnostic_message), args)
+            self.get_awaited_type_(type_, Some(error_node), Some(diagnostic_message), args)?
         } else {
-            self.get_awaited_type_no_alias(type_, Some(error_node), Some(diagnostic_message), args)
+            self.get_awaited_type_no_alias(type_, Some(error_node), Some(diagnostic_message), args)?
         };
-        awaited_type.unwrap_or_else(|| self.error_type())
+        Ok(awaited_type.unwrap_or_else(|| self.error_type()))
     }
 
-    pub(super) fn is_thenable_type(&self, type_: &Type) -> bool {
-        if self.all_types_assignable_to_kind(type_, TypeFlags::Primitive | TypeFlags::Never, None) {
-            return false;
+    pub(super) fn is_thenable_type(&self, type_: &Type) -> io::Result<bool> {
+        if self.all_types_assignable_to_kind(
+            type_,
+            TypeFlags::Primitive | TypeFlags::Never,
+            None,
+        )? {
+            return Ok(false);
         }
 
-        let then_function = self.get_type_of_property_of_type_(type_, "then");
-        matches!(
+        let then_function = self.get_type_of_property_of_type_(type_, "then")?;
+        Ok(matches!(
             then_function.as_ref(),
             Some(then_function) if !self.get_signatures_of_type(
-                &self.get_type_with_facts(then_function, TypeFacts::NEUndefinedOrNull),
+                &*self.get_type_with_facts(then_function, TypeFacts::NEUndefinedOrNull)?,
                 SignatureKind::Call
-            ).is_empty()
-        )
+            )?.is_empty()
+        ))
     }
 
-    pub(super) fn is_awaited_type_instantiation(&self, type_: &Type) -> bool {
+    pub(super) fn is_awaited_type_instantiation(&self, type_: &Type) -> io::Result<bool> {
         if type_.flags().intersects(TypeFlags::Conditional) {
-            let awaited_symbol = self.get_global_awaited_symbol(false);
-            return matches!(
+            let awaited_symbol = self.get_global_awaited_symbol(false)?;
+            return Ok(matches!(
                 awaited_symbol.as_ref(),
                 Some(awaited_symbol) if matches!(
                     type_.maybe_alias_symbol().as_ref(),
@@ -429,50 +443,50 @@ impl TypeChecker {
             ) && matches!(
                 type_.maybe_alias_type_arguments().as_ref(),
                 Some(type_alias_type_arguments) if type_alias_type_arguments.len() == 1
-            );
+            ));
         }
-        false
+        Ok(false)
     }
 
-    pub(super) fn unwrap_awaited_type(&self, type_: &Type) -> Gc<Type> {
-        if type_.flags().intersects(TypeFlags::Union) {
-            self.map_type(
+    pub(super) fn unwrap_awaited_type(&self, type_: &Type) -> io::Result<Gc<Type>> {
+        Ok(if type_.flags().intersects(TypeFlags::Union) {
+            self.try_map_type(
                 type_,
-                &mut |type_| Some(self.unwrap_awaited_type(type_)),
+                &mut |type_| Ok(Some(self.unwrap_awaited_type(type_)?)),
                 None,
-            )
+            )?
             .unwrap()
-        } else if self.is_awaited_type_instantiation(type_) {
+        } else if self.is_awaited_type_instantiation(type_)? {
             type_.maybe_alias_type_arguments().as_ref().unwrap()[0].clone()
         } else {
             type_.type_wrapper()
-        }
+        })
     }
 
-    pub(super) fn create_awaited_type_if_needed(&self, type_: &Type) -> Gc<Type> {
+    pub(super) fn create_awaited_type_if_needed(&self, type_: &Type) -> io::Result<Gc<Type>> {
         if self.is_type_any(Some(type_)) {
-            return type_.type_wrapper();
+            return Ok(type_.type_wrapper());
         }
 
-        if self.is_awaited_type_instantiation(type_) {
-            return type_.type_wrapper();
+        if self.is_awaited_type_instantiation(type_)? {
+            return Ok(type_.type_wrapper());
         }
 
-        if self.is_generic_object_type(type_) {
-            let base_constraint = self.get_base_constraint_of_type(type_);
+        if self.is_generic_object_type(type_)? {
+            let base_constraint = self.get_base_constraint_of_type(type_)?;
             if match base_constraint.as_ref() {
                 None => true,
                 Some(base_constraint) => {
                     base_constraint.flags().intersects(TypeFlags::AnyOrUnknown)
-                        || self.is_empty_object_type(base_constraint)
-                        || self.is_thenable_type(base_constraint)
+                        || self.is_empty_object_type(base_constraint)?
+                        || self.is_thenable_type(base_constraint)?
                 }
             } {
-                let awaited_symbol = self.get_global_awaited_symbol(true);
+                let awaited_symbol = self.get_global_awaited_symbol(true)?;
                 if let Some(awaited_symbol) = awaited_symbol.as_ref() {
                     return self.get_type_alias_instantiation(
                         awaited_symbol,
-                        Some(&[self.unwrap_awaited_type(type_)]),
+                        Some(&[self.unwrap_awaited_type(type_)?]),
                         Option::<&Symbol>::None,
                         None,
                     );
@@ -481,47 +495,47 @@ impl TypeChecker {
         }
 
         Debug_.assert(
-            self.get_promised_type_of_promise(type_, Option::<&Node>::None)
+            self.get_promised_type_of_promise(type_, Option::<&Node>::None)?
                 .is_none(),
             Some("type provided should not be a non-generic 'promise'-like."),
         );
-        type_.type_wrapper()
+        Ok(type_.type_wrapper())
     }
 
-    pub(super) fn get_awaited_type_<TErrorNode: Borrow<Node>>(
+    pub(super) fn get_awaited_type_(
         &self,
         type_: &Type,
-        error_node: Option<TErrorNode>,
+        error_node: Option<impl Borrow<Node>>,
         diagnostic_message: Option<&DiagnosticMessage>,
         args: Option<Vec<String>>,
-    ) -> Option<Gc<Type>> {
+    ) -> io::Result<Option<Gc<Type>>> {
         let awaited_type =
-            self.get_awaited_type_no_alias(type_, error_node, diagnostic_message, args);
+            self.get_awaited_type_no_alias(type_, error_node, diagnostic_message, args)?;
         awaited_type
             .as_ref()
-            .map(|awaited_type| self.create_awaited_type_if_needed(awaited_type))
+            .try_map(|awaited_type| self.create_awaited_type_if_needed(awaited_type))
     }
 
-    pub(super) fn get_awaited_type_no_alias<TErrorNode: Borrow<Node>>(
+    pub(super) fn get_awaited_type_no_alias(
         &self,
         type_: &Type,
-        error_node: Option<TErrorNode>,
+        error_node: Option<impl Borrow<Node>>,
         diagnostic_message: Option<&DiagnosticMessage>,
         args: Option<Vec<String>>,
-    ) -> Option<Gc<Type>> {
+    ) -> io::Result<Option<Gc<Type>>> {
         if self.is_type_any(Some(type_)) {
-            return Some(type_.type_wrapper());
+            return Ok(Some(type_.type_wrapper()));
         }
 
-        if self.is_awaited_type_instantiation(type_) {
-            return Some(type_.type_wrapper());
+        if self.is_awaited_type_instantiation(type_)? {
+            return Ok(Some(type_.type_wrapper()));
         }
 
         let type_as_awaitable = type_;
         if let Some(type_as_awaitable_awaited_type_of_type) =
             type_as_awaitable.maybe_awaited_type_of_type().as_ref()
         {
-            return Some(type_as_awaitable_awaited_type_of_type.clone());
+            return Ok(Some(type_as_awaitable_awaited_type_of_type.clone()));
         }
 
         let error_node = error_node.map(|error_node| error_node.borrow().node_wrapper());
@@ -543,12 +557,12 @@ impl TypeChecker {
                     )
                 }
             };
-            let ret = self.map_type(type_, &mut mapper, None);
+            let ret = self.try_map_type(type_, &mut mapper, None)?;
             *type_as_awaitable.maybe_awaited_type_of_type() = ret.clone();
-            return ret;
+            return Ok(ret);
         }
 
-        let promised_type = self.get_promised_type_of_promise(type_, Option::<&Node>::None);
+        let promised_type = self.get_promised_type_of_promise(type_, Option::<&Node>::None)?;
         if let Some(promised_type) = promised_type.as_ref() {
             if type_.id() == promised_type.id()
                 || self
@@ -565,7 +579,7 @@ impl TypeChecker {
                         None,
                     );
                 }
-                return None;
+                return Ok(None);
             }
 
             self.awaited_type_stack().push(type_.id());
@@ -574,25 +588,25 @@ impl TypeChecker {
                 error_node.as_deref(),
                 diagnostic_message,
                 args.clone(),
-            );
+            )?;
             self.awaited_type_stack().pop();
 
-            let awaited_type = awaited_type?;
+            let awaited_type = return_ok_none_if_none!(awaited_type);
 
             *type_as_awaitable.maybe_awaited_type_of_type() = Some(awaited_type.clone());
-            return Some(awaited_type);
+            return Ok(Some(awaited_type));
         }
 
-        if self.is_thenable_type(type_) {
+        if self.is_thenable_type(type_)? {
             if error_node.is_some() {
                 Debug_.assert_is_defined(&diagnostic_message, None);
                 self.error(error_node.as_deref(), diagnostic_message.unwrap(), args);
-                return None;
+                return Ok(None);
             }
         }
 
         let ret = type_.type_wrapper();
         *type_as_awaitable.maybe_awaited_type_of_type() = Some(ret.clone());
-        Some(ret)
+        Ok(Some(ret))
     }
 }

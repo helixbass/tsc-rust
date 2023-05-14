@@ -1,7 +1,7 @@
 use gc::{Finalize, Gc, Trace};
-use std::collections::HashMap;
 use std::ptr;
 use std::rc::Rc;
+use std::{collections::HashMap, io};
 
 use super::{
     execute_command_line_worker, print_build_help, print_version, should_be_pretty,
@@ -49,13 +49,11 @@ pub fn is_build(command_line_args: &[String]) -> bool {
     false
 }
 
-pub fn execute_command_line<
-    TCallback: FnMut(ProgramOrEmitAndSemanticDiagnosticsBuilderProgramOrParsedCommandLine),
->(
+pub fn execute_command_line(
     system: Gc<Box<dyn System>>,
-    mut cb: TCallback,
+    mut cb: impl FnMut(ProgramOrEmitAndSemanticDiagnosticsBuilderProgramOrParsedCommandLine),
     command_line_args: &[String],
-) {
+) -> io::Result<()> {
     if is_build(command_line_args) {
         let ParsedBuildCommand {
             build_options,
@@ -76,8 +74,8 @@ pub fn execute_command_line<
                     &projects,
                     errors.clone(),
                 )
-            });
-            return; // TODO: the Typescript version doesn't actually return here but seems like it should?
+            })?;
+            return Ok(()); // TODO: the Typescript version doesn't actually return here but seems like it should?
         } else {
             perform_build(
                 system,
@@ -86,8 +84,8 @@ pub fn execute_command_line<
                 watch_options.as_deref(),
                 &projects,
                 errors,
-            );
-            return;
+            )?;
+            return Ok(());
         }
     }
 
@@ -129,7 +127,7 @@ impl From<Rc<dyn EmitAndSemanticDiagnosticsBuilderProgram>>
 pub(super) fn report_watch_mode_without_sys_support(
     sys: &dyn System,
     report_diagnostic: &dyn DiagnosticReporter,
-) -> bool {
+) -> io::Result<bool> {
     if !sys.is_watch_file_supported() || !sys.is_watch_directory_supported() {
         report_diagnostic.call(Gc::new(
             create_compiler_diagnostic(
@@ -137,22 +135,20 @@ pub(super) fn report_watch_mode_without_sys_support(
                 Some(vec!["--watch".to_owned()]),
             )
             .into(),
-        ));
+        ))?;
         sys.exit(Some(ExitStatus::DiagnosticsPresent_OutputsSkipped));
     }
-    false
+    Ok(false)
 }
 
-pub(super) fn perform_build<
-    TCallback: FnMut(ProgramOrEmitAndSemanticDiagnosticsBuilderProgramOrParsedCommandLine),
->(
+pub(super) fn perform_build(
     sys: Gc<Box<dyn System>>,
-    cb: &mut TCallback,
+    cb: &mut impl FnMut(ProgramOrEmitAndSemanticDiagnosticsBuilderProgramOrParsedCommandLine),
     build_options: Rc<BuildOptions>,
     watch_options: Option<&WatchOptions>,
     projects: &[String],
     mut errors: Vec<Gc<Diagnostic>>,
-) {
+) -> io::Result<()> {
     let report_diagnostic = update_report_diagnostic(
         sys.clone(),
         create_diagnostic_reporter(sys.clone(), None),
@@ -166,9 +162,9 @@ pub(super) fn perform_build<
     }
 
     if !errors.is_empty() {
-        errors
-            .into_iter()
-            .for_each(|error| report_diagnostic.call(error));
+        for error in errors {
+            report_diagnostic.call(error)?;
+        }
         sys.exit(Some(ExitStatus::DiagnosticsPresent_OutputsSkipped));
     }
 
@@ -198,13 +194,13 @@ pub(super) fn perform_build<
                 Some(vec!["--build".to_owned()]),
             )
             .into(),
-        ));
+        ))?;
         sys.exit(Some(ExitStatus::DiagnosticsPresent_OutputsSkipped));
     }
 
     if matches!(build_options.watch, Some(true)) {
-        if report_watch_mode_without_sys_support(&**sys, &**report_diagnostic) {
-            return;
+        if report_watch_mode_without_sys_support(&**sys, &**report_diagnostic)? {
+            return Ok(());
         }
         let mut build_host = create_solution_builder_with_watch_host(
             Some(&**sys),
@@ -232,7 +228,7 @@ pub(super) fn perform_build<
             None,
             Option::<fn(&str) -> CustomTransformers>::None,
         );
-        return /*builder*/;
+        return Ok(())/*builder*/;
     }
 
     let mut build_host = create_solution_builder_host(
@@ -319,7 +315,7 @@ pub(super) fn perform_compilation(
     mut cb: impl FnMut(ProgramOrEmitAndSemanticDiagnosticsBuilderProgramOrParsedCommandLine),
     report_diagnostic: Gc<Box<dyn DiagnosticReporter>>,
     config: &ParsedCommandLine,
-) {
+) -> io::Result<()> {
     let file_names = &config.file_names;
     let options = config.options.clone();
     let project_references = &config.project_references;
@@ -328,7 +324,7 @@ pub(super) fn perform_compilation(
         None,
         Some(sys.clone()),
     )));
-    let current_directory = CompilerHost::get_current_directory(&**host);
+    let current_directory = CompilerHost::get_current_directory(&**host)?;
     let get_canonical_file_name =
         create_get_canonical_file_name(CompilerHost::use_case_sensitive_file_names(&**host));
     change_compiler_host_like_to_use_cache(
@@ -350,7 +346,7 @@ pub(super) fn perform_compilation(
         config_file_parsing_diagnostics: Some(get_config_file_parsing_diagnostics(config)),
         old_program: None,
     };
-    let program = create_program(program_options);
+    let program = create_program(program_options)?;
     let exit_status = emit_files_and_report_errors_and_get_exit_status(
         program.clone(),
         report_diagnostic,
@@ -360,7 +356,7 @@ pub(super) fn perform_compilation(
         None,
         None,
         None,
-    );
+    )?;
     report_statistics(&**sys, &program);
     cb(program.into());
     sys.exit(Some(exit_status));

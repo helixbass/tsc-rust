@@ -7,6 +7,7 @@ use crate::{
     TransformFlags, TransformationContext, Transformer, TransformerFactory,
     TransformerFactoryInterface, TransformerInterface, VisitResult,
 };
+use std::io;
 
 #[derive(Trace, Finalize)]
 struct TransformES2016 {
@@ -273,8 +274,8 @@ impl TransformES2016 {
 }
 
 impl TransformerInterface for TransformES2016 {
-    fn call(&self, node: &Node) -> Gc<Node> {
-        self.transform_source_file(node)
+    fn call(&self, node: &Node) -> io::Result<Gc<Node>> {
+        Ok(self.transform_source_file(node))
     }
 }
 

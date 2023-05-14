@@ -1,7 +1,7 @@
 use gc::Gc;
-use std::borrow::Borrow;
 use std::ptr;
 use std::rc::Rc;
+use std::{borrow::Borrow, io};
 
 use super::{is_declaration_name_or_import_property_name, CheckMode};
 use crate::{
@@ -25,7 +25,7 @@ use crate::{
     is_right_side_of_qualified_name_or_property_access_or_jsdoc_member_name, is_static,
     node_is_missing, node_is_present, AssignmentDeclarationKind, Debug_, Diagnostic,
     FindAncestorCallbackReturn, FunctionLikeDeclarationInterface, InternalSymbolName,
-    NamedDeclarationInterface, Node, NodeFlags, NodeInterface, Symbol, SymbolFlags,
+    NamedDeclarationInterface, Node, NodeFlags, NodeInterface, OptionTry, Symbol, SymbolFlags,
     SymbolInterface, SymbolTable, SyntaxKind, TypeChecker, TypeInterface, __String,
 };
 
@@ -45,19 +45,19 @@ impl TypeChecker {
         &self,
         location: &Node,
         meaning: SymbolFlags,
-    ) -> Vec<Gc<Symbol>> {
+    ) -> io::Result<Vec<Gc<Symbol>>> {
         if location.flags().intersects(NodeFlags::InWithStatement) {
-            return vec![];
+            return Ok(vec![]);
         }
 
         let mut symbols = create_symbol_table(Option::<&[Gc<Symbol>]>::None);
         let mut is_static_symbol = false;
 
         let mut location = Some(location.node_wrapper());
-        self.populate_symbols(&mut location, meaning, &mut symbols, &mut is_static_symbol);
+        self.populate_symbols(&mut location, meaning, &mut symbols, &mut is_static_symbol)?;
 
         symbols.remove(InternalSymbolName::This);
-        self.symbols_to_array(&symbols)
+        Ok(self.symbols_to_array(&symbols))
     }
 
     pub(super) fn populate_symbols(
@@ -66,7 +66,7 @@ impl TypeChecker {
         meaning: SymbolFlags,
         symbols: &mut SymbolTable,
         is_static_symbol: &mut bool,
-    ) {
+    ) -> io::Result<()> {
         while let Some(location_present) = location.as_ref() {
             if let Some(location_locals) = location_present.maybe_locals().clone() {
                 if !self.is_global_source_file(location_present) {
@@ -79,8 +79,11 @@ impl TypeChecker {
                     if is_external_module(location_present) {
                         self.copy_locally_visible_export_symbols(
                             symbols,
-                            &(*self.get_symbol_of_node(location_present).unwrap().exports())
-                                .borrow(),
+                            &(*self
+                                .get_symbol_of_node(location_present)?
+                                .unwrap()
+                                .exports())
+                            .borrow(),
                             meaning & SymbolFlags::ModuleMember,
                         );
                     }
@@ -88,14 +91,22 @@ impl TypeChecker {
                 SyntaxKind::ModuleDeclaration => {
                     self.copy_locally_visible_export_symbols(
                         symbols,
-                        &(*self.get_symbol_of_node(location_present).unwrap().exports()).borrow(),
+                        &(*self
+                            .get_symbol_of_node(location_present)?
+                            .unwrap()
+                            .exports())
+                        .borrow(),
                         meaning & SymbolFlags::ModuleMember,
                     );
                 }
                 SyntaxKind::EnumDeclaration => {
                     self.copy_symbols(
                         symbols,
-                        &(*self.get_symbol_of_node(location_present).unwrap().exports()).borrow(),
+                        &(*self
+                            .get_symbol_of_node(location_present)?
+                            .unwrap()
+                            .exports())
+                        .borrow(),
                         meaning & SymbolFlags::EnumMember,
                     );
                 }
@@ -109,8 +120,8 @@ impl TypeChecker {
                         self.copy_symbols(
                             symbols,
                             &(*self.get_members_of_symbol(
-                                &self.get_symbol_of_node(location_present).unwrap(),
-                            ))
+                                &self.get_symbol_of_node(location_present)?.unwrap(),
+                            )?)
                             .borrow(),
                             meaning & SymbolFlags::Type,
                         );
@@ -121,8 +132,8 @@ impl TypeChecker {
                         self.copy_symbols(
                             symbols,
                             &(*self.get_members_of_symbol(
-                                &self.get_symbol_of_node(location_present).unwrap(),
-                            ))
+                                &self.get_symbol_of_node(location_present)?.unwrap(),
+                            )?)
                             .borrow(),
                             meaning & SymbolFlags::Type,
                         );
@@ -146,6 +157,8 @@ impl TypeChecker {
         }
 
         self.copy_symbols(symbols, &self.globals(), meaning);
+
+        Ok(())
     }
 
     pub(super) fn copy_symbol(
@@ -240,11 +253,21 @@ impl TypeChecker {
         node.parent().kind() == SyntaxKind::ExpressionWithTypeArguments
     }
 
-    pub(super) fn for_each_enclosing_class<TReturn, TCallback: FnMut(&Node) -> Option<TReturn>>(
+    #[allow(dead_code)]
+    pub(super) fn for_each_enclosing_class<TReturn>(
         &self,
         node: &Node,
-        mut callback: TCallback,
+        mut callback: impl FnMut(&Node) -> Option<TReturn>,
     ) -> Option<TReturn> {
+        self.try_for_each_enclosing_class(node, |node: &Node| Ok(callback(node)))
+            .unwrap()
+    }
+
+    pub(super) fn try_for_each_enclosing_class<TReturn>(
+        &self,
+        node: &Node,
+        mut callback: impl FnMut(&Node) -> io::Result<Option<TReturn>>,
+    ) -> io::Result<Option<TReturn>> {
         let mut result: Option<TReturn> = None;
 
         let mut node = Some(node.node_wrapper());
@@ -254,19 +277,19 @@ impl TypeChecker {
                 break;
             }
             let node = node.as_ref().unwrap();
-            result = callback(node);
+            result = callback(node)?;
             if result.is_some() {
                 break;
             }
         }
 
-        result
+        Ok(result)
     }
 
-    pub(super) fn for_each_enclosing_class_bool<TCallback: FnMut(&Node) -> bool>(
+    pub(super) fn for_each_enclosing_class_bool(
         &self,
         node: &Node,
-        mut callback: TCallback,
+        mut callback: impl FnMut(&Node) -> bool,
     ) -> bool {
         let mut result = false;
 
@@ -361,21 +384,21 @@ impl TypeChecker {
     pub(super) fn get_special_property_assignment_symbol_from_entity_name(
         &self,
         entity_name: &Node, /*EntityName | PropertyAccessExpression*/
-    ) -> Option<Gc<Symbol>> {
+    ) -> io::Result<Option<Gc<Symbol>>> {
         let special_property_assignment_kind =
             get_assignment_declaration_kind(&entity_name.parent().parent());
-        match special_property_assignment_kind {
+        Ok(match special_property_assignment_kind {
             AssignmentDeclarationKind::ExportsProperty
             | AssignmentDeclarationKind::PrototypeProperty => {
-                self.get_symbol_of_node(&entity_name.parent())
+                self.get_symbol_of_node(&entity_name.parent())?
             }
             AssignmentDeclarationKind::ThisProperty
             | AssignmentDeclarationKind::ModuleExports
             | AssignmentDeclarationKind::Property => {
-                self.get_symbol_of_node(&entity_name.parent().parent())
+                self.get_symbol_of_node(&entity_name.parent().parent())?
             }
             _ => None,
-        }
+        })
     }
 
     pub(super) fn is_import_type_qualifier_part(
@@ -407,7 +430,7 @@ impl TypeChecker {
     pub(super) fn get_symbol_of_name_or_property_access_expression(
         &self,
         name: &Node, /*EntityName | PrivateIdentifier | PropertyAccessExpression | JSDocMemberName*/
-    ) -> Option<Gc<Symbol>> {
+    ) -> io::Result<Option<Gc<Symbol>>> {
         if is_declaration_name(name) {
             return self.get_symbol_of_node(&name.parent());
         }
@@ -421,9 +444,9 @@ impl TypeChecker {
         {
             if !is_private_identifier(name) && !is_jsdoc_member_name(name) {
                 let special_property_assignment_symbol =
-                    self.get_special_property_assignment_symbol_from_entity_name(name);
+                    self.get_special_property_assignment_symbol_from_entity_name(name)?;
                 if special_property_assignment_symbol.is_some() {
-                    return special_property_assignment_symbol;
+                    return Ok(special_property_assignment_symbol);
                 }
             }
         }
@@ -438,7 +461,7 @@ impl TypeChecker {
                 Some(true),
                 None,
                 Option::<&Node>::None,
-            );
+            )?;
             if matches!(
                 success.as_ref(),
                 Some(success) if !Gc::ptr_eq(
@@ -446,7 +469,7 @@ impl TypeChecker {
                     &self.unknown_symbol()
                 )
             ) {
-                return success;
+                return Ok(success);
             }
         } else if is_entity_name(name) && self.is_in_right_side_of_import_or_export_assignment(name)
         {
@@ -459,12 +482,12 @@ impl TypeChecker {
         if is_entity_name(name) {
             let possible_import_node = self.is_import_type_qualifier_part(name);
             if let Some(possible_import_node) = possible_import_node.as_ref() {
-                self.get_type_from_type_node_(possible_import_node);
+                self.get_type_from_type_node_(possible_import_node)?;
                 let sym = (*self.get_node_links(name))
                     .borrow()
                     .resolved_symbol
                     .clone();
-                return sym.filter(|sym| !Gc::ptr_eq(sym, &self.unknown_symbol()));
+                return Ok(sym.filter(|sym| !Gc::ptr_eq(sym, &self.unknown_symbol())));
             }
         }
 
@@ -488,17 +511,17 @@ impl TypeChecker {
 
             meaning |= SymbolFlags::Alias;
             let entity_name_symbol = if is_entity_name_expression(name) {
-                self.resolve_entity_name(name, meaning, None, None, Option::<&Node>::None)
+                self.resolve_entity_name(name, meaning, None, None, Option::<&Node>::None)?
             } else {
                 None
             };
             if entity_name_symbol.is_some() {
-                return entity_name_symbol;
+                return Ok(entity_name_symbol);
             }
         }
 
         if name.parent().kind() == SyntaxKind::JSDocParameterTag {
-            return get_parameter_symbol_from_jsdoc(&name.parent());
+            return Ok(get_parameter_symbol_from_jsdoc(&name.parent()));
         }
 
         if name.parent().kind() == SyntaxKind::TypeParameter
@@ -506,12 +529,12 @@ impl TypeChecker {
         {
             Debug_.assert(!is_in_js_file(Some(&**name)), None);
             let type_parameter = get_type_parameter_from_js_doc(&name.parent());
-            return type_parameter.and_then(|type_parameter| type_parameter.maybe_symbol());
+            return Ok(type_parameter.and_then(|type_parameter| type_parameter.maybe_symbol()));
         }
 
         if is_expression_node(name) {
             if node_is_missing(Some(&**name)) {
-                return None;
+                return Ok(None);
             }
 
             let is_jsdoc = find_ancestor(Some(&**name), |ancestor| {
@@ -527,12 +550,12 @@ impl TypeChecker {
             };
             if name.kind() == SyntaxKind::Identifier {
                 if is_jsx_tag_name(name) && self.is_jsx_intrinsic_identifier(name) {
-                    let symbol = self.get_intrinsic_tag_symbol(&name.parent());
-                    return if Gc::ptr_eq(&symbol, &self.unknown_symbol()) {
+                    let symbol = self.get_intrinsic_tag_symbol(&name.parent())?;
+                    return Ok(if Gc::ptr_eq(&symbol, &self.unknown_symbol()) {
                         None
                     } else {
                         Some(symbol)
-                    };
+                    });
                 }
                 let result = self.resolve_entity_name(
                     name,
@@ -540,19 +563,19 @@ impl TypeChecker {
                     Some(false),
                     Some(!is_jsdoc),
                     get_host_signature_from_jsdoc(name),
-                );
+                )?;
                 if result.is_none() && is_jsdoc {
                     let container = find_ancestor(Some(&**name), |ancestor| {
                         is_class_like(ancestor) || is_interface_declaration(ancestor)
                     });
                     if let Some(container) = container.as_ref() {
                         return self
-                            .resolve_jsdoc_member_name(name, self.get_symbol_of_node(container));
+                            .resolve_jsdoc_member_name(name, self.get_symbol_of_node(container)?);
                     }
                 }
-                return result;
+                return Ok(result);
             } else if is_private_identifier(name) {
-                return self.get_symbol_for_private_identifier_expression(name);
+                return Ok(self.get_symbol_for_private_identifier_expression(name));
             } else if matches!(
                 name.kind(),
                 SyntaxKind::PropertyAccessExpression | SyntaxKind::QualifiedName
@@ -560,13 +583,13 @@ impl TypeChecker {
                 let links = self.get_node_links(name);
                 let links_resolved_symbol = (*links).borrow().resolved_symbol.clone();
                 if links_resolved_symbol.is_some() {
-                    return links_resolved_symbol;
+                    return Ok(links_resolved_symbol);
                 }
 
                 if name.kind() == SyntaxKind::PropertyAccessExpression {
-                    self.check_property_access_expression(name, Some(CheckMode::Normal));
+                    self.check_property_access_expression(name, Some(CheckMode::Normal))?;
                 } else {
-                    self.check_qualified_name(name, Some(CheckMode::Normal));
+                    self.check_qualified_name(name, Some(CheckMode::Normal))?;
                 }
                 if (*links).borrow().resolved_symbol.is_none()
                     && is_jsdoc
@@ -574,7 +597,7 @@ impl TypeChecker {
                 {
                     return self.resolve_jsdoc_member_name(name, Option::<&Symbol>::None);
                 }
-                return (*links).borrow().resolved_symbol.clone();
+                return Ok((*links).borrow().resolved_symbol.clone());
             } else if is_jsdoc_member_name(name) {
                 return self.resolve_jsdoc_member_name(name, Option::<&Symbol>::None);
             }
@@ -590,18 +613,20 @@ impl TypeChecker {
                 Some(false),
                 Some(true),
                 Option::<&Node>::None,
+            )?;
+            return Ok(
+                if matches!(
+                    symbol.as_ref(),
+                    Some(symbol) if !Gc::ptr_eq(
+                        symbol,
+                        &self.unknown_symbol()
+                    )
+                ) {
+                    symbol
+                } else {
+                    Some(self.get_unresolved_symbol_for_entity_name(name))
+                },
             );
-            return if matches!(
-                symbol.as_ref(),
-                Some(symbol) if !Gc::ptr_eq(
-                    symbol,
-                    &self.unknown_symbol()
-                )
-            ) {
-                symbol
-            } else {
-                Some(self.get_unresolved_symbol_for_entity_name(name))
-            };
         }
         if name.parent().kind() == SyntaxKind::TypePredicate {
             return self.resolve_entity_name(
@@ -613,14 +638,14 @@ impl TypeChecker {
             );
         }
 
-        None
+        Ok(None)
     }
 
-    pub(super) fn resolve_jsdoc_member_name<TContainer: Borrow<Symbol>>(
+    pub(super) fn resolve_jsdoc_member_name(
         &self,
         name: &Node, /*EntityName | JSDocMemberName*/
-        container: Option<TContainer>,
-    ) -> Option<Gc<Symbol>> {
+        container: Option<impl Borrow<Symbol>>,
+    ) -> io::Result<Option<Gc<Symbol>>> {
         let container = container.map(|container| container.borrow().symbol_wrapper());
         if is_entity_name(name) {
             let meaning = SymbolFlags::Type | SymbolFlags::Namespace | SymbolFlags::Value;
@@ -630,18 +655,18 @@ impl TypeChecker {
                 Some(false),
                 Some(true),
                 get_host_signature_from_jsdoc(name),
-            );
+            )?;
             if symbol.is_none() && is_identifier(name) {
                 if let Some(container) = container.as_ref() {
                     symbol = self.get_merged_symbol(self.get_symbol(
-                        &(*self.get_exports_of_symbol(container)).borrow(),
+                        &(*self.get_exports_of_symbol(container)?).borrow(),
                         &name.as_identifier().escaped_text,
                         meaning,
-                    ));
+                    )?);
                 }
             }
             if symbol.is_some() {
-                return symbol;
+                return Ok(symbol);
             }
         }
         let left = if is_identifier(name) {
@@ -650,7 +675,7 @@ impl TypeChecker {
             self.resolve_jsdoc_member_name(
                 &name.as_has_left_and_right().left(),
                 Option::<&Symbol>::None,
-            )
+            )?
         };
         let right = if is_identifier(name) {
             name.as_identifier().escaped_text.clone()
@@ -663,53 +688,56 @@ impl TypeChecker {
         };
         if let Some(left) = left.as_ref() {
             let proto = if left.flags().intersects(SymbolFlags::Value) {
-                self.get_property_of_type_(&self.get_type_of_symbol(left), "prototype", None)
+                self.get_property_of_type_(&*self.get_type_of_symbol(left)?, "prototype", None)?
             } else {
                 None
             };
             let t = if let Some(proto) = proto.as_ref() {
-                self.get_type_of_symbol(proto)
+                self.get_type_of_symbol(proto)?
             } else {
-                self.get_declared_type_of_symbol(left)
+                self.get_declared_type_of_symbol(left)?
             };
             return self.get_property_of_type_(&t, &right, None);
         }
-        None
+        Ok(None)
     }
 
     pub(super) fn get_symbol_at_location_(
         &self,
         node: &Node,
         ignore_errors: Option<bool>,
-    ) -> Option<Gc<Symbol>> {
+    ) -> io::Result<Option<Gc<Symbol>>> {
         if node.kind() == SyntaxKind::SourceFile {
-            return if is_external_module(node) {
+            return Ok(if is_external_module(node) {
                 self.get_merged_symbol(node.maybe_symbol())
             } else {
                 None
-            };
+            });
         }
         let ref parent = node.parent();
         let ref grand_parent = parent.parent();
 
         if node.flags().intersects(NodeFlags::InWithStatement) {
-            return None;
+            return Ok(None);
         }
 
         if is_declaration_name_or_import_property_name(node) {
-            let parent_symbol = self.get_symbol_of_node(parent);
-            return if is_import_or_export_specifier(&node.parent())
-                && matches!(
-                    node.parent().as_has_property_name().maybe_property_name().as_ref(),
-                    Some(node_parent_property_name) if ptr::eq(
-                        &**node_parent_property_name,
-                        node
+            let parent_symbol = self.get_symbol_of_node(parent)?;
+            return Ok(
+                if is_import_or_export_specifier(&node.parent())
+                    && matches!(
+                        node.parent().as_has_property_name().maybe_property_name().as_ref(),
+                        Some(node_parent_property_name) if ptr::eq(
+                            &**node_parent_property_name,
+                            node
+                        )
                     )
-                ) {
-                self.get_immediate_aliased_symbol(&parent_symbol.unwrap())
-            } else {
-                parent_symbol
-            };
+                {
+                    self.get_immediate_aliased_symbol(&parent_symbol.unwrap())?
+                } else {
+                    parent_symbol
+                },
+            );
         } else if is_literal_computed_property_declaration_name(node) {
             return self.get_symbol_of_node(&parent.parent());
         }
@@ -727,58 +755,58 @@ impl TypeChecker {
                     )
                 )
             {
-                let ref type_of_pattern = self.get_type_of_node(grand_parent);
+                let ref type_of_pattern = self.get_type_of_node(grand_parent)?;
                 let property_declaration = self.get_property_of_type_(
                     type_of_pattern,
                     &node.as_identifier().escaped_text,
                     None,
-                );
+                )?;
 
                 if property_declaration.is_some() {
-                    return property_declaration;
+                    return Ok(property_declaration);
                 }
             } else if is_meta_property(parent) {
-                let ref parent_type = self.get_type_of_node(parent);
+                let ref parent_type = self.get_type_of_node(parent)?;
                 let property_declaration = self.get_property_of_type_(
                     parent_type,
                     &node.as_identifier().escaped_text,
                     None,
-                );
+                )?;
                 if property_declaration.is_some() {
-                    return property_declaration;
+                    return Ok(property_declaration);
                 }
                 if parent.as_meta_property().keyword_token == SyntaxKind::NewKeyword {
-                    return self.check_new_target_meta_property(parent).maybe_symbol();
+                    return Ok(self.check_new_target_meta_property(parent)?.maybe_symbol());
                 }
             }
         }
 
-        match node.kind() {
+        Ok(match node.kind() {
             SyntaxKind::Identifier
             | SyntaxKind::PrivateIdentifier
             | SyntaxKind::PropertyAccessExpression
             | SyntaxKind::QualifiedName => {
-                self.get_symbol_of_name_or_property_access_expression(node)
+                self.get_symbol_of_name_or_property_access_expression(node)?
             }
             SyntaxKind::ThisKeyword => {
                 let ref container = get_this_container(node, false);
                 if is_function_like(Some(&**container)) {
-                    let sig = self.get_signature_from_declaration_(container);
+                    let sig = self.get_signature_from_declaration_(container)?;
                     let sig_this_parameter = sig.maybe_this_parameter().clone();
                     if sig_this_parameter.is_some() {
-                        return sig_this_parameter;
+                        return Ok(sig_this_parameter);
                     }
                 }
                 if is_in_expression_context(node) {
-                    return self.check_expression(node, None, None).maybe_symbol();
+                    return Ok(self.check_expression(node, None, None)?.maybe_symbol());
                 }
 
-                self.get_type_from_this_type_node(node).maybe_symbol()
+                self.get_type_from_this_type_node(node)?.maybe_symbol()
             }
 
-            SyntaxKind::ThisType => self.get_type_from_this_type_node(node).maybe_symbol(),
+            SyntaxKind::ThisType => self.get_type_from_this_type_node(node)?.maybe_symbol(),
 
-            SyntaxKind::SuperKeyword => self.check_expression(node, None, None).maybe_symbol(),
+            SyntaxKind::SuperKeyword => self.check_expression(node, None, None)?.maybe_symbol(),
 
             SyntaxKind::ConstructorKeyword => {
                 let constructor_declaration = node.maybe_parent();
@@ -789,7 +817,7 @@ impl TypeChecker {
                             constructor_declaration.kind() == SyntaxKind::Constructor
                         })
                 {
-                    return constructor_declaration.parent().maybe_symbol();
+                    return Ok(constructor_declaration.parent().maybe_symbol());
                 }
                 None
             }
@@ -838,7 +866,7 @@ impl TypeChecker {
                     ) {
                         Some(self.get_type_of_expression(
                             &parent_as_element_access_expression.expression,
-                        ))
+                        )?)
                     } else {
                         None
                     }
@@ -846,17 +874,17 @@ impl TypeChecker {
                 {
                     Some(self.get_type_from_type_node_(
                         &grand_parent.as_indexed_access_type_node().object_type,
-                    ))
+                    )?)
                 } else {
                     None
                 };
-                object_type.as_ref().and_then(|object_type| {
+                object_type.as_ref().try_and_then(|object_type| {
                     self.get_property_of_type_(
                         object_type,
                         &escape_leading_underscores(&node.as_literal_like_node().text()),
                         None,
                     )
-                })
+                })?
             }
 
             SyntaxKind::NumericLiteral => {
@@ -868,7 +896,7 @@ impl TypeChecker {
                     ) {
                         Some(self.get_type_of_expression(
                             &parent_as_element_access_expression.expression,
-                        ))
+                        )?)
                     } else {
                         None
                     }
@@ -876,23 +904,23 @@ impl TypeChecker {
                 {
                     Some(self.get_type_from_type_node_(
                         &grand_parent.as_indexed_access_type_node().object_type,
-                    ))
+                    )?)
                 } else {
                     None
                 };
-                object_type.as_ref().and_then(|object_type| {
+                object_type.as_ref().try_and_then(|object_type| {
                     self.get_property_of_type_(
                         object_type,
                         &escape_leading_underscores(&node.as_literal_like_node().text()),
                         None,
                     )
-                })
+                })?
             }
 
             SyntaxKind::DefaultKeyword
             | SyntaxKind::FunctionKeyword
             | SyntaxKind::EqualsGreaterThanToken
-            | SyntaxKind::ClassKeyword => self.get_symbol_of_node(&node.parent()),
+            | SyntaxKind::ClassKeyword => self.get_symbol_of_node(&node.parent())?,
             SyntaxKind::ImportType => {
                 if is_literal_import_type_node(node) {
                     self.get_symbol_at_location_(
@@ -902,7 +930,7 @@ impl TypeChecker {
                             .as_literal_type_node()
                             .literal,
                         None,
-                    )
+                    )?
                 } else {
                     None
                 }
@@ -918,15 +946,15 @@ impl TypeChecker {
 
             SyntaxKind::ImportKeyword | SyntaxKind::NewKeyword => {
                 if is_meta_property(&node.parent()) {
-                    self.check_meta_property_keyword(&node.parent())
+                    self.check_meta_property_keyword(&node.parent())?
                         .maybe_symbol()
                 } else {
                     None
                 }
             }
-            SyntaxKind::MetaProperty => self.check_expression(node, None, None).maybe_symbol(),
+            SyntaxKind::MetaProperty => self.check_expression(node, None, None)?.maybe_symbol(),
 
             _ => None,
-        }
+        })
     }
 }

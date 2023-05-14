@@ -19,12 +19,19 @@ use crate::{
 };
 
 use super::TransformTypeScript;
+use crate::try_add_prologue_directives_and_initial_super_call;
+use crate::try_visit_each_child;
+use crate::try_visit_function_body;
+use crate::try_visit_node;
+use crate::try_visit_nodes;
+use crate::try_visit_parameter_list;
+use std::io;
 
 impl TransformTypeScript {
     pub(super) fn serialize_type_list(
         &self,
         types: &[Gc<Node /*TypeNode*/>],
-    ) -> Gc<Node /*SerializedTypeNode*/> {
+    ) -> io::Result<Gc<Node /*SerializedTypeNode*/>> {
         let mut serialized_union: Option<Gc<Node /*SerializedTypeNode*/>> = Default::default();
         for type_node in types {
             let mut type_node = type_node.clone();
@@ -41,43 +48,43 @@ impl TransformTypeScript {
             {
                 continue;
             }
-            let serialized_individual = self.serialize_type_node(Some(&*type_node));
+            let serialized_individual = self.serialize_type_node(Some(&*type_node))?;
 
             if is_identifier(&serialized_individual)
                 && serialized_individual.as_identifier().escaped_text == "Object"
             {
-                return serialized_individual;
+                return Ok(serialized_individual);
             } else if let Some(serialized_union) = serialized_union.as_ref() {
                 if !is_identifier(serialized_union)
                     || !is_identifier(&serialized_individual)
                     || serialized_union.as_identifier().escaped_text
                         != serialized_individual.as_identifier().escaped_text
                 {
-                    return self
+                    return Ok(self
                         .factory
                         .create_identifier("Object", Option::<Gc<NodeArray>>::None, None)
-                        .wrap();
+                        .wrap());
                 }
             } else {
                 serialized_union = Some(serialized_individual);
             }
         }
 
-        serialized_union.unwrap_or_else(|| self.factory.create_void_zero())
+        Ok(serialized_union.unwrap_or_else(|| self.factory.create_void_zero()))
     }
 
     pub(super) fn serialize_type_reference_node(
         &self,
         node: &Node, /*TypeReferenceNode*/
-    ) -> Gc<Node /*SerializedTypeNode*/> {
+    ) -> io::Result<Gc<Node /*SerializedTypeNode*/>> {
         let node_as_type_reference_node = node.as_type_reference_node();
         let kind = self.resolver.get_type_reference_serialization_kind(
             &node_as_type_reference_node.type_name,
             self.maybe_current_name_scope()
                 .or_else(|| self.maybe_current_lexical_scope())
                 .as_deref(),
-        );
-        match kind {
+        )?;
+        Ok(match kind {
             TypeReferenceSerializationKind::Unknown => {
                 if find_ancestor(Some(node), |n: &Node| {
                     n.maybe_parent().matches(|ref n_parent| {
@@ -91,10 +98,10 @@ impl TransformTypeScript {
                 })
                 .is_some()
                 {
-                    return self
+                    return Ok(self
                         .factory
                         .create_identifier("Object", Option::<Gc<NodeArray>>::None, None)
-                        .wrap();
+                        .wrap());
                 }
 
                 let serialized = self.serialize_entity_name_as_expression_fallback(
@@ -169,7 +176,7 @@ impl TransformTypeScript {
                 .wrap(),
             // default:
             //     return Debug.assertNever(kind);
-        }
+        })
     }
 
     pub(super) fn create_checked_value(
@@ -350,7 +357,7 @@ impl TransformTypeScript {
     pub(super) fn visit_property_name_of_class_element(
         &self,
         member: &Node, /*ClassElement*/
-    ) -> Gc<Node /*PropertyName*/> {
+    ) -> io::Result<Gc<Node /*PropertyName*/>> {
         let ref name = member.as_named_declaration().name();
         if is_computed_property_name(name)
             && (!has_static_modifier(member)
@@ -358,12 +365,12 @@ impl TransformTypeScript {
                 || member.maybe_decorators().is_non_empty())
         {
             let name_as_computed_property_name = name.as_computed_property_name();
-            let expression = visit_node(
+            let expression = try_visit_node(
                 Some(&*name_as_computed_property_name.expression),
                 Some(|node: &Node| self.visitor(node)),
                 Some(is_expression),
                 Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
-            )
+            )?
             .unwrap();
             let ref inner_expression = skip_partially_emitted_expressions(&expression);
             if !is_simple_inlineable_expression(inner_expression) {
@@ -371,71 +378,53 @@ impl TransformTypeScript {
                     .factory
                     .get_generated_name_for_node(Some(&**name), None);
                 self.context.hoist_variable_declaration(&generated_name);
-                return self.factory.update_computed_property_name(
+                return Ok(self.factory.update_computed_property_name(
                     name,
                     self.factory
                         .create_assignment(generated_name, expression)
                         .wrap(),
-                );
+                ));
             }
         }
-        visit_node(
+        Ok(try_visit_node(
             Some(&**name),
             Some(|node: &Node| self.visitor(node)),
             Some(is_property_name),
             Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
-        )
-        .unwrap()
+        )?
+        .unwrap())
     }
 
     pub(super) fn visit_heritage_clause(
         &self,
         node: &Node, /*HeritageClause*/
-    ) -> Option<Gc<Node /*HeritageClause*/>> {
+    ) -> io::Result<Option<Gc<Node /*HeritageClause*/>>> {
         let node_as_heritage_clause = node.as_heritage_clause();
         if node_as_heritage_clause.token == SyntaxKind::ImplementsKeyword {
-            return None;
+            return Ok(None);
         }
-        visit_each_child(
+        try_visit_each_child(
             Some(node),
             |node: &Node| self.visitor(node),
             &**self.context,
-            Option::<
-                fn(
-                    Option<&NodeArray>,
-                    Option<&mut dyn FnMut(&Node) -> VisitResult>,
-                    Option<&dyn Fn(&Node) -> bool>,
-                    Option<usize>,
-                    Option<usize>,
-                ) -> Option<Gc<NodeArray>>,
-            >::None,
-            Option::<fn(&Node) -> VisitResult>::None,
-            Option::<
-                fn(
-                    Option<&Node>,
-                    Option<&mut dyn FnMut(&Node) -> VisitResult>,
-                    Option<&dyn Fn(&Node) -> bool>,
-                    Option<&dyn Fn(&[Gc<Node>]) -> Gc<Node>>,
-                ) -> Option<Gc<Node>>,
-            >::None,
         )
     }
 
     pub(super) fn visit_expression_with_type_arguments(
         &self,
         node: &Node, /*ExpressionWithTypeArguments*/
-    ) -> Gc<Node /*ExpressionWithTypeArguments*/> {
-        self.factory.update_expression_with_type_arguments(
+    ) -> io::Result<Gc<Node /*ExpressionWithTypeArguments*/>> {
+        Ok(self.factory.update_expression_with_type_arguments(
             node,
-            visit_node(
+            try_visit_node(
                 Some(&*node.as_expression_with_type_arguments().expression),
                 Some(|node: &Node| self.visitor(node)),
                 Some(is_left_hand_side_expression),
                 Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
-            )
+            )?
             .unwrap(),
             Option::<Gc<NodeArray>>::None,
-        )
+        ))
     }
 
     pub(super) fn should_emit_function_like_declaration(
@@ -448,31 +437,31 @@ impl TransformTypeScript {
     pub(super) fn visit_property_declaration(
         &self,
         node: &Node, /*PropertyDeclaration*/
-    ) -> VisitResult /*<Node>*/ {
+    ) -> io::Result<VisitResult> /*<Node>*/ {
         if node.flags().intersects(NodeFlags::Ambient)
             || has_syntactic_modifier(node, ModifierFlags::Abstract)
         {
-            return None;
+            return Ok(None);
         }
         let updated = self.factory.update_property_declaration(
             node,
             Option::<Gc<NodeArray>>::None,
-            visit_nodes(
+            try_visit_nodes(
                 node.maybe_modifiers().as_deref(),
                 Some(|node: &Node| self.visitor(node)),
                 Some(is_modifier),
                 None,
                 None,
-            ),
-            self.visit_property_name_of_class_element(node),
+            )?,
+            self.visit_property_name_of_class_element(node)?,
             None,
             None,
-            visit_node(
+            try_visit_node(
                 node.as_property_declaration().maybe_initializer(),
                 Some(|node: &Node| self.visitor(node)),
                 Option::<fn(&Node) -> bool>::None,
                 Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
-            ),
+            )?,
         );
         if !ptr::eq(&*updated, node) {
             set_comment_range(&updated, node);
@@ -481,53 +470,44 @@ impl TransformTypeScript {
                 Some((&move_range_past_decorators(node)).into()),
             );
         }
-        Some(updated.into())
+        Ok(Some(updated.into()))
     }
 
     pub(super) fn visit_constructor(
         &self,
         node: &Node, /*ConstructorDeclaration*/
-    ) -> VisitResult /*<Node>*/ {
+    ) -> io::Result<VisitResult> /*<Node>*/ {
         let node_as_constructor_declaration = node.as_constructor_declaration();
         if !self.should_emit_function_like_declaration(node) {
-            return None;
+            return Ok(None);
         }
 
-        Some(
+        Ok(Some(
             self.factory
                 .update_constructor_declaration(
                     node,
                     Option::<Gc<NodeArray>>::None,
                     Option::<Gc<NodeArray>>::None,
-                    visit_parameter_list(
+                    try_visit_parameter_list(
                         Some(&node_as_constructor_declaration.parameters()),
                         |node: &Node| self.visitor(node),
                         &**self.context,
-                        Option::<
-                            fn(
-                                Option<&NodeArray>,
-                                Option<&mut dyn FnMut(&Node) -> VisitResult>,
-                                Option<&dyn Fn(&Node) -> bool>,
-                                Option<usize>,
-                                Option<usize>,
-                            ) -> Option<Gc<NodeArray>>,
-                        >::None,
-                    )
+                    )?
                     .unwrap(),
                     Some(self.transform_constructor_body(
                         &node_as_constructor_declaration.maybe_body().unwrap(),
                         node,
-                    )),
+                    )?),
                 )
                 .into(),
-        )
+        ))
     }
 
     pub(super) fn transform_constructor_body(
         &self,
         body: &Node,        /*Block*/
         constructor: &Node, /*ConstructorDeclaration*/
-    ) -> Gc<Node> {
+    ) -> io::Result<Gc<Node>> {
         let body_as_block = body.as_block();
         let parameters_with_property_assignments =
             /*constructor &&*/
@@ -543,20 +523,12 @@ impl TransformTypeScript {
             .peekable()
             .is_empty_()
         {
-            return visit_function_body(
+            return Ok(try_visit_function_body(
                 Some(body),
                 |node: &Node| self.visitor(node),
                 &**self.context,
-                Option::<
-                    fn(
-                        Option<&Node>,
-                        Option<&mut dyn FnMut(&Node) -> VisitResult>,
-                        Option<&dyn Fn(&Node) -> bool>,
-                        Option<&dyn Fn(&[Gc<Node>]) -> Gc<Node>>,
-                    ) -> Option<Gc<Node>>,
-                >::None,
-            )
-            .unwrap();
+            )?
+            .unwrap());
         }
 
         let mut statements: Vec<Gc<Node /*Statement*/>> = Default::default();
@@ -564,12 +536,12 @@ impl TransformTypeScript {
 
         self.context.resume_lexical_environment();
 
-        index_of_first_statement = add_prologue_directives_and_initial_super_call(
+        index_of_first_statement = try_add_prologue_directives_and_initial_super_call(
             &self.factory,
             constructor,
             &mut statements,
             |node: &Node| self.visitor(node),
-        );
+        )?;
 
         add_range(
             &mut statements,
@@ -587,13 +559,13 @@ impl TransformTypeScript {
 
         add_range(
             &mut statements,
-            visit_nodes(
+            try_visit_nodes(
                 Some(&body_as_block.statements),
                 Some(|node: &Node| self.visitor(node)),
                 Some(is_statement),
                 Some(index_of_first_statement),
                 None,
-            )
+            )?
             .as_double_deref(),
             None,
             None,
@@ -606,7 +578,8 @@ impl TransformTypeScript {
                 self.context.end_lexical_environment().as_deref(),
             )
             .as_vec_owned();
-        self.factory
+        Ok(self
+            .factory
             .create_block(
                 self.factory
                     .create_node_array(Some(statements), None)
@@ -615,7 +588,7 @@ impl TransformTypeScript {
             )
             .wrap()
             .set_text_range(Some(body))
-            .set_original_node(Some(body.node_wrapper()))
+            .set_original_node(Some(body.node_wrapper())))
     }
 
     pub(super) fn transform_parameter_with_property_assignment(

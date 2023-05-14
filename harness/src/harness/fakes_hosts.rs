@@ -9,11 +9,12 @@ pub mod fakes {
     use std::time::SystemTime;
 
     use typescript_rust::{
-        create_source_file, generate_djb2_hash, get_default_lib_file_name, get_new_line_character,
-        match_files, millis_since_epoch_to_system_time, not_implemented, CompilerOptions,
-        ConvertToTSConfigHost, DirectoryWatcherCallback, ExitStatus, FileSystemEntries,
-        FileWatcher, FileWatcherCallback, ModuleResolutionHost, ModuleResolutionHostOverrider,
-        Node, ScriptTarget, System as _, WatchOptions,
+        continue_if_err, create_source_file, generate_djb2_hash, get_default_lib_file_name,
+        get_new_line_character, match_files, millis_since_epoch_to_system_time, not_implemented,
+        return_ok_default_if_none, CompilerOptions, ConvertToTSConfigHost,
+        DirectoryWatcherCallback, ExitStatus, FileSystemEntries, FileWatcher, FileWatcherCallback,
+        ModuleResolutionHost, ModuleResolutionHostOverrider, Node, ScriptTarget, System as _,
+        WatchOptions,
     };
     use typescript_services_rust::{get_default_compiler_options, NodeServicesInterface};
 
@@ -46,7 +47,7 @@ pub mod fakes {
     }
 
     impl System {
-        pub fn new(vfs: Gc<vfs::FileSystem>, options: Option<SystemOptions>) -> Self {
+        pub fn new(vfs: Gc<vfs::FileSystem>, options: Option<SystemOptions>) -> io::Result<Self> {
             let SystemOptions {
                 executing_file_path,
                 new_line,
@@ -54,12 +55,12 @@ pub mod fakes {
             } = options.unwrap_or_default();
             let new_line = new_line.unwrap_or("\r\n");
             let use_case_sensitive_file_names = !vfs.ignore_case;
-            Self {
+            Ok(Self {
                 args: Default::default(),
                 output: Default::default(),
                 exit_code: Default::default(),
                 vfs: if vfs.is_readonly() {
-                    Gc::new(vfs::FileSystem::shadow(vfs, None))
+                    Gc::new(vfs::FileSystem::shadow(vfs, None)?)
                 } else {
                     vfs
                 },
@@ -68,33 +69,28 @@ pub mod fakes {
                 _executing_file_path: executing_file_path,
                 _env: env,
                 test_terminal_width: Default::default(),
-            }
+            })
         }
 
         pub fn get_accessible_file_system_entries(&self, path: &str) -> FileSystemEntries {
             let mut files: Vec<String> = vec![];
             let mut directories: Vec<String> = vec![];
-            // try {
-            for file in self.vfs.readdir_sync(path) {
-                // try {
-                let stats = self.vfs.stat_sync(&vpath::combine(path, &[Some(&file)]));
+            for file in self.vfs.readdir_sync(path).unwrap_or_default() {
+                let stats =
+                    continue_if_err!(self.vfs.stat_sync(&vpath::combine(path, &[Some(&file)])));
                 if stats.is_file() {
                     files.push(file);
                 } else if stats.is_directory() {
                     directories.push(file);
                 }
-                // }
-                // catch { /*ignored*/ }
             }
-            // }
-            // catch { /*ignored*/ }
             FileSystemEntries { files, directories }
         }
 
         fn _get_stats(&self, path: &str) -> Option<vfs::Stats> {
             // try {
-            if self.vfs.exists_sync(path) {
-                Some(self.vfs.stat_sync(path))
+            if self.vfs.exists_sync(path).ok()? {
+                Some(self.vfs.stat_sync(path).ok()?)
             } else {
                 None
             }
@@ -147,7 +143,7 @@ pub mod fakes {
             data: &str,
             write_byte_order_mark: Option<bool>,
         ) -> io::Result<()> {
-            self.vfs.mkdirp_sync(&vpath::dirname(path));
+            self.vfs.mkdirp_sync(&vpath::dirname(path))?;
             self.vfs.write_file_sync(
                 path,
                 if write_byte_order_mark == Some(true) {
@@ -156,7 +152,7 @@ pub mod fakes {
                     data.to_owned()
                 },
                 None,
-            );
+            )?;
             Ok(())
         }
 
@@ -178,24 +174,23 @@ pub mod fakes {
             stats.map_or(false, |stats| stats.is_directory())
         }
 
-        fn create_directory(&self, path: &str) {
-            self.vfs.mkdirp_sync(path);
+        fn create_directory(&self, path: &str) -> io::Result<()> {
+            self.vfs.mkdirp_sync(path)?;
+
+            Ok(())
         }
 
         fn get_directories(&self, path: &str) -> Vec<String> {
-            let mut result: Vec<String> = vec![];
-            // try {
-            for file in self.vfs.readdir_sync(path) {
-                if self
-                    .vfs
-                    .stat_sync(&vpath::combine(path, &[Some(&file)]))
-                    .is_directory()
-                {
-                    result.push(file);
+            let mut result: Vec<String> = Default::default();
+            for file in self.vfs.readdir_sync(path).unwrap_or_default() {
+                match self.vfs.stat_sync(&vpath::combine(path, &[Some(&file)])) {
+                    Err(_) => break,
+                    Ok(value) if value.is_directory() => {
+                        result.push(file);
+                    }
+                    _ => (),
                 }
             }
-            // }
-            // catch { /*ignore*/ }
             result
         }
 
@@ -206,18 +201,18 @@ pub mod fakes {
             exclude: Option<&[String]>,
             include: Option<&[String]>,
             depth: Option<usize>,
-        ) -> Vec<String> {
-            match_files(
+        ) -> io::Result<Vec<String>> {
+            Ok(match_files(
                 path,
                 extensions,
                 exclude,
                 include,
                 self.use_case_sensitive_file_names,
-                &self.get_current_directory(),
+                &self.get_current_directory()?,
                 depth,
                 |path: &str| self.get_accessible_file_system_entries(path),
                 |path: &str| self.realpath(path).unwrap(),
-            )
+            ))
         }
 
         fn exit(&self, _exit_code: Option<ExitStatus>) -> ! {
@@ -235,8 +230,8 @@ pub mod fakes {
             )
         }
 
-        fn resolve_path(&self, path: &str) -> String {
-            vpath::resolve(&self.vfs.cwd(), &[Some(path)])
+        fn resolve_path(&self, path: &str) -> io::Result<String> {
+            Ok(vpath::resolve(&self.vfs.cwd()?, &[Some(path)]))
         }
 
         fn get_executing_file_path(&self) -> Cow<'static, str> {
@@ -272,12 +267,10 @@ pub mod fakes {
         }
 
         fn realpath(&self, path: &str) -> Option<String> {
-            // try {
-            Some(self.vfs.realpath_sync(path))
-            // }
-            // catch {
-            //     return path;
-            // }
+            match self.vfs.realpath_sync(path) {
+                Err(_) => Some(path.to_owned()),
+                Ok(value) => Some(value),
+            }
         }
 
         fn is_realpath_supported(&self) -> bool {
@@ -339,7 +332,7 @@ pub mod fakes {
     }
 
     impl ConvertToTSConfigHost for System {
-        fn get_current_directory(&self) -> String {
+        fn get_current_directory(&self) -> io::Result<String> {
             self.vfs.cwd()
         }
 
@@ -354,13 +347,13 @@ pub mod fakes {
     }
 
     impl ParseConfigHost {
-        pub fn new<TSys: Into<RcSystemOrRcFileSystem>>(sys: TSys) -> Self {
+        pub fn new(sys: impl Into<RcSystemOrRcFileSystem>) -> io::Result<Self> {
             let sys = sys.into();
             let sys = match sys {
                 RcSystemOrRcFileSystem::RcSystem(sys) => sys,
-                RcSystemOrRcFileSystem::RcFileSystem(sys) => Gc::new(System::new(sys, None)),
+                RcSystemOrRcFileSystem::RcFileSystem(sys) => Gc::new(System::new(sys, None)?),
             };
-            Self { sys }
+            Ok(Self { sys })
         }
     }
 
@@ -393,13 +386,13 @@ pub mod fakes {
             sys: impl Into<RcSystemOrRcFileSystem>,
             options: Option<Gc<CompilerOptions>>,
             set_parent_nodes: Option<bool>,
-        ) -> Gc<Box<Self>> {
+        ) -> io::Result<Gc<Box<Self>>> {
             let sys = sys.into();
             let options = options.unwrap_or_else(|| Gc::new(get_default_compiler_options()));
             let set_parent_nodes = set_parent_nodes.unwrap_or(false);
             let sys = match sys {
                 RcSystemOrRcFileSystem::RcSystem(sys) => sys,
-                RcSystemOrRcFileSystem::RcFileSystem(sys) => Gc::new(System::new(sys, None)),
+                RcSystemOrRcFileSystem::RcFileSystem(sys) => Gc::new(System::new(sys, None)?),
             };
             let dyn_wrapper: Gc<Box<dyn typescript_rust::CompilerHost>> = Gc::new(Box::new(Self {
                 _dyn_wrapper: Default::default(),
@@ -449,7 +442,7 @@ pub mod fakes {
             }));
             let downcasted: Gc<Box<Self>> = unsafe { mem::transmute(dyn_wrapper.clone()) };
             *downcasted._dyn_wrapper.borrow_mut() = Some(dyn_wrapper);
-            downcasted
+            Ok(downcasted)
         }
 
         pub fn as_dyn_compiler_host(&self) -> Gc<Box<dyn typescript_rust::CompilerHost>> {
@@ -496,11 +489,12 @@ pub mod fakes {
             self.sys.vfs.clone()
         }
 
-        pub fn parse_config_host(&self) -> Gc<ParseConfigHost> {
-            self._parse_config_host
-                .borrow_mut()
-                .get_or_insert_with(|| Gc::new(ParseConfigHost::new(self.sys.clone())))
-                .clone()
+        pub fn parse_config_host(&self) -> io::Result<Gc<ParseConfigHost>> {
+            let mut parse_config_host = self._parse_config_host.borrow_mut();
+            if parse_config_host.is_none() {
+                *parse_config_host = Some(Gc::new(ParseConfigHost::new(self.sys.clone())?));
+            }
+            Ok(parse_config_host.as_ref().unwrap().clone())
         }
 
         pub fn delete_file(&self, file_name: &str) {
@@ -521,7 +515,7 @@ pub mod fakes {
             self
         }
 
-        fn get_current_directory(&self) -> String {
+        fn get_current_directory(&self) -> io::Result<String> {
             self.sys.get_current_directory()
         }
 
@@ -548,7 +542,7 @@ pub mod fakes {
             exclude: Option<&[String]>,
             include: &[String],
             depth: Option<usize>,
-        ) -> Option<Vec<String>> {
+        ) -> Option<io::Result<Vec<String>>> {
             Some(
                 self.sys
                     .read_directory(path, Some(extensions), exclude, Some(include), depth),
@@ -566,7 +560,7 @@ pub mod fakes {
             write_byte_order_mark: bool,
             on_error: Option<&mut dyn FnMut(&str)>,
             source_files: Option<&[Gc<Node /*SourceFile*/>]>,
-        ) {
+        ) -> io::Result<()> {
             if let Some(write_file_override) = self.maybe_write_file_override() {
                 write_file_override.write_file(
                     file_name,
@@ -593,7 +587,7 @@ pub mod fakes {
             write_byte_order_mark: bool,
             _on_error: Option<&mut dyn FnMut(&str)>,
             _source_files: Option<&[Gc<Node /*SourceFile*/>]>,
-        ) {
+        ) -> io::Result<()> {
             let mut content = content.to_owned();
             if write_byte_order_mark {
                 content = Utils::add_utf8_byte_order_mark(content);
@@ -607,7 +601,7 @@ pub mod fakes {
                 .insert("fileName".to_owned(), file_name.to_owned());
             let document = Gc::new(document);
             self.vfs()
-                .filemeta(file_name)
+                .filemeta(file_name)?
                 .borrow_mut()
                 .set("document", document.clone().into());
             let mut _outputs_map = self._outputs_map.borrow_mut();
@@ -618,6 +612,7 @@ pub mod fakes {
             }
             let index = *_outputs_map.get(&document.file).unwrap();
             outputs[index] = document;
+            Ok(())
         }
 
         fn is_write_file_supported(&self) -> bool {
@@ -637,18 +632,18 @@ pub mod fakes {
             *write_file_override = overriding_write_file;
         }
 
-        fn get_default_lib_location(&self) -> Option<String> {
-            Some(vpath::resolve(
-                &typescript_rust::CompilerHost::get_current_directory(self),
+        fn get_default_lib_location(&self) -> io::Result<Option<String>> {
+            Ok(Some(vpath::resolve(
+                &typescript_rust::CompilerHost::get_current_directory(self)?,
                 &[Some(&self.default_lib_location)],
-            ))
+            )))
         }
 
-        fn get_default_lib_file_name(&self, options: &CompilerOptions) -> String {
-            vpath::resolve(
-                &self.get_default_lib_location().unwrap(),
+        fn get_default_lib_file_name(&self, options: &CompilerOptions) -> io::Result<String> {
+            Ok(vpath::resolve(
+                &self.get_default_lib_location()?.unwrap(),
                 &[Some(get_default_lib_file_name(options))],
-            )
+            ))
         }
 
         fn get_source_file(
@@ -657,9 +652,9 @@ pub mod fakes {
             language_version: ScriptTarget,
             _on_error: Option<&mut dyn FnMut(&str)>,
             _should_create_new_source_file: Option<bool>,
-        ) -> Option<Gc<Node /*SourceFile*/>> {
+        ) -> io::Result<Option<Gc<Node /*SourceFile*/>>> {
             let canonical_file_name = self.get_canonical_file_name(&vpath::resolve(
-                &typescript_rust::CompilerHost::get_current_directory(self),
+                &typescript_rust::CompilerHost::get_current_directory(self)?,
                 &[Some(file_name)],
             ));
             let existing = self
@@ -668,10 +663,10 @@ pub mod fakes {
                 .get(&canonical_file_name)
                 .cloned();
             if existing.is_some() {
-                return existing;
+                return Ok(existing);
             }
 
-            let content = self.read_file(&canonical_file_name).ok().flatten()?;
+            let content = return_ok_default_if_none!(self.read_file(&canonical_file_name)?);
 
             let cache_key = if self.vfs().shadow_root().is_some() {
                 Some(format!(
@@ -682,7 +677,7 @@ pub mod fakes {
                 None
             };
             if let Some(cache_key) = cache_key.as_ref() {
-                let meta = self.vfs().filemeta(&canonical_file_name);
+                let meta = self.vfs().filemeta(&canonical_file_name)?;
                 let source_file_from_metadata = meta
                     .borrow()
                     .get(cache_key)
@@ -695,7 +690,7 @@ pub mod fakes {
                     self._source_files
                         .borrow_mut()
                         .set(canonical_file_name, source_file_from_metadata.clone());
-                    return Some(source_file_from_metadata);
+                    return Ok(Some(source_file_from_metadata));
                 }
             }
 
@@ -705,7 +700,7 @@ pub mod fakes {
                 language_version,
                 Some(self._set_parent_nodes || self.should_assert_invariants),
                 None,
-            );
+            )?;
             if self.should_assert_invariants {
                 Utils::assert_invariants(Some(&parsed), None);
             }
@@ -715,16 +710,22 @@ pub mod fakes {
                 .set(canonical_file_name.clone(), parsed.clone());
 
             if let Some(cache_key) = cache_key.as_ref() {
-                let stats = self.vfs().stat_sync(&canonical_file_name);
+                let stats = self.vfs().stat_sync(&canonical_file_name)?;
 
                 let mut fs = self.vfs();
                 while let Some(fs_shadow_root) = fs.shadow_root() {
-                    // try {
-                    let shadow_root_stats = if fs_shadow_root.exists_sync(&canonical_file_name) {
-                        fs_shadow_root.stat_sync(&canonical_file_name)
-                    } else {
-                        break;
-                    };
+                    let shadow_root_stats =
+                        if match fs_shadow_root.exists_sync(&canonical_file_name) {
+                            Err(_) => break,
+                            Ok(value) => value,
+                        } {
+                            match fs_shadow_root.stat_sync(&canonical_file_name) {
+                                Err(_) => break,
+                                Ok(value) => value,
+                            }
+                        } else {
+                            break;
+                        };
 
                     if shadow_root_stats.dev != stats.dev
                         || shadow_root_stats.ino != stats.ino
@@ -734,20 +735,16 @@ pub mod fakes {
                     }
 
                     fs = fs_shadow_root;
-                    // }
-                    // catch {
-                    //     break;
-                    // }
                 }
 
                 if !Gc::ptr_eq(&fs, &self.vfs()) {
-                    fs.filemeta(&canonical_file_name)
+                    fs.filemeta(&canonical_file_name)?
                         .borrow_mut()
                         .set(cache_key, parsed.clone().into());
                 }
             }
 
-            Some(parsed)
+            Ok(Some(parsed))
         }
 
         fn is_resolve_module_names_supported(&self) -> bool {
@@ -930,7 +927,7 @@ pub mod fakes {
             *realpath_override = overriding_realpath;
         }
 
-        fn get_current_directory(&self) -> Option<String> {
+        fn get_current_directory(&self) -> Option<io::Result<String>> {
             Some(typescript_rust::CompilerHost::get_current_directory(self))
         }
 

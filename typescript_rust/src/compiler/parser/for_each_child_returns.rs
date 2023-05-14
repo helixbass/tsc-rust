@@ -1446,13 +1446,10 @@ pub fn for_each_child_returns<TReturn>(
     }
 }
 
-pub fn for_each_child_bool<
-    TNodeCallback: FnMut(&Node) -> bool,
-    TNodesCallback: FnMut(&NodeArray) -> bool,
->(
+pub fn for_each_child_bool(
     node: &Node,
-    mut cb_node: TNodeCallback,
-    cb_nodes: Option<TNodesCallback>,
+    mut cb_node: impl FnMut(&Node) -> bool,
+    cb_nodes: Option<impl FnMut(&NodeArray) -> bool>,
 ) -> bool {
     // match for_each_child_returns(
     //     node,
@@ -1483,4 +1480,12 @@ pub fn for_each_child_bool<
             None => false,
         }
     }
+}
+
+pub fn try_for_each_child_bool<TError>(
+    _node: &Node,
+    _cb_node: impl FnMut(&Node) -> Result<bool, TError>,
+    _cb_nodes: Option<impl FnMut(&NodeArray) -> Result<bool, TError>>,
+) -> Result<bool, TError> {
+    unimplemented!()
 }

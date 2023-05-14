@@ -8,9 +8,9 @@ use std::collections::HashMap;
 use std::convert::TryInto;
 use std::hash::Hash;
 use std::iter::FromIterator;
-use std::mem;
 use std::ptr;
 use std::rc::Rc;
+use std::{io, mem};
 
 use super::{
     default_lib_reference_reg_ex, escape_template_substitution,
@@ -265,7 +265,7 @@ impl SymbolTracker for SingleLineStringWriter {
         symbol: &Symbol,
         enclosing_declaration: Option<Gc<Node>>,
         meaning: SymbolFlags,
-    ) -> Option<bool> {
+    ) -> Option<io::Result<bool>> {
         self._dyn_symbol_tracker_wrapper
             .track_symbol(symbol, enclosing_declaration, meaning)
     }
@@ -352,8 +352,8 @@ impl SymbolTracker for SingleLineStringWriterSymbolTracker {
         _symbol: &Symbol,
         _enclosing_declaration: Option<Gc<Node>>,
         _meaning: SymbolFlags,
-    ) -> Option<bool> {
-        Some(false)
+    ) -> Option<io::Result<bool>> {
+        Some(Ok(false))
     }
 
     fn is_track_symbol_supported(&self) -> bool {
@@ -502,14 +502,22 @@ pub fn for_each_entry<TKey, TValue, TReturn>(
     None
 }
 
-pub fn for_each_entry_bool<
-    TKey,
-    TValue,
-    TMap: IntoIterator<Item = (TKey, TValue)>,
-    TCallback: FnMut(TValue, TKey) -> bool,
->(
-    map: TMap, /*ReadonlyESMap*/
-    mut callback: TCallback,
+pub fn try_for_each_entry<TKey, TValue, TReturn, TError>(
+    map: impl IntoIterator<Item = (TKey, TValue)>, /*ReadonlyESMap*/
+    mut callback: impl FnMut(TValue, TKey) -> Result<Option<TReturn>, TError>,
+) -> Result<Option<TReturn>, TError> {
+    for (key, value) in map {
+        let result = callback(value, key)?;
+        if result.is_some() {
+            return Ok(result);
+        }
+    }
+    Ok(None)
+}
+
+pub fn for_each_entry_bool<TKey, TValue>(
+    map: impl IntoIterator<Item = (TKey, TValue)>, /*ReadonlyESMap*/
+    mut callback: impl FnMut(TValue, TKey) -> bool,
 ) -> bool {
     for (key, value) in map {
         let result = callback(value, key);
@@ -518,6 +526,19 @@ pub fn for_each_entry_bool<
         }
     }
     false
+}
+
+pub fn try_for_each_entry_bool<TKey, TValue, TError>(
+    map: impl IntoIterator<Item = (TKey, TValue)>, /*ReadonlyESMap*/
+    mut callback: impl FnMut(TValue, TKey) -> Result<bool, TError>,
+) -> Result<bool, TError> {
+    for (key, value) in map {
+        let result = callback(value, key)?;
+        if result {
+            return Ok(result);
+        }
+    }
+    Ok(false)
 }
 
 pub fn for_each_key<
@@ -548,16 +569,28 @@ pub fn copy_entries<TKey: Clone + Eq + Hash, TValue: Clone>(
     }
 }
 
-pub fn using_single_line_string_writer<TAction: FnOnce(Gc<Box<dyn EmitTextWriter>>)>(
-    action: TAction,
-) -> String {
+pub fn using_single_line_string_writer(
+    action: impl FnOnce(Gc<Box<dyn EmitTextWriter>>) -> io::Result<()>,
+) -> io::Result<String> {
     let string_writer = string_writer();
     let old_string = string_writer.get_text();
-    action(string_writer.clone());
+    action(string_writer.clone())?;
     let ret = string_writer.get_text();
     string_writer.clear();
     string_writer.write_keyword(&old_string);
-    ret
+    Ok(ret)
+}
+
+pub fn try_using_single_line_string_writer<TError>(
+    action: impl FnOnce(Gc<Box<dyn EmitTextWriter>>) -> Result<(), TError>,
+) -> Result<String, TError> {
+    let string_writer = string_writer();
+    let old_string = string_writer.get_text();
+    action(string_writer.clone())?;
+    let ret = string_writer.get_text();
+    string_writer.clear();
+    string_writer.write_keyword(&old_string);
+    Ok(ret)
 }
 
 pub fn get_full_width(node: &Node) -> isize {

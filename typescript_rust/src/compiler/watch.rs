@@ -54,7 +54,7 @@ impl SysFormatDiagnosticsHost {
 }
 
 impl FormatDiagnosticsHost for SysFormatDiagnosticsHost {
-    fn get_current_directory(&self) -> String {
+    fn get_current_directory(&self) -> io::Result<String> {
         self.system.get_current_directory()
     }
 
@@ -110,21 +110,23 @@ impl DiagnosticReporterConcrete {
 }
 
 impl DiagnosticReporter for DiagnosticReporterConcrete {
-    fn call(&self, diagnostic: Gc<Diagnostic>) {
+    fn call(&self, diagnostic: Gc<Diagnostic>) -> io::Result<()> {
         if !self.pretty {
             self.system
-                .write(&format_diagnostic(&diagnostic, &*self.host));
-            return;
+                .write(&format_diagnostic(&diagnostic, &*self.host)?);
+            return Ok(());
         }
 
         let mut diagnostics = self.diagnostics.borrow_mut();
         diagnostics.push(diagnostic);
         self.system.write(&format!(
             "{}{}",
-            format_diagnostics_with_color_and_context(&diagnostics, &*self.host),
+            format_diagnostics_with_color_and_context(&diagnostics, &*self.host)?,
             self.host.get_new_line()
         ));
         diagnostics.pop();
+
+        Ok(())
     }
 }
 
@@ -246,7 +248,7 @@ pub fn parse_config_file_with_system(
     watch_options_to_extend: Option<Rc<WatchOptions>>,
     system: Gc<Box<dyn System>>,
     report_diagnostic: Gc<Box<dyn DiagnosticReporter>>,
-) -> Option<ParsedCommandLine> {
+) -> io::Result<Option<ParsedCommandLine>> {
     let host = ParseConfigFileWithSystemHost::new(system, report_diagnostic);
     get_parsed_command_line_of_config_file(
         config_file_name,
@@ -277,7 +279,7 @@ impl ParseConfigFileWithSystemHost {
 }
 
 impl ParseConfigFileHost for ParseConfigFileWithSystemHost {
-    fn get_current_directory(&self) -> String {
+    fn get_current_directory(&self) -> io::Result<String> {
         self.system.get_current_directory()
     }
 }
@@ -294,7 +296,7 @@ impl ParseConfigHost for ParseConfigFileWithSystemHost {
         excludes: Option<&[String]>,
         includes: &[String],
         depth: Option<usize>,
-    ) -> Vec<String> {
+    ) -> io::Result<Vec<String>> {
         self.system
             .read_directory(root_dir, Some(extensions), excludes, Some(includes), depth)
     }
@@ -831,7 +833,7 @@ fn emit_files_and_report_errors(
     cancellation_token: Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
     emit_only_dts_files: Option<bool>,
     custom_transformers: Option<&CustomTransformers>,
-) -> EmitFilesAndReportErrorsReturn {
+) -> io::Result<EmitFilesAndReportErrorsReturn> {
     let is_list_files_only = matches!(program.get_compiler_options().list_files_only, Some(true));
 
     let mut all_diagnostics: Vec<Gc<Diagnostic>> =
@@ -855,7 +857,7 @@ fn emit_files_and_report_errors(
         if !is_list_files_only {
             add_range(
                 &mut all_diagnostics,
-                Some(&program.get_global_diagnostics(cancellation_token.clone())),
+                Some(&program.get_global_diagnostics(cancellation_token.clone())?),
                 None,
                 None,
             );
@@ -863,7 +865,7 @@ fn emit_files_and_report_errors(
             if all_diagnostics.len() == config_file_parsing_diagnostics_length {
                 add_range(
                     &mut all_diagnostics,
-                    Some(&program.get_semantic_diagnostics(None, cancellation_token.clone())),
+                    Some(&program.get_semantic_diagnostics(None, cancellation_token.clone())?),
                     None,
                     None,
                 );
@@ -887,16 +889,16 @@ fn emit_files_and_report_errors(
             emit_only_dts_files,
             custom_transformers,
             None,
-        )
+        )?
     };
     let emitted_files = emit_result.emitted_files.as_ref();
     let emit_diagnostics = &emit_result.diagnostics;
     add_range(&mut all_diagnostics, Some(emit_diagnostics), None, None);
 
     let diagnostics = sort_and_deduplicate_diagnostics(&all_diagnostics);
-    diagnostics
-        .iter()
-        .for_each(|diagnostic| report_diagnostic.call(diagnostic.clone()));
+    for diagnostic in diagnostics.iter() {
+        report_diagnostic.call(diagnostic.clone())?;
+    }
     if let Some(mut write) = write {
         let current_dir = program.get_current_directory();
         maybe_for_each(emitted_files, |file, _| {
@@ -911,22 +913,22 @@ fn emit_files_and_report_errors(
         report_summary.call(get_error_count_for_summary(&diagnostics));
     }
 
-    EmitFilesAndReportErrorsReturn {
+    Ok(EmitFilesAndReportErrorsReturn {
         emit_result,
         diagnostics,
-    }
+    })
 }
 
-pub fn emit_files_and_report_errors_and_get_exit_status<TWrite: FnMut(&str)>(
+pub fn emit_files_and_report_errors_and_get_exit_status(
     program: Gc<Box<Program>>,
     report_diagnostic: Gc<Box<dyn DiagnosticReporter>>,
-    write: Option<TWrite>,
+    write: Option<impl FnMut(&str)>,
     report_summary: Option<Rc<dyn ReportEmitErrorSummary>>,
     write_file: Option<Gc<Box<dyn WriteFileCallback>>>,
     cancellation_token: Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
     emit_only_dts_files: Option<bool>,
     custom_transformers: Option<&CustomTransformers>,
-) -> ExitStatus {
+) -> io::Result<ExitStatus> {
     let EmitFilesAndReportErrorsReturn {
         emit_result,
         diagnostics,
@@ -939,15 +941,15 @@ pub fn emit_files_and_report_errors_and_get_exit_status<TWrite: FnMut(&str)>(
         cancellation_token,
         emit_only_dts_files,
         custom_transformers,
-    );
+    )?;
     // println!("diagnostics: {:#?}", diagnostics);
 
     if emit_result.emit_skipped && !diagnostics.is_empty() {
-        return ExitStatus::DiagnosticsPresent_OutputsSkipped;
+        return Ok(ExitStatus::DiagnosticsPresent_OutputsSkipped);
     } else if !diagnostics.is_empty() {
-        return ExitStatus::DiagnosticsPresent_OutputsGenerated;
+        return Ok(ExitStatus::DiagnosticsPresent_OutputsGenerated);
     }
-    ExitStatus::Success
+    Ok(ExitStatus::Success)
 }
 
 fn report_unrecoverable_diagnostic(

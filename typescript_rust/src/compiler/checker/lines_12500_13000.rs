@@ -1,10 +1,11 @@
 use gc::Gc;
 use itertools::Either;
-use std::borrow::Borrow;
 use std::collections::HashMap;
 use std::ptr;
+use std::{borrow::Borrow, io};
 
 use super::signature_has_rest_parameter;
+use crate::try_some;
 use crate::{
     declaration_name_to_string, find_index, first_defined, for_each_child_bool,
     get_declaration_of_kind, get_effective_constraint_of_type_parameter,
@@ -17,12 +18,13 @@ use crate::{
     is_jsdoc_variadic_type, is_part_of_type_node, is_rest_parameter, is_type_parameter_declaration,
     is_type_predicate_node, is_value_signature_declaration, last_or_undefined, length, map,
     map_defined, maybe_filter, maybe_map, node_is_missing, node_starts_new_lexical_environment,
-    some, CheckFlags, Debug_, Diagnostics, HasInitializerInterface, HasTypeInterface, IndexInfo,
-    InterfaceTypeInterface, InternalSymbolName, ModifierFlags, Node, NodeArray, NodeCheckFlags,
-    NodeInterface, ObjectFlags, ReadonlyTextRange, Signature, SignatureDeclarationInterface,
-    SignatureFlags, Symbol, SymbolFlags, SymbolInterface, SymbolTable, SyntaxKind,
-    TransientSymbolInterface, Type, TypeChecker, TypeFlags, TypeInterface, TypeMapper,
-    TypePredicate, TypePredicateKind, TypeSystemPropertyName, UnionReduction,
+    return_ok_default_if_none, return_ok_false_if_none, some, try_for_each_child_bool, try_map,
+    try_maybe_map, CheckFlags, Debug_, Diagnostics, HasInitializerInterface, HasTypeInterface,
+    IndexInfo, InterfaceTypeInterface, InternalSymbolName, ModifierFlags, Node, NodeArray,
+    NodeCheckFlags, NodeInterface, ObjectFlags, OptionTry, ReadonlyTextRange, Signature,
+    SignatureDeclarationInterface, SignatureFlags, Symbol, SymbolFlags, SymbolInterface,
+    SymbolTable, SyntaxKind, TransientSymbolInterface, Type, TypeChecker, TypeFlags, TypeInterface,
+    TypeMapper, TypePredicate, TypePredicateKind, TypeSystemPropertyName, UnionReduction,
 };
 
 impl TypeChecker {
@@ -32,10 +34,10 @@ impl TypeChecker {
         type_parameters: Option<&[Gc<Type /*TypeParameter*/>]>,
         min_type_argument_count: usize,
         is_java_script_implicit_any: bool,
-    ) -> Option<Vec<Gc<Type>>> {
+    ) -> io::Result<Option<Vec<Gc<Type>>>> {
         let num_type_parameters = length(type_parameters);
         if num_type_parameters == 0 {
-            return Some(vec![]);
+            return Ok(Some(vec![]));
         }
         let type_parameters = type_parameters.unwrap();
         let num_type_arguments = length(type_arguments.as_deref());
@@ -52,11 +54,13 @@ impl TypeChecker {
             let base_default_type =
                 self.get_default_type_argument_type(is_java_script_implicit_any);
             for i in num_type_arguments..num_type_parameters {
-                let mut default_type = self.get_default_from_type_parameter_(&type_parameters[i]);
+                let mut default_type =
+                    self.get_default_from_type_parameter_(&type_parameters[i])?;
                 if is_java_script_implicit_any
                     && matches!(
                         default_type.as_ref(),
-                        Some(default_type) if self.is_type_identical_to(default_type, &self.unknown_type()) || self.is_type_identical_to(default_type, &self.empty_object_type())
+                        Some(default_type) if self.is_type_identical_to(default_type, &self.unknown_type())?
+                            || self.is_type_identical_to(default_type, &self.empty_object_type())?
                     )
                 {
                     default_type = Some(self.any_type());
@@ -68,21 +72,21 @@ impl TypeChecker {
                             type_parameters.to_owned(),
                             Some(result.clone()),
                         ))),
-                    )
+                    )?
                 } else {
                     base_default_type.clone()
                 };
             }
             result.truncate(type_parameters.len());
-            return Some(result);
+            return Ok(Some(result));
         }
-        type_arguments.map(|type_arguments| type_arguments.clone())
+        Ok(type_arguments.map(|type_arguments| type_arguments.clone()))
     }
 
     pub(super) fn get_signature_from_declaration_(
         &self,
         declaration: &Node, /*SignatureDeclaration | JSDocSignature*/
-    ) -> Gc<Signature> {
+    ) -> io::Result<Gc<Signature>> {
         let links = self.get_node_links(declaration);
         if (*links).borrow().resolved_signature.is_none() {
             let mut parameters: Vec<Gc<Symbol>> = vec![];
@@ -133,7 +137,7 @@ impl TypeChecker {
                         Option::<Gc<Node>>::None,
                         false,
                         None,
-                    );
+                    )?;
                     param_symbol = resolved_symbol;
                 }
                 let param_symbol = param_symbol.unwrap();
@@ -169,7 +173,7 @@ impl TypeChecker {
             if matches!(
                 declaration.kind(),
                 SyntaxKind::GetAccessor | SyntaxKind::SetAccessor
-            ) && self.has_bindable_name(declaration)
+            ) && self.has_bindable_name(declaration)?
                 && (!has_this_parameter || this_parameter.is_none())
             {
                 let other_kind = if declaration.kind() == SyntaxKind::GetAccessor {
@@ -178,7 +182,7 @@ impl TypeChecker {
                     SyntaxKind::GetAccessor
                 };
                 let other = get_declaration_of_kind(
-                    &self.get_symbol_of_node(declaration).unwrap(),
+                    &self.get_symbol_of_node(declaration)?.unwrap(),
                     other_kind,
                 );
                 if let Some(other) = other {
@@ -192,7 +196,7 @@ impl TypeChecker {
                         &self
                             .get_merged_symbol(declaration.parent().maybe_symbol())
                             .unwrap(),
-                    ),
+                    )?,
                 )
             } else {
                 None
@@ -206,7 +210,7 @@ impl TypeChecker {
             };
             if has_rest_parameter(declaration)
                 || is_in_js_file(Some(declaration))
-                    && self.maybe_add_js_synthetic_rest_parameter(declaration, &mut parameters)
+                    && self.maybe_add_js_synthetic_rest_parameter(declaration, &mut parameters)?
             {
                 flags |= SignatureFlags::HasRestParameter;
             }
@@ -230,16 +234,16 @@ impl TypeChecker {
             links.borrow_mut().resolved_signature = Some(resolved_signature);
         }
         let links = (*links).borrow();
-        links.resolved_signature.clone().unwrap()
+        Ok(links.resolved_signature.clone().unwrap())
     }
 
     pub(super) fn maybe_add_js_synthetic_rest_parameter(
         &self,
         declaration: &Node, /*SignatureDeclaration | JSDocSignature*/
         parameters: &mut Vec<Gc<Symbol>>,
-    ) -> bool {
-        if is_jsdoc_signature(declaration) || !self.contains_arguments_reference(declaration) {
-            return false;
+    ) -> io::Result<bool> {
+        if is_jsdoc_signature(declaration) || !self.contains_arguments_reference(declaration)? {
+            return Ok(false);
         }
         let last_param =
             last_or_undefined(&declaration.as_signature_declaration().parameters()).cloned();
@@ -273,13 +277,13 @@ impl TypeChecker {
             .type_ = Some(
             if let Some(last_param_variadic_type) = last_param_variadic_type.as_ref() {
                 self.create_array_type(
-                    &self.get_type_from_type_node_(
+                    &*self.get_type_from_type_node_(
                         last_param_variadic_type
                             .as_base_jsdoc_unary_type()
                             .type_
                             .as_ref()
                             .unwrap(),
-                    ),
+                    )?,
                     None,
                 )
             } else {
@@ -290,15 +294,15 @@ impl TypeChecker {
             parameters.pop();
         };
         parameters.push(synthetic_args_symbol);
-        true
+        Ok(true)
     }
 
     pub(super) fn get_signature_of_type_tag(
         &self,
         node: &Node, /*SignatureDeclaration | JSDocSignature*/
-    ) -> Option<Gc<Signature>> {
+    ) -> io::Result<Option<Gc<Signature>>> {
         if !(is_in_js_file(Some(node)) && is_function_like_declaration(node)) {
-            return None;
+            return Ok(None);
         }
         let type_tag = get_jsdoc_type_tag(node);
         type_tag
@@ -308,23 +312,23 @@ impl TypeChecker {
                     .type_expression
                     .clone()
             })
-            .and_then(|type_expression| {
-                self.get_single_call_signature(&self.get_type_from_type_node_(&type_expression))
+            .try_and_then(|type_expression| {
+                self.get_single_call_signature(&*self.get_type_from_type_node_(&type_expression)?)
             })
     }
 
     pub(super) fn get_return_type_of_type_tag(
         &self,
         node: &Node, /*SignatureDeclaration | JSDocSignature*/
-    ) -> Option<Gc<Type>> {
-        let signature = self.get_signature_of_type_tag(node);
-        signature.map(|signature| self.get_return_type_of_signature(signature))
+    ) -> io::Result<Option<Gc<Type>>> {
+        let signature = self.get_signature_of_type_tag(node)?;
+        signature.try_map(|signature| self.get_return_type_of_signature(signature))
     }
 
     pub(super) fn contains_arguments_reference(
         &self,
         declaration: &Node, /*SignatureDeclaration*/
-    ) -> bool {
+    ) -> io::Result<bool> {
         let links = self.get_node_links(declaration);
         if (*links).borrow().contains_arguments_reference.is_none() {
             let contains_arguments_reference = if (*links)
@@ -338,28 +342,25 @@ impl TypeChecker {
                     declaration
                         .maybe_as_function_like_declaration()
                         .and_then(|declaration| declaration.maybe_body()),
-                )
+                )?
             };
             links.borrow_mut().contains_arguments_reference = Some(contains_arguments_reference);
         }
         let ret = (*links).borrow().contains_arguments_reference.unwrap();
-        ret
+        Ok(ret)
     }
 
-    pub(super) fn contains_arguments_reference_traverse<TNode: Borrow<Node>>(
+    pub(super) fn contains_arguments_reference_traverse(
         &self,
-        node: Option<TNode>,
-    ) -> bool {
-        if node.is_none() {
-            return false;
-        }
-        let node = node.unwrap();
+        node: Option<impl Borrow<Node>>,
+    ) -> io::Result<bool> {
+        let node = return_ok_false_if_none!(node);
         let node = node.borrow();
-        match node.kind() {
+        Ok(match node.kind() {
             SyntaxKind::Identifier => {
                 &node.as_identifier().escaped_text == self.arguments_symbol().escaped_name()
                     && matches!(
-                        self.get_referenced_value_symbol(node, None),
+                        self.get_referenced_value_symbol(node, None)?,
                         Some(symbol) if Gc::ptr_eq(&symbol, &self.arguments_symbol())
                     )
             }
@@ -370,36 +371,35 @@ impl TypeChecker {
             | SyntaxKind::SetAccessor => {
                 let name = node.as_named_declaration().name();
                 name.kind() == SyntaxKind::ComputedPropertyName
-                    && self.contains_arguments_reference_traverse(Some(name))
+                    && self.contains_arguments_reference_traverse(Some(name))?
             }
 
             SyntaxKind::PropertyAccessExpression | SyntaxKind::ElementAccessExpression => self
-                .contains_arguments_reference_traverse(Some(node.as_has_expression().expression())),
+                .contains_arguments_reference_traverse(Some(
+                    node.as_has_expression().expression(),
+                ))?,
 
             _ => {
                 !node_starts_new_lexical_environment(node)
                     && !is_part_of_type_node(node)
-                    && for_each_child_bool(
+                    && try_for_each_child_bool(
                         node,
                         |child| self.contains_arguments_reference_traverse(Some(child)),
-                        Option::<fn(&NodeArray) -> bool>::None,
-                    )
+                        Option::<fn(&NodeArray) -> io::Result<bool>>::None,
+                    )?
             }
-        }
+        })
     }
 
-    pub(super) fn get_signatures_of_symbol<TSymbol: Borrow<Symbol>>(
+    pub(super) fn get_signatures_of_symbol(
         &self,
-        symbol: Option<TSymbol>,
-    ) -> Vec<Gc<Signature>> {
-        if symbol.is_none() {
-            return vec![];
-        }
-        let symbol = symbol.unwrap();
+        symbol: Option<impl Borrow<Symbol>>,
+    ) -> io::Result<Vec<Gc<Signature>>> {
+        let symbol = return_ok_default_if_none!(symbol);
         let symbol = symbol.borrow();
         let symbol_declarations = symbol.maybe_declarations();
         if symbol_declarations.is_none() {
-            return vec![];
+            return Ok(vec![]);
         }
         let symbol_declarations = symbol_declarations.as_ref().unwrap();
         let mut result: Vec<Gc<Signature>> = vec![];
@@ -421,47 +421,51 @@ impl TypeChecker {
                     continue;
                 }
             }
-            result.push(self.get_signature_from_declaration_(decl));
+            result.push(self.get_signature_from_declaration_(decl)?);
         }
-        result
+        Ok(result)
     }
 
     pub(super) fn resolve_external_module_type_by_literal(
         &self,
         name: &Node, /*StringLiteral*/
-    ) -> Gc<Type> {
-        let module_sym = self.resolve_external_module_name_(name, name, None);
+    ) -> io::Result<Gc<Type>> {
+        let module_sym = self.resolve_external_module_name_(name, name, None)?;
         if let Some(module_sym) = module_sym {
             let resolved_module_symbol =
-                self.resolve_external_module_symbol(Some(module_sym), None);
+                self.resolve_external_module_symbol(Some(module_sym), None)?;
             if let Some(resolved_module_symbol) = resolved_module_symbol {
                 return self.get_type_of_symbol(&resolved_module_symbol);
             }
         }
 
-        self.any_type()
+        Ok(self.any_type())
     }
 
-    pub(super) fn get_this_type_of_signature(&self, signature: &Signature) -> Option<Gc<Type>> {
+    pub(super) fn get_this_type_of_signature(
+        &self,
+        signature: &Signature,
+    ) -> io::Result<Option<Gc<Type>>> {
         signature
             .maybe_this_parameter()
             .as_ref()
-            .map(|this_parameter| self.get_type_of_symbol(this_parameter))
+            .try_map(|this_parameter| self.get_type_of_symbol(this_parameter))
     }
 
     pub(super) fn get_type_predicate_of_signature(
         &self,
         signature: &Signature,
-    ) -> Option<Gc<TypePredicate>> {
+    ) -> io::Result<Option<Gc<TypePredicate>>> {
         if signature.maybe_resolved_type_predicate().is_none() {
             if let Some(signature_target) = signature.target.as_ref() {
-                let target_type_predicate = self.get_type_predicate_of_signature(signature_target);
+                let target_type_predicate =
+                    self.get_type_predicate_of_signature(signature_target)?;
                 *signature.maybe_resolved_type_predicate_mut() =
                     Some(if let Some(target_type_predicate) = target_type_predicate {
                         Gc::new(self.instantiate_type_predicate(
                             &target_type_predicate,
                             signature.mapper.clone().unwrap(),
-                        ))
+                        )?)
                     } else {
                         self.no_type_predicate()
                     });
@@ -472,7 +476,7 @@ impl TypeChecker {
                     self.get_union_or_intersection_type_predicate(
                         signature_composite_signatures,
                         signature.composite_kind,
-                    )
+                    )?
                     .map_or_else(|| self.no_type_predicate(), Gc::new),
                 );
             } else {
@@ -483,17 +487,17 @@ impl TypeChecker {
                 let mut jsdoc_predicate: Option<Gc<TypePredicate>> = None;
                 if type_.is_none() && is_in_js_file(signature.declaration.as_deref()) {
                     let jsdoc_signature =
-                        self.get_signature_of_type_tag(signature.declaration.as_ref().unwrap());
+                        self.get_signature_of_type_tag(signature.declaration.as_ref().unwrap())?;
                     if let Some(jsdoc_signature) = jsdoc_signature
                         .filter(|jsdoc_signature| !ptr::eq(signature, &**jsdoc_signature))
                     {
-                        jsdoc_predicate = self.get_type_predicate_of_signature(&jsdoc_signature);
+                        jsdoc_predicate = self.get_type_predicate_of_signature(&jsdoc_signature)?;
                     }
                 }
                 *signature.maybe_resolved_type_predicate_mut() = Some(
                     if let Some(type_) = type_.filter(|type_| is_type_predicate_node(type_)) {
                         Gc::new(
-                            self.create_type_predicate_from_type_predicate_node(&type_, signature),
+                            self.create_type_predicate_from_type_predicate_node(&type_, signature)?,
                         )
                     } else {
                         jsdoc_predicate.unwrap_or_else(|| self.no_type_predicate())
@@ -502,28 +506,30 @@ impl TypeChecker {
             }
             Debug_.assert(signature.maybe_resolved_type_predicate().is_some(), None);
         }
-        if matches!(
-            signature.maybe_resolved_type_predicate().as_ref(),
-            Some(resolved_type_predicate) if Gc::ptr_eq(resolved_type_predicate, &self.no_type_predicate())
-        ) {
-            None
-        } else {
-            signature.maybe_resolved_type_predicate().clone()
-        }
+        Ok(
+            if matches!(
+                signature.maybe_resolved_type_predicate().as_ref(),
+                Some(resolved_type_predicate) if Gc::ptr_eq(resolved_type_predicate, &self.no_type_predicate())
+            ) {
+                None
+            } else {
+                signature.maybe_resolved_type_predicate().clone()
+            },
+        )
     }
 
     pub(super) fn create_type_predicate_from_type_predicate_node(
         &self,
         node: &Node, /*TypePredicateNode*/
         signature: &Signature,
-    ) -> TypePredicate {
+    ) -> io::Result<TypePredicate> {
         let node_as_type_predicate_node = node.as_type_predicate_node();
         let parameter_name = &node_as_type_predicate_node.parameter_name;
         let type_ = node_as_type_predicate_node
             .type_
             .as_ref()
-            .map(|type_| self.get_type_from_type_node_(type_));
-        if parameter_name.kind() == SyntaxKind::ThisType {
+            .try_map(|type_| self.get_type_from_type_node_(type_))?;
+        Ok(if parameter_name.kind() == SyntaxKind::ThisType {
             self.create_type_predicate(
                 if node_as_type_predicate_node.asserts_modifier.is_some() {
                     TypePredicateKind::AssertsThis
@@ -552,7 +558,7 @@ impl TypeChecker {
                 ),
                 type_,
             )
-        }
+        })
     }
 
     pub(super) fn get_union_or_intersection_type(
@@ -560,70 +566,75 @@ impl TypeChecker {
         types: &[Gc<Type>],
         kind: Option<TypeFlags>,
         union_reduction: Option<UnionReduction>,
-    ) -> Gc<Type> {
-        if !matches!(kind, Some(TypeFlags::Intersection)) {
+    ) -> io::Result<Gc<Type>> {
+        Ok(if !matches!(kind, Some(TypeFlags::Intersection)) {
             self.get_union_type(
                 types,
                 union_reduction,
                 Option::<&Symbol>::None,
                 None,
                 Option::<&Type>::None,
-            )
+            )?
         } else {
-            self.get_intersection_type(types, Option::<&Symbol>::None, None)
-        }
+            self.get_intersection_type(types, Option::<&Symbol>::None, None)?
+        })
     }
 
-    pub(super) fn get_return_type_of_signature(&self, signature: Gc<Signature>) -> Gc<Type> {
+    pub(super) fn get_return_type_of_signature(
+        &self,
+        signature: Gc<Signature>,
+    ) -> io::Result<Gc<Type>> {
         if signature.maybe_resolved_return_type().is_none() {
             if !self.push_type_resolution(
                 &signature.clone().into(),
                 TypeSystemPropertyName::ResolvedReturnType,
             ) {
-                return self.error_type();
+                return Ok(self.error_type());
             }
             let mut type_: Gc<Type> = if let Some(signature_target) = signature.target.as_ref() {
                 self.instantiate_type(
-                    &self.get_return_type_of_signature(signature_target.clone()),
+                    &*self.get_return_type_of_signature(signature_target.clone())?,
                     signature.mapper.clone(),
-                )
+                )?
             } else if let Some(signature_composite_signatures) =
                 signature.composite_signatures.as_deref()
             {
                 self.instantiate_type(
-                    &self.get_union_or_intersection_type(
-                        &map(
+                    &*self.get_union_or_intersection_type(
+                        &try_map(
                             signature_composite_signatures,
                             |signature: &Gc<Signature>, _| {
                                 self.get_return_type_of_signature(signature.clone())
                             },
-                        ),
+                        )?,
                         signature.composite_kind,
                         Some(UnionReduction::Subtype),
-                    ),
+                    )?,
                     signature.mapper.clone(),
-                )
+                )?
             } else {
                 let signature_declaration = signature.declaration.as_ref().unwrap();
-                self.get_return_type_from_annotation(signature_declaration)
-                    .unwrap_or_else(|| {
-                        if node_is_missing(
-                            signature_declaration
-                                .maybe_as_function_like_declaration()
-                                .and_then(|function_like_declaration| {
-                                    function_like_declaration.maybe_body()
-                                }),
-                        ) {
-                            self.any_type()
-                        } else {
-                            self.get_return_type_from_body(signature_declaration, None)
-                        }
-                    })
+                self.get_return_type_from_annotation(signature_declaration)?
+                    .try_unwrap_or_else(|| -> io::Result<_> {
+                        Ok(
+                            if node_is_missing(
+                                signature_declaration
+                                    .maybe_as_function_like_declaration()
+                                    .and_then(|function_like_declaration| {
+                                        function_like_declaration.maybe_body()
+                                    }),
+                            ) {
+                                self.any_type()
+                            } else {
+                                self.get_return_type_from_body(signature_declaration, None)?
+                            },
+                        )
+                    })?
             };
             if signature.flags.intersects(SignatureFlags::IsInnerCallChain) {
-                type_ = self.add_optional_type_marker(&type_);
+                type_ = self.add_optional_type_marker(&type_)?;
             } else if signature.flags.intersects(SignatureFlags::IsOuterCallChain) {
-                type_ = self.get_optional_type_(&type_, None);
+                type_ = self.get_optional_type_(&type_, None)?;
             }
             if !self.pop_type_resolution() {
                 if let Some(signature_declaration) = signature.declaration.as_ref() {
@@ -658,52 +669,52 @@ impl TypeChecker {
             }
             *signature.maybe_resolved_return_type_mut() = Some(type_);
         }
-        signature.maybe_resolved_return_type().clone().unwrap()
+        Ok(signature.maybe_resolved_return_type().clone().unwrap())
     }
 
     pub(super) fn get_return_type_from_annotation(
         &self,
         declaration: &Node, /*SignatureDeclaration | JSDocSignature*/
-    ) -> Option<Gc<Type>> {
+    ) -> io::Result<Option<Gc<Type>>> {
         if declaration.kind() == SyntaxKind::Constructor {
-            return Some(
+            return Ok(Some(
                 self.get_declared_type_of_class_or_interface(
                     &self
                         .get_merged_symbol(declaration.parent().maybe_symbol())
                         .unwrap(),
-                ),
-            );
+                )?,
+            ));
         }
         if is_jsdoc_construct_signature(declaration) {
-            return Some(
+            return Ok(Some(
                 self.get_type_from_type_node_(
                     &declaration.as_signature_declaration().parameters()[0]
                         .as_parameter_declaration()
                         .maybe_type()
                         .unwrap(),
-                ),
-            );
+                )?,
+            ));
         }
         let type_node = get_effective_return_type_node(declaration);
         if let Some(type_node) = type_node {
-            return Some(self.get_type_from_type_node_(&type_node));
+            return Ok(Some(self.get_type_from_type_node_(&type_node)?));
         }
-        if declaration.kind() == SyntaxKind::GetAccessor && self.has_bindable_name(declaration) {
+        if declaration.kind() == SyntaxKind::GetAccessor && self.has_bindable_name(declaration)? {
             let js_doc_type = if is_in_js_file(Some(declaration)) {
-                self.get_type_for_declaration_from_jsdoc_comment(declaration)
+                self.get_type_for_declaration_from_jsdoc_comment(declaration)?
             } else {
                 None
             };
             if js_doc_type.is_some() {
-                return js_doc_type;
+                return Ok(js_doc_type);
             }
             let setter = get_declaration_of_kind(
-                &self.get_symbol_of_node(declaration).unwrap(),
+                &self.get_symbol_of_node(declaration)?.unwrap(),
                 SyntaxKind::SetAccessor,
             );
-            let setter_type = self.get_annotated_accessor_type(setter);
+            let setter_type = self.get_annotated_accessor_type(setter)?;
             if setter_type.is_some() {
-                return setter_type;
+                return Ok(setter_type);
             }
         }
         self.get_return_type_of_type_tag(declaration)
@@ -718,26 +729,30 @@ impl TypeChecker {
     }
 
     #[allow(dead_code)]
-    pub(super) fn get_rest_type_of_signature(&self, signature: &Signature) -> Gc<Type> {
-        self.try_get_rest_type_of_signature(signature)
-            .unwrap_or_else(|| self.any_type())
+    pub(super) fn get_rest_type_of_signature(&self, signature: &Signature) -> io::Result<Gc<Type>> {
+        Ok(self
+            .try_get_rest_type_of_signature(signature)?
+            .unwrap_or_else(|| self.any_type()))
     }
 
-    pub(super) fn try_get_rest_type_of_signature(&self, signature: &Signature) -> Option<Gc<Type>> {
+    pub(super) fn try_get_rest_type_of_signature(
+        &self,
+        signature: &Signature,
+    ) -> io::Result<Option<Gc<Type>>> {
         if signature_has_rest_parameter(signature) {
             let signature_parameters = signature.parameters();
             let sig_rest_type =
-                self.get_type_of_symbol(&signature_parameters[signature_parameters.len() - 1]);
+                self.get_type_of_symbol(&signature_parameters[signature_parameters.len() - 1])?;
             let rest_type = if self.is_tuple_type(&sig_rest_type) {
-                self.get_rest_type_of_tuple_type(&sig_rest_type)
+                self.get_rest_type_of_tuple_type(&sig_rest_type)?
             } else {
                 Some(sig_rest_type)
             };
-            return rest_type.and_then(|rest_type| {
+            return rest_type.try_and_then(|rest_type| {
                 self.get_index_type_of_type_(&rest_type, &self.number_type())
             });
         }
-        None
+        Ok(None)
     }
 
     pub(super) fn get_signature_instantiation(
@@ -746,7 +761,7 @@ impl TypeChecker {
         type_arguments: Option<&[Gc<Type>]>,
         is_javascript: bool,
         inferred_type_parameters: Option<&[Gc<Type /*TypeParameter*/>]>,
-    ) -> Gc<Signature> {
+    ) -> io::Result<Gc<Signature>> {
         let instantiated_signature = self
             .get_signature_instantiation_without_filling_in_type_arguments(
                 signature.clone(),
@@ -755,13 +770,13 @@ impl TypeChecker {
                     signature.maybe_type_parameters().as_deref(),
                     self.get_min_type_argument_count(signature.maybe_type_parameters().as_deref()),
                     is_javascript,
-                )
+                )?
                 .as_deref(),
-            );
+            )?;
         if let Some(inferred_type_parameters) = inferred_type_parameters {
             let return_signature = self.get_single_call_or_construct_signature(
-                &self.get_return_type_of_signature(instantiated_signature.clone()),
-            );
+                &*self.get_return_type_of_signature(instantiated_signature.clone())?,
+            )?;
             if let Some(return_signature) = return_signature {
                 let new_return_signature = self.clone_signature(&return_signature);
                 *new_return_signature.maybe_type_parameters_mut() =
@@ -769,17 +784,17 @@ impl TypeChecker {
                 let new_instantiated_signature = self.clone_signature(&instantiated_signature);
                 *new_instantiated_signature.maybe_resolved_return_type_mut() =
                     Some(self.get_or_create_type_from_signature(Gc::new(new_return_signature)));
-                return Gc::new(new_instantiated_signature);
+                return Ok(Gc::new(new_instantiated_signature));
             }
         }
-        instantiated_signature
+        Ok(instantiated_signature)
     }
 
     pub(super) fn get_signature_instantiation_without_filling_in_type_arguments(
         &self,
         signature: Gc<Signature>,
         type_arguments: Option<&[Gc<Type>]>,
-    ) -> Gc<Signature> {
+    ) -> io::Result<Gc<Signature>> {
         if signature.maybe_instantiations().is_none() {
             *signature.maybe_instantiations() = Some(HashMap::new());
         }
@@ -789,18 +804,18 @@ impl TypeChecker {
         let mut instantiation = instantiations.get(&id).map(Clone::clone);
         if instantiation.is_none() {
             instantiation = Some(Gc::new(
-                self.create_signature_instantiation(signature.clone(), type_arguments),
+                self.create_signature_instantiation(signature.clone(), type_arguments)?,
             ));
             instantiations.insert(id, instantiation.clone().unwrap());
         }
-        instantiation.unwrap()
+        Ok(instantiation.unwrap())
     }
 
     pub(super) fn create_signature_instantiation(
         &self,
         signature: Gc<Signature>,
         type_arguments: Option<&[Gc<Type>]>,
-    ) -> Signature {
+    ) -> io::Result<Signature> {
         self.instantiate_signature(
             signature.clone(),
             Gc::new(self.create_signature_type_mapper(&signature, type_arguments)),
@@ -819,19 +834,25 @@ impl TypeChecker {
         )
     }
 
-    pub(super) fn get_erased_signature(&self, signature: Gc<Signature>) -> Gc<Signature> {
-        if signature.maybe_type_parameters().is_some() {
+    pub(super) fn get_erased_signature(
+        &self,
+        signature: Gc<Signature>,
+    ) -> io::Result<Gc<Signature>> {
+        Ok(if signature.maybe_type_parameters().is_some() {
             if signature.maybe_erased_signature_cache().is_none() {
                 *signature.maybe_erased_signature_cache() =
-                    Some(Gc::new(self.create_erased_signature(signature.clone())));
+                    Some(Gc::new(self.create_erased_signature(signature.clone())?));
             }
             signature.maybe_erased_signature_cache().clone().unwrap()
         } else {
             signature
-        }
+        })
     }
 
-    pub(super) fn create_erased_signature(&self, signature: Gc<Signature>) -> Signature {
+    pub(super) fn create_erased_signature(
+        &self,
+        signature: Gc<Signature>,
+    ) -> io::Result<Signature> {
         self.instantiate_signature(
             signature.clone(),
             Gc::new(self.create_type_eraser(signature.maybe_type_parameters().clone().unwrap())),
@@ -839,77 +860,93 @@ impl TypeChecker {
         )
     }
 
-    pub(super) fn get_canonical_signature(&self, signature: Gc<Signature>) -> Gc<Signature> {
-        if signature.maybe_type_parameters().is_some() {
+    pub(super) fn get_canonical_signature(
+        &self,
+        signature: Gc<Signature>,
+    ) -> io::Result<Gc<Signature>> {
+        Ok(if signature.maybe_type_parameters().is_some() {
             if signature.maybe_canonical_signature_cache().is_none() {
                 *signature.maybe_canonical_signature_cache() =
-                    Some(self.create_canonical_signature(signature.clone()));
+                    Some(self.create_canonical_signature(signature.clone())?);
             }
             signature.maybe_canonical_signature_cache().clone().unwrap()
         } else {
             signature
-        }
+        })
     }
 
-    pub(super) fn create_canonical_signature(&self, signature: Gc<Signature>) -> Gc<Signature> {
+    pub(super) fn create_canonical_signature(
+        &self,
+        signature: Gc<Signature>,
+    ) -> io::Result<Gc<Signature>> {
         self.get_signature_instantiation(
             signature.clone(),
-            maybe_map(
+            try_maybe_map(
                 signature.maybe_type_parameters().as_deref(),
-                |tp: &Gc<Type>, _| {
-                    tp.as_type_parameter()
+                |tp: &Gc<Type>, _| -> io::Result<_> {
+                    Ok(tp
+                        .as_type_parameter()
                         .target
                         .clone()
-                        .filter(|target| self.get_constraint_of_type_parameter(target).is_none())
-                        .unwrap_or_else(|| tp.clone())
+                        .try_filter(|target| -> io::Result<_> {
+                            Ok(self.get_constraint_of_type_parameter(target)?.is_none())
+                        })?
+                        .unwrap_or_else(|| tp.clone()))
                 },
             )
+            .transpose()?
             .as_deref(),
             is_in_js_file(signature.declaration.as_deref()),
             None,
         )
     }
 
-    pub(super) fn get_base_signature(&self, signature: Gc<Signature>) -> Gc<Signature> {
+    pub(super) fn get_base_signature(&self, signature: Gc<Signature>) -> io::Result<Gc<Signature>> {
         let type_parameters = signature.maybe_type_parameters().clone();
         if let Some(ref type_parameters) = type_parameters {
             if let Some(signature_base_signature_cache) =
                 signature.maybe_base_signature_cache().clone()
             {
-                return signature_base_signature_cache;
+                return Ok(signature_base_signature_cache);
             }
             let type_eraser = Gc::new(self.create_type_eraser(type_parameters.clone()));
             let base_constraint_mapper = Gc::new(self.create_type_mapper(
                 type_parameters.clone(),
-                Some(map(type_parameters, |tp: &Gc<Type>, _| {
-                    self.get_constraint_of_type_parameter(tp)
-                        .unwrap_or_else(|| self.unknown_type())
-                })),
+                Some(try_map(
+                    type_parameters,
+                    |tp: &Gc<Type>, _| -> io::Result<_> {
+                        Ok(self
+                            .get_constraint_of_type_parameter(tp)?
+                            .unwrap_or_else(|| self.unknown_type()))
+                    },
+                )?),
             ));
-            let mut base_constraints: Vec<Gc<Type>> = map(type_parameters, |tp: &Gc<Type>, _| {
-                self.maybe_instantiate_type(Some(&**tp), Some(base_constraint_mapper.clone()))
-                    .unwrap_or_else(|| self.unknown_type())
-            });
+            let mut base_constraints: Vec<Gc<Type>> =
+                try_map(type_parameters, |tp: &Gc<Type>, _| -> io::Result<_> {
+                    Ok(self
+                        .maybe_instantiate_type(Some(&**tp), Some(base_constraint_mapper.clone()))?
+                        .unwrap_or_else(|| self.unknown_type()))
+                })?;
             for _i in 0..type_parameters.len() - 1 {
                 base_constraints = self
                     .instantiate_types(
                         Some(&base_constraints),
                         Some(base_constraint_mapper.clone()),
-                    )
+                    )?
                     .unwrap();
             }
             base_constraints = self
-                .instantiate_types(Some(&base_constraints), Some(type_eraser))
+                .instantiate_types(Some(&base_constraints), Some(type_eraser))?
                 .unwrap();
             let ret = Gc::new(self.instantiate_signature(
                 signature.clone(),
                 Gc::new(self.create_type_mapper(type_parameters.clone(), Some(base_constraints))),
                 Some(true),
-            ));
+            )?);
             *signature.maybe_base_signature_cache() = Some(ret.clone());
-            return ret;
+            return Ok(ret);
         }
-        signature
+        Ok(signature)
     }
 
     pub(super) fn get_or_create_type_from_signature(
@@ -980,19 +1017,22 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn get_index_infos_of_symbol(&self, symbol: &Symbol) -> Vec<Gc<IndexInfo>> {
+    pub(super) fn get_index_infos_of_symbol(
+        &self,
+        symbol: &Symbol,
+    ) -> io::Result<Vec<Gc<IndexInfo>>> {
         let index_symbol = self.get_index_symbol(symbol);
-        if let Some(index_symbol) = index_symbol {
-            self.get_index_infos_of_index_symbol(&index_symbol)
+        Ok(if let Some(index_symbol) = index_symbol {
+            self.get_index_infos_of_index_symbol(&index_symbol)?
         } else {
             vec![]
-        }
+        })
     }
 
     pub(super) fn get_index_infos_of_index_symbol(
         &self,
         index_symbol: &Symbol,
-    ) -> Vec<Gc<IndexInfo>> {
+    ) -> io::Result<Vec<Gc<IndexInfo>>> {
         if let Some(index_symbol_declarations) = index_symbol.maybe_declarations().as_ref() {
             let mut index_infos: Vec<Gc<IndexInfo>> = vec![];
             for declaration in index_symbol_declarations {
@@ -1006,10 +1046,10 @@ impl TypeChecker {
                     let parameter = &declaration_as_index_signature_declaration.parameters()[0];
                     if let Some(parameter_type) = parameter.as_parameter_declaration().maybe_type()
                     {
-                        self.for_each_type(
-                            &self.get_type_from_type_node_(&parameter_type),
+                        self.try_for_each_type(
+                            &*self.get_type_from_type_node_(&parameter_type)?,
                             |key_type| {
-                                if self.is_valid_index_key_type(key_type)
+                                if self.is_valid_index_key_type(key_type)?
                                     && self.find_index_info(&index_infos, key_type).is_none()
                                 {
                                     index_infos.push(Gc::new(self.create_index_info(
@@ -1017,7 +1057,7 @@ impl TypeChecker {
                                         if let Some(declaration_type) =
                                             declaration_as_index_signature_declaration.maybe_type()
                                         {
-                                            self.get_type_from_type_node_(&declaration_type)
+                                            self.get_type_from_type_node_(&declaration_type)?
                                         } else {
                                             self.any_type()
                                         },
@@ -1028,28 +1068,28 @@ impl TypeChecker {
                                         Some(declaration.clone()),
                                     )));
                                 }
-                                Option::<()>::None
+                                Ok(Option::<()>::None)
                             },
-                        );
+                        )?;
                     }
                 }
             }
-            return index_infos;
+            return Ok(index_infos);
         }
-        vec![]
+        Ok(vec![])
     }
 
-    pub(super) fn is_valid_index_key_type(&self, type_: &Type) -> bool {
-        type_
+    pub(super) fn is_valid_index_key_type(&self, type_: &Type) -> io::Result<bool> {
+        Ok(type_
             .flags()
             .intersects(TypeFlags::String | TypeFlags::Number | TypeFlags::ESSymbol)
             || self.is_pattern_literal_type(type_)
             || type_.flags().intersects(TypeFlags::Intersection)
-                && !self.is_generic_type(type_)
-                && some(
+                && !self.is_generic_type(type_)?
+                && try_some(
                     Some(type_.as_union_or_intersection_type_interface().types()),
                     Some(|type_: &Gc<Type>| self.is_valid_index_key_type(type_)),
-                )
+                )?)
     }
 
     pub(super) fn get_constraint_declaration(

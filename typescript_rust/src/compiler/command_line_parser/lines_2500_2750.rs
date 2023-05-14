@@ -1,8 +1,8 @@
 use gc::{Gc, GcCell};
-use std::borrow::Borrow;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::rc::Rc;
+use std::{borrow::Borrow, io};
 
 use super::{
     can_json_report_no_input_files, create_compiler_diagnostic_only_if_json,
@@ -92,7 +92,7 @@ pub fn parse_json_config_file_content(
     extra_file_extensions: Option<&[FileExtensionInfo]>,
     extended_config_cache: Option<&mut HashMap<String, ExtendedConfigCacheEntry>>,
     existing_watch_options: Option<Rc<WatchOptions>>,
-) -> ParsedCommandLine {
+) -> io::Result<ParsedCommandLine> {
     parse_json_config_file_content_worker(
         json,
         Option::<&Node>::None,
@@ -117,7 +117,7 @@ pub fn parse_json_source_file_config_file_content(
     extra_file_extensions: Option<&[FileExtensionInfo]>,
     extended_config_cache: Option<&mut HashMap<String, ExtendedConfigCacheEntry>>,
     existing_watch_options: Option<Rc<WatchOptions>>,
-) -> ParsedCommandLine {
+) -> io::Result<ParsedCommandLine> {
     parse_json_config_file_content_worker(
         None,
         Some(source_file),
@@ -164,7 +164,7 @@ pub(super) fn parse_json_config_file_content_worker(
     resolution_stack: Option<&[Path]>,
     extra_file_extensions: Option<&[FileExtensionInfo]>,
     mut extended_config_cache: Option<&mut HashMap<String, ExtendedConfigCacheEntry>>,
-) -> ParsedCommandLine {
+) -> io::Result<ParsedCommandLine> {
     let existing_options = existing_options.unwrap_or_else(|| Gc::new(Default::default()));
     let resolution_stack_default = vec![];
     let resolution_stack = resolution_stack.unwrap_or(&resolution_stack_default);
@@ -188,7 +188,7 @@ pub(super) fn parse_json_config_file_content_worker(
             .collect::<Vec<_>>(),
         errors.clone(),
         &mut extended_config_cache,
-    );
+    )?;
     let raw = parsed_config.raw.as_ref();
     let mut options: CompilerOptions = extend_compiler_options(
         &existing_options,
@@ -233,7 +233,7 @@ pub(super) fn parse_json_config_file_content_worker(
             base_path.to_owned()
         });
     let options = Gc::new(options);
-    ParsedCommandLine {
+    Ok(ParsedCommandLine {
         options: options.clone(),
         watch_options,
         file_names: {
@@ -247,7 +247,7 @@ pub(super) fn parse_json_config_file_content_worker(
                 &mut errors.clone().borrow_mut(),
                 config_file_name,
                 &base_path_for_file_names,
-            );
+            )?;
             value
         },
         project_references: get_project_references(
@@ -278,7 +278,7 @@ pub(super) fn parse_json_config_file_content_worker(
             },
             _ => false,
         }),
-    }
+    })
 }
 
 pub(super) fn get_config_file_specs(
@@ -441,14 +441,14 @@ pub(super) fn get_file_names(
     errors: &mut Vec<Gc<Diagnostic>>,
     config_file_name: Option<&str>,
     base_path: &str,
-) -> Vec<String> {
+) -> io::Result<Vec<String>> {
     let file_names: Vec<String> = get_file_names_from_config_specs(
         config_file_specs,
         base_path,
         options,
         host,
         Some(extra_file_extensions),
-    );
+    )?;
     if should_report_no_input_files(
         &file_names,
         can_json_report_no_input_files(raw),
@@ -459,12 +459,12 @@ pub(super) fn get_file_names(
             config_file_name,
         ));
     }
-    file_names
+    Ok(file_names)
 }
 
-pub(super) fn get_project_references<TSourceFile: Borrow<Node> + Clone>(
+pub(super) fn get_project_references(
     raw: Option<&serde_json::Value>,
-    source_file: Option<TSourceFile /*TsConfigSourceFile*/>,
+    source_file: Option<impl Borrow<Node> + Clone /*TsConfigSourceFile*/>,
     errors: &mut Vec<Gc<Diagnostic>>,
     base_path: &str,
 ) -> Option<Vec<Rc<ProjectReference>>> {

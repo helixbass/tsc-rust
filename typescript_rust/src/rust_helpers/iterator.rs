@@ -5,16 +5,68 @@ use std::{
     path::{Path, PathBuf},
 };
 
-pub trait Empty {
+pub trait IteratorExt {
+    type Item;
+
     fn empty(self) -> bool;
+    fn try_all<TError>(
+        self,
+        callback: impl FnMut(Self::Item) -> Result<bool, TError>,
+    ) -> Result<bool, TError>;
+    fn try_any<TError>(
+        self,
+        callback: impl FnMut(Self::Item) -> Result<bool, TError>,
+    ) -> Result<bool, TError>;
+    fn try_find_<TError>(
+        self,
+        callback: impl FnMut(&Self::Item) -> Result<bool, TError>,
+    ) -> Result<Option<Self::Item>, TError>;
 }
 
-impl<TIterator> Empty for TIterator
+impl<TIterator> IteratorExt for TIterator
 where
     TIterator: Iterator,
 {
+    type Item = TIterator::Item;
+
     fn empty(mut self) -> bool {
         self.next().is_none()
+    }
+
+    fn try_all<TError>(
+        self,
+        mut callback: impl FnMut(Self::Item) -> Result<bool, TError>,
+    ) -> Result<bool, TError> {
+        for item in self {
+            if !callback(item)? {
+                return Ok(false);
+            }
+        }
+        Ok(true)
+    }
+
+    fn try_any<TError>(
+        self,
+        mut callback: impl FnMut(Self::Item) -> Result<bool, TError>,
+    ) -> Result<bool, TError> {
+        for item in self {
+            if callback(item)? {
+                return Ok(true);
+            }
+        }
+        Ok(false)
+    }
+
+    fn try_find_<TError>(
+        self,
+        mut callback: impl FnMut(&Self::Item) -> Result<bool, TError>,
+    ) -> Result<Option<Self::Item>, TError> {
+        for item in self {
+            if callback(&item)? {
+                return Ok(Some(item));
+            }
+        }
+        Ok(None)
     }
 }
 

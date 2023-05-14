@@ -1,8 +1,9 @@
 use gc::Gc;
-use std::borrow::Borrow;
 use std::ptr;
+use std::{borrow::Borrow, io};
 
 use super::IterationUse;
+use crate::try_for_each;
 use crate::{
     add_related_info, are_option_gcs_equal, create_diagnostic_for_node, declaration_name_to_string,
     find_ancestor, for_each, for_each_child_bool, get_ancestor, get_combined_node_flags,
@@ -14,9 +15,10 @@ use crate::{
     is_identifier, is_in_js_file, is_module_declaration, is_named_declaration,
     is_object_binding_pattern, is_object_literal_expression, is_parameter_declaration,
     is_property_access_expression, is_prototype_access, is_require_variable_declaration,
-    is_variable_like, node_is_missing, some, ClassLikeDeclarationInterface, Debug_, Diagnostics,
-    ExternalEmitHelpers, HasInitializerInterface, ModifierFlags, ModuleInstanceState, ModuleKind,
-    Node, NodeArray, NodeCheckFlags, NodeFlags, NodeInterface, ScriptTarget, SignatureKind, Symbol,
+    is_variable_like, node_is_missing, some, try_for_each_child_bool,
+    ClassLikeDeclarationInterface, Debug_, Diagnostics, ExternalEmitHelpers,
+    HasInitializerInterface, ModifierFlags, ModuleInstanceState, ModuleKind, Node, NodeArray,
+    NodeCheckFlags, NodeFlags, NodeInterface, OptionTry, ScriptTarget, SignatureKind, Symbol,
     SymbolFlags, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
 };
 
@@ -73,10 +75,10 @@ impl TypeChecker {
         });
     }
 
-    pub(super) fn check_collision_with_require_exports_in_generated_code<TName: Borrow<Node>>(
+    pub(super) fn check_collision_with_require_exports_in_generated_code(
         &self,
         node: &Node,
-        name: Option<TName /*Identifier*/>,
+        name: Option<impl Borrow<Node> /*Identifier*/>,
     ) {
         if self.module_kind >= ModuleKind::ES2015
             && !(self.module_kind >= ModuleKind::Node12
@@ -119,10 +121,10 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn check_collision_with_global_promise_in_generated_code<TName: Borrow<Node>>(
+    pub(super) fn check_collision_with_global_promise_in_generated_code(
         &self,
         node: &Node,
-        name: Option<TName /*Identifier*/>,
+        name: Option<impl Borrow<Node> /*Identifier*/>,
     ) {
         if name.is_none() {
             return;
@@ -197,10 +199,10 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn record_potential_collision_with_reflect_in_generated_code<TName: Borrow<Node>>(
+    pub(super) fn record_potential_collision_with_reflect_in_generated_code(
         &self,
         node: &Node,
-        name: Option<TName /*Identifier*/>,
+        name: Option<impl Borrow<Node> /*Identifier*/>,
     ) {
         if name.is_none() {
             return;
@@ -261,10 +263,10 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn check_collisions_for_declaration_name<TName: Borrow<Node>>(
+    pub(super) fn check_collisions_for_declaration_name(
         &self,
         node: &Node,
-        name: Option<TName /*Identifier*/>,
+        name: Option<impl Borrow<Node> /*Identifier*/>,
     ) {
         if name.is_none() {
             return;
@@ -288,20 +290,20 @@ impl TypeChecker {
     pub(super) fn check_var_declared_names_not_shadowed(
         &self,
         node: &Node, /*VariableDeclaration | BindingElement*/
-    ) {
+    ) -> io::Result<()> {
         if get_combined_node_flags(node).intersects(NodeFlags::BlockScoped)
             || is_parameter_declaration(node)
         {
-            return;
+            return Ok(());
         }
 
         if node.kind() == SyntaxKind::VariableDeclaration
             && node.as_variable_declaration().maybe_initializer().is_none()
         {
-            return;
+            return Ok(());
         }
 
-        let symbol = self.get_symbol_of_node(node).unwrap();
+        let symbol = self.get_symbol_of_node(node)?.unwrap();
         if symbol
             .flags()
             .intersects(SymbolFlags::FunctionScopedVariable)
@@ -318,7 +320,7 @@ impl TypeChecker {
                 Option::<Gc<Node>>::None,
                 false,
                 None,
-            );
+            )?;
             if let Some(local_declaration_symbol) =
                 local_declaration_symbol
                     .as_ref()
@@ -363,7 +365,7 @@ impl TypeChecker {
                             None,
                             None,
                             None,
-                        );
+                        )?;
                         self.error(
                             Some(node),
                             &Diagnostics::Cannot_initialize_outer_scoped_variable_0_in_the_same_scope_as_block_scoped_declaration_1,
@@ -376,6 +378,8 @@ impl TypeChecker {
                 }
             }
         }
+
+        Ok(())
     }
 
     pub(super) fn convert_auto_to_any(&self, type_: &Type) -> Gc<Type> {
@@ -391,23 +395,23 @@ impl TypeChecker {
     pub(super) fn check_variable_like_declaration(
         &self,
         node: &Node, /*ParameterDeclaration | PropertyDeclaration | PropertySignature | VariableDeclaration | BindingElement*/
-    ) {
-        self.check_decorators(node);
+    ) -> io::Result<()> {
+        self.check_decorators(node)?;
         if !is_binding_element(node) {
-            self.check_source_element(node.as_variable_like_declaration().maybe_type());
+            self.check_source_element(node.as_variable_like_declaration().maybe_type())?;
         }
 
         let node_name = node.as_named_declaration().maybe_name();
         if node_name.is_none() {
-            return;
+            return Ok(());
         }
         let node_name = node_name.unwrap();
 
         let node_as_has_initializer = node.as_has_initializer();
         if node_name.kind() == SyntaxKind::ComputedPropertyName {
-            self.check_computed_property_name(&node_name);
+            self.check_computed_property_name(&node_name)?;
             if let Some(node_initializer) = node_as_has_initializer.maybe_initializer().as_ref() {
-                self.check_expression_cached(node_initializer, None);
+                self.check_expression_cached(node_initializer, None)?;
             }
         }
 
@@ -417,7 +421,7 @@ impl TypeChecker {
                 && node_as_binding_element.dot_dot_dot_token.is_some()
                 && self.language_version <= ScriptTarget::ES2018
             {
-                self.check_external_emit_helpers(node, ExternalEmitHelpers::Rest);
+                self.check_external_emit_helpers(node, ExternalEmitHelpers::Rest)?;
             }
             if let Some(node_property_name) =
                 node_as_binding_element
@@ -427,21 +431,21 @@ impl TypeChecker {
                         node_property_name.kind() == SyntaxKind::ComputedPropertyName
                     })
             {
-                self.check_computed_property_name(node_property_name);
+                self.check_computed_property_name(node_property_name)?;
             }
 
             let parent = node.parent().parent();
-            let parent_type = self.get_type_for_binding_element_parent(&parent);
+            let parent_type = self.get_type_for_binding_element_parent(&parent)?;
             let name = node_as_binding_element
                 .property_name
                 .clone()
                 .unwrap_or_else(|| node_name.clone());
             if let Some(parent_type) = parent_type.as_ref() {
                 if !is_binding_pattern(Some(&*name)) {
-                    let expr_type = self.get_literal_type_from_property_name(&name);
+                    let expr_type = self.get_literal_type_from_property_name(&name)?;
                     if self.is_type_usable_as_property_name(&expr_type) {
                         let name_text = self.get_property_name_from_type(&expr_type);
-                        let property = self.get_property_of_type_(parent_type, &name_text, None);
+                        let property = self.get_property_of_type_(parent_type, &name_text, None)?;
                         if let Some(property) = property.as_ref() {
                             self.mark_property_as_referenced(
                                 property,
@@ -458,7 +462,7 @@ impl TypeChecker {
                                 parent_type,
                                 property,
                                 None,
-                            );
+                            )?;
                         }
                     }
                 }
@@ -470,16 +474,16 @@ impl TypeChecker {
                 && self.language_version < ScriptTarget::ES2015
                 && self.compiler_options.downlevel_iteration == Some(true)
             {
-                self.check_external_emit_helpers(node, ExternalEmitHelpers::Read);
+                self.check_external_emit_helpers(node, ExternalEmitHelpers::Read)?;
             }
 
-            for_each(
+            try_for_each(
                 &node_name.as_has_elements().elements(),
-                |element: &Gc<Node>, _| -> Option<()> {
-                    self.check_source_element(Some(&**element));
-                    None
+                |element: &Gc<Node>, _| -> io::Result<Option<()>> {
+                    self.check_source_element(Some(&**element))?;
+                    Ok(None)
                 },
-            );
+            )?;
         }
         if node_as_has_initializer.maybe_initializer().is_some()
             && is_parameter_declaration(node)
@@ -495,30 +499,31 @@ impl TypeChecker {
                 &Diagnostics::A_parameter_initializer_is_only_allowed_in_a_function_or_constructor_implementation,
                 None,
             );
-            return;
+            return Ok(());
         }
         if is_binding_pattern(Some(&*node_name)) {
             let need_check_initializer = node_as_has_initializer.maybe_initializer().is_some()
                 && node.parent().parent().kind() != SyntaxKind::ForInStatement;
             let need_check_widened_type = node_name.as_has_elements().elements().is_empty();
             if need_check_initializer || need_check_widened_type {
-                let widened_type = self.get_widened_type_for_variable_like_declaration(node, None);
+                let widened_type =
+                    self.get_widened_type_for_variable_like_declaration(node, None)?;
                 if need_check_initializer {
                     let initializer_type = self.check_expression_cached(
                         &node_as_has_initializer.maybe_initializer().unwrap(),
                         None,
-                    );
+                    )?;
                     if self.strict_null_checks && need_check_widened_type {
-                        self.check_non_null_non_void_type(&initializer_type, node);
+                        self.check_non_null_non_void_type(&initializer_type, node)?;
                     } else {
                         self.check_type_assignable_to_and_optionally_elaborate(
                             &initializer_type,
-                            &self.get_widened_type_for_variable_like_declaration(node, None),
+                            &*self.get_widened_type_for_variable_like_declaration(node, None)?,
                             Some(node),
                             node_as_has_initializer.maybe_initializer(),
                             None,
                             None,
-                        );
+                        )?;
                     }
                 }
                 if need_check_widened_type {
@@ -528,21 +533,21 @@ impl TypeChecker {
                             &widened_type,
                             &self.undefined_type(),
                             Some(node),
-                        );
+                        )?;
                     } else if self.strict_null_checks {
-                        self.check_non_null_non_void_type(&widened_type, node);
+                        self.check_non_null_non_void_type(&widened_type, node)?;
                     }
                 }
             }
-            return;
+            return Ok(());
         }
-        let symbol = self.get_symbol_of_node(node).unwrap();
+        let symbol = self.get_symbol_of_node(node)?.unwrap();
         if symbol.flags().intersects(SymbolFlags::Alias) && is_require_variable_declaration(node) {
-            self.check_alias_symbol(node);
-            return;
+            self.check_alias_symbol(node)?;
+            return Ok(());
         }
 
-        let type_ = self.convert_auto_to_any(&self.get_type_of_symbol(&symbol));
+        let type_ = self.convert_auto_to_any(&*self.get_type_of_symbol(&symbol)?);
         if matches!(
             symbol.maybe_value_declaration().as_ref(),
             Some(symbol_value_declaration) if ptr::eq(
@@ -567,13 +572,13 @@ impl TypeChecker {
                     && node.parent().parent().kind() != SyntaxKind::ForInStatement
                 {
                     self.check_type_assignable_to_and_optionally_elaborate(
-                        &self.check_expression_cached(initializer, None),
+                        &*self.check_expression_cached(initializer, None)?,
                         &type_,
                         Some(node),
                         Some(&**initializer),
                         None,
                         None,
-                    );
+                    )?;
                 }
             }
             if let Some(symbol_declarations) = symbol
@@ -600,12 +605,12 @@ impl TypeChecker {
             }
         } else {
             let declaration_type = self.convert_auto_to_any(
-                &self.get_widened_type_for_variable_like_declaration(node, None),
+                &*self.get_widened_type_for_variable_like_declaration(node, None)?,
             );
 
             if !self.is_error_type(&type_)
                 && !self.is_error_type(&declaration_type)
-                && !self.is_type_identical_to(&type_, &declaration_type)
+                && !self.is_type_identical_to(&type_, &declaration_type)?
                 && !symbol.flags().intersects(SymbolFlags::Assignment)
             {
                 self.error_next_variable_or_property_declaration_must_have_same_type(
@@ -613,17 +618,17 @@ impl TypeChecker {
                     &type_,
                     node,
                     &declaration_type,
-                );
+                )?;
             }
             if let Some(node_initializer) = node_as_has_initializer.maybe_initializer().as_ref() {
                 self.check_type_assignable_to_and_optionally_elaborate(
-                    &self.check_expression_cached(node_initializer, None),
+                    &*self.check_expression_cached(node_initializer, None)?,
                     &declaration_type,
                     Some(node),
                     Some(&**node_initializer),
                     None,
                     None,
-                );
+                )?;
             }
             if matches!(
                 symbol.maybe_value_declaration().as_ref(),
@@ -645,26 +650,26 @@ impl TypeChecker {
             node.kind(),
             SyntaxKind::PropertyDeclaration | SyntaxKind::PropertySignature
         ) {
-            self.check_exports_on_merged_declarations(node);
+            self.check_exports_on_merged_declarations(node)?;
             if matches!(
                 node.kind(),
                 SyntaxKind::VariableDeclaration | SyntaxKind::BindingElement
             ) {
-                self.check_var_declared_names_not_shadowed(node);
+                self.check_var_declared_names_not_shadowed(node)?;
             }
             self.check_collisions_for_declaration_name(node, Some(&*node_name));
         }
+
+        Ok(())
     }
 
-    pub(super) fn error_next_variable_or_property_declaration_must_have_same_type<
-        TFirstDeclaration: Borrow<Node>,
-    >(
+    pub(super) fn error_next_variable_or_property_declaration_must_have_same_type(
         &self,
-        first_declaration: Option<TFirstDeclaration /*Declaration*/>,
+        first_declaration: Option<impl Borrow<Node> /*Declaration*/>,
         first_type: &Type,
         next_declaration: &Node, /*Declaration*/
         next_type: &Type,
-    ) {
+    ) -> io::Result<()> {
         let next_declaration_name = get_name_of_declaration(Some(next_declaration));
         let message = if matches!(
             next_declaration.kind(),
@@ -680,8 +685,8 @@ impl TypeChecker {
             message,
             Some(vec![
                 decl_name.clone(),
-                self.type_to_string_(first_type, Option::<&Node>::None, None, None),
-                self.type_to_string_(next_type, Option::<&Node>::None, None, None),
+                self.type_to_string_(first_type, Option::<&Node>::None, None, None)?,
+                self.type_to_string_(next_type, Option::<&Node>::None, None, None)?,
             ]),
         );
         if let Some(first_declaration) = first_declaration {
@@ -698,6 +703,8 @@ impl TypeChecker {
                 )],
             );
         }
+
+        Ok(())
     }
 
     pub(super) fn are_declaration_flags_identical(
@@ -727,19 +734,32 @@ impl TypeChecker {
             == get_selected_effective_modifier_flags(right, interesting_flags)
     }
 
-    pub(super) fn check_variable_declaration(&self, node: &Node /*VariableDeclaration*/) {
+    pub(super) fn check_variable_declaration(
+        &self,
+        node: &Node, /*VariableDeclaration*/
+    ) -> io::Result<()> {
         // tracing?.push(tracing.Phase.Check, "checkVariableDeclaration", { kind: node.kind, pos: node.pos, end: node.end });
-        self.check_grammar_variable_declaration(node);
-        self.check_variable_like_declaration(node);
+        self.check_grammar_variable_declaration(node)?;
+        self.check_variable_like_declaration(node)?;
         // tracing?.pop();
+
+        Ok(())
     }
 
-    pub(super) fn check_binding_element(&self, node: &Node /*BindingElement*/) {
+    pub(super) fn check_binding_element(
+        &self,
+        node: &Node, /*BindingElement*/
+    ) -> io::Result<()> {
         self.check_grammar_binding_element(node);
-        self.check_variable_like_declaration(node);
+        self.check_variable_like_declaration(node)?;
+
+        Ok(())
     }
 
-    pub(super) fn check_variable_statement(&self, node: &Node /*VariableStatement*/) {
+    pub(super) fn check_variable_statement(
+        &self,
+        node: &Node, /*VariableStatement*/
+    ) -> io::Result<()> {
         let node_as_variable_statement = node.as_variable_statement();
         if !self.check_grammar_decorators_and_modifiers(node)
             && !self.check_grammar_variable_declaration_list(
@@ -748,34 +768,41 @@ impl TypeChecker {
         {
             self.check_grammar_for_disallowed_let_or_const_statement(node);
         }
-        for_each(
+        try_for_each(
             &node_as_variable_statement
                 .declaration_list
                 .as_variable_declaration_list()
                 .declarations,
-            |declaration, _| -> Option<()> {
-                self.check_source_element(Some(&**declaration));
-                None
+            |declaration, _| -> io::Result<Option<()>> {
+                self.check_source_element(Some(&**declaration))?;
+                Ok(None)
             },
-        );
+        )?;
+
+        Ok(())
     }
 
-    pub(super) fn check_expression_statement(&self, node: &Node /*ExpressionStatement*/) {
+    pub(super) fn check_expression_statement(
+        &self,
+        node: &Node, /*ExpressionStatement*/
+    ) -> io::Result<()> {
         self.check_grammar_statement_in_ambient_context(node);
 
-        self.check_expression(&node.as_expression_statement().expression, None, None);
+        self.check_expression(&node.as_expression_statement().expression, None, None)?;
+
+        Ok(())
     }
 
-    pub(super) fn check_if_statement(&self, node: &Node /*IfStatement*/) {
+    pub(super) fn check_if_statement(&self, node: &Node /*IfStatement*/) -> io::Result<()> {
         self.check_grammar_statement_in_ambient_context(node);
         let node_as_if_statement = node.as_if_statement();
-        let type_ = self.check_truthiness_expression(&node_as_if_statement.expression, None);
+        let type_ = self.check_truthiness_expression(&node_as_if_statement.expression, None)?;
         self.check_testing_known_truthy_callable_or_awaitable_type(
             &node_as_if_statement.expression,
             &type_,
             Some(&*node_as_if_statement.then_statement),
-        );
-        self.check_source_element(Some(&*node_as_if_statement.then_statement));
+        )?;
+        self.check_source_element(Some(&*node_as_if_statement.then_statement))?;
 
         if node_as_if_statement.then_statement.kind() == SyntaxKind::EmptyStatement {
             self.error(
@@ -785,20 +812,22 @@ impl TypeChecker {
             );
         }
 
-        self.check_source_element(node_as_if_statement.else_statement.as_deref());
+        self.check_source_element(node_as_if_statement.else_statement.as_deref())?;
+
+        Ok(())
     }
 
-    pub(super) fn check_testing_known_truthy_callable_or_awaitable_type<TBody: Borrow<Node>>(
+    pub(super) fn check_testing_known_truthy_callable_or_awaitable_type(
         &self,
         cond_expr: &Node, /*Expression*/
         type_: &Type,
-        body: Option<TBody /*Statement | Expression*/>,
-    ) {
+        body: Option<impl Borrow<Node> /*Statement | Expression*/>,
+    ) -> io::Result<()> {
         if !self.strict_null_checks {
-            return;
+            return Ok(());
         }
         if self.get_falsy_flags(type_) != TypeFlags::None {
-            return;
+            return Ok(());
         }
 
         let location = if is_binary_expression(cond_expr) {
@@ -809,7 +838,7 @@ impl TypeChecker {
         if is_property_access_expression(location)
             && self.is_type_assertion(&location.as_property_access_expression().expression)
         {
-            return;
+            return Ok(());
         }
 
         let tested_node = if is_identifier(location) {
@@ -824,26 +853,26 @@ impl TypeChecker {
             None
         };
 
-        let call_signatures = self.get_signatures_of_type(type_, SignatureKind::Call);
+        let call_signatures = self.get_signatures_of_type(type_, SignatureKind::Call)?;
         let is_promise = self
-            .get_awaited_type_of_promise(type_, Option::<&Node>::None, None, None)
+            .get_awaited_type_of_promise(type_, Option::<&Node>::None, None, None)?
             .is_some();
         if call_signatures.is_empty() && !is_promise {
-            return;
+            return Ok(());
         }
 
         let tested_symbol = tested_node
             .as_ref()
-            .and_then(|tested_node| self.get_symbol_at_location_(tested_node, None));
+            .try_and_then(|tested_node| self.get_symbol_at_location_(tested_node, None))?;
         if tested_symbol.is_none() && !is_promise {
-            return;
+            return Ok(());
         }
 
         let body = body.map(|body| body.borrow().node_wrapper());
         let is_used = matches!(
             tested_symbol.as_ref(),
             Some(tested_symbol) if is_binary_expression(&cond_expr.parent()) &&
-                self.is_symbol_used_in_binary_expression_chain(&cond_expr.parent(), tested_symbol)
+                self.is_symbol_used_in_binary_expression_chain(&cond_expr.parent(), tested_symbol)?
         ) || matches!(
             (tested_symbol.as_ref(), body.as_ref()),
             (Some(tested_symbol), Some(body)) if self.is_symbol_used_in_condition_body(
@@ -851,7 +880,7 @@ impl TypeChecker {
                 body,
                 tested_node.as_ref().unwrap(),
                 tested_symbol,
-            )
+            )?
         );
         if !is_used {
             if is_promise {
@@ -860,7 +889,7 @@ impl TypeChecker {
                     true,
                     &Diagnostics::This_condition_will_always_return_true_since_this_0_is_always_defined,
                     Some(vec![
-                        self.get_type_name_for_error_display(type_)
+                        self.get_type_name_for_error_display(type_)?
                     ])
                 );
             } else {
@@ -871,6 +900,8 @@ impl TypeChecker {
                 );
             }
         }
+
+        Ok(())
     }
 
     pub(super) fn is_symbol_used_in_condition_body(
@@ -879,8 +910,8 @@ impl TypeChecker {
         body: &Node, /*Statement | Expression*/
         tested_node: &Node,
         tested_symbol: &Symbol,
-    ) -> bool {
-        for_each_child_bool(
+    ) -> io::Result<bool> {
+        try_for_each_child_bool(
             body,
             |child_node| {
                 self.is_symbol_used_in_condition_body_check(
@@ -890,7 +921,7 @@ impl TypeChecker {
                     child_node,
                 )
             },
-            Option::<fn(&NodeArray) -> bool>::None,
+            Option::<fn(&NodeArray) -> io::Result<bool>>::None,
         )
     }
 
@@ -900,15 +931,15 @@ impl TypeChecker {
         tested_node: &Node,
         tested_symbol: &Symbol,
         child_node: &Node,
-    ) -> bool {
+    ) -> io::Result<bool> {
         if is_identifier(child_node) {
-            let child_symbol = self.get_symbol_at_location_(child_node, None);
+            let child_symbol = self.get_symbol_at_location_(child_node, None)?;
             if matches!(
                 child_symbol.as_ref(),
                 Some(child_symbol) if ptr::eq(&**child_symbol, tested_symbol)
             ) {
                 if is_identifier(expr) {
-                    return true;
+                    return Ok(true);
                 }
                 let mut tested_expression = tested_node.maybe_parent();
                 let mut child_expression = child_node.maybe_parent();
@@ -920,12 +951,12 @@ impl TypeChecker {
                         || tested_expression_present.kind() == SyntaxKind::ThisKeyword
                             && child_expression_present.kind() == SyntaxKind::ThisKeyword
                     {
-                        return are_option_gcs_equal(
-                            self.get_symbol_at_location_(tested_expression_present, None)
+                        return Ok(are_option_gcs_equal(
+                            self.get_symbol_at_location_(tested_expression_present, None)?
                                 .as_ref(),
-                            self.get_symbol_at_location_(child_expression_present, None)
+                            self.get_symbol_at_location_(child_expression_present, None)?
                                 .as_ref(),
-                        );
+                        ));
                     } else if is_property_access_expression(tested_expression_present)
                         && is_property_access_expression(child_expression_present)
                     {
@@ -937,15 +968,15 @@ impl TypeChecker {
                             self.get_symbol_at_location_(
                                 &tested_expression_present_as_property_access_expression.name,
                                 None,
-                            )
+                            )?
                             .as_ref(),
                             self.get_symbol_at_location_(
                                 &child_expression_present_as_property_access_expression.name,
                                 None,
-                            )
+                            )?
                             .as_ref(),
                         ) {
-                            return false;
+                            return Ok(false);
                         }
                         child_expression = Some(
                             child_expression_present_as_property_access_expression
@@ -973,12 +1004,12 @@ impl TypeChecker {
                                 .clone(),
                         );
                     } else {
-                        return false;
+                        return Ok(false);
                     }
                 }
             }
         }
-        for_each_child_bool(
+        try_for_each_child_bool(
             child_node,
             |child_node| {
                 self.is_symbol_used_in_condition_body_check(
@@ -988,7 +1019,7 @@ impl TypeChecker {
                     child_node,
                 )
             },
-            Option::<fn(&NodeArray) -> bool>::None,
+            Option::<fn(&NodeArray) -> io::Result<bool>>::None,
         )
     }
 }

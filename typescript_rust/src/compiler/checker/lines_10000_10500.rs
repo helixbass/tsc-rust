@@ -1,8 +1,9 @@
 use gc::Gc;
-use std::ptr;
 use std::rc::Rc;
 use std::{borrow::Borrow, collections::HashMap};
+use std::{io, ptr};
 
+use crate::try_every;
 use crate::{
     concatenate, create_symbol_table, every, get_effective_constraint_of_type_parameter,
     get_effective_return_type_node, get_effective_type_annotation_node,
@@ -13,52 +14,55 @@ use crate::{
     CharacterCodes, Debug_, Diagnostics, EnumKind, GenericableTypeInterface,
     HasTypeArgumentsInterface, InterfaceTypeInterface, InterfaceTypeWithDeclaredMembersInterface,
     InternalSymbolName, Node, NodeFlags, NodeInterface, Number, ObjectFlags,
-    ObjectFlagsTypeInterface, Symbol, SymbolFlags, SymbolInterface, SymbolTable, SyntaxKind,
-    TransientSymbolInterface, Type, TypeChecker, TypeFlags, TypeInterface, TypeMapper,
+    ObjectFlagsTypeInterface, OptionTry, Symbol, SymbolFlags, SymbolInterface, SymbolTable,
+    SyntaxKind, TransientSymbolInterface, Type, TypeChecker, TypeFlags, TypeInterface, TypeMapper,
     TypeReferenceInterface, TypeSystemPropertyName, UnionReduction, __String,
 };
 
 impl TypeChecker {
-    pub(super) fn are_all_outer_type_parameters_applied(&self, type_: &Type) -> bool {
+    pub(super) fn are_all_outer_type_parameters_applied(&self, type_: &Type) -> io::Result<bool> {
         let outer_type_parameters = type_
             .maybe_as_interface_type()
             .and_then(|type_| type_.maybe_outer_type_parameters());
         if let Some(outer_type_parameters) = outer_type_parameters {
             let last = outer_type_parameters.len() - 1;
-            let type_arguments = self.get_type_arguments(type_);
-            return !match (
+            let type_arguments = self.get_type_arguments(type_)?;
+            return Ok(!match (
                 outer_type_parameters[last].maybe_symbol(),
                 type_arguments[last].maybe_symbol(),
             ) {
                 (None, None) => true,
                 (Some(symbol_a), Some(symbol_b)) => Gc::ptr_eq(&symbol_a, &symbol_b),
                 _ => false,
-            };
+            });
         }
-        true
+        Ok(true)
     }
 
-    pub(super) fn is_valid_base_type(&self, type_: &Type) -> bool {
+    pub(super) fn is_valid_base_type(&self, type_: &Type) -> io::Result<bool> {
         if type_.flags().intersects(TypeFlags::TypeParameter) {
             if type_.flags().intersects(TypeFlags::TypeParameter) {
-                let constraint = self.get_base_constraint_of_type(type_);
+                let constraint = self.get_base_constraint_of_type(type_)?;
                 if let Some(constraint) = constraint {
                     return self.is_valid_base_type(&constraint);
                 }
             }
         }
-        type_
+        Ok(type_
             .flags()
             .intersects(TypeFlags::Object | TypeFlags::NonPrimitive | TypeFlags::Any)
-            && !self.is_generic_mapped_type(type_)
+            && !self.is_generic_mapped_type(type_)?
             || type_.flags().intersects(TypeFlags::Intersection)
-                && every(
+                && try_every(
                     type_.as_union_or_intersection_type_interface().types(),
                     |type_: &Gc<Type>, _| self.is_valid_base_type(type_),
-                )
+                )?)
     }
 
-    pub(super) fn resolve_base_types_of_interface(&self, type_: &Type /*InterfaceType*/) {
+    pub(super) fn resolve_base_types_of_interface(
+        &self,
+        type_: &Type, /*InterfaceType*/
+    ) -> io::Result<()> {
         let type_as_interface_type = type_.as_interface_type();
         if type_as_interface_type.maybe_resolved_base_types().is_none() {
             *type_as_interface_type.maybe_resolved_base_types() = Some(Gc::new(vec![]));
@@ -72,11 +76,12 @@ impl TypeChecker {
                         .as_deref()
                         .unwrap()
                     {
-                        let base_type = self.get_reduced_type(&self.get_type_from_type_node_(node));
+                        let base_type =
+                            self.get_reduced_type(&*self.get_type_from_type_node_(node)?)?;
                         if !self.is_error_type(&base_type) {
-                            if self.is_valid_base_type(&base_type) {
+                            if self.is_valid_base_type(&base_type)? {
                                 if !ptr::eq(type_, &*base_type)
-                                    && !self.has_base_type(&base_type, Some(type_))
+                                    && !self.has_base_type(&base_type, Some(type_))?
                                 {
                                     let mut resolved_base_types = Vec::clone(
                                         type_as_interface_type
@@ -88,7 +93,7 @@ impl TypeChecker {
                                     *type_as_interface_type.maybe_resolved_base_types() =
                                         Some(Gc::new(resolved_base_types));
                                 } else {
-                                    self.report_circular_base_type(declaration, type_);
+                                    self.report_circular_base_type(declaration, type_)?;
                                 }
                             } else {
                                 self.error(
@@ -102,18 +107,20 @@ impl TypeChecker {
                 }
             }
         }
+
+        Ok(())
     }
 
-    pub(super) fn is_thisless_interface(&self, symbol: &Symbol) -> bool {
+    pub(super) fn is_thisless_interface(&self, symbol: &Symbol) -> io::Result<bool> {
         let symbol_declarations = symbol.maybe_declarations();
         if symbol_declarations.is_none() {
-            return true;
+            return Ok(true);
         }
         let symbol_declarations = symbol_declarations.as_deref().unwrap();
         for declaration in symbol_declarations {
             if declaration.kind() == SyntaxKind::InterfaceDeclaration {
                 if declaration.flags().intersects(NodeFlags::ContainsThis) {
-                    return false;
+                    return Ok(false);
                 }
                 let base_type_nodes = get_interface_base_type_nodes(declaration);
                 if let Some(base_type_nodes) = base_type_nodes {
@@ -129,32 +136,32 @@ impl TypeChecker {
                                 Some(true),
                                 None,
                                 Option::<&Node>::None,
-                            );
+                            )?;
                             if match base_symbol {
                                 None => true,
                                 Some(base_symbol) => {
                                     !base_symbol.flags().intersects(SymbolFlags::Interface)
                                         || self
-                                            .get_declared_type_of_class_or_interface(&base_symbol)
+                                            .get_declared_type_of_class_or_interface(&base_symbol)?
                                             .as_interface_type()
                                             .maybe_this_type()
                                             .is_some()
                                 }
                             } {
-                                return false;
+                                return Ok(false);
                             }
                         }
                     }
                 }
             }
         }
-        true
+        Ok(true)
     }
 
     pub(super) fn get_declared_type_of_class_or_interface(
         &self,
         symbol: &Symbol,
-    ) -> Gc<Type /*InterfaceType*/> {
+    ) -> io::Result<Gc<Type /*InterfaceType*/>> {
         let mut links = self.get_symbol_links(symbol);
         let original_links = links.clone();
         let mut symbol = symbol.symbol_wrapper();
@@ -164,15 +171,13 @@ impl TypeChecker {
             } else {
                 ObjectFlags::Interface
             };
-            let merged = self.merge_js_symbols(
-                &symbol,
-                symbol
-                    .maybe_value_declaration()
-                    .as_ref()
-                    .and_then(|value_declaration| {
-                        self.get_assigned_class_symbol(value_declaration)
-                    }),
-            );
+            let merged =
+                self.merge_js_symbols(
+                    &symbol,
+                    symbol.maybe_value_declaration().as_ref().try_and_then(
+                        |value_declaration| self.get_assigned_class_symbol(value_declaration),
+                    )?,
+                )?;
             if let Some(merged) = merged {
                 symbol = merged.clone();
                 links = merged.as_transient_symbol().symbol_links();
@@ -195,14 +200,14 @@ impl TypeChecker {
                 Some(temporary_type_to_avoid_infinite_recursion_in_is_thisless_interface.clone());
             let type_ = self.create_object_type(kind, Some(&*symbol));
             let outer_type_parameters =
-                self.get_outer_type_parameters_of_class_or_interface(&symbol);
+                self.get_outer_type_parameters_of_class_or_interface(&symbol)?;
             let local_type_parameters =
-                self.get_local_type_parameters_of_class_or_interface_or_type_alias(&symbol);
+                self.get_local_type_parameters_of_class_or_interface_or_type_alias(&symbol)?;
             let mut need_to_set_constraint = false;
             let type_: Gc<Type> = if outer_type_parameters.is_some()
                 || local_type_parameters.is_some()
                 || kind == ObjectFlags::Class
-                || !self.is_thisless_interface(&symbol)
+                || !self.is_thisless_interface(&symbol)?
             {
                 need_to_set_constraint = true;
                 type_.set_object_flags(type_.object_flags() | ObjectFlags::Reference);
@@ -246,17 +251,17 @@ impl TypeChecker {
             links.borrow_mut().declared_type = Some(type_.clone());
         }
         let ret = (*links).borrow().declared_type.clone().unwrap();
-        ret
+        Ok(ret)
     }
 
-    pub(super) fn get_declared_type_of_type_alias(&self, symbol: &Symbol) -> Gc<Type> {
+    pub(super) fn get_declared_type_of_type_alias(&self, symbol: &Symbol) -> io::Result<Gc<Type>> {
         let links = self.get_symbol_links(symbol);
         if (*links).borrow().declared_type.is_none() {
             if !self.push_type_resolution(
                 &symbol.symbol_wrapper().into(),
                 TypeSystemPropertyName::DeclaredType,
             ) {
-                return self.error_type();
+                return Ok(self.error_type());
             }
 
             let declaration = Debug_.check_defined(
@@ -276,14 +281,14 @@ impl TypeChecker {
             } else {
                 Some(declaration.as_type_alias_declaration().type_.clone())
             };
-            let mut type_ = type_node.map_or_else(
-                || self.error_type(),
+            let mut type_ = type_node.try_map_or_else(
+                || Ok(self.error_type()),
                 |type_node| self.get_type_from_type_node_(&type_node),
-            );
+            )?;
 
             if self.pop_type_resolution() {
                 let type_parameters =
-                    self.get_local_type_parameters_of_class_or_interface_or_type_alias(symbol);
+                    self.get_local_type_parameters_of_class_or_interface_or_type_alias(symbol)?;
                 if let Some(type_parameters) = type_parameters {
                     let mut links = links.borrow_mut();
                     let mut instantiations: HashMap<String, Gc<Type>> = HashMap::new();
@@ -312,7 +317,7 @@ impl TypeChecker {
                             None,
                             None,
                             None,
-                        )]),
+                        )?]),
                     );
                 } else {
                     self.error(
@@ -331,14 +336,14 @@ impl TypeChecker {
                             None,
                             None,
                             None,
-                        )]),
+                        )?]),
                     );
                 }
             }
             links.borrow_mut().declared_type = Some(type_);
         }
         let ret = (*links).borrow().declared_type.clone().unwrap();
-        ret
+        Ok(ret)
     }
 
     pub(super) fn is_string_concat_expression(&self, expr: &Node) -> bool {
@@ -352,14 +357,17 @@ impl TypeChecker {
         false
     }
 
-    pub(super) fn is_literal_enum_member(&self, member: &Node /*EnumMember*/) -> bool {
+    pub(super) fn is_literal_enum_member(
+        &self,
+        member: &Node, /*EnumMember*/
+    ) -> io::Result<bool> {
         let member_as_enum_member = member.as_enum_member();
         let expr = member_as_enum_member.initializer.as_deref();
         if expr.is_none() {
-            return !member.flags().intersects(NodeFlags::Ambient);
+            return Ok(!member.flags().intersects(NodeFlags::Ambient));
         }
         let expr = expr.unwrap();
-        match expr.kind() {
+        Ok(match expr.kind() {
             SyntaxKind::StringLiteral
             | SyntaxKind::NumericLiteral
             | SyntaxKind::NoSubstitutionTemplateLiteral => true,
@@ -370,20 +378,23 @@ impl TypeChecker {
             }
             SyntaxKind::Identifier => {
                 node_is_missing(Some(expr))
-                    || (*self.get_symbol_of_node(&member.parent()).unwrap().exports())
-                        .borrow()
-                        .get(&expr.as_identifier().escaped_text)
-                        .is_some()
+                    || (*self
+                        .get_symbol_of_node(&member.parent())?
+                        .unwrap()
+                        .exports())
+                    .borrow()
+                    .get(&expr.as_identifier().escaped_text)
+                    .is_some()
             }
             SyntaxKind::BinaryExpression => self.is_string_concat_expression(expr),
             _ => false,
-        }
+        })
     }
 
-    pub(super) fn get_enum_kind(&self, symbol: &Symbol) -> EnumKind {
+    pub(super) fn get_enum_kind(&self, symbol: &Symbol) -> io::Result<EnumKind> {
         let links = self.get_symbol_links(symbol);
         if let Some(links_enum_kind) = (*links).borrow().enum_kind {
-            return links_enum_kind;
+            return Ok(links_enum_kind);
         }
         let mut has_non_literal_member = false;
         if let Some(symbol_declarations) = symbol.maybe_declarations().as_deref() {
@@ -394,9 +405,9 @@ impl TypeChecker {
                         {
                             let ret = EnumKind::Literal;
                             links.borrow_mut().enum_kind = Some(ret);
-                            return ret;
+                            return Ok(ret);
                         }
-                        if !self.is_literal_enum_member(member) {
+                        if !self.is_literal_enum_member(member)? {
                             has_non_literal_member = true;
                         }
                     }
@@ -409,39 +420,43 @@ impl TypeChecker {
             EnumKind::Literal
         };
         links.borrow_mut().enum_kind = Some(ret);
-        ret
+        Ok(ret)
     }
 
-    pub(super) fn get_base_type_of_enum_literal_type(&self, type_: &Type) -> Gc<Type> {
-        if type_.flags().intersects(TypeFlags::EnumLiteral)
-            && !type_.flags().intersects(TypeFlags::Union)
-        {
-            self.get_declared_type_of_symbol(&self.get_parent_of_symbol(&type_.symbol()).unwrap())
-        } else {
-            type_.type_wrapper()
-        }
+    pub(super) fn get_base_type_of_enum_literal_type(&self, type_: &Type) -> io::Result<Gc<Type>> {
+        Ok(
+            if type_.flags().intersects(TypeFlags::EnumLiteral)
+                && !type_.flags().intersects(TypeFlags::Union)
+            {
+                self.get_declared_type_of_symbol(
+                    &self.get_parent_of_symbol(&type_.symbol())?.unwrap(),
+                )?
+            } else {
+                type_.type_wrapper()
+            },
+        )
     }
 
-    pub(super) fn get_declared_type_of_enum(&self, symbol: &Symbol) -> Gc<Type> {
+    pub(super) fn get_declared_type_of_enum(&self, symbol: &Symbol) -> io::Result<Gc<Type>> {
         let links = self.get_symbol_links(symbol);
         if let Some(links_declared_type) = (*links).borrow().declared_type.clone() {
-            return links_declared_type;
+            return Ok(links_declared_type);
         }
-        if self.get_enum_kind(symbol) == EnumKind::Literal {
+        if self.get_enum_kind(symbol)? == EnumKind::Literal {
             self.increment_enum_count();
             let mut member_type_list: Vec<Gc<Type>> = vec![];
             if let Some(symbol_declarations) = symbol.maybe_declarations().as_deref() {
                 for declaration in symbol_declarations {
                     if declaration.kind() == SyntaxKind::EnumDeclaration {
                         for member in &declaration.as_enum_declaration().members {
-                            let value = self.get_enum_member_value(member);
+                            let value = self.get_enum_member_value(member)?;
                             let member_type =
                                 self.get_fresh_type_of_literal_type(&self.get_enum_literal_type(
                                     value.unwrap_or_else(|| Number::new(0.0).into()),
                                     self.enum_count(),
-                                    &self.get_symbol_of_node(member).unwrap(),
+                                    &self.get_symbol_of_node(member)?.unwrap(),
                                 ));
-                            self.get_symbol_links(&self.get_symbol_of_node(member).unwrap())
+                            self.get_symbol_links(&self.get_symbol_of_node(member)?.unwrap())
                                 .borrow_mut()
                                 .declared_type = Some(member_type.clone());
                             member_type_list
@@ -457,33 +472,33 @@ impl TypeChecker {
                     Some(symbol),
                     None,
                     Option::<&Type>::None,
-                );
+                )?;
                 if enum_type.flags().intersects(TypeFlags::Union) {
                     enum_type.set_flags(enum_type.flags() | TypeFlags::EnumLiteral);
                     enum_type.set_symbol(Some(symbol.symbol_wrapper()));
                 }
                 links.borrow_mut().declared_type = Some(enum_type.clone());
-                return enum_type;
+                return Ok(enum_type);
             }
         }
         let enum_type: Gc<Type> = self.create_type(TypeFlags::Enum).into();
         enum_type.set_symbol(Some(symbol.symbol_wrapper()));
         links.borrow_mut().declared_type = Some(enum_type.clone());
-        enum_type
+        Ok(enum_type)
     }
 
-    pub(super) fn get_declared_type_of_enum_member(&self, symbol: &Symbol) -> Gc<Type> {
+    pub(super) fn get_declared_type_of_enum_member(&self, symbol: &Symbol) -> io::Result<Gc<Type>> {
         let links = self.get_symbol_links(symbol);
         if (*links).borrow().declared_type.is_none() {
             let enum_type =
-                self.get_declared_type_of_enum(&self.get_parent_of_symbol(symbol).unwrap());
+                self.get_declared_type_of_enum(&self.get_parent_of_symbol(symbol)?.unwrap())?;
             let mut links = links.borrow_mut();
             if links.declared_type.is_none() {
                 links.declared_type = Some(enum_type);
             }
         }
         let ret = (*links).borrow().declared_type.clone().unwrap();
-        ret
+        Ok(ret)
     }
 
     pub(super) fn get_declared_type_of_type_parameter(
@@ -498,44 +513,48 @@ impl TypeChecker {
         links.declared_type.clone().unwrap()
     }
 
-    pub(super) fn get_declared_type_of_alias(&self, symbol: &Symbol) -> Gc<Type> {
+    pub(super) fn get_declared_type_of_alias(&self, symbol: &Symbol) -> io::Result<Gc<Type>> {
         let links = self.get_symbol_links(symbol);
         if let Some(links_declared_type) = (*links).borrow().declared_type.clone() {
-            return links_declared_type;
+            return Ok(links_declared_type);
         }
-        let declared_type = self.get_declared_type_of_symbol(&self.resolve_alias(symbol));
+        let declared_type = self.get_declared_type_of_symbol(&*self.resolve_alias(symbol)?)?;
         links.borrow_mut().declared_type = Some(declared_type.clone());
-        declared_type
+        Ok(declared_type)
     }
 
-    pub(super) fn get_declared_type_of_symbol(&self, symbol: &Symbol) -> Gc<Type> {
-        self.try_get_declared_type_of_symbol(symbol)
-            .unwrap_or_else(|| self.error_type())
+    pub(super) fn get_declared_type_of_symbol(&self, symbol: &Symbol) -> io::Result<Gc<Type>> {
+        Ok(self
+            .try_get_declared_type_of_symbol(symbol)?
+            .unwrap_or_else(|| self.error_type()))
     }
 
-    pub(super) fn try_get_declared_type_of_symbol(&self, symbol: &Symbol) -> Option<Gc<Type>> {
+    pub(super) fn try_get_declared_type_of_symbol(
+        &self,
+        symbol: &Symbol,
+    ) -> io::Result<Option<Gc<Type>>> {
         if symbol
             .flags()
             .intersects(SymbolFlags::Class | SymbolFlags::Interface)
         {
-            return Some(self.get_declared_type_of_class_or_interface(symbol));
+            return Ok(Some(self.get_declared_type_of_class_or_interface(symbol)?));
         }
         if symbol.flags().intersects(SymbolFlags::TypeAlias) {
-            return Some(self.get_declared_type_of_type_alias(symbol));
+            return Ok(Some(self.get_declared_type_of_type_alias(symbol)?));
         }
         if symbol.flags().intersects(SymbolFlags::TypeParameter) {
-            return Some(self.get_declared_type_of_type_parameter(symbol));
+            return Ok(Some(self.get_declared_type_of_type_parameter(symbol)));
         }
         if symbol.flags().intersects(SymbolFlags::Enum) {
-            return Some(self.get_declared_type_of_enum(symbol));
+            return Ok(Some(self.get_declared_type_of_enum(symbol)?));
         }
         if symbol.flags().intersects(SymbolFlags::EnumMember) {
-            return Some(self.get_declared_type_of_enum_member(symbol));
+            return Ok(Some(self.get_declared_type_of_enum_member(symbol)?));
         }
         if symbol.flags().intersects(SymbolFlags::Alias) {
-            return Some(self.get_declared_type_of_alias(symbol));
+            return Ok(Some(self.get_declared_type_of_alias(symbol)?));
         }
-        None
+        Ok(None)
     }
 
     pub(super) fn is_thisless_type(&self, node: &Node /*TypeNode*/) -> bool {
@@ -639,7 +658,7 @@ impl TypeChecker {
         symbols: impl IntoIterator<Item = impl Borrow<Gc<Symbol>>>,
         mapper: Gc<TypeMapper>,
         mapping_this_only: bool,
-    ) -> SymbolTable {
+    ) -> io::Result<SymbolTable> {
         let mut result = create_symbol_table(Option::<&[Gc<Symbol>]>::None);
         for symbol in symbols {
             let symbol: &Gc<Symbol> = symbol.borrow();
@@ -648,11 +667,11 @@ impl TypeChecker {
                 if mapping_this_only && self.is_thisless(symbol) {
                     symbol.clone()
                 } else {
-                    self.instantiate_symbol(symbol, mapper.clone())
+                    self.instantiate_symbol(symbol, mapper.clone())?
                 },
             );
         }
-        result
+        Ok(result)
     }
 
     pub(super) fn add_inherited_members(
@@ -677,27 +696,30 @@ impl TypeChecker {
         )
     }
 
-    pub(super) fn resolve_declared_members(&self, type_: &Type /*InterfaceType*/) -> Gc<Type> {
+    pub(super) fn resolve_declared_members(
+        &self,
+        type_: &Type, /*InterfaceType*/
+    ) -> io::Result<Gc<Type>> {
         let type_as_interface_type = type_.as_interface_type();
         if type_as_interface_type.maybe_declared_properties().is_none() {
             let symbol = type_.symbol();
-            let members = self.get_members_of_symbol(&symbol);
+            let members = self.get_members_of_symbol(&symbol)?;
             let members = (*members).borrow();
-            type_as_interface_type.set_declared_properties(self.get_named_members(&*members));
+            type_as_interface_type.set_declared_properties(self.get_named_members(&*members)?);
             type_as_interface_type.set_declared_call_signatures(vec![]);
             type_as_interface_type.set_declared_construct_signatures(vec![]);
             type_as_interface_type.set_declared_index_infos(vec![]);
 
             type_as_interface_type.set_declared_call_signatures(
-                self.get_signatures_of_symbol(members.get(InternalSymbolName::Call).cloned()),
+                self.get_signatures_of_symbol(members.get(InternalSymbolName::Call).cloned())?,
             );
             type_as_interface_type.set_declared_construct_signatures(
-                self.get_signatures_of_symbol(members.get(InternalSymbolName::New).cloned()),
+                self.get_signatures_of_symbol(members.get(InternalSymbolName::New).cloned())?,
             );
             type_as_interface_type
-                .set_declared_index_infos(self.get_index_infos_of_symbol(&symbol));
+                .set_declared_index_infos(self.get_index_infos_of_symbol(&symbol)?);
         }
-        type_.type_wrapper()
+        Ok(type_.type_wrapper())
     }
 
     pub(super) fn is_type_usable_as_property_name(&self, type_: &Type) -> bool {
@@ -706,21 +728,24 @@ impl TypeChecker {
             .intersects(TypeFlags::StringOrNumberLiteralOrUnique)
     }
 
-    pub(super) fn is_late_bindable_name(&self, node: &Node /*DeclarationName*/) -> bool {
+    pub(super) fn is_late_bindable_name(
+        &self,
+        node: &Node, /*DeclarationName*/
+    ) -> io::Result<bool> {
         if !is_computed_property_name(node) && !is_element_access_expression(node) {
-            return false;
+            return Ok(false);
         }
         let expr = if is_computed_property_name(node) {
             &node.as_computed_property_name().expression
         } else {
             &node.as_element_access_expression().argument_expression
         };
-        is_entity_name_expression(expr)
+        Ok(is_entity_name_expression(expr)
             && self.is_type_usable_as_property_name(&*if is_computed_property_name(node) {
-                self.check_computed_property_name(node)
+                self.check_computed_property_name(node)?
             } else {
-                self.check_expression_cached(expr, None)
-            })
+                self.check_expression_cached(expr, None)?
+            }))
     }
 
     pub(super) fn is_late_bound_name(&self, name: &str /*__String*/) -> bool {

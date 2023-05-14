@@ -1,6 +1,6 @@
 use std::io;
 
-pub fn io_error_from_name<TSuccess>(name: &'static str) -> io::Result<TSuccess> {
+pub fn io_error_from_name<TSuccess>(name: & /*'static*/ str) -> io::Result<TSuccess> {
     Err(io::Error::new(
         match name {
             "ENOENT" => io::ErrorKind::NotFound,
@@ -9,6 +9,6 @@ pub fn io_error_from_name<TSuccess>(name: &'static str) -> io::Result<TSuccess> 
             // _ => io::ErrorKind::Uncategorized,
             _ => io::ErrorKind::Other,
         },
-        name,
+        name.to_owned(),
     ))
 }

@@ -1,6 +1,6 @@
 use gc::{Finalize, Gc, Trace};
-use std::cell::RefCell;
 use std::rc::Rc;
+use std::{cell::RefCell, io};
 
 use super::{BinderType, ContainerFlags, ModuleInstanceState};
 use crate::{
@@ -662,7 +662,7 @@ impl BindBinaryExpressionFlow {
     }
 
     pub fn call(&self, node: &Node /*BinaryExpression*/) {
-        self.trampoline.call(node, ());
+        self.trampoline.call(node, ()).expect("infallible?");
     }
 }
 
@@ -707,7 +707,7 @@ impl BinaryExpressionStateMachine for BindBinaryExpressionFlowStateMachine {
         node: &Node, /*BinaryExpression*/
         mut state: Option<Rc<RefCell<WorkArea>>>,
         _: (),
-    ) -> Rc<RefCell<WorkArea>> {
+    ) -> io::Result<Rc<RefCell<WorkArea>>> {
         if let Some(state) = state.as_ref() {
             let mut state = state.borrow_mut();
             state.stack_index += 1;
@@ -755,7 +755,7 @@ impl BinaryExpressionStateMachine for BindBinaryExpressionFlowStateMachine {
             }
             state.borrow_mut().skip = true;
         }
-        state
+        Ok(state)
     }
 
     fn on_left(
@@ -763,11 +763,11 @@ impl BinaryExpressionStateMachine for BindBinaryExpressionFlowStateMachine {
         left: &Node, /*Expression*/
         state: Rc<RefCell<WorkArea>>,
         _node: &Node, /*BinaryExpression*/
-    ) -> Option<Gc<Node /*BinaryExpression*/>> {
+    ) -> io::Result<Option<Gc<Node /*BinaryExpression*/>>> {
         if !(*state).borrow().skip {
-            return self.maybe_bind(left);
+            return Ok(self.maybe_bind(left));
         }
-        None
+        Ok(None)
     }
 
     fn on_operator(
@@ -775,7 +775,7 @@ impl BinaryExpressionStateMachine for BindBinaryExpressionFlowStateMachine {
         operator_token: &Node, /*BinaryOperatorToken*/
         state: Rc<RefCell<WorkArea>>,
         node: &Node, /*BinaryExpression*/
-    ) {
+    ) -> io::Result<()> {
         if !(*state).borrow().skip {
             if operator_token.kind() == SyntaxKind::CommaToken {
                 self.binder
@@ -783,6 +783,8 @@ impl BinaryExpressionStateMachine for BindBinaryExpressionFlowStateMachine {
             }
             self.binder.bind(Some(operator_token));
         }
+
+        Ok(())
     }
 
     fn on_right(
@@ -790,14 +792,18 @@ impl BinaryExpressionStateMachine for BindBinaryExpressionFlowStateMachine {
         right: &Node, /*Expression*/
         state: Rc<RefCell<WorkArea>>,
         _node: &Node, /*BinaryExpression*/
-    ) -> Option<Gc<Node /*BinaryExpression*/>> {
+    ) -> io::Result<Option<Gc<Node /*BinaryExpression*/>>> {
         if !(*state).borrow().skip {
-            return self.maybe_bind(right);
+            return Ok(self.maybe_bind(right));
         }
-        None
+        Ok(None)
     }
 
-    fn on_exit(&self, node: &Node /*BinaryExpression*/, state: Rc<RefCell<WorkArea>>) -> () {
+    fn on_exit(
+        &self,
+        node: &Node, /*BinaryExpression*/
+        state: Rc<RefCell<WorkArea>>,
+    ) -> io::Result<()> {
         if !(*state).borrow().skip {
             let node_as_binary_expression = node.as_binary_expression();
             let operator = node_as_binary_expression.operator_token.kind();
@@ -837,7 +843,7 @@ impl BinaryExpressionStateMachine for BindBinaryExpressionFlowStateMachine {
             state.skip = false;
             state.stack_index -= 1;
         }
-        ()
+        Ok(())
     }
 
     fn implements_on_left(&self) -> bool {

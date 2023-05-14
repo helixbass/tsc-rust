@@ -1,15 +1,17 @@
 use gc::{Finalize, Gc, GcCell, Trace};
 use std::cell::{Cell, Ref, RefCell, RefMut};
 use std::collections::{HashMap, HashSet};
+use std::io;
 use std::rc::Rc;
 
 use super::{create_brackets_map, TempFlags};
+use crate::try_for_each_child;
 use crate::{
     base64_encode, combine_paths, compare_paths, compute_common_source_directory_of_filenames,
     create_diagnostic_collection, create_source_map_generator, create_text_writer,
     directory_separator_str, encode_uri, ensure_path_is_non_module_name,
     ensure_trailing_directory_separator, factory, file_extension_is, file_extension_is_one_of,
-    filter, for_each_child, get_are_declaration_maps_enabled, get_base_file_name,
+    filter, get_are_declaration_maps_enabled, get_base_file_name,
     get_declaration_emit_output_file_path, get_directory_path, get_emit_declarations,
     get_emit_module_kind_from_module_and_target, get_factory, get_new_line_character,
     get_normalized_absolute_path, get_own_emit_output_file_path, get_relative_path_from_directory,
@@ -19,16 +21,18 @@ use crate::{
     is_json_source_file, is_option_str_empty, is_source_file, is_source_file_not_json,
     last_or_undefined, length, no_emit_notification, no_emit_substitution, normalize_path,
     normalize_slashes, out_file, remove_file_extension, resolve_path, transform_nodes, version,
-    write_file, BaseNodeFactorySynthetic, BuildInfo, BundleBuildInfo, BundleFileInfo,
-    BundleFileSection, BundleFileSectionInterface, BundleFileSectionKind, Comparison,
-    CompilerOptions, CurrentParenthesizerRule, Debug_, DetachedCommentInfo, DiagnosticCollection,
-    EmitBinaryExpression, EmitFileNames, EmitHint, EmitHost, EmitHostWriteFileCallback,
-    EmitResolver, EmitResult, EmitTextWriter, EmitTransformers, ExportedModulesFromDeclarationEmit,
-    Extension, JsxEmit, ListFormat, ModuleSpecifierResolutionHostAndGetCommonSourceDirectory, Node,
-    NodeArray, NodeId, NodeInterface, NonEmpty, ParenthesizerRules, ParsedCommandLine,
-    PrintHandlers, Printer, PrinterOptions, RelativeToBuildInfo, ScriptReferenceHost,
-    SourceMapEmitResult, SourceMapGenerator, SourceMapSource, SyntaxKind, TextRange,
-    TransformNodesTransformationResult, TransformationResult, TransformerFactory,
+    write_file, AllAccessorDeclarations, BaseNodeFactorySynthetic, BuildInfo, BundleBuildInfo,
+    BundleFileInfo, BundleFileSection, BundleFileSectionInterface, BundleFileSectionKind,
+    Comparison, CompilerOptions, CurrentParenthesizerRule, Debug_, DetachedCommentInfo,
+    DiagnosticCollection, EmitBinaryExpression, EmitFileNames, EmitHint, EmitHost,
+    EmitHostWriteFileCallback, EmitResolver, EmitResult, EmitTextWriter, EmitTransformers,
+    ExportedModulesFromDeclarationEmit, Extension, JsxEmit, ListFormat,
+    ModuleSpecifierResolutionHostAndGetCommonSourceDirectory, Node, NodeArray, NodeId,
+    NodeInterface, NonEmpty, ParenthesizerRules, ParsedCommandLine, PrintHandlers, Printer,
+    PrinterOptions, RelativeToBuildInfo, ScriptReferenceHost, SourceMapEmitResult,
+    SourceMapGenerator, SourceMapSource, StringOrNumber, Symbol, SymbolAccessibilityResult,
+    SymbolVisibilityResult, SyntaxKind, TextRange, TransformNodesTransformationResult,
+    TransformationResult, TransformerFactory, TypeReferenceSerializationKind,
 };
 
 lazy_static! {
@@ -65,6 +69,28 @@ pub fn for_each_emitted_file_returns<TReturn>(
     only_build_info: Option<bool>,
     include_build_info: Option<bool>,
 ) -> Option<TReturn> {
+    try_for_each_emitted_file_returns(
+        host,
+        |a, b| Ok(action(a, b)),
+        source_files_or_target_source_file,
+        force_dts_emit,
+        only_build_info,
+        include_build_info,
+    )
+    .unwrap()
+}
+
+pub fn try_for_each_emitted_file_returns<TReturn>(
+    host: &dyn EmitHost,
+    mut action: impl FnMut(
+        &EmitFileNames,
+        Option<&Node /*SourceFile | Bundle*/>,
+    ) -> io::Result<Option<TReturn>>,
+    source_files_or_target_source_file: Option<impl Into<NodeOrVecNode>>,
+    force_dts_emit: Option<bool>,
+    only_build_info: Option<bool>,
+    include_build_info: Option<bool>,
+) -> io::Result<Option<TReturn>> {
     let force_dts_emit = force_dts_emit.unwrap_or(false);
     let source_files = match source_files_or_target_source_file.map(Into::into) {
         Some(NodeOrVecNode::VecNode(source_files_or_target_source_file)) => {
@@ -93,9 +119,9 @@ pub fn for_each_emitted_file_returns<TReturn>(
             let result = action(
                 &get_output_paths_for(&bundle, host, force_dts_emit),
                 Some(&*bundle),
-            );
+            )?;
             if result.is_some() {
-                return result;
+                return Ok(result);
             }
         }
     } else {
@@ -104,9 +130,9 @@ pub fn for_each_emitted_file_returns<TReturn>(
                 let result = action(
                     &get_output_paths_for(source_file, host, force_dts_emit),
                     Some(&**source_file),
-                );
+                )?;
                 if result.is_some() {
-                    return result;
+                    return Ok(result);
                 }
             }
         }
@@ -125,7 +151,7 @@ pub fn for_each_emitted_file_returns<TReturn>(
             }
         }
     }
-    None
+    Ok(None)
 }
 
 pub fn for_each_emitted_file(
@@ -136,17 +162,38 @@ pub fn for_each_emitted_file(
     only_build_info: Option<bool>,
     include_build_info: Option<bool>,
 ) {
-    for_each_emitted_file_returns(
+    try_for_each_emitted_file(
         host,
-        |emit_file_names, node| -> Option<()> {
-            action(emit_file_names, node);
-            None
+        |a, b| Ok(action(a, b)),
+        source_files_or_target_source_file,
+        force_dts_emit,
+        only_build_info,
+        include_build_info,
+    )
+    .unwrap()
+}
+
+pub fn try_for_each_emitted_file(
+    host: &dyn EmitHost,
+    mut action: impl FnMut(&EmitFileNames, Option<&Node /*SourceFile | Bundle*/>) -> io::Result<()>,
+    source_files_or_target_source_file: Option<impl Into<NodeOrVecNode>>,
+    force_dts_emit: Option<bool>,
+    only_build_info: Option<bool>,
+    include_build_info: Option<bool>,
+) -> io::Result<()> {
+    try_for_each_emitted_file_returns(
+        host,
+        |emit_file_names, node| -> io::Result<Option<()>> {
+            action(emit_file_names, node)?;
+            Ok(None)
         },
         source_files_or_target_source_file,
         force_dts_emit,
         only_build_info,
         include_build_info,
-    );
+    )?;
+
+    Ok(())
 }
 
 pub fn get_ts_build_info_emit_output_file_path(options: &CompilerOptions) -> Option<String> {
@@ -409,7 +456,7 @@ pub(crate) fn emit_files(
     emit_only_dts_files: Option<bool>,
     only_build_info: Option<bool>,
     force_dts_emit: Option<bool>,
-) -> EmitResult {
+) -> io::Result<EmitResult> {
     let compiler_options = ScriptReferenceHost::get_compiler_options(&**host);
     let mut source_map_data_list: Option<Vec<SourceMapEmitResult>> = if compiler_options.source_map
         == Some(true)
@@ -436,7 +483,7 @@ pub(crate) fn emit_files(
         None;
 
     // enter();
-    for_each_emitted_file(
+    try_for_each_emitted_file(
         &**host,
         |emit_file_names, source_file_or_bundle| {
             emit_source_file_or_bundle(
@@ -458,7 +505,9 @@ pub(crate) fn emit_files(
                 &script_transformers,
                 emit_file_names,
                 source_file_or_bundle,
-            );
+            )?;
+
+            Ok(())
         },
         Some(get_source_files_to_emit(
             &**host,
@@ -468,16 +517,16 @@ pub(crate) fn emit_files(
         force_dts_emit,
         only_build_info,
         Some(target_source_file.is_none()),
-    );
+    )?;
     // exit();
 
-    EmitResult {
+    Ok(EmitResult {
         emit_skipped,
         diagnostics: emitter_diagnostics.get_diagnostics(None),
         emitted_files: emitted_files_list,
         source_maps: source_map_data_list,
         exported_modules_from_declaration_emit,
-    }
+    })
 }
 
 fn emit_source_file_or_bundle(
@@ -499,7 +548,7 @@ fn emit_source_file_or_bundle(
     script_transformers: &[TransformerFactory],
     emit_file_names: &EmitFileNames,
     source_file_or_bundle: Option<&Node /*SourceFile | Bundle*/>,
-) {
+) -> io::Result<()> {
     let js_file_path = emit_file_names.js_file_path.as_deref();
     let source_map_file_path = emit_file_names.source_map_file_path.as_deref();
     let declaration_file_path = emit_file_names.declaration_file_path.as_deref();
@@ -563,7 +612,7 @@ fn emit_source_file_or_bundle(
             build_info_directory.clone(),
             host.clone(),
         ))),
-    );
+    )?;
     // tracing?.pop();
 
     // tracing?.push(tracing.Phase.Emit, "emitDeclarationFileOrBundle", { declarationFilePath });
@@ -588,7 +637,7 @@ fn emit_source_file_or_bundle(
             build_info_directory.clone(),
             host.clone(),
         ))),
-    );
+    )?;
     // tracing?.pop();
 
     // tracing?.push(tracing.Phase.Emit, "emitBuildInfo", { buildInfoPath });
@@ -599,7 +648,7 @@ fn emit_source_file_or_bundle(
         emitter_diagnostics,
         bundle_build_info.clone(),
         build_info_path,
-    );
+    )?;
     // tracing?.pop();
 
     if !*emit_skipped {
@@ -633,6 +682,8 @@ fn emit_source_file_or_bundle(
             }
         }
     }
+
+    Ok(())
 }
 
 #[derive(Trace, Finalize)]
@@ -676,15 +727,15 @@ fn emit_build_info(
     emitter_diagnostics: &mut DiagnosticCollection,
     bundle: Option<Gc<GcCell<BundleBuildInfo>>>,
     build_info_path: Option<&str>,
-) {
+) -> io::Result<()> {
     if !build_info_path.is_non_empty() || target_source_file.is_some() || *emit_skipped {
-        return;
+        return Ok(());
     }
     let build_info_path = build_info_path.unwrap();
     let program = host.get_program_build_info();
     if host.is_emit_blocked(build_info_path) {
         *emit_skipped = true;
-        return;
+        return Ok(());
     }
     write_file(
         &EmitHostWriteFileCallback::new(host.clone()),
@@ -697,7 +748,9 @@ fn emit_build_info(
         }),
         false,
         None,
-    );
+    )?;
+
+    Ok(())
 }
 
 fn emit_js_file_or_bundle(
@@ -716,19 +769,19 @@ fn emit_js_file_or_bundle(
     js_file_path: Option<&str>,
     source_map_file_path: Option<&str>,
     relative_to_build_info: Gc<Box<dyn RelativeToBuildInfo>>,
-) {
+) -> io::Result<()> {
     if source_file_or_bundle.is_none()
         || emit_only_dts_files == Some(true)
         || !js_file_path.is_non_empty()
     {
-        return;
+        return Ok(());
     }
     let source_file_or_bundle = source_file_or_bundle.unwrap();
     let js_file_path = js_file_path.unwrap();
 
     if host.is_emit_blocked(js_file_path) || compiler_options.no_emit == Some(true) {
         *emit_skipped = true;
-        return;
+        return Ok(());
     }
     let transform = transform_nodes(
         Some(resolver.clone()),
@@ -739,7 +792,7 @@ fn emit_js_file_or_bundle(
         &[source_file_or_bundle.node_wrapper()],
         script_transformers,
         false,
-    );
+    )?;
 
     let printer_options = PrinterOptions {
         remove_comments: compiler_options.remove_comments,
@@ -780,12 +833,14 @@ fn emit_js_file_or_bundle(
         &transform.transformed()[0],
         &printer,
         &(&*compiler_options).into(),
-    );
+    )?;
 
     transform.dispose();
     if let Some(bundle_build_info) = bundle_build_info.clone() {
         bundle_build_info.borrow_mut().js = printer.maybe_bundle_file_info().clone();
     }
+
+    Ok(())
 }
 
 #[derive(Trace, Finalize)]
@@ -851,9 +906,9 @@ fn emit_declaration_file_or_bundle(
     declaration_file_path: Option<&str>,
     declaration_map_path: Option<&str>,
     relative_to_build_info: Gc<Box<dyn RelativeToBuildInfo>>,
-) {
+) -> io::Result<()> {
     if source_file_or_bundle.is_none() {
-        return;
+        return Ok(());
     }
     let source_file_or_bundle = source_file_or_bundle.unwrap();
     if !declaration_file_path.is_non_empty() {
@@ -861,7 +916,7 @@ fn emit_declaration_file_or_bundle(
         {
             *emit_skipped = true;
         }
-        return;
+        return Ok(());
     }
     let declaration_file_path = declaration_file_path.unwrap();
     let source_files = if is_source_file(source_file_or_bundle) {
@@ -897,9 +952,13 @@ fn emit_declaration_file_or_bundle(
         files_for_emit.clone()
     };
     if emit_only_dts_files == Some(true) && !get_emit_declarations(&compiler_options) {
-        files_for_emit.iter().for_each(|file_for_emit| {
-            collect_linked_aliases(&**resolver, file_for_emit);
-        });
+        files_for_emit
+            .iter()
+            .try_for_each(|file_for_emit| -> io::Result<_> {
+                collect_linked_aliases(&**resolver, file_for_emit)?;
+
+                Ok(())
+            })?;
     }
     let declaration_transform = transform_nodes(
         Some(resolver.clone()),
@@ -910,7 +969,7 @@ fn emit_declaration_file_or_bundle(
         &input_list_or_bundle,
         declaration_transformers,
         false,
-    );
+    )?;
 
     if length(declaration_transform.diagnostics().as_deref()) > 0 {
         for diagnostic in declaration_transform.diagnostics().unwrap() {
@@ -975,7 +1034,7 @@ fn emit_declaration_file_or_bundle(
                 inline_source_map: None,
                 inline_sources: None,
             },
-        );
+        )?;
         if force_dts_emit == Some(true)
             && declaration_transform.transformed()[0].kind() == SyntaxKind::SourceFile
         {
@@ -990,6 +1049,8 @@ fn emit_declaration_file_or_bundle(
     if let Some(bundle_build_info) = bundle_build_info.clone() {
         bundle_build_info.borrow_mut().js = declaration_printer.maybe_bundle_file_info().clone();
     }
+
+    Ok(())
 }
 
 #[derive(Trace, Finalize)]
@@ -1038,13 +1099,13 @@ impl PrintHandlers for EmitDeclarationFileOrBundlePrintHandlers {
     }
 }
 
-fn collect_linked_aliases(resolver: &dyn EmitResolver, node: &Node) {
+fn collect_linked_aliases(resolver: &dyn EmitResolver, node: &Node) -> io::Result<()> {
     if is_export_assignment(node) {
         let node_as_export_assignment = node.as_export_assignment();
         if node_as_export_assignment.expression.kind() == SyntaxKind::Identifier {
-            resolver.collect_linked_aliases(&node_as_export_assignment.expression, Some(true));
+            resolver.collect_linked_aliases(&node_as_export_assignment.expression, Some(true))?;
         }
-        return;
+        return Ok(());
     } else if is_export_specifier(node) {
         let node_as_export_specifier = node.as_export_specifier();
         resolver.collect_linked_aliases(
@@ -1053,14 +1114,16 @@ fn collect_linked_aliases(resolver: &dyn EmitResolver, node: &Node) {
                 .as_deref()
                 .unwrap_or(&*node_as_export_specifier.name),
             Some(true),
-        );
-        return;
+        )?;
+        return Ok(());
     }
-    for_each_child(
+    try_for_each_child(
         node,
         |node: &Node| collect_linked_aliases(resolver, node),
-        Option::<fn(&NodeArray)>::None,
-    );
+        Option::<fn(&NodeArray) -> io::Result<()>>::None,
+    )?;
+
+    Ok(())
 }
 
 fn print_source_file_or_bundle(
@@ -1075,7 +1138,7 @@ fn print_source_file_or_bundle(
     source_file_or_bundle: &Node, /*SourceFile | Bundle*/
     printer: &Printer,
     map_options: &SourceMapOptions,
-) {
+) -> io::Result<()> {
     let bundle = if source_file_or_bundle.kind() == SyntaxKind::Bundle {
         Some(source_file_or_bundle.node_wrapper())
     } else {
@@ -1152,7 +1215,7 @@ fn print_source_file_or_bundle(
                 &source_map,
                 false,
                 Some(&source_files),
-            );
+            )?;
         }
     } else {
         writer.write_line(None);
@@ -1165,9 +1228,11 @@ fn print_source_file_or_bundle(
         &writer.get_text(),
         compiler_options.emit_bom == Some(true),
         Some(&source_files),
-    );
+    )?;
 
     writer.clear();
+
+    Ok(())
 }
 
 #[derive(Default)]
@@ -1321,40 +1386,47 @@ impl EmitResolver for NotImplementedResolver {
         &self,
         _node: &Node, /*Identifier*/
         _prefix_locals: Option<bool>,
-    ) -> Option<Gc<Node /*SourceFile | ModuleDeclaration | EnumDeclaration*/>> {
+    ) -> io::Result<Option<Gc<Node /*SourceFile | ModuleDeclaration | EnumDeclaration*/>>> {
         unimplemented!()
     }
 
     fn get_referenced_import_declaration(
         &self,
         _node: &Node, /*Identifier*/
-    ) -> Option<Gc<Node /*Declaration*/>> {
+    ) -> io::Result<Option<Gc<Node /*Declaration*/>>> {
         unimplemented!()
     }
 
     fn get_referenced_declaration_with_colliding_name(
         &self,
         _node: &Node, /*Identifier*/
-    ) -> Option<Gc<Node /*Declaration*/>> {
+    ) -> io::Result<Option<Gc<Node /*Declaration*/>>> {
         unimplemented!()
     }
 
-    fn is_declaration_with_colliding_name(&self, _node: &Node /*Declaration*/) -> bool {
+    fn is_declaration_with_colliding_name(
+        &self,
+        _node: &Node, /*Declaration*/
+    ) -> io::Result<bool> {
         unimplemented!()
     }
 
-    fn is_value_alias_declaration(&self, _node: &Node) -> bool {
+    fn is_value_alias_declaration(&self, _node: &Node) -> io::Result<bool> {
         unimplemented!()
     }
 
-    fn is_referenced_alias_declaration(&self, _node: &Node, _check_children: Option<bool>) -> bool {
+    fn is_referenced_alias_declaration(
+        &self,
+        _node: &Node,
+        _check_children: Option<bool>,
+    ) -> io::Result<bool> {
         unimplemented!()
     }
 
     fn is_top_level_value_import_equals_with_entity_name(
         &self,
         _node: &Node, /*ImportEqualsDeclaration*/
-    ) -> bool {
+    ) -> io::Result<bool> {
         unimplemented!()
     }
 
@@ -1366,47 +1438,50 @@ impl EmitResolver for NotImplementedResolver {
         unimplemented!()
     }
 
-    fn is_late_bound(&self, _node: &Node /*Declaration*/) -> bool {
-        false
+    fn is_late_bound(&self, _node: &Node /*Declaration*/) -> io::Result<bool> {
+        Ok(false)
     }
 
     fn collect_linked_aliases(
         &self,
         _node: &Node, /*Identifier*/
         _set_visibility: Option<bool>,
-    ) -> Option<Vec<Gc<Node>>> {
+    ) -> io::Result<Option<Vec<Gc<Node>>>> {
         unimplemented!()
     }
 
     fn is_implementation_of_overload(
         &self,
         _node: &Node, /*SignatureDeclaration*/
-    ) -> Option<bool> {
+    ) -> io::Result<Option<bool>> {
         unimplemented!()
     }
 
     fn is_required_initialized_parameter(
         &self,
         _node: &Node, /*ParameterDeclaration*/
-    ) -> bool {
+    ) -> io::Result<bool> {
         unimplemented!()
     }
 
     fn is_optional_uninitialized_parameter_property(
         &self,
         _node: &Node, /*ParameterDeclaration*/
-    ) -> bool {
+    ) -> io::Result<bool> {
         unimplemented!()
     }
 
-    fn is_expando_function_declaration(&self, _node: &Node /*FunctionDeclaration*/) -> bool {
+    fn is_expando_function_declaration(
+        &self,
+        _node: &Node, /*FunctionDeclaration*/
+    ) -> io::Result<bool> {
         unimplemented!()
     }
 
     fn get_properties_of_container_function(
         &self,
         _node: &Node, /*Declaration*/
-    ) -> Vec<Gc<crate::Symbol>> {
+    ) -> io::Result<Vec<Gc<Symbol>>> {
         unimplemented!()
     }
 
@@ -1417,7 +1492,7 @@ impl EmitResolver for NotImplementedResolver {
         _flags: crate::NodeBuilderFlags,
         _tracker: Gc<Box<dyn crate::SymbolTracker>>,
         _add_undefined: Option<bool>,
-    ) -> Option<Gc<Node /*TypeNode*/>> {
+    ) -> io::Result<Option<Gc<Node /*TypeNode*/>>> {
         unimplemented!()
     }
 
@@ -1427,7 +1502,7 @@ impl EmitResolver for NotImplementedResolver {
         _enclosing_declaration: &Node,
         _flags: crate::NodeBuilderFlags,
         _tracker: Gc<Box<dyn crate::SymbolTracker>>,
-    ) -> Option<Gc<Node /*TypeNode*/>> {
+    ) -> io::Result<Option<Gc<Node /*TypeNode*/>>> {
         unimplemented!()
     }
 
@@ -1437,7 +1512,7 @@ impl EmitResolver for NotImplementedResolver {
         _enclosing_declaration: &Node,
         _flags: crate::NodeBuilderFlags,
         _tracker: Gc<Box<dyn crate::SymbolTracker>>,
-    ) -> Option<Gc<Node /*TypeNode*/>> {
+    ) -> io::Result<Option<Gc<Node /*TypeNode*/>>> {
         unimplemented!()
     }
 
@@ -1445,17 +1520,17 @@ impl EmitResolver for NotImplementedResolver {
         &self,
         _node: &Node, /*VariableDeclaration | PropertyDeclaration | PropertySignature | ParameterDeclaration*/
         _tracker: Gc<Box<dyn crate::SymbolTracker>>,
-    ) -> Gc<Node /*Expression*/> {
+    ) -> io::Result<Gc<Node /*Expression*/>> {
         unimplemented!()
     }
 
     fn is_symbol_accessible(
         &self,
-        _symbol: &crate::Symbol,
+        _symbol: &Symbol,
         _enclosing_declaration: Option<&Node>,
         _meaning: Option<crate::SymbolFlags>,
         _should_compute_alias_to_mark_visible: bool,
-    ) -> crate::SymbolAccessibilityResult {
+    ) -> io::Result<SymbolAccessibilityResult> {
         unimplemented!()
     }
 
@@ -1463,21 +1538,21 @@ impl EmitResolver for NotImplementedResolver {
         &self,
         _entity_name: &Node, /*EntityNameOrEntityNameExpression*/
         _enclosing_declaration: &Node,
-    ) -> crate::SymbolVisibilityResult {
+    ) -> io::Result<SymbolVisibilityResult> {
         unimplemented!()
     }
 
     fn get_constant_value(
         &self,
         _node: &Node, /*EnumMember | PropertyAccessExpression | ElementAccessExpression*/
-    ) -> Option<crate::StringOrNumber> {
+    ) -> io::Result<Option<StringOrNumber>> {
         unimplemented!()
     }
 
     fn get_referenced_value_declaration(
         &self,
         _reference: &Node, /*Identifier*/
-    ) -> Option<Gc<Node /*Declaration*/>> {
+    ) -> io::Result<Option<Gc<Node /*Declaration*/>>> {
         unimplemented!()
     }
 
@@ -1485,51 +1560,54 @@ impl EmitResolver for NotImplementedResolver {
         &self,
         _type_name: &Node, /*EntityName*/
         _location: Option<&Node>,
-    ) -> crate::TypeReferenceSerializationKind {
+    ) -> io::Result<TypeReferenceSerializationKind> {
         unimplemented!()
     }
 
-    fn is_optional_parameter(&self, _node: &Node /*ParameterDeclaration*/) -> bool {
+    fn is_optional_parameter(
+        &self,
+        _node: &Node, /*ParameterDeclaration*/
+    ) -> io::Result<bool> {
         unimplemented!()
     }
 
     fn module_exports_some_value(
         &self,
         _module_reference_expression: &Node, /*Expression*/
-    ) -> bool {
+    ) -> io::Result<bool> {
         unimplemented!()
     }
 
-    fn is_arguments_local_binding(&self, _node: &Node /*Identifier*/) -> bool {
+    fn is_arguments_local_binding(&self, _node: &Node /*Identifier*/) -> io::Result<bool> {
         unimplemented!()
     }
 
     fn get_external_module_file_from_declaration(
         &self,
         _declaration: &Node, /*ImportEqualsDeclaration | ImportDeclaration | ExportDeclaration | ModuleDeclaration | ImportTypeNode | ImportCall*/
-    ) -> Option<Gc<Node /*SourceFile*/>> {
+    ) -> io::Result<Option<Gc<Node /*SourceFile*/>>> {
         unimplemented!()
     }
 
     fn get_type_reference_directives_for_entity_name(
         &self,
         _name: &Node, /*EntityNameOrEntityNameExpression*/
-    ) -> Option<Vec<String>> {
+    ) -> io::Result<Option<Vec<String>>> {
         unimplemented!()
     }
 
     fn get_type_reference_directives_for_symbol(
         &self,
-        _symbol: &crate::Symbol,
+        _symbol: &Symbol,
         _meaning: Option<crate::SymbolFlags>,
-    ) -> Option<Vec<String>> {
+    ) -> io::Result<Option<Vec<String>>> {
         unimplemented!()
     }
 
     fn is_literal_const_declaration(
         &self,
         _node: &Node, /*VariableDeclaration | PropertyDeclaration | PropertySignature | ParameterDeclaration*/
-    ) -> bool {
+    ) -> io::Result<bool> {
         unimplemented!()
     }
 
@@ -1547,14 +1625,14 @@ impl EmitResolver for NotImplementedResolver {
     fn get_all_accessor_declarations(
         &self,
         _declaration: &Node, /*AccessorDeclaration*/
-    ) -> crate::AllAccessorDeclarations {
+    ) -> io::Result<AllAccessorDeclarations> {
         unimplemented!()
     }
 
     fn get_symbol_of_external_module_specifier(
         &self,
         _node: &Node, /*StringLiteralLike*/
-    ) -> Option<Gc<crate::Symbol>> {
+    ) -> io::Result<Option<Gc<Symbol>>> {
         unimplemented!()
     }
 
@@ -1562,7 +1640,7 @@ impl EmitResolver for NotImplementedResolver {
         &self,
         _node: &Node,
         _decl: &Node, /*VariableDeclaration | BindingElement*/
-    ) -> bool {
+    ) -> io::Result<bool> {
         unimplemented!()
     }
 
@@ -1572,11 +1650,14 @@ impl EmitResolver for NotImplementedResolver {
         _flags: crate::NodeBuilderFlags,
         _tracker: Gc<Box<dyn crate::SymbolTracker>>,
         _bundled: Option<bool>,
-    ) -> Option<Vec<Gc<Node /*Statement*/>>> {
+    ) -> io::Result<Option<Vec<Gc<Node /*Statement*/>>>> {
         unimplemented!()
     }
 
-    fn is_import_required_by_augmentation(&self, _decl: &Node /*ImportDeclaration*/) -> bool {
+    fn is_import_required_by_augmentation(
+        &self,
+        _decl: &Node, /*ImportDeclaration*/
+    ) -> io::Result<bool> {
         unimplemented!()
     }
 }
@@ -2126,7 +2207,9 @@ impl Printer {
     }
 
     pub(super) fn emit_binary_expression(&self, node: &Node /*BinaryExpression*/) {
-        self.emit_binary_expression_rc().call(node)
+        self.emit_binary_expression_rc()
+            .call(node)
+            .expect("Don't _think_ this is actually fallible?")
     }
 
     pub fn print_node(

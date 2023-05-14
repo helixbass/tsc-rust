@@ -19,8 +19,9 @@ use crate::{
     Diagnostics, EmitHost, EmitResolver, EmitTextWriter, Extension,
     FunctionLikeDeclarationInterface, HasTypeInterface, ModuleKind,
     ModuleSpecifierResolutionHostAndGetCommonSourceDirectory, NamedDeclarationInterface, Node,
-    NodeInterface, ScriptReferenceHost, SignatureDeclarationInterface, SourceFileMayBeEmittedHost,
-    Symbol, SymbolFlags, SymbolTracker, SymbolWriter, SyntaxKind, WriteFileCallback,
+    NodeInterface, OptionTry, ScriptReferenceHost, SignatureDeclarationInterface,
+    SourceFileMayBeEmittedHost, Symbol, SymbolFlags, SymbolTracker, SymbolWriter, SyntaxKind,
+    WriteFileCallback,
 };
 
 pub(super) fn is_quote_or_backtick(char_code: char) -> bool {
@@ -367,7 +368,7 @@ impl SymbolTracker for TextWriter {
         symbol: &Symbol,
         enclosing_declaration: Option<Gc<Node>>,
         meaning: SymbolFlags,
-    ) -> Option<bool> {
+    ) -> Option<io::Result<bool>> {
         self._dyn_symbol_tracker_wrapper
             .track_symbol(symbol, enclosing_declaration, meaning)
     }
@@ -440,8 +441,8 @@ impl SymbolTracker for TextWriterSymbolTracker {
         _symbol: &Symbol,
         _enclosing_declaration: Option<Gc<Node>>,
         _meaning: SymbolFlags,
-    ) -> Option<bool> {
-        Some(false)
+    ) -> Option<io::Result<bool>> {
+        Some(Ok(false))
     }
 
     fn is_track_symbol_supported(&self) -> bool {
@@ -843,13 +844,13 @@ pub fn get_external_module_name_from_declaration(
     host: &(impl ResolveModuleNameResolutionHost + ?Sized),
     resolver: &(impl EmitResolver + ?Sized),
     declaration: &Node, /*ImportEqualsDeclaration | ImportDeclaration | ExportDeclaration | ModuleDeclaration | ImportTypeNode*/
-) -> Option<String> {
-    let file = resolver.get_external_module_file_from_declaration(declaration);
+) -> io::Result<Option<String>> {
+    let file = resolver.get_external_module_file_from_declaration(declaration)?;
     if match file.as_ref() {
         None => true,
         Some(file) => file.as_source_file().is_declaration_file(),
     } {
-        return None;
+        return Ok(None);
     }
     let file = file.unwrap();
     let specifier = get_external_module_name(declaration);
@@ -863,14 +864,14 @@ pub fn get_external_module_name_from_declaration(
                 ),
             )
         {
-            return None;
+            return Ok(None);
         }
     }
-    Some(get_resolved_external_module_name(
+    Ok(Some(get_resolved_external_module_name(
         host,
         &file,
         Option::<&Node>::None,
-    ))
+    )))
 }
 
 pub fn get_external_module_name_from_path(
@@ -987,14 +988,23 @@ pub fn out_file(options: &CompilerOptions) -> Option<&str> {
         .or_else(|| options.out.as_deref())
 }
 
-pub fn get_paths_base_path<TGetCurrentDirectory: Fn() -> Option<String>>(
+pub fn get_paths_base_path(
     options: &CompilerOptions,
-    get_current_directory: TGetCurrentDirectory,
-) -> Option<String> {
+    get_current_directory: impl Fn() -> Option<io::Result<String>>,
+) -> io::Result<Option<String>> {
     if options.paths.is_none() {
-        return None;
+        return Ok(None);
     }
-    options.base_url.clone().or_else(|| Some(Debug_.check_defined(options.paths_base_path.clone().or_else(|| get_current_directory()), Some("Encounted 'paths' without a 'baseUrl', config file, or host 'getCurrentDirectory'."))))
+    options.base_url.clone().try_or_else(|| {
+        Ok(Some(
+            Debug_.check_defined(
+                options.paths_base_path.clone().try_or_else(|| {
+                    get_current_directory().transpose()
+                })?,
+                Some("Encounted 'paths' without a 'baseUrl', config file, or host 'getCurrentDirectory'.")
+            )
+        ))
+    })
 }
 
 #[derive(Debug, Default)]
@@ -1109,7 +1119,7 @@ pub fn write_file(
     data: &str,
     write_byte_order_mark: bool,
     source_files: Option<&[Gc<Node /*SourceFile*/>]>,
-) {
+) -> io::Result<()> {
     write_file.call(
         file_name,
         data,
@@ -1124,32 +1134,32 @@ pub fn write_file(
             ))
         }),
         source_files,
-    );
+    )?;
+
+    Ok(())
 }
 
-fn ensure_directories_exist<TCreateDirectory: Fn(&str), TDirectoryExists: Fn(&str) -> bool>(
+fn ensure_directories_exist(
     directory_path: &str,
-    create_directory: &TCreateDirectory,
-    directory_exists: TDirectoryExists,
-) {
+    create_directory: &impl Fn(&str) -> io::Result<()>,
+    directory_exists: impl Fn(&str) -> bool,
+) -> io::Result<()> {
     if directory_path.len() > get_root_length(directory_path) && !directory_exists(directory_path) {
         let parent_directory = get_directory_path(directory_path);
-        ensure_directories_exist(&parent_directory, create_directory, directory_exists);
-        create_directory(directory_path);
+        ensure_directories_exist(&parent_directory, create_directory, directory_exists)?;
+        create_directory(directory_path)?;
     }
+
+    Ok(())
 }
 
-pub fn write_file_ensuring_directories<
-    TWriteFile: Fn(&str, &str, bool) -> io::Result<()>,
-    TCreateDirectory: Fn(&str),
-    TDirectoryExists: Fn(&str) -> bool,
->(
+pub fn write_file_ensuring_directories(
     path: &str,
     data: &str,
     write_byte_order_mark: bool,
-    write_file: TWriteFile,
-    create_directory: TCreateDirectory,
-    directory_exists: TDirectoryExists,
+    write_file: impl Fn(&str, &str, bool) -> io::Result<()>,
+    create_directory: impl Fn(&str) -> io::Result<()>,
+    directory_exists: impl Fn(&str) -> bool,
 ) -> io::Result<()> {
     match write_file(path, data, write_byte_order_mark) {
         Err(_) => {
@@ -1157,7 +1167,7 @@ pub fn write_file_ensuring_directories<
                 &get_directory_path(&normalize_path(path)),
                 &create_directory,
                 directory_exists,
-            );
+            )?;
             write_file(path, data, write_byte_order_mark)
         }
         Ok(_) => Ok(()),

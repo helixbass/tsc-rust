@@ -1,32 +1,38 @@
 use gc::Gc;
-use std::{borrow::Borrow, ptr};
+use std::{borrow::Borrow, io, ptr};
 
 use super::{intrinsic_type_kinds, is_instantiated_module};
+use crate::try_for_each;
+use crate::try_maybe_for_each;
 use crate::{
-    are_option_gcs_equal, cast_present, declaration_name_to_string, factory, for_each,
-    get_declaration_of_kind, get_effective_modifier_flags, get_enclosing_block_scope_container,
-    get_interface_base_type_nodes, get_name_of_declaration, get_text_of_identifier_or_literal,
-    get_text_of_property_name, has_abstract_modifier, is_ambient_module, is_binding_pattern,
-    is_computed_non_literal_name, is_entity_name_expression, is_enum_const, is_enum_declaration,
-    is_external_module_augmentation, is_external_module_name_relative, is_finite,
-    is_global_scope_augmentation, is_identifier, is_infinity_or_nan_string, is_literal_expression,
-    is_nan, is_optional_chain, is_private_identifier, is_static, is_string_literal_like, length,
-    maybe_for_each, maybe_get_source_file_of_node, node_is_missing, node_is_present, set_parent,
-    should_preserve_const_enums, synthetic_factory, Diagnostics, EnumKind,
+    SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface, __String,
+    are_option_gcs_equal, cast_present, declaration_name_to_string, escape_leading_underscores,
+    factory, for_each, get_declaration_of_kind, get_effective_modifier_flags,
+    get_enclosing_block_scope_container, get_factory, get_interface_base_type_nodes,
+    get_name_of_declaration, get_text_of_identifier_or_literal, get_text_of_property_name,
+    has_abstract_modifier, is_ambient_module, is_binding_pattern, is_computed_non_literal_name,
+    is_entity_name_expression, is_enum_const, is_enum_declaration, is_external_module_augmentation,
+    is_external_module_name_relative, is_finite, is_global_scope_augmentation, is_identifier,
+    is_infinity_or_nan_string, is_literal_expression, is_nan, is_optional_chain,
+    is_private_identifier, is_static, is_string_literal_like, length, maybe_for_each,
+    maybe_get_source_file_of_node, node_is_missing, node_is_present, set_parent,
+    should_preserve_const_enums, synthetic_factory, AsDoubleDeref, Diagnostics, EnumKind,
     FunctionLikeDeclarationInterface, HasInitializerInterface, HasTypeParametersInterface,
     InterfaceTypeInterface, ModifierFlags, NamedDeclarationInterface, Node, NodeCheckFlags,
-    NodeFlags, NodeInterface, Number, ReadonlyTextRange, StringOrNumber, Symbol, SymbolFlags,
-    SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface, __String,
-    escape_leading_underscores, AsDoubleDeref,
+    NodeFlags, NodeInterface, Number, OptionTry, ReadonlyTextRange, StringOrNumber, Symbol,
+    SymbolFlags,
 };
 
 impl TypeChecker {
-    pub(super) fn check_property_initialization(&self, node: &Node /*ClassLikeDeclaration*/) {
+    pub(super) fn check_property_initialization(
+        &self,
+        node: &Node, /*ClassLikeDeclaration*/
+    ) -> io::Result<()> {
         if !self.strict_null_checks
             || !self.strict_property_initialization
             || node.flags().intersects(NodeFlags::Ambient)
         {
-            return;
+            return Ok(());
         }
         let constructor = self.find_constructor_declaration(node);
         for member in &node.as_class_like_declaration().members() {
@@ -37,7 +43,8 @@ impl TypeChecker {
                 let member_as_property_declaration = member.as_property_declaration();
                 let prop_name = member_as_property_declaration.name();
                 if is_identifier(&prop_name) || is_private_identifier(&prop_name) {
-                    let type_ = self.get_type_of_symbol(&self.get_symbol_of_node(member).unwrap());
+                    let type_ =
+                        self.get_type_of_symbol(&self.get_symbol_of_node(member)?.unwrap())?;
                     if !(type_.flags().intersects(TypeFlags::AnyOrUnknown)
                         || self
                             .get_falsy_flags(&type_)
@@ -49,7 +56,7 @@ impl TypeChecker {
                                 &prop_name,
                                 &type_,
                                 constructor,
-                            ),
+                            )?,
                         } {
                             self.error(
                                 member_as_property_declaration.maybe_name(),
@@ -63,6 +70,8 @@ impl TypeChecker {
                 }
             }
         }
+
+        Ok(())
     }
 
     pub(super) fn is_property_without_initializer(&self, node: &Node) -> bool {
@@ -80,7 +89,7 @@ impl TypeChecker {
         static_blocks: impl IntoIterator<Item = Gc<Node /*ClassStaticBlockDeclaration*/>>,
         start_pos: isize,
         end_pos: isize,
-    ) -> bool {
+    ) -> io::Result<bool> {
         for ref static_block in static_blocks {
             if static_block.pos() >= start_pos && static_block.pos() <= end_pos {
                 let reference: Gc<Node> = factory.with(|factory_| {
@@ -102,18 +111,18 @@ impl TypeChecker {
                 let flow_type = self.get_flow_type_of_reference(
                     &reference,
                     prop_type,
-                    Some(self.get_optional_type_(prop_type, None)),
+                    Some(self.get_optional_type_(prop_type, None)?),
                     Option::<&Node>::None,
-                );
+                )?;
                 if !self
                     .get_falsy_flags(&flow_type)
                     .intersects(TypeFlags::Undefined)
                 {
-                    return true;
+                    return Ok(true);
                 }
             }
         }
-        false
+        Ok(false)
     }
 
     pub(super) fn is_property_initialized_in_constructor(
@@ -121,15 +130,13 @@ impl TypeChecker {
         prop_name: &Node, /*Identifier | PrivateIdentifier*/
         prop_type: &Type,
         constructor: &Node, /*ConstructorDeclaration*/
-    ) -> bool {
-        let reference = factory.with(|factory_| {
-            factory_
-                .create_property_access_expression(
-                    factory_.create_this().wrap(),
-                    prop_name.node_wrapper(),
-                )
-                .wrap()
-        });
+    ) -> io::Result<bool> {
+        let reference = get_factory()
+            .create_property_access_expression(
+                get_factory().create_this().wrap(),
+                prop_name.node_wrapper(),
+            )
+            .wrap();
         set_parent(
             &reference.as_property_access_expression().expression,
             Some(&*reference),
@@ -141,15 +148,18 @@ impl TypeChecker {
         let flow_type = self.get_flow_type_of_reference(
             &reference,
             prop_type,
-            Some(self.get_optional_type_(prop_type, None)),
+            Some(self.get_optional_type_(prop_type, None)?),
             Option::<&Node>::None,
-        );
-        !self
+        )?;
+        Ok(!self
             .get_falsy_flags(&flow_type)
-            .intersects(TypeFlags::Undefined)
+            .intersects(TypeFlags::Undefined))
     }
 
-    pub(super) fn check_interface_declaration(&self, node: &Node /*InterfaceDeclaration*/) {
+    pub(super) fn check_interface_declaration(
+        &self,
+        node: &Node, /*InterfaceDeclaration*/
+    ) -> io::Result<()> {
         if !self.check_grammar_decorators_and_modifiers(node) {
             self.check_grammar_interface_declaration(node);
         }
@@ -159,16 +169,16 @@ impl TypeChecker {
             node_as_interface_declaration
                 .maybe_type_parameters()
                 .as_double_deref(),
-        );
+        )?;
         if self.produce_diagnostics {
             self.check_type_name_is_reserved(
                 &node_as_interface_declaration.name(),
                 &Diagnostics::Interface_name_cannot_be_0,
             );
 
-            self.check_exports_on_merged_declarations(node);
-            let symbol = self.get_symbol_of_node(node).unwrap();
-            self.check_type_parameter_lists_identical(&symbol);
+            self.check_exports_on_merged_declarations(node)?;
+            let symbol = self.get_symbol_of_node(node)?.unwrap();
+            self.check_type_parameter_lists_identical(&symbol)?;
 
             let first_interface_decl =
                 get_declaration_of_kind(&symbol, SyntaxKind::InterfaceDeclaration);
@@ -176,36 +186,36 @@ impl TypeChecker {
                 first_interface_decl.as_ref(),
                 Some(first_interface_decl) if ptr::eq(node, &**first_interface_decl)
             ) {
-                let type_ = self.get_declared_type_of_symbol(&symbol);
+                let type_ = self.get_declared_type_of_symbol(&symbol)?;
                 let type_with_this =
-                    self.get_type_with_this_argument(&type_, Option::<&Type>::None, None);
+                    self.get_type_with_this_argument(&type_, Option::<&Type>::None, None)?;
                 let type_as_interface_type = type_.as_interface_type();
                 if self.check_inherited_properties_are_identical(
                     &type_,
                     &node_as_interface_declaration.name(),
-                ) {
-                    for base_type in &self.get_base_types(&type_) {
+                )? {
+                    for base_type in &self.get_base_types(&type_)? {
                         self.check_type_assignable_to(
                             &type_with_this,
-                            &self.get_type_with_this_argument(
+                            &*self.get_type_with_this_argument(
                                 base_type,
                                 type_as_interface_type.maybe_this_type(),
                                 None,
-                            ),
+                            )?,
                             node_as_interface_declaration.maybe_name(),
                             Some(&Diagnostics::Interface_0_incorrectly_extends_interface_1),
                             None,
                             None,
-                        );
+                        )?;
                     }
-                    self.check_index_constraints(&type_, &symbol, None);
+                    self.check_index_constraints(&type_, &symbol, None)?;
                 }
             }
             self.check_object_type_for_duplicate_declarations(node);
         }
-        maybe_for_each(
+        try_maybe_for_each(
             get_interface_base_type_nodes(node).as_ref(),
-            |heritage_element: &Gc<Node>, _| -> Option<()> {
+            |heritage_element: &Gc<Node>, _| -> io::Result<Option<()>> {
                 let heritage_element_as_expression_with_type_arguments =
                     heritage_element.as_expression_with_type_arguments();
                 if !is_entity_name_expression(
@@ -219,35 +229,43 @@ impl TypeChecker {
                         None,
                     );
                 }
-                self.check_type_reference_node(heritage_element);
-                None
+                self.check_type_reference_node(heritage_element)?;
+                Ok(None)
             },
-        );
+        )?;
 
-        for_each(&node_as_interface_declaration.members, |member, _| {
-            self.check_source_element(Some(&**member));
-            Option::<()>::None
-        });
+        try_for_each(
+            &node_as_interface_declaration.members,
+            |member, _| -> io::Result<_> {
+                self.check_source_element(Some(&**member))?;
+                Ok(Option::<()>::None)
+            },
+        )?;
 
         if self.produce_diagnostics {
-            self.check_type_for_duplicate_index_signatures(node);
+            self.check_type_for_duplicate_index_signatures(node)?;
             self.register_for_unused_identifiers_check(node);
         }
+
+        Ok(())
     }
 
-    pub(super) fn check_type_alias_declaration(&self, node: &Node /*TypeAliasDeclaration*/) {
+    pub(super) fn check_type_alias_declaration(
+        &self,
+        node: &Node, /*TypeAliasDeclaration*/
+    ) -> io::Result<()> {
         self.check_grammar_decorators_and_modifiers(node);
         let node_as_type_alias_declaration = node.as_type_alias_declaration();
         self.check_type_name_is_reserved(
             &node_as_type_alias_declaration.name(),
             &Diagnostics::Type_alias_name_cannot_be_0,
         );
-        self.check_exports_on_merged_declarations(node);
+        self.check_exports_on_merged_declarations(node)?;
         self.check_type_parameters(
             node_as_type_alias_declaration
                 .maybe_type_parameters()
                 .as_double_deref(),
-        );
+        )?;
         if node_as_type_alias_declaration.type_.kind() == SyntaxKind::IntrinsicKeyword {
             if !intrinsic_type_kinds.contains_key(
                 &&*node_as_type_alias_declaration
@@ -267,12 +285,17 @@ impl TypeChecker {
                 );
             }
         } else {
-            self.check_source_element(Some(&*node_as_type_alias_declaration.type_));
+            self.check_source_element(Some(&*node_as_type_alias_declaration.type_))?;
             self.register_for_unused_identifiers_check(node);
         }
+
+        Ok(())
     }
 
-    pub(super) fn compute_enum_member_values(&self, node: &Node /*EnumDeclaration*/) {
+    pub(super) fn compute_enum_member_values(
+        &self,
+        node: &Node, /*EnumDeclaration*/
+    ) -> io::Result<()> {
         let node_links = self.get_node_links(node);
         if !(*node_links)
             .borrow()
@@ -282,7 +305,7 @@ impl TypeChecker {
             node_links.borrow_mut().flags |= NodeCheckFlags::EnumValuesComputed;
             let mut auto_value: Option<Number> = Some(Number::new(0.0));
             for member in &node.as_enum_declaration().members {
-                let value = self.compute_member_value(member, auto_value);
+                let value = self.compute_member_value(member, auto_value)?;
                 self.get_node_links(member).borrow_mut().enum_member_value = value.clone();
                 auto_value = if let Some(StringOrNumber::Number(value)) = value.as_ref() {
                     Some(*value + Number::new(1.0))
@@ -291,13 +314,15 @@ impl TypeChecker {
                 };
             }
         }
+
+        Ok(())
     }
 
     pub(super) fn compute_member_value(
         &self,
         member: &Node, /*EnumMember*/
         auto_value: Option<Number>,
-    ) -> Option<StringOrNumber> {
+    ) -> io::Result<Option<StringOrNumber>> {
         let member_as_enum_member = member.as_enum_member();
         if is_computed_non_literal_name(&member_as_enum_member.name) {
             self.error(
@@ -320,34 +345,34 @@ impl TypeChecker {
         }
         if member.parent().flags().intersects(NodeFlags::Ambient)
             && !is_enum_const(&member.parent())
-            && self.get_enum_kind(&self.get_symbol_of_node(&member.parent()).unwrap())
+            && self.get_enum_kind(&self.get_symbol_of_node(&member.parent())?.unwrap())?
                 == EnumKind::Numeric
         {
-            return None;
+            return Ok(None);
         }
         if auto_value.is_some() {
-            return auto_value.map(Into::into);
+            return Ok(auto_value.map(Into::into));
         }
         self.error(
             Some(&*member_as_enum_member.name),
             &Diagnostics::Enum_member_must_have_initializer,
             None,
         );
-        None
+        Ok(None)
     }
 
     pub(super) fn compute_constant_value(
         &self,
         member: &Node, /*EnumMember*/
-    ) -> Option<StringOrNumber> {
-        let enum_kind = self.get_enum_kind(&self.get_symbol_of_node(&member.parent()).unwrap());
+    ) -> io::Result<Option<StringOrNumber>> {
+        let enum_kind = self.get_enum_kind(&self.get_symbol_of_node(&member.parent())?.unwrap())?;
         let is_const_enum = is_enum_const(&member.parent());
         let member_as_enum_member = member.as_enum_member();
         let initializer = member_as_enum_member.initializer.as_ref().unwrap();
-        let value = if enum_kind == EnumKind::Literal && !self.is_literal_enum_member(member) {
+        let value = if enum_kind == EnumKind::Literal && !self.is_literal_enum_member(member)? {
             None
         } else {
-            self.evaluate(member, initializer)
+            self.evaluate(member, initializer)?
         };
         if let Some(value) = value.as_ref() {
             if is_const_enum {
@@ -371,7 +396,7 @@ impl TypeChecker {
                 &Diagnostics::Computed_values_are_not_permitted_in_an_enum_with_string_valued_members,
                 None,
             );
-            return Some(StringOrNumber::Number(Number::new(0.0)));
+            return Ok(Some(StringOrNumber::Number(Number::new(0.0))));
         } else if is_const_enum {
             self.error(
                 Some(&**initializer),
@@ -385,8 +410,8 @@ impl TypeChecker {
                 None,
             );
         } else {
-            let source = self.check_expression(initializer, None, None);
-            if !self.is_type_assignable_to_kind(&source, TypeFlags::NumberLike, None) {
+            let source = self.check_expression(initializer, None, None)?;
+            if !self.is_type_assignable_to_kind(&source, TypeFlags::NumberLike, None)? {
                 self.error(
                     Some(&**initializer),
                     &Diagnostics::Only_numeric_enums_can_have_computed_members_but_this_expression_has_type_0_If_you_do_not_need_exhaustiveness_checks_consider_using_an_object_literal_instead,
@@ -395,44 +420,44 @@ impl TypeChecker {
                             &source,
                             Option::<&Node>::None,
                             None, None,
-                        )
+                        )?
                     ])
                 );
             } else {
                 self.check_type_assignable_to(
                     &source,
-                    &self.get_declared_type_of_symbol(
-                        &self.get_symbol_of_node(&member.parent()).unwrap(),
-                    ),
+                    &*self.get_declared_type_of_symbol(
+                        &self.get_symbol_of_node(&member.parent())?.unwrap(),
+                    )?,
                     Some(&**initializer),
                     None,
                     None,
                     None,
-                );
+                )?;
             }
         }
-        value
+        Ok(value)
     }
 
     pub(super) fn evaluate(
         &self,
         member: &Node,
         expr: &Node, /*Expression*/
-    ) -> Option<StringOrNumber> {
+    ) -> io::Result<Option<StringOrNumber>> {
         match expr.kind() {
             SyntaxKind::PrefixUnaryExpression => {
                 let expr_as_prefix_unary_expression = expr.as_prefix_unary_expression();
-                let value = self.evaluate(member, &expr_as_prefix_unary_expression.operand);
+                let value = self.evaluate(member, &expr_as_prefix_unary_expression.operand)?;
                 if let Some(StringOrNumber::Number(value)) = value.as_ref() {
                     match expr_as_prefix_unary_expression.operator {
                         SyntaxKind::PlusToken => {
-                            return Some(StringOrNumber::Number(*value));
+                            return Ok(Some(StringOrNumber::Number(*value)));
                         }
                         SyntaxKind::MinusToken => {
-                            return Some(StringOrNumber::Number(-*value));
+                            return Ok(Some(StringOrNumber::Number(-*value)));
                         }
                         SyntaxKind::TildeToken => {
-                            return Some(StringOrNumber::Number(!*value));
+                            return Ok(Some(StringOrNumber::Number(!*value)));
                         }
                         _ => (),
                     }
@@ -440,52 +465,52 @@ impl TypeChecker {
             }
             SyntaxKind::BinaryExpression => {
                 let expr_as_binary_expression = expr.as_binary_expression();
-                let left = self.evaluate(member, &expr_as_binary_expression.left);
-                let right = self.evaluate(member, &expr_as_binary_expression.right);
+                let left = self.evaluate(member, &expr_as_binary_expression.left)?;
+                let right = self.evaluate(member, &expr_as_binary_expression.right)?;
                 if let (Some(StringOrNumber::Number(left)), Some(StringOrNumber::Number(right))) =
                     (left.as_ref(), right.as_ref())
                 {
                     match expr_as_binary_expression.operator_token.kind() {
                         SyntaxKind::BarToken => {
-                            return Some(StringOrNumber::Number(*left | *right));
+                            return Ok(Some(StringOrNumber::Number(*left | *right)));
                         }
                         SyntaxKind::AmpersandToken => {
-                            return Some(StringOrNumber::Number(*left & *right));
+                            return Ok(Some(StringOrNumber::Number(*left & *right)));
                         }
                         SyntaxKind::GreaterThanGreaterThanToken => {
-                            return Some(StringOrNumber::Number(*left >> *right));
+                            return Ok(Some(StringOrNumber::Number(*left >> *right)));
                         }
                         SyntaxKind::GreaterThanGreaterThanGreaterThanToken => {
                             // per https://stackoverflow.com/a/70212287/732366
-                            return Some(StringOrNumber::Number(Number::new(
+                            return Ok(Some(StringOrNumber::Number(Number::new(
                                 ((left.integer_value() as u64) >> right.integer_value()) as f64,
-                            )));
+                            ))));
                         }
                         SyntaxKind::LessThanLessThanToken => {
-                            return Some(StringOrNumber::Number(*left << *right));
+                            return Ok(Some(StringOrNumber::Number(*left << *right)));
                         }
                         SyntaxKind::CaretToken => {
-                            return Some(StringOrNumber::Number(*left ^ *right));
+                            return Ok(Some(StringOrNumber::Number(*left ^ *right)));
                         }
                         SyntaxKind::AsteriskToken => {
-                            return Some(StringOrNumber::Number(*left * *right));
+                            return Ok(Some(StringOrNumber::Number(*left * *right)));
                         }
                         SyntaxKind::SlashToken => {
-                            return Some(StringOrNumber::Number(*left / *right));
+                            return Ok(Some(StringOrNumber::Number(*left / *right)));
                         }
                         SyntaxKind::PlusToken => {
-                            return Some(StringOrNumber::Number(*left + *right));
+                            return Ok(Some(StringOrNumber::Number(*left + *right)));
                         }
                         SyntaxKind::MinusToken => {
-                            return Some(StringOrNumber::Number(*left - *right));
+                            return Ok(Some(StringOrNumber::Number(*left - *right)));
                         }
                         SyntaxKind::PercentToken => {
-                            return Some(StringOrNumber::Number(*left % *right));
+                            return Ok(Some(StringOrNumber::Number(*left % *right)));
                         }
                         SyntaxKind::AsteriskAsteriskToken => {
-                            return Some(StringOrNumber::Number(Number::new(
+                            return Ok(Some(StringOrNumber::Number(Number::new(
                                 left.value().powf(right.value()),
-                            )));
+                            ))));
                         }
                         _ => (),
                     }
@@ -494,19 +519,19 @@ impl TypeChecker {
                     Some(StringOrNumber::String(right)),
                 ) = (left.as_ref(), right.as_ref())
                 {
-                    return Some(StringOrNumber::String(format!("{}{}", left, right)));
+                    return Ok(Some(StringOrNumber::String(format!("{}{}", left, right))));
                 }
             }
             SyntaxKind::StringLiteral | SyntaxKind::NoSubstitutionTemplateLiteral => {
-                return Some(StringOrNumber::String(
+                return Ok(Some(StringOrNumber::String(
                     expr.as_literal_like_node().text().clone(),
-                ));
+                )));
             }
             SyntaxKind::NumericLiteral => {
                 self.check_grammar_numeric_literal(expr);
-                return Some(StringOrNumber::Number(
+                return Ok(Some(StringOrNumber::Number(
                     (&**expr.as_literal_like_node().text()).into(),
-                ));
+                )));
             }
             SyntaxKind::ParenthesizedExpression => {
                 return self.evaluate(member, &expr.as_parenthesized_expression().expression);
@@ -516,21 +541,22 @@ impl TypeChecker {
                 if is_infinity_or_nan_string(&identifier.escaped_text) {
                     unimplemented!("Infinity/NaN not implemented yet")
                 }
-                return if node_is_missing(Some(expr)) {
+                return Ok(if node_is_missing(Some(expr)) {
                     Some(StringOrNumber::Number(Number::new(0.0)))
                 } else {
                     self.evaluate_enum_member(
                         member,
                         expr,
-                        &self.get_symbol_of_node(&member.parent()).unwrap(),
+                        &self.get_symbol_of_node(&member.parent())?.unwrap(),
                         &identifier.escaped_text,
-                    )
-                };
+                    )?
+                });
             }
             SyntaxKind::ElementAccessExpression | SyntaxKind::PropertyAccessExpression => {
                 let ex = expr;
                 if self.is_constant_member_access(ex) {
-                    let type_ = self.get_type_of_expression(&ex.as_has_expression().expression());
+                    let type_ =
+                        self.get_type_of_expression(&ex.as_has_expression().expression())?;
                     if let Some(type_symbol) = type_
                         .maybe_symbol()
                         .as_ref()
@@ -561,7 +587,7 @@ impl TypeChecker {
             }
             _ => (),
         }
-        None
+        Ok(None)
     }
 
     pub(super) fn evaluate_enum_member(
@@ -570,7 +596,7 @@ impl TypeChecker {
         expr: &Node, /*Expression*/
         enum_symbol: &Symbol,
         name: &str, /*__String*/
-    ) -> Option<StringOrNumber> {
+    ) -> io::Result<Option<StringOrNumber>> {
         let member_symbol = (*enum_symbol.maybe_exports().clone().unwrap())
             .borrow()
             .get(name)
@@ -584,9 +610,9 @@ impl TypeChecker {
                     member
                 )
             ) {
-                if let Some(declaration) = declaration.as_ref().filter(|declaration| {
+                if let Some(declaration) = declaration.as_ref().try_filter(|declaration| {
                     self.is_block_scoped_name_declared_before_use(declaration, member)
-                }) {
+                })? {
                     return self.get_enum_member_value(declaration);
                 }
                 self.error(
@@ -594,7 +620,7 @@ impl TypeChecker {
                     &Diagnostics::A_member_initializer_in_a_enum_declaration_cannot_reference_members_declared_after_it_including_members_defined_in_other_enums,
                     None,
                 );
-                return Some(StringOrNumber::Number(Number::new(0.0)));
+                return Ok(Some(StringOrNumber::Number(Number::new(0.0))));
             } else {
                 self.error(
                     Some(expr),
@@ -605,11 +631,11 @@ impl TypeChecker {
                         None,
                         None,
                         None,
-                    )]),
+                    )?]),
                 );
             }
         }
-        None
+        Ok(None)
     }
 
     pub(super) fn is_constant_member_access(&self, node: &Node /*Expression*/) -> bool {
@@ -621,23 +647,26 @@ impl TypeChecker {
                 && is_string_literal_like(&node.as_element_access_expression().argument_expression)
     }
 
-    pub(super) fn check_enum_declaration(&self, node: &Node /*EnumDeclaration*/) {
+    pub(super) fn check_enum_declaration(
+        &self,
+        node: &Node, /*EnumDeclaration*/
+    ) -> io::Result<()> {
         if !self.produce_diagnostics {
-            return;
+            return Ok(());
         }
 
         self.check_grammar_decorators_and_modifiers(node);
 
         let node_as_enum_declaration = node.as_enum_declaration();
         self.check_collisions_for_declaration_name(node, node_as_enum_declaration.maybe_name());
-        self.check_exports_on_merged_declarations(node);
+        self.check_exports_on_merged_declarations(node)?;
         for member in &node_as_enum_declaration.members {
             self.check_enum_member(member);
         }
 
-        self.compute_enum_member_values(node);
+        self.compute_enum_member_values(node)?;
 
-        let enum_symbol = self.get_symbol_of_node(node).unwrap();
+        let enum_symbol = self.get_symbol_of_node(node)?.unwrap();
         let first_declaration = get_declaration_of_kind(&enum_symbol, node.kind());
         if matches!(
             first_declaration.as_ref(),
@@ -697,6 +726,8 @@ impl TypeChecker {
                 },
             );
         }
+
+        Ok(())
     }
 
     pub(super) fn check_enum_member(&self, node: &Node /*EnumMember*/) {
@@ -740,7 +771,10 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn check_module_declaration(&self, node: &Node /*ModuleDeclaration*/) {
+    pub(super) fn check_module_declaration(
+        &self,
+        node: &Node, /*ModuleDeclaration*/
+    ) -> io::Result<()> {
         let node_as_module_declaration = node.as_module_declaration();
         if self.produce_diagnostics {
             let is_global_augmentation = is_global_scope_augmentation(node);
@@ -760,7 +794,7 @@ impl TypeChecker {
                 &*Diagnostics::A_namespace_declaration_is_only_allowed_in_a_namespace_or_module
             };
             if self.check_grammar_module_element_context(node, context_error_message) {
-                return;
+                return Ok(());
             }
 
             if !self.check_grammar_decorators_and_modifiers(node) {
@@ -782,8 +816,8 @@ impl TypeChecker {
                 );
             }
 
-            self.check_exports_on_merged_declarations(node);
-            let symbol = self.get_symbol_of_node(node).unwrap();
+            self.check_exports_on_merged_declarations(node)?;
+            let symbol = self.get_symbol_of_node(node)?.unwrap();
 
             if symbol.flags().intersects(SymbolFlags::ValueModule)
                 && !in_ambient_context
@@ -834,7 +868,7 @@ impl TypeChecker {
                 if is_external_module_augmentation(node) {
                     let check_body = is_global_augmentation
                         || self
-                            .get_symbol_of_node(node)
+                            .get_symbol_of_node(node)?
                             .unwrap()
                             .flags()
                             .intersects(SymbolFlags::Transient);
@@ -844,7 +878,7 @@ impl TypeChecker {
                                 self.check_module_augmentation_element(
                                     statement,
                                     is_global_augmentation,
-                                );
+                                )?;
                             }
                         }
                     }
@@ -883,18 +917,20 @@ impl TypeChecker {
         }
 
         if let Some(node_body) = node_as_module_declaration.body.as_ref() {
-            self.check_source_element(Some(&**node_body));
+            self.check_source_element(Some(&**node_body))?;
             if !is_global_scope_augmentation(node) {
                 self.register_for_unused_identifiers_check(node);
             }
         }
+
+        Ok(())
     }
 
     pub(super) fn check_module_augmentation_element(
         &self,
         node: &Node,
         is_global_augmentation: bool,
-    ) {
+    ) -> io::Result<()> {
         match node.kind() {
             SyntaxKind::VariableStatement => {
                 for decl in &node
@@ -903,7 +939,7 @@ impl TypeChecker {
                     .as_variable_declaration_list()
                     .declarations
                 {
-                    self.check_module_augmentation_element(decl, is_global_augmentation);
+                    self.check_module_augmentation_element(decl, is_global_augmentation)?;
                 }
             }
             SyntaxKind::ExportAssignment | SyntaxKind::ExportDeclaration => {
@@ -924,7 +960,7 @@ impl TypeChecker {
                 let name = node.as_named_declaration().maybe_name();
                 if is_binding_pattern(name.as_deref()) {
                     for el in &name.as_ref().unwrap().as_has_elements().elements() {
-                        self.check_module_augmentation_element(el, is_global_augmentation);
+                        self.check_module_augmentation_element(el, is_global_augmentation)?;
                     }
                 }
             }
@@ -935,9 +971,9 @@ impl TypeChecker {
             | SyntaxKind::ModuleDeclaration
             | SyntaxKind::TypeAliasDeclaration => {
                 if is_global_augmentation {
-                    return;
+                    return Ok(());
                 }
-                let symbol = self.get_symbol_of_node(node);
+                let symbol = self.get_symbol_of_node(node)?;
                 if let Some(symbol) = symbol.as_ref() {
                     let mut report_error = !symbol.flags().intersects(SymbolFlags::Transient);
                     #[allow(unused_assignments)]
@@ -953,5 +989,7 @@ impl TypeChecker {
             }
             _ => (),
         }
+
+        Ok(())
     }
 }

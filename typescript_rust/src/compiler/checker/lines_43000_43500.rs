@@ -1,7 +1,7 @@
 use gc::Gc;
-use std::collections::HashMap;
 use std::convert::TryInto;
 use std::ptr;
+use std::{collections::HashMap, io};
 
 use crate::{
     add_related_info, create_diagnostic_for_node, first, get_containing_function,
@@ -556,19 +556,19 @@ impl TypeChecker {
         &self,
         node: &Node, /*DeclarationName*/
         message: &'static DiagnosticMessage,
-    ) -> bool {
-        if self.is_non_bindable_dynamic_name(node) {
-            return self.grammar_error_on_node(node, message, None);
+    ) -> io::Result<bool> {
+        if self.is_non_bindable_dynamic_name(node)? {
+            return Ok(self.grammar_error_on_node(node, message, None));
         }
-        false
+        Ok(false)
     }
 
     pub(super) fn check_grammar_method(
         &self,
         node: &Node, /*MethodDeclaration | MethodSignature*/
-    ) -> bool {
-        if self.check_grammar_function_like_declaration(node) {
-            return true;
+    ) -> io::Result<bool> {
+        if self.check_grammar_function_like_declaration(node)? {
+            return Ok(true);
         }
 
         if node.kind() == SyntaxKind::MethodDeclaration {
@@ -580,35 +580,35 @@ impl TypeChecker {
                         node_modifiers.len() == 1 && first(&*node_modifiers).kind() == SyntaxKind::AsyncKeyword
                     )
                 ) {
-                    return self.grammar_error_on_first_token(
+                    return Ok(self.grammar_error_on_first_token(
                         node,
                         &Diagnostics::Modifiers_cannot_appear_here,
                         None,
-                    );
+                    ));
                 } else if self.check_grammar_for_invalid_question_mark(
                     node_as_method_declaration.maybe_question_token(),
                     &Diagnostics::An_object_member_cannot_be_declared_optional,
                 ) {
-                    return true;
+                    return Ok(true);
                 } else if self.check_grammar_for_invalid_exclamation_token(
                     node_as_method_declaration
                         .maybe_exclamation_token()
                         .as_deref(),
                     &Diagnostics::A_definite_assignment_assertion_is_not_permitted_in_this_context,
                 ) {
-                    return true;
+                    return Ok(true);
                 } else if node_as_method_declaration.maybe_body().is_none() {
-                    return self.grammar_error_at_pos(
+                    return Ok(self.grammar_error_at_pos(
                         node,
                         node.end() - 1,
                         ";".len().try_into().unwrap(),
                         &Diagnostics::_0_expected,
                         Some(vec!["{".to_owned()]),
-                    );
+                    ));
                 }
             }
             if self.check_grammar_for_generator(node) {
-                return true;
+                return Ok(true);
             }
         }
 
@@ -617,11 +617,11 @@ impl TypeChecker {
             if self.language_version < ScriptTarget::ES2015
                 && is_private_identifier(&node_as_named_declaration.name())
             {
-                return self.grammar_error_on_node(
+                return Ok(self.grammar_error_on_node(
                     &node_as_named_declaration.name(),
                     &Diagnostics::Private_identifiers_are_only_available_when_targeting_ECMAScript_2015_and_higher,
                     None,
-                );
+                ));
             }
             if node.flags().intersects(NodeFlags::Ambient) {
                 return self.check_grammar_for_invalid_dynamic_name(
@@ -647,7 +647,7 @@ impl TypeChecker {
                 &Diagnostics::A_computed_property_name_in_a_type_literal_must_refer_to_an_expression_whose_type_is_a_literal_type_or_a_unique_symbol_type
             );
         }
-        false
+        Ok(false)
     }
 
     pub(super) fn check_grammar_break_or_continue_statement(
@@ -793,7 +793,10 @@ impl TypeChecker {
             }
     }
 
-    pub(super) fn is_simple_literal_enum_reference(&self, expr: &Node /*Expression*/) -> bool {
+    pub(super) fn is_simple_literal_enum_reference(
+        &self,
+        expr: &Node, /*Expression*/
+    ) -> io::Result<bool> {
         if (is_property_access_expression(expr)
             || is_element_access_expression(expr)
                 && self.is_string_or_number_literal_expression(
@@ -801,23 +804,23 @@ impl TypeChecker {
                 ))
             && is_entity_name_expression(&expr.as_has_expression().expression())
         {
-            return self
-                .check_expression_cached(expr, None)
+            return Ok(self
+                .check_expression_cached(expr, None)?
                 .flags()
-                .intersects(TypeFlags::EnumLiteral);
+                .intersects(TypeFlags::EnumLiteral));
         }
-        false
+        Ok(false)
     }
 
     pub(super) fn check_ambient_initializer(
         &self,
         node: &Node, /*VariableDeclaration | PropertyDeclaration | PropertySignature*/
-    ) -> bool {
+    ) -> io::Result<bool> {
         let initializer = node.as_has_initializer().maybe_initializer();
         if let Some(initializer) = initializer.as_ref() {
             let is_invalid_initializer = !(self
                 .is_string_or_number_literal_expression(initializer)
-                || self.is_simple_literal_enum_reference(initializer)
+                || self.is_simple_literal_enum_reference(initializer)?
                 || matches!(
                     initializer.kind(),
                     SyntaxKind::TrueKeyword | SyntaxKind::FalseKeyword
@@ -827,57 +830,57 @@ impl TypeChecker {
                 || is_variable_declaration(node) && is_var_const(node);
             if is_const_or_readonly && node.as_has_type().maybe_type().is_none() {
                 if is_invalid_initializer {
-                    return self.grammar_error_on_node(
+                    return Ok(self.grammar_error_on_node(
                         initializer,
                         &Diagnostics::A_const_initializer_in_an_ambient_context_must_be_a_string_or_numeric_literal_or_literal_enum_reference,
                         None,
-                    );
+                    ));
                 }
             } else {
-                return self.grammar_error_on_node(
+                return Ok(self.grammar_error_on_node(
                     initializer,
                     &Diagnostics::Initializers_are_not_allowed_in_ambient_contexts,
                     None,
-                );
+                ));
             }
             if !is_const_or_readonly || is_invalid_initializer {
-                return self.grammar_error_on_node(
+                return Ok(self.grammar_error_on_node(
                     initializer,
                     &Diagnostics::Initializers_are_not_allowed_in_ambient_contexts,
                     None,
-                );
+                ));
             }
         }
-        false
+        Ok(false)
     }
 
     pub(super) fn check_grammar_variable_declaration(
         &self,
         node: &Node, /*VariableDeclaration*/
-    ) -> bool {
+    ) -> io::Result<bool> {
         let node_as_variable_declaration = node.as_variable_declaration();
         if !matches!(
             node.parent().parent().kind(),
             SyntaxKind::ForInStatement | SyntaxKind::ForOfStatement
         ) {
             if node.flags().intersects(NodeFlags::Ambient) {
-                self.check_ambient_initializer(node);
+                self.check_ambient_initializer(node)?;
             } else if node_as_variable_declaration.maybe_initializer().is_none() {
                 if is_binding_pattern(node_as_variable_declaration.maybe_name())
                     && !is_binding_pattern(node.maybe_parent())
                 {
-                    return self.grammar_error_on_node(
+                    return Ok(self.grammar_error_on_node(
                         node,
                         &Diagnostics::A_destructuring_declaration_must_have_an_initializer,
                         None,
-                    );
+                    ));
                 }
                 if is_var_const(node) {
-                    return self.grammar_error_on_node(
+                    return Ok(self.grammar_error_on_node(
                         node,
                         &Diagnostics::const_declarations_must_be_initialized,
                         None,
-                    );
+                    ));
                 }
             }
         }
@@ -895,14 +898,14 @@ impl TypeChecker {
             } else {
                 &*Diagnostics::A_definite_assignment_assertion_is_not_permitted_in_this_context
             };
-            return self.grammar_error_on_node(
+            return Ok(self.grammar_error_on_node(
                 node_as_variable_declaration
                     .exclamation_token
                     .as_ref()
                     .unwrap(),
                 message,
                 None,
-            );
+            ));
         }
 
         if (self.module_kind < ModuleKind::ES2015
@@ -923,9 +926,9 @@ impl TypeChecker {
 
         let check_let_const_names = is_let(node) || is_var_const(node);
 
-        check_let_const_names
+        Ok(check_let_const_names
             && self.check_grammar_name_in_let_or_const_declarations(
                 &node_as_variable_declaration.name(),
-            )
+            ))
     }
 }

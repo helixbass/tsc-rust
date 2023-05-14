@@ -33,6 +33,7 @@ use crate::{
 };
 
 use super::create_super_access_variable_statement;
+use std::io;
 
 bitflags! {
     #[derive(Default)]
@@ -2625,8 +2626,8 @@ impl TransformES2018 {
 }
 
 impl TransformerInterface for TransformES2018 {
-    fn call(&self, node: &Node) -> Gc<Node> {
-        self.transform_source_file(node)
+    fn call(&self, node: &Node) -> io::Result<Gc<Node>> {
+        Ok(self.transform_source_file(node))
     }
 }
 

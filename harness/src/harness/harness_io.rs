@@ -20,7 +20,7 @@ use crate::{vfs, vpath, RunnerBase, StringOrFileBasedTest};
 
 pub trait IO: vfs::FileSystemResolverHost {
     fn new_line(&self) -> &'static str;
-    fn get_current_directory(&self) -> String;
+    fn get_current_directory(&self) -> io::Result<String>;
     fn read_file(&self, path: &StdPath) -> Option<String>;
     fn write_file(&self, path: &StdPath, contents: &str);
     fn directory_name(&self, path: &StdPath) -> Option<String>;
@@ -128,7 +128,7 @@ impl IO for NodeIO {
         path_join(components).to_str().unwrap().to_owned()
     }
 
-    fn get_current_directory(&self) -> String {
+    fn get_current_directory(&self) -> io::Result<String> {
         get_sys().get_current_directory()
     }
 
@@ -261,9 +261,9 @@ pub fn set_light_mode(flag: bool) {
 pub mod Compiler {
     use gc::{Finalize, Gc, GcCell, Trace};
     use regex::Regex;
-    use std::cmp;
     use std::collections::HashMap;
     use std::convert::TryInto;
+    use std::{cmp, io};
 
     use typescript_rust::{
         compare_diagnostics, compare_paths, compute_line_starts, count_where,
@@ -539,7 +539,7 @@ pub mod Compiler {
         compiler_options: Option<&CompilerOptions>,
         current_directory: Option<&str>,
         symlinks: Option<&vfs::FileSet>,
-    ) -> compiler::CompilationResult {
+    ) -> io::Result<compiler::CompilationResult> {
         let mut options: CompilerOptionsAndHarnessOptions =
             if let Some(compiler_options) = compiler_options {
                 CompilerOptionsAndHarnessOptions {
@@ -619,16 +619,16 @@ pub mod Compiler {
                 cwd: Some(current_directory.to_owned()),
                 ..Default::default()
             }),
-        ));
+        )?);
         if let Some(symlinks) = symlinks {
-            fs.apply(symlinks);
+            fs.apply(symlinks)?;
         }
         let host =
-            fakes::CompilerHost::new(fs, Some(Gc::new(options.compiler_options.clone())), None);
+            fakes::CompilerHost::new(fs, Some(Gc::new(options.compiler_options.clone())), None)?;
         let mut result =
-            compiler::compile_files(host, Some(&program_file_names), &options.compiler_options);
+            compiler::compile_files(host, Some(&program_file_names), &options.compiler_options)?;
         result.symlinks = symlinks.cloned();
-        result
+        Ok(result)
     }
 
     struct CompilerOptionsAndHarnessOptions {
@@ -639,7 +639,7 @@ pub mod Compiler {
     pub fn minimal_diagnostics_to_string(
         diagnostics: &[Gc<Diagnostic>],
         pretty: Option<bool>,
-    ) -> String {
+    ) -> io::Result<String> {
         let host = MinimalDiagnosticsToStringFormatDiagnosticsHost;
         if pretty == Some(true) {
             format_diagnostics_with_color_and_context(diagnostics, &host)
@@ -651,8 +651,8 @@ pub mod Compiler {
     struct MinimalDiagnosticsToStringFormatDiagnosticsHost;
 
     impl FormatDiagnosticsHost for MinimalDiagnosticsToStringFormatDiagnosticsHost {
-        fn get_current_directory(&self) -> String {
-            "".to_owned()
+        fn get_current_directory(&self) -> io::Result<String> {
+            Ok("".to_owned())
         }
 
         fn get_new_line(&self) -> &str {
@@ -668,7 +668,7 @@ pub mod Compiler {
         input_files: &[Gc<TestFile>],
         diagnostics: &[Gc<Diagnostic>],
         pretty: Option<bool>,
-    ) -> String {
+    ) -> io::Result<String> {
         let mut output_lines = "".to_owned();
         for value in iterate_error_baseline(
             input_files,
@@ -678,7 +678,7 @@ pub mod Compiler {
                 case_sensitive: None,
                 current_directory: None,
             }),
-        ) {
+        )? {
             let (_, content, _) = value;
             output_lines.push_str(&content);
         }
@@ -688,7 +688,7 @@ pub mod Compiler {
                 with_io(|IO| IO.new_line()),
             ));
         }
-        output_lines
+        Ok(output_lines)
     }
 
     pub const diagnostic_summary_marker: &'static str = "__diagnosticSummary";
@@ -698,7 +698,7 @@ pub mod Compiler {
         input_files: &[Gc<TestFile>],
         diagnostics: &[Gc<Diagnostic>],
         options: Option<IterateErrorBaselineOptions>,
-    ) -> Vec<(String, String, usize)> {
+    ) -> io::Result<Vec<(String, String, usize)>> {
         let diagnostics: Vec<_> = sort(diagnostics, |a: &Gc<Diagnostic>, b: &Gc<Diagnostic>| {
             compare_diagnostics(&**a, &**b)
         })
@@ -718,10 +718,10 @@ pub mod Compiler {
             format!(
                 "{}{}{}",
                 Utils::remove_test_path_prefixes(
-                    &minimal_diagnostics_to_string(
+                    &*minimal_diagnostics_to_string(
                         &diagnostics,
                         options.as_ref().and_then(|options| options.pretty)
-                    ),
+                    )?,
                     None,
                 ),
                 with_io(|IO| IO.new_line()),
@@ -730,8 +730,8 @@ pub mod Compiler {
             diagnostics.len(),
         ));
 
-        let global_errors = diagnostics.iter().filter(|err| err.maybe_file().is_none());
-        global_errors.for_each(|diagnostic| {
+        let mut global_errors = diagnostics.iter().filter(|err| err.maybe_file().is_none());
+        global_errors.try_for_each(|diagnostic| {
             output_error_text(
                 &format_diagnsotic_host,
                 &mut output_lines,
@@ -740,7 +740,7 @@ pub mod Compiler {
                 &mut total_errors_reported_in_non_library_files,
                 diagnostic,
             )
-        });
+        })?;
         ret.push((
             global_errors_marker.to_owned(),
             output_lines.clone(),
@@ -850,7 +850,7 @@ pub mod Compiler {
                                 &mut errors_reported,
                                 &mut total_errors_reported_in_non_library_files,
                                 err_diagnostic,
-                            );
+                            )?;
                             marked_error_count += 1;
                         }
                     }
@@ -906,7 +906,7 @@ pub mod Compiler {
             "total number of errors"
         );
 
-        ret
+        Ok(ret)
     }
 
     fn new_line(first_line: &mut bool) -> &'static str {
@@ -938,10 +938,11 @@ pub mod Compiler {
     impl<'iterate_error_baseline> FormatDiagnosticsHost
         for FormatDiagnsoticHost<'iterate_error_baseline>
     {
-        fn get_current_directory(&self) -> String {
-            self.options
+        fn get_current_directory(&self) -> io::Result<String> {
+            Ok(self
+                .options
                 .and_then(|options| options.current_directory.clone())
-                .unwrap_or_else(|| "".to_owned())
+                .unwrap_or_else(|| "".to_owned()))
         }
 
         fn get_new_line(&self) -> &str {
@@ -960,7 +961,7 @@ pub mod Compiler {
         errors_reported: &mut usize,
         total_errors_reported_in_non_library_files: &mut usize,
         error: &Diagnostic,
-    ) {
+    ) -> io::Result<()> {
         let message = flatten_diagnostic_message_text(
             Some(error.message_text()),
             with_io(|IO| IO.new_line()),
@@ -999,7 +1000,7 @@ pub mod Compiler {
                                 info.start(),
                                 format_diagnsotic_host,
                                 Some(|a: &str, _b: &str| a.to_owned()),
-                            )
+                            )?
                         )
                     } else {
                         "".to_owned()
@@ -1023,6 +1024,8 @@ pub mod Compiler {
         } {
             *total_errors_reported_in_non_library_files += 1;
         }
+
+        Ok(())
     }
 
     #[derive(Default)]
@@ -1037,7 +1040,7 @@ pub mod Compiler {
         input_files: &[Gc<TestFile>],
         errors: &[Gc<Diagnostic>],
         pretty: Option<bool>,
-    ) {
+    ) -> io::Result<()> {
         lazy_static! {
             static ref ts_extension_regex: Regex = Regex::new(r"\.tsx?$").unwrap();
         }
@@ -1046,13 +1049,15 @@ pub mod Compiler {
             if
             /* !errors ||*/
             !errors.is_empty() {
-                Some(get_error_baseline(input_files, errors, pretty))
+                Some(get_error_baseline(input_files, errors, pretty)?)
             } else {
                 None
             }
             .as_deref(),
             None,
         );
+
+        Ok(())
     }
 
     fn check_duplicated_file_name(
@@ -1429,7 +1434,7 @@ pub mod TestCaseParser {
         file_name: &str,
         root_dir: Option<&str>,
         settings: Option<CompilerSettings>,
-    ) -> TestCaseContent {
+    ) -> io::Result<TestCaseContent> {
         let settings = settings.unwrap_or_else(|| extract_compiler_settings(code));
         let mut test_unit_data: Vec<TestUnitData> = vec![];
 
@@ -1530,7 +1535,7 @@ pub mod TestCaseParser {
                     None,
                     None,
                     None,
-                ));
+                )?);
                 let mut options = (*ts_config.as_ref().unwrap().options).clone();
                 options.config_file_path = Some(data.name.clone());
                 ts_config.as_mut().unwrap().options = Gc::new(options);
@@ -1545,13 +1550,13 @@ pub mod TestCaseParser {
         for i in indexes_to_remove {
             ordered_remove_item_at(&mut test_unit_data, i);
         }
-        TestCaseContent {
+        Ok(TestCaseContent {
             settings,
             test_unit_data,
             ts_config,
             ts_config_file_unit_data,
             symlinks,
-        }
+        })
     }
 
     struct MakeUnitsFromTestParseConfigHost<'test_unit_data> {
@@ -1576,8 +1581,8 @@ pub mod TestCaseParser {
             _excludes: Option<&[String]>,
             _includes: &[String],
             _depth: Option<usize>,
-        ) -> Vec<String> {
-            vec![]
+        ) -> io::Result<Vec<String>> {
+            Ok(Default::default())
         }
 
         fn file_exists(&self, _path: &str) -> bool {

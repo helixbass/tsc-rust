@@ -478,7 +478,7 @@ pub(crate) fn get_diagnostic_text(
 }
 
 pub trait DiagnosticReporter: Trace + Finalize {
-    fn call(&self, diagnostic: Gc<Diagnostic>);
+    fn call(&self, diagnostic: Gc<Diagnostic>) -> io::Result<()>;
 }
 
 pub trait ConfigFileDiagnosticsReporter {
@@ -488,26 +488,26 @@ pub trait ConfigFileDiagnosticsReporter {
 pub trait ParseConfigFileHost:
     ParseConfigHost + ConfigFileDiagnosticsReporter + Trace + Finalize
 {
-    fn get_current_directory(&self) -> String;
+    fn get_current_directory(&self) -> io::Result<String>;
 }
 
-pub fn get_parsed_command_line_of_config_file<THost: ParseConfigFileHost>(
+pub fn get_parsed_command_line_of_config_file(
     config_file_name: &str,
     options_to_extend: Option<Gc<CompilerOptions>>,
-    host: &THost,
+    host: &impl ParseConfigFileHost,
     extended_config_cache: Option<&mut HashMap<String, ExtendedConfigCacheEntry>>,
     watch_options_to_extend: Option<Rc<WatchOptions>>,
     extra_file_extensions: Option<&[FileExtensionInfo]>,
-) -> Option<ParsedCommandLine> {
+) -> io::Result<Option<ParsedCommandLine>> {
     let config_file_text = try_read_file(config_file_name, |file_name| host.read_file(file_name));
     if let StringOrRcDiagnostic::RcDiagnostic(ref config_file_text) = config_file_text {
         host.on_un_recoverable_config_file_diagnostic(config_file_text.clone());
-        return None;
+        return Ok(None);
     }
     let config_file_text = enum_unwrapped!(config_file_text, [StringOrRcDiagnostic, String]);
 
     let result = parse_json_text(config_file_name, config_file_text);
-    let cwd = host.get_current_directory();
+    let cwd = host.get_current_directory()?;
     let result_as_source_file = result.as_source_file();
     result_as_source_file.set_path(to_path(
         config_file_name,
@@ -516,7 +516,7 @@ pub fn get_parsed_command_line_of_config_file<THost: ParseConfigFileHost>(
     ));
     result_as_source_file.set_resolved_path(Some(result_as_source_file.path().clone()));
     result_as_source_file.set_original_file_name(Some(result_as_source_file.file_name().clone()));
-    Some(parse_json_source_file_config_file_content(
+    Ok(Some(parse_json_source_file_config_file_content(
         &result,
         host,
         &get_normalized_absolute_path(&get_directory_path(config_file_name), Some(&cwd)),
@@ -526,23 +526,23 @@ pub fn get_parsed_command_line_of_config_file<THost: ParseConfigFileHost>(
         extra_file_extensions,
         extended_config_cache,
         watch_options_to_extend,
-    ))
+    )?))
 }
 
 pub fn read_config_file(
     file_name: &str,
     read_file: impl FnMut(&str) -> io::Result<Option<String>>,
-) -> ReadConfigFileReturn {
+) -> io::Result<ReadConfigFileReturn> {
     let text_or_diagnostic = try_read_file(file_name, read_file);
-    match text_or_diagnostic {
+    Ok(match text_or_diagnostic {
         StringOrRcDiagnostic::String(text_or_diagnostic) => {
-            parse_config_file_text_to_json(file_name, text_or_diagnostic)
+            parse_config_file_text_to_json(file_name, text_or_diagnostic)?
         }
         StringOrRcDiagnostic::RcDiagnostic(text_or_diagnostic) => ReadConfigFileReturn {
             config: Some(serde_json::Value::Object(serde_json::Map::new())),
             error: Some(text_or_diagnostic),
         },
-    }
+    })
 }
 
 pub struct ReadConfigFileReturn {
@@ -550,7 +550,10 @@ pub struct ReadConfigFileReturn {
     pub error: Option<Gc<Diagnostic>>,
 }
 
-pub fn parse_config_file_text_to_json(file_name: &str, json_text: String) -> ReadConfigFileReturn {
+pub fn parse_config_file_text_to_json(
+    file_name: &str,
+    json_text: String,
+) -> io::Result<ReadConfigFileReturn> {
     let json_source_file = parse_json_text(file_name, json_text);
     let json_source_file_parse_diagnostics = json_source_file.as_source_file().parse_diagnostics();
     let config = convert_config_file_to_object(
@@ -558,21 +561,21 @@ pub fn parse_config_file_text_to_json(file_name: &str, json_text: String) -> Rea
         json_source_file_parse_diagnostics.clone(),
         false,
         Option::<&JsonConversionNotifierDummy>::None,
-    );
+    )?;
     let json_source_file_parse_diagnostics = (*json_source_file_parse_diagnostics).borrow();
-    ReadConfigFileReturn {
+    Ok(ReadConfigFileReturn {
         config,
         error: if !json_source_file_parse_diagnostics.is_empty() {
             Some(json_source_file_parse_diagnostics[0].clone())
         } else {
             None
         },
-    }
+    })
 }
 
-pub fn read_json_config_file<TReadFile: FnMut(&str) -> io::Result<Option<String>>>(
+pub fn read_json_config_file(
     file_name: &str,
-    read_file: TReadFile,
+    read_file: impl FnMut(&str) -> io::Result<Option<String>>,
 ) -> Gc<Node /*TsConfigSourceFile*/> {
     let text_or_diagnostic = try_read_file(file_name, read_file);
     match text_or_diagnostic {
@@ -633,9 +636,9 @@ impl From<Gc<Diagnostic>> for StringOrRcDiagnostic {
     }
 }
 
-pub(crate) fn try_read_file<TReadFile: FnMut(&str) -> io::Result<Option<String>>>(
+pub(crate) fn try_read_file(
     file_name: &str,
-    mut read_file: TReadFile,
+    mut read_file: impl FnMut(&str) -> io::Result<Option<String>>,
 ) -> StringOrRcDiagnostic {
     match read_file(file_name) {
         Err(e) => Into::<StringOrRcDiagnostic>::into(Gc::new(
@@ -972,7 +975,7 @@ pub(crate) trait JsonConversionNotifier {
         key_node: &Node, /*PropertyName*/
         value: Option<&serde_json::Value>,
         value_node: &Node, /*Expression*/
-    );
+    ) -> io::Result<()>;
     fn on_set_unknown_option_key_value_in_root(
         &self,
         key: &str,
@@ -1000,7 +1003,7 @@ impl JsonConversionNotifier for JsonConversionNotifierDummy {
         _key_node: &Node, /*PropertyName*/
         _value: Option<&serde_json::Value>,
         _value_node: &Node, /*Expression*/
-    ) {
+    ) -> io::Result<()> {
         unimplemented!()
     }
 
@@ -1015,12 +1018,12 @@ impl JsonConversionNotifier for JsonConversionNotifierDummy {
     }
 }
 
-pub(super) fn convert_config_file_to_object<TOptionsIterator: JsonConversionNotifier>(
+pub(super) fn convert_config_file_to_object(
     source_file: &Node, /*JsonSourceFile*/
     errors: Gc<GcCell<Vec<Gc<Diagnostic>>>>,
     report_options_errors: bool,
-    options_iterator: Option<&TOptionsIterator>,
-) -> Option<serde_json::Value> {
+    options_iterator: Option<&impl JsonConversionNotifier>,
+) -> io::Result<Option<serde_json::Value>> {
     let source_file_as_source_file = source_file.as_source_file();
     let root_expression = source_file_as_source_file
         .statements()
@@ -1068,7 +1071,7 @@ pub(super) fn convert_config_file_to_object<TOptionsIterator: JsonConversionNoti
                 );
             }
         }
-        return Some(serde_json::Value::Object(serde_json::Map::new()));
+        return Ok(Some(serde_json::Value::Object(serde_json::Map::new())));
     }
     convert_to_object_worker(
         source_file,
@@ -1083,7 +1086,7 @@ pub(super) fn convert_config_file_to_object<TOptionsIterator: JsonConversionNoti
 pub fn convert_to_object(
     source_file: &Node, /*JsonSourceFile*/
     errors: Gc<GcCell<Push<Gc<Diagnostic>>>>,
-) -> Option<serde_json::Value> {
+) -> io::Result<Option<serde_json::Value>> {
     convert_to_object_worker(
         source_file,
         source_file
@@ -1098,23 +1101,20 @@ pub fn convert_to_object(
     )
 }
 
-pub(crate) fn convert_to_object_worker<
-    TRootExpression: Borrow<Node>,
-    TJsonConversionNotifier: JsonConversionNotifier,
->(
+pub(crate) fn convert_to_object_worker(
     source_file: &Node, /*JsonSourceFile*/
-    root_expression: Option<TRootExpression>,
+    root_expression: Option<impl Borrow<Node>>,
     errors: Gc<GcCell<Push<Gc<Diagnostic>>>>,
     return_value: bool,
     known_root_options: Option<&CommandLineOption>,
-    json_conversion_notifier: Option<&TJsonConversionNotifier>,
-) -> Option<serde_json::Value> {
+    json_conversion_notifier: Option<&impl JsonConversionNotifier>,
+) -> io::Result<Option<serde_json::Value>> {
     if root_expression.is_none() {
-        return if return_value {
+        return Ok(if return_value {
             Some(serde_json::Value::Object(serde_json::Map::new()))
         } else {
             None
-        };
+        });
     }
     let root_expression = root_expression.unwrap();
     let root_expression = root_expression.borrow();

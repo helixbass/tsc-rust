@@ -1,11 +1,12 @@
 use gc::{Finalize, Gc, Trace};
 use std::borrow::Borrow;
 use std::cell::{Cell, RefCell};
-use std::cmp;
 use std::collections::HashMap;
 use std::rc::Rc;
+use std::{cmp, io};
 
 use super::{CheckMode, CheckTypeContainingMessageChain, CheckTypeErrorOutputContainer};
+use crate::try_maybe_for_each;
 use crate::{
     add_related_info, are_option_gcs_equal, chain_diagnostic_messages,
     chain_diagnostic_messages_multiple, create_diagnostic_for_node,
@@ -16,45 +17,46 @@ use crate::{
     is_function_expression_or_arrow_function, is_function_like_declaration, is_identifier,
     is_in_js_file, is_jsx_opening_element, is_jsx_opening_like_element, is_new_expression,
     is_parameter, is_property_access_expression, is_rest_parameter, last, length, map,
-    maybe_for_each, node_is_present, parse_base_node_factory, parse_node_factory, set_parent,
-    set_text_range, set_text_range_pos_end, skip_outer_expressions, some, BaseDiagnostic,
-    BaseDiagnosticRelatedInformation, Debug_, Diagnostic, DiagnosticInterface, DiagnosticMessage,
-    DiagnosticMessageChain, DiagnosticMessageText, DiagnosticRelatedInformation,
-    DiagnosticRelatedInformationInterface, Diagnostics, ElementFlags, InferenceContext,
-    InferenceFlags, Node, NodeArray, NodeInterface, ReadonlyTextRange, RelationComparisonResult,
-    ScriptTarget, Signature, SignatureFlags, SymbolFlags, SymbolInterface, SyntaxKind, Type,
-    TypeChecker, TypeInterface, UsizeOrNegativeInfinity,
+    maybe_for_each, node_is_present, parse_base_node_factory, parse_node_factory,
+    return_ok_default_if_none, set_parent, set_text_range, set_text_range_pos_end,
+    skip_outer_expressions, some, try_some, BaseDiagnostic, BaseDiagnosticRelatedInformation,
+    Debug_, Diagnostic, DiagnosticInterface, DiagnosticMessage, DiagnosticMessageChain,
+    DiagnosticMessageText, DiagnosticRelatedInformation, DiagnosticRelatedInformationInterface,
+    Diagnostics, ElementFlags, InferenceContext, InferenceFlags, Node, NodeArray, NodeInterface,
+    ReadonlyTextRange, RelationComparisonResult, ScriptTarget, Signature, SignatureFlags,
+    SymbolFlags, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeInterface,
+    UsizeOrNegativeInfinity,
 };
 use local_macros::enum_unwrapped;
 
 impl TypeChecker {
-    pub(super) fn maybe_add_missing_await_info<TErrorNode: Borrow<Node>>(
+    pub(super) fn maybe_add_missing_await_info(
         &self,
         report_errors: bool,
         error_output_container: Gc<Box<dyn CheckTypeErrorOutputContainer>>,
         relation: Rc<RefCell<HashMap<String, RelationComparisonResult>>>,
-        error_node: Option<TErrorNode>,
+        error_node: Option<impl Borrow<Node>>,
         source: &Type,
         target: &Type,
-    ) {
+    ) -> io::Result<()> {
         if let Some(error_node) = error_node {
             let error_node = error_node.borrow();
             if report_errors && error_output_container.errors_len() > 0 {
                 if self
-                    .get_awaited_type_of_promise(target, Option::<&Node>::None, None, None)
+                    .get_awaited_type_of_promise(target, Option::<&Node>::None, None, None)?
                     .is_some()
                 {
-                    return;
+                    return Ok(());
                 }
                 let awaited_type_of_source =
-                    self.get_awaited_type_of_promise(source, Option::<&Node>::None, None, None);
+                    self.get_awaited_type_of_promise(source, Option::<&Node>::None, None, None)?;
                 if matches!(
                     awaited_type_of_source.as_ref(),
                     Some(awaited_type_of_source) if self.is_type_related_to(
                         awaited_type_of_source,
                         target,
                         relation.clone()
-                    )
+                    )?
                 ) {
                     add_related_info(
                         &error_output_container.get_error(0).unwrap(),
@@ -70,6 +72,8 @@ impl TypeChecker {
                 }
             }
         }
+
+        Ok(())
     }
 
     pub(super) fn get_this_argument_of_call(
@@ -119,12 +123,12 @@ impl TypeChecker {
     pub(super) fn get_effective_call_arguments(
         &self,
         node: &Node, /*CallLikeExpression*/
-    ) -> Vec<Gc<Node /*Expression*/>> {
+    ) -> io::Result<Vec<Gc<Node /*Expression*/>>> {
         if node.kind() == SyntaxKind::TaggedTemplateExpression {
             let template = &node.as_tagged_template_expression().template;
             let mut args: Vec<Gc<Node /*Expression*/>> = vec![self.create_synthetic_expression(
                 template,
-                &self.get_global_template_strings_array_type(),
+                &*self.get_global_template_strings_array_type()?,
                 None,
                 Option::<&Node>::None,
             )];
@@ -137,25 +141,27 @@ impl TypeChecker {
                     },
                 );
             }
-            return args;
+            return Ok(args);
         }
         if node.kind() == SyntaxKind::Decorator {
             return self.get_effective_decorator_arguments(node);
         }
         if is_jsx_opening_like_element(node) {
-            return if !node
-                .as_jsx_opening_like_element()
-                .attributes()
-                .as_jsx_attributes()
-                .properties
-                .is_empty()
-                || is_jsx_opening_element(node)
-                    && !node.parent().as_jsx_element().children.is_empty()
-            {
-                vec![node.as_jsx_opening_like_element().attributes()]
-            } else {
-                vec![]
-            };
+            return Ok(
+                if !node
+                    .as_jsx_opening_like_element()
+                    .attributes()
+                    .as_jsx_attributes()
+                    .properties
+                    .is_empty()
+                    || is_jsx_opening_element(node)
+                        && !node.parent().as_jsx_element().children.is_empty()
+                {
+                    vec![node.as_jsx_opening_like_element().attributes()]
+                } else {
+                    vec![]
+                },
+            );
         }
         let args = node
             .as_has_arguments()
@@ -168,9 +174,9 @@ impl TypeChecker {
                 let arg = &args[i];
                 let spread_type = if arg.kind() == SyntaxKind::SpreadElement {
                     Some(if self.flow_loop_count() > 0 {
-                        self.check_expression(&arg.as_spread_element().expression, None, None)
+                        self.check_expression(&arg.as_spread_element().expression, None, None)?
                     } else {
-                        self.check_expression_cached(&arg.as_spread_element().expression, None)
+                        self.check_expression_cached(&arg.as_spread_element().expression, None)?
                     })
                 } else {
                     None
@@ -182,7 +188,7 @@ impl TypeChecker {
                     let spread_type_target_as_tuple_type =
                         spread_type.as_type_reference().target.as_tuple_type();
                     for_each(
-                        &self.get_type_arguments(spread_type),
+                        &self.get_type_arguments(spread_type)?,
                         |t: &Gc<Type>, i| -> Option<()> {
                             let flags = spread_type_target_as_tuple_type.element_flags[i];
                             let synthetic_arg = self.create_synthetic_expression(
@@ -210,22 +216,22 @@ impl TypeChecker {
                     effective_args.push(arg.clone());
                 }
             }
-            return effective_args;
+            return Ok(effective_args);
         }
-        args
+        Ok(args)
     }
 
     pub(super) fn get_effective_decorator_arguments(
         &self,
         node: &Node, /*Decorator*/
-    ) -> Vec<Gc<Node /*Expression*/>> {
+    ) -> io::Result<Vec<Gc<Node /*Expression*/>>> {
         let parent = node.parent();
         let expr = &node.as_decorator().expression;
-        match parent.kind() {
+        Ok(match parent.kind() {
             SyntaxKind::ClassDeclaration | SyntaxKind::ClassExpression => {
                 vec![self.create_synthetic_expression(
                     expr,
-                    &self.get_type_of_symbol(&self.get_symbol_of_node(&parent).unwrap()),
+                    &*self.get_type_of_symbol(&self.get_symbol_of_node(&parent)?.unwrap())?,
                     None,
                     Option::<&Node>::None,
                 )]
@@ -236,7 +242,7 @@ impl TypeChecker {
                     self.create_synthetic_expression(
                         expr,
                         &*if parent.parent().kind() == SyntaxKind::Constructor {
-                            self.get_type_of_symbol(&self.get_symbol_of_node(&func).unwrap())
+                            self.get_type_of_symbol(&self.get_symbol_of_node(&func)?.unwrap())?
                         } else {
                             self.error_type()
                         },
@@ -266,13 +272,13 @@ impl TypeChecker {
                 vec![
                     self.create_synthetic_expression(
                         expr,
-                        &self.get_parent_type_of_class_element(&parent),
+                        &*self.get_parent_type_of_class_element(&parent)?,
                         None,
                         Option::<&Node>::None,
                     ),
                     self.create_synthetic_expression(
                         expr,
-                        &self.get_class_element_property_key_type(&parent),
+                        &*self.get_class_element_property_key_type(&parent)?,
                         None,
                         Option::<&Node>::None,
                     ),
@@ -280,8 +286,8 @@ impl TypeChecker {
                         expr,
                         &*if has_prop_desc {
                             self.create_typed_property_descriptor_type(
-                                &self.get_type_of_node(&parent),
-                            )
+                                &*self.get_type_of_node(&parent)?,
+                            )?
                         } else {
                             self.any_type()
                         },
@@ -291,7 +297,7 @@ impl TypeChecker {
                 ]
             }
             _ => Debug_.fail(None),
-        }
+        })
     }
 
     pub(super) fn get_decorator_argument_count(
@@ -376,13 +382,13 @@ impl TypeChecker {
     pub(super) fn is_promise_resolve_arity_error(
         &self,
         node: &Node, /*CallLikeExpression*/
-    ) -> bool {
+    ) -> io::Result<bool> {
         if !is_call_expression(node) {
-            return false;
+            return Ok(false);
         }
         let node_as_call_expression = node.as_call_expression();
         if !is_identifier(&node_as_call_expression.expression) {
-            return false;
+            return Ok(false);
         }
 
         let symbol = self.resolve_name_(
@@ -396,12 +402,12 @@ impl TypeChecker {
             Option::<Gc<Node>>::None,
             false,
             None,
-        );
+        )?;
         let decl = symbol
             .as_ref()
             .and_then(|symbol| symbol.maybe_value_declaration());
         if decl.is_none() {
-            return false;
+            return Ok(false);
         }
         let decl = decl.unwrap();
         if !is_parameter(&decl)
@@ -409,26 +415,23 @@ impl TypeChecker {
             || !is_new_expression(&decl.parent().parent())
             || is_identifier(&decl.parent().parent().as_new_expression().expression)
         {
-            return false;
+            return Ok(false);
         }
 
-        let global_promise_symbol = self.get_global_promise_constructor_symbol(false);
-        if global_promise_symbol.is_none() {
-            return false;
-        }
-        let global_promise_symbol = global_promise_symbol.unwrap();
+        let global_promise_symbol =
+            return_ok_default_if_none!(self.get_global_promise_constructor_symbol(false)?);
 
         let constructor_symbol = self.get_symbol_at_location_(
             &decl.parent().parent().as_new_expression().expression,
             Some(true),
-        );
-        matches!(
+        )?;
+        Ok(matches!(
             constructor_symbol.as_ref(),
             Some(constructor_symbol) if Gc::ptr_eq(
                 constructor_symbol,
                 &global_promise_symbol
             )
-        )
+        ))
     }
 
     pub(super) fn get_argument_arity_error(
@@ -436,16 +439,16 @@ impl TypeChecker {
         node: &Node, /*CallLikeExpression*/
         signatures: &[Gc<Signature>],
         args: &[Gc<Node /*Expression*/>],
-    ) -> Gc<Diagnostic> {
+    ) -> io::Result<Gc<Diagnostic>> {
         let spread_index = self.get_spread_argument_index(args);
         if let Some(spread_index) = spread_index {
-            return Gc::new(
+            return Ok(Gc::new(
                 create_diagnostic_for_node(
                     &args[spread_index],
                     &Diagnostics::A_spread_argument_must_either_have_a_tuple_type_or_be_passed_to_a_rest_parameter,
                     None,
                 ).into()
-            );
+            ));
         }
         let mut min = usize::MAX;
         let mut max = UsizeOrNegativeInfinity::NegativeInfinity;
@@ -454,8 +457,8 @@ impl TypeChecker {
 
         let mut closest_signature: Option<Gc<Signature>> = None;
         for sig in signatures {
-            let min_parameter = self.get_min_argument_count(sig, None);
-            let max_parameter = self.get_parameter_count(sig);
+            let min_parameter = self.get_min_argument_count(sig, None)?;
+            let max_parameter = self.get_parameter_count(sig)?;
             if min_parameter < min {
                 min = min_parameter;
                 closest_signature = Some(sig.clone());
@@ -476,10 +479,10 @@ impl TypeChecker {
                 min_above = max_parameter;
             }
         }
-        let has_rest_parameter = some(
+        let has_rest_parameter = try_some(
             Some(signatures),
             Some(|signature: &Gc<Signature>| self.has_effective_rest_parameter(signature)),
-        );
+        )?;
         let parameter_range = if has_rest_parameter {
             min.to_string()
         } else if match max {
@@ -498,19 +501,20 @@ impl TypeChecker {
             &*Diagnostics::Expected_at_least_0_arguments_but_got_1
         } else if parameter_range == "1"
             && args.is_empty()
-            && self.is_promise_resolve_arity_error(node)
+            && self.is_promise_resolve_arity_error(node)?
         {
             &*Diagnostics::Expected_0_arguments_but_got_1_Did_you_forget_to_include_void_in_your_type_argument_to_Promise
         } else {
             &*Diagnostics::Expected_0_arguments_but_got_1
         };
-        if min < args.len()
-            && match max {
-                UsizeOrNegativeInfinity::NegativeInfinity => false,
-                UsizeOrNegativeInfinity::Usize(max) => args.len() < max,
-            }
-        {
-            self.get_diagnostic_for_call_node(
+        Ok(
+            if min < args.len()
+                && match max {
+                    UsizeOrNegativeInfinity::NegativeInfinity => false,
+                    UsizeOrNegativeInfinity::Usize(max) => args.len() < max,
+                }
+            {
+                self.get_diagnostic_for_call_node(
                 node,
                 &Diagnostics::No_overload_expects_0_arguments_but_overloads_do_exist_that_expect_either_1_or_2_arguments,
                 Some(vec![
@@ -519,83 +523,85 @@ impl TypeChecker {
                     min_above.to_string()
                 ])
             )
-        } else if args.len() < min {
-            let diagnostic = self.get_diagnostic_for_call_node(
-                node,
-                error,
-                Some(vec![parameter_range, args.len().to_string()]),
-            );
-            let parameter = closest_signature
-                .as_ref()
-                .and_then(|closest_signature| closest_signature.declaration.as_ref())
-                .and_then(|closest_signature_declaration| {
-                    closest_signature_declaration
-                        .as_signature_declaration()
-                        .parameters()
-                        .get(
-                            if closest_signature
-                                .as_ref()
-                                .unwrap()
-                                .maybe_this_parameter()
-                                .is_some()
-                            {
-                                args.len() + 1
-                            } else {
-                                args.len()
-                            },
-                        )
-                        .cloned()
-                });
-            if let Some(parameter) = parameter.as_ref() {
-                let parameter_error = create_diagnostic_for_node(
-                    parameter,
-                    if is_binding_pattern(parameter.as_named_declaration().maybe_name()) {
-                        &*Diagnostics::An_argument_matching_this_binding_pattern_was_not_provided
-                    } else if is_rest_parameter(parameter) {
-                        &*Diagnostics::Arguments_for_the_rest_parameter_0_were_not_provided
-                    } else {
-                        &*Diagnostics::An_argument_for_0_was_not_provided
-                    },
-                    if parameter.as_named_declaration().maybe_name().is_none() {
-                        Some(vec![args.len().to_string()])
-                    } else if !is_binding_pattern(parameter.as_named_declaration().maybe_name()) {
-                        Some(vec![id_text(&get_first_identifier(
-                            &parameter.as_named_declaration().name(),
-                        ))
-                        .to_owned()])
-                    } else {
-                        None
-                    },
-                );
-                add_related_info(&diagnostic, vec![Gc::new(parameter_error.into())]);
-            }
-            diagnostic
-        } else {
-            let error_span = factory.with(|factory_| {
-                factory_.create_node_array(
-                    Some(match max {
-                        UsizeOrNegativeInfinity::NegativeInfinity => args.to_owned(),
-                        UsizeOrNegativeInfinity::Usize(max) => args[max..].to_owned(),
-                    }),
-                    None,
-                )
-            });
-            let pos = first(&error_span).pos();
-            let mut end = last(&error_span).end();
-            if end == pos {
-                end += 1;
-            }
-            set_text_range_pos_end(&*error_span, pos, end);
-            Gc::new(
-                create_diagnostic_for_node_array(
-                    &get_source_file_of_node(node),
-                    &error_span,
+            } else if args.len() < min {
+                let diagnostic = self.get_diagnostic_for_call_node(
+                    node,
                     error,
                     Some(vec![parameter_range, args.len().to_string()]),
+                );
+                let parameter = closest_signature
+                    .as_ref()
+                    .and_then(|closest_signature| closest_signature.declaration.as_ref())
+                    .and_then(|closest_signature_declaration| {
+                        closest_signature_declaration
+                            .as_signature_declaration()
+                            .parameters()
+                            .get(
+                                if closest_signature
+                                    .as_ref()
+                                    .unwrap()
+                                    .maybe_this_parameter()
+                                    .is_some()
+                                {
+                                    args.len() + 1
+                                } else {
+                                    args.len()
+                                },
+                            )
+                            .cloned()
+                    });
+                if let Some(parameter) = parameter.as_ref() {
+                    let parameter_error = create_diagnostic_for_node(
+                        parameter,
+                        if is_binding_pattern(parameter.as_named_declaration().maybe_name()) {
+                            &*Diagnostics::An_argument_matching_this_binding_pattern_was_not_provided
+                        } else if is_rest_parameter(parameter) {
+                            &*Diagnostics::Arguments_for_the_rest_parameter_0_were_not_provided
+                        } else {
+                            &*Diagnostics::An_argument_for_0_was_not_provided
+                        },
+                        if parameter.as_named_declaration().maybe_name().is_none() {
+                            Some(vec![args.len().to_string()])
+                        } else if !is_binding_pattern(parameter.as_named_declaration().maybe_name())
+                        {
+                            Some(vec![id_text(&get_first_identifier(
+                                &parameter.as_named_declaration().name(),
+                            ))
+                            .to_owned()])
+                        } else {
+                            None
+                        },
+                    );
+                    add_related_info(&diagnostic, vec![Gc::new(parameter_error.into())]);
+                }
+                diagnostic
+            } else {
+                let error_span = factory.with(|factory_| {
+                    factory_.create_node_array(
+                        Some(match max {
+                            UsizeOrNegativeInfinity::NegativeInfinity => args.to_owned(),
+                            UsizeOrNegativeInfinity::Usize(max) => args[max..].to_owned(),
+                        }),
+                        None,
+                    )
+                });
+                let pos = first(&error_span).pos();
+                let mut end = last(&error_span).end();
+                if end == pos {
+                    end += 1;
+                }
+                set_text_range_pos_end(&*error_span, pos, end);
+                Gc::new(
+                    create_diagnostic_for_node_array(
+                        &get_source_file_of_node(node),
+                        &error_span,
+                        error,
+                        Some(vec![parameter_range, args.len().to_string()]),
+                    )
+                    .into(),
                 )
-                .into(),
-            )
-        }
+            },
+        )
     }
 
     pub(super) fn get_type_argument_arity_error(
@@ -684,7 +690,7 @@ impl TypeChecker {
         check_mode: CheckMode,
         call_chain_flags: SignatureFlags,
         fallback_error: Option<&'static DiagnosticMessage>,
-    ) -> Gc<Signature> {
+    ) -> io::Result<Gc<Signature>> {
         let is_tagged_template = node.kind() == SyntaxKind::TaggedTemplateExpression;
         let is_decorator = node.kind() == SyntaxKind::Decorator;
         let is_jsx_opening_or_self_closing_element = is_jsx_opening_like_element(node);
@@ -699,20 +705,20 @@ impl TypeChecker {
                 || is_jsx_opening_or_self_closing_element
                 || node.as_has_expression().expression().kind() != SyntaxKind::SuperKeyword
             {
-                maybe_for_each(
+                try_maybe_for_each(
                     type_arguments.as_ref(),
-                    |type_argument: &Gc<Node>, _| -> Option<()> {
-                        self.check_source_element(Some(&**type_argument));
-                        None
+                    |type_argument: &Gc<Node>, _| -> io::Result<Option<()>> {
+                        self.check_source_element(Some(&**type_argument))?;
+                        Ok(None)
                     },
-                );
+                )?;
             }
         }
 
         let mut candidates_default = vec![];
         let candidates_out_array_is_some = candidates_out_array.is_some();
         let candidates = candidates_out_array.unwrap_or(&mut candidates_default);
-        self.reorder_candidates(signatures, candidates, call_chain_flags);
+        self.reorder_candidates(signatures, candidates, call_chain_flags)?;
         if candidates.is_empty() {
             if report_errors {
                 self.diagnostics().add(self.get_diagnostic_for_call_node(
@@ -724,16 +730,16 @@ impl TypeChecker {
             return self.resolve_error_call(node);
         }
 
-        let args = self.get_effective_call_arguments(node);
+        let args = self.get_effective_call_arguments(node)?;
 
         let is_single_non_generic_candidate =
             candidates.len() == 1 && candidates[0].maybe_type_parameters().is_none();
         let mut arg_check_mode = if !is_decorator
             && !is_single_non_generic_candidate
-            && some(
+            && try_some(
                 Some(&*args),
                 Some(|arg: &Gc<Node>| self.is_context_sensitive(arg)),
-            ) {
+            )? {
             CheckMode::SkipContextSensitive
         } else {
             CheckMode::Normal
@@ -761,7 +767,7 @@ impl TypeChecker {
                 self.subtype_relation.clone(),
                 is_single_non_generic_candidate,
                 Some(signature_help_trailing_comma),
-            );
+            )?;
         }
         if result.is_none() {
             result = self.choose_overload(
@@ -776,10 +782,10 @@ impl TypeChecker {
                 self.assignable_relation.clone(),
                 is_single_non_generic_candidate,
                 Some(signature_help_trailing_comma),
-            );
+            )?;
         }
         if let Some(result) = result {
-            return result;
+            return Ok(result);
         }
 
         if report_errors {
@@ -815,7 +821,7 @@ impl TypeChecker {
                         Some(Gc::new(Box::new(ResolveCallContainingMessageChain::new(
                             chain.map(|chain| Rc::new(RefCell::new(chain))),
                         )))),
-                    );
+                    )?;
                     if let Some(diags) = diags.as_ref() {
                         for d in diags {
                             if let Some(last_declaration) = last.declaration.as_ref() {
@@ -843,7 +849,7 @@ impl TypeChecker {
                                 &mut arg_check_mode,
                                 &last,
                                 d,
-                            );
+                            )?;
                             self.diagnostics().add(d.clone());
                         }
                     } else {
@@ -872,7 +878,7 @@ impl TypeChecker {
                             CheckMode::Normal,
                             true,
                             Some(Gc::new(Box::new(chain))),
-                        );
+                        )?;
                         if let Some(diags) = diags {
                             if diags.len() <= min {
                                 min = diags.len();
@@ -961,7 +967,7 @@ impl TypeChecker {
                         &mut arg_check_mode,
                         &candidates_for_argument_error_present[0],
                         &diag,
-                    );
+                    )?;
                     self.diagnostics().add(diag);
                 }
             } else if let Some(candidate_for_argument_arity_error) =
@@ -971,7 +977,7 @@ impl TypeChecker {
                     node,
                     &[candidate_for_argument_arity_error],
                     &args,
-                ));
+                )?);
             } else if let Some(candidate_for_type_argument_error) =
                 candidate_for_type_argument_error.as_ref()
             {
@@ -983,7 +989,7 @@ impl TypeChecker {
                         .unwrap(),
                     true,
                     fallback_error,
-                );
+                )?;
             } else {
                 let signatures_with_correct_type_argument_arity =
                     filter(signatures, |s: &Gc<Signature>| {
@@ -1000,7 +1006,7 @@ impl TypeChecker {
                         node,
                         &signatures_with_correct_type_argument_arity,
                         &args,
-                    ));
+                    )?);
                 } else if let Some(fallback_error) = fallback_error {
                     self.diagnostics().add(self.get_diagnostic_for_call_node(
                         node,
@@ -1030,7 +1036,7 @@ impl TypeChecker {
         arg_check_mode: &mut CheckMode,
         failed: &Signature,
         diagnostic: &Diagnostic,
-    ) {
+    ) -> io::Result<()> {
         let old_candidates_for_argument_error = candidates_for_argument_error.clone();
         let old_candidate_for_argument_arity_error = candidate_for_argument_arity_error.clone();
         let old_candidate_for_type_argument_error = candidate_for_type_argument_error.clone();
@@ -1053,7 +1059,7 @@ impl TypeChecker {
             None
         };
         if let Some(impl_decl) = impl_decl {
-            let candidate = self.get_signature_from_declaration_(impl_decl);
+            let candidate = self.get_signature_from_declaration_(impl_decl)?;
             let is_single_non_generic_candidate = candidate.maybe_type_parameters().is_none();
             let mut candidates = vec![candidate];
             if self
@@ -1069,7 +1075,7 @@ impl TypeChecker {
                     self.assignable_relation.clone(),
                     is_single_non_generic_candidate,
                     None,
-                )
+                )?
                 .is_some()
             {
                 add_related_info(
@@ -1090,6 +1096,8 @@ impl TypeChecker {
         *candidates_for_argument_error = old_candidates_for_argument_error;
         *candidate_for_argument_arity_error = old_candidate_for_argument_arity_error;
         *candidate_for_type_argument_error = old_candidate_for_type_argument_error;
+
+        Ok(())
     }
 
     pub(super) fn choose_overload(
@@ -1105,7 +1113,7 @@ impl TypeChecker {
         relation: Rc<RefCell<HashMap<String, RelationComparisonResult>>>,
         is_single_non_generic_candidate: bool,
         signature_help_trailing_comma: Option<bool>,
-    ) -> Option<Gc<Signature>> {
+    ) -> io::Result<Option<Gc<Signature>>> {
         let signature_help_trailing_comma = signature_help_trailing_comma.unwrap_or(false);
         *candidates_for_argument_error = None;
         *candidate_for_argument_arity_error = None;
@@ -1121,8 +1129,8 @@ impl TypeChecker {
                 args,
                 candidate,
                 Some(signature_help_trailing_comma),
-            ) {
-                return None;
+            )? {
+                return Ok(None);
             }
             if self
                 .get_signature_applicability_error(
@@ -1133,13 +1141,13 @@ impl TypeChecker {
                     CheckMode::Normal,
                     false,
                     None,
-                )
+                )?
                 .is_some()
             {
                 *candidates_for_argument_error = Some(vec![candidate.clone()]);
-                return None;
+                return Ok(None);
             }
-            return Some(candidate.clone());
+            return Ok(Some(candidate.clone()));
         }
 
         for candidate_index in 0..candidates.len() {
@@ -1150,7 +1158,7 @@ impl TypeChecker {
                     args,
                     candidate,
                     Some(signature_help_trailing_comma),
-                )
+                )?
             {
                 continue;
             }
@@ -1165,7 +1173,7 @@ impl TypeChecker {
                     Option::<fn(&Gc<Node>) -> bool>::None,
                 ) {
                     type_argument_types =
-                        self.check_type_arguments(candidate, type_arguments.unwrap(), false, None);
+                        self.check_type_arguments(candidate, type_arguments.unwrap(), false, None)?;
                     if type_argument_types.is_none() {
                         *candidate_for_type_argument_error = Some(candidate.clone());
                         continue;
@@ -1187,7 +1195,7 @@ impl TypeChecker {
                         args,
                         *arg_check_mode | CheckMode::SkipGenericFunctions,
                         inference_context.clone().unwrap(),
-                    ));
+                    )?);
                     *arg_check_mode |= if inference_context
                         .as_ref()
                         .unwrap()
@@ -1209,14 +1217,14 @@ impl TypeChecker {
                             inference_context.maybe_inferred_type_parameters().clone()
                         })
                         .as_deref(),
-                );
-                if self.get_non_array_rest_type(candidate).is_some()
+                )?;
+                if self.get_non_array_rest_type(candidate)?.is_some()
                     && !self.has_correct_arity(
                         node,
                         args,
                         &check_candidate,
                         Some(signature_help_trailing_comma),
-                    )
+                    )?
                 {
                     *candidate_for_argument_arity_error = Some(check_candidate.clone());
                     continue;
@@ -1233,7 +1241,7 @@ impl TypeChecker {
                     *arg_check_mode,
                     false,
                     None,
-                )
+                )?
                 .is_some()
             {
                 if candidates_for_argument_error.is_none() {
@@ -1254,7 +1262,7 @@ impl TypeChecker {
                         args,
                         *arg_check_mode,
                         inference_context.clone(),
-                    );
+                    )?;
                     check_candidate = self.get_signature_instantiation(
                         candidate.clone(),
                         Some(&type_argument_types),
@@ -1263,14 +1271,14 @@ impl TypeChecker {
                         inference_context
                             .maybe_inferred_type_parameters()
                             .as_deref(),
-                    );
-                    if self.get_non_array_rest_type(candidate).is_some()
+                    )?;
+                    if self.get_non_array_rest_type(candidate)?.is_some()
                         && !self.has_correct_arity(
                             node,
                             args,
                             &check_candidate,
                             Some(signature_help_trailing_comma),
-                        )
+                        )?
                     {
                         *candidate_for_argument_arity_error = Some(check_candidate.clone());
                         continue;
@@ -1285,7 +1293,7 @@ impl TypeChecker {
                         *arg_check_mode,
                         false,
                         None,
-                    )
+                    )?
                     .is_some()
                 {
                     if candidates_for_argument_error.is_none() {
@@ -1299,10 +1307,10 @@ impl TypeChecker {
                 }
             }
             candidates[candidate_index] = check_candidate.clone();
-            return Some(check_candidate);
+            return Ok(Some(check_candidate));
         }
 
-        None
+        Ok(None)
     }
 }
 
@@ -1325,8 +1333,8 @@ impl ResolveCallContainingMessageChain {
 }
 
 impl CheckTypeContainingMessageChain for ResolveCallContainingMessageChain {
-    fn get(&self) -> Option<Rc<RefCell<DiagnosticMessageChain>>> {
-        self.chain.clone()
+    fn get(&self) -> io::Result<Option<Rc<RefCell<DiagnosticMessageChain>>>> {
+        Ok(self.chain.clone())
     }
 }
 
@@ -1356,8 +1364,8 @@ impl ResolveCallOverloadContainingMessageChain {
 }
 
 impl CheckTypeContainingMessageChain for ResolveCallOverloadContainingMessageChain {
-    fn get(&self) -> Option<Rc<RefCell<DiagnosticMessageChain>>> {
-        Some(Rc::new(RefCell::new(chain_diagnostic_messages(
+    fn get(&self) -> io::Result<Option<Rc<RefCell<DiagnosticMessageChain>>>> {
+        Ok(Some(Rc::new(RefCell::new(chain_diagnostic_messages(
             None,
             &Diagnostics::Overload_0_of_1_2_gave_the_following_error,
             Some(vec![
@@ -1369,8 +1377,8 @@ impl CheckTypeContainingMessageChain for ResolveCallOverloadContainingMessageCha
                     None,
                     None,
                     None,
-                ),
+                )?,
             ]),
-        ))))
+        )))))
     }
 }

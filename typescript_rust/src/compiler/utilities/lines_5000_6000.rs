@@ -215,7 +215,12 @@ pub fn read_json(
         return serde_json::Value::Object(serde_json::Map::new());
     }
     let json_text = json_text.unwrap();
-    let result = parse_config_file_text_to_json(path, json_text);
+    let result = match parse_config_file_text_to_json(path, json_text) {
+        Err(_) => {
+            return serde_json::Value::Object(serde_json::Map::new());
+        }
+        Ok(value) => value,
+    };
     if result.error.is_some() {
         return serde_json::Value::Object(serde_json::Map::new());
     }
@@ -596,13 +601,16 @@ pub fn get_object_flags(type_: &Type) -> ObjectFlags {
     }
 }
 
-pub fn type_has_call_or_construct_signatures(type_: &Type, checker: &TypeChecker) -> bool {
-    !checker
-        .get_signatures_of_type(type_, SignatureKind::Call)
+pub fn type_has_call_or_construct_signatures(
+    type_: &Type,
+    checker: &TypeChecker,
+) -> io::Result<bool> {
+    Ok(!checker
+        .get_signatures_of_type(type_, SignatureKind::Call)?
         .is_empty()
         || !checker
-            .get_signatures_of_type(type_, SignatureKind::Construct)
-            .is_empty()
+            .get_signatures_of_type(type_, SignatureKind::Construct)?
+            .is_empty())
 }
 
 pub fn is_umd_export_symbol(symbol: Option<impl Borrow<Symbol>>) -> bool {

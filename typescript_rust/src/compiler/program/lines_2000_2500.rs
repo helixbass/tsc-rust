@@ -1,5 +1,6 @@
 use gc::{Gc, GcCell};
 use regex::Regex;
+use std::io;
 use std::rc::Rc;
 use std::{convert::TryInto, ptr};
 
@@ -30,8 +31,8 @@ impl Program {
         &self,
         source_file: &Node, /*SourceFile*/
         cancellation_token: Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
-    ) -> Vec<Gc<Diagnostic>> {
-        self.get_and_cache_diagnostics(
+    ) -> io::Result<Vec<Gc<Diagnostic>>> {
+        self.try_get_and_cache_diagnostics(
             Some(source_file),
             cancellation_token,
             &mut self.cached_bind_and_check_diagnostics_for_file_mut(),
@@ -48,15 +49,15 @@ impl Program {
         &self,
         source_file: &Node, /*SourceFile*/
         cancellation_token: Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
-    ) -> Vec<Gc<Diagnostic>> {
+    ) -> io::Result<Vec<Gc<Diagnostic>>> {
         // self.run_with_cancellation_token(|| {
         if skip_type_checking(source_file, &self.options, |file_name: &str| {
             self.is_source_of_project_reference_redirect_(file_name)
         }) {
-            return vec![];
+            return Ok(vec![]);
         }
 
-        let type_checker = self.get_diagnostics_producing_type_checker();
+        let type_checker = self.get_diagnostics_producing_type_checker()?;
 
         let source_file_as_source_file = source_file.as_source_file();
         Debug_.assert(
@@ -82,12 +83,12 @@ impl Program {
             vec![]
         };
         let check_diagnostics = if include_bind_and_check_diagnostics {
-            type_checker.get_diagnostics(Some(source_file), cancellation_token)
+            type_checker.get_diagnostics(Some(source_file), cancellation_token)?
         } else {
             vec![]
         };
 
-        self.get_merged_bind_and_check_diagnostics(
+        Ok(self.get_merged_bind_and_check_diagnostics(
             source_file,
             include_bind_and_check_diagnostics,
             &[
@@ -101,7 +102,7 @@ impl Program {
                     None
                 },
             ],
-        )
+        ))
         // })
     }
 
@@ -706,8 +707,8 @@ impl Program {
         &self,
         source_file: Option<&Node>, /*SourceFile*/
         cancellation_token: Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
-    ) -> Vec<Gc<Diagnostic /*DiagnosticWithLocation*/>> {
-        self.get_and_cache_diagnostics(
+    ) -> io::Result<Vec<Gc<Diagnostic /*DiagnosticWithLocation*/>>> {
+        self.try_get_and_cache_diagnostics(
             source_file,
             cancellation_token,
             &mut self.cached_declaration_diagnostics_for_file_mut(),
@@ -721,21 +722,22 @@ impl Program {
         &self,
         source_file: Option<&Node /*SourceFile*/>,
         cancellation_token: Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
-    ) -> Vec<Gc<Diagnostic /*DiagnosticWithLocation*/>> {
-        self.run_with_cancellation_token(|| {
+    ) -> io::Result<Vec<Gc<Diagnostic /*DiagnosticWithLocation*/>>> {
+        self.run_with_cancellation_token(|| -> io::Result<_> {
             let resolver = self
-                .get_diagnostics_producing_type_checker()
-                .get_emit_resolver(source_file, cancellation_token);
-            get_declaration_diagnostics(
+                .get_diagnostics_producing_type_checker()?
+                .get_emit_resolver(source_file, cancellation_token)?;
+            Ok(get_declaration_diagnostics(
                 // TODO: should this be eg Some(NoOpWriteFileCallback::new()) instead?
                 self.get_emit_host(None),
                 resolver,
                 source_file,
-            )
-            .unwrap_or_default()
+            )?
+            .unwrap_or_default())
         })
     }
 
+    #[allow(dead_code)]
     pub(super) fn get_and_cache_diagnostics(
         &self,
         source_file: Option<&Node /*SourceFile*/>,
@@ -746,6 +748,22 @@ impl Program {
             Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
         ) -> Vec<Gc<Diagnostic>>,
     ) -> Vec<Gc<Diagnostic>> {
+        self.try_get_and_cache_diagnostics(source_file, cancellation_token, cache, |a, b| {
+            Ok(get_diagnostics(a, b))
+        })
+        .unwrap()
+    }
+
+    pub(super) fn try_get_and_cache_diagnostics(
+        &self,
+        source_file: Option<&Node /*SourceFile*/>,
+        cancellation_token: Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
+        cache: &mut DiagnosticCache,
+        mut get_diagnostics: impl FnMut(
+            Option<&Node>, /*SourceFile*/
+            Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
+        ) -> io::Result<Vec<Gc<Diagnostic>>>,
+    ) -> io::Result<Vec<Gc<Diagnostic>>> {
         let cached_result = if let Some(source_file) = source_file {
             cache.per_file.as_ref().and_then(|cache_per_file| {
                 cache_per_file
@@ -757,9 +775,9 @@ impl Program {
         };
 
         if let Some(cached_result) = cached_result {
-            return cached_result;
+            return Ok(cached_result);
         }
-        let result = get_diagnostics(source_file, cancellation_token);
+        let result = get_diagnostics(source_file, cancellation_token)?;
         if let Some(source_file) = source_file {
             cache
                 .per_file
@@ -768,19 +786,19 @@ impl Program {
         } else {
             cache.all_diagnostics = Some(result.clone());
         }
-        result
+        Ok(result)
     }
 
     pub fn get_declaration_diagnostics_for_file(
         &self,
         source_file: &Node, /*SourceFile*/
         cancellation_token: Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
-    ) -> Vec<Gc<Diagnostic /*DiagnosticWithLocation*/>> {
-        if source_file.as_source_file().is_declaration_file() {
+    ) -> io::Result<Vec<Gc<Diagnostic /*DiagnosticWithLocation*/>>> {
+        Ok(if source_file.as_source_file().is_declaration_file() {
             vec![]
         } else {
-            self.get_declaration_diagnostics_worker(Some(source_file), cancellation_token)
-        }
+            self.get_declaration_diagnostics_worker(Some(source_file), cancellation_token)?
+        })
     }
 
     pub fn get_options_diagnostics(
@@ -816,16 +834,16 @@ impl Program {
     pub fn get_global_diagnostics(
         &self,
         _cancellation_token: Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
-    ) -> SortedArray<Gc<Diagnostic>> {
-        if !self.root_names().is_empty() {
+    ) -> io::Result<SortedArray<Gc<Diagnostic>>> {
+        Ok(if !self.root_names().is_empty() {
             sort_and_deduplicate_diagnostics(
                 &self
-                    .get_diagnostics_producing_type_checker()
+                    .get_diagnostics_producing_type_checker()?
                     .get_global_diagnostics(),
             )
         } else {
             vec![].into()
-        }
+        })
     }
 
     pub fn get_config_file_parsing_diagnostics(&self) -> Vec<Gc<Diagnostic>> {
@@ -840,14 +858,16 @@ impl Program {
         is_default_lib: bool,
         ignore_no_default_lib: bool,
         reason: Gc<FileIncludeReason>,
-    ) {
+    ) -> io::Result<()> {
         self.process_source_file(
             &normalize_path(file_name),
             is_default_lib,
             ignore_no_default_lib,
             None,
             reason,
-        );
+        )?;
+
+        Ok(())
     }
 
     pub fn file_reference_is_equal_to(&self, a: &FileReference, b: &FileReference) -> bool {

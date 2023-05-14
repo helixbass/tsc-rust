@@ -169,27 +169,36 @@ fn test_project_references(
         }
     }
 
-    let vfsys = Gc::new(vfs::FileSystem::new(
-        false,
-        Some(
-            vfs::FileSystemOptionsBuilder::default()
-                .files(HashMap::from_iter([(
-                    "/lib.d.ts".to_owned(),
-                    Some(TestFSWithWatch::lib_file().content.into()),
-                )]))
-                .build()
-                .unwrap(),
-        ),
-    ));
+    let vfsys = Gc::new(
+        vfs::FileSystem::new(
+            false,
+            Some(
+                vfs::FileSystemOptionsBuilder::default()
+                    .files(HashMap::from_iter([(
+                        "/lib.d.ts".to_owned(),
+                        Some(TestFSWithWatch::lib_file().content.into()),
+                    )]))
+                    .build()
+                    .unwrap(),
+            ),
+        )
+        .unwrap(),
+    );
     for (k, v) in files {
-        vfsys.mkdirp_sync(&get_directory_path(&k));
-        vfsys.write_file_sync(&k, v, None);
+        vfsys.mkdirp_sync(&get_directory_path(&k)).unwrap();
+        vfsys.write_file_sync(&k, v, None).unwrap();
     }
-    let host = fakes::CompilerHost::new(Gc::new(fakes::System::new(vfsys, None)), None, None);
+    let host = fakes::CompilerHost::new(
+        Gc::new(fakes::System::new(vfsys, None).unwrap()),
+        None,
+        None,
+    )
+    .unwrap();
     let ReadConfigFileReturn { config, error } =
         read_config_file(entry_point_config_file_name, |name: &str| {
             host.read_file(name)
-        });
+        })
+        .unwrap();
 
     asserting(&flatten_diagnostic_message_text(
         error.as_ref().map(|error| error.message_text()),
@@ -213,7 +222,8 @@ fn test_project_references(
         None,
         None,
         None,
-    );
+    )
+    .unwrap();
     file.options = Gc::new({
         let mut file_options = (*file.options).clone();
         file_options.config_file_path = Some(entry_point_config_file_name.to_owned());
@@ -227,7 +237,8 @@ fn test_project_references(
             .project_references(file.project_references.clone())
             .build()
             .unwrap(),
-    );
+    )
+    .unwrap();
     check_result(&prog, &host);
 }
 
@@ -297,6 +308,7 @@ mod project_references_meta_check {
 
 mod project_references_constraint_checking_for_settings {
     use serde_json::json;
+    use typescript_rust::ScriptReferenceHost;
 
     use super::*;
 
@@ -378,6 +390,106 @@ mod project_references_constraint_checking_for_settings {
                 "Reports an error about 'composite' not being set",
                 &errs,
                 &Diagnostics::Referenced_project_0_must_have_setting_composite_Colon_true,
+            );
+        });
+    }
+
+    #[test]
+    fn test_does_not_error_when_the_referenced_project_doesnt_have_composite_true_if_its_a_container_project(
+    ) {
+        let spec = TestSpecification::from_iter([
+            (
+                "/primary".to_owned(),
+                TestProjectSpecificationBuilder::default()
+                    .files(HashMap::from_iter(
+                        [("/primary/a.ts", empty_module)].owned(),
+                    ))
+                    .references(vec![])
+                    .options(
+                        CompilerOptionsBuilder::default()
+                            .composite(false)
+                            .build()
+                            .unwrap(),
+                    )
+                    .build()
+                    .unwrap(),
+            ),
+            (
+                "/reference".to_owned(),
+                TestProjectSpecificationBuilder::default()
+                    .files(HashMap::from_iter(
+                        [(
+                            "/secondary/b.ts",
+                            &*module_importing(&["../primary/a"].owned()),
+                        )]
+                        .owned(),
+                    ))
+                    .references(["../primary".to_owned().into()])
+                    .build()
+                    .unwrap(),
+            ),
+        ]);
+
+        test_project_references(&spec, "/reference/tsconfig.json", |program: &Program, _| {
+            let errs = program.get_options_diagnostics(None);
+            assert_no_errors("Reports an error about 'composite' not being set", &errs);
+        });
+    }
+
+    #[test]
+    fn test_errors_when_the_file_list_is_not_exhaustive() {
+        let spec = TestSpecification::from_iter([(
+            "/primary".to_owned(),
+            TestProjectSpecificationBuilder::default()
+                .files(HashMap::from_iter(
+                    [
+                        ("/primary/a.ts", "import * as b from './b'"),
+                        ("/primary/b.ts", "export {}"),
+                    ]
+                    .owned(),
+                ))
+                .config(
+                    json!({
+                        "files": ["a.ts"],
+                    })
+                    .as_object()
+                    .unwrap()
+                    .clone(),
+                )
+                .build()
+                .unwrap(),
+        )]);
+
+        test_project_references(&spec, "/primary/tsconfig.json", |program: &Program, _| {
+            let errs = program
+                .get_semantic_diagnostics(program.get_source_file("/primary/a.ts").as_deref(), None)
+                .unwrap();
+            assert_has_error(
+                "Reports an error about b.ts not being in the list",
+                &errs,
+                &Diagnostics::File_0_is_not_listed_within_the_file_list_of_project_1_Projects_must_list_all_files_or_use_an_include_pattern
+            );
+        });
+    }
+
+    #[test]
+    fn test_errors_when_the_referenced_project_doesnt_exist() {
+        let spec = TestSpecification::from_iter([(
+            "/primary".to_owned(),
+            TestProjectSpecificationBuilder::default()
+                .files(HashMap::from_iter(
+                    [("/primary/a.ts", empty_module)].owned(),
+                ))
+                .references(["../foo".to_owned().into()])
+                .build()
+                .unwrap(),
+        )]);
+        test_project_references(&spec, "/primary/tsconfig.json", |program: &Program, _| {
+            let errs = program.get_options_diagnostics(None);
+            assert_has_error(
+                "Reports an error about a missing file",
+                &errs,
+                &Diagnostics::File_0_not_found,
             );
         });
     }

@@ -1,6 +1,7 @@
 use gc::{Finalize, Gc, Trace};
 use std::borrow::{Borrow, Cow};
 use std::cell::RefCell;
+use std::io;
 use std::rc::Rc;
 
 use super::{CheckMode, CheckTypeContainingMessageChain, JsxNames};
@@ -14,38 +15,39 @@ use crate::{
     is_this_property, map, some, unescape_leading_underscores, AssignmentDeclarationKind,
     CheckFlags, Debug_, DiagnosticMessageChain, Diagnostics, HasTypeInterface, JsxEmit, JsxFlags,
     JsxReferenceKind, ModifierFlags, NodeFlags, ScriptTarget, Signature, SignatureKind,
-    SymbolFlags, UnionOrIntersectionTypeInterface, __String, get_object_flags, Node, NodeInterface,
-    ObjectFlags, Symbol, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
+    SymbolFlags, UnionOrIntersectionTypeInterface, __String, get_object_flags, try_map, Node,
+    NodeInterface, ObjectFlags, OptionTry, Symbol, SymbolInterface, SyntaxKind, Type, TypeChecker,
+    TypeFlags, TypeInterface,
 };
 
 impl TypeChecker {
-    pub(super) fn get_name_from_jsx_element_attributes_container<TJsxNamespace: Borrow<Symbol>>(
+    pub(super) fn get_name_from_jsx_element_attributes_container(
         &self,
         name_of_attrib_prop_container: &str, /*__String*/
-        jsx_namespace: Option<TJsxNamespace>,
-    ) -> Option<__String> {
+        jsx_namespace: Option<impl Borrow<Symbol>>,
+    ) -> io::Result<Option<__String>> {
         let jsx_namespace =
             jsx_namespace.map(|jsx_namespace| jsx_namespace.borrow().symbol_wrapper());
         let jsx_element_attrib_prop_interface_sym =
-            jsx_namespace.as_ref().and_then(|jsx_namespace| {
+            jsx_namespace.as_ref().try_and_then(|jsx_namespace| {
                 self.get_symbol(
                     &(**jsx_namespace.maybe_exports().as_ref().unwrap()).borrow(),
                     name_of_attrib_prop_container,
                     SymbolFlags::Type,
                 )
-            });
+            })?;
         let jsx_element_attrib_prop_interface_type = jsx_element_attrib_prop_interface_sym
             .as_ref()
-            .map(|jsx_element_attrib_prop_interface_sym| {
+            .try_map(|jsx_element_attrib_prop_interface_sym| {
                 self.get_declared_type_of_symbol(jsx_element_attrib_prop_interface_sym)
-            });
+            })?;
         let properties_of_jsx_element_attrib_prop_interface =
-            jsx_element_attrib_prop_interface_type.as_ref().map(
+            jsx_element_attrib_prop_interface_type.as_ref().try_map(
                 |jsx_element_attrib_prop_interface_type| {
                     self.get_properties_of_type(jsx_element_attrib_prop_interface_type)
                 },
-            );
-        properties_of_jsx_element_attrib_prop_interface.and_then(
+            )?;
+        Ok(properties_of_jsx_element_attrib_prop_interface.and_then(
             |mut properties_of_jsx_element_attrib_prop_interface| {
                 if properties_of_jsx_element_attrib_prop_interface.len() == 0 {
                     return Some("".to_owned());
@@ -79,37 +81,40 @@ impl TypeChecker {
                 }
                 None
             },
-        )
+        ))
     }
 
-    pub(super) fn get_jsx_library_managed_attributes<TJsxNamespace: Borrow<Symbol>>(
+    pub(super) fn get_jsx_library_managed_attributes(
         &self,
-        jsx_namespace: Option<TJsxNamespace>,
-    ) -> Option<Gc<Symbol>> {
-        let jsx_namespace = jsx_namespace?;
+        jsx_namespace: Option<impl Borrow<Symbol>>,
+    ) -> io::Result<Option<Gc<Symbol>>> {
+        if jsx_namespace.is_none() {
+            return Ok(None);
+        }
+        let jsx_namespace = jsx_namespace.unwrap();
         let jsx_namespace = jsx_namespace.borrow();
         let ret = self.get_symbol(
             &(**jsx_namespace.maybe_exports().as_ref().unwrap()).borrow(),
             &JsxNames::LibraryManagedAttributes,
             SymbolFlags::Type,
-        );
-        ret
+        )?;
+        Ok(ret)
     }
 
-    pub(super) fn get_jsx_element_properties_name<TJsxNamespace: Borrow<Symbol>>(
+    pub(super) fn get_jsx_element_properties_name(
         &self,
-        jsx_namespace: Option<TJsxNamespace>,
-    ) -> Option<__String> {
+        jsx_namespace: Option<impl Borrow<Symbol>>,
+    ) -> io::Result<Option<__String>> {
         self.get_name_from_jsx_element_attributes_container(
             &JsxNames::ElementAttributesPropertyNameContainer,
             jsx_namespace,
         )
     }
 
-    pub(super) fn get_jsx_element_children_property_name<TJsxNamespace: Borrow<Symbol>>(
+    pub(super) fn get_jsx_element_children_property_name(
         &self,
-        jsx_namespace: Option<TJsxNamespace>,
-    ) -> Option<__String> {
+        jsx_namespace: Option<impl Borrow<Symbol>>,
+    ) -> io::Result<Option<__String>> {
         self.get_name_from_jsx_element_attributes_container(
             &JsxNames::ElementChildrenAttributeNameContainer,
             jsx_namespace,
@@ -120,12 +125,12 @@ impl TypeChecker {
         &self,
         element_type: &Type,
         caller: &Node, /*JsxOpeningLikeElement*/
-    ) -> Vec<Gc<Signature>> {
+    ) -> io::Result<Vec<Gc<Signature>>> {
         if element_type.flags().intersects(TypeFlags::String) {
-            return vec![self.any_signature()];
+            return Ok(vec![self.any_signature()]);
         } else if element_type.flags().intersects(TypeFlags::StringLiteral) {
             let intrinsic_type =
-                self.get_intrinsic_attributes_type_from_string_literal_type(element_type, caller);
+                self.get_intrinsic_attributes_type_from_string_literal_type(element_type, caller)?;
             match intrinsic_type.as_ref() {
                 None => {
                     self.error(
@@ -136,55 +141,55 @@ impl TypeChecker {
                             format!("JSX.{}", JsxNames::IntrinsicElements),
                         ]),
                     );
-                    return vec![];
+                    return Ok(vec![]);
                 }
                 Some(intrinsic_type) => {
                     let fake_signature =
-                        self.create_signature_for_jsx_intrinsic(caller, intrinsic_type);
-                    return vec![fake_signature];
+                        self.create_signature_for_jsx_intrinsic(caller, intrinsic_type)?;
+                    return Ok(vec![fake_signature]);
                 }
             }
         }
-        let apparent_elem_type = self.get_apparent_type(element_type);
+        let apparent_elem_type = self.get_apparent_type(element_type)?;
         let mut signatures =
-            self.get_signatures_of_type(&apparent_elem_type, SignatureKind::Construct);
+            self.get_signatures_of_type(&apparent_elem_type, SignatureKind::Construct)?;
         if signatures.is_empty() {
-            signatures = self.get_signatures_of_type(&apparent_elem_type, SignatureKind::Call);
+            signatures = self.get_signatures_of_type(&apparent_elem_type, SignatureKind::Call)?;
         }
         if signatures.is_empty() && apparent_elem_type.flags().intersects(TypeFlags::Union) {
-            signatures = self.get_union_signatures(&map(
+            signatures = self.get_union_signatures(&try_map(
                 apparent_elem_type.as_union_type().types(),
                 |t: &Gc<Type>, _| self.get_uninstantiated_jsx_signatures_of_type(t, caller),
-            ));
+            )?)?;
         }
-        signatures
+        Ok(signatures)
     }
 
     pub(super) fn get_intrinsic_attributes_type_from_string_literal_type(
         &self,
         type_: &Type, /*StringLiteralType*/
         location: &Node,
-    ) -> Option<Gc<Type>> {
+    ) -> io::Result<Option<Gc<Type>>> {
         let intrinsic_elements_type =
-            self.get_jsx_type(&JsxNames::IntrinsicElements, Some(location));
+            self.get_jsx_type(&JsxNames::IntrinsicElements, Some(location))?;
         if !self.is_error_type(&intrinsic_elements_type) {
             let string_literal_type_name = &type_.as_string_literal_type().value;
             let intrinsic_prop = self.get_property_of_type_(
                 &intrinsic_elements_type,
                 &escape_leading_underscores(string_literal_type_name),
                 None,
-            );
+            )?;
             if let Some(intrinsic_prop) = intrinsic_prop.as_ref() {
-                return Some(self.get_type_of_symbol(intrinsic_prop));
+                return Ok(Some(self.get_type_of_symbol(intrinsic_prop)?));
             }
             let index_signature_type =
-                self.get_index_type_of_type_(&intrinsic_elements_type, &self.string_type());
+                self.get_index_type_of_type_(&intrinsic_elements_type, &self.string_type())?;
             if index_signature_type.is_some() {
-                return index_signature_type;
+                return Ok(index_signature_type);
             }
-            return None;
+            return Ok(None);
         }
-        Some(self.any_type())
+        Ok(Some(self.any_type()))
     }
 
     pub(super) fn check_jsx_return_assignable_to_appropriate_bound(
@@ -192,10 +197,10 @@ impl TypeChecker {
         ref_kind: JsxReferenceKind,
         elem_instance_type: &Type,
         opening_like_element: &Node, /*JsxOpeningLikeElement*/
-    ) {
+    ) -> io::Result<()> {
         if ref_kind == JsxReferenceKind::Function {
             let sfc_return_constraint =
-                self.get_jsx_stateless_element_type_at(opening_like_element);
+                self.get_jsx_stateless_element_type_at(opening_like_element)?;
             if let Some(sfc_return_constraint) = sfc_return_constraint.as_ref() {
                 self.check_type_related_to(
                     elem_instance_type,
@@ -213,10 +218,10 @@ impl TypeChecker {
                         opening_like_element.node_wrapper(),
                     )))),
                     None,
-                );
+                )?;
             }
         } else if ref_kind == JsxReferenceKind::Component {
-            let class_constraint = self.get_jsx_element_class_type_at(opening_like_element);
+            let class_constraint = self.get_jsx_element_class_type_at(opening_like_element)?;
             if let Some(class_constraint) = class_constraint.as_ref() {
                 self.check_type_related_to(
                     elem_instance_type,
@@ -234,14 +239,14 @@ impl TypeChecker {
                         opening_like_element.node_wrapper(),
                     )))),
                     None,
-                );
+                )?;
             }
         } else {
             let sfc_return_constraint =
-                self.get_jsx_stateless_element_type_at(opening_like_element);
-            let class_constraint = self.get_jsx_element_class_type_at(opening_like_element);
+                self.get_jsx_stateless_element_type_at(opening_like_element)?;
+            let class_constraint = self.get_jsx_element_class_type_at(opening_like_element)?;
             if sfc_return_constraint.is_none() || class_constraint.is_none() {
-                return;
+                return Ok(());
             }
             let sfc_return_constraint = sfc_return_constraint.unwrap();
             let class_constraint = class_constraint.unwrap();
@@ -251,7 +256,7 @@ impl TypeChecker {
                 Option::<&Symbol>::None,
                 None,
                 Option::<&Type>::None,
-            );
+            )?;
             self.check_type_related_to(
                 elem_instance_type,
                 &combined,
@@ -268,14 +273,16 @@ impl TypeChecker {
                     opening_like_element.node_wrapper(),
                 )))),
                 None,
-            );
+            )?;
         }
+
+        Ok(())
     }
 
     pub(super) fn get_intrinsic_attributes_type_from_jsx_opening_like_element(
         &self,
         node: &Node, /*JsxOpeningLikeElement*/
-    ) -> Gc<Type> {
+    ) -> io::Result<Gc<Type>> {
         let node_as_jsx_opening_like_element = node.as_jsx_opening_like_element();
         Debug_.assert(
             self.is_jsx_intrinsic_identifier(&node_as_jsx_opening_like_element.tag_name()),
@@ -287,15 +294,15 @@ impl TypeChecker {
             .resolved_jsx_element_attributes_type
             .is_none()
         {
-            let symbol = self.get_intrinsic_tag_symbol(node);
+            let symbol = self.get_intrinsic_tag_symbol(node)?;
             if (*links)
                 .borrow()
                 .jsx_flags
                 .intersects(JsxFlags::IntrinsicNamedElement)
             {
-                let ret = self.get_type_of_symbol(&symbol); /*|| errorType*/
+                let ret = self.get_type_of_symbol(&symbol)?; /*|| errorType*/
                 links.borrow_mut().resolved_jsx_element_attributes_type = Some(ret.clone());
-                return ret;
+                return Ok(ret);
             } else if (*links)
                 .borrow()
                 .jsx_flags
@@ -303,16 +310,16 @@ impl TypeChecker {
             {
                 let ret = self
                     .get_index_type_of_type_(
-                        &self.get_jsx_type(&JsxNames::IntrinsicElements, Some(node)),
+                        &*self.get_jsx_type(&JsxNames::IntrinsicElements, Some(node))?,
                         &self.string_type(),
-                    )
+                    )?
                     .unwrap_or_else(|| self.error_type());
                 links.borrow_mut().resolved_jsx_element_attributes_type = Some(ret.clone());
-                return ret;
+                return Ok(ret);
             } else {
                 let ret = self.error_type();
                 links.borrow_mut().resolved_jsx_element_attributes_type = Some(ret.clone());
-                return ret;
+                return Ok(ret);
             }
         }
         let ret = (*links)
@@ -320,39 +327,45 @@ impl TypeChecker {
             .resolved_jsx_element_attributes_type
             .clone()
             .unwrap();
-        ret
+        Ok(ret)
     }
 
-    pub(super) fn get_jsx_element_class_type_at(&self, location: &Node) -> Option<Gc<Type>> {
-        let type_ = self.get_jsx_type(&JsxNames::ElementClass, Some(location));
+    pub(super) fn get_jsx_element_class_type_at(
+        &self,
+        location: &Node,
+    ) -> io::Result<Option<Gc<Type>>> {
+        let type_ = self.get_jsx_type(&JsxNames::ElementClass, Some(location))?;
         if self.is_error_type(&type_) {
-            return None;
+            return Ok(None);
         }
-        Some(type_)
+        Ok(Some(type_))
     }
 
-    pub(super) fn get_jsx_element_type_at(&self, location: &Node) -> Gc<Type> {
+    pub(super) fn get_jsx_element_type_at(&self, location: &Node) -> io::Result<Gc<Type>> {
         self.get_jsx_type(&JsxNames::Element, Some(location))
     }
 
-    pub(super) fn get_jsx_stateless_element_type_at(&self, location: &Node) -> Option<Gc<Type>> {
-        let jsx_element_type = self.get_jsx_element_type_at(location);
+    pub(super) fn get_jsx_stateless_element_type_at(
+        &self,
+        location: &Node,
+    ) -> io::Result<Option<Gc<Type>>> {
+        let jsx_element_type = self.get_jsx_element_type_at(location)?;
         // if (jsxElementType) {
-        Some(self.get_union_type(
+        Ok(Some(self.get_union_type(
             &[jsx_element_type, self.null_type()],
             None,
             Option::<&Symbol>::None,
             None,
             Option::<&Type>::None,
-        ))
+        )?))
         // }
     }
 
     pub fn get_jsx_intrinsic_tag_names_at(
         &self,
         location: &Node,
-    ) -> impl Iterator<Item = Gc<Symbol>> {
-        let intrinsics = self.get_jsx_type(&JsxNames::IntrinsicElements, Some(location));
+    ) -> io::Result<impl Iterator<Item = Gc<Symbol>>> {
+        let intrinsics = self.get_jsx_type(&JsxNames::IntrinsicElements, Some(location))?;
         /*intrinsics ?*/
         self.get_properties_of_type(&intrinsics) /*: emptyArray*/
     }
@@ -376,7 +389,7 @@ impl TypeChecker {
     pub(super) fn check_jsx_opening_like_element_or_opening_fragment(
         &self,
         node: &Node, /*JsxOpeningLikeElement | JsxOpeningFragment*/
-    ) {
+    ) -> io::Result<()> {
         let is_node_opening_like_element = is_jsx_opening_like_element(node);
 
         if is_node_opening_like_element {
@@ -386,7 +399,7 @@ impl TypeChecker {
         self.check_jsx_preconditions(node);
 
         if self
-            .get_jsx_namespace_container_for_implicit_import(Some(node))
+            .get_jsx_namespace_container_for_implicit_import(Some(node))?
             .is_none()
         {
             let jsx_factory_ref_err = if
@@ -413,7 +426,7 @@ impl TypeChecker {
                     Some(&*jsx_factory_namespace),
                     true,
                     None,
-                );
+                )?;
             }
 
             if let Some(jsx_factory_sym) = jsx_factory_sym.as_ref() {
@@ -424,7 +437,7 @@ impl TypeChecker {
                         .get_type_only_alias_declaration(jsx_factory_sym)
                         .is_none()
                 {
-                    self.mark_alias_symbol_as_referenced(jsx_factory_sym);
+                    self.mark_alias_symbol_as_referenced(jsx_factory_sym)?;
                 }
             }
 
@@ -440,21 +453,23 @@ impl TypeChecker {
                         Some(&**local_jsx_namespace),
                         true,
                         None,
-                    );
+                    )?;
                 }
             }
         }
 
         if is_node_opening_like_element {
             let jsx_opening_like_node = node;
-            let sig = self.get_resolved_signature_(jsx_opening_like_node, None, None);
-            self.check_deprecated_signature(sig.clone(), node);
+            let sig = self.get_resolved_signature_(jsx_opening_like_node, None, None)?;
+            self.check_deprecated_signature(sig.clone(), node)?;
             self.check_jsx_return_assignable_to_appropriate_bound(
-                self.get_jsx_reference_kind(jsx_opening_like_node),
-                &self.get_return_type_of_signature(sig.clone()),
+                self.get_jsx_reference_kind(jsx_opening_like_node)?,
+                &*self.get_return_type_of_signature(sig.clone())?,
                 jsx_opening_like_node,
-            );
+            )?;
         }
+
+        Ok(())
     }
 
     pub(super) fn is_known_property(
@@ -462,21 +477,21 @@ impl TypeChecker {
         target_type: &Type,
         name: &str, /*__String*/
         is_comparing_jsx_attributes: bool,
-    ) -> bool {
+    ) -> io::Result<bool> {
         if target_type.flags().intersects(TypeFlags::Object) {
             if self
-                .get_property_of_object_type(target_type, name)
+                .get_property_of_object_type(target_type, name)?
                 .is_some()
                 || self
-                    .get_applicable_index_info_for_name(target_type, name)
+                    .get_applicable_index_info_for_name(target_type, name)?
                     .is_some()
                 || self.is_late_bound_name(name)
                     && self
-                        .get_index_info_of_type_(target_type, &self.string_type())
+                        .get_index_info_of_type_(target_type, &self.string_type())?
                         .is_some()
                 || is_comparing_jsx_attributes && self.is_hyphenated_jsx_name(name)
             {
-                return true;
+                return Ok(true);
             }
         } else if target_type
             .flags()
@@ -487,12 +502,12 @@ impl TypeChecker {
                 .as_union_or_intersection_type_interface()
                 .types()
             {
-                if self.is_known_property(t, name, is_comparing_jsx_attributes) {
-                    return true;
+                if self.is_known_property(t, name, is_comparing_jsx_attributes)? {
+                    return Ok(true);
                 }
             }
         }
-        false
+        Ok(false)
     }
 
     pub(super) fn is_excess_property_check_target(&self, type_: &Type) -> bool {
@@ -516,25 +531,27 @@ impl TypeChecker {
         &self,
         node: &Node, /*JsxExpression*/
         check_mode: Option<CheckMode>,
-    ) -> Gc<Type> {
+    ) -> io::Result<Gc<Type>> {
         self.check_grammar_jsx_expression(node);
         let node_as_jsx_expression = node.as_jsx_expression();
-        if let Some(node_expression) = node_as_jsx_expression.expression.as_ref() {
-            let type_ = self.check_expression(node_expression, check_mode, None);
-            if node_as_jsx_expression.dot_dot_dot_token.is_some()
-                && !Gc::ptr_eq(&type_, &self.any_type())
-                && !self.is_array_type(&type_)
-            {
-                self.error(
-                    Some(node),
-                    &Diagnostics::JSX_spread_child_must_be_an_array_type,
-                    None,
-                );
-            }
-            type_
-        } else {
-            self.error_type()
-        }
+        Ok(
+            if let Some(node_expression) = node_as_jsx_expression.expression.as_ref() {
+                let type_ = self.check_expression(node_expression, check_mode, None)?;
+                if node_as_jsx_expression.dot_dot_dot_token.is_some()
+                    && !Gc::ptr_eq(&type_, &self.any_type())
+                    && !self.is_array_type(&type_)
+                {
+                    self.error(
+                        Some(node),
+                        &Diagnostics::JSX_spread_child_must_be_an_array_type,
+                        None,
+                    );
+                }
+                type_
+            } else {
+                self.error_type()
+            },
+        )
     }
 
     pub(super) fn get_declaration_node_flags_from_symbol(&self, s: &Symbol) -> NodeFlags {
@@ -570,7 +587,7 @@ impl TypeChecker {
         type_: &Type,
         prop: &Symbol,
         report_error: Option<bool>,
-    ) -> bool {
+    ) -> io::Result<bool> {
         let report_error = report_error.unwrap_or(true);
         let error_node = if !report_error {
             None
@@ -591,21 +608,21 @@ impl TypeChecker {
         )
     }
 
-    pub(super) fn check_property_accessibility_at_location<TErrorNode: Borrow<Node>>(
+    pub(super) fn check_property_accessibility_at_location(
         &self,
         location: &Node,
         is_super: bool,
         writing: bool,
         containing_type: &Type,
         prop: &Symbol,
-        error_node: Option<TErrorNode>,
-    ) -> bool {
+        error_node: Option<impl Borrow<Node>>,
+    ) -> io::Result<bool> {
         let flags = get_declaration_modifier_flags_from_symbol(prop, Some(writing));
 
         let error_node = error_node.map(|error_node| error_node.borrow().node_wrapper());
         if is_super {
             if self.language_version < ScriptTarget::ES2015 {
-                if self.symbol_has_non_method_declaration(prop) {
+                if self.symbol_has_non_method_declaration(prop)? {
                     if error_node.is_some() {
                         self.error(
                             error_node.as_deref(),
@@ -613,7 +630,7 @@ impl TypeChecker {
                             None,
                         );
                     }
-                    return false;
+                    return Ok(false);
                 }
             }
             if flags.intersects(ModifierFlags::Abstract) {
@@ -626,28 +643,28 @@ impl TypeChecker {
                                 prop,
                                 Option::<&Node>::None,
                                 None, None, None
-                            ),
+                            )?,
                             self.type_to_string_(
-                                &self.get_declaring_class(prop).unwrap(),
+                                &self.get_declaring_class(prop)?.unwrap(),
                                 Option::<&Node>::None,
                                 None, None,
-                            ),
+                            )?,
                         ])
                     );
                 }
-                return false;
+                return Ok(false);
             }
         }
 
         if flags.intersects(ModifierFlags::Abstract)
-            && self.symbol_has_non_method_declaration(prop)
+            && self.symbol_has_non_method_declaration(prop)?
             && (is_this_property(location)
                 || is_this_initialized_object_binding_expression(Some(location))
                 || is_object_binding_pattern(&location.parent())
                     && is_this_initialized_declaration(location.parent().maybe_parent()))
         {
             let declaring_class_declaration =
-                get_class_like_declaration_of_symbol(&self.get_parent_of_symbol(prop).unwrap());
+                get_class_like_declaration_of_symbol(&self.get_parent_of_symbol(prop)?.unwrap());
             if let Some(declaring_class_declaration) = declaring_class_declaration.as_ref() {
                 if self.is_node_used_during_class_initialization(location) {
                     if error_node.is_some() {
@@ -658,23 +675,23 @@ impl TypeChecker {
                                 self.symbol_to_string_(
                                     prop,
                                     Option::<&Node>::None, None, None, None,
-                                ),
+                                )?,
                                 get_text_of_identifier_or_literal(&declaring_class_declaration.as_named_declaration().name()).into_owned()
                             ])
                         );
                     }
-                    return false;
+                    return Ok(false);
                 }
             }
         }
 
         if !flags.intersects(ModifierFlags::NonPublicAccessibilityModifier) {
-            return true;
+            return Ok(true);
         }
 
         if flags.intersects(ModifierFlags::Private) {
             let declaring_class_declaration =
-                get_class_like_declaration_of_symbol(&self.get_parent_of_symbol(prop).unwrap())
+                get_class_like_declaration_of_symbol(&self.get_parent_of_symbol(prop)?.unwrap())
                     .unwrap();
             if !self.is_node_within_class(location, &declaring_class_declaration) {
                 if error_node.is_some() {
@@ -682,39 +699,41 @@ impl TypeChecker {
                         error_node.as_deref(),
                         &Diagnostics::Property_0_is_private_and_only_accessible_within_class_1,
                         Some(vec![
-                            self.symbol_to_string_(prop, Option::<&Node>::None, None, None, None),
+                            self.symbol_to_string_(prop, Option::<&Node>::None, None, None, None)?,
                             self.type_to_string_(
-                                &self.get_declaring_class(prop).unwrap(),
+                                &self.get_declaring_class(prop)?.unwrap(),
                                 Option::<&Node>::None,
                                 None,
                                 None,
-                            ),
+                            )?,
                         ]),
                     );
                 }
-                return false;
+                return Ok(false);
             }
-            return true;
+            return Ok(true);
         }
 
         if is_super {
-            return true;
+            return Ok(true);
         }
 
         let mut enclosing_class =
-            self.for_each_enclosing_class(location, |enclosing_declaration: &Node| {
+            self.try_for_each_enclosing_class(location, |enclosing_declaration: &Node| {
                 let enclosing_class = self.get_declared_type_of_symbol(
-                    &self.get_symbol_of_node(enclosing_declaration).unwrap(),
-                );
-                if self
-                    .is_class_derived_from_declaring_classes(&enclosing_class, prop, writing)
-                    .is_some()
-                {
-                    Some(enclosing_class)
-                } else {
-                    None
-                }
-            });
+                    &self.get_symbol_of_node(enclosing_declaration)?.unwrap(),
+                )?;
+                Ok(
+                    if self
+                        .is_class_derived_from_declaring_classes(&enclosing_class, prop, writing)?
+                        .is_some()
+                    {
+                        Some(enclosing_class)
+                    } else {
+                        None
+                    },
+                )
+            })?;
         if enclosing_class.is_none() {
             let mut this_parameter: Option<Gc<Node /*ParameterDeclaration*/>> = None;
             if flags.intersects(ModifierFlags::Static) || {
@@ -736,16 +755,16 @@ impl TypeChecker {
                                 prop,
                                 Option::<&Node>::None,
                                 None, None, None,
-                            ),
+                            )?,
                             self.type_to_string_(
-                                &self.get_declaring_class(prop).unwrap_or_else(|| containing_type.type_wrapper()),
+                                &self.get_declaring_class(prop)?.unwrap_or_else(|| containing_type.type_wrapper()),
                                 Option::<&Node>::None,
                                 None, None,
-                            ),
+                            )?,
                         ])
                     );
                 }
-                return false;
+                return Ok(false);
             }
 
             let this_type = self.get_type_from_type_node_(
@@ -755,10 +774,10 @@ impl TypeChecker {
                     .as_parameter_declaration()
                     .maybe_type()
                     .unwrap(),
-            );
+            )?;
             enclosing_class = Some(
                 if this_type.flags().intersects(TypeFlags::TypeParameter) {
-                    self.get_constraint_of_type_parameter(&this_type).unwrap()
+                    self.get_constraint_of_type_parameter(&this_type)?.unwrap()
                 } else {
                     this_type
                 }
@@ -768,7 +787,7 @@ impl TypeChecker {
         }
         let enclosing_class = enclosing_class.unwrap();
         if flags.intersects(ModifierFlags::Static) {
-            return true;
+            return Ok(true);
         }
         let mut containing_type = Some(containing_type.type_wrapper());
         if containing_type
@@ -784,14 +803,16 @@ impl TypeChecker {
                 .is_this_type
                 == Some(true)
             {
-                self.get_constraint_of_type_parameter(containing_type.as_ref().unwrap())
+                self.get_constraint_of_type_parameter(containing_type.as_ref().unwrap())?
             } else {
-                self.get_base_constraint_of_type(containing_type.as_ref().unwrap())
+                self.get_base_constraint_of_type(containing_type.as_ref().unwrap())?
             };
         }
         if match containing_type.as_ref() {
             None => true,
-            Some(containing_type) => !self.has_base_type(containing_type, Some(&*enclosing_class)),
+            Some(containing_type) => {
+                !self.has_base_type(containing_type, Some(&*enclosing_class))?
+            }
         } {
             if error_node.is_some() {
                 self.error(
@@ -802,24 +823,24 @@ impl TypeChecker {
                             prop,
                             Option::<&Node>::None,
                             None, None, None,
-                        ),
+                        )?,
                         self.type_to_string_(
                             &enclosing_class,
                             Option::<&Node>::None,
                             None, None,
-                        ),
+                        )?,
                         self.type_to_string_(
                             // TODO: this looks like type_to_string_() actually should accept an Option<Type>
                             containing_type.as_ref().unwrap(),
                             Option::<&Node>::None,
                             None, None,
-                        ),
+                        )?,
                     ])
                 );
-                return false;
+                return Ok(false);
             }
         }
-        true
+        Ok(true)
     }
 }
 
@@ -837,7 +858,7 @@ impl GenerateInitialErrorChain {
 }
 
 impl CheckTypeContainingMessageChain for GenerateInitialErrorChain {
-    fn get(&self) -> Option<Rc<RefCell<DiagnosticMessageChain>>> {
+    fn get(&self) -> io::Result<Option<Rc<RefCell<DiagnosticMessageChain>>>> {
         let component_name = get_text_of_node(
             &self
                 .opening_like_element
@@ -845,10 +866,10 @@ impl CheckTypeContainingMessageChain for GenerateInitialErrorChain {
                 .tag_name(),
             None,
         );
-        Some(Rc::new(RefCell::new(chain_diagnostic_messages(
+        Ok(Some(Rc::new(RefCell::new(chain_diagnostic_messages(
             None,
             &Diagnostics::_0_cannot_be_used_as_a_JSX_component,
             Some(vec![component_name.into_owned()]),
-        ))))
+        )))))
     }
 }

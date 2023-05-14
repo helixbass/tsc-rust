@@ -1,4 +1,4 @@
-use std::borrow::Borrow;
+use std::{borrow::Borrow, io};
 
 use gc::Gc;
 
@@ -24,6 +24,23 @@ pub fn flatten_destructuring_assignment(
         ) -> Gc<Node /*Expression*/>,
     >,
 ) -> Gc<Node /*Expression*/> {
+    unimplemented!()
+}
+
+pub fn try_flatten_destructuring_assignment(
+    _node: &Node, /*VariableDeclaration | DestructuringAssignment*/
+    _visitor: Option<impl FnMut(&Node) -> io::Result<VisitResult>>,
+    _context: &(impl TransformationContext + ?Sized),
+    _level: FlattenLevel,
+    _needs_value: Option<bool>,
+    _create_assignment_callback: Option<
+        impl FnMut(
+            &Node, /*Identifier*/
+            &Node, /*Expression*/
+            Option<&dyn ReadonlyTextRange>,
+        ) -> io::Result<Gc<Node /*Expression*/>>,
+    >,
+) -> io::Result<Gc<Node /*Expression*/>> {
     unimplemented!()
 }
 

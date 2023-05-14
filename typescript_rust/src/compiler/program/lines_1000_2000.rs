@@ -8,8 +8,8 @@ use std::{
 };
 
 use super::{
-    create_prepend_nodes, filter_semantic_diagnostics, for_each_project_reference_bool,
-    get_module_names, handle_no_emit_options, ToPath,
+    create_prepend_nodes, filter_semantic_diagnostics, get_module_names, handle_no_emit_options,
+    try_for_each_project_reference_bool, ToPath,
 };
 use crate::{
     array_is_equal_to, changes_affect_module_resolution, changes_affecting_program_structure,
@@ -21,10 +21,11 @@ use crate::{
     node_modules_path_part, not_implemented_resolver, out_file, package_id_to_string,
     project_reference_is_equal_to, ref_unwrapped, remove_prefix, remove_suffix, skip_type_checking,
     sort_and_deduplicate_diagnostics, source_file_may_be_emitted, string_contains,
-    to_file_name_lower_case, to_path as to_path_helper, trace, type_directive_is_equal_to,
-    zip_to_mode_aware_cache, AsDoubleDeref, CancellationTokenDebuggable, Comparison, CompilerHost,
-    CompilerOptions, CustomTransformers, Debug_, Diagnostic, Diagnostics, EmitHost, EmitResult,
-    Extension, FileIncludeReason, FileReference, FilesByNameValue, ModuleSpecifierResolutionHost,
+    to_file_name_lower_case, to_path as to_path_helper, trace, try_flat_map,
+    type_directive_is_equal_to, zip_to_mode_aware_cache, AsDoubleDeref,
+    CancellationTokenDebuggable, Comparison, CompilerHost, CompilerOptions, CustomTransformers,
+    Debug_, Diagnostic, Diagnostics, EmitHost, EmitResult, Extension, FileIncludeReason,
+    FileReference, FilesByNameValue, ModuleSpecifierResolutionHost,
     ModuleSpecifierResolutionHostAndGetCommonSourceDirectory, MultiMap, Node, NodeFlags,
     NodeInterface, NonEmpty, Path, Program, ProgramBuildInfo, ProjectReference, ReadFileCallback,
     RedirectTargetsMap, ResolveModuleNameResolutionHost, ResolvedModuleFull,
@@ -39,9 +40,9 @@ impl Program {
         module_names: &[String],
         containing_file: &Node, /*SourceFile*/
         reused_names: Option<&[String]>,
-    ) -> Vec<Option<Gc<ResolvedModuleFull>>> {
+    ) -> io::Result<Vec<Option<Gc<ResolvedModuleFull>>>> {
         if module_names.is_empty() {
-            return vec![];
+            return Ok(vec![]);
         }
         let containing_file_as_source_file = containing_file.as_source_file();
         let containing_file_name = get_normalized_absolute_path(
@@ -57,20 +58,20 @@ impl Program {
             &containing_file_name,
             reused_names,
             redirected_reference.clone(),
-        );
+        )?;
         // performance.mark("afterResolveModule");
         // performance.measure("ResolveModule", "beforeResolveModule", "afterResolveModule");
         // tracing?.pop();
-        result
+        Ok(result)
     }
 
     pub(super) fn resolve_type_reference_directive_names_worker(
         &self,
         type_directive_names: &[String],
         containing_file: impl Into<StringOrRcNode>,
-    ) -> Vec<Option<Gc<ResolvedTypeReferenceDirective>>> {
+    ) -> io::Result<Vec<Option<Gc<ResolvedTypeReferenceDirective>>>> {
         if type_directive_names.is_empty() {
-            return vec![];
+            return Ok(vec![]);
         }
         let containing_file: StringOrRcNode = containing_file.into();
         let containing_file_name = match &containing_file {
@@ -94,11 +95,11 @@ impl Program {
                 type_directive_names,
                 &containing_file_name,
                 redirected_reference.clone(),
-            );
+            )?;
         // performance.mark("afterResolveTypeReference");
         // performance.measure("ResolveTypeReference", "beforeResolveTypeReference", "afterResolveTypeReference");
         // tracing?.pop();
-        result
+        Ok(result)
     }
 
     pub(super) fn get_redirect_reference_for_resolution(
@@ -266,8 +267,8 @@ impl Program {
         &self,
         source_file: Option<&Node /*SourceFile*/>,
         cancellation_token: Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
-    ) -> Vec<Gc<Diagnostic>> {
-        self.get_diagnostics_helper(
+    ) -> io::Result<Vec<Gc<Diagnostic>>> {
+        self.try_get_diagnostics_helper(
             source_file,
             |source_file, cancellation_token| {
                 self.get_semantic_diagnostics_for_file(source_file, cancellation_token)
@@ -284,7 +285,7 @@ impl Program {
         emit_only_dts_files: Option<bool>,
         transformers: Option<&CustomTransformers>,
         force_dts_emit: Option<bool>,
-    ) -> EmitResult {
+    ) -> io::Result<EmitResult> {
         // return super::emit_skipped_with_no_diagnostics();
         // tracing?.push(tracing.Phase.Emit, "emit", { path: sourceFile?.path }, /*separateBeginAndEnd*/ true);
         let result = self.run_with_cancellation_token(|| {
@@ -296,9 +297,9 @@ impl Program {
                 transformers,
                 force_dts_emit,
             )
-        });
+        })?;
         // tracing?.pop();
-        result
+        Ok(result)
     }
 
     pub(super) fn is_emit_blocked(&self, emit_file_name: &str) -> bool {
@@ -314,21 +315,21 @@ impl Program {
         emit_only_dts_files: Option<bool>,
         custom_transformers: Option<&CustomTransformers>,
         force_dts_emit: Option<bool>,
-    ) -> EmitResult {
+    ) -> io::Result<EmitResult> {
         if force_dts_emit != Some(true) {
             let result = handle_no_emit_options(
                 self.rc_wrapper(),
                 source_file,
                 write_file_callback.clone(),
                 cancellation_token.clone(),
-            );
+            )?;
             if let Some(result) = result {
-                return result;
+                return Ok(result);
             }
         }
 
         let emit_resolver = self
-            .get_diagnostics_producing_type_checker()
+            .get_diagnostics_producing_type_checker()?
             .get_emit_resolver(
                 if matches!(
                     out_file(&self.options),
@@ -339,7 +340,7 @@ impl Program {
                     source_file
                 },
                 cancellation_token,
-            );
+            )?;
 
         // performance.mark("beforeEmit");
 
@@ -351,11 +352,11 @@ impl Program {
             emit_only_dts_files,
             Some(false),
             force_dts_emit,
-        );
+        )?;
 
         // performance.mark("afterEmit");
         // performance.measure("Emit", "beforeEmit", "afterEmit");
-        emit_result
+        Ok(emit_result)
     }
 
     pub fn get_current_directory(&self) -> String {
@@ -407,7 +408,7 @@ impl Program {
         &self,
         module_names: &[String],
         file: &Node, /*SourceFile*/
-    ) -> Vec<Option<Gc<ResolvedModuleFull>>> {
+    ) -> io::Result<Vec<Option<Gc<ResolvedModuleFull>>>> {
         let file_as_source_file = file.as_source_file();
         if self.structure_is_reused() == StructureIsReused::Not
             && file_as_source_file
@@ -445,7 +446,7 @@ impl Program {
                     i += 1;
                     result.push(resolved_module);
                 }
-                return result;
+                return Ok(result);
             }
         }
         let mut unknown_module_names: Option<Vec<String>> = None;
@@ -554,14 +555,14 @@ impl Program {
             .as_ref()
             .filter(|unknown_module_names| !unknown_module_names.is_empty())
         {
-            self.resolve_module_names_worker(unknown_module_names, file, reused_names.as_deref())
+            self.resolve_module_names_worker(unknown_module_names, file, reused_names.as_deref())?
         } else {
             vec![]
         };
 
         if result.is_none() {
             Debug_.assert(resolutions.len() == module_names.len(), None);
-            return resolutions;
+            return Ok(resolutions);
         }
         let result = result.unwrap();
 
@@ -579,7 +580,7 @@ impl Program {
         }).collect::<Vec<_>>();
         Debug_.assert(j == resolutions.len(), None);
 
-        result
+        Ok(result)
     }
 
     pub(super) fn module_name_resolves_to_ambient_module_in_non_modified_file(
@@ -651,8 +652,8 @@ impl Program {
         true
     }
 
-    pub fn can_reuse_project_references(&self) -> bool {
-        !for_each_project_reference_bool(
+    pub fn can_reuse_project_references(&self) -> io::Result<bool> {
+        Ok(!try_for_each_project_reference_bool(
             self.maybe_old_program()
                 .as_ref()
                 .unwrap()
@@ -673,8 +674,8 @@ impl Program {
                     .unwrap_or_else(|| {
                         self.maybe_project_references().as_ref().unwrap()[index].clone()
                     });
-                let new_resolved_ref = self.parse_project_reference_config_file(&new_ref);
-                if let Some(old_resolved_ref) = old_resolved_ref {
+                let new_resolved_ref = self.parse_project_reference_config_file(&new_ref)?;
+                io::Result::Ok(if let Some(old_resolved_ref) = old_resolved_ref {
                     match new_resolved_ref {
                         None => true,
                         Some(new_resolved_ref) => {
@@ -687,7 +688,7 @@ impl Program {
                     }
                 } else {
                     new_resolved_ref.is_some()
-                }
+                })
             },
             Some(
                 |old_project_references: Option<&[Rc<ProjectReference>]>,
@@ -703,37 +704,37 @@ impl Program {
                     } else {
                         self.maybe_project_references().clone()
                     };
-                    !array_is_equal_to(
+                    Ok(!array_is_equal_to(
                         old_project_references,
                         new_references.as_deref(),
                         |a: &Rc<ProjectReference>, b: &Rc<ProjectReference>, _| {
                             project_reference_is_equal_to(a, b)
                         },
-                    )
+                    ))
                 },
             ),
-        )
+        )?)
     }
 
-    pub fn try_reuse_structure_from_old_program(&self) -> StructureIsReused {
+    pub fn try_reuse_structure_from_old_program(&self) -> io::Result<StructureIsReused> {
         let old_program = self.maybe_old_program();
         if old_program.is_none() {
-            return StructureIsReused::Not;
+            return Ok(StructureIsReused::Not);
         }
         let old_program = old_program.unwrap();
 
         let old_options = old_program.get_compiler_options();
         if changes_affect_module_resolution(&old_options, &self.options) {
-            return StructureIsReused::Not;
+            return Ok(StructureIsReused::Not);
         }
 
         let old_root_names = old_program.get_root_file_names();
         if &*old_root_names != &*self.root_names() {
-            return StructureIsReused::Not;
+            return Ok(StructureIsReused::Not);
         }
 
-        if !self.can_reuse_project_references() {
-            return StructureIsReused::Not;
+        if !self.can_reuse_project_references()? {
+            return Ok(StructureIsReused::Not);
         }
         if let Some(project_references) = self.maybe_project_references().as_ref() {
             *self.resolved_project_references.borrow_mut() = Some(
@@ -742,7 +743,7 @@ impl Program {
                     .map(|project_reference| {
                         self.parse_project_reference_config_file(project_reference)
                     })
-                    .collect(),
+                    .collect::<Result<Vec<_>, _>>()?,
             );
         }
 
@@ -759,7 +760,7 @@ impl Program {
             .iter()
             .any(|missing_file_path| self.host().file_exists(missing_file_path))
         {
-            return StructureIsReused::Not;
+            return Ok(StructureIsReused::Not);
         }
 
         let old_source_files = old_program.get_source_files();
@@ -789,11 +790,11 @@ impl Program {
                     get_emit_script_target(&self.options),
                     None,
                     Some(self.should_create_new_source_file()),
-                )
+                )?
             };
 
             if new_source_file.is_none() {
-                return StructureIsReused::Not;
+                return Ok(StructureIsReused::Not);
             }
             let mut new_source_file = new_source_file.unwrap();
             let mut new_source_file_as_source_file = new_source_file.as_source_file();
@@ -814,7 +815,7 @@ impl Program {
                     &new_source_file,
                     &old_source_file_redirect_info.unredirected,
                 ) {
-                    return StructureIsReused::Not;
+                    return Ok(StructureIsReused::Not);
                 }
                 file_changed = false;
                 new_source_file = old_source_file.clone();
@@ -824,7 +825,7 @@ impl Program {
                 .contains_key(&*old_source_file_as_source_file.path())
             {
                 if !Gc::ptr_eq(&new_source_file, old_source_file) {
-                    return StructureIsReused::Not;
+                    return Ok(StructureIsReused::Not);
                 }
                 file_changed = false;
             } else {
@@ -869,7 +870,7 @@ impl Program {
                 if prev_kind.is_some() && new_kind == SeenPackageName::Modified
                     || prev_kind == Some(SeenPackageName::Modified)
                 {
-                    return StructureIsReused::Not;
+                    return Ok(StructureIsReused::Not);
                 }
                 seen_package_names.insert(package_name.clone(), new_kind);
             }
@@ -984,7 +985,7 @@ impl Program {
         }
 
         if self.structure_is_reused() != StructureIsReused::Completely {
-            return self.structure_is_reused();
+            return Ok(self.structure_is_reused());
         }
 
         let modified_files = modified_source_files
@@ -1014,7 +1015,7 @@ impl Program {
         {
             let module_names = get_module_names(&new_source_file);
             let resolutions =
-                self.resolve_module_names_reusing_old_state(&module_names, &new_source_file);
+                self.resolve_module_names_reusing_old_state(&module_names, &new_source_file)?;
             let old_source_file_as_source_file = old_source_file.as_source_file();
             let new_source_file_as_source_file = new_source_file.as_source_file();
             let resolutions_changed = has_changes_in_resolutions(
@@ -1048,7 +1049,7 @@ impl Program {
             let type_reference_resolutions = self.resolve_type_reference_directive_names_worker(
                 &types_reference_directives,
                 new_source_file.clone(),
-            );
+            )?;
             let type_reference_resolutions_changed = has_changes_in_resolutions(
                 &types_reference_directives,
                 &type_reference_resolutions,
@@ -1078,13 +1079,13 @@ impl Program {
         }
 
         if self.structure_is_reused() != StructureIsReused::Completely {
-            return self.structure_is_reused();
+            return Ok(self.structure_is_reused());
         }
 
         if changes_affecting_program_structure(&old_options, &self.options)
             || self.host().has_changed_automatic_type_directive_names() == Some(true)
         {
-            return StructureIsReused::SafeModules;
+            return Ok(StructureIsReused::SafeModules);
         }
 
         *self.maybe_missing_file_paths() = Some(old_program.get_missing_file_paths().clone());
@@ -1139,7 +1140,7 @@ impl Program {
         self.set_redirect_targets_map(old_program.redirect_targets_map());
         self.set_uses_uri_style_node_core_modules(old_program.uses_uri_style_node_core_modules());
 
-        StructureIsReused::Completely
+        Ok(StructureIsReused::Completely)
     }
 
     pub(super) fn get_emit_host(
@@ -1156,7 +1157,7 @@ impl Program {
         &self,
         write_file_callback: Option<Gc<Box<dyn WriteFileCallback>>>,
         _cancellation_token: Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
-    ) -> EmitResult {
+    ) -> io::Result<EmitResult> {
         Debug_.assert(out_file(&self.options).non_empty().is_none(), None);
         // tracing?.push(tracing.Phase.Emit, "emitBuildInfo", {}, /*separateBeginAndEnd*/ true);
         // performance.mark("beforeEmit");
@@ -1168,12 +1169,12 @@ impl Program {
             Some(false),
             Some(true),
             None,
-        );
+        )?;
 
         // performance.mark("afterEmit");
         // performance.measure("Emit", "beforeEmit", "afterEmit");
         // tracing?.pop();
-        emit_result
+        Ok(emit_result)
     }
 
     pub fn get_resolved_project_references(
@@ -1217,7 +1218,7 @@ impl Program {
         unimplemented!()
     }
 
-    pub(super) fn get_diagnostics_producing_type_checker(&self) -> Gc<TypeChecker> {
+    pub(super) fn get_diagnostics_producing_type_checker(&self) -> io::Result<Gc<TypeChecker>> {
         // self.diagnostics_producing_type_checker
         //     .get_or_insert_with(|| create_type_checker(self, true))
 
@@ -1233,9 +1234,9 @@ impl Program {
             *diagnostics_producing_type_checker = Some(create_type_checker(
                 self.as_dyn_type_checker_host_debuggable(),
                 true,
-            ));
+            )?);
         }
-        diagnostics_producing_type_checker.as_ref().unwrap().clone()
+        Ok(diagnostics_producing_type_checker.as_ref().unwrap().clone())
     }
 
     pub(super) fn get_diagnostics_helper(
@@ -1247,22 +1248,36 @@ impl Program {
         ) -> Vec<Gc<Diagnostic>>,
         cancellation_token: Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
     ) -> Vec<Gc<Diagnostic>> {
+        self.try_get_diagnostics_helper(
+            source_file,
+            |a, b| Ok(get_diagnostics(a, b)),
+            cancellation_token,
+        )
+        .unwrap()
+    }
+
+    pub(super) fn try_get_diagnostics_helper(
+        &self,
+        source_file: Option<&Node /*SourceFile*/>,
+        mut get_diagnostics: impl FnMut(
+            &Node, /*SourceFile*/
+            Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
+        ) -> io::Result<Vec<Gc<Diagnostic>>>,
+        cancellation_token: Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
+    ) -> io::Result<Vec<Gc<Diagnostic>>> {
         if let Some(source_file) = source_file {
             return get_diagnostics(source_file, cancellation_token);
         }
-        sort_and_deduplicate_diagnostics(
-            &self
-                .get_source_files()
-                .iter()
-                .flat_map(|source_file| {
-                    // if (cancellationToken) {
-                    //     cancellationToken.throwIfCancellationRequested();
-                    // }
-                    get_diagnostics(source_file, cancellation_token.clone())
-                })
-                .collect::<Vec<_>>(),
-        )
-        .into()
+        Ok(sort_and_deduplicate_diagnostics(&try_flat_map(
+            Some(&*self.get_source_files()),
+            |source_file: &Gc<Node>, _| {
+                // if (cancellationToken) {
+                //     cancellationToken.throwIfCancellationRequested();
+                // }
+                get_diagnostics(source_file, cancellation_token.clone())
+            },
+        )?)
+        .into())
     }
 
     pub(super) fn get_program_diagnostics(
@@ -1301,19 +1316,21 @@ impl Program {
         &self,
         source_file: Option<&Node /*SourceFile*/>,
         cancellation_token: Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
-    ) -> Vec<Gc<Diagnostic /*DiagnosticWithLocation*/>> {
+    ) -> io::Result<Vec<Gc<Diagnostic /*DiagnosticWithLocation*/>>> {
         let ref options = self.get_compiler_options();
-        if source_file.is_none() || out_file(options).is_non_empty() {
-            self.get_declaration_diagnostics_worker(source_file, cancellation_token)
-        } else {
-            self.get_diagnostics_helper(
-                source_file,
-                |source_file, cancellation_token| {
-                    self.get_declaration_diagnostics_for_file(source_file, cancellation_token)
-                },
-                cancellation_token,
-            )
-        }
+        Ok(
+            if source_file.is_none() || out_file(options).is_non_empty() {
+                self.get_declaration_diagnostics_worker(source_file, cancellation_token)?
+            } else {
+                self.try_get_diagnostics_helper(
+                    source_file,
+                    |source_file, cancellation_token| {
+                        self.get_declaration_diagnostics_for_file(source_file, cancellation_token)
+                    },
+                    cancellation_token,
+                )?
+            },
+        )
     }
 
     pub(super) fn run_with_cancellation_token<TReturn>(
@@ -1353,14 +1370,14 @@ impl Program {
         &self,
         source_file: &Node, /*SourceFile*/
         cancellation_token: Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
-    ) -> Vec<Gc<Diagnostic>> {
-        concatenate(
+    ) -> io::Result<Vec<Gc<Diagnostic>>> {
+        Ok(concatenate(
             filter_semantic_diagnostics(
-                self.get_bind_and_check_diagnostics_for_file(source_file, cancellation_token),
+                self.get_bind_and_check_diagnostics_for_file(source_file, cancellation_token)?,
                 &self.options,
             ),
             self.get_program_diagnostics(source_file),
-        )
+        ))
     }
 }
 
@@ -1431,7 +1448,7 @@ impl EmitHost for ProgramEmitHost {
         write_byte_order_mark: bool,
         on_error: Option<&mut dyn FnMut(&str)>,
         source_files: Option<&[Gc<Node /*SourceFile*/>]>,
-    ) {
+    ) -> io::Result<()> {
         if let Some(write_file_callback) = self.write_file_callback.clone() {
             write_file_callback.call(
                 file_name,
@@ -1439,7 +1456,7 @@ impl EmitHost for ProgramEmitHost {
                 write_byte_order_mark,
                 on_error,
                 source_files,
-            )
+            )?;
         } else {
             self.program.host().write_file(
                 file_name,
@@ -1447,8 +1464,9 @@ impl EmitHost for ProgramEmitHost {
                 write_byte_order_mark,
                 on_error,
                 source_files,
-            )
+            )?;
         }
+        Ok(())
     }
 
     fn is_emit_blocked(&self, emit_file_name: &str) -> bool {
@@ -1469,7 +1487,7 @@ impl EmitHost for ProgramEmitHost {
         &self,
         file: &Node, /*SourceFile | UnparsedSource*/
         ref_: &FileReference,
-    ) -> Option<Gc<Node /*SourceFile*/>> {
+    ) -> io::Result<Option<Gc<Node /*SourceFile*/>>> {
         self.program.get_source_file_from_reference(file, ref_)
     }
 
@@ -1628,7 +1646,7 @@ impl WriteFileCallback for EmitHostWriteFileCallback {
         write_byte_order_mark: bool,
         on_error: Option<&mut dyn FnMut(&str)>,
         source_files: Option<&[Gc<Node /*SourceFile*/>]>,
-    ) {
+    ) -> io::Result<()> {
         self.host.write_file(
             file_name,
             data,

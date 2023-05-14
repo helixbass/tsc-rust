@@ -1,10 +1,11 @@
 use gc::Gc;
-use std::borrow::Borrow;
 use std::cell::RefCell;
 use std::ptr;
 use std::rc::Rc;
+use std::{borrow::Borrow, io};
 
 use super::ResolveCallContainingMessageChain;
+use crate::try_for_each;
 use crate::{
     chain_diagnostic_messages, entity_name_to_string, for_each, get_declaration_of_kind,
     get_effective_return_type_node, get_effective_type_annotation_node,
@@ -14,7 +15,7 @@ use crate::{
     is_binding_pattern, is_entity_name, is_identifier, is_jsdoc_construct_signature,
     is_jsdoc_parameter_tag, is_qualified_name, is_rest_parameter, node_can_be_decorated, Debug_,
     DiagnosticMessageChain, Diagnostics, ExternalEmitHelpers, HasTypeInterface,
-    NamedDeclarationInterface, Node, NodeInterface, ScriptTarget, Symbol, SymbolFlags,
+    NamedDeclarationInterface, Node, NodeInterface, OptionTry, ScriptTarget, Symbol, SymbolFlags,
     SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
 };
 
@@ -23,14 +24,14 @@ impl TypeChecker {
         &self,
         node: &Node,             /*FunctionLikeDeclaration | MethodSignature*/
         return_type_node: &Node, /*TypeNode*/
-    ) {
-        let return_type = self.get_type_from_type_node_(return_type_node);
+    ) -> io::Result<()> {
+        let return_type = self.get_type_from_type_node_(return_type_node)?;
 
         if self.language_version >= ScriptTarget::ES2015 {
             if self.is_error_type(&return_type) {
-                return;
+                return Ok(());
             }
-            let global_promise_type = self.get_global_promise_type(true);
+            let global_promise_type = self.get_global_promise_type(true)?;
             if !Gc::ptr_eq(&global_promise_type, &self.empty_generic_type())
                 && !self.is_reference_to_type(&return_type, &global_promise_type)
             {
@@ -43,19 +44,19 @@ impl TypeChecker {
                                 &return_type,
                                 Option::<&Node>::None,
                                 None, None,
-                            ).unwrap_or_else(|| self.void_type()),
+                            )?.unwrap_or_else(|| self.void_type()),
                             Option::<&Node>::None,
                             None, None,
-                        )
+                        )?
                     ])
                 );
-                return;
+                return Ok(());
             }
         } else {
-            self.mark_type_node_as_referenced(return_type_node);
+            self.mark_type_node_as_referenced(return_type_node)?;
 
             if self.is_error_type(&return_type) {
-                return;
+                return Ok(());
             }
 
             let promise_constructor_name = get_entity_name_from_type_node(return_type_node);
@@ -68,10 +69,10 @@ impl TypeChecker {
                             &return_type,
                             Option::<&Node>::None,
                             None, None
-                        )
+                        )?
                     ])
                 );
-                return;
+                return Ok(());
             }
             let promise_constructor_name = promise_constructor_name.unwrap();
 
@@ -81,10 +82,10 @@ impl TypeChecker {
                 Some(true),
                 None,
                 Option::<&Node>::None,
-            );
+            )?;
             let promise_constructor_type =
                 if let Some(promise_constructor_symbol) = promise_constructor_symbol.as_ref() {
-                    self.get_type_of_symbol(promise_constructor_symbol)
+                    self.get_type_of_symbol(promise_constructor_symbol)?
                 } else {
                     self.error_type()
                 };
@@ -93,7 +94,7 @@ impl TypeChecker {
                     && promise_constructor_name.as_identifier().escaped_text == "Promise"
                     && Gc::ptr_eq(
                         &self.get_target_type(&return_type),
-                        &self.get_global_promise_type(false),
+                        &self.get_global_promise_type(false)?,
                     )
                 {
                     self.error(
@@ -110,11 +111,11 @@ impl TypeChecker {
                         ])
                     );
                 }
-                return;
+                return Ok(());
             }
 
             let global_promise_constructor_like_type =
-                self.get_global_promise_constructor_like_type(true);
+                self.get_global_promise_constructor_like_type(true)?;
             if Gc::ptr_eq(
                 &global_promise_constructor_like_type,
                 &self.empty_object_type(),
@@ -126,7 +127,7 @@ impl TypeChecker {
                         entity_name_to_string(&promise_constructor_name).into_owned()
                     ])
                 );
-                return;
+                return Ok(());
             }
 
             if !self.check_type_assignable_to(
@@ -135,8 +136,8 @@ impl TypeChecker {
                 Some(return_type_node),
                 Some(&Diagnostics::Type_0_is_not_a_valid_async_function_return_type_in_ES5_SlashES3_because_it_does_not_refer_to_a_Promise_compatible_constructor_value),
                 None, None,
-            ) {
-                return;
+            )? {
+                return Ok(());
             }
 
             let root_name = /*promiseConstructorName &&*/ get_first_identifier(&promise_constructor_name);
@@ -144,7 +145,7 @@ impl TypeChecker {
                 &(*node.locals()).borrow(),
                 &root_name.as_identifier().escaped_text,
                 SymbolFlags::Value,
-            );
+            )?;
             if let Some(colliding_symbol) = colliding_symbol.as_ref() {
                 self.error(
                     colliding_symbol.maybe_value_declaration(),
@@ -154,7 +155,7 @@ impl TypeChecker {
                         entity_name_to_string(&promise_constructor_name).into_owned(),
                     ])
                 );
-                return;
+                return Ok(());
             }
         }
         self.check_awaited_type(
@@ -163,15 +164,17 @@ impl TypeChecker {
             node,
             &Diagnostics::The_return_type_of_an_async_function_must_either_be_a_valid_promise_or_must_not_contain_a_callable_then_member,
             None,
-        );
+        )?;
+
+        Ok(())
     }
 
-    pub(super) fn check_decorator(&self, node: &Node /*Decorator*/) {
-        let signature = self.get_resolved_signature_(node, None, None);
-        self.check_deprecated_signature(signature.clone(), node);
-        let return_type = self.get_return_type_of_signature(signature.clone());
+    pub(super) fn check_decorator(&self, node: &Node /*Decorator*/) -> io::Result<()> {
+        let signature = self.get_resolved_signature_(node, None, None)?;
+        self.check_deprecated_signature(signature.clone(), node)?;
+        let return_type = self.get_return_type_of_signature(signature.clone())?;
         if return_type.flags().intersects(TypeFlags::Any) {
-            return;
+            return Ok(());
         }
 
         let expected_return_type: Gc<Type>;
@@ -179,15 +182,15 @@ impl TypeChecker {
         let mut error_info: Option<Rc<RefCell<DiagnosticMessageChain>>> = None;
         match node.parent().kind() {
             SyntaxKind::ClassDeclaration => {
-                let class_symbol = self.get_symbol_of_node(&node.parent()).unwrap();
-                let class_constructor_type = self.get_type_of_symbol(&class_symbol);
+                let class_symbol = self.get_symbol_of_node(&node.parent())?.unwrap();
+                let class_constructor_type = self.get_type_of_symbol(&class_symbol)?;
                 expected_return_type = self.get_union_type(
                     &[class_constructor_type, self.void_type()],
                     None,
                     Option::<&Symbol>::None,
                     None,
                     Option::<&Type>::None,
-                );
+                )?;
             }
 
             SyntaxKind::Parameter => {
@@ -213,15 +216,15 @@ impl TypeChecker {
             }
 
             SyntaxKind::MethodDeclaration | SyntaxKind::GetAccessor | SyntaxKind::SetAccessor => {
-                let method_type = self.get_type_of_node(&node.parent());
-                let descriptor_type = self.create_typed_property_descriptor_type(&method_type);
+                let method_type = self.get_type_of_node(&node.parent())?;
+                let descriptor_type = self.create_typed_property_descriptor_type(&method_type)?;
                 expected_return_type = self.get_union_type(
                     &[descriptor_type, self.void_type()],
                     None,
                     Option::<&Symbol>::None,
                     None,
                     Option::<&Type>::None,
-                );
+                )?;
             }
 
             _ => Debug_.fail(None),
@@ -236,21 +239,28 @@ impl TypeChecker {
                 error_info,
             )))),
             None,
-        );
+        )?;
+
+        Ok(())
     }
 
-    pub(super) fn mark_type_node_as_referenced(&self, node: &Node /*TypeNode*/) {
+    pub(super) fn mark_type_node_as_referenced(
+        &self,
+        node: &Node, /*TypeNode*/
+    ) -> io::Result<()> {
         self.mark_entity_name_or_entity_expression_as_reference(
             /*node &&*/ get_entity_name_from_type_node(node),
-        );
+        )?;
+
+        Ok(())
     }
 
-    pub(super) fn mark_entity_name_or_entity_expression_as_reference<TTypeName: Borrow<Node>>(
+    pub(super) fn mark_entity_name_or_entity_expression_as_reference(
         &self,
-        type_name: Option<TTypeName /*EntityNameOrEntityNameExpression*/>,
-    ) {
+        type_name: Option<impl Borrow<Node> /*EntityNameOrEntityNameExpression*/>,
+    ) -> io::Result<()> {
         if type_name.is_none() {
-            return;
+            return Ok(());
         }
         let type_name = type_name.unwrap();
         let type_name = type_name.borrow();
@@ -269,28 +279,38 @@ impl TypeChecker {
             Option::<Gc<Node>>::None,
             true,
             None,
-        );
-        if let Some(root_symbol) = root_symbol.as_ref().filter(|root_symbol| {
-            root_symbol.flags().intersects(SymbolFlags::Alias)
-                && self.symbol_is_value(root_symbol)
-                && !self.is_const_enum_or_const_enum_only_module(&self.resolve_alias(root_symbol))
-                && self.get_type_only_alias_declaration(root_symbol).is_none()
-        }) {
-            self.mark_alias_symbol_as_referenced(root_symbol);
+        )?;
+        if let Some(root_symbol) =
+            root_symbol
+                .as_ref()
+                .try_filter(|root_symbol| -> io::Result<_> {
+                    Ok(root_symbol.flags().intersects(SymbolFlags::Alias)
+                        && self.symbol_is_value(root_symbol)?
+                        && !self.is_const_enum_or_const_enum_only_module(
+                            &*self.resolve_alias(root_symbol)?,
+                        )
+                        && self.get_type_only_alias_declaration(root_symbol).is_none())
+                })?
+        {
+            self.mark_alias_symbol_as_referenced(root_symbol)?;
         }
+
+        Ok(())
     }
 
-    pub(super) fn mark_decorator_medata_data_type_node_as_referenced<TNode: Borrow<Node>>(
+    pub(super) fn mark_decorator_medata_data_type_node_as_referenced(
         &self,
-        node: Option<TNode /*TypeNode*/>,
-    ) {
+        node: Option<impl Borrow<Node> /*TypeNode*/>,
+    ) -> io::Result<()> {
         let entity_name = self.get_entity_name_for_decorator_metadata(node);
         if let Some(entity_name) = entity_name
             .as_ref()
             .filter(|entity_name| is_entity_name(entity_name))
         {
-            self.mark_entity_name_or_entity_expression_as_reference(Some(&**entity_name));
+            self.mark_entity_name_or_entity_expression_as_reference(Some(&**entity_name))?;
         }
+
+        Ok(())
     }
 
     pub(super) fn get_entity_name_for_decorator_metadata<TNode: Borrow<Node>>(
@@ -375,15 +395,15 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn check_decorators(&self, node: &Node) {
+    pub(super) fn check_decorators(&self, node: &Node) -> io::Result<()> {
         let node_decorators = node.maybe_decorators();
         if node_decorators.is_none() {
-            return;
+            return Ok(());
         }
         let node_decorators = node_decorators.as_ref().unwrap();
 
         if !node_can_be_decorated(node, Some(node.parent()), node.parent().maybe_parent()) {
-            return;
+            return Ok(());
         }
 
         if self.compiler_options.experimental_decorators != Some(true) {
@@ -395,13 +415,13 @@ impl TypeChecker {
         }
 
         let first_decorator = &node_decorators[0];
-        self.check_external_emit_helpers(first_decorator, ExternalEmitHelpers::Decorate);
+        self.check_external_emit_helpers(first_decorator, ExternalEmitHelpers::Decorate)?;
         if node.kind() == SyntaxKind::Parameter {
-            self.check_external_emit_helpers(first_decorator, ExternalEmitHelpers::Param);
+            self.check_external_emit_helpers(first_decorator, ExternalEmitHelpers::Param)?;
         }
 
         if self.compiler_options.emit_decorator_metadata == Some(true) {
-            self.check_external_emit_helpers(first_decorator, ExternalEmitHelpers::Metadata);
+            self.check_external_emit_helpers(first_decorator, ExternalEmitHelpers::Metadata)?;
 
             match node.kind() {
                 SyntaxKind::ClassDeclaration => {
@@ -410,7 +430,7 @@ impl TypeChecker {
                         for parameter in &constructor.as_signature_declaration().parameters() {
                             self.mark_decorator_medata_data_type_node_as_referenced(
                                 self.get_parameter_type_node_for_decorator_check(parameter),
-                            );
+                            )?;
                         }
                     }
                 }
@@ -422,7 +442,7 @@ impl TypeChecker {
                         SyntaxKind::GetAccessor
                     };
                     let other_accessor = get_declaration_of_kind(
-                        &self.get_symbol_of_node(node).unwrap(),
+                        &self.get_symbol_of_node(node)?.unwrap(),
                         other_kind,
                     );
                     self.mark_decorator_medata_data_type_node_as_referenced(
@@ -432,62 +452,72 @@ impl TypeChecker {
                                     self.get_annotated_accessor_type_node(Some(&**other_accessor))
                                 })
                             }),
-                    );
+                    )?;
                 }
                 SyntaxKind::MethodDeclaration => {
                     for parameter in &node.as_function_like_declaration().parameters() {
                         self.mark_decorator_medata_data_type_node_as_referenced(
                             self.get_parameter_type_node_for_decorator_check(parameter),
-                        );
+                        )?;
                     }
 
                     self.mark_decorator_medata_data_type_node_as_referenced(
                         get_effective_return_type_node(node),
-                    );
+                    )?;
                 }
 
                 SyntaxKind::PropertyDeclaration => {
                     self.mark_decorator_medata_data_type_node_as_referenced(
                         get_effective_type_annotation_node(node),
-                    );
+                    )?;
                 }
 
                 SyntaxKind::Parameter => {
                     self.mark_decorator_medata_data_type_node_as_referenced(
                         self.get_parameter_type_node_for_decorator_check(node),
-                    );
+                    )?;
                     let containing_signature = node.parent();
                     for parameter in &containing_signature.as_signature_declaration().parameters() {
                         self.mark_decorator_medata_data_type_node_as_referenced(
                             self.get_parameter_type_node_for_decorator_check(parameter),
-                        );
+                        )?;
                     }
                 }
                 _ => (),
             }
         }
 
-        for_each(node_decorators, |decorator: &Gc<Node>, _| -> Option<()> {
-            self.check_decorator(decorator);
-            None
-        });
+        try_for_each(
+            node_decorators,
+            |decorator: &Gc<Node>, _| -> io::Result<Option<()>> {
+                self.check_decorator(decorator)?;
+                Ok(None)
+            },
+        )?;
+
+        Ok(())
     }
 
-    pub(super) fn check_function_declaration(&self, node: &Node /*FunctionDeclaration*/) {
+    pub(super) fn check_function_declaration(
+        &self,
+        node: &Node, /*FunctionDeclaration*/
+    ) -> io::Result<()> {
         if self.produce_diagnostics {
-            self.check_function_or_method_declaration(node);
+            self.check_function_or_method_declaration(node)?;
             self.check_grammar_for_generator(node);
             self.check_collisions_for_declaration_name(
                 node,
                 node.as_function_declaration().maybe_name(),
             );
         }
+
+        Ok(())
     }
 
     pub(super) fn check_jsdoc_type_alias_tag(
         &self,
         node: &Node, /*JSDocTypedefTag | JSDocCallbackTag*/
-    ) {
+    ) -> io::Result<()> {
         let node_as_jsdoc_type_like_tag = node.as_jsdoc_type_like_tag();
         let node_as_named_declaration = node.maybe_as_named_declaration();
         let node_name = node_as_named_declaration
@@ -507,25 +537,37 @@ impl TypeChecker {
         if let Some(node_name) = node_name.as_ref() {
             self.check_type_name_is_reserved(node_name, &Diagnostics::Type_alias_name_cannot_be_0);
         }
-        self.check_source_element(node_as_jsdoc_type_like_tag.maybe_type_expression());
-        self.check_type_parameters(Some(&get_effective_type_parameter_declarations(node)));
+        self.check_source_element(node_as_jsdoc_type_like_tag.maybe_type_expression())?;
+        self.check_type_parameters(Some(&get_effective_type_parameter_declarations(node)))?;
+
+        Ok(())
     }
 
-    pub(super) fn check_jsdoc_template_tag(&self, node: &Node /*JSDocTemplateTag*/) {
+    pub(super) fn check_jsdoc_template_tag(
+        &self,
+        node: &Node, /*JSDocTemplateTag*/
+    ) -> io::Result<()> {
         let node_as_jsdoc_template_tag = node.as_jsdoc_template_tag();
-        self.check_source_element(node_as_jsdoc_template_tag.constraint.as_deref());
+        self.check_source_element(node_as_jsdoc_template_tag.constraint.as_deref())?;
         for tp in &node_as_jsdoc_template_tag.type_parameters {
-            self.check_source_element(Some(&**tp));
+            self.check_source_element(Some(&**tp))?;
         }
+
+        Ok(())
     }
 
-    pub(super) fn check_jsdoc_type_tag(&self, node: &Node /*JSDocTypeTag*/) {
-        self.check_source_element(node.as_jsdoc_type_like_tag().maybe_type_expression());
+    pub(super) fn check_jsdoc_type_tag(&self, node: &Node /*JSDocTypeTag*/) -> io::Result<()> {
+        self.check_source_element(node.as_jsdoc_type_like_tag().maybe_type_expression())?;
+
+        Ok(())
     }
 
-    pub(super) fn check_jsdoc_parameter_tag(&self, node: &Node /*JSDocParameterTag*/) {
+    pub(super) fn check_jsdoc_parameter_tag(
+        &self,
+        node: &Node, /*JSDocParameterTag*/
+    ) -> io::Result<()> {
         let node_as_jsdoc_property_like_tag = node.as_jsdoc_property_like_tag();
-        self.check_source_element(node_as_jsdoc_property_like_tag.type_expression.as_deref());
+        self.check_source_element(node_as_jsdoc_property_like_tag.type_expression.as_deref())?;
         if get_parameter_symbol_from_jsdoc(node).is_none() {
             let decl = get_host_signature_from_jsdoc(node);
             if let Some(decl) = decl.as_ref() {
@@ -539,9 +581,9 @@ impl TypeChecker {
                         i < decl_parameters.len() && is_binding_pattern(decl_parameters[i].as_parameter_declaration().maybe_name())
                     }
                 ) {
-                    return;
+                    return Ok(());
                 }
-                if !self.contains_arguments_reference(decl) {
+                if !self.contains_arguments_reference(decl)? {
                     if is_qualified_name(&node_as_jsdoc_property_like_tag.name) {
                         self.error(
                             Some(&*node_as_jsdoc_property_like_tag.name),
@@ -570,9 +612,9 @@ impl TypeChecker {
                         node_type_expression.as_jsdoc_type_expression().type_.clone()
                     }).as_ref(),
                     Some(node_type_expression_type) if !self.is_array_type(
-                        &self.get_type_from_type_node_(
+                        &*self.get_type_from_type_node_(
                             node_type_expression_type
-                        )
+                        )?
                     )
                 ) {
                     self.error(
@@ -591,20 +633,32 @@ impl TypeChecker {
                 }
             }
         }
+
+        Ok(())
     }
 
-    pub(super) fn check_jsdoc_property_tag(&self, node: &Node /*JSDocPropertyTag*/) {
+    pub(super) fn check_jsdoc_property_tag(
+        &self,
+        node: &Node, /*JSDocPropertyTag*/
+    ) -> io::Result<()> {
         let node_as_jsdoc_property_like_tag = node.as_jsdoc_property_like_tag();
-        self.check_source_element(node_as_jsdoc_property_like_tag.type_expression.as_deref());
+        self.check_source_element(node_as_jsdoc_property_like_tag.type_expression.as_deref())?;
+
+        Ok(())
     }
 
-    pub(super) fn check_jsdoc_function_type(&self, node: &Node /*JSDocFunctionType*/) {
+    pub(super) fn check_jsdoc_function_type(
+        &self,
+        node: &Node, /*JSDocFunctionType*/
+    ) -> io::Result<()> {
         if self.produce_diagnostics
             && node.as_jsdoc_function_type().maybe_type().is_none()
             && !is_jsdoc_construct_signature(node)
         {
-            self.report_implicit_any(node, &self.any_type(), None);
+            self.report_implicit_any(node, &self.any_type(), None)?;
         }
-        self.check_signature_declaration(node);
+        self.check_signature_declaration(node)?;
+
+        Ok(())
     }
 }

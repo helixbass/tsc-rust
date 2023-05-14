@@ -2,12 +2,16 @@ use gc::Gc;
 use itertools::Either;
 use peekmore::PeekMore;
 use std::cmp;
+use std::io;
 use std::iter::once;
 use std::ptr;
 
 use super::InferTypes;
+use crate::try_some;
+use crate::OptionTry;
 use crate::PeekMoreExt;
 use crate::PeekableExt;
+use crate::VecExt;
 use crate::{
     every, find, flat_map, get_object_flags, some, DiagnosticMessage, Diagnostics, ElementFlags,
     InferenceContext, InferenceFlags, InferenceInfo, InferencePriority, Node, NodeInterface,
@@ -62,7 +66,7 @@ impl InferTypes {
         source: &Type,
         targets: &[Gc<Type>],
         target_flags: TypeFlags,
-    ) {
+    ) -> io::Result<()> {
         let mut type_variable_count = 0;
         if target_flags.intersects(TypeFlags::Union) {
             let mut naked_type_variable: Option<Gc<Type>> = None;
@@ -84,7 +88,7 @@ impl InferTypes {
                     for i in 0..sources.len() {
                         let save_inference_priority = self.inference_priority();
                         self.set_inference_priority(InferencePriority::MaxValue);
-                        self.infer_from_types(&sources[i], t);
+                        self.infer_from_types(&sources[i], t)?;
                         if self.inference_priority() == self.priority() {
                             matched[i] = true;
                         }
@@ -105,9 +109,9 @@ impl InferTypes {
                         source,
                         intersection_type_variable,
                         InferencePriority::NakedTypeVariable,
-                    );
+                    )?;
                 }
-                return;
+                return Ok(());
             }
             if type_variable_count == 1 && !inference_circularity {
                 let unmatched = flat_map(Some(&sources), |s: &Gc<Type>, i| {
@@ -119,16 +123,16 @@ impl InferTypes {
                 });
                 if !unmatched.is_empty() {
                     self.infer_from_types(
-                        &self.type_checker.get_union_type(
+                        &*self.type_checker.get_union_type(
                             &unmatched,
                             None,
                             Option::<&Symbol>::None,
                             None,
                             Option::<&Type>::None,
-                        ),
+                        )?,
                         naked_type_variable.as_deref().unwrap(),
-                    );
-                    return;
+                    )?;
+                    return Ok(());
                 }
             }
         } else {
@@ -136,7 +140,7 @@ impl InferTypes {
                 if self.get_inference_info_for_type(t).is_some() {
                     type_variable_count += 1;
                 } else {
-                    self.infer_from_types(source, t);
+                    self.infer_from_types(source, t)?;
                 }
             }
         }
@@ -147,10 +151,12 @@ impl InferTypes {
         } {
             for t in targets {
                 if self.get_inference_info_for_type(t).is_some() {
-                    self.infer_with_priority(source, t, InferencePriority::NakedTypeVariable);
+                    self.infer_with_priority(source, t, InferencePriority::NakedTypeVariable)?;
                 }
             }
         }
+
+        Ok(())
     }
 
     pub(super) fn infer_to_mapped_type(
@@ -158,16 +164,16 @@ impl InferTypes {
         source: &Type,
         target: &Type, /*MappedType*/
         constraint_type: &Type,
-    ) -> bool {
+    ) -> io::Result<bool> {
         if constraint_type.flags().intersects(TypeFlags::Union) {
             let mut result = false;
             for type_ in constraint_type
                 .as_union_or_intersection_type_interface()
                 .types()
             {
-                result = self.infer_to_mapped_type(source, target, type_) || result;
+                result = self.infer_to_mapped_type(source, target, type_)? || result;
             }
-            return result;
+            return Ok(result);
         }
         if constraint_type.flags().intersects(TypeFlags::Index) {
             let inference =
@@ -179,7 +185,7 @@ impl InferTypes {
                     source,
                     target,
                     constraint_type,
-                );
+                )?;
                 if let Some(inferred_type) = inferred_type.as_ref() {
                     self.infer_with_priority(
                         inferred_type,
@@ -189,29 +195,30 @@ impl InferTypes {
                         } else {
                             InferencePriority::HomomorphicMappedType
                         },
-                    );
+                    )?;
                 }
             }
-            return true;
+            return Ok(true);
         }
         if constraint_type.flags().intersects(TypeFlags::TypeParameter) {
             self.infer_with_priority(
-                &self.type_checker.get_index_type(source, None, None),
+                &*self.type_checker.get_index_type(source, None, None)?,
                 constraint_type,
                 InferencePriority::MappedTypeConstraint,
-            );
-            let extended_constraint = self.type_checker.get_constraint_of_type(constraint_type);
+            )?;
+            let extended_constraint = self.type_checker.get_constraint_of_type(constraint_type)?;
             if matches!(
                 extended_constraint.as_ref(),
-                Some(extended_constraint) if self.infer_to_mapped_type(source, target, extended_constraint)
+                Some(extended_constraint) if self.infer_to_mapped_type(source, target, extended_constraint)?
             ) {
-                return true;
+                return Ok(true);
             }
             let prop_types = self
                 .type_checker
-                .get_properties_of_type(source)
-                .map(|ref property| self.type_checker.get_type_of_symbol(property));
-            let index_infos = self.type_checker.get_index_infos_of_type(source);
+                .get_properties_of_type(source)?
+                .map(|ref property| self.type_checker.get_type_of_symbol(property))
+                .collect::<Result<Vec<_>, _>>()?;
+            let index_infos = self.type_checker.get_index_infos_of_type(source)?;
             let index_types = index_infos.iter().map(|info| {
                 if !Gc::ptr_eq(info, &self.type_checker.enum_number_index_info()) {
                     info.type_.clone()
@@ -220,52 +227,54 @@ impl InferTypes {
                 }
             });
             self.infer_from_types(
-                &self.type_checker.get_union_type(
-                    prop_types.chain(index_types),
+                &*self.type_checker.get_union_type(
+                    prop_types.and_extend(index_types),
                     None,
                     Option::<&Symbol>::None,
                     None,
                     Option::<&Type>::None,
-                ),
-                &self.type_checker.get_template_type_from_mapped_type(target),
-            );
-            return true;
+                )?,
+                &*self
+                    .type_checker
+                    .get_template_type_from_mapped_type(target)?,
+            )?;
+            return Ok(true);
         }
-        false
+        Ok(false)
     }
 
     pub(super) fn infer_to_conditional_type(
         &self,
         source: &Type,
         target: &Type, /*ConditionalType*/
-    ) {
+    ) -> io::Result<()> {
         let target_as_conditional_type = target.as_conditional_type();
         if source.flags().intersects(TypeFlags::Conditional) {
             let source_as_conditional_type = source.as_conditional_type();
             self.infer_from_types(
                 &source_as_conditional_type.check_type,
                 &target_as_conditional_type.check_type,
-            );
+            )?;
             self.infer_from_types(
                 &source_as_conditional_type.extends_type,
                 &target_as_conditional_type.extends_type,
-            );
+            )?;
             self.infer_from_types(
-                &self
+                &*self
                     .type_checker
-                    .get_true_type_from_conditional_type(source),
-                &self
+                    .get_true_type_from_conditional_type(source)?,
+                &*self
                     .type_checker
-                    .get_true_type_from_conditional_type(target),
-            );
+                    .get_true_type_from_conditional_type(target)?,
+            )?;
             self.infer_from_types(
-                &self
+                &*self
                     .type_checker
-                    .get_false_type_from_conditional_type(source),
-                &self
+                    .get_false_type_from_conditional_type(source)?,
+                &*self
                     .type_checker
-                    .get_false_type_from_conditional_type(target),
-            );
+                    .get_false_type_from_conditional_type(target)?,
+            )?;
         } else {
             let save_priority = self.priority();
             self.set_priority(
@@ -278,23 +287,25 @@ impl InferTypes {
             );
             let target_types = vec![
                 self.type_checker
-                    .get_true_type_from_conditional_type(target),
+                    .get_true_type_from_conditional_type(target)?,
                 self.type_checker
-                    .get_false_type_from_conditional_type(target),
+                    .get_false_type_from_conditional_type(target)?,
             ];
-            self.infer_to_multiple_types(source, &target_types, target.flags());
+            self.infer_to_multiple_types(source, &target_types, target.flags())?;
             self.set_priority(save_priority);
         }
+
+        Ok(())
     }
 
     pub(super) fn infer_to_template_literal_type(
         &self,
         source: &Type,
         target: &Type, /*TemplateLiteralType*/
-    ) {
+    ) -> io::Result<()> {
         let matches = self
             .type_checker
-            .infer_types_from_template_literal_type(source, target);
+            .infer_types_from_template_literal_type(source, target)?;
         let target_as_template_literal_type = target.as_template_literal_type();
         let types = &target_as_template_literal_type.types;
         if matches.is_some()
@@ -310,12 +321,14 @@ impl InferTypes {
                         self.type_checker.never_type()
                     },
                     &types[i],
-                );
+                )?;
             }
         }
+
+        Ok(())
     }
 
-    pub(super) fn infer_from_object_types(&self, source: &Type, target: &Type) {
+    pub(super) fn infer_from_object_types(&self, source: &Type, target: &Type) -> io::Result<()> {
         if get_object_flags(source).intersects(ObjectFlags::Reference)
             && get_object_flags(target).intersects(ObjectFlags::Reference)
             && (Gc::ptr_eq(
@@ -325,35 +338,39 @@ impl InferTypes {
                 && self.type_checker.is_array_type(target))
         {
             self.infer_from_type_arguments(
-                &self.type_checker.get_type_arguments(source),
-                &self.type_checker.get_type_arguments(target),
+                &*self.type_checker.get_type_arguments(source)?,
+                &*self.type_checker.get_type_arguments(target)?,
                 &self
                     .type_checker
                     .get_variances(&source.as_type_reference_interface().target()),
-            );
-            return;
+            )?;
+            return Ok(());
         }
-        if self.type_checker.is_generic_mapped_type(source)
-            && self.type_checker.is_generic_mapped_type(target)
+        if self.type_checker.is_generic_mapped_type(source)?
+            && self.type_checker.is_generic_mapped_type(target)?
         {
             self.infer_from_types(
-                &self
+                &*self
                     .type_checker
-                    .get_constraint_type_from_mapped_type(source),
-                &self
+                    .get_constraint_type_from_mapped_type(source)?,
+                &*self
                     .type_checker
-                    .get_constraint_type_from_mapped_type(target),
-            );
+                    .get_constraint_type_from_mapped_type(target)?,
+            )?;
             self.infer_from_types(
-                &self.type_checker.get_template_type_from_mapped_type(source),
-                &self.type_checker.get_template_type_from_mapped_type(target),
-            );
-            let source_name_type = self.type_checker.get_name_type_from_mapped_type(source);
-            let target_name_type = self.type_checker.get_name_type_from_mapped_type(target);
+                &*self
+                    .type_checker
+                    .get_template_type_from_mapped_type(source)?,
+                &*self
+                    .type_checker
+                    .get_template_type_from_mapped_type(target)?,
+            )?;
+            let source_name_type = self.type_checker.get_name_type_from_mapped_type(source)?;
+            let target_name_type = self.type_checker.get_name_type_from_mapped_type(target)?;
             if let (Some(source_name_type), Some(target_name_type)) =
                 (source_name_type.as_ref(), target_name_type.as_ref())
             {
-                self.infer_from_types(source_name_type, target_name_type);
+                self.infer_from_types(source_name_type, target_name_type)?;
             }
         }
         if get_object_flags(target).intersects(ObjectFlags::Mapped)
@@ -366,17 +383,20 @@ impl InferTypes {
         {
             let ref constraint_type = self
                 .type_checker
-                .get_constraint_type_from_mapped_type(target);
-            if self.infer_to_mapped_type(source, target, constraint_type) {
-                return;
+                .get_constraint_type_from_mapped_type(target)?;
+            if self.infer_to_mapped_type(source, target, constraint_type)? {
+                return Ok(());
             }
         }
-        if !self.type_checker.types_definitely_unrelated(source, target) {
+        if !self
+            .type_checker
+            .types_definitely_unrelated(source, target)?
+        {
             if self.type_checker.is_array_type(source) || self.type_checker.is_tuple_type(source) {
                 if self.type_checker.is_tuple_type(target) {
                     let source_arity = self.type_checker.get_type_reference_arity(source);
                     let target_arity = self.type_checker.get_type_reference_arity(target);
-                    let element_types = self.type_checker.get_type_arguments(target);
+                    let element_types = self.type_checker.get_type_arguments(target)?;
                     let target_target_as_tuple_type =
                         target.as_type_reference().target.as_tuple_type();
                     let element_flags = &target_target_as_tuple_type.element_flags;
@@ -387,11 +407,11 @@ impl InferTypes {
                     {
                         for i in 0..target_arity {
                             self.infer_from_types(
-                                &self.type_checker.get_type_arguments(source)[i],
+                                &self.type_checker.get_type_arguments(source)?[i],
                                 &element_types[i],
-                            );
+                            )?;
                         }
-                        return;
+                        return Ok(());
                     }
                     let start_length = if self.type_checker.is_tuple_type(source) {
                         cmp::min(
@@ -425,9 +445,9 @@ impl InferTypes {
                     );
                     for i in 0..start_length {
                         self.infer_from_types(
-                            &self.type_checker.get_type_arguments(source)[i],
+                            &self.type_checker.get_type_arguments(source)?[i],
                             &element_types[i],
-                        );
+                        )?;
                     }
                     if !self.type_checker.is_tuple_type(source)
                         || source_arity - start_length - end_length == 1
@@ -439,7 +459,7 @@ impl InferTypes {
                                 .intersects(ElementFlags::Rest)
                     {
                         let rest_type =
-                            self.type_checker.get_type_arguments(source)[start_length].clone();
+                            self.type_checker.get_type_arguments(source)?[start_length].clone();
                         for i in start_length..target_arity - end_length {
                             self.infer_from_types(
                                 &*if element_flags[i].intersects(ElementFlags::Variadic) {
@@ -448,7 +468,7 @@ impl InferTypes {
                                     rest_type.clone()
                                 },
                                 &element_types[i],
-                            );
+                            )?;
                         }
                     } else {
                         let middle_length = target_arity - start_length - end_length;
@@ -464,24 +484,24 @@ impl InferTypes {
                                 .filter(|target_info| target_info.maybe_implied_arity().is_some())
                             {
                                 self.infer_from_types(
-                                    &self.type_checker.slice_tuple_type(
+                                    &*self.type_checker.slice_tuple_type(
                                         source,
                                         start_length,
                                         Some(
                                             end_length + source_arity
                                                 - target_info.maybe_implied_arity().unwrap(),
                                         ),
-                                    ),
+                                    )?,
                                     &element_types[start_length],
-                                );
+                                )?;
                                 self.infer_from_types(
-                                    &self.type_checker.slice_tuple_type(
+                                    &*self.type_checker.slice_tuple_type(
                                         source,
                                         start_length + target_info.maybe_implied_arity().unwrap(),
                                         Some(end_length),
-                                    ),
+                                    )?,
                                     &element_types[start_length + 1],
-                                );
+                                )?;
                             }
                         } else if middle_length == 1
                             && element_flags[start_length].intersects(ElementFlags::Variadic)
@@ -494,10 +514,10 @@ impl InferTypes {
                                     source,
                                     start_length,
                                     Some(end_length),
-                                )
+                                )?
                             } else {
                                 self.type_checker.create_array_type(
-                                    &self.type_checker.get_type_arguments(source)[0],
+                                    &self.type_checker.get_type_arguments(source)?[0],
                                     None,
                                 )
                             };
@@ -509,7 +529,7 @@ impl InferTypes {
                                 } else {
                                     InferencePriority::None
                                 },
-                            );
+                            )?;
                         } else if middle_length == 1
                             && element_flags[start_length].intersects(ElementFlags::Rest)
                         {
@@ -519,56 +539,67 @@ impl InferTypes {
                                     start_length,
                                     Some(end_length),
                                     None,
-                                )
+                                )?
                             } else {
                                 self.type_checker
-                                    .get_type_arguments(source)
+                                    .get_type_arguments(source)?
                                     .get(0)
-                                    .map(Clone::clone)
+                                    .cloned()
                             };
                             if let Some(rest_type) = rest_type.as_ref() {
-                                self.infer_from_types(rest_type, &element_types[start_length]);
+                                self.infer_from_types(rest_type, &element_types[start_length])?;
                             }
                         }
                     }
                     for i in 0..end_length {
                         self.infer_from_types(
-                            &self.type_checker.get_type_arguments(source)[source_arity - i - 1],
+                            &self.type_checker.get_type_arguments(source)?[source_arity - i - 1],
                             &element_types[target_arity - i - 1],
-                        );
+                        )?;
                     }
-                    return;
+                    return Ok(());
                 }
                 if self.type_checker.is_array_type(target) {
-                    self.infer_from_index_types(source, target);
-                    return;
+                    self.infer_from_index_types(source, target)?;
+                    return Ok(());
                 }
             }
-            self.infer_from_properties(source, target);
-            self.infer_from_signatures(source, target, SignatureKind::Call);
-            self.infer_from_signatures(source, target, SignatureKind::Construct);
-            self.infer_from_index_types(source, target);
+            self.infer_from_properties(source, target)?;
+            self.infer_from_signatures(source, target, SignatureKind::Call)?;
+            self.infer_from_signatures(source, target, SignatureKind::Construct)?;
+            self.infer_from_index_types(source, target)?;
         }
+
+        Ok(())
     }
 
-    pub(super) fn infer_from_properties(&self, source: &Type, target: &Type) {
-        let properties = self.type_checker.get_properties_of_object_type(target);
+    pub(super) fn infer_from_properties(&self, source: &Type, target: &Type) -> io::Result<()> {
+        let properties = self.type_checker.get_properties_of_object_type(target)?;
         for ref target_prop in properties {
-            let source_prop =
-                self.type_checker
-                    .get_property_of_type_(source, target_prop.escaped_name(), None);
+            let source_prop = self.type_checker.get_property_of_type_(
+                source,
+                target_prop.escaped_name(),
+                None,
+            )?;
             if let Some(source_prop) = source_prop.as_ref() {
                 self.infer_from_types(
-                    &self.type_checker.get_type_of_symbol(source_prop),
-                    &self.type_checker.get_type_of_symbol(target_prop),
-                );
+                    &*self.type_checker.get_type_of_symbol(source_prop)?,
+                    &*self.type_checker.get_type_of_symbol(target_prop)?,
+                )?;
             }
         }
+
+        Ok(())
     }
 
-    pub(super) fn infer_from_signatures(&self, source: &Type, target: &Type, kind: SignatureKind) {
-        let source_signatures = self.type_checker.get_signatures_of_type(source, kind);
-        let target_signatures = self.type_checker.get_signatures_of_type(target, kind);
+    pub(super) fn infer_from_signatures(
+        &self,
+        source: &Type,
+        target: &Type,
+        kind: SignatureKind,
+    ) -> io::Result<()> {
+        let source_signatures = self.type_checker.get_signatures_of_type(source, kind)?;
+        let target_signatures = self.type_checker.get_signatures_of_type(target, kind)?;
         let source_len = source_signatures.len();
         let target_len = target_signatures.len();
         let len = if source_len < target_len {
@@ -580,12 +611,14 @@ impl InferTypes {
         for i in 0..len {
             self.infer_from_signature(
                 self.type_checker
-                    .get_base_signature(source_signatures[source_len - len + i].clone()),
+                    .get_base_signature(source_signatures[source_len - len + i].clone())?,
                 self.type_checker
-                    .get_erased_signature(target_signatures[target_len - len + i].clone()),
+                    .get_erased_signature(target_signatures[target_len - len + i].clone())?,
                 skip_parameters,
-            );
+            )?;
         }
+
+        Ok(())
     }
 
     pub(super) fn infer_from_signature(
@@ -593,7 +626,7 @@ impl InferTypes {
         source: Gc<Signature>,
         target: Gc<Signature>,
         skip_parameters: bool,
-    ) {
+    ) -> io::Result<()> {
         if !skip_parameters {
             let save_bivariant = self.bivariant();
             let kind = if let Some(target_declaration) = target.declaration.as_ref() {
@@ -610,19 +643,22 @@ impl InferTypes {
                             | SyntaxKind::Constructor
                     ),
             );
-            self.type_checker
-                .apply_to_parameter_types(&source, &target, |s: &Type, t: &Type| {
-                    self.infer_from_contravariant_types(s, t)
-                });
+            self.type_checker.apply_to_parameter_types(
+                &source,
+                &target,
+                |s: &Type, t: &Type| self.infer_from_contravariant_types(s, t),
+            )?;
             self.set_bivariant(save_bivariant);
         }
         self.type_checker
             .apply_to_return_types(source, target, |s: &Type, t: &Type| {
                 self.infer_from_types(s, t)
-            });
+            })?;
+
+        Ok(())
     }
 
-    pub(super) fn infer_from_index_types(&self, source: &Type, target: &Type) {
+    pub(super) fn infer_from_index_types(&self, source: &Type, target: &Type) -> io::Result<()> {
         let priority = if (get_object_flags(source) & get_object_flags(target))
             .intersects(ObjectFlags::Mapped)
         {
@@ -630,76 +666,81 @@ impl InferTypes {
         } else {
             InferencePriority::None
         };
-        let index_infos = self.type_checker.get_index_infos_of_type(target);
+        let index_infos = self.type_checker.get_index_infos_of_type(target)?;
         if self
             .type_checker
-            .is_object_type_with_inferable_index(source)
+            .is_object_type_with_inferable_index(source)?
         {
             for target_info in &index_infos {
                 let mut prop_types: Vec<Gc<Type>> = vec![];
-                for ref prop in self.type_checker.get_properties_of_type(source) {
+                for ref prop in self.type_checker.get_properties_of_type(source)? {
                     if self.type_checker.is_applicable_index_type(
-                        &self.type_checker.get_literal_type_from_property(
+                        &*self.type_checker.get_literal_type_from_property(
                             prop,
                             TypeFlags::StringOrNumberLiteralOrUnique,
                             None,
-                        ),
+                        )?,
                         &target_info.key_type,
-                    ) {
-                        let prop_type = self.type_checker.get_type_of_symbol(prop);
+                    )? {
+                        let prop_type = self.type_checker.get_type_of_symbol(prop)?;
                         prop_types.push(if prop.flags().intersects(SymbolFlags::Optional) {
                             self.type_checker
-                                .remove_missing_or_undefined_type(&prop_type)
+                                .remove_missing_or_undefined_type(&prop_type)?
                         } else {
                             prop_type
                         });
                     }
                 }
-                for info in &self.type_checker.get_index_infos_of_type(source) {
+                for info in &self.type_checker.get_index_infos_of_type(source)? {
                     if self
                         .type_checker
-                        .is_applicable_index_type(&info.key_type, &target_info.key_type)
+                        .is_applicable_index_type(&info.key_type, &target_info.key_type)?
                     {
                         prop_types.push(info.type_.clone());
                     }
                 }
                 if !prop_types.is_empty() {
                     self.infer_with_priority(
-                        &self.type_checker.get_union_type(
+                        &*self.type_checker.get_union_type(
                             &prop_types,
                             None,
                             Option::<&Symbol>::None,
                             None,
                             Option::<&Type>::None,
-                        ),
+                        )?,
                         &target_info.type_,
                         priority,
-                    );
+                    )?;
                 }
             }
         }
         for target_info in &index_infos {
             let source_info = self
                 .type_checker
-                .get_applicable_index_info(source, &target_info.key_type);
+                .get_applicable_index_info(source, &target_info.key_type)?;
             if let Some(source_info) = source_info.as_ref() {
-                self.infer_with_priority(&source_info.type_, &target_info.type_, priority);
+                self.infer_with_priority(&source_info.type_, &target_info.type_, priority)?;
             }
         }
+
+        Ok(())
     }
 }
 
 impl TypeChecker {
-    pub(super) fn is_type_or_base_identical_to(&self, s: &Type, t: &Type) -> bool {
-        if self.exact_optional_property_types == Some(true) && ptr::eq(t, &*self.missing_type()) {
-            ptr::eq(s, t)
-        } else {
-            self.is_type_identical_to(s, t)
-                || (t.flags().intersects(TypeFlags::String)
-                    && s.flags().intersects(TypeFlags::StringLiteral)
-                    || t.flags().intersects(TypeFlags::Number)
-                        && s.flags().intersects(TypeFlags::NumberLiteral))
-        }
+    pub(super) fn is_type_or_base_identical_to(&self, s: &Type, t: &Type) -> io::Result<bool> {
+        Ok(
+            if self.exact_optional_property_types == Some(true) && ptr::eq(t, &*self.missing_type())
+            {
+                ptr::eq(s, t)
+            } else {
+                self.is_type_identical_to(s, t)?
+                    || (t.flags().intersects(TypeFlags::String)
+                        && s.flags().intersects(TypeFlags::StringLiteral)
+                        || t.flags().intersects(TypeFlags::Number)
+                            && s.flags().intersects(TypeFlags::NumberLiteral))
+            },
+        )
     }
 
     pub(super) fn is_type_closely_matched_by(&self, s: &Type, t: &Type) -> bool {
@@ -721,19 +762,22 @@ impl TypeChecker {
             ) && s.maybe_alias_type_arguments().is_some()
     }
 
-    pub(super) fn has_primitive_constraint(&self, type_: &Type /*TypeParameter*/) -> bool {
-        let constraint = self.get_constraint_of_type_parameter(type_);
-        matches!(
+    pub(super) fn has_primitive_constraint(
+        &self,
+        type_: &Type, /*TypeParameter*/
+    ) -> io::Result<bool> {
+        let constraint = self.get_constraint_of_type_parameter(type_)?;
+        Ok(matches!(
             constraint.as_ref(),
             Some(constraint) if self.maybe_type_of_kind(
                 &*if constraint.flags().intersects(TypeFlags::Conditional) {
-                    self.get_default_constraint_of_conditional_type(constraint)
+                    self.get_default_constraint_of_conditional_type(constraint)?
                 } else {
                     constraint.clone()
                 },
                 TypeFlags::Primitive | TypeFlags::Index | TypeFlags::TemplateLiteral | TypeFlags::StringMapping
             )
-        )
+        ))
     }
 
     pub(super) fn is_object_literal_type(&self, type_: &Type) -> bool {
@@ -747,7 +791,7 @@ impl TypeChecker {
     pub(super) fn union_object_and_array_literal_candidates<'self_and_candidates, TCandidates>(
         &'self_and_candidates self,
         candidates: TCandidates,
-    ) -> impl Iterator<Item = Gc<Type>> + 'self_and_candidates
+    ) -> io::Result<impl Iterator<Item = Gc<Type>> + 'self_and_candidates>
     where
         TCandidates: IntoIterator<Item = &'self_and_candidates Gc<Type>> + Clone,
         TCandidates::IntoIter: Clone + 'self_and_candidates,
@@ -765,49 +809,54 @@ impl TypeChecker {
                     Option::<&Symbol>::None,
                     None,
                     Option::<&Type>::None,
-                );
-                return Either::Left(
+                )?;
+                return Ok(Either::Left(
                     candidates
                         .filter(|t| !self.is_object_or_array_literal_type(t))
                         .cloned()
                         .chain(once(literals_type)),
-                );
+                ));
             }
         }
-        Either::Right(candidates.cloned())
+        Ok(Either::Right(candidates.cloned()))
     }
 
-    pub(super) fn get_contravariant_inference(&self, inference: &InferenceInfo) -> Gc<Type> {
-        if matches!(
-            inference.maybe_priority(),
-            Some(inference_priority) if inference_priority.intersects(InferencePriority::PriorityImpliesCombination)
-        ) {
-            self.get_intersection_type(
-                inference.maybe_contra_candidates().as_deref().unwrap(),
-                Option::<&Symbol>::None,
-                None,
-            )
-        } else {
-            self.get_common_subtype(inference.maybe_contra_candidates().as_deref().unwrap())
-        }
+    pub(super) fn get_contravariant_inference(
+        &self,
+        inference: &InferenceInfo,
+    ) -> io::Result<Gc<Type>> {
+        Ok(
+            if matches!(
+                inference.maybe_priority(),
+                Some(inference_priority) if inference_priority.intersects(InferencePriority::PriorityImpliesCombination)
+            ) {
+                self.get_intersection_type(
+                    inference.maybe_contra_candidates().as_deref().unwrap(),
+                    Option::<&Symbol>::None,
+                    None,
+                )?
+            } else {
+                self.get_common_subtype(inference.maybe_contra_candidates().as_deref().unwrap())?
+            },
+        )
     }
 
     pub(super) fn get_covariant_inference(
         &self,
         inference: &InferenceInfo,
         signature: Gc<Signature>,
-    ) -> Gc<Type> {
+    ) -> io::Result<Gc<Type>> {
         let inference_candidates = inference.maybe_candidates();
         let candidates = self
-            .union_object_and_array_literal_candidates(inference_candidates.as_deref().unwrap());
-        let primitive_constraint = self.has_primitive_constraint(&inference.type_parameter);
+            .union_object_and_array_literal_candidates(inference_candidates.as_deref().unwrap())?;
+        let primitive_constraint = self.has_primitive_constraint(&inference.type_parameter)?;
         let widen_literal_types = !primitive_constraint
             && inference.top_level()
             && (inference.is_fixed()
                 || !self.is_type_parameter_at_top_level(
-                    &self.get_return_type_of_signature(signature),
+                    &*self.get_return_type_of_signature(signature)?,
                     &inference.type_parameter,
-                ));
+                )?);
         let base_candidates: Vec<_> = if primitive_constraint {
             candidates
                 .map(|candidate| self.get_regular_type_of_literal_type(&candidate))
@@ -815,7 +864,7 @@ impl TypeChecker {
         } else if widen_literal_types {
             candidates
                 .map(|candidate| self.get_widened_literal_type(&candidate))
-                .collect()
+                .collect::<Result<Vec<_>, _>>()?
         } else {
             candidates.collect()
         };
@@ -829,21 +878,25 @@ impl TypeChecker {
                 Option::<&Symbol>::None,
                 None,
                 Option::<&Type>::None,
-            )
+            )?
         } else {
-            self.get_common_supertype(&base_candidates)
+            self.get_common_supertype(&base_candidates)?
         };
         self.get_widened_type(&unwidened_type)
     }
 
-    pub(super) fn get_inferred_type(&self, context: &InferenceContext, index: usize) -> Gc<Type> {
+    pub(super) fn get_inferred_type(
+        &self,
+        context: &InferenceContext,
+        index: usize,
+    ) -> io::Result<Gc<Type>> {
         let inference = context.inferences()[index].clone();
         if inference.maybe_inferred_type().is_none() {
             let mut inferred_type: Option<Gc<Type>> = None;
             let signature = context.signature.as_ref();
             if let Some(signature) = signature {
                 let inferred_covariant_type = if inference.maybe_candidates().is_some() {
-                    Some(self.get_covariant_inference(&inference, signature.clone()))
+                    Some(self.get_covariant_inference(&inference, signature.clone())?)
                 } else {
                     None
                 };
@@ -853,19 +906,21 @@ impl TypeChecker {
                     inferred_type = Some(
                         if let Some(inferred_covariant_type) = inferred_covariant_type
                             .as_ref()
-                            .filter(|inferred_covariant_type| {
-                                !inferred_covariant_type.flags().intersects(TypeFlags::Never)
-                                    && some(
-                                        Some(inference_contra_candidates),
-                                        Some(|t: &Gc<Type>| {
-                                            self.is_type_subtype_of(inferred_covariant_type, t)
-                                        }),
-                                    )
-                            })
+                            .try_filter(|inferred_covariant_type| -> io::Result<_> {
+                                Ok(
+                                    !inferred_covariant_type.flags().intersects(TypeFlags::Never)
+                                        && try_some(
+                                            Some(inference_contra_candidates),
+                                            Some(|t: &Gc<Type>| {
+                                                self.is_type_subtype_of(inferred_covariant_type, t)
+                                            }),
+                                        )?,
+                                )
+                            })?
                         {
                             inferred_covariant_type.clone()
                         } else {
-                            self.get_contravariant_inference(&inference)
+                            self.get_contravariant_inference(&inference)?
                         },
                     );
                 } else if let Some(inferred_covariant_type) = inferred_covariant_type.as_ref() {
@@ -874,7 +929,7 @@ impl TypeChecker {
                     inferred_type = Some(self.silent_never_type());
                 } else {
                     let default_type =
-                        self.get_default_from_type_parameter_(&inference.type_parameter);
+                        self.get_default_from_type_parameter_(&inference.type_parameter)?;
                     if let Some(default_type) = default_type.as_ref() {
                         inferred_type = Some(self.instantiate_type(
                             default_type,
@@ -882,11 +937,11 @@ impl TypeChecker {
                                 Some(Gc::new(self.create_backreference_mapper(context, index))),
                                 context.non_fixing_mapper().clone(),
                             )),
-                        ));
+                        )?);
                     }
                 }
             } else {
-                inferred_type = self.get_type_from_inference(&inference);
+                inferred_type = self.get_type_from_inference(&inference)?;
             }
 
             *inference.maybe_inferred_type_mut() =
@@ -896,22 +951,22 @@ impl TypeChecker {
                     )
                 }));
 
-            let constraint = self.get_constraint_of_type_parameter(&inference.type_parameter);
+            let constraint = self.get_constraint_of_type_parameter(&inference.type_parameter)?;
             if let Some(constraint) = constraint.as_ref() {
                 let instantiated_constraint =
-                    self.instantiate_type(constraint, Some(context.non_fixing_mapper()));
+                    self.instantiate_type(constraint, Some(context.non_fixing_mapper()))?;
                 if match inferred_type.as_ref() {
                     None => true,
                     Some(inferred_type) => {
                         context.compare_types.call(
                             inferred_type,
-                            &self.get_type_with_this_argument(
+                            &*self.get_type_with_this_argument(
                                 &instantiated_constraint,
                                 Some(&**inferred_type),
                                 None,
-                            ),
+                            )?,
                             None,
-                        ) == Ternary::False
+                        )? == Ternary::False
                     }
                 } {
                     #[allow(unused_assignments)]
@@ -924,7 +979,7 @@ impl TypeChecker {
         }
 
         let ret = inference.maybe_inferred_type().unwrap();
-        ret
+        Ok(ret)
     }
 
     pub(super) fn get_default_type_argument_type(&self, is_in_java_script_file: bool) -> Gc<Type> {
@@ -935,12 +990,15 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn get_inferred_types(&self, context: &InferenceContext) -> Vec<Gc<Type>> {
+    pub(super) fn get_inferred_types(
+        &self,
+        context: &InferenceContext,
+    ) -> io::Result<Vec<Gc<Type>>> {
         let mut result: Vec<Gc<Type>> = vec![];
         for i in 0..context.inferences().len() {
-            result.push(self.get_inferred_type(context, i));
+            result.push(self.get_inferred_type(context, i)?);
         }
-        result
+        Ok(result)
     }
 
     pub(super) fn get_cannot_find_name_diagnostic_for_name(

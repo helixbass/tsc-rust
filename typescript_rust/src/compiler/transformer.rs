@@ -23,6 +23,7 @@ use crate::{
     TransformerFactory, TransformerFactoryInterface, TransformerFactoryOrCustomTransformerFactory,
     TransformerInterface,
 };
+use std::io;
 
 fn get_module_transformer(module_kind: ModuleKind) -> TransformerFactory {
     match module_kind {
@@ -199,12 +200,12 @@ impl WrapCustomTransformer {
 }
 
 impl TransformerInterface for WrapCustomTransformer {
-    fn call(&self, node: &Node) -> Gc<Node> {
-        if is_bundle(node) {
+    fn call(&self, node: &Node) -> io::Result<Gc<Node>> {
+        Ok(if is_bundle(node) {
             self.transformer.transform_bundle(node)
         } else {
             self.transformer.transform_source_file(node)
-        }
+        })
     }
 }
 
@@ -312,7 +313,7 @@ pub fn transform_nodes(
     // this type, but looks like there aren't any other TransformationResult implementers so maybe
     // returning the concrete type is fine?
     // ) -> Gc<Box<dyn TransformationResult>> {
-) -> Gc<Box<TransformNodesTransformationResult>> {
+) -> io::Result<Gc<Box<TransformNodesTransformationResult>>> {
     let transformation_result = TransformNodesTransformationResult::new(
         vec![],
         TransformationState::Uninitialized,
@@ -331,8 +332,8 @@ pub fn transform_nodes(
         factory,
         base_factory,
     );
-    transformation_result.call();
-    transformation_result
+    transformation_result.call()?;
+    Ok(transformation_result)
 }
 
 #[derive(Trace, Finalize)]
@@ -652,7 +653,7 @@ impl TransformNodesTransformationResult {
         self.created_emit_helper_factory.borrow_mut()
     }
 
-    fn call(&self) {
+    fn call(&self) -> io::Result<()> {
         for node in &self.nodes {
             dispose_emit_nodes(maybe_get_source_file_of_node(get_parse_tree_node(
                 Some(&**node),
@@ -674,9 +675,9 @@ impl TransformNodesTransformationResult {
         for node in &self.nodes {
             // tracing?.push(tracing.Phase.Emit, "transformNodes", node.kind === SyntaxKind.SourceFile ? { path: (node as any as SourceFile).path } : { kind: node.kind, pos: node.pos, end: node.end });}
             self.transformed().push(if self.allow_dts_files {
-                self.transformation(node)
+                self.transformation(node)?
             } else {
-                self.transform_root(node)
+                self.transform_root(node)?
             });
             // tracing?.pop();
         }
@@ -685,24 +686,28 @@ impl TransformNodesTransformationResult {
 
         // performance.mark("afterTransform");
         // performance.measure("transformTime", "beforeTransform", "afterTransform");
+
+        Ok(())
     }
 
-    fn transformation(&self, node: &Node) -> Gc<Node> {
+    fn transformation(&self, node: &Node) -> io::Result<Gc<Node>> {
         let mut node = node.node_wrapper();
         for transform in self.transformers_with_context().iter() {
-            node = transform.call(&node);
+            node = transform.call(&node)?;
         }
-        node
+        Ok(node)
     }
 
-    fn transform_root(&self, node: &Node) -> Gc<Node> {
-        if
-        /*node &&*/
-        !is_source_file(node) || !node.as_source_file().is_declaration_file() {
-            self.transformation(node)
-        } else {
-            node.node_wrapper()
-        }
+    fn transform_root(&self, node: &Node) -> io::Result<Gc<Node>> {
+        Ok(
+            if
+            /*node &&*/
+            !is_source_file(node) || !node.as_source_file().is_declaration_file() {
+                self.transformation(node)?
+            } else {
+                node.node_wrapper()
+            },
+        )
     }
 }
 

@@ -1,7 +1,7 @@
 pub mod compiler {
     use gc::{Finalize, Gc, Trace};
-    use std::ptr;
     use std::{cell::Ref, collections::HashMap};
+    use std::{io, ptr};
 
     use typescript_rust::{
         add_related_info, compare_diagnostics, create_compiler_diagnostic, create_program,
@@ -9,7 +9,7 @@ pub mod compiler {
         get_pre_emit_diagnostics, is_option_str_empty, length, some, Comparison, CompilerOptions,
         CreateProgramOptions, Diagnostic, DiagnosticCategory, DiagnosticMessage,
         DiagnosticRelatedInformation, EmitResult, Extension, ModuleKind, NewLineKind, Node,
-        NonEmpty, Program, ScriptTarget, SourceFileLike,
+        NonEmpty, OptionTry, Program, ScriptTarget, SourceFileLike,
     };
 
     use crate::{
@@ -48,7 +48,7 @@ pub mod compiler {
             program: Option<Gc<Box<Program>>>,
             result: Option<EmitResult>,
             diagnostics: Vec<Gc<Diagnostic>>,
-        ) -> Self {
+        ) -> io::Result<Self> {
             let options = if let Some(program) = program.as_ref() {
                 program.get_compiler_options()
             } else {
@@ -119,7 +119,7 @@ pub mod compiler {
                     || !is_option_str_empty(options.out_file.as_deref())
                 {
                     let out_file = vpath::resolve(
-                        &ret.vfs().cwd(),
+                        &ret.vfs().cwd()?,
                         &[Some(
                             options
                                 .out
@@ -198,7 +198,7 @@ pub mod compiler {
                                     .get(&ret.get_output_path(
                                         &source_file_as_source_file.file_name(),
                                         extname.to_str(),
-                                    ))
+                                    )?)
                                     .cloned(),
                                 dts: ret
                                     .dts
@@ -207,14 +207,14 @@ pub mod compiler {
                                         get_declaration_emit_extension_for_path(
                                             &source_file_as_source_file.file_name(),
                                         ),
-                                    ))
+                                    )?)
                                     .cloned(),
                                 map: ret
                                     .maps
                                     .get(&ret.get_output_path(
                                         &source_file_as_source_file.file_name(),
                                         &format!("{}.map", extname.to_str()),
-                                    ))
+                                    )?)
                                     .cloned(),
                             });
 
@@ -239,7 +239,7 @@ pub mod compiler {
                     }
                 }
             }
-            ret
+            Ok(ret)
         }
 
         pub fn vfs(&self) -> Gc<vfs::FileSystem> {
@@ -250,26 +250,26 @@ pub mod compiler {
             self.host.traces()
         }
 
-        pub fn common_source_directory(&self) -> String {
+        pub fn common_source_directory(&self) -> io::Result<String> {
             let common = self
                 .program
                 .as_ref()
                 .map(|program| program.get_common_source_directory())
                 .unwrap_or_else(|| "".to_owned());
-            if !common.is_empty() {
-                vpath::combine(&self.vfs().cwd(), &[Some(&common)])
+            Ok(if !common.is_empty() {
+                vpath::combine(&self.vfs().cwd()?, &[Some(&common)])
             } else {
                 common
-            }
+            })
         }
 
-        pub fn get_output_path(&self, path: &str, ext: &str) -> String {
+        pub fn get_output_path(&self, path: &str, ext: &str) -> io::Result<String> {
             let mut path = path.to_owned();
             if !is_option_str_empty(self.options.out_file.as_deref())
                 || !is_option_str_empty(self.options.out.as_deref())
             {
                 path = vpath::resolve(
-                    &self.vfs().cwd(),
+                    &self.vfs().cwd()?,
                     &[Some(
                         self.options
                             .out_file
@@ -279,7 +279,7 @@ pub mod compiler {
                     )],
                 );
             } else {
-                path = vpath::resolve(&self.vfs().cwd(), &[Some(&path)]);
+                path = vpath::resolve(&self.vfs().cwd()?, &[Some(&path)]);
                 let out_dir = if matches!(ext, ".d.ts" | ".json.d.ts" | ".d.mts" | ".d.cts") {
                     self.options
                         .declaration_dir
@@ -290,7 +290,7 @@ pub mod compiler {
                     self.options.out_dir.as_deref()
                 };
                 if out_dir.is_non_empty() {
-                    let common = self.common_source_directory();
+                    let common = self.common_source_directory()?;
                     if !common.is_empty() {
                         path = vpath::relative(
                             &common,
@@ -299,13 +299,18 @@ pub mod compiler {
                             Some(self.vfs().ignore_case),
                         );
                         path = vpath::combine(
-                            &vpath::resolve(&self.vfs().cwd(), &[self.options.out_dir.as_deref()]),
+                            &vpath::resolve(&self.vfs().cwd()?, &[self.options.out_dir.as_deref()]),
                             &[Some(&path)],
                         );
                     }
                 }
             }
-            vpath::change_extension(&path, ext, Option::<&[&str]>::None, None)
+            Ok(vpath::change_extension(
+                &path,
+                ext,
+                Option::<&[&str]>::None,
+                None,
+            ))
         }
     }
 
@@ -313,7 +318,7 @@ pub mod compiler {
         host: Gc<Box<fakes::CompilerHost>>,
         root_files: Option<&[String]>,
         compiler_options: &CompilerOptions,
-    ) -> CompilationResult {
+    ) -> io::Result<CompilationResult> {
         let mut compiler_options = compiler_options.clone();
         if compiler_options
             .project
@@ -362,13 +367,13 @@ pub mod compiler {
                 project_references: None,
                 old_program: None,
                 config_file_parsing_diagnostics: None,
-            }))
+            })?)
         } else {
             None
         };
-        let pre_errors = pre_program.clone().map(|pre_program| {
+        let pre_errors = pre_program.clone().try_map(|pre_program| {
             get_pre_emit_diagnostics(&pre_program.into(), Option::<&Node>::None, None)
-        });
+        })?;
 
         let compiler_options = Gc::new(compiler_options);
         let program = create_program(CreateProgramOptions {
@@ -378,11 +383,11 @@ pub mod compiler {
             project_references: None,
             old_program: None,
             config_file_parsing_diagnostics: None,
-        });
+        })?;
 
-        let emit_result = program.emit(None, None, None, None, None, None);
+        let emit_result = program.emit(None, None, None, None, None, None)?;
         let post_errors =
-            get_pre_emit_diagnostics(&program.clone().into(), Option::<&Node>::None, None);
+            get_pre_emit_diagnostics(&program.clone().into(), Option::<&Node>::None, None)?;
         let longer_errors = if length(pre_errors.as_deref()) > post_errors.len() {
             pre_errors.as_ref().unwrap()
         } else {

@@ -1,3 +1,5 @@
+use std::io;
+
 use gc::{Finalize, Gc, Trace};
 
 use crate::{
@@ -17,7 +19,7 @@ impl TransformSystemModule {
 }
 
 impl TransformerInterface for TransformSystemModule {
-    fn call(&self, _node: &crate::Node) -> Gc<Node> {
+    fn call(&self, _node: &crate::Node) -> io::Result<Gc<Node>> {
         unimplemented!()
     }
 }

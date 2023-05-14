@@ -1,8 +1,8 @@
 use gc::{Finalize, Gc, Trace};
-use std::borrow::Borrow;
 use std::collections::HashMap;
 use std::ptr;
 use std::rc::Rc;
+use std::{borrow::Borrow, io};
 
 use crate::{
     find_index, is_constructor_declaration, is_function_expression, is_node_descendant_of,
@@ -17,7 +17,8 @@ use crate::{
     TypeFlags, TypeInterface, TypeMapper, TypeMapperCallback, TypePredicate,
     TypeReferenceInterface, UniqueESSymbolType, __String, get_assignment_declaration_kind,
     get_check_flags, get_host_signature_from_jsdoc, get_symbol_id, get_this_container,
-    is_binary_expression, is_class_like, maybe_is_class_like,
+    is_binary_expression, is_class_like, maybe_is_class_like, return_ok_none_if_none, try_map,
+    try_maybe_filter, try_some, OptionTry,
 };
 use local_macros::enum_unwrapped;
 
@@ -37,11 +38,15 @@ impl TypeChecker {
             ))
     }
 
-    pub(super) fn get_spread_symbol(&self, prop: &Symbol, readonly: bool) -> Gc<Symbol> {
+    pub(super) fn get_spread_symbol(
+        &self,
+        prop: &Symbol,
+        readonly: bool,
+    ) -> io::Result<Gc<Symbol>> {
         let is_setonly_accessor = prop.flags().intersects(SymbolFlags::SetAccessor)
             && !prop.flags().intersects(SymbolFlags::GetAccessor);
-        if !is_setonly_accessor && readonly == self.is_readonly_symbol(prop) {
-            return prop.symbol_wrapper();
+        if !is_setonly_accessor && readonly == self.is_readonly_symbol(prop)? {
+            return Ok(prop.symbol_wrapper());
         }
         let flags = SymbolFlags::Property | (prop.flags() & SymbolFlags::Optional);
         let result: Gc<Symbol> = self
@@ -63,14 +68,14 @@ impl TypeChecker {
         result_links.type_ = Some(if is_setonly_accessor {
             self.undefined_type()
         } else {
-            self.get_type_of_symbol(prop)
+            self.get_type_of_symbol(prop)?
         });
         if let Some(prop_declarations) = prop.maybe_declarations().clone() {
             result.set_declarations(prop_declarations);
         }
         result_links.name_type = (*self.get_symbol_links(prop)).borrow().name_type.clone();
         result_links.synthetic_origin = Some(prop.symbol_wrapper());
-        result
+        Ok(result)
     }
 
     pub(super) fn get_index_info_with_readonly(
@@ -305,19 +310,19 @@ impl TypeChecker {
     pub(super) fn get_type_from_literal_type_node(
         &self,
         node: &Node, /*LiteralTypeNode*/
-    ) -> Gc<Type> {
+    ) -> io::Result<Gc<Type>> {
         let node_as_literal_type_node = node.as_literal_type_node();
         if node_as_literal_type_node.literal.kind() == SyntaxKind::NullKeyword {
-            return self.null_type();
+            return Ok(self.null_type());
         }
         let links = self.get_node_links(node);
         if (*links).borrow().resolved_type.is_none() {
             links.borrow_mut().resolved_type = Some(self.get_regular_type_of_literal_type(
-                &self.check_expression(&node_as_literal_type_node.literal, None, None),
+                &*self.check_expression(&node_as_literal_type_node.literal, None, None)?,
             ));
         }
         let ret = (*links).borrow().resolved_type.clone().unwrap();
-        ret
+        Ok(ret)
     }
 
     pub(super) fn create_unique_es_symbol_type(
@@ -334,20 +339,20 @@ impl TypeChecker {
         type_
     }
 
-    pub(super) fn get_es_symbol_like_type_for_node(&self, node: &Node) -> Gc<Type> {
+    pub(super) fn get_es_symbol_like_type_for_node(&self, node: &Node) -> io::Result<Gc<Type>> {
         if is_valid_es_symbol_declaration(node) {
-            let symbol = self.get_symbol_of_node(node).unwrap();
+            let symbol = self.get_symbol_of_node(node)?.unwrap();
             let links = self.get_symbol_links(&symbol);
             if (*links).borrow().unique_es_symbol_type.is_none() {
                 links.borrow_mut().unique_es_symbol_type =
                     Some(self.create_unique_es_symbol_type(&symbol));
             }
-            return (*links).borrow().unique_es_symbol_type.clone().unwrap();
+            return Ok((*links).borrow().unique_es_symbol_type.clone().unwrap());
         }
-        self.es_symbol_type()
+        Ok(self.es_symbol_type())
     }
 
-    pub(super) fn get_this_type(&self, node: &Node) -> Gc<Type> {
+    pub(super) fn get_this_type(&self, node: &Node) -> io::Result<Gc<Type>> {
         let container = get_this_container(node, false);
         let parent = /*container &&*/ container.maybe_parent();
         if let Some(parent) = parent.as_ref().filter(|parent| {
@@ -360,13 +365,13 @@ impl TypeChecker {
                         container.as_constructor_declaration().maybe_body(),
                     ))
             {
-                return self
+                return Ok(self
                     .get_declared_type_of_class_or_interface(
-                        &self.get_symbol_of_node(parent).unwrap(),
-                    )
+                        &self.get_symbol_of_node(parent)?.unwrap(),
+                    )?
                     .as_interface_type()
                     .maybe_this_type()
-                    .unwrap();
+                    .unwrap());
             }
         }
 
@@ -376,17 +381,17 @@ impl TypeChecker {
                 && get_assignment_declaration_kind(&parent.parent())
                     == AssignmentDeclarationKind::Prototype
         }) {
-            return self
+            return Ok(self
                 .get_declared_type_of_class_or_interface(
                     &self
-                        .get_symbol_of_node(&parent.parent().as_binary_expression().left)
+                        .get_symbol_of_node(&parent.parent().as_binary_expression().left)?
                         .unwrap()
                         .maybe_parent()
                         .unwrap(),
-                )
+                )?
                 .as_interface_type()
                 .maybe_this_type()
-                .unwrap();
+                .unwrap());
         }
         let host = if node.flags().intersects(NodeFlags::JSDoc) {
             get_host_signature_from_jsdoc(node)
@@ -399,53 +404,53 @@ impl TypeChecker {
                 && get_assignment_declaration_kind(&host.parent())
                     == AssignmentDeclarationKind::PrototypeProperty
         }) {
-            return self
+            return Ok(self
                 .get_declared_type_of_class_or_interface(
                     &self
-                        .get_symbol_of_node(&host.parent().as_binary_expression().left)
+                        .get_symbol_of_node(&host.parent().as_binary_expression().left)?
                         .unwrap()
                         .maybe_parent()
                         .unwrap(),
-                )
+                )?
                 .as_interface_type()
                 .maybe_this_type()
-                .unwrap();
+                .unwrap());
         }
-        if self.is_js_constructor(Some(&*container))
+        if self.is_js_constructor(Some(&*container))?
             && is_node_descendant_of(node, container.as_function_like_declaration().maybe_body())
         {
-            return self
+            return Ok(self
                 .get_declared_type_of_class_or_interface(
-                    &self.get_symbol_of_node(&container).unwrap(),
-                )
+                    &self.get_symbol_of_node(&container)?.unwrap(),
+                )?
                 .as_interface_type()
                 .maybe_this_type()
-                .unwrap();
+                .unwrap());
         }
         self.error(
             Some(node),
             &Diagnostics::A_this_type_is_available_only_in_a_non_static_member_of_a_class_or_interface,
             None
         );
-        self.error_type()
+        Ok(self.error_type())
     }
 
     pub(super) fn get_type_from_this_type_node(
         &self,
         node: &Node, /*ThisExpression | ThisTypeNode*/
-    ) -> Gc<Type> {
+    ) -> io::Result<Gc<Type>> {
         let links = self.get_node_links(node);
         if (*links).borrow().resolved_type.is_none() {
-            links.borrow_mut().resolved_type = Some(self.get_this_type(node));
+            links.borrow_mut().resolved_type = Some(self.get_this_type(node)?);
         }
         let ret = (*links).borrow().resolved_type.clone().unwrap();
-        ret
+        Ok(ret)
     }
 
     pub(super) fn get_type_from_rest_type_node(
         &self,
         node: &Node, /*RestTypeNode | NamedTupleMember*/
-    ) -> Gc<Type> {
+    ) -> io::Result<Gc<Type>> {
         let node_as_has_type = node.as_has_type();
         self.get_type_from_type_node_(
             &self
@@ -487,31 +492,37 @@ impl TypeChecker {
     pub(super) fn get_type_from_named_tuple_type_node(
         &self,
         node: &Node, /*NamedTupleMember*/
-    ) -> Gc<Type> {
+    ) -> io::Result<Gc<Type>> {
         let links = self.get_node_links(node);
         if (*links).borrow().resolved_type.is_none() {
             let node_as_named_tuple_member = node.as_named_tuple_member();
             links.borrow_mut().resolved_type =
                 Some(if node_as_named_tuple_member.dot_dot_dot_token.is_some() {
-                    self.get_type_from_rest_type_node(node)
+                    self.get_type_from_rest_type_node(node)?
                 } else {
                     self.add_optionality(
-                        &self.get_type_from_type_node_(&node_as_named_tuple_member.type_),
+                        &*self.get_type_from_type_node_(&node_as_named_tuple_member.type_)?,
                         Some(true),
                         Some(node_as_named_tuple_member.question_token.is_some()),
-                    )
+                    )?
                 });
         }
         let ret = (*links).borrow().resolved_type.clone().unwrap();
-        ret
+        Ok(ret)
     }
 
-    pub(super) fn get_type_from_type_node_(&self, node: &Node /*TypeNode*/) -> Gc<Type> {
-        self.get_conditional_flow_type_of_type(&self.get_type_from_type_node_worker(node), node)
+    pub(super) fn get_type_from_type_node_(
+        &self,
+        node: &Node, /*TypeNode*/
+    ) -> io::Result<Gc<Type>> {
+        self.get_conditional_flow_type_of_type(&*self.get_type_from_type_node_worker(node)?, node)
     }
 
-    pub(super) fn get_type_from_type_node_worker(&self, node: &Node /*TypeNode*/) -> Gc<Type> {
-        match node.kind() {
+    pub(super) fn get_type_from_type_node_worker(
+        &self,
+        node: &Node, /*TypeNode*/
+    ) -> io::Result<Gc<Type>> {
+        Ok(match node.kind() {
             SyntaxKind::AnyKeyword | SyntaxKind::JSDocAllType | SyntaxKind::JSDocUnknownType => {
                 self.any_type()
             }
@@ -534,10 +545,10 @@ impl TypeChecker {
             }
             SyntaxKind::IntrinsicKeyword => self.intrinsic_marker_type(),
             SyntaxKind::ThisType | SyntaxKind::ThisKeyword => {
-                self.get_type_from_this_type_node(node)
+                self.get_type_from_this_type_node(node)?
             }
-            SyntaxKind::LiteralType => self.get_type_from_literal_type_node(node),
-            SyntaxKind::TypeReference => self.get_type_from_type_reference(node),
+            SyntaxKind::LiteralType => self.get_type_from_literal_type_node(node)?,
+            SyntaxKind::TypeReference => self.get_type_from_type_reference(node)?,
             SyntaxKind::TypePredicate => {
                 if node.as_type_predicate_node().asserts_modifier.is_some() {
                     self.void_type()
@@ -545,74 +556,84 @@ impl TypeChecker {
                     self.boolean_type()
                 }
             }
-            SyntaxKind::ExpressionWithTypeArguments => self.get_type_from_type_reference(node),
-            SyntaxKind::TypeQuery => self.get_type_from_type_query_node(node),
+            SyntaxKind::ExpressionWithTypeArguments => self.get_type_from_type_reference(node)?,
+            SyntaxKind::TypeQuery => self.get_type_from_type_query_node(node)?,
             SyntaxKind::ArrayType | SyntaxKind::TupleType => {
-                self.get_type_from_array_or_tuple_type_node(node)
+                self.get_type_from_array_or_tuple_type_node(node)?
             }
-            SyntaxKind::OptionalType => self.get_type_from_optional_type_node(node),
-            SyntaxKind::UnionType => self.get_type_from_union_type_node(node),
-            SyntaxKind::IntersectionType => self.get_type_from_intersection_type_node(node),
-            SyntaxKind::JSDocNullableType => self.get_type_from_jsdoc_nullable_type_node(node),
+            SyntaxKind::OptionalType => self.get_type_from_optional_type_node(node)?,
+            SyntaxKind::UnionType => self.get_type_from_union_type_node(node)?,
+            SyntaxKind::IntersectionType => self.get_type_from_intersection_type_node(node)?,
+            SyntaxKind::JSDocNullableType => self.get_type_from_jsdoc_nullable_type_node(node)?,
             SyntaxKind::JSDocOptionalType => self.add_optionality(
-                &self.get_type_from_type_node_(
+                &*self.get_type_from_type_node_(
                     node.as_base_jsdoc_unary_type().type_.as_deref().unwrap(),
-                ),
+                )?,
                 None,
                 None,
-            ),
-            SyntaxKind::NamedTupleMember => self.get_type_from_named_tuple_type_node(node),
+            )?,
+            SyntaxKind::NamedTupleMember => self.get_type_from_named_tuple_type_node(node)?,
             SyntaxKind::ParenthesizedType
             | SyntaxKind::JSDocNonNullableType
             | SyntaxKind::JSDocTypeExpression => {
-                self.get_type_from_type_node_(&node.as_has_type().maybe_type().unwrap())
+                self.get_type_from_type_node_(&node.as_has_type().maybe_type().unwrap())?
             }
-            SyntaxKind::RestType => self.get_type_from_rest_type_node(node),
-            SyntaxKind::JSDocVariadicType => self.get_type_from_jsdoc_variadic_type(node),
+            SyntaxKind::RestType => self.get_type_from_rest_type_node(node)?,
+            SyntaxKind::JSDocVariadicType => self.get_type_from_jsdoc_variadic_type(node)?,
             SyntaxKind::FunctionType
             | SyntaxKind::ConstructorType
             | SyntaxKind::TypeLiteral
             | SyntaxKind::JSDocTypeLiteral
             | SyntaxKind::JSDocFunctionType
             | SyntaxKind::JSDocSignature => {
-                self.get_type_from_type_literal_or_function_or_constructor_type_node(node)
+                self.get_type_from_type_literal_or_function_or_constructor_type_node(node)?
             }
-            SyntaxKind::TypeOperator => self.get_type_from_type_operator_node(node),
-            SyntaxKind::IndexedAccessType => self.get_type_from_indexed_access_type_node(node),
-            SyntaxKind::MappedType => self.get_type_from_mapped_type_node(node),
-            SyntaxKind::ConditionalType => self.get_type_from_conditional_type_node(node),
-            SyntaxKind::InferType => self.get_type_from_infer_type_node(node),
-            SyntaxKind::TemplateLiteralType => self.get_type_from_template_type_node(node),
-            SyntaxKind::ImportType => self.get_type_from_import_type_node(node),
+            SyntaxKind::TypeOperator => self.get_type_from_type_operator_node(node)?,
+            SyntaxKind::IndexedAccessType => self.get_type_from_indexed_access_type_node(node)?,
+            SyntaxKind::MappedType => self.get_type_from_mapped_type_node(node)?,
+            SyntaxKind::ConditionalType => self.get_type_from_conditional_type_node(node)?,
+            SyntaxKind::InferType => self.get_type_from_infer_type_node(node)?,
+            SyntaxKind::TemplateLiteralType => self.get_type_from_template_type_node(node)?,
+            SyntaxKind::ImportType => self.get_type_from_import_type_node(node)?,
             SyntaxKind::Identifier
             | SyntaxKind::QualifiedName
             | SyntaxKind::PropertyAccessExpression => {
-                let symbol = self.get_symbol_at_location_(node, None);
+                let symbol = self.get_symbol_at_location_(node, None)?;
                 if let Some(symbol) = symbol.as_ref() {
-                    self.get_declared_type_of_symbol(symbol)
+                    self.get_declared_type_of_symbol(symbol)?
                 } else {
                     self.error_type()
                 }
             }
             _ => self.error_type(),
-        }
+        })
     }
 
-    pub(super) fn instantiate_list<
-        TItem: Trace + Finalize,
-        TInstantiator: FnMut(&Gc<TItem>, Option<Gc<TypeMapper>>) -> Gc<TItem>,
-    >(
+    #[allow(dead_code)]
+    pub(super) fn instantiate_list<TItem: Trace + Finalize>(
         &self,
         items: Option<&[Gc<TItem>]>,
         mapper: Option<Gc<TypeMapper>>,
-        mut instantiator: TInstantiator,
+        mut instantiator: impl FnMut(&Gc<TItem>, Option<Gc<TypeMapper>>) -> Gc<TItem>,
     ) -> Option<Vec<Gc<TItem>>> {
-        let items = items?;
+        self.try_instantiate_list(items, mapper, |a: &Gc<TItem>, b: Option<Gc<TypeMapper>>| {
+            Ok(instantiator(a, b))
+        })
+        .unwrap()
+    }
+
+    pub(super) fn try_instantiate_list<TItem: Trace + Finalize>(
+        &self,
+        items: Option<&[Gc<TItem>]>,
+        mapper: Option<Gc<TypeMapper>>,
+        mut instantiator: impl FnMut(&Gc<TItem>, Option<Gc<TypeMapper>>) -> io::Result<Gc<TItem>>,
+    ) -> io::Result<Option<Vec<Gc<TItem>>>> {
+        let items = return_ok_none_if_none!(items);
         if !items.is_empty() {
             let mut i = 0;
             while i < items.len() {
                 let item = &items[i];
-                let mapped = instantiator(item, mapper.clone());
+                let mapped = instantiator(item, mapper.clone())?;
                 if !Gc::ptr_eq(item, &mapped) {
                     let mut result = if i == 0 {
                         vec![]
@@ -622,24 +643,24 @@ impl TypeChecker {
                     result.push(mapped);
                     i += 1;
                     while i < items.len() {
-                        result.push(instantiator(&items[i], mapper.clone()));
+                        result.push(instantiator(&items[i], mapper.clone())?);
                         i += 1;
                     }
-                    return Some(result);
+                    return Ok(Some(result));
                 }
 
                 i += 1;
             }
         }
-        Some(items.to_owned())
+        Ok(Some(items.to_owned()))
     }
 
     pub(super) fn instantiate_types(
         &self,
         types: Option<&[Gc<Type>]>,
         mapper: Option<Gc<TypeMapper>>,
-    ) -> Option<Vec<Gc<Type>>> {
-        self.instantiate_list(types, mapper, |type_: &Gc<Type>, mapper| {
+    ) -> io::Result<Option<Vec<Gc<Type>>>> {
+        self.try_instantiate_list(types, mapper, |type_: &Gc<Type>, mapper| {
             self.instantiate_type(type_, mapper)
         })
     }
@@ -648,30 +669,36 @@ impl TypeChecker {
         &self,
         signatures: &[Gc<Signature>],
         mapper: Gc<TypeMapper>,
-    ) -> Vec<Gc<Signature>> {
-        self.instantiate_list(
-            Some(signatures),
-            Some(mapper),
-            |signature: &Gc<Signature>, mapper| {
-                Gc::new(self.instantiate_signature(signature.clone(), mapper.unwrap(), None))
-            },
-        )
-        .unwrap()
+    ) -> io::Result<Vec<Gc<Signature>>> {
+        Ok(self
+            .try_instantiate_list(
+                Some(signatures),
+                Some(mapper),
+                |signature: &Gc<Signature>, mapper| {
+                    Ok(Gc::new(self.instantiate_signature(
+                        signature.clone(),
+                        mapper.unwrap(),
+                        None,
+                    )?))
+                },
+            )?
+            .unwrap())
     }
 
     pub(super) fn instantiate_index_infos(
         &self,
         index_infos: &[Gc<IndexInfo>],
         mapper: Gc<TypeMapper>,
-    ) -> Vec<Gc<IndexInfo>> {
-        self.instantiate_list(
-            Some(index_infos),
-            Some(mapper.clone()),
-            |index_info: &Gc<IndexInfo>, mapper| {
-                self.instantiate_index_info(index_info, mapper.unwrap())
-            },
-        )
-        .unwrap()
+    ) -> io::Result<Vec<Gc<IndexInfo>>> {
+        Ok(self
+            .try_instantiate_list(
+                Some(index_infos),
+                Some(mapper.clone()),
+                |index_info: &Gc<IndexInfo>, mapper| {
+                    self.instantiate_index_info(index_info, mapper.unwrap())
+                },
+            )?
+            .unwrap())
     }
 
     pub(super) fn create_type_mapper(
@@ -689,8 +716,12 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn get_mapped_type(&self, type_: &Type, mapper: &TypeMapper) -> Gc<Type> {
-        match mapper {
+    pub(super) fn get_mapped_type(
+        &self,
+        type_: &Type,
+        mapper: &TypeMapper,
+    ) -> io::Result<Gc<Type>> {
+        Ok(match mapper {
             TypeMapper::Simple(mapper) => {
                 if ptr::eq(type_, &*mapper.source) {
                     mapper.target.clone()
@@ -703,24 +734,24 @@ impl TypeChecker {
                 let targets = &mapper.targets;
                 for (i, source) in sources.iter().enumerate() {
                     if ptr::eq(type_, &**source) {
-                        return targets
+                        return Ok(targets
                             .as_ref()
-                            .map_or_else(|| self.any_type(), |targets| targets[i].clone());
+                            .map_or_else(|| self.any_type(), |targets| targets[i].clone()));
                     }
                 }
                 type_.type_wrapper()
             }
-            TypeMapper::Function(mapper) => mapper.func.call(self, type_),
+            TypeMapper::Function(mapper) => mapper.func.call(self, type_)?,
             TypeMapper::Composite(composite_or_merged_mapper)
             | TypeMapper::Merged(composite_or_merged_mapper) => {
-                let t1 = self.get_mapped_type(type_, &composite_or_merged_mapper.mapper1);
+                let t1 = self.get_mapped_type(type_, &composite_or_merged_mapper.mapper1)?;
                 if !ptr::eq(&*t1, type_) && matches!(mapper, TypeMapper::Composite(_)) {
-                    self.instantiate_type(&t1, Some(composite_or_merged_mapper.mapper2.clone()))
+                    self.instantiate_type(&t1, Some(composite_or_merged_mapper.mapper2.clone()))?
                 } else {
-                    self.get_mapped_type(&t1, &composite_or_merged_mapper.mapper2)
+                    self.get_mapped_type(&t1, &composite_or_merged_mapper.mapper2)?
                 }
             }
-        }
+        })
     }
 
     pub(super) fn make_unary_type_mapper(&self, source: &Type, target: &Type) -> TypeMapper {
@@ -735,9 +766,9 @@ impl TypeChecker {
         TypeMapper::new_array(sources, targets)
     }
 
-    pub(super) fn make_function_type_mapper<TFunc: TypeMapperCallback + 'static>(
+    pub(super) fn make_function_type_mapper(
         &self,
-        func: TFunc,
+        func: impl TypeMapperCallback + 'static,
     ) -> TypeMapper {
         TypeMapper::new_function(func)
     }
@@ -862,13 +893,13 @@ impl TypeChecker {
         &self,
         predicate: &TypePredicate,
         mapper: Gc<TypeMapper>,
-    ) -> TypePredicate {
-        self.create_type_predicate(
+    ) -> io::Result<TypePredicate> {
+        Ok(self.create_type_predicate(
             predicate.kind,
             predicate.parameter_name.clone(),
             predicate.parameter_index,
-            self.maybe_instantiate_type(predicate.type_.as_deref(), Some(mapper)),
-        )
+            self.maybe_instantiate_type(predicate.type_.as_deref(), Some(mapper))?,
+        ))
     }
 
     pub(super) fn instantiate_signature(
@@ -876,7 +907,7 @@ impl TypeChecker {
         signature: Gc<Signature>,
         mut mapper: Gc<TypeMapper>,
         erase_type_parameters: Option<bool>,
-    ) -> Signature {
+    ) -> io::Result<Signature> {
         let erase_type_parameters = erase_type_parameters.unwrap_or(false);
         let mut fresh_type_parameters: Option<Vec<Gc<Type /*TypeParameter*/>>> = None;
         if let Some(signature_type_parameters) = signature.maybe_type_parameters().clone() {
@@ -903,12 +934,14 @@ impl TypeChecker {
             signature
                 .maybe_this_parameter()
                 .as_ref()
-                .map(|this_parameter| self.instantiate_symbol(this_parameter, mapper.clone())),
-            self.instantiate_list(
+                .try_map(|this_parameter| {
+                    self.instantiate_symbol(this_parameter, mapper.clone())
+                })?,
+            self.try_instantiate_list(
                 Some(signature.parameters()),
                 Some(mapper.clone()),
                 |parameter, mapper| self.instantiate_symbol(parameter, mapper.unwrap()),
-            )
+            )?
             .unwrap(),
             None,
             None,
@@ -917,21 +950,21 @@ impl TypeChecker {
         );
         result.target = Some(signature);
         result.mapper = Some(mapper);
-        result
+        Ok(result)
     }
 
     pub(super) fn instantiate_symbol(
         &self,
         symbol: &Symbol,
         mut mapper: Gc<TypeMapper>,
-    ) -> Gc<Symbol> {
+    ) -> io::Result<Gc<Symbol>> {
         let mut symbol = symbol.symbol_wrapper();
         let links = self.get_symbol_links(&symbol);
         {
             let links = (*links).borrow();
             if let Some(type_) = links.type_.as_ref() {
-                if !self.could_contain_type_variables(&type_) {
-                    return symbol;
+                if !self.could_contain_type_variables(&type_)? {
+                    return Ok(symbol);
                 }
             }
         }
@@ -966,16 +999,16 @@ impl TypeChecker {
         if let Some(links_name_type) = (*links).borrow().name_type.clone() {
             result_links.name_type = Some(links_name_type);
         }
-        result.into()
+        Ok(result.into())
     }
 
-    pub(super) fn get_object_type_instantiation<TAliasSymbol: Borrow<Symbol>>(
+    pub(super) fn get_object_type_instantiation(
         &self,
         type_: &Type, /*AnonymousType | DeferredTypeReference*/
         mapper: Gc<TypeMapper>,
-        alias_symbol: Option<TAliasSymbol>,
+        alias_symbol: Option<impl Borrow<Symbol>>,
         alias_type_arguments: Option<&[Gc<Type>]>,
-    ) -> Gc<Type> {
+    ) -> io::Result<Gc<Type>> {
         let type_as_object_type = type_.as_object_type();
         let declaration = if type_as_object_type
             .object_flags()
@@ -1003,8 +1036,8 @@ impl TypeChecker {
         let target_as_object_type = target.as_object_type();
         if type_parameters.is_none() {
             let mut outer_type_parameters =
-                self.get_outer_type_parameters(&declaration, Some(true));
-            if self.is_js_constructor(Some(&*declaration)) {
+                self.get_outer_type_parameters(&declaration, Some(true))?;
+            if self.is_js_constructor(Some(&*declaration))? {
                 let template_tag_parameters =
                     self.get_type_parameters_from_declaration(&declaration);
                 outer_type_parameters = maybe_add_range(
@@ -1030,12 +1063,13 @@ impl TypeChecker {
                 || target.symbol().flags().intersects(SymbolFlags::TypeLiteral))
                 && target.maybe_alias_type_arguments().is_none()
             {
-                maybe_filter(type_parameters.as_deref(), |tp: &Gc<Type>| {
-                    some(
+                try_maybe_filter(type_parameters.as_deref(), |tp: &Gc<Type>| {
+                    try_some(
                         Some(&*all_declarations),
                         Some(|d: &Gc<Node>| self.is_type_parameter_possibly_referenced(tp, d)),
                     )
                 })
+                .transpose()?
             } else {
                 type_parameters
             };
@@ -1045,9 +1079,9 @@ impl TypeChecker {
         if !type_parameters.is_empty() {
             let combined_mapper =
                 self.combine_type_mappers(type_as_object_type.maybe_mapper(), mapper.clone());
-            let type_arguments = map(&type_parameters, |t: &Gc<Type>, _| {
+            let type_arguments = try_map(&type_parameters, |t: &Gc<Type>, _| {
                 self.get_mapped_type(t, &combined_mapper)
-            });
+            })?;
             let alias_symbol =
                 alias_symbol.map(|alias_symbol| alias_symbol.borrow().symbol_wrapper());
             let new_alias_symbol = alias_symbol
@@ -1056,7 +1090,7 @@ impl TypeChecker {
             let new_alias_type_arguments = if alias_symbol.is_some() {
                 alias_type_arguments.map(ToOwned::to_owned)
             } else {
-                self.instantiate_types(type_.maybe_alias_type_arguments().as_deref(), Some(mapper))
+                self.instantiate_types(type_.maybe_alias_type_arguments().as_deref(), Some(mapper))?
             };
             let id = format!(
                 "{}{}",
@@ -1105,7 +1139,7 @@ impl TypeChecker {
                             Some(new_mapper),
                             new_alias_symbol,
                             new_alias_type_arguments.as_deref(),
-                        )
+                        )?
                     } else if target_as_object_type
                         .object_flags()
                         .intersects(ObjectFlags::Mapped)
@@ -1115,14 +1149,14 @@ impl TypeChecker {
                             new_mapper,
                             new_alias_symbol,
                             new_alias_type_arguments.as_deref(),
-                        )
+                        )?
                     } else {
                         self.instantiate_anonymous_type(
                             &target,
                             new_mapper,
                             new_alias_symbol,
                             new_alias_type_arguments.as_deref(),
-                        )
+                        )?
                     },
                 );
                 target_as_object_type
@@ -1131,9 +1165,9 @@ impl TypeChecker {
                     .unwrap()
                     .insert(id, result.clone().unwrap());
             }
-            return result.unwrap();
+            return Ok(result.unwrap());
         }
-        type_.type_wrapper()
+        Ok(type_.type_wrapper())
     }
 }
 
@@ -1153,14 +1187,16 @@ impl BackreferenceMapperCallback {
 }
 
 impl TypeMapperCallback for BackreferenceMapperCallback {
-    fn call(&self, checker: &TypeChecker, t: &Type) -> Gc<Type> {
-        if matches!(
-            find_index(&self.context_inferences, |info: &Gc<InferenceInfo>, _| ptr::eq(&*info.type_parameter, t), None),
-            Some(found_index) if found_index >= self.index
-        ) {
-            checker.unknown_type()
-        } else {
-            t.type_wrapper()
-        }
+    fn call(&self, checker: &TypeChecker, t: &Type) -> io::Result<Gc<Type>> {
+        Ok(
+            if matches!(
+                find_index(&self.context_inferences, |info: &Gc<InferenceInfo>, _| ptr::eq(&*info.type_parameter, t), None),
+                Some(found_index) if found_index >= self.index
+            ) {
+                checker.unknown_type()
+            } else {
+                t.type_wrapper()
+            },
+        )
     }
 }

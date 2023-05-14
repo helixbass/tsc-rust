@@ -1,8 +1,9 @@
 use gc::Gc;
-use std::convert::TryInto;
 use std::ptr;
+use std::{convert::TryInto, io};
 
 use super::{CheckMode, TypeFacts};
+use crate::try_every;
 use crate::{
     add_related_info, are_option_gcs_equal, create_diagnostic_for_node, create_file_diagnostic,
     every, first_or_undefined, get_check_flags, get_containing_class, get_containing_function,
@@ -13,10 +14,10 @@ use crate::{
     is_class_static_block_declaration, is_effective_external_module, is_function_expression,
     is_in_top_level_context, is_object_literal_method, is_private_identifier,
     is_property_access_expression, is_property_assignment, parse_pseudo_big_int,
-    skip_outer_expressions, skip_parentheses, some, token_to_string, AssignmentKind, CheckFlags,
-    Debug_, Diagnostic, DiagnosticMessage, DiagnosticRelatedInformation, Diagnostics,
+    skip_outer_expressions, skip_parentheses, some, token_to_string, try_some, AssignmentKind,
+    CheckFlags, Debug_, Diagnostic, DiagnosticMessage, DiagnosticRelatedInformation, Diagnostics,
     ExternalEmitHelpers, FunctionFlags, LiteralLikeNodeInterface, ModifierFlags, ModuleKind, Node,
-    NodeCheckFlags, NodeFlags, NodeInterface, Number, ObjectFlags, OuterExpressionKinds,
+    NodeCheckFlags, NodeFlags, NodeInterface, Number, ObjectFlags, OptionTry, OuterExpressionKinds,
     PseudoBigInt, ReadonlyTextRange, ScriptTarget, SignatureFlags, SignatureKind, Symbol,
     SymbolFlags, SymbolInterface, SyntaxKind, TextSpan, Type, TypeChecker, TypeFlags,
     TypeInterface, UnionOrIntersectionTypeInterface,
@@ -27,7 +28,7 @@ impl TypeChecker {
         &self,
         node: &Node, /*FunctionExpression | ArrowFunction | MethodDeclaration*/
         check_mode: Option<CheckMode>,
-    ) -> Gc<Type> {
+    ) -> io::Result<Gc<Type>> {
         Debug_.assert(
             node.kind() != SyntaxKind::MethodDeclaration || is_object_literal_method(node),
             None,
@@ -44,23 +45,23 @@ impl TypeChecker {
         if matches!(
             check_mode,
             Some(check_mode) if check_mode.intersects(CheckMode::SkipContextSensitive)
-        ) && self.is_context_sensitive(node)
+        ) && self.is_context_sensitive(node)?
         {
             if get_effective_return_type_node(node).is_none()
                 && !has_context_sensitive_parameters(node)
             {
-                let contextual_signature = self.get_contextual_signature(node);
+                let contextual_signature = self.get_contextual_signature(node)?;
                 if matches!(
                     contextual_signature.as_ref(),
-                    Some(contextual_signature) if self.could_contain_type_variables(&self.get_return_type_of_signature(contextual_signature.clone()))
+                    Some(contextual_signature) if self.could_contain_type_variables(&*self.get_return_type_of_signature(contextual_signature.clone())?)?
                 ) {
                     let links = self.get_node_links(node);
                     if let Some(links_context_free_type) =
                         (*links).borrow().context_free_type.clone()
                     {
-                        return links_context_free_type;
+                        return Ok(links_context_free_type);
                     }
-                    let return_type = self.get_return_type_from_body(node, check_mode);
+                    let return_type = self.get_return_type_from_body(node, check_mode)?;
                     let return_only_signature = Gc::new(self.create_signature(
                         None,
                         None,
@@ -77,7 +78,7 @@ impl TypeChecker {
                         vec![return_only_signature],
                         vec![],
                         vec![],
-                    );
+                    )?;
                     let return_only_type_as_object_flags_type =
                         return_only_type.as_object_flags_type();
                     return_only_type_as_object_flags_type.set_object_flags(
@@ -85,34 +86,34 @@ impl TypeChecker {
                             | ObjectFlags::NonInferrableType,
                     );
                     links.borrow_mut().context_free_type = Some(return_only_type.clone());
-                    return return_only_type;
+                    return Ok(return_only_type);
                 }
             }
-            return self.any_function_type();
+            return Ok(self.any_function_type());
         }
 
-        let has_grammar_error = self.check_grammar_function_like_declaration(node);
+        let has_grammar_error = self.check_grammar_function_like_declaration(node)?;
         if !has_grammar_error && node.kind() == SyntaxKind::FunctionExpression {
             self.check_grammar_for_generator(node);
         }
 
-        self.contextually_check_function_expression_or_object_literal_method(node, check_mode);
+        self.contextually_check_function_expression_or_object_literal_method(node, check_mode)?;
 
-        self.get_type_of_symbol(&self.get_symbol_of_node(node).unwrap())
+        self.get_type_of_symbol(&self.get_symbol_of_node(node)?.unwrap())
     }
 
     pub(super) fn contextually_check_function_expression_or_object_literal_method(
         &self,
         node: &Node, /*FunctionExpression | ArrowFunction | MethodDeclaration*/
         check_mode: Option<CheckMode>,
-    ) {
+    ) -> io::Result<()> {
         let links = self.get_node_links(node);
         if !(*links)
             .borrow()
             .flags
             .intersects(NodeCheckFlags::ContextChecked)
         {
-            let contextual_signature = self.get_contextual_signature(node);
+            let contextual_signature = self.get_contextual_signature(node)?;
             if !(*links)
                 .borrow()
                 .flags
@@ -120,15 +121,15 @@ impl TypeChecker {
             {
                 links.borrow_mut().flags |= NodeCheckFlags::ContextChecked;
                 let signatures_of_type = self.get_signatures_of_type(
-                    &self.get_type_of_symbol(&self.get_symbol_of_node(node).unwrap()),
+                    &*self.get_type_of_symbol(&self.get_symbol_of_node(node)?.unwrap())?,
                     SignatureKind::Call,
-                );
+                )?;
                 let signature = first_or_undefined(&signatures_of_type);
                 if signature.is_none() {
-                    return;
+                    return Ok(());
                 }
                 let signature = signature.unwrap();
-                if self.is_context_sensitive(node) {
+                if self.is_context_sensitive(node)? {
                     if let Some(contextual_signature) = contextual_signature.as_ref() {
                         let inference_context = self.get_inference_context(node);
                         if matches!(
@@ -139,7 +140,7 @@ impl TypeChecker {
                                 signature,
                                 contextual_signature.clone(),
                                 inference_context.as_ref().unwrap(),
-                            );
+                            )?;
                         }
                         let instantiated_contextual_signature =
                             if let Some(inference_context) = inference_context.as_ref() {
@@ -147,60 +148,62 @@ impl TypeChecker {
                                     contextual_signature.clone(),
                                     inference_context.mapper(),
                                     None,
-                                ))
+                                )?)
                             } else {
                                 contextual_signature.clone()
                             };
                         self.assign_contextual_parameter_types(
                             signature,
                             &instantiated_contextual_signature,
-                        );
+                        )?;
                     } else {
-                        self.assign_non_contextual_parameter_types(signature);
+                        self.assign_non_contextual_parameter_types(signature)?;
                     }
                 }
                 if contextual_signature.is_some()
-                    && self.get_return_type_from_annotation(node).is_none()
+                    && self.get_return_type_from_annotation(node)?.is_none()
                     && signature.maybe_resolved_return_type().is_none()
                 {
-                    let return_type = self.get_return_type_from_body(node, check_mode);
+                    let return_type = self.get_return_type_from_body(node, check_mode)?;
                     if signature.maybe_resolved_return_type().is_none() {
                         *signature.maybe_resolved_return_type_mut() = Some(return_type);
                     }
                 }
-                self.check_signature_declaration(node);
+                self.check_signature_declaration(node)?;
             }
         }
+
+        Ok(())
     }
 
     pub(super) fn check_function_expression_or_object_literal_method_deferred(
         &self,
         node: &Node, /*ArrowFunction | FunctionExpression | MethodDeclaration*/
-    ) {
+    ) -> io::Result<()> {
         Debug_.assert(
             node.kind() != SyntaxKind::MethodDeclaration || is_object_literal_method(node),
             None,
         );
 
         let function_flags = get_function_flags(Some(node));
-        let return_type = self.get_return_type_from_annotation(node);
+        let return_type = self.get_return_type_from_annotation(node)?;
         self.check_all_code_paths_in_non_void_function_return_or_throw(
             node,
             return_type.as_deref(),
-        );
+        )?;
 
         if let Some(node_body) = node.as_function_like_declaration().maybe_body().as_ref() {
             if get_effective_return_type_node(node).is_none() {
-                self.get_return_type_of_signature(self.get_signature_from_declaration_(node));
+                self.get_return_type_of_signature(self.get_signature_from_declaration_(node)?)?;
             }
 
             if node_body.kind() == SyntaxKind::Block {
-                self.check_source_element(Some(&**node_body));
+                self.check_source_element(Some(&**node_body))?;
             } else {
-                let expr_type = self.check_expression(node_body, None, None);
+                let expr_type = self.check_expression(node_body, None, None)?;
                 let return_or_promised_type = return_type
                     .as_ref()
-                    .map(|return_type| self.unwrap_return_type(return_type, function_flags));
+                    .try_map(|return_type| self.unwrap_return_type(return_type, function_flags))?;
                 if let Some(return_or_promised_type) = return_or_promised_type.as_ref() {
                     if function_flags & FunctionFlags::AsyncGenerator == FunctionFlags::Async {
                         let awaited_type = self.check_awaited_type(
@@ -209,7 +212,7 @@ impl TypeChecker {
                             node_body,
                             &Diagnostics::The_return_type_of_an_async_function_must_either_be_a_valid_promise_or_must_not_contain_a_callable_then_member,
                             None,
-                        );
+                        )?;
                         self.check_type_assignable_to_and_optionally_elaborate(
                             &awaited_type,
                             return_or_promised_type,
@@ -217,7 +220,7 @@ impl TypeChecker {
                             Some(&**node_body),
                             None,
                             None,
-                        );
+                        )?;
                     } else {
                         self.check_type_assignable_to_and_optionally_elaborate(
                             &expr_type,
@@ -226,11 +229,13 @@ impl TypeChecker {
                             Some(&**node_body),
                             None,
                             None,
-                        );
+                        )?;
                     }
                 }
             }
         }
+
+        Ok(())
     }
 
     pub(super) fn check_arithmetic_operand_type(
@@ -239,11 +244,11 @@ impl TypeChecker {
         type_: &Type,
         diagnostic: &DiagnosticMessage,
         is_await_valid: Option<bool>,
-    ) -> bool {
+    ) -> io::Result<bool> {
         let is_await_valid = is_await_valid.unwrap_or(false);
-        if !self.is_type_assignable_to(type_, &self.number_or_big_int_type()) {
+        if !self.is_type_assignable_to(type_, &self.number_or_big_int_type())? {
             let awaited_type = if is_await_valid {
-                self.get_awaited_type_of_promise(type_, Option::<&Node>::None, None, None)
+                self.get_awaited_type_of_promise(type_, Option::<&Node>::None, None, None)?
             } else {
                 None
             };
@@ -251,32 +256,35 @@ impl TypeChecker {
                 operand,
                 matches!(
                     awaited_type.as_ref(),
-                    Some(awaited_type) if self.is_type_assignable_to(awaited_type, &self.number_or_big_int_type())
+                    Some(awaited_type) if self.is_type_assignable_to(awaited_type, &self.number_or_big_int_type())?
                 ),
                 diagnostic,
                 None,
             );
-            return false;
+            return Ok(false);
         }
-        true
+        Ok(true)
     }
 
-    pub(super) fn is_readonly_assignment_declaration(&self, d: &Node /*Declaration*/) -> bool {
+    pub(super) fn is_readonly_assignment_declaration(
+        &self,
+        d: &Node, /*Declaration*/
+    ) -> io::Result<bool> {
         if !is_call_expression(d) {
-            return false;
+            return Ok(false);
         }
         if !is_bindable_object_define_property_call(d) {
-            return false;
+            return Ok(false);
         }
         let d_as_call_expression = d.as_call_expression();
         let object_lit_type =
-            self.check_expression_cached(&d_as_call_expression.arguments[2], None);
-        let value_type = self.get_type_of_property_of_type_(&object_lit_type, "value");
+            self.check_expression_cached(&d_as_call_expression.arguments[2], None)?;
+        let value_type = self.get_type_of_property_of_type_(&object_lit_type, "value")?;
         if value_type.is_some() {
-            let writable_prop = self.get_property_of_type_(&object_lit_type, "writable", None);
+            let writable_prop = self.get_property_of_type_(&object_lit_type, "writable", None)?;
             let writable_type = writable_prop
                 .as_ref()
-                .map(|writable_prop| self.get_type_of_symbol(writable_prop));
+                .try_map(|writable_prop| self.get_type_of_symbol(writable_prop))?;
             if match writable_type.as_ref() {
                 None => true,
                 Some(writable_type) => {
@@ -284,7 +292,7 @@ impl TypeChecker {
                         || Gc::ptr_eq(writable_type, &self.regular_false_type())
                 }
             } {
-                return true;
+                return Ok(true);
             }
             if let Some(ref writable_prop_value_declaration) = writable_prop
                 .as_ref()
@@ -296,21 +304,21 @@ impl TypeChecker {
                 let initializer = &writable_prop_value_declaration
                     .as_property_assignment()
                     .initializer;
-                let raw_original_type = self.check_expression(initializer, None, None);
+                let raw_original_type = self.check_expression(initializer, None, None)?;
                 if Gc::ptr_eq(&raw_original_type, &self.false_type())
                     || Gc::ptr_eq(&raw_original_type, &self.regular_false_type())
                 {
-                    return true;
+                    return Ok(true);
                 }
             }
-            return false;
+            return Ok(false);
         }
-        let set_prop = self.get_property_of_type_(&object_lit_type, "set", None);
-        set_prop.is_none()
+        let set_prop = self.get_property_of_type_(&object_lit_type, "set", None)?;
+        Ok(set_prop.is_none())
     }
 
-    pub(super) fn is_readonly_symbol(&self, symbol: &Symbol) -> bool {
-        get_check_flags(symbol).intersects(CheckFlags::Readonly)
+    pub(super) fn is_readonly_symbol(&self, symbol: &Symbol) -> io::Result<bool> {
+        Ok(get_check_flags(symbol).intersects(CheckFlags::Readonly)
             || symbol.flags().intersects(SymbolFlags::Property)
                 && get_declaration_modifier_flags_from_symbol(symbol, None)
                     .intersects(ModifierFlags::Readonly)
@@ -321,10 +329,10 @@ impl TypeChecker {
             || symbol.flags().intersects(SymbolFlags::Accessor)
                 && !symbol.flags().intersects(SymbolFlags::SetAccessor)
             || symbol.flags().intersects(SymbolFlags::EnumMember)
-            || some(
+            || try_some(
                 symbol.maybe_declarations().as_deref(),
                 Some(|declaration: &Gc<Node>| self.is_readonly_assignment_declaration(declaration)),
-            )
+            )?)
     }
 
     pub(super) fn is_assignment_to_readonly_entity(
@@ -332,11 +340,11 @@ impl TypeChecker {
         expr: &Node, /*Expression*/
         symbol: &Symbol,
         assignment_kind: AssignmentKind,
-    ) -> bool {
+    ) -> io::Result<bool> {
         if assignment_kind == AssignmentKind::None {
-            return false;
+            return Ok(false);
         }
-        if self.is_readonly_symbol(symbol) {
+        if self.is_readonly_symbol(symbol)? {
             if symbol.flags().intersects(SymbolFlags::Property)
                 && is_access_expression(expr)
                 && expr.as_has_expression().expression().kind() == SyntaxKind::ThisKeyword
@@ -344,9 +352,9 @@ impl TypeChecker {
                 let ctor = get_containing_function(expr);
                 if !matches!(
                     ctor.as_ref(),
-                    Some(ctor) if ctor.kind() == SyntaxKind::Constructor || self.is_js_constructor(Some(&**ctor))
+                    Some(ctor) if ctor.kind() == SyntaxKind::Constructor || self.is_js_constructor(Some(&**ctor))?
                 ) {
-                    return true;
+                    return Ok(true);
                 }
                 let ctor = ctor.unwrap();
                 if let Some(symbol_value_declaration) = symbol.maybe_value_declaration().as_ref() {
@@ -383,10 +391,10 @@ impl TypeChecker {
                         || is_local_parameter_property
                         || is_local_this_property_assignment
                         || is_local_this_property_assignment_constructor_function;
-                    return !is_writeable_symbol;
+                    return Ok(!is_writeable_symbol);
                 }
             }
-            return true;
+            return Ok(true);
         }
         if is_access_expression(expr) {
             let node = skip_parentheses(&expr.as_has_expression().expression(), None);
@@ -397,15 +405,15 @@ impl TypeChecker {
                     .clone()
                     .unwrap();
                 if symbol.flags().intersects(SymbolFlags::Alias) {
-                    let declaration = self.get_declaration_of_alias_symbol(&symbol);
-                    return matches!(
+                    let declaration = self.get_declaration_of_alias_symbol(&symbol)?;
+                    return Ok(matches!(
                         declaration.as_ref(),
                         Some(declaration) if declaration.kind() == SyntaxKind::NamespaceImport
-                    );
+                    ));
                 }
             }
         }
-        false
+        Ok(false)
     }
 
     pub(super) fn check_reference_expression(
@@ -432,9 +440,9 @@ impl TypeChecker {
     pub(super) fn check_delete_expression(
         &self,
         node: &Node, /*DeleteExpression*/
-    ) -> Gc<Type> {
+    ) -> io::Result<Gc<Type>> {
         let node_as_delete_expression = node.as_delete_expression();
-        self.check_expression(&node_as_delete_expression.expression, None, None);
+        self.check_expression(&node_as_delete_expression.expression, None, None)?;
         let expr = skip_parentheses(&node_as_delete_expression.expression, None);
         if !is_access_expression(&expr) {
             self.error(
@@ -442,7 +450,7 @@ impl TypeChecker {
                 &Diagnostics::The_operand_of_a_delete_operator_must_be_a_property_reference,
                 None,
             );
-            return self.boolean_type();
+            return Ok(self.boolean_type());
         }
         if is_property_access_expression(&expr)
             && is_private_identifier(&expr.as_property_access_expression().name)
@@ -457,24 +465,24 @@ impl TypeChecker {
         let resolved_symbol = (*links).borrow().resolved_symbol.clone();
         let symbol = self.get_export_symbol_of_value_symbol_if_exported(resolved_symbol);
         if let Some(symbol) = symbol.as_ref() {
-            if self.is_readonly_symbol(symbol) {
+            if self.is_readonly_symbol(symbol)? {
                 self.error(
                     Some(&*expr),
                     &Diagnostics::The_operand_of_a_delete_operator_cannot_be_a_read_only_property,
                     None,
                 );
             }
-            self.check_delete_expression_must_be_optional(&expr, symbol);
+            self.check_delete_expression_must_be_optional(&expr, symbol)?;
         }
-        self.boolean_type()
+        Ok(self.boolean_type())
     }
 
     pub(super) fn check_delete_expression_must_be_optional(
         &self,
         expr: &Node, /*AccessExpression*/
         symbol: &Symbol,
-    ) {
-        let type_ = self.get_type_of_symbol(symbol);
+    ) -> io::Result<()> {
+        let type_ = self.get_type_of_symbol(symbol)?;
         if self.strict_null_checks
             && !type_
                 .flags()
@@ -492,22 +500,30 @@ impl TypeChecker {
                 None,
             );
         }
+
+        Ok(())
     }
 
     pub(super) fn check_type_of_expression(
         &self,
         node: &Node, /*TypeOfExpression*/
-    ) -> Gc<Type> {
-        self.check_expression(&node.as_type_of_expression().expression, None, None);
-        self.typeof_type()
+    ) -> io::Result<Gc<Type>> {
+        self.check_expression(&node.as_type_of_expression().expression, None, None)?;
+        Ok(self.typeof_type())
     }
 
-    pub(super) fn check_void_expression(&self, node: &Node /*VoidExpression*/) -> Gc<Type> {
-        self.check_expression(&node.as_void_expression().expression, None, None);
-        self.undefined_widening_type()
+    pub(super) fn check_void_expression(
+        &self,
+        node: &Node, /*VoidExpression*/
+    ) -> io::Result<Gc<Type>> {
+        self.check_expression(&node.as_void_expression().expression, None, None)?;
+        Ok(self.undefined_widening_type())
     }
 
-    pub(super) fn check_await_expression(&self, node: &Node /*AwaitExpression*/) -> Gc<Type> {
+    pub(super) fn check_await_expression(
+        &self,
+        node: &Node, /*AwaitExpression*/
+    ) -> io::Result<Gc<Type>> {
         if self.produce_diagnostics {
             let container = get_containing_function_or_class_static_block(node);
             if matches!(
@@ -614,14 +630,14 @@ impl TypeChecker {
         }
 
         let operand_type =
-            self.check_expression(&node.as_await_expression().expression, None, None);
+            self.check_expression(&node.as_await_expression().expression, None, None)?;
         let awaited_type = self.check_awaited_type(
             &operand_type,
             true,
             node,
             &Diagnostics::Type_of_await_operand_must_either_be_a_valid_promise_or_must_not_contain_a_callable_then_member,
             None,
-        );
+        )?;
         if Gc::ptr_eq(&awaited_type, &operand_type)
             && !self.is_error_type(&awaited_type)
             && !operand_type.flags().intersects(TypeFlags::AnyOrUnknown)
@@ -638,23 +654,23 @@ impl TypeChecker {
                 ),
             );
         }
-        awaited_type
+        Ok(awaited_type)
     }
 
     pub(super) fn check_prefix_unary_expression(
         &self,
         node: &Node, /*PrefixUnaryExpression*/
-    ) -> Gc<Type> {
+    ) -> io::Result<Gc<Type>> {
         let node_as_prefix_unary_expression = node.as_prefix_unary_expression();
         let operand_type =
-            self.check_expression(&node_as_prefix_unary_expression.operand, None, None);
+            self.check_expression(&node_as_prefix_unary_expression.operand, None, None)?;
         if Gc::ptr_eq(&operand_type, &self.silent_never_type()) {
-            return self.silent_never_type();
+            return Ok(self.silent_never_type());
         }
         match node_as_prefix_unary_expression.operand.kind() {
             SyntaxKind::NumericLiteral => match node_as_prefix_unary_expression.operator {
                 SyntaxKind::MinusToken => {
-                    return self.get_fresh_type_of_literal_type(
+                    return Ok(self.get_fresh_type_of_literal_type(
                         &self.get_number_literal_type(Number::new(
                             node_as_prefix_unary_expression
                                 .operand
@@ -664,10 +680,10 @@ impl TypeChecker {
                                 .unwrap()
                                 * -1.0,
                         )),
-                    );
+                    ));
                 }
                 SyntaxKind::PlusToken => {
-                    return self.get_fresh_type_of_literal_type(
+                    return Ok(self.get_fresh_type_of_literal_type(
                         &self.get_number_literal_type(Number::new(
                             node_as_prefix_unary_expression
                                 .operand
@@ -676,13 +692,13 @@ impl TypeChecker {
                                 .parse::<f64>()
                                 .unwrap(),
                         )),
-                    );
+                    ));
                 }
                 _ => (),
             },
             SyntaxKind::BigIntLiteral => {
                 if node_as_prefix_unary_expression.operator == SyntaxKind::MinusToken {
-                    return self.get_fresh_type_of_literal_type(
+                    return Ok(self.get_fresh_type_of_literal_type(
                         &self.get_big_int_literal_type(PseudoBigInt::new(
                             true,
                             parse_pseudo_big_int(
@@ -692,14 +708,14 @@ impl TypeChecker {
                                     .text(),
                             ),
                         )),
-                    );
+                    ));
                 }
             }
             _ => (),
         }
-        match node_as_prefix_unary_expression.operator {
+        Ok(match node_as_prefix_unary_expression.operator {
             SyntaxKind::PlusToken | SyntaxKind::MinusToken | SyntaxKind::TildeToken => {
-                self.check_non_null_type(&operand_type, &node_as_prefix_unary_expression.operand);
+                self.check_non_null_type(&operand_type, &node_as_prefix_unary_expression.operand)?;
                 if self.maybe_type_of_kind(&operand_type, TypeFlags::ESSymbolLike) {
                     self.error(
                         Some(&*node_as_prefix_unary_expression.operand),
@@ -721,21 +737,21 @@ impl TypeChecker {
                                     .unwrap()
                                     .to_owned(),
                                 self.type_to_string_(
-                                    &self.get_base_type_of_literal_type(&operand_type),
+                                    &*self.get_base_type_of_literal_type(&operand_type)?,
                                     Option::<&Node>::None,
                                     None,
                                     None,
-                                ),
+                                )?,
                             ]),
                         );
                     }
-                    return self.number_type();
+                    return Ok(self.number_type());
                 }
-                self.get_unary_result_type(&operand_type)
+                self.get_unary_result_type(&operand_type)?
             }
             SyntaxKind::ExclamationToken => {
-                self.check_truthiness_expression(&node_as_prefix_unary_expression.operand, None);
-                let facts = self.get_type_facts(&operand_type, None)
+                self.check_truthiness_expression(&node_as_prefix_unary_expression.operand, None)?;
+                let facts = self.get_type_facts(&operand_type, None)?
                     & (TypeFacts::Truthy | TypeFacts::Falsy);
                 match facts {
                     TypeFacts::Truthy => self.false_type(),
@@ -744,7 +760,12 @@ impl TypeChecker {
                 }
             }
             SyntaxKind::PlusPlusToken | SyntaxKind::MinusMinusToken => {
-                let ok = self.check_arithmetic_operand_type(&node_as_prefix_unary_expression.operand, &self.check_non_null_type(&operand_type, &node_as_prefix_unary_expression.operand), &Diagnostics::An_arithmetic_operand_must_be_of_type_any_number_bigint_or_an_enum_type, None);
+                let ok = self.check_arithmetic_operand_type(
+                    &node_as_prefix_unary_expression.operand,
+                    &*self.check_non_null_type(&operand_type, &node_as_prefix_unary_expression.operand)?,
+                    &Diagnostics::An_arithmetic_operand_must_be_of_type_any_number_bigint_or_an_enum_type,
+                    None
+                )?;
                 if ok {
                     self.check_reference_expression(
                         &node_as_prefix_unary_expression.operand,
@@ -752,28 +773,28 @@ impl TypeChecker {
                         &Diagnostics::The_operand_of_an_increment_or_decrement_operator_may_not_be_an_optional_property_access,
                     );
                 }
-                self.get_unary_result_type(&operand_type)
+                self.get_unary_result_type(&operand_type)?
             }
             _ => self.error_type(),
-        }
+        })
     }
 
     pub(super) fn check_postfix_unary_expression(
         &self,
         node: &Node, /*PostfixUnaryExpression*/
-    ) -> Gc<Type> {
+    ) -> io::Result<Gc<Type>> {
         let node_as_postfix_unary_expression = node.as_postfix_unary_expression();
         let operand_type =
-            self.check_expression(&node_as_postfix_unary_expression.operand, None, None);
+            self.check_expression(&node_as_postfix_unary_expression.operand, None, None)?;
         if Gc::ptr_eq(&operand_type, &self.silent_never_type()) {
-            return self.silent_never_type();
+            return Ok(self.silent_never_type());
         }
         let ok = self.check_arithmetic_operand_type(
             &node_as_postfix_unary_expression.operand,
-            &self.check_non_null_type(&operand_type, &node_as_postfix_unary_expression.operand),
+            &*self.check_non_null_type(&operand_type, &node_as_postfix_unary_expression.operand)?,
             &Diagnostics::An_arithmetic_operand_must_be_of_type_any_number_bigint_or_an_enum_type,
             None,
-        );
+        )?;
         if ok {
             self.check_reference_expression(
                 &node_as_postfix_unary_expression.operand,
@@ -784,17 +805,19 @@ impl TypeChecker {
         self.get_unary_result_type(&operand_type)
     }
 
-    pub(super) fn get_unary_result_type(&self, operand_type: &Type) -> Gc<Type> {
+    pub(super) fn get_unary_result_type(&self, operand_type: &Type) -> io::Result<Gc<Type>> {
         if self.maybe_type_of_kind(operand_type, TypeFlags::BigIntLike) {
-            return if self.is_type_assignable_to_kind(operand_type, TypeFlags::AnyOrUnknown, None)
-                || self.maybe_type_of_kind(operand_type, TypeFlags::NumberLike)
-            {
-                self.number_or_big_int_type()
-            } else {
-                self.bigint_type()
-            };
+            return Ok(
+                if self.is_type_assignable_to_kind(operand_type, TypeFlags::AnyOrUnknown, None)?
+                    || self.maybe_type_of_kind(operand_type, TypeFlags::NumberLike)
+                {
+                    self.number_or_big_int_type()
+                } else {
+                    self.bigint_type()
+                },
+            );
         }
-        self.number_type()
+        Ok(self.number_type())
     }
 
     pub(super) fn maybe_type_of_kind(&self, type_: &Type, kind: TypeFlags) -> bool {
@@ -817,37 +840,37 @@ impl TypeChecker {
         source: &Type,
         kind: TypeFlags,
         strict: Option<bool>,
-    ) -> bool {
+    ) -> io::Result<bool> {
         if source.flags().intersects(kind) {
-            return true;
+            return Ok(true);
         }
         if strict == Some(true)
             && source.flags().intersects(
                 TypeFlags::AnyOrUnknown | TypeFlags::Void | TypeFlags::Undefined | TypeFlags::Null,
             )
         {
-            return false;
+            return Ok(false);
         }
-        kind.intersects(TypeFlags::NumberLike)
-            && self.is_type_assignable_to(source, &self.number_type())
+        Ok(kind.intersects(TypeFlags::NumberLike)
+            && self.is_type_assignable_to(source, &self.number_type())?
             || kind.intersects(TypeFlags::BigIntLike)
-                && self.is_type_assignable_to(source, &self.bigint_type())
+                && self.is_type_assignable_to(source, &self.bigint_type())?
             || kind.intersects(TypeFlags::StringLike)
-                && self.is_type_assignable_to(source, &self.string_type())
+                && self.is_type_assignable_to(source, &self.string_type())?
             || kind.intersects(TypeFlags::BooleanLike)
-                && self.is_type_assignable_to(source, &self.boolean_type())
+                && self.is_type_assignable_to(source, &self.boolean_type())?
             || kind.intersects(TypeFlags::Void)
-                && self.is_type_assignable_to(source, &self.void_type())
+                && self.is_type_assignable_to(source, &self.void_type())?
             || kind.intersects(TypeFlags::Never)
-                && self.is_type_assignable_to(source, &self.never_type())
+                && self.is_type_assignable_to(source, &self.never_type())?
             || kind.intersects(TypeFlags::Null)
-                && self.is_type_assignable_to(source, &self.null_type())
+                && self.is_type_assignable_to(source, &self.null_type())?
             || kind.intersects(TypeFlags::Undefined)
-                && self.is_type_assignable_to(source, &self.undefined_type())
+                && self.is_type_assignable_to(source, &self.undefined_type())?
             || kind.intersects(TypeFlags::ESSymbol)
-                && self.is_type_assignable_to(source, &self.es_symbol_type())
+                && self.is_type_assignable_to(source, &self.es_symbol_type())?
             || kind.intersects(TypeFlags::NonPrimitive)
-                && self.is_type_assignable_to(source, &self.non_primitive_type())
+                && self.is_type_assignable_to(source, &self.non_primitive_type())?)
     }
 
     pub(super) fn all_types_assignable_to_kind(
@@ -855,14 +878,14 @@ impl TypeChecker {
         source: &Type,
         kind: TypeFlags,
         strict: Option<bool>,
-    ) -> bool {
-        if source.flags().intersects(TypeFlags::Union) {
-            every(source.as_union_type().types(), |sub_type: &Gc<Type>, _| {
+    ) -> io::Result<bool> {
+        Ok(if source.flags().intersects(TypeFlags::Union) {
+            try_every(source.as_union_type().types(), |sub_type: &Gc<Type>, _| {
                 self.all_types_assignable_to_kind(sub_type, kind, strict)
-            })
+            })?
         } else {
-            self.is_type_assignable_to_kind(source, kind, strict)
-        }
+            self.is_type_assignable_to_kind(source, kind, strict)?
+        })
     }
 
     pub(super) fn is_const_enum_object_type(&self, type_: &Type) -> bool {
@@ -883,14 +906,14 @@ impl TypeChecker {
         right: &Node, /*Expression*/
         left_type: &Type,
         right_type: &Type,
-    ) -> Gc<Type> {
+    ) -> io::Result<Gc<Type>> {
         if ptr::eq(left_type, &*self.silent_never_type())
             || ptr::eq(right_type, &*self.silent_never_type())
         {
-            return self.silent_never_type();
+            return Ok(self.silent_never_type());
         }
         if !self.is_type_any(Some(left_type))
-            && self.all_types_assignable_to_kind(left_type, TypeFlags::Primitive, None)
+            && self.all_types_assignable_to_kind(left_type, TypeFlags::Primitive, None)?
         {
             self.error(
                 Some(left),
@@ -899,8 +922,8 @@ impl TypeChecker {
             );
         }
         if !(self.is_type_any(Some(right_type))
-            || self.type_has_call_or_construct_signatures(right_type)
-            || self.is_type_subtype_of(right_type, &self.global_function_type()))
+            || self.type_has_call_or_construct_signatures(right_type)?
+            || self.is_type_subtype_of(right_type, &self.global_function_type())?)
         {
             self.error(
                 Some(right),
@@ -908,7 +931,7 @@ impl TypeChecker {
                 None,
             );
         }
-        self.boolean_type()
+        Ok(self.boolean_type())
     }
 
     pub(super) fn check_in_expression(
@@ -917,16 +940,16 @@ impl TypeChecker {
         right: &Node, /*Expression*/
         left_type: &Type,
         right_type: &Type,
-    ) -> Gc<Type> {
+    ) -> io::Result<Gc<Type>> {
         if ptr::eq(left_type, &*self.silent_never_type())
             || ptr::eq(right_type, &*self.silent_never_type())
         {
-            return self.silent_never_type();
+            return Ok(self.silent_never_type());
         }
         let mut left_type = left_type.type_wrapper();
         if is_private_identifier(left) {
             if self.language_version < ScriptTarget::ESNext {
-                self.check_external_emit_helpers(left, ExternalEmitHelpers::ClassPrivateFieldIn);
+                self.check_external_emit_helpers(left, ExternalEmitHelpers::ClassPrivateFieldIn)?;
             }
             if (*self.get_node_links(left))
                 .borrow()
@@ -936,22 +959,22 @@ impl TypeChecker {
             {
                 let is_unchecked_js =
                     self.is_unchecked_js_suggestion(Some(left), right_type.maybe_symbol(), true);
-                self.report_nonexistent_property(left, right_type, is_unchecked_js);
+                self.report_nonexistent_property(left, right_type, is_unchecked_js)?;
             }
         } else {
-            left_type = self.check_non_null_type(&left_type, left);
+            left_type = self.check_non_null_type(&left_type, left)?;
             if !(self.all_types_assignable_to_kind(
                 &left_type,
                 TypeFlags::StringLike | TypeFlags::NumberLike | TypeFlags::ESSymbolLike,
                 None,
-            ) || self.is_type_assignable_to_kind(
+            )? || self.is_type_assignable_to_kind(
                 &left_type,
                 TypeFlags::Index
                     | TypeFlags::TemplateLiteral
                     | TypeFlags::StringMapping
                     | TypeFlags::TypeParameter,
                 None,
-            )) {
+            )?) {
                 self.error(
                     Some(left),
                     &Diagnostics::The_left_hand_side_of_an_in_expression_must_be_a_private_identifier_or_of_type_any_string_number_or_symbol,
@@ -959,24 +982,24 @@ impl TypeChecker {
                 );
             }
         }
-        let right_type = self.check_non_null_type(right_type, right);
-        let right_type_constraint = self.get_constraint_of_type(&right_type);
+        let right_type = self.check_non_null_type(right_type, right)?;
+        let right_type_constraint = self.get_constraint_of_type(&right_type)?;
         if !self.all_types_assignable_to_kind(
             &right_type,
             TypeFlags::NonPrimitive | TypeFlags::InstantiableNonPrimitive,
             None,
-        ) || matches!(
+        )? || matches!(
             right_type_constraint.as_ref(),
             Some(right_type_constraint) if self.is_type_assignable_to_kind(
                 &right_type,
                 TypeFlags::UnionOrIntersection,
                 None,
-            ) &&
+            )? &&
                 !self.all_types_assignable_to_kind(
                     right_type_constraint,
                     TypeFlags::NonPrimitive | TypeFlags::InstantiableNonPrimitive,
                     None,
-                ) ||
+                )? ||
                 !self.maybe_type_of_kind(right_type_constraint, TypeFlags::NonPrimitive | TypeFlags::InstantiableNonPrimitive | TypeFlags::Object)
         ) {
             self.error(
@@ -985,6 +1008,6 @@ impl TypeChecker {
                 None,
             );
         }
-        self.boolean_type()
+        Ok(self.boolean_type())
     }
 }

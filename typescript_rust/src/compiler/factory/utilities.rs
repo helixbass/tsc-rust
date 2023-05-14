@@ -1,8 +1,8 @@
 use gc::{Finalize, Gc, Trace};
-use std::borrow::Borrow;
 use std::cell::RefCell;
 use std::ptr;
 use std::rc::Rc;
+use std::{borrow::Borrow, io};
 
 use crate::{
     first_or_undefined, get_emit_flags, get_jsdoc_type, get_jsdoc_type_tag, get_original_node,
@@ -319,8 +319,8 @@ fn binary_expression_state_call<TMachine: BinaryExpressionStateMachine>(
     user_state_stack: &mut Vec<Option<TMachine::TState>>,
     result_holder: Rc<RefCell<Option<TMachine::TResult>>>,
     outer_state: TMachine::TOuterState,
-) -> usize {
-    match state {
+) -> io::Result<usize> {
+    Ok(match state {
         BinaryExpressionState::Enter => binary_expression_state_enter(
             machine,
             stack_index,
@@ -329,7 +329,7 @@ fn binary_expression_state_call<TMachine: BinaryExpressionStateMachine>(
             user_state_stack,
             result_holder,
             outer_state,
-        ),
+        )?,
         BinaryExpressionState::Left => binary_expression_state_left(
             machine,
             stack_index,
@@ -338,7 +338,7 @@ fn binary_expression_state_call<TMachine: BinaryExpressionStateMachine>(
             user_state_stack,
             result_holder,
             outer_state,
-        ),
+        )?,
         BinaryExpressionState::Operator => binary_expression_state_operator(
             machine,
             stack_index,
@@ -347,7 +347,7 @@ fn binary_expression_state_call<TMachine: BinaryExpressionStateMachine>(
             user_state_stack,
             result_holder,
             outer_state,
-        ),
+        )?,
         BinaryExpressionState::Right => binary_expression_state_right(
             machine,
             stack_index,
@@ -356,7 +356,7 @@ fn binary_expression_state_call<TMachine: BinaryExpressionStateMachine>(
             user_state_stack,
             result_holder,
             outer_state,
-        ),
+        )?,
         BinaryExpressionState::Exit => binary_expression_state_exit(
             machine,
             stack_index,
@@ -365,7 +365,7 @@ fn binary_expression_state_call<TMachine: BinaryExpressionStateMachine>(
             user_state_stack,
             result_holder,
             outer_state,
-        ),
+        )?,
         BinaryExpressionState::Done => binary_expression_state_done(
             machine,
             stack_index,
@@ -375,7 +375,7 @@ fn binary_expression_state_call<TMachine: BinaryExpressionStateMachine>(
             result_holder,
             outer_state,
         ),
-    }
+    })
 }
 
 fn binary_expression_state_enter<TMachine: BinaryExpressionStateMachine>(
@@ -386,7 +386,7 @@ fn binary_expression_state_enter<TMachine: BinaryExpressionStateMachine>(
     user_state_stack: &mut Vec<Option<TMachine::TState>>,
     _result_holder: Rc<RefCell<Option<TMachine::TResult>>>,
     outer_state: TMachine::TOuterState,
-) -> usize {
+) -> io::Result<usize> {
     let prev_user_state = if stack_index > 0 {
         Some(user_state_stack[stack_index - 1].clone().unwrap())
     } else {
@@ -401,14 +401,14 @@ fn binary_expression_state_enter<TMachine: BinaryExpressionStateMachine>(
     push_or_replace(
         user_state_stack,
         stack_index,
-        Some(machine.on_enter(&node_stack[stack_index], prev_user_state, outer_state)),
+        Some(machine.on_enter(&node_stack[stack_index], prev_user_state, outer_state)?),
     );
     push_or_replace(
         state_stack,
         stack_index,
         binary_expression_state_next_state(machine, BinaryExpressionState::Enter),
     );
-    stack_index
+    Ok(stack_index)
 }
 
 fn binary_expression_state_left<TMachine: BinaryExpressionStateMachine>(
@@ -419,7 +419,7 @@ fn binary_expression_state_left<TMachine: BinaryExpressionStateMachine>(
     user_state_stack: &mut Vec<Option<TMachine::TState>>,
     _result_holder: Rc<RefCell<Option<TMachine::TResult>>>,
     _outer_state: TMachine::TOuterState,
-) -> usize {
+) -> io::Result<usize> {
     Debug_.assert_equal(
         &state_stack[stack_index],
         &BinaryExpressionState::Left,
@@ -436,18 +436,18 @@ fn binary_expression_state_left<TMachine: BinaryExpressionStateMachine>(
         &node_stack[stack_index].as_binary_expression().left,
         user_state_stack[stack_index].clone().unwrap(),
         &node_stack[stack_index],
-    );
+    )?;
     if let Some(next_node) = next_node.as_ref() {
         binary_expression_state_check_circularity(stack_index, node_stack, next_node);
-        return binary_expression_state_push_stack(
+        return Ok(binary_expression_state_push_stack(
             stack_index,
             state_stack,
             node_stack,
             user_state_stack,
             next_node,
-        );
+        ));
     }
-    stack_index
+    Ok(stack_index)
 }
 
 fn binary_expression_state_operator<TMachine: BinaryExpressionStateMachine>(
@@ -458,7 +458,7 @@ fn binary_expression_state_operator<TMachine: BinaryExpressionStateMachine>(
     user_state_stack: &mut Vec<Option<TMachine::TState>>,
     _result_holder: Rc<RefCell<Option<TMachine::TResult>>>,
     _outer_state: TMachine::TOuterState,
-) -> usize {
+) -> io::Result<usize> {
     Debug_.assert_equal(
         &state_stack[stack_index],
         &BinaryExpressionState::Operator,
@@ -477,8 +477,8 @@ fn binary_expression_state_operator<TMachine: BinaryExpressionStateMachine>(
             .operator_token,
         user_state_stack[stack_index].clone().unwrap(),
         &node_stack[stack_index],
-    );
-    stack_index
+    )?;
+    Ok(stack_index)
 }
 
 fn binary_expression_state_right<TMachine: BinaryExpressionStateMachine>(
@@ -489,7 +489,7 @@ fn binary_expression_state_right<TMachine: BinaryExpressionStateMachine>(
     user_state_stack: &mut Vec<Option<TMachine::TState>>,
     _result_holder: Rc<RefCell<Option<TMachine::TResult>>>,
     _outer_state: TMachine::TOuterState,
-) -> usize {
+) -> io::Result<usize> {
     Debug_.assert_equal(
         &state_stack[stack_index],
         &BinaryExpressionState::Right,
@@ -506,18 +506,18 @@ fn binary_expression_state_right<TMachine: BinaryExpressionStateMachine>(
         &node_stack[stack_index].as_binary_expression().right,
         user_state_stack[stack_index].clone().unwrap(),
         &node_stack[stack_index],
-    );
+    )?;
     if let Some(next_node) = next_node.as_ref() {
         binary_expression_state_check_circularity(stack_index, node_stack, next_node);
-        return binary_expression_state_push_stack(
+        return Ok(binary_expression_state_push_stack(
             stack_index,
             state_stack,
             node_stack,
             user_state_stack,
             next_node,
-        );
+        ));
     }
-    stack_index
+    Ok(stack_index)
 }
 
 fn binary_expression_state_exit<TMachine: BinaryExpressionStateMachine>(
@@ -528,7 +528,7 @@ fn binary_expression_state_exit<TMachine: BinaryExpressionStateMachine>(
     user_state_stack: &mut Vec<Option<TMachine::TState>>,
     result_holder: Rc<RefCell<Option<TMachine::TResult>>>,
     _outer_state: TMachine::TOuterState,
-) -> usize {
+) -> io::Result<usize> {
     Debug_.assert_equal(
         &state_stack[stack_index],
         &BinaryExpressionState::Exit,
@@ -543,7 +543,7 @@ fn binary_expression_state_exit<TMachine: BinaryExpressionStateMachine>(
     let result = machine.on_exit(
         &node_stack[stack_index],
         user_state_stack[stack_index].clone().unwrap(),
-    );
+    )?;
     if stack_index > 0 {
         stack_index -= 1;
         if machine.implements_fold_state() {
@@ -565,7 +565,7 @@ fn binary_expression_state_exit<TMachine: BinaryExpressionStateMachine>(
     } else {
         *result_holder.borrow_mut() = Some(result);
     }
-    stack_index
+    Ok(stack_index)
 }
 
 fn binary_expression_state_done<TMachine: BinaryExpressionStateMachine>(
@@ -669,14 +669,14 @@ pub trait BinaryExpressionStateMachine: Trace + Finalize {
         node: &Node, /*BinaryExpression*/
         prev: Option<Self::TState>,
         outer_state: Self::TOuterState,
-    ) -> Self::TState;
+    ) -> io::Result<Self::TState>;
 
     fn on_left(
         &self,
         _left: &Node, /*Expression*/
         _user_state: Self::TState,
         _node: &Node, /*BinaryExpression*/
-    ) -> Option<Gc<Node /*BinaryExpression*/>> {
+    ) -> io::Result<Option<Gc<Node /*BinaryExpression*/>>> {
         panic!("Shouldn't call default on_left()")
     }
 
@@ -685,7 +685,7 @@ pub trait BinaryExpressionStateMachine: Trace + Finalize {
         _operator_token: &Node, /*BinaryOperatorToken*/
         _user_state: Self::TState,
         _node: &Node, /*BinaryExpression*/
-    ) {
+    ) -> io::Result<()> {
         panic!("Shouldn't call default on_operator()")
     }
 
@@ -694,7 +694,7 @@ pub trait BinaryExpressionStateMachine: Trace + Finalize {
         _right: &Node, /*Expression*/
         _user_state: Self::TState,
         _node: &Node, /*BinaryExpression*/
-    ) -> Option<Gc<Node /*BinaryExpression*/>> {
+    ) -> io::Result<Option<Gc<Node /*BinaryExpression*/>>> {
         panic!("Shouldn't call default on_left()")
     }
 
@@ -702,7 +702,7 @@ pub trait BinaryExpressionStateMachine: Trace + Finalize {
         &self,
         node: &Node, /*BinaryExpression*/
         user_state: Self::TState,
-    ) -> Self::TResult;
+    ) -> io::Result<Self::TResult>;
 
     fn fold_state(
         &self,
@@ -745,7 +745,7 @@ impl<TMachine: BinaryExpressionStateMachine> BinaryExpressionTrampoline<TMachine
         &self,
         node: &Node, /*BinaryExpression*/
         outer_state: TMachine::TOuterState,
-    ) -> TMachine::TResult {
+    ) -> io::Result<TMachine::TResult> {
         let result_holder: Rc<RefCell<Option<TMachine::TResult>>> = Rc::new(RefCell::new(None));
         let mut state_stack: Vec<BinaryExpressionState> = vec![BinaryExpressionState::Enter];
         let mut node_stack: Vec<Gc<Node /*BinaryExpression*/>> = vec![node.node_wrapper()];
@@ -761,10 +761,10 @@ impl<TMachine: BinaryExpressionStateMachine> BinaryExpressionTrampoline<TMachine
                 &mut user_state_stack,
                 result_holder.clone(),
                 outer_state.clone(),
-            );
+            )?;
         }
         Debug_.assert_equal(&stack_index, &0, None, None);
         let ret = (*result_holder).borrow().clone().unwrap();
-        ret
+        Ok(ret)
     }
 }

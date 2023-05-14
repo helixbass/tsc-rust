@@ -1,7 +1,7 @@
 use gc::{Gc, GcCell};
-use std::borrow::Borrow;
 use std::convert::TryInto;
 use std::ptr;
+use std::{borrow::Borrow, io};
 
 use super::CheckMode;
 use crate::{
@@ -19,10 +19,12 @@ use crate::{
     is_property_access_expression, is_property_assignment, is_property_declaration,
     is_property_signature, is_prototype_property_assignment, is_shorthand_property_assignment,
     is_source_file, is_string_literal_like, is_variable_declaration, last_or_undefined, map,
-    CheckFlags, Debug_, Diagnostics, ElementFlags, HasInitializerInterface, HasStatementsInterface,
-    IndexInfo, NamedDeclarationInterface, Node, NodeArray, NodeInterface, ObjectFlags,
-    ObjectFlagsTypeInterface, ScriptTarget, Symbol, SymbolFlags, SymbolInterface, SyntaxKind,
-    TransientSymbolInterface, Type, TypeChecker, TypeFlags, TypeInterface, TypeSystemPropertyName,
+    return_ok_none_if_none, try_for_each, try_for_each_child_recursively_bool, try_map, CheckFlags,
+    Debug_, Diagnostics, ElementFlags, HasInitializerInterface, HasStatementsInterface, IndexInfo,
+    NamedDeclarationInterface, Node, NodeArray, NodeInterface, ObjectFlags,
+    ObjectFlagsTypeInterface, OptionTry, ScriptTarget, Symbol, SymbolFlags, SymbolInterface,
+    SyntaxKind, TransientSymbolInterface, Type, TypeChecker, TypeFlags, TypeInterface,
+    TypeSystemPropertyName,
 };
 
 impl TypeChecker {
@@ -30,18 +32,18 @@ impl TypeChecker {
         &self,
         this_property: &Node, /*Expression*/
         expression: &Node,    /*Expression*/
-    ) -> bool {
-        is_property_access_expression(this_property)
+    ) -> io::Result<bool> {
+        Ok(is_property_access_expression(this_property)
             && this_property
                 .as_property_access_expression()
                 .expression
                 .kind()
                 == SyntaxKind::ThisKeyword
-            && for_each_child_recursively_bool(
+            && try_for_each_child_recursively_bool(
                 expression,
                 |n, _| self.is_matching_reference(this_property, n),
-                Option::<fn(&NodeArray, &Node) -> bool>::None,
-            )
+                Option::<fn(&NodeArray, &Node) -> io::Result<bool>>::None,
+            )?)
     }
 
     pub(super) fn is_declaration_in_constructor(
@@ -80,7 +82,7 @@ impl TypeChecker {
         element: &Node, /*BindingElement*/
         include_pattern_in_type: Option<bool>,
         report_errors: Option<bool>,
-    ) -> Gc<Type> {
+    ) -> io::Result<Gc<Type>> {
         let element_as_binding_element = element.as_binding_element();
         if element_as_binding_element.maybe_initializer().is_some() {
             let contextual_type = if is_binding_pattern(Some(element_as_binding_element.name())) {
@@ -88,15 +90,15 @@ impl TypeChecker {
                     &element_as_binding_element.name(),
                     Some(true),
                     Some(false),
-                )
+                )?
             } else {
                 self.unknown_type()
             };
             return self.add_optionality(
-                &self.widen_type_inferred_from_initializer(
+                &*self.widen_type_inferred_from_initializer(
                     element,
-                    &self.check_declaration_initializer(element, Some(contextual_type)),
-                ),
+                    &*self.check_declaration_initializer(element, Some(contextual_type))?,
+                )?,
                 None,
                 None,
             );
@@ -111,13 +113,13 @@ impl TypeChecker {
         if matches!(report_errors, Some(true))
             && !self.declaration_belongs_to_private_ambient_member(element)
         {
-            self.report_implicit_any(element, &self.any_type(), None);
+            self.report_implicit_any(element, &self.any_type(), None)?;
         }
-        if matches!(include_pattern_in_type, Some(true)) {
+        Ok(if matches!(include_pattern_in_type, Some(true)) {
             self.non_inferrable_any_type()
         } else {
             self.any_type()
-        }
+        })
     }
 
     pub(super) fn get_type_from_object_binding_pattern(
@@ -125,14 +127,14 @@ impl TypeChecker {
         pattern: &Node, /*ObjectBindingPattern*/
         include_pattern_in_type: bool,
         report_errors: bool,
-    ) -> Gc<Type> {
+    ) -> io::Result<Gc<Type>> {
         let mut members = create_symbol_table(Option::<&[Gc<Symbol>]>::None);
         let mut string_index_info: Option<Gc<IndexInfo>> = None;
         let mut object_flags =
             ObjectFlags::ObjectLiteral | ObjectFlags::ContainsObjectOrArrayLiteral;
-        for_each(
+        try_for_each(
             &pattern.as_object_binding_pattern().elements,
-            |e: &Gc<Node>, _| {
+            |e: &Gc<Node>, _| -> io::Result<_> {
                 let e_as_binding_element = e.as_binding_element();
                 let name = e_as_binding_element
                     .property_name
@@ -145,13 +147,13 @@ impl TypeChecker {
                         false,
                         None,
                     )));
-                    return Option::<()>::None;
+                    return Ok(Option::<()>::None);
                 }
 
-                let expr_type = self.get_literal_type_from_property_name(&name);
+                let expr_type = self.get_literal_type_from_property_name(&name)?;
                 if !self.is_type_usable_as_property_name(&expr_type) {
                     object_flags |= ObjectFlags::ObjectLiteralPatternWithComputedProperties;
-                    return Option::<()>::None;
+                    return Ok(Option::<()>::None);
                 }
                 let text = self.get_property_name_from_type(&expr_type);
                 let flags = SymbolFlags::Property
@@ -169,16 +171,16 @@ impl TypeChecker {
                     e,
                     Some(include_pattern_in_type),
                     Some(report_errors),
-                ));
+                )?);
                 symbol
                     .as_transient_symbol()
                     .symbol_links()
                     .borrow_mut()
                     .binding_element = Some(e.clone());
                 members.insert(symbol.escaped_name().to_owned(), symbol);
-                Option::<()>::None
+                Ok(Option::<()>::None)
             },
-        );
+        )?;
         let result = self.create_anonymous_type(
             Option::<&Symbol>::None,
             Gc::new(GcCell::new(members)),
@@ -189,7 +191,7 @@ impl TypeChecker {
             } else {
                 vec![]
             },
-        );
+        )?;
         let result_as_object_type = result.as_object_type();
         result_as_object_type.set_object_flags(result_as_object_type.object_flags() | object_flags);
         if include_pattern_in_type {
@@ -198,7 +200,7 @@ impl TypeChecker {
                 result_as_object_type.object_flags() | ObjectFlags::ContainsObjectOrArrayLiteral,
             );
         }
-        result
+        Ok(result)
     }
 
     pub(super) fn get_type_from_array_binding_pattern(
@@ -206,7 +208,7 @@ impl TypeChecker {
         pattern: &Node, /*BindingPattern*/
         include_pattern_in_type: bool,
         report_errors: bool,
-    ) -> Gc<Type> {
+    ) -> io::Result<Gc<Type>> {
         let ref elements = pattern.as_has_elements().elements();
         let last_element = last_or_undefined(&**elements);
         let rest_element = last_element.filter(|last_element| {
@@ -217,23 +219,23 @@ impl TypeChecker {
                     .is_some()
         });
         if elements.is_empty() || elements.len() == 1 && rest_element.is_some() {
-            return if self.language_version >= ScriptTarget::ES2015 {
-                self.create_iterable_type(&self.any_type())
+            return Ok(if self.language_version >= ScriptTarget::ES2015 {
+                self.create_iterable_type(&self.any_type())?
             } else {
                 self.any_array_type()
-            };
+            });
         }
-        let element_types = map(elements, |e: &Gc<Node>, _| {
-            if is_omitted_expression(e) {
+        let element_types = try_map(elements, |e: &Gc<Node>, _| -> io::Result<_> {
+            Ok(if is_omitted_expression(e) {
                 self.any_type()
             } else {
                 self.get_type_from_binding_element(
                     e,
                     Some(include_pattern_in_type),
                     Some(report_errors),
-                )
-            }
-        });
+                )?
+            })
+        })?;
         let min_length: usize = (find_last_index_returns_isize(
             &**elements,
             |e: &Gc<Node>, _| {
@@ -255,7 +257,7 @@ impl TypeChecker {
             }
         });
         let mut result: Gc<Type> =
-            self.create_tuple_type(&element_types, Some(&element_flags), None, None);
+            self.create_tuple_type(&element_types, Some(&element_flags), None, None)?;
         if include_pattern_in_type {
             result = self.clone_type_reference(&result);
             *result.maybe_pattern() = Some(pattern.node_wrapper());
@@ -264,7 +266,7 @@ impl TypeChecker {
                 result_as_object_type.object_flags() | ObjectFlags::ContainsObjectOrArrayLiteral,
             );
         }
-        result
+        Ok(result)
     }
 
     pub(super) fn get_type_from_binding_pattern(
@@ -272,61 +274,61 @@ impl TypeChecker {
         pattern: &Node, /*BindingPattern*/
         include_pattern_in_type: Option<bool>,
         report_errors: Option<bool>,
-    ) -> Gc<Type> {
+    ) -> io::Result<Gc<Type>> {
         let include_pattern_in_type = include_pattern_in_type.unwrap_or(false);
         let report_errors = report_errors.unwrap_or(false);
-        if pattern.kind() == SyntaxKind::ObjectBindingPattern {
+        Ok(if pattern.kind() == SyntaxKind::ObjectBindingPattern {
             self.get_type_from_object_binding_pattern(
                 pattern,
                 include_pattern_in_type,
                 report_errors,
-            )
+            )?
         } else {
             self.get_type_from_array_binding_pattern(
                 pattern,
                 include_pattern_in_type,
                 report_errors,
-            )
-        }
+            )?
+        })
     }
 
     pub(super) fn get_widened_type_for_variable_like_declaration(
         &self,
         declaration: &Node, /*ParameterDeclaration | PropertyDeclaration | PropertySignature | VariableDeclaration | BindingElement | JSDocPropertyLikeTag*/
         report_errors: Option<bool>,
-    ) -> Gc<Type> {
+    ) -> io::Result<Gc<Type>> {
         self.widen_type_for_variable_like_declaration(
-            self.get_type_for_variable_like_declaration(declaration, true),
+            self.get_type_for_variable_like_declaration(declaration, true)?,
             declaration,
             report_errors,
         )
     }
 
-    pub(super) fn is_global_symbol_constructor(&self, node: &Node) -> bool {
-        let symbol = self.get_symbol_of_node(node);
-        let global_symbol = self.get_global_es_symbol_constructor_type_symbol(false);
-        matches!(
+    pub(super) fn is_global_symbol_constructor(&self, node: &Node) -> io::Result<bool> {
+        let symbol = self.get_symbol_of_node(node)?;
+        let global_symbol = self.get_global_es_symbol_constructor_type_symbol(false)?;
+        Ok(matches!(
             (global_symbol, symbol),
             (Some(global_symbol), Some(symbol)) if Gc::ptr_eq(&symbol, &global_symbol)
-        )
+        ))
     }
 
-    pub(super) fn widen_type_for_variable_like_declaration<TType: Borrow<Type>>(
+    pub(super) fn widen_type_for_variable_like_declaration(
         &self,
-        type_: Option<TType>,
+        type_: Option<impl Borrow<Type>>,
         declaration: &Node,
         report_errors: Option<bool>,
-    ) -> Gc<Type> {
+    ) -> io::Result<Gc<Type>> {
         let report_errors = report_errors.unwrap_or(false);
         if let Some(type_) = type_ {
             let mut type_ = type_.borrow().type_wrapper();
             if type_.flags().intersects(TypeFlags::ESSymbol)
-                && self.is_global_symbol_constructor(&declaration.parent())
+                && self.is_global_symbol_constructor(&declaration.parent())?
             {
-                type_ = self.get_es_symbol_like_type_for_node(declaration);
+                type_ = self.get_es_symbol_like_type_for_node(declaration)?;
             }
             if report_errors {
-                self.report_errors_from_widening(declaration, &type_, None);
+                self.report_errors_from_widening(declaration, &type_, None)?;
             }
 
             if type_.flags().intersects(TypeFlags::UniqueESSymbol)
@@ -334,7 +336,7 @@ impl TypeChecker {
                     || declaration.as_has_type().maybe_type().is_none())
                 && !are_option_gcs_equal(
                     type_.maybe_symbol().as_ref(),
-                    self.get_symbol_of_node(declaration).as_ref(),
+                    self.get_symbol_of_node(declaration)?.as_ref(),
                 )
             {
                 type_ = self.es_symbol_type();
@@ -356,10 +358,10 @@ impl TypeChecker {
 
         if report_errors {
             if !self.declaration_belongs_to_private_ambient_member(declaration) {
-                self.report_implicit_any(declaration, &type_, None);
+                self.report_implicit_any(declaration, &type_, None)?;
             }
         }
-        type_
+        Ok(type_)
     }
 
     pub(super) fn declaration_belongs_to_private_ambient_member(
@@ -378,42 +380,42 @@ impl TypeChecker {
     pub(super) fn try_get_type_from_effective_type_node(
         &self,
         declaration: &Node, /*Declaration*/
-    ) -> Option<Gc<Type>> {
+    ) -> io::Result<Option<Gc<Type>>> {
         let type_node = get_effective_type_annotation_node(declaration);
-        type_node.map(|type_node| self.get_type_from_type_node_(&type_node))
+        type_node.try_map(|type_node| self.get_type_from_type_node_(&type_node))
     }
 
     pub(super) fn get_type_of_variable_or_parameter_or_property(
         &self,
         symbol: &Symbol,
-    ) -> Gc<Type> {
+    ) -> io::Result<Gc<Type>> {
         let links = self.get_symbol_links(symbol);
         let links_type_is_none = { (*links).borrow().type_.is_none() };
         if links_type_is_none {
-            let type_ = self.get_type_of_variable_or_parameter_or_property_worker(symbol);
+            let type_ = self.get_type_of_variable_or_parameter_or_property_worker(symbol)?;
             let mut links = links.borrow_mut();
             if links.type_.is_none() {
                 links.type_ = Some(type_);
             }
         }
         let links = (*links).borrow();
-        links.type_.clone().unwrap()
+        Ok(links.type_.clone().unwrap())
     }
 
     pub(super) fn get_type_of_variable_or_parameter_or_property_worker(
         &self,
         symbol: &Symbol,
-    ) -> Gc<Type> {
+    ) -> io::Result<Gc<Type>> {
         if symbol.flags().intersects(SymbolFlags::Prototype) {
             return self.get_type_of_prototype_property(symbol);
         }
         if ptr::eq(symbol, &*self.require_symbol()) {
-            return self.any_type();
+            return Ok(self.any_type());
         }
         if symbol.flags().intersects(SymbolFlags::ModuleExports) {
             if let Some(symbol_value_declaration) = symbol.maybe_value_declaration() {
                 let file_symbol = self
-                    .get_symbol_of_node(&get_source_file_of_node(&symbol_value_declaration))
+                    .get_symbol_of_node(&get_source_file_of_node(&symbol_value_declaration))?
                     .unwrap();
                 let result: Gc<Symbol> = self
                     .create_symbol(file_symbol.flags(), "exports".to_owned(), None)
@@ -460,35 +462,37 @@ impl TypeChecker {
         if is_catch_clause_variable_declaration_or_binding_element(declaration) {
             let type_node = get_effective_type_annotation_node(declaration);
             if type_node.is_none() {
-                return if self.use_unknown_in_catch_variables {
+                return Ok(if self.use_unknown_in_catch_variables {
                     self.unknown_type()
                 } else {
                     self.any_type()
-                };
+                });
             }
             let type_node = type_node.unwrap();
-            let type_ = self.get_type_of_node(&type_node);
-            return if self.is_type_any(Some(&*type_)) || Gc::ptr_eq(&type_, &self.unknown_type()) {
-                type_
-            } else {
-                self.error_type()
-            };
+            let type_ = self.get_type_of_node(&type_node)?;
+            return Ok(
+                if self.is_type_any(Some(&*type_)) || Gc::ptr_eq(&type_, &self.unknown_type()) {
+                    type_
+                } else {
+                    self.error_type()
+                },
+            );
         }
         if is_source_file(declaration) && is_json_source_file(declaration) {
             let declaration_as_source_file = declaration.as_source_file();
             if declaration_as_source_file.statements().is_empty() {
-                return self.empty_object_type();
+                return Ok(self.empty_object_type());
             }
             return self.get_widened_type(
-                &self.get_widened_literal_type(
-                    &self.check_expression(
+                &*self.get_widened_literal_type(
+                    &*self.check_expression(
                         &declaration_as_source_file.statements()[0]
                             .as_expression_statement()
                             .expression,
                         None,
                         None,
-                    ),
-                ),
+                    )?,
+                )?,
             );
         }
 
@@ -507,17 +511,17 @@ impl TypeChecker {
         if declaration.kind() == SyntaxKind::ExportAssignment {
             type_ = self.widen_type_for_variable_like_declaration(
                 Some(
-                    self.try_get_type_from_effective_type_node(declaration)
-                        .unwrap_or_else(|| {
+                    self.try_get_type_from_effective_type_node(declaration)?
+                        .try_unwrap_or_else(|| {
                             self.check_expression_cached(
                                 &declaration.as_export_assignment().expression,
                                 None,
                             )
-                        }),
+                        })?,
                 ),
                 declaration,
                 None,
-            );
+            )?;
         } else if is_binary_expression(declaration)
             || is_in_js_file(Some(declaration))
                 && (is_call_expression(declaration)
@@ -526,7 +530,7 @@ impl TypeChecker {
                         && is_binary_expression(&declaration.parent()))
         {
             type_ =
-                self.get_widened_type_for_assignment_declaration(symbol, Option::<&Symbol>::None);
+                self.get_widened_type_for_assignment_declaration(symbol, Option::<&Symbol>::None)?;
         } else if is_property_access_expression(declaration)
             || is_element_access_expression(declaration)
             || is_identifier(declaration)
@@ -548,36 +552,36 @@ impl TypeChecker {
                 return self.get_type_of_func_class_enum_module(symbol);
             }
             type_ = if is_binary_expression(&declaration.parent()) {
-                self.get_widened_type_for_assignment_declaration(symbol, Option::<&Symbol>::None)
+                self.get_widened_type_for_assignment_declaration(symbol, Option::<&Symbol>::None)?
             } else {
-                self.try_get_type_from_effective_type_node(declaration)
+                self.try_get_type_from_effective_type_node(declaration)?
                     .unwrap_or_else(|| self.any_type())
             };
         } else if is_property_assignment(declaration) {
             type_ = self
-                .try_get_type_from_effective_type_node(declaration)
-                .unwrap_or_else(|| self.check_property_assignment(declaration, None));
+                .try_get_type_from_effective_type_node(declaration)?
+                .try_unwrap_or_else(|| self.check_property_assignment(declaration, None))?;
         } else if is_jsx_attribute(declaration) {
             type_ = self
-                .try_get_type_from_effective_type_node(declaration)
-                .unwrap_or_else(|| self.check_jsx_attribute(declaration, None));
+                .try_get_type_from_effective_type_node(declaration)?
+                .try_unwrap_or_else(|| self.check_jsx_attribute(declaration, None))?;
         } else if is_shorthand_property_assignment(declaration) {
             type_ = self
-                .try_get_type_from_effective_type_node(declaration)
-                .unwrap_or_else(|| {
+                .try_get_type_from_effective_type_node(declaration)?
+                .try_unwrap_or_else(|| {
                     self.check_expression_for_mutable_location(
                         &declaration.as_shorthand_property_assignment().name(),
                         Some(CheckMode::Normal),
                         Option::<&Type>::None,
                         None,
                     )
-                });
+                })?;
         } else if is_object_literal_method(declaration) {
             type_ = self
-                .try_get_type_from_effective_type_node(declaration)
-                .unwrap_or_else(|| {
+                .try_get_type_from_effective_type_node(declaration)?
+                .try_unwrap_or_else(|| {
                     self.check_object_literal_method(declaration, Some(CheckMode::Normal))
-                });
+                })?;
         } else if is_parameter(declaration)
             || is_property_declaration(declaration)
             || is_property_signature(declaration)
@@ -585,14 +589,14 @@ impl TypeChecker {
             || is_binding_element(declaration)
             || is_jsdoc_property_like_tag(declaration)
         {
-            type_ = self.get_widened_type_for_variable_like_declaration(declaration, Some(true));
+            type_ = self.get_widened_type_for_variable_like_declaration(declaration, Some(true))?;
         } else if is_enum_declaration(declaration) {
-            type_ = self.get_type_of_func_class_enum_module(symbol);
+            type_ = self.get_type_of_func_class_enum_module(symbol)?;
         } else if is_enum_member(declaration) {
-            type_ = self.get_type_of_enum_member(symbol);
+            type_ = self.get_type_of_enum_member(symbol)?;
         } else if is_accessor(declaration) {
             type_ = self
-                .resolve_type_of_accessors(symbol, None)
+                .resolve_type_of_accessors(symbol, None)?
                 .unwrap_or_else(|| {
                     Debug_.fail(Some(
                         "Non-write accessor resolution must always produce a type",
@@ -614,12 +618,12 @@ impl TypeChecker {
             }
             return self.report_circularity_error(symbol);
         }
-        type_
+        Ok(type_)
     }
 
-    pub(super) fn get_annotated_accessor_type_node<TAccessor: Borrow<Node>>(
+    pub(super) fn get_annotated_accessor_type_node(
         &self,
-        accessor: Option<TAccessor /*AccessorDeclaration*/>,
+        accessor: Option<impl Borrow<Node> /*AccessorDeclaration*/>,
     ) -> Option<Gc<Node /*TypeNode*/>> {
         let accessor = accessor?;
         let accessor = accessor.borrow();
@@ -632,12 +636,12 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn get_annotated_accessor_type<TAccessor: Borrow<Node>>(
+    pub(super) fn get_annotated_accessor_type(
         &self,
-        accessor: Option<TAccessor /*AccessorDeclaration*/>,
-    ) -> Option<Gc<Type>> {
-        let node = self.get_annotated_accessor_type_node(accessor)?;
-        Some(self.get_type_from_type_node_(&node))
+        accessor: Option<impl Borrow<Node> /*AccessorDeclaration*/>,
+    ) -> io::Result<Option<Gc<Type>>> {
+        let node = return_ok_none_if_none!(self.get_annotated_accessor_type_node(accessor));
+        Ok(Some(self.get_type_from_type_node_(&node)?))
     }
 
     pub(super) fn get_annotated_accessor_this_parameter(
@@ -651,47 +655,47 @@ impl TypeChecker {
     pub(super) fn get_this_type_of_declaration(
         &self,
         declaration: &Node, /*SignatureDeclaration*/
-    ) -> Option<Gc<Type>> {
-        self.get_this_type_of_signature(&self.get_signature_from_declaration_(declaration))
+    ) -> io::Result<Option<Gc<Type>>> {
+        self.get_this_type_of_signature(&*self.get_signature_from_declaration_(declaration)?)
     }
 
-    pub(super) fn get_type_of_accessors(&self, symbol: &Symbol) -> Gc<Type> {
+    pub(super) fn get_type_of_accessors(&self, symbol: &Symbol) -> io::Result<Gc<Type>> {
         let links = self.get_symbol_links(symbol);
         if let Some(links_type) = (*links).borrow().type_.clone() {
-            return links_type;
+            return Ok(links_type);
         }
         let ret = self
-            .get_type_of_accessors_worker(symbol, None)
+            .get_type_of_accessors_worker(symbol, None)?
             .unwrap_or_else(|| {
                 Debug_.fail(Some("Read type of accessor must always produce a type"))
             });
         links.borrow_mut().type_ = Some(ret.clone());
-        ret
+        Ok(ret)
     }
 
-    pub(super) fn get_type_of_set_accessor(&self, symbol: &Symbol) -> Option<Gc<Type>> {
+    pub(super) fn get_type_of_set_accessor(&self, symbol: &Symbol) -> io::Result<Option<Gc<Type>>> {
         let links = self.get_symbol_links(symbol);
         if let Some(links_write_type) = (*links).borrow().write_type.clone() {
-            return Some(links_write_type);
+            return Ok(Some(links_write_type));
         }
-        let ret = self.get_type_of_accessors_worker(symbol, Some(true));
+        let ret = self.get_type_of_accessors_worker(symbol, Some(true))?;
         links.borrow_mut().write_type = ret.clone();
-        ret
+        Ok(ret)
     }
 
     pub(super) fn get_type_of_accessors_worker(
         &self,
         symbol: &Symbol,
         writing: Option<bool>,
-    ) -> Option<Gc<Type>> {
+    ) -> io::Result<Option<Gc<Type>>> {
         if !self.push_type_resolution(
             &symbol.symbol_wrapper().into(),
             TypeSystemPropertyName::Type,
         ) {
-            return Some(self.error_type());
+            return Ok(Some(self.error_type()));
         }
 
-        let mut type_ = self.resolve_type_of_accessors(symbol, writing);
+        let mut type_ = self.resolve_type_of_accessors(symbol, writing)?;
 
         if !self.pop_type_resolution() {
             type_ = Some(self.any_type());
@@ -701,53 +705,55 @@ impl TypeChecker {
                     getter,
                     &Diagnostics::_0_implicitly_has_return_type_any_because_it_does_not_have_a_return_type_annotation_and_is_referenced_directly_or_indirectly_in_one_of_its_return_expressions,
                     Some(vec![
-                        self.symbol_to_string_(symbol, Option::<&Node>::None, None, None, None)
+                        self.symbol_to_string_(symbol, Option::<&Node>::None, None, None, None)?
                     ])
                 );
             }
         }
-        type_
+        Ok(type_)
     }
 
     pub(super) fn resolve_type_of_accessors(
         &self,
         symbol: &Symbol,
         writing: Option<bool>,
-    ) -> Option<Gc<Type>> {
+    ) -> io::Result<Option<Gc<Type>>> {
         let writing = writing.unwrap_or(false);
         let getter = get_declaration_of_kind(symbol, SyntaxKind::GetAccessor);
         let setter = get_declaration_of_kind(symbol, SyntaxKind::SetAccessor);
 
-        let setter_type = self.get_annotated_accessor_type(setter.as_deref());
+        let setter_type = self.get_annotated_accessor_type(setter.as_deref())?;
 
         if writing {
             if let Some(setter_type) = setter_type.as_ref() {
-                return Some(self.instantiate_type_if_needed(setter_type, symbol));
+                return Ok(Some(self.instantiate_type_if_needed(setter_type, symbol)?));
             }
         }
 
         if let Some(getter) = getter.as_deref() {
             if is_in_js_file(Some(getter)) {
-                let js_doc_type = self.get_type_for_declaration_from_jsdoc_comment(getter);
+                let js_doc_type = self.get_type_for_declaration_from_jsdoc_comment(getter)?;
                 if let Some(js_doc_type) = js_doc_type {
-                    return Some(self.instantiate_type_if_needed(&js_doc_type, symbol));
+                    return Ok(Some(self.instantiate_type_if_needed(&js_doc_type, symbol)?));
                 }
             }
         }
 
-        let getter_type = self.get_annotated_accessor_type(getter.as_deref());
+        let getter_type = self.get_annotated_accessor_type(getter.as_deref())?;
         if let Some(getter_type) = getter_type.as_ref() {
-            return Some(self.instantiate_type_if_needed(getter_type, symbol));
+            return Ok(Some(self.instantiate_type_if_needed(getter_type, symbol)?));
         }
 
         if setter_type.is_some() {
-            return setter_type;
+            return Ok(setter_type);
         }
 
         if let Some(getter) = getter.as_ref() {
             if getter.as_function_like_declaration().maybe_body().is_some() {
-                let return_type_from_body = self.get_return_type_from_body(getter, None);
-                return Some(self.instantiate_type_if_needed(&return_type_from_body, symbol));
+                let return_type_from_body = self.get_return_type_from_body(getter, None)?;
+                return Ok(Some(
+                    self.instantiate_type_if_needed(&return_type_from_body, symbol)?,
+                ));
             }
         }
 
@@ -758,11 +764,11 @@ impl TypeChecker {
                     setter,
                     &*Diagnostics::Property_0_implicitly_has_type_any_because_its_set_accessor_lacks_a_parameter_type_annotation,
                     Some(vec![
-                        self.symbol_to_string_(symbol, Option::<&Node>::None, None, None, None)
+                        self.symbol_to_string_(symbol, Option::<&Node>::None, None, None, None)?
                     ])
                 );
             }
-            return Some(self.any_type());
+            return Ok(Some(self.any_type()));
         } else if let Some(getter) = getter.as_ref() {
             // Debug.assert(!!getter, ...);
             if !self.is_private_within_ambient(getter) {
@@ -771,21 +777,25 @@ impl TypeChecker {
                     getter,
                     &*Diagnostics::Property_0_implicitly_has_type_any_because_its_get_accessor_lacks_a_return_type_annotation,
                     Some(vec![
-                        self.symbol_to_string_(symbol, Option::<&Node>::None, None, None, None)
+                        self.symbol_to_string_(symbol, Option::<&Node>::None, None, None, None)?
                     ])
                 );
             }
-            return Some(self.any_type());
+            return Ok(Some(self.any_type()));
         }
-        None
+        Ok(None)
     }
 
-    pub(super) fn instantiate_type_if_needed(&self, type_: &Type, symbol: &Symbol) -> Gc<Type> {
+    pub(super) fn instantiate_type_if_needed(
+        &self,
+        type_: &Type,
+        symbol: &Symbol,
+    ) -> io::Result<Gc<Type>> {
         if get_check_flags(symbol).intersects(CheckFlags::Instantiated) {
             let links = self.get_symbol_links(symbol);
             return self.instantiate_type(type_, (*links).borrow().mapper.clone());
         }
 
-        type_.type_wrapper()
+        Ok(type_.type_wrapper())
     }
 }

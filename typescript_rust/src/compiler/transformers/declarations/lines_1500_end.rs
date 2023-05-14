@@ -1,4 +1,4 @@
-use std::ptr;
+use std::{io, ptr};
 
 use gc::Gc;
 
@@ -7,17 +7,19 @@ use crate::{
     create_get_symbol_accessibility_diagnostic_for_node, flatten, for_each_bool,
     get_effective_modifier_flags, get_factory, get_parse_tree_node, has_effective_modifier,
     is_binding_pattern, is_entity_name_expression, is_export_assignment, is_export_declaration,
-    is_external_module, is_internal_declaration, map_defined, some, visit_nodes,
-    with_synthetic_factory, with_synthetic_factory_and_factory, AllAccessorDeclarations, Debug_,
+    is_external_module, is_internal_declaration, map_defined, return_ok_default_if_none, some,
+    try_map_defined, try_visit_nodes, visit_nodes, with_synthetic_factory,
+    with_synthetic_factory_and_factory, AllAccessorDeclarations, Debug_,
     GetSymbolAccessibilityDiagnostic, HasTypeInterface, ModifierFlags, NamedDeclarationInterface,
-    Node, NodeArray, NodeArrayOrVec, NodeInterface, SignatureDeclarationInterface, SyntaxKind,
+    Node, NodeArray, NodeArrayOrVec, NodeInterface, OptionTry, SignatureDeclarationInterface,
+    SyntaxKind,
 };
 
 impl TransformDeclarations {
     pub(super) fn transform_variable_statement(
         &self,
         input: &Node, /*VariableStatement*/
-    ) -> Option<Gc<Node>> {
+    ) -> io::Result<Option<Gc<Node>>> {
         let input_as_variable_statement = input.as_variable_statement();
         if !for_each_bool(
             &input_as_variable_statement
@@ -26,9 +28,9 @@ impl TransformDeclarations {
                 .declarations,
             |declaration: &Gc<Node>, _| self.get_binding_name_visible(declaration),
         ) {
-            return None;
+            return Ok(None);
         }
-        let nodes = visit_nodes(
+        let nodes = return_ok_default_if_none!(try_visit_nodes(
             Some(
                 &input_as_variable_statement
                     .declaration_list
@@ -39,11 +41,11 @@ impl TransformDeclarations {
             Option::<fn(&Node) -> bool>::None,
             None,
             None,
-        )?;
+        )?);
         if nodes.is_empty() {
-            return None;
+            return Ok(None);
         }
-        Some(
+        Ok(Some(
             self.factory.update_variable_statement(
                 input,
                 Some(
@@ -55,48 +57,51 @@ impl TransformDeclarations {
                     nodes,
                 ),
             ),
-        )
+        ))
     }
 
     pub(super) fn recreate_binding_pattern(
         &self,
         d: &Node, /*BindingPattern*/
-    ) -> Vec<Gc<Node /*VariableDeclaration*/>> {
-        flatten(&map_defined(
+    ) -> io::Result<Vec<Gc<Node /*VariableDeclaration*/>>> {
+        Ok(flatten(&try_map_defined(
             Some(&d.as_has_elements().elements()),
             |e: &Gc<Node>, _| self.recreate_binding_element(e),
-        ))
+        )?))
     }
 
     pub(super) fn recreate_binding_element(
         &self,
         e: &Node, /*ArrayBindingElement*/
-    ) -> Option<Vec<Gc<Node>>> {
+    ) -> io::Result<Option<Vec<Gc<Node>>>> {
         if e.kind() == SyntaxKind::OmittedExpression {
-            return None;
+            return Ok(None);
         }
         let e_name = e.as_binding_element().maybe_name();
-        e_name.and_then(|e_name| {
+        e_name.try_and_then(|e_name| {
             if !self.get_binding_name_visible(e) {
-                return None;
+                return Ok(None);
             }
-            if is_binding_pattern(Some(&*e_name)) {
-                Some(self.recreate_binding_pattern(&e_name))
+            Ok(if is_binding_pattern(Some(&*e_name)) {
+                Some(self.recreate_binding_pattern(&e_name)?)
             } else {
                 Some(vec![self
                     .factory
                     .create_variable_declaration(
                         Some(e_name),
                         None,
-                        self.ensure_type(e, None, None),
+                        self.ensure_type(e, None, None)?,
                         None,
                     )
                     .wrap()])
-            }
+            })
         })
     }
 
-    pub(super) fn check_name(&self, node: &Node /*DeclarationDiagnosticProducing*/) {
+    pub(super) fn check_name(
+        &self,
+        node: &Node, /*DeclarationDiagnosticProducing*/
+    ) -> io::Result<()> {
         let mut old_diag: Option<GetSymbolAccessibilityDiagnostic> = None;
         if self.maybe_suppress_new_diagnostic_contexts() != Some(true) {
             old_diag = Some(self.get_symbol_accessibility_diagnostic());
@@ -108,7 +113,7 @@ impl TransformDeclarations {
         Debug_.assert(
             self.resolver.is_late_bound(
                 &get_parse_tree_node(Some(node), Option::<fn(&Node) -> bool>::None).unwrap(),
-            ),
+            )?,
             None,
         );
         let decl = node;
@@ -117,11 +122,13 @@ impl TransformDeclarations {
             .name()
             .as_has_expression()
             .expression();
-        self.check_entity_name_visibility(entity_name, &self.enclosing_declaration());
+        self.check_entity_name_visibility(entity_name, &self.enclosing_declaration())?;
         if self.maybe_suppress_new_diagnostic_contexts() != Some(true) {
             self.set_get_symbol_accessibility_diagnostic(old_diag.unwrap());
         }
         self.set_error_name_node(None);
+
+        Ok(())
     }
 
     pub(super) fn should_strip_internal(&self, node: &Node) -> bool {
@@ -201,57 +208,56 @@ impl TransformDeclarations {
     pub(super) fn transform_heritage_clauses(
         &self,
         nodes: Option<&NodeArray /*<HeritageClause>*/>,
-    ) -> Gc<NodeArray> {
-        self.factory.create_node_array(
-            nodes.map(|nodes| {
-                nodes
-                    .into_iter()
-                    .map(|clause| {
-                        let clause_as_heritage_clause = clause.as_heritage_clause();
-                        self.factory.update_heritage_clause(
-                            clause,
-                            visit_nodes(
-                                Some(
-                                    &self.factory.create_node_array(
-                                        Some(
-                                            clause_as_heritage_clause
-                                                .types
-                                                .iter()
-                                                .filter(|t| {
-                                                    let t_as_expression_with_type_arguments =
-                                                        t.as_expression_with_type_arguments();
-                                                    is_entity_name_expression(
-                                                        &t_as_expression_with_type_arguments
-                                                            .expression,
-                                                    ) || clause_as_heritage_clause.token
-                                                        == SyntaxKind::ExtendsKeyword
-                                                        && t_as_expression_with_type_arguments
-                                                            .expression
-                                                            .kind()
-                                                            == SyntaxKind::NullKeyword
-                                                })
-                                                .cloned()
-                                                .collect::<Vec<_>>(),
-                                        ),
-                                        None,
+    ) -> io::Result<Gc<NodeArray>> {
+        Ok(self.factory.create_node_array(
+            nodes.try_map(|nodes| -> io::Result<_> {
+                let mut ret = vec![];
+                for clause in nodes {
+                    let clause_as_heritage_clause = clause.as_heritage_clause();
+                    let clause = self.factory.update_heritage_clause(
+                        clause,
+                        try_visit_nodes(
+                            Some(
+                                &self.factory.create_node_array(
+                                    Some(
+                                        clause_as_heritage_clause
+                                            .types
+                                            .iter()
+                                            .filter(|t| {
+                                                let t_as_expression_with_type_arguments =
+                                                    t.as_expression_with_type_arguments();
+                                                is_entity_name_expression(
+                                                    &t_as_expression_with_type_arguments.expression,
+                                                ) || clause_as_heritage_clause.token
+                                                    == SyntaxKind::ExtendsKeyword
+                                                    && t_as_expression_with_type_arguments
+                                                        .expression
+                                                        .kind()
+                                                        == SyntaxKind::NullKeyword
+                                            })
+                                            .cloned()
+                                            .collect::<Vec<_>>(),
                                     ),
+                                    None,
                                 ),
-                                Some(|node: &Node| self.visit_declaration_subtree(node)),
-                                Option::<fn(&Node) -> bool>::None,
-                                None,
-                                None,
-                            )
-                            .unwrap(),
-                        )
-                    })
-                    .filter(|clause| {
-                        /*clause.types &&*/
-                        !clause.as_heritage_clause().types.is_empty()
-                    })
-                    .collect::<Vec<_>>()
-            }),
+                            ),
+                            Some(|node: &Node| self.visit_declaration_subtree(node)),
+                            Option::<fn(&Node) -> bool>::None,
+                            None,
+                            None,
+                        )?
+                        .unwrap(),
+                    );
+                    if
+                    /*clause.types &&*/
+                    !clause.as_heritage_clause().types.is_empty() {
+                        ret.push(clause);
+                    }
+                }
+                Ok(ret)
+            })?,
             None,
-        )
+        ))
     }
 }
 

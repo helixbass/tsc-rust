@@ -11,6 +11,7 @@ use harness::{
     EnumerateFilesOptions, FileBasedTest, FileBasedTestConfiguration, RunnerBase, RunnerBaseSub,
     StringOrFileBasedTest, TestCaseParser, TestRunnerKind, Utils, IO,
 };
+use std::io;
 use typescript_rust::{
     combine_paths, file_extension_is, get_directory_path, get_normalized_absolute_path,
     is_rooted_disk_path, regex, some, to_path, CompilerOptions, Extension,
@@ -145,15 +146,18 @@ impl CompilerBaselineRunner {
                         format!("{}/", get_directory_path(&test.file))
                     }
                     .replace("../typescript_rust/typescript_src/", "");
-                    payload = Some(TestCaseParser::make_units_from_test(
-                        test.content.as_ref().unwrap(),
-                        &test.file,
-                        Some(&root_dir),
-                        None,
-                    ));
+                    payload = Some(
+                        TestCaseParser::make_units_from_test(
+                            test.content.as_ref().unwrap(),
+                            &test.file,
+                            Some(&root_dir),
+                            None,
+                        )
+                        .unwrap(),
+                    );
                 }
-                let compiler_test = CompilerTest::new(file_name, payload, configuration);
-                compiler_test.verify_diagnostics();
+                let compiler_test = CompilerTest::new(file_name, payload, configuration).unwrap();
+                compiler_test.verify_diagnostics().unwrap();
             }
         });
         it(
@@ -177,14 +181,18 @@ impl CompilerBaselineRunner {
                             format!("{}/", get_directory_path(&test.file))
                         }
                         .replace("../typescript_rust/typescript_src/", "");
-                        payload = Some(TestCaseParser::make_units_from_test(
-                            test.content.as_ref().unwrap(),
-                            &test.file,
-                            Some(&root_dir),
-                            None,
-                        ));
+                        payload = Some(
+                            TestCaseParser::make_units_from_test(
+                                test.content.as_ref().unwrap(),
+                                &test.file,
+                                Some(&root_dir),
+                                None,
+                            )
+                            .unwrap(),
+                        );
                     }
-                    let compiler_test = CompilerTest::new(file_name, payload, configuration);
+                    let compiler_test =
+                        CompilerTest::new(file_name, payload, configuration).unwrap();
                     compiler_test.verify_module_resolution();
                 }
             },
@@ -271,7 +279,7 @@ impl CompilerTest {
         file_name: String,
         mut test_case_content: Option<TestCaseParser::TestCaseContent>,
         configuration_overrides: Option<TestCaseParser::CompilerSettings>,
-    ) -> Self {
+    ) -> io::Result<Self> {
         let just_name = vpath::basename(&file_name, None, None);
         let mut configured_name = just_name.clone();
         if let Some(configuration_overrides) = configuration_overrides.as_ref() {
@@ -309,7 +317,7 @@ impl CompilerTest {
                 &file_name,
                 Some(&root_dir),
                 None,
-            ));
+            )?);
         }
         let mut test_case_content = test_case_content.unwrap();
 
@@ -427,11 +435,11 @@ impl CompilerTest {
                 .get("currentDirectory")
                 .map(|value| &**value),
             test_case_content.symlinks.as_ref(),
-        );
+        )?;
 
         let options = result.options.clone();
 
-        Self {
+        Ok(Self {
             file_name,
             just_name,
             configured_name,
@@ -443,7 +451,7 @@ impl CompilerTest {
             ts_config_files,
             to_be_compiled,
             other_files,
-        }
+        })
     }
 
     fn vary_by() -> Vec<&'static str> {
@@ -489,7 +497,7 @@ impl CompilerTest {
         }
     }
 
-    pub fn verify_diagnostics(&self) {
+    pub fn verify_diagnostics(&self) -> io::Result<()> {
         Compiler::do_error_baseline(
             &self.configured_name,
             &[
@@ -500,7 +508,9 @@ impl CompilerTest {
             .concat(),
             &self.result.diagnostics,
             Some(self.options.pretty == Some(true)),
-        )
+        )?;
+
+        Ok(())
     }
 
     pub fn verify_module_resolution(&self) {
@@ -531,7 +541,7 @@ impl CompilerTest {
     pub fn make_unit_name(name: &str, root: &str) -> String {
         let path = to_path(name, Some(root), |file_name| file_name.to_owned());
         let path_start = to_path(
-            &with_io(|IO| IO.get_current_directory()),
+            &with_io(|IO| IO.get_current_directory().unwrap()),
             Some(""),
             |file_name| file_name.to_owned(),
         );

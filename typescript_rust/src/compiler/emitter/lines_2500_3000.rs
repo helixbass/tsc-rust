@@ -1,6 +1,6 @@
 use gc::{Finalize, Gc, Trace};
-use std::cell::RefCell;
 use std::rc::Rc;
+use std::{cell::RefCell, io};
 
 use super::PipelinePhase;
 use crate::{
@@ -948,8 +948,10 @@ impl EmitBinaryExpression {
         Self { trampoline }
     }
 
-    pub fn call(&self, node: &Node /*BinaryExpression*/) {
-        self.trampoline.call(node, ());
+    pub fn call(&self, node: &Node /*BinaryExpression*/) -> io::Result<()> {
+        self.trampoline.call(node, ())?;
+
+        Ok(())
     }
 }
 
@@ -1033,7 +1035,7 @@ impl BinaryExpressionStateMachine for EmitBinaryExpressionStateMachine {
         node: &Node, /*BinaryExpression*/
         mut state: Option<Rc<RefCell<WorkArea>>>,
         _: (),
-    ) -> Rc<RefCell<WorkArea>> {
+    ) -> io::Result<Rc<RefCell<WorkArea>>> {
         if let Some(state) = state.as_ref() {
             let mut state = state.borrow_mut();
             state.stack_index += 1;
@@ -1069,7 +1071,7 @@ impl BinaryExpressionStateMachine for EmitBinaryExpressionStateMachine {
             })));
         }
         let state = state.unwrap();
-        state
+        Ok(state)
     }
 
     fn on_left(
@@ -1077,8 +1079,8 @@ impl BinaryExpressionStateMachine for EmitBinaryExpressionStateMachine {
         next: &Node, /*Expression*/
         _work_area: Rc<RefCell<WorkArea>>,
         parent: &Node, /*BinaryExpression*/
-    ) -> Option<Gc<Node /*BinaryExpression*/>> {
-        self.maybe_emit_expression(next, parent, LeftOrRight::Left)
+    ) -> io::Result<Option<Gc<Node /*BinaryExpression*/>>> {
+        Ok(self.maybe_emit_expression(next, parent, LeftOrRight::Left))
     }
 
     fn on_operator(
@@ -1086,7 +1088,7 @@ impl BinaryExpressionStateMachine for EmitBinaryExpressionStateMachine {
         operator_token: &Node, /*BinaryOperatorToken*/
         _state: Rc<RefCell<WorkArea>>,
         node: &Node, /*BinaryExpression*/
-    ) {
+    ) -> io::Result<()> {
         let is_comma_operator = operator_token.kind() != SyntaxKind::CommaToken;
         let node_as_binary_expression = node.as_binary_expression();
         let lines_before_operator = self.printer.get_lines_between_nodes(
@@ -1115,6 +1117,8 @@ impl BinaryExpressionStateMachine for EmitBinaryExpressionStateMachine {
             .emit_trailing_comments_of_position(operator_token.end(), Some(true), None);
         self.printer
             .write_lines_and_indent(lines_after_operator, true);
+
+        Ok(())
     }
 
     fn on_right(
@@ -1122,11 +1126,15 @@ impl BinaryExpressionStateMachine for EmitBinaryExpressionStateMachine {
         next: &Node, /*Expression*/
         _state: Rc<RefCell<WorkArea>>,
         parent: &Node, /*BinaryExpression*/
-    ) -> Option<Gc<Node /*BinaryExpression*/>> {
-        self.maybe_emit_expression(next, parent, LeftOrRight::Right)
+    ) -> io::Result<Option<Gc<Node /*BinaryExpression*/>>> {
+        Ok(self.maybe_emit_expression(next, parent, LeftOrRight::Right))
     }
 
-    fn on_exit(&self, node: &Node /*BinaryExpression*/, state: Rc<RefCell<WorkArea>>) -> () {
+    fn on_exit(
+        &self,
+        node: &Node, /*BinaryExpression*/
+        state: Rc<RefCell<WorkArea>>,
+    ) -> io::Result<()> {
         let node_as_binary_expression = node.as_binary_expression();
         let lines_before_operator = self.printer.get_lines_between_nodes(
             node,
@@ -1167,7 +1175,7 @@ impl BinaryExpressionStateMachine for EmitBinaryExpressionStateMachine {
                 state.stack_index -= 1;
             }
         }
-        ()
+        Ok(())
     }
 
     fn implements_on_left(&self) -> bool {

@@ -3,9 +3,9 @@ use std::borrow::Borrow;
 use std::ptr;
 
 use crate::{
-    add_range, find, find_ancestor, first_or_undefined, for_each_bool,
-    get_assignment_declaration_kind, get_jsdoc_parameter_tags, get_jsdoc_parameter_tags_no_cache,
-    get_jsdoc_type_parameter_tags, get_jsdoc_type_parameter_tags_no_cache, get_name_of_declaration,
+    add_range, find, find_ancestor, first_or_undefined, get_assignment_declaration_kind,
+    get_jsdoc_parameter_tags, get_jsdoc_parameter_tags_no_cache, get_jsdoc_type_parameter_tags,
+    get_jsdoc_type_parameter_tags_no_cache, get_name_of_declaration,
     get_right_most_assigned_expression, has_initializer, has_jsdoc_nodes, is_arrow_function,
     is_assignment_operator, is_binary_expression, is_binding_pattern, is_computed_property_name,
     is_constructor_declaration, is_declaration, is_expression_statement, is_function_declaration,
@@ -15,8 +15,8 @@ use crate::{
     is_method_or_accessor, is_module_declaration, is_namespace_export, is_namespace_import,
     is_parenthesized_expression, is_qualified_name, is_require_call, is_source_file,
     is_string_literal, is_type_alias_declaration, is_variable_like, is_variable_statement, last,
-    last_or_undefined, maybe_filter, skip_outer_expressions, try_cast, AsDoubleDeref,
-    AssignmentDeclarationKind, Debug_, HasQuestionTokenInterface, HasTypeInterface,
+    last_or_undefined, maybe_filter, skip_outer_expressions, try_cast, try_for_each_bool,
+    AsDoubleDeref, AssignmentDeclarationKind, Debug_, HasQuestionTokenInterface, HasTypeInterface,
     NamedDeclarationInterface, Node, NodeInterface, OuterExpressionKinds,
     SignatureDeclarationInterface, Symbol, SyntaxKind,
 };
@@ -144,27 +144,37 @@ pub fn for_each_import_clause_declaration_bool(
     node: &Node, /*ImportClause*/
     mut action: impl FnMut(&Node) -> bool,
 ) -> bool {
+    try_for_each_import_clause_declaration_bool(node, |node: &Node| -> Result<_, ()> {
+        Ok(action(node))
+    })
+    .unwrap()
+}
+
+pub fn try_for_each_import_clause_declaration_bool<TError>(
+    node: &Node, /*ImportClause*/
+    mut action: impl FnMut(&Node) -> Result<bool, TError>,
+) -> Result<bool, TError> {
     let node_as_import_clause = node.as_import_clause();
     if node_as_import_clause.name.is_some() {
-        let result = action(node);
+        let result = action(node)?;
         if result {
-            return result;
+            return Ok(result);
         }
     }
     if let Some(node_named_bindings) = node_as_import_clause.named_bindings.as_ref() {
         let result = if is_namespace_import(node_named_bindings) {
-            action(node_named_bindings)
+            action(node_named_bindings)?
         } else {
-            for_each_bool(
+            try_for_each_bool(
                 &node_named_bindings.as_named_imports().elements,
                 |element, _| action(element),
-            )
+            )?
         };
         if result {
-            return result;
+            return Ok(result);
         }
     }
-    false
+    Ok(false)
 }
 
 pub fn has_question_token(node: &Node) -> bool {

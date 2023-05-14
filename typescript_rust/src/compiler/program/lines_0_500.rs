@@ -9,6 +9,7 @@ use std::io;
 use std::time;
 use std::time::SystemTime;
 
+use crate::OptionTry;
 use crate::{
     add_range, combine_paths, convert_to_relative_path, create_get_canonical_file_name,
     create_source_file, diagnostic_category_name, file_extension_is, for_each,
@@ -430,7 +431,7 @@ impl CompilerHost for CompilerHostConcrete {
         language_version: ScriptTarget,
         on_error: Option<&mut dyn FnMut(&str)>,
         _should_create_new_source_file: Option<bool>,
-    ) -> Option<Gc<Node /*SourceFile*/>> {
+    ) -> io::Result<Option<Gc<Node /*SourceFile*/>>> {
         let text: Option<String>;
         // performance.mark("beforeIORead");
         match self.read_file(file_name) {
@@ -446,7 +447,7 @@ impl CompilerHost for CompilerHostConcrete {
                 text = Some("".to_owned());
             }
         }
-        text.map(|text| {
+        text.try_map(|text| {
             create_source_file(
                 file_name,
                 text,
@@ -457,26 +458,26 @@ impl CompilerHost for CompilerHostConcrete {
         })
     }
 
-    fn get_default_lib_location(&self) -> Option<String> {
+    fn get_default_lib_location(&self) -> io::Result<Option<String>> {
         // Some(get_directory_path(&normalize_path(
         //     &self.system.get_executing_file_path(),
         // )))
-        Some("/Users/jrosse/prj/TypeScript/built/local".to_owned())
+        Ok(Some("/Users/jrosse/prj/TypeScript/built/local".to_owned()))
     }
 
-    fn get_default_lib_file_name(&self, options: &CompilerOptions) -> String {
-        combine_paths(
-            &self.get_default_lib_location().unwrap(),
+    fn get_default_lib_file_name(&self, options: &CompilerOptions) -> io::Result<String> {
+        Ok(combine_paths(
+            &self.get_default_lib_location()?.unwrap(),
             &[Some(get_default_lib_file_name(options))],
-        )
+        ))
     }
 
-    fn get_current_directory(&self) -> String {
+    fn get_current_directory(&self) -> io::Result<String> {
         let mut current_directory = self.current_directory.borrow_mut();
         if current_directory.is_none() {
-            *current_directory = Some(self.system.get_current_directory());
+            *current_directory = Some(self.system.get_current_directory()?);
         }
-        current_directory.clone().unwrap()
+        Ok(current_directory.clone().unwrap())
     }
 
     fn use_case_sensitive_file_names(&self) -> bool {
@@ -506,7 +507,7 @@ impl CompilerHost for CompilerHostConcrete {
         write_byte_order_mark: bool,
         on_error: Option<&mut dyn FnMut(&str)>,
         _source_files: Option<&[Gc<Node /*SourceFile*/>]>,
-    ) {
+    ) -> io::Result<()> {
         if let Some(write_file_override) = self.maybe_write_file_override() {
             write_file_override.write_file(
                 file_name,
@@ -533,7 +534,7 @@ impl CompilerHost for CompilerHostConcrete {
         write_byte_order_mark: bool,
         on_error: Option<&mut dyn FnMut(&str)>,
         _source_files: Option<&[Gc<Node /*SourceFile*/>]>,
-    ) {
+    ) -> io::Result<()> {
         // performance.mark("beforeIOWrite");
         match write_file_ensuring_directories(
             file_name,
@@ -555,6 +556,7 @@ impl CompilerHost for CompilerHostConcrete {
                 }
             }
         }
+        Ok(())
     }
 
     fn is_write_file_supported(&self) -> bool {
@@ -583,7 +585,7 @@ impl CompilerHost for CompilerHostConcrete {
         excludes: Option<&[String]>,
         includes: &[String],
         depth: Option<usize>,
-    ) -> Option<Vec<String>> {
+    ) -> Option<io::Result<Vec<String>>> {
         Some(
             self.system
                 .read_directory(path, Some(extensions), excludes, Some(includes), depth),
@@ -594,15 +596,17 @@ impl CompilerHost for CompilerHostConcrete {
         true
     }
 
-    fn create_directory(&self, d: &str) {
-        if let Some(create_directory_override) = self.maybe_create_directory_override() {
-            create_directory_override.create_directory(d)
-        } else {
-            self.create_directory_non_overridden(d)
-        }
+    fn create_directory(&self, d: &str) -> io::Result<()> {
+        Ok(
+            if let Some(create_directory_override) = self.maybe_create_directory_override() {
+                create_directory_override.create_directory(d)?
+            } else {
+                self.create_directory_non_overridden(d)?
+            },
+        )
     }
 
-    fn create_directory_non_overridden(&self, d: &str) {
+    fn create_directory_non_overridden(&self, d: &str) -> io::Result<()> {
         self.system.create_directory(d)
     }
 
@@ -779,7 +783,7 @@ impl ModuleResolutionHostOverrider for ChangeCompilerHostLikeToUseCacheOverrider
         write_byte_order_mark: bool,
         on_error: Option<&mut dyn FnMut(&str)>,
         source_files: Option<&[Gc<Node /*SourceFile*/>]>,
-    ) {
+    ) -> io::Result<()> {
         let key = self.to_path.call(file_name);
         self.file_exists_cache.borrow_mut().remove(&*key);
 
@@ -816,7 +820,8 @@ impl ModuleResolutionHostOverrider for ChangeCompilerHostLikeToUseCacheOverrider
             write_byte_order_mark,
             on_error,
             source_files,
-        );
+        )?;
+        Ok(())
     }
 
     fn directory_exists(&self, directory: &str) -> Option<bool> {
@@ -838,10 +843,12 @@ impl ModuleResolutionHostOverrider for ChangeCompilerHostLikeToUseCacheOverrider
         Some(new_value)
     }
 
-    fn create_directory(&self, directory: &str) {
+    fn create_directory(&self, directory: &str) -> io::Result<()> {
         let key = self.to_path.call(directory);
         self.directory_exists_cache.borrow_mut().remove(&*key);
-        self.host.create_directory_non_overridden(directory);
+        self.host.create_directory_non_overridden(directory)?;
+
+        Ok(())
     }
 
     fn get_directories(&self, _path: &str) -> Option<Vec<String>> {
@@ -871,7 +878,7 @@ pub fn get_pre_emit_diagnostics(
     program: &ProgramOrBuilderProgram,
     source_file: Option<impl Borrow<Node>>,
     cancellation_token: Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
-) -> Vec<Gc<Diagnostic>> {
+) -> io::Result<Vec<Gc<Diagnostic>>> {
     let program = match program {
         ProgramOrBuilderProgram::Program(program) => program,
         _ => unimplemented!(),
@@ -900,13 +907,16 @@ pub fn get_pre_emit_diagnostics(
     );
     add_range(
         &mut diagnostics,
-        Some(&program.get_global_diagnostics(cancellation_token.clone())),
+        Some(&program.get_global_diagnostics(cancellation_token.clone())?),
         None,
         None,
     );
     add_range(
         &mut diagnostics,
-        Some(&program.get_semantic_diagnostics(source_file.as_deref(), cancellation_token.clone())),
+        Some(
+            &program
+                .get_semantic_diagnostics(source_file.as_deref(), cancellation_token.clone())?,
+        ),
         None,
         None,
     );
@@ -918,38 +928,38 @@ pub fn get_pre_emit_diagnostics(
                 &program.get_declaration_diagnostics(
                     source_file.as_deref(),
                     cancellation_token.clone(),
-                ),
+                )?,
             ),
             None,
             None,
         );
     }
 
-    sort_and_deduplicate_diagnostics(&diagnostics).into()
+    Ok(sort_and_deduplicate_diagnostics(&diagnostics).into())
 }
 
 pub trait FormatDiagnosticsHost {
-    fn get_current_directory(&self) -> String;
+    fn get_current_directory(&self) -> io::Result<String>;
     fn get_new_line(&self) -> &str;
     fn get_canonical_file_name(&self, file_name: &str) -> String;
 }
 
-pub fn format_diagnostics<THost: FormatDiagnosticsHost>(
+pub fn format_diagnostics(
     diagnostics: &[Gc<Diagnostic>],
-    host: &THost,
-) -> String {
+    host: &impl FormatDiagnosticsHost,
+) -> io::Result<String> {
     let mut output = "".to_owned();
 
     for diagnostic in diagnostics {
-        output.push_str(&format_diagnostic(diagnostic, host));
+        output.push_str(&format_diagnostic(diagnostic, host)?);
     }
-    output
+    Ok(output)
 }
 
-pub fn format_diagnostic<THost: FormatDiagnosticsHost>(
+pub fn format_diagnostic(
     diagnostic: &Diagnostic,
-    host: &THost,
-) -> String {
+    host: &impl FormatDiagnosticsHost,
+) -> io::Result<String> {
     let error_message = format!(
         "{} TS{}: {}{}",
         diagnostic_category_name(diagnostic.category(), None),
@@ -965,19 +975,19 @@ pub fn format_diagnostic<THost: FormatDiagnosticsHost>(
         );
         let file_name = diagnostic_file.as_source_file().file_name();
         let relative_file_name =
-            convert_to_relative_path(&file_name, &host.get_current_directory(), |file_name| {
+            convert_to_relative_path(&file_name, &host.get_current_directory()?, |file_name| {
                 host.get_canonical_file_name(file_name)
             });
-        return format!(
+        return Ok(format!(
             "{}({},{}): {}",
             relative_file_name,
             line + 1,
             character + 1,
             error_message
-        );
+        ));
     }
 
-    error_message
+    Ok(error_message)
 }
 
 pub(crate) struct ForegroundColorEscapeSequences;
@@ -1010,13 +1020,13 @@ pub(crate) fn format_color_and_reset(text: &str, format_style: &str) -> String {
     format!("{}{}{}", format_style, text, reset_escape_sequence)
 }
 
-fn format_code_span<THost: FormatDiagnosticsHost>(
+fn format_code_span(
     file: &Node, /*SourceFile*/
     start: isize,
     length: isize,
     indent: &str,
     squiggle_color: &str, /*ForegroundColorEscapeSequences*/
-    host: &THost,
+    host: &impl FormatDiagnosticsHost,
 ) -> String {
     let start_as_usize: usize = start.try_into().unwrap();
     let length_as_usize: usize = length.try_into().unwrap();
@@ -1122,12 +1132,12 @@ fn format_code_span<THost: FormatDiagnosticsHost>(
     context
 }
 
-pub fn format_location<THost: FormatDiagnosticsHost, TColor: Fn(&str, &str) -> String>(
+pub fn format_location(
     file: &Node, /*SourceFile*/
     start: isize,
-    host: &THost,
-    color: Option<TColor>,
-) -> String {
+    host: &impl FormatDiagnosticsHost,
+    color: Option<impl Fn(&str, &str) -> String>,
+) -> io::Result<String> {
     let color_present = |text: &str, format_style: &str| {
         if let Some(color) = color.as_ref() {
             color(text, format_style)
@@ -1142,7 +1152,7 @@ pub fn format_location<THost: FormatDiagnosticsHost, TColor: Fn(&str, &str) -> S
     } = get_line_and_character_of_position(file_as_source_file, start.try_into().unwrap());
     let relative_file_name = /*host ? */convert_to_relative_path(
         &file_as_source_file.file_name(),
-        &host.get_current_directory(),
+        &host.get_current_directory()?,
         |file_name: &str| host.get_canonical_file_name(file_name)
     ) /*: file.fileName*/;
 
@@ -1161,13 +1171,13 @@ pub fn format_location<THost: FormatDiagnosticsHost, TColor: Fn(&str, &str) -> S
         &format!("{}", first_line_char + 1),
         ForegroundColorEscapeSequences::Yellow,
     ));
-    output
+    Ok(output)
 }
 
-pub fn format_diagnostics_with_color_and_context<THost: FormatDiagnosticsHost>(
+pub fn format_diagnostics_with_color_and_context(
     diagnostics: &[Gc<Diagnostic>],
-    host: &THost,
-) -> String {
+    host: &impl FormatDiagnosticsHost,
+) -> io::Result<String> {
     let mut output = "".to_owned();
     for diagnostic in diagnostics {
         if let Some(diagnostic_file) = diagnostic.maybe_file().as_ref() {
@@ -1178,7 +1188,7 @@ pub fn format_diagnostics_with_color_and_context<THost: FormatDiagnosticsHost>(
                 start,
                 host,
                 Option::<fn(&str, &str) -> String>::None,
-            ));
+            )?);
             output.push_str(" - ");
         }
 
@@ -1226,7 +1236,7 @@ pub fn format_diagnostics_with_color_and_context<THost: FormatDiagnosticsHost>(
                             start.unwrap(),
                             host,
                             Option::<fn(&str, &str) -> String>::None
-                        )
+                        )?
                     ));
                     output.push_str(&format_code_span(
                         file,
@@ -1247,7 +1257,7 @@ pub fn format_diagnostics_with_color_and_context<THost: FormatDiagnosticsHost>(
         }
         output.push_str(host.get_new_line());
     }
-    output
+    Ok(output)
 }
 
 pub fn flatten_diagnostic_message_text(

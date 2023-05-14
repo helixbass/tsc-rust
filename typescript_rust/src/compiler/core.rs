@@ -13,21 +13,17 @@ use std::rc::Rc;
 use std::{hash, iter};
 
 use crate::{
-    __String, text_char_at_index, Comparison, Debug_, Node, NodeArrayOrVec, PeekableExt,
-    SortedArray, SourceTextAsChars,
+    __String, text_char_at_index, Comparison, Debug_, IteratorExt, Node, NodeArrayOrVec, OptionTry,
+    PeekableExt, SortedArray, SourceTextAsChars,
 };
 
 pub fn length<TItem>(array: Option<&[TItem]>) -> usize {
     array.map_or(0, |array| array.len())
 }
 
-pub fn for_each<
-    TCollection: IntoIterator,
-    TReturn,
-    TCallback: FnMut(TCollection::Item, usize) -> Option<TReturn>,
->(
+pub fn for_each<TCollection: IntoIterator, TReturn>(
     array: TCollection,
-    mut callback: TCallback,
+    mut callback: impl FnMut(TCollection::Item, usize) -> Option<TReturn>,
 ) -> Option<TReturn> {
     array
         .into_iter()
@@ -35,12 +31,22 @@ pub fn for_each<
         .find_map(|(index, item)| callback(item, index))
 }
 
-pub fn for_each_bool<
-    TCollection: IntoIterator,
-    TCallback: FnMut(TCollection::Item, usize) -> bool,
->(
+pub fn try_for_each<TCollection: IntoIterator, TReturn, TError>(
     array: TCollection,
-    mut callback: TCallback,
+    mut callback: impl FnMut(TCollection::Item, usize) -> Result<Option<TReturn>, TError>,
+) -> Result<Option<TReturn>, TError> {
+    for (index, item) in array.into_iter().enumerate() {
+        let result = callback(item, index)?;
+        if result.is_some() {
+            return Ok(result);
+        }
+    }
+    Ok(None)
+}
+
+pub fn for_each_bool<TCollection: IntoIterator>(
+    array: TCollection,
+    mut callback: impl FnMut(TCollection::Item, usize) -> bool,
 ) -> bool {
     array
         .into_iter()
@@ -48,17 +54,33 @@ pub fn for_each_bool<
         .any(|(index, item)| callback(item, index))
 }
 
-pub fn maybe_for_each<
-    TCollection: IntoIterator,
-    TReturn,
-    TCallback: FnMut(TCollection::Item, usize) -> Option<TReturn>,
->(
+pub fn try_for_each_bool<TCollection: IntoIterator, TError>(
+    array: TCollection,
+    mut callback: impl FnMut(TCollection::Item, usize) -> Result<bool, TError>,
+) -> Result<bool, TError> {
+    array
+        .into_iter()
+        .enumerate()
+        .try_any(|(index, item)| callback(item, index))
+}
+
+pub fn maybe_for_each<TCollection: IntoIterator, TReturn>(
     array: Option<TCollection>,
-    callback: TCallback,
+    callback: impl FnMut(TCollection::Item, usize) -> Option<TReturn>,
 ) -> Option<TReturn> {
     match array {
         Some(array) => for_each(array, callback),
         None => None,
+    }
+}
+
+pub fn try_maybe_for_each<TCollection: IntoIterator, TReturn, TError>(
+    array: Option<TCollection>,
+    callback: impl FnMut(TCollection::Item, usize) -> Result<Option<TReturn>, TError>,
+) -> Result<Option<TReturn>, TError> {
+    match array {
+        Some(array) => try_for_each(array, callback),
+        None => Ok(None),
     }
 }
 
@@ -79,11 +101,25 @@ pub fn first_defined<TCollection: IntoIterator, TReturn>(
     for_each(array, callback)
 }
 
+pub fn try_first_defined<TCollection: IntoIterator, TReturn, TError>(
+    array: TCollection,
+    callback: impl FnMut(TCollection::Item, usize) -> Result<Option<TReturn>, TError>,
+) -> Result<Option<TReturn>, TError> {
+    try_for_each(array, callback)
+}
+
 pub fn maybe_first_defined<TCollection: IntoIterator, TReturn>(
     array: Option<TCollection>,
     callback: impl FnMut(TCollection::Item, usize) -> Option<TReturn>,
 ) -> Option<TReturn> {
     maybe_for_each(array, callback)
+}
+
+pub fn try_maybe_first_defined<TCollection: IntoIterator, TReturn, TError>(
+    array: Option<TCollection>,
+    callback: impl FnMut(TCollection::Item, usize) -> Result<Option<TReturn>, TError>,
+) -> Result<Option<TReturn>, TError> {
+    try_maybe_for_each(array, callback)
 }
 
 pub fn every<TItem>(array: &[TItem], mut predicate: impl FnMut(&TItem, usize) -> bool) -> bool {
@@ -93,16 +129,33 @@ pub fn every<TItem>(array: &[TItem], mut predicate: impl FnMut(&TItem, usize) ->
         .all(|(index, value)| predicate(value, index))
 }
 
-pub fn maybe_every<TItem, TCallback: FnMut(&TItem, usize) -> bool>(
+pub fn try_every<TItem, TError>(
+    array: &[TItem],
+    mut predicate: impl FnMut(&TItem, usize) -> Result<bool, TError>,
+) -> Result<bool, TError> {
+    array
+        .into_iter()
+        .enumerate()
+        .try_all(|(index, value)| predicate(value, index))
+}
+
+pub fn maybe_every<TItem>(
     array: Option<&[TItem]>,
-    predicate: TCallback,
+    predicate: impl FnMut(&TItem, usize) -> bool,
 ) -> bool {
     array.map_or(false, |array| every(array, predicate))
 }
 
-pub fn find<TItem, TCallback: FnMut(&TItem, usize) -> bool>(
+pub fn try_maybe_every<TItem, TError>(
+    array: Option<&[TItem]>,
+    predicate: impl FnMut(&TItem, usize) -> Result<bool, TError>,
+) -> Result<bool, TError> {
+    array.try_map_or(false, |array| try_every(array, predicate))
+}
+
+pub fn find<TItem>(
     array: &[TItem],
-    mut predicate: TCallback,
+    mut predicate: impl FnMut(&TItem, usize) -> bool,
 ) -> Option<&TItem> {
     array
         .into_iter()
@@ -111,9 +164,20 @@ pub fn find<TItem, TCallback: FnMut(&TItem, usize) -> bool>(
         .map(|(_, value)| value)
 }
 
-pub fn find_last<TItem, TCallback: FnMut(&TItem, usize) -> bool>(
+pub fn try_find<TItem, TError>(
     array: &[TItem],
-    mut predicate: TCallback,
+    mut predicate: impl FnMut(&TItem, usize) -> Result<bool, TError>,
+) -> Result<Option<&TItem>, TError> {
+    Ok(array
+        .into_iter()
+        .enumerate()
+        .try_find_(|(index, value)| predicate(value, *index))?
+        .map(|(_, value)| value))
+}
+
+pub fn find_last<TItem>(
+    array: &[TItem],
+    mut predicate: impl FnMut(&TItem, usize) -> bool,
 ) -> Option<&TItem> {
     array
         .into_iter()
@@ -121,6 +185,18 @@ pub fn find_last<TItem, TCallback: FnMut(&TItem, usize) -> bool>(
         .enumerate()
         .find(|(index, value)| predicate(value, *index))
         .map(|(_, value)| value)
+}
+
+pub fn try_find_last<TItem, TError>(
+    array: &[TItem],
+    mut predicate: impl FnMut(&TItem, usize) -> Result<bool, TError>,
+) -> Result<Option<&TItem>, TError> {
+    for (index, value) in array.into_iter().rev().enumerate() {
+        if predicate(value, index)? {
+            return Ok(Some(value));
+        }
+    }
+    Ok(None)
 }
 
 pub fn find_index<TItem>(
@@ -133,6 +209,19 @@ pub fn find_index<TItem>(
         .enumerate()
         .skip(start_index.unwrap_or(0))
         .position(|(index, value)| predicate(value, index))
+}
+
+pub fn try_find_index<TItem, TError>(
+    array: &[TItem],
+    mut predicate: impl FnMut(&TItem, usize) -> Result<bool, TError>,
+    start_index: Option<usize>,
+) -> Result<Option<usize>, TError> {
+    for (index, value) in array.into_iter().enumerate().skip(start_index.unwrap_or(0)) {
+        if predicate(value, index)? {
+            return Ok(Some(index));
+        }
+    }
+    Ok(None)
 }
 
 pub fn find_last_index<TItem>(
@@ -216,19 +305,26 @@ pub fn index_of_any_char_code(
     None
 }
 
-pub fn count_where<TItem, TPredicate: FnMut(&TItem, usize) -> bool>(
+pub fn count_where<TItem>(
     array: Option<&[TItem]>,
-    mut predicate: TPredicate,
+    mut predicate: impl FnMut(&TItem, usize) -> bool,
 ) -> usize {
+    try_count_where(array, |a, b| -> Result<_, ()> { Ok(predicate(a, b)) }).unwrap()
+}
+
+pub fn try_count_where<TItem, TError>(
+    array: Option<&[TItem]>,
+    mut predicate: impl FnMut(&TItem, usize) -> Result<bool, TError>,
+) -> Result<usize, TError> {
     let mut count = 0;
     if let Some(array) = array {
         for (i, v) in array.iter().enumerate() {
-            if predicate(v, i) {
+            if predicate(v, i)? {
                 count += 1;
             }
         }
     }
-    count
+    Ok(count)
 }
 
 pub fn filter<TItem: Clone>(
@@ -242,6 +338,19 @@ pub fn filter<TItem: Clone>(
         .collect()
 }
 
+pub fn try_filter<TItem: Clone, TError>(
+    array: &[TItem],
+    mut predicate: impl FnMut(&TItem) -> Result<bool, TError>,
+) -> Result<Vec<TItem>, TError> {
+    let mut results: Vec<TItem> = Default::default();
+    for item in array {
+        if predicate(item)? {
+            results.push(item.clone());
+        }
+    }
+    Ok(results)
+}
+
 pub fn filter_iter<TItem, TArray: IntoIterator<Item = TItem>, TCallback: FnMut(&TItem) -> bool>(
     array: TArray,
     predicate: TCallback,
@@ -249,11 +358,18 @@ pub fn filter_iter<TItem, TArray: IntoIterator<Item = TItem>, TCallback: FnMut(&
     array.into_iter().filter(predicate)
 }
 
-pub fn maybe_filter<TItem: Clone, TCallback: FnMut(&TItem) -> bool>(
+pub fn maybe_filter<TItem: Clone>(
     array: Option<&[TItem]>,
-    predicate: TCallback,
+    predicate: impl FnMut(&TItem) -> bool,
 ) -> Option<Vec<TItem>> {
     array.map(|array| filter(array, predicate))
+}
+
+pub fn try_maybe_filter<TItem: Clone, TError>(
+    array: Option<&[TItem]>,
+    predicate: impl FnMut(&TItem) -> Result<bool, TError>,
+) -> Option<Result<Vec<TItem>, TError>> {
+    array.map(|array| try_filter(array, predicate))
 }
 
 pub fn filter_owning<TItem, TCallback: FnMut(&TItem) -> bool>(
@@ -289,11 +405,29 @@ pub fn map<TCollection: IntoIterator, TReturn>(
     result
 }
 
+pub fn try_map<TCollection: IntoIterator, TReturn, TError>(
+    array: TCollection,
+    mut f: impl FnMut(TCollection::Item, usize) -> Result<TReturn, TError>,
+) -> Result<Vec<TReturn>, TError> {
+    let mut result = vec![];
+    for (i, item) in array.into_iter().enumerate() {
+        result.push(f(item, i)?);
+    }
+    Ok(result)
+}
+
 pub fn maybe_map<TCollection: IntoIterator, TReturn>(
     array: Option<TCollection>,
     f: impl FnMut(TCollection::Item, usize) -> TReturn,
 ) -> Option<Vec<TReturn>> {
     array.map(|array| map(array, f))
+}
+
+pub fn try_maybe_map<TCollection: IntoIterator, TReturn, TError>(
+    array: Option<TCollection>,
+    f: impl FnMut(TCollection::Item, usize) -> Result<TReturn, TError>,
+) -> Option<Result<Vec<TReturn>, TError>> {
+    array.map(|array| try_map(array, f))
 }
 
 // TODO: this currently just mimics map(), I think could do the intended avoiding allocation by
@@ -343,6 +477,23 @@ pub fn flat_map<TCollection: IntoIterator, TReturn: Clone>(
         result = Some(some_result);
     }
     result.unwrap_or(vec![])
+}
+
+pub fn try_flat_map<TCollection: IntoIterator, TReturn: Clone, TError>(
+    array: Option<TCollection>,
+    mut mapfn: impl FnMut(TCollection::Item, usize) -> Result<Vec<TReturn>, TError>, /* | undefined */
+) -> Result<Vec<TReturn>, TError> {
+    let mut result: Option<Vec<_>> = None;
+    if let Some(array) = array {
+        let mut some_result = vec![];
+        for (i, item) in array.into_iter().enumerate() {
+            let v = mapfn(item, i)?;
+            /*some_result = */
+            add_range(&mut some_result, Some(&v), None, None);
+        }
+        result = Some(some_result);
+    }
+    Ok(result.unwrap_or_default())
 }
 
 pub fn flat_map_to_mutable<
@@ -418,6 +569,22 @@ pub fn map_defined<TCollection: IntoIterator, TReturn>(
     result
 }
 
+pub fn try_map_defined<TCollection: IntoIterator, TReturn, TError>(
+    array: Option<TCollection>,
+    mut map_fn: impl FnMut(TCollection::Item, usize) -> Result<Option<TReturn>, TError>,
+) -> Result<Vec<TReturn>, TError> {
+    let mut result = vec![];
+    if let Some(array) = array {
+        for (i, item) in array.into_iter().enumerate() {
+            let mapped = map_fn(item, i)?;
+            if let Some(mapped) = mapped {
+                result.push(mapped);
+            }
+        }
+    }
+    Ok(result)
+}
+
 pub fn get_or_update<TKey: Eq + Hash, TValue, TCallback: FnOnce() -> TValue>(
     map: &mut HashMap<TKey, TValue>,
     key: TKey,
@@ -462,6 +629,33 @@ where
             |predicate| array.any(predicate),
         )
     })
+}
+
+pub fn try_some<'item, TItem, TArray, TError>(
+    array: Option<TArray>,
+    predicate: Option<impl FnMut(&TItem) -> Result<bool, TError>>,
+) -> Result<bool, TError>
+where
+    TItem: 'item,
+    TArray: IntoIterator<Item = &'item TItem>,
+    TArray::IntoIter: Clone,
+{
+    match array {
+        None => Ok(false),
+        Some(array) => {
+            let array = array.into_iter();
+            Ok(if let Some(mut predicate) = predicate {
+                for item in array {
+                    if predicate(item)? {
+                        return Ok(true);
+                    }
+                }
+                false
+            } else {
+                !array.peekable().is_empty_()
+            })
+        }
+    }
 }
 
 pub fn get_ranges_where<TItem, TPred: FnMut(&TItem) -> bool, TCallback: FnMut(usize, usize)>(
@@ -1115,13 +1309,30 @@ fn binary_search_key_copy_key<
     !low
 }
 
-pub fn reduce_left<TItem, TMemo, TCallback: FnMut(TMemo, &TItem, usize) -> TMemo>(
+pub fn reduce_left<TItem, TMemo>(
     array: &[TItem],
-    mut f: TCallback,
+    mut f: impl FnMut(TMemo, &TItem, usize) -> TMemo,
     initial: TMemo,
     start: Option<usize>,
     count: Option<usize>,
 ) -> TMemo {
+    try_reduce_left(
+        array,
+        |a: TMemo, b: &TItem, c: usize| -> Result<_, ()> { Ok(f(a, b, c)) },
+        initial,
+        start,
+        count,
+    )
+    .unwrap()
+}
+
+pub fn try_reduce_left<TItem, TMemo, TError>(
+    array: &[TItem],
+    mut f: impl FnMut(TMemo, &TItem, usize) -> Result<TMemo, TError>,
+    initial: TMemo,
+    start: Option<usize>,
+    count: Option<usize>,
+) -> Result<TMemo, TError> {
     if
     /*array &&*/
     !array.is_empty() {
@@ -1147,14 +1358,14 @@ pub fn reduce_left<TItem, TMemo, TCallback: FnMut(TMemo, &TItem, usize) -> TMemo
         // } else {
         result = initial;
         while pos <= end {
-            result = f(result, &array[pos], pos);
+            result = f(result, &array[pos], pos)?;
             pos += 1;
         }
-        return result;
+        return Ok(result);
         // }
         // }
     }
-    initial
+    Ok(initial)
 }
 
 pub fn reduce_left_no_initial_value<TItem: Clone>(
@@ -1163,6 +1374,21 @@ pub fn reduce_left_no_initial_value<TItem: Clone>(
     start: Option<usize>,
     count: Option<usize>,
 ) -> TItem {
+    try_reduce_left_no_initial_value(
+        array,
+        |a, b, c| -> Result<_, ()> { Ok(f(a, b, c)) },
+        start,
+        count,
+    )
+    .unwrap()
+}
+
+pub fn try_reduce_left_no_initial_value<TItem: Clone, TError>(
+    array: &[TItem],
+    mut f: impl FnMut(TItem, &TItem, usize) -> Result<TItem, TError>,
+    start: Option<usize>,
+    count: Option<usize>,
+) -> Result<TItem, TError> {
     if
     /*array &&*/
     !array.is_empty() {
@@ -1184,25 +1410,37 @@ pub fn reduce_left_no_initial_value<TItem: Clone>(
         let mut result = array[0].clone();
         pos += 1;
         while pos <= end {
-            result = f(result, &array[pos], pos);
+            result = f(result, &array[pos], pos)?;
             pos += 1;
         }
-        return result;
+        return Ok(result);
         // }
         // }
     }
-    panic!("Shouldn't call reduce_left_no_initial_value() with empty slice")
+    panic!("Shouldn't call try_reduce_left_no_initial_value() with empty slice")
 }
 
-pub fn reduce_left_no_initial_value_optional<
-    TItem: Clone,
-    TCallback: FnMut(Option<TItem>, &TItem, usize) -> Option<TItem>,
->(
+pub fn reduce_left_no_initial_value_optional<TItem: Clone>(
     array: &[TItem],
-    mut f: TCallback,
+    mut f: impl FnMut(Option<TItem>, &TItem, usize) -> Option<TItem>,
     start: Option<usize>,
     count: Option<usize>,
 ) -> Option<TItem> {
+    try_reduce_left_no_initial_value_optional(
+        array,
+        |a: Option<TItem>, b: &TItem, c: usize| -> Result<_, ()> { Ok(f(a, b, c)) },
+        start,
+        count,
+    )
+    .unwrap()
+}
+
+pub fn try_reduce_left_no_initial_value_optional<TItem: Clone, TError>(
+    array: &[TItem],
+    mut f: impl FnMut(Option<TItem>, &TItem, usize) -> Result<Option<TItem>, TError>,
+    start: Option<usize>,
+    count: Option<usize>,
+) -> Result<Option<TItem>, TError> {
     if
     /*array &&*/
     !array.is_empty() {
@@ -1224,14 +1462,14 @@ pub fn reduce_left_no_initial_value_optional<
         let mut result = Some(array[0].clone());
         pos += 1;
         while pos <= end {
-            result = f(result, &array[pos], pos);
+            result = f(result, &array[pos], pos)?;
             pos += 1;
         }
-        return result;
+        return Ok(result);
         // }
         // }
     }
-    None
+    Ok(None)
 }
 
 pub fn array_of<TItem, TCallback: FnMut(usize) -> TItem>(
@@ -1636,13 +1874,26 @@ pub fn get_spelling_suggestion<'candidates, TCandidate: Clone>(
     candidates: impl IntoIterator<Item = impl Borrow<TCandidate>>,
     mut get_name: impl FnMut(&TCandidate) -> Option<String>,
 ) -> Option<TCandidate> {
+    try_get_spelling_suggestion(
+        name,
+        candidates,
+        |candidate: &TCandidate| -> Result<_, ()> { Ok(get_name(candidate)) },
+    )
+    .unwrap()
+}
+
+pub fn try_get_spelling_suggestion<'candidates, TCandidate: Clone, TError>(
+    name: &str,
+    candidates: impl IntoIterator<Item = impl Borrow<TCandidate>>,
+    mut get_name: impl FnMut(&TCandidate) -> Result<Option<String>, TError>,
+) -> Result<Option<TCandidate>, TError> {
     let name_len_as_f64 = name.len() as f64;
     let maximum_length_difference = f64::min(2.0, (name_len_as_f64 * 0.34).floor());
     let mut best_distance = (name_len_as_f64 * 0.4).floor() + 1.0;
     let mut best_candidate: Option<TCandidate> = None;
     for candidate in candidates {
         let candidate: &TCandidate = candidate.borrow();
-        let candidate_name = get_name(candidate);
+        let candidate_name = get_name(candidate)?;
         if let Some(candidate_name) = candidate_name {
             if (TryInto::<isize>::try_into(candidate_name.len()).unwrap()
                 - TryInto::<isize>::try_into(name.len()).unwrap())
@@ -1673,7 +1924,7 @@ pub fn get_spelling_suggestion<'candidates, TCandidate: Clone>(
             }
         }
     }
-    best_candidate
+    Ok(best_candidate)
 }
 
 fn levenshtein_with_max(s1: &SourceTextAsChars, s2: &SourceTextAsChars, max: f64) -> Option<f64> {

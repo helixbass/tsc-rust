@@ -5,9 +5,9 @@ use regex::Regex;
 use std::borrow::Borrow;
 use std::cell::{Cell, Ref, RefMut};
 use std::collections::HashMap;
-use std::fmt;
 use std::iter::FromIterator;
 use std::ptr;
+use std::{fmt, io};
 
 use super::{is_not_accessor, is_not_overload};
 use crate::{
@@ -19,19 +19,21 @@ use crate::{
     is_function_like, is_identifier, is_jsx_attribute_like, is_object_literal_element_like,
     is_parameter, is_property_access_expression,
     is_property_access_or_qualified_name_or_import_type_node, is_source_file, is_type_node,
-    object_allocator, parse_pseudo_big_int, skip_type_checking, sum, unescape_leading_underscores,
-    BaseInterfaceType, CancellationTokenDebuggable, CheckBinaryExpression, CheckFlags,
-    ContextFlags, Debug_, Diagnostic, DiagnosticCategory, DiagnosticCollection, DiagnosticMessage,
+    object_allocator, parse_pseudo_big_int, return_ok_default_if_none, return_ok_none_if_none,
+    skip_type_checking, sum, unescape_leading_underscores, BaseInterfaceType,
+    CancellationTokenDebuggable, CheckBinaryExpression, CheckFlags, ContextFlags, Debug_,
+    Diagnostic, DiagnosticCategory, DiagnosticCollection, DiagnosticMessage,
     DiagnosticRelatedInformationInterface, Diagnostics, EmitResolver, EmitTextWriter, Extension,
     ExternalEmitHelpers, FlowNode, FlowType, FreshableIntrinsicType, GenericableTypeInterface,
     IndexInfo, IndexKind, InternalSymbolName, IterationTypeCacheKey, IterationTypes, JsxEmit,
     ModuleInstanceState, Node, NodeArray, NodeBuilder, NodeBuilderFlags, NodeCheckFlags, NodeFlags,
-    NodeId, NodeInterface, NodeLinks, Number, ObjectFlags, OutofbandVarianceMarkerHandler, Path,
-    PatternAmbientModule, PseudoBigInt, RelationComparisonResult, Signature, SignatureFlags,
-    SignatureKind, StringOrNumber, Symbol, SymbolFlags, SymbolFormatFlags, SymbolId,
-    SymbolInterface, SymbolTable, SymbolTracker, SymbolWalker, SyntaxKind, Type, TypeChecker,
-    TypeCheckerHost, TypeCheckerHostDebuggable, TypeFlags, TypeFormatFlags, TypeId, TypeInterface,
-    TypeMapperCallback, TypePredicate, TypePredicateKind, VarianceFlags,
+    NodeId, NodeInterface, NodeLinks, Number, ObjectFlags, OptionTry,
+    OutofbandVarianceMarkerHandler, Path, PatternAmbientModule, PseudoBigInt,
+    RelationComparisonResult, Signature, SignatureFlags, SignatureKind, StringOrNumber, Symbol,
+    SymbolFlags, SymbolFormatFlags, SymbolId, SymbolInterface, SymbolTable, SymbolTracker,
+    SymbolWalker, SyntaxKind, Type, TypeChecker, TypeCheckerHost, TypeCheckerHostDebuggable,
+    TypeFlags, TypeFormatFlags, TypeId, TypeInterface, TypeMapperCallback, TypePredicate,
+    TypePredicateKind, VarianceFlags,
 };
 
 lazy_static! {
@@ -134,14 +136,19 @@ pub(crate) struct IterationTypesResolver {
     pub iterable_cache_key: IterationTypeCacheKey, /*"iterationTypesOfAsyncIterable" | "iterationTypesOfIterable"*/
     pub iterator_cache_key: IterationTypeCacheKey, /*"iterationTypesOfAsyncIterator" | "iterationTypesOfIterator"*/
     pub iterator_symbol_name: &'static str,        /*"asyncIterator" | "iterator"*/
-    pub get_global_iterator_type: fn(&TypeChecker, report_errors: bool) -> Gc<Type /*GenericType*/>,
-    pub get_global_iterable_type: fn(&TypeChecker, report_errors: bool) -> Gc<Type /*GenericType*/>,
+    pub get_global_iterator_type:
+        fn(&TypeChecker, report_errors: bool) -> io::Result<Gc<Type /*GenericType*/>>,
+    pub get_global_iterable_type:
+        fn(&TypeChecker, report_errors: bool) -> io::Result<Gc<Type /*GenericType*/>>,
     pub get_global_iterable_iterator_type:
-        fn(&TypeChecker, report_errors: bool) -> Gc<Type /*GenericType*/>,
+        fn(&TypeChecker, report_errors: bool) -> io::Result<Gc<Type /*GenericType*/>>,
     pub get_global_generator_type:
-        fn(&TypeChecker, report_errors: bool) -> Gc<Type /*GenericType*/>,
-    pub resolve_iteration_type:
-        fn(&TypeChecker, type_: &Type, error_node: Option<Gc<Node>>) -> Option<Gc<Type>>,
+        fn(&TypeChecker, report_errors: bool) -> io::Result<Gc<Type /*GenericType*/>>,
+    pub resolve_iteration_type: fn(
+        &TypeChecker,
+        type_: &Type,
+        error_node: Option<Gc<Node>>,
+    ) -> io::Result<Option<Gc<Type>>>,
     pub must_have_a_next_method_diagnostic: &'static DiagnosticMessage,
     pub must_be_a_method_diagnostic: &'static DiagnosticMessage,
     pub must_have_a_value_diagnostic: &'static DiagnosticMessage,
@@ -511,7 +518,7 @@ pub fn is_instantiated_module(
 pub fn create_type_checker(
     host: Gc<Box<dyn TypeCheckerHostDebuggable>>,
     produce_diagnostics: bool,
-) -> Gc<TypeChecker> {
+) -> io::Result<Gc<TypeChecker>> {
     let compiler_options = host.get_compiler_options();
     let mut type_checker = TypeChecker {
         host,
@@ -1037,7 +1044,7 @@ pub fn create_type_checker(
         Option::<&Symbol>::None,
         None,
         Option::<&Type>::None,
-    ));
+    )?);
     type_checker.es_symbol_type = Some(
         type_checker
             .create_intrinsic_type(TypeFlags::ESSymbol, "symbol", None)
@@ -1088,7 +1095,7 @@ pub fn create_type_checker(
         Option::<&Symbol>::None,
         None,
         Option::<&Type>::None,
-    ));
+    )?);
     type_checker.string_number_symbol_type = Some(type_checker.get_union_type(
         &[
             type_checker.string_type(),
@@ -1099,7 +1106,7 @@ pub fn create_type_checker(
         Option::<&Symbol>::None,
         None,
         Option::<&Type>::None,
-    ));
+    )?);
     type_checker.keyof_constraint_type = Some(if type_checker.keyof_strings_only {
         type_checker.string_type()
     } else {
@@ -1111,7 +1118,7 @@ pub fn create_type_checker(
         Option::<&Symbol>::None,
         None,
         Option::<&Type>::None,
-    ));
+    )?);
     type_checker.template_constraint_type = Some(type_checker.get_union_type(
         &[
             type_checker.string_type(),
@@ -1125,7 +1132,7 @@ pub fn create_type_checker(
         Option::<&Symbol>::None,
         None,
         Option::<&Type>::None,
-    ));
+    )?);
 
     type_checker.restrictive_mapper = Some(Gc::new(
         type_checker.make_function_type_mapper(RestrictiveMapperFunc::default()),
@@ -1140,14 +1147,14 @@ pub fn create_type_checker(
         vec![],
         vec![],
         vec![],
-    ));
+    )?);
     let empty_jsx_object_type = type_checker.create_anonymous_type(
         Option::<&Symbol>::None,
         type_checker.empty_symbols(),
         vec![],
         vec![],
         vec![],
-    );
+    )?;
     let empty_jsx_object_type_as_object_flags_type = empty_jsx_object_type.as_object_flags_type();
     empty_jsx_object_type_as_object_flags_type.set_object_flags(
         empty_jsx_object_type_as_object_flags_type.object_flags() | ObjectFlags::JsxAttributes,
@@ -1169,7 +1176,7 @@ pub fn create_type_checker(
         vec![],
         vec![],
         vec![],
-    ));
+    )?);
 
     let empty_generic_type = type_checker.create_anonymous_type_returning_base_object_type(
         Option::<&Symbol>::None,
@@ -1177,7 +1184,7 @@ pub fn create_type_checker(
         vec![],
         vec![],
         vec![],
-    );
+    )?;
     let empty_generic_type = BaseInterfaceType::new(empty_generic_type, None, None, None, None);
     empty_generic_type.genericize(HashMap::new());
     type_checker.empty_generic_type = Some(empty_generic_type.into());
@@ -1188,7 +1195,7 @@ pub fn create_type_checker(
         vec![],
         vec![],
         vec![],
-    );
+    )?;
     let any_function_type_as_object_flags_type = any_function_type.as_object_flags_type();
     any_function_type_as_object_flags_type.set_object_flags(
         any_function_type_as_object_flags_type.object_flags() | ObjectFlags::NonInferrableType,
@@ -1201,21 +1208,21 @@ pub fn create_type_checker(
         vec![],
         vec![],
         vec![],
-    ));
+    )?);
     type_checker.circular_constraint_type = Some(type_checker.create_anonymous_type(
         Option::<&Symbol>::None,
         type_checker.empty_symbols(),
         vec![],
         vec![],
         vec![],
-    ));
+    )?);
     type_checker.resolving_default_type = Some(type_checker.create_anonymous_type(
         Option::<&Symbol>::None,
         type_checker.empty_symbols(),
         vec![],
         vec![],
         vec![],
-    ));
+    )?);
 
     type_checker.marker_super_type = Some(
         type_checker
@@ -1316,7 +1323,7 @@ pub fn create_type_checker(
         ("symbol", type_checker.es_symbol_type()),
         ("undefined", type_checker.undefined_type()),
     ])));
-    type_checker.typeof_type = Some(type_checker.create_typeof_type());
+    type_checker.typeof_type = Some(type_checker.create_typeof_type()?);
 
     let mut builtin_globals: SymbolTable = SymbolTable::new();
     builtin_globals.insert(
@@ -1330,25 +1337,25 @@ pub fn create_type_checker(
 
     *rc_wrapped.node_builder.borrow_mut() = Some(rc_wrapped.create_node_builder());
 
-    rc_wrapped.initialize_type_checker();
+    rc_wrapped.initialize_type_checker()?;
 
     *rc_wrapped.check_binary_expression.borrow_mut() =
         Some(Gc::new(rc_wrapped.create_check_binary_expression()));
     *rc_wrapped.emit_resolver.borrow_mut() = Some(rc_wrapped.create_resolver());
 
-    rc_wrapped
+    Ok(rc_wrapped)
 }
 
 #[derive(Default, Trace, Finalize)]
 struct RestrictiveMapperFunc {}
 
 impl TypeMapperCallback for RestrictiveMapperFunc {
-    fn call(&self, type_checker: &TypeChecker, t: &Type) -> Gc<Type> {
-        if t.flags().intersects(TypeFlags::TypeParameter) {
+    fn call(&self, type_checker: &TypeChecker, t: &Type) -> io::Result<Gc<Type>> {
+        Ok(if t.flags().intersects(TypeFlags::TypeParameter) {
             type_checker.get_restrictive_type_parameter(t)
         } else {
             t.type_wrapper()
-        }
+        })
     }
 }
 
@@ -1356,12 +1363,12 @@ impl TypeMapperCallback for RestrictiveMapperFunc {
 struct PermissiveMapperFunc {}
 
 impl TypeMapperCallback for PermissiveMapperFunc {
-    fn call(&self, type_checker: &TypeChecker, t: &Type) -> Gc<Type> {
-        if t.flags().intersects(TypeFlags::TypeParameter) {
+    fn call(&self, type_checker: &TypeChecker, t: &Type) -> io::Result<Gc<Type>> {
+        Ok(if t.flags().intersects(TypeFlags::TypeParameter) {
             type_checker.wildcard_type()
         } else {
             t.type_wrapper()
-        }
+        })
     }
 }
 
@@ -1369,7 +1376,7 @@ fn async_iteration_types_resolver_resolve_iteration_type(
     type_checker: &TypeChecker,
     type_: &Type,
     error_node: Option<Gc<Node>>,
-) -> Option<Gc<Type>> {
+) -> io::Result<Option<Gc<Type>>> {
     type_checker.get_awaited_type_(type_, error_node, None, None)
 }
 
@@ -1377,8 +1384,8 @@ fn sync_iteration_types_resolver_resolve_iteration_type(
     _type_checker: &TypeChecker,
     type_: &Type,
     _error_node: Option<Gc<Node>>,
-) -> Option<Gc<Type>> {
-    Some(type_.type_wrapper())
+) -> io::Result<Option<Gc<Type>>> {
+    Ok(Some(type_.type_wrapper()))
 }
 
 #[derive(Debug, Trace, Finalize)]
@@ -1633,19 +1640,23 @@ impl TypeChecker {
         ptr::eq(symbol, &*self.unknown_symbol())
     }
 
-    pub fn get_type_of_symbol_at_location(&self, symbol: &Symbol, location_in: &Node) -> Gc<Type> {
+    pub fn get_type_of_symbol_at_location(
+        &self,
+        symbol: &Symbol,
+        location_in: &Node,
+    ) -> io::Result<Gc<Type>> {
         let location = get_parse_tree_node(Some(location_in), Option::<fn(&Node) -> bool>::None);
-        match location {
-            Some(location) => self.get_type_of_symbol_at_location_(symbol, &location),
+        Ok(match location {
+            Some(location) => self.get_type_of_symbol_at_location_(symbol, &location)?,
             None => self.error_type(),
-        }
+        })
     }
 
     pub fn get_symbols_of_parameter_property_declaration(
         &self,
         parameter_in: &Node, /*ParameterDeclaration*/
         parameter_name: &str,
-    ) -> Vec<Gc<Symbol>> {
+    ) -> io::Result<Vec<Gc<Symbol>>> {
         let parameter =
             get_parse_tree_node(Some(parameter_in), Some(|node: &Node| is_parameter(node)));
         if parameter.is_none() {
@@ -1658,7 +1669,7 @@ impl TypeChecker {
         )
     }
 
-    pub fn get_property_of_type(&self, type_: &Type, name: &str) -> Option<Gc<Symbol>> {
+    pub fn get_property_of_type(&self, type_: &Type, name: &str) -> io::Result<Option<Gc<Symbol>>> {
         self.get_property_of_type_(type_, &escape_leading_underscores(name), None)
     }
 
@@ -1667,21 +1678,32 @@ impl TypeChecker {
         left_type: &Type,
         name: &str,
         location: &Node,
-    ) -> Option<Gc<Symbol>> {
-        let node = get_parse_tree_node(Some(location), Option::<fn(&Node) -> bool>::None)?;
+    ) -> io::Result<Option<Gc<Symbol>>> {
+        let node = return_ok_none_if_none!(get_parse_tree_node(
+            Some(location),
+            Option::<fn(&Node) -> bool>::None
+        ));
         let prop_name = escape_leading_underscores(name);
         let lexically_scoped_identifier =
             self.lookup_symbol_for_private_identifier_declaration(&prop_name, &node);
-        lexically_scoped_identifier.and_then(|lexically_scoped_identifier| {
+        lexically_scoped_identifier.try_and_then(|lexically_scoped_identifier| {
             self.get_private_identifier_property_of_type_(left_type, &lexically_scoped_identifier)
         })
     }
 
-    pub fn get_type_of_property_of_type(&self, type_: &Type, name: &str) -> Option<Gc<Type>> {
+    pub fn get_type_of_property_of_type(
+        &self,
+        type_: &Type,
+        name: &str,
+    ) -> io::Result<Option<Gc<Type>>> {
         self.get_type_of_property_of_type_(type_, &escape_leading_underscores(name))
     }
 
-    pub fn get_index_info_of_type(&self, type_: &Type, kind: IndexKind) -> Option<Gc<IndexInfo>> {
+    pub fn get_index_info_of_type(
+        &self,
+        type_: &Type,
+        kind: IndexKind,
+    ) -> io::Result<Option<Gc<IndexInfo>>> {
         self.get_index_info_of_type_(
             type_,
             &*if kind == IndexKind::String {
@@ -1692,7 +1714,11 @@ impl TypeChecker {
         )
     }
 
-    pub fn get_index_type_of_type(&self, type_: &Type, kind: IndexKind) -> Option<Gc<Type>> {
+    pub fn get_index_type_of_type(
+        &self,
+        type_: &Type,
+        kind: IndexKind,
+    ) -> io::Result<Option<Gc<Type>>> {
         self.get_index_type_of_type_(
             type_,
             &*if kind == IndexKind::String {
@@ -1703,20 +1729,27 @@ impl TypeChecker {
         )
     }
 
-    pub fn get_type_from_type_node(&self, node_in: &Node /*TypeNode*/) -> Gc<Type> {
+    pub fn get_type_from_type_node(
+        &self,
+        node_in: &Node, /*TypeNode*/
+    ) -> io::Result<Gc<Type>> {
         let node = get_parse_tree_node(Some(node_in), Some(|node: &Node| is_type_node(node)));
-        if let Some(node) = node {
-            self.get_type_from_type_node_(&node)
+        Ok(if let Some(node) = node {
+            self.get_type_from_type_node_(&node)?
         } else {
             self.error_type()
-        }
+        })
     }
 
-    pub fn get_parameter_type(&self, signature: &Signature, parameter_index: usize) -> Gc<Type> {
+    pub fn get_parameter_type(
+        &self,
+        signature: &Signature,
+        parameter_index: usize,
+    ) -> io::Result<Gc<Type>> {
         self.get_type_at_position(signature, parameter_index)
     }
 
-    pub fn get_awaited_type(&self, type_: &Type) -> Option<Gc<Type>> {
+    pub fn get_awaited_type(&self, type_: &Type) -> io::Result<Option<Gc<Type>>> {
         self.get_awaited_type_(type_, Option::<&Node>::None, None, None)
     }
 
@@ -1724,24 +1757,24 @@ impl TypeChecker {
         self.remove_optional_type_marker(type_)
     }
 
-    pub fn type_to_type_node<TEnclosingDeclaration: Borrow<Node>>(
+    pub fn type_to_type_node(
         &self,
         type_: &Type,
-        enclosing_declaration: Option<TEnclosingDeclaration>,
+        enclosing_declaration: Option<impl Borrow<Node>>,
         flags: Option<NodeBuilderFlags>,
         tracker: Option<Gc<Box<dyn SymbolTracker>>>,
-    ) -> Option<Gc<Node /*TypeNode*/>> {
+    ) -> io::Result<Option<Gc<Node /*TypeNode*/>>> {
         self.node_builder()
             .type_to_type_node(type_, enclosing_declaration, flags, tracker)
     }
 
-    pub fn index_info_to_index_signature_declaration<TEnclosingDeclaration: Borrow<Node>>(
+    pub fn index_info_to_index_signature_declaration(
         &self,
         index_info: &IndexInfo,
-        enclosing_declaration: Option<TEnclosingDeclaration>,
+        enclosing_declaration: Option<impl Borrow<Node>>,
         flags: Option<NodeBuilderFlags>,
         tracker: Option<Gc<Box<dyn SymbolTracker>>>,
-    ) -> Option<Gc<Node /*IndexSignatureDeclaration*/>> {
+    ) -> io::Result<Option<Gc<Node /*IndexSignatureDeclaration*/>>> {
         self.node_builder()
             .index_info_to_index_signature_declaration(
                 index_info,
@@ -1751,14 +1784,15 @@ impl TypeChecker {
             )
     }
 
-    pub fn signature_to_signature_declaration<TEnclosingDeclaration: Borrow<Node>>(
+    pub fn signature_to_signature_declaration(
         &self,
         signature: Gc<Signature>,
         kind: SyntaxKind,
-        enclosing_declaration: Option<TEnclosingDeclaration>,
+        enclosing_declaration: Option<impl Borrow<Node>>,
         flags: Option<NodeBuilderFlags>,
         tracker: Option<Gc<Box<dyn SymbolTracker>>>,
-    ) -> Option<Gc<Node /*SignatureDeclaration & {typeArguments?: NodeArray<TypeNode>}*/>> {
+    ) -> io::Result<Option<Gc<Node /*SignatureDeclaration & {typeArguments?: NodeArray<TypeNode>}*/>>>
+    {
         self.node_builder().signature_to_signature_declaration(
             signature,
             kind,
@@ -1768,13 +1802,13 @@ impl TypeChecker {
         )
     }
 
-    pub fn symbol_to_entity_name<TEnclosingDeclaration: Borrow<Node>>(
+    pub fn symbol_to_entity_name(
         &self,
         symbol: &Symbol,
         meaning: SymbolFlags,
-        enclosing_declaration: Option<TEnclosingDeclaration>,
+        enclosing_declaration: Option<impl Borrow<Node>>,
         flags: Option<NodeBuilderFlags>,
-    ) -> Option<Gc<Node /*EntityName*/>> {
+    ) -> io::Result<Option<Gc<Node /*EntityName*/>>> {
         self.node_builder().symbol_to_entity_name(
             symbol,
             Some(meaning),
@@ -1784,13 +1818,13 @@ impl TypeChecker {
         )
     }
 
-    pub fn symbol_to_expression<TEnclosingDeclaration: Borrow<Node>>(
+    pub fn symbol_to_expression(
         &self,
         symbol: &Symbol,
         meaning: SymbolFlags,
-        enclosing_declaration: Option<TEnclosingDeclaration>,
+        enclosing_declaration: Option<impl Borrow<Node>>,
         flags: Option<NodeBuilderFlags>,
-    ) -> Option<Gc<Node /*Expression*/>> {
+    ) -> io::Result<Option<Gc<Node /*Expression*/>>> {
         self.node_builder().symbol_to_expression(
             symbol,
             Some(meaning),
@@ -1800,12 +1834,12 @@ impl TypeChecker {
         )
     }
 
-    pub fn symbol_to_type_parameter_declarations<TEnclosingDeclaration: Borrow<Node>>(
+    pub fn symbol_to_type_parameter_declarations(
         &self,
         symbol: &Symbol,
-        enclosing_declaration: Option<TEnclosingDeclaration>,
+        enclosing_declaration: Option<impl Borrow<Node>>,
         flags: Option<NodeBuilderFlags>,
-    ) -> Option<Gc<NodeArray> /*<TypeParameterDeclaration>*/> {
+    ) -> io::Result<Option<Gc<NodeArray> /*<TypeParameterDeclaration>*/>> {
         self.node_builder().symbol_to_type_parameter_declarations(
             symbol,
             enclosing_declaration,
@@ -1814,12 +1848,12 @@ impl TypeChecker {
         )
     }
 
-    pub fn symbol_to_parameter_declaration<TEnclosingDeclaration: Borrow<Node>>(
+    pub fn symbol_to_parameter_declaration(
         &self,
         symbol: &Symbol,
-        enclosing_declaration: Option<TEnclosingDeclaration>,
+        enclosing_declaration: Option<impl Borrow<Node>>,
         flags: Option<NodeBuilderFlags>,
-    ) -> Option<Gc<Node /*ParameterDeclaration*/>> {
+    ) -> io::Result<Option<Gc<Node /*ParameterDeclaration*/>>> {
         self.node_builder().symbol_to_parameter_declaration(
             symbol,
             enclosing_declaration,
@@ -1828,12 +1862,12 @@ impl TypeChecker {
         )
     }
 
-    pub fn type_parameter_to_declaration<TEnclosingDeclaration: Borrow<Node>>(
+    pub fn type_parameter_to_declaration(
         &self,
         parameter: &Type, /*TypeParameter*/
-        enclosing_declaration: Option<TEnclosingDeclaration>,
+        enclosing_declaration: Option<impl Borrow<Node>>,
         flags: Option<NodeBuilderFlags>,
-    ) -> Option<Gc<Node /*TypeParameterDeclaration*/>> {
+    ) -> io::Result<Option<Gc<Node /*TypeParameterDeclaration*/>>> {
         self.node_builder().type_parameter_to_declaration(
             parameter,
             enclosing_declaration,
@@ -1846,38 +1880,52 @@ impl TypeChecker {
         &self,
         location_in: &Node,
         meaning: SymbolFlags,
-    ) -> Vec<Gc<Symbol>> {
+    ) -> io::Result<Vec<Gc<Symbol>>> {
         let location = get_parse_tree_node(Some(location_in), Option::<fn(&Node) -> bool>::None);
-        location.map_or_else(
-            || vec![],
+        location.try_map_or_else(
+            || Ok(Default::default()),
             |location| self.get_symbols_in_scope_(&location, meaning),
         )
     }
 
-    pub fn get_symbol_at_location(&self, node_in: &Node) -> Option<Gc<Symbol>> {
-        let node = get_parse_tree_node(Some(node_in), Option::<fn(&Node) -> bool>::None)?;
+    pub fn get_symbol_at_location(&self, node_in: &Node) -> io::Result<Option<Gc<Symbol>>> {
+        let node = return_ok_none_if_none!(get_parse_tree_node(
+            Some(node_in),
+            Option::<fn(&Node) -> bool>::None
+        ));
         self.get_symbol_at_location_(&node, Some(true))
     }
 
-    pub fn get_index_infos_at_location(&self, node_in: &Node) -> Option<Vec<Gc<IndexInfo>>> {
-        let node = get_parse_tree_node(Some(node_in), Option::<fn(&Node) -> bool>::None)?;
+    pub fn get_index_infos_at_location(
+        &self,
+        node_in: &Node,
+    ) -> io::Result<Option<Vec<Gc<IndexInfo>>>> {
+        let node = return_ok_default_if_none!(get_parse_tree_node(
+            Some(node_in),
+            Option::<fn(&Node) -> bool>::None
+        ));
         self.get_index_infos_at_location_(&node)
     }
 
-    pub fn get_shorthand_assignment_value_symbol<TNode: Borrow<Node>>(
+    pub fn get_shorthand_assignment_value_symbol(
         &self,
-        node_in: Option<TNode>,
-    ) -> Option<Gc<Symbol>> {
-        let node = get_parse_tree_node(node_in, Option::<fn(&Node) -> bool>::None)?;
+        node_in: Option<impl Borrow<Node>>,
+    ) -> io::Result<Option<Gc<Symbol>>> {
+        let node = return_ok_none_if_none!(get_parse_tree_node(
+            node_in,
+            Option::<fn(&Node) -> bool>::None
+        ));
         self.get_shorthand_assignment_value_symbol_(Some(node))
     }
 
     pub fn get_export_specifier_local_target_symbol(
         &self,
         node_in: &Node, /*Identifier | ExportSpecifier*/
-    ) -> Option<Gc<Symbol>> {
-        let node =
-            get_parse_tree_node(Some(node_in), Some(|node: &Node| is_export_specifier(node)))?;
+    ) -> io::Result<Option<Gc<Symbol>>> {
+        let node = return_ok_none_if_none!(get_parse_tree_node(
+            Some(node_in),
+            Some(|node: &Node| is_export_specifier(node))
+        ));
         self.get_export_specifier_local_target_symbol_(&node)
     }
 
@@ -1890,33 +1938,36 @@ impl TypeChecker {
         .unwrap()
     }
 
-    pub fn get_type_at_location(&self, node_in: &Node) -> Gc<Type> {
+    pub fn get_type_at_location(&self, node_in: &Node) -> io::Result<Gc<Type>> {
         let node = get_parse_tree_node(Some(node_in), Option::<fn(&Node) -> bool>::None);
-        if let Some(node) = node {
-            self.get_type_of_node(&node)
+        Ok(if let Some(node) = node {
+            self.get_type_of_node(&node)?
         } else {
             self.error_type()
-        }
+        })
     }
 
     pub fn get_type_of_assignment_pattern(
         &self,
         node_in: &Node, /*AssignmentPattern*/
-    ) -> Gc<Type> {
+    ) -> io::Result<Gc<Type>> {
         let node = get_parse_tree_node(
             Some(node_in),
             Some(|node: &Node| is_assignment_pattern(node)),
         );
-        node.and_then(|node| self.get_type_of_assignment_pattern_(&node))
-            .unwrap_or_else(|| self.error_type())
+        Ok(node
+            .try_and_then(|node| self.get_type_of_assignment_pattern_(&node))?
+            .unwrap_or_else(|| self.error_type()))
     }
 
     pub fn get_property_symbol_of_destructuring_assignment(
         &self,
         location_in: &Node, /*Identifier*/
-    ) -> Option<Gc<Symbol>> {
-        let location =
-            get_parse_tree_node(Some(location_in), Some(|node: &Node| is_identifier(node)))?;
+    ) -> io::Result<Option<Gc<Symbol>>> {
+        let location = return_ok_none_if_none!(get_parse_tree_node(
+            Some(location_in),
+            Some(|node: &Node| is_identifier(node))
+        ));
         self.get_property_symbol_of_destructuring_assignment_(&location)
     }
 
@@ -1926,7 +1977,7 @@ impl TypeChecker {
         enclosing_declaration: Option<TEnclosingDeclaration>,
         flags: Option<TypeFormatFlags>,
         kind: Option<SignatureKind>,
-    ) -> String {
+    ) -> io::Result<String> {
         self.signature_to_string_(
             signature,
             get_parse_tree_node(enclosing_declaration, Option::<fn(&Node) -> bool>::None),
@@ -1936,12 +1987,12 @@ impl TypeChecker {
         )
     }
 
-    pub fn type_to_string<TEnclosingDeclaration: Borrow<Node>>(
+    pub fn type_to_string(
         &self,
         type_: &Type,
-        enclosing_declaration: Option<TEnclosingDeclaration>,
+        enclosing_declaration: Option<impl Borrow<Node>>,
         flags: Option<TypeFormatFlags>,
-    ) -> String {
+    ) -> io::Result<String> {
         self.type_to_string_(
             type_,
             get_parse_tree_node(enclosing_declaration, Option::<fn(&Node) -> bool>::None),
@@ -1950,13 +2001,13 @@ impl TypeChecker {
         )
     }
 
-    pub fn symbol_to_string<TEnclosingDeclaration: Borrow<Node>>(
+    pub fn symbol_to_string(
         &self,
         symbol: &Symbol,
-        enclosing_declaration: Option<TEnclosingDeclaration>,
+        enclosing_declaration: Option<impl Borrow<Node>>,
         meaning: Option<SymbolFlags>,
         flags: Option<SymbolFormatFlags>,
-    ) -> String {
+    ) -> io::Result<String> {
         self.symbol_to_string_(
             symbol,
             get_parse_tree_node(enclosing_declaration, Option::<fn(&Node) -> bool>::None),
@@ -1966,12 +2017,12 @@ impl TypeChecker {
         )
     }
 
-    pub fn type_predicate_to_string<TEnclosingDeclaration: Borrow<Node>>(
+    pub fn type_predicate_to_string(
         &self,
         predicate: &TypePredicate,
-        enclosing_declaration: Option<TEnclosingDeclaration>,
+        enclosing_declaration: Option<impl Borrow<Node>>,
         flags: Option<TypeFormatFlags>,
-    ) -> String {
+    ) -> io::Result<String> {
         self.type_predicate_to_string_(
             predicate,
             get_parse_tree_node(enclosing_declaration, Option::<fn(&Node) -> bool>::None),
@@ -1980,14 +2031,14 @@ impl TypeChecker {
         )
     }
 
-    pub fn write_signature<TEnclosingDeclaration: Borrow<Node>>(
+    pub fn write_signature(
         &self,
         signature: Gc<Signature>,
-        enclosing_declaration: Option<TEnclosingDeclaration>,
+        enclosing_declaration: Option<impl Borrow<Node>>,
         flags: Option<TypeFormatFlags>,
         kind: Option<SignatureKind>,
         writer: Option<Gc<Box<dyn EmitTextWriter>>>,
-    ) -> String {
+    ) -> io::Result<String> {
         self.signature_to_string_(
             signature,
             get_parse_tree_node(enclosing_declaration, Option::<fn(&Node) -> bool>::None),
@@ -1997,13 +2048,13 @@ impl TypeChecker {
         )
     }
 
-    pub fn write_type<TEnclosingDeclaration: Borrow<Node>>(
+    pub fn write_type(
         &self,
         type_: &Type,
-        enclosing_declaration: Option<TEnclosingDeclaration>,
+        enclosing_declaration: Option<impl Borrow<Node>>,
         flags: Option<TypeFormatFlags>,
         writer: Option<Gc<Box<dyn EmitTextWriter>>>,
-    ) -> String {
+    ) -> io::Result<String> {
         self.type_to_string_(
             type_,
             get_parse_tree_node(enclosing_declaration, Option::<fn(&Node) -> bool>::None),
@@ -2012,14 +2063,14 @@ impl TypeChecker {
         )
     }
 
-    pub fn write_symbol<TEnclosingDeclaration: Borrow<Node>>(
+    pub fn write_symbol(
         &self,
         symbol: &Symbol,
-        enclosing_declaration: Option<TEnclosingDeclaration>,
+        enclosing_declaration: Option<impl Borrow<Node>>,
         meaning: Option<SymbolFlags>,
         flags: Option<SymbolFormatFlags>,
         writer: Option<Gc<Box<dyn EmitTextWriter>>>,
-    ) -> String {
+    ) -> io::Result<String> {
         self.symbol_to_string_(
             symbol,
             get_parse_tree_node(enclosing_declaration, Option::<fn(&Node) -> bool>::None),
@@ -2029,13 +2080,13 @@ impl TypeChecker {
         )
     }
 
-    pub fn write_type_predicate<TEnclosingDeclaration: Borrow<Node>>(
+    pub fn write_type_predicate(
         &self,
         predicate: &TypePredicate,
-        enclosing_declaration: Option<TEnclosingDeclaration>,
+        enclosing_declaration: Option<impl Borrow<Node>>,
         flags: Option<TypeFormatFlags>,
         writer: Option<Gc<Box<dyn EmitTextWriter>>>,
-    ) -> String {
+    ) -> io::Result<String> {
         self.type_predicate_to_string_(
             predicate,
             get_parse_tree_node(enclosing_declaration, Option::<fn(&Node) -> bool>::None),
@@ -2048,8 +2099,11 @@ impl TypeChecker {
         &self,
         node_in: &Node, /*Expression*/
         context_flags: Option<ContextFlags>,
-    ) -> Option<Gc<Type>> {
-        let node = get_parse_tree_node(Some(node_in), Some(|node: &Node| is_expression(node)))?;
+    ) -> io::Result<Option<Gc<Type>>> {
+        let node = return_ok_none_if_none!(get_parse_tree_node(
+            Some(node_in),
+            Some(|node: &Node| is_expression(node))
+        ));
         let containing_call =
             find_ancestor(Some(&*node), |node: &Node| is_call_like_expression(node));
         let containing_call_resolved_signature: Option<Gc<Signature>> =
@@ -2076,7 +2130,7 @@ impl TypeChecker {
                     .resolved_signature = None;
             }
         }
-        let result = self.get_contextual_type_(&node, context_flags);
+        let result = self.get_contextual_type_(&node, context_flags)?;
         if matches!(context_flags, Some(context_flags) if context_flags.intersects(ContextFlags::Completions))
         {
             if let Some(containing_call) = containing_call.as_ref() {
@@ -2094,17 +2148,17 @@ impl TypeChecker {
                     .resolved_signature = containing_call_resolved_signature;
             }
         }
-        result
+        Ok(result)
     }
 
     pub fn get_contextual_type_for_object_literal_element(
         &self,
         node_in: &Node, /*ObjectLiteralElementLike*/
-    ) -> Option<Gc<Type>> {
-        let node = get_parse_tree_node(
+    ) -> io::Result<Option<Gc<Type>>> {
+        let node = return_ok_default_if_none!(get_parse_tree_node(
             Some(node_in),
             Some(|node: &Node| is_object_literal_element_like(node)),
-        )?;
+        ));
         self.get_contextual_type_for_object_literal_element_(&node, None)
     }
 
@@ -2112,22 +2166,24 @@ impl TypeChecker {
         &self,
         node_in: &Node, /*CallLikeExpression*/
         arg_index: usize,
-    ) -> Option<Gc<Type>> {
-        let node = get_parse_tree_node(
+    ) -> io::Result<Option<Gc<Type>>> {
+        let node = return_ok_none_if_none!(get_parse_tree_node(
             Some(node_in),
             Some(|node: &Node| is_call_like_expression(node)),
-        )?;
-        Some(self.get_contextual_type_for_argument_at_index_(&node, arg_index))
+        ));
+        Ok(Some(self.get_contextual_type_for_argument_at_index_(
+            &node, arg_index,
+        )?))
     }
 
     pub fn get_contextual_type_for_jsx_attribute(
         &self,
         node_in: &Node, /*ObjectLiteralElementLike*/
-    ) -> Option<Gc<Type>> {
-        let node = get_parse_tree_node(
+    ) -> io::Result<Option<Gc<Type>>> {
+        let node = return_ok_default_if_none!(get_parse_tree_node(
             Some(node_in),
             Some(|node: &Node| is_jsx_attribute_like(node)),
-        )?;
+        ));
         self.get_contextual_type_for_jsx_attribute_(&node)
     }
 
@@ -2136,7 +2192,7 @@ impl TypeChecker {
         node: &Node, /*CallLikeExpression*/
         candidates_out_array: Option<&mut Vec<Gc<Signature>>>,
         argument_count: Option<usize>,
-    ) -> Option<Gc<Signature>> {
+    ) -> io::Result<Option<Gc<Signature>>> {
         self.get_resolved_signature_worker(
             node,
             candidates_out_array,
@@ -2150,7 +2206,7 @@ impl TypeChecker {
         node: &Node, /*CallLikeExpression*/
         candidates_out_array: Option<&mut Vec<Gc<Signature>>>,
         argument_count: Option<usize>,
-    ) -> Option<Gc<Signature>> {
+    ) -> io::Result<Option<Gc<Signature>>> {
         self.get_resolved_signature_worker(
             node,
             candidates_out_array,
@@ -2162,11 +2218,11 @@ impl TypeChecker {
     pub fn get_constant_value(
         &self,
         node_in: &Node, /*EnumMember | PropertyAccessExpression | ElementAccessExpression*/
-    ) -> Option<StringOrNumber> {
-        let node = get_parse_tree_node(
+    ) -> io::Result<Option<StringOrNumber>> {
+        let node = return_ok_default_if_none!(get_parse_tree_node(
             Some(node_in),
             Some(|node: &Node| self.can_have_constant_value(node)),
-        )?;
+        ));
         self.get_constant_value_(&node)
     }
 
@@ -2174,17 +2230,17 @@ impl TypeChecker {
         &self,
         node_in: &Node, /*QualifiedName | PropertyAccessExpression | ImportTypeNode*/
         property_name: &str,
-    ) -> bool {
+    ) -> io::Result<bool> {
         let node = get_parse_tree_node(
             Some(node_in),
             Some(|node: &Node| is_property_access_or_qualified_name_or_import_type_node(node)),
         );
-        match node {
+        Ok(match node {
             None => false,
             Some(node) => {
-                self.is_valid_property_access_(&node, &escape_leading_underscores(property_name))
+                self.is_valid_property_access_(&node, &escape_leading_underscores(property_name))?
             }
-        }
+        })
     }
 
     pub fn is_valid_property_access_for_completions(
@@ -2192,44 +2248,44 @@ impl TypeChecker {
         node_in: &Node, /*PropertyAccessExpression | QualifiedName | ImportTypeNode*/
         type_: &Type,
         property: &Symbol,
-    ) -> bool {
+    ) -> io::Result<bool> {
         let node = get_parse_tree_node(
             Some(node_in),
             Some(|node: &Node| is_property_access_expression(node)),
         );
-        match node {
+        Ok(match node {
             None => false,
-            Some(node) => self.is_valid_property_access_for_completions_(&node, type_, property),
-        }
+            Some(node) => self.is_valid_property_access_for_completions_(&node, type_, property)?,
+        })
     }
 
     pub fn get_signature_from_declaration(
         &self,
         declaration_in: &Node, /*SignatureDeclaration*/
-    ) -> Option<Gc<Signature>> {
-        let declaration = get_parse_tree_node(
+    ) -> io::Result<Option<Gc<Signature>>> {
+        let declaration = return_ok_none_if_none!(get_parse_tree_node(
             Some(declaration_in),
             Some(|node: &Node| is_function_like(Some(node))),
-        )?;
-        Some(self.get_signature_from_declaration_(&declaration))
+        ));
+        Ok(Some(self.get_signature_from_declaration_(&declaration)?))
     }
 
     pub fn is_implementation_of_overload(
         &self,
         node_in: &Node, /*SignatureDeclaration*/
-    ) -> Option<bool> {
-        let node = get_parse_tree_node(
+    ) -> io::Result<Option<bool>> {
+        let node = return_ok_default_if_none!(get_parse_tree_node(
             Some(node_in),
             Some(|node: &Node| is_function_like(Some(node))),
-        )?;
-        Some(self.is_implementation_of_overload_(&node))
+        ));
+        Ok(Some(self.is_implementation_of_overload_(&node)?))
     }
 
-    pub fn get_aliased_symbol(&self, symbol: &Symbol) -> Gc<Symbol> {
+    pub fn get_aliased_symbol(&self, symbol: &Symbol) -> io::Result<Gc<Symbol>> {
         self.resolve_alias(symbol)
     }
 
-    pub fn get_exports_of_module(&self, module_symbol: &Symbol) -> Vec<Gc<Symbol>> {
+    pub fn get_exports_of_module(&self, module_symbol: &Symbol) -> io::Result<Vec<Gc<Symbol>>> {
         self.get_exports_of_module_as_array(module_symbol)
     }
 
@@ -2237,19 +2293,22 @@ impl TypeChecker {
         unimplemented!() // TODO: figure out how to implement this
     }
 
-    pub fn is_optional_parameter(&self, node_in: &Node /*ParameterDeclaration*/) -> bool {
+    pub fn is_optional_parameter(
+        &self,
+        node_in: &Node, /*ParameterDeclaration*/
+    ) -> io::Result<bool> {
         let node = get_parse_tree_node(Some(node_in), Some(|node: &Node| is_parameter(node)));
-        match node {
+        Ok(match node {
             None => false,
-            Some(node) => self.is_optional_parameter_(&node),
-        }
+            Some(node) => self.is_optional_parameter_(&node)?,
+        })
     }
 
     pub fn try_get_member_in_module_exports(
         &self,
         name: &str,
         symbol: &Symbol,
-    ) -> Option<Gc<Symbol>> {
+    ) -> io::Result<Option<Gc<Symbol>>> {
         self.try_get_member_in_module_exports_(&escape_leading_underscores(name), symbol)
     }
 
@@ -2257,21 +2316,21 @@ impl TypeChecker {
         &self,
         name: &str,
         symbol: &Symbol,
-    ) -> Option<Gc<Symbol>> {
+    ) -> io::Result<Option<Gc<Symbol>>> {
         self.try_get_member_in_module_exports_and_properties_(
             &escape_leading_underscores(name),
             symbol,
         )
     }
 
-    pub fn try_find_ambient_module(&self, module_name: &str) -> Option<Gc<Symbol>> {
+    pub fn try_find_ambient_module(&self, module_name: &str) -> io::Result<Option<Gc<Symbol>>> {
         self.try_find_ambient_module_(module_name, true)
     }
 
     pub fn try_find_ambient_module_without_augmentations(
         &self,
         module_name: &str,
-    ) -> Option<Gc<Symbol>> {
+    ) -> io::Result<Option<Gc<Symbol>>> {
         self.try_find_ambient_module_(module_name, false)
     }
 
@@ -2331,11 +2390,11 @@ impl TypeChecker {
         self.optional_type()
     }
 
-    pub fn get_promise_type(&self) -> Gc<Type> {
+    pub fn get_promise_type(&self) -> io::Result<Gc<Type>> {
         self.get_global_promise_type(false)
     }
 
-    pub fn get_promise_like_type(&self) -> Gc<Type> {
+    pub fn get_promise_like_type(&self) -> io::Result<Gc<Type>> {
         self.get_global_promise_like_type(false)
     }
 
@@ -2344,7 +2403,7 @@ impl TypeChecker {
         location: &Node,
         name: &str,
         meaning: SymbolFlags,
-    ) -> Option<Gc<Symbol>> {
+    ) -> io::Result<Option<Gc<Symbol>>> {
         self.get_suggested_symbol_for_nonexistent_symbol_(
             Some(location),
             &escape_leading_underscores(name),
@@ -2357,7 +2416,7 @@ impl TypeChecker {
         location: &Node,
         name: &str,
         meaning: SymbolFlags,
-    ) -> Option<String> {
+    ) -> io::Result<Option<String>> {
         self.get_suggestion_for_nonexistent_symbol_(
             Some(location),
             &escape_leading_underscores(name),
@@ -2365,22 +2424,22 @@ impl TypeChecker {
         )
     }
 
-    pub fn get_default_from_type_parameter(&self, type_: &Type) -> Option<Gc<Type>> {
+    pub fn get_default_from_type_parameter(&self, type_: &Type) -> io::Result<Option<Gc<Type>>> {
         /*type &&*/
-        if type_.flags().intersects(TypeFlags::TypeParameter) {
-            self.get_default_from_type_parameter_(type_)
+        Ok(if type_.flags().intersects(TypeFlags::TypeParameter) {
+            self.get_default_from_type_parameter_(type_)?
         } else {
             None
-        }
+        })
     }
 
-    pub fn resolve_name<TLocation: Borrow<Node>>(
+    pub fn resolve_name(
         &self,
         name: &str,
-        location: Option<TLocation>,
+        location: Option<impl Borrow<Node>>,
         meaning: SymbolFlags,
         exclude_globals: bool,
-    ) -> Option<Gc<Symbol>> {
+    ) -> io::Result<Option<Gc<Symbol>>> {
         self.resolve_name_(
             location,
             &escape_leading_underscores(name),
@@ -2392,10 +2451,7 @@ impl TypeChecker {
         )
     }
 
-    pub fn get_jsx_namespace<TLocation: Borrow<Node>>(
-        &self,
-        location: Option<TLocation>,
-    ) -> String {
+    pub fn get_jsx_namespace(&self, location: Option<impl Borrow<Node>>) -> String {
         unescape_leading_underscores(&self.get_jsx_namespace_(location)).to_owned()
     }
 
@@ -2414,11 +2470,11 @@ impl TypeChecker {
     pub fn resolve_external_module_name(
         &self,
         module_specifier_in: &Node, /*Expression*/
-    ) -> Option<Gc<Symbol>> {
-        let module_specifier = get_parse_tree_node(
+    ) -> io::Result<Option<Gc<Symbol>>> {
+        let module_specifier = return_ok_default_if_none!(get_parse_tree_node(
             Some(module_specifier_in),
             Some(|node: &Node| is_expression(node)),
-        )?;
+        ));
         self.resolve_external_module_name_(&module_specifier, &module_specifier, Some(true))
     }
 
@@ -2426,16 +2482,22 @@ impl TypeChecker {
         &self,
         node_in: &Node,
         include_global_this: Option<bool>,
-    ) -> Option<Gc<Type>> {
-        let node = get_parse_tree_node(Some(node_in), Option::<fn(&Node) -> bool>::None)?;
+    ) -> io::Result<Option<Gc<Type>>> {
+        let node = return_ok_none_if_none!(get_parse_tree_node(
+            Some(node_in),
+            Option::<fn(&Node) -> bool>::None
+        ));
         self.try_get_this_type_at_(&node, include_global_this, Option::<&Node>::None)
     }
 
     pub fn get_type_argument_constraint(
         &self,
         node_in: &Node, /*TypeNode*/
-    ) -> Option<Gc<Type>> {
-        let node = get_parse_tree_node(Some(node_in), Some(|node: &Node| is_type_node(node)))?;
+    ) -> io::Result<Option<Gc<Type>>> {
+        let node = return_ok_default_if_none!(get_parse_tree_node(
+            Some(node_in),
+            Some(|node: &Node| is_type_node(node))
+        ));
         self.get_type_argument_constraint_(&node)
     }
 
@@ -2443,19 +2505,19 @@ impl TypeChecker {
         &self,
         file_in: &Node, /*SourceFile*/
         ct: Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
-    ) -> Vec<Gc<Diagnostic /*DiagnosticWithLocation*/>> {
+    ) -> io::Result<Vec<Gc<Diagnostic /*DiagnosticWithLocation*/>>> {
         let file = get_parse_tree_node(Some(file_in), Some(|node: &Node| is_source_file(node)))
             .unwrap_or_else(|| Debug_.fail(Some("Could not determine parsed source file.")));
         if skip_type_checking(&file, &self.compiler_options, |file_name| {
             TypeCheckerHost::is_source_of_project_reference_redirect(&**self.host, file_name)
         }) {
-            return vec![];
+            return Ok(vec![]);
         }
 
         let mut diagnostics: Option<Vec<Gc<Diagnostic>>>;
         self.set_cancellation_token(ct);
 
-        self.check_source_file(&file);
+        self.check_source_file(&file)?;
         Debug_.assert(
             (*self.get_node_links(&file))
                 .borrow()
@@ -2488,11 +2550,11 @@ impl TypeChecker {
                     diagnostics.as_mut().unwrap().push(diag);
                 }
             },
-        );
+        )?;
 
         self.set_cancellation_token(None);
 
-        diagnostics.unwrap_or_else(|| vec![])
+        Ok(diagnostics.unwrap_or_else(|| vec![]))
     }
 
     pub fn run_with_cancellation_token<TReturn, TCallback: FnMut(&TypeChecker) -> TReturn>(
@@ -2512,17 +2574,17 @@ impl TypeChecker {
         candidates_out_array: Option<&mut Vec<Gc<Signature>>>,
         argument_count: Option<usize>,
         check_mode: CheckMode,
-    ) -> Option<Gc<Signature>> {
+    ) -> io::Result<Option<Gc<Signature>>> {
         let node = get_parse_tree_node(
             Some(node_in),
             Some(|node: &Node| is_call_like_expression(node)),
         );
         self.set_apparent_argument_count(argument_count);
-        let res = node.map(|node| {
+        let res = node.try_map(|node| {
             self.get_resolved_signature_(&node, candidates_out_array, Some(check_mode))
-        });
+        })?;
         self.set_apparent_argument_count(None);
-        res
+        Ok(res)
     }
 
     pub(super) fn tuple_types(&self) -> GcCellRefMut<HashMap<String, Gc</*GenericType*/ Type>>> {

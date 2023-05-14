@@ -6,14 +6,15 @@ use gc::{Finalize, Gc, GcCell, GcCellRef, GcCellRefMut, Trace};
 use crate::{
     add_emit_helpers, are_option_gcs_equal, create_unparsed_source_file, get_emit_module_kind,
     get_emit_script_target, get_parse_tree_node, get_strict_option_value, has_syntactic_modifier,
-    is_class_declaration, is_statement, map_defined, modifier_to_flag, visit_each_child,
-    BaseNodeFactorySynthetic, CompilerOptions, Debug_, EmitHelperFactory, EmitHint, EmitResolver,
-    Matches, ModifierFlags, ModuleKind, Node, NodeArray, NodeFactory, NodeId, NodeInterface,
-    ScriptTarget, SyntaxKind, TransformFlags, TransformationContext,
+    is_class_declaration, is_statement, map_defined, modifier_to_flag, try_visit_each_child,
+    visit_each_child, BaseNodeFactorySynthetic, CompilerOptions, Debug_, EmitHelperFactory,
+    EmitHint, EmitResolver, Matches, ModifierFlags, ModuleKind, Node, NodeArray, NodeFactory,
+    NodeId, NodeInterface, ScriptTarget, SyntaxKind, TransformFlags, TransformationContext,
     TransformationContextOnEmitNodeOverrider, TransformationContextOnSubstituteNodeOverrider,
     Transformer, TransformerFactory, TransformerFactoryInterface, TransformerInterface,
     UnderscoreEscapedMap, VisitResult,
 };
+use std::io;
 
 pub(super) const USE_NEW_TYPE_METADATA_FORMAT: bool = false;
 
@@ -222,24 +223,27 @@ impl TransformTypeScript {
     pub(super) fn transform_source_file_or_bundle(
         &self,
         node: &Node, /*SourceFile | Bundle*/
-    ) -> Gc<Node> {
+    ) -> io::Result<Gc<Node>> {
         if node.kind() == SyntaxKind::Bundle {
             return self.transform_bundle(node);
         }
         self.transform_source_file(node)
     }
 
-    pub(super) fn transform_bundle(&self, node: &Node /*Bundle*/) -> Gc<Node> {
+    pub(super) fn transform_bundle(&self, node: &Node /*Bundle*/) -> io::Result<Gc<Node>> {
         let node_as_bundle = node.as_bundle();
-        self.factory
+        Ok(self
+            .factory
             .create_bundle(
                 node_as_bundle
                     .source_files
                     .iter()
-                    .map(|source_file| {
-                        Some(self.transform_source_file(source_file.as_ref().unwrap()))
+                    .map(|source_file| -> io::Result<_> {
+                        Ok(Some(
+                            self.transform_source_file(source_file.as_ref().unwrap())?,
+                        ))
                     })
-                    .collect::<Vec<_>>(),
+                    .collect::<Result<Vec<_>, _>>()?,
                 Some(map_defined(
                     Some(&node_as_bundle.prepends),
                     |prepend: &Gc<Node>, _| {
@@ -254,28 +258,41 @@ impl TransformTypeScript {
                     },
                 )),
             )
-            .wrap()
+            .wrap())
     }
 
-    pub(super) fn transform_source_file(&self, node: &Node /*SourceFile*/) -> Gc<Node> {
+    pub(super) fn transform_source_file(
+        &self,
+        node: &Node, /*SourceFile*/
+    ) -> io::Result<Gc<Node>> {
         if node.as_source_file().is_declaration_file() {
-            return node.node_wrapper();
+            return Ok(node.node_wrapper());
         }
 
         self.set_current_source_file(Some(node.node_wrapper()));
 
-        let visited = self.save_state_and_invoke(node, |node: &Node| self.visit_source_file(node));
+        let visited =
+            self.try_save_state_and_invoke(node, |node: &Node| self.visit_source_file(node))?;
         add_emit_helpers(&visited, self.context.read_emit_helpers().as_deref());
 
         self.set_current_source_file(None);
-        visited
+        Ok(visited)
     }
 
+    #[allow(dead_code)]
     pub(super) fn save_state_and_invoke<TReturn>(
         &self,
         node: &Node,
         mut f: impl FnMut(&Node) -> TReturn,
     ) -> TReturn {
+        self.try_save_state_and_invoke(node, |a| Ok(f(a))).unwrap()
+    }
+
+    pub(super) fn try_save_state_and_invoke<TReturn>(
+        &self,
+        node: &Node,
+        mut f: impl FnMut(&Node) -> io::Result<TReturn>,
+    ) -> io::Result<TReturn> {
         let saved_current_scope = self.maybe_current_lexical_scope();
         let saved_current_name_scope = self.maybe_current_name_scope();
         let saved_current_scope_first_declarations_of_name = self
@@ -286,7 +303,7 @@ impl TransformTypeScript {
 
         self.on_before_visit_node(node);
 
-        let visited = f(node);
+        let visited = f(node)?;
 
         if !are_option_gcs_equal(
             self.maybe_current_lexical_scope().as_ref(),
@@ -302,7 +319,7 @@ impl TransformTypeScript {
         self.set_current_class_has_parameter_properties(
             saved_current_class_has_parameter_properties,
         );
-        visited
+        Ok(visited)
     }
 
     pub(super) fn on_before_visit_node(&self, node: &Node) {
@@ -337,87 +354,72 @@ impl TransformTypeScript {
         }
     }
 
-    pub(super) fn visitor(&self, node: &Node) -> VisitResult /*<Node>*/ {
-        self.save_state_and_invoke(node, |node: &Node| self.visitor_worker(node))
+    pub(super) fn visitor(&self, node: &Node) -> io::Result<VisitResult> /*<Node>*/ {
+        self.try_save_state_and_invoke(node, |node: &Node| self.visitor_worker(node))
     }
 
-    pub(super) fn visitor_worker(&self, node: &Node) -> VisitResult /*<Node>*/ {
+    pub(super) fn visitor_worker(&self, node: &Node) -> io::Result<VisitResult> /*<Node>*/ {
         if node
             .transform_flags()
             .intersects(TransformFlags::ContainsTypeScript)
         {
             return self.visit_type_script(node);
         }
-        Some(node.node_wrapper().into())
+        Ok(Some(node.node_wrapper().into()))
     }
 
-    pub(super) fn source_element_visitor(&self, node: &Node) -> VisitResult /*<Node>*/ {
-        self.save_state_and_invoke(node, |node: &Node| self.source_element_visitor_worker(node))
+    pub(super) fn source_element_visitor(&self, node: &Node) -> io::Result<VisitResult> /*<Node>*/ {
+        self.try_save_state_and_invoke(node, |node: &Node| self.source_element_visitor_worker(node))
     }
 
-    pub(super) fn source_element_visitor_worker(&self, node: &Node) -> VisitResult /*<Node>*/ {
-        match node.kind() {
+    pub(super) fn source_element_visitor_worker(&self, node: &Node) -> io::Result<VisitResult> /*<Node>*/
+    {
+        Ok(match node.kind() {
             SyntaxKind::ImportDeclaration
             | SyntaxKind::ImportEqualsDeclaration
             | SyntaxKind::ExportAssignment
-            | SyntaxKind::ExportDeclaration => self.visit_elidable_statement(node),
-            _ => self.visitor_worker(node),
-        }
+            | SyntaxKind::ExportDeclaration => self.visit_elidable_statement(node)?,
+            _ => self.visitor_worker(node)?,
+        })
     }
 
     pub(super) fn visit_elidable_statement(
         &self,
         node: &Node, /*ImportDeclaration | ImportEqualsDeclaration | ExportAssignment | ExportDeclaration*/
-    ) -> VisitResult /*<Node>*/ {
+    ) -> io::Result<VisitResult> /*<Node>*/ {
         let parsed = get_parse_tree_node(Some(node), Option::<fn(&Node) -> bool>::None);
         if !parsed.matches(|parsed| ptr::eq(&*parsed, node)) {
             if node
                 .transform_flags()
                 .intersects(TransformFlags::ContainsTypeScript)
             {
-                return visit_each_child(
+                return Ok(try_visit_each_child(
                     Some(node),
                     |node: &Node| self.visitor(node),
                     &**self.context,
-                    Option::<
-                        fn(
-                            Option<&NodeArray>,
-                            Option<&mut dyn FnMut(&Node) -> VisitResult>,
-                            Option<&dyn Fn(&Node) -> bool>,
-                            Option<usize>,
-                            Option<usize>,
-                        ) -> Option<Gc<NodeArray>>,
-                    >::None,
-                    Option::<fn(&Node) -> VisitResult>::None,
-                    Option::<
-                        fn(
-                            Option<&Node>,
-                            Option<&mut dyn FnMut(&Node) -> VisitResult>,
-                            Option<&dyn Fn(&Node) -> bool>,
-                            Option<&dyn Fn(&[Gc<Node>]) -> Gc<Node>>,
-                        ) -> Option<Gc<Node>>,
-                    >::None,
-                )
-                .map(Into::into);
+                )?
+                .map(Into::into));
             }
-            return Some(node.node_wrapper().into());
+            return Ok(Some(node.node_wrapper().into()));
         }
-        match node.kind() {
+        Ok(match node.kind() {
             SyntaxKind::ImportDeclaration => self.visit_import_declaration(node),
             SyntaxKind::ImportEqualsDeclaration => self.visit_import_equals_declaration(node),
             SyntaxKind::ExportAssignment => self.visit_export_assignment(node),
             SyntaxKind::ExportDeclaration => self.visit_export_declaration(node),
             _ => Debug_.fail(Some("Unhandled ellided statement")),
-        }
+        })
     }
 
-    pub(super) fn namespace_element_visitor(&self, node: &Node) -> VisitResult /*<Node>*/ {
-        self.save_state_and_invoke(node, |node: &Node| {
+    pub(super) fn namespace_element_visitor(&self, node: &Node) -> io::Result<VisitResult> /*<Node>*/
+    {
+        self.try_save_state_and_invoke(node, |node: &Node| {
             self.namespace_element_visitor_worker(node)
         })
     }
 
-    pub(super) fn namespace_element_visitor_worker(&self, node: &Node) -> VisitResult /*<Node>*/ {
+    pub(super) fn namespace_element_visitor_worker(&self, node: &Node) -> io::Result<VisitResult> /*<Node>*/
+    {
         if matches!(
             node.kind(),
             SyntaxKind::ExportDeclaration
@@ -427,7 +429,7 @@ impl TransformTypeScript {
             && node.as_import_equals_declaration().module_reference.kind()
                 == SyntaxKind::ExternalModuleReference
         {
-            return None;
+            return Ok(None);
         } else if node
             .transform_flags()
             .intersects(TransformFlags::ContainsTypeScript)
@@ -436,25 +438,26 @@ impl TransformTypeScript {
             return self.visit_type_script(node);
         }
 
-        Some(node.node_wrapper().into())
+        Ok(Some(node.node_wrapper().into()))
     }
 
-    pub(super) fn class_element_visitor(&self, node: &Node) -> VisitResult /*<Node>*/ {
-        self.save_state_and_invoke(node, |node: &Node| self.class_element_visitor_worker(node))
+    pub(super) fn class_element_visitor(&self, node: &Node) -> io::Result<VisitResult> /*<Node>*/ {
+        self.try_save_state_and_invoke(node, |node: &Node| self.class_element_visitor_worker(node))
     }
 
-    pub(super) fn class_element_visitor_worker(&self, node: &Node) -> VisitResult /*<Node>*/ {
-        match node.kind() {
-            SyntaxKind::Constructor => self.visit_constructor(node),
-            SyntaxKind::PropertyDeclaration => self.visit_property_declaration(node),
+    pub(super) fn class_element_visitor_worker(&self, node: &Node) -> io::Result<VisitResult> /*<Node>*/
+    {
+        Ok(match node.kind() {
+            SyntaxKind::Constructor => self.visit_constructor(node)?,
+            SyntaxKind::PropertyDeclaration => self.visit_property_declaration(node)?,
             SyntaxKind::IndexSignature
             | SyntaxKind::GetAccessor
             | SyntaxKind::SetAccessor
             | SyntaxKind::MethodDeclaration
-            | SyntaxKind::ClassStaticBlockDeclaration => self.visitor_worker(node),
+            | SyntaxKind::ClassStaticBlockDeclaration => self.visitor_worker(node)?,
             SyntaxKind::SemicolonClassElement => Some(node.node_wrapper().into()),
             _ => Debug_.fail_bad_syntax_kind(node, None),
-        }
+        })
     }
 
     pub(super) fn modifier_visitor(&self, node: &Node) -> VisitResult /*<Node>*/ {
@@ -469,16 +472,16 @@ impl TransformTypeScript {
         Some(node.node_wrapper().into())
     }
 
-    pub(super) fn visit_type_script(&self, node: &Node) -> VisitResult /*<Node>*/ {
+    pub(super) fn visit_type_script(&self, node: &Node) -> io::Result<VisitResult> /*<Node>*/ {
         if is_statement(node) && has_syntactic_modifier(node, ModifierFlags::Ambient) {
-            return Some(
+            return Ok(Some(
                 self.factory
                     .create_not_emitted_statement(node.node_wrapper())
                     .into(),
-            );
+            ));
         }
 
-        match node.kind() {
+        Ok(match node.kind() {
             SyntaxKind::ExportKeyword | SyntaxKind::DefaultKeyword => {
                 if self.maybe_current_namespace().is_some() {
                     None
@@ -529,74 +532,56 @@ impl TransformTypeScript {
                     .create_not_emitted_statement(node.node_wrapper())
                     .into(),
             ),
-            SyntaxKind::PropertyDeclaration => self.visit_property_declaration(node),
+            SyntaxKind::PropertyDeclaration => self.visit_property_declaration(node)?,
             SyntaxKind::NamespaceExportDeclaration => None,
-            SyntaxKind::Constructor => self.visit_constructor(node),
+            SyntaxKind::Constructor => self.visit_constructor(node)?,
             SyntaxKind::InterfaceDeclaration => Some(
                 self.factory
                     .create_not_emitted_statement(node.node_wrapper())
                     .into(),
             ),
-            SyntaxKind::ClassDeclaration => self.visit_class_declaration(node),
-            SyntaxKind::ClassExpression => Some(self.visit_class_expression(node).into()),
-            SyntaxKind::HeritageClause => self.visit_heritage_clause(node).map(Into::into),
+            SyntaxKind::ClassDeclaration => self.visit_class_declaration(node)?,
+            SyntaxKind::ClassExpression => Some(self.visit_class_expression(node)?.into()),
+            SyntaxKind::HeritageClause => self.visit_heritage_clause(node)?.map(Into::into),
             SyntaxKind::ExpressionWithTypeArguments => {
-                Some(self.visit_expression_with_type_arguments(node).into())
+                Some(self.visit_expression_with_type_arguments(node)?.into())
             }
-            SyntaxKind::MethodDeclaration => self.visit_method_declaration(node),
-            SyntaxKind::GetAccessor => self.visit_get_accessor(node),
-            SyntaxKind::SetAccessor => self.visit_set_accessor(node),
-            SyntaxKind::FunctionDeclaration => self.visit_function_declaration(node),
-            SyntaxKind::FunctionExpression => Some(self.visit_function_expression(node).into()),
-            SyntaxKind::ArrowFunction => self.visit_arrow_function(node),
-            SyntaxKind::Parameter => self.visit_parameter(node),
+            SyntaxKind::MethodDeclaration => self.visit_method_declaration(node)?,
+            SyntaxKind::GetAccessor => self.visit_get_accessor(node)?,
+            SyntaxKind::SetAccessor => self.visit_set_accessor(node)?,
+            SyntaxKind::FunctionDeclaration => self.visit_function_declaration(node)?,
+            SyntaxKind::FunctionExpression => Some(self.visit_function_expression(node)?.into()),
+            SyntaxKind::ArrowFunction => self.visit_arrow_function(node)?,
+            SyntaxKind::Parameter => self.visit_parameter(node)?,
             SyntaxKind::ParenthesizedExpression => {
-                Some(self.visit_parenthesized_expression(node).into())
+                Some(self.visit_parenthesized_expression(node)?.into())
             }
             SyntaxKind::TypeAssertionExpression | SyntaxKind::AsExpression => {
-                Some(self.visit_assertion_expression(node).into())
+                Some(self.visit_assertion_expression(node)?.into())
             }
-            SyntaxKind::CallExpression => self.visit_call_expression(node),
-            SyntaxKind::NewExpression => self.visit_new_expression(node),
-            SyntaxKind::TaggedTemplateExpression => self.visit_tagged_template_expression(node),
-            SyntaxKind::NonNullExpression => Some(self.visit_non_null_expression(node).into()),
-            SyntaxKind::EnumDeclaration => self.visit_enum_declaration(node),
-            SyntaxKind::VariableStatement => self.visit_variable_statement(node).map(Into::into),
-            SyntaxKind::VariableDeclaration => self.visit_variable_declaration(node),
+            SyntaxKind::CallExpression => self.visit_call_expression(node)?,
+            SyntaxKind::NewExpression => self.visit_new_expression(node)?,
+            SyntaxKind::TaggedTemplateExpression => self.visit_tagged_template_expression(node)?,
+            SyntaxKind::NonNullExpression => Some(self.visit_non_null_expression(node)?.into()),
+            SyntaxKind::EnumDeclaration => self.visit_enum_declaration(node)?,
+            SyntaxKind::VariableStatement => self.visit_variable_statement(node)?.map(Into::into),
+            SyntaxKind::VariableDeclaration => self.visit_variable_declaration(node)?,
             SyntaxKind::ModuleDeclaration => self.visit_module_declaration(node),
             SyntaxKind::ImportEqualsDeclaration => self.visit_import_equals_declaration(node),
-            SyntaxKind::JsxSelfClosingElement => self.visit_jsx_self_closing_element(node),
-            SyntaxKind::JsxOpeningElement => self.visit_jsx_jsx_opening_element(node),
-            _ => visit_each_child(
+            SyntaxKind::JsxSelfClosingElement => self.visit_jsx_self_closing_element(node)?,
+            SyntaxKind::JsxOpeningElement => self.visit_jsx_jsx_opening_element(node)?,
+            _ => try_visit_each_child(
                 Some(node),
                 |node: &Node| self.visitor(node),
                 &**self.context,
-                Option::<
-                    fn(
-                        Option<&NodeArray>,
-                        Option<&mut dyn FnMut(&Node) -> VisitResult>,
-                        Option<&dyn Fn(&Node) -> bool>,
-                        Option<usize>,
-                        Option<usize>,
-                    ) -> Option<Gc<NodeArray>>,
-                >::None,
-                Option::<fn(&Node) -> VisitResult>::None,
-                Option::<
-                    fn(
-                        Option<&Node>,
-                        Option<&mut dyn FnMut(&Node) -> VisitResult>,
-                        Option<&dyn Fn(&Node) -> bool>,
-                        Option<&dyn Fn(&[Gc<Node>]) -> Gc<Node>>,
-                    ) -> Option<Gc<Node>>,
-                >::None,
-            )
+            )?
             .map(Into::into),
-        }
+        })
     }
 }
 
 impl TransformerInterface for TransformTypeScript {
-    fn call(&self, node: &Node) -> Gc<Node> {
+    fn call(&self, node: &Node) -> io::Result<Gc<Node>> {
         self.transform_source_file_or_bundle(node)
     }
 }

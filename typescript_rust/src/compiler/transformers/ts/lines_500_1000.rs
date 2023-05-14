@@ -10,24 +10,31 @@ use crate::{
     is_modifier, is_parameter_property_declaration, is_static, move_range_past_decorators,
     node_or_child_is_decorated, parameter_is_this_keyword, set_emit_flags, skip_outer_expressions,
     skip_trivia, some, visit_each_child, visit_lexical_environment, visit_nodes, AsDoubleDeref,
-    ClassLikeDeclarationInterface, EmitFlags, HasStatementsInterface,
+    BoolExt, ClassLikeDeclarationInterface, EmitFlags, HasStatementsInterface,
     InterfaceOrClassLikeDeclarationInterface, Matches, ModifierFlags, ModuleKind,
     NamedDeclarationInterface, Node, NodeArray, NodeArrayExt, NodeArrayOrVec, NodeExt, NodeFlags,
     NodeInterface, NodeWrappered, ReadonlyTextRange, ScriptTarget, SignatureDeclarationInterface,
-    SourceFileLike, SyntaxKind, TextRange, ThenAnd, TransformFlags, VisitResult,
+    SourceFileLike, SyntaxKind, TextRange, TransformFlags, VisitResult,
 };
 
 use super::{ClassFacts, TransformTypeScript};
+use crate::try_visit_each_child;
+use crate::try_visit_lexical_environment;
+use crate::try_visit_nodes;
+use std::io;
 
 impl TransformTypeScript {
-    pub(super) fn visit_source_file(&self, node: &Node /*SourceFile*/) -> Gc<Node> {
+    pub(super) fn visit_source_file(
+        &self,
+        node: &Node, /*SourceFile*/
+    ) -> io::Result<Gc<Node>> {
         let always_strict = get_strict_option_value(&self.compiler_options, "alwaysStrict")
             && !(is_external_module(node) && self.module_kind >= ModuleKind::ES2015)
             && !is_json_source_file(node);
 
-        self.factory.update_source_file(
+        Ok(self.factory.update_source_file(
             node,
-            visit_lexical_environment(
+            try_visit_lexical_environment(
                 &node.as_source_file().statements(),
                 |node: &Node| self.source_element_visitor(node),
                 &**self.context,
@@ -40,15 +47,15 @@ impl TransformTypeScript {
                         Option<&dyn Fn(&Node) -> bool>,
                         Option<usize>,
                         Option<usize>,
-                    ) -> Option<Gc<NodeArray>>,
+                    ) -> io::Result<Option<Gc<NodeArray>>>,
                 >::None,
-            ),
+            )?,
             None,
             None,
             None,
             None,
             None,
-        )
+        ))
     }
 
     pub(super) fn get_class_facts(
@@ -126,36 +133,18 @@ impl TransformTypeScript {
     pub(super) fn visit_class_declaration(
         &self,
         node: &Node, /*ClassDeclaration*/
-    ) -> VisitResult /*<Statement>*/ {
+    ) -> io::Result<VisitResult> /*<Statement>*/ {
         let node_as_class_declaration = node.as_class_declaration();
         if !self.is_class_like_declaration_with_type_script_syntax(node)
             && !(self.maybe_current_namespace().is_some()
                 && has_syntactic_modifier(node, ModifierFlags::Export))
         {
-            return visit_each_child(
+            return Ok(try_visit_each_child(
                 Some(node),
                 |node: &Node| self.visitor(node),
                 &**self.context,
-                Option::<
-                    fn(
-                        Option<&NodeArray>,
-                        Option<&mut dyn FnMut(&Node) -> VisitResult>,
-                        Option<&dyn Fn(&Node) -> bool>,
-                        Option<usize>,
-                        Option<usize>,
-                    ) -> Option<Gc<NodeArray>>,
-                >::None,
-                Option::<fn(&Node) -> VisitResult>::None,
-                Option::<
-                    fn(
-                        Option<&Node>,
-                        Option<&mut dyn FnMut(&Node) -> VisitResult>,
-                        Option<&dyn Fn(&Node) -> bool>,
-                        Option<&dyn Fn(&[Gc<Node>]) -> Gc<Node>>,
-                    ) -> Option<Gc<Node>>,
-                >::None,
-            )
-            .map(Into::into);
+            )?
+            .map(Into::into));
         }
 
         let static_properties = get_properties(node, true, true);
@@ -173,16 +162,16 @@ impl TransformTypeScript {
             }
         });
         let class_statement = if facts.intersects(ClassFacts::HasConstructorDecorators) {
-            self.create_class_declaration_head_with_decorators(node, name.as_deref())
+            self.create_class_declaration_head_with_decorators(node, name.as_deref())?
         } else {
-            self.create_class_declaration_head_without_decorators(node, name.as_deref(), facts)
+            self.create_class_declaration_head_without_decorators(node, name.as_deref(), facts)?
         };
 
         let mut statements: Vec<Gc<Node /*Stateent*/>> = vec![class_statement.clone()];
 
-        self.add_class_element_decoration_statements(&mut statements, node, false);
-        self.add_class_element_decoration_statements(&mut statements, node, true);
-        self.add_constructor_decoration_statement(&mut statements, node);
+        self.add_class_element_decoration_statements(&mut statements, node, false)?;
+        self.add_class_element_decoration_statements(&mut statements, node, true)?;
+        self.add_constructor_decoration_statement(&mut statements, node)?;
 
         if facts.intersects(ClassFacts::UseImmediatelyInvokedFunctionExpression) {
             let closing_brace_location = create_token_range(
@@ -285,11 +274,11 @@ impl TransformTypeScript {
             );
         }
 
-        Some(if statements.len() == 1 {
+        Ok(Some(if statements.len() == 1 {
             statements[0].clone().into()
         } else {
             statements.into()
-        })
+        }))
     }
 
     pub(super) fn create_class_declaration_head_without_decorators(
@@ -297,7 +286,7 @@ impl TransformTypeScript {
         node: &Node, /*ClassDeclaration*/
         name: Option<impl Borrow<Node /*Identifier*/>>,
         facts: ClassFacts,
-    ) -> Gc<Node> {
+    ) -> io::Result<Gc<Node>> {
         let node_as_class_declaration = node.as_class_declaration();
         let modifiers = (!(facts.intersects(ClassFacts::UseImmediatelyInvokedFunctionExpression)))
             .then_and(|| {
@@ -317,7 +306,7 @@ impl TransformTypeScript {
                 modifiers,
                 name.node_wrappered(),
                 Option::<Gc<NodeArray>>::None,
-                visit_nodes(
+                try_visit_nodes(
                     node_as_class_declaration
                         .maybe_heritage_clauses()
                         .as_deref(),
@@ -325,8 +314,8 @@ impl TransformTypeScript {
                     Some(is_heritage_clause),
                     None,
                     None,
-                ),
-                self.transform_class_members(node),
+                )?,
+                self.transform_class_members(node)?,
             )
             .wrap();
 
@@ -335,17 +324,17 @@ impl TransformTypeScript {
             emit_flags |= EmitFlags::NoTrailingSourceMap;
         }
 
-        class_declaration
+        Ok(class_declaration
             .set_text_range(Some(node))
             .set_original_node(Some(node.node_wrapper()))
-            .set_emit_flags(emit_flags)
+            .set_emit_flags(emit_flags))
     }
 
     pub(super) fn create_class_declaration_head_with_decorators(
         &self,
         node: &Node, /*ClassDeclaration*/
         name: Option<impl Borrow<Node /*Identifier*/>>,
-    ) -> Gc<Node> {
+    ) -> io::Result<Gc<Node>> {
         let node_as_class_declaration = node.as_class_declaration();
         let location = move_range_past_decorators(node);
         let class_alias = self.get_class_alias_if_needed(node);
@@ -357,7 +346,7 @@ impl TransformTypeScript {
             self.factory.get_local_name(node, Some(false), Some(true))
         };
 
-        let heritage_clauses = visit_nodes(
+        let heritage_clauses = try_visit_nodes(
             node_as_class_declaration
                 .maybe_heritage_clauses()
                 .as_deref(),
@@ -365,8 +354,8 @@ impl TransformTypeScript {
             Some(is_heritage_clause),
             None,
             None,
-        );
-        let members = self.transform_class_members(node);
+        )?;
+        let members = self.transform_class_members(node)?;
         let class_expression = self
             .factory
             .create_class_expression(
@@ -381,7 +370,8 @@ impl TransformTypeScript {
             .set_original_node(Some(node.node_wrapper()))
             .set_text_range(Some(&location.to_readonly_text_range()));
 
-        self.factory
+        Ok(self
+            .factory
             .create_variable_statement(
                 Option::<Gc<NodeArray>>::None,
                 self.factory
@@ -408,65 +398,48 @@ impl TransformTypeScript {
             .wrap()
             .set_original_node(Some(node.node_wrapper()))
             .set_text_range(Some(&location.to_readonly_text_range()))
-            .set_comment_range(node)
+            .set_comment_range(node))
     }
 
     pub(super) fn visit_class_expression(
         &self,
         node: &Node, /*ClassExpression*/
-    ) -> Gc<Node /*<Expression>*/> {
+    ) -> io::Result<Gc<Node /*<Expression>*/>> {
         let node_as_class_expression = node.as_class_expression();
         if !self.is_class_like_declaration_with_type_script_syntax(node) {
-            return visit_each_child(
+            return Ok(try_visit_each_child(
                 Some(node),
                 |node: &Node| self.visitor(node),
                 &**self.context,
-                Option::<
-                    fn(
-                        Option<&NodeArray>,
-                        Option<&mut dyn FnMut(&Node) -> VisitResult>,
-                        Option<&dyn Fn(&Node) -> bool>,
-                        Option<usize>,
-                        Option<usize>,
-                    ) -> Option<Gc<NodeArray>>,
-                >::None,
-                Option::<fn(&Node) -> VisitResult>::None,
-                Option::<
-                    fn(
-                        Option<&Node>,
-                        Option<&mut dyn FnMut(&Node) -> VisitResult>,
-                        Option<&dyn Fn(&Node) -> bool>,
-                        Option<&dyn Fn(&[Gc<Node>]) -> Gc<Node>>,
-                    ) -> Option<Gc<Node>>,
-                >::None,
-            )
-            .unwrap();
+            )?
+            .unwrap());
         }
 
-        self.factory
+        Ok(self
+            .factory
             .create_class_expression(
                 Option::<Gc<NodeArray>>::None,
                 Option::<Gc<NodeArray>>::None,
                 node_as_class_expression.maybe_name(),
                 Option::<Gc<NodeArray>>::None,
-                visit_nodes(
+                try_visit_nodes(
                     node_as_class_expression.maybe_heritage_clauses().as_deref(),
                     Some(|node: &Node| self.visitor(node)),
                     Some(is_heritage_clause),
                     None,
                     None,
-                ),
-                self.transform_class_members(node),
+                )?,
+                self.transform_class_members(node)?,
             )
             .wrap()
             .set_original_node(Some(node.node_wrapper()))
-            .set_text_range(Some(node))
+            .set_text_range(Some(node)))
     }
 
     pub(super) fn transform_class_members(
         &self,
         node: &Node, /*ClassDeclaration | ClassExpression*/
-    ) -> Gc<NodeArray> {
+    ) -> io::Result<Gc<NodeArray>> {
         let mut members: Vec<Gc<Node /*ClassElement*/>> = Default::default();
         let constructor = get_first_constructor_with_body(node);
         let parameters_with_property_assignments = constructor.as_ref().map(|constructor| {
@@ -499,20 +472,21 @@ impl TransformTypeScript {
         let node_as_class_like_declaration = node.as_class_like_declaration();
         add_range(
             &mut members,
-            visit_nodes(
+            try_visit_nodes(
                 Some(&node_as_class_like_declaration.members()),
                 Some(|node: &Node| self.class_element_visitor(node)),
                 Some(is_class_element),
                 None,
                 None,
-            )
+            )?
             .as_double_deref(),
             None,
             None,
         );
-        self.factory
+        Ok(self
+            .factory
             .create_node_array(Some(members), None)
-            .set_text_range(Some(&*node_as_class_like_declaration.members()))
+            .set_text_range(Some(&*node_as_class_like_declaration.members())))
     }
 
     pub(super) fn get_decorated_class_elements<'self_and_node>(
