@@ -275,7 +275,7 @@ impl TransformES2016 {
 
 impl TransformerInterface for TransformES2016 {
     fn call(&self, node: &Node) -> io::Result<Gc<Node>> {
-        self.transform_source_file(node)
+        Ok(self.transform_source_file(node))
     }
 }
 

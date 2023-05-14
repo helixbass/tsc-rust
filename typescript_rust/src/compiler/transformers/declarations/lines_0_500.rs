@@ -43,7 +43,7 @@ pub fn get_declaration_diagnostics(
     host: Gc<Box<dyn EmitHost>>,
     resolver: Gc<Box<dyn EmitResolver>>,
     file: Option<&Node /*SourceFile*/>,
-) -> Option<Vec<Gc<Diagnostic /*DiagnosticWithLocation*/>>> {
+) -> io::Result<Option<Vec<Gc<Diagnostic /*DiagnosticWithLocation*/>>>> {
     let compiler_options = ScriptReferenceHost::get_compiler_options(&**host);
     let result = transform_nodes(
         Some(resolver),
@@ -60,8 +60,8 @@ pub fn get_declaration_diagnostics(
         },
         &[transform_declarations()],
         false,
-    );
-    result.diagnostics()
+    )?;
+    Ok(result.diagnostics())
 }
 
 pub(super) fn has_internal_annotation(

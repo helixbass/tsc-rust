@@ -83,7 +83,8 @@ pub use compiler::debug::{Debug_, LogLevel, LoggingHost};
 pub use compiler::diagnostic_information_map_generated::Diagnostics;
 pub use compiler::emitter::{
     create_printer, for_each_emitted_file, for_each_emitted_file_returns, get_output_extension,
-    get_ts_build_info_emit_output_file_path, SourceMapOptions, TempFlags,
+    get_ts_build_info_emit_output_file_path, try_for_each_emitted_file,
+    try_for_each_emitted_file_returns, SourceMapOptions, TempFlags,
 };
 use compiler::emitter::{
     emit_files, get_build_info, get_common_source_directory, get_common_source_directory_of_config,

@@ -1535,7 +1535,7 @@ impl TransformES2017 {
 
 impl TransformerInterface for TransformES2017 {
     fn call(&self, node: &Node) -> io::Result<Gc<Node>> {
-        self.transform_source_file(node)
+        Ok(self.transform_source_file(node))
     }
 }
 
