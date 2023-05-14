@@ -219,7 +219,7 @@ pub(super) fn convert_array_literal_expression_to_json(
                 known_root_options,
                 element,
                 element_option,
-            );
+            )?;
 
             Ok(())
         })?;

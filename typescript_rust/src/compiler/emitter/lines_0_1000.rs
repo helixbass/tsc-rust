@@ -11,7 +11,7 @@ use crate::{
     create_diagnostic_collection, create_source_map_generator, create_text_writer,
     directory_separator_str, encode_uri, ensure_path_is_non_module_name,
     ensure_trailing_directory_separator, factory, file_extension_is, file_extension_is_one_of,
-    filter, for_each_child, get_are_declaration_maps_enabled, get_base_file_name,
+    filter, get_are_declaration_maps_enabled, get_base_file_name,
     get_declaration_emit_output_file_path, get_directory_path, get_emit_declarations,
     get_emit_module_kind_from_module_and_target, get_factory, get_new_line_character,
     get_normalized_absolute_path, get_own_emit_output_file_path, get_relative_path_from_directory,

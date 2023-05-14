@@ -347,7 +347,7 @@ fn binary_expression_state_call<TMachine: BinaryExpressionStateMachine>(
             user_state_stack,
             result_holder,
             outer_state,
-        ),
+        )?,
         BinaryExpressionState::Right => binary_expression_state_right(
             machine,
             stack_index,
@@ -458,7 +458,7 @@ fn binary_expression_state_operator<TMachine: BinaryExpressionStateMachine>(
     user_state_stack: &mut Vec<Option<TMachine::TState>>,
     _result_holder: Rc<RefCell<Option<TMachine::TResult>>>,
     _outer_state: TMachine::TOuterState,
-) -> usize {
+) -> io::Result<usize> {
     Debug_.assert_equal(
         &state_stack[stack_index],
         &BinaryExpressionState::Operator,
@@ -477,8 +477,8 @@ fn binary_expression_state_operator<TMachine: BinaryExpressionStateMachine>(
             .operator_token,
         user_state_stack[stack_index].clone().unwrap(),
         &node_stack[stack_index],
-    );
-    stack_index
+    )?;
+    Ok(stack_index)
 }
 
 fn binary_expression_state_right<TMachine: BinaryExpressionStateMachine>(

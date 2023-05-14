@@ -246,7 +246,7 @@ impl TypeChecker {
                                     None,
                                 )?,
                             ]),
-                        );
+                        )?;
                         self.enum_relation().insert(
                             id,
                             RelationComparisonResult::Failed | RelationComparisonResult::Reported,

@@ -17,7 +17,7 @@ use crate::{
     change_extension, clone, combine_paths, create_diagnostic_collection, create_file_diagnostic,
     create_module_resolution_cache, create_multi_map,
     create_type_reference_directive_resolution_cache, extension_from_path, file_extension_is,
-    file_extension_is_one_of, for_each, gc_cell_ref_mut_unwrapped,
+    file_extension_is_one_of, gc_cell_ref_mut_unwrapped,
     get_automatic_type_directive_names, get_common_source_directory_of_config, get_directory_path,
     get_emit_module_kind, get_emit_module_resolution_kind, get_output_declaration_file_name,
     get_package_scope_for_path, get_supported_extensions,

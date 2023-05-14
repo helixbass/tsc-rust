@@ -619,7 +619,7 @@ impl TypeChecker {
                     inferred.maybe_exports().clone().unwrap(),
                     &(*source.maybe_exports().clone().unwrap()).borrow(),
                     None,
-                );
+                )?;
             }
             if matches!(
                 source.maybe_members().as_ref(),
