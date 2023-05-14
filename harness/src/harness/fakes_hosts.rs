@@ -9,11 +9,12 @@ pub mod fakes {
     use std::time::SystemTime;
 
     use typescript_rust::{
-        create_source_file, generate_djb2_hash, get_default_lib_file_name, get_new_line_character,
-        match_files, millis_since_epoch_to_system_time, not_implemented, CompilerOptions,
-        ConvertToTSConfigHost, DirectoryWatcherCallback, ExitStatus, FileSystemEntries,
-        FileWatcher, FileWatcherCallback, ModuleResolutionHost, ModuleResolutionHostOverrider,
-        Node, ScriptTarget, System as _, WatchOptions,
+        continue_if_err, create_source_file, generate_djb2_hash, get_default_lib_file_name,
+        get_new_line_character, match_files, millis_since_epoch_to_system_time, not_implemented,
+        return_ok_default_if_none, CompilerOptions, ConvertToTSConfigHost,
+        DirectoryWatcherCallback, ExitStatus, FileSystemEntries, FileWatcher, FileWatcherCallback,
+        ModuleResolutionHost, ModuleResolutionHostOverrider, Node, ScriptTarget, System as _,
+        WatchOptions,
     };
     use typescript_services_rust::{get_default_compiler_options, NodeServicesInterface};
 
@@ -46,7 +47,7 @@ pub mod fakes {
     }
 
     impl System {
-        pub fn new(vfs: Gc<vfs::FileSystem>, options: Option<SystemOptions>) -> Self {
+        pub fn new(vfs: Gc<vfs::FileSystem>, options: Option<SystemOptions>) -> io::Result<Self> {
             let SystemOptions {
                 executing_file_path,
                 new_line,
@@ -54,12 +55,12 @@ pub mod fakes {
             } = options.unwrap_or_default();
             let new_line = new_line.unwrap_or("\r\n");
             let use_case_sensitive_file_names = !vfs.ignore_case;
-            Self {
+            Ok(Self {
                 args: Default::default(),
                 output: Default::default(),
                 exit_code: Default::default(),
                 vfs: if vfs.is_readonly() {
-                    Gc::new(vfs::FileSystem::shadow(vfs, None))
+                    Gc::new(vfs::FileSystem::shadow(vfs, None)?)
                 } else {
                     vfs
                 },
@@ -68,30 +69,21 @@ pub mod fakes {
                 _executing_file_path: executing_file_path,
                 _env: env,
                 test_terminal_width: Default::default(),
-            }
+            })
         }
 
         pub fn get_accessible_file_system_entries(&self, path: &str) -> FileSystemEntries {
             let mut files: Vec<String> = vec![];
             let mut directories: Vec<String> = vec![];
             for file in self.vfs.readdir_sync(path).unwrap_or_default() {
-                let stats = self.vfs.stat_sync(&vpath::combine(path, &[Some(&file)]));
-                if matches!(
-                    stats,
-                    Ok(stats) if stats.is_file()
-                ) {
+                let stats =
+                    continue_if_err!(self.vfs.stat_sync(&vpath::combine(path, &[Some(&file)])));
+                if stats.is_file() {
                     files.push(file);
-                } else if matches!(
-                    stats,
-                    Ok(stats) if stats.is_directory()
-                ) {
+                } else if stats.is_directory() {
                     directories.push(file);
                 }
-                // }
-                // catch { /*ignored*/ }
             }
-            // }
-            // catch { /*ignored*/ }
             FileSystemEntries { files, directories }
         }
 
@@ -151,7 +143,7 @@ pub mod fakes {
             data: &str,
             write_byte_order_mark: Option<bool>,
         ) -> io::Result<()> {
-            self.vfs.mkdirp_sync(&vpath::dirname(path));
+            self.vfs.mkdirp_sync(&vpath::dirname(path))?;
             self.vfs.write_file_sync(
                 path,
                 if write_byte_order_mark == Some(true) {
@@ -160,7 +152,7 @@ pub mod fakes {
                     data.to_owned()
                 },
                 None,
-            );
+            )?;
             Ok(())
         }
 
@@ -182,8 +174,10 @@ pub mod fakes {
             stats.map_or(false, |stats| stats.is_directory())
         }
 
-        fn create_directory(&self, path: &str) {
-            self.vfs.mkdirp_sync(path);
+        fn create_directory(&self, path: &str) -> io::Result<()> {
+            self.vfs.mkdirp_sync(path)?;
+
+            Ok(())
         }
 
         fn get_directories(&self, path: &str) -> Vec<String> {
@@ -353,13 +347,13 @@ pub mod fakes {
     }
 
     impl ParseConfigHost {
-        pub fn new<TSys: Into<RcSystemOrRcFileSystem>>(sys: TSys) -> Self {
+        pub fn new(sys: impl Into<RcSystemOrRcFileSystem>) -> io::Result<Self> {
             let sys = sys.into();
             let sys = match sys {
                 RcSystemOrRcFileSystem::RcSystem(sys) => sys,
-                RcSystemOrRcFileSystem::RcFileSystem(sys) => Gc::new(System::new(sys, None)),
+                RcSystemOrRcFileSystem::RcFileSystem(sys) => Gc::new(System::new(sys, None)?),
             };
-            Self { sys }
+            Ok(Self { sys })
         }
     }
 
@@ -392,13 +386,13 @@ pub mod fakes {
             sys: impl Into<RcSystemOrRcFileSystem>,
             options: Option<Gc<CompilerOptions>>,
             set_parent_nodes: Option<bool>,
-        ) -> Gc<Box<Self>> {
+        ) -> io::Result<Gc<Box<Self>>> {
             let sys = sys.into();
             let options = options.unwrap_or_else(|| Gc::new(get_default_compiler_options()));
             let set_parent_nodes = set_parent_nodes.unwrap_or(false);
             let sys = match sys {
                 RcSystemOrRcFileSystem::RcSystem(sys) => sys,
-                RcSystemOrRcFileSystem::RcFileSystem(sys) => Gc::new(System::new(sys, None)),
+                RcSystemOrRcFileSystem::RcFileSystem(sys) => Gc::new(System::new(sys, None)?),
             };
             let dyn_wrapper: Gc<Box<dyn typescript_rust::CompilerHost>> = Gc::new(Box::new(Self {
                 _dyn_wrapper: Default::default(),
@@ -448,7 +442,7 @@ pub mod fakes {
             }));
             let downcasted: Gc<Box<Self>> = unsafe { mem::transmute(dyn_wrapper.clone()) };
             *downcasted._dyn_wrapper.borrow_mut() = Some(dyn_wrapper);
-            downcasted
+            Ok(downcasted)
         }
 
         pub fn as_dyn_compiler_host(&self) -> Gc<Box<dyn typescript_rust::CompilerHost>> {
@@ -495,11 +489,12 @@ pub mod fakes {
             self.sys.vfs.clone()
         }
 
-        pub fn parse_config_host(&self) -> Gc<ParseConfigHost> {
-            self._parse_config_host
-                .borrow_mut()
-                .get_or_insert_with(|| Gc::new(ParseConfigHost::new(self.sys.clone())))
-                .clone()
+        pub fn parse_config_host(&self) -> io::Result<Gc<ParseConfigHost>> {
+            let mut parse_config_host = self._parse_config_host.borrow_mut();
+            if parse_config_host.is_none() {
+                *parse_config_host = Some(Gc::new(ParseConfigHost::new(self.sys.clone())?));
+            }
+            Ok(parse_config_host.as_ref().unwrap().clone())
         }
 
         pub fn delete_file(&self, file_name: &str) {
@@ -547,7 +542,7 @@ pub mod fakes {
             exclude: Option<&[String]>,
             include: &[String],
             depth: Option<usize>,
-        ) -> Option<Vec<String>> {
+        ) -> Option<io::Result<Vec<String>>> {
             Some(
                 self.sys
                     .read_directory(path, Some(extensions), exclude, Some(include), depth),
@@ -644,11 +639,11 @@ pub mod fakes {
             )))
         }
 
-        fn get_default_lib_file_name(&self, options: &CompilerOptions) -> String {
-            vpath::resolve(
-                &self.get_default_lib_location().unwrap(),
+        fn get_default_lib_file_name(&self, options: &CompilerOptions) -> io::Result<String> {
+            Ok(vpath::resolve(
+                &self.get_default_lib_location()?.unwrap(),
                 &[Some(get_default_lib_file_name(options))],
-            )
+            ))
         }
 
         fn get_source_file(
@@ -671,10 +666,7 @@ pub mod fakes {
                 return Ok(existing);
             }
 
-            let content = self.read_file(&canonical_file_name)?;
-            if content.is_none() {
-                return Ok(None);
-            }
+            let content = return_ok_default_if_none!(self.read_file(&canonical_file_name)?);
 
             let cache_key = if self.vfs().shadow_root().is_some() {
                 Some(format!(
@@ -708,7 +700,7 @@ pub mod fakes {
                 language_version,
                 Some(self._set_parent_nodes || self.should_assert_invariants),
                 None,
-            );
+            )?;
             if self.should_assert_invariants {
                 Utils::assert_invariants(Some(&parsed), None);
             }

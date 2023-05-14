@@ -85,3 +85,15 @@ macro_rules! debug_fail_if_none {
         }
     };
 }
+
+#[macro_export]
+macro_rules! continue_if_err {
+    ($expr:expr $(,)?) => {
+        match $expr {
+            Err(_) => {
+                continue;
+            }
+            Ok(expr) => expr,
+        }
+    };
+}

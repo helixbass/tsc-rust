@@ -942,8 +942,8 @@ impl Program {
         self.skip_default_lib.set(self.options.no_lib);
         *self.default_library_path.borrow_mut() = Some(
             self.host()
-                .get_default_lib_location()
-                .unwrap_or_else(|| get_directory_path(&self.get_default_library_file_name())),
+                .get_default_lib_location()?
+                .try_unwrap_or_else(|| -> io::Result<_> { Ok(get_directory_path(&self.get_default_library_file_name()?)) })?,
         );
         *self.program_diagnostics.borrow_mut() = Some(create_diagnostic_collection());
         *self.current_directory.borrow_mut() =
@@ -1219,7 +1219,7 @@ impl Program {
             }
 
             if !self.root_names().is_empty() && self.maybe_skip_default_lib() != Some(true) {
-                let default_library_file_name = self.get_default_library_file_name();
+                let default_library_file_name = self.get_default_library_file_name()?;
                 if self.options.lib.is_none() && *default_library_file_name != "" {
                     self.process_root_file(
                         &default_library_file_name,
@@ -1404,21 +1404,21 @@ impl Program {
         self.common_source_directory.borrow_mut()
     }
 
-    pub(super) fn get_default_library_file_name(&self) -> Ref<String> {
+    pub(super) fn get_default_library_file_name(&self) -> io::Result<Ref<String>> {
         if self
             .get_default_library_file_name_memoized
             .borrow()
             .is_none()
         {
             *self.get_default_library_file_name_memoized.borrow_mut() =
-                Some(self.host().get_default_lib_file_name(&self.options));
+                Some(self.host().get_default_lib_file_name(&self.options)?);
         }
-        Ref::map(
+        Ok(Ref::map(
             self.get_default_library_file_name_memoized.borrow(),
             |default_library_file_name_memoized| {
                 default_library_file_name_memoized.as_ref().unwrap()
             },
-        )
+        ))
     }
 
     pub(super) fn maybe_skip_default_lib(&self) -> Option<bool> {

@@ -169,27 +169,36 @@ fn test_project_references(
         }
     }
 
-    let vfsys = Gc::new(vfs::FileSystem::new(
-        false,
-        Some(
-            vfs::FileSystemOptionsBuilder::default()
-                .files(HashMap::from_iter([(
-                    "/lib.d.ts".to_owned(),
-                    Some(TestFSWithWatch::lib_file().content.into()),
-                )]))
-                .build()
-                .unwrap(),
-        ),
-    ));
+    let vfsys = Gc::new(
+        vfs::FileSystem::new(
+            false,
+            Some(
+                vfs::FileSystemOptionsBuilder::default()
+                    .files(HashMap::from_iter([(
+                        "/lib.d.ts".to_owned(),
+                        Some(TestFSWithWatch::lib_file().content.into()),
+                    )]))
+                    .build()
+                    .unwrap(),
+            ),
+        )
+        .unwrap(),
+    );
     for (k, v) in files {
-        vfsys.mkdirp_sync(&get_directory_path(&k));
-        vfsys.write_file_sync(&k, v, None);
+        vfsys.mkdirp_sync(&get_directory_path(&k)).unwrap();
+        vfsys.write_file_sync(&k, v, None).unwrap();
     }
-    let host = fakes::CompilerHost::new(Gc::new(fakes::System::new(vfsys, None)), None, None);
+    let host = fakes::CompilerHost::new(
+        Gc::new(fakes::System::new(vfsys, None).unwrap()),
+        None,
+        None,
+    )
+    .unwrap();
     let ReadConfigFileReturn { config, error } =
         read_config_file(entry_point_config_file_name, |name: &str| {
             host.read_file(name)
-        });
+        })
+        .unwrap();
 
     asserting(&flatten_diagnostic_message_text(
         error.as_ref().map(|error| error.message_text()),
@@ -213,7 +222,8 @@ fn test_project_references(
         None,
         None,
         None,
-    );
+    )
+    .unwrap();
     file.options = Gc::new({
         let mut file_options = (*file.options).clone();
         file_options.config_file_path = Some(entry_point_config_file_name.to_owned());
@@ -227,7 +237,8 @@ fn test_project_references(
             .project_references(file.project_references.clone())
             .build()
             .unwrap(),
-    );
+    )
+    .unwrap();
     check_result(&prog, &host);
 }
 
@@ -450,10 +461,9 @@ mod project_references_constraint_checking_for_settings {
         )]);
 
         test_project_references(&spec, "/primary/tsconfig.json", |program: &Program, _| {
-            let errs = program.get_semantic_diagnostics(
-                program.get_source_file("/primary/a.ts").as_deref(),
-                None,
-            );
+            let errs = program
+                .get_semantic_diagnostics(program.get_source_file("/primary/a.ts").as_deref(), None)
+                .unwrap();
             assert_has_error(
                 "Reports an error about b.ts not being in the list",
                 &errs,

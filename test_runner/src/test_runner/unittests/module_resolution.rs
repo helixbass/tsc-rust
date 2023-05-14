@@ -384,7 +384,8 @@ mod node_module_resolution_relative_paths {
                 None,
                 None,
                 None,
-            );
+            )
+            .unwrap();
             check_resolved_module(
                 resolution.resolved_module.as_deref(),
                 Some(&create_resolved_module(&module_file.name, None)),
@@ -480,7 +481,8 @@ mod node_module_resolution_relative_paths {
                 None,
                 None,
                 None,
-            );
+            )
+            .unwrap();
             check_resolved_module(
                 resolution.resolved_module.as_deref(),
                 Some(&create_resolved_module(&module_file.name, None)),
@@ -563,7 +565,8 @@ mod node_module_resolution_relative_paths {
                 None,
                 None,
                 None,
-            );
+            )
+            .unwrap();
 
             check_resolved_module(
                 resolution.resolved_module.as_deref(),
@@ -617,7 +620,8 @@ mod node_module_resolution_relative_paths {
                 None,
                 None,
                 None,
-            );
+            )
+            .unwrap();
             check_resolved_module_with_failed_lookup_locations(
                 &resolution,
                 &create_resolved_module(&index_file.name, None),
@@ -800,7 +804,8 @@ mod node_module_resolution_non_relative_paths {
                 None,
                 None,
                 None,
-            );
+            )
+            .unwrap();
             check_resolved_module_with_failed_lookup_locations(
                 &resolution,
                 &create_resolved_module(&module_file.name, Some(true)),
@@ -856,7 +861,8 @@ mod node_module_resolution_non_relative_paths {
                 None,
                 None,
                 None,
-            );
+            )
+            .unwrap();
             check_resolved_module(
                 resolution.resolved_module.as_deref(),
                 Some(&create_resolved_module(&module_file.name, Some(true))),
@@ -889,7 +895,8 @@ mod node_module_resolution_non_relative_paths {
                 None,
                 None,
                 None,
-            );
+            )
+            .unwrap();
             check_resolved_module_with_failed_lookup_locations(
                 &resolution,
                 &create_resolved_module(&module_file.name, Some(true)),
@@ -969,7 +976,8 @@ mod node_module_resolution_non_relative_paths {
             None,
             None,
             None,
-        );
+        )
+        .unwrap();
         let resolved_file_name = if preserve_symlinks {
             symlink_file_name
         } else {
@@ -1029,7 +1037,8 @@ mod node_module_resolution_non_relative_paths {
             Some(cache.clone()),
             None,
             None,
-        );
+        )
+        .unwrap();
         check_resolved_module(
             resolution.resolved_module.as_deref(),
             Some(&create_resolved_module("/modules/a.ts", Some(true))),
@@ -1043,7 +1052,8 @@ mod node_module_resolution_non_relative_paths {
             Some(cache.clone()),
             None,
             None,
-        );
+        )
+        .unwrap();
         check_resolved_module(
             resolution.resolved_module.as_deref(),
             Some(&create_resolved_module("/modules/a.ts", Some(true))),
@@ -1057,7 +1067,8 @@ mod node_module_resolution_non_relative_paths {
             Some(cache.clone()),
             None,
             None,
-        );
+        )
+        .unwrap();
         asserting("lookup in parent directory doesn't hit the cache")
             .that(&resolution.resolved_module)
             .is_none();
@@ -1110,24 +1121,30 @@ mod node_module_resolution_non_relative_paths {
                 .build()
                 .unwrap(),
         );
-        check_resolution(&resolve_module_name(
-            "linked",
-            "/app/src/app.ts",
-            compiler_options.clone(),
-            &*host,
-            Some(cache.clone()),
-            None,
-            None,
-        ));
-        check_resolution(&resolve_module_name(
-            "linked",
-            "/app/lib/main.ts",
-            compiler_options.clone(),
-            &*host,
-            Some(cache.clone()),
-            None,
-            None,
-        ));
+        check_resolution(
+            &resolve_module_name(
+                "linked",
+                "/app/src/app.ts",
+                compiler_options.clone(),
+                &*host,
+                Some(cache.clone()),
+                None,
+                None,
+            )
+            .unwrap(),
+        );
+        check_resolution(
+            &resolve_module_name(
+                "linked",
+                "/app/lib/main.ts",
+                compiler_options.clone(),
+                &*host,
+                Some(cache.clone()),
+                None,
+                None,
+            )
+            .unwrap(),
+        );
     }
 }
 
@@ -1164,7 +1181,8 @@ mod relative_imports {
                 .host(host)
                 .build()
                 .unwrap(),
-        );
+        )
+        .unwrap();
 
         assert_that(&*program.get_source_files()).has_length(expected_files_count);
         let syntactic_diagnostics = program.get_syntactic_diagnostics(None, None);
@@ -1174,7 +1192,7 @@ mod relative_imports {
         ))
         .that(&syntactic_diagnostics)
         .is_empty();
-        let semantic_diagnostics = program.get_semantic_diagnostics(None, None);
+        let semantic_diagnostics = program.get_semantic_diagnostics(None, None).unwrap();
         asserting(&format!(
             "expect no semantic diagnostics, got: {:?}",
             Compiler::minimal_diagnostics_to_string(&semantic_diagnostics, None,)
@@ -1218,17 +1236,17 @@ mod relative_imports {
             language_version: ScriptTarget,
             _on_error: Option<&mut dyn FnMut(&str)>,
             _should_create_new_source_file: Option<bool>,
-        ) -> Option<Gc<Node /*SourceFile*/>> {
+        ) -> io::Result<Option<Gc<Node /*SourceFile*/>>> {
             let ref path =
                 normalize_path(&combine_paths(&self.current_directory, &[Some(file_name)]));
             let file = self.files.get(path);
-            file.map(|file| {
-                create_source_file(file_name, file.clone(), language_version, None, None)
-            })
+            Ok(file.map(|file| {
+                create_source_file(file_name, file.clone(), language_version, None, None).unwrap()
+            }))
         }
 
-        fn get_default_lib_file_name(&self, _options: &CompilerOptions) -> String {
-            "lib.d.ts".to_owned()
+        fn get_default_lib_file_name(&self, _options: &CompilerOptions) -> io::Result<String> {
+            Ok("lib.d.ts".to_owned())
         }
 
         fn write_file(
@@ -1238,7 +1256,7 @@ mod relative_imports {
             _write_byte_order_mark: bool,
             _on_error: Option<&mut dyn FnMut(&str)>,
             _source_files: Option<&[Gc<Node /*SourceFile*/>]>,
-        ) {
+        ) -> io::Result<()> {
             not_implemented()
         }
 
@@ -1249,7 +1267,7 @@ mod relative_imports {
             _write_byte_order_mark: bool,
             _on_error: Option<&mut dyn FnMut(&str)>,
             _source_files: Option<&[Gc<Node /*SourceFile*/>]>,
-        ) {
+        ) -> io::Result<()> {
             unreachable!()
         }
 
@@ -1264,8 +1282,8 @@ mod relative_imports {
             unreachable!()
         }
 
-        fn get_current_directory(&self) -> String {
-            self.current_directory.clone()
+        fn get_current_directory(&self) -> io::Result<String> {
+            Ok(self.current_directory.clone())
         }
 
         fn get_canonical_file_name(&self, file_name: &str) -> String {
@@ -1508,10 +1526,12 @@ mod files_with_different_casing_with_force_consistent_casing_in_file_names {
                 .host(host)
                 .build()
                 .unwrap(),
-        );
+        )
+        .unwrap();
         let diagnostics: Vec<_> = sort_and_deduplicate_diagnostics(
             &program
                 .get_semantic_diagnostics(None, None)
+                .unwrap()
                 .and_extend(Vec::<_>::from(program.get_options_diagnostics(None))),
         )
         .into();
@@ -1556,9 +1576,9 @@ mod files_with_different_casing_with_force_consistent_casing_in_file_names {
             language_version: ScriptTarget,
             _on_error: Option<&mut dyn FnMut(&str)>,
             _should_create_new_source_file: Option<bool>,
-        ) -> Option<Gc<Node /*SourceFile*/>> {
+        ) -> io::Result<Option<Gc<Node /*SourceFile*/>>> {
             if file_name == "lib.d.ts" {
-                return Some(library.with(|library_| {
+                return Ok(Some(library.with(|library_| {
                     library_
                         .get_or_init(|| {
                             create_source_file(
@@ -1568,22 +1588,23 @@ mod files_with_different_casing_with_force_consistent_casing_in_file_names {
                                 None,
                                 None,
                             )
+                            .unwrap()
                         })
                         .clone()
-                }));
+                })));
             }
             let ref path = self.get_canonical_file_name(&normalize_path(&combine_paths(
                 &self.current_directory,
                 &[Some(file_name)],
             )));
             let file = self.files.get(path);
-            file.map(|file| {
-                create_source_file(file_name, file.clone(), language_version, None, None)
-            })
+            Ok(file.map(|file| {
+                create_source_file(file_name, file.clone(), language_version, None, None).unwrap()
+            }))
         }
 
-        fn get_default_lib_file_name(&self, _options: &CompilerOptions) -> String {
-            "lib.d.ts".to_owned()
+        fn get_default_lib_file_name(&self, _options: &CompilerOptions) -> io::Result<String> {
+            Ok("lib.d.ts".to_owned())
         }
 
         fn write_file(
@@ -1593,7 +1614,7 @@ mod files_with_different_casing_with_force_consistent_casing_in_file_names {
             _write_byte_order_mark: bool,
             _on_error: Option<&mut dyn FnMut(&str)>,
             _source_files: Option<&[Gc<Node /*SourceFile*/>]>,
-        ) {
+        ) -> io::Result<()> {
             not_implemented()
         }
 
@@ -1604,7 +1625,7 @@ mod files_with_different_casing_with_force_consistent_casing_in_file_names {
             _write_byte_order_mark: bool,
             _on_error: Option<&mut dyn FnMut(&str)>,
             _source_files: Option<&[Gc<Node /*SourceFile*/>]>,
-        ) {
+        ) -> io::Result<()> {
             unreachable!()
         }
 
@@ -1619,8 +1640,8 @@ mod files_with_different_casing_with_force_consistent_casing_in_file_names {
             unreachable!()
         }
 
-        fn get_current_directory(&self) -> String {
-            self.current_directory.clone()
+        fn get_current_directory(&self) -> io::Result<String> {
+            Ok(self.current_directory.clone())
         }
 
         fn get_canonical_file_name(&self, file_name: &str) -> String {
@@ -2306,7 +2327,8 @@ mod base_url_augmented_module_resolution {
                     None,
                     None,
                     None,
-                );
+                )
+                .unwrap();
                 check_resolved_module_with_failed_lookup_locations(
                     &result,
                     &create_resolved_module(&file2.name, None),
@@ -2320,7 +2342,8 @@ mod base_url_augmented_module_resolution {
                     None,
                     None,
                     None,
-                );
+                )
+                .unwrap();
                 check_resolved_module_with_failed_lookup_locations(
                     &result,
                     &create_resolved_module(&file3.name, None),
@@ -2334,7 +2357,8 @@ mod base_url_augmented_module_resolution {
                     None,
                     None,
                     None,
-                );
+                )
+                .unwrap();
                 check_resolved_module_with_failed_lookup_locations(
                     &result,
                     &create_resolved_module(&file1.name, None),
@@ -2405,7 +2429,8 @@ mod base_url_augmented_module_resolution {
                     None,
                     None,
                     None,
-                );
+                )
+                .unwrap();
                 check_resolved_module(
                     result.resolved_module.as_deref(),
                     Some(&create_resolved_module(
@@ -2460,7 +2485,8 @@ mod base_url_augmented_module_resolution {
                     None,
                     None,
                     None,
-                );
+                )
+                .unwrap();
                 check_resolved_module(
                     result.resolved_module.as_deref(),
                     Some(&create_resolved_module(&expected.name, None)),
@@ -2554,7 +2580,8 @@ mod base_url_augmented_module_resolution {
                     None,
                     None,
                     None,
-                );
+                )
+                .unwrap();
                 check_resolved_module_with_failed_lookup_locations(
                     &result,
                     &create_resolved_module(&expected.name, Some(is_external_library_import)),
@@ -2717,7 +2744,8 @@ mod base_url_augmented_module_resolution {
                     None,
                     None,
                     None,
-                );
+                )
+                .unwrap();
                 check_resolved_module_with_failed_lookup_locations(
                     &result,
                     &create_resolved_module(&expected.name, None),
@@ -2803,7 +2831,8 @@ mod base_url_augmented_module_resolution {
                     None,
                     None,
                     None,
-                );
+                )
+                .unwrap();
                 check_resolved_module_with_failed_lookup_locations(
                     &result,
                     &create_resolved_module(&expected.name, None),
@@ -2909,7 +2938,8 @@ mod base_url_augmented_module_resolution {
                     None,
                     None,
                     None,
-                );
+                )
+                .unwrap();
                 check_resolved_module_with_failed_lookup_locations(
                     &result,
                     &create_resolved_module(&expected.name, None),
@@ -2998,7 +3028,8 @@ mod base_url_augmented_module_resolution {
                 None,
                 None,
                 None,
-            );
+            )
+            .unwrap();
             check_resolved_module_with_failed_lookup_locations(
                 &result,
                 &create_resolved_module(&libs_typings.name, None),
@@ -3039,7 +3070,8 @@ mod module_resolution_host_directory_exists {
             None,
             None,
             None,
-        );
+        )
+        .unwrap();
         assert_that(&result.resolved_module).is_none();
     }
 
@@ -3164,7 +3196,8 @@ mod type_reference_directive_resolution {
             &*host,
             None,
             None,
-        );
+        )
+        .unwrap();
         asserting("expected type directive to be resolved")
             .that(
                 &result
@@ -3409,6 +3442,7 @@ mod type_reference_directive_resolution {
                         None,
                         None,
                     )
+                    .unwrap()
                 })
                 .collect_vec(),
             |f: &Gc<Node>| Some(f.as_source_file().file_name().clone()),
@@ -3421,7 +3455,8 @@ mod type_reference_directive_resolution {
                 .host(compiler_host.clone())
                 .build()
                 .unwrap(),
-        );
+        )
+        .unwrap();
         let diagnostics1: Vec<_> = program1.get_options_diagnostics(None).into();
         asserting("expected one diagnostic")
             .that(&diagnostics1)
@@ -3434,7 +3469,8 @@ mod type_reference_directive_resolution {
                 .old_program(program1)
                 .build()
                 .unwrap(),
-        );
+        )
+        .unwrap();
         assert_that!(&program2.structure_is_reused()).is_equal_to(&StructureIsReused::Completely);
         let diagnostics2: Vec<_> = program2.get_options_diagnostics(None).into();
         asserting("expected one diagnostic")
@@ -3464,12 +3500,12 @@ mod type_reference_directive_resolution {
             _language_version: ScriptTarget,
             _on_error: Option<&mut dyn FnMut(&str)>,
             _should_create_new_source_file: Option<bool>,
-        ) -> Option<Gc<Node /*SourceFile*/>> {
-            self.source_files.get(file_name).cloned()
+        ) -> io::Result<Option<Gc<Node /*SourceFile*/>>> {
+            Ok(self.source_files.get(file_name).cloned())
         }
 
-        fn get_default_lib_file_name(&self, _options: &CompilerOptions) -> String {
-            "lib.d.ts".to_owned()
+        fn get_default_lib_file_name(&self, _options: &CompilerOptions) -> io::Result<String> {
+            Ok("lib.d.ts".to_owned())
         }
 
         fn write_file(
@@ -3479,7 +3515,7 @@ mod type_reference_directive_resolution {
             _write_byte_order_mark: bool,
             _on_error: Option<&mut dyn FnMut(&str)>,
             _source_files: Option<&[Gc<Node /*SourceFile*/>]>,
-        ) {
+        ) -> io::Result<()> {
             not_implemented()
         }
 
@@ -3490,7 +3526,7 @@ mod type_reference_directive_resolution {
             _write_byte_order_mark: bool,
             _on_error: Option<&mut dyn FnMut(&str)>,
             _source_files: Option<&[Gc<Node /*SourceFile*/>]>,
-        ) {
+        ) -> io::Result<()> {
             unreachable!()
         }
 
@@ -3505,8 +3541,8 @@ mod type_reference_directive_resolution {
             unreachable!()
         }
 
-        fn get_current_directory(&self) -> String {
-            "/".to_owned()
+        fn get_current_directory(&self) -> io::Result<String> {
+            Ok("/".to_owned())
         }
 
         fn get_canonical_file_name(&self, f: &str) -> String {
@@ -3657,7 +3693,8 @@ mod type_reference_directive_resolution {
             ScriptTarget::ES2015,
             None,
             None,
-        );
+        )
+        .unwrap();
         let compiler_host = ModulesInTheSameKeepsErrorsCompilerHost::new(file);
         create_program(
             CreateProgramOptionsBuilder::default()
@@ -3665,7 +3702,8 @@ mod type_reference_directive_resolution {
                 .host(compiler_host.clone())
                 .build()
                 .unwrap(),
-        );
+        )
+        .unwrap();
     }
 
     #[derive(Trace, Finalize)]
@@ -3690,16 +3728,16 @@ mod type_reference_directive_resolution {
             _language_version: ScriptTarget,
             _on_error: Option<&mut dyn FnMut(&str)>,
             _should_create_new_source_file: Option<bool>,
-        ) -> Option<Gc<Node /*SourceFile*/>> {
-            if file_name == &*self.file.as_source_file().file_name() {
+        ) -> io::Result<Option<Gc<Node /*SourceFile*/>>> {
+            Ok(if file_name == &*self.file.as_source_file().file_name() {
                 Some(self.file.clone())
             } else {
                 None
-            }
+            })
         }
 
-        fn get_default_lib_file_name(&self, _options: &CompilerOptions) -> String {
-            "lib.d.ts".to_owned()
+        fn get_default_lib_file_name(&self, _options: &CompilerOptions) -> io::Result<String> {
+            Ok("lib.d.ts".to_owned())
         }
 
         fn write_file(
@@ -3709,7 +3747,7 @@ mod type_reference_directive_resolution {
             _write_byte_order_mark: bool,
             _on_error: Option<&mut dyn FnMut(&str)>,
             _source_files: Option<&[Gc<Node /*SourceFile*/>]>,
-        ) {
+        ) -> io::Result<()> {
             not_implemented()
         }
 
@@ -3720,7 +3758,7 @@ mod type_reference_directive_resolution {
             _write_byte_order_mark: bool,
             _on_error: Option<&mut dyn FnMut(&str)>,
             _source_files: Option<&[Gc<Node /*SourceFile*/>]>,
-        ) {
+        ) -> io::Result<()> {
             unreachable!()
         }
 
@@ -3735,8 +3773,8 @@ mod type_reference_directive_resolution {
             unreachable!()
         }
 
-        fn get_current_directory(&self) -> String {
-            "/".to_owned()
+        fn get_current_directory(&self) -> io::Result<String> {
+            Ok("/".to_owned())
         }
 
         fn get_canonical_file_name(&self, f: &str) -> String {
@@ -3902,7 +3940,8 @@ mod type_reference_directive_resolution {
             ScriptTarget::ES2015,
             None,
             None,
-        );
+        )
+        .unwrap();
         let compiler_host = ModulesInTsFileCompilerHost::new(file);
         create_program(
             CreateProgramOptionsBuilder::default()
@@ -3910,7 +3949,8 @@ mod type_reference_directive_resolution {
                 .host(compiler_host.clone())
                 .build()
                 .unwrap(),
-        );
+        )
+        .unwrap();
     }
 
     #[derive(Trace, Finalize)]
@@ -3935,16 +3975,16 @@ mod type_reference_directive_resolution {
             _language_version: ScriptTarget,
             _on_error: Option<&mut dyn FnMut(&str)>,
             _should_create_new_source_file: Option<bool>,
-        ) -> Option<Gc<Node /*SourceFile*/>> {
-            if file_name == &*self.file.as_source_file().file_name() {
+        ) -> io::Result<Option<Gc<Node /*SourceFile*/>>> {
+            Ok(if file_name == &*self.file.as_source_file().file_name() {
                 Some(self.file.clone())
             } else {
                 None
-            }
+            })
         }
 
-        fn get_default_lib_file_name(&self, _options: &CompilerOptions) -> String {
-            "lib.d.ts".to_owned()
+        fn get_default_lib_file_name(&self, _options: &CompilerOptions) -> io::Result<String> {
+            Ok("lib.d.ts".to_owned())
         }
 
         fn write_file(
@@ -3954,7 +3994,7 @@ mod type_reference_directive_resolution {
             _write_byte_order_mark: bool,
             _on_error: Option<&mut dyn FnMut(&str)>,
             _source_files: Option<&[Gc<Node /*SourceFile*/>]>,
-        ) {
+        ) -> io::Result<()> {
             not_implemented()
         }
 
@@ -3965,7 +4005,7 @@ mod type_reference_directive_resolution {
             _write_byte_order_mark: bool,
             _on_error: Option<&mut dyn FnMut(&str)>,
             _source_files: Option<&[Gc<Node /*SourceFile*/>]>,
-        ) {
+        ) -> io::Result<()> {
             unreachable!()
         }
 
@@ -3980,8 +4020,8 @@ mod type_reference_directive_resolution {
             unreachable!()
         }
 
-        fn get_current_directory(&self) -> String {
-            "/".to_owned()
+        fn get_current_directory(&self) -> io::Result<String> {
+            Ok("/".to_owned())
         }
 
         fn get_canonical_file_name(&self, f: &str) -> String {

@@ -168,7 +168,7 @@ pub trait ModuleResolutionHostOverrider: Trace + Finalize {
     fn directory_exists(&self, _directory_name: &str) -> Option<bool> {
         None
     }
-    fn create_directory(&self, directory: &str);
+    fn create_directory(&self, directory: &str) -> io::Result<()>;
     fn realpath(&self, _path: &str) -> Option<String> {
         None
     }
@@ -342,9 +342,9 @@ pub trait CompilerHost: ModuleResolutionHost + Trace + Finalize {
     fn get_cancellation_token(&self) -> Option<Gc<Box<dyn CancellationToken>>> {
         None
     }
-    fn get_default_lib_file_name(&self, _options: &CompilerOptions) -> String;
-    fn get_default_lib_location(&self) -> Option<String> {
-        None
+    fn get_default_lib_file_name(&self, _options: &CompilerOptions) -> io::Result<String>;
+    fn get_default_lib_location(&self) -> io::Result<Option<String>> {
+        Ok(None)
     }
     fn write_file(
         &self,
@@ -444,8 +444,12 @@ pub trait CompilerHost: ModuleResolutionHost + Trace + Finalize {
         None
     }
 
-    fn create_directory(&self, _directory: &str) {}
-    fn create_directory_non_overridden(&self, _directory: &str) {}
+    fn create_directory(&self, _directory: &str) -> io::Result<()> {
+        Ok(())
+    }
+    fn create_directory_non_overridden(&self, _directory: &str) -> io::Result<()> {
+        Ok(())
+    }
     fn is_create_directory_supported(&self) -> bool;
     fn set_overriding_create_directory(
         &self,

@@ -26,7 +26,9 @@ pub trait DirectoryStructureHost: Trace + Finalize {
         None
     }
 
-    fn create_directory(&self, _path: &str) {}
+    fn create_directory(&self, _path: &str) -> io::Result<()> {
+        Ok(())
+    }
     fn write_file(
         &self,
         _path: &str,

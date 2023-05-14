@@ -458,18 +458,18 @@ impl CompilerHost for CompilerHostConcrete {
         })
     }
 
-    fn get_default_lib_location(&self) -> Option<String> {
+    fn get_default_lib_location(&self) -> io::Result<Option<String>> {
         // Some(get_directory_path(&normalize_path(
         //     &self.system.get_executing_file_path(),
         // )))
-        Some("/Users/jrosse/prj/TypeScript/built/local".to_owned())
+        Ok(Some("/Users/jrosse/prj/TypeScript/built/local".to_owned()))
     }
 
-    fn get_default_lib_file_name(&self, options: &CompilerOptions) -> String {
-        combine_paths(
-            &self.get_default_lib_location().unwrap(),
+    fn get_default_lib_file_name(&self, options: &CompilerOptions) -> io::Result<String> {
+        Ok(combine_paths(
+            &self.get_default_lib_location()?.unwrap(),
             &[Some(get_default_lib_file_name(options))],
-        )
+        ))
     }
 
     fn get_current_directory(&self) -> io::Result<String> {
@@ -596,15 +596,17 @@ impl CompilerHost for CompilerHostConcrete {
         true
     }
 
-    fn create_directory(&self, d: &str) {
-        if let Some(create_directory_override) = self.maybe_create_directory_override() {
-            create_directory_override.create_directory(d)
-        } else {
-            self.create_directory_non_overridden(d)
-        }
+    fn create_directory(&self, d: &str) -> io::Result<()> {
+        Ok(
+            if let Some(create_directory_override) = self.maybe_create_directory_override() {
+                create_directory_override.create_directory(d)?
+            } else {
+                self.create_directory_non_overridden(d)?
+            },
+        )
     }
 
-    fn create_directory_non_overridden(&self, d: &str) {
+    fn create_directory_non_overridden(&self, d: &str) -> io::Result<()> {
         self.system.create_directory(d)
     }
 
@@ -841,10 +843,12 @@ impl ModuleResolutionHostOverrider for ChangeCompilerHostLikeToUseCacheOverrider
         Some(new_value)
     }
 
-    fn create_directory(&self, directory: &str) {
+    fn create_directory(&self, directory: &str) -> io::Result<()> {
         let key = self.to_path.call(directory);
         self.directory_exists_cache.borrow_mut().remove(&*key);
-        self.host.create_directory_non_overridden(directory);
+        self.host.create_directory_non_overridden(directory)?;
+
+        Ok(())
     }
 
     fn get_directories(&self, _path: &str) -> Option<Vec<String>> {

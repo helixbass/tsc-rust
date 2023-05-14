@@ -83,7 +83,7 @@ pub trait System: ConvertToTSConfigHost + Trace + Finalize {
     fn resolve_path(&self, path: &str) -> io::Result<String>;
     fn file_exists(&self, path: &str) -> bool;
     fn directory_exists(&self, path: &str) -> bool;
-    fn create_directory(&self, path: &str);
+    fn create_directory(&self, path: &str) -> io::Result<()>;
     fn get_executing_file_path(&self) -> Cow<'static, str>;
     fn get_directories(&self, path: &str) -> Vec<String>;
     fn read_directory(
@@ -440,7 +440,7 @@ impl System for SystemConcrete {
         unimplemented!()
     }
 
-    fn create_directory(&self, _path: &str) {
+    fn create_directory(&self, _path: &str) -> io::Result<()> {
         unimplemented!()
     }
 

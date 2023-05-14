@@ -1139,16 +1139,18 @@ pub fn write_file(
     Ok(())
 }
 
-fn ensure_directories_exist<TCreateDirectory: Fn(&str), TDirectoryExists: Fn(&str) -> bool>(
+fn ensure_directories_exist(
     directory_path: &str,
-    create_directory: &TCreateDirectory,
-    directory_exists: TDirectoryExists,
-) {
+    create_directory: &impl Fn(&str) -> io::Result<()>,
+    directory_exists: impl Fn(&str) -> bool,
+) -> io::Result<()> {
     if directory_path.len() > get_root_length(directory_path) && !directory_exists(directory_path) {
         let parent_directory = get_directory_path(directory_path);
-        ensure_directories_exist(&parent_directory, create_directory, directory_exists);
-        create_directory(directory_path);
+        ensure_directories_exist(&parent_directory, create_directory, directory_exists)?;
+        create_directory(directory_path)?;
     }
+
+    Ok(())
 }
 
 pub fn write_file_ensuring_directories(
@@ -1156,7 +1158,7 @@ pub fn write_file_ensuring_directories(
     data: &str,
     write_byte_order_mark: bool,
     write_file: impl Fn(&str, &str, bool) -> io::Result<()>,
-    create_directory: impl Fn(&str),
+    create_directory: impl Fn(&str) -> io::Result<()>,
     directory_exists: impl Fn(&str) -> bool,
 ) -> io::Result<()> {
     match write_file(path, data, write_byte_order_mark) {
@@ -1165,7 +1167,7 @@ pub fn write_file_ensuring_directories(
                 &get_directory_path(&normalize_path(path)),
                 &create_directory,
                 directory_exists,
-            );
+            )?;
             write_file(path, data, write_byte_order_mark)
         }
         Ok(_) => Ok(()),

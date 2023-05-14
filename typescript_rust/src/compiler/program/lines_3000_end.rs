@@ -2227,7 +2227,7 @@ impl ModuleResolutionHostOverrider for UpdateHostForUseSourceOfProjectReferenceR
         unreachable!()
     }
 
-    fn create_directory(&self, _directory: &str) {
+    fn create_directory(&self, _directory: &str) -> io::Result<()> {
         unreachable!()
     }
 }
@@ -2359,7 +2359,7 @@ pub trait CompilerHostLike: Trace + Finalize {
     // These exist to allow "forwarding" CompilerHost -> CompilerHostLike -> DirectoryStructureHost
     fn is_read_directory_implemented(&self) -> bool;
     fn realpath(&self, path: &str) -> Option<String>;
-    fn create_directory(&self, path: &str);
+    fn create_directory(&self, path: &str) -> io::Result<()>;
     fn write_file(
         &self,
         path: &str,
@@ -2427,7 +2427,7 @@ impl CompilerHostLike for CompilerHostLikeRcDynCompilerHost {
         self.host.realpath(path)
     }
 
-    fn create_directory(&self, path: &str) {
+    fn create_directory(&self, path: &str) -> io::Result<()> {
         self.host.create_directory(path)
     }
 
@@ -2504,7 +2504,7 @@ impl DirectoryStructureHost for DirectoryStructureHostRcDynCompilerHostLike {
         self.host.realpath(path)
     }
 
-    fn create_directory(&self, path: &str) {
+    fn create_directory(&self, path: &str) -> io::Result<()> {
         self.host.create_directory(path)
     }
 
