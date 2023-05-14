@@ -1,5 +1,5 @@
 use gc::Gc;
-use std::{borrow::Borrow, io};
+use std::{borrow::Borrow};
 
 use super::{
     visit_function_body, visit_iteration_body, visit_lexical_environment, visit_node, visit_nodes,
@@ -25,14 +25,12 @@ use crate::{
     is_template_literal_type_span, is_template_middle_or_template_tail, is_template_span, is_token,
     is_type_element, is_type_node, is_type_node_or_type_parameter_declaration,
     is_type_parameter_declaration, is_variable_declaration, is_variable_declaration_list,
-    return_ok_default_if_none, set_text_range_pos_end, single_or_undefined, with_factory,
-    ClassLikeDeclarationInterface, Debug_, FunctionLikeDeclarationInterface,
+    ClassLikeDeclarationInterface, FunctionLikeDeclarationInterface,
     HasInitializerInterface, HasMembersInterface, HasQuestionTokenInterface,
     HasStatementsInterface, HasTypeArgumentsInterface, HasTypeInterface,
     HasTypeParametersInterface, InterfaceOrClassLikeDeclarationInterface,
-    NamedDeclarationInterface, Node, NodeArray, NodeFlags, NodeInterface, NonEmpty, OptionTry,
-    ReadonlyTextRange, SignatureDeclarationInterface, SingleNodeOrVecNode, SyntaxKind,
-    TransformationContext, VisitResult, VisitResultInterface,
+    NamedDeclarationInterface, Node, NodeArray, NodeFlags, NodeInterface, SignatureDeclarationInterface, SyntaxKind,
+    TransformationContext, VisitResult,
 };
 
 pub fn visit_each_child(
