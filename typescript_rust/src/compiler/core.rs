@@ -643,7 +643,7 @@ where
     match array {
         None => Ok(false),
         Some(array) => {
-            let mut array = array.into_iter();
+            let array = array.into_iter();
             Ok(if let Some(mut predicate) = predicate {
                 for item in array {
                     if predicate(item)? {

@@ -1164,9 +1164,9 @@ pub fn for_each_child(
 }
 
 pub fn try_for_each_child<TError>(
-    node: &Node,
-    mut cb_node: impl FnMut(&Node) -> Result<(), TError>,
-    mut cb_nodes: Option<impl FnMut(&NodeArray) -> Result<(), TError>>,
+    _node: &Node,
+    _cb_node: impl FnMut(&Node) -> Result<(), TError>,
+    _cb_nodes: Option<impl FnMut(&NodeArray) -> Result<(), TError>>,
 ) -> Result<(), TError> {
     unimplemented!()
 }

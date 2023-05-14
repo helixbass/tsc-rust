@@ -4185,7 +4185,7 @@ pub fn visit_each_child(
 
 pub fn try_visit_each_child<TError>(
     node: Option<impl Borrow<Node>>,
-    mut visitor: impl FnMut(&Node) -> Result<VisitResult, TError>,
+    visitor: impl FnMut(&Node) -> Result<VisitResult, TError>,
     context: &(impl TransformationContext + ?Sized),
 ) -> Result<Option<Gc<Node>>, TError> {
     return try_visit_each_child_full(
@@ -4214,10 +4214,10 @@ pub fn try_visit_each_child<TError>(
 }
 
 pub fn try_visit_each_child_full<TError>(
-    node: Option<impl Borrow<Node>>,
-    mut visitor: impl FnMut(&Node) -> Result<VisitResult, TError>,
-    context: &(impl TransformationContext + ?Sized),
-    mut nodes_visitor: Option<
+    _node: Option<impl Borrow<Node>>,
+    _visitor: impl FnMut(&Node) -> Result<VisitResult, TError>,
+    _context: &(impl TransformationContext + ?Sized),
+    _nodes_visitor: Option<
         impl FnMut(
             Option<&NodeArray>,
             Option<&mut dyn FnMut(&Node) -> VisitResult>,
@@ -4226,8 +4226,8 @@ pub fn try_visit_each_child_full<TError>(
             Option<usize>,
         ) -> Result<Option<Gc<NodeArray>>, TError>,
     >,
-    token_visitor: Option<impl Fn(&Node) -> Result<VisitResult, TError>>,
-    mut node_visitor: Option<
+    _token_visitor: Option<impl Fn(&Node) -> Result<VisitResult, TError>>,
+    _node_visitor: Option<
         impl FnMut(
             Option<&Node>,
             Option<&mut dyn FnMut(&Node) -> VisitResult>,

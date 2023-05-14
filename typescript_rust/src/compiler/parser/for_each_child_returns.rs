@@ -1483,9 +1483,9 @@ pub fn for_each_child_bool(
 }
 
 pub fn try_for_each_child_bool<TError>(
-    node: &Node,
-    mut cb_node: impl FnMut(&Node) -> Result<bool, TError>,
-    cb_nodes: Option<impl FnMut(&NodeArray) -> Result<bool, TError>>,
+    _node: &Node,
+    _cb_node: impl FnMut(&Node) -> Result<bool, TError>,
+    _cb_nodes: Option<impl FnMut(&NodeArray) -> Result<bool, TError>>,
 ) -> Result<bool, TError> {
     unimplemented!()
 }

@@ -90,7 +90,7 @@ pub fn for_each_child_recursively<
 pub fn for_each_child_recursively_bool(
     root_node: &Node,
     mut cb_node: impl FnMut(&Node, &Node) -> bool,
-    mut cb_nodes: Option<impl FnMut(&NodeArray, &Node) -> bool>,
+    cb_nodes: Option<impl FnMut(&NodeArray, &Node) -> bool>,
 ) -> bool {
     try_for_each_child_recursively_bool(
         root_node,
