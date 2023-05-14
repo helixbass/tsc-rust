@@ -59,7 +59,7 @@ where
 
     fn try_find_<TError>(
         self,
-        callback: impl FnMut(&Self::Item) -> Result<bool, TError>,
+        mut callback: impl FnMut(&Self::Item) -> Result<bool, TError>,
     ) -> Result<Option<Self::Item>, TError> {
         for item in self {
             if callback(&item)? {

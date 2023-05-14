@@ -95,7 +95,9 @@ pub fn for_each_child_recursively_bool(
     try_for_each_child_recursively_bool(
         root_node,
         |a: &Node, b: &Node| -> Result<_, ()> { Ok(cb_node(a, b)) },
-        cb_nodes.map(|cb_nodes| |a: &NodeArray, b: &Node| -> Result<_, ()> { Ok(cb_nodes(a, b)) }),
+        cb_nodes.map(|mut cb_nodes| {
+            move |a: &NodeArray, b: &Node| -> Result<_, ()> { Ok(cb_nodes(a, b)) }
+        }),
     )
     .unwrap()
 }

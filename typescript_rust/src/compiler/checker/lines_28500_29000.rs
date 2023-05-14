@@ -143,7 +143,7 @@ impl TypeChecker {
             if is_property_access_expression(&parent) {
                 did_set_props = true;
                 props_ = Some(Either::Right(
-                    try_filter(&props.collect_vec(), |prop: &Gc<Symbol>| {
+                    try_filter(&props.clone().collect_vec(), |prop: &Gc<Symbol>| {
                         self.is_valid_property_access_for_completions_(
                             &parent,
                             containing_type,

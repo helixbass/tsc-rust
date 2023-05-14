@@ -211,7 +211,7 @@ impl TransformDeclarations {
     ) -> io::Result<Gc<NodeArray>> {
         Ok(self.factory.create_node_array(
             nodes.try_map(|nodes| -> io::Result<_> {
-                let ret = vec![];
+                let mut ret = vec![];
                 for clause in nodes {
                     let clause_as_heritage_clause = clause.as_heritage_clause();
                     let clause = self.factory.update_heritage_clause(

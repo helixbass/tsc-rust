@@ -644,7 +644,7 @@ where
         None => Ok(false),
         Some(array) => {
             let mut array = array.into_iter();
-            Ok(if let Some(predicate) = predicate {
+            Ok(if let Some(mut predicate) = predicate {
                 for item in array {
                     if predicate(item)? {
                         return Ok(true);

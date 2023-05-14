@@ -419,7 +419,7 @@ pub fn try_visit_function_body_full<TError>(
 
 pub fn visit_iteration_body(
     body: &Node, /*Statement*/
-    visitor: impl FnMut(&Node) -> VisitResult,
+    mut visitor: impl FnMut(&Node) -> VisitResult,
     context: &(impl TransformationContext + ?Sized),
 ) -> Gc<Node /*Statement*/> {
     try_visit_iteration_body(body, |a| Ok(visitor(a)), context).unwrap()

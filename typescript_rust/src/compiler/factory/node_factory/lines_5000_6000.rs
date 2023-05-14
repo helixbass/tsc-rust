@@ -707,7 +707,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
             source,
             target,
             ensure_use_strict,
-            visitor.map(|visitor| |a| Ok(visitor(a))),
+            visitor.map(|mut visitor| move |a: &Node| Ok(visitor(a))),
         )
         .unwrap()
     }
