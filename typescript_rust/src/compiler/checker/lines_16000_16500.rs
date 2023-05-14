@@ -609,6 +609,7 @@ impl TypeChecker {
         })
     }
 
+    #[allow(dead_code)]
     pub(super) fn instantiate_list<TItem: Trace + Finalize>(
         &self,
         items: Option<&[Gc<TItem>]>,

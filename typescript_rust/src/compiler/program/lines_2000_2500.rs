@@ -737,6 +737,7 @@ impl Program {
         })
     }
 
+    #[allow(dead_code)]
     pub(super) fn get_and_cache_diagnostics(
         &self,
         source_file: Option<&Node /*SourceFile*/>,

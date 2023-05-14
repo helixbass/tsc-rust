@@ -330,7 +330,7 @@ pub fn for_each_project_reference<TReturn>(
     )
 }
 
-pub fn for_each_project_reference_fallible<TReturn, TError>(
+pub fn try_for_each_project_reference<TReturn, TError>(
     project_references: Option<&[Rc<ProjectReference>]>,
     resolved_project_references: Option<&[Option<Gc<ResolvedProjectReference>>]>,
     mut cb_resolved_ref: impl FnMut(
@@ -357,6 +357,7 @@ pub fn for_each_project_reference_fallible<TReturn, TError>(
     )
 }
 
+#[allow(dead_code)]
 pub fn for_each_project_reference_bool(
     project_references: Option<&[Rc<ProjectReference>]>,
     resolved_project_references: Option<&[Option<Gc<ResolvedProjectReference>>]>,
@@ -384,7 +385,7 @@ pub fn for_each_project_reference_bool(
     .is_some()
 }
 
-pub fn for_each_project_reference_fallible_bool<TError>(
+pub fn try_for_each_project_reference_bool<TError>(
     project_references: Option<&[Rc<ProjectReference>]>,
     resolved_project_references: Option<&[Option<Gc<ResolvedProjectReference>>]>,
     mut cb_resolved_ref: impl FnMut(
@@ -399,7 +400,7 @@ pub fn for_each_project_reference_fallible_bool<TError>(
         ) -> Result<bool, TError>,
     >,
 ) -> Result<bool, TError> {
-    Ok(for_each_project_reference_fallible(
+    Ok(try_for_each_project_reference(
         project_references,
         resolved_project_references,
         |a: Option<Gc<ResolvedProjectReference>>,

@@ -619,16 +619,6 @@ impl TypeChecker {
         &self,
         source: Gc<Signature>,
         target: Gc<Signature>,
-        mut callback: impl FnMut(&Type, &Type),
-    ) {
-        self.try_apply_to_return_types(source, target, |a: &Type, b: &Type| Ok(callback(a, b)))
-            .unwrap()
-    }
-
-    pub(super) fn try_apply_to_return_types(
-        &self,
-        source: Gc<Signature>,
-        target: Gc<Signature>,
         mut callback: impl FnMut(&Type, &Type) -> io::Result<()>,
     ) -> io::Result<()> {
         let source_type_predicate = self.get_type_predicate_of_signature(&source)?;

@@ -103,6 +103,7 @@ impl GetFlowTypeOfReference {
         )
     }
 
+    #[allow(dead_code)]
     pub(super) fn narrow_type_by_discriminant(
         &self,
         type_: &Type,

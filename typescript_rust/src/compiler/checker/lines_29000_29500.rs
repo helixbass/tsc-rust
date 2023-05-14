@@ -264,7 +264,7 @@ impl TypeChecker {
             },
         )?;
         if inference_context.is_none() {
-            self.try_apply_to_return_types(
+            self.apply_to_return_types(
                 contextual_signature.clone(),
                 signature.clone(),
                 |source: &Type, target: &Type| {

@@ -26,8 +26,8 @@ use crate::{
     is_property_access_expression, is_super_property, is_token, is_variable_declaration_list,
     ref_mut_unwrapped, ref_unwrapped, set_emit_flags, set_original_node, set_source_map_range,
     set_text_range, set_text_range_node_array, set_text_range_rc_node,
-    unescape_leading_underscores, BaseNodeFactorySynthetic, CompilerOptions,
-    Debug_, EmitFlags, EmitHint, EmitResolver, FunctionFlags, FunctionLikeDeclarationInterface,
+    unescape_leading_underscores, BaseNodeFactorySynthetic, CompilerOptions, Debug_, EmitFlags,
+    EmitHint, EmitResolver, FunctionFlags, FunctionLikeDeclarationInterface,
     GeneratedIdentifierFlags, HasInitializerInterface, NamedDeclarationInterface, Node, NodeArray,
     NodeCheckFlags, NodeFactory, NodeFlags, NodeId, NodeInterface, NonEmpty, OptionTry,
     ReadonlyTextRange, ScriptTarget, SignatureDeclarationInterface, SyntaxKind, TransformFlags,
@@ -233,6 +233,7 @@ impl TransformES2017 {
         self.in_context(ContextFlags::HasLexicalThis)
     }
 
+    #[allow(dead_code)]
     fn do_with_context<TValue, TReturn>(
         &self,
         flags: ContextFlags,

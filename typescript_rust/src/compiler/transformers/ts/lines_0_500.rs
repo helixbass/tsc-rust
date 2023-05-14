@@ -279,6 +279,7 @@ impl TransformTypeScript {
         Ok(visited)
     }
 
+    #[allow(dead_code)]
     pub(super) fn save_state_and_invoke<TReturn>(
         &self,
         node: &Node,

@@ -253,6 +253,7 @@ impl TypeChecker {
         node.parent().kind() == SyntaxKind::ExpressionWithTypeArguments
     }
 
+    #[allow(dead_code)]
     pub(super) fn for_each_enclosing_class<TReturn>(
         &self,
         node: &Node,

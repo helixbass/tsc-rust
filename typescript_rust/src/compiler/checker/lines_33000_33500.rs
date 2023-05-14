@@ -215,27 +215,6 @@ impl TypeChecker {
         Ok(false)
     }
 
-    pub(super) fn try_report_operator_error_unless(
-        &self,
-        left_type: &Type,
-        right_type: &Type,
-        operator_token: &Node,
-        error_node: Option<impl Borrow<Node>>,
-        mut types_are_compatible: impl FnMut(&Type, &Type) -> io::Result<bool>,
-    ) -> io::Result<bool> {
-        if !types_are_compatible(left_type, right_type)? {
-            self.report_operator_error(
-                error_node,
-                operator_token,
-                left_type,
-                right_type,
-                Some(types_are_compatible),
-            )?;
-            return Ok(true);
-        }
-        Ok(false)
-    }
-
     pub(super) fn report_operator_error(
         &self,
         error_node: Option<impl Borrow<Node>>,

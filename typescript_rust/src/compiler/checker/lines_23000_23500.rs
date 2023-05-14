@@ -485,6 +485,7 @@ impl TypeChecker {
             .unwrap()
     }
 
+    #[allow(dead_code)]
     pub(super) fn map_type_with_alias(
         &self,
         type_: &Type,

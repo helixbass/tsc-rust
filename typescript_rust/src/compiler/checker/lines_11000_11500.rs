@@ -854,6 +854,7 @@ impl TypeChecker {
         get_check_flags(s) & CheckFlags::Late
     }
 
+    #[allow(dead_code)]
     pub(super) fn for_each_mapped_type_property_key_type_and_index_signature_key_type(
         &self,
         type_: &Type,

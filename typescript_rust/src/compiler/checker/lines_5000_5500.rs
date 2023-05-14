@@ -270,6 +270,17 @@ impl NodeBuilder {
         Ok(false)
     }
 
+    #[allow(dead_code)]
+    pub(super) fn visit_and_transform_type(
+        &self,
+        context: &NodeBuilderContext,
+        type_: &Type,
+        mut transform: impl FnMut(&Type) -> Gc<Node>,
+    ) -> Gc<Node> {
+        self.try_visit_and_transform_type(context, type_, |type_: &Type| Ok(transform(type_)))
+            .unwrap()
+    }
+
     pub(super) fn try_visit_and_transform_type(
         &self,
         context: &NodeBuilderContext,
@@ -407,16 +418,6 @@ impl NodeBuilder {
                 .insert(id, depth.unwrap());
         }
         Ok(result)
-    }
-
-    pub(super) fn visit_and_transform_type(
-        &self,
-        context: &NodeBuilderContext,
-        type_: &Type,
-        mut transform: impl FnMut(&Type) -> Gc<Node>,
-    ) -> Gc<Node> {
-        self.try_visit_and_transform_type(context, type_, |type_: &Type| Ok(transform(type_)))
-            .unwrap()
     }
 
     pub(super) fn deep_clone_or_reuse_node(&self, node: &Node) -> Gc<Node> {

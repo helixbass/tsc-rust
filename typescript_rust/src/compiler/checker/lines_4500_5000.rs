@@ -699,6 +699,7 @@ impl NodeBuilder {
         })
     }
 
+    #[allow(dead_code)]
     pub(super) fn with_context<TReturn>(
         &self,
         enclosing_declaration: Option<impl Borrow<Node>>,

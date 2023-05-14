@@ -117,6 +117,7 @@ impl TypeChecker {
         Ok(result)
     }
 
+    #[allow(dead_code)]
     pub(super) fn compare_type_predicates_identical(
         &self,
         source: Option<impl Borrow<TypePredicate>>,

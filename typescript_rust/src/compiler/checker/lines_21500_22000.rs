@@ -1006,6 +1006,7 @@ impl InferTypes {
         Ok(())
     }
 
+    #[allow(dead_code)]
     pub(super) fn invoke_once(
         &self,
         source: &Type,

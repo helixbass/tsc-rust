@@ -651,7 +651,7 @@ impl InferTypes {
             self.set_bivariant(save_bivariant);
         }
         self.type_checker
-            .try_apply_to_return_types(source, target, |s: &Type, t: &Type| {
+            .apply_to_return_types(source, target, |s: &Type, t: &Type| {
                 self.infer_from_types(s, t)
             })?;
 

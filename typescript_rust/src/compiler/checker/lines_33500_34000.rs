@@ -368,7 +368,7 @@ impl TypeChecker {
                                     self.has_inference_candidates(inference)
                                 }),
                             ) {
-                                self.try_apply_to_return_types(
+                                self.apply_to_return_types(
                                     instantiated_signature.clone(),
                                     contextual_signature.clone(),
                                     |source: &Type, target: &Type| {

@@ -8,8 +8,8 @@ use std::{
 };
 
 use super::{
-    create_prepend_nodes, filter_semantic_diagnostics, for_each_project_reference_fallible_bool,
-    get_module_names, handle_no_emit_options, ToPath,
+    create_prepend_nodes, filter_semantic_diagnostics, get_module_names, handle_no_emit_options,
+    try_for_each_project_reference_bool, ToPath,
 };
 use crate::{
     array_is_equal_to, changes_affect_module_resolution, changes_affecting_program_structure,
@@ -653,7 +653,7 @@ impl Program {
     }
 
     pub fn can_reuse_project_references(&self) -> io::Result<bool> {
-        Ok(!for_each_project_reference_fallible_bool(
+        Ok(!try_for_each_project_reference_bool(
             self.maybe_old_program()
                 .as_ref()
                 .unwrap()
