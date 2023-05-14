@@ -232,15 +232,18 @@ impl TransformTypeScript {
 
     pub(super) fn transform_bundle(&self, node: &Node /*Bundle*/) -> io::Result<Gc<Node>> {
         let node_as_bundle = node.as_bundle();
-        Ok(self.factory
+        Ok(self
+            .factory
             .create_bundle(
                 node_as_bundle
                     .source_files
                     .iter()
                     .map(|source_file| -> io::Result<_> {
-                        Ok(Some(self.transform_source_file(source_file.as_ref().unwrap())?))
+                        Ok(Some(
+                            self.transform_source_file(source_file.as_ref().unwrap())?,
+                        ))
                     })
-                    .collect::<Result<Vec<_>, _>()?,
+                    .collect::<Result<Vec<_>, _>>()?,
                 Some(map_defined(
                     Some(&node_as_bundle.prepends),
                     |prepend: &Gc<Node>, _| {
@@ -258,14 +261,18 @@ impl TransformTypeScript {
             .wrap())
     }
 
-    pub(super) fn transform_source_file(&self, node: &Node /*SourceFile*/) -> io::Result<Gc<Node>> {
+    pub(super) fn transform_source_file(
+        &self,
+        node: &Node, /*SourceFile*/
+    ) -> io::Result<Gc<Node>> {
         if node.as_source_file().is_declaration_file() {
             return Ok(node.node_wrapper());
         }
 
         self.set_current_source_file(Some(node.node_wrapper()));
 
-        let visited = self.try_save_state_and_invoke(node, |node: &Node| self.visit_source_file(node))?;
+        let visited =
+            self.try_save_state_and_invoke(node, |node: &Node| self.visit_source_file(node))?;
         add_emit_helpers(&visited, self.context.read_emit_helpers().as_deref());
 
         self.set_current_source_file(None);
@@ -403,13 +410,15 @@ impl TransformTypeScript {
         })
     }
 
-    pub(super) fn namespace_element_visitor(&self, node: &Node) -> io::Result<VisitResult> /*<Node>*/ {
+    pub(super) fn namespace_element_visitor(&self, node: &Node) -> io::Result<VisitResult> /*<Node>*/
+    {
         self.try_save_state_and_invoke(node, |node: &Node| {
             self.namespace_element_visitor_worker(node)
         })
     }
 
-    pub(super) fn namespace_element_visitor_worker(&self, node: &Node) -> io::Result<VisitResult> /*<Node>*/ {
+    pub(super) fn namespace_element_visitor_worker(&self, node: &Node) -> io::Result<VisitResult> /*<Node>*/
+    {
         if matches!(
             node.kind(),
             SyntaxKind::ExportDeclaration
@@ -560,9 +569,12 @@ impl TransformTypeScript {
             SyntaxKind::ImportEqualsDeclaration => self.visit_import_equals_declaration(node),
             SyntaxKind::JsxSelfClosingElement => self.visit_jsx_self_closing_element(node)?,
             SyntaxKind::JsxOpeningElement => self.visit_jsx_jsx_opening_element(node)?,
-            _ => {
-                try_visit_each_child(Some(node), |node: &Node| self.visitor(node), &**self.context)?.map(Into::into)
-            }
+            _ => try_visit_each_child(
+                Some(node),
+                |node: &Node| self.visitor(node),
+                &**self.context,
+            )?
+            .map(Into::into),
         })
     }
 }

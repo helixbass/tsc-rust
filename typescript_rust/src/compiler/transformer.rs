@@ -23,6 +23,7 @@ use crate::{
     TransformerFactory, TransformerFactoryInterface, TransformerFactoryOrCustomTransformerFactory,
     TransformerInterface,
 };
+use std::io;
 
 fn get_module_transformer(module_kind: ModuleKind) -> TransformerFactory {
     match module_kind {
@@ -199,12 +200,12 @@ impl WrapCustomTransformer {
 }
 
 impl TransformerInterface for WrapCustomTransformer {
-    fn call(&self, node: &Node) -> Gc<Node> {
-        if is_bundle(node) {
+    fn call(&self, node: &Node) -> io::Result<Gc<Node>> {
+        Ok(if is_bundle(node) {
             self.transformer.transform_bundle(node)
         } else {
             self.transformer.transform_source_file(node)
-        }
+        })
     }
 }
 

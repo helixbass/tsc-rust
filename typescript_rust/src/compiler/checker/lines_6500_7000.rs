@@ -1271,7 +1271,7 @@ impl SymbolTracker for SymbolTableToDeclarationStatementsSymbolTracker {
         &self,
         decl: &Node, /*ModuleDeclaration*/
         symbol: &Symbol,
-    ) {
+    ) -> io::Result<()> {
         self.oldcontext_tracker
             .track_referenced_ambient_module(decl, symbol)
     }

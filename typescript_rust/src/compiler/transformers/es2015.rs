@@ -4,6 +4,7 @@ use crate::{
     Node, TransformationContext, Transformer, TransformerFactory, TransformerFactoryInterface,
     TransformerInterface,
 };
+use std::io;
 
 #[derive(Trace, Finalize)]
 struct TransformES2015 {
@@ -17,7 +18,7 @@ impl TransformES2015 {
 }
 
 impl TransformerInterface for TransformES2015 {
-    fn call(&self, _node: &crate::Node) -> Gc<Node> {
+    fn call(&self, _node: &crate::Node) -> io::Result<Gc<Node>> {
         unimplemented!()
     }
 }

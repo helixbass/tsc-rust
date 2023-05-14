@@ -257,8 +257,9 @@ impl TransformTypeScript {
         node: &Node, /*ClassExpression | ClassDeclaration*/
     ) -> io::Result<Option<Gc<Node>>> {
         let all_decorators = self.get_all_decorators_of_constructor(node);
-        let decorator_expressions =
-            self.transform_all_decorators_of_declaration(node, node, all_decorators.as_ref())?;
+        let decorator_expressions = return_ok_default_if_none!(
+            self.transform_all_decorators_of_declaration(node, node, all_decorators.as_ref())?
+        );
 
         let class_alias = self
             .maybe_class_aliases()

@@ -28,6 +28,7 @@ use crate::{
     TransformationContextOnEmitNodeOverrider, TransformationContextOnSubstituteNodeOverrider,
     Transformer, TypeReferenceSerializationKind, VisitResult,
 };
+use std::io;
 
 bitflags! {
     struct ES2017SubstitutionFlags: u32 {
@@ -1533,7 +1534,7 @@ impl TransformES2017 {
 }
 
 impl TransformerInterface for TransformES2017 {
-    fn call(&self, node: &Node) -> Gc<Node> {
+    fn call(&self, node: &Node) -> io::Result<Gc<Node>> {
         self.transform_source_file(node)
     }
 }

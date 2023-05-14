@@ -1789,7 +1789,7 @@ impl SymbolTracker for NodeBuilderContextWrappedSymbolTracker {
         &self,
         decl: &Node, /*ModuleDeclaration*/
         symbol: &Symbol,
-    ) {
+    ) -> io::Result<()> {
         self.tracker.track_referenced_ambient_module(decl, symbol)
     }
 

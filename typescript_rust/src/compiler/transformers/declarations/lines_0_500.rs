@@ -578,7 +578,7 @@ impl TransformDeclarations {
                 self.factory.create_bundle(
                     try_map(
                         &node_as_bundle.source_files,
-                        |source_file: &Option<Gc<Node>>, _| -> Option<Gc<Node>> {
+                        |source_file: &Option<Gc<Node>>, _| -> io::Result<Option<Gc<Node>>> {
                             let source_file = source_file.as_ref().unwrap();
                             let source_file_as_source_file = source_file.as_source_file();
                             if source_file_as_source_file.is_declaration_file() {

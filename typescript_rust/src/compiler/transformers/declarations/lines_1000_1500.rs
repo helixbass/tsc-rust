@@ -220,7 +220,7 @@ impl TransformDeclarations {
                     .map(Into::into));
             }
             SyntaxKind::ImportDeclaration => {
-                return self.transform_import_declaration(input)?.map(Into::into);
+                return Ok(self.transform_import_declaration(input)?.map(Into::into));
             }
             _ => (),
         }
