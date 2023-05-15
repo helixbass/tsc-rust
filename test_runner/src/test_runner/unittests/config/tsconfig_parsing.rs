@@ -11,9 +11,10 @@ mod parse_config_file_text_to_json {
     use serde::Serialize;
     use serde_json::json;
     use typescript_rust::{
-        get_sys_concrete, parse_config_file_text_to_json, parse_json_config_file_content,
-        parse_json_source_file_config_file_content, parse_json_text,
-        DiagnosticRelatedInformationInterface, Diagnostics, ParsedCommandLine, SliceExtCloneOrd,
+        create_compiler_diagnostic, get_sys_concrete, parse_config_file_text_to_json,
+        parse_json_config_file_content, parse_json_source_file_config_file_content,
+        parse_json_text, Diagnostic, DiagnosticRelatedInformationInterface, Diagnostics,
+        ParsedCommandLine, SliceExtCloneOrd,
     };
 
     #[derive(Builder, Default, Serialize)]
@@ -44,7 +45,8 @@ mod parse_config_file_text_to_json {
         let parsed_command = parse_json_config_file_content(
             parsed.config,
             &**get_sys_concrete(),
-            "tests/cases/unittests",
+            // "tests/cases/unittests",
+            "/Users/jrosse/prj/tsc-rust/typescript_rust/typescript_src/tests/cases/unittests",
             None,
             None,
             None,
@@ -62,7 +64,8 @@ mod parse_config_file_text_to_json {
         let parsed_command = parse_json_source_file_config_file_content(
             parsed,
             &**get_sys_concrete(),
-            "tests/cases/unittests",
+            // "tests/cases/unittests",
+            "/Users/jrosse/prj/tsc-rust/typescript_rust/typescript_src/tests/cases/unittests",
             None,
             None,
             None,
@@ -314,5 +317,172 @@ mod parse_config_file_text_to_json {
                 .build()
                 .unwrap(),
         );
+    }
+
+    #[test]
+    fn test_returns_empty_config_for_file_with_comments_only() {
+        assert_parse_result(
+            "// Comment",
+            ExpectedConfigObjectBuilder::default()
+                .config(json!({}))
+                .build()
+                .unwrap(),
+        );
+        assert_parse_result(
+            "/* Comment*/",
+            ExpectedConfigObjectBuilder::default()
+                .config(json!({}))
+                .build()
+                .unwrap(),
+        );
+    }
+
+    #[test]
+    fn test_returns_empty_config_when_config_is_empty_object() {
+        assert_parse_result(
+            "{}",
+            ExpectedConfigObjectBuilder::default()
+                .config(json!({}))
+                .build()
+                .unwrap(),
+        );
+    }
+
+    #[test]
+    fn test_returns_config_object_without_comments() {
+        assert_parse_result(
+            r#"{ // Excluded files
+                "exclude": [
+                    // Exclude d.ts
+                    "file.d.ts"
+                ]
+            }"#,
+            ExpectedConfigObjectBuilder::default()
+                .config(json!({ "exclude": ["file.d.ts"] }))
+                .build()
+                .unwrap(),
+        );
+        assert_parse_result(
+            r#"{
+                /* Excluded
+                     Files
+                */
+                "exclude": [
+                    /* multiline comments can be in the middle of a line */"file.d.ts"
+                ]
+            }"#,
+            ExpectedConfigObjectBuilder::default()
+                .config(json!({ "exclude": ["file.d.ts"] }))
+                .build()
+                .unwrap(),
+        );
+    }
+
+    #[test]
+    fn test_keeps_string_content_untouched() {
+        assert_parse_result(
+            r#"{
+                "exclude": [
+                    "xx//file.d.ts"
+                ]
+            }"#,
+            ExpectedConfigObjectBuilder::default()
+                .config(json!({ "exclude": ["xx//file.d.ts"] }))
+                .build()
+                .unwrap(),
+        );
+        assert_parse_result(
+            r#"{
+                "exclude": [
+                    "xx/*file.d.ts*/"
+                ]
+            }"#,
+            ExpectedConfigObjectBuilder::default()
+                .config(json!({ "exclude": ["xx/*file.d.ts*/"] }))
+                .build()
+                .unwrap(),
+        );
+    }
+
+    #[test]
+    fn test_handles_escape_characters_in_strings_correctly() {
+        assert_parse_result(
+            "{
+                \"exclude\": [
+                    \"xx\\\"//files\"
+                ]
+            }",
+            ExpectedConfigObjectBuilder::default()
+                .config(json!({ "exclude": ["xx\"//files"] }))
+                .build()
+                .unwrap(),
+        );
+        assert_parse_result(
+            "{
+                \"exclude\": [
+                    \"xx\\\\\" // end of line comment
+                ]
+            }",
+            ExpectedConfigObjectBuilder::default()
+                .config(json!({ "exclude": ["xx\\"] }))
+                .build()
+                .unwrap(),
+        );
+    }
+
+    #[test]
+    fn test_returns_object_with_error_when_json_is_invalid() {
+        let parsed =
+            parse_config_file_text_to_json("/apath/tsconfig.json", "invalid".to_owned()).unwrap();
+        assert_that!(&parsed.config).is_equal_to(Some(json!({})));
+        let expected: Gc<Diagnostic> =
+            create_compiler_diagnostic(&Diagnostics::_0_expected, Some(vec!["{".to_owned()]))
+                .into();
+        let error = parsed.error.clone().unwrap();
+        assert_that!(error.message_text()).is_equal_to(expected.message_text());
+        assert_that!(error.category()).is_equal_to(expected.category());
+        assert_that!(error.code()).is_equal_to(expected.code());
+        assert_that!(error.start()).is_equal_to(0);
+        assert_that!(error.length()).is_equal_to(isize::try_from("invalid".len()).unwrap());
+    }
+
+    #[test]
+    fn test_returns_object_when_users_correctly_specify_library() {
+        assert_parse_result(
+            r#"{
+                "compilerOptions": {
+                    "lib": ["es5"]
+                }
+            }"#,
+            ExpectedConfigObjectBuilder::default()
+                .config(json!({ "compilerOptions": { "lib": ["es5"] } }))
+                .build()
+                .unwrap(),
+        );
+        assert_parse_result(
+            r#"{
+                "compilerOptions": {
+                    "lib": ["es5", "es6"]
+                }
+            }"#,
+            ExpectedConfigObjectBuilder::default()
+                .config(json!({ "compilerOptions": { "lib": ["es5", "es6"] } }))
+                .build()
+                .unwrap(),
+        );
+    }
+
+    #[test]
+    fn test_returns_error_when_tsconfig_have_excludes() {
+        assert_parse_error_with_excludes_keyword(
+            r#"{
+                "compilerOptions": {
+                    "lib": ["es5"]
+                },
+                "excludes": [
+                    "foge.ts"
+                ]
+            }"#,
+        )
     }
 }

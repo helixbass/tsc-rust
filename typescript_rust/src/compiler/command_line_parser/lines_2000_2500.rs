@@ -335,9 +335,14 @@ pub(super) fn convert_property_value_to_json(
                 source_file,
                 value_expression,
                 option,
-                Some(
-                    matches!(option, Some(option) if !matches!(option, CommandLineOption::CommandLineOptionOfStringType(_))),
-                ),
+                Some(matches!(
+                    option,
+                    Some(option) if !matches!(
+                        option,
+                        CommandLineOption::CommandLineOptionOfCustomType(_)
+                          | CommandLineOption::CommandLineOptionOfStringType(_)
+                    )
+                )),
             );
             let text = value_expression.as_literal_like_node().text();
             if let Some(custom_option) = option.as_ref() {
