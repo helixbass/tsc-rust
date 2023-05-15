@@ -81,4 +81,12 @@ impl TransformTypeScript {
     pub(super) fn enable_substitution_for_non_qualified_enum_members(&self) {
         unimplemented!()
     }
+
+    pub(super) fn enable_substitution_for_namespace_exports(&self) {
+        unimplemented!()
+    }
+
+    pub(super) fn should_emit_alias_declaration(&self, _node: &Node) -> bool {
+        unimplemented!()
+    }
 }

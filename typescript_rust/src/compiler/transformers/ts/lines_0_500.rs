@@ -142,6 +142,10 @@ impl TransformTypeScript {
         self.current_namespace.borrow().clone()
     }
 
+    pub(super) fn set_current_namespace(&self, current_namespace: Option<Gc<Node>>) {
+        *self.current_namespace.borrow_mut() = current_namespace;
+    }
+
     pub(super) fn maybe_current_namespace_container_name(&self) -> Option<Gc<Node>> {
         self.current_namespace_container_name.borrow().clone()
     }
@@ -405,7 +409,7 @@ impl TransformTypeScript {
         Ok(match node.kind() {
             SyntaxKind::ImportDeclaration => self.visit_import_declaration(node),
             SyntaxKind::ImportEqualsDeclaration => self.visit_import_equals_declaration(node),
-            SyntaxKind::ExportAssignment => self.visit_export_assignment(node),
+            SyntaxKind::ExportAssignment => self.visit_export_assignment(node)?,
             SyntaxKind::ExportDeclaration => self.visit_export_declaration(node),
             _ => Debug_.fail(Some("Unhandled ellided statement")),
         })
@@ -566,7 +570,7 @@ impl TransformTypeScript {
             SyntaxKind::EnumDeclaration => self.visit_enum_declaration(node)?,
             SyntaxKind::VariableStatement => self.visit_variable_statement(node)?.map(Into::into),
             SyntaxKind::VariableDeclaration => self.visit_variable_declaration(node)?,
-            SyntaxKind::ModuleDeclaration => self.visit_module_declaration(node),
+            SyntaxKind::ModuleDeclaration => self.visit_module_declaration(node)?,
             SyntaxKind::ImportEqualsDeclaration => self.visit_import_equals_declaration(node),
             SyntaxKind::JsxSelfClosingElement => self.visit_jsx_self_closing_element(node)?,
             SyntaxKind::JsxOpeningElement => self.visit_jsx_jsx_opening_element(node)?,

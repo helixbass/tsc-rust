@@ -83,6 +83,12 @@ impl<TReadonlyTextRange: ReadonlyTextRange> From<&TReadonlyTextRange>
     }
 }
 
+impl From<BaseTextRange> for ReadonlyTextRangeConcrete {
+    fn from(value: BaseTextRange) -> Self {
+        Self::new(value.pos(), value.end())
+    }
+}
+
 pub trait TextRange {
     fn pos(&self) -> isize;
     fn set_pos(&self, pos: isize);

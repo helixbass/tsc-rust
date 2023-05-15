@@ -3,12 +3,20 @@ use std::ptr;
 use gc::Gc;
 
 use crate::{
-    Matches, ModuleKind, Node, NodeInterface, VisitResult, __String, add_emit_flags, is_identifier,
-    is_modifier, set_comment_range, set_source_map_range, visit_nodes, Debug_, EmitFlags, NodeExt,
-    NodeFlags, SyntaxKind,
+    is_named_import_bindings, is_statement, Matches, ModuleKind, Node, NodeInterface, VisitResult,
+    __String, add_emit_flags, add_range, are_option_gcs_equal, get_emit_flags,
+    has_syntactic_modifier, insert_statements_after_standard_prologue, is_identifier,
+    is_import_clause, is_import_specifier, is_modifier, is_named_export_bindings,
+    is_namespace_export, move_range_pos, set_comment_range, set_emit_flags, set_source_map_range,
+    set_synthetic_leading_comments, set_synthetic_trailing_comments, set_text_range,
+    set_text_range_node_array, some, try_visit_each_child, try_visit_nodes, visit_each_child,
+    visit_node, visit_nodes, AsDoubleDeref, BoolExt, Debug_, EmitFlags, ImportsNotUsedAsValues,
+    ModifierFlags, NamedDeclarationInterface, NodeArray, NodeExt, NodeFlags, NonEmpty,
+    ReadonlyTextRangeConcrete, SingleNodeOrVecNode, SyntaxKind,
 };
 
 use super::TransformTypeScript;
+use std::io;
 
 impl TransformTypeScript {
     pub(super) fn has_namespace_qualified_export_name(&self, node: &Node) -> bool {
@@ -141,29 +149,417 @@ impl TransformTypeScript {
 
     pub(super) fn visit_module_declaration(
         &self,
-        _node: &Node, /*ModuleDeclaration*/
-    ) -> VisitResult /*<Statement>*/ {
-        unimplemented!()
+        node: &Node, /*ModuleDeclaration*/
+    ) -> io::Result<VisitResult> /*<Statement>*/ {
+        let node_as_module_declaration = node.as_module_declaration();
+        if !self.should_emit_module_declaration(node) {
+            return Ok(Some(
+                self.factory
+                    .create_not_emitted_statement(node.node_wrapper())
+                    .into(),
+            ));
+        }
+
+        Debug_.assert_node(
+            node_as_module_declaration.maybe_name(),
+            Some(is_identifier),
+            Some("A TypeScript namespace should have an Identifier name."),
+        );
+        self.enable_substitution_for_namespace_exports();
+
+        let mut statements: Vec<Gc<Node /*Statement*/>> = Default::default();
+
+        let mut emit_flags = EmitFlags::AdviseOnEmitNode;
+
+        let var_added = self.add_var_for_enum_or_module_declaration(&mut statements, node);
+        if var_added {
+            if self.module_kind != ModuleKind::System
+                || !are_option_gcs_equal(
+                    self.maybe_current_lexical_scope().as_ref(),
+                    self.maybe_current_source_file().as_ref(),
+                )
+            {
+                emit_flags |= EmitFlags::NoLeadingComments;
+            }
+        }
+
+        let parameter_name = self.get_namespace_parameter_name(node);
+
+        let container_name = self.get_namespace_container_name(node);
+
+        let export_name = if has_syntactic_modifier(node, ModifierFlags::Export) {
+            self.factory.get_external_module_or_namespace_export_name(
+                self.maybe_current_namespace_container_name(),
+                node,
+                Some(false),
+                Some(true),
+            )
+        } else {
+            self.factory.get_local_name(node, Some(false), Some(true))
+        };
+
+        let mut module_arg = self
+            .factory
+            .create_logical_or(
+                export_name.clone(),
+                self.factory
+                    .create_assignment(
+                        export_name,
+                        self.factory
+                            .create_object_literal_expression(Option::<Gc<NodeArray>>::None, None)
+                            .wrap(),
+                    )
+                    .wrap(),
+            )
+            .wrap();
+
+        if self.has_namespace_qualified_export_name(node) {
+            let local_name = self.factory.get_local_name(node, Some(false), Some(true));
+
+            module_arg = self
+                .factory
+                .create_assignment(local_name, module_arg)
+                .wrap();
+        }
+
+        let module_statement = self
+            .factory
+            .create_expression_statement(
+                self.factory
+                    .create_call_expression(
+                        self.factory
+                            .create_function_expression(
+                                Option::<Gc<NodeArray>>::None,
+                                None,
+                                Option::<Gc<Node>>::None,
+                                Option::<Gc<NodeArray>>::None,
+                                Some(vec![self
+                                    .factory
+                                    .create_parameter_declaration(
+                                        Option::<Gc<NodeArray>>::None,
+                                        Option::<Gc<NodeArray>>::None,
+                                        None,
+                                        Some(parameter_name),
+                                        None,
+                                        None,
+                                        None,
+                                    )
+                                    .wrap()]),
+                                None,
+                                self.transform_module_body(node, &container_name)?,
+                            )
+                            .wrap(),
+                        Option::<Gc<NodeArray>>::None,
+                        Some(vec![module_arg]),
+                    )
+                    .wrap(),
+            )
+            .wrap()
+            .set_original_node(Some(node.node_wrapper()));
+
+        if var_added {
+            set_synthetic_leading_comments(&module_statement, None);
+            set_synthetic_trailing_comments(&module_statement, None);
+        }
+        set_text_range(&*module_statement, Some(node));
+        add_emit_flags(&*module_statement, emit_flags);
+        statements.push(module_statement);
+
+        statements.push(
+            self.factory
+                .create_end_of_declaration_marker(node.node_wrapper()),
+        );
+        Ok(Some(statements.into()))
+    }
+
+    pub(super) fn transform_module_body(
+        &self,
+        node: &Node,                 /*ModuleDeclaration*/
+        namespace_local_name: &Node, /*Identifier*/
+    ) -> io::Result<Gc<Node>> /*Identifier*/ {
+        let node_as_module_declaration = node.as_module_declaration();
+        let saved_current_namespace_container_name = self.maybe_current_namespace_container_name();
+        let saved_current_namespace = self.maybe_current_namespace();
+        let saved_current_scope_first_declarations_of_name = self
+            .maybe_current_scope_first_declarations_of_name()
+            .clone();
+        self.set_current_namespace_container_name(Some(namespace_local_name.node_wrapper()));
+        self.set_current_namespace(Some(node.node_wrapper()));
+        self.set_current_scope_first_declarations_of_name(None);
+
+        let mut statements: Vec<Gc<Node /*Statement*/>> = Default::default();
+        self.context.start_lexical_environment();
+
+        let mut statements_location: Option<ReadonlyTextRangeConcrete> = Default::default();
+        let mut block_location: Option<Gc<Node> /*TextRange*/> = Default::default();
+        if let Some(node_body) = node_as_module_declaration.body.as_ref() {
+            if node_body.kind() == SyntaxKind::ModuleBlock {
+                self.try_save_state_and_invoke(node_body, |body: &Node| {
+                    add_range(
+                        &mut statements,
+                        try_visit_nodes(
+                            Some(&body.as_module_block().statements),
+                            Some(|node: &Node| self.namespace_element_visitor(node)),
+                            Some(is_statement),
+                            None,
+                            None,
+                        )?
+                        .as_double_deref(),
+                        None,
+                        None,
+                    );
+
+                    Ok(())
+                })?;
+                statements_location = Some((&*node_body.as_module_block().statements).into());
+                block_location = Some(node_body.clone());
+            } else {
+                let result = self.visit_module_declaration(node_body)?;
+                if let Some(result) = result {
+                    match result {
+                        SingleNodeOrVecNode::VecNode(result) => {
+                            add_range(&mut statements, Some(&result), None, None);
+                        }
+                        SingleNodeOrVecNode::SingleNode(result) => {
+                            statements.push(result);
+                        }
+                    }
+                }
+
+                let module_block = self
+                    .get_inner_most_module_declaration_from_dotted_module(node)
+                    .unwrap()
+                    .as_module_declaration()
+                    .body
+                    .clone()
+                    .unwrap();
+                statements_location =
+                    Some(move_range_pos(&*module_block.as_module_block().statements, -1).into());
+            }
+        }
+
+        insert_statements_after_standard_prologue(
+            &mut statements,
+            self.context.end_lexical_environment().as_deref(),
+        );
+        self.set_current_namespace_container_name(saved_current_namespace_container_name);
+        self.set_current_namespace(saved_current_namespace);
+        self.set_current_scope_first_declarations_of_name(
+            saved_current_scope_first_declarations_of_name,
+        );
+
+        let block = self
+            .factory
+            .create_block(
+                set_text_range_node_array(
+                    self.factory.create_node_array(Some(statements), None),
+                    statements_location.as_ref(),
+                ),
+                Some(true),
+            )
+            .wrap()
+            .set_text_range(block_location.as_deref());
+
+        if match node_as_module_declaration.body.as_ref() {
+            None => true,
+            Some(node_body) => node_body.kind() != SyntaxKind::ModuleBlock,
+        } {
+            set_emit_flags(&*block, get_emit_flags(&block) | EmitFlags::NoComments);
+        }
+
+        Ok(block)
+    }
+
+    pub(super) fn get_inner_most_module_declaration_from_dotted_module(
+        &self,
+        module_declaration: &Node, /*ModuleDeclaration*/
+    ) -> Option<Gc<Node>> /*ModuleDeclaration*/ {
+        let module_declaration_as_module_declaration = module_declaration.as_module_declaration();
+        let module_body = module_declaration_as_module_declaration
+            .body
+            .as_ref()
+            .unwrap();
+        if module_body.kind() == SyntaxKind::ModuleDeclaration {
+            let recursive_inner_module =
+                self.get_inner_most_module_declaration_from_dotted_module(module_body);
+            return Some(recursive_inner_module.unwrap_or_else(|| module_body.clone()));
+        }
+
+        None
     }
 
     pub(super) fn visit_import_declaration(
         &self,
-        _node: &Node, /*ImportDeclaration*/
+        node: &Node, /*ImportDeclaration*/
     ) -> VisitResult /*<Statement>*/ {
-        unimplemented!()
+        let node_as_import_declaration = node.as_import_declaration();
+        if node_as_import_declaration.import_clause.is_none() {
+            return Some(node.node_wrapper().into());
+        }
+        let node_import_clause = node_as_import_declaration.import_clause.as_ref().unwrap();
+        if node_import_clause.as_import_clause().is_type_only {
+            return None;
+        }
+
+        let import_clause = visit_node(
+            Some(&**node_import_clause),
+            Some(|node: &Node| self.visit_import_clause(node)),
+            Some(is_import_clause),
+            Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+        );
+        if import_clause.is_some()
+            || matches!(
+                self.compiler_options.imports_not_used_as_values,
+                Some(ImportsNotUsedAsValues::Preserve) | Some(ImportsNotUsedAsValues::Error)
+            )
+        {
+            Some(
+                self.factory
+                    .update_import_declaration(
+                        node,
+                        Option::<Gc<NodeArray>>::None,
+                        Option::<Gc<NodeArray>>::None,
+                        import_clause,
+                        node_as_import_declaration.module_specifier.clone(),
+                        node_as_import_declaration.assert_clause.clone(),
+                    )
+                    .into(),
+            )
+        } else {
+            None
+        }
+    }
+
+    pub(super) fn visit_import_clause(&self, node: &Node /*ImportClause*/) -> VisitResult /*<ImportClause>*/
+    {
+        let node_as_import_clause = node.as_import_clause();
+        Debug_.assert(!node_as_import_clause.is_type_only, None);
+        let name = if self.should_emit_alias_declaration(node) {
+            node_as_import_clause.name.as_ref()
+        } else {
+            None
+        };
+        let named_bindings = visit_node(
+            node_as_import_clause.named_bindings.as_deref(),
+            Some(|node: &Node| self.visit_named_import_bindings(node)),
+            Some(is_named_import_bindings),
+            Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+        );
+        if name.is_some() || named_bindings.is_some() {
+            Some(
+                self.factory
+                    .update_import_clause(node, false, name.cloned(), named_bindings)
+                    .into(),
+            )
+        } else {
+            None
+        }
+    }
+
+    pub(super) fn visit_named_import_bindings(
+        &self,
+        node: &Node, /*NamedImportBindings*/
+    ) -> VisitResult /*<NamedImportBindings>*/ {
+        if node.kind() == SyntaxKind::NamespaceImport {
+            if self.should_emit_alias_declaration(node) {
+                Some(node.node_wrapper().into())
+            } else {
+                None
+            }
+        } else {
+            let allow_empty = self.compiler_options.preserve_value_imports == Some(true)
+                && matches!(
+                    self.compiler_options.imports_not_used_as_values,
+                    Some(ImportsNotUsedAsValues::Preserve) | Some(ImportsNotUsedAsValues::Error)
+                );
+            let elements = visit_nodes(
+                Some(&node.as_named_imports().elements),
+                Some(|node: &Node| self.visit_import_specifier(node)),
+                Some(is_import_specifier),
+                None,
+                None,
+            )
+            .unwrap();
+            (allow_empty || !elements.is_empty())
+                .then(|| self.factory.update_named_imports(node, elements).into())
+        }
+    }
+
+    pub(super) fn visit_import_specifier(
+        &self,
+        node: &Node, /*ImportSpecifier*/
+    ) -> VisitResult /*<ImportSpecifier>*/ {
+        let node_as_import_specifier = node.as_import_specifier();
+        (!node_as_import_specifier.is_type_only && self.should_emit_alias_declaration(node))
+            .then(|| node.node_wrapper().into())
     }
 
     pub(super) fn visit_export_assignment(
         &self,
-        _node: &Node, /*ExportAssignment*/
-    ) -> VisitResult /*<Statement>*/ {
-        unimplemented!()
+        node: &Node, /*ExportAssignment*/
+    ) -> io::Result<VisitResult> /*<Statement>*/ {
+        self.resolver
+            .is_value_alias_declaration(node)?
+            .try_then_and(|| -> io::Result<_> {
+                Ok(try_visit_each_child(
+                    Some(node),
+                    |node: &Node| self.visitor(node),
+                    &**self.context,
+                )?
+                .map(Into::into))
+            })
     }
 
     pub(super) fn visit_export_declaration(
         &self,
-        _node: &Node, /*ExportDeclaration*/
+        node: &Node, /*ExportDeclaration*/
     ) -> VisitResult /*<Statement>*/ {
+        let node_as_export_declaration = node.as_export_declaration();
+        if node_as_export_declaration.is_type_only {
+            return None;
+        }
+
+        if !node_as_export_declaration
+            .export_clause
+            .as_ref()
+            .matches(|node_export_clause| !is_namespace_export(node_export_clause))
+        {
+            return Some(node.node_wrapper().into());
+        }
+
+        let allow_empty = node_as_export_declaration.module_specifier.is_some()
+            && matches!(
+                self.compiler_options.imports_not_used_as_values,
+                Some(ImportsNotUsedAsValues::Preserve) | Some(ImportsNotUsedAsValues::Error)
+            );
+        let export_clause = visit_node(
+            node_as_export_declaration.export_clause.as_deref(),
+            Some(|bindings: &Node /*NamedExportBindings*/| {
+                self.visit_named_export_bindings(bindings, allow_empty)
+            }),
+            Some(is_named_export_bindings),
+            Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+        );
+        export_clause.map(|export_clause| {
+            self.factory
+                .update_export_declaration(
+                    node,
+                    Option::<Gc<NodeArray>>::None,
+                    Option::<Gc<NodeArray>>::None,
+                    node_as_export_declaration.is_type_only,
+                    Some(export_clause),
+                    node_as_export_declaration.module_specifier.clone(),
+                    node_as_export_declaration.assert_clause.clone(),
+                )
+                .into()
+        })
+    }
+
+    pub(super) fn visit_named_export_bindings(
+        &self,
+        _node: &Node, /*NamedExportBindings*/
+        _allow_empty: bool,
+    ) -> VisitResult /*<NamedExportBindings>*/ {
         unimplemented!()
     }
 

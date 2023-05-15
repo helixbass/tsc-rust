@@ -290,11 +290,17 @@ impl VisitResultInterface for VisitResult {
     }
 }
 
-#[derive(Clone, Trace, Finalize)]
-pub enum SingleNodeOrVecNode {
-    SingleNode(Gc<Node>),
-    VecNode(Vec<Gc<Node>>),
+mod _SingleNodeOrVecNodeDeriveTraceScope {
+    use super::*;
+    use local_macros::Trace;
+
+    #[derive(Clone, Trace, Finalize)]
+    pub enum SingleNodeOrVecNode {
+        SingleNode(Gc<Node>),
+        VecNode(Vec<Gc<Node>>),
+    }
 }
+pub use _SingleNodeOrVecNodeDeriveTraceScope::SingleNodeOrVecNode;
 
 impl SingleNodeOrVecNode {
     // TODO: suppress `gc`-generated Drop implementation to avoid this complaining?
