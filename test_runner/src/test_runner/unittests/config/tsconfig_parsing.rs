@@ -11,10 +11,11 @@ mod parse_config_file_text_to_json {
     use serde::Serialize;
     use serde_json::json;
     use typescript_rust::{
-        create_compiler_diagnostic, get_sys_concrete, parse_config_file_text_to_json,
-        parse_json_config_file_content, parse_json_source_file_config_file_content,
-        parse_json_text, Diagnostic, DiagnosticRelatedInformationInterface, Diagnostics,
-        ParsedCommandLine, SliceExtCloneOrd,
+        convert_to_object, create_compiler_diagnostic, get_sys_concrete,
+        parse_config_file_text_to_json, parse_json_config_file_content,
+        parse_json_source_file_config_file_content, parse_json_text, Diagnostic,
+        DiagnosticRelatedInformationInterface, Diagnostics, Owned, ParsedCommandLine,
+        SliceExtCloneOrd,
     };
 
     #[derive(Builder, Default, Serialize)]
@@ -207,6 +208,8 @@ mod parse_config_file_text_to_json {
         no_location: Option<bool>,
     ) {
         let json_text = json_text.into();
+        let base_path =
+            &format!("/Users/jrosse/prj/tsc-rust/typescript_rust/typescript_src/{base_path}");
         let parsed = get_parsed_command_json(
             json_text.clone(),
             config_file_name,
@@ -484,5 +487,303 @@ mod parse_config_file_text_to_json {
                 ]
             }"#,
         )
+    }
+
+    #[test]
+    fn test_ignore_dotted_files_and_folders() {
+        assert_parse_file_list(
+            "{}",
+            "tsconfig.json",
+            "/apath",
+            &[
+                "/apath/test.ts",
+                "/apath/.git/a.ts",
+                "/apath/.b.ts",
+                "/apath/..c.ts",
+            ]
+            .owned(),
+            &["/apath/test.ts"].owned(),
+        );
+    }
+
+    #[test]
+    fn test_allow_dotted_files_and_folders_when_explicitly_requested() {
+        assert_parse_file_list(
+            r#"{
+                "files": ["/apath/.git/a.ts", "/apath/.b.ts", "/apath/..c.ts"]
+            }"#,
+            "tsconfig.json",
+            "/apath",
+            &[
+                "/apath/test.ts",
+                "/apath/.git/a.ts",
+                "/apath/.b.ts",
+                "/apath/..c.ts",
+            ]
+            .owned(),
+            &["/apath/.git/a.ts", "/apath/.b.ts", "/apath/..c.ts"].owned(),
+        );
+    }
+
+    #[test]
+    fn test_exclude_out_dir_unless_overridden() {
+        let tsconfig_without_exclude = r#"{
+            "compilerOptions": {
+                "outDir": "bin"
+            }
+        }"#;
+        let tsconfig_with_exclude = r#"{
+            "compilerOptions": {
+                "outDir": "bin"
+            },
+            "exclude": [ "obj" ]
+        }"#;
+        let root_dir = "/";
+        let all_files = ["/bin/a.ts", "/b.ts"].owned();
+        let expected_files = ["/b.ts"].owned();
+        assert_parse_file_list(
+            tsconfig_without_exclude,
+            "tsconfig.json",
+            root_dir,
+            &all_files,
+            &expected_files,
+        );
+        assert_parse_file_list(
+            tsconfig_with_exclude,
+            "tsconfig.json",
+            root_dir,
+            &all_files,
+            &all_files,
+        );
+    }
+
+    #[test]
+    fn test_exclude_declaration_dir_unless_overridden() {
+        let tsconfig_without_exclude = r#"{
+            "compilerOptions": {
+                "declarationDir": "declarations"
+            }
+        }"#;
+        let tsconfig_with_exclude = r#"{
+            "compilerOptions": {
+                "declarationDir": "declarations"
+            },
+            "exclude": [ "types" ]
+        }"#;
+        let root_dir = "/";
+        let all_files = ["/declarations/a.d.ts", "/a.ts"].owned();
+        let expected_files = ["/a.ts"].owned();
+
+        assert_parse_file_list(
+            tsconfig_without_exclude,
+            "tsconfig.json",
+            root_dir,
+            &all_files,
+            &expected_files,
+        );
+        assert_parse_file_list(
+            tsconfig_with_exclude,
+            "tsconfig.json",
+            root_dir,
+            &all_files,
+            &all_files,
+        );
+    }
+
+    #[test]
+    fn test_implicitly_exclude_common_package_folders() {
+        assert_parse_file_list(
+            "{}",
+            "tsconfig.json",
+            "/",
+            &[
+                "/node_modules/a.ts",
+                "/bower_components/b.ts",
+                "/jspm_packages/c.ts",
+                "/d.ts",
+                "/folder/e.ts",
+            ]
+            .owned(),
+            &["/d.ts", "/folder/e.ts"].owned(),
+        );
+    }
+
+    #[test]
+    fn test_parse_and_re_emit_tsconfig_json_file_with_diagnostics() {
+        let content = r#"{
+            "compilerOptions": {
+                "allowJs": true
+                // Some comments
+                "outDir": "bin"
+            }
+            "files": ["file1.ts"]
+        }"#;
+        let ref result = parse_json_text("config.json", content.to_owned());
+        let diagnostics = result.as_source_file().parse_diagnostics();
+        let config_json_object = convert_to_object(result, diagnostics.clone())
+            .unwrap()
+            .unwrap();
+        let diagnostics = (*diagnostics).borrow();
+        let expected_result = json!({
+            "compilerOptions": {
+                "allowJs": true,
+                "outDir": "bin"
+            },
+            "files": ["file1.ts"]
+        });
+        assert_that!(&*diagnostics).has_length(2);
+        assert_that!(&serde_json::to_string(&config_json_object).unwrap())
+            .is_equal_to(serde_json::to_string(&expected_result).unwrap());
+    }
+
+    #[test]
+    fn test_generates_errors_for_empty_files_list() {
+        let content = r#"{
+            "files": []
+        }"#;
+        assert_parse_file_diagnostics(
+            content,
+            "/apath/tsconfig.json",
+            "tests/cases/unittests",
+            &["/apath/a.ts"].owned(),
+            Diagnostics::The_files_list_in_config_file_0_is_empty.code,
+            None,
+        );
+    }
+
+    #[test]
+    fn test_generates_errors_for_empty_files_list_when_no_references_are_provided() {
+        let content = r#"{
+            "files": [],
+            "references": []
+        }"#;
+        assert_parse_file_diagnostics(
+            content,
+            "/apath/tsconfig.json",
+            "tests/cases/unittests",
+            &["/apath/a.ts"].owned(),
+            Diagnostics::The_files_list_in_config_file_0_is_empty.code,
+            None,
+        );
+    }
+
+    #[test]
+    fn test_does_not_generate_errors_for_empty_files_list_when_one_or_more_references_are_provided()
+    {
+        let content = r#"{
+            "files": [],
+            "references": [{ "path": "/apath" }]
+        }"#;
+        assert_parse_file_diagnostics_exclusion(
+            content,
+            "/apath/tsconfig.json",
+            "tests/cases/unittests",
+            &["/apath/a.ts"].owned(),
+            Diagnostics::The_files_list_in_config_file_0_is_empty.code,
+        );
+    }
+
+    #[test]
+    fn test_generates_errors_for_directory_with_no_ts_files() {
+        let content = r#"{
+        }"#;
+        assert_parse_file_diagnostics(
+            content,
+            "/apath/tsconfig.json",
+            "tests/cases/unittests",
+            &["/apath/a.js"].owned(),
+            Diagnostics::No_inputs_were_found_in_config_file_0_Specified_include_paths_were_1_and_exclude_paths_were_2.code,
+            Some(true),
+        );
+    }
+
+    #[test]
+    fn test_generates_errors_for_empty_directory() {
+        let content = r#"{
+            "compilerOptions": {
+                "allowJs": true
+            }
+        }"#;
+        assert_parse_file_diagnostics(
+            content,
+            "/apath/tsconfig.json",
+            "tests/cases/unittests",
+            &[],
+            Diagnostics::No_inputs_were_found_in_config_file_0_Specified_include_paths_were_1_and_exclude_paths_were_2.code,
+            Some(true),
+        );
+    }
+
+    #[test]
+    fn test_generates_errors_for_empty_include() {
+        let content = r#"{
+            "include": []
+        }"#;
+        assert_parse_file_diagnostics(
+            content,
+            "/apath/tsconfig.json",
+            "tests/cases/unittests",
+            &["/apath/a.ts"].owned(),
+            Diagnostics::No_inputs_were_found_in_config_file_0_Specified_include_paths_were_1_and_exclude_paths_were_2.code,
+            Some(true),
+        );
+    }
+
+    #[test]
+    fn test_generates_errors_for_includes_with_out_dir() {
+        let content = r#"{
+            "compilerOptions": {
+                "outDir": "./"
+            },
+            "include": ["**/*"]
+        }"#;
+        assert_parse_file_diagnostics(
+            content,
+            "/apath/tsconfig.json",
+            "tests/cases/unittests",
+            &["/apath/a.ts"].owned(),
+            Diagnostics::No_inputs_were_found_in_config_file_0_Specified_include_paths_were_1_and_exclude_paths_were_2.code,
+            Some(true),
+        );
+    }
+
+    #[test]
+    fn test_generates_errors_for_when_invalid_comment_type_present_in_tsconfig() {
+        let json_text = r#"{
+           "compilerOptions": {
+             ## this comment does cause issues
+             "types" : [
+             ]
+           }
+        }"#;
+        let parsed = get_parsed_command_json_node(
+            json_text,
+            "/apath/tsconfig.json",
+            "tests/cases/unittests",
+            &["/apath/a.ts"].owned(),
+        );
+        // TODO: the Typescript version has length >= 0 which seems trivially true and
+        // seems to disagree with the test name, upstream?
+        assert_that!(&(*parsed.errors).borrow().len()).is_greater_than(0);
+    }
+
+    #[test]
+    fn test_generates_errors_when_files_is_not_string() {
+        assert_parse_file_diagnostics(
+            json!({
+                "files": [{
+                    "compilerOptions": {
+                        "experimentalDecorators": true,
+                        "allowJs": true
+                    }
+                }]
+            })
+            .to_string(),
+            "/apath/tsconfig.json",
+            "tests/cases/unittests",
+            &["/apath/a.ts"].owned(),
+            Diagnostics::Compiler_option_0_requires_a_value_of_type_1.code,
+            Some(true),
+        );
     }
 }

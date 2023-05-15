@@ -33,8 +33,8 @@ use compiler::command_line_parser::{
 };
 pub use compiler::command_line_parser::{
     compiler_options_did_you_mean_diagnostics, convert_compiler_options_from_json,
-    convert_type_acquisition_from_json, create_option_name_map, generate_tsconfig,
-    get_compiler_options_diff_value, get_parsed_command_line_of_config_file,
+    convert_to_object, convert_type_acquisition_from_json, create_option_name_map,
+    generate_tsconfig, get_compiler_options_diff_value, get_parsed_command_line_of_config_file,
     hash_map_to_compiler_options, option_declarations, parse_command_line,
     parse_command_line_worker, parse_config_file_text_to_json, parse_custom_type_option,
     parse_json_config_file_content, parse_json_source_file_config_file_content,
