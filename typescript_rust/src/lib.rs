@@ -184,7 +184,7 @@ pub use compiler::factory::parenthesizer_rules::{
 use compiler::factory::utilities::get_jsdoc_type_alias_name;
 pub use compiler::factory::utilities::{
     can_have_modifiers, create_binary_expression_trampoline, create_empty_exports,
-    create_for_of_binding_statement, find_use_strict_prologue,
+    create_expression_from_entity_name, create_for_of_binding_statement, find_use_strict_prologue,
     get_elements_of_binding_or_assignment_pattern, get_external_helpers_module_name,
     get_jsdoc_type_assertion_type, get_target_of_binding_or_assignment_element,
     has_recorded_external_helpers, is_binary_operator_token, is_comma_sequence,

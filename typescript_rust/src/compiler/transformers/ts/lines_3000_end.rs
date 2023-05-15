@@ -33,11 +33,20 @@ impl TransformTypeScript {
         unimplemented!()
     }
 
+    pub(super) fn create_namespace_export(
+        &self,
+        _export_name: &Node,  /*Identifier*/
+        _export_value: &Node, /*Expression*/
+        _location: Option<&impl ReadonlyTextRange>,
+    ) -> Gc<Node> {
+        unimplemented!()
+    }
+
     pub(super) fn create_namespace_export_expression(
         &self,
         _export_name: &Node,  /*Identifier*/
         _export_value: &Node, /*Expression*/
-        _location: Option<&dyn ReadonlyTextRange>,
+        _location: Option<&(impl ReadonlyTextRange + ?Sized)>,
     ) -> Gc<Node> {
         unimplemented!()
     }

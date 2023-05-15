@@ -120,6 +120,10 @@ pub trait BoolExt {
         self,
         mapper: impl FnOnce() -> Result<Option<TMapped>, TError>,
     ) -> Result<Option<TMapped>, TError>;
+    fn try_then<TMapped, TError>(
+        self,
+        mapper: impl FnOnce() -> Result<TMapped, TError>,
+    ) -> Result<Option<TMapped>, TError>;
 }
 
 impl BoolExt for bool {
@@ -132,6 +136,13 @@ impl BoolExt for bool {
         mapper: impl FnOnce() -> Result<Option<TMapped>, TError>,
     ) -> Result<Option<TMapped>, TError> {
         Ok(if self { mapper()? } else { None })
+    }
+
+    fn try_then<TMapped, TError>(
+        self,
+        mapper: impl FnOnce() -> Result<TMapped, TError>,
+    ) -> Result<Option<TMapped>, TError> {
+        Ok(if self { Some(mapper()?) } else { None })
     }
 }
 

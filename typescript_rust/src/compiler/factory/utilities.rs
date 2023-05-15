@@ -41,6 +41,15 @@ pub fn create_for_of_binding_statement<
     unimplemented!()
 }
 
+pub fn create_expression_from_entity_name<
+    TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize,
+>(
+    _factory: &NodeFactory<TBaseNodeFactory>,
+    _node: &Node, /*EntityName | Expression*/
+) -> Gc<Node /*Expression*/> {
+    unimplemented!()
+}
+
 pub fn is_local_name(node: &Node /*Identifier*/) -> bool {
     get_emit_flags(node).intersects(EmitFlags::LocalName)
 }

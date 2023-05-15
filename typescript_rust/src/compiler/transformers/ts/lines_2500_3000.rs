@@ -4,15 +4,16 @@ use gc::Gc;
 
 use crate::{
     is_named_import_bindings, is_statement, Matches, ModuleKind, Node, NodeInterface, VisitResult,
-    __String, add_emit_flags, add_range, are_option_gcs_equal, get_emit_flags,
-    has_syntactic_modifier, insert_statements_after_standard_prologue, is_identifier,
-    is_import_clause, is_import_specifier, is_modifier, is_named_export_bindings,
+    __String, add_emit_flags, add_range, are_option_gcs_equal, create_expression_from_entity_name,
+    get_emit_flags, has_syntactic_modifier, insert_statements_after_standard_prologue,
+    is_export_specifier, is_external_module, is_external_module_import_equals_declaration,
+    is_identifier, is_import_clause, is_import_specifier, is_modifier, is_named_export_bindings,
     is_namespace_export, move_range_pos, set_comment_range, set_emit_flags, set_source_map_range,
     set_synthetic_leading_comments, set_synthetic_trailing_comments, set_text_range,
-    set_text_range_node_array, some, try_visit_each_child, try_visit_nodes, visit_each_child,
-    visit_node, visit_nodes, AsDoubleDeref, BoolExt, Debug_, EmitFlags, ImportsNotUsedAsValues,
-    ModifierFlags, NamedDeclarationInterface, NodeArray, NodeExt, NodeFlags, NonEmpty,
-    ReadonlyTextRangeConcrete, SingleNodeOrVecNode, SyntaxKind,
+    set_text_range_node_array, some, try_visit_each_child, try_visit_node, try_visit_nodes,
+    visit_each_child, visit_node, visit_nodes, AsDoubleDeref, BoolExt, Debug_, EmitFlags,
+    ImportsNotUsedAsValues, ModifierFlags, NamedDeclarationInterface, NodeArray, NodeExt,
+    NodeFlags, NonEmpty, ReadonlyTextRangeConcrete, SingleNodeOrVecNode, SyntaxKind,
 };
 
 use super::TransformTypeScript;
@@ -513,10 +514,10 @@ impl TransformTypeScript {
     pub(super) fn visit_export_declaration(
         &self,
         node: &Node, /*ExportDeclaration*/
-    ) -> VisitResult /*<Statement>*/ {
+    ) -> io::Result<VisitResult> /*<Statement>*/ {
         let node_as_export_declaration = node.as_export_declaration();
         if node_as_export_declaration.is_type_only {
-            return None;
+            return Ok(None);
         }
 
         if !node_as_export_declaration
@@ -524,7 +525,7 @@ impl TransformTypeScript {
             .as_ref()
             .matches(|node_export_clause| !is_namespace_export(node_export_clause))
         {
-            return Some(node.node_wrapper().into());
+            return Ok(Some(node.node_wrapper().into()));
         }
 
         let allow_empty = node_as_export_declaration.module_specifier.is_some()
@@ -532,15 +533,15 @@ impl TransformTypeScript {
                 self.compiler_options.imports_not_used_as_values,
                 Some(ImportsNotUsedAsValues::Preserve) | Some(ImportsNotUsedAsValues::Error)
             );
-        let export_clause = visit_node(
+        let export_clause = try_visit_node(
             node_as_export_declaration.export_clause.as_deref(),
             Some(|bindings: &Node /*NamedExportBindings*/| {
                 self.visit_named_export_bindings(bindings, allow_empty)
             }),
             Some(is_named_export_bindings),
             Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
-        );
-        export_clause.map(|export_clause| {
+        )?;
+        Ok(export_clause.map(|export_clause| {
             self.factory
                 .update_export_declaration(
                     node,
@@ -552,21 +553,176 @@ impl TransformTypeScript {
                     node_as_export_declaration.assert_clause.clone(),
                 )
                 .into()
-        })
+        }))
+    }
+
+    pub(super) fn visit_named_exports(
+        &self,
+        node: &Node, /*NamedExports*/
+        allow_empty: bool,
+    ) -> io::Result<VisitResult> /*<NamedExports>*/ {
+        let node_as_named_exports = node.as_named_exports();
+        let elements = try_visit_nodes(
+            Some(&node_as_named_exports.elements),
+            Some(|node: &Node| self.visit_export_specifier(node)),
+            Some(is_export_specifier),
+            None,
+            None,
+        )?
+        .unwrap();
+        Ok((allow_empty || !elements.is_empty())
+            .then(|| self.factory.update_named_exports(node, elements).into()))
+    }
+
+    pub(super) fn visit_namespace_exports(
+        &self,
+        node: &Node, /*NamespaceExport*/
+    ) -> io::Result<VisitResult> /*<NamespaceExport>*/ {
+        Ok(Some(
+            self.factory
+                .update_namespace_export(
+                    node,
+                    try_visit_node(
+                        Some(&*node.as_namespace_export().name),
+                        Some(|node: &Node| self.visitor(node)),
+                        Some(is_identifier),
+                        Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                    )?
+                    .unwrap(),
+                )
+                .into(),
+        ))
     }
 
     pub(super) fn visit_named_export_bindings(
         &self,
-        _node: &Node, /*NamedExportBindings*/
-        _allow_empty: bool,
-    ) -> VisitResult /*<NamedExportBindings>*/ {
-        unimplemented!()
+        node: &Node, /*NamedExportBindings*/
+        allow_empty: bool,
+    ) -> io::Result<VisitResult> /*<NamedExportBindings>*/ {
+        Ok(if is_namespace_export(node) {
+            self.visit_namespace_exports(node)?
+        } else {
+            self.visit_named_exports(node, allow_empty)?
+        })
+    }
+
+    pub(super) fn visit_export_specifier(
+        &self,
+        node: &Node, /*ExportSpecifier*/
+    ) -> io::Result<VisitResult> /*<ExportSpecifier>*/ {
+        let node_as_export_specifier = node.as_export_specifier();
+        Ok((!node_as_export_specifier.is_type_only
+            && self.resolver.is_value_alias_declaration(node)?)
+        .then(|| node.node_wrapper().into()))
+    }
+
+    pub(super) fn should_emit_import_equals_declaration(
+        &self,
+        node: &Node, /*ImportEqualsDeclaration*/
+    ) -> io::Result<bool> {
+        Ok(self.should_emit_alias_declaration(node)
+            || !is_external_module(&self.current_source_file())
+                && self
+                    .resolver
+                    .is_top_level_value_import_equals_with_entity_name(node)?)
     }
 
     pub(super) fn visit_import_equals_declaration(
         &self,
-        _node: &Node, /*ImportEqualsDeclaration*/
-    ) -> VisitResult /*<Statement>*/ {
-        unimplemented!()
+        node: &Node, /*ImportEqualsDeclaration*/
+    ) -> io::Result<VisitResult> /*<Statement>*/ {
+        let node_as_import_equals_declaration = node.as_import_equals_declaration();
+        if node_as_import_equals_declaration.is_type_only {
+            return Ok(None);
+        }
+
+        if is_external_module_import_equals_declaration(node) {
+            let is_referenced = self.should_emit_alias_declaration(node);
+            if !is_referenced
+                && self.compiler_options.imports_not_used_as_values
+                    == Some(ImportsNotUsedAsValues::Preserve)
+            {
+                return Ok(Some(
+                    self.factory
+                        .create_import_declaration(
+                            Option::<Gc<NodeArray>>::None,
+                            Option::<Gc<NodeArray>>::None,
+                            None,
+                            node_as_import_equals_declaration
+                                .module_reference
+                                .as_external_module_reference()
+                                .expression
+                                .clone(),
+                            None,
+                        )
+                        .wrap()
+                        .set_text_range(Some(node))
+                        .set_original_node(Some(node.node_wrapper()))
+                        .into(),
+                ));
+            }
+
+            return is_referenced.try_then(|| -> io::Result<_> {
+                Ok(try_visit_each_child(
+                    Some(node),
+                    |node: &Node| self.visitor(node),
+                    &**self.context,
+                )?
+                .unwrap()
+                .into())
+            });
+        }
+
+        if !self.should_emit_import_equals_declaration(node)? {
+            return Ok(None);
+        }
+
+        let module_reference = create_expression_from_entity_name(
+            &*self.factory,
+            &node_as_import_equals_declaration.module_reference,
+        )
+        .set_emit_flags(EmitFlags::NoComments | EmitFlags::NoNestedComments);
+
+        Ok(Some(
+            if self.is_named_external_module_export(node) || !self.is_export_of_namespace(node) {
+                self.factory
+                    .create_variable_statement(
+                        visit_nodes(
+                            node.maybe_modifiers().as_deref(),
+                            Some(|node: &Node| self.modifier_visitor(node)),
+                            Some(is_modifier),
+                            None,
+                            None,
+                        ),
+                        self.factory
+                            .create_variable_declaration_list(
+                                vec![self
+                                    .factory
+                                    .create_variable_declaration(
+                                        node_as_import_equals_declaration.maybe_name(),
+                                        None,
+                                        None,
+                                        Some(module_reference),
+                                    )
+                                    .wrap()
+                                    .set_original_node(Some(node.node_wrapper()))],
+                                None,
+                            )
+                            .wrap(),
+                    )
+                    .wrap()
+                    .set_text_range(Some(node))
+                    .set_original_node(Some(node.node_wrapper()))
+                    .into()
+            } else {
+                self.create_namespace_export(
+                    &node_as_import_equals_declaration.name(),
+                    &module_reference,
+                    Some(node),
+                )
+                .set_original_node(Some(node.node_wrapper()))
+                .into()
+            },
+        ))
     }
 }
