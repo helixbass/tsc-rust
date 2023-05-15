@@ -53,6 +53,22 @@ impl<TItem: Ord> VecExtOrd for Vec<TItem> {
     }
 }
 
+pub trait SliceExtCloneOrd {
+    type Item: Clone + Ord;
+
+    fn sorted(self) -> Vec<Self::Item>;
+}
+
+impl<TItem: Clone + Ord> SliceExtCloneOrd for &[TItem] {
+    type Item = TItem;
+
+    fn sorted(self) -> Vec<TItem> {
+        let mut cloned = self.to_owned();
+        cloned.sort();
+        cloned
+    }
+}
+
 #[derive(Clone, Debug, Trace, Finalize)]
 pub struct GcVec<TItem: Trace + Finalize + 'static>(Gc<Vec<TItem>>);
 

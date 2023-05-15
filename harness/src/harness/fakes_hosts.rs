@@ -355,6 +355,48 @@ pub mod fakes {
             };
             Ok(Self { sys })
         }
+
+        pub fn vfs(&self) -> Gc<vfs::FileSystem> {
+            self.sys.vfs.clone()
+        }
+
+        pub fn directory_exists(&self, directory_name: &str) -> bool {
+            self.sys.directory_exists(directory_name)
+        }
+    }
+
+    impl typescript_rust::ParseConfigHost for ParseConfigHost {
+        fn use_case_sensitive_file_names(&self) -> bool {
+            self.sys.use_case_sensitive_file_names()
+        }
+
+        fn file_exists(&self, file_name: &str) -> bool {
+            self.sys.file_exists(file_name)
+        }
+
+        fn read_directory(
+            &self,
+            root_dir: &str,
+            extensions: &[&str],
+            excludes: Option<&[String]>,
+            includes: &[String],
+            depth: Option<usize>,
+        ) -> io::Result<Vec<String>> {
+            self.sys
+                .read_directory(root_dir, Some(extensions), excludes, Some(includes), depth)
+        }
+
+        fn read_file(&self, path: &str) -> io::Result<Option<String>> {
+            self.sys.read_file(path)
+        }
+
+        fn is_trace_supported(&self) -> bool {
+            false
+        }
+
+        fn as_dyn_module_resolution_host(&self) -> &dyn ModuleResolutionHost {
+            unreachable!("maybe?")
+        }
     }
 
     #[derive(Trace, Finalize)]

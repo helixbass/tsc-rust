@@ -1,18 +1,18 @@
-use gc::{Finalize, Gc, Trace};
+use gc::{Finalize, Gc, GcCell, Trace};
 use std::borrow::Cow;
-use std::env;
 use std::fs::{self, File};
 use std::io::{self, Write};
 use std::path::Path;
 use std::process;
 use std::rc::Rc;
 use std::time::{SystemTime, UNIX_EPOCH};
+use std::{env, mem};
 
 use crate::{
     combine_paths, empty_file_system_entries, fs_readdir_sync_with_file_types, fs_stat_sync,
     is_windows, match_files, process_cwd, read_file_and_strip_leading_byte_order_mark,
-    ConvertToTSConfigHost, ExitStatus, FileSystemEntries, RequireResult, StatLike, Stats,
-    WatchFileKind, WatchOptions,
+    ConvertToTSConfigHost, ExitStatus, FileSystemEntries, ModuleResolutionHost, ParseConfigHost,
+    RequireResult, StatLike, Stats, WatchFileKind, WatchOptions,
 };
 
 pub fn generate_djb2_hash(_data: &str) -> String {
@@ -176,17 +176,26 @@ pub trait FileWatcher {
 const byte_order_mark_indicator: &'static str = "\u{FEFF}";
 
 #[derive(Trace, Finalize)]
-struct SystemConcrete {
+pub struct SystemConcrete {
+    _dyn_wrapper: GcCell<Option<Gc<Box<dyn System>>>>,
     args: Vec<String>,
     use_case_sensitive_file_names: bool,
 }
 
 impl SystemConcrete {
-    pub fn new(args: Vec<String>, use_case_sensitive_file_names: bool) -> Self {
-        Self {
+    pub fn new(args: Vec<String>, use_case_sensitive_file_names: bool) -> Gc<Box<Self>> {
+        let dyn_wrapper: Gc<Box<dyn System>> = Gc::new(Box::new(Self {
+            _dyn_wrapper: Default::default(),
             args,
             use_case_sensitive_file_names,
-        }
+        }));
+        let downcasted: Gc<Box<Self>> = unsafe { mem::transmute(dyn_wrapper.clone()) };
+        *downcasted._dyn_wrapper.borrow_mut() = Some(dyn_wrapper);
+        downcasted
+    }
+
+    pub fn as_dyn_sys(&self) -> Gc<Box<dyn System>> {
+        self._dyn_wrapper.borrow().clone().unwrap()
     }
 
     fn realpath_sync(&self, path: &str) -> io::Result<String> {
@@ -334,7 +343,7 @@ impl System for SystemConcrete {
             &process_cwd(),
             depth,
             |path| self.get_accessible_file_system_entries(path),
-            |path| self.realpath(path).unwrap(),
+            |path| System::realpath(self, path).unwrap(),
         ))
     }
 
@@ -455,14 +464,61 @@ impl System for SystemConcrete {
     }
 }
 
+impl ParseConfigHost for SystemConcrete {
+    fn use_case_sensitive_file_names(&self) -> bool {
+        ConvertToTSConfigHost::use_case_sensitive_file_names(self)
+    }
+
+    fn read_directory(
+        &self,
+        root_dir: &str,
+        extensions: &[&str],
+        excludes: Option<&[String]>,
+        includes: &[String],
+        depth: Option<usize>,
+    ) -> io::Result<Vec<String>> {
+        Ok(match_files(
+            root_dir,
+            Some(extensions),
+            excludes,
+            Some(includes),
+            self.use_case_sensitive_file_names,
+            &process_cwd(),
+            depth,
+            |path| self.get_accessible_file_system_entries(path),
+            |path| System::realpath(self, path).unwrap(),
+        ))
+    }
+
+    fn file_exists(&self, path: &str) -> bool {
+        System::file_exists(self, path)
+    }
+
+    fn read_file(&self, path: &str) -> io::Result<Option<String>> {
+        System::read_file(self, path)
+    }
+
+    fn is_trace_supported(&self) -> bool {
+        false
+    }
+
+    fn as_dyn_module_resolution_host(&self) -> &dyn ModuleResolutionHost {
+        unreachable!("maybe?")
+    }
+}
+
 thread_local! {
-    static SYS: Gc<Box<dyn System>> = Gc::new(Box::new(SystemConcrete::new(
+    static SYS: Gc<Box<SystemConcrete>> = SystemConcrete::new(
         env::args().skip(1).collect(),
         is_file_system_case_sensitive(),
-    )));
+    );
 }
 
 pub fn get_sys() -> Gc<Box<dyn System>> {
+    SYS.with(|sys| sys.as_dyn_sys())
+}
+
+pub fn get_sys_concrete() -> Gc<Box<SystemConcrete>> {
     SYS.with(|sys| sys.clone())
 }
 

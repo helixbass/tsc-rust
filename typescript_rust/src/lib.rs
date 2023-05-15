@@ -281,7 +281,7 @@ pub use compiler::scanner::{
 pub use compiler::semver::{Version, VersionRange};
 pub use compiler::sourcemap::{create_source_map_generator, try_parse_raw_source_map};
 pub use compiler::sys::{
-    generate_djb2_hash, get_sys, Buffer, DirectoryWatcherCallback, FileWatcher,
+    generate_djb2_hash, get_sys, get_sys_concrete, Buffer, DirectoryWatcherCallback, FileWatcher,
     FileWatcherCallback, System,
 };
 use compiler::sys::{ignored_paths, missing_file_modified_time};
@@ -768,7 +768,9 @@ pub use rust_helpers::sys::{
     read_file_and_strip_leading_byte_order_mark, StatLike, Stats,
 };
 pub use rust_helpers::uri::encode_uri;
-pub use rust_helpers::vec::{GcVec, GcVecOwnedIter, VecExt, VecExtClone, VecExtOrd};
+pub use rust_helpers::vec::{
+    GcVec, GcVecOwnedIter, SliceExtCloneOrd, VecExt, VecExtClone, VecExtOrd,
+};
 pub use rust_helpers::weak_self::WeakSelf;
 pub use rust_helpers::{
     are_gc_slices_equal, are_option_gcs_equal, are_option_rcs_equal, are_rc_slices_equal,
