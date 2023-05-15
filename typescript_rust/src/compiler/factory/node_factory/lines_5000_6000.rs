@@ -686,6 +686,16 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         unimplemented!()
     }
 
+    pub fn get_namespace_member_name(
+        &self,
+        _ns: &Node,   /*Identifier*/
+        _name: &Node, /*Identifier*/
+        _allow_comments: Option<bool>,
+        _allow_source_maps: Option<bool>,
+    ) -> Gc<Node /*PropertyAccessExpression*/> {
+        unimplemented!()
+    }
+
     pub fn get_external_module_or_namespace_export_name(
         &self,
         _ns: Option<impl Borrow<Node> /*Identifier*/>,

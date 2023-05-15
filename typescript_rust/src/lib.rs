@@ -478,7 +478,7 @@ pub use compiler::utilities::{
     create_diagnostic_for_node, create_diagnostic_for_node_array,
     create_diagnostic_for_node_from_message_chain, create_diagnostic_for_node_in_source_file,
     create_diagnostic_for_range, create_file_diagnostic, create_file_diagnostic_from_message_chain,
-    create_modifiers, create_symbol_table, create_symlink_cache, create_text_writer,
+    create_modifiers, create_range, create_symbol_table, create_symlink_cache, create_text_writer,
     create_token_range, create_underscore_escaped_map, declaration_name_to_string,
     default_maximum_truncation_length, directory_probably_exists, emit_detached_comments,
     emit_new_line_before_leading_comment_of_position, empty_file_system_entries,

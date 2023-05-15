@@ -205,17 +205,23 @@ pub fn array_is_homogeneous<TItem, TComparer: FnMut(&TItem, &TItem) -> bool>(
     true
 }
 
-pub fn set_text_range_pos<TRange: ReadonlyTextRange>(range: &TRange, pos: isize) -> &TRange {
+pub fn set_text_range_pos<TRange: ReadonlyTextRange + ?Sized>(
+    range: &TRange,
+    pos: isize,
+) -> &TRange {
     range.set_pos(pos);
     range
 }
 
-pub(crate) fn set_text_range_end<TRange: ReadonlyTextRange>(range: &TRange, end: isize) -> &TRange {
+pub(crate) fn set_text_range_end<TRange: ReadonlyTextRange + ?Sized>(
+    range: &TRange,
+    end: isize,
+) -> &TRange {
     range.set_end(end);
     range
 }
 
-pub fn set_text_range_pos_end(range: &impl ReadonlyTextRange, pos: isize, end: isize) {
+pub fn set_text_range_pos_end(range: &(impl ReadonlyTextRange + ?Sized), pos: isize, end: isize) {
     set_text_range_end(set_text_range_pos(range, pos), end);
 }
 

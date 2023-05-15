@@ -4,15 +4,15 @@ use bitflags::bitflags;
 use gc::{Finalize, Gc, GcCell, GcCellRef, GcCellRefMut, Trace};
 
 use crate::{
-    add_emit_helpers, are_option_gcs_equal, create_unparsed_source_file, get_emit_module_kind,
-    get_emit_script_target, get_parse_tree_node, get_strict_option_value, has_syntactic_modifier,
-    is_class_declaration, is_statement, map_defined, modifier_to_flag, try_visit_each_child,
-    visit_each_child, BaseNodeFactorySynthetic, CompilerOptions, Debug_, EmitHelperFactory,
-    EmitHint, EmitResolver, Matches, ModifierFlags, ModuleKind, Node, NodeArray, NodeFactory,
-    NodeId, NodeInterface, ScriptTarget, SyntaxKind, TransformFlags, TransformationContext,
-    TransformationContextOnEmitNodeOverrider, TransformationContextOnSubstituteNodeOverrider,
-    Transformer, TransformerFactory, TransformerFactoryInterface, TransformerInterface,
-    UnderscoreEscapedMap, VisitResult,
+    add_emit_helpers, are_option_gcs_equal, create_unparsed_source_file, gc_cell_ref_mut_unwrapped,
+    get_emit_module_kind, get_emit_script_target, get_parse_tree_node, get_strict_option_value,
+    has_syntactic_modifier, is_class_declaration, is_statement, map_defined, modifier_to_flag,
+    try_visit_each_child, visit_each_child, BaseNodeFactorySynthetic, CompilerOptions, Debug_,
+    EmitHelperFactory, EmitHint, EmitResolver, Matches, ModifierFlags, ModuleKind, Node, NodeArray,
+    NodeFactory, NodeId, NodeInterface, ScriptTarget, SyntaxKind, TransformFlags,
+    TransformationContext, TransformationContextOnEmitNodeOverrider,
+    TransformationContextOnSubstituteNodeOverrider, Transformer, TransformerFactory,
+    TransformerFactoryInterface, TransformerInterface, UnderscoreEscapedMap, VisitResult,
 };
 use std::io;
 
@@ -216,8 +216,29 @@ impl TransformTypeScript {
             .set(current_class_has_parameter_properties);
     }
 
+    pub(super) fn enabled_substitutions(&self) -> TypeScriptSubstitutionFlags {
+        self.enabled_substitutions.get()
+    }
+
+    pub(super) fn set_enabled_substitutions(
+        &self,
+        enabled_substitutions: TypeScriptSubstitutionFlags,
+    ) {
+        self.enabled_substitutions.set(enabled_substitutions);
+    }
+
     pub(super) fn maybe_class_aliases(&self) -> GcCellRef<Option<HashMap<NodeId, Gc<Node>>>> {
         self.class_aliases.borrow()
+    }
+
+    pub(super) fn class_aliases_mut(
+        &self,
+    ) -> GcCellRefMut<Option<HashMap<NodeId, Gc<Node>>>, HashMap<NodeId, Gc<Node>>> {
+        gc_cell_ref_mut_unwrapped(&self.class_aliases)
+    }
+
+    pub(super) fn set_class_aliases(&self, class_aliases: Option<HashMap<NodeId, Gc<Node>>>) {
+        *self.class_aliases.borrow_mut() = class_aliases;
     }
 
     pub(super) fn emit_helpers(&self) -> Rc<EmitHelperFactory> {

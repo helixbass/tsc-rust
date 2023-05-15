@@ -2087,7 +2087,7 @@ impl Clone for BaseNode {
 }
 
 pub trait NodeExt {
-    fn set_text_range(self, location: Option<&impl ReadonlyTextRange>) -> Self;
+    fn set_text_range(self, location: Option<&(impl ReadonlyTextRange + ?Sized)>) -> Self;
     fn set_text_range_pos(self, pos: isize) -> Self;
     fn set_text_range_end(self, end: isize) -> Self;
     fn set_emit_flags(self, emit_flags: EmitFlags) -> Self;
@@ -2101,7 +2101,7 @@ pub trait NodeExt {
 }
 
 impl NodeExt for Gc<Node> {
-    fn set_text_range(self, location: Option<&impl ReadonlyTextRange>) -> Self {
+    fn set_text_range(self, location: Option<&(impl ReadonlyTextRange + ?Sized)>) -> Self {
         set_text_range_rc_node(self, location)
     }
 
