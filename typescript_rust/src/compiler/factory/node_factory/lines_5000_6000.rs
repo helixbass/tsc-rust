@@ -558,6 +558,14 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         unimplemented!()
     }
 
+    pub fn create_synthetic_reference_expression(
+        &self,
+        _expression: Gc<Node>, /*Expression*/
+        _this_arg: Gc<Node>,   /*Expression*/
+    ) -> Gc<Node> {
+        unimplemented!()
+    }
+
     pub fn clone_node(&self, node: &Node) -> Gc<Node> {
         // if (node === undefined) {
         //     return node;

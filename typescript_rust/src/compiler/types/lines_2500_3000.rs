@@ -430,6 +430,34 @@ impl HasElementsInterface for CommaListExpression {
 
 #[derive(Debug, Trace, Finalize)]
 #[ast_type]
+pub struct SyntheticReferenceExpression {
+    _node: BaseNode,
+    pub expression: Gc<Node /*Expression*/>,
+    pub this_arg: Gc<Node /*Expression*/>,
+}
+
+impl SyntheticReferenceExpression {
+    pub fn new(
+        base_node: BaseNode,
+        expression: Gc<Node /*Expression*/>,
+        this_arg: Gc<Node /*Expression*/>,
+    ) -> Self {
+        Self {
+            _node: base_node,
+            expression,
+            this_arg,
+        }
+    }
+}
+
+impl HasExpressionInterface for SyntheticReferenceExpression {
+    fn expression(&self) -> Gc<Node> {
+        self.expression.clone()
+    }
+}
+
+#[derive(Debug, Trace, Finalize)]
+#[ast_type]
 pub struct EmptyStatement {
     _node: BaseNode,
 }

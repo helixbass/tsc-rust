@@ -306,8 +306,8 @@ pub use compiler::transformers::tagged_template::{
 };
 pub use compiler::transformers::utilities::{
     add_prologue_directives_and_initial_super_call, chain_bundle, get_original_node_id,
-    get_properties, is_simple_inlineable_expression, maybe_get_original_node_id,
-    try_add_prologue_directives_and_initial_super_call,
+    get_properties, is_simple_copiable_expression, is_simple_inlineable_expression,
+    maybe_get_original_node_id, try_add_prologue_directives_and_initial_super_call,
 };
 pub use compiler::transformers::{
     is_internal_declaration, transform_class_fields, transform_declarations,
@@ -435,11 +435,11 @@ pub use compiler::types::{
     SymbolAccessibility, SymbolAccessibilityResult, SymbolFlags, SymbolFormatFlags, SymbolId,
     SymbolInterface, SymbolLinks, SymbolTable, SymbolTracker, SymbolVisibilityResult, SymbolWalker,
     SymbolWriter, SyntaxKind, SyntaxList, SynthesizedComment, SyntheticExpression,
-    TaggedTemplateExpression, TemplateExpression, TemplateLiteralLikeNode,
-    TemplateLiteralLikeNodeInterface, TemplateLiteralType, TemplateLiteralTypeNode,
-    TemplateLiteralTypeSpan, TemplateSpan, Ternary, TextChangeRange, TextRange, TextSpan,
-    ThisTypeNode, ThrowStatement, ToHashMapOfCompilerOptionsValues, TokenFlags, TransformFlags,
-    TransformationContext, TransformationContextOnEmitNodeOverrider,
+    SyntheticReferenceExpression, TaggedTemplateExpression, TemplateExpression,
+    TemplateLiteralLikeNode, TemplateLiteralLikeNodeInterface, TemplateLiteralType,
+    TemplateLiteralTypeNode, TemplateLiteralTypeSpan, TemplateSpan, Ternary, TextChangeRange,
+    TextRange, TextSpan, ThisTypeNode, ThrowStatement, ToHashMapOfCompilerOptionsValues,
+    TokenFlags, TransformFlags, TransformationContext, TransformationContextOnEmitNodeOverrider,
     TransformationContextOnSubstituteNodeOverrider, TransformationResult, Transformer,
     TransformerFactory, TransformerFactoryInterface, TransformerFactoryOrCustomTransformerFactory,
     TransformerInterface, TransientSymbol, TransientSymbolInterface, TryStatement,

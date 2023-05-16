@@ -1,8 +1,11 @@
+use std::{
+    borrow::Borrow,
+    cell::{Cell, RefCell},
+    fmt,
+    rc::Rc,
+};
+
 use gc::Gc;
-use std::borrow::Borrow;
-use std::cell::{Cell, RefCell};
-use std::fmt;
-use std::rc::Rc;
 
 use crate::{
     maybe_map, unescape_leading_underscores, AssertionLevel, Node, NodeArray, NodeInterface,
@@ -22,8 +25,10 @@ pub trait LoggingHost {
     fn log(&self, level: LogLevel, s: &str);
 }
 
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
 enum AssertionKeys {
     AssertNode,
+    AssertNotNode,
 }
 
 thread_local! {
@@ -176,6 +181,20 @@ impl DebugType {
         if self.should_assert_function(AssertionLevel::Normal, AssertionKeys::AssertNode) {
             self.assert(
                 node.is_some() && (test.is_none() || (test.unwrap())(node.unwrap().borrow())),
+                Some(message.unwrap_or("Unexpected node.")),
+            );
+        }
+    }
+
+    pub fn assert_not_node(
+        &self,
+        node: Option<impl Borrow<Node>>,
+        test: Option<impl FnOnce(&Node) -> bool>,
+        message: Option<&str>,
+    ) {
+        if self.should_assert_function(AssertionLevel::Normal, AssertionKeys::AssertNotNode) {
+            self.assert(
+                node.is_none() || test.is_none() || !(test.unwrap())(node.unwrap().borrow()),
                 Some(message.unwrap_or("Unexpected node.")),
             );
         }

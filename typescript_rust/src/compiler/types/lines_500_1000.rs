@@ -10,7 +10,8 @@ use crate::{
     HasFileNameInterface, HasLeftAndRightInterface, HasMembersInterface,
     HasModuleSpecifierInterface, HasOldFileOfCurrentEmitInterface, HasTagNameInterface,
     HasTextsInterface, InferenceContext, JSDocHeritageTagInterface, JsxOpeningLikeElementInterface,
-    SourceFileLike, SourceMapRange, SyntheticExpression, UnparsedSyntheticReference,
+    SourceFileLike, SourceMapRange, SyntheticExpression, SyntheticReferenceExpression,
+    UnparsedSyntheticReference,
 };
 
 use super::{
@@ -381,6 +382,7 @@ pub enum Node {
     ThrowStatement(ThrowStatement),
     TryStatement(TryStatement),
     DebuggerStatement(DebuggerStatement),
+    SyntheticReferenceExpression(SyntheticReferenceExpression),
     ClassDeclaration(ClassDeclaration),
     EnumDeclaration(EnumDeclaration),
     ModuleBlock(ModuleBlock),
@@ -1690,6 +1692,10 @@ impl Node {
 
     pub fn as_get_accessor_declaration(&self) -> &GetAccessorDeclaration {
         enum_unwrapped!(self, [Node, GetAccessorDeclaration])
+    }
+
+    pub fn as_synthetic_reference_expression(&self) -> &SyntheticReferenceExpression {
+        enum_unwrapped!(self, [Node, SyntheticReferenceExpression])
     }
 }
 

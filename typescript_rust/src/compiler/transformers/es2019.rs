@@ -62,7 +62,7 @@ impl TransformES2019 {
         .unwrap()
     }
 
-    fn visitor(&self, node: &Node /*SourceFile*/) -> VisitResult /*<Node>*/ {
+    fn visitor(&self, node: &Node) -> VisitResult /*<Node>*/ {
         if !node
             .transform_flags()
             .intersects(TransformFlags::ContainsES2019)

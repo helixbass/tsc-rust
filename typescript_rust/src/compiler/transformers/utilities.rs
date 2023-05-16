@@ -54,6 +54,10 @@ pub fn chain_bundle() -> Gc<Box<dyn WrapCustomTransformerFactoryHandleDefault>> 
     CHAIN_BUNDLE.with(|chain_bundle| chain_bundle.clone())
 }
 
+pub fn is_simple_copiable_expression(_expression: &Node /*Expression*/) -> bool {
+    unimplemented!()
+}
+
 pub fn is_simple_inlineable_expression(_expression: &Node /*Expression*/) -> bool {
     unimplemented!()
 }
