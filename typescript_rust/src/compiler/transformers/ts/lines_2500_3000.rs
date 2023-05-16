@@ -392,61 +392,65 @@ impl TransformTypeScript {
     pub(super) fn visit_import_declaration(
         &self,
         node: &Node, /*ImportDeclaration*/
-    ) -> VisitResult /*<Statement>*/ {
+    ) -> io::Result<VisitResult> /*<Statement>*/ {
         let node_as_import_declaration = node.as_import_declaration();
         if node_as_import_declaration.import_clause.is_none() {
-            return Some(node.node_wrapper().into());
+            return Ok(Some(node.node_wrapper().into()));
         }
         let node_import_clause = node_as_import_declaration.import_clause.as_ref().unwrap();
         if node_import_clause.as_import_clause().is_type_only {
-            return None;
+            return Ok(None);
         }
 
-        let import_clause = visit_node(
+        let import_clause = try_visit_node(
             Some(&**node_import_clause),
             Some(|node: &Node| self.visit_import_clause(node)),
             Some(is_import_clause),
             Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
-        );
-        if import_clause.is_some()
-            || matches!(
-                self.compiler_options.imports_not_used_as_values,
-                Some(ImportsNotUsedAsValues::Preserve) | Some(ImportsNotUsedAsValues::Error)
-            )
-        {
-            Some(
-                self.factory
-                    .update_import_declaration(
-                        node,
-                        Option::<Gc<NodeArray>>::None,
-                        Option::<Gc<NodeArray>>::None,
-                        import_clause,
-                        node_as_import_declaration.module_specifier.clone(),
-                        node_as_import_declaration.assert_clause.clone(),
-                    )
-                    .into(),
-            )
-        } else {
-            None
-        }
+        )?;
+        Ok(
+            if import_clause.is_some()
+                || matches!(
+                    self.compiler_options.imports_not_used_as_values,
+                    Some(ImportsNotUsedAsValues::Preserve) | Some(ImportsNotUsedAsValues::Error)
+                )
+            {
+                Some(
+                    self.factory
+                        .update_import_declaration(
+                            node,
+                            Option::<Gc<NodeArray>>::None,
+                            Option::<Gc<NodeArray>>::None,
+                            import_clause,
+                            node_as_import_declaration.module_specifier.clone(),
+                            node_as_import_declaration.assert_clause.clone(),
+                        )
+                        .into(),
+                )
+            } else {
+                None
+            },
+        )
     }
 
-    pub(super) fn visit_import_clause(&self, node: &Node /*ImportClause*/) -> VisitResult /*<ImportClause>*/
-    {
+    pub(super) fn visit_import_clause(
+        &self,
+        node: &Node, /*ImportClause*/
+    ) -> io::Result<VisitResult> /*<ImportClause>*/ {
         let node_as_import_clause = node.as_import_clause();
         Debug_.assert(!node_as_import_clause.is_type_only, None);
-        let name = if self.should_emit_alias_declaration(node) {
+        let name = if self.should_emit_alias_declaration(node)? {
             node_as_import_clause.name.as_ref()
         } else {
             None
         };
-        let named_bindings = visit_node(
+        let named_bindings = try_visit_node(
             node_as_import_clause.named_bindings.as_deref(),
             Some(|node: &Node| self.visit_named_import_bindings(node)),
             Some(is_named_import_bindings),
             Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
-        );
-        if name.is_some() || named_bindings.is_some() {
+        )?;
+        Ok(if name.is_some() || named_bindings.is_some() {
             Some(
                 self.factory
                     .update_import_clause(node, false, name.cloned(), named_bindings)
@@ -454,15 +458,15 @@ impl TransformTypeScript {
             )
         } else {
             None
-        }
+        })
     }
 
     pub(super) fn visit_named_import_bindings(
         &self,
         node: &Node, /*NamedImportBindings*/
-    ) -> VisitResult /*<NamedImportBindings>*/ {
-        if node.kind() == SyntaxKind::NamespaceImport {
-            if self.should_emit_alias_declaration(node) {
+    ) -> io::Result<VisitResult> /*<NamedImportBindings>*/ {
+        Ok(if node.kind() == SyntaxKind::NamespaceImport {
+            if self.should_emit_alias_declaration(node)? {
                 Some(node.node_wrapper().into())
             } else {
                 None
@@ -473,26 +477,28 @@ impl TransformTypeScript {
                     self.compiler_options.imports_not_used_as_values,
                     Some(ImportsNotUsedAsValues::Preserve) | Some(ImportsNotUsedAsValues::Error)
                 );
-            let elements = visit_nodes(
+            let elements = try_visit_nodes(
                 Some(&node.as_named_imports().elements),
                 Some(|node: &Node| self.visit_import_specifier(node)),
                 Some(is_import_specifier),
                 None,
                 None,
-            )
+            )?
             .unwrap();
             (allow_empty || !elements.is_empty())
                 .then(|| self.factory.update_named_imports(node, elements).into())
-        }
+        })
     }
 
     pub(super) fn visit_import_specifier(
         &self,
         node: &Node, /*ImportSpecifier*/
-    ) -> VisitResult /*<ImportSpecifier>*/ {
+    ) -> io::Result<VisitResult> /*<ImportSpecifier>*/ {
         let node_as_import_specifier = node.as_import_specifier();
-        (!node_as_import_specifier.is_type_only && self.should_emit_alias_declaration(node))
-            .then(|| node.node_wrapper().into())
+        Ok(
+            (!node_as_import_specifier.is_type_only && self.should_emit_alias_declaration(node)?)
+                .then(|| node.node_wrapper().into()),
+        )
     }
 
     pub(super) fn visit_export_assignment(
@@ -620,7 +626,7 @@ impl TransformTypeScript {
         &self,
         node: &Node, /*ImportEqualsDeclaration*/
     ) -> io::Result<bool> {
-        Ok(self.should_emit_alias_declaration(node)
+        Ok(self.should_emit_alias_declaration(node)?
             || !is_external_module(&self.current_source_file())
                 && self
                     .resolver
@@ -637,7 +643,7 @@ impl TransformTypeScript {
         }
 
         if is_external_module_import_equals_declaration(node) {
-            let is_referenced = self.should_emit_alias_declaration(node);
+            let is_referenced = self.should_emit_alias_declaration(node)?;
             if !is_referenced
                 && self.compiler_options.imports_not_used_as_values
                     == Some(ImportsNotUsedAsValues::Preserve)

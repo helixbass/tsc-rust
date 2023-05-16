@@ -194,9 +194,39 @@ pub fn set_synthetic_trailing_comments(node: &Node, comments: Option<Vec<Rc<Synt
     get_or_create_emit_node(node).borrow_mut().trailing_comments = comments;
 }
 
+pub fn add_synthetic_trailing_comment(
+    node: &Node,
+    kind: SyntaxKind, /*SyntaxKind.SingleLineCommentTrivia | SyntaxKind.MultiLineCommentTrivia*/
+    text: &str,
+    has_trailing_new_line: Option<bool>,
+) /*-> Gc<Node>*/
+{
+    let mut synthetic_trailing_comments = get_synthetic_trailing_comments(node);
+    if synthetic_trailing_comments.is_none() {
+        synthetic_trailing_comments = Some(Default::default());
+    }
+    synthetic_trailing_comments
+        .as_mut()
+        .unwrap()
+        .push(Rc::new(SynthesizedComment {
+            kind,
+            has_trailing_new_line,
+            text: text.to_owned(),
+            has_leading_new_line: None,
+        }));
+    set_synthetic_trailing_comments(node, synthetic_trailing_comments);
+}
+
 pub fn get_constant_value(node: &Node /*AccessExpression*/) -> Option<StringOrNumber> {
     node.maybe_emit_node()
         .and_then(|node_emit_node| (*node_emit_node).borrow().constant_value.clone())
+}
+
+pub fn set_constant_value(
+    _node: &Node, /*AccessExpression*/
+    _value: StringOrNumber,
+) -> Gc<Node /*AccessExpression*/> {
+    unimplemented!()
 }
 
 pub fn add_emit_helper(_node: &Node, _helper: Gc<EmitHelper>) -> Gc<Node> {

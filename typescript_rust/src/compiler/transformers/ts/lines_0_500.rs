@@ -4,17 +4,20 @@ use bitflags::bitflags;
 use gc::{Finalize, Gc, GcCell, GcCellRef, GcCellRefMut, Trace};
 
 use crate::{
-    add_emit_helpers, are_option_gcs_equal, create_unparsed_source_file, gc_cell_ref_mut_unwrapped,
-    get_emit_module_kind, get_emit_script_target, get_original_node, get_parse_tree_node,
-    get_strict_option_value, has_syntactic_modifier, is_class_declaration,
+    add_emit_helpers, add_synthetic_trailing_comment, are_option_gcs_equal,
+    create_unparsed_source_file, declaration_name_to_string, gc_cell_ref_mut_unwrapped,
+    gc_cell_ref_unwrapped, get_emit_module_kind, get_emit_script_target, get_original_node,
+    get_parse_tree_node, get_strict_option_value, get_text_of_node, has_syntactic_modifier,
+    is_access_expression, is_class_declaration, is_element_access_expression,
+    is_generated_identifier, is_local_name, is_property_access_expression,
     is_shorthand_property_assignment, is_source_file, is_statement, map_defined, modifier_to_flag,
-    try_visit_each_child, visit_each_child, BaseNodeFactorySynthetic, CompilerOptions, Debug_,
-    EmitHelperFactory, EmitHint, EmitResolver, Matches, ModifierFlags, ModuleKind,
-    NamedDeclarationInterface, Node, NodeArray, NodeCheckFlags, NodeExt, NodeFactory, NodeId,
-    NodeInterface, ScriptTarget, SyntaxKind, TransformFlags, TransformationContext,
-    TransformationContextOnEmitNodeOverrider, TransformationContextOnSubstituteNodeOverrider,
-    Transformer, TransformerFactory, TransformerFactoryInterface, TransformerInterface,
-    UnderscoreEscapedMap, VisitResult,
+    set_constant_value, try_visit_each_child, visit_each_child, BaseNodeFactorySynthetic, BoolExt,
+    CompilerOptions, Debug_, EmitHelperFactory, EmitHint, EmitResolver, Matches, ModifierFlags,
+    ModuleKind, NamedDeclarationInterface, Node, NodeArray, NodeCheckFlags, NodeExt, NodeFactory,
+    NodeId, NodeInterface, OptionTry, ScriptTarget, StringOrNumber, SyntaxKind, TransformFlags,
+    TransformationContext, TransformationContextOnEmitNodeOverrider,
+    TransformationContextOnSubstituteNodeOverrider, Transformer, TransformerFactory,
+    TransformerFactoryInterface, TransformerInterface, UnderscoreEscapedMap, VisitResult,
 };
 use std::io;
 
@@ -233,6 +236,10 @@ impl TransformTypeScript {
         self.class_aliases.borrow()
     }
 
+    pub(super) fn class_aliases(&self) -> GcCellRef<HashMap<NodeId, Gc<Node>>> {
+        gc_cell_ref_unwrapped(&self.class_aliases)
+    }
+
     pub(super) fn class_aliases_mut(
         &self,
     ) -> GcCellRefMut<Option<HashMap<NodeId, Gc<Node>>>, HashMap<NodeId, Gc<Node>>> {
@@ -441,7 +448,7 @@ impl TransformTypeScript {
             return Ok(Some(node.node_wrapper().into()));
         }
         Ok(match node.kind() {
-            SyntaxKind::ImportDeclaration => self.visit_import_declaration(node),
+            SyntaxKind::ImportDeclaration => self.visit_import_declaration(node)?,
             SyntaxKind::ImportEqualsDeclaration => self.visit_import_equals_declaration(node)?,
             SyntaxKind::ExportAssignment => self.visit_export_assignment(node)?,
             SyntaxKind::ExportDeclaration => self.visit_export_declaration(node)?,
@@ -727,7 +734,7 @@ impl TransformTypeScriptOnSubstituteNodeOverrider {
     fn substitute_shorthand_property_assignment(
         &self,
         node: &Node, /*ShorthandPropertyAssignment*/
-    ) -> Gc<Node /*ObjectLiteralElementLike*/> {
+    ) -> io::Result<Gc<Node /*ObjectLiteralElementLike*/>> {
         let node_as_shorthand_property_assignment = node.as_shorthand_property_assignment();
         if self
             .transform_type_script
@@ -735,7 +742,7 @@ impl TransformTypeScriptOnSubstituteNodeOverrider {
             .intersects(TypeScriptSubstitutionFlags::NamespaceExports)
         {
             let name = node_as_shorthand_property_assignment.name();
-            let exported_name = self.try_substitute_namespace_exported_name(&name);
+            let exported_name = self.try_substitute_namespace_exported_name(&name)?;
             if let Some(exported_name) = exported_name {
                 if let Some(node_object_assignment_initializer) =
                     node_as_shorthand_property_assignment
@@ -750,22 +757,22 @@ impl TransformTypeScriptOnSubstituteNodeOverrider {
                             node_object_assignment_initializer.clone(),
                         )
                         .wrap();
-                    return self
+                    return Ok(self
                         .transform_type_script
                         .factory
                         .create_property_assignment(name, initializer)
                         .wrap()
-                        .set_text_range(Some(node));
+                        .set_text_range(Some(node)));
                 }
-                return self
+                return Ok(self
                     .transform_type_script
                     .factory
                     .create_property_assignment(name, exported_name)
                     .wrap()
-                    .set_text_range(Some(node));
+                    .set_text_range(Some(node)));
             }
         }
-        node.node_wrapper()
+        Ok(node.node_wrapper())
     }
 
     fn substitute_expression(&self, node: &Node /*Expression*/) -> io::Result<Gc<Node>> {
@@ -774,10 +781,10 @@ impl TransformTypeScriptOnSubstituteNodeOverrider {
                 return self.substitute_expression_identifier(node);
             }
             SyntaxKind::PropertyAccessExpression => {
-                return Ok(self.substitute_property_access_expression(node));
+                return self.substitute_property_access_expression(node);
             }
             SyntaxKind::ElementAccessExpression => {
-                return Ok(self.substitute_element_access_expression(node));
+                return self.substitute_element_access_expression(node);
             }
             _ => (),
         }
@@ -791,7 +798,7 @@ impl TransformTypeScriptOnSubstituteNodeOverrider {
     ) -> io::Result<Gc<Node /*Expression*/>> {
         Ok(self
             .try_substitute_class_alias(node)?
-            .or_else(|| self.try_substitute_namespace_exported_name(node))
+            .try_or_else(|| self.try_substitute_namespace_exported_name(node))?
             .unwrap_or_else(|| node.node_wrapper()))
     }
 
@@ -814,6 +821,19 @@ impl TransformTypeScriptOnSubstituteNodeOverrider {
                     .transform_type_script
                     .resolver
                     .get_referenced_value_declaration(node)?;
+                if let Some(declaration) = declaration {
+                    let class_aliases = self.transform_type_script.class_aliases();
+                    let class_alias = class_aliases.get(&declaration.id());
+                    if let Some(class_alias) = class_alias {
+                        return Ok(Some(
+                            self.transform_type_script
+                                .factory
+                                .clone_node(class_alias)
+                                .set_source_map_range(Some(node.into()))
+                                .set_comment_range(node),
+                        ));
+                    }
+                }
             }
         }
 
@@ -822,23 +842,126 @@ impl TransformTypeScriptOnSubstituteNodeOverrider {
 
     fn try_substitute_namespace_exported_name(
         &self,
-        _node: &Node, /*Identifier*/
-    ) -> Option<Gc<Node /*Expression*/>> {
-        unimplemented!()
+        node: &Node, /*Identifier*/
+    ) -> io::Result<Option<Gc<Node /*Expression*/>>> {
+        if self.transform_type_script.enabled_substitutions()
+            & self.transform_type_script.applicable_substitutions()
+            != TypeScriptSubstitutionFlags::None
+            && !is_generated_identifier(node)
+            && !is_local_name(node)
+        {
+            let container = self
+                .transform_type_script
+                .resolver
+                .get_referenced_export_container(node, Some(false))?;
+            if let Some(container) =
+                container.filter(|container| container.kind() != SyntaxKind::SourceFile)
+            {
+                let substitute = self
+                    .transform_type_script
+                    .applicable_substitutions()
+                    .intersects(TypeScriptSubstitutionFlags::NamespaceExports)
+                    && container.kind() == SyntaxKind::ModuleDeclaration
+                    || self
+                        .transform_type_script
+                        .applicable_substitutions()
+                        .intersects(TypeScriptSubstitutionFlags::NonQualifiedEnumMembers)
+                        && container.kind() == SyntaxKind::EnumDeclaration;
+                if substitute {
+                    return Ok(Some(
+                        self.transform_type_script
+                            .factory
+                            .create_property_access_expression(
+                                self.transform_type_script
+                                    .factory
+                                    .get_generated_name_for_node(Some(container), None),
+                                node.node_wrapper(),
+                            )
+                            .wrap()
+                            .set_text_range(Some(node)),
+                    ));
+                }
+            }
+        }
+
+        Ok(None)
     }
 
     fn substitute_property_access_expression(
         &self,
-        _node: &Node, /*PropertyAccessExpression*/
-    ) -> Gc<Node> {
-        unimplemented!()
+        node: &Node, /*PropertyAccessExpression*/
+    ) -> io::Result<Gc<Node>> {
+        self.substitute_constant_value(node)
     }
 
     fn substitute_element_access_expression(
         &self,
-        _node: &Node, /*ElementAccessExpression*/
-    ) -> Gc<Node> {
-        unimplemented!()
+        node: &Node, /*ElementAccessExpression*/
+    ) -> io::Result<Gc<Node>> {
+        self.substitute_constant_value(node)
+    }
+
+    fn substitute_constant_value(
+        &self,
+        node: &Node, /*PropertyAccessExpression | ElementAccessExpression*/
+    ) -> io::Result<Gc<Node /*LeftHandSideExpression*/>> {
+        let constant_value = self.try_get_const_enum_value(node)?;
+
+        if let Some(constant_value) = constant_value {
+            set_constant_value(node, constant_value.clone());
+
+            let substitute = match constant_value {
+                StringOrNumber::String(constant_value) => self
+                    .transform_type_script
+                    .factory
+                    .create_string_literal(constant_value, None, None)
+                    .wrap(),
+                StringOrNumber::Number(constant_value) => self
+                    .transform_type_script
+                    .factory
+                    .create_numeric_literal(constant_value, None)
+                    .wrap(),
+            };
+            if self.transform_type_script.compiler_options.remove_comments != Some(true) {
+                let ref original_node = get_original_node(
+                    Some(node),
+                    Some(|node: Option<Gc<Node>>| is_access_expression(&node.unwrap())),
+                )
+                .unwrap();
+                let property_name = if is_property_access_expression(original_node) {
+                    declaration_name_to_string(
+                        original_node.as_property_access_expression().maybe_name(),
+                    )
+                } else {
+                    get_text_of_node(
+                        &original_node
+                            .as_element_access_expression()
+                            .argument_expression,
+                        None,
+                    )
+                };
+
+                add_synthetic_trailing_comment(
+                    &substitute,
+                    SyntaxKind::MultiLineCommentTrivia,
+                    &format!(" {} ", property_name),
+                    None,
+                );
+            }
+
+            return Ok(substitute);
+        }
+
+        Ok(node.node_wrapper())
+    }
+
+    fn try_get_const_enum_value(&self, node: &Node) -> io::Result<Option<StringOrNumber>> {
+        if self.transform_type_script.compiler_options.isolated_modules == Some(true) {
+            return Ok(None);
+        }
+
+        (is_property_access_expression(node) || is_element_access_expression(node))
+            .try_then_and(|| self.transform_type_script.resolver.get_constant_value(node))
     }
 }
 
@@ -852,7 +975,7 @@ impl TransformationContextOnSubstituteNodeOverrider
         if hint == EmitHint::Expression {
             return self.substitute_expression(&node);
         } else if is_shorthand_property_assignment(&node) {
-            return Ok(self.substitute_shorthand_property_assignment(&node));
+            return self.substitute_shorthand_property_assignment(&node);
         }
 
         Ok(node)

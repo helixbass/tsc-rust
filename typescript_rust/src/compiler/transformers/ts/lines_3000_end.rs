@@ -9,6 +9,7 @@ use crate::{Node, NodeInterface, ReadonlyTextRange};
 use super::{TransformTypeScript, TypeScriptSubstitutionFlags};
 use crate::has_syntactic_modifier;
 use crate::ModifierFlags;
+use std::io;
 
 impl TransformTypeScript {
     pub(super) fn is_export_of_namespace(&self, node: &Node) -> bool {
@@ -235,7 +236,13 @@ impl TransformTypeScript {
         }
     }
 
-    pub(super) fn should_emit_alias_declaration(&self, _node: &Node) -> bool {
-        unimplemented!()
+    pub(super) fn should_emit_alias_declaration(&self, node: &Node) -> io::Result<bool> {
+        Ok(
+            if self.compiler_options.preserve_value_imports == Some(true) {
+                self.resolver.is_value_alias_declaration(node)?
+            } else {
+                self.resolver.is_referenced_alias_declaration(node, None)?
+            },
+        )
     }
 }
