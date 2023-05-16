@@ -3,7 +3,7 @@ use std::{borrow::Borrow, io};
 use gc::{Finalize, Gc, Trace};
 
 use crate::{
-    get_node_id, get_original_node, BaseNodeFactory, Node, NodeFactory, NodeId,
+    get_node_id, get_original_node, BaseNodeFactory, Node, NodeFactory, NodeId, SyntaxKind,
     TransformationContext, Transformer, VisitResult, WrapCustomTransformerFactoryHandleDefault,
 };
 
@@ -59,6 +59,12 @@ pub fn is_simple_copiable_expression(_expression: &Node /*Expression*/) -> bool 
 }
 
 pub fn is_simple_inlineable_expression(_expression: &Node /*Expression*/) -> bool {
+    unimplemented!()
+}
+
+pub fn get_non_assignment_operator_for_compound_assignment(
+    _kind: SyntaxKind, /*CompoundAssignmentOperator*/
+) -> SyntaxKind /*LogicalOperatorOrHigher | SyntaxKind.QuestionQuestionToken*/ {
     unimplemented!()
 }
 
