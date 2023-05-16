@@ -1,8 +1,6 @@
+use std::{borrow::Borrow, cell::RefCell, collections::HashMap, fmt, ptr};
+
 use gc::{Finalize, Gc, GcCell, Trace};
-use std::borrow::Borrow;
-use std::cell::RefCell;
-use std::collections::HashMap;
-use std::{fmt, ptr};
 
 use super::{create_node_factory, NodeFactoryFlags};
 use crate::{
@@ -784,12 +782,13 @@ impl From<Gc<Box<dyn ReadFileCallback>>> for StringOrReadFileCallback {
     }
 }
 
-pub fn set_original_node(node: Gc<Node>, original: Option<Gc<Node>>) -> Gc<Node> {
-    node.set_original(original.clone());
+pub fn set_original_node<TNode: Borrow<Node>>(node: TNode, original: Option<Gc<Node>>) -> TNode {
+    let node_as_node = node.borrow();
+    node_as_node.set_original(original.clone());
     if let Some(original) = original {
         let emit_node = original.maybe_emit_node();
         if let Some(emit_node) = emit_node.as_ref() {
-            let node_emit_node = node
+            let node_emit_node = node_as_node
                 .maybe_emit_node_mut()
                 .get_or_insert_with(|| Gc::new(GcCell::new(Default::default())))
                 .clone();

@@ -3,13 +3,13 @@ use std::{io, mem};
 use gc::{Finalize, Gc, GcCell, Trace};
 
 use crate::{
-    cast, chain_bundle, is_expression, is_identifier, is_non_null_chain, is_optional_chain,
-    is_parenthesized_expression, is_simple_copiable_expression, is_synthetic_reference,
-    is_tagged_template_expression, skip_parentheses, skip_partially_emitted_expressions,
-    visit_each_child, visit_node, visit_nodes, BaseNodeFactorySynthetic, Debug_, Node, NodeArray,
-    NodeExt, NodeFactory, NodeInterface, SyntaxKind, TransformFlags, TransformationContext,
-    Transformer, TransformerFactory, TransformerFactoryInterface, TransformerInterface,
-    VisitResult,
+    cast, chain_bundle, is_call_chain, is_expression, is_identifier, is_non_null_chain,
+    is_optional_chain, is_parenthesized_expression, is_simple_copiable_expression,
+    is_synthetic_reference, is_tagged_template_expression, set_original_node, skip_parentheses,
+    skip_partially_emitted_expressions, visit_each_child, visit_node, visit_nodes,
+    BaseNodeFactorySynthetic, Debug_, Node, NodeArray, NodeExt, NodeFactory, NodeInterface,
+    SyntaxKind, TransformFlags, TransformationContext, Transformer, TransformerFactory,
+    TransformerFactoryInterface, TransformerInterface, VisitResult,
 };
 
 #[derive(Trace, Finalize)]
@@ -399,22 +399,273 @@ impl TransformES2020 {
 
     fn visit_optional_expression(
         &self,
-        _node: &Node, /*OptionalChain*/
-        _capture_this_arg: bool,
-        _is_delete: bool,
+        node: &Node, /*OptionalChain*/
+        capture_this_arg: bool,
+        is_delete: bool,
     ) -> Gc<Node /*Expression*/> {
-        unimplemented!()
+        let FlattenChainReturn { expression, chain } = self.flatten_chain(node);
+        let left = self.visit_non_optional_expression(&expression, is_call_chain(&chain[0]), false);
+        let left_this_arg = is_synthetic_reference(&left)
+            .then_some(&left.as_synthetic_reference_expression().this_arg);
+        let mut left_expression = if is_synthetic_reference(&left) {
+            left.as_synthetic_reference_expression().expression.clone()
+        } else {
+            left.clone()
+        };
+        let mut captured_left/*Expression*/ = left_expression.clone();
+        if !is_simple_copiable_expression(&left_expression) {
+            captured_left = self.factory.create_temp_variable(
+                Some(|node: &Node| {
+                    self.context.hoist_variable_declaration(node);
+                }),
+                None,
+            );
+            left_expression = self
+                .factory
+                .create_assignment(captured_left.clone(), left_expression.clone())
+                .wrap();
+        }
+        let mut right_expression = captured_left.clone();
+        let mut this_arg: Option<Gc<Node /*Expression*/>> = Default::default();
+        for (i, segment) in chain.iter().enumerate() {
+            match segment.kind() {
+                SyntaxKind::PropertyAccessExpression | SyntaxKind::ElementAccessExpression => {
+                    if i == chain.len() - 1 && capture_this_arg {
+                        if !is_simple_copiable_expression(&right_expression) {
+                            this_arg = Some(self.factory.create_temp_variable(
+                                Some(|node: &Node| {
+                                    self.context.hoist_variable_declaration(node);
+                                }),
+                                None,
+                            ));
+                            right_expression = self
+                                .factory
+                                .create_assignment(this_arg.clone().unwrap(), right_expression)
+                                .wrap();
+                        } else {
+                            this_arg = Some(right_expression.clone());
+                        }
+                    }
+                    right_expression = if segment.kind() == SyntaxKind::PropertyAccessExpression {
+                        self.factory
+                            .create_property_access_expression(
+                                right_expression,
+                                visit_node(
+                                    Some(&*segment.as_property_access_expression().name),
+                                    Some(|node: &Node| self.visitor(node)),
+                                    Some(is_identifier),
+                                    Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                                )
+                                .unwrap(),
+                            )
+                            .wrap()
+                    } else {
+                        self.factory
+                            .create_element_access_expression(
+                                right_expression,
+                                visit_node(
+                                    Some(
+                                        &*segment
+                                            .as_element_access_expression()
+                                            .argument_expression,
+                                    ),
+                                    Some(|node: &Node| self.visitor(node)),
+                                    Some(is_expression),
+                                    Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                                )
+                                .unwrap(),
+                            )
+                            .wrap()
+                    };
+                }
+                SyntaxKind::CallExpression => {
+                    if i == 0 && left_this_arg.is_some() {
+                        let left_this_arg = left_this_arg.unwrap();
+                        right_expression = self.factory.create_function_call_call(
+                            right_expression,
+                            if left_this_arg.kind() == SyntaxKind::SuperKeyword {
+                                self.factory.create_this().wrap()
+                            } else {
+                                left_this_arg.clone()
+                            },
+                            visit_nodes(
+                                Some(&segment.as_call_expression().arguments),
+                                Some(|node: &Node| self.visitor(node)),
+                                Some(is_expression),
+                                None,
+                                None,
+                            )
+                            .unwrap(),
+                        );
+                    } else {
+                        right_expression = self
+                            .factory
+                            .create_call_expression(
+                                right_expression,
+                                Option::<Gc<NodeArray>>::None,
+                                visit_nodes(
+                                    Some(&segment.as_call_expression().arguments),
+                                    Some(|node: &Node| self.visitor(node)),
+                                    Some(is_expression),
+                                    None,
+                                    None,
+                                ),
+                            )
+                            .wrap();
+                    }
+                }
+                _ => (),
+            }
+            set_original_node(&*right_expression, Some(segment.clone()));
+        }
+
+        let target = if is_delete {
+            self.factory
+                .create_conditional_expression(
+                    self.create_not_null_condition(left_expression, captured_left, Some(true)),
+                    None,
+                    self.factory.create_true().wrap(),
+                    None,
+                    self.factory
+                        .create_delete_expression(right_expression)
+                        .wrap(),
+                )
+                .wrap()
+        } else {
+            self.factory
+                .create_conditional_expression(
+                    self.create_not_null_condition(left_expression, captured_left, Some(true)),
+                    None,
+                    self.factory.create_void_zero(),
+                    None,
+                    right_expression,
+                )
+                .wrap()
+        }
+        .set_text_range(Some(node));
+        if let Some(this_arg) = this_arg {
+            self.factory
+                .create_synthetic_reference_expression(target, this_arg)
+        } else {
+            target
+        }
+    }
+
+    fn create_not_null_condition(
+        &self,
+        left: Gc<Node>,  /*Expression*/
+        right: Gc<Node>, /*Expression*/
+        invert: Option<bool>,
+    ) -> Gc<Node> {
+        self.factory
+            .create_binary_expression(
+                self.factory
+                    .create_binary_expression(
+                        left,
+                        self.factory
+                            .create_token(if invert == Some(true) {
+                                SyntaxKind::EqualsEqualsEqualsToken
+                            } else {
+                                SyntaxKind::ExclamationEqualsEqualsToken
+                            })
+                            .wrap(),
+                        self.factory.create_null().wrap(),
+                    )
+                    .wrap(),
+                self.factory
+                    .create_token(if invert == Some(true) {
+                        SyntaxKind::BarBarToken
+                    } else {
+                        SyntaxKind::AmpersandAmpersandToken
+                    })
+                    .wrap(),
+                self.factory
+                    .create_binary_expression(
+                        right,
+                        self.factory
+                            .create_token(if invert == Some(true) {
+                                SyntaxKind::EqualsEqualsEqualsToken
+                            } else {
+                                SyntaxKind::ExclamationEqualsEqualsToken
+                            })
+                            .wrap(),
+                        self.factory.create_void_zero(),
+                    )
+                    .wrap(),
+            )
+            .wrap()
     }
 
     fn transform_nullish_coalescing_expression(
         &self,
-        _node: &Node, /*BinaryExpression*/
+        node: &Node, /*BinaryExpression*/
     ) -> VisitResult {
-        unimplemented!()
+        let node_as_binary_expression = node.as_binary_expression();
+        let mut left = visit_node(
+            Some(&*node_as_binary_expression.left),
+            Some(|node: &Node| self.visitor(node)),
+            Some(is_expression),
+            Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+        )
+        .unwrap();
+        let mut right = left.clone();
+        if !is_simple_copiable_expression(&left) {
+            right = self.factory.create_temp_variable(
+                Some(|node: &Node| {
+                    self.context.hoist_variable_declaration(node);
+                }),
+                None,
+            );
+            left = self.factory.create_assignment(right.clone(), left).wrap();
+        }
+        Some(
+            self.factory
+                .create_conditional_expression(
+                    self.create_not_null_condition(left, right.clone(), None),
+                    None,
+                    right,
+                    None,
+                    visit_node(
+                        Some(&*node_as_binary_expression.right),
+                        Some(|node: &Node| self.visitor(node)),
+                        Some(is_expression),
+                        Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                    )
+                    .unwrap(),
+                )
+                .wrap()
+                .set_text_range(Some(node))
+                .into(),
+        )
     }
 
-    fn visit_delete_expression(&self, _node: &Node /*DeleteExpression*/) -> VisitResult {
-        unimplemented!()
+    fn visit_delete_expression(&self, node: &Node /*DeleteExpression*/) -> VisitResult {
+        let node_as_delete_expression = node.as_delete_expression();
+        Some(
+            if is_optional_chain(&skip_parentheses(
+                &node_as_delete_expression.expression,
+                None,
+            )) {
+                self.visit_non_optional_expression(
+                    &node_as_delete_expression.expression,
+                    false,
+                    true,
+                )
+                .set_original_node(Some(node.node_wrapper()))
+            } else {
+                self.factory.update_delete_expression(
+                    node,
+                    visit_node(
+                        Some(&*node_as_delete_expression.expression),
+                        Some(|node: &Node| self.visitor(node)),
+                        Some(is_expression),
+                        Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                    )
+                    .unwrap(),
+                )
+            }
+            .into(),
+        )
     }
 }
 
