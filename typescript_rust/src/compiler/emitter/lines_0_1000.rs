@@ -924,9 +924,16 @@ impl PrintHandlers for EmitJsFileOrBundlePrintHandlers {
         true
     }
 
-    fn on_emit_node(&self, hint: EmitHint, node: &Node, emit_callback: &dyn Fn(EmitHint, &Node)) {
+    fn on_emit_node(
+        &self,
+        hint: EmitHint,
+        node: &Node,
+        emit_callback: &dyn Fn(EmitHint, &Node) -> io::Result<()>,
+    ) -> io::Result<()> {
         self.transform
-            .emit_node_with_notification(hint, node, emit_callback);
+            .emit_node_with_notification(hint, node, emit_callback)?;
+
+        Ok(())
     }
 
     fn is_emit_notification_enabled(&self, node: &Node) -> Option<bool> {
@@ -937,8 +944,8 @@ impl PrintHandlers for EmitJsFileOrBundlePrintHandlers {
         true
     }
 
-    fn substitute_node(&self, hint: EmitHint, node: &Node) -> Option<Gc<Node>> {
-        Some(self.transform.substitute_node(hint, node))
+    fn substitute_node(&self, hint: EmitHint, node: &Node) -> io::Result<Option<Gc<Node>>> {
+        Ok(Some(self.transform.substitute_node(hint, node)?))
     }
 }
 
@@ -1134,9 +1141,16 @@ impl PrintHandlers for EmitDeclarationFileOrBundlePrintHandlers {
         true
     }
 
-    fn on_emit_node(&self, hint: EmitHint, node: &Node, emit_callback: &dyn Fn(EmitHint, &Node)) {
+    fn on_emit_node(
+        &self,
+        hint: EmitHint,
+        node: &Node,
+        emit_callback: &dyn Fn(EmitHint, &Node) -> io::Result<()>,
+    ) -> io::Result<()> {
         self.declaration_transform
-            .emit_node_with_notification(hint, node, emit_callback);
+            .emit_node_with_notification(hint, node, emit_callback)?;
+
+        Ok(())
     }
 
     fn is_emit_notification_enabled(&self, node: &Node) -> Option<bool> {
@@ -1148,8 +1162,10 @@ impl PrintHandlers for EmitDeclarationFileOrBundlePrintHandlers {
         true
     }
 
-    fn substitute_node(&self, hint: EmitHint, node: &Node) -> Option<Gc<Node>> {
-        Some(self.declaration_transform.substitute_node(hint, node))
+    fn substitute_node(&self, hint: EmitHint, node: &Node) -> io::Result<Option<Gc<Node>>> {
+        Ok(Some(
+            self.declaration_transform.substitute_node(hint, node)?,
+        ))
     }
 }
 
@@ -1227,13 +1243,13 @@ fn print_source_file_or_bundle(
     }
 
     if let Some(bundle) = bundle.as_ref() {
-        printer.write_bundle(bundle, writer.clone(), source_map_generator.clone());
+        printer.write_bundle(bundle, writer.clone(), source_map_generator.clone())?;
     } else {
         printer.write_file(
             source_file.as_ref().unwrap(),
             writer.clone(),
             source_map_generator.clone(),
-        );
+        )?;
     }
 
     if let Some(source_map_generator) = source_map_generator {
@@ -1973,13 +1989,13 @@ impl Printer {
         &self,
         hint: EmitHint,
         node: &Node,
-        emit_callback: &dyn Fn(EmitHint, &Node),
-    ) {
-        if self.handlers.is_on_emit_node_supported() {
-            self.handlers.on_emit_node(hint, node, emit_callback)
+        emit_callback: &dyn Fn(EmitHint, &Node) -> io::Result<()>,
+    ) -> io::Result<()> {
+        Ok(if self.handlers.is_on_emit_node_supported() {
+            self.handlers.on_emit_node(hint, node, emit_callback)?
         } else {
-            no_emit_notification(hint, node, emit_callback)
-        }
+            no_emit_notification(hint, node, emit_callback)?
+        })
     }
 
     pub(super) fn is_on_emit_node_no_emit_notification(&self) -> bool {
@@ -1990,12 +2006,16 @@ impl Printer {
         self.handlers.is_emit_notification_enabled(node)
     }
 
-    pub(super) fn substitute_node(&self, hint: EmitHint, node: &Node) -> Option<Gc<Node>> {
-        Some(if self.handlers.is_substitute_node_supported() {
-            self.handlers.substitute_node(hint, node).unwrap()
+    pub(super) fn substitute_node(
+        &self,
+        hint: EmitHint,
+        node: &Node,
+    ) -> io::Result<Option<Gc<Node>>> {
+        Ok(Some(if self.handlers.is_substitute_node_supported() {
+            self.handlers.substitute_node(hint, node)?.unwrap()
         } else {
             no_emit_substitution(hint, node)
-        })
+        }))
     }
 
     pub(super) fn is_substitute_node_no_emit_substitution(&self) -> bool {
@@ -2271,7 +2291,7 @@ impl Printer {
         hint: EmitHint,
         node: &Node,
         source_file: &Node, /*SourceFile*/
-    ) -> String {
+    ) -> io::Result<String> {
         match hint {
             EmitHint::SourceFile => {
                 Debug_.assert(is_source_file(node), Some("Expected a SourceFile node."));
@@ -2296,8 +2316,8 @@ impl Printer {
             }
             _ => (),
         }
-        self.write_node(hint, node, Some(source_file), self.begin_print());
-        self.end_print()
+        self.write_node(hint, node, Some(source_file), self.begin_print())?;
+        Ok(self.end_print())
     }
 
     pub fn print_list(
@@ -2305,24 +2325,27 @@ impl Printer {
         format: ListFormat,
         nodes: &NodeArray,
         source_file: &Node, /*SourceFile*/
-    ) -> String {
-        self.write_list(format, nodes, Some(source_file), self.begin_print());
-        self.end_print()
+    ) -> io::Result<String> {
+        self.write_list(format, nodes, Some(source_file), self.begin_print())?;
+        Ok(self.end_print())
     }
 
-    pub fn print_bundle(&self, bundle: &Node /*Bundle*/) -> String {
-        self.write_bundle(bundle, self.begin_print(), None);
-        self.end_print()
+    pub fn print_bundle(&self, bundle: &Node /*Bundle*/) -> io::Result<String> {
+        self.write_bundle(bundle, self.begin_print(), None)?;
+        Ok(self.end_print())
     }
 
-    pub fn print_file(&self, source_file: &Node /*SourceFile*/) -> String {
-        self.write_file(source_file, self.begin_print(), None);
-        self.end_print()
+    pub fn print_file(&self, source_file: &Node /*SourceFile*/) -> io::Result<String> {
+        self.write_file(source_file, self.begin_print(), None)?;
+        Ok(self.end_print())
     }
 
-    pub fn print_unparsed_source(&self, unparsed: &Node /*UnparsedSource*/) -> String {
-        self.write_unparsed_source(unparsed, self.begin_print());
-        self.end_print()
+    pub fn print_unparsed_source(
+        &self,
+        unparsed: &Node, /*UnparsedSource*/
+    ) -> io::Result<String> {
+        self.write_unparsed_source(unparsed, self.begin_print())?;
+        Ok(self.end_print())
     }
 
     pub fn write_node(
@@ -2331,12 +2354,14 @@ impl Printer {
         node: &Node,
         source_file: Option<&Node /*SourceFile*/>,
         output: Gc<Box<dyn EmitTextWriter>>,
-    ) {
+    ) -> io::Result<()> {
         let previous_writer = self.maybe_writer();
         self.set_writer(Some(output), None);
-        self.print(hint, node, source_file);
+        self.print(hint, node, source_file)?;
         self.reset();
         *self.writer.borrow_mut() = previous_writer;
+
+        Ok(())
     }
 
     pub fn write_list(
@@ -2345,15 +2370,17 @@ impl Printer {
         nodes: &NodeArray,
         source_file: Option<&Node /*SourceFile*/>,
         output: Gc<Box<dyn EmitTextWriter>>,
-    ) {
+    ) -> io::Result<()> {
         let previous_writer = self.maybe_writer();
         self.set_writer(Some(output), None);
         if source_file.is_some() {
             self.set_source_file(source_file);
         }
-        self.emit_list(Option::<&Node>::None, Some(nodes), format, None, None, None);
+        self.emit_list(Option::<&Node>::None, Some(nodes), format, None, None, None)?;
         self.reset();
         *self.writer.borrow_mut() = previous_writer;
+
+        Ok(())
     }
 
     pub(super) fn get_text_pos_with_write_line(&self) -> usize {

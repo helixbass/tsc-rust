@@ -1,8 +1,8 @@
 use gc::Gc;
 
 use crate::{
-    create_range, get_original_node_id, id_text, is_static, NamedDeclarationInterface,
-    NodeCheckFlags, NodeExt, SyntaxKind,
+    create_range, get_original_node, get_original_node_id, id_text, is_static,
+    NamedDeclarationInterface, NodeCheckFlags, NodeExt, SyntaxKind,
 };
 use crate::{Node, NodeInterface, ReadonlyTextRange};
 

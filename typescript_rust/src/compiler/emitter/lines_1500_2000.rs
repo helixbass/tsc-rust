@@ -11,29 +11,42 @@ use crate::{
     NamedDeclarationInterface, Node, NodeInterface, Printer, ReadonlyTextRange, SnippetElement,
     SnippetKind, SortedArray, SourceFileLike, SyntaxKind, TextRange,
 };
+use std::io;
 
 impl Printer {
-    pub(super) fn emit_mapped_type_parameter(&self, node: &Node /*TypeParameterDeclaration*/) {
+    pub(super) fn emit_mapped_type_parameter(
+        &self,
+        node: &Node, /*TypeParameterDeclaration*/
+    ) -> io::Result<()> {
         let node_as_type_parameter_declaration = node.as_type_parameter_declaration();
         self.emit(
             node_as_type_parameter_declaration.maybe_name().as_deref(),
             None,
-        );
+        )?;
         self.write_space();
         self.write_keyword("in");
         self.write_space();
         self.emit(
             node_as_type_parameter_declaration.constraint.as_deref(),
             None,
-        );
+        )?;
+
+        Ok(())
     }
 
-    pub(super) fn pipeline_emit_with_substitution(&self, hint: EmitHint, node: &Node) {
-        let pipeline_phase = self.get_next_pipeline_phase(PipelinePhase::Substitution, hint, node);
+    pub(super) fn pipeline_emit_with_substitution(
+        &self,
+        hint: EmitHint,
+        node: &Node,
+    ) -> io::Result<()> {
+        let pipeline_phase =
+            self.get_next_pipeline_phase(PipelinePhase::Substitution, hint, node)?;
         Debug_.assert_is_defined(&self.maybe_last_substitution(), None);
         let ref node = self.maybe_last_substitution().unwrap();
         self.set_last_substitution(None);
-        pipeline_phase(self, hint, node);
+        pipeline_phase(self, hint, node)?;
+
+        Ok(())
     }
 
     pub(super) fn get_helpers_from_bundled_source_files(
@@ -206,11 +219,13 @@ impl Printer {
     pub(super) fn emit_unparsed_source_or_prepend(
         &self,
         unparsed: &Node, /*UnparsedSource | UnparsedPrepend*/
-    ) {
+    ) -> io::Result<()> {
         for text in unparsed.as_has_texts().texts() {
             self.write_line(None);
-            self.emit(Some(&**text), None);
+            self.emit(Some(&**text), None)?;
         }
+
+        Ok(())
     }
 
     pub(super) fn write_unparsed_node(&self, unparsed: &Node /*UnparsedNode*/) {
@@ -256,16 +271,21 @@ impl Printer {
         }
     }
 
-    pub(super) fn emit_snippet_node(&self, hint: EmitHint, node: &Node, snippet: SnippetElement) {
-        match snippet.kind {
+    pub(super) fn emit_snippet_node(
+        &self,
+        hint: EmitHint,
+        node: &Node,
+        snippet: SnippetElement,
+    ) -> io::Result<()> {
+        Ok(match snippet.kind {
             SnippetKind::Placeholder => {
-                self.emit_placeholder(hint, node, snippet);
+                self.emit_placeholder(hint, node, snippet)?;
             }
             SnippetKind::TabStop => {
                 self.emit_tab_stop(snippet);
             }
             _ => unreachable!(),
-        }
+        })
     }
 
     pub(super) fn emit_placeholder(
@@ -273,17 +293,19 @@ impl Printer {
         hint: EmitHint,
         node: &Node,
         snippet: SnippetElement, /*Placeholder*/
-    ) {
+    ) -> io::Result<()> {
         self.non_escaping_write(&format!("${{{}:", snippet.order));
-        self.pipeline_emit_with_hint_worker(hint, node, Some(false));
+        self.pipeline_emit_with_hint_worker(hint, node, Some(false))?;
         self.non_escaping_write("}");
+
+        Ok(())
     }
 
     pub(super) fn emit_tab_stop(&self, snippet: SnippetElement /*TabStop*/) {
         self.non_escaping_write(&format!("${}", snippet.order));
     }
 
-    pub(super) fn emit_identifier(&self, node: &Node /*Identifier*/) {
+    pub(super) fn emit_identifier(&self, node: &Node /*Identifier*/) -> io::Result<()> {
         let text_of_node = self.get_text_of_node(node, Some(false));
         if let Some(symbol) = node.maybe_symbol() {
             self.write_symbol(&text_of_node, &symbol);
@@ -297,7 +319,9 @@ impl Printer {
             None,
             None,
             None,
-        );
+        )?;
+
+        Ok(())
     }
 
     pub(super) fn emit_private_identifier(&self, node: &Node /*PrivateIdentifier*/) {
@@ -309,22 +333,27 @@ impl Printer {
         }
     }
 
-    pub(super) fn emit_qualified_name(&self, node: &Node /*QualifiedName*/) {
+    pub(super) fn emit_qualified_name(&self, node: &Node /*QualifiedName*/) -> io::Result<()> {
         let node_as_qualified_name = node.as_qualified_name();
-        self.emit_entity_name(&node_as_qualified_name.left);
+        self.emit_entity_name(&node_as_qualified_name.left)?;
         self.write_punctuation(".");
-        self.emit(Some(&*node_as_qualified_name.right), None);
+        self.emit(Some(&*node_as_qualified_name.right), None)?;
+
+        Ok(())
     }
 
-    pub(super) fn emit_entity_name(&self, node: &Node /*EntityName*/) {
-        if node.kind() == SyntaxKind::Identifier {
-            self.emit_expression(Some(node), None);
+    pub(super) fn emit_entity_name(&self, node: &Node /*EntityName*/) -> io::Result<()> {
+        Ok(if node.kind() == SyntaxKind::Identifier {
+            self.emit_expression(Some(node), None)?;
         } else {
-            self.emit(Some(node), None);
-        }
+            self.emit(Some(node), None)?;
+        })
     }
 
-    pub(super) fn emit_computed_property_name(&self, node: &Node /*ComputedPropertyName*/) {
+    pub(super) fn emit_computed_property_name(
+        &self,
+        node: &Node, /*ComputedPropertyName*/
+    ) -> io::Result<()> {
         self.write_punctuation("[");
         self.emit_expression(
             Some(&*node.as_computed_property_name().expression),
@@ -333,7 +362,9 @@ impl Printer {
                     self.parenthesizer(),
                 ),
             ))),
-        );
+        )?;
         self.write_punctuation("]");
+
+        Ok(())
     }
 }

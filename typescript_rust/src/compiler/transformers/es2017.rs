@@ -1351,7 +1351,12 @@ impl TransformES2017OnEmitNodeOverrider {
 }
 
 impl TransformationContextOnEmitNodeOverrider for TransformES2017OnEmitNodeOverrider {
-    fn on_emit_node(&self, hint: EmitHint, node: &Node, emit_callback: &dyn Fn(EmitHint, &Node)) {
+    fn on_emit_node(
+        &self,
+        hint: EmitHint,
+        node: &Node,
+        emit_callback: &dyn Fn(EmitHint, &Node) -> io::Result<()>,
+    ) -> io::Result<()> {
         if matches!(
             self.transform_es2017.maybe_enabled_substitutions(),
             Some(enabled_substitutions) if enabled_substitutions.intersects(ES2017SubstitutionFlags::AsyncMethodsWithSuper)
@@ -1366,10 +1371,10 @@ impl TransformationContextOnEmitNodeOverrider for TransformES2017OnEmitNodeOverr
                 self.transform_es2017
                     .set_enclosing_super_container_flags(super_container_flags);
                 self.previous_on_emit_node
-                    .on_emit_node(hint, node, emit_callback);
+                    .on_emit_node(hint, node, emit_callback)?;
                 self.transform_es2017
                     .set_enclosing_super_container_flags(saved_enclosing_super_container_flags);
-                return;
+                return Ok(());
             }
         } else if matches!(
             self.transform_es2017.maybe_enabled_substitutions(),
@@ -1386,13 +1391,15 @@ impl TransformationContextOnEmitNodeOverrider for TransformES2017OnEmitNodeOverr
             self.transform_es2017
                 .set_enclosing_super_container_flags(NodeCheckFlags::None);
             self.previous_on_emit_node
-                .on_emit_node(hint, node, emit_callback);
+                .on_emit_node(hint, node, emit_callback)?;
             self.transform_es2017
                 .set_enclosing_super_container_flags(saved_enclosing_super_container_flags);
-            return;
+            return Ok(());
         }
         self.previous_on_emit_node
-            .on_emit_node(hint, node, emit_callback);
+            .on_emit_node(hint, node, emit_callback)?;
+
+        Ok(())
     }
 }
 
@@ -1415,17 +1422,17 @@ impl TransformES2017OnSubstituteNodeOverrider {
 }
 
 impl TransformationContextOnSubstituteNodeOverrider for TransformES2017OnSubstituteNodeOverrider {
-    fn on_substitute_node(&self, hint: EmitHint, node: &Node) -> Gc<Node> {
+    fn on_substitute_node(&self, hint: EmitHint, node: &Node) -> io::Result<Gc<Node>> {
         let node = self
             .previous_on_substitute_node
-            .on_substitute_node(hint, node);
+            .on_substitute_node(hint, node)?;
         if hint == EmitHint::Expression
             && self.transform_es2017.enclosing_super_container_flags() != NodeCheckFlags::None
         {
-            return self.transform_es2017.substitute_expression(&node);
+            return Ok(self.transform_es2017.substitute_expression(&node));
         }
 
-        node
+        Ok(node)
     }
 }
 

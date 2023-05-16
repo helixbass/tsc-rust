@@ -2662,7 +2662,12 @@ impl TransformES2018OnEmitNodeOverrider {
 }
 
 impl TransformationContextOnEmitNodeOverrider for TransformES2018OnEmitNodeOverrider {
-    fn on_emit_node(&self, hint: EmitHint, node: &Node, emit_callback: &dyn Fn(EmitHint, &Node)) {
+    fn on_emit_node(
+        &self,
+        hint: EmitHint,
+        node: &Node,
+        emit_callback: &dyn Fn(EmitHint, &Node) -> io::Result<()>,
+    ) -> io::Result<()> {
         if self
             .transform_es2018
             .enabled_substitutions()
@@ -2678,10 +2683,10 @@ impl TransformationContextOnEmitNodeOverrider for TransformES2018OnEmitNodeOverr
                 self.transform_es2018
                     .set_enclosing_super_container_flags(super_container_flags);
                 self.previous_on_emit_node
-                    .on_emit_node(hint, node, emit_callback);
+                    .on_emit_node(hint, node, emit_callback)?;
                 self.transform_es2018
                     .set_enclosing_super_container_flags(saved_enclosing_super_container_flags);
-                return;
+                return Ok(());
             }
         } else if self.transform_es2018.enabled_substitutions() != ESNextSubstitutionFlags::None
             && self
@@ -2696,14 +2701,16 @@ impl TransformationContextOnEmitNodeOverrider for TransformES2018OnEmitNodeOverr
             self.transform_es2018
                 .set_enclosing_super_container_flags(NodeCheckFlags::None);
             self.previous_on_emit_node
-                .on_emit_node(hint, node, emit_callback);
+                .on_emit_node(hint, node, emit_callback)?;
             self.transform_es2018
                 .set_enclosing_super_container_flags(saved_enclosing_super_container_flags);
-            return;
+            return Ok(());
         }
 
         self.previous_on_emit_node
-            .on_emit_node(hint, node, emit_callback);
+            .on_emit_node(hint, node, emit_callback)?;
+
+        Ok(())
     }
 }
 
@@ -2857,16 +2864,16 @@ impl TransformES2018OnSubstituteNodeOverrider {
 }
 
 impl TransformationContextOnSubstituteNodeOverrider for TransformES2018OnSubstituteNodeOverrider {
-    fn on_substitute_node(&self, hint: EmitHint, node: &Node) -> Gc<Node> {
+    fn on_substitute_node(&self, hint: EmitHint, node: &Node) -> io::Result<Gc<Node>> {
         let node = self
             .previous_on_substitute_node
-            .on_substitute_node(hint, node);
+            .on_substitute_node(hint, node)?;
         if hint == EmitHint::Expression
             && self.transform_es2018.enclosing_super_container_flags() != NodeCheckFlags::None
         {
-            return self.substitute_expression(&node);
+            return Ok(self.substitute_expression(&node));
         }
-        node
+        Ok(node)
     }
 }
 

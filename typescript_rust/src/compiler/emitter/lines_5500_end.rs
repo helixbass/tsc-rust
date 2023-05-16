@@ -15,6 +15,7 @@ use crate::{
     NodeInterface, Printer, RawSourceMap, ReadonlyTextRange, SourceFileLike, SourceMapSource,
     SourceTextAsChars, SyntaxKind, TextRange,
 };
+use std::io;
 
 impl Printer {
     pub(super) fn emit_trailing_comment(
@@ -330,11 +331,17 @@ impl Printer {
         ret
     }
 
-    pub(super) fn pipeline_emit_with_source_maps(&self, hint: EmitHint, node: &Node) {
-        let pipeline_phase = self.get_next_pipeline_phase(PipelinePhase::SourceMaps, hint, node);
+    pub(super) fn pipeline_emit_with_source_maps(
+        &self,
+        hint: EmitHint,
+        node: &Node,
+    ) -> io::Result<()> {
+        let pipeline_phase = self.get_next_pipeline_phase(PipelinePhase::SourceMaps, hint, node)?;
         self.emit_source_maps_before_node(node);
-        pipeline_phase(self, hint, node);
+        pipeline_phase(self, hint, node)?;
         self.emit_source_maps_after_node(node);
+
+        Ok(())
     }
 
     pub(super) fn emit_source_maps_before_node(&self, node: &Node) {

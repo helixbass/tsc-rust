@@ -5,14 +5,16 @@ use gc::{Finalize, Gc, GcCell, GcCellRef, GcCellRefMut, Trace};
 
 use crate::{
     add_emit_helpers, are_option_gcs_equal, create_unparsed_source_file, gc_cell_ref_mut_unwrapped,
-    get_emit_module_kind, get_emit_script_target, get_parse_tree_node, get_strict_option_value,
-    has_syntactic_modifier, is_class_declaration, is_statement, map_defined, modifier_to_flag,
+    get_emit_module_kind, get_emit_script_target, get_original_node, get_parse_tree_node,
+    get_strict_option_value, has_syntactic_modifier, is_class_declaration,
+    is_shorthand_property_assignment, is_source_file, is_statement, map_defined, modifier_to_flag,
     try_visit_each_child, visit_each_child, BaseNodeFactorySynthetic, CompilerOptions, Debug_,
-    EmitHelperFactory, EmitHint, EmitResolver, Matches, ModifierFlags, ModuleKind, Node, NodeArray,
-    NodeFactory, NodeId, NodeInterface, ScriptTarget, SyntaxKind, TransformFlags,
-    TransformationContext, TransformationContextOnEmitNodeOverrider,
-    TransformationContextOnSubstituteNodeOverrider, Transformer, TransformerFactory,
-    TransformerFactoryInterface, TransformerInterface, UnderscoreEscapedMap, VisitResult,
+    EmitHelperFactory, EmitHint, EmitResolver, Matches, ModifierFlags, ModuleKind,
+    NamedDeclarationInterface, Node, NodeArray, NodeCheckFlags, NodeExt, NodeFactory, NodeId,
+    NodeInterface, ScriptTarget, SyntaxKind, TransformFlags, TransformationContext,
+    TransformationContextOnEmitNodeOverrider, TransformationContextOnSubstituteNodeOverrider,
+    Transformer, TransformerFactory, TransformerFactoryInterface, TransformerInterface,
+    UnderscoreEscapedMap, VisitResult,
 };
 use std::io;
 
@@ -239,6 +241,17 @@ impl TransformTypeScript {
 
     pub(super) fn set_class_aliases(&self, class_aliases: Option<HashMap<NodeId, Gc<Node>>>) {
         *self.class_aliases.borrow_mut() = class_aliases;
+    }
+
+    pub(super) fn applicable_substitutions(&self) -> TypeScriptSubstitutionFlags {
+        self.applicable_substitutions.get()
+    }
+
+    pub(super) fn set_applicable_substitutions(
+        &self,
+        applicable_substitutions: TypeScriptSubstitutionFlags,
+    ) {
+        self.applicable_substitutions.set(applicable_substitutions);
     }
 
     pub(super) fn emit_helpers(&self) -> Rc<EmitHelperFactory> {
@@ -627,16 +640,70 @@ impl TransformTypeScriptOnEmitNodeOverrider {
             previous_on_emit_node,
         }
     }
+
+    pub(super) fn is_transformed_module_declaration(&self, node: &Node) -> bool {
+        get_original_node(Some(node), Option::<fn(Option<Gc<Node>>) -> bool>::None)
+            .unwrap()
+            .kind()
+            == SyntaxKind::ModuleDeclaration
+    }
+
+    pub(super) fn is_transformed_enum_declaration(&self, node: &Node) -> bool {
+        get_original_node(Some(node), Option::<fn(Option<Gc<Node>>) -> bool>::None)
+            .unwrap()
+            .kind()
+            == SyntaxKind::EnumDeclaration
+    }
 }
 
 impl TransformationContextOnEmitNodeOverrider for TransformTypeScriptOnEmitNodeOverrider {
     fn on_emit_node(
         &self,
-        _hint: EmitHint,
-        _node: &Node,
-        _emit_callback: &dyn Fn(EmitHint, &Node),
-    ) {
-        unimplemented!()
+        hint: EmitHint,
+        node: &Node,
+        emit_callback: &dyn Fn(EmitHint, &Node) -> io::Result<()>,
+    ) -> io::Result<()> {
+        let saved_applicable_substitutions = self.transform_type_script.applicable_substitutions();
+        let saved_current_source_file = self.transform_type_script.maybe_current_source_file();
+
+        if is_source_file(node) {
+            self.transform_type_script
+                .set_current_source_file(Some(node.node_wrapper()));
+        }
+
+        if self
+            .transform_type_script
+            .enabled_substitutions()
+            .intersects(TypeScriptSubstitutionFlags::NamespaceExports)
+            && self.is_transformed_module_declaration(node)
+        {
+            self.transform_type_script.set_applicable_substitutions(
+                self.transform_type_script.applicable_substitutions()
+                    | TypeScriptSubstitutionFlags::NamespaceExports,
+            );
+        }
+
+        if self
+            .transform_type_script
+            .enabled_substitutions()
+            .intersects(TypeScriptSubstitutionFlags::NonQualifiedEnumMembers)
+            && self.is_transformed_enum_declaration(node)
+        {
+            self.transform_type_script.set_applicable_substitutions(
+                self.transform_type_script.applicable_substitutions()
+                    | TypeScriptSubstitutionFlags::NonQualifiedEnumMembers,
+            );
+        }
+
+        self.previous_on_emit_node
+            .on_emit_node(hint, node, emit_callback)?;
+
+        self.transform_type_script
+            .set_applicable_substitutions(saved_applicable_substitutions);
+        self.transform_type_script
+            .set_current_source_file(saved_current_source_file);
+
+        Ok(())
     }
 }
 
@@ -656,13 +723,139 @@ impl TransformTypeScriptOnSubstituteNodeOverrider {
             previous_on_substitute_node,
         }
     }
+
+    fn substitute_shorthand_property_assignment(
+        &self,
+        node: &Node, /*ShorthandPropertyAssignment*/
+    ) -> Gc<Node /*ObjectLiteralElementLike*/> {
+        let node_as_shorthand_property_assignment = node.as_shorthand_property_assignment();
+        if self
+            .transform_type_script
+            .enabled_substitutions()
+            .intersects(TypeScriptSubstitutionFlags::NamespaceExports)
+        {
+            let name = node_as_shorthand_property_assignment.name();
+            let exported_name = self.try_substitute_namespace_exported_name(&name);
+            if let Some(exported_name) = exported_name {
+                if let Some(node_object_assignment_initializer) =
+                    node_as_shorthand_property_assignment
+                        .object_assignment_initializer
+                        .as_ref()
+                {
+                    let initializer = self
+                        .transform_type_script
+                        .factory
+                        .create_assignment(
+                            exported_name,
+                            node_object_assignment_initializer.clone(),
+                        )
+                        .wrap();
+                    return self
+                        .transform_type_script
+                        .factory
+                        .create_property_assignment(name, initializer)
+                        .wrap()
+                        .set_text_range(Some(node));
+                }
+                return self
+                    .transform_type_script
+                    .factory
+                    .create_property_assignment(name, exported_name)
+                    .wrap()
+                    .set_text_range(Some(node));
+            }
+        }
+        node.node_wrapper()
+    }
+
+    fn substitute_expression(&self, node: &Node /*Expression*/) -> io::Result<Gc<Node>> {
+        match node.kind() {
+            SyntaxKind::Identifier => {
+                return self.substitute_expression_identifier(node);
+            }
+            SyntaxKind::PropertyAccessExpression => {
+                return Ok(self.substitute_property_access_expression(node));
+            }
+            SyntaxKind::ElementAccessExpression => {
+                return Ok(self.substitute_element_access_expression(node));
+            }
+            _ => (),
+        }
+
+        Ok(node.node_wrapper())
+    }
+
+    fn substitute_expression_identifier(
+        &self,
+        node: &Node, /*Identifier*/
+    ) -> io::Result<Gc<Node /*Expression*/>> {
+        Ok(self
+            .try_substitute_class_alias(node)?
+            .or_else(|| self.try_substitute_namespace_exported_name(node))
+            .unwrap_or_else(|| node.node_wrapper()))
+    }
+
+    fn try_substitute_class_alias(
+        &self,
+        node: &Node, /*Identifier*/
+    ) -> io::Result<Option<Gc<Node /*Expression*/>>> {
+        if self
+            .transform_type_script
+            .enabled_substitutions()
+            .intersects(TypeScriptSubstitutionFlags::ClassAliases)
+        {
+            if self
+                .transform_type_script
+                .resolver
+                .get_node_check_flags(node)
+                .intersects(NodeCheckFlags::ConstructorReferenceInClass)
+            {
+                let declaration = self
+                    .transform_type_script
+                    .resolver
+                    .get_referenced_value_declaration(node)?;
+            }
+        }
+
+        Ok(None)
+    }
+
+    fn try_substitute_namespace_exported_name(
+        &self,
+        _node: &Node, /*Identifier*/
+    ) -> Option<Gc<Node /*Expression*/>> {
+        unimplemented!()
+    }
+
+    fn substitute_property_access_expression(
+        &self,
+        _node: &Node, /*PropertyAccessExpression*/
+    ) -> Gc<Node> {
+        unimplemented!()
+    }
+
+    fn substitute_element_access_expression(
+        &self,
+        _node: &Node, /*ElementAccessExpression*/
+    ) -> Gc<Node> {
+        unimplemented!()
+    }
 }
 
 impl TransformationContextOnSubstituteNodeOverrider
     for TransformTypeScriptOnSubstituteNodeOverrider
 {
-    fn on_substitute_node(&self, _hint: EmitHint, _node: &Node) -> Gc<Node> {
-        unimplemented!()
+    fn on_substitute_node(&self, hint: EmitHint, node: &Node) -> io::Result<Gc<Node>> {
+        let node = self
+            .previous_on_substitute_node
+            .on_substitute_node(hint, node)?;
+        if hint == EmitHint::Expression {
+            return self.substitute_expression(&node);
+        } else if is_shorthand_property_assignment(&node) {
+            return Ok(self.substitute_shorthand_property_assignment(&node));
+        }
+
+        Ok(node)
     }
 }
 

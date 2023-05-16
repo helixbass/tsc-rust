@@ -125,7 +125,7 @@ impl TypeChecker {
             &predicate,
             source_file.as_deref(),
             writer,
-        );
+        )?;
         // return writer;
 
         Ok(())

@@ -296,7 +296,11 @@ pub fn no_emit_substitution(_hint: EmitHint, node: &Node) -> Gc<Node> {
     node.node_wrapper()
 }
 
-pub fn no_emit_notification(hint: EmitHint, node: &Node, callback: &dyn Fn(EmitHint, &Node)) {
+pub fn no_emit_notification(
+    hint: EmitHint,
+    node: &Node,
+    callback: &dyn Fn(EmitHint, &Node) -> io::Result<()>,
+) -> io::Result<()> {
     callback(hint, node)
 }
 
@@ -1132,7 +1136,7 @@ impl TransformationContext for TransformNodesTransformationResult {
             && !get_emit_flags(node).intersects(EmitFlags::NoSubstitution)
     }
 
-    fn on_substitute_node(&self, hint: EmitHint, node: &Node) -> Gc<Node> {
+    fn on_substitute_node(&self, hint: EmitHint, node: &Node) -> io::Result<Gc<Node>> {
         self.on_substitute_node_outermost_override_or_original_method
             .borrow()
             .on_substitute_node(hint, node)
@@ -1171,7 +1175,12 @@ impl TransformationContext for TransformNodesTransformationResult {
             && !get_emit_flags(node).intersects(EmitFlags::AdviseOnEmitNode)
     }
 
-    fn on_emit_node(&self, hint: EmitHint, node: &Node, emit_callback: &dyn Fn(EmitHint, &Node)) {
+    fn on_emit_node(
+        &self,
+        hint: EmitHint,
+        node: &Node,
+        emit_callback: &dyn Fn(EmitHint, &Node) -> io::Result<()>,
+    ) -> io::Result<()> {
         self.on_emit_node_outermost_override_or_original_method
             .borrow()
             .on_emit_node(hint, node, emit_callback)
@@ -1201,7 +1210,12 @@ struct NoEmitNotificationTransformationContextOnEmitNodeOverrider;
 impl TransformationContextOnEmitNodeOverrider
     for NoEmitNotificationTransformationContextOnEmitNodeOverrider
 {
-    fn on_emit_node(&self, hint: EmitHint, node: &Node, emit_callback: &dyn Fn(EmitHint, &Node)) {
+    fn on_emit_node(
+        &self,
+        hint: EmitHint,
+        node: &Node,
+        emit_callback: &dyn Fn(EmitHint, &Node) -> io::Result<()>,
+    ) -> io::Result<()> {
         no_emit_notification(hint, node, emit_callback)
     }
 }
@@ -1212,8 +1226,8 @@ struct NoEmitNotificationTransformationContextOnSubstituteNodeOverrider;
 impl TransformationContextOnSubstituteNodeOverrider
     for NoEmitNotificationTransformationContextOnSubstituteNodeOverrider
 {
-    fn on_substitute_node(&self, hint: EmitHint, node: &Node) -> Gc<Node> {
-        no_emit_substitution(hint, node)
+    fn on_substitute_node(&self, hint: EmitHint, node: &Node) -> io::Result<Gc<Node>> {
+        Ok(no_emit_substitution(hint, node))
     }
 }
 
@@ -1226,36 +1240,38 @@ impl TransformationResult for TransformNodesTransformationResult {
         Some(self.diagnostics.borrow().clone())
     }
 
-    fn substitute_node(&self, hint: EmitHint, node: &Node) -> Gc<Node> {
+    fn substitute_node(&self, hint: EmitHint, node: &Node) -> io::Result<Gc<Node>> {
         Debug_.assert(
             self.state() < TransformationState::Disposed,
             Some("Cannot substitute a node after the result is disposed."),
         );
         /*node &&*/
-        if self.is_substitution_enabled(node) {
-            self.on_substitute_node(hint, node)
+        Ok(if self.is_substitution_enabled(node) {
+            self.on_substitute_node(hint, node)?
         } else {
             node.node_wrapper()
-        }
+        })
     }
 
     fn emit_node_with_notification(
         &self,
         hint: EmitHint,
         node: &Node,
-        emit_callback: &dyn Fn(EmitHint, &Node),
-    ) {
+        emit_callback: &dyn Fn(EmitHint, &Node) -> io::Result<()>,
+    ) -> io::Result<()> {
         Debug_.assert(
             self.state() < TransformationState::Disposed,
             Some("Cannot invoke TransformationResult callbacks after the result is disposed."),
         );
         // if (node) {
         if TransformationResult::is_emit_notification_enabled(self, node).unwrap_or(false) {
-            self.on_emit_node(hint, node, emit_callback);
+            self.on_emit_node(hint, node, emit_callback)?;
         } else {
-            emit_callback(hint, node);
+            emit_callback(hint, node)?;
         }
         // }
+
+        Ok(())
     }
 
     fn is_emit_notification_enabled(&self, node: &Node) -> Option<bool> {
@@ -1369,8 +1385,8 @@ impl TransformationContext for TransformationContextNull {
         not_implemented()
     }
 
-    fn on_substitute_node(&self, hint: EmitHint, node: &Node) -> Gc<Node> {
-        no_emit_substitution(hint, node)
+    fn on_substitute_node(&self, hint: EmitHint, node: &Node) -> io::Result<Gc<Node>> {
+        Ok(no_emit_substitution(hint, node))
     }
 
     fn override_on_substitute_node(
@@ -1389,7 +1405,12 @@ impl TransformationContext for TransformationContextNull {
         not_implemented()
     }
 
-    fn on_emit_node(&self, hint: EmitHint, node: &Node, emit_callback: &dyn Fn(EmitHint, &Node)) {
+    fn on_emit_node(
+        &self,
+        hint: EmitHint,
+        node: &Node,
+        emit_callback: &dyn Fn(EmitHint, &Node) -> io::Result<()>,
+    ) -> io::Result<()> {
         no_emit_notification(hint, node, emit_callback)
     }
 

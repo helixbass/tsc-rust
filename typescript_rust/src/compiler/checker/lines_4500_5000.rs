@@ -304,7 +304,7 @@ impl TypeChecker {
                 &entity,
                 source_file.as_deref(),
                 writer,
-            );
+            )?;
             // writer
 
             Ok(())
@@ -401,7 +401,7 @@ impl TypeChecker {
             &sig.unwrap(),
             source_file.as_deref(),
             get_trailing_semicolon_deferring_writer(writer),
-        );
+        )?;
         // writer
 
         Ok(())
@@ -454,7 +454,7 @@ impl TypeChecker {
             &type_node,
             source_file.as_deref(),
             writer.clone(),
-        );
+        )?;
         let result = writer.get_text();
 
         let max_length = if no_truncation {

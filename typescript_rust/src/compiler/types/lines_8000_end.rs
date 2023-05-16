@@ -644,15 +644,16 @@ pub trait PrintHandlers: Trace + Finalize {
         &self,
         _hint: EmitHint,
         _node: &Node,
-        _emit_callback: &dyn Fn(EmitHint, &Node),
-    ) {
+        _emit_callback: &dyn Fn(EmitHint, &Node) -> io::Result<()>,
+    ) -> io::Result<()> {
+        Ok(())
     }
     fn is_on_emit_node_supported(&self) -> bool;
     fn is_emit_notification_enabled(&self, _node: &Node) -> Option<bool> {
         None
     }
-    fn substitute_node(&self, _hint: EmitHint, _node: &Node) -> Option<Gc<Node>> {
-        None
+    fn substitute_node(&self, _hint: EmitHint, _node: &Node) -> io::Result<Option<Gc<Node>>> {
+        Ok(None)
     }
     fn is_substitute_node_supported(&self) -> bool;
     fn on_emit_source_map_of_node(

@@ -14,6 +14,7 @@ use crate::{
     ReadonlyTextRange, SourceFileLike, SourceTextAsChars, SymbolFlags, SymbolInterface, SyntaxKind,
     SynthesizedComment, TextRange,
 };
+use std::io;
 
 impl Printer {
     pub(super) fn generate_name_cached(
@@ -332,19 +333,25 @@ impl Printer {
         node
     }
 
-    pub(super) fn pipeline_emit_with_comments(&self, hint: EmitHint, node: &Node) {
-        let pipeline_phase = self.get_next_pipeline_phase(PipelinePhase::Comments, hint, node);
+    pub(super) fn pipeline_emit_with_comments(
+        &self,
+        hint: EmitHint,
+        node: &Node,
+    ) -> io::Result<()> {
+        let pipeline_phase = self.get_next_pipeline_phase(PipelinePhase::Comments, hint, node)?;
         let saved_container_pos = self.container_pos();
         let saved_container_end = self.container_end();
         let saved_declaration_list_container_end = self.declaration_list_container_end();
         self.emit_comments_before_node(node);
-        pipeline_phase(self, hint, node);
+        pipeline_phase(self, hint, node)?;
         self.emit_comments_after_node(
             node,
             saved_container_pos,
             saved_container_end,
             saved_declaration_list_container_end,
         );
+
+        Ok(())
     }
 
     pub(super) fn emit_comments_before_node(&self, node: &Node) {
@@ -519,12 +526,23 @@ impl Printer {
         }
     }
 
+    #[allow(dead_code)]
     pub(super) fn emit_body_with_detached_comments(
         &self,
         node: &Node,
         detached_range: &impl ReadonlyTextRange,
         mut emit_callback: impl FnMut(&Node),
     ) {
+        self.try_emit_body_with_detached_comments(node, detached_range, |a| Ok(emit_callback(a)))
+            .unwrap()
+    }
+
+    pub(super) fn try_emit_body_with_detached_comments(
+        &self,
+        node: &Node,
+        detached_range: &impl ReadonlyTextRange,
+        mut emit_callback: impl FnMut(&Node) -> io::Result<()>,
+    ) -> io::Result<()> {
         self.enter_comment();
         let pos = detached_range.pos();
         let end = detached_range.end();
@@ -540,10 +558,10 @@ impl Printer {
         self.exit_comment();
         if emit_flags.intersects(EmitFlags::NoNestedComments) && !self.comments_disabled() {
             self.set_comments_disabled(true);
-            emit_callback(node);
+            emit_callback(node)?;
             self.set_comments_disabled(false);
         } else {
-            emit_callback(node);
+            emit_callback(node)?;
         }
 
         self.enter_comment();
@@ -554,6 +572,8 @@ impl Printer {
             }
         }
         self.exit_comment();
+
+        Ok(())
     }
 
     pub(super) fn original_nodes_have_same_parent(&self, node_a: &Node, node_b: &Node) -> bool {

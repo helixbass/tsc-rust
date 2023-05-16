@@ -14,6 +14,7 @@ use crate::{
     BundleFileSectionKind, CurrentParenthesizerRule, Debug_, EmitFlags, EmitHint, EmitTextWriter,
     Node, NodeInterface, Printer, SourceMapGenerator, SyntaxKind, TempFlags,
 };
+use std::io;
 
 impl Printer {
     pub(super) fn record_bundle_file_internal_section_start(
@@ -71,14 +72,14 @@ impl Printer {
         bundle: &Node, /*Bundle*/
         output: Gc<Box<dyn EmitTextWriter>>,
         source_map_generator: Option<Gc<Box<dyn SourceMapGenerator>>>,
-    ) {
+    ) -> io::Result<()> {
         self.set_is_own_file_emit(false);
         let previous_writer = self.maybe_writer();
         self.set_writer(Some(output), source_map_generator);
         self.emit_shebang_if_needed(bundle);
-        self.emit_prologue_directives_if_needed(bundle);
+        self.emit_prologue_directives_if_needed(bundle)?;
         self.emit_helpers(bundle);
-        self.emit_synthetic_triple_slash_references_if_needed(bundle);
+        self.emit_synthetic_triple_slash_references_if_needed(bundle)?;
 
         let bundle_as_bundle = bundle.as_bundle();
         for prepend in &bundle_as_bundle.prepends {
@@ -91,7 +92,7 @@ impl Printer {
             if saved_sections.is_some() {
                 bundle_file_info.as_ref().unwrap().borrow_mut().sections = vec![];
             }
-            self.print(EmitHint::Unspecified, prepend, None);
+            self.print(EmitHint::Unspecified, prepend, None)?;
             if let Some(bundle_file_info) = bundle_file_info {
                 let mut bundle_file_info = bundle_file_info.borrow_mut();
                 let mut new_sections = bundle_file_info.sections.clone();
@@ -121,7 +122,7 @@ impl Printer {
         self.set_source_file_text_pos(self.get_text_pos_with_write_line());
         for source_file in &bundle_as_bundle.source_files {
             let source_file = source_file.as_ref().unwrap();
-            self.print(EmitHint::SourceFile, source_file, Some(source_file));
+            self.print(EmitHint::SourceFile, source_file, Some(source_file))?;
         }
         let bundle_file_info = self.maybe_bundle_file_info();
         if let Some(bundle_file_info) = bundle_file_info {
@@ -151,18 +152,22 @@ impl Printer {
 
         self.reset();
         *self.writer.borrow_mut() = previous_writer;
+
+        Ok(())
     }
 
     pub fn write_unparsed_source(
         &self,
         unparsed: &Node, /*UnparsedSource*/
         output: Gc<Box<dyn EmitTextWriter>>,
-    ) {
+    ) -> io::Result<()> {
         let previous_writer = self.maybe_writer();
         self.set_writer(Some(output), None);
-        self.print(EmitHint::Unspecified, unparsed, None);
+        self.print(EmitHint::Unspecified, unparsed, None)?;
         self.reset();
         *self.writer.borrow_mut() = previous_writer;
+
+        Ok(())
     }
 
     pub fn write_file(
@@ -170,15 +175,17 @@ impl Printer {
         source_file: &Node, /*SourceFile*/
         output: Gc<Box<dyn EmitTextWriter>>,
         source_map_generator: Option<Gc<Box<dyn SourceMapGenerator>>>,
-    ) {
+    ) -> io::Result<()> {
         self.set_is_own_file_emit(true);
         let previous_writer = self.maybe_writer();
         self.set_writer(Some(output), source_map_generator);
         self.emit_shebang_if_needed(source_file);
-        self.emit_prologue_directives_if_needed(source_file);
-        self.print(EmitHint::SourceFile, source_file, Some(source_file));
+        self.emit_prologue_directives_if_needed(source_file)?;
+        self.print(EmitHint::SourceFile, source_file, Some(source_file))?;
         self.reset();
         *self.writer.borrow_mut() = previous_writer;
+
+        Ok(())
     }
 
     pub(super) fn begin_print(&self) -> Gc<Box<dyn EmitTextWriter>> {
@@ -201,12 +208,14 @@ impl Printer {
         hint: EmitHint,
         node: &Node,
         source_file: Option<&Node /*SourceFile*/>,
-    ) {
+    ) -> io::Result<()> {
         if let Some(source_file) = source_file {
             self.set_source_file(Some(source_file));
         }
 
-        self.pipeline_emit(hint, node, None);
+        self.pipeline_emit(hint, node, None)?;
+
+        Ok(())
     }
 
     pub(super) fn set_source_file(&self, source_file: Option<&Node /*SourceFile*/>) {
@@ -262,40 +271,49 @@ impl Printer {
         &self,
         node: Option<&Node>,
         parenthesizer_rule: Option<Gc<Box<dyn CurrentParenthesizerRule>>>,
-    ) {
+    ) -> io::Result<()> {
         if node.is_none() {
-            return;
+            return Ok(());
         }
         let node = node.unwrap();
         let prev_source_file_text_kind = self.record_bundle_file_internal_section_start(node);
-        self.pipeline_emit(EmitHint::Unspecified, node, parenthesizer_rule);
+        self.pipeline_emit(EmitHint::Unspecified, node, parenthesizer_rule)?;
         self.record_bundle_file_internal_section_end(prev_source_file_text_kind);
+
+        Ok(())
     }
 
-    pub(super) fn emit_identifier_name(&self, node: Option<&Node /*Identifier*/>) {
+    pub(super) fn emit_identifier_name(
+        &self,
+        node: Option<&Node /*Identifier*/>,
+    ) -> io::Result<()> {
         if node.is_none() {
-            return;
+            return Ok(());
         }
         let node = node.unwrap();
-        self.pipeline_emit(EmitHint::IdentifierName, node, None);
+        self.pipeline_emit(EmitHint::IdentifierName, node, None)?;
+
+        Ok(())
     }
 
     pub(super) fn emit_expression(
         &self,
         node: Option<&Node /*Expression*/>,
         parenthesizer_rule: Option<Gc<Box<dyn CurrentParenthesizerRule>>>,
-    ) {
+    ) -> io::Result<()> {
         if node.is_none() {
-            return;
+            return Ok(());
         }
         let node = node.unwrap();
-        self.pipeline_emit(EmitHint::Expression, node, parenthesizer_rule);
+        self.pipeline_emit(EmitHint::Expression, node, parenthesizer_rule)?;
+
+        Ok(())
     }
 
     pub(super) fn emit_jsx_attribute_value(
         &self,
         node: &Node, /*StringLiteral | JsxExpression*/
-    ) {
+    ) -> io::Result<()> {
         self.pipeline_emit(
             if is_string_literal(node) {
                 EmitHint::JsxAttributeValue
@@ -304,7 +322,9 @@ impl Printer {
             },
             node,
             None,
-        );
+        )?;
+
+        Ok(())
     }
 
     pub(super) fn before_emit_node(&self, node: &Node) {
@@ -324,11 +344,14 @@ impl Printer {
         emit_hint: EmitHint,
         node: &Node,
         parenthesizer_rule: Option<Gc<Box<dyn CurrentParenthesizerRule>>>,
-    ) {
+    ) -> io::Result<()> {
         self.set_current_parenthesizer_rule(parenthesizer_rule);
-        let pipeline_phase = self.get_pipeline_phase(PipelinePhase::Notification, emit_hint, node);
-        pipeline_phase(self, emit_hint, node);
+        let pipeline_phase =
+            self.get_pipeline_phase(PipelinePhase::Notification, emit_hint, node)?;
+        pipeline_phase(self, emit_hint, node)?;
         self.set_current_parenthesizer_rule(None);
+
+        Ok(())
     }
 
     pub(super) fn should_emit_comments(&self, node: &Node) -> bool {
@@ -348,7 +371,7 @@ impl Printer {
         phase: PipelinePhase,
         emit_hint: EmitHint,
         node: &Node,
-    ) -> fn(&Printer, EmitHint, &Node) {
+    ) -> io::Result<fn(&Printer, EmitHint, &Node) -> io::Result<()>> {
         if phase == PipelinePhase::Notification {
             if !self.is_on_emit_node_no_emit_notification()
                 && match self.is_emit_notification_enabled(node) {
@@ -356,7 +379,7 @@ impl Printer {
                     Some(is_emit_notification_enabled) => is_emit_notification_enabled,
                 }
             {
-                return Printer::pipeline_emit_with_notification;
+                return Ok(Printer::pipeline_emit_with_notification);
             }
         }
         if matches!(
@@ -365,7 +388,7 @@ impl Printer {
         ) {
             if !self.is_substitute_node_no_emit_substitution() {
                 let ref last_substitution = self
-                    .substitute_node(emit_hint, node)
+                    .substitute_node(emit_hint, node)?
                     .unwrap_or_else(|| node.node_wrapper());
                 self.set_last_substitution(Some(last_substitution.clone()));
                 if !ptr::eq(&**last_substitution, node) {
@@ -376,7 +399,7 @@ impl Printer {
                             current_parenthesizer_rule.call(last_substitution),
                         ));
                     }
-                    return Printer::pipeline_emit_with_substitution;
+                    return Ok(Printer::pipeline_emit_with_substitution);
                 }
             }
         }
@@ -385,7 +408,7 @@ impl Printer {
             PipelinePhase::Notification | PipelinePhase::Substitution | PipelinePhase::Comments
         ) {
             if self.should_emit_comments(node) {
-                return Printer::pipeline_emit_with_comments;
+                return Ok(Printer::pipeline_emit_with_comments);
             }
         }
         if matches!(
@@ -396,7 +419,7 @@ impl Printer {
                 | PipelinePhase::SourceMaps
         ) {
             if self.should_emit_source_maps(node) {
-                return Printer::pipeline_emit_with_source_maps;
+                return Ok(Printer::pipeline_emit_with_source_maps);
             }
         }
         if matches!(
@@ -407,7 +430,7 @@ impl Printer {
                 | PipelinePhase::SourceMaps
                 | PipelinePhase::Emit
         ) {
-            return Printer::pipeline_emit_with_hint;
+            return Ok(Printer::pipeline_emit_with_hint);
         }
         Debug_.assert_never(phase, None);
     }
@@ -417,29 +440,38 @@ impl Printer {
         current_phase: PipelinePhase,
         emit_hint: EmitHint,
         node: &Node,
-    ) -> fn(&Printer, EmitHint, &Node) {
+    ) -> io::Result<fn(&Printer, EmitHint, &Node) -> io::Result<()>> {
         self.get_pipeline_phase(current_phase.incremented(), emit_hint, node)
     }
 
-    pub(super) fn pipeline_emit_with_notification(&self, hint: EmitHint, node: &Node) {
-        let pipeline_phase = self.get_next_pipeline_phase(PipelinePhase::Notification, hint, node);
+    pub(super) fn pipeline_emit_with_notification(
+        &self,
+        hint: EmitHint,
+        node: &Node,
+    ) -> io::Result<()> {
+        let pipeline_phase =
+            self.get_next_pipeline_phase(PipelinePhase::Notification, hint, node)?;
         self.on_emit_node(hint, node, &|hint: EmitHint, node: &Node| {
             pipeline_phase(self, hint, node)
-        });
+        })?;
+
+        Ok(())
     }
 
-    pub(super) fn pipeline_emit_with_hint(&self, hint: EmitHint, node: &Node) {
+    pub(super) fn pipeline_emit_with_hint(&self, hint: EmitHint, node: &Node) -> io::Result<()> {
         self.on_before_emit_node(Some(node));
         if self.maybe_preserve_source_newlines() == Some(true) {
             let saved_preserve_source_newlines = self.maybe_preserve_source_newlines();
             self.before_emit_node(node);
-            self.pipeline_emit_with_hint_worker(hint, node, None);
+            self.pipeline_emit_with_hint_worker(hint, node, None)?;
             self.after_emit_node(saved_preserve_source_newlines);
         } else {
-            self.pipeline_emit_with_hint_worker(hint, node, None);
+            self.pipeline_emit_with_hint_worker(hint, node, None)?;
         }
         self.on_after_emit_node(Some(node));
         self.set_current_parenthesizer_rule(None);
+
+        Ok(())
     }
 
     pub(super) fn pipeline_emit_with_hint_worker(
@@ -447,7 +479,7 @@ impl Printer {
         mut hint: EmitHint,
         node: &Node,
         allow_snippets: Option<bool>,
-    ) {
+    ) -> io::Result<()> {
         let allow_snippets = allow_snippets.unwrap_or(true);
         if allow_snippets {
             let snippet = get_snippet_element(node);
@@ -462,10 +494,10 @@ impl Printer {
             return self.emit_identifier(cast_present(node, |node: &&Node| is_identifier(node)));
         }
         if hint == EmitHint::JsxAttributeValue {
-            return self.emit_literal(
+            return Ok(self.emit_literal(
                 cast_present(node, |node: &&Node| is_string_literal(node)),
                 true,
-            );
+            ));
         }
         if hint == EmitHint::MappedTypeParameter {
             return self.emit_mapped_type_parameter(cast_present(node, |node: &&Node| {
@@ -474,18 +506,18 @@ impl Printer {
         }
         if hint == EmitHint::EmbeddedStatement {
             Debug_.assert_node(Some(node), Some(is_empty_statement), None);
-            return self.emit_empty_statement(true);
+            return Ok(self.emit_empty_statement(true));
         }
         let mut node = node.node_wrapper();
         if hint == EmitHint::Unspecified {
             match node.kind() {
                 SyntaxKind::TemplateHead
                 | SyntaxKind::TemplateMiddle
-                | SyntaxKind::TemplateTail => return self.emit_literal(&node, false),
+                | SyntaxKind::TemplateTail => return Ok(self.emit_literal(&node, false)),
 
                 SyntaxKind::Identifier => return self.emit_identifier(&node),
 
-                SyntaxKind::PrivateIdentifier => return self.emit_private_identifier(&node),
+                SyntaxKind::PrivateIdentifier => return Ok(self.emit_private_identifier(&node)),
 
                 SyntaxKind::QualifiedName => return self.emit_qualified_name(&node),
                 SyntaxKind::ComputedPropertyName => return self.emit_computed_property_name(&node),
@@ -526,7 +558,7 @@ impl Printer {
                 SyntaxKind::ExpressionWithTypeArguments => {
                     return self.emit_expression_with_type_arguments(&node)
                 }
-                SyntaxKind::ThisType => return self.emit_this_type(),
+                SyntaxKind::ThisType => return Ok(self.emit_this_type()),
                 SyntaxKind::TypeOperator => return self.emit_type_operator(&node),
                 SyntaxKind::IndexedAccessType => return self.emit_indexed_access_type(&node),
                 SyntaxKind::MappedType => return self.emit_mapped_type(&node),
@@ -541,11 +573,11 @@ impl Printer {
                 SyntaxKind::BindingElement => return self.emit_binding_element(&node),
 
                 SyntaxKind::TemplateSpan => return self.emit_template_span(&node),
-                SyntaxKind::SemicolonClassElement => return self.emit_semicolon_class_element(),
+                SyntaxKind::SemicolonClassElement => return Ok(self.emit_semicolon_class_element()),
 
                 SyntaxKind::Block => return self.emit_block(&node),
                 SyntaxKind::VariableStatement => return self.emit_variable_statement(&node),
-                SyntaxKind::EmptyStatement => return self.emit_empty_statement(false),
+                SyntaxKind::EmptyStatement => return Ok(self.emit_empty_statement(false)),
                 SyntaxKind::ExpressionStatement => return self.emit_expression_statement(&node),
                 SyntaxKind::IfStatement => return self.emit_if_statement(&node),
                 SyntaxKind::DoStatement => return self.emit_do_statement(&node),
@@ -561,7 +593,7 @@ impl Printer {
                 SyntaxKind::LabeledStatement => return self.emit_labeled_statement(&node),
                 SyntaxKind::ThrowStatement => return self.emit_throw_statement(&node),
                 SyntaxKind::TryStatement => return self.emit_try_statement(&node),
-                SyntaxKind::DebuggerStatement => return self.emit_debugger_statement(&node),
+                SyntaxKind::DebuggerStatement => return Ok(self.emit_debugger_statement(&node)),
 
                 SyntaxKind::VariableDeclaration => return self.emit_variable_declaration(&node),
                 SyntaxKind::VariableDeclarationList => {
@@ -593,13 +625,13 @@ impl Printer {
                 SyntaxKind::ExportSpecifier => return self.emit_export_specifier(&node),
                 SyntaxKind::AssertClause => return self.emit_assert_clause(&node),
                 SyntaxKind::AssertEntry => return self.emit_assert_entry(&node),
-                SyntaxKind::MissingDeclaration => return,
+                SyntaxKind::MissingDeclaration => return Ok(()),
 
                 SyntaxKind::ExternalModuleReference => {
                     return self.emit_external_module_reference(&node)
                 }
 
-                SyntaxKind::JsxText => return self.emit_jsx_text(&node),
+                SyntaxKind::JsxText => return Ok(self.emit_jsx_text(&node)),
                 SyntaxKind::JsxOpeningElement | SyntaxKind::JsxOpeningFragment => {
                     return self.emit_jsx_opening_element_or_fragment(&node)
                 }
@@ -624,15 +656,15 @@ impl Printer {
 
                 SyntaxKind::EnumMember => return self.emit_enum_member(&node),
 
-                SyntaxKind::UnparsedPrologue => return self.write_unparsed_node(&node),
+                SyntaxKind::UnparsedPrologue => return Ok(self.write_unparsed_node(&node)),
                 SyntaxKind::UnparsedSource | SyntaxKind::UnparsedPrepend => {
                     return self.emit_unparsed_source_or_prepend(&node)
                 }
                 SyntaxKind::UnparsedText | SyntaxKind::UnparsedInternalText => {
-                    return self.emit_unparsed_text_like(&node)
+                    return Ok(self.emit_unparsed_text_like(&node))
                 }
                 SyntaxKind::UnparsedSyntheticReference => {
-                    return self.emit_unparsed_synthetic_reference(&node)
+                    return Ok(self.emit_unparsed_synthetic_reference(&node))
                 }
 
                 SyntaxKind::SourceFile => return self.emit_source_file(&node),
@@ -645,8 +677,8 @@ impl Printer {
                     return self.emit_jsdoc_type_expression(Some(&node))
                 }
                 SyntaxKind::JSDocNameReference => return self.emit_jsdoc_name_reference(&node),
-                SyntaxKind::JSDocAllType => return self.write_punctuation("*"),
-                SyntaxKind::JSDocUnknownType => return self.write_punctuation("?"),
+                SyntaxKind::JSDocAllType => return Ok(self.write_punctuation("*")),
+                SyntaxKind::JSDocUnknownType => return Ok(self.write_punctuation("?")),
                 SyntaxKind::JSDocNullableType => return self.emit_jsdoc_nullable_type(&node),
                 SyntaxKind::JSDocNonNullableType => {
                     return self.emit_jsdoc_non_nullable_type(&node)
@@ -656,7 +688,7 @@ impl Printer {
                 SyntaxKind::RestType | SyntaxKind::JSDocVariadicType => {
                     return self.emit_rest_or_jsdoc_variadic_type(&node)
                 }
-                SyntaxKind::JSDocNamepathType => return,
+                SyntaxKind::JSDocNamepathType => return Ok(()),
                 SyntaxKind::JSDocComment => return self.emit_jsdoc(&node),
                 SyntaxKind::JSDocTypeLiteral => return self.emit_jsdoc_type_literal(&node),
                 SyntaxKind::JSDocSignature => return self.emit_jsdoc_signature(&node),
@@ -666,12 +698,12 @@ impl Printer {
                 SyntaxKind::JSDocAugmentsTag | SyntaxKind::JSDocImplementsTag => {
                     return self.emit_jsdoc_heritage_tag(&node)
                 }
-                SyntaxKind::JSDocAuthorTag | SyntaxKind::JSDocDeprecatedTag => return,
+                SyntaxKind::JSDocAuthorTag | SyntaxKind::JSDocDeprecatedTag => return Ok(()),
                 SyntaxKind::JSDocPublicTag
                 | SyntaxKind::JSDocPrivateTag
                 | SyntaxKind::JSDocProtectedTag
                 | SyntaxKind::JSDocReadonlyTag
-                | SyntaxKind::JSDocOverrideTag => return,
+                | SyntaxKind::JSDocOverrideTag => return Ok(()),
                 SyntaxKind::JSDocCallbackTag => return self.emit_jsdoc_callback_tag(&node),
                 SyntaxKind::JSDocParameterTag | SyntaxKind::JSDocPropertyTag => {
                     return self.emit_jsdoc_property_like_tag(&node)
@@ -686,14 +718,14 @@ impl Printer {
 
                 SyntaxKind::NotEmittedStatement
                 | SyntaxKind::EndOfDeclarationMarker
-                | SyntaxKind::MergeDeclarationMarker => return,
+                | SyntaxKind::MergeDeclarationMarker => return Ok(()),
                 _ => (),
             }
             if is_expression(&node) {
                 hint = EmitHint::Expression;
                 if !self.is_substitute_node_no_emit_substitution() {
                     let substitute = self
-                        .substitute_node(hint, &node)
+                        .substitute_node(hint, &node)?
                         .unwrap_or_else(|| node.node_wrapper());
                     if !Gc::ptr_eq(&substitute, &node) {
                         node = substitute;
@@ -709,17 +741,17 @@ impl Printer {
         if hint == EmitHint::Expression {
             match node.kind() {
                 SyntaxKind::NumericLiteral | SyntaxKind::BigIntLiteral => {
-                    return self.emit_numeric_or_big_int_literal(&node)
+                    return Ok(self.emit_numeric_or_big_int_literal(&node))
                 }
 
                 SyntaxKind::StringLiteral
                 | SyntaxKind::RegularExpressionLiteral
                 | SyntaxKind::NoSubstitutionTemplateLiteral => {
-                    return self.emit_literal(&node, false)
+                    return Ok(self.emit_literal(&node, false))
                 }
 
                 SyntaxKind::Identifier => return self.emit_identifier(&node),
-                SyntaxKind::PrivateIdentifier => return self.emit_private_identifier(&node),
+                SyntaxKind::PrivateIdentifier => return Ok(self.emit_private_identifier(&node)),
 
                 SyntaxKind::ArrayLiteralExpression => {
                     return self.emit_array_literal_expression(&node)
@@ -756,7 +788,7 @@ impl Printer {
                 SyntaxKind::PostfixUnaryExpression => {
                     return self.emit_postfix_unary_expression(&node)
                 }
-                SyntaxKind::BinaryExpression => return self.emit_binary_expression(&node),
+                SyntaxKind::BinaryExpression => return Ok(self.emit_binary_expression(&node)),
                 SyntaxKind::ConditionalExpression => {
                     return self.emit_conditional_expression(&node)
                 }
@@ -764,7 +796,7 @@ impl Printer {
                 SyntaxKind::YieldExpression => return self.emit_yield_expression(&node),
                 SyntaxKind::SpreadElement => return self.emit_spread_element(&node),
                 SyntaxKind::ClassExpression => return self.emit_class_expression(&node),
-                SyntaxKind::OmittedExpression => return,
+                SyntaxKind::OmittedExpression => return Ok(()),
                 SyntaxKind::AsExpression => return self.emit_as_expression(&node),
                 SyntaxKind::NonNullExpression => return self.emit_non_null_expression(&node),
                 SyntaxKind::MetaProperty => return self.emit_meta_property(&node),
@@ -780,12 +812,14 @@ impl Printer {
 
                 SyntaxKind::SyntaxList => Debug_.fail(Some("SyntaxList should not be printed")),
 
-                SyntaxKind::NotEmittedStatement => return,
+                SyntaxKind::NotEmittedStatement => return Ok(()),
                 SyntaxKind::PartiallyEmittedExpression => {
                     return self.emit_partially_emitted_expression(&node)
                 }
                 SyntaxKind::CommaListExpression => return self.emit_comma_list(&node),
-                SyntaxKind::MergeDeclarationMarker | SyntaxKind::EndOfDeclarationMarker => return,
+                SyntaxKind::MergeDeclarationMarker | SyntaxKind::EndOfDeclarationMarker => {
+                    return Ok(())
+                }
                 SyntaxKind::SyntheticReferenceExpression => {
                     Debug_.fail(Some("SyntheticReferenceExpression should not be printed"))
                 }
@@ -793,10 +827,10 @@ impl Printer {
             }
         }
         if is_keyword(node.kind()) {
-            return self.write_token_node(&node, Printer::write_keyword);
+            return Ok(self.write_token_node(&node, Printer::write_keyword));
         }
         if is_token_kind(node.kind()) {
-            return self.write_token_node(&node, Printer::write_punctuation);
+            return Ok(self.write_token_node(&node, Printer::write_punctuation));
         }
         Debug_.fail(Some(&format!("Unhandled SyntaxKind: {:?}", node.kind())));
     }

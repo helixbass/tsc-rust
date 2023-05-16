@@ -786,4 +786,21 @@ mod parse_config_file_text_to_json {
             Some(true),
         );
     }
+
+    #[test]
+    fn test_generates_errors_when_include_is_not_string() {
+        assert_parse_file_diagnostics(
+            json!({
+                "include": [
+                    ["./**/*.ts"]
+                ]
+            })
+            .to_string(),
+            "/apath/tsconfig.json",
+            "tests/cases/unittests",
+            &["/apath/a.ts"].owned(),
+            Diagnostics::Compiler_option_0_requires_a_value_of_type_1.code,
+            Some(true),
+        );
+    }
 }

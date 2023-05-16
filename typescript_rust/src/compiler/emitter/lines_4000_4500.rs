@@ -18,13 +18,14 @@ use crate::{
     SourceFilePrologueDirective, SourceFilePrologueDirectiveExpression, SourceFilePrologueInfo,
     Symbol, SyntaxKind, TextRange, UnparsedSectionInterface,
 };
+use std::io;
 
 impl Printer {
     pub(super) fn emit_unparsed_prologues(
         &self,
         prologues: &[Gc<Node /*UnparsedPrologue*/>],
         seen_prologue_directives: &mut HashSet<String>,
-    ) {
+    ) -> io::Result<()> {
         for prologue in prologues {
             let prologue_as_unparsed_prologue = prologue.as_unparsed_prologue();
             if !seen_prologue_directives
@@ -32,7 +33,7 @@ impl Printer {
             {
                 self.write_line(None);
                 let pos = self.writer().get_text_pos();
-                self.emit(Some(&**prologue), None);
+                self.emit(Some(&**prologue), None)?;
                 if let Some(bundle_file_info) = self.maybe_bundle_file_info() {
                     bundle_file_info.borrow_mut().sections.push(Gc::new(
                         BundleFileSection::new_prologue(
@@ -55,19 +56,21 @@ impl Printer {
                 // }
             }
         }
+
+        Ok(())
     }
 
     pub(super) fn emit_prologue_directives_if_needed(
         &self,
         source_file_or_bundle: &Node, /*Bundle | SourceFile*/
-    ) {
-        if is_source_file(source_file_or_bundle) {
+    ) -> io::Result<()> {
+        Ok(if is_source_file(source_file_or_bundle) {
             self.emit_prologue_directives(
                 &source_file_or_bundle.as_source_file().statements(),
                 Some(source_file_or_bundle),
                 &mut None,
                 None,
-            );
+            )?;
         } else {
             let source_file_or_bundle_as_bundle = source_file_or_bundle.as_bundle();
             let mut seen_prologue_directives: Option<HashSet<String>> = Some(HashSet::new());
@@ -75,7 +78,7 @@ impl Printer {
                 self.emit_unparsed_prologues(
                     &prepend.as_unparsed_source().prologues,
                     seen_prologue_directives.as_mut().unwrap(),
-                );
+                )?;
             }
             for source_file in &source_file_or_bundle_as_bundle.source_files {
                 let source_file = source_file.as_ref().unwrap();
@@ -84,10 +87,10 @@ impl Printer {
                     Some(&**source_file),
                     &mut seen_prologue_directives,
                     Some(true),
-                );
+                )?;
             }
             self.set_source_file(None);
-        }
+        })
     }
 
     pub(super) fn get_prologue_directives_from_bundled_source_files(
@@ -189,51 +192,63 @@ impl Printer {
         false
     }
 
-    pub(super) fn emit_node_with_writer(&self, node: Option<&Node>, writer: fn(&Printer, &str)) {
+    pub(super) fn emit_node_with_writer(
+        &self,
+        node: Option<&Node>,
+        writer: fn(&Printer, &str),
+    ) -> io::Result<()> {
         if node.is_none() {
-            return;
+            return Ok(());
         }
         let node = node.unwrap();
         let saved_write = self.write.get();
         self.write.set(writer);
-        self.emit(Some(node), None);
+        self.emit(Some(node), None)?;
         self.write.set(saved_write);
+
+        Ok(())
     }
 
-    pub(super) fn emit_modifiers(&self, node: &Node, modifiers: Option<&NodeArray /*<Modifier>*/>) {
-        if let Some(modifiers) = modifiers.filter(|modifiers| !modifiers.is_empty()) {
-            self.emit_list(
-                Some(node),
-                Some(modifiers),
-                ListFormat::Modifiers,
-                None,
-                None,
-                None,
-            );
-            self.write_space();
-        }
-    }
-
-    pub(super) fn emit_type_annotation<TNode: Borrow<Node>>(
+    pub(super) fn emit_modifiers(
         &self,
-        node: Option<TNode /*TypeNode*/>,
-    ) {
-        if let Some(node) = node {
+        node: &Node,
+        modifiers: Option<&NodeArray /*<Modifier>*/>,
+    ) -> io::Result<()> {
+        Ok(
+            if let Some(modifiers) = modifiers.filter(|modifiers| !modifiers.is_empty()) {
+                self.emit_list(
+                    Some(node),
+                    Some(modifiers),
+                    ListFormat::Modifiers,
+                    None,
+                    None,
+                    None,
+                )?;
+                self.write_space();
+            },
+        )
+    }
+
+    pub(super) fn emit_type_annotation(
+        &self,
+        node: Option<impl Borrow<Node> /*TypeNode*/>,
+    ) -> io::Result<()> {
+        Ok(if let Some(node) = node {
             let node = node.borrow();
             self.write_punctuation(":");
             self.write_space();
-            self.emit(Some(node), None);
-        }
+            self.emit(Some(node), None)?;
+        })
     }
 
-    pub(super) fn emit_initializer<TNode: Borrow<Node>>(
+    pub(super) fn emit_initializer(
         &self,
-        node: Option<TNode /*Expression*/>,
+        node: Option<impl Borrow<Node> /*Expression*/>,
         equal_comment_start_pos: isize,
         container: &Node,
         parenthesizer_rule: Option<Gc<Box<dyn CurrentParenthesizerRule>>>,
-    ) {
-        if let Some(node) = node {
+    ) -> io::Result<()> {
+        Ok(if let Some(node) = node {
             let node = node.borrow();
             self.write_space();
             self.emit_token_with_comment(
@@ -244,69 +259,89 @@ impl Printer {
                 None,
             );
             self.write_space();
-            self.emit_expression(Some(node), parenthesizer_rule);
-        }
+            self.emit_expression(Some(node), parenthesizer_rule)?;
+        })
     }
 
+    #[allow(dead_code)]
     pub(super) fn emit_node_with_prefix(
+        &self,
+        prefix: &str,
+        prefix_writer: impl FnMut(&str),
+        node: Option<&Node>,
+        mut emit: impl FnMut(&Node),
+    ) {
+        self.try_emit_node_with_prefix(prefix, prefix_writer, node, |a| Ok(emit(a)))
+            .unwrap()
+    }
+
+    pub(super) fn try_emit_node_with_prefix(
         &self,
         prefix: &str,
         mut prefix_writer: impl FnMut(&str),
         node: Option<&Node>,
-        mut emit: impl FnMut(&Node),
-    ) {
+        mut emit: impl FnMut(&Node) -> io::Result<()>,
+    ) -> io::Result<()> {
         if let Some(node) = node {
             prefix_writer(prefix);
-            emit(node);
+            emit(node)?;
         }
+
+        Ok(())
     }
 
-    pub(super) fn emit_with_leading_space(&self, node: Option<&Node>) {
-        if let Some(node) = node {
+    pub(super) fn emit_with_leading_space(&self, node: Option<&Node>) -> io::Result<()> {
+        Ok(if let Some(node) = node {
             self.write_space();
-            self.emit(Some(node), None);
-        }
+            self.emit(Some(node), None)?;
+        })
     }
 
     pub(super) fn emit_expression_with_leading_space(
         &self,
         node: Option<&Node>,
         parenthesizer_rule: Option<Gc<Box<dyn CurrentParenthesizerRule>>>,
-    ) {
-        if let Some(node) = node {
+    ) -> io::Result<()> {
+        Ok(if let Some(node) = node {
             self.write_space();
-            self.emit_expression(Some(node), parenthesizer_rule);
-        }
+            self.emit_expression(Some(node), parenthesizer_rule)?;
+        })
     }
 
-    pub(super) fn emit_with_trailing_space(&self, node: Option<&Node>) {
-        if let Some(node) = node {
-            self.emit(Some(node), None);
+    pub(super) fn emit_with_trailing_space(&self, node: Option<&Node>) -> io::Result<()> {
+        Ok(if let Some(node) = node {
+            self.emit(Some(node), None)?;
             self.write_space();
-        }
+        })
     }
 
-    pub(super) fn emit_embedded_statement(&self, parent: &Node, node: &Node /*Statement*/) {
-        if is_block(node) || get_emit_flags(parent).intersects(EmitFlags::SingleLine) {
-            self.write_space();
-            self.emit(Some(node), None);
-        } else {
-            self.write_line(None);
-            self.increase_indent();
-            if is_empty_statement(node) {
-                self.pipeline_emit(EmitHint::EmbeddedStatement, node, None);
+    pub(super) fn emit_embedded_statement(
+        &self,
+        parent: &Node,
+        node: &Node, /*Statement*/
+    ) -> io::Result<()> {
+        Ok(
+            if is_block(node) || get_emit_flags(parent).intersects(EmitFlags::SingleLine) {
+                self.write_space();
+                self.emit(Some(node), None)?;
             } else {
-                self.emit(Some(node), None);
-            }
-            self.decrease_indent();
-        }
+                self.write_line(None);
+                self.increase_indent();
+                if is_empty_statement(node) {
+                    self.pipeline_emit(EmitHint::EmbeddedStatement, node, None)?;
+                } else {
+                    self.emit(Some(node), None)?;
+                }
+                self.decrease_indent();
+            },
+        )
     }
 
     pub(super) fn emit_decorators(
         &self,
         parent_node: &Node,
         decorators: Option<&NodeArray /*<Decorator>*/>,
-    ) {
+    ) -> io::Result<()> {
         self.emit_list(
             Some(parent_node),
             decorators,
@@ -314,14 +349,16 @@ impl Printer {
             None,
             None,
             None,
-        );
+        )?;
+
+        Ok(())
     }
 
     pub(super) fn emit_type_arguments(
         &self,
         parent_node: &Node,
         type_arguments: Option<&NodeArray /*<TypeNode>*/>,
-    ) {
+    ) -> io::Result<()> {
         self.emit_list(
             Some(parent_node),
             type_arguments,
@@ -331,14 +368,16 @@ impl Printer {
             ))),
             None,
             None,
-        );
+        )?;
+
+        Ok(())
     }
 
     pub(super) fn emit_type_parameters(
         &self,
         parent_node: &Node, /*SignatureDeclaration | InterfaceDeclaration | TypeAliasDeclaration | ClassDeclaration | ClassExpression*/
         type_parameters: Option<&NodeArray /*<TypeParameterDeclaration>*/>,
-    ) {
+    ) -> io::Result<()> {
         if is_function_like(Some(parent_node)) {
             // TODO
             // && parentNode.typeArguments {
@@ -352,14 +391,16 @@ impl Printer {
             None,
             None,
             None,
-        );
+        )?;
+
+        Ok(())
     }
 
     pub(super) fn emit_parameters(
         &self,
         parent_node: &Node,
         parameters: &NodeArray, /*<ParameterDeclaration>*/
-    ) {
+    ) -> io::Result<()> {
         self.emit_list(
             Some(parent_node),
             Some(parameters),
@@ -367,7 +408,9 @@ impl Printer {
             None,
             None,
             None,
-        );
+        )?;
+
+        Ok(())
     }
 
     pub(super) fn can_emit_simple_arrow_head(
@@ -416,26 +459,28 @@ impl Printer {
         &self,
         parent_node: &Node,     /*FunctionTypeNode | ArrowFunction*/
         parameters: &NodeArray, /*<ParameterDeclaration>*/
-    ) {
-        if self.can_emit_simple_arrow_head(parent_node, parameters) {
-            self.emit_list(
-                Some(parent_node),
-                Some(parameters),
-                ListFormat::Parameters & !ListFormat::Parenthesis,
-                None,
-                None,
-                None,
-            );
-        } else {
-            self.emit_parameters(parent_node, parameters);
-        }
+    ) -> io::Result<()> {
+        Ok(
+            if self.can_emit_simple_arrow_head(parent_node, parameters) {
+                self.emit_list(
+                    Some(parent_node),
+                    Some(parameters),
+                    ListFormat::Parameters & !ListFormat::Parenthesis,
+                    None,
+                    None,
+                    None,
+                )?;
+            } else {
+                self.emit_parameters(parent_node, parameters)?;
+            },
+        )
     }
 
     pub(super) fn emit_parameters_for_index_signature(
         &self,
         parent_node: &Node,
         parameters: &NodeArray, /*<ParameterDeclaration>*/
-    ) {
+    ) -> io::Result<()> {
         self.emit_list(
             Some(parent_node),
             Some(parameters),
@@ -443,7 +488,9 @@ impl Printer {
             None,
             None,
             None,
-        );
+        )?;
+
+        Ok(())
     }
 
     pub(super) fn write_delimiter(&self, format: ListFormat) {
@@ -477,7 +524,7 @@ impl Printer {
         parenthesizer_rule: Option<Gc<Box<dyn CurrentParenthesizerRule>>>,
         start: Option<usize>,
         count: Option<usize>,
-    ) {
+    ) -> io::Result<()> {
         self.emit_node_list(
             Printer::emit,
             parent_node,
@@ -486,18 +533,20 @@ impl Printer {
             parenthesizer_rule,
             start,
             count,
-        );
+        )?;
+
+        Ok(())
     }
 
-    pub(super) fn emit_expression_list<TNode: Borrow<Node>>(
+    pub(super) fn emit_expression_list(
         &self,
-        parent_node: Option<TNode>,
+        parent_node: Option<impl Borrow<Node>>,
         children: Option<&NodeArray>,
         format: ListFormat,
         parenthesizer_rule: Option<Gc<Box<dyn CurrentParenthesizerRule>>>,
         start: Option<usize>,
         count: Option<usize>,
-    ) {
+    ) -> io::Result<()> {
         self.emit_node_list(
             Printer::emit_expression,
             parent_node,
@@ -506,19 +555,25 @@ impl Printer {
             parenthesizer_rule,
             start,
             count,
-        );
+        )?;
+
+        Ok(())
     }
 
-    pub(super) fn emit_node_list<TNode: Borrow<Node>>(
+    pub(super) fn emit_node_list(
         &self,
-        emit: fn(&Printer, Option<&Node>, Option<Gc<Box<dyn CurrentParenthesizerRule>>>),
-        parent_node: Option<TNode>,
+        emit: fn(
+            &Printer,
+            Option<&Node>,
+            Option<Gc<Box<dyn CurrentParenthesizerRule>>>,
+        ) -> io::Result<()>,
+        parent_node: Option<impl Borrow<Node>>,
         children: Option<&NodeArray>,
         format: ListFormat,
         parenthesizer_rule: Option<Gc<Box<dyn CurrentParenthesizerRule>>>,
         start: Option<usize>,
         count: Option<usize>,
-    ) {
+    ) -> io::Result<()> {
         let start = start.unwrap_or(0);
         let count = count.unwrap_or_else(|| {
             if let Some(children) = children {
@@ -529,7 +584,7 @@ impl Printer {
         });
         let is_undefined = children.is_none();
         if is_undefined && format.intersects(ListFormat::OptionalIfUndefined) {
-            return;
+            return Ok(());
         }
 
         let is_empty = match children {
@@ -539,7 +594,7 @@ impl Printer {
         if is_empty && format.intersects(ListFormat::OptionalIfEmpty) {
             self.on_before_emit_node_array(children);
             self.on_after_emit_node_array(children);
-            return;
+            return Ok(());
         }
 
         if format.intersects(ListFormat::BracketsMask) {
@@ -645,7 +700,7 @@ impl Printer {
                 }
 
                 self.set_next_list_element_pos(Some(child.pos()));
-                emit(self, Some(&**child), parenthesizer_rule.clone());
+                emit(self, Some(&**child), parenthesizer_rule.clone())?;
 
                 if should_decrease_indent_after_emit {
                     self.decrease_indent();
@@ -727,14 +782,14 @@ impl Printer {
 
         self.on_after_emit_node_array(children);
 
-        if format.intersects(ListFormat::BracketsMask) {
+        Ok(if format.intersects(ListFormat::BracketsMask) {
             if is_empty {
                 if let Some(children) = children {
                     self.emit_leading_comments_of_position(children.end());
                 }
             }
             self.write_punctuation(get_closing_bracket(format));
-        }
+        })
     }
 
     pub(super) fn write_literal(&self, s: &str) {

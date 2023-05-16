@@ -207,7 +207,7 @@ pub trait TransformationContext: CoreTransformationContext<BaseNodeFactorySynthe
 
     fn is_substitution_enabled(&self, node: &Node) -> bool;
 
-    fn on_substitute_node(&self, hint: EmitHint, node: &Node) -> Gc<Node>;
+    fn on_substitute_node(&self, hint: EmitHint, node: &Node) -> io::Result<Gc<Node>>;
     fn override_on_substitute_node(
         &self,
         overrider: &mut dyn FnMut(
@@ -220,7 +220,12 @@ pub trait TransformationContext: CoreTransformationContext<BaseNodeFactorySynthe
 
     fn is_emit_notification_enabled(&self, node: &Node) -> bool;
 
-    fn on_emit_node(&self, hint: EmitHint, node: &Node, emit_callback: &dyn Fn(EmitHint, &Node));
+    fn on_emit_node(
+        &self,
+        hint: EmitHint,
+        node: &Node,
+        emit_callback: &dyn Fn(EmitHint, &Node) -> io::Result<()>,
+    ) -> io::Result<()>;
     fn override_on_emit_node(
         &self,
         overrider: &mut dyn FnMut(
@@ -232,11 +237,16 @@ pub trait TransformationContext: CoreTransformationContext<BaseNodeFactorySynthe
 }
 
 pub trait TransformationContextOnEmitNodeOverrider: Trace + Finalize {
-    fn on_emit_node(&self, hint: EmitHint, node: &Node, emit_callback: &dyn Fn(EmitHint, &Node));
+    fn on_emit_node(
+        &self,
+        hint: EmitHint,
+        node: &Node,
+        emit_callback: &dyn Fn(EmitHint, &Node) -> io::Result<()>,
+    ) -> io::Result<()>;
 }
 
 pub trait TransformationContextOnSubstituteNodeOverrider: Trace + Finalize {
-    fn on_substitute_node(&self, hint: EmitHint, node: &Node) -> Gc<Node>;
+    fn on_substitute_node(&self, hint: EmitHint, node: &Node) -> io::Result<Gc<Node>>;
 }
 
 pub trait TransformationResult {
@@ -244,14 +254,14 @@ pub trait TransformationResult {
 
     fn diagnostics(&self) -> Option<Vec<Gc<Diagnostic /*DiagnosticWithLocation*/>>>;
 
-    fn substitute_node(&self, hint: EmitHint, node: &Node) -> Gc<Node>;
+    fn substitute_node(&self, hint: EmitHint, node: &Node) -> io::Result<Gc<Node>>;
 
     fn emit_node_with_notification(
         &self,
         hint: EmitHint,
         node: &Node,
-        emit_callback: &dyn Fn(EmitHint, &Node),
-    );
+        emit_callback: &dyn Fn(EmitHint, &Node) -> io::Result<()>,
+    ) -> io::Result<()>;
 
     fn is_emit_notification_enabled(&self, node: &Node) -> Option<bool>;
 
