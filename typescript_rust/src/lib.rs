@@ -1,4 +1,4 @@
-#![allow(non_upper_case_globals, non_snake_case)]
+#![allow(non_upper_case_globals, non_snake_case, unused_imports)]
 #[macro_use]
 extern crate lazy_static;
 
@@ -7,69 +7,20 @@ mod execute_command_line;
 mod macros;
 mod rust_helpers;
 
-#[allow(unused_imports)]
-use compiler::command_line_parser::{
-    build_opts, convert_compiler_options_for_telemetry, convert_to_object_worker,
-    convert_to_options_with_absolute_paths, convert_to_tsconfig, get_diagnostic_text,
-    inverse_jsx_option_map, lib_map, libs, module_resolution_option_declarations,
-    options_affecting_program_structure, options_for_build, options_for_watch, parse_build_command,
-    source_file_affecting_compiler_options, target_option_declaration,
-    update_error_for_no_input_files, JsonConversionNotifier, JsonConversionNotifierDummy,
-    ParsedBuildCommand, StringOrRcDiagnostic,
-};
-#[allow(unused_imports)]
-use compiler::program::{
-    change_compiler_host_like_to_use_cache, compute_common_source_directory_of_filenames,
-    /*create_compiler_host_worker,*/ format_color_and_reset, get_mode_for_resolution_at_index,
-    get_mode_for_usage_location, get_module_name_string_literal_at, get_referenced_file_location,
-    is_reference_file_location, is_referenced_file, DiagnosticCache,
-    ForegroundColorEscapeSequences, ReferenceFileLocation,
-    ReferenceFileLocationOrSyntheticReferenceFileLocation, SyntheticReferenceFileLocation,
-};
-#[allow(unused_imports)]
-use compiler::scanner::{
-    compute_line_and_character_of_position, compute_line_of_position,
-    compute_position_of_line_and_character, get_line_starts, get_lines_between_positions,
-    is_identifier_text, is_octal_digit, is_shebang_trivia, is_unicode_identifier_start,
-    scan_shebang_trivia, skip_trivia, string_to_token, text_to_keyword_obj,
-    token_is_identifier_or_keyword, token_is_identifier_or_keyword_or_greater_than,
-    utf16_encode_as_string,
-};
-#[allow(unused_imports)]
-use compiler::utilities_public::{
-    get_assigned_name, get_combined_node_flags_always_include_jsdoc,
-    get_jsdoc_deprecated_tag_no_cache, get_jsdoc_parameter_tags_no_cache,
-    get_jsdoc_private_tag_no_cache, get_jsdoc_protected_tag_no_cache,
-    get_jsdoc_public_tag_no_cache, get_jsdoc_readonly_tag_no_cache, get_jsdoc_tags_no_cache,
-    get_jsdoc_type_parameter_tags_no_cache, get_non_assigned_name_of_declaration,
-    guess_indentation, has_initializer, has_jsdoc_nodes, has_scope_marker, has_type,
-    is_array_binding_element, is_array_binding_or_assigment_pattern, is_assignment_pattern,
-    is_binding_or_assigment_pattern, is_boolean_literal, is_class_member_modifier, is_concise_body,
-    is_declaration, is_declaration_binding_element, is_declaration_statement, is_expression,
-    is_expression_of_optional_chain_root, is_external_module_indicator, is_for_in_or_of_statement,
-    is_for_initializer, is_function_body, is_function_like_declaration, is_function_like_kind,
-    is_function_like_or_class_static_block_declaration, is_function_or_module_block,
-    is_generated_identifier, is_get_or_set_accessor_declaration, is_jsdoc_namespace_body,
-    is_jsdoc_node, is_jsdoc_tag, is_jsx_attribute_like, is_jsx_child, is_jsx_tag_name_expression,
-    is_left_hand_side_expression, is_literal_kind, is_method_or_accessor, is_modifier_kind,
-    is_module_body, is_module_or_enum_declaration, is_module_reference, is_named_declaration,
-    is_named_import_bindings, is_namespace_body, is_node, is_node_kind,
-    is_not_emitted_or_partially_emitted_node, is_object_binding_or_assigment_pattern,
-    is_object_binding_or_assignment_element, is_optional_chain_root, is_outermost_optional_chain,
-    is_parameter_property_modifier, is_private_identifier_class_element_declaration,
-    is_private_identifier_property_access_expression,
-    is_property_access_or_qualified_name_or_import_type_node, is_scope_marker, is_statement,
-    is_statement_but_not_declaration, is_statement_or_block, is_string_literal_or_jsx_expression,
-    is_template_literal_kind, is_type_reference_type, is_unary_expression,
-    is_unary_expression_with_write, maybe_is_class_like, maybe_is_function_like_declaration,
-    needs_scope_marker, node_has_name, supported_locale_directories,
-    text_range_contains_position_inclusive,
-};
 use compiler::{
     binder::BindBinaryExpressionFlow,
     checker::{
         DuplicateInfoForFiles, DuplicateInfoForSymbol, IterationTypesResolver, TypeSystemEntity,
         TypeSystemPropertyName,
+    },
+    command_line_parser::{
+        build_opts, convert_compiler_options_for_telemetry, convert_to_object_worker,
+        convert_to_options_with_absolute_paths, convert_to_tsconfig, get_diagnostic_text,
+        inverse_jsx_option_map, lib_map, libs, module_resolution_option_declarations,
+        options_affecting_program_structure, options_for_build, options_for_watch,
+        parse_build_command, source_file_affecting_compiler_options, target_option_declaration,
+        update_error_for_no_input_files, JsonConversionNotifier, JsonConversionNotifierDummy,
+        ParsedBuildCommand, StringOrRcDiagnostic,
     },
     emitter::{
         emit_files, get_build_info, get_common_source_directory,
@@ -92,6 +43,22 @@ use compiler::{
         is_declaration_file_name, is_jsdoc_like_text, process_comment_pragmas,
         process_pragmas_into_fields, tag_names_are_equivalent, PragmaContext,
     },
+    program::{
+        change_compiler_host_like_to_use_cache, compute_common_source_directory_of_filenames,
+        format_color_and_reset, get_mode_for_resolution_at_index, get_mode_for_usage_location,
+        get_module_name_string_literal_at, get_referenced_file_location,
+        is_reference_file_location, is_referenced_file, DiagnosticCache,
+        ForegroundColorEscapeSequences, ReferenceFileLocation,
+        ReferenceFileLocationOrSyntheticReferenceFileLocation, SyntheticReferenceFileLocation,
+    },
+    scanner::{
+        compute_line_and_character_of_position, compute_line_of_position,
+        compute_position_of_line_and_character, get_line_starts, get_lines_between_positions,
+        is_identifier_text, is_octal_digit, is_shebang_trivia, is_unicode_identifier_start,
+        scan_shebang_trivia, skip_trivia, string_to_token, text_to_keyword_obj,
+        token_is_identifier_or_keyword, token_is_identifier_or_keyword_or_greater_than,
+        utf16_encode_as_string,
+    },
     sys::{ignored_paths, missing_file_modified_time},
     types::{
         AccessFlags, BundleBuildInfo, CommentDirectivesMap, EmitNode,
@@ -105,6 +72,37 @@ use compiler::{
         get_element_or_property_access_argument_expression_or_name,
         get_element_or_property_access_name, has_invalid_escape, set_localized_diagnostic_messages,
         set_text_range_end, set_type_acquisition_value, set_watch_option_value,
+    },
+    utilities_public::{
+        get_assigned_name, get_combined_node_flags_always_include_jsdoc,
+        get_jsdoc_deprecated_tag_no_cache, get_jsdoc_parameter_tags_no_cache,
+        get_jsdoc_private_tag_no_cache, get_jsdoc_protected_tag_no_cache,
+        get_jsdoc_public_tag_no_cache, get_jsdoc_readonly_tag_no_cache, get_jsdoc_tags_no_cache,
+        get_jsdoc_type_parameter_tags_no_cache, get_non_assigned_name_of_declaration,
+        guess_indentation, has_initializer, has_jsdoc_nodes, has_scope_marker, has_type,
+        is_array_binding_element, is_array_binding_or_assigment_pattern, is_assignment_pattern,
+        is_binding_or_assigment_pattern, is_boolean_literal, is_class_member_modifier,
+        is_concise_body, is_declaration, is_declaration_binding_element, is_declaration_statement,
+        is_expression, is_expression_of_optional_chain_root, is_external_module_indicator,
+        is_for_in_or_of_statement, is_for_initializer, is_function_body,
+        is_function_like_declaration, is_function_like_kind,
+        is_function_like_or_class_static_block_declaration, is_function_or_module_block,
+        is_generated_identifier, is_get_or_set_accessor_declaration, is_jsdoc_namespace_body,
+        is_jsdoc_node, is_jsdoc_tag, is_jsx_attribute_like, is_jsx_child,
+        is_jsx_tag_name_expression, is_left_hand_side_expression, is_literal_kind,
+        is_method_or_accessor, is_modifier_kind, is_module_body, is_module_or_enum_declaration,
+        is_module_reference, is_named_declaration, is_named_import_bindings, is_namespace_body,
+        is_node, is_node_kind, is_not_emitted_or_partially_emitted_node,
+        is_object_binding_or_assigment_pattern, is_object_binding_or_assignment_element,
+        is_optional_chain_root, is_outermost_optional_chain, is_parameter_property_modifier,
+        is_private_identifier_class_element_declaration,
+        is_private_identifier_property_access_expression,
+        is_property_access_or_qualified_name_or_import_type_node, is_scope_marker, is_statement,
+        is_statement_but_not_declaration, is_statement_or_block,
+        is_string_literal_or_jsx_expression, is_template_literal_kind, is_type_reference_type,
+        is_unary_expression, is_unary_expression_with_write, maybe_is_class_like,
+        maybe_is_function_like_declaration, needs_scope_marker, node_has_name,
+        supported_locale_directories, text_range_contains_position_inclusive,
     },
 };
 pub use compiler::{
