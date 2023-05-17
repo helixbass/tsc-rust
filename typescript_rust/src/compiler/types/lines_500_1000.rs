@@ -1,18 +1,8 @@
-use bitflags::bitflags;
-use gc::{Finalize, Gc, GcCell, GcCellRef, GcCellRefMut, Trace};
 use std::{cell::Cell, fmt};
 
-use crate::{
-    remove_all_comments, set_comment_range_rc, set_emit_flags, set_original_node,
-    set_source_map_range, set_text_range_end, set_text_range_pos, set_text_range_rc_node,
-    start_on_new_line, CaseOrDefaultClauseInterface, EmitFlags, GcVec, HasArgumentsInterface,
-    HasAssertClauseInterface, HasChildrenInterface, HasDotDotDotTokenInterface,
-    HasFileNameInterface, HasLeftAndRightInterface, HasMembersInterface,
-    HasModuleSpecifierInterface, HasOldFileOfCurrentEmitInterface, HasTagNameInterface,
-    HasTextsInterface, InferenceContext, JSDocHeritageTagInterface, JsxOpeningLikeElementInterface,
-    SourceFileLike, SourceMapRange, SyntheticExpression, SyntheticReferenceExpression,
-    UnparsedSyntheticReference,
-};
+use bitflags::bitflags;
+use gc::{Finalize, Gc, GcCell, GcCellRef, GcCellRefMut, Trace};
+use local_macros::{ast_type, enum_unwrapped};
 
 use super::{
     ArrayBindingPattern, ArrayLiteralExpression, ArrayTypeNode, ArrowFunction, AsExpression,
@@ -65,7 +55,17 @@ use super::{
     VariableLikeDeclarationInterface, VariableStatement, VoidExpression, WhileStatement,
     WithStatement, YieldExpression,
 };
-use local_macros::{ast_type, enum_unwrapped};
+use crate::{
+    add_emit_helpers, remove_all_comments, set_comment_range_rc, set_emit_flags, set_original_node,
+    set_source_map_range, set_text_range_end, set_text_range_pos, set_text_range_rc_node,
+    start_on_new_line, CaseOrDefaultClauseInterface, EmitFlags, EmitHelper, GcVec,
+    HasArgumentsInterface, HasAssertClauseInterface, HasChildrenInterface,
+    HasDotDotDotTokenInterface, HasFileNameInterface, HasLeftAndRightInterface,
+    HasMembersInterface, HasModuleSpecifierInterface, HasOldFileOfCurrentEmitInterface,
+    HasTagNameInterface, HasTextsInterface, InferenceContext, JSDocHeritageTagInterface,
+    JsxOpeningLikeElementInterface, SourceFileLike, SourceMapRange, SyntheticExpression,
+    SyntheticReferenceExpression, UnparsedSyntheticReference,
+};
 
 bitflags! {
     pub struct NodeFlags: u32 {
@@ -2104,6 +2104,7 @@ pub trait NodeExt {
     fn and_set_parent(self, parent: Option<Gc<Node>>) -> Self;
     fn and_set_original(self, original: Option<Gc<Node>>) -> Self;
     fn remove_all_comments(self) -> Self;
+    fn add_emit_helpers(self, helpers: Option<&[Gc<EmitHelper>]>) -> Self;
 }
 
 impl NodeExt for Gc<Node> {
@@ -2153,6 +2154,11 @@ impl NodeExt for Gc<Node> {
 
     fn remove_all_comments(self) -> Self {
         remove_all_comments(&*self);
+        self
+    }
+
+    fn add_emit_helpers(self, helpers: Option<&[Gc<EmitHelper>]>) -> Self {
+        add_emit_helpers(&self, helpers);
         self
     }
 }
