@@ -2,13 +2,14 @@ use std::{
     borrow::Borrow,
     cell::Cell,
     collections::{HashMap, HashSet},
-    mem,
+    io, mem,
     rc::Rc,
 };
 
 use bitflags::bitflags;
 use gc::{Finalize, Gc, GcCell, GcCellRef, GcCellRefMut, Trace};
 
+use super::create_super_access_variable_statement;
 use crate::{
     is_assignment_pattern, is_concise_body, is_expression, is_for_initializer, is_statement,
     TransformationContextOnEmitNodeOverrider, TransformationContextOnSubstituteNodeOverrider,
@@ -19,10 +20,11 @@ use crate::{
     has_syntactic_modifier, insert_statements_after_standard_prologue, is_binding_pattern,
     is_block, is_destructuring_assignment, is_effective_strict_mode_source_file, is_identifier,
     is_modifier, is_object_literal_element_like, is_property_access_expression, is_property_name,
-    is_super_property, is_token, is_variable_declaration_list, process_tagged_template_expression,
-    set_emit_flags, set_original_node, set_text_range_node_array, set_text_range_rc_node,
-    skip_parentheses, some, unwrap_innermost_statement_of_label, visit_each_child,
-    visit_iteration_body, visit_lexical_environment, visit_node, visit_nodes, visit_parameter_list,
+    is_super_property, is_token, is_variable_declaration_list, maybe_visit_each_child,
+    process_tagged_template_expression, set_emit_flags, set_original_node,
+    set_text_range_node_array, set_text_range_rc_node, skip_parentheses, some,
+    unwrap_innermost_statement_of_label, visit_each_child, visit_iteration_body,
+    visit_lexical_environment, visit_node, visit_nodes, visit_parameter_list,
     BaseNodeFactorySynthetic, CompilerOptions, Debug_, EmitFlags, EmitHelperFactory, EmitHint,
     EmitResolver, FlattenLevel, FunctionFlags, FunctionLikeDeclarationInterface,
     GeneratedIdentifierFlags, HasInitializerInterface, HasStatementsInterface, Matches,
@@ -31,9 +33,6 @@ use crate::{
     ReadonlyTextRange, ReadonlyTextRangeConcrete, ScriptTarget, SignatureDeclarationInterface,
     SyntaxKind, TransformFlags, TransformationContext, VecExt, VecExtClone, VisitResult, With,
 };
-
-use super::create_super_access_variable_statement;
-use std::io;
 
 bitflags! {
     #[derive(Default)]
@@ -323,28 +322,10 @@ impl TransformES2018 {
     }
 
     fn visit_default(&self, node: &Node) -> VisitResult /*<Node>*/ {
-        visit_each_child(
+        maybe_visit_each_child(
             Some(node),
             |node: &Node| self.visitor(node),
             &**self.context,
-            Option::<
-                fn(
-                    Option<&NodeArray>,
-                    Option<&mut dyn FnMut(&Node) -> VisitResult>,
-                    Option<&dyn Fn(&Node) -> bool>,
-                    Option<usize>,
-                    Option<usize>,
-                ) -> Option<Gc<NodeArray>>,
-            >::None,
-            Option::<fn(&Node) -> VisitResult>::None,
-            Option::<
-                fn(
-                    Option<&Node>,
-                    Option<&mut dyn FnMut(&Node) -> VisitResult>,
-                    Option<&dyn Fn(&Node) -> bool>,
-                    Option<&dyn Fn(&[Gc<Node>]) -> Gc<Node>>,
-                ) -> Option<Gc<Node>>,
-            >::None,
         )
         .map(Into::into)
     }
@@ -458,28 +439,10 @@ impl TransformES2018 {
                         );
                     }
                 }
-                visit_each_child(
+                maybe_visit_each_child(
                     Some(node),
                     |node: &Node| self.visitor(node),
                     &**self.context,
-                    Option::<
-                        fn(
-                            Option<&NodeArray>,
-                            Option<&mut dyn FnMut(&Node) -> VisitResult>,
-                            Option<&dyn Fn(&Node) -> bool>,
-                            Option<usize>,
-                            Option<usize>,
-                        ) -> Option<Gc<NodeArray>>,
-                    >::None,
-                    Option::<fn(&Node) -> VisitResult>::None,
-                    Option::<
-                        fn(
-                            Option<&Node>,
-                            Option<&mut dyn FnMut(&Node) -> VisitResult>,
-                            Option<&dyn Fn(&Node) -> bool>,
-                            Option<&dyn Fn(&[Gc<Node>]) -> Gc<Node>>,
-                        ) -> Option<Gc<Node>>,
-                    >::None,
                 )
                 .map(Into::into)
             }
@@ -491,28 +454,10 @@ impl TransformES2018 {
                         self.set_has_super_element_access(true);
                     }
                 }
-                visit_each_child(
+                maybe_visit_each_child(
                     Some(node),
                     |node: &Node| self.visitor(node),
                     &**self.context,
-                    Option::<
-                        fn(
-                            Option<&NodeArray>,
-                            Option<&mut dyn FnMut(&Node) -> VisitResult>,
-                            Option<&dyn Fn(&Node) -> bool>,
-                            Option<usize>,
-                            Option<usize>,
-                        ) -> Option<Gc<NodeArray>>,
-                    >::None,
-                    Option::<fn(&Node) -> VisitResult>::None,
-                    Option::<
-                        fn(
-                            Option<&Node>,
-                            Option<&mut dyn FnMut(&Node) -> VisitResult>,
-                            Option<&dyn Fn(&Node) -> bool>,
-                            Option<&dyn Fn(&[Gc<Node>]) -> Gc<Node>>,
-                        ) -> Option<Gc<Node>>,
-                    >::None,
                 )
                 .map(Into::into)
             }
@@ -523,28 +468,10 @@ impl TransformES2018 {
                     HierarchyFacts::ClassOrFunctionExcludes,
                     HierarchyFacts::ClassOrFunctionIncludes,
                 ),
-            _ => visit_each_child(
+            _ => maybe_visit_each_child(
                 Some(node),
                 |node: &Node| self.visitor(node),
                 &**self.context,
-                Option::<
-                    fn(
-                        Option<&NodeArray>,
-                        Option<&mut dyn FnMut(&Node) -> VisitResult>,
-                        Option<&dyn Fn(&Node) -> bool>,
-                        Option<usize>,
-                        Option<usize>,
-                    ) -> Option<Gc<NodeArray>>,
-                >::None,
-                Option::<fn(&Node) -> VisitResult>::None,
-                Option::<
-                    fn(
-                        Option<&Node>,
-                        Option<&mut dyn FnMut(&Node) -> VisitResult>,
-                        Option<&dyn Fn(&Node) -> bool>,
-                        Option<&dyn Fn(&[Gc<Node>]) -> Gc<Node>>,
-                    ) -> Option<Gc<Node>>,
-                >::None,
             )
             .map(Into::into),
         }
@@ -586,30 +513,7 @@ impl TransformES2018 {
                 Some(node.node_wrapper()),
             );
         }
-        visit_each_child(
-            Some(node),
-            |node: &Node| self.visitor(node),
-            &**self.context,
-            Option::<
-                fn(
-                    Option<&NodeArray>,
-                    Option<&mut dyn FnMut(&Node) -> VisitResult>,
-                    Option<&dyn Fn(&Node) -> bool>,
-                    Option<usize>,
-                    Option<usize>,
-                ) -> Option<Gc<NodeArray>>,
-            >::None,
-            Option::<fn(&Node) -> VisitResult>::None,
-            Option::<
-                fn(
-                    Option<&Node>,
-                    Option<&mut dyn FnMut(&Node) -> VisitResult>,
-                    Option<&dyn Fn(&Node) -> bool>,
-                    Option<&dyn Fn(&[Gc<Node>]) -> Gc<Node>>,
-                ) -> Option<Gc<Node>>,
-            >::None,
-        )
-        .unwrap()
+        visit_each_child(node, |node: &Node| self.visitor(node), &**self.context)
     }
 
     fn visit_yield_expression(&self, node: &Node /*YieldExpression*/) -> VisitResult {
@@ -732,28 +636,10 @@ impl TransformES2018 {
             );
         }
 
-        visit_each_child(
+        maybe_visit_each_child(
             Some(node),
             |node: &Node| self.visitor(node),
             &**self.context,
-            Option::<
-                fn(
-                    Option<&NodeArray>,
-                    Option<&mut dyn FnMut(&Node) -> VisitResult>,
-                    Option<&dyn Fn(&Node) -> bool>,
-                    Option<usize>,
-                    Option<usize>,
-                ) -> Option<Gc<NodeArray>>,
-            >::None,
-            Option::<fn(&Node) -> VisitResult>::None,
-            Option::<
-                fn(
-                    Option<&Node>,
-                    Option<&mut dyn FnMut(&Node) -> VisitResult>,
-                    Option<&dyn Fn(&Node) -> bool>,
-                    Option<&dyn Fn(&[Gc<Node>]) -> Gc<Node>>,
-                ) -> Option<Gc<Node>>,
-            >::None,
         )
         .map(Into::into)
     }
@@ -789,28 +675,10 @@ impl TransformES2018 {
             );
         }
 
-        visit_each_child(
+        maybe_visit_each_child(
             Some(node),
             |node: &Node| self.visitor(node),
             &**self.context,
-            Option::<
-                fn(
-                    Option<&NodeArray>,
-                    Option<&mut dyn FnMut(&Node) -> VisitResult>,
-                    Option<&dyn Fn(&Node) -> bool>,
-                    Option<usize>,
-                    Option<usize>,
-                ) -> Option<Gc<NodeArray>>,
-            >::None,
-            Option::<fn(&Node) -> VisitResult>::None,
-            Option::<
-                fn(
-                    Option<&Node>,
-                    Option<&mut dyn FnMut(&Node) -> VisitResult>,
-                    Option<&dyn Fn(&Node) -> bool>,
-                    Option<&dyn Fn(&[Gc<Node>]) -> Gc<Node>>,
-                ) -> Option<Gc<Node>>,
-            >::None,
         )
         .map(Into::into)
     }
@@ -912,30 +780,7 @@ impl TransformES2018 {
                 return self.emit_helpers().create_assign_helper(&objects);
             }
         }
-        visit_each_child(
-            Some(node),
-            |node: &Node| self.visitor(node),
-            &**self.context,
-            Option::<
-                fn(
-                    Option<&NodeArray>,
-                    Option<&mut dyn FnMut(&Node) -> VisitResult>,
-                    Option<&dyn Fn(&Node) -> bool>,
-                    Option<usize>,
-                    Option<usize>,
-                ) -> Option<Gc<NodeArray>>,
-            >::None,
-            Option::<fn(&Node) -> VisitResult>::None,
-            Option::<
-                fn(
-                    Option<&Node>,
-                    Option<&mut dyn FnMut(&Node) -> VisitResult>,
-                    Option<&dyn Fn(&Node) -> bool>,
-                    Option<&dyn Fn(&[Gc<Node>]) -> Gc<Node>>,
-                ) -> Option<Gc<Node>>,
-            >::None,
-        )
-        .unwrap()
+        visit_each_child(node, |node: &Node| self.visitor(node), &**self.context)
     }
 
     fn visit_expression_statement(
@@ -943,29 +788,10 @@ impl TransformES2018 {
         node: &Node, /*ExpressionStatement*/
     ) -> Gc<Node /*ExpressionStatement*/> {
         visit_each_child(
-            Some(node),
+            node,
             |node: &Node| self.visitor_with_unused_expression_result(node),
             &**self.context,
-            Option::<
-                fn(
-                    Option<&NodeArray>,
-                    Option<&mut dyn FnMut(&Node) -> VisitResult>,
-                    Option<&dyn Fn(&Node) -> bool>,
-                    Option<usize>,
-                    Option<usize>,
-                ) -> Option<Gc<NodeArray>>,
-            >::None,
-            Option::<fn(&Node) -> VisitResult>::None,
-            Option::<
-                fn(
-                    Option<&Node>,
-                    Option<&mut dyn FnMut(&Node) -> VisitResult>,
-                    Option<&dyn Fn(&Node) -> bool>,
-                    Option<&dyn Fn(&[Gc<Node>]) -> Gc<Node>>,
-                ) -> Option<Gc<Node>>,
-            >::None,
         )
-        .unwrap()
     }
 
     fn visit_parenthesized_expression(
@@ -974,7 +800,7 @@ impl TransformES2018 {
         expression_result_is_unused: bool,
     ) -> Gc<Node /*ParenthesizedExpression*/> {
         visit_each_child(
-            Some(node),
+            node,
             |node: &Node| {
                 if expression_result_is_unused {
                     self.visitor_with_unused_expression_result(node)
@@ -983,26 +809,7 @@ impl TransformES2018 {
                 }
             },
             &**self.context,
-            Option::<
-                fn(
-                    Option<&NodeArray>,
-                    Option<&mut dyn FnMut(&Node) -> VisitResult>,
-                    Option<&dyn Fn(&Node) -> bool>,
-                    Option<usize>,
-                    Option<usize>,
-                ) -> Option<Gc<NodeArray>>,
-            >::None,
-            Option::<fn(&Node) -> VisitResult>::None,
-            Option::<
-                fn(
-                    Option<&Node>,
-                    Option<&mut dyn FnMut(&Node) -> VisitResult>,
-                    Option<&dyn Fn(&Node) -> bool>,
-                    Option<&dyn Fn(&[Gc<Node>]) -> Gc<Node>>,
-                ) -> Option<Gc<Node>>,
-            >::None,
         )
-        .unwrap()
     }
 
     fn visit_source_file(&self, node: &Node /*SourceFile*/) -> Gc<Node /*SourceFile*/> {
@@ -1015,30 +822,7 @@ impl TransformES2018 {
             },
         );
         self.set_exported_variable_statement(false);
-        let ref visited = visit_each_child(
-            Some(node),
-            |node: &Node| self.visitor(node),
-            &**self.context,
-            Option::<
-                fn(
-                    Option<&NodeArray>,
-                    Option<&mut dyn FnMut(&Node) -> VisitResult>,
-                    Option<&dyn Fn(&Node) -> bool>,
-                    Option<usize>,
-                    Option<usize>,
-                ) -> Option<Gc<NodeArray>>,
-            >::None,
-            Option::<fn(&Node) -> VisitResult>::None,
-            Option::<
-                fn(
-                    Option<&Node>,
-                    Option<&mut dyn FnMut(&Node) -> VisitResult>,
-                    Option<&dyn Fn(&Node) -> bool>,
-                    Option<&dyn Fn(&[Gc<Node>]) -> Gc<Node>>,
-                ) -> Option<Gc<Node>>,
-            >::None,
-        )
-        .unwrap();
+        let ref visited = visit_each_child(node, |node: &Node| self.visitor(node), &**self.context);
         let statement =
             visited
                 .as_source_file()
@@ -1149,30 +933,7 @@ impl TransformES2018 {
                 .unwrap(),
             );
         }
-        visit_each_child(
-            Some(node),
-            |node: &Node| self.visitor(node),
-            &**self.context,
-            Option::<
-                fn(
-                    Option<&NodeArray>,
-                    Option<&mut dyn FnMut(&Node) -> VisitResult>,
-                    Option<&dyn Fn(&Node) -> bool>,
-                    Option<usize>,
-                    Option<usize>,
-                ) -> Option<Gc<NodeArray>>,
-            >::None,
-            Option::<fn(&Node) -> VisitResult>::None,
-            Option::<
-                fn(
-                    Option<&Node>,
-                    Option<&mut dyn FnMut(&Node) -> VisitResult>,
-                    Option<&dyn Fn(&Node) -> bool>,
-                    Option<&dyn Fn(&[Gc<Node>]) -> Gc<Node>>,
-                ) -> Option<Gc<Node>>,
-            >::None,
-        )
-        .unwrap()
+        visit_each_child(node, |node: &Node| self.visitor(node), &**self.context)
     }
 
     fn visit_comma_list_expression(
@@ -1183,29 +944,10 @@ impl TransformES2018 {
         let node_as_comma_list_expression = node.as_comma_list_expression();
         if expression_result_is_unused {
             return visit_each_child(
-                Some(node),
+                node,
                 |node: &Node| self.visitor_with_unused_expression_result(node),
                 &**self.context,
-                Option::<
-                    fn(
-                        Option<&NodeArray>,
-                        Option<&mut dyn FnMut(&Node) -> VisitResult>,
-                        Option<&dyn Fn(&Node) -> bool>,
-                        Option<usize>,
-                        Option<usize>,
-                    ) -> Option<Gc<NodeArray>>,
-                >::None,
-                Option::<fn(&Node) -> VisitResult>::None,
-                Option::<
-                    fn(
-                        Option<&Node>,
-                        Option<&mut dyn FnMut(&Node) -> VisitResult>,
-                        Option<&dyn Fn(&Node) -> bool>,
-                        Option<&dyn Fn(&[Gc<Node>]) -> Gc<Node>>,
-                    ) -> Option<Gc<Node>>,
-                >::None,
-            )
-            .unwrap();
+            );
         }
         let mut result: Option<Vec<Gc<Node /*Expression*/>>> = None;
         for (i, element) in node_as_comma_list_expression.elements.iter().enumerate() {
@@ -1309,28 +1051,10 @@ impl TransformES2018 {
                     .into(),
             );
         }
-        visit_each_child(
+        maybe_visit_each_child(
             Some(node),
             |node: &Node| self.visitor(node),
             &**self.context,
-            Option::<
-                fn(
-                    Option<&NodeArray>,
-                    Option<&mut dyn FnMut(&Node) -> VisitResult>,
-                    Option<&dyn Fn(&Node) -> bool>,
-                    Option<usize>,
-                    Option<usize>,
-                ) -> Option<Gc<NodeArray>>,
-            >::None,
-            Option::<fn(&Node) -> VisitResult>::None,
-            Option::<
-                fn(
-                    Option<&Node>,
-                    Option<&mut dyn FnMut(&Node) -> VisitResult>,
-                    Option<&dyn Fn(&Node) -> bool>,
-                    Option<&dyn Fn(&[Gc<Node>]) -> Gc<Node>>,
-                ) -> Option<Gc<Node>>,
-            >::None,
         )
         .map(Into::into)
     }
@@ -1340,55 +1064,14 @@ impl TransformES2018 {
         if has_syntactic_modifier(node, ModifierFlags::Export) {
             let saved_exported_variable_statement = self.exported_variable_statement();
             self.set_exported_variable_statement(true);
-            let visited = visit_each_child(
-                Some(node),
-                |node: &Node| self.visitor(node),
-                &**self.context,
-                Option::<
-                    fn(
-                        Option<&NodeArray>,
-                        Option<&mut dyn FnMut(&Node) -> VisitResult>,
-                        Option<&dyn Fn(&Node) -> bool>,
-                        Option<usize>,
-                        Option<usize>,
-                    ) -> Option<Gc<NodeArray>>,
-                >::None,
-                Option::<fn(&Node) -> VisitResult>::None,
-                Option::<
-                    fn(
-                        Option<&Node>,
-                        Option<&mut dyn FnMut(&Node) -> VisitResult>,
-                        Option<&dyn Fn(&Node) -> bool>,
-                        Option<&dyn Fn(&[Gc<Node>]) -> Gc<Node>>,
-                    ) -> Option<Gc<Node>>,
-                >::None,
-            )
-            .unwrap();
+            let visited = visit_each_child(node, |node: &Node| self.visitor(node), &**self.context);
             self.set_exported_variable_statement(saved_exported_variable_statement);
             return Some(visited.into());
         }
-        visit_each_child(
+        maybe_visit_each_child(
             Some(node),
             |node: &Node| self.visitor(node),
             &**self.context,
-            Option::<
-                fn(
-                    Option<&NodeArray>,
-                    Option<&mut dyn FnMut(&Node) -> VisitResult>,
-                    Option<&dyn Fn(&Node) -> bool>,
-                    Option<usize>,
-                    Option<usize>,
-                ) -> Option<Gc<NodeArray>>,
-            >::None,
-            Option::<fn(&Node) -> VisitResult>::None,
-            Option::<
-                fn(
-                    Option<&Node>,
-                    Option<&mut dyn FnMut(&Node) -> VisitResult>,
-                    Option<&dyn Fn(&Node) -> bool>,
-                    Option<&dyn Fn(&[Gc<Node>]) -> Gc<Node>>,
-                ) -> Option<Gc<Node>>,
-            >::None,
         )
         .map(Into::into)
     }
@@ -1430,28 +1113,10 @@ impl TransformES2018 {
                 .into(),
             );
         }
-        visit_each_child(
+        maybe_visit_each_child(
             Some(node),
             |node: &Node| self.visitor(node),
             &**self.context,
-            Option::<
-                fn(
-                    Option<&NodeArray>,
-                    Option<&mut dyn FnMut(&Node) -> VisitResult>,
-                    Option<&dyn Fn(&Node) -> bool>,
-                    Option<usize>,
-                    Option<usize>,
-                ) -> Option<Gc<NodeArray>>,
-            >::None,
-            Option::<fn(&Node) -> VisitResult>::None,
-            Option::<
-                fn(
-                    Option<&Node>,
-                    Option<&mut dyn FnMut(&Node) -> VisitResult>,
-                    Option<&dyn Fn(&Node) -> bool>,
-                    Option<&dyn Fn(&[Gc<Node>]) -> Gc<Node>>,
-                ) -> Option<Gc<Node>>,
-            >::None,
         )
         .map(Into::into)
     }
@@ -1491,28 +1156,10 @@ impl TransformES2018 {
     }
 
     fn visit_void_expression(&self, node: &Node /*VoidExpression*/) -> VisitResult {
-        visit_each_child(
+        maybe_visit_each_child(
             Some(node),
             |node: &Node| self.visitor_with_unused_expression_result(node),
             &**self.context,
-            Option::<
-                fn(
-                    Option<&NodeArray>,
-                    Option<&mut dyn FnMut(&Node) -> VisitResult>,
-                    Option<&dyn Fn(&Node) -> bool>,
-                    Option<usize>,
-                    Option<usize>,
-                ) -> Option<Gc<NodeArray>>,
-            >::None,
-            Option::<fn(&Node) -> VisitResult>::None,
-            Option::<
-                fn(
-                    Option<&Node>,
-                    Option<&mut dyn FnMut(&Node) -> VisitResult>,
-                    Option<&dyn Fn(&Node) -> bool>,
-                    Option<&dyn Fn(&[Gc<Node>]) -> Gc<Node>>,
-                ) -> Option<Gc<Node>>,
-            >::None,
         )
         .map(Into::into)
     }
@@ -1545,30 +1192,7 @@ impl TransformES2018 {
             Some(
                 self.factory
                     .restore_enclosing_label(
-                        &visit_each_child(
-                            Some(node),
-                            |node: &Node| self.visitor(node),
-                            &**self.context,
-                            Option::<
-                                fn(
-                                    Option<&NodeArray>,
-                                    Option<&mut dyn FnMut(&Node) -> VisitResult>,
-                                    Option<&dyn Fn(&Node) -> bool>,
-                                    Option<usize>,
-                                    Option<usize>,
-                                ) -> Option<Gc<NodeArray>>,
-                            >::None,
-                            Option::<fn(&Node) -> VisitResult>::None,
-                            Option::<
-                                fn(
-                                    Option<&Node>,
-                                    Option<&mut dyn FnMut(&Node) -> VisitResult>,
-                                    Option<&dyn Fn(&Node) -> bool>,
-                                    Option<&dyn Fn(&[Gc<Node>]) -> Gc<Node>>,
-                                ) -> Option<Gc<Node>>,
-                            >::None,
-                        )
-                        .unwrap(),
+                        &visit_each_child(&node, |node: &Node| self.visitor(node), &**self.context),
                         outermost_labeled_statement,
                         Option::<fn(&Node)>::None,
                     )
@@ -1970,30 +1594,7 @@ impl TransformES2018 {
                 ),
             );
         }
-        visit_each_child(
-            Some(node),
-            |node: &Node| self.visitor(node),
-            &**self.context,
-            Option::<
-                fn(
-                    Option<&NodeArray>,
-                    Option<&mut dyn FnMut(&Node) -> VisitResult>,
-                    Option<&dyn Fn(&Node) -> bool>,
-                    Option<usize>,
-                    Option<usize>,
-                ) -> Option<Gc<NodeArray>>,
-            >::None,
-            Option::<fn(&Node) -> VisitResult>::None,
-            Option::<
-                fn(
-                    Option<&Node>,
-                    Option<&mut dyn FnMut(&Node) -> VisitResult>,
-                    Option<&dyn Fn(&Node) -> bool>,
-                    Option<&dyn Fn(&[Gc<Node>]) -> Gc<Node>>,
-                ) -> Option<Gc<Node>>,
-            >::None,
-        )
-        .unwrap()
+        visit_each_child(node, |node: &Node| self.visitor(node), &**self.context)
     }
 
     fn visit_constructor_declaration(

@@ -1,7 +1,10 @@
+use std::{
+    cmp,
+    collections::{HashMap, HashSet},
+    io, ptr,
+};
+
 use gc::Gc;
-use std::collections::{HashMap, HashSet};
-use std::ptr;
-use std::{cmp, io};
 
 use super::{
     get_node_id, get_symbol_id, MappedTypeModifiers, NodeBuilderContext,
@@ -427,32 +430,11 @@ impl NodeBuilder {
             return node.node_wrapper();
         }
         let ret = factory.with(|factory_| {
-            factory_.clone_node(
-                &visit_each_child(
-                    Some(node),
-                    |node: &Node| Some(self.deep_clone_or_reuse_node(node).into()),
-                    &*null_transformation_context,
-                    Option::<
-                        fn(
-                            Option<&NodeArray>,
-                            Option<&mut dyn FnMut(&Node) -> VisitResult>,
-                            Option<&dyn Fn(&Node) -> bool>,
-                            Option<usize>,
-                            Option<usize>,
-                        ) -> Option<Gc<NodeArray>>,
-                    >::None,
-                    Option::<fn(&Node) -> VisitResult>::None,
-                    Option::<
-                        fn(
-                            Option<&Node>,
-                            Option<&mut dyn FnMut(&Node) -> VisitResult>,
-                            Option<&dyn Fn(&Node) -> bool>,
-                            Option<&dyn Fn(&[Gc<Node>]) -> Gc<Node>>,
-                        ) -> Option<Gc<Node>>,
-                    >::None,
-                )
-                .unwrap(),
-            )
+            factory_.clone_node(&visit_each_child(
+                node,
+                |node: &Node| Some(self.deep_clone_or_reuse_node(node).into()),
+                &*null_transformation_context,
+            ))
         });
         set_text_range(&*ret, Some(node));
         ret

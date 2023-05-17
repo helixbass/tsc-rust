@@ -1,12 +1,13 @@
+use std::{io, mem};
+
 use gc::{Finalize, Gc, GcCell, Trace};
 
 use crate::{
-    chain_bundle, is_block, visit_each_child, visit_node, BaseNodeFactorySynthetic, Node,
-    NodeArray, NodeFactory, NodeInterface, SyntaxKind, TransformFlags, TransformationContext,
-    Transformer, TransformerFactory, TransformerFactoryInterface, TransformerInterface,
-    VisitResult,
+    chain_bundle, is_block, maybe_visit_each_child, visit_each_child, visit_node,
+    BaseNodeFactorySynthetic, Node, NodeArray, NodeFactory, NodeInterface, SyntaxKind,
+    TransformFlags, TransformationContext, Transformer, TransformerFactory,
+    TransformerFactoryInterface, TransformerInterface, VisitResult,
 };
-use std::{io, mem};
 
 #[derive(Trace, Finalize)]
 struct TransformES2019 {
@@ -36,30 +37,7 @@ impl TransformES2019 {
             return node.node_wrapper();
         }
 
-        visit_each_child(
-            Some(node),
-            |node: &Node| self.visitor(node),
-            &**self.context,
-            Option::<
-                fn(
-                    Option<&NodeArray>,
-                    Option<&mut dyn FnMut(&Node) -> VisitResult>,
-                    Option<&dyn Fn(&Node) -> bool>,
-                    Option<usize>,
-                    Option<usize>,
-                ) -> Option<Gc<NodeArray>>,
-            >::None,
-            Option::<fn(&Node) -> VisitResult>::None,
-            Option::<
-                fn(
-                    Option<&Node>,
-                    Option<&mut dyn FnMut(&Node) -> VisitResult>,
-                    Option<&dyn Fn(&Node) -> bool>,
-                    Option<&dyn Fn(&[Gc<Node>]) -> Gc<Node>>,
-                ) -> Option<Gc<Node>>,
-            >::None,
-        )
-        .unwrap()
+        visit_each_child(node, |node: &Node| self.visitor(node), &**self.context)
     }
 
     fn visitor(&self, node: &Node) -> VisitResult /*<Node>*/ {
@@ -71,28 +49,10 @@ impl TransformES2019 {
         }
         match node.kind() {
             SyntaxKind::CatchClause => Some(self.visit_catch_clause(node).into()),
-            _ => visit_each_child(
+            _ => maybe_visit_each_child(
                 Some(node),
                 |node: &Node| self.visitor(node),
                 &**self.context,
-                Option::<
-                    fn(
-                        Option<&NodeArray>,
-                        Option<&mut dyn FnMut(&Node) -> VisitResult>,
-                        Option<&dyn Fn(&Node) -> bool>,
-                        Option<usize>,
-                        Option<usize>,
-                    ) -> Option<Gc<NodeArray>>,
-                >::None,
-                Option::<fn(&Node) -> VisitResult>::None,
-                Option::<
-                    fn(
-                        Option<&Node>,
-                        Option<&mut dyn FnMut(&Node) -> VisitResult>,
-                        Option<&dyn Fn(&Node) -> bool>,
-                        Option<&dyn Fn(&[Gc<Node>]) -> Gc<Node>>,
-                    ) -> Option<Gc<Node>>,
-                >::None,
             )
             .map(Into::into),
         }
@@ -125,30 +85,7 @@ impl TransformES2019 {
                 .unwrap(),
             );
         }
-        visit_each_child(
-            Some(node),
-            |node: &Node| self.visitor(node),
-            &**self.context,
-            Option::<
-                fn(
-                    Option<&NodeArray>,
-                    Option<&mut dyn FnMut(&Node) -> VisitResult>,
-                    Option<&dyn Fn(&Node) -> bool>,
-                    Option<usize>,
-                    Option<usize>,
-                ) -> Option<Gc<NodeArray>>,
-            >::None,
-            Option::<fn(&Node) -> VisitResult>::None,
-            Option::<
-                fn(
-                    Option<&Node>,
-                    Option<&mut dyn FnMut(&Node) -> VisitResult>,
-                    Option<&dyn Fn(&Node) -> bool>,
-                    Option<&dyn Fn(&[Gc<Node>]) -> Gc<Node>>,
-                ) -> Option<Gc<Node>>,
-            >::None,
-        )
-        .unwrap()
+        visit_each_child(node, |node: &Node| self.visitor(node), &**self.context)
     }
 }
 

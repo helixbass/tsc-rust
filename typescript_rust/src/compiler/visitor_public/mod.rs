@@ -1,5 +1,6 @@
-use gc::Gc;
 use std::{borrow::Borrow, io};
+
+use gc::Gc;
 
 use crate::{
     is_block, is_statement, set_text_range_pos_end, single_or_undefined, with_factory, Debug_,
@@ -9,8 +10,8 @@ use crate::{
 
 mod try_visit_each_child;
 mod visit_each_child;
-pub use try_visit_each_child::{try_visit_each_child, try_visit_each_child_full};
-pub use visit_each_child::visit_each_child;
+pub use try_visit_each_child::*;
+pub use visit_each_child::*;
 
 pub fn visit_node(
     node: Option<impl Borrow<Node>>,

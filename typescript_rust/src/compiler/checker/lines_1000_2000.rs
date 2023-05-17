@@ -1,14 +1,12 @@
+use std::{borrow::Borrow, collections::HashMap, io, ptr};
+
 use gc::{Gc, GcCell};
 use indexmap::IndexMap;
-use std::collections::HashMap;
-use std::ptr;
-use std::{borrow::Borrow, io};
 
 use super::{
     get_next_merge_id, get_node_id, get_symbol_id, increment_next_merge_id,
     MembersOrExportsResolutionKind,
 };
-use crate::return_ok_default_if_none;
 use crate::{
     add_range, add_related_info, are_option_gcs_equal, compare_diagnostics, compare_paths,
     create_compiler_diagnostic, create_diagnostic_for_file_from_message_chain,
@@ -29,19 +27,20 @@ use crate::{
     is_private_identifier, is_property_declaration, is_require_call, is_source_file, is_static,
     is_this_property, is_type_alias_declaration, is_type_node, length, maybe_for_each,
     node_is_synthesized, null_transformation_context, out_file, push_if_unique_gc,
-    set_text_range_pos_end, set_value_declaration, some, try_cast, visit_each_child,
-    CancellationTokenDebuggable, Comparison, DiagnosticCategory, DiagnosticInterface,
-    DiagnosticMessageChain, DiagnosticRelatedInformation, DiagnosticRelatedInformationInterface,
-    Diagnostics, DuplicateInfoForFiles, DuplicateInfoForSymbol, EmitResolver,
-    FindAncestorCallbackReturn, HasInitializerInterface, InternalSymbolName, ModuleKind,
-    NamedDeclarationInterface, NodeArray, NodeFlags, PatternAmbientModule, PragmaArgumentName,
-    PragmaName, ReadonlyTextRange, ScriptTarget, VisitResult, __String, create_diagnostic_for_node,
-    escape_leading_underscores, factory, get_first_identifier, get_or_update_indexmap,
-    get_source_file_of_node, is_jsx_opening_fragment, maybe_get_source_file_of_node,
-    parse_isolated_entity_name, try_find_ancestor, unescape_leading_underscores, visit_node,
-    BaseTransientSymbol, CheckFlags, Debug_, Diagnostic, DiagnosticMessage, Node, NodeInterface,
-    NodeLinks, Symbol, SymbolFlags, SymbolInterface, SymbolLinks, SymbolTable, SyntaxKind,
-    TransientSymbol, TransientSymbolInterface, TypeChecker,
+    return_ok_default_if_none, set_text_range_pos_end, set_value_declaration, some, try_cast,
+    visit_each_child, CancellationTokenDebuggable, Comparison, DiagnosticCategory,
+    DiagnosticInterface, DiagnosticMessageChain, DiagnosticRelatedInformation,
+    DiagnosticRelatedInformationInterface, Diagnostics, DuplicateInfoForFiles,
+    DuplicateInfoForSymbol, EmitResolver, FindAncestorCallbackReturn, HasInitializerInterface,
+    InternalSymbolName, ModuleKind, NamedDeclarationInterface, NodeArray, NodeFlags,
+    PatternAmbientModule, PragmaArgumentName, PragmaName, ReadonlyTextRange, ScriptTarget,
+    VisitResult, __String, create_diagnostic_for_node, escape_leading_underscores, factory,
+    get_first_identifier, get_or_update_indexmap, get_source_file_of_node, is_jsx_opening_fragment,
+    maybe_get_source_file_of_node, maybe_visit_each_child, parse_isolated_entity_name,
+    try_find_ancestor, unescape_leading_underscores, visit_node, BaseTransientSymbol, CheckFlags,
+    Debug_, Diagnostic, DiagnosticMessage, Node, NodeInterface, NodeLinks, Symbol, SymbolFlags,
+    SymbolInterface, SymbolLinks, SymbolTable, SyntaxKind, TransientSymbol,
+    TransientSymbolInterface, TypeChecker,
 };
 
 impl TypeChecker {
@@ -210,28 +209,10 @@ impl TypeChecker {
 
     pub(super) fn mark_as_synthetic(&self, node: &Node) -> VisitResult {
         set_text_range_pos_end(node, -1, -1);
-        visit_each_child(
+        maybe_visit_each_child(
             Some(node),
             |node: &Node| self.mark_as_synthetic(node),
             &*null_transformation_context,
-            Option::<
-                fn(
-                    Option<&NodeArray>,
-                    Option<&mut dyn FnMut(&Node) -> VisitResult>,
-                    Option<&dyn Fn(&Node) -> bool>,
-                    Option<usize>,
-                    Option<usize>,
-                ) -> Option<Gc<NodeArray>>,
-            >::None,
-            Option::<fn(&Node) -> VisitResult>::None,
-            Option::<
-                fn(
-                    Option<&Node>,
-                    Option<&mut dyn FnMut(&Node) -> VisitResult>,
-                    Option<&dyn Fn(&Node) -> bool>,
-                    Option<&dyn Fn(&[Gc<Node>]) -> Gc<Node>>,
-                ) -> Option<Gc<Node>>,
-            >::None,
         )
         .map(Into::into)
     }

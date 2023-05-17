@@ -1,5 +1,6 @@
+use std::{borrow::Borrow, cell::RefCell, io, rc::Rc};
+
 use gc::{Finalize, Gc, Trace};
-use std::{borrow::Borrow, cell::RefCell, rc::Rc};
 
 use super::{propagate_child_flags, propagate_children_flags};
 use crate::{
@@ -15,7 +16,6 @@ use crate::{
     SyntaxKind, SyntheticExpression, TransformFlags, Type, UnparsedPrepend, UnparsedPrologue,
     UnparsedSource, UnparsedTextLike, VisitResult,
 };
-use std::io;
 
 impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory<TBaseNodeFactory> {
     pub fn create_property_assignment<'name>(

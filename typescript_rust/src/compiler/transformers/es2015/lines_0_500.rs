@@ -7,10 +7,10 @@ use crate::{
     chain_bundle, get_emit_flags, get_original_node, has_static_modifier, is_block, is_case_block,
     is_case_clause, is_catch_clause, is_default_clause, is_if_statement, is_iteration_statement,
     is_labeled_statement, is_property_declaration, is_return_statement, is_switch_statement,
-    is_try_statement, is_with_statement, visit_each_child, BaseNodeFactorySynthetic,
-    CompilerOptions, EmitFlags, EmitHelperFactory, EmitHint, EmitResolver, Node, NodeArray,
-    NodeExt, NodeFactory, NodeInterface, SourceFileLike, SyntaxKind, TransformFlags,
-    TransformationContext, TransformationContextOnEmitNodeOverrider,
+    is_try_statement, is_with_statement, maybe_visit_each_child, visit_each_child,
+    BaseNodeFactorySynthetic, CompilerOptions, EmitFlags, EmitHelperFactory, EmitHint,
+    EmitResolver, Node, NodeArray, NodeExt, NodeFactory, NodeInterface, SourceFileLike, SyntaxKind,
+    TransformFlags, TransformationContext, TransformationContextOnEmitNodeOverrider,
     TransformationContextOnSubstituteNodeOverrider, Transformer, TransformerFactory,
     TransformerFactoryInterface, TransformerInterface, VisitResult,
 };
@@ -46,6 +46,7 @@ pub(super) enum CopyDirection {
 }
 
 bitflags! {
+    #[derive(Default)]
     pub(super) struct Jump: u32 {
         const None = 0;
         const Break = 1 << 1;
@@ -161,19 +162,20 @@ pub(super) fn create_spread_segment(
 
 #[derive(Trace, Finalize)]
 pub(super) struct TransformES2015 {
-    _transformer_wrapper: GcCell<Option<Transformer>>,
-    context: Gc<Box<dyn TransformationContext>>,
-    factory: Gc<NodeFactory<BaseNodeFactorySynthetic>>,
-    compiler_options: Gc<CompilerOptions>,
-    resolver: Gc<Box<dyn EmitResolver>>,
-    current_source_file: GcCell<Option<Gc<Node /*SourceFile*/>>>,
-    current_text: GcCell<Option<String>>,
+    pub(super) _transformer_wrapper: GcCell<Option<Transformer>>,
+    pub(super) context: Gc<Box<dyn TransformationContext>>,
+    pub(super) factory: Gc<NodeFactory<BaseNodeFactorySynthetic>>,
+    pub(super) compiler_options: Gc<CompilerOptions>,
+    pub(super) resolver: Gc<Box<dyn EmitResolver>>,
+    pub(super) current_source_file: GcCell<Option<Gc<Node /*SourceFile*/>>>,
+    pub(super) current_text: GcCell<Option<String>>,
     #[unsafe_ignore_trace]
-    hierarchy_facts: Cell<Option<HierarchyFacts>>,
-    tagged_template_string_declarations: GcCell<Option<Vec<Gc<Node /*VariableDeclaration*/>>>>,
-    converted_loop_state: GcCell<Option<ConvertedLoopState>>,
+    pub(super) hierarchy_facts: Cell<Option<HierarchyFacts>>,
+    pub(super) tagged_template_string_declarations:
+        GcCell<Option<Vec<Gc<Node /*VariableDeclaration*/>>>>,
+    pub(super) converted_loop_state: GcCell<Option<ConvertedLoopState>>,
     #[unsafe_ignore_trace]
-    enabled_substitutions: Cell<Option<ES2015SubstitutionFlags>>,
+    pub(super) enabled_substitutions: Cell<Option<ES2015SubstitutionFlags>>,
 }
 
 impl TransformES2015 {
@@ -511,28 +513,10 @@ impl TransformES2015 {
             SyntaxKind::VariableStatement => self.visit_variable_statement(node).map(Into::into),
             SyntaxKind::ReturnStatement => Some(self.visit_return_statement(node).into()),
             SyntaxKind::VoidExpression => Some(self.visit_void_expression(node).into()),
-            _ => visit_each_child(
+            _ => maybe_visit_each_child(
                 Some(node),
                 |node: &Node| self.visitor(node),
                 &**self.context,
-                Option::<
-                    fn(
-                        Option<&NodeArray>,
-                        Option<&mut dyn FnMut(&Node) -> VisitResult>,
-                        Option<&dyn Fn(&Node) -> bool>,
-                        Option<usize>,
-                        Option<usize>,
-                    ) -> Option<Gc<NodeArray>>,
-                >::None,
-                Option::<fn(&Node) -> VisitResult>::None,
-                Option::<
-                    fn(
-                        Option<&Node>,
-                        Option<&mut dyn FnMut(&Node) -> VisitResult>,
-                        Option<&dyn Fn(&Node) -> bool>,
-                        Option<&dyn Fn(&[Gc<Node>]) -> Gc<Node>>,
-                    ) -> Option<Gc<Node>>,
-                >::None,
             )
             .map(Into::into),
         }

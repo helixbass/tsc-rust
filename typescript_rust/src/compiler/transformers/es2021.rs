@@ -5,9 +5,9 @@ use gc::{Finalize, Gc, Trace};
 use crate::{
     chain_bundle, get_non_assignment_operator_for_compound_assignment, is_access_expression,
     is_expression, is_left_hand_side_expression, is_logical_or_coalescing_assignment_expression,
-    is_property_access_expression, is_simple_copiable_expression, skip_parentheses,
-    visit_each_child, visit_node, BaseNodeFactorySynthetic, Node, NodeArray, NodeFactory,
-    NodeInterface, SyntaxKind, TransformFlags, TransformationContext, Transformer,
+    is_property_access_expression, is_simple_copiable_expression, maybe_visit_each_child,
+    skip_parentheses, visit_each_child, visit_node, BaseNodeFactorySynthetic, Node, NodeArray,
+    NodeFactory, NodeInterface, SyntaxKind, TransformFlags, TransformationContext, Transformer,
     TransformerFactory, TransformerFactoryInterface, TransformerInterface, VisitResult,
 };
 
@@ -30,30 +30,7 @@ impl TransformES2021 {
             return node.node_wrapper();
         }
 
-        visit_each_child(
-            Some(node),
-            |node: &Node| self.visitor(node),
-            &**self.context,
-            Option::<
-                fn(
-                    Option<&NodeArray>,
-                    Option<&mut dyn FnMut(&Node) -> VisitResult>,
-                    Option<&dyn Fn(&Node) -> bool>,
-                    Option<usize>,
-                    Option<usize>,
-                ) -> Option<Gc<NodeArray>>,
-            >::None,
-            Option::<fn(&Node) -> VisitResult>::None,
-            Option::<
-                fn(
-                    Option<&Node>,
-                    Option<&mut dyn FnMut(&Node) -> VisitResult>,
-                    Option<&dyn Fn(&Node) -> bool>,
-                    Option<&dyn Fn(&[Gc<Node>]) -> Gc<Node>>,
-                ) -> Option<Gc<Node>>,
-            >::None,
-        )
-        .unwrap()
+        visit_each_child(node, |node: &Node| self.visitor(node), &**self.context)
     }
 
     fn visitor(&self, node: &Node) -> VisitResult {
@@ -69,53 +46,17 @@ impl TransformES2021 {
                 if is_logical_or_coalescing_assignment_expression(binary_expression) {
                     return self.transform_logical_assignment(binary_expression);
                 }
-                visit_each_child(
+                maybe_visit_each_child(
                     Some(node),
                     |node: &Node| self.visitor(node),
                     &**self.context,
-                    Option::<
-                        fn(
-                            Option<&NodeArray>,
-                            Option<&mut dyn FnMut(&Node) -> VisitResult>,
-                            Option<&dyn Fn(&Node) -> bool>,
-                            Option<usize>,
-                            Option<usize>,
-                        ) -> Option<Gc<NodeArray>>,
-                    >::None,
-                    Option::<fn(&Node) -> VisitResult>::None,
-                    Option::<
-                        fn(
-                            Option<&Node>,
-                            Option<&mut dyn FnMut(&Node) -> VisitResult>,
-                            Option<&dyn Fn(&Node) -> bool>,
-                            Option<&dyn Fn(&[Gc<Node>]) -> Gc<Node>>,
-                        ) -> Option<Gc<Node>>,
-                    >::None,
                 )
                 .map(Into::into)
             }
-            _ => visit_each_child(
+            _ => maybe_visit_each_child(
                 Some(node),
                 |node: &Node| self.visitor(node),
                 &**self.context,
-                Option::<
-                    fn(
-                        Option<&NodeArray>,
-                        Option<&mut dyn FnMut(&Node) -> VisitResult>,
-                        Option<&dyn Fn(&Node) -> bool>,
-                        Option<usize>,
-                        Option<usize>,
-                    ) -> Option<Gc<NodeArray>>,
-                >::None,
-                Option::<fn(&Node) -> VisitResult>::None,
-                Option::<
-                    fn(
-                        Option<&Node>,
-                        Option<&mut dyn FnMut(&Node) -> VisitResult>,
-                        Option<&dyn Fn(&Node) -> bool>,
-                        Option<&dyn Fn(&[Gc<Node>]) -> Gc<Node>>,
-                    ) -> Option<Gc<Node>>,
-                >::None,
             )
             .map(Into::into),
         }

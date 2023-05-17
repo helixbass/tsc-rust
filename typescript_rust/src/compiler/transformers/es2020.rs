@@ -5,11 +5,11 @@ use gc::{Finalize, Gc, GcCell, Trace};
 use crate::{
     cast, chain_bundle, is_call_chain, is_expression, is_identifier, is_non_null_chain,
     is_optional_chain, is_parenthesized_expression, is_simple_copiable_expression,
-    is_synthetic_reference, is_tagged_template_expression, set_original_node, skip_parentheses,
-    skip_partially_emitted_expressions, visit_each_child, visit_node, visit_nodes,
-    BaseNodeFactorySynthetic, Debug_, Node, NodeArray, NodeExt, NodeFactory, NodeInterface,
-    SyntaxKind, TransformFlags, TransformationContext, Transformer, TransformerFactory,
-    TransformerFactoryInterface, TransformerInterface, VisitResult,
+    is_synthetic_reference, is_tagged_template_expression, maybe_visit_each_child,
+    set_original_node, skip_parentheses, skip_partially_emitted_expressions, visit_each_child,
+    visit_node, visit_nodes, BaseNodeFactorySynthetic, Debug_, Node, NodeArray, NodeExt,
+    NodeFactory, NodeInterface, SyntaxKind, TransformFlags, TransformationContext, Transformer,
+    TransformerFactory, TransformerFactoryInterface, TransformerInterface, VisitResult,
 };
 
 #[derive(Trace, Finalize)]
@@ -40,30 +40,7 @@ impl TransformES2020 {
             return node.node_wrapper();
         }
 
-        visit_each_child(
-            Some(node),
-            |node: &Node| self.visitor(node),
-            &**self.context,
-            Option::<
-                fn(
-                    Option<&NodeArray>,
-                    Option<&mut dyn FnMut(&Node) -> VisitResult>,
-                    Option<&dyn Fn(&Node) -> bool>,
-                    Option<usize>,
-                    Option<usize>,
-                ) -> Option<Gc<NodeArray>>,
-            >::None,
-            Option::<fn(&Node) -> VisitResult>::None,
-            Option::<
-                fn(
-                    Option<&Node>,
-                    Option<&mut dyn FnMut(&Node) -> VisitResult>,
-                    Option<&dyn Fn(&Node) -> bool>,
-                    Option<&dyn Fn(&[Gc<Node>]) -> Gc<Node>>,
-                ) -> Option<Gc<Node>>,
-            >::None,
-        )
-        .unwrap()
+        visit_each_child(node, |node: &Node| self.visitor(node), &**self.context)
     }
 
     fn visitor(&self, node: &Node) -> VisitResult /*<Node>*/ {
@@ -85,28 +62,10 @@ impl TransformES2020 {
                     Debug_.assert_not_node(Some(&*updated), Some(is_synthetic_reference), None);
                     return Some(updated.into());
                 }
-                visit_each_child(
+                maybe_visit_each_child(
                     Some(node),
                     |node: &Node| self.visitor(node),
                     &**self.context,
-                    Option::<
-                        fn(
-                            Option<&NodeArray>,
-                            Option<&mut dyn FnMut(&Node) -> VisitResult>,
-                            Option<&dyn Fn(&Node) -> bool>,
-                            Option<usize>,
-                            Option<usize>,
-                        ) -> Option<Gc<NodeArray>>,
-                    >::None,
-                    Option::<fn(&Node) -> VisitResult>::None,
-                    Option::<
-                        fn(
-                            Option<&Node>,
-                            Option<&mut dyn FnMut(&Node) -> VisitResult>,
-                            Option<&dyn Fn(&Node) -> bool>,
-                            Option<&dyn Fn(&[Gc<Node>]) -> Gc<Node>>,
-                        ) -> Option<Gc<Node>>,
-                    >::None,
                 )
                 .map(Into::into)
             }
@@ -116,54 +75,18 @@ impl TransformES2020 {
                 {
                     return self.transform_nullish_coalescing_expression(node);
                 }
-                visit_each_child(
+                maybe_visit_each_child(
                     Some(node),
                     |node: &Node| self.visitor(node),
                     &**self.context,
-                    Option::<
-                        fn(
-                            Option<&NodeArray>,
-                            Option<&mut dyn FnMut(&Node) -> VisitResult>,
-                            Option<&dyn Fn(&Node) -> bool>,
-                            Option<usize>,
-                            Option<usize>,
-                        ) -> Option<Gc<NodeArray>>,
-                    >::None,
-                    Option::<fn(&Node) -> VisitResult>::None,
-                    Option::<
-                        fn(
-                            Option<&Node>,
-                            Option<&mut dyn FnMut(&Node) -> VisitResult>,
-                            Option<&dyn Fn(&Node) -> bool>,
-                            Option<&dyn Fn(&[Gc<Node>]) -> Gc<Node>>,
-                        ) -> Option<Gc<Node>>,
-                    >::None,
                 )
                 .map(Into::into)
             }
             SyntaxKind::DeleteExpression => self.visit_delete_expression(node),
-            _ => visit_each_child(
+            _ => maybe_visit_each_child(
                 Some(node),
                 |node: &Node| self.visitor(node),
                 &**self.context,
-                Option::<
-                    fn(
-                        Option<&NodeArray>,
-                        Option<&mut dyn FnMut(&Node) -> VisitResult>,
-                        Option<&dyn Fn(&Node) -> bool>,
-                        Option<usize>,
-                        Option<usize>,
-                    ) -> Option<Gc<NodeArray>>,
-                >::None,
-                Option::<fn(&Node) -> VisitResult>::None,
-                Option::<
-                    fn(
-                        Option<&Node>,
-                        Option<&mut dyn FnMut(&Node) -> VisitResult>,
-                        Option<&dyn Fn(&Node) -> bool>,
-                        Option<&dyn Fn(&[Gc<Node>]) -> Gc<Node>>,
-                    ) -> Option<Gc<Node>>,
-                >::None,
             )
             .map(Into::into),
         }
@@ -342,30 +265,7 @@ impl TransformES2020 {
                 args,
             );
         }
-        visit_each_child(
-            Some(node),
-            |node: &Node| self.visitor(node),
-            &**self.context,
-            Option::<
-                fn(
-                    Option<&NodeArray>,
-                    Option<&mut dyn FnMut(&Node) -> VisitResult>,
-                    Option<&dyn Fn(&Node) -> bool>,
-                    Option<usize>,
-                    Option<usize>,
-                ) -> Option<Gc<NodeArray>>,
-            >::None,
-            Option::<fn(&Node) -> VisitResult>::None,
-            Option::<
-                fn(
-                    Option<&Node>,
-                    Option<&mut dyn FnMut(&Node) -> VisitResult>,
-                    Option<&dyn Fn(&Node) -> bool>,
-                    Option<&dyn Fn(&[Gc<Node>]) -> Gc<Node>>,
-                ) -> Option<Gc<Node>>,
-            >::None,
-        )
-        .unwrap()
+        visit_each_child(node, |node: &Node| self.visitor(node), &**self.context)
     }
 
     fn visit_non_optional_expression(

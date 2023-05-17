@@ -1,13 +1,15 @@
+use std::io;
+
 use gc::{Finalize, Gc, Trace};
 
 use crate::{
     chain_bundle, compiler::factory::utilities_public::set_text_range_rc_node,
-    is_element_access_expression, is_expression, is_property_access_expression, visit_each_child,
-    visit_node, BaseNodeFactorySynthetic, Node, NodeArray, NodeFactory, NodeInterface, SyntaxKind,
-    TransformFlags, TransformationContext, Transformer, TransformerFactory,
-    TransformerFactoryInterface, TransformerInterface, VisitResult,
+    is_element_access_expression, is_expression, is_property_access_expression,
+    maybe_visit_each_child, visit_each_child, visit_node, BaseNodeFactorySynthetic, Node,
+    NodeArray, NodeFactory, NodeInterface, SyntaxKind, TransformFlags, TransformationContext,
+    Transformer, TransformerFactory, TransformerFactoryInterface, TransformerInterface,
+    VisitResult,
 };
-use std::io;
 
 #[derive(Trace, Finalize)]
 struct TransformES2016 {
@@ -30,30 +32,7 @@ impl TransformES2016 {
             return node.node_wrapper();
         }
 
-        visit_each_child(
-            Some(node),
-            |node: &Node| self.visitor(node),
-            &**self.context,
-            Option::<
-                fn(
-                    Option<&NodeArray>,
-                    Option<&mut dyn FnMut(&Node) -> VisitResult>,
-                    Option<&dyn Fn(&Node) -> bool>,
-                    Option<usize>,
-                    Option<usize>,
-                ) -> Option<Gc<NodeArray>>,
-            >::None,
-            Option::<fn(&Node) -> VisitResult>::None,
-            Option::<
-                fn(
-                    Option<&Node>,
-                    Option<&mut dyn FnMut(&Node) -> VisitResult>,
-                    Option<&dyn Fn(&Node) -> bool>,
-                    Option<&dyn Fn(&[Gc<Node>]) -> Gc<Node>>,
-                ) -> Option<Gc<Node>>,
-            >::None,
-        )
-        .unwrap()
+        visit_each_child(node, |node: &Node| self.visitor(node), &**self.context)
     }
 
     fn visitor(&self, node: &Node) -> VisitResult {
@@ -65,28 +44,10 @@ impl TransformES2016 {
         }
         match node.kind() {
             SyntaxKind::BinaryExpression => Some(self.visit_binary_expression(node).into()),
-            _ => visit_each_child(
+            _ => maybe_visit_each_child(
                 Some(node),
                 |node: &Node| self.visitor(node),
                 &**self.context,
-                Option::<
-                    fn(
-                        Option<&NodeArray>,
-                        Option<&mut dyn FnMut(&Node) -> VisitResult>,
-                        Option<&dyn Fn(&Node) -> bool>,
-                        Option<usize>,
-                        Option<usize>,
-                    ) -> Option<Gc<NodeArray>>,
-                >::None,
-                Option::<fn(&Node) -> VisitResult>::None,
-                Option::<
-                    fn(
-                        Option<&Node>,
-                        Option<&mut dyn FnMut(&Node) -> VisitResult>,
-                        Option<&dyn Fn(&Node) -> bool>,
-                        Option<&dyn Fn(&[Gc<Node>]) -> Gc<Node>>,
-                    ) -> Option<Gc<Node>>,
-                >::None,
             )
             .map(Into::into),
         }
@@ -101,30 +62,7 @@ impl TransformES2016 {
                 self.visit_exponentiation_assignment_expression(node)
             }
             SyntaxKind::AsteriskAsteriskToken => self.visit_exponentiation_expression(node),
-            _ => visit_each_child(
-                Some(node),
-                |node: &Node| self.visitor(node),
-                &**self.context,
-                Option::<
-                    fn(
-                        Option<&NodeArray>,
-                        Option<&mut dyn FnMut(&Node) -> VisitResult>,
-                        Option<&dyn Fn(&Node) -> bool>,
-                        Option<usize>,
-                        Option<usize>,
-                    ) -> Option<Gc<NodeArray>>,
-                >::None,
-                Option::<fn(&Node) -> VisitResult>::None,
-                Option::<
-                    fn(
-                        Option<&Node>,
-                        Option<&mut dyn FnMut(&Node) -> VisitResult>,
-                        Option<&dyn Fn(&Node) -> bool>,
-                        Option<&dyn Fn(&[Gc<Node>]) -> Gc<Node>>,
-                    ) -> Option<Gc<Node>>,
-                >::None,
-            )
-            .unwrap(),
+            _ => visit_each_child(node, |node: &Node| self.visitor(node), &**self.context),
         }
     }
 

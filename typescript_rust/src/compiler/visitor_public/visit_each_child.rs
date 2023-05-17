@@ -1,5 +1,6 @@
+use std::borrow::Borrow;
+
 use gc::Gc;
-use std::{borrow::Borrow};
 
 use super::{
     visit_function_body, visit_iteration_body, visit_lexical_environment, visit_node, visit_nodes,
@@ -25,15 +26,53 @@ use crate::{
     is_template_literal_type_span, is_template_middle_or_template_tail, is_template_span, is_token,
     is_type_element, is_type_node, is_type_node_or_type_parameter_declaration,
     is_type_parameter_declaration, is_variable_declaration, is_variable_declaration_list,
-    ClassLikeDeclarationInterface, FunctionLikeDeclarationInterface,
-    HasInitializerInterface, HasMembersInterface, HasQuestionTokenInterface,
-    HasStatementsInterface, HasTypeArgumentsInterface, HasTypeInterface,
-    HasTypeParametersInterface, InterfaceOrClassLikeDeclarationInterface,
-    NamedDeclarationInterface, Node, NodeArray, NodeFlags, NodeInterface, SignatureDeclarationInterface, SyntaxKind,
-    TransformationContext, VisitResult,
+    ClassLikeDeclarationInterface, FunctionLikeDeclarationInterface, HasInitializerInterface,
+    HasMembersInterface, HasQuestionTokenInterface, HasStatementsInterface,
+    HasTypeArgumentsInterface, HasTypeInterface, HasTypeParametersInterface,
+    InterfaceOrClassLikeDeclarationInterface, NamedDeclarationInterface, Node, NodeArray,
+    NodeFlags, NodeInterface, SignatureDeclarationInterface, SyntaxKind, TransformationContext,
+    VisitResult,
 };
 
 pub fn visit_each_child(
+    node: &Node,
+    visitor: impl FnMut(&Node) -> VisitResult,
+    context: &(impl TransformationContext + ?Sized),
+) -> Gc<Node> {
+    maybe_visit_each_child(Some(node), visitor, context).unwrap()
+}
+
+pub fn maybe_visit_each_child(
+    node: Option<impl Borrow<Node>>,
+    visitor: impl FnMut(&Node) -> VisitResult,
+    context: &(impl TransformationContext + ?Sized),
+) -> Option<Gc<Node>> {
+    maybe_visit_each_child_full(
+        node,
+        visitor,
+        context,
+        Option::<
+            fn(
+                Option<&NodeArray>,
+                Option<&mut dyn FnMut(&Node) -> VisitResult>,
+                Option<&dyn Fn(&Node) -> bool>,
+                Option<usize>,
+                Option<usize>,
+            ) -> Option<Gc<NodeArray>>,
+        >::None,
+        Option::<fn(&Node) -> VisitResult>::None,
+        Option::<
+            fn(
+                Option<&Node>,
+                Option<&mut dyn FnMut(&Node) -> VisitResult>,
+                Option<&dyn Fn(&Node) -> bool>,
+                Option<&dyn Fn(&[Gc<Node>]) -> Gc<Node>>,
+            ) -> Option<Gc<Node>>,
+        >::None,
+    )
+}
+
+pub fn maybe_visit_each_child_full(
     node: Option<impl Borrow<Node>>,
     mut visitor: impl FnMut(&Node) -> VisitResult,
     context: &(impl TransformationContext + ?Sized),
