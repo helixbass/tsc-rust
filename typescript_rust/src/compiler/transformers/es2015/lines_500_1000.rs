@@ -25,6 +25,24 @@ impl TransformES2015 {
         unimplemented!()
     }
 
+    pub(super) fn visit_return_statement(
+        &self,
+        _node: &Node, /*ReturnStatement*/
+    ) -> Gc<Node /*Statement*/> {
+        unimplemented!()
+    }
+
+    pub(super) fn visit_this_keyword(&self, _node: &Node) -> Gc<Node> {
+        unimplemented!()
+    }
+
+    pub(super) fn visit_void_expression(
+        &self,
+        _node: &Node, /*VoidExpression*/
+    ) -> Gc<Node /*Expression*/> {
+        unimplemented!()
+    }
+
     pub(super) fn visit_identifier(
         &self,
         _node: &Node, /*Identifier*/

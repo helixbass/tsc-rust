@@ -21,6 +21,37 @@ impl TransformES2015 {
         unimplemented!()
     }
 
+    pub(super) fn visit_parenthesized_expression(
+        &self,
+        _node: &Node, /*ParenthesizedExpression*/
+        _expression_result_is_unused: bool,
+    ) -> Gc<Node /*ParenthesizedExpression*/> {
+        unimplemented!()
+    }
+
+    pub(super) fn visit_binary_expression(
+        &self,
+        _node: &Node, /*BinaryExpression*/
+        _expression_result_is_unused: bool,
+    ) -> Gc<Node /*Expression*/> {
+        unimplemented!()
+    }
+
+    pub(super) fn visit_comma_list_expression(
+        &self,
+        _node: &Node, /*CommaListExpression*/
+        _expression_result_is_unused: bool,
+    ) -> Gc<Node /*Expression*/> {
+        unimplemented!()
+    }
+
+    pub(super) fn visit_variable_statement(
+        &self,
+        _node: &Node, /*VariableStatement*/
+    ) -> Option<Gc<Node /*Statement*/>> {
+        unimplemented!()
+    }
+
     pub(super) fn visit_variable_declaration_list(
         &self,
         _node: &Node, /*VariableDeclarationList*/
