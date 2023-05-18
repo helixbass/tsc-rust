@@ -763,7 +763,7 @@ impl TransformES2015 {
             );
         }
         self.add_default_value_assignments_if_needed(&mut statements, constructor)?;
-        self.add_rest_parameter_if_needed(&mut statements, constructor, has_synthesized_super);
+        self.add_rest_parameter_if_needed(&mut statements, constructor, has_synthesized_super)?;
         if !has_synthesized_super {
             statement_offset = self
                 .factory

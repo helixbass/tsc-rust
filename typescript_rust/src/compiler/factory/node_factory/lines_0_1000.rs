@@ -1,6 +1,7 @@
+use std::{borrow::Borrow, cell::RefCell, ptr};
+
 use bitflags::bitflags;
 use gc::{Finalize, Gc, GcCellRef, Trace};
-use std::{borrow::Borrow, cell::RefCell, ptr};
 
 use super::{
     aggregate_children_flags, propagate_child_flags, propagate_children_flags,
@@ -1034,6 +1035,13 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         _record_temp_variable: Option<impl FnMut(&Node /*Identifier*/)>,
         _reserved_in_nested_scopes: Option<bool>,
     ) -> Gc<Node /*GeneratedIdentifier*/> {
+        unimplemented!()
+    }
+
+    pub fn create_loop_variable(
+        &self,
+        _reserved_in_nested_scopes: Option<bool>,
+    ) -> Gc<Node /*Identifier*/> {
         unimplemented!()
     }
 

@@ -5,9 +5,10 @@ use gc::Gc;
 use super::TransformES2015;
 use crate::{
     flatten_destructuring_binding, get_emit_flags, insert_statement_after_custom_prologue,
-    is_binding_pattern, is_expression, last_or_undefined, some, try_flatten_destructuring_binding,
-    try_visit_node, EmitFlags, FlattenLevel, GeneratedIdentifierFlags, HasInitializerInterface,
-    Matches, NamedDeclarationInterface, Node, NodeArray, NodeExt, NodeInterface, SyntaxKind,
+    insert_statements_after_custom_prologue, is_binding_pattern, is_expression, last_or_undefined,
+    some, try_flatten_destructuring_binding, try_visit_node, EmitFlags, FlattenLevel,
+    GeneratedIdentifierFlags, HasInitializerInterface, Matches, NamedDeclarationInterface, Node,
+    NodeArray, NodeExt, NodeInterface, Number, SyntaxKind,
 };
 
 impl TransformES2015 {
@@ -316,12 +317,217 @@ impl TransformES2015 {
         Ok(())
     }
 
+    pub(super) fn should_add_rest_parameter(
+        &self,
+        node: Option<impl Borrow<Node /*ParameterDeclaration*/>>,
+        in_constructor_with_synthesized_super: bool,
+    ) -> bool {
+        node.matches(|node| {
+            let node: &Node = node.borrow();
+            node.as_parameter_declaration().dot_dot_dot_token.is_some()
+        }) && !in_constructor_with_synthesized_super
+    }
+
     pub(super) fn add_rest_parameter_if_needed(
         &self,
-        _statements: &mut Vec<Gc<Node /*Statement*/>>,
-        _node: &Node, /*FunctionLikeDeclaration*/
-        _in_constructor_with_synthesized_super: bool,
-    ) -> bool {
-        unimplemented!()
+        statements: &mut Vec<Gc<Node /*Statement*/>>,
+        node: &Node, /*FunctionLikeDeclaration*/
+        in_constructor_with_synthesized_super: bool,
+    ) -> io::Result<bool> {
+        let node_as_function_like_declaration = node.as_function_like_declaration();
+        let mut prologue_statements: Vec<Gc<Node /*Statement*/>> = Default::default();
+        let parameter = last_or_undefined(&node_as_function_like_declaration.parameters()).cloned();
+        if !self
+            .should_add_rest_parameter(parameter.as_deref(), in_constructor_with_synthesized_super)
+        {
+            return Ok(false);
+        }
+        let parameter = parameter.unwrap();
+        let parameter_as_parameter_declaration = parameter.as_parameter_declaration();
+
+        let parameter_name = parameter_as_parameter_declaration.name();
+        let declaration_name = if parameter_name.kind() == SyntaxKind::Identifier {
+            self.factory
+                .clone_node(&parameter_name)
+                .set_text_range(Some(&*parameter_name))
+                .and_set_parent(parameter_name.maybe_parent())
+        } else {
+            self.factory
+                .create_temp_variable(Option::<fn(&Node)>::None, None)
+        }
+        .set_emit_flags(EmitFlags::NoSourceMap);
+
+        let expression_name = if parameter_name.kind() == SyntaxKind::Identifier {
+            self.factory.clone_node(&parameter_name)
+        } else {
+            declaration_name.clone()
+        };
+        let rest_index = node_as_function_like_declaration.parameters().len() - 1;
+        let temp = self.factory.create_loop_variable(None);
+
+        prologue_statements.push(
+            self.factory
+                .create_variable_statement(
+                    Option::<Gc<NodeArray>>::None,
+                    self.factory
+                        .create_variable_declaration_list(
+                            vec![self
+                                .factory
+                                .create_variable_declaration(
+                                    Some(declaration_name),
+                                    None,
+                                    None,
+                                    Some(
+                                        self.factory
+                                            .create_array_literal_expression(Some(vec![]), None)
+                                            .wrap(),
+                                    ),
+                                )
+                                .wrap()],
+                            None,
+                        )
+                        .wrap(),
+                )
+                .wrap()
+                .set_text_range(Some(&*parameter))
+                .set_emit_flags(EmitFlags::CustomPrologue),
+        );
+
+        let for_statement = self
+            .factory
+            .create_for_statement(
+                Some(
+                    self.factory
+                        .create_variable_declaration_list(
+                            vec![self
+                                .factory
+                                .create_variable_declaration(
+                                    Some(temp.clone()),
+                                    None,
+                                    None,
+                                    Some(
+                                        self.factory
+                                            .create_numeric_literal(
+                                                Number::new(rest_index as f64),
+                                                None,
+                                            )
+                                            .wrap(),
+                                    ),
+                                )
+                                .wrap()],
+                            None,
+                        )
+                        .wrap()
+                        .set_text_range(Some(&*parameter)),
+                ),
+                Some(
+                    self.factory
+                        .create_less_than(
+                            temp.clone(),
+                            self.factory
+                                .create_property_access_expression(
+                                    self.factory
+                                        .create_identifier(
+                                            "arguments",
+                                            Option::<Gc<NodeArray>>::None,
+                                            None,
+                                        )
+                                        .wrap(),
+                                    "length",
+                                )
+                                .wrap(),
+                        )
+                        .wrap()
+                        .set_text_range(Some(&*parameter)),
+                ),
+                Some(
+                    self.factory
+                        .create_postfix_increment(temp.clone())
+                        .wrap()
+                        .set_text_range(Some(&*parameter)),
+                ),
+                self.factory
+                    .create_block(
+                        vec![self
+                            .factory
+                            .create_expression_statement(
+                                self.factory
+                                    .create_assignment(
+                                        self.factory
+                                            .create_element_access_expression(
+                                                expression_name.clone(),
+                                                if rest_index == 0 {
+                                                    temp.clone()
+                                                } else {
+                                                    self.factory
+                                                        .create_subtract(
+                                                            temp.clone(),
+                                                            self.factory
+                                                                .create_numeric_literal(
+                                                                    Number::new(rest_index as f64),
+                                                                    None,
+                                                                )
+                                                                .wrap(),
+                                                        )
+                                                        .wrap()
+                                                },
+                                            )
+                                            .wrap(),
+                                        self.factory
+                                            .create_element_access_expression(
+                                                self.factory
+                                                    .create_identifier(
+                                                        "arguments",
+                                                        Option::<Gc<NodeArray>>::None,
+                                                        None,
+                                                    )
+                                                    .wrap(),
+                                                temp.clone(),
+                                            )
+                                            .wrap(),
+                                    )
+                                    .wrap(),
+                            )
+                            .wrap()
+                            .set_text_range(Some(&*parameter))
+                            .start_on_new_line()],
+                        None,
+                    )
+                    .wrap(),
+            )
+            .wrap()
+            .set_emit_flags(EmitFlags::CustomPrologue)
+            .start_on_new_line();
+
+        prologue_statements.push(for_statement);
+
+        if parameter_name.kind() != SyntaxKind::Identifier {
+            prologue_statements.push(
+                self.factory
+                    .create_variable_statement(
+                        Option::<Gc<NodeArray>>::None,
+                        self.factory
+                            .create_variable_declaration_list(
+                                try_flatten_destructuring_binding(
+                                    &parameter,
+                                    |node: &Node| self.visitor(node),
+                                    &**self.context,
+                                    FlattenLevel::All,
+                                    Some(expression_name.clone()),
+                                    None,
+                                    None,
+                                )?,
+                                None,
+                            )
+                            .wrap(),
+                    )
+                    .wrap()
+                    .set_text_range(Some(&*parameter))
+                    .set_emit_flags(EmitFlags::CustomPrologue),
+            );
+        }
+
+        insert_statements_after_custom_prologue(statements, Some(&prologue_statements));
+        Ok(true)
     }
 }
