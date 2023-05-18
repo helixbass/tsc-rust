@@ -12,6 +12,14 @@ impl TransformES2015 {
         unimplemented!()
     }
 
+    pub(super) fn add_class_members(
+        &self,
+        _statements: &mut Vec<Gc<Node /*Statement*/>>,
+        _node: &Node, /*ClassExpression | ClassDeclaration*/
+    ) {
+        unimplemented!()
+    }
+
     pub(super) fn visit_arrow_function(&self, _node: &Node /*ArrowFunction*/) -> VisitResult {
         unimplemented!()
     }

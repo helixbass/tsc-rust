@@ -4,12 +4,15 @@ use gc::Gc;
 
 use super::{CopyDirection, HierarchyFacts, Jump, TransformES2015};
 use crate::{
-    add_range, concatenate, get_class_extends_heritage_element, get_emit_flags,
-    has_syntactic_modifier, id_text, is_expression, is_statement, set_emit_flags,
-    single_or_many_node, skip_trivia, try_visit_each_child, try_visit_node, try_visit_nodes,
+    add_range, concatenate, create_token_range, get_class_extends_heritage_element, get_emit_flags,
+    get_first_constructor_with_body, has_syntactic_modifier, id_text,
+    insert_statements_after_standard_prologue, is_expression,
+    is_identifier_a_non_contextual_keyword, is_statement, set_emit_flags, single_or_many_node,
+    skip_trivia, try_visit_each_child, try_visit_node, try_visit_nodes, try_visit_parameter_list,
     visit_each_child, visit_node, visit_nodes, AsDoubleDeref, EmitFlags, GeneratedIdentifierFlags,
-    HasStatementsInterface, MapOrDefault, ModifierFlags, Node, NodeArray, NodeArrayExt, NodeExt,
-    NodeInterface, OptionTry, ReadonlyTextRange, SyntaxKind, VisitResult,
+    HasStatementsInterface, MapOrDefault, ModifierFlags, Node, NodeArray, NodeArrayExt,
+    NodeArrayOrVec, NodeExt, NodeInterface, NodeWrappered, OptionTry, ReadonlyTextRange,
+    SignatureDeclarationInterface, SyntaxKind, TextRange, VisitResult,
 };
 
 impl TransformES2015 {
@@ -463,7 +466,7 @@ impl TransformES2015 {
                         .wrap()]
                 })),
                 None,
-                self.transform_class_body(node, extends_clause_element.as_deref()),
+                self.transform_class_body(node, extends_clause_element.as_deref())?,
             )
             .wrap()
             .set_emit_flags(
@@ -521,9 +524,207 @@ impl TransformES2015 {
 
     pub(super) fn transform_class_body(
         &self,
-        _node: &Node, /*ClassExpression | ClassDeclaration*/
-        _extends_clause_element: Option<impl Borrow<Node>>, /*ExpressionWithTypeArguments*/
-    ) -> Gc<Node /*Block*/> {
+        node: &Node, /*ClassExpression | ClassDeclaration*/
+        extends_clause_element: Option<impl Borrow<Node>>, /*ExpressionWithTypeArguments*/
+    ) -> io::Result<Gc<Node /*Block*/>> {
+        let node_as_class_like_declaration = node.as_class_like_declaration();
+        let mut statements: Vec<Gc<Node /*Statement*/>> = Default::default();
+        let name = self.factory.get_internal_name(node, None, None);
+        let constructor_like_name = if is_identifier_a_non_contextual_keyword(&name) {
+            self.factory.get_generated_name_for_node(Some(name), None)
+        } else {
+            name
+        };
+        self.context.start_lexical_environment();
+        let extends_clause_element = extends_clause_element.node_wrappered();
+        self.add_extends_helper_if_needed(&mut statements, node, extends_clause_element.as_deref());
+        self.add_constructor(
+            &mut statements,
+            node,
+            &constructor_like_name,
+            extends_clause_element.as_deref(),
+        )?;
+        self.add_class_members(&mut statements, node);
+
+        let closing_brace_location = create_token_range(
+            skip_trivia(
+                &self.current_text(),
+                node_as_class_like_declaration.members().end(),
+                None,
+                None,
+                None,
+            ),
+            SyntaxKind::CloseBraceToken,
+        );
+
+        let outer = self
+            .factory
+            .create_partially_emitted_expression(constructor_like_name, None)
+            .wrap()
+            .set_text_range_end(closing_brace_location.end())
+            .set_emit_flags(EmitFlags::NoComments);
+
+        let statement = self
+            .factory
+            .create_return_statement(Some(outer))
+            .wrap()
+            .set_text_range_pos(closing_brace_location.pos())
+            .set_emit_flags(EmitFlags::NoComments | EmitFlags::NoTokenSourceMaps);
+        statements.push(statement);
+
+        insert_statements_after_standard_prologue(
+            &mut statements,
+            self.context.end_lexical_environment().as_deref(),
+        );
+
+        Ok(self
+            .factory
+            .create_block(
+                self.factory
+                    .create_node_array(Some(statements), None)
+                    .set_text_range(Some(&*node_as_class_like_declaration.members())),
+                Some(true),
+            )
+            .wrap()
+            .set_emit_flags(EmitFlags::NoComments))
+    }
+
+    pub(super) fn add_extends_helper_if_needed(
+        &self,
+        statements: &mut Vec<Gc<Node /*Statement*/>>,
+        node: &Node, /*ClassExpression | ClassDeclaration*/
+        extends_clause_element: Option<impl Borrow<Node>>, /*ExpressionWithTypeArguments*/
+    ) {
+        if let Some(extends_clause_element) = extends_clause_element {
+            let extends_clause_element: &Node = extends_clause_element.borrow();
+            statements.push(
+                self.factory
+                    .create_expression_statement(
+                        self.emit_helpers().create_extends_helper(
+                            self.factory.get_internal_name(node, None, None),
+                        ),
+                    )
+                    .wrap()
+                    .set_text_range(Some(extends_clause_element)),
+            );
+        }
+    }
+
+    pub(super) fn add_constructor(
+        &self,
+        statements: &mut Vec<Gc<Node /*Statement*/>>,
+        node: &Node, /*ClassExpression | ClassDeclaration*/
+        name: &Node, /*Identifier*/
+        extends_clause_element: Option<impl Borrow<Node>>, /*ExpressionWithTypeArguments*/
+    ) -> io::Result<()> {
+        let saved_converted_loop_state = self.maybe_converted_loop_state().clone();
+        self.set_converted_loop_state(None);
+        let ancestor_facts = self.enter_subtree(
+            HierarchyFacts::ConstructorExcludes,
+            HierarchyFacts::ConstructorIncludes,
+        );
+        let constructor = get_first_constructor_with_body(node);
+        let has_synthesized_super = self.has_synthesized_default_super_call(
+            constructor.as_deref(),
+            extends_clause_element.is_some(),
+        );
+        let extends_clause_element = extends_clause_element.node_wrappered();
+        let constructor_function = self
+            .factory
+            .create_function_declaration(
+                Option::<Gc<NodeArray>>::None,
+                Option::<Gc<NodeArray>>::None,
+                None,
+                Some(name.node_wrapper()),
+                Option::<Gc<NodeArray>>::None,
+                self.transform_constructor_parameters(
+                    constructor.as_deref(),
+                    has_synthesized_super,
+                )?,
+                None,
+                Some(self.transform_constructor_body(
+                    constructor.as_deref(),
+                    node,
+                    extends_clause_element.as_deref(),
+                    has_synthesized_super,
+                )),
+            )
+            .wrap()
+            .set_text_range(Some(constructor.as_deref().unwrap_or(node)));
+        if extends_clause_element.is_some() {
+            set_emit_flags(&*constructor_function, EmitFlags::CapturesThis);
+        }
+
+        statements.push(constructor_function);
+        self.exit_subtree(
+            ancestor_facts,
+            HierarchyFacts::FunctionSubtreeExcludes,
+            HierarchyFacts::None,
+        );
+        self.set_converted_loop_state(saved_converted_loop_state);
+
+        Ok(())
+    }
+
+    pub(super) fn transform_constructor_parameters(
+        &self,
+        constructor: Option<impl Borrow<Node>>, /*ConstructorDeclaration*/
+        has_synthesized_super: bool,
+    ) -> io::Result<NodeArrayOrVec> {
+        let constructor = constructor.node_wrappered();
+        Ok(try_visit_parameter_list(
+            constructor
+                .filter(|_| !has_synthesized_super)
+                .map(|constructor| constructor.as_constructor_declaration().parameters())
+                .as_deref(),
+            |node: &Node| self.visitor(node),
+            &**self.context,
+        )?
+        .map_or_else(|| vec![].into(), Into::into))
+    }
+
+    pub(super) fn create_default_constructor_body(
+        &self,
+        node: &Node, /*ClassExpression | ClassDeclaration*/
+        is_derived_class: bool,
+    ) -> Gc<Node> {
+        let mut statements: Vec<Gc<Node /*Statement*/>> = Default::default();
+        self.context.resume_lexical_environment();
+        statements = self
+            .factory
+            .merge_lexical_environment(
+                statements,
+                self.context.end_lexical_environment().as_deref(),
+            )
+            .as_vec_owned();
+
+        if is_derived_class {
+            statements.push(
+                self.factory
+                    .create_return_statement(Some(self.create_default_super_call_or_this()))
+                    .wrap(),
+            );
+        }
+
+        let statements_array = self
+            .factory
+            .create_node_array(Some(statements), None)
+            .set_text_range(Some(&*node.as_class_like_declaration().members()));
+
+        self.factory
+            .create_block(statements_array, Some(true))
+            .wrap()
+            .set_text_range(Some(node))
+            .set_emit_flags(EmitFlags::NoComments)
+    }
+
+    pub(super) fn transform_constructor_body(
+        &self,
+        constructor: Option<impl Borrow<Node>>, /*ConstructorDeclaration & { body: FunctionBody } */
+        node: &Node,                            /*ClassExpression | ClassDeclaration*/
+        extends_clause_element: Option<impl Borrow<Node>>, /*ExpressionWithTypeArguments*/
+        has_synthesized_super: bool,
+    ) -> Gc<Node> {
         unimplemented!()
     }
 }

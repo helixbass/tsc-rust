@@ -25,7 +25,7 @@ bitflags! {
     }
 }
 
-#[derive(Trace, Finalize)]
+#[derive(Clone, Trace, Finalize)]
 pub(super) struct LoopOutParameter {
     #[unsafe_ignore_trace]
     pub flags: LoopOutParameterFlags,
@@ -57,7 +57,7 @@ bitflags! {
     }
 }
 
-#[derive(Trace, Finalize)]
+#[derive(Clone, Trace, Finalize)]
 pub(super) struct ConvertedLoopState {
     pub labels: Option<HashMap<String, bool>>,
     pub labeled_non_local_breaks: Option<HashMap<String, String>>,

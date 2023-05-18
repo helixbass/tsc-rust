@@ -1,3 +1,5 @@
+use std::borrow::Borrow;
+
 use gc::Gc;
 
 use super::TransformES2015;
@@ -52,6 +54,14 @@ impl TransformES2015 {
     }
 
     pub(super) fn enable_substitutions_for_block_scoped_bindings(&self) {
+        unimplemented!()
+    }
+
+    pub(super) fn has_synthesized_default_super_call(
+        &self,
+        _constructor: Option<impl Borrow<Node /*ConstructorDeclaration*/>>,
+        _has_extends_clause: bool,
+    ) -> bool {
         unimplemented!()
     }
 }
