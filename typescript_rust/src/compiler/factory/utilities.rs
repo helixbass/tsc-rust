@@ -1,8 +1,6 @@
+use std::{borrow::Borrow, cell::RefCell, io, ptr, rc::Rc};
+
 use gc::{Finalize, Gc, Trace};
-use std::cell::RefCell;
-use std::ptr;
-use std::rc::Rc;
-use std::{borrow::Borrow, io};
 
 use crate::{
     first_or_undefined, get_emit_flags, get_jsdoc_type, get_jsdoc_type_tag, get_original_node,
@@ -13,7 +11,7 @@ use crate::{
     is_type_parameter_declaration, push_or_replace, set_starts_on_new_line, AssertionLevel,
     BaseNodeFactory, Debug_, EmitFlags, HasInitializerInterface, LiteralLikeNodeInterface,
     NamedDeclarationInterface, Node, NodeArray, NodeFactory, NodeInterface, OuterExpressionKinds,
-    SyntaxKind,
+    ReadonlyTextRange, SyntaxKind,
 };
 
 pub fn create_empty_exports<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>(
@@ -29,6 +27,17 @@ pub fn create_empty_exports<TBaseNodeFactory: 'static + BaseNodeFactory + Trace 
             None,
         )
         .wrap()
+}
+
+pub fn create_member_access_for_property_name<
+    TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize,
+>(
+    _factory: &NodeFactory<TBaseNodeFactory>,
+    _target: &Node,      /*Expression*/
+    _member_name: &Node, /*PropertyName*/
+    _location: Option<&impl ReadonlyTextRange>,
+) -> Gc<Node /*MemberExpression*/> {
+    unimplemented!()
 }
 
 pub fn create_for_of_binding_statement<

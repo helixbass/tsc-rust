@@ -1,14 +1,44 @@
+use std::{io, ptr, rc::Rc};
+
 use bitflags::bitflags;
+use derive_builder::Builder;
 use gc::{Finalize, Gc, GcCell, Trace};
 use local_macros::enum_unwrapped;
-use std::rc::Rc;
-use std::{io, ptr};
 
 use super::{CompilerOptions, Diagnostic, EmitHint, Node, NodeArray, NodeArrayOrVec, SyntaxKind};
 use crate::{
     BaseNodeFactory, BaseNodeFactorySynthetic, EmitHelper, EmitHelperFactory, EmitHost,
     EmitResolver, NodeFactoryFlags,
 };
+
+#[derive(Default, Builder, Clone)]
+#[builder(default, setter(strip_option, into))]
+pub struct PropertyDescriptorAttributes {
+    pub enumerable: Option<BoolOrRcNode /*Expression*/>,
+    pub configurable: Option<BoolOrRcNode /*Expression*/>,
+    pub writable: Option<BoolOrRcNode /*Expression*/>,
+    pub value: Option<Gc<Node /*Expression*/>>,
+    pub get: Option<Gc<Node /*Expression*/>>,
+    pub set: Option<Gc<Node /*Expression*/>>,
+}
+
+#[derive(Clone)]
+pub enum BoolOrRcNode {
+    Bool(bool),
+    RcNode(Gc<Node>),
+}
+
+impl From<bool> for BoolOrRcNode {
+    fn from(value: bool) -> Self {
+        Self::Bool(value)
+    }
+}
+
+impl From<Gc<Node>> for BoolOrRcNode {
+    fn from(value: Gc<Node>) -> Self {
+        Self::RcNode(value)
+    }
+}
 
 bitflags! {
     pub struct OuterExpressionKinds: u32 {
@@ -301,8 +331,9 @@ impl VisitResultInterface for VisitResult {
 }
 
 mod _SingleNodeOrVecNodeDeriveTraceScope {
-    use super::*;
     use local_macros::Trace;
+
+    use super::*;
 
     #[derive(Clone, Trace, Finalize)]
     pub enum SingleNodeOrVecNode {

@@ -11,10 +11,10 @@ use crate::{
     CommaListExpression, Debug_, EnumMember, FileReference, HasInitializerInterface,
     HasStatementsInterface, InputFiles, LanguageVariant, ModifierFlags, NamedDeclarationInterface,
     Node, NodeArray, NodeArrayOrVec, NodeFactory, NodeFlags, NodeInterface, OuterExpressionKinds,
-    PartiallyEmittedExpression, PropertyAssignment, ReadonlyTextRange, ScriptKind, ScriptTarget,
-    ShorthandPropertyAssignment, SingleOrVec, SourceFile, SpreadAssignment, StrOrRcNode,
-    SyntaxKind, SyntheticExpression, TransformFlags, Type, UnparsedPrepend, UnparsedPrologue,
-    UnparsedSource, UnparsedTextLike, VisitResult,
+    PartiallyEmittedExpression, PropertyAssignment, PropertyDescriptorAttributes,
+    ReadonlyTextRange, ScriptKind, ScriptTarget, ShorthandPropertyAssignment, SingleOrVec,
+    SourceFile, SpreadAssignment, StrOrRcNode, SyntaxKind, SyntheticExpression, TransformFlags,
+    Type, UnparsedPrepend, UnparsedPrologue, UnparsedSource, UnparsedTextLike, VisitResult,
 };
 
 impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory<TBaseNodeFactory> {
@@ -638,6 +638,23 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         _global_object_name: String,
         _method_name: String,
         _arguments_list: Vec<Gc<Node /*Expression*/>>,
+    ) -> Gc<Node> {
+        unimplemented!()
+    }
+
+    pub fn create_object_define_property_call<'property_name>(
+        &self,
+        _target: Gc<Node /*Expression*/>,
+        _property_name: impl Into<StrOrRcNode<'property_name>>,
+        _attributes: Gc<Node /*Expression*/>,
+    ) -> Gc<Node> {
+        unimplemented!()
+    }
+
+    pub fn create_property_descriptor(
+        &self,
+        _attributes: PropertyDescriptorAttributes,
+        _single_line: Option<bool>,
     ) -> Gc<Node> {
         unimplemented!()
     }

@@ -546,7 +546,7 @@ impl TransformES2015 {
             &constructor_like_name,
             extends_clause_element.as_deref(),
         )?;
-        self.add_class_members(&mut statements, node);
+        self.add_class_members(&mut statements, node)?;
 
         let closing_brace_location = create_token_range(
             skip_trivia(
