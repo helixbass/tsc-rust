@@ -57,6 +57,18 @@ impl TransformES2015 {
         unimplemented!()
     }
 
+    pub(super) fn enable_substitutions_for_captured_this(&self) {
+        unimplemented!()
+    }
+
+    pub(super) fn get_class_member_prefix(
+        &self,
+        _node: &Node,   /*ClassExpression | ClassDeclaration*/
+        _member: &Node, /*ClassElement*/
+    ) -> Gc<Node> {
+        unimplemented!()
+    }
+
     pub(super) fn has_synthesized_default_super_call(
         &self,
         _constructor: Option<impl Borrow<Node /*ConstructorDeclaration*/>>,
