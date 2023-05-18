@@ -1,10 +1,13 @@
+use std::{
+    borrow::{Borrow, Cow},
+    cmp::Ordering,
+    collections::{HashMap, HashSet},
+    convert::TryInto,
+    io, ptr,
+    rc::Rc,
+};
+
 use gc::Gc;
-use std::borrow::{Borrow, Cow};
-use std::cmp::Ordering;
-use std::collections::{HashMap, HashSet};
-use std::convert::TryInto;
-use std::rc::Rc;
-use std::{io, ptr};
 
 use super::{ambient_module_symbol_regex, get_symbol_id, NodeBuilderContext, TypeFacts};
 use crate::{
@@ -805,7 +808,7 @@ impl NodeBuilder {
             )?;
         }
         let mut visited = try_visit_each_child(
-            Some(node),
+            node,
             |node: &Node| -> io::Result<_> {
                 Ok(Some(
                     self.elide_initializer_and_set_emit_flags(context, node)?
@@ -813,8 +816,7 @@ impl NodeBuilder {
                 ))
             },
             &*null_transformation_context,
-        )?
-        .unwrap();
+        )?;
         if is_binding_element(&visited) {
             let visited_as_binding_element = visited.as_binding_element();
             visited = get_factory().update_binding_element(

@@ -1,7 +1,8 @@
-use std::ptr;
+use std::{io, ptr};
 
 use gc::Gc;
 
+use super::TransformTypeScript;
 use crate::{
     is_named_import_bindings, is_statement, Matches, ModuleKind, Node, NodeInterface, VisitResult,
     __String, add_emit_flags, add_range, are_option_gcs_equal, create_expression_from_entity_name,
@@ -10,14 +11,12 @@ use crate::{
     is_identifier, is_import_clause, is_import_specifier, is_modifier, is_named_export_bindings,
     is_namespace_export, move_range_pos, set_comment_range, set_emit_flags, set_source_map_range,
     set_synthetic_leading_comments, set_synthetic_trailing_comments, set_text_range,
-    set_text_range_node_array, some, try_visit_each_child, try_visit_node, try_visit_nodes,
-    visit_each_child, visit_node, visit_nodes, AsDoubleDeref, BoolExt, Debug_, EmitFlags,
-    ImportsNotUsedAsValues, ModifierFlags, NamedDeclarationInterface, NodeArray, NodeExt,
-    NodeFlags, NonEmpty, ReadonlyTextRangeConcrete, SingleNodeOrVecNode, SyntaxKind,
+    set_text_range_node_array, some, try_maybe_visit_each_child, try_visit_each_child,
+    try_visit_node, try_visit_nodes, visit_each_child, visit_node, visit_nodes, AsDoubleDeref,
+    BoolExt, Debug_, EmitFlags, ImportsNotUsedAsValues, ModifierFlags, NamedDeclarationInterface,
+    NodeArray, NodeExt, NodeFlags, NonEmpty, ReadonlyTextRangeConcrete, SingleNodeOrVecNode,
+    SyntaxKind,
 };
-
-use super::TransformTypeScript;
-use std::io;
 
 impl TransformTypeScript {
     pub(super) fn has_namespace_qualified_export_name(&self, node: &Node) -> bool {
@@ -508,7 +507,7 @@ impl TransformTypeScript {
         self.resolver
             .is_value_alias_declaration(node)?
             .try_then_and(|| -> io::Result<_> {
-                Ok(try_visit_each_child(
+                Ok(try_maybe_visit_each_child(
                     Some(node),
                     |node: &Node| self.visitor(node),
                     &**self.context,
@@ -669,13 +668,10 @@ impl TransformTypeScript {
             }
 
             return is_referenced.try_then(|| -> io::Result<_> {
-                Ok(try_visit_each_child(
-                    Some(node),
-                    |node: &Node| self.visitor(node),
-                    &**self.context,
-                )?
-                .unwrap()
-                .into())
+                Ok(
+                    try_visit_each_child(node, |node: &Node| self.visitor(node), &**self.context)?
+                        .into(),
+                )
             });
         }
 

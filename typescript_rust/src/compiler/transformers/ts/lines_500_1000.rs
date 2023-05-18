@@ -1,7 +1,8 @@
-use std::borrow::Borrow;
+use std::{borrow::Borrow, io};
 
 use gc::{Finalize, Gc, Trace};
 
+use super::{ClassFacts, TransformTypeScript};
 use crate::{
     add_range, child_is_decorated, class_or_constructor_parameter_is_decorated, create_token_range,
     get_effective_base_type_node, get_emit_flags, get_first_constructor_with_body, get_properties,
@@ -9,20 +10,15 @@ use crate::{
     is_class_element, is_external_module, is_heritage_clause, is_identifier, is_json_source_file,
     is_modifier, is_parameter_property_declaration, is_static, move_range_past_decorators,
     node_or_child_is_decorated, parameter_is_this_keyword, set_emit_flags, skip_outer_expressions,
-    skip_trivia, some, visit_each_child, visit_lexical_environment, visit_nodes, AsDoubleDeref,
-    BoolExt, ClassLikeDeclarationInterface, EmitFlags, HasStatementsInterface,
+    skip_trivia, some, try_maybe_visit_each_child, try_visit_each_child,
+    try_visit_lexical_environment, try_visit_lexical_environment_full, try_visit_nodes,
+    visit_each_child, visit_lexical_environment, visit_nodes, AsDoubleDeref, BoolExt,
+    ClassLikeDeclarationInterface, EmitFlags, HasStatementsInterface,
     InterfaceOrClassLikeDeclarationInterface, Matches, ModifierFlags, ModuleKind,
     NamedDeclarationInterface, Node, NodeArray, NodeArrayExt, NodeArrayOrVec, NodeExt, NodeFlags,
     NodeInterface, NodeWrappered, ReadonlyTextRange, ScriptTarget, SignatureDeclarationInterface,
     SourceFileLike, SyntaxKind, TextRange, TransformFlags, VisitResult,
 };
-
-use super::{ClassFacts, TransformTypeScript};
-use crate::try_visit_each_child;
-use crate::try_visit_lexical_environment;
-use crate::try_visit_lexical_environment_full;
-use crate::try_visit_nodes;
-use std::io;
 
 impl TransformTypeScript {
     pub(super) fn visit_source_file(
@@ -140,7 +136,7 @@ impl TransformTypeScript {
             && !(self.maybe_current_namespace().is_some()
                 && has_syntactic_modifier(node, ModifierFlags::Export))
         {
-            return Ok(try_visit_each_child(
+            return Ok(try_maybe_visit_each_child(
                 Some(node),
                 |node: &Node| self.visitor(node),
                 &**self.context,
@@ -408,12 +404,7 @@ impl TransformTypeScript {
     ) -> io::Result<Gc<Node /*<Expression>*/>> {
         let node_as_class_expression = node.as_class_expression();
         if !self.is_class_like_declaration_with_type_script_syntax(node) {
-            return Ok(try_visit_each_child(
-                Some(node),
-                |node: &Node| self.visitor(node),
-                &**self.context,
-            )?
-            .unwrap());
+            return try_visit_each_child(node, |node: &Node| self.visitor(node), &**self.context);
         }
 
         Ok(self

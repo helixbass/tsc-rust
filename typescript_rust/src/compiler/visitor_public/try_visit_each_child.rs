@@ -1,5 +1,6 @@
-use gc::Gc;
 use std::{borrow::Borrow, io};
+
+use gc::Gc;
 
 use super::{
     try_visit_function_body_full, try_visit_iteration_body, try_visit_lexical_environment,
@@ -25,21 +26,28 @@ use crate::{
     is_template_literal_type_span, is_template_middle_or_template_tail, is_template_span, is_token,
     is_type_element, is_type_node, is_type_node_or_type_parameter_declaration,
     is_type_parameter_declaration, is_variable_declaration, is_variable_declaration_list,
-    return_ok_default_if_none,
-    ClassLikeDeclarationInterface, FunctionLikeDeclarationInterface,
+    return_ok_default_if_none, ClassLikeDeclarationInterface, FunctionLikeDeclarationInterface,
     HasInitializerInterface, HasMembersInterface, HasQuestionTokenInterface,
     HasStatementsInterface, HasTypeArgumentsInterface, HasTypeInterface,
     HasTypeParametersInterface, InterfaceOrClassLikeDeclarationInterface,
-    NamedDeclarationInterface, Node, NodeArray, NodeFlags, NodeInterface, SignatureDeclarationInterface, SyntaxKind,
-    TransformationContext, VisitResult,
+    NamedDeclarationInterface, Node, NodeArray, NodeFlags, NodeInterface,
+    SignatureDeclarationInterface, SyntaxKind, TransformationContext, VisitResult,
 };
 
 pub fn try_visit_each_child(
+    node: &Node,
+    visitor: impl FnMut(&Node) -> io::Result<VisitResult>,
+    context: &(impl TransformationContext + ?Sized),
+) -> io::Result<Gc<Node>> {
+    Ok(try_maybe_visit_each_child(Some(node), visitor, context)?.unwrap())
+}
+
+pub fn try_maybe_visit_each_child(
     node: Option<impl Borrow<Node>>,
     visitor: impl FnMut(&Node) -> io::Result<VisitResult>,
     context: &(impl TransformationContext + ?Sized),
 ) -> io::Result<Option<Gc<Node>>> {
-    return try_visit_each_child_full(
+    return try_maybe_visit_each_child_full(
         node,
         visitor,
         context,
@@ -64,7 +72,7 @@ pub fn try_visit_each_child(
     );
 }
 
-pub fn try_visit_each_child_full(
+pub fn try_maybe_visit_each_child_full(
     node: Option<impl Borrow<Node>>,
     mut visitor: impl FnMut(&Node) -> io::Result<VisitResult>,
     context: &(impl TransformationContext + ?Sized),

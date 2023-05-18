@@ -1,31 +1,25 @@
 use std::{
     cell::{Cell, Ref, RefCell, RefMut},
     collections::{HashMap, HashSet},
-    mem,
+    io, mem,
 };
 
 use bitflags::bitflags;
 use gc::{Finalize, Gc, GcCell, Trace};
 
-use crate::try_map;
-use crate::try_visit_each_child;
-use crate::try_visit_function_body;
-use crate::try_visit_iteration_body;
-use crate::try_visit_node;
-use crate::try_visit_nodes;
-use crate::try_visit_parameter_list;
 use crate::{
-    is_concise_body, is_expression, is_for_initializer, is_statement, TransformerFactory,
-    TransformerFactoryInterface, TransformerInterface, __String, add_emit_helper, add_emit_helpers,
-    advanced_async_super_helper, async_super_helper, chain_bundle, concatenate, for_each,
-    get_emit_script_target, get_entity_name_from_type_node, get_function_flags,
-    get_initialized_variables, get_node_id, get_original_node,
-    insert_statements_after_standard_prologue, is_block, is_effective_strict_mode_source_file,
-    is_entity_name, is_function_like, is_identifier, is_modifier,
-    is_node_with_possible_hoisted_declaration, is_omitted_expression,
+    is_concise_body, is_expression, is_for_initializer, is_statement, try_map,
+    try_visit_each_child, try_visit_function_body, try_visit_iteration_body, try_visit_node,
+    try_visit_nodes, try_visit_parameter_list, TransformerFactory, TransformerFactoryInterface,
+    TransformerInterface, __String, add_emit_helper, add_emit_helpers, advanced_async_super_helper,
+    async_super_helper, chain_bundle, concatenate, for_each, get_emit_script_target,
+    get_entity_name_from_type_node, get_function_flags, get_initialized_variables, get_node_id,
+    get_original_node, insert_statements_after_standard_prologue, is_block,
+    is_effective_strict_mode_source_file, is_entity_name, is_function_like, is_identifier,
+    is_modifier, is_node_with_possible_hoisted_declaration, is_omitted_expression,
     is_property_access_expression, is_super_property, is_token, is_variable_declaration_list,
     ref_mut_unwrapped, ref_unwrapped, set_emit_flags, set_original_node, set_source_map_range,
-    set_text_range, set_text_range_node_array, set_text_range_rc_node,
+    set_text_range, set_text_range_node_array, set_text_range_rc_node, try_maybe_visit_each_child,
     unescape_leading_underscores, BaseNodeFactorySynthetic, CompilerOptions, Debug_, EmitFlags,
     EmitHint, EmitResolver, FunctionFlags, FunctionLikeDeclarationInterface,
     GeneratedIdentifierFlags, HasInitializerInterface, NamedDeclarationInterface, Node, NodeArray,
@@ -35,7 +29,6 @@ use crate::{
     TransformationContextOnSubstituteNodeOverrider, Transformer, TypeReferenceSerializationKind,
     VisitResult,
 };
-use std::io;
 
 bitflags! {
     struct ES2017SubstitutionFlags: u32 {
@@ -203,12 +196,8 @@ impl TransformES2017 {
             ContextFlags::HasLexicalThis,
             !is_effective_strict_mode_source_file(node, &self.compiler_options),
         );
-        let visited = try_visit_each_child(
-            Some(node),
-            |node: &Node| self.visitor(node),
-            &**self.context,
-        )?
-        .unwrap();
+        let visited =
+            try_visit_each_child(node, |node: &Node| self.visitor(node), &**self.context)?;
         add_emit_helpers(&visited, self.context.read_emit_helpers().as_deref());
         Ok(visited)
     }
@@ -261,7 +250,7 @@ impl TransformES2017 {
     }
 
     fn visit_default(&self, node: &Node) -> io::Result<VisitResult> {
-        Ok(try_visit_each_child(
+        Ok(try_maybe_visit_each_child(
             Some(node),
             |node: &Node| self.visitor(node),
             &**self.context,
@@ -334,7 +323,7 @@ impl TransformES2017 {
                         }
                     }
                 }
-                try_visit_each_child(
+                try_maybe_visit_each_child(
                     Some(node),
                     |node: &Node| self.visitor(node),
                     &**self.context,
@@ -349,7 +338,7 @@ impl TransformES2017 {
                 {
                     self.set_has_super_element_access(Some(true));
                 }
-                try_visit_each_child(
+                try_maybe_visit_each_child(
                     Some(node),
                     |node: &Node| self.visitor(node),
                     &**self.context,
@@ -367,7 +356,7 @@ impl TransformES2017 {
                 node,
             )?,
 
-            _ => try_visit_each_child(
+            _ => try_maybe_visit_each_child(
                 Some(node),
                 |node: &Node| self.visitor(node),
                 &**self.context,
@@ -404,7 +393,7 @@ impl TransformES2017 {
                 | SyntaxKind::WhileStatement
                 | SyntaxKind::IfStatement
                 | SyntaxKind::WithStatement
-                | SyntaxKind::LabeledStatement => try_visit_each_child(
+                | SyntaxKind::LabeledStatement => try_maybe_visit_each_child(
                     Some(node),
                     |node: &Node| self.async_body_visitor(node),
                     &**self.context,
@@ -447,22 +436,20 @@ impl TransformES2017 {
                     self.maybe_enclosing_function_parameter_names().clone();
                 self.set_enclosing_function_parameter_names(Some(catch_clause_unshadowed_names));
                 let result = try_visit_each_child(
-                    Some(node),
+                    node,
                     |node: &Node| self.async_body_visitor(node),
                     &**self.context,
-                )?
-                .unwrap();
+                )?;
                 self.set_enclosing_function_parameter_names(
                     saved_enclosing_function_parameter_names,
                 );
                 result
             } else {
                 try_visit_each_child(
-                    Some(node),
+                    node,
                     |node: &Node| self.async_body_visitor(node),
                     &**self.context,
                 )?
-                .unwrap()
             },
         )
     }
@@ -482,7 +469,7 @@ impl TransformES2017 {
             return Ok(expression
                 .map(|expression| self.factory.create_expression_statement(expression).wrap()));
         }
-        try_visit_each_child(
+        try_maybe_visit_each_child(
             Some(node),
             |node: &Node| self.visitor(node),
             &**self.context,
@@ -619,12 +606,7 @@ impl TransformES2017 {
         node: &Node, /*AwaitExpression*/
     ) -> io::Result<Gc<Node /*Expression*/>> {
         if self.in_top_level_context() {
-            return Ok(try_visit_each_child(
-                Some(node),
-                |node: &Node| self.visitor(node),
-                &**self.context,
-            )?
-            .unwrap());
+            return try_visit_each_child(node, |node: &Node| self.visitor(node), &**self.context);
         }
         Ok(set_original_node(
             set_text_range_rc_node(

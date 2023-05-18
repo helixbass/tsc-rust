@@ -1,8 +1,9 @@
-use std::ptr;
+use std::{io, ptr};
 
 use gc::Gc;
 use itertools::Itertools;
 
+use super::TransformTypeScript;
 use crate::{
     add_prologue_directives_and_initial_super_call, add_range, find_ancestor,
     get_parse_node_factory, get_parse_tree_node, has_static_modifier, has_syntactic_modifier,
@@ -10,22 +11,15 @@ use crate::{
     is_left_hand_side_expression, is_modifier, is_parameter_property_declaration,
     is_private_identifier, is_property_name, is_simple_inlineable_expression, is_statement,
     move_range_past_decorators, move_range_pos, node_is_missing, set_comment_range,
-    set_source_map_range, skip_partially_emitted_expressions, visit_each_child,
-    visit_function_body, visit_node, visit_nodes, visit_parameter_list, AsDoubleDeref, EmitFlags,
-    FunctionLikeDeclarationInterface, HasInitializerInterface, Matches, ModifierFlags, Node,
-    NodeArray, NodeArrayExt, NodeExt, NodeFlags, NodeInterface, NonEmpty, PeekableExt,
-    ScriptTarget, SignatureDeclarationInterface, SyntaxKind, TypeReferenceSerializationKind,
-    VisitResult,
+    set_source_map_range, skip_partially_emitted_expressions,
+    try_add_prologue_directives_and_initial_super_call, try_maybe_visit_each_child,
+    try_visit_each_child, try_visit_function_body, try_visit_node, try_visit_nodes,
+    try_visit_parameter_list, visit_each_child, visit_function_body, visit_node, visit_nodes,
+    visit_parameter_list, AsDoubleDeref, EmitFlags, FunctionLikeDeclarationInterface,
+    HasInitializerInterface, Matches, ModifierFlags, Node, NodeArray, NodeArrayExt, NodeExt,
+    NodeFlags, NodeInterface, NonEmpty, PeekableExt, ScriptTarget, SignatureDeclarationInterface,
+    SyntaxKind, TypeReferenceSerializationKind, VisitResult,
 };
-
-use super::TransformTypeScript;
-use crate::try_add_prologue_directives_and_initial_super_call;
-use crate::try_visit_each_child;
-use crate::try_visit_function_body;
-use crate::try_visit_node;
-use crate::try_visit_nodes;
-use crate::try_visit_parameter_list;
-use std::io;
 
 impl TransformTypeScript {
     pub(super) fn serialize_type_list(
@@ -403,7 +397,7 @@ impl TransformTypeScript {
         if node_as_heritage_clause.token == SyntaxKind::ImplementsKeyword {
             return Ok(None);
         }
-        try_visit_each_child(
+        try_maybe_visit_each_child(
             Some(node),
             |node: &Node| self.visitor(node),
             &**self.context,

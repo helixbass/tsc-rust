@@ -18,12 +18,12 @@ use crate::{
     is_set_accessor_declaration, is_source_file, is_string_literal_like, is_tuple_type_node,
     is_type_alias_declaration, is_type_node, is_type_query_node, length, map_defined, maybe_map,
     needs_scope_marker, return_ok_default_if_none, set_comment_range_rc, set_emit_flags, some,
-    try_maybe_map, try_visit_each_child, try_visit_node, try_visit_nodes, visit_each_child,
-    visit_node, visit_nodes, Debug_, EmitFlags, FunctionLikeDeclarationInterface,
-    GetSymbolAccessibilityDiagnostic, HasQuestionTokenInterface, HasTypeArgumentsInterface,
-    HasTypeInterface, HasTypeParametersInterface, ModifierFlags, NamedDeclarationInterface, Node,
-    NodeArray, NodeInterface, NonEmpty, OptionTry, ReadonlyTextRange,
-    SignatureDeclarationInterface, SymbolInterface, SyntaxKind, VisitResult,
+    try_maybe_map, try_maybe_visit_each_child, try_visit_each_child, try_visit_node,
+    try_visit_nodes, visit_each_child, visit_node, visit_nodes, Debug_, EmitFlags,
+    FunctionLikeDeclarationInterface, GetSymbolAccessibilityDiagnostic, HasQuestionTokenInterface,
+    HasTypeArgumentsInterface, HasTypeInterface, HasTypeParametersInterface, ModifierFlags,
+    NamedDeclarationInterface, Node, NodeArray, NodeInterface, NonEmpty, OptionTry,
+    ReadonlyTextRange, SignatureDeclarationInterface, SymbolInterface, SyntaxKind, VisitResult,
 };
 
 impl TransformDeclarations {
@@ -793,11 +793,10 @@ impl TransformDeclarations {
                         )?;
                     }
                     let ref node = try_visit_each_child(
-                        Some(input),
+                        input,
                         |node: &Node| self.visit_declaration_subtree(node),
                         &**self.context,
-                    )?
-                    .unwrap();
+                    )?;
                     let node_as_expression_with_type_arguments =
                         node.as_expression_with_type_arguments();
                     self.visit_declaration_subtree_cleanup(
@@ -824,11 +823,10 @@ impl TransformDeclarations {
                         &self.enclosing_declaration(),
                     )?;
                     let ref node = try_visit_each_child(
-                        Some(input),
+                        input,
                         |node: &Node| self.visit_declaration_subtree(node),
                         &**self.context,
-                    )?
-                    .unwrap();
+                    )?;
                     let node_as_type_reference_node = node.as_type_reference_node();
                     self.visit_declaration_subtree_cleanup(
                         input,
@@ -1267,7 +1265,7 @@ impl TransformDeclarations {
                         &old_diag,
                         should_enter_suppress_new_diagnostics_context_context,
                         old_within_object_literal_type,
-                        try_visit_each_child(
+                        try_maybe_visit_each_child(
                             Some(input),
                             |node: &Node| self.visit_declaration_subtree(node),
                             &**self.context,
@@ -1482,7 +1480,7 @@ impl TransformDeclarations {
             &old_diag,
             should_enter_suppress_new_diagnostics_context_context,
             old_within_object_literal_type,
-            try_visit_each_child(
+            try_maybe_visit_each_child(
                 Some(input),
                 |node: &Node| self.visit_declaration_subtree(node),
                 &**self.context,

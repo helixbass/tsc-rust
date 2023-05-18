@@ -1,4 +1,4 @@
-use std::{cell::Cell, collections::HashMap, mem, ptr, rc::Rc};
+use std::{cell::Cell, collections::HashMap, io, mem, ptr, rc::Rc};
 
 use bitflags::bitflags;
 use gc::{Finalize, Gc, GcCell, GcCellRef, GcCellRefMut, Trace};
@@ -11,15 +11,15 @@ use crate::{
     is_access_expression, is_class_declaration, is_element_access_expression,
     is_generated_identifier, is_local_name, is_property_access_expression,
     is_shorthand_property_assignment, is_source_file, is_statement, map_defined, modifier_to_flag,
-    set_constant_value, try_visit_each_child, visit_each_child, BaseNodeFactorySynthetic, BoolExt,
-    CompilerOptions, Debug_, EmitHelperFactory, EmitHint, EmitResolver, Matches, ModifierFlags,
-    ModuleKind, NamedDeclarationInterface, Node, NodeArray, NodeCheckFlags, NodeExt, NodeFactory,
-    NodeId, NodeInterface, OptionTry, ScriptTarget, StringOrNumber, SyntaxKind, TransformFlags,
-    TransformationContext, TransformationContextOnEmitNodeOverrider,
-    TransformationContextOnSubstituteNodeOverrider, Transformer, TransformerFactory,
-    TransformerFactoryInterface, TransformerInterface, UnderscoreEscapedMap, VisitResult,
+    set_constant_value, try_maybe_visit_each_child, try_visit_each_child, visit_each_child,
+    BaseNodeFactorySynthetic, BoolExt, CompilerOptions, Debug_, EmitHelperFactory, EmitHint,
+    EmitResolver, Matches, ModifierFlags, ModuleKind, NamedDeclarationInterface, Node, NodeArray,
+    NodeCheckFlags, NodeExt, NodeFactory, NodeId, NodeInterface, OptionTry, ScriptTarget,
+    StringOrNumber, SyntaxKind, TransformFlags, TransformationContext,
+    TransformationContextOnEmitNodeOverrider, TransformationContextOnSubstituteNodeOverrider,
+    Transformer, TransformerFactory, TransformerFactoryInterface, TransformerInterface,
+    UnderscoreEscapedMap, VisitResult,
 };
-use std::io;
 
 pub(super) const USE_NEW_TYPE_METADATA_FORMAT: bool = false;
 
@@ -438,7 +438,7 @@ impl TransformTypeScript {
                 .transform_flags()
                 .intersects(TransformFlags::ContainsTypeScript)
             {
-                return Ok(try_visit_each_child(
+                return Ok(try_maybe_visit_each_child(
                     Some(node),
                     |node: &Node| self.visitor(node),
                     &**self.context,
@@ -615,7 +615,7 @@ impl TransformTypeScript {
             SyntaxKind::ImportEqualsDeclaration => self.visit_import_equals_declaration(node)?,
             SyntaxKind::JsxSelfClosingElement => self.visit_jsx_self_closing_element(node)?,
             SyntaxKind::JsxOpeningElement => self.visit_jsx_jsx_opening_element(node)?,
-            _ => try_visit_each_child(
+            _ => try_maybe_visit_each_child(
                 Some(node),
                 |node: &Node| self.visitor(node),
                 &**self.context,

@@ -4,13 +4,14 @@ use bitflags::bitflags;
 use gc::{Finalize, Gc, GcCell, GcCellRef, GcCellRefMut, Trace};
 
 use crate::{
-    chain_bundle, get_emit_flags, get_original_node, has_static_modifier, is_block, is_case_block,
-    is_case_clause, is_catch_clause, is_default_clause, is_if_statement, is_iteration_statement,
+    chain_bundle, gc_cell_ref_mut_unwrapped, gc_cell_ref_unwrapped, get_emit_flags,
+    get_original_node, has_static_modifier, is_block, is_case_block, is_case_clause,
+    is_catch_clause, is_default_clause, is_if_statement, is_iteration_statement,
     is_labeled_statement, is_property_declaration, is_return_statement, is_switch_statement,
-    is_try_statement, is_with_statement, maybe_visit_each_child, visit_each_child,
-    BaseNodeFactorySynthetic, CompilerOptions, EmitFlags, EmitHelperFactory, EmitHint,
-    EmitResolver, Node, NodeArray, NodeExt, NodeFactory, NodeInterface, SourceFileLike, SyntaxKind,
-    TransformFlags, TransformationContext, TransformationContextOnEmitNodeOverrider,
+    is_try_statement, is_with_statement, maybe_visit_each_child, try_maybe_visit_each_child,
+    visit_each_child, BaseNodeFactorySynthetic, CompilerOptions, EmitFlags, EmitHelperFactory,
+    EmitHint, EmitResolver, Node, NodeArray, NodeExt, NodeFactory, NodeInterface, SourceFileLike,
+    SyntaxKind, TransformFlags, TransformationContext, TransformationContextOnEmitNodeOverrider,
     TransformationContextOnSubstituteNodeOverrider, Transformer, TransformerFactory,
     TransformerFactoryInterface, TransformerInterface, VisitResult,
 };
@@ -268,6 +269,16 @@ impl TransformES2015 {
         *self.converted_loop_state.borrow_mut() = converted_loop_state;
     }
 
+    pub(super) fn converted_loop_state(&self) -> GcCellRef<ConvertedLoopState> {
+        gc_cell_ref_unwrapped(&self.converted_loop_state)
+    }
+
+    pub(super) fn converted_loop_state_mut(
+        &self,
+    ) -> GcCellRefMut<Option<ConvertedLoopState>, ConvertedLoopState> {
+        gc_cell_ref_mut_unwrapped(&self.converted_loop_state)
+    }
+
     pub(super) fn maybe_tagged_template_string_declarations(
         &self,
     ) -> GcCellRef<Option<Vec<Gc<Node /*VariableDeclaration*/>>>> {
@@ -302,24 +313,27 @@ impl TransformES2015 {
             );
     }
 
-    pub(super) fn transform_source_file(&self, node: &Node /*SourceFile*/) -> Gc<Node> {
+    pub(super) fn transform_source_file(
+        &self,
+        node: &Node, /*SourceFile*/
+    ) -> io::Result<Gc<Node>> {
         let node_as_source_file = node.as_source_file();
         if node_as_source_file.is_declaration_file() {
-            return node.node_wrapper();
+            return Ok(node.node_wrapper());
         }
 
         self.set_current_source_file(Some(node.node_wrapper()));
         self.set_current_text(Some(node_as_source_file.text().clone()));
 
         let visited = self
-            .visit_source_file(node)
+            .visit_source_file(node)?
             .add_emit_helpers(self.context.read_emit_helpers().as_deref());
 
         self.set_current_source_file(None);
         self.set_current_text(None);
         self.set_tagged_template_string_declarations(None);
         self.set_hierarchy_facts(Some(HierarchyFacts::None));
-        visited
+        Ok(visited)
     }
 
     pub(super) fn enter_subtree(
@@ -389,24 +403,27 @@ impl TransformES2015 {
             || get_emit_flags(node).intersects(EmitFlags::TypeScriptClassWrapper)
     }
 
-    pub(super) fn visitor(&self, node: &Node) -> VisitResult /*<Node>*/ {
-        if self.should_visit_node(node) {
-            self.visitor_worker(node, false)
+    pub(super) fn visitor(&self, node: &Node) -> io::Result<VisitResult> /*<Node>*/ {
+        Ok(if self.should_visit_node(node) {
+            self.visitor_worker(node, false)?
         } else {
             Some(node.node_wrapper().into())
-        }
+        })
     }
 
-    pub(super) fn visitor_with_unused_expression_result(&self, node: &Node) -> VisitResult /*<Node>*/
+    pub(super) fn visitor_with_unused_expression_result(
+        &self,
+        node: &Node,
+    ) -> io::Result<VisitResult> /*<Node>*/ {
+        Ok(if self.should_visit_node(node) {
+            self.visitor_worker(node, true)?
+        } else {
+            Some(node.node_wrapper().into())
+        })
+    }
+
+    pub(super) fn class_wrapper_statement_visitor(&self, node: &Node) -> io::Result<VisitResult> /*<Node>*/
     {
-        if self.should_visit_node(node) {
-            self.visitor_worker(node, true)
-        } else {
-            Some(node.node_wrapper().into())
-        }
-    }
-
-    pub(super) fn class_wrapper_statement_visitor(&self, node: &Node) -> VisitResult /*<Node>*/ {
         if self.should_visit_node(node) {
             let ref original =
                 get_original_node(Some(node), Option::<fn(Option<Gc<Node>>) -> bool>::None)
@@ -416,22 +433,23 @@ impl TransformES2015 {
                     HierarchyFacts::StaticInitializerExcludes,
                     HierarchyFacts::StaticInitializerIncludes,
                 );
-                let result = self.visitor_worker(node, false);
+                let result = self.visitor_worker(node, false)?;
                 self.exit_subtree(
                     ancestor_facts,
                     HierarchyFacts::FunctionSubtreeExcludes,
                     HierarchyFacts::None,
                 );
-                return result;
+                return Ok(result);
             }
             return self.visitor_worker(node, false);
         }
-        Some(node.node_wrapper().into())
+        Ok(Some(node.node_wrapper().into()))
     }
 
-    pub(super) fn call_expression_visitor(&self, node: &Node) -> VisitResult /*<Node>*/ {
+    pub(super) fn call_expression_visitor(&self, node: &Node) -> io::Result<VisitResult> /*<Node>*/
+    {
         if node.kind() == SyntaxKind::SuperKeyword {
-            return Some(self.visit_super_keyword(true).into());
+            return Ok(Some(self.visit_super_keyword(true).into()));
         }
         self.visitor(node)
     }
@@ -440,8 +458,8 @@ impl TransformES2015 {
         &self,
         node: &Node,
         expression_result_is_unused: bool,
-    ) -> VisitResult /*<Node>*/ {
-        match node.kind() {
+    ) -> io::Result<VisitResult> /*<Node>*/ {
+        Ok(match node.kind() {
             SyntaxKind::StaticKeyword => None,
             SyntaxKind::ClassDeclaration => self.visit_class_declaration(node),
             SyntaxKind::ClassExpression => Some(self.visit_class_expression(node).into()),
@@ -450,12 +468,12 @@ impl TransformES2015 {
             SyntaxKind::ArrowFunction => self.visit_arrow_function(node),
             SyntaxKind::FunctionExpression => Some(self.visit_function_expression(node).into()),
             SyntaxKind::VariableDeclaration => self.visit_variable_declaration(node),
-            SyntaxKind::Identifier => Some(self.visit_identifier(node).into()),
+            SyntaxKind::Identifier => Some(self.visit_identifier(node)?.into()),
             SyntaxKind::VariableDeclarationList => {
                 Some(self.visit_variable_declaration_list(node).into())
             }
-            SyntaxKind::SwitchStatement => Some(self.visit_switch_statement(node).into()),
-            SyntaxKind::CaseBlock => Some(self.visit_case_block(node).into()),
+            SyntaxKind::SwitchStatement => Some(self.visit_switch_statement(node)?.into()),
+            SyntaxKind::CaseBlock => Some(self.visit_case_block(node)?.into()),
             SyntaxKind::Block => Some(self.visit_block(node, false).into()),
             SyntaxKind::BreakStatement | SyntaxKind::ContinueStatement => {
                 Some(self.visit_break_or_continue_statement(node).into())
@@ -511,21 +529,21 @@ impl TransformES2015 {
                 Some(self.visit_accessor_declaration(node).into())
             }
             SyntaxKind::VariableStatement => self.visit_variable_statement(node).map(Into::into),
-            SyntaxKind::ReturnStatement => Some(self.visit_return_statement(node).into()),
-            SyntaxKind::VoidExpression => Some(self.visit_void_expression(node).into()),
-            _ => maybe_visit_each_child(
+            SyntaxKind::ReturnStatement => Some(self.visit_return_statement(node)?.into()),
+            SyntaxKind::VoidExpression => Some(self.visit_void_expression(node)?.into()),
+            _ => try_maybe_visit_each_child(
                 Some(node),
                 |node: &Node| self.visitor(node),
                 &**self.context,
-            )
+            )?
             .map(Into::into),
-        }
+        })
     }
 }
 
 impl TransformerInterface for TransformES2015 {
     fn call(&self, node: &Node) -> io::Result<Gc<Node>> {
-        Ok(self.transform_source_file(node))
+        self.transform_source_file(node)
     }
 }
 

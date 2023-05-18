@@ -1,9 +1,12 @@
+use std::{
+    borrow::Borrow,
+    collections::{HashMap, HashSet},
+    convert::TryInto,
+    io, ptr,
+};
+
 use gc::Gc;
 use regex::{Captures, Regex};
-use std::borrow::Borrow;
-use std::collections::{HashMap, HashSet};
-use std::convert::TryInto;
-use std::{io, ptr};
 
 use super::{wrap_symbol_tracker_to_report_for_context, NodeBuilderContext};
 use crate::{
@@ -1481,7 +1484,7 @@ impl NodeBuilder {
 
         Ok(Some(
             try_visit_each_child(
-                Some(node),
+                node,
                 |node: &Node| {
                     self.visit_existing_node_tree_symbols(
                         context,
@@ -1493,7 +1496,6 @@ impl NodeBuilder {
                 },
                 &*null_transformation_context,
             )?
-            .unwrap()
             .into(),
         ))
     }

@@ -1,7 +1,8 @@
-use std::ptr;
+use std::{io, ptr};
 
 use gc::Gc;
 
+use super::TransformTypeScript;
 use crate::{
     add_emit_flags, add_range, are_option_gcs_equal, flatten_destructuring_assignment,
     get_initialized_variables, get_leading_comment_ranges_of_node, get_parse_tree_node,
@@ -12,22 +13,14 @@ use crate::{
     node_is_missing, parameter_is_this_keyword, set_comment_range, set_emit_flags,
     set_source_map_range, set_synthetic_leading_comments, set_synthetic_trailing_comments,
     set_text_range, set_text_range_rc_node, should_preserve_const_enums, skip_outer_expressions,
-    visit_each_child, visit_function_body, visit_node, visit_nodes, visit_parameter_list,
-    EmitFlags, FlattenLevel, FunctionLikeDeclarationInterface, HasInitializerInterface,
-    ModifierFlags, ModuleKind, NamedDeclarationInterface, Node, NodeArray, NodeArrayExt, NodeExt,
-    NodeInterface, NonEmpty, OuterExpressionKinds, ReadonlyTextRange,
+    try_flatten_destructuring_assignment, try_map, try_maybe_visit_each_child,
+    try_visit_each_child, try_visit_function_body, try_visit_node, try_visit_nodes,
+    try_visit_parameter_list, visit_each_child, visit_function_body, visit_node, visit_nodes,
+    visit_parameter_list, EmitFlags, FlattenLevel, FunctionLikeDeclarationInterface,
+    HasInitializerInterface, ModifierFlags, ModuleKind, NamedDeclarationInterface, Node, NodeArray,
+    NodeArrayExt, NodeExt, NodeInterface, NonEmpty, OuterExpressionKinds, ReadonlyTextRange,
     SignatureDeclarationInterface, StringOrNumber, SyntaxKind, VisitResult,
 };
-
-use super::TransformTypeScript;
-use crate::try_flatten_destructuring_assignment;
-use crate::try_map;
-use crate::try_visit_each_child;
-use crate::try_visit_function_body;
-use crate::try_visit_node;
-use crate::try_visit_nodes;
-use crate::try_visit_parameter_list;
-use std::io;
 
 impl TransformTypeScript {
     pub(super) fn visit_method_declaration(
@@ -361,7 +354,7 @@ impl TransformTypeScript {
                     .set_text_range(Some(node)),
             )
         } else {
-            try_visit_each_child(
+            try_maybe_visit_each_child(
                 Some(node),
                 |node: &Node| self.visitor(node),
                 &**self.context,
@@ -470,12 +463,7 @@ impl TransformTypeScript {
                 .wrap());
         }
 
-        Ok(try_visit_each_child(
-            Some(node),
-            |node: &Node| self.visitor(node),
-            &**self.context,
-        )?
-        .unwrap())
+        try_visit_each_child(node, |node: &Node| self.visitor(node), &**self.context)
     }
 
     pub(super) fn visit_assertion_expression(
