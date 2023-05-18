@@ -101,6 +101,11 @@ pub trait MapOrDefault {
         self,
         mapper: impl FnOnce(Self::Unwrapped) -> TMapped,
     ) -> TMapped;
+
+    fn try_map_or_default<TMapped: Default, TError>(
+        self,
+        mapper: impl FnOnce(Self::Unwrapped) -> Result<TMapped, TError>,
+    ) -> Result<TMapped, TError>;
 }
 
 impl<TValue> MapOrDefault for Option<TValue> {
@@ -111,6 +116,13 @@ impl<TValue> MapOrDefault for Option<TValue> {
         mapper: impl FnOnce(Self::Unwrapped) -> TMapped,
     ) -> TMapped {
         self.map(mapper).unwrap_or_default()
+    }
+
+    fn try_map_or_default<TMapped: Default, TError>(
+        self,
+        mapper: impl FnOnce(Self::Unwrapped) -> Result<TMapped, TError>,
+    ) -> Result<TMapped, TError> {
+        Ok(self.try_map(mapper)?.unwrap_or_default())
     }
 }
 

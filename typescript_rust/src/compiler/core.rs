@@ -1,16 +1,18 @@
+use std::{
+    borrow::{Borrow, Cow},
+    cell::RefCell,
+    cmp::Ordering,
+    collections::{hash_map::Entry, HashMap, HashSet},
+    convert::{TryFrom, TryInto},
+    hash,
+    hash::Hash,
+    iter, mem,
+    rc::Rc,
+};
+
 use gc::{Finalize, Gc, Trace};
 use indexmap::IndexMap;
 use regex::{Captures, Regex};
-use std::borrow::{Borrow, Cow};
-use std::cell::RefCell;
-use std::cmp::Ordering;
-use std::collections::hash_map::Entry;
-use std::collections::{HashMap, HashSet};
-use std::convert::{TryFrom, TryInto};
-use std::hash::Hash;
-use std::mem;
-use std::rc::Rc;
-use std::{hash, iter};
 
 use crate::{
     __String, text_char_at_index, Comparison, Debug_, IteratorExt, Node, NodeArrayOrVec, OptionTry,
@@ -1165,6 +1167,22 @@ pub fn single_or_undefined<TItem>(array: Option<&[TItem]>) -> Option<&TItem> {
     }
 }
 
+pub fn single_or_many_node<'array>(
+    array: impl Into<Cow<'array, [Gc<Node>]>>,
+) -> SingleNodeOrVecNode {
+    maybe_single_or_many_node(Some(array)).unwrap()
+}
+
+pub fn maybe_single_or_many_node<'array>(
+    array: Option<impl Into<Cow<'array, [Gc<Node>]>>>,
+) -> Option<SingleNodeOrVecNode> {
+    let array = array.map(Into::into);
+    match array {
+        Some(array) if array.len() == 1 => Some(array[0].clone().into()),
+        _ => array.map(|array| array.into_owned().into()),
+    }
+}
+
 pub fn replace_element<TItem: Clone>(array: &[TItem], index: usize, value: TItem) -> Vec<TItem> {
     let mut result = array.to_owned();
     result[index] = value;
@@ -1537,8 +1555,9 @@ pub fn clone<TValue: Cloneable>(object: &TValue) -> TValue {
 mod _MultiMapDeriveTraceScope {
     use std::collections::hash_map::{IntoValues, Values};
 
-    use super::*;
     use local_macros::Trace;
+
+    use super::*;
 
     #[derive(Debug, Trace, Finalize)]
     pub struct MultiMap<TKey: Trace + Finalize, TValue: Trace + Finalize>(
@@ -1616,9 +1635,9 @@ pub fn create_underscore_escaped_multi_map<TValue: Trace + Finalize>(
 
 mod _MultiMapOrderedDeriveTraceScope {
     use indexmap::map::{Entry, IntoValues, Values};
+    use local_macros::Trace;
 
     use super::*;
-    use local_macros::Trace;
 
     #[derive(Debug, Trace, Finalize)]
     pub struct MultiMapOrdered<TKey: Trace + Finalize, TValue: Trace + Finalize>(
@@ -1683,6 +1702,8 @@ mod _MultiMapOrderedDeriveTraceScope {
     }
 }
 pub use _MultiMapOrderedDeriveTraceScope::MultiMapOrdered;
+
+use crate::SingleNodeOrVecNode;
 
 pub fn create_multi_map_ordered<TKey: Trace + Finalize, TValue: Trace + Finalize>(
 ) -> MultiMapOrdered<TKey, TValue> {

@@ -11,9 +11,10 @@ use crate::{
     is_try_statement, is_with_statement, maybe_visit_each_child, try_maybe_visit_each_child,
     visit_each_child, BaseNodeFactorySynthetic, CompilerOptions, EmitFlags, EmitHelperFactory,
     EmitHint, EmitResolver, Node, NodeArray, NodeExt, NodeFactory, NodeInterface, SourceFileLike,
-    SyntaxKind, TransformFlags, TransformationContext, TransformationContextOnEmitNodeOverrider,
-    TransformationContextOnSubstituteNodeOverrider, Transformer, TransformerFactory,
-    TransformerFactoryInterface, TransformerInterface, VisitResult,
+    SourceTextAsChars, SyntaxKind, TransformFlags, TransformationContext,
+    TransformationContextOnEmitNodeOverrider, TransformationContextOnSubstituteNodeOverrider,
+    Transformer, TransformerFactory, TransformerFactoryInterface, TransformerInterface,
+    VisitResult,
 };
 
 bitflags! {
@@ -169,7 +170,7 @@ pub(super) struct TransformES2015 {
     pub(super) compiler_options: Gc<CompilerOptions>,
     pub(super) resolver: Gc<Box<dyn EmitResolver>>,
     pub(super) current_source_file: GcCell<Option<Gc<Node /*SourceFile*/>>>,
-    pub(super) current_text: GcCell<Option<String>>,
+    pub(super) current_text: GcCell<Option<SourceTextAsChars>>,
     #[unsafe_ignore_trace]
     pub(super) hierarchy_facts: Cell<Option<HierarchyFacts>>,
     pub(super) tagged_template_string_declarations:
@@ -232,15 +233,25 @@ impl TransformES2015 {
         *self.current_source_file.borrow_mut() = current_source_file;
     }
 
-    pub(super) fn maybe_current_text(&self) -> GcCellRef<Option<String>> {
+    pub(super) fn maybe_current_text(&self) -> GcCellRef<Option<SourceTextAsChars>> {
         self.current_text.borrow()
     }
 
-    pub(super) fn maybe_current_text_mut(&self) -> GcCellRefMut<Option<String>> {
+    pub(super) fn current_text(&self) -> GcCellRef<SourceTextAsChars> {
+        gc_cell_ref_unwrapped(&self.current_text)
+    }
+
+    pub(super) fn maybe_current_text_mut(&self) -> GcCellRefMut<Option<SourceTextAsChars>> {
         self.current_text.borrow_mut()
     }
 
-    pub(super) fn set_current_text(&self, current_text: Option<String>) {
+    pub(super) fn current_text_mut(
+        &self,
+    ) -> GcCellRefMut<Option<SourceTextAsChars>, SourceTextAsChars> {
+        gc_cell_ref_mut_unwrapped(&self.current_text)
+    }
+
+    pub(super) fn set_current_text(&self, current_text: Option<SourceTextAsChars>) {
         *self.current_text.borrow_mut() = current_text;
     }
 
@@ -323,7 +334,7 @@ impl TransformES2015 {
         }
 
         self.set_current_source_file(Some(node.node_wrapper()));
-        self.set_current_text(Some(node_as_source_file.text().clone()));
+        self.set_current_text(Some(node_as_source_file.text_as_chars().clone()));
 
         let visited = self
             .visit_source_file(node)?
@@ -461,8 +472,8 @@ impl TransformES2015 {
     ) -> io::Result<VisitResult> /*<Node>*/ {
         Ok(match node.kind() {
             SyntaxKind::StaticKeyword => None,
-            SyntaxKind::ClassDeclaration => self.visit_class_declaration(node),
-            SyntaxKind::ClassExpression => Some(self.visit_class_expression(node).into()),
+            SyntaxKind::ClassDeclaration => self.visit_class_declaration(node)?,
+            SyntaxKind::ClassExpression => Some(self.visit_class_expression(node)?.into()),
             SyntaxKind::Parameter => self.visit_parameter(node).map(Into::into),
             SyntaxKind::FunctionDeclaration => Some(self.visit_function_declaration(node).into()),
             SyntaxKind::ArrowFunction => self.visit_arrow_function(node),
@@ -476,7 +487,7 @@ impl TransformES2015 {
             SyntaxKind::CaseBlock => Some(self.visit_case_block(node)?.into()),
             SyntaxKind::Block => Some(self.visit_block(node, false).into()),
             SyntaxKind::BreakStatement | SyntaxKind::ContinueStatement => {
-                Some(self.visit_break_or_continue_statement(node).into())
+                Some(self.visit_break_or_continue_statement(node)?.into())
             }
             SyntaxKind::LabeledStatement => self.visit_labeled_statement(node),
             SyntaxKind::DoStatement | SyntaxKind::WhileStatement => {

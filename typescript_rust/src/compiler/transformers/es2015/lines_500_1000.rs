@@ -1,13 +1,15 @@
-use std::io;
+use std::{borrow::Borrow, io};
 
 use gc::Gc;
 
-use super::{HierarchyFacts, Jump, TransformES2015};
+use super::{CopyDirection, HierarchyFacts, Jump, TransformES2015};
 use crate::{
-    add_range, concatenate, is_expression, is_statement, try_visit_each_child, try_visit_node,
-    try_visit_nodes, visit_each_child, visit_node, visit_nodes, AsDoubleDeref,
-    GeneratedIdentifierFlags, HasStatementsInterface, Node, NodeArray, NodeArrayExt, NodeExt,
-    NodeInterface, OptionTry, VisitResult,
+    add_range, concatenate, get_class_extends_heritage_element, get_emit_flags,
+    has_syntactic_modifier, id_text, is_expression, is_statement, set_emit_flags,
+    single_or_many_node, skip_trivia, try_visit_each_child, try_visit_node, try_visit_nodes,
+    visit_each_child, visit_node, visit_nodes, AsDoubleDeref, EmitFlags, GeneratedIdentifierFlags,
+    HasStatementsInterface, MapOrDefault, ModifierFlags, Node, NodeArray, NodeArrayExt, NodeExt,
+    NodeInterface, OptionTry, ReadonlyTextRange, SyntaxKind, VisitResult,
 };
 
 impl TransformES2015 {
@@ -255,22 +257,273 @@ impl TransformES2015 {
 
     pub(super) fn visit_break_or_continue_statement(
         &self,
-        _node: &Node, /*BreakOrContinueStatement*/
-    ) -> Gc<Node /*Statement*/> {
-        unimplemented!()
+        node: &Node, /*BreakOrContinueStatement*/
+    ) -> io::Result<Gc<Node /*Statement*/>> {
+        let node_as_has_label = node.as_has_label();
+        if self.maybe_converted_loop_state().is_some() {
+            let jump = if node.kind() == SyntaxKind::BreakStatement {
+                Jump::Break
+            } else {
+                Jump::Continue
+            };
+            let can_use_break_or_continue = matches!(
+                (node_as_has_label.maybe_label().as_ref(), self.converted_loop_state().labels.as_ref()),
+                (Some(node_label), Some(converted_loop_state_labels)) if converted_loop_state_labels.get(
+                    id_text(node_label)
+                ).copied() == Some(true)
+            ) || node_as_has_label.maybe_label().is_none()
+                && self
+                    .converted_loop_state()
+                    .allowed_non_labeled_jumps
+                    .unwrap_or_default()
+                    .intersects(jump);
+
+            if !can_use_break_or_continue {
+                let label_marker: String;
+                let label = node_as_has_label.maybe_label();
+                match label.as_ref() {
+                    None => {
+                        if node.kind() == SyntaxKind::BreakStatement {
+                            *self
+                                .converted_loop_state_mut()
+                                .non_local_jumps
+                                .get_or_insert_with(|| Default::default()) |= Jump::Break;
+                            label_marker = "break".to_owned();
+                        } else {
+                            *self
+                                .converted_loop_state_mut()
+                                .non_local_jumps
+                                .get_or_insert_with(|| Default::default()) |= Jump::Continue;
+                            label_marker = "continue".to_owned();
+                        }
+                    }
+                    Some(label) => {
+                        if node.kind() == SyntaxKind::BreakStatement {
+                            label_marker = format!("break-{}", label.as_identifier().escaped_text);
+                            self.set_labeled_jump(
+                                &mut self.converted_loop_state_mut(),
+                                true,
+                                id_text(label),
+                                &label_marker,
+                            );
+                        } else {
+                            label_marker =
+                                format!("continue-{}", label.as_identifier().escaped_text);
+                            self.set_labeled_jump(
+                                &mut self.converted_loop_state_mut(),
+                                false,
+                                id_text(label),
+                                &label_marker,
+                            );
+                        }
+                    }
+                }
+                let mut return_expression = self
+                    .factory
+                    .create_string_literal(label_marker, None, None)
+                    .wrap();
+                if !self.converted_loop_state().loop_out_parameters.is_empty() {
+                    let converted_loop_state = self.converted_loop_state();
+                    let out_params = &converted_loop_state.loop_out_parameters;
+                    let mut expr: Option<Gc<Node>> = None;
+                    for (i, out_param) in out_params.iter().enumerate() {
+                        let copy_expr =
+                            self.copy_out_parameter(out_param, CopyDirection::ToOutParameter);
+                        if i == 0 {
+                            expr = Some(copy_expr);
+                        } else {
+                            expr = Some(
+                                self.factory
+                                    .create_binary_expression(
+                                        expr.unwrap(),
+                                        SyntaxKind::CommaToken,
+                                        copy_expr,
+                                    )
+                                    .wrap(),
+                            );
+                        }
+                    }
+                    return_expression = self
+                        .factory
+                        .create_binary_expression(
+                            expr.unwrap(),
+                            SyntaxKind::CommaToken,
+                            return_expression,
+                        )
+                        .wrap();
+                }
+                return Ok(self
+                    .factory
+                    .create_return_statement(Some(return_expression))
+                    .wrap());
+            }
+        }
+        try_visit_each_child(node, |node: &Node| self.visitor(node), &**self.context)
     }
 
     pub(super) fn visit_class_declaration(
         &self,
-        _node: &Node, /*ClassDeclaration*/
-    ) -> VisitResult /*<Statement>*/ {
-        unimplemented!()
+        node: &Node, /*ClassDeclaration*/
+    ) -> io::Result<VisitResult> /*<Statement>*/ {
+        let variable = self
+            .factory
+            .create_variable_declaration(
+                Some(self.factory.get_local_name(node, Some(true), None)),
+                None,
+                None,
+                Some(self.transform_class_like_declaration_to_expression(node)?),
+            )
+            .wrap()
+            .set_original_node(Some(node.node_wrapper()));
+
+        let mut statements: Vec<Gc<Node /*Statement*/>> = Default::default();
+        let statement = self
+            .factory
+            .create_variable_statement(
+                Option::<Gc<NodeArray>>::None,
+                self.factory
+                    .create_variable_declaration_list(vec![variable], None)
+                    .wrap(),
+            )
+            .wrap()
+            .set_original_node(Some(node.node_wrapper()))
+            .set_text_range(Some(node))
+            .start_on_new_line();
+        statements.push(statement.clone());
+
+        if has_syntactic_modifier(node, ModifierFlags::Export) {
+            let export_statement = if has_syntactic_modifier(node, ModifierFlags::Default) {
+                self.factory
+                    .create_export_default(self.factory.get_local_name(node, None, None))
+            } else {
+                self.factory
+                    .create_external_module_export(self.factory.get_local_name(node, None, None))
+            }
+            .set_original_node(Some(statement.clone()));
+            statements.push(export_statement);
+        }
+
+        let emit_flags = get_emit_flags(node);
+        if !emit_flags.intersects(EmitFlags::HasEndOfDeclarationMarker) {
+            statements.push(
+                self.factory
+                    .create_end_of_declaration_marker(node.node_wrapper()),
+            );
+            set_emit_flags(
+                &*statement,
+                emit_flags | EmitFlags::HasEndOfDeclarationMarker,
+            );
+        }
+
+        Ok(Some(single_or_many_node(statements)))
     }
 
     pub(super) fn visit_class_expression(
         &self,
-        _node: &Node, /*ClassExpression*/
-    ) -> Gc<Node /*Expression*/> {
+        node: &Node, /*ClassExpression*/
+    ) -> io::Result<Gc<Node /*Expression*/>> {
+        self.transform_class_like_declaration_to_expression(node)
+    }
+
+    pub(super) fn transform_class_like_declaration_to_expression(
+        &self,
+        node: &Node, /*ClassExpression | ClassDeclaration*/
+    ) -> io::Result<Gc<Node /*Expression*/>> {
+        let node_as_class_like_declaration = node.as_class_like_declaration();
+        if node_as_class_like_declaration.maybe_name().is_some() {
+            self.enable_substitutions_for_block_scoped_bindings();
+        }
+
+        let extends_clause_element = get_class_extends_heritage_element(node);
+        let class_function = self
+            .factory
+            .create_function_expression(
+                Option::<Gc<NodeArray>>::None,
+                None,
+                Option::<Gc<Node>>::None,
+                Option::<Gc<NodeArray>>::None,
+                Some(extends_clause_element.as_ref().map_or_default(|_| {
+                    vec![self
+                        .factory
+                        .create_parameter_declaration(
+                            Option::<Gc<NodeArray>>::None,
+                            Option::<Gc<NodeArray>>::None,
+                            None,
+                            Some(self.factory.create_unique_name(
+                                "_super",
+                                Some(
+                                    GeneratedIdentifierFlags::Optimistic
+                                        | GeneratedIdentifierFlags::FileLevel,
+                                ),
+                            )),
+                            None,
+                            None,
+                            None,
+                        )
+                        .wrap()]
+                })),
+                None,
+                self.transform_class_body(node, extends_clause_element.as_deref()),
+            )
+            .wrap()
+            .set_emit_flags(
+                (get_emit_flags(node) & EmitFlags::Indented) | EmitFlags::ReuseTempVariableScope,
+            );
+
+        let inner = self
+            .factory
+            .create_partially_emitted_expression(class_function, None)
+            .wrap()
+            .set_text_range_end(node.end())
+            .set_emit_flags(EmitFlags::NoComments);
+
+        let outer = self
+            .factory
+            .create_partially_emitted_expression(inner, None)
+            .wrap()
+            .set_text_range_end(skip_trivia(
+                &self.current_text(),
+                node.pos(),
+                None,
+                None,
+                None,
+            ))
+            .set_emit_flags(EmitFlags::NoComments);
+
+        Ok(self
+            .factory
+            .create_parenthesized_expression(
+                self.factory
+                    .create_call_expression(
+                        outer,
+                        Option::<Gc<NodeArray>>::None,
+                        Some(extends_clause_element.as_ref().try_map_or_default(
+                            |extends_clause_element| -> io::Result<_> {
+                                Ok(vec![try_visit_node(
+                                    Some(
+                                        &*extends_clause_element
+                                            .as_expression_with_type_arguments()
+                                            .expression,
+                                    ),
+                                    Some(|node: &Node| self.visitor(node)),
+                                    Some(is_expression),
+                                    Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                                )?
+                                .unwrap()])
+                            },
+                        )?),
+                    )
+                    .wrap(),
+            )
+            .wrap()
+            .add_synthetic_leading_comment(SyntaxKind::MultiLineCommentTrivia, "* @class ", None))
+    }
+
+    pub(super) fn transform_class_body(
+        &self,
+        _node: &Node, /*ClassExpression | ClassDeclaration*/
+        _extends_clause_element: Option<impl Borrow<Node>>, /*ExpressionWithTypeArguments*/
+    ) -> Gc<Node /*Block*/> {
         unimplemented!()
     }
 }

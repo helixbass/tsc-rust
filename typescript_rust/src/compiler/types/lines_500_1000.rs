@@ -56,15 +56,15 @@ use super::{
     WithStatement, YieldExpression,
 };
 use crate::{
-    add_emit_helpers, remove_all_comments, set_comment_range_rc, set_emit_flags, set_original_node,
-    set_source_map_range, set_text_range_end, set_text_range_pos, set_text_range_rc_node,
-    start_on_new_line, CaseOrDefaultClauseInterface, EmitFlags, EmitHelper, GcVec,
-    HasArgumentsInterface, HasAssertClauseInterface, HasChildrenInterface,
-    HasDotDotDotTokenInterface, HasFileNameInterface, HasLeftAndRightInterface,
-    HasMembersInterface, HasModuleSpecifierInterface, HasOldFileOfCurrentEmitInterface,
-    HasTagNameInterface, HasTextsInterface, InferenceContext, JSDocHeritageTagInterface,
-    JsxOpeningLikeElementInterface, SourceFileLike, SourceMapRange, SyntheticExpression,
-    SyntheticReferenceExpression, UnparsedSyntheticReference,
+    add_emit_helpers, add_synthetic_leading_comment, remove_all_comments, set_comment_range_rc,
+    set_emit_flags, set_original_node, set_source_map_range, set_text_range_end,
+    set_text_range_pos, set_text_range_rc_node, start_on_new_line, CaseOrDefaultClauseInterface,
+    EmitFlags, EmitHelper, GcVec, HasArgumentsInterface, HasAssertClauseInterface,
+    HasChildrenInterface, HasDotDotDotTokenInterface, HasFileNameInterface,
+    HasLeftAndRightInterface, HasMembersInterface, HasModuleSpecifierInterface,
+    HasOldFileOfCurrentEmitInterface, HasTagNameInterface, HasTextsInterface, InferenceContext,
+    JSDocHeritageTagInterface, JsxOpeningLikeElementInterface, SourceFileLike, SourceMapRange,
+    SyntheticExpression, SyntheticReferenceExpression, UnparsedSyntheticReference,
 };
 
 bitflags! {
@@ -2105,6 +2105,12 @@ pub trait NodeExt {
     fn and_set_original(self, original: Option<Gc<Node>>) -> Self;
     fn remove_all_comments(self) -> Self;
     fn add_emit_helpers(self, helpers: Option<&[Gc<EmitHelper>]>) -> Self;
+    fn add_synthetic_leading_comment(
+        self,
+        kind: SyntaxKind,
+        text: &str,
+        has_trailing_new_line: Option<bool>,
+    ) -> Self;
 }
 
 impl NodeExt for Gc<Node> {
@@ -2159,6 +2165,16 @@ impl NodeExt for Gc<Node> {
 
     fn add_emit_helpers(self, helpers: Option<&[Gc<EmitHelper>]>) -> Self {
         add_emit_helpers(&self, helpers);
+        self
+    }
+
+    fn add_synthetic_leading_comment(
+        self,
+        kind: SyntaxKind,
+        text: &str,
+        has_trailing_new_line: Option<bool>,
+    ) -> Self {
+        add_synthetic_leading_comment(&self, kind, text, has_trailing_new_line);
         self
     }
 }

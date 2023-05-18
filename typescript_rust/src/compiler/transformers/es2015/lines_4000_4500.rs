@@ -50,4 +50,8 @@ impl TransformES2015 {
     pub(super) fn visit_meta_property(&self, _node: &Node /*MetaProperty*/) -> VisitResult {
         unimplemented!()
     }
+
+    pub(super) fn enable_substitutions_for_block_scoped_bindings(&self) {
+        unimplemented!()
+    }
 }
