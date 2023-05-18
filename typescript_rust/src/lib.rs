@@ -360,7 +360,7 @@ pub use compiler::{
         },
         destructuring::{
             flatten_destructuring_assignment, flatten_destructuring_binding,
-            try_flatten_destructuring_assignment, FlattenLevel,
+            try_flatten_destructuring_assignment, try_flatten_destructuring_binding, FlattenLevel,
         },
         is_internal_declaration,
         tagged_template::{process_tagged_template_expression, ProcessLevel},

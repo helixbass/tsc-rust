@@ -624,6 +624,15 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         unimplemented!()
     }
 
+    pub fn create_function_apply_call(
+        &self,
+        _target: Gc<Node /*Expression*/>,
+        _this_arg: Gc<Node /*Expression*/>,
+        _arguments_expression: Gc<Node /*Expression*/>,
+    ) -> Gc<Node> {
+        unimplemented!()
+    }
+
     pub fn create_global_method_call(
         &self,
         _global_object_name: String,
@@ -737,6 +746,44 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         _ensure_use_strict: Option<bool>,
         _visitor: Option<impl FnMut(&Node) -> io::Result<VisitResult /*<Node>*/>>,
     ) -> io::Result<usize> {
+        unimplemented!()
+    }
+
+    pub fn copy_standard_prologue(
+        &self,
+        _source: &[Gc<Node /*Statement*/>],
+        _target: &mut Vec<Gc<Node /*Statement*/>>,
+        _ensure_use_strict: Option<bool>,
+    ) -> usize {
+        unimplemented!()
+    }
+
+    pub fn copy_custom_prologue(
+        &self,
+        source: &[Gc<Node /*Statement*/>],
+        target: &mut Vec<Gc<Node /*Statement*/>>,
+        statement_offset: Option<usize>,
+        visitor: Option<impl FnMut(&Node) -> VisitResult /*<Node>*/>,
+        filter: Option<impl FnMut(&Node) -> bool>,
+    ) -> Option<usize> {
+        self.try_copy_custom_prologue(
+            source,
+            target,
+            statement_offset,
+            visitor.map(|mut visitor| move |node: &Node| Ok(visitor(node))),
+            filter,
+        )
+        .unwrap()
+    }
+
+    pub fn try_copy_custom_prologue(
+        &self,
+        _source: &[Gc<Node /*Statement*/>],
+        _target: &mut Vec<Gc<Node /*Statement*/>>,
+        _statement_offset: Option<usize>,
+        _visitor: Option<impl FnMut(&Node) -> io::Result<VisitResult /*<Node>*/>>,
+        _filter: Option<impl FnMut(&Node) -> bool>,
+    ) -> io::Result<Option<usize>> {
         unimplemented!()
     }
 

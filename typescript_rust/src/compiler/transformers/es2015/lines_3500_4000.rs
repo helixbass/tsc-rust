@@ -60,6 +60,13 @@ impl TransformES2015 {
         unimplemented!()
     }
 
+    pub(super) fn visit_immediate_super_call_in_body(
+        &self,
+        _node: &Node, /*CallExpression*/
+    ) -> Gc<Node> {
+        unimplemented!()
+    }
+
     pub(super) fn visit_new_expression(
         &self,
         _node: &Node, /*CallExpression*/

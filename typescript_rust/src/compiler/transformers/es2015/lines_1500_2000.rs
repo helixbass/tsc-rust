@@ -1,3 +1,5 @@
+use std::borrow::Borrow;
+
 use gc::Gc;
 
 use super::TransformES2015;
@@ -9,6 +11,24 @@ impl TransformES2015 {
         _statements: &mut Vec<Gc<Node>>, /*Statement*/
         _node: &Node,
     ) -> bool {
+        unimplemented!()
+    }
+
+    pub(super) fn insert_capture_this_for_node(
+        &self,
+        _statements: &mut Vec<Gc<Node>>, /*Statement*/
+        _node: &Node,
+        _initializer: Option<impl Borrow<Node /*Expression*/>>,
+    ) {
+        unimplemented!()
+    }
+
+    pub(super) fn insert_capture_new_target_if_needed(
+        &self,
+        _statements: Vec<Gc<Node>>, /*Statement*/
+        _node: &Node,               /*FunctionLikeDeclaration*/
+        _copy_on_write: bool,
+    ) -> Vec<Gc<Node>> /*Statement*/ {
         unimplemented!()
     }
 

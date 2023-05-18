@@ -4,15 +4,17 @@ use gc::Gc;
 
 use super::{CopyDirection, HierarchyFacts, Jump, TransformES2015};
 use crate::{
-    add_range, concatenate, create_token_range, get_class_extends_heritage_element, get_emit_flags,
-    get_first_constructor_with_body, has_syntactic_modifier, id_text,
-    insert_statements_after_standard_prologue, is_expression,
-    is_identifier_a_non_contextual_keyword, is_statement, set_emit_flags, single_or_many_node,
-    skip_trivia, try_visit_each_child, try_visit_node, try_visit_nodes, try_visit_parameter_list,
-    visit_each_child, visit_node, visit_nodes, AsDoubleDeref, EmitFlags, GeneratedIdentifierFlags,
-    HasStatementsInterface, MapOrDefault, ModifierFlags, Node, NodeArray, NodeArrayExt,
-    NodeArrayOrVec, NodeExt, NodeInterface, NodeWrappered, OptionTry, ReadonlyTextRange,
-    SignatureDeclarationInterface, SyntaxKind, TextRange, VisitResult,
+    add_range, cast_present, concatenate, create_token_range, get_class_extends_heritage_element,
+    get_comment_range, get_emit_flags, get_first_constructor_with_body, has_syntactic_modifier,
+    id_text, insert_statements_after_standard_prologue, is_binary_expression, is_call_expression,
+    is_expression, is_expression_statement, is_identifier_a_non_contextual_keyword, is_statement,
+    is_super_call, set_emit_flags, single_or_many_node, skip_outer_expressions, skip_trivia,
+    try_visit_each_child, try_visit_node, try_visit_nodes, try_visit_parameter_list,
+    visit_each_child, visit_node, visit_nodes, AsDoubleDeref, EmitFlags,
+    FunctionLikeDeclarationInterface, GeneratedIdentifierFlags, HasStatementsInterface,
+    MapOrDefault, Matches, ModifierFlags, Node, NodeArray, NodeArrayExt, NodeArrayOrVec, NodeExt,
+    NodeInterface, NodeWrappered, OptionTry, ReadonlyTextRange, ReadonlyTextRangeConcrete,
+    SignatureDeclarationInterface, SyntaxKind, TextRange, TransformFlags, VisitResult,
 };
 
 impl TransformES2015 {
@@ -647,7 +649,7 @@ impl TransformES2015 {
                     node,
                     extends_clause_element.as_deref(),
                     has_synthesized_super,
-                )),
+                )?),
             )
             .wrap()
             .set_text_range(Some(constructor.as_deref().unwrap_or(node)));
@@ -724,7 +726,158 @@ impl TransformES2015 {
         node: &Node,                            /*ClassExpression | ClassDeclaration*/
         extends_clause_element: Option<impl Borrow<Node>>, /*ExpressionWithTypeArguments*/
         has_synthesized_super: bool,
-    ) -> Gc<Node> {
-        unimplemented!()
+    ) -> io::Result<Gc<Node>> {
+        let extends_clause_element = extends_clause_element.node_wrappered();
+        let is_derived_class = extends_clause_element
+            .as_ref()
+            .matches(|extends_clause_element| {
+                skip_outer_expressions(
+                    &extends_clause_element
+                        .as_expression_with_type_arguments()
+                        .expression,
+                    None,
+                )
+                .kind()
+                    != SyntaxKind::NullKeyword
+            });
+
+        if constructor.is_none() {
+            return Ok(self.create_default_constructor_body(node, is_derived_class));
+        }
+        let constructor = constructor.unwrap();
+        let constructor: &Node = constructor.borrow();
+        let constructor_as_constructor_declaration = constructor.as_constructor_declaration();
+        let constructor_body = constructor_as_constructor_declaration.maybe_body().unwrap();
+        let constructor_body_as_block = constructor_body.as_block();
+
+        let mut prologue: Vec<Gc<Node /*Statement*/>> = Default::default();
+        let mut statements: Vec<Gc<Node /*Statement*/>> = Default::default();
+        self.context.resume_lexical_environment();
+
+        let mut statement_offset = 0;
+        if !has_synthesized_super {
+            statement_offset = self.factory.copy_standard_prologue(
+                &constructor_body_as_block.statements,
+                &mut prologue,
+                Some(false),
+            );
+        }
+        self.add_default_value_assignments_if_needed(&mut statements, constructor)?;
+        self.add_rest_parameter_if_needed(&mut statements, constructor, has_synthesized_super);
+        if !has_synthesized_super {
+            statement_offset = self
+                .factory
+                .try_copy_custom_prologue(
+                    &constructor_body_as_block.statements,
+                    &mut statements,
+                    Some(statement_offset),
+                    Some(|node: &Node| self.visitor(node)),
+                    Option::<fn(&Node) -> bool>::None,
+                )?
+                .unwrap();
+        }
+
+        let mut super_call_expression: Option<Gc<Node /*Expression*/>> = None;
+        if has_synthesized_super {
+            super_call_expression = Some(self.create_default_super_call_or_this());
+        } else if is_derived_class && statement_offset < constructor_body_as_block.statements.len()
+        {
+            let first_statement = &constructor_body_as_block.statements[statement_offset];
+            if is_expression_statement(first_statement)
+                && is_super_call(&first_statement.as_expression_statement().expression)
+            {
+                super_call_expression = Some(self.visit_immediate_super_call_in_body(
+                    &first_statement.as_expression_statement().expression,
+                ));
+            }
+        }
+
+        if super_call_expression.is_some() {
+            self.set_hierarchy_facts(Some(
+                self.maybe_hierarchy_facts().unwrap_or_default()
+                    | HierarchyFacts::ConstructorWithCapturedSuper,
+            ));
+            statement_offset += 1;
+        }
+
+        add_range(
+            &mut statements,
+            try_visit_nodes(
+                Some(&constructor_body_as_block.statements),
+                Some(|node: &Node| self.visitor(node)),
+                Some(is_statement),
+                None,
+                None,
+            )?
+            .as_double_deref(),
+            None,
+            None,
+        );
+
+        prologue = self
+            .factory
+            .merge_lexical_environment(prologue, self.context.end_lexical_environment().as_deref())
+            .as_vec_owned();
+        prologue = self.insert_capture_new_target_if_needed(prologue, constructor, false);
+
+        if is_derived_class {
+            if let Some(super_call_expression) = super_call_expression.clone().filter(|_| {
+                statement_offset == constructor_body_as_block.statements.len()
+                    && !constructor_body
+                        .transform_flags()
+                        .intersects(TransformFlags::ContainsLexicalThis)
+            }) {
+                let super_call = cast_present(
+                    &cast_present(&super_call_expression, |node: &&Gc<Node>| {
+                        is_binary_expression(node)
+                    })
+                    .as_binary_expression()
+                    .left,
+                    |node: &&Gc<Node>| is_call_expression(node),
+                );
+                let return_statement = self
+                    .factory
+                    .create_return_statement(Some(super_call_expression.clone()))
+                    .wrap()
+                    .set_comment_range(&ReadonlyTextRangeConcrete::from(get_comment_range(
+                        super_call,
+                    )));
+                set_emit_flags(&**super_call, EmitFlags::NoComments);
+                statements.push(return_statement);
+            } else {
+                self.insert_capture_this_for_node(
+                    &mut statements,
+                    constructor,
+                    Some(super_call_expression.unwrap_or_else(|| self.create_actual_this())),
+                );
+
+                if !self.is_sufficiently_covered_by_return_statements(&constructor_body) {
+                    statements.push(
+                        self.factory
+                            .create_return_statement(Some(self.factory.create_unique_name(
+                                "this",
+                                Some(
+                                    GeneratedIdentifierFlags::Optimistic
+                                        | GeneratedIdentifierFlags::FileLevel,
+                                ),
+                            )))
+                            .wrap(),
+                    );
+                }
+            }
+        } else {
+            self.insert_capture_this_for_node_if_needed(&mut prologue, constructor);
+        }
+
+        Ok(self
+            .factory
+            .create_block(
+                self.factory
+                    .create_node_array(Some(concatenate(prologue, statements)), None)
+                    .set_text_range(Some(&*constructor_body_as_block.statements)),
+                Some(true),
+            )
+            .wrap()
+            .set_text_range(Some(&*constructor_body)))
     }
 }
