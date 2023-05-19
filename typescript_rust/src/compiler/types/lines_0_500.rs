@@ -1,6 +1,6 @@
+use std::{cell::Cell, ops::Deref};
+
 use gc::{unsafe_empty_trace, Finalize, Trace};
-use std::cell::Cell;
-use std::ops::Deref;
 
 #[derive(Clone, Debug, Eq, PartialEq, Hash, Finalize)]
 pub struct Path(String);

@@ -4,16 +4,20 @@ use gc::Gc;
 
 use super::{HierarchyFacts, TransformES2015};
 use crate::{
-    create_expression_for_property_name, create_member_access_for_property_name,
-    get_all_accessor_declarations, get_comment_range, get_emit_flags, get_source_map_range,
-    get_use_define_for_class_fields, insert_statement_after_custom_prologue,
-    is_computed_property_name, is_identifier, is_modifier, is_private_identifier, is_property_name,
-    set_emit_flags, set_source_map_range, start_on_new_line, try_visit_node, try_visit_nodes,
-    try_visit_parameter_list, unescape_leading_underscores, AllAccessorDeclarations, Debug_,
-    EmitFlags, FunctionLikeDeclarationInterface, GeneratedIdentifierFlags,
-    NamedDeclarationInterface, Node, NodeArray, NodeExt, NodeInterface, NodeWrappered,
-    PropertyDescriptorAttributesBuilder, ReadonlyTextRange, ReadonlyTextRangeConcrete,
-    SignatureDeclarationInterface, SyntaxKind, TransformFlags, VisitResult,
+    add_range, are_gc_slices_equal, concatenate, create_expression_for_property_name,
+    create_member_access_for_property_name, get_all_accessor_declarations, get_comment_range,
+    get_emit_flags, get_source_map_range, get_use_define_for_class_fields,
+    insert_statement_after_custom_prologue, is_block, is_class_like, is_computed_property_name,
+    is_expression, is_hoisted_function, is_hoisted_variable_statement, is_identifier, is_modifier,
+    is_private_identifier, is_property_name, is_statement, is_static, move_range_end,
+    node_is_synthesized, range_end_is_on_same_line_as_range_start, set_emit_flags,
+    set_original_node, set_source_map_range, set_token_source_map_range, start_on_new_line,
+    try_visit_node, try_visit_nodes, try_visit_parameter_list, unescape_leading_underscores,
+    AllAccessorDeclarations, AsDoubleDeref, Debug_, EmitFlags, FunctionLikeDeclarationInterface,
+    GeneratedIdentifierFlags, Matches, NamedDeclarationInterface, Node, NodeArray, NodeArrayExt,
+    NodeExt, NodeInterface, NodeWrappered, PropertyDescriptorAttributesBuilder, ReadonlyTextRange,
+    ReadonlyTextRangeConcrete, SignatureDeclarationInterface, SyntaxKind, TransformFlags,
+    VisitResult,
 };
 
 impl TransformES2015 {
@@ -262,7 +266,7 @@ impl TransformES2015 {
             Some(member),
             Option::<&Node>::None,
             Some(container),
-        );
+        )?;
         let ref property_name = try_visit_node(
             Some(member_as_method_declaration.name()),
             Some(|node: &Node| self.visitor(node)),
@@ -398,7 +402,7 @@ impl TransformES2015 {
                     Option::<&Node>::None,
                     Option::<&Node>::None,
                     Some(container),
-                )
+                )?
                 .set_source_map_range(Some(get_source_map_range(get_accessor)))
                 .set_emit_flags(EmitFlags::NoLeadingComments);
             let getter = self
@@ -418,7 +422,7 @@ impl TransformES2015 {
                     Option::<&Node>::None,
                     Option::<&Node>::None,
                     Some(container),
-                )
+                )?
                 .set_source_map_range(Some(get_source_map_range(set_accessor)))
                 .set_emit_flags(EmitFlags::NoLeadingComments);
             let setter = self
@@ -515,7 +519,7 @@ impl TransformES2015 {
                     &**self.context,
                 )?,
                 Option::<Gc<Node>>::None,
-                self.transform_function_body(node),
+                self.transform_function_body(node)?,
             )
             .wrap()
             .set_text_range(Some(node))
@@ -557,7 +561,7 @@ impl TransformES2015 {
             &**self.context,
         )?
         .unwrap();
-        let body = self.transform_function_body(node);
+        let body = self.transform_function_body(node)?;
         let name = if self
             .maybe_hierarchy_facts()
             .unwrap_or_default()
@@ -603,7 +607,7 @@ impl TransformES2015 {
             &**self.context,
         )?
         .unwrap();
-        let body = self.transform_function_body(node);
+        let body = self.transform_function_body(node)?;
         let name = if self
             .maybe_hierarchy_facts()
             .unwrap_or_default()
@@ -641,18 +645,221 @@ impl TransformES2015 {
 
     pub(super) fn transform_function_like_to_expression(
         &self,
-        _node: &Node, /*FunctionLikeDeclaration*/
-        _location: Option<&impl ReadonlyTextRange>,
-        _name: Option<impl Borrow<Node /*Identifier*/>>,
-        _container: Option<impl Borrow<Node>>,
-    ) -> Gc<Node /*FunctionExpression*/> {
-        unimplemented!()
+        node: &Node, /*FunctionLikeDeclaration*/
+        location: Option<&impl ReadonlyTextRange>,
+        name: Option<impl Borrow<Node /*Identifier*/>>,
+        container: Option<impl Borrow<Node>>,
+    ) -> io::Result<Gc<Node /*FunctionExpression*/>> {
+        let node_as_function_like_declaration = node.as_function_like_declaration();
+        let saved_converted_loop_state = self.maybe_converted_loop_state().clone();
+        self.set_converted_loop_state(None);
+        let container = container.node_wrappered();
+        let ancestor_facts =
+            if container.matches(|ref container| is_class_like(container)) && !is_static(node) {
+                self.enter_subtree(
+                    HierarchyFacts::FunctionExcludes,
+                    HierarchyFacts::FunctionIncludes | HierarchyFacts::NonStaticClassElement,
+                )
+            } else {
+                self.enter_subtree(
+                    HierarchyFacts::FunctionExcludes,
+                    HierarchyFacts::FunctionIncludes,
+                )
+            };
+        let parameters = try_visit_parameter_list(
+            Some(&node_as_function_like_declaration.parameters()),
+            |node: &Node| self.visitor(node),
+            &**self.context,
+        )?
+        .unwrap();
+        let body = self.transform_function_body(node)?;
+        let mut name = name.node_wrappered();
+        if self
+            .maybe_hierarchy_facts()
+            .unwrap_or_default()
+            .intersects(HierarchyFacts::NewTarget)
+            && name.is_none()
+            && matches!(
+                node.kind(),
+                SyntaxKind::FunctionDeclaration | SyntaxKind::FunctionExpression
+            )
+        {
+            name = Some(self.factory.get_generated_name_for_node(Some(node), None));
+        }
+
+        self.exit_subtree(
+            ancestor_facts,
+            HierarchyFacts::FunctionSubtreeExcludes,
+            HierarchyFacts::None,
+        );
+        self.set_converted_loop_state(saved_converted_loop_state);
+        Ok(self
+            .factory
+            .create_function_expression(
+                Option::<Gc<NodeArray>>::None,
+                node_as_function_like_declaration.maybe_asterisk_token(),
+                name,
+                Option::<Gc<NodeArray>>::None,
+                Some(parameters),
+                None,
+                body,
+            )
+            .wrap()
+            .set_text_range(location)
+            .set_original_node(Some(node.node_wrapper())))
     }
 
     pub(super) fn transform_function_body(
         &self,
-        _node: &Node, /*FunctionLikeDeclaration*/
-    ) -> Gc<Node> {
-        unimplemented!()
+        node: &Node, /*FunctionLikeDeclaration*/
+    ) -> io::Result<Gc<Node>> {
+        let node_as_function_like_declaration = node.as_function_like_declaration();
+        let mut multi_line = false;
+        let mut single_line = false;
+        let statements_location: Option<ReadonlyTextRangeConcrete /*TextRange*/>;
+        let mut close_brace_location: Option<Gc<Node /*TextRange*/>> = Default::default();
+
+        let mut prologue: Vec<Gc<Node /*Statement*/>> = Default::default();
+        let mut statements: Vec<Gc<Node /*Statement*/>> = Default::default();
+        let ref body = node_as_function_like_declaration.maybe_body().unwrap();
+        let mut statement_offset: Option<usize> = Default::default();
+
+        self.context.resume_lexical_environment();
+        if is_block(body) {
+            let body_as_block = body.as_block();
+            statement_offset = Some(self.factory.copy_standard_prologue(
+                &body_as_block.statements,
+                &mut prologue,
+                Some(false),
+            ));
+            statement_offset = self.factory.try_copy_custom_prologue(
+                &body_as_block.statements,
+                &mut prologue,
+                statement_offset,
+                Some(|node: &Node| self.visitor(node)),
+                Some(is_hoisted_function),
+            )?;
+            statement_offset = self.factory.try_copy_custom_prologue(
+                &body_as_block.statements,
+                &mut prologue,
+                statement_offset,
+                Some(|node: &Node| self.visitor(node)),
+                Some(is_hoisted_variable_statement),
+            )?;
+        }
+
+        multi_line =
+            self.add_default_value_assignments_if_needed(&mut statements, node)? || multi_line;
+        multi_line = self.add_rest_parameter_if_needed(&mut statements, node, false)? || multi_line;
+
+        if is_block(body) {
+            let body_as_block = body.as_block();
+            statement_offset = self.factory.try_copy_custom_prologue(
+                &body_as_block.statements,
+                &mut statements,
+                statement_offset,
+                Some(|node: &Node| self.visitor(node)),
+                Option::<fn(&Node) -> bool>::None,
+            )?;
+
+            statements_location = Some((&*body_as_block.statements).into());
+            add_range(
+                &mut statements,
+                try_visit_nodes(
+                    Some(&body_as_block.statements),
+                    Some(|node: &Node| self.visitor(node)),
+                    Some(is_statement),
+                    statement_offset,
+                    None,
+                )?
+                .as_double_deref(),
+                None,
+                None,
+            );
+
+            if !multi_line && body_as_block.multi_line == Some(true) {
+                multi_line = true;
+            }
+        } else {
+            Debug_.assert(node.kind() == SyntaxKind::ArrowFunction, None);
+
+            statements_location = Some(move_range_end(&**body, -1).into());
+
+            let equals_greater_than_token = &node.as_arrow_function().equals_greater_than_token;
+            if !node_is_synthesized(&**equals_greater_than_token) && !node_is_synthesized(&**body) {
+                if range_end_is_on_same_line_as_range_start(
+                    &**equals_greater_than_token,
+                    &**body,
+                    &self.current_source_file(),
+                ) {
+                    single_line = true;
+                } else {
+                    multi_line = true;
+                }
+            }
+
+            let expression = try_visit_node(
+                Some(&**body),
+                Some(|node: &Node| self.visitor(node)),
+                Some(is_expression),
+                Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+            )?
+            .unwrap();
+            let return_statement = self
+                .factory
+                .create_return_statement(Some(expression))
+                .wrap()
+                .set_text_range(Some(&**body))
+                .move_synthetic_comments(body)
+                .set_emit_flags(
+                    EmitFlags::NoTokenSourceMaps
+                        | EmitFlags::NoTrailingSourceMap
+                        | EmitFlags::NoTrailingComments,
+                );
+            statements.push(return_statement);
+
+            close_brace_location = Some(body.clone());
+        }
+
+        prologue = self
+            .factory
+            .merge_lexical_environment(prologue, self.context.end_lexical_environment().as_deref())
+            .as_vec_owned();
+        prologue = self.insert_capture_new_target_if_needed(prologue, node, false);
+        self.insert_capture_this_for_node_if_needed(&mut prologue, node);
+
+        if !prologue.is_empty() {
+            multi_line = true;
+        }
+
+        statements = concatenate(prologue, statements);
+        if is_block(body) && are_gc_slices_equal(&statements, &body.as_block().statements) {
+            return Ok(body.clone());
+        }
+
+        let block = self
+            .factory
+            .create_block(
+                self.factory
+                    .create_node_array(Some(statements), None)
+                    .set_text_range(statements_location.as_ref()),
+                Some(multi_line),
+            )
+            .wrap()
+            .set_text_range(node_as_function_like_declaration.maybe_body().as_deref());
+        if !multi_line && single_line {
+            set_emit_flags(&*block, EmitFlags::SingleLine);
+        }
+
+        if let Some(close_brace_location) = close_brace_location {
+            set_token_source_map_range(
+                &*block,
+                SyntaxKind::CloseBraceToken,
+                Some((&*close_brace_location).into()),
+            );
+        }
+
+        set_original_node(&*block, node_as_function_like_declaration.maybe_body());
+        Ok(block)
     }
 }

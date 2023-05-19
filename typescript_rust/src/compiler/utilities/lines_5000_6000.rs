@@ -1,11 +1,13 @@
+use std::{
+    borrow::{Borrow, Cow},
+    cell::RefCell,
+    convert::TryInto,
+    io, ptr,
+};
+
 use base64::{engine::general_purpose, Engine as _};
 use gc::Gc;
 use regex::{Captures, Regex};
-use std::borrow::{Borrow, Cow};
-use std::cell::RefCell;
-use std::convert::TryInto;
-use std::io;
-use std::ptr;
 
 use super::supported_ts_extensions_for_extract_extension;
 use crate::{
@@ -261,6 +263,10 @@ pub fn create_range(pos: isize, end: Option<isize>) -> BaseTextRange {
     let end = end.unwrap_or(pos);
     Debug_.assert(end >= pos || end == -1, None);
     BaseTextRange::new(pos, end)
+}
+
+pub fn move_range_end(range: &impl ReadonlyTextRange, end: isize) -> BaseTextRange {
+    create_range(range.pos(), Some(end))
 }
 
 pub fn move_range_pos(range: &impl ReadonlyTextRange, pos: isize) -> BaseTextRange {

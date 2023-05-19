@@ -1,6 +1,6 @@
+use std::{borrow::Borrow, rc::Rc};
+
 use gc::{Gc, GcCell};
-use std::borrow::Borrow;
-use std::rc::Rc;
 
 use crate::{
     get_parse_tree_node, is_parse_tree_node, maybe_get_source_file_of_node, BaseTextRange, Debug_,
@@ -105,6 +105,14 @@ pub fn set_source_map_range<TNode: Borrow<Node>>(
         .borrow_mut()
         .source_map_range = range;
     node
+}
+
+pub fn set_token_source_map_range<TNode: Borrow<Node>>(
+    _node: TNode,
+    _token: SyntaxKind,
+    _range: Option<Gc<SourceMapRange>>,
+) -> TNode {
+    unimplemented!()
 }
 
 pub(crate) fn get_starts_on_new_line(node: &Node) -> Option<bool> {
@@ -215,6 +223,10 @@ pub fn add_synthetic_trailing_comment(
             has_leading_new_line: None,
         }));
     set_synthetic_trailing_comments(node, synthetic_trailing_comments);
+}
+
+pub fn move_synthetic_comments<TNode: Borrow<Node>>(_node: TNode, _original: &Node) -> TNode {
+    unimplemented!()
 }
 
 pub fn get_constant_value(node: &Node /*AccessExpression*/) -> Option<StringOrNumber> {

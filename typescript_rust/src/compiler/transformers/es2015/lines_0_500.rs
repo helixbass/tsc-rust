@@ -226,6 +226,16 @@ impl TransformES2015 {
         self.current_source_file.borrow_mut()
     }
 
+    pub(super) fn current_source_file(&self) -> GcCellRef<Gc<Node /*SourceFile*/>> {
+        gc_cell_ref_unwrapped(&self.current_source_file)
+    }
+
+    pub(super) fn current_source_file_mut(
+        &self,
+    ) -> GcCellRefMut<Option<Gc<Node /*SourceFile*/>>, Gc<Node /*SourceFile*/>> {
+        gc_cell_ref_mut_unwrapped(&self.current_source_file)
+    }
+
     pub(super) fn set_current_source_file(
         &self,
         current_source_file: Option<Gc<Node /*SourceFile*/>>,
