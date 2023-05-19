@@ -59,6 +59,15 @@ pub fn create_expression_from_entity_name<
     unimplemented!()
 }
 
+pub fn create_expression_for_property_name<
+    TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize,
+>(
+    _factory: &NodeFactory<TBaseNodeFactory>,
+    _member_name: &Node, /*Exclude<PropertyName, PrivateIdentifier>*/
+) -> Gc<Node /*Expression*/> {
+    unimplemented!()
+}
+
 pub fn is_local_name(node: &Node /*Identifier*/) -> bool {
     get_emit_flags(node).intersects(EmitFlags::LocalName)
 }
@@ -146,8 +155,8 @@ pub fn skip_outer_expressions(node: &Node, kinds: Option<OuterExpressionKinds>) 
     node
 }
 
-pub fn start_on_new_line(node: Gc<Node>) -> Gc<Node> {
-    set_starts_on_new_line(&node, true);
+pub fn start_on_new_line<TNode: Borrow<Node>>(node: TNode) -> TNode {
+    set_starts_on_new_line(node.borrow(), true);
     node
 }
 
