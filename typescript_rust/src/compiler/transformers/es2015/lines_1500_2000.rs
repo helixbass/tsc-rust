@@ -5,14 +5,15 @@ use gc::Gc;
 use super::{HierarchyFacts, TransformES2015};
 use crate::{
     create_expression_for_property_name, create_member_access_for_property_name,
-    get_all_accessor_declarations, get_comment_range, get_source_map_range,
+    get_all_accessor_declarations, get_comment_range, get_emit_flags, get_source_map_range,
     get_use_define_for_class_fields, insert_statement_after_custom_prologue,
-    is_computed_property_name, is_identifier, is_private_identifier, is_property_name,
-    set_emit_flags, set_source_map_range, start_on_new_line, try_visit_node,
-    unescape_leading_underscores, AllAccessorDeclarations, Debug_, EmitFlags,
-    GeneratedIdentifierFlags, NamedDeclarationInterface, Node, NodeArray, NodeExt, NodeInterface,
-    NodeWrappered, PropertyDescriptorAttributesBuilder, ReadonlyTextRange,
-    ReadonlyTextRangeConcrete, SyntaxKind, VisitResult,
+    is_computed_property_name, is_identifier, is_modifier, is_private_identifier, is_property_name,
+    set_emit_flags, set_source_map_range, start_on_new_line, try_visit_node, try_visit_nodes,
+    try_visit_parameter_list, unescape_leading_underscores, AllAccessorDeclarations, Debug_,
+    EmitFlags, FunctionLikeDeclarationInterface, GeneratedIdentifierFlags,
+    NamedDeclarationInterface, Node, NodeArray, NodeExt, NodeInterface, NodeWrappered,
+    PropertyDescriptorAttributesBuilder, ReadonlyTextRange, ReadonlyTextRangeConcrete,
+    SignatureDeclarationInterface, SyntaxKind, TransformFlags, VisitResult,
 };
 
 impl TransformES2015 {
@@ -476,22 +477,166 @@ impl TransformES2015 {
         Ok(call)
     }
 
-    pub(super) fn visit_arrow_function(&self, _node: &Node /*ArrowFunction*/) -> VisitResult {
-        unimplemented!()
+    pub(super) fn visit_arrow_function(
+        &self,
+        node: &Node, /*ArrowFunction*/
+    ) -> io::Result<VisitResult> {
+        let node_as_arrow_function = node.as_arrow_function();
+        if node
+            .transform_flags()
+            .intersects(TransformFlags::ContainsLexicalThis)
+            && !self
+                .maybe_hierarchy_facts()
+                .unwrap_or_default()
+                .intersects(HierarchyFacts::StaticInitializer)
+        {
+            self.set_hierarchy_facts(Some(
+                self.maybe_hierarchy_facts().unwrap_or_default()
+                    | HierarchyFacts::CapturedLexicalThis,
+            ));
+        }
+
+        let saved_converted_loop_state = self.maybe_converted_loop_state().clone();
+        self.set_converted_loop_state(None);
+        let ancestor_facts = self.enter_subtree(
+            HierarchyFacts::ArrowFunctionExcludes,
+            HierarchyFacts::ArrowFunctionIncludes,
+        );
+        let func = self
+            .factory
+            .create_function_expression(
+                Option::<Gc<NodeArray>>::None,
+                None,
+                Option::<Gc<Node>>::None,
+                Option::<Gc<NodeArray>>::None,
+                try_visit_parameter_list(
+                    Some(&node_as_arrow_function.parameters()),
+                    |node: &Node| self.visitor(node),
+                    &**self.context,
+                )?,
+                Option::<Gc<Node>>::None,
+                self.transform_function_body(node),
+            )
+            .wrap()
+            .set_text_range(Some(node))
+            .set_original_node(Some(node.node_wrapper()))
+            .set_emit_flags(EmitFlags::CapturesThis);
+
+        self.exit_subtree(
+            ancestor_facts,
+            HierarchyFacts::ArrowFunctionSubtreeExcludes,
+            HierarchyFacts::None,
+        );
+
+        self.set_converted_loop_state(saved_converted_loop_state);
+        Ok(Some(func.into()))
     }
 
     pub(super) fn visit_function_expression(
         &self,
-        _node: &Node, /*FunctionExpression*/
-    ) -> Gc<Node /*Expression*/> {
-        unimplemented!()
+        node: &Node, /*FunctionExpression*/
+    ) -> io::Result<Gc<Node /*Expression*/>> {
+        let node_as_function_expression = node.as_function_expression();
+        let ancestor_facts = if get_emit_flags(node).intersects(EmitFlags::AsyncFunctionBody) {
+            self.enter_subtree(
+                HierarchyFacts::AsyncFunctionBodyExcludes,
+                HierarchyFacts::AsyncFunctionBodyIncludes,
+            )
+        } else {
+            self.enter_subtree(
+                HierarchyFacts::FunctionExcludes,
+                HierarchyFacts::FunctionIncludes,
+            )
+        };
+        let saved_converted_loop_state = self.maybe_converted_loop_state().clone();
+        self.set_converted_loop_state(None);
+
+        let parameters = try_visit_parameter_list(
+            Some(&node_as_function_expression.parameters()),
+            |node: &Node| self.visitor(node),
+            &**self.context,
+        )?
+        .unwrap();
+        let body = self.transform_function_body(node);
+        let name = if self
+            .maybe_hierarchy_facts()
+            .unwrap_or_default()
+            .intersects(HierarchyFacts::NewTarget)
+        {
+            Some(self.factory.get_local_name(node, None, None))
+        } else {
+            node_as_function_expression.maybe_name()
+        };
+
+        self.exit_subtree(
+            ancestor_facts,
+            HierarchyFacts::FunctionSubtreeExcludes,
+            HierarchyFacts::None,
+        );
+        self.set_converted_loop_state(saved_converted_loop_state);
+        Ok(self.factory.update_function_expression(
+            node,
+            Option::<Gc<NodeArray>>::None,
+            node_as_function_expression.maybe_asterisk_token(),
+            name,
+            Option::<Gc<NodeArray>>::None,
+            parameters,
+            None,
+            body,
+        ))
     }
 
     pub(super) fn visit_function_declaration(
         &self,
-        _node: &Node, /*FunctionDeclaration*/
-    ) -> Gc<Node /*FunctionDeclaration*/> {
-        unimplemented!()
+        node: &Node, /*FunctionDeclaration*/
+    ) -> io::Result<Gc<Node /*FunctionDeclaration*/>> {
+        let node_as_function_declaration = node.as_function_declaration();
+        let saved_converted_loop_state = self.maybe_converted_loop_state().clone();
+        self.set_converted_loop_state(None);
+        let ancestor_facts = self.enter_subtree(
+            HierarchyFacts::FunctionExcludes,
+            HierarchyFacts::FunctionIncludes,
+        );
+        let parameters = try_visit_parameter_list(
+            Some(&node_as_function_declaration.parameters()),
+            |node: &Node| self.visitor(node),
+            &**self.context,
+        )?
+        .unwrap();
+        let body = self.transform_function_body(node);
+        let name = if self
+            .maybe_hierarchy_facts()
+            .unwrap_or_default()
+            .intersects(HierarchyFacts::NewTarget)
+        {
+            Some(self.factory.get_local_name(node, None, None))
+        } else {
+            node_as_function_declaration.maybe_name()
+        };
+
+        self.exit_subtree(
+            ancestor_facts,
+            HierarchyFacts::FunctionSubtreeExcludes,
+            HierarchyFacts::None,
+        );
+        self.set_converted_loop_state(saved_converted_loop_state);
+        Ok(self.factory.update_function_declaration(
+            node,
+            Option::<Gc<NodeArray>>::None,
+            try_visit_nodes(
+                node.maybe_modifiers().as_deref(),
+                Some(|node: &Node| self.visitor(node)),
+                Some(is_modifier),
+                None,
+                None,
+            )?,
+            node_as_function_declaration.maybe_asterisk_token(),
+            name,
+            Option::<Gc<NodeArray>>::None,
+            parameters,
+            None,
+            Some(body),
+        ))
     }
 
     pub(super) fn transform_function_like_to_expression(
@@ -501,6 +646,13 @@ impl TransformES2015 {
         _name: Option<impl Borrow<Node /*Identifier*/>>,
         _container: Option<impl Borrow<Node>>,
     ) -> Gc<Node /*FunctionExpression*/> {
+        unimplemented!()
+    }
+
+    pub(super) fn transform_function_body(
+        &self,
+        _node: &Node, /*FunctionLikeDeclaration*/
+    ) -> Gc<Node> {
         unimplemented!()
     }
 }

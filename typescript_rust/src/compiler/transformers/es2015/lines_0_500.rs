@@ -475,9 +475,9 @@ impl TransformES2015 {
             SyntaxKind::ClassDeclaration => self.visit_class_declaration(node)?,
             SyntaxKind::ClassExpression => Some(self.visit_class_expression(node)?.into()),
             SyntaxKind::Parameter => self.visit_parameter(node).map(Into::into),
-            SyntaxKind::FunctionDeclaration => Some(self.visit_function_declaration(node).into()),
-            SyntaxKind::ArrowFunction => self.visit_arrow_function(node),
-            SyntaxKind::FunctionExpression => Some(self.visit_function_expression(node).into()),
+            SyntaxKind::FunctionDeclaration => Some(self.visit_function_declaration(node)?.into()),
+            SyntaxKind::ArrowFunction => self.visit_arrow_function(node)?,
+            SyntaxKind::FunctionExpression => Some(self.visit_function_expression(node)?.into()),
             SyntaxKind::VariableDeclaration => self.visit_variable_declaration(node),
             SyntaxKind::Identifier => Some(self.visit_identifier(node)?.into()),
             SyntaxKind::VariableDeclarationList => {
