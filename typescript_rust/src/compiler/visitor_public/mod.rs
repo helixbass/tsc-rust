@@ -43,12 +43,12 @@ pub fn visit_node(
     visited_node
 }
 
-pub fn try_visit_node<TError>(
+pub fn try_visit_node(
     node: Option<impl Borrow<Node>>,
-    visitor: Option<impl FnMut(&Node) -> Result<VisitResult, TError>>,
+    visitor: Option<impl FnMut(&Node) -> io::Result<VisitResult>>,
     test: Option<impl Fn(&Node) -> bool>,
     lift: Option<impl Fn(&[Gc<Node>]) -> Gc<Node>>,
-) -> Result<Option<Gc<Node>>, TError> {
+) -> io::Result<Option<Gc<Node>>> {
     if node.is_none() {
         return Ok(None);
     }
@@ -167,13 +167,13 @@ pub fn visit_nodes(
     Some(nodes.rc_wrapper())
 }
 
-pub fn try_visit_nodes<TError>(
+pub fn try_visit_nodes(
     nodes: Option<&NodeArray>,
-    visitor: Option<impl FnMut(&Node) -> Result<VisitResult, TError>>,
+    visitor: Option<impl FnMut(&Node) -> io::Result<VisitResult>>,
     test: Option<impl Fn(&Node) -> bool>,
     start: Option<usize>,
     count: Option<usize>,
-) -> Result<Option<Gc<NodeArray>>, TError> {
+) -> io::Result<Option<Gc<NodeArray>>> {
     if nodes.is_none() {
         return Ok(None);
     }
@@ -387,11 +387,11 @@ pub fn visit_function_body(
     unimplemented!()
 }
 
-pub fn try_visit_function_body<TError>(
+pub fn try_visit_function_body(
     node: Option<&Node /*ConciseBody*/>,
-    visitor: impl FnMut(&Node) -> Result<VisitResult, TError>,
+    visitor: impl FnMut(&Node) -> io::Result<VisitResult>,
     context: &(impl TransformationContext + ?Sized),
-) -> Result<Option<Gc<Node /*ConciseBody*/>>, TError> {
+) -> io::Result<Option<Gc<Node /*ConciseBody*/>>> {
     try_visit_function_body_full(
         node,
         visitor,
@@ -399,27 +399,27 @@ pub fn try_visit_function_body<TError>(
         Option::<
             fn(
                 Option<&Node>,
-                Option<&mut dyn FnMut(&Node) -> Result<VisitResult, TError>>,
+                Option<&mut dyn FnMut(&Node) -> io::Result<VisitResult>>,
                 Option<&dyn Fn(&Node) -> bool>,
                 Option<&dyn Fn(&[Gc<Node>]) -> Gc<Node>>,
-            ) -> Result<Option<Gc<Node>>, TError>,
+            ) -> io::Result<Option<Gc<Node>>>,
         >::None,
     )
 }
 
-pub fn try_visit_function_body_full<TError>(
+pub fn try_visit_function_body_full(
     _node: Option<&Node /*ConciseBody*/>,
-    _visitor: impl FnMut(&Node) -> Result<VisitResult, TError>,
+    _visitor: impl FnMut(&Node) -> io::Result<VisitResult>,
     _context: &(impl TransformationContext + ?Sized),
     _node_visitor: Option<
         impl FnMut(
             Option<&Node>,
-            Option<&mut dyn FnMut(&Node) -> Result<VisitResult, TError>>,
+            Option<&mut dyn FnMut(&Node) -> io::Result<VisitResult>>,
             Option<&dyn Fn(&Node) -> bool>,
             Option<&dyn Fn(&[Gc<Node>]) -> Gc<Node>>,
-        ) -> Result<Option<Gc<Node>>, TError>,
+        ) -> io::Result<Option<Gc<Node>>>,
     >,
-) -> Result<Option<Gc<Node /*ConciseBody*/>>, TError> {
+) -> io::Result<Option<Gc<Node /*ConciseBody*/>>> {
     unimplemented!()
 }
 

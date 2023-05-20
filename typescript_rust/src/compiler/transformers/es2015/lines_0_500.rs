@@ -491,11 +491,11 @@ impl TransformES2015 {
             SyntaxKind::VariableDeclaration => self.visit_variable_declaration(node),
             SyntaxKind::Identifier => Some(self.visit_identifier(node)?.into()),
             SyntaxKind::VariableDeclarationList => {
-                Some(self.visit_variable_declaration_list(node).into())
+                Some(self.visit_variable_declaration_list(node)?.into())
             }
             SyntaxKind::SwitchStatement => Some(self.visit_switch_statement(node)?.into()),
             SyntaxKind::CaseBlock => Some(self.visit_case_block(node)?.into()),
-            SyntaxKind::Block => Some(self.visit_block(node, false).into()),
+            SyntaxKind::Block => Some(self.visit_block(node, false)?.into()),
             SyntaxKind::BreakStatement | SyntaxKind::ContinueStatement => {
                 Some(self.visit_break_or_continue_statement(node)?.into())
             }
@@ -506,7 +506,7 @@ impl TransformES2015 {
             SyntaxKind::ForStatement => self.visit_for_statement(node, Option::<&Node>::None),
             SyntaxKind::ForInStatement => self.visit_for_in_statement(node, Option::<&Node>::None),
             SyntaxKind::ForOfStatement => self.visit_for_of_statement(node, Option::<&Node>::None),
-            SyntaxKind::ExpressionStatement => Some(self.visit_expression_statement(node).into()),
+            SyntaxKind::ExpressionStatement => Some(self.visit_expression_statement(node)?.into()),
             SyntaxKind::ObjectLiteralExpression => {
                 Some(self.visit_object_literal_expression(node).into())
             }
@@ -521,15 +521,15 @@ impl TransformES2015 {
             SyntaxKind::CallExpression => self.visit_call_expression(node),
             SyntaxKind::NewExpression => Some(self.visit_new_expression(node).into()),
             SyntaxKind::ParenthesizedExpression => Some(
-                self.visit_parenthesized_expression(node, expression_result_is_unused)
+                self.visit_parenthesized_expression(node, expression_result_is_unused)?
                     .into(),
             ),
             SyntaxKind::BinaryExpression => Some(
-                self.visit_binary_expression(node, expression_result_is_unused)
+                self.visit_binary_expression(node, expression_result_is_unused)?
                     .into(),
             ),
             SyntaxKind::CommaListExpression => Some(
-                self.visit_comma_list_expression(node, expression_result_is_unused)
+                self.visit_comma_list_expression(node, expression_result_is_unused)?
                     .into(),
             ),
             SyntaxKind::NoSubstitutionTemplateLiteral
@@ -549,7 +549,7 @@ impl TransformES2015 {
             SyntaxKind::GetAccessor | SyntaxKind::SetAccessor => {
                 Some(self.visit_accessor_declaration(node).into())
             }
-            SyntaxKind::VariableStatement => self.visit_variable_statement(node).map(Into::into),
+            SyntaxKind::VariableStatement => self.visit_variable_statement(node)?.map(Into::into),
             SyntaxKind::ReturnStatement => Some(self.visit_return_statement(node)?.into()),
             SyntaxKind::VoidExpression => Some(self.visit_void_expression(node)?.into()),
             _ => try_maybe_visit_each_child(

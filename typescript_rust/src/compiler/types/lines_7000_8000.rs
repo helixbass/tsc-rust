@@ -387,6 +387,15 @@ impl From<Vec<Gc<Node>>> for SingleNodeOrVecNode {
     }
 }
 
+impl From<SingleNodeOrVecNode> for Vec<Gc<Node>> {
+    fn from(value: SingleNodeOrVecNode) -> Self {
+        match value {
+            SingleNodeOrVecNode::SingleNode(value) => vec![value],
+            SingleNodeOrVecNode::VecNode(value) => value,
+        }
+    }
+}
+
 pub struct SingleNodeOrVecNodeIter<'single_node_or_vec_node> {
     single_node_or_vec_node: &'single_node_or_vec_node SingleNodeOrVecNode,
     current_index: usize,
