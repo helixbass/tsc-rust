@@ -1,4 +1,4 @@
-use std::borrow::Borrow;
+use std::{borrow::Borrow, io};
 
 use gc::Gc;
 
@@ -40,6 +40,34 @@ impl TransformES2015 {
 
     pub(super) fn convert_iteration_statement_body_if_necessary(
         &self,
+        node: &Node, /*IterationStatement*/
+        outermost_labeled_statement: Option<impl Borrow<Node /*LabeledStatement*/>>,
+        ancestor_facts: Option<HierarchyFacts>,
+        convert: Option<
+            impl FnMut(
+                &Node,         /*IterationStatement*/
+                Option<&Node>, /*LabeledStatement*/
+                Option<&[Gc<Node /*Statement*/>]>,
+                Option<HierarchyFacts>,
+            ) -> Gc<Node /*Statement*/>, /*LoopConverter*/
+        >,
+    ) -> VisitResult /*<Statement>*/ {
+        self.try_convert_iteration_statement_body_if_necessary(
+            node,
+            outermost_labeled_statement,
+            ancestor_facts,
+            convert.map(|mut convert| {
+                move |a: &Node,
+                      b: Option<&Node>,
+                      c: Option<&[Gc<Node>]>,
+                      d: Option<HierarchyFacts>| Ok(convert(a, b, c, d))
+            }),
+        )
+        .unwrap()
+    }
+
+    pub(super) fn try_convert_iteration_statement_body_if_necessary(
+        &self,
         _node: &Node, /*IterationStatement*/
         _outermost_labeled_statement: Option<impl Borrow<Node /*LabeledStatement*/>>,
         _ancestor_facts: Option<HierarchyFacts>,
@@ -49,9 +77,9 @@ impl TransformES2015 {
                 Option<&Node>, /*LabeledStatement*/
                 Option<&[Gc<Node /*Statement*/>]>,
                 Option<HierarchyFacts>,
-            ) -> Gc<Node /*Statement*/>, /*LoopConverter*/
+            ) -> io::Result<Gc<Node /*Statement*/>>, /*LoopConverter*/
         >,
-    ) -> VisitResult /*<Statement>*/ {
+    ) -> io::Result<VisitResult /*<Statement>*/> {
         unimplemented!()
     }
 }

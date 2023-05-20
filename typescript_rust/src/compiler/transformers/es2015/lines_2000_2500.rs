@@ -4,15 +4,16 @@ use gc::Gc;
 
 use super::{HierarchyFacts, TransformES2015};
 use crate::{
-    add_range, create_range, first_or_undefined, flat_map, get_emit_flags, has_syntactic_modifier,
-    id_text, is_binding_pattern, is_destructuring_assignment, is_expression, is_for_initializer,
-    is_iteration_statement, is_statement, is_variable_declaration_list, last, move_range_end,
-    move_range_pos, set_source_map_range, set_text_range_end, try_flat_map,
-    try_flatten_destructuring_assignment, try_flatten_destructuring_binding, try_visit_each_child,
-    try_visit_node, unwrap_innermost_statement_of_label, EmitFlags, FlattenLevel,
-    HasInitializerInterface, Matches, ModifierFlags, NamedDeclarationInterface, Node, NodeArray,
-    NodeArrayExt, NodeCheckFlags, NodeExt, NodeFlags, NodeInterface, ReadonlyTextRange,
-    ReadonlyTextRangeConcrete, SourceMapRange, SyntaxKind, TransformFlags, VisitResult,
+    add_range, concatenate, create_range, first_or_undefined, flat_map, get_emit_flags,
+    has_syntactic_modifier, id_text, is_binding_pattern, is_block, is_destructuring_assignment,
+    is_expression, is_for_initializer, is_identifier, is_iteration_statement, is_statement,
+    is_variable_declaration_list, last, move_range_end, move_range_pos, set_emit_flags,
+    set_source_map_range, set_text_range_end, try_flat_map, try_flatten_destructuring_assignment,
+    try_flatten_destructuring_binding, try_visit_each_child, try_visit_node,
+    unwrap_innermost_statement_of_label, EmitFlags, FlattenLevel, HasInitializerInterface, Matches,
+    ModifierFlags, NamedDeclarationInterface, Node, NodeArray, NodeArrayExt, NodeCheckFlags,
+    NodeExt, NodeFlags, NodeInterface, Number, ReadonlyTextRange, ReadonlyTextRangeConcrete,
+    SourceMapRange, SyntaxKind, TransformFlags, VisitResult,
 };
 
 impl TransformES2015 {
@@ -494,7 +495,7 @@ impl TransformES2015 {
             }),
         );
         Ok(if is_iteration_statement(statement, false) {
-            self.visit_iteration_statement(statement, node)
+            self.visit_iteration_statement(statement, node)?
         } else {
             Some(
                 self.factory
@@ -524,8 +525,8 @@ impl TransformES2015 {
         &self,
         node: &Node,                        /*IterationStatement*/
         outermost_labeled_statement: &Node, /*LabeledStatement*/
-    ) -> VisitResult {
-        match node.kind() {
+    ) -> io::Result<VisitResult> {
+        Ok(match node.kind() {
             SyntaxKind::DoStatement | SyntaxKind::WhileStatement => {
                 self.visit_do_or_while_statement(node, Some(outermost_labeled_statement))
             }
@@ -536,10 +537,10 @@ impl TransformES2015 {
                 self.visit_for_in_statement(node, Some(outermost_labeled_statement))
             }
             SyntaxKind::ForOfStatement => {
-                self.visit_for_of_statement(node, Some(outermost_labeled_statement))
+                self.visit_for_of_statement(node, Some(outermost_labeled_statement))?
             }
             _ => unreachable!(),
-        }
+        })
     }
 
     pub(super) fn visit_iteration_statement_with_facts(
@@ -557,15 +558,45 @@ impl TransformES2015 {
             ) -> Gc<Node /*Statement*/>, /*LoopConverter*/
         >,
     ) -> VisitResult {
+        self.try_visit_iteration_statement_with_facts(
+            exclude_facts,
+            include_facts,
+            node,
+            outermost_labeled_statement,
+            convert.map(|mut convert| {
+                move |a: &Node,
+                      b: Option<&Node>,
+                      c: Option<&[Gc<Node>]>,
+                      d: Option<HierarchyFacts>| Ok(convert(a, b, c, d))
+            }),
+        )
+        .unwrap()
+    }
+
+    pub(super) fn try_visit_iteration_statement_with_facts(
+        &self,
+        exclude_facts: HierarchyFacts,
+        include_facts: HierarchyFacts,
+        node: &Node, /*IterationStatement*/
+        outermost_labeled_statement: Option<impl Borrow<Node /*LabeledStatement*/>>,
+        convert: Option<
+            impl FnMut(
+                &Node,         /*IterationStatement*/
+                Option<&Node>, /*LabeledStatement*/
+                Option<&[Gc<Node /*Statement*/>]>,
+                Option<HierarchyFacts>,
+            ) -> io::Result<Gc<Node /*Statement*/>>, /*LoopConverter*/
+        >,
+    ) -> io::Result<VisitResult> {
         let ancestor_facts = self.enter_subtree(exclude_facts, include_facts);
-        let updated = self.convert_iteration_statement_body_if_necessary(
+        let updated = self.try_convert_iteration_statement_body_if_necessary(
             node,
             outermost_labeled_statement,
             ancestor_facts,
             convert,
-        );
+        )?;
         self.exit_subtree(ancestor_facts, HierarchyFacts::None, HierarchyFacts::None);
-        updated
+        Ok(updated)
     }
 
     pub(super) fn visit_do_or_while_statement(
@@ -659,8 +690,8 @@ impl TransformES2015 {
         &self,
         node: &Node, /*ForOfStatement*/
         outermost_labeled_statement: Option<impl Borrow<Node /*LabeledStatement*/>>,
-    ) -> VisitResult /*<Statement>*/ {
-        self.visit_iteration_statement_with_facts(
+    ) -> io::Result<VisitResult> /*<Statement>*/ {
+        self.try_visit_iteration_statement_with_facts(
             HierarchyFacts::ForInOrForOfStatementExcludes,
             HierarchyFacts::ForInOrForOfStatementIncludes,
             node,
@@ -670,7 +701,7 @@ impl TransformES2015 {
                  outermost_labeled_statement: Option<&Node>,
                  converted_loop_body_statements: Option<&[Gc<Node>]>,
                  ancestor_facts: Option<HierarchyFacts>| {
-                    if self.compiler_options.downlevel_iteration == Some(true) {
+                    Ok(if self.compiler_options.downlevel_iteration == Some(true) {
                         self.convert_for_of_statement_for_iterable(
                             node,
                             outermost_labeled_statement,
@@ -682,8 +713,8 @@ impl TransformES2015 {
                             node,
                             outermost_labeled_statement,
                             converted_loop_body_statements,
-                        )
-                    }
+                        )?
+                    })
                 },
             ),
         )
@@ -693,7 +724,7 @@ impl TransformES2015 {
         &self,
         node: &Node,        /*ForOfStatement*/
         bound_value: &Node, /*Expression*/
-        converted_loop_body_statements: &[Gc<Node /*Statement*/>],
+        converted_loop_body_statements: Option<&[Gc<Node /*Statement*/>]>,
     ) -> io::Result<Gc<Node>> {
         let node_as_for_of_statement = node.as_for_of_statement();
         let mut statements: Vec<Gc<Node /*Statement*/>> = Default::default();
@@ -820,42 +851,167 @@ impl TransformES2015 {
             }
         }
 
-        // if (convertedLoopBodyStatements) {
-        Ok(self.create_synthetic_block_for_converted_statements({
-            add_range(
-                &mut statements,
-                Some(converted_loop_body_statements),
-                None,
-                None,
-            );
-            statements
-        }))
-        // }
-        // else {
-        //     const statement = visitNode(node.statement, visitor, isStatement, factory.liftToBlock);
-        //     if (isBlock(statement)) {
-        //         return factory.updateBlock(statement, setTextRange(factory.createNodeArray(concatenate(statements, statement.statements)), statement.statements));
-        //     }
-        //     else {
-        //         statements.push(statement);
-        //         return createSyntheticBlockForConvertedStatements(statements);
-        //     }
-        // }
+        Ok(
+            if let Some(converted_loop_body_statements) = converted_loop_body_statements {
+                self.create_synthetic_block_for_converted_statements({
+                    add_range(
+                        &mut statements,
+                        Some(converted_loop_body_statements),
+                        None,
+                        None,
+                    );
+                    statements
+                })
+            } else {
+                let statement = try_visit_node(
+                    Some(&*node_as_for_of_statement.statement),
+                    Some(|node: &Node| self.visitor(node)),
+                    Some(is_statement),
+                    Some(|nodes: &[Gc<Node>]| self.factory.lift_to_block(nodes)),
+                )?
+                .unwrap();
+                if is_block(&statement) {
+                    let statement_as_block = statement.as_block();
+                    self.factory.update_block(
+                        &statement,
+                        self.factory
+                            .create_node_array(
+                                Some(concatenate(
+                                    statements,
+                                    statement_as_block.statements.to_vec(),
+                                )),
+                                None,
+                            )
+                            .set_text_range(Some(&*statement_as_block.statements)),
+                    )
+                } else {
+                    statements.push(statement);
+                    self.create_synthetic_block_for_converted_statements(statements)
+                }
+            },
+        )
     }
 
     pub(super) fn create_synthetic_block_for_converted_statements(
         &self,
-        _statements: Vec<Gc<Node /*Statement*/>>,
+        statements: Vec<Gc<Node /*Statement*/>>,
     ) -> Gc<Node> {
-        unimplemented!()
+        self.factory
+            .create_block(
+                self.factory.create_node_array(Some(statements), None),
+                Some(true),
+            )
+            .wrap()
+            .set_emit_flags(EmitFlags::NoSourceMap | EmitFlags::NoTokenSourceMaps)
     }
 
     pub(super) fn convert_for_of_statement_for_array(
         &self,
-        _node: &Node, /*ForOfStatement*/
-        _outermost_labeled_statement: Option<&Node /*LabeledStatement*/>,
-        _converted_loop_body_statements: Option<&[Gc<Node /*Statement*/>]>,
-    ) -> Gc<Node /*Statement*/> {
-        unimplemented!()
+        node: &Node, /*ForOfStatement*/
+        outermost_labeled_statement: Option<&Node /*LabeledStatement*/>,
+        converted_loop_body_statements: Option<&[Gc<Node /*Statement*/>]>,
+    ) -> io::Result<Gc<Node /*Statement*/>> {
+        let node_as_for_of_statement = node.as_for_of_statement();
+        let ref expression = try_visit_node(
+            Some(&*node_as_for_of_statement.expression),
+            Some(|node: &Node| self.visitor(node)),
+            Some(is_expression),
+            Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+        )?
+        .unwrap();
+
+        let counter = self.factory.create_loop_variable(None);
+        let rhs_reference = if is_identifier(expression) {
+            self.factory
+                .get_generated_name_for_node(Some(&**expression), None)
+        } else {
+            self.factory
+                .create_temp_variable(Option::<fn(&Node)>::None, None)
+        };
+
+        set_emit_flags(
+            &**expression,
+            EmitFlags::NoSourceMap | get_emit_flags(expression),
+        );
+
+        let ref for_statement = self
+            .factory
+            .create_for_statement(
+                Some(
+                    self.factory
+                        .create_variable_declaration_list(
+                            vec![
+                                self.factory
+                                    .create_variable_declaration(
+                                        Some(counter.clone()),
+                                        None,
+                                        None,
+                                        Some(
+                                            self.factory
+                                                .create_numeric_literal(Number::new(0.0), None)
+                                                .wrap(),
+                                        ),
+                                    )
+                                    .wrap()
+                                    .set_text_range(Some(&ReadonlyTextRangeConcrete::from(
+                                        move_range_pos(&*node_as_for_of_statement.expression, -1),
+                                    ))),
+                                self.factory
+                                    .create_variable_declaration(
+                                        Some(rhs_reference.clone()),
+                                        None,
+                                        None,
+                                        Some(expression.clone()),
+                                    )
+                                    .wrap()
+                                    .set_text_range(Some(&*node_as_for_of_statement.expression)),
+                            ],
+                            None,
+                        )
+                        .wrap()
+                        .set_text_range(Some(&*node_as_for_of_statement.expression))
+                        .set_emit_flags(EmitFlags::NoHoisting),
+                ),
+                Some(
+                    self.factory
+                        .create_less_than(
+                            counter.clone(),
+                            self.factory
+                                .create_property_access_expression(rhs_reference.clone(), "length")
+                                .wrap(),
+                        )
+                        .wrap()
+                        .set_text_range(Some(&*node_as_for_of_statement.expression)),
+                ),
+                Some(
+                    self.factory
+                        .create_postfix_increment(counter.clone())
+                        .wrap()
+                        .set_text_range(Some(&*node_as_for_of_statement.expression)),
+                ),
+                self.convert_for_of_statement_head(
+                    node,
+                    &self
+                        .factory
+                        .create_element_access_expression(rhs_reference, counter)
+                        .wrap(),
+                    converted_loop_body_statements,
+                )?,
+            )
+            .wrap()
+            .set_text_range(Some(node))
+            .set_emit_flags(EmitFlags::NoTokenTrailingSourceMaps)
+            // TODO: this appears to be duplicate wrt above, upstream?
+            .set_text_range(Some(node));
+
+        Ok(self.factory.restore_enclosing_label(
+            for_statement,
+            outermost_labeled_statement,
+            self.maybe_converted_loop_state().as_ref().map(|_| {
+                |node: &Node| {
+                    self.reset_label(node);
+                }
+            }),
+        ))
     }
 }

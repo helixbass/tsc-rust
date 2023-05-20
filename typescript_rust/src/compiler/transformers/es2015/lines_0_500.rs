@@ -505,7 +505,9 @@ impl TransformES2015 {
             }
             SyntaxKind::ForStatement => self.visit_for_statement(node, Option::<&Node>::None),
             SyntaxKind::ForInStatement => self.visit_for_in_statement(node, Option::<&Node>::None),
-            SyntaxKind::ForOfStatement => self.visit_for_of_statement(node, Option::<&Node>::None),
+            SyntaxKind::ForOfStatement => {
+                self.visit_for_of_statement(node, Option::<&Node>::None)?
+            }
             SyntaxKind::ExpressionStatement => Some(self.visit_expression_statement(node)?.into()),
             SyntaxKind::ObjectLiteralExpression => {
                 Some(self.visit_object_literal_expression(node).into())
