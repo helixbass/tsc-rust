@@ -1,12 +1,16 @@
 use std::{borrow::Borrow, io};
 
-use gc::Gc;
+use gc::{Gc, GcCell};
 
-use super::{ConvertedLoopState, HierarchyFacts, TransformES2015};
+use super::{
+    ConvertedLoopState, HierarchyFacts, IterationStatementPartFunction, Jump, TransformES2015,
+};
 use crate::{
-    is_expression, is_identifier, try_visit_node, Debug_, EmitFlags, Node, NodeArray, NodeExt,
-    NodeInterface, SyntaxKind, TransformFlags, VisitResult, _d, is_object_literal_element_like,
-    start_on_new_line, try_visit_each_child, try_visit_nodes,
+    VisitResult, _d, is_expression, is_for_statement, is_identifier,
+    is_object_literal_element_like, is_omitted_expression, is_statement, start_on_new_line,
+    try_visit_each_child, try_visit_node, try_visit_nodes, Debug_, EmitFlags, Matches,
+    NamedDeclarationInterface, Node, NodeArray, NodeCheckFlags, NodeExt, NodeInterface,
+    NodeWrappered, OptionTry, SyntaxKind, TransformFlags,
 };
 
 impl TransformES2015 {
@@ -140,7 +144,7 @@ impl TransformES2015 {
                         vec![self.factory.restore_enclosing_label(
                             &for_statement,
                             outermost_labeled_statement,
-                            self.maybe_converted_loop_state().as_ref().map(|_| {
+                            self.maybe_converted_loop_state().map(|_| {
                                 |node: &Node| {
                                     self.reset_label(node);
                                 }
@@ -356,19 +360,108 @@ impl TransformES2015 {
         Ok(self.factory.inline_expressions(&expressions))
     }
 
+    pub(super) fn should_convert_part_of_iteration_statement(&self, node: &Node) -> bool {
+        self.resolver
+            .get_node_check_flags(node)
+            .intersects(NodeCheckFlags::ContainsCapturedBlockScopedBinding)
+    }
+
+    pub(super) fn should_convert_initializer_of_for_statement(
+        &self,
+        node: &Node, /*IterationStatement*/
+    ) -> bool {
+        is_for_statement(node)
+            && node
+                .as_for_statement()
+                .initializer
+                .as_ref()
+                .matches(|node_initializer| {
+                    self.should_convert_part_of_iteration_statement(node_initializer)
+                })
+    }
+
+    pub(super) fn should_convert_condition_of_for_statement(
+        &self,
+        node: &Node, /*IterationStatement*/
+    ) -> bool {
+        is_for_statement(node)
+            && node
+                .as_for_statement()
+                .condition
+                .as_ref()
+                .matches(|node_condition| {
+                    self.should_convert_part_of_iteration_statement(node_condition)
+                })
+    }
+
+    pub(super) fn should_convert_incrementor_of_for_statement(
+        &self,
+        node: &Node, /*IterationStatement*/
+    ) -> bool {
+        is_for_statement(node)
+            && node
+                .as_for_statement()
+                .incrementor
+                .as_ref()
+                .matches(|node_incrementor| {
+                    self.should_convert_part_of_iteration_statement(node_incrementor)
+                })
+    }
+
     pub(super) fn should_convert_iteration_statement(
         &self,
-        _node: &Node, /*IterationStatement*/
+        node: &Node, /*IterationStatement*/
     ) -> bool {
-        unimplemented!()
+        self.should_convert_body_of_iteration_statement(node)
+            || self.should_convert_initializer_of_for_statement(node)
+    }
+
+    pub(super) fn should_convert_body_of_iteration_statement(
+        &self,
+        node: &Node, /*IterationStatement*/
+    ) -> bool {
+        self.resolver
+            .get_node_check_flags(node)
+            .intersects(NodeCheckFlags::LoopWithCapturedBlockScopedBinding)
     }
 
     pub(super) fn hoist_variable_declaration_declared_in_converted_loop(
         &self,
-        _state: &mut ConvertedLoopState,
-        _node: &Node, /*VariableDeclaration*/
+        state: &mut ConvertedLoopState,
+        node: &Node, /*VariableDeclaration*/
     ) {
-        unimplemented!()
+        let node_as_variable_declaration = node.as_variable_declaration();
+        state
+            .hoisted_local_variables
+            .get_or_insert_with(|| Default::default());
+
+        self.hoist_variable_declaration_declared_in_converted_loop_visit(
+            state,
+            &node_as_variable_declaration.name(),
+        );
+    }
+
+    pub(super) fn hoist_variable_declaration_declared_in_converted_loop_visit(
+        &self,
+        state: &mut ConvertedLoopState,
+        node: &Node, /*Identifier | BindingPattern*/
+    ) {
+        if node.kind() == SyntaxKind::Identifier {
+            state
+                .hoisted_local_variables
+                .as_mut()
+                .unwrap()
+                .push(node.node_wrapper());
+        } else {
+            for element in &node.as_has_elements().elements() {
+                if !is_omitted_expression(element) {
+                    self.hoist_variable_declaration_declared_in_converted_loop_visit(
+                        state,
+                        &element.as_binding_element().name(),
+                    );
+                }
+            }
+        }
     }
 
     pub(super) fn convert_iteration_statement_body_if_necessary(
@@ -401,10 +494,10 @@ impl TransformES2015 {
 
     pub(super) fn try_convert_iteration_statement_body_if_necessary(
         &self,
-        _node: &Node, /*IterationStatement*/
-        _outermost_labeled_statement: Option<impl Borrow<Node /*LabeledStatement*/>>,
-        _ancestor_facts: Option<HierarchyFacts>,
-        _convert: Option<
+        node: &Node, /*IterationStatement*/
+        outermost_labeled_statement: Option<impl Borrow<Node /*LabeledStatement*/>>,
+        ancestor_facts: Option<HierarchyFacts>,
+        convert: Option<
             impl FnMut(
                 &Node,         /*IterationStatement*/
                 Option<&Node>, /*LabeledStatement*/
@@ -413,6 +506,229 @@ impl TransformES2015 {
             ) -> io::Result<Gc<Node /*Statement*/>>, /*LoopConverter*/
         >,
     ) -> io::Result<VisitResult /*<Statement>*/> {
+        if !self.should_convert_iteration_statement(node) {
+            let mut save_allowed_non_labeled_jumps: Option<Jump> = _d();
+            if let Some(converted_loop_state) = self.maybe_converted_loop_state() {
+                let mut converted_loop_state = converted_loop_state.borrow_mut();
+                save_allowed_non_labeled_jumps = converted_loop_state.allowed_non_labeled_jumps;
+                converted_loop_state.allowed_non_labeled_jumps = Some(Jump::Break | Jump::Continue);
+            }
+
+            let outermost_labeled_statement = outermost_labeled_statement.node_wrappered();
+            let result = convert.try_map_or_else(
+                || {
+                    Ok(self.factory.restore_enclosing_label(
+                        &*if is_for_statement(node) {
+                            self.visit_each_child_of_for_statement(node)?
+                        } else {
+                            try_visit_each_child(
+                                node,
+                                |node: &Node| self.visitor(node),
+                                &**self.context,
+                            )?
+                        },
+                        outermost_labeled_statement.as_deref(),
+                        self.maybe_converted_loop_state().map(|_| {
+                            |node: &Node| {
+                                self.reset_label(node);
+                            }
+                        }),
+                    ))
+                },
+                |mut convert| {
+                    convert(
+                        node,
+                        outermost_labeled_statement.as_deref(),
+                        None,
+                        ancestor_facts,
+                    )
+                },
+            )?;
+
+            if let Some(converted_loop_state) = self.maybe_converted_loop_state() {
+                converted_loop_state.borrow_mut().allowed_non_labeled_jumps =
+                    save_allowed_non_labeled_jumps;
+            }
+            return Ok(Some(result.into()));
+        }
+
+        let current_state = self.create_converted_loop_state(node);
+        let mut statements: Vec<Gc<Node /*Statement*/>> = _d();
+
+        let outer_converted_loop_state = self.maybe_converted_loop_state();
+        self.set_converted_loop_state(Some(current_state.clone()));
+
+        let initializer_function =
+            self.should_convert_initializer_of_for_statement(node)
+                .then(|| {
+                    self.create_function_for_initializer_of_for_statement(
+                        node,
+                        current_state.clone(),
+                    )
+                });
+        let body_function = self
+            .should_convert_body_of_iteration_statement(node)
+            .then(|| {
+                self.create_function_for_body_of_iteration_statement(
+                    node,
+                    current_state.clone(),
+                    outer_converted_loop_state.clone(),
+                )
+            });
+
+        self.set_converted_loop_state(outer_converted_loop_state.clone());
+
+        if let Some(initializer_function) = initializer_function.as_ref() {
+            statements.push(initializer_function.function_declaration.clone());
+        }
+        if let Some(body_function) = body_function.as_ref() {
+            statements.push(body_function.function_declaration.clone());
+        }
+
+        self.add_extra_declarations_for_converted_loop(
+            &mut statements,
+            &(*current_state).borrow(),
+            outer_converted_loop_state.clone(),
+        );
+
+        if let Some(initializer_function) = initializer_function.as_ref() {
+            statements.push(self.generate_call_to_converted_loop_initializer(
+                &initializer_function.function_name,
+                initializer_function.contains_yield,
+            ));
+        }
+
+        let loop_: Gc<Node /*Statement*/>;
+        if let Some(body_function) = body_function.as_ref() {
+            if let Some(mut convert) = convert {
+                loop_ = convert(
+                    node,
+                    outermost_labeled_statement.node_wrappered().as_deref(),
+                    Some(&body_function.part),
+                    ancestor_facts,
+                )?;
+            } else {
+                let clone = self.convert_iteration_statement_core(
+                    node,
+                    initializer_function.as_ref(),
+                    &self
+                        .factory
+                        .create_block(body_function.part.clone(), Some(true))
+                        .wrap(),
+                );
+                loop_ = self.factory.restore_enclosing_label(
+                    &clone,
+                    outermost_labeled_statement,
+                    self.maybe_converted_loop_state().map(|_| {
+                        |node: &Node| {
+                            self.reset_label(node);
+                        }
+                    }),
+                );
+            }
+        } else {
+            let clone = self.convert_iteration_statement_core(
+                node,
+                initializer_function.as_ref(),
+                &try_visit_node(
+                    Some(node.as_has_statement().statement()),
+                    Some(|node: &Node| self.visitor(node)),
+                    Some(is_statement),
+                    Some(&|nodes: &[Gc<Node>]| self.factory.lift_to_block(nodes)),
+                )?
+                .unwrap(),
+            );
+            loop_ = self.factory.restore_enclosing_label(
+                &clone,
+                outermost_labeled_statement,
+                self.maybe_converted_loop_state().map(|_| {
+                    |node: &Node| {
+                        self.reset_label(node);
+                    }
+                }),
+            );
+        }
+
+        statements.push(loop_);
+        Ok(Some(statements.into()))
+    }
+
+    pub(super) fn convert_iteration_statement_core(
+        &self,
+        node: &Node, /*IterationStatement*/
+        initializer_function: Option<
+            &IterationStatementPartFunction<Gc<Node /*VariableDeclarationList*/>>,
+        >,
+        converted_loop_body: &Node, /*Statement*/
+    ) -> Gc<Node> {
+        match node.kind() {
+            SyntaxKind::ForStatement => {
+                self.convert_for_statement(node, initializer_function, converted_loop_body)
+            }
+            SyntaxKind::ForInStatement => self.convert_for_in_statement(node, converted_loop_body),
+            SyntaxKind::ForOfStatement => self.convert_for_of_statement(node, converted_loop_body),
+            SyntaxKind::DoStatement => self.convert_do_statement(node, converted_loop_body),
+            SyntaxKind::WhileStatement => self.convert_while_statement(node, converted_loop_body),
+            _ => Debug_.fail_bad_syntax_kind(node, Some("IterationStatement expected")),
+        }
+    }
+
+    pub(super) fn convert_for_statement(
+        &self,
+        _node: &Node, /*ForStatement*/
+        _initializer_function: Option<
+            &IterationStatementPartFunction<Gc<Node /*VariableDeclarationList*/>>,
+        >,
+        _converted_loop_body: &Node, /*Statement*/
+    ) -> Gc<Node> {
+        unimplemented!()
+    }
+
+    pub(super) fn convert_for_of_statement(
+        &self,
+        _node: &Node,                /*ForOfStatement*/
+        _converted_loop_body: &Node, /*Statement*/
+    ) -> Gc<Node> {
+        unimplemented!()
+    }
+
+    pub(super) fn convert_for_in_statement(
+        &self,
+        _node: &Node,                /*ForInStatement*/
+        _converted_loop_body: &Node, /*Statement*/
+    ) -> Gc<Node> {
+        unimplemented!()
+    }
+
+    pub(super) fn convert_do_statement(
+        &self,
+        _node: &Node,                /*DoStatement*/
+        _converted_loop_body: &Node, /*Statement*/
+    ) -> Gc<Node> {
+        unimplemented!()
+    }
+
+    pub(super) fn convert_while_statement(
+        &self,
+        _node: &Node,                /*WhileStatement*/
+        _converted_loop_body: &Node, /*Statement*/
+    ) -> Gc<Node> {
+        unimplemented!()
+    }
+
+    pub(super) fn create_converted_loop_state(
+        &self,
+        _node: &Node, /*IterationStatement*/
+    ) -> Gc<GcCell<ConvertedLoopState>> {
+        unimplemented!()
+    }
+
+    pub(super) fn add_extra_declarations_for_converted_loop(
+        &self,
+        _statements: &mut Vec<Gc<Node /*Statement*/>>,
+        _state: &ConvertedLoopState,
+        _outer_state: Option<Gc<GcCell<ConvertedLoopState>>>,
+    ) {
         unimplemented!()
     }
 }

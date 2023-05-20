@@ -175,7 +175,7 @@ pub(super) struct TransformES2015 {
     pub(super) hierarchy_facts: Cell<Option<HierarchyFacts>>,
     pub(super) tagged_template_string_declarations:
         GcCell<Option<Vec<Gc<Node /*VariableDeclaration*/>>>>,
-    pub(super) converted_loop_state: GcCell<Option<ConvertedLoopState>>,
+    pub(super) converted_loop_state: GcCell<Option<Gc<GcCell<ConvertedLoopState>>>>,
     #[unsafe_ignore_trace]
     pub(super) enabled_substitutions: Cell<Option<ES2015SubstitutionFlags>>,
 }
@@ -273,31 +273,31 @@ impl TransformES2015 {
         self.hierarchy_facts.set(hierarchy_facts);
     }
 
-    pub(super) fn maybe_converted_loop_state(&self) -> GcCellRef<Option<ConvertedLoopState>> {
-        self.converted_loop_state.borrow()
+    pub(super) fn maybe_converted_loop_state(&self) -> Option<Gc<GcCell<ConvertedLoopState>>> {
+        self.converted_loop_state.borrow().clone()
+    }
+
+    pub(super) fn converted_loop_state(&self) -> Gc<GcCell<ConvertedLoopState>> {
+        self.converted_loop_state.borrow().clone().unwrap()
     }
 
     pub(super) fn maybe_converted_loop_state_mut(
         &self,
-    ) -> GcCellRefMut<Option<ConvertedLoopState>> {
+    ) -> GcCellRefMut<Option<Gc<GcCell<ConvertedLoopState>>>> {
         self.converted_loop_state.borrow_mut()
-    }
-
-    pub(super) fn set_converted_loop_state(
-        &self,
-        converted_loop_state: Option<ConvertedLoopState>,
-    ) {
-        *self.converted_loop_state.borrow_mut() = converted_loop_state;
-    }
-
-    pub(super) fn converted_loop_state(&self) -> GcCellRef<ConvertedLoopState> {
-        gc_cell_ref_unwrapped(&self.converted_loop_state)
     }
 
     pub(super) fn converted_loop_state_mut(
         &self,
-    ) -> GcCellRefMut<Option<ConvertedLoopState>, ConvertedLoopState> {
+    ) -> GcCellRefMut<Option<Gc<GcCell<ConvertedLoopState>>>, Gc<GcCell<ConvertedLoopState>>> {
         gc_cell_ref_mut_unwrapped(&self.converted_loop_state)
+    }
+
+    pub(super) fn set_converted_loop_state(
+        &self,
+        converted_loop_state: Option<Gc<GcCell<ConvertedLoopState>>>,
+    ) {
+        *self.converted_loop_state.borrow_mut() = converted_loop_state;
     }
 
     pub(super) fn maybe_tagged_template_string_declarations(

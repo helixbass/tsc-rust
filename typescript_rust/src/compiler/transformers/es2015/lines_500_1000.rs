@@ -89,16 +89,13 @@ impl TransformES2015 {
         &self,
         node: &Node, /*SwitchStatement*/
     ) -> io::Result<Gc<Node /*SwitchStatement*/>> {
-        if self.maybe_converted_loop_state().is_some() {
-            let saved_allowed_non_labeled_jumps = self
-                .maybe_converted_loop_state()
-                .as_ref()
-                .unwrap()
+        if let Some(converted_loop_state) = self.maybe_converted_loop_state() {
+            let saved_allowed_non_labeled_jumps = (*converted_loop_state)
+                .borrow()
                 .allowed_non_labeled_jumps
                 .clone();
             {
-                let mut converted_loop_state = self.maybe_converted_loop_state_mut();
-                let converted_loop_state = converted_loop_state.as_mut().unwrap();
+                let mut converted_loop_state = converted_loop_state.borrow_mut();
                 converted_loop_state.allowed_non_labeled_jumps = Some(
                     converted_loop_state
                         .allowed_non_labeled_jumps
@@ -108,10 +105,8 @@ impl TransformES2015 {
             }
             let result =
                 try_visit_each_child(node, |node: &Node| self.visitor(node), &**self.context)?;
-            self.maybe_converted_loop_state_mut()
-                .as_mut()
-                .unwrap()
-                .allowed_non_labeled_jumps = saved_allowed_non_labeled_jumps;
+            converted_loop_state.borrow_mut().allowed_non_labeled_jumps =
+                saved_allowed_non_labeled_jumps;
             return Ok(result);
         }
         try_visit_each_child(node, |node: &Node| self.visitor(node), &**self.context)
@@ -146,10 +141,9 @@ impl TransformES2015 {
         node: &Node, /*ReturnStatement*/
     ) -> io::Result<Gc<Node /*Statement*/>> {
         let mut node = node.node_wrapper();
-        if self.maybe_converted_loop_state().is_some() {
+        if let Some(converted_loop_state) = self.maybe_converted_loop_state() {
             {
-                let mut converted_loop_state = self.maybe_converted_loop_state_mut();
-                let converted_loop_state = converted_loop_state.as_mut().unwrap();
+                let mut converted_loop_state = converted_loop_state.borrow_mut();
                 converted_loop_state.non_local_jumps =
                     Some(converted_loop_state.non_local_jumps.unwrap_or_default() | Jump::Return);
             }
@@ -220,11 +214,14 @@ impl TransformES2015 {
                 .unwrap_or_default()
                 .intersects(HierarchyFacts::ArrowFunction)
             {
-                self.converted_loop_state_mut().contains_lexical_this = Some(true);
+                self.converted_loop_state()
+                    .borrow_mut()
+                    .contains_lexical_this = Some(true);
                 return node.node_wrapper();
             }
             return self
-                .converted_loop_state_mut()
+                .converted_loop_state()
+                .borrow_mut()
                 .this_name
                 .get_or_insert_with(|| self.factory.create_unique_name("this", None))
                 .clone();
@@ -252,7 +249,8 @@ impl TransformES2015 {
         }
         if self.resolver.is_arguments_local_binding(node)? {
             return Ok(self
-                .converted_loop_state_mut()
+                .converted_loop_state()
+                .borrow_mut()
                 .arguments_name
                 .get_or_insert_with(|| self.factory.create_unique_name("arguments", None))
                 .clone());
@@ -272,13 +270,13 @@ impl TransformES2015 {
                 Jump::Continue
             };
             let can_use_break_or_continue = matches!(
-                (node_as_has_label.maybe_label().as_ref(), self.converted_loop_state().labels.as_ref()),
+                (node_as_has_label.maybe_label().as_ref(), (*self.converted_loop_state()).borrow().labels.as_ref()),
                 (Some(node_label), Some(converted_loop_state_labels)) if converted_loop_state_labels.get(
                     id_text(node_label)
                 ).copied() == Some(true)
             ) || node_as_has_label.maybe_label().is_none()
-                && self
-                    .converted_loop_state()
+                && (*self.converted_loop_state())
+                    .borrow()
                     .allowed_non_labeled_jumps
                     .unwrap_or_default()
                     .intersects(jump);
@@ -290,13 +288,15 @@ impl TransformES2015 {
                     None => {
                         if node.kind() == SyntaxKind::BreakStatement {
                             *self
-                                .converted_loop_state_mut()
+                                .converted_loop_state()
+                                .borrow_mut()
                                 .non_local_jumps
                                 .get_or_insert_with(|| Default::default()) |= Jump::Break;
                             label_marker = "break".to_owned();
                         } else {
                             *self
-                                .converted_loop_state_mut()
+                                .converted_loop_state()
+                                .borrow_mut()
                                 .non_local_jumps
                                 .get_or_insert_with(|| Default::default()) |= Jump::Continue;
                             label_marker = "continue".to_owned();
@@ -306,7 +306,7 @@ impl TransformES2015 {
                         if node.kind() == SyntaxKind::BreakStatement {
                             label_marker = format!("break-{}", label.as_identifier().escaped_text);
                             self.set_labeled_jump(
-                                &mut self.converted_loop_state_mut(),
+                                &mut self.converted_loop_state().borrow_mut(),
                                 true,
                                 id_text(label),
                                 &label_marker,
@@ -315,7 +315,7 @@ impl TransformES2015 {
                             label_marker =
                                 format!("continue-{}", label.as_identifier().escaped_text);
                             self.set_labeled_jump(
-                                &mut self.converted_loop_state_mut(),
+                                &mut self.converted_loop_state().borrow_mut(),
                                 false,
                                 id_text(label),
                                 &label_marker,
@@ -327,8 +327,13 @@ impl TransformES2015 {
                     .factory
                     .create_string_literal(label_marker, None, None)
                     .wrap();
-                if !self.converted_loop_state().loop_out_parameters.is_empty() {
+                if !(*self.converted_loop_state())
+                    .borrow()
+                    .loop_out_parameters
+                    .is_empty()
+                {
                     let converted_loop_state = self.converted_loop_state();
+                    let converted_loop_state = (*converted_loop_state).borrow();
                     let out_params = &converted_loop_state.loop_out_parameters;
                     let mut expr: Option<Gc<Node>> = None;
                     for (i, out_param) in out_params.iter().enumerate() {
@@ -619,7 +624,7 @@ impl TransformES2015 {
         name: &Node, /*Identifier*/
         extends_clause_element: Option<impl Borrow<Node>>, /*ExpressionWithTypeArguments*/
     ) -> io::Result<()> {
-        let saved_converted_loop_state = self.maybe_converted_loop_state().clone();
+        let saved_converted_loop_state = self.maybe_converted_loop_state();
         self.set_converted_loop_state(None);
         let ancestor_facts = self.enter_subtree(
             HierarchyFacts::ConstructorExcludes,

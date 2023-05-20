@@ -197,13 +197,13 @@ impl TransformES2015 {
             },
         );
         let updated: Option<Gc<Node /*Statement*/>>;
-        if self.maybe_converted_loop_state().is_some()
-            && !node_as_variable_statement
+        if let Some(converted_loop_state) = self.maybe_converted_loop_state().filter(|_| {
+            !node_as_variable_statement
                 .declaration_list
                 .flags()
                 .intersects(NodeFlags::BlockScoped)
-            && !self.is_variable_statement_of_type_script_class_wrapper(node)
-        {
+                && !self.is_variable_statement_of_type_script_class_wrapper(node)
+        }) {
             let mut assignments: Option<Vec<Gc<Node /*Expression*/>>> = Default::default();
             for decl in &node_as_variable_statement
                 .declaration_list
@@ -212,7 +212,7 @@ impl TransformES2015 {
             {
                 let decl_as_variable_declaration = decl.as_variable_declaration();
                 self.hoist_variable_declaration_declared_in_converted_loop(
-                    &mut self.converted_loop_state_mut(),
+                    &mut converted_loop_state.borrow_mut(),
                     decl,
                 );
                 if let Some(decl_initializer) = decl_as_variable_declaration.maybe_initializer() {
@@ -459,7 +459,8 @@ impl TransformES2015 {
 
     pub(super) fn record_label(&self, node: &Node /*LabeledStatement*/) {
         let node_as_labeled_statement = node.as_labeled_statement();
-        self.converted_loop_state_mut()
+        self.converted_loop_state()
+            .borrow_mut()
             .labels
             .as_mut()
             .unwrap()
@@ -468,7 +469,8 @@ impl TransformES2015 {
 
     pub(super) fn reset_label(&self, node: &Node /*LabeledStatement*/) {
         let node_as_labeled_statement = node.as_labeled_statement();
-        self.converted_loop_state_mut()
+        self.converted_loop_state()
+            .borrow_mut()
             .labels
             .as_mut()
             .unwrap()
@@ -479,16 +481,16 @@ impl TransformES2015 {
         &self,
         node: &Node, /*LabeledStatement*/
     ) -> io::Result<VisitResult> /*<Statement>*/ {
-        self.maybe_converted_loop_state_mut()
-            .as_mut()
+        self.maybe_converted_loop_state()
             .map(|converted_loop_state| {
                 converted_loop_state
+                    .borrow_mut()
                     .labels
                     .get_or_insert_with(|| Default::default());
             });
         let ref statement = unwrap_innermost_statement_of_label(
             node,
-            self.maybe_converted_loop_state().as_ref().map(|_| {
+            self.maybe_converted_loop_state().map(|_| {
                 |node: &Node| {
                     self.record_label(node);
                 }
@@ -634,39 +636,35 @@ impl TransformES2015 {
     pub(super) fn visit_each_child_of_for_statement(
         &self,
         node: &Node, /*ForStatement*/
-    ) -> io::Result<VisitResult> {
+    ) -> io::Result<Gc<Node>> {
         let node_as_for_statement = node.as_for_statement();
-        Ok(Some(
-            self.factory
-                .update_for_statement(
-                    node,
-                    try_visit_node(
-                        node_as_for_statement.initializer.as_deref(),
-                        Some(|node: &Node| self.visitor_with_unused_expression_result(node)),
-                        Some(is_for_initializer),
-                        Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
-                    )?,
-                    try_visit_node(
-                        node_as_for_statement.condition.as_deref(),
-                        Some(|node: &Node| self.visitor(node)),
-                        Some(is_expression),
-                        Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
-                    )?,
-                    try_visit_node(
-                        node_as_for_statement.incrementor.as_deref(),
-                        Some(|node: &Node| self.visitor_with_unused_expression_result(node)),
-                        Some(is_expression),
-                        Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
-                    )?,
-                    try_visit_node(
-                        Some(&*node_as_for_statement.statement),
-                        Some(|node: &Node| self.visitor(node)),
-                        Some(is_statement),
-                        Some(|nodes: &[Gc<Node>]| self.factory.lift_to_block(nodes)),
-                    )?
-                    .unwrap(),
-                )
-                .into(),
+        Ok(self.factory.update_for_statement(
+            node,
+            try_visit_node(
+                node_as_for_statement.initializer.as_deref(),
+                Some(|node: &Node| self.visitor_with_unused_expression_result(node)),
+                Some(is_for_initializer),
+                Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+            )?,
+            try_visit_node(
+                node_as_for_statement.condition.as_deref(),
+                Some(|node: &Node| self.visitor(node)),
+                Some(is_expression),
+                Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+            )?,
+            try_visit_node(
+                node_as_for_statement.incrementor.as_deref(),
+                Some(|node: &Node| self.visitor_with_unused_expression_result(node)),
+                Some(is_expression),
+                Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+            )?,
+            try_visit_node(
+                Some(&*node_as_for_statement.statement),
+                Some(|node: &Node| self.visitor(node)),
+                Some(is_statement),
+                Some(|nodes: &[Gc<Node>]| self.factory.lift_to_block(nodes)),
+            )?
+            .unwrap(),
         ))
     }
 
@@ -1007,7 +1005,7 @@ impl TransformES2015 {
         Ok(self.factory.restore_enclosing_label(
             for_statement,
             outermost_labeled_statement,
-            self.maybe_converted_loop_state().as_ref().map(|_| {
+            self.maybe_converted_loop_state().map(|_| {
                 |node: &Node| {
                     self.reset_label(node);
                 }

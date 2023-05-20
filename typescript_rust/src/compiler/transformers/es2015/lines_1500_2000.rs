@@ -500,7 +500,7 @@ impl TransformES2015 {
             ));
         }
 
-        let saved_converted_loop_state = self.maybe_converted_loop_state().clone();
+        let saved_converted_loop_state = self.maybe_converted_loop_state();
         self.set_converted_loop_state(None);
         let ancestor_facts = self.enter_subtree(
             HierarchyFacts::ArrowFunctionExcludes,
@@ -552,7 +552,7 @@ impl TransformES2015 {
                 HierarchyFacts::FunctionIncludes,
             )
         };
-        let saved_converted_loop_state = self.maybe_converted_loop_state().clone();
+        let saved_converted_loop_state = self.maybe_converted_loop_state();
         self.set_converted_loop_state(None);
 
         let parameters = try_visit_parameter_list(
@@ -595,7 +595,7 @@ impl TransformES2015 {
         node: &Node, /*FunctionDeclaration*/
     ) -> io::Result<Gc<Node /*FunctionDeclaration*/>> {
         let node_as_function_declaration = node.as_function_declaration();
-        let saved_converted_loop_state = self.maybe_converted_loop_state().clone();
+        let saved_converted_loop_state = self.maybe_converted_loop_state();
         self.set_converted_loop_state(None);
         let ancestor_facts = self.enter_subtree(
             HierarchyFacts::FunctionExcludes,
@@ -651,7 +651,7 @@ impl TransformES2015 {
         container: Option<impl Borrow<Node>>,
     ) -> io::Result<Gc<Node /*FunctionExpression*/>> {
         let node_as_function_like_declaration = node.as_function_like_declaration();
-        let saved_converted_loop_state = self.maybe_converted_loop_state().clone();
+        let saved_converted_loop_state = self.maybe_converted_loop_state();
         self.set_converted_loop_state(None);
         let container = container.node_wrappered();
         let ancestor_facts =
