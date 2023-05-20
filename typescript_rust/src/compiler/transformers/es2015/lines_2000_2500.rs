@@ -4,14 +4,15 @@ use gc::Gc;
 
 use super::{HierarchyFacts, TransformES2015};
 use crate::{
-    create_range, flat_map, get_emit_flags, has_syntactic_modifier, id_text, is_binding_pattern,
-    is_destructuring_assignment, is_expression, is_for_initializer, is_iteration_statement,
-    is_statement, last, set_source_map_range, try_flat_map, try_flatten_destructuring_assignment,
-    try_flatten_destructuring_binding, try_visit_each_child, try_visit_node,
-    unwrap_innermost_statement_of_label, EmitFlags, FlattenLevel, HasInitializerInterface, Matches,
-    ModifierFlags, NamedDeclarationInterface, Node, NodeArrayExt, NodeCheckFlags, NodeExt,
-    NodeFlags, NodeInterface, ReadonlyTextRange, SourceMapRange, SyntaxKind, TransformFlags,
-    VisitResult,
+    add_range, create_range, first_or_undefined, flat_map, get_emit_flags, has_syntactic_modifier,
+    id_text, is_binding_pattern, is_destructuring_assignment, is_expression, is_for_initializer,
+    is_iteration_statement, is_statement, is_variable_declaration_list, last, move_range_end,
+    move_range_pos, set_source_map_range, set_text_range_end, try_flat_map,
+    try_flatten_destructuring_assignment, try_flatten_destructuring_binding, try_visit_each_child,
+    try_visit_node, unwrap_innermost_statement_of_label, EmitFlags, FlattenLevel,
+    HasInitializerInterface, Matches, ModifierFlags, NamedDeclarationInterface, Node, NodeArray,
+    NodeArrayExt, NodeCheckFlags, NodeExt, NodeFlags, NodeInterface, ReadonlyTextRange,
+    ReadonlyTextRangeConcrete, SourceMapRange, SyntaxKind, TransformFlags, VisitResult,
 };
 
 impl TransformES2015 {
@@ -686,6 +687,167 @@ impl TransformES2015 {
                 },
             ),
         )
+    }
+
+    pub(super) fn convert_for_of_statement_head(
+        &self,
+        node: &Node,        /*ForOfStatement*/
+        bound_value: &Node, /*Expression*/
+        converted_loop_body_statements: &[Gc<Node /*Statement*/>],
+    ) -> io::Result<Gc<Node>> {
+        let node_as_for_of_statement = node.as_for_of_statement();
+        let mut statements: Vec<Gc<Node /*Statement*/>> = Default::default();
+        let initializer = &node_as_for_of_statement.initializer;
+        if is_variable_declaration_list(initializer) {
+            if node_as_for_of_statement
+                .initializer
+                .flags()
+                .intersects(NodeFlags::BlockScoped)
+            {
+                self.enable_substitutions_for_block_scoped_bindings();
+            }
+
+            let first_original_declaration =
+                first_or_undefined(&initializer.as_variable_declaration_list().declarations);
+            if let Some(first_original_declaration) =
+                first_original_declaration.filter(|first_original_declaration| {
+                    is_binding_pattern(
+                        first_original_declaration
+                            .as_variable_declaration()
+                            .maybe_name(),
+                    )
+                })
+            {
+                let declarations = try_flatten_destructuring_binding(
+                    first_original_declaration,
+                    |node: &Node| self.visitor(node),
+                    &**self.context,
+                    FlattenLevel::All,
+                    Some(bound_value),
+                    None,
+                    None,
+                )?;
+
+                let declaration_list = self
+                    .factory
+                    .create_variable_declaration_list(declarations.clone(), None)
+                    .wrap()
+                    .set_text_range(Some(&*node_as_for_of_statement.initializer))
+                    .set_source_map_range(Some(
+                        (&create_range(declarations[0].pos(), Some(last(&declarations).end())))
+                            .into(),
+                    ));
+
+                statements.push(
+                    self.factory
+                        .create_variable_statement(Option::<Gc<NodeArray>>::None, declaration_list)
+                        .wrap(),
+                );
+            } else {
+                statements.push(
+                    self.factory
+                        .create_variable_statement(
+                            Option::<Gc<NodeArray>>::None,
+                            self.factory
+                                .create_variable_declaration_list(
+                                    vec![self
+                                        .factory
+                                        .create_variable_declaration(
+                                            if let Some(first_original_declaration) =
+                                                first_original_declaration
+                                            {
+                                                first_original_declaration
+                                                    .as_variable_declaration()
+                                                    .maybe_name()
+                                            } else {
+                                                Some(self.factory.create_temp_variable(
+                                                    Option::<fn(&Node)>::None,
+                                                    None,
+                                                ))
+                                            },
+                                            None,
+                                            None,
+                                            Some(bound_value.node_wrapper()),
+                                        )
+                                        .wrap()],
+                                    None,
+                                )
+                                .wrap()
+                                .set_text_range(Some(&ReadonlyTextRangeConcrete::from(
+                                    move_range_pos(&**initializer, -1),
+                                )))
+                                .set_original_node(Some(initializer.clone())),
+                        )
+                        .wrap()
+                        .set_text_range(Some(&ReadonlyTextRangeConcrete::from(move_range_end(
+                            &**initializer,
+                            -1,
+                        )))),
+                );
+            }
+        } else {
+            let ref assignment = self
+                .factory
+                .create_assignment(initializer.clone(), bound_value.node_wrapper())
+                .wrap();
+            if is_destructuring_assignment(assignment) {
+                statements.push(
+                    self.factory
+                        .create_expression_statement(
+                            self.visit_binary_expression(assignment, true)?,
+                        )
+                        .wrap(),
+                );
+            } else {
+                set_text_range_end(&**assignment, initializer.end());
+                statements.push(
+                    self.factory
+                        .create_expression_statement(
+                            try_visit_node(
+                                Some(&**assignment),
+                                Some(|node: &Node| self.visitor(node)),
+                                Some(is_expression),
+                                Some(|nodes: &[Gc<Node>]| self.factory.lift_to_block(nodes)),
+                            )?
+                            .unwrap(),
+                        )
+                        .wrap()
+                        .set_text_range(Some(&ReadonlyTextRangeConcrete::from(move_range_end(
+                            &**initializer,
+                            -1,
+                        )))),
+                );
+            }
+        }
+
+        // if (convertedLoopBodyStatements) {
+        Ok(self.create_synthetic_block_for_converted_statements({
+            add_range(
+                &mut statements,
+                Some(converted_loop_body_statements),
+                None,
+                None,
+            );
+            statements
+        }))
+        // }
+        // else {
+        //     const statement = visitNode(node.statement, visitor, isStatement, factory.liftToBlock);
+        //     if (isBlock(statement)) {
+        //         return factory.updateBlock(statement, setTextRange(factory.createNodeArray(concatenate(statements, statement.statements)), statement.statements));
+        //     }
+        //     else {
+        //         statements.push(statement);
+        //         return createSyntheticBlockForConvertedStatements(statements);
+        //     }
+        // }
+    }
+
+    pub(super) fn create_synthetic_block_for_converted_statements(
+        &self,
+        _statements: Vec<Gc<Node /*Statement*/>>,
+    ) -> Gc<Node> {
+        unimplemented!()
     }
 
     pub(super) fn convert_for_of_statement_for_array(
