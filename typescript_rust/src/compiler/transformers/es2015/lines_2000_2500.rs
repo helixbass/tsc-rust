@@ -4,12 +4,14 @@ use gc::Gc;
 
 use super::{HierarchyFacts, TransformES2015};
 use crate::{
-    create_range, flat_map, get_emit_flags, has_syntactic_modifier, is_binding_pattern,
-    is_destructuring_assignment, is_expression, last, set_source_map_range,
-    try_flatten_destructuring_assignment, try_visit_each_child, try_visit_node, EmitFlags,
-    FlattenLevel, HasInitializerInterface, Matches, ModifierFlags, NamedDeclarationInterface, Node,
-    NodeArrayExt, NodeCheckFlags, NodeExt, NodeFlags, NodeInterface, ReadonlyTextRange,
-    SourceMapRange, SyntaxKind, TransformFlags, VisitResult,
+    create_range, flat_map, get_emit_flags, has_syntactic_modifier, id_text, is_binding_pattern,
+    is_destructuring_assignment, is_expression, is_for_initializer, is_iteration_statement,
+    is_statement, last, set_source_map_range, try_flat_map, try_flatten_destructuring_assignment,
+    try_flatten_destructuring_binding, try_visit_each_child, try_visit_node,
+    unwrap_innermost_statement_of_label, EmitFlags, FlattenLevel, HasInitializerInterface, Matches,
+    ModifierFlags, NamedDeclarationInterface, Node, NodeArrayExt, NodeCheckFlags, NodeExt,
+    NodeFlags, NodeInterface, ReadonlyTextRange, SourceMapRange, SyntaxKind, TransformFlags,
+    VisitResult,
 };
 
 impl TransformES2015 {
@@ -287,18 +289,18 @@ impl TransformES2015 {
                 self.enable_substitutions_for_block_scoped_bindings();
             }
 
-            let declarations: Vec<Gc<Node>> = flat_map(
+            let declarations: Vec<Gc<Node>> = try_flat_map(
                 Some(&node_as_variable_declaration_list.declarations),
-                |declaration: &Gc<Node>, _| {
-                    if node.flags().intersects(NodeFlags::Let) {
-                        self.visit_variable_declaration_in_let_declaration_list(declaration)
+                |declaration: &Gc<Node>, _| -> io::Result<_> {
+                    Ok(if node.flags().intersects(NodeFlags::Let) {
+                        self.visit_variable_declaration_in_let_declaration_list(declaration)?
                     } else {
-                        self.visit_variable_declaration(declaration)
+                        self.visit_variable_declaration(declaration)?
                     }
                     .map(Into::into)
-                    .unwrap_or_default()
+                    .unwrap_or_default())
                 },
-            );
+            )?;
 
             let declaration_list = self
                 .factory
@@ -386,54 +388,312 @@ impl TransformES2015 {
 
     pub(super) fn visit_variable_declaration_in_let_declaration_list(
         &self,
-        _node: &Node, /*VariableDeclaration*/
-    ) -> VisitResult {
-        unimplemented!()
+        node: &Node, /*VariableDeclaration*/
+    ) -> io::Result<VisitResult> {
+        let node_as_variable_declaration = node.as_variable_declaration();
+        let name = node_as_variable_declaration.maybe_name();
+        if is_binding_pattern(name) {
+            return self.visit_variable_declaration(node);
+        }
+
+        if node_as_variable_declaration.maybe_initializer().is_none()
+            && self.should_emit_explicit_initializer_for_let_declaration(node)?
+        {
+            return Ok(Some(
+                self.factory
+                    .update_variable_declaration(
+                        node,
+                        node_as_variable_declaration.maybe_name(),
+                        None,
+                        None,
+                        Some(self.factory.create_void_zero()),
+                    )
+                    .into(),
+            ));
+        }
+
+        Ok(Some(
+            try_visit_each_child(node, |node: &Node| self.visitor(node), &**self.context)?.into(),
+        ))
     }
 
     pub(super) fn visit_variable_declaration(
         &self,
-        _node: &Node, /*VariableDeclaration*/
-    ) -> VisitResult /*<VariableDeclaration>*/ {
-        unimplemented!()
+        node: &Node, /*VariableDeclaration*/
+    ) -> io::Result<VisitResult> /*<VariableDeclaration>*/ {
+        let node_as_variable_declaration = node.as_variable_declaration();
+        let ancestor_facts = self.enter_subtree(
+            HierarchyFacts::ExportedVariableStatement,
+            HierarchyFacts::None,
+        );
+        let updated: VisitResult/*<VariableDeclaration>*/;
+        if is_binding_pattern(node_as_variable_declaration.maybe_name()) {
+            updated = Some(
+                try_flatten_destructuring_binding(
+                    node,
+                    |node: &Node| self.visitor(node),
+                    &**self.context,
+                    FlattenLevel::All,
+                    Option::<&Node>::None,
+                    Some(
+                        !ancestor_facts
+                            .unwrap_or_default()
+                            .intersects(HierarchyFacts::ExportedVariableStatement),
+                    ),
+                    None,
+                )?
+                .into(),
+            );
+        } else {
+            updated = Some(
+                try_visit_each_child(node, |node: &Node| self.visitor(node), &**self.context)?
+                    .into(),
+            );
+        }
+
+        self.exit_subtree(ancestor_facts, HierarchyFacts::None, HierarchyFacts::None);
+        Ok(updated)
+    }
+
+    pub(super) fn record_label(&self, node: &Node /*LabeledStatement*/) {
+        let node_as_labeled_statement = node.as_labeled_statement();
+        self.converted_loop_state_mut()
+            .labels
+            .as_mut()
+            .unwrap()
+            .insert(id_text(&node_as_labeled_statement.label).to_owned(), true);
+    }
+
+    pub(super) fn reset_label(&self, node: &Node /*LabeledStatement*/) {
+        let node_as_labeled_statement = node.as_labeled_statement();
+        self.converted_loop_state_mut()
+            .labels
+            .as_mut()
+            .unwrap()
+            .insert(id_text(&node_as_labeled_statement.label).to_owned(), false);
     }
 
     pub(super) fn visit_labeled_statement(
         &self,
-        _node: &Node, /*LabeledStatement*/
-    ) -> VisitResult /*<Statement>*/ {
-        unimplemented!()
+        node: &Node, /*LabeledStatement*/
+    ) -> io::Result<VisitResult> /*<Statement>*/ {
+        self.maybe_converted_loop_state_mut()
+            .as_mut()
+            .map(|converted_loop_state| {
+                converted_loop_state
+                    .labels
+                    .get_or_insert_with(|| Default::default());
+            });
+        let ref statement = unwrap_innermost_statement_of_label(
+            node,
+            self.maybe_converted_loop_state().as_ref().map(|_| {
+                |node: &Node| {
+                    self.record_label(node);
+                }
+            }),
+        );
+        Ok(if is_iteration_statement(statement, false) {
+            self.visit_iteration_statement(statement, node)
+        } else {
+            Some(
+                self.factory
+                    .restore_enclosing_label(
+                        &try_visit_node(
+                            Some(&**statement),
+                            Some(|node: &Node| self.visitor(node)),
+                            Some(is_statement),
+                            Some(|nodes: &[Gc<Node>]| self.factory.lift_to_block(nodes)),
+                        )?
+                        .unwrap(),
+                        Some(node),
+                        if self.maybe_converted_loop_state().is_some() {
+                            Some(|node: &Node| {
+                                self.reset_label(node);
+                            })
+                        } else {
+                            None
+                        },
+                    )
+                    .into(),
+            )
+        })
+    }
+
+    pub(super) fn visit_iteration_statement(
+        &self,
+        node: &Node,                        /*IterationStatement*/
+        outermost_labeled_statement: &Node, /*LabeledStatement*/
+    ) -> VisitResult {
+        match node.kind() {
+            SyntaxKind::DoStatement | SyntaxKind::WhileStatement => {
+                self.visit_do_or_while_statement(node, Some(outermost_labeled_statement))
+            }
+            SyntaxKind::ForStatement => {
+                self.visit_for_statement(node, Some(outermost_labeled_statement))
+            }
+            SyntaxKind::ForInStatement => {
+                self.visit_for_in_statement(node, Some(outermost_labeled_statement))
+            }
+            SyntaxKind::ForOfStatement => {
+                self.visit_for_of_statement(node, Some(outermost_labeled_statement))
+            }
+            _ => unreachable!(),
+        }
+    }
+
+    pub(super) fn visit_iteration_statement_with_facts(
+        &self,
+        exclude_facts: HierarchyFacts,
+        include_facts: HierarchyFacts,
+        node: &Node, /*IterationStatement*/
+        outermost_labeled_statement: Option<impl Borrow<Node /*LabeledStatement*/>>,
+        convert: Option<
+            impl FnMut(
+                &Node,         /*IterationStatement*/
+                Option<&Node>, /*LabeledStatement*/
+                Option<&[Gc<Node /*Statement*/>]>,
+                Option<HierarchyFacts>,
+            ) -> Gc<Node /*Statement*/>, /*LoopConverter*/
+        >,
+    ) -> VisitResult {
+        let ancestor_facts = self.enter_subtree(exclude_facts, include_facts);
+        let updated = self.convert_iteration_statement_body_if_necessary(
+            node,
+            outermost_labeled_statement,
+            ancestor_facts,
+            convert,
+        );
+        self.exit_subtree(ancestor_facts, HierarchyFacts::None, HierarchyFacts::None);
+        updated
     }
 
     pub(super) fn visit_do_or_while_statement(
         &self,
-        _node: &Node, /*DoStatement | WhileStatement*/
-        _outermost_labeled_statement: Option<impl Borrow<Node /*LabeledStatement*/>>,
+        node: &Node, /*DoStatement | WhileStatement*/
+        outermost_labeled_statement: Option<impl Borrow<Node /*LabeledStatement*/>>,
     ) -> VisitResult {
-        unimplemented!()
+        self.visit_iteration_statement_with_facts(
+            HierarchyFacts::DoOrWhileStatementExcludes,
+            HierarchyFacts::DoOrWhileStatementIncludes,
+            node,
+            outermost_labeled_statement,
+            Option::<
+                fn(&Node, Option<&Node>, Option<&[Gc<Node>]>, Option<HierarchyFacts>) -> Gc<Node>,
+            >::None,
+        )
     }
 
     pub(super) fn visit_for_statement(
         &self,
-        _node: &Node, /*ForStatement*/
-        _outermost_labeled_statement: Option<impl Borrow<Node /*LabeledStatement*/>>,
+        node: &Node, /*ForStatement*/
+        outermost_labeled_statement: Option<impl Borrow<Node /*LabeledStatement*/>>,
     ) -> VisitResult {
-        unimplemented!()
+        self.visit_iteration_statement_with_facts(
+            HierarchyFacts::ForStatementExcludes,
+            HierarchyFacts::ForStatementIncludes,
+            node,
+            outermost_labeled_statement,
+            Option::<
+                fn(&Node, Option<&Node>, Option<&[Gc<Node>]>, Option<HierarchyFacts>) -> Gc<Node>,
+            >::None,
+        )
+    }
+
+    pub(super) fn visit_each_child_of_for_statement(
+        &self,
+        node: &Node, /*ForStatement*/
+    ) -> io::Result<VisitResult> {
+        let node_as_for_statement = node.as_for_statement();
+        Ok(Some(
+            self.factory
+                .update_for_statement(
+                    node,
+                    try_visit_node(
+                        node_as_for_statement.initializer.as_deref(),
+                        Some(|node: &Node| self.visitor_with_unused_expression_result(node)),
+                        Some(is_for_initializer),
+                        Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                    )?,
+                    try_visit_node(
+                        node_as_for_statement.condition.as_deref(),
+                        Some(|node: &Node| self.visitor(node)),
+                        Some(is_expression),
+                        Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                    )?,
+                    try_visit_node(
+                        node_as_for_statement.incrementor.as_deref(),
+                        Some(|node: &Node| self.visitor_with_unused_expression_result(node)),
+                        Some(is_expression),
+                        Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                    )?,
+                    try_visit_node(
+                        Some(&*node_as_for_statement.statement),
+                        Some(|node: &Node| self.visitor(node)),
+                        Some(is_statement),
+                        Some(|nodes: &[Gc<Node>]| self.factory.lift_to_block(nodes)),
+                    )?
+                    .unwrap(),
+                )
+                .into(),
+        ))
     }
 
     pub(super) fn visit_for_in_statement(
         &self,
-        _node: &Node, /*ForInStatement*/
-        _outermost_labeled_statement: Option<impl Borrow<Node /*LabeledStatement*/>>,
+        node: &Node, /*ForInStatement*/
+        outermost_labeled_statement: Option<impl Borrow<Node /*LabeledStatement*/>>,
     ) -> VisitResult {
-        unimplemented!()
+        self.visit_iteration_statement_with_facts(
+            HierarchyFacts::ForInOrForOfStatementExcludes,
+            HierarchyFacts::ForInOrForOfStatementIncludes,
+            node,
+            outermost_labeled_statement,
+            Option::<
+                fn(&Node, Option<&Node>, Option<&[Gc<Node>]>, Option<HierarchyFacts>) -> Gc<Node>,
+            >::None,
+        )
     }
 
     pub(super) fn visit_for_of_statement(
         &self,
-        _node: &Node, /*ForOfStatement*/
-        _outermost_labeled_statement: Option<impl Borrow<Node /*LabeledStatement*/>>,
+        node: &Node, /*ForOfStatement*/
+        outermost_labeled_statement: Option<impl Borrow<Node /*LabeledStatement*/>>,
     ) -> VisitResult /*<Statement>*/ {
+        self.visit_iteration_statement_with_facts(
+            HierarchyFacts::ForInOrForOfStatementExcludes,
+            HierarchyFacts::ForInOrForOfStatementIncludes,
+            node,
+            outermost_labeled_statement,
+            Some(
+                |node: &Node,
+                 outermost_labeled_statement: Option<&Node>,
+                 converted_loop_body_statements: Option<&[Gc<Node>]>,
+                 ancestor_facts: Option<HierarchyFacts>| {
+                    if self.compiler_options.downlevel_iteration == Some(true) {
+                        self.convert_for_of_statement_for_iterable(
+                            node,
+                            outermost_labeled_statement,
+                            converted_loop_body_statements,
+                            ancestor_facts,
+                        )
+                    } else {
+                        self.convert_for_of_statement_for_array(
+                            node,
+                            outermost_labeled_statement,
+                            converted_loop_body_statements,
+                        )
+                    }
+                },
+            ),
+        )
+    }
+
+    pub(super) fn convert_for_of_statement_for_array(
+        &self,
+        _node: &Node, /*ForOfStatement*/
+        _outermost_labeled_statement: Option<&Node /*LabeledStatement*/>,
+        _converted_loop_body_statements: Option<&[Gc<Node /*Statement*/>]>,
+    ) -> Gc<Node /*Statement*/> {
         unimplemented!()
     }
 }

@@ -488,7 +488,7 @@ impl TransformES2015 {
             SyntaxKind::FunctionDeclaration => Some(self.visit_function_declaration(node)?.into()),
             SyntaxKind::ArrowFunction => self.visit_arrow_function(node)?,
             SyntaxKind::FunctionExpression => Some(self.visit_function_expression(node)?.into()),
-            SyntaxKind::VariableDeclaration => self.visit_variable_declaration(node),
+            SyntaxKind::VariableDeclaration => self.visit_variable_declaration(node)?,
             SyntaxKind::Identifier => Some(self.visit_identifier(node)?.into()),
             SyntaxKind::VariableDeclarationList => {
                 Some(self.visit_variable_declaration_list(node)?.into())
@@ -499,7 +499,7 @@ impl TransformES2015 {
             SyntaxKind::BreakStatement | SyntaxKind::ContinueStatement => {
                 Some(self.visit_break_or_continue_statement(node)?.into())
             }
-            SyntaxKind::LabeledStatement => self.visit_labeled_statement(node),
+            SyntaxKind::LabeledStatement => self.visit_labeled_statement(node)?,
             SyntaxKind::DoStatement | SyntaxKind::WhileStatement => {
                 self.visit_do_or_while_statement(node, Option::<&Node>::None)
             }
