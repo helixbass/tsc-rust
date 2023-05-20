@@ -510,7 +510,7 @@ impl TransformES2015 {
             }
             SyntaxKind::ExpressionStatement => Some(self.visit_expression_statement(node)?.into()),
             SyntaxKind::ObjectLiteralExpression => {
-                Some(self.visit_object_literal_expression(node).into())
+                Some(self.visit_object_literal_expression(node)?.into())
             }
             SyntaxKind::CatchClause => Some(self.visit_catch_clause(node).into()),
             SyntaxKind::ShorthandPropertyAssignment => {

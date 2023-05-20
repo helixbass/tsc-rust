@@ -707,7 +707,7 @@ impl TransformES2015 {
                             outermost_labeled_statement,
                             converted_loop_body_statements,
                             ancestor_facts,
-                        )
+                        )?
                     } else {
                         self.convert_for_of_statement_for_array(
                             node,

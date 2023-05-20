@@ -1,11 +1,15 @@
+use std::{
+    convert::{TryFrom, TryInto},
+    mem,
+    rc::Rc,
+};
+
 use gc::{Finalize, Gc, Trace};
-use std::convert::{TryFrom, TryInto};
-use std::mem;
-use std::rc::Rc;
 
 pub mod cell;
 pub mod combinators;
 pub mod debugging;
+pub mod default;
 pub mod deref;
 pub mod hash_map;
 pub mod io;

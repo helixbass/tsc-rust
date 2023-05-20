@@ -85,6 +85,13 @@ impl EmitHelperFactory {
     pub fn create_extends_helper(&self, _name: Gc<Node /*Identifier*/>) -> Gc<Node /*Expression*/> {
         unimplemented!()
     }
+
+    pub fn create_values_helper(
+        &self,
+        _expression: Gc<Node /*Expression*/>,
+    ) -> Gc<Node /*Expression*/> {
+        unimplemented!()
+    }
 }
 
 pub fn create_emit_helper_factory(

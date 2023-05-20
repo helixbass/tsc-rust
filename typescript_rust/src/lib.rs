@@ -790,6 +790,7 @@ pub use rust_helpers::{
     cell::{gc_cell_ref_mut_unwrapped, gc_cell_ref_unwrapped, ref_mut_unwrapped, ref_unwrapped},
     combinators::With,
     debugging::{if_debugging, is_logging, start_debugging, stop_debugging, while_debugging},
+    default::_d,
     deref::AsDoubleDeref,
     hash_map::{GcHashMap, GcHashMapOwnedValues},
     index_of, index_of_gc, index_of_rc,

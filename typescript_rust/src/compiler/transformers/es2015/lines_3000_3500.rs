@@ -21,4 +21,14 @@ impl TransformES2015 {
     ) {
         unimplemented!()
     }
+
+    pub(super) fn add_object_literal_members(
+        &self,
+        _expressions: &mut Vec<Gc<Node /*Expression*/>>,
+        _node: &Node,     /*ObjectLiteralExpression*/
+        _receiver: &Node, /*Identifier*/
+        _start: usize,
+    ) {
+        unimplemented!()
+    }
 }
