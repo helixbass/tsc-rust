@@ -9,9 +9,9 @@ use super::{
 use crate::{
     VisitResult, _d, get_combined_node_flags, is_expression, is_for_initializer, is_for_statement,
     is_identifier, is_object_literal_element_like, is_omitted_expression, is_statement,
-    start_on_new_line, try_visit_each_child, try_visit_node, try_visit_nodes, Debug_, EmitFlags,
-    Matches, NamedDeclarationInterface, Node, NodeArray, NodeCheckFlags, NodeExt, NodeFlags,
-    NodeInterface, NodeWrappered, OptionTry, SyntaxKind, TransformFlags,
+    start_on_new_line, try_visit_each_child, try_visit_node, try_visit_nodes, BoolExt, Debug_,
+    EmitFlags, Matches, NamedDeclarationInterface, Node, NodeArray, NodeCheckFlags, NodeExt,
+    NodeFlags, NodeInterface, NodeWrappered, OptionTry, SyntaxKind, TransformFlags,
 };
 
 impl TransformES2015 {
@@ -559,23 +559,20 @@ impl TransformES2015 {
         let outer_converted_loop_state = self.maybe_converted_loop_state();
         self.set_converted_loop_state(Some(current_state.clone()));
 
-        let initializer_function =
-            self.should_convert_initializer_of_for_statement(node)
-                .then(|| {
-                    self.create_function_for_initializer_of_for_statement(
-                        node,
-                        current_state.clone(),
-                    )
-                });
+        let initializer_function = self
+            .should_convert_initializer_of_for_statement(node)
+            .try_then(|| {
+                self.create_function_for_initializer_of_for_statement(node, current_state.clone())
+            })?;
         let body_function = self
             .should_convert_body_of_iteration_statement(node)
-            .then(|| {
+            .try_then(|| {
                 self.create_function_for_body_of_iteration_statement(
                     node,
                     current_state.clone(),
                     outer_converted_loop_state.clone(),
                 )
-            });
+            })?;
 
         self.set_converted_loop_state(outer_converted_loop_state.clone());
 
