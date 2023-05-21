@@ -1,6 +1,7 @@
 use std::{cell::Cell, collections::HashMap, io, mem, rc::Rc};
 
 use bitflags::bitflags;
+use derive_builder::Builder;
 use gc::{Finalize, Gc, GcCell, GcCellRef, GcCellRefMut, Trace};
 
 use crate::{
@@ -57,19 +58,30 @@ bitflags! {
     }
 }
 
-#[derive(Clone, Trace, Finalize)]
+#[derive(Clone, Builder, Trace, Finalize)]
+#[builder(setter(strip_option))]
 pub(super) struct ConvertedLoopState {
+    #[builder(default)]
     pub labels: Option<HashMap<String, bool>>,
+    #[builder(default)]
     pub labeled_non_local_breaks: Option<HashMap<String, String>>,
+    #[builder(default)]
     pub labeled_non_local_continues: Option<HashMap<String, String>>,
+    #[builder(default)]
     #[unsafe_ignore_trace]
     pub non_local_jumps: Option<Jump>,
+    #[builder(default)]
     #[unsafe_ignore_trace]
     pub allowed_non_labeled_jumps: Option<Jump>,
+    #[builder(default)]
     pub arguments_name: Option<Gc<Node /*Identifier*/>>,
+    #[builder(default)]
     pub this_name: Option<Gc<Node /*Identifier*/>>,
+    #[builder(default)]
     pub contains_lexical_this: Option<bool>,
+    #[builder(default)]
     pub hoisted_local_variables: Option<Vec<Gc<Node /*Identifier*/>>>,
+    #[builder(default)]
     pub condition_variable: Option<Gc<Node /*Identifier*/>>,
     pub loop_parameters: Vec<Gc<Node /*ParameterDeclaration*/>>,
     pub loop_out_parameters: Vec<LoopOutParameter>,

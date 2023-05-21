@@ -47,6 +47,17 @@ impl TransformES2015 {
         unimplemented!()
     }
 
+    pub(super) fn process_loop_variable_declaration(
+        &self,
+        _container: &Node, /*IterationStatement*/
+        _decl: &Node,      /*VariableDeclaration | BindingElement*/
+        _loop_parameters: &mut Vec<Gc<Node /*ParameterDeclaration*/>>,
+        _loop_out_parameters: &mut Vec<LoopOutParameter>,
+        _has_captured_bindings_in_for_initializer: bool,
+    ) {
+        unimplemented!()
+    }
+
     pub(super) fn add_object_literal_members(
         &self,
         _expressions: &mut Vec<Gc<Node /*Expression*/>>,
