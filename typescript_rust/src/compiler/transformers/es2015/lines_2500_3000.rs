@@ -892,10 +892,125 @@ impl TransformES2015 {
 
     pub(super) fn add_extra_declarations_for_converted_loop(
         &self,
-        _statements: &mut Vec<Gc<Node /*Statement*/>>,
-        _state: &ConvertedLoopState,
-        _outer_state: Option<Gc<GcCell<ConvertedLoopState>>>,
+        statements: &mut Vec<Gc<Node /*Statement*/>>,
+        state: &ConvertedLoopState,
+        outer_state: Option<Gc<GcCell<ConvertedLoopState>>>,
     ) {
-        unimplemented!()
+        let mut extra_variable_declarations: Option<Vec<Gc<Node /*VariableDeclaration*/>>> = _d();
+        if let Some(state_arguments_name) = state.arguments_name.as_ref() {
+            if let Some(outer_state) = outer_state.as_ref() {
+                outer_state.borrow_mut().arguments_name = Some(state_arguments_name.clone());
+            } else {
+                extra_variable_declarations
+                    .get_or_insert_with(|| _d())
+                    .push(
+                        self.factory
+                            .create_variable_declaration(
+                                Some(state_arguments_name.clone()),
+                                None,
+                                None,
+                                Some(
+                                    self.factory
+                                        .create_identifier(
+                                            "arguments",
+                                            Option::<Gc<NodeArray>>::None,
+                                            None,
+                                        )
+                                        .wrap(),
+                                ),
+                            )
+                            .wrap(),
+                    );
+            }
+        }
+
+        if let Some(state_this_name) = state.this_name.as_ref() {
+            if let Some(outer_state) = outer_state.as_ref() {
+                outer_state.borrow_mut().this_name = Some(state_this_name.clone());
+            } else {
+                extra_variable_declarations
+                    .get_or_insert_with(|| _d())
+                    .push(
+                        self.factory
+                            .create_variable_declaration(
+                                Some(state_this_name.clone()),
+                                None,
+                                None,
+                                Some(
+                                    self.factory
+                                        .create_identifier(
+                                            "this",
+                                            Option::<Gc<NodeArray>>::None,
+                                            None,
+                                        )
+                                        .wrap(),
+                                ),
+                            )
+                            .wrap(),
+                    );
+            }
+        }
+
+        if let Some(state_hoisted_local_variables) = state.hoisted_local_variables.as_ref() {
+            if let Some(outer_state) = outer_state.as_ref() {
+                outer_state.borrow_mut().hoisted_local_variables =
+                    Some(state_hoisted_local_variables.clone());
+            } else {
+                let extra_variable_declarations =
+                    extra_variable_declarations.get_or_insert_with(|| _d());
+                for identifier in state_hoisted_local_variables {
+                    extra_variable_declarations.push(
+                        self.factory
+                            .create_variable_declaration(Some(identifier.clone()), None, None, None)
+                            .wrap(),
+                    );
+                }
+            }
+        }
+
+        if !state.loop_out_parameters.is_empty() {
+            let extra_variable_declarations =
+                extra_variable_declarations.get_or_insert_with(|| _d());
+            for out_param in &state.loop_out_parameters {
+                extra_variable_declarations.push(
+                    self.factory
+                        .create_variable_declaration(
+                            Some(out_param.out_param_name.clone()),
+                            None,
+                            None,
+                            None,
+                        )
+                        .wrap(),
+                );
+            }
+        }
+
+        if let Some(state_condition_variable) = state.condition_variable.as_ref() {
+            extra_variable_declarations
+                .get_or_insert_with(|| _d())
+                .push(
+                    self.factory
+                        .create_variable_declaration(
+                            Some(state_condition_variable.clone()),
+                            None,
+                            None,
+                            Some(self.factory.create_false().wrap()),
+                        )
+                        .wrap(),
+                );
+        }
+
+        if let Some(extra_variable_declarations) = extra_variable_declarations {
+            statements.push(
+                self.factory
+                    .create_variable_statement(
+                        Option::<Gc<NodeArray>>::None,
+                        self.factory
+                            .create_variable_declaration_list(extra_variable_declarations, None)
+                            .wrap(),
+                    )
+                    .wrap(),
+            );
+        }
     }
 }

@@ -1,9 +1,20 @@
 use gc::{Gc, GcCell};
 
 use super::{ConvertedLoopState, CopyDirection, LoopOutParameter, TransformES2015};
-use crate::Node;
+use crate::{Node, NodeInterface};
 
 impl TransformES2015 {
+    pub(super) fn create_out_variable(&self, p: &LoopOutParameter) -> Gc<Node> {
+        self.factory
+            .create_variable_declaration(
+                Some(p.original_name.clone()),
+                None,
+                None,
+                Some(p.out_param_name.clone()),
+            )
+            .wrap()
+    }
+
     pub(super) fn create_function_for_initializer_of_for_statement(
         &self,
         _node: &Node, /*ForStatementWithConvertibleInitializer*/
