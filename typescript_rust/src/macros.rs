@@ -97,3 +97,15 @@ macro_rules! continue_if_err {
         }
     };
 }
+
+#[macro_export]
+macro_rules! return_if_none {
+    ($expr:expr $(,)?) => {
+        match $expr {
+            None => {
+                return;
+            }
+            Some(expr) => expr,
+        }
+    };
+}

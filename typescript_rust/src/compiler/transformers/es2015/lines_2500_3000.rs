@@ -553,7 +553,7 @@ impl TransformES2015 {
             return Ok(Some(result.into()));
         }
 
-        let current_state = self.create_converted_loop_state(node);
+        let current_state = self.create_converted_loop_state(node)?;
         let mut statements: Vec<Gc<Node /*Statement*/>> = _d();
 
         let outer_converted_loop_state = self.maybe_converted_loop_state();
@@ -830,7 +830,7 @@ impl TransformES2015 {
     pub(super) fn create_converted_loop_state(
         &self,
         node: &Node, /*IterationStatement*/
-    ) -> Gc<GcCell<ConvertedLoopState>> {
+    ) -> io::Result<Gc<GcCell<ConvertedLoopState>>> {
         let mut loop_initializer: Option<Gc<Node /*VariableDeclarationList*/>> = _d();
         match node.kind() {
             SyntaxKind::ForStatement | SyntaxKind::ForInStatement | SyntaxKind::ForOfStatement => {
@@ -858,7 +858,7 @@ impl TransformES2015 {
                     &mut loop_parameters,
                     &mut loop_out_parameters,
                     has_captured_bindings_in_for_initializer,
-                );
+                )?;
             }
         }
 
@@ -884,7 +884,7 @@ impl TransformES2015 {
                     Some(converted_loop_state_hoisted_local_variables.clone());
             }
         }
-        Gc::new(GcCell::new(current_state))
+        Ok(Gc::new(GcCell::new(current_state)))
     }
 
     pub(super) fn add_extra_declarations_for_converted_loop(

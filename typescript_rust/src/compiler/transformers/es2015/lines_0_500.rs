@@ -3,6 +3,7 @@ use std::{cell::Cell, collections::HashMap, io, mem, rc::Rc};
 use bitflags::bitflags;
 use derive_builder::Builder;
 use gc::{Finalize, Gc, GcCell, GcCellRef, GcCellRefMut, Trace};
+use indexmap::IndexMap;
 
 use crate::{
     chain_bundle, gc_cell_ref_mut_unwrapped, gc_cell_ref_unwrapped, get_emit_flags,
@@ -64,9 +65,9 @@ pub(super) struct ConvertedLoopState {
     #[builder(default)]
     pub labels: Option<HashMap<String, bool>>,
     #[builder(default)]
-    pub labeled_non_local_breaks: Option<HashMap<String, String>>,
+    pub labeled_non_local_breaks: Option<IndexMap<String, String>>,
     #[builder(default)]
-    pub labeled_non_local_continues: Option<HashMap<String, String>>,
+    pub labeled_non_local_continues: Option<IndexMap<String, String>>,
     #[builder(default)]
     #[unsafe_ignore_trace]
     pub non_local_jumps: Option<Jump>,

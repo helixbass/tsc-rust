@@ -308,8 +308,8 @@ impl TransformES2015 {
                             self.set_labeled_jump(
                                 &mut self.converted_loop_state().borrow_mut(),
                                 true,
-                                id_text(label),
-                                &label_marker,
+                                id_text(label).to_owned(),
+                                label_marker.clone(),
                             );
                         } else {
                             label_marker =
@@ -317,8 +317,8 @@ impl TransformES2015 {
                             self.set_labeled_jump(
                                 &mut self.converted_loop_state().borrow_mut(),
                                 false,
-                                id_text(label),
-                                &label_marker,
+                                id_text(label).to_owned(),
+                                label_marker.clone(),
                             );
                         }
                     }

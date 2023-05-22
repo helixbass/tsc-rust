@@ -1,15 +1,18 @@
 use std::io;
 
 use gc::{Gc, GcCell};
+use indexmap::IndexMap;
 
 use super::{
-    ConvertedLoopState, CopyDirection, HierarchyFacts, LoopOutParameter, LoopOutParameterFlags,
-    TransformES2015,
+    ConvertedLoopState, CopyDirection, HierarchyFacts, Jump, LoopOutParameter,
+    LoopOutParameterFlags, TransformES2015,
 };
 use crate::{
     EmitFlags, Node, NodeArray, NodeExt, NodeInterface, SyntaxKind, TransformFlags, _d, add_range,
-    insert_statements_after_standard_prologue, is_block, is_expression, is_statement, map,
-    set_original_node, try_visit_node,
+    id_text, insert_statements_after_standard_prologue, is_binding_pattern, is_block,
+    is_expression, is_for_statement, is_omitted_expression, is_statement, map, return_if_none,
+    set_emit_flags, set_original_node, try_visit_node, Matches, NamedDeclarationInterface,
+    NodeCheckFlags,
 };
 
 impl TransformES2015 {
@@ -362,59 +365,389 @@ impl TransformES2015 {
 
     pub(super) fn copy_out_parameter(
         &self,
-        _out_param: &LoopOutParameter,
-        _copy_direction: CopyDirection,
+        out_param: &LoopOutParameter,
+        copy_direction: CopyDirection,
     ) -> Gc<Node /*BinaryExpression*/> {
-        unimplemented!()
+        let source = if copy_direction == CopyDirection::ToOriginal {
+            out_param.out_param_name.clone()
+        } else {
+            out_param.original_name.clone()
+        };
+        let target = if copy_direction == CopyDirection::ToOriginal {
+            out_param.original_name.clone()
+        } else {
+            out_param.out_param_name.clone()
+        };
+        self.factory
+            .create_binary_expression(target, SyntaxKind::EqualsToken, source)
+            .wrap()
     }
 
     pub(super) fn copy_out_parameters(
         &self,
-        _out_params: &[LoopOutParameter],
-        _part_flags: LoopOutParameterFlags,
-        _copy_direction: CopyDirection,
-        _statements: &mut Vec<Gc<Node /*Statement*/>>,
+        out_params: &[LoopOutParameter],
+        part_flags: LoopOutParameterFlags,
+        copy_direction: CopyDirection,
+        statements: &mut Vec<Gc<Node /*Statement*/>>,
     ) {
-        unimplemented!()
+        for out_param in out_params {
+            if out_param.flags.intersects(part_flags) {
+                statements.push(
+                    self.factory
+                        .create_expression_statement(
+                            self.copy_out_parameter(out_param, copy_direction),
+                        )
+                        .wrap(),
+                );
+            }
+        }
     }
 
     pub(super) fn generate_call_to_converted_loop_initializer(
         &self,
-        _init_function_expression_name: &Node, /*Identifier*/
-        _contains_yield: bool,
+        init_function_expression_name: &Node, /*Identifier*/
+        contains_yield: bool,
     ) -> Gc<Node /*Statement*/> {
-        unimplemented!()
+        let call = self
+            .factory
+            .create_call_expression(
+                init_function_expression_name.node_wrapper(),
+                Option::<Gc<NodeArray>>::None,
+                Some(vec![]),
+            )
+            .wrap();
+        let call_result = if contains_yield {
+            self.factory
+                .create_yield_expression(
+                    Some(self.factory.create_token(SyntaxKind::AsteriskToken).wrap()),
+                    Some(set_emit_flags(call, EmitFlags::Iterator)),
+                )
+                .wrap()
+        } else {
+            call
+        };
+        self.factory.create_expression_statement(call_result).wrap()
     }
 
     pub(super) fn generate_call_to_converted_loop(
         &self,
-        _loop_function_expression_name: &Node, /*Identifier*/
-        _state: Gc<GcCell<ConvertedLoopState>>,
-        _outer_state: Option<Gc<GcCell<ConvertedLoopState>>>,
-        _contains_yield: bool,
+        loop_function_expression_name: &Node, /*Identifier*/
+        state: Gc<GcCell<ConvertedLoopState>>,
+        outer_state: Option<Gc<GcCell<ConvertedLoopState>>>,
+        contains_yield: bool,
     ) -> Vec<Gc<Node /*Statement*/>> {
-        unimplemented!()
+        let mut statements: Vec<Gc<Node /*Statement*/>> = _d();
+        let state = (*state).borrow();
+        let is_simple_loop = !state
+            .non_local_jumps
+            .unwrap_or_default()
+            .intersects(!Jump::Continue)
+            && state.labeled_non_local_breaks.is_none()
+            && state.labeled_non_local_continues.is_none();
+
+        let call = self
+            .factory
+            .create_call_expression(
+                loop_function_expression_name.node_wrapper(),
+                Option::<Gc<NodeArray>>::None,
+                Some(map(&state.loop_parameters, |p: &Gc<Node>, _| {
+                    p.as_parameter_declaration().name()
+                })),
+            )
+            .wrap();
+        let call_result = if contains_yield {
+            self.factory
+                .create_yield_expression(
+                    Some(self.factory.create_token(SyntaxKind::AsteriskToken).wrap()),
+                    Some(set_emit_flags(call, EmitFlags::Iterator)),
+                )
+                .wrap()
+        } else {
+            call
+        };
+        if is_simple_loop {
+            statements.push(
+                self.factory
+                    .create_expression_statement(call_result.clone())
+                    .wrap(),
+            );
+            self.copy_out_parameters(
+                &state.loop_out_parameters,
+                LoopOutParameterFlags::Body,
+                CopyDirection::ToOriginal,
+                &mut statements,
+            );
+        } else {
+            let loop_result_name = self.factory.create_unique_name("state", None);
+            let state_variable = self
+                .factory
+                .create_variable_statement(
+                    Option::<Gc<NodeArray>>::None,
+                    self.factory
+                        .create_variable_declaration_list(
+                            vec![self
+                                .factory
+                                .create_variable_declaration(
+                                    Some(loop_result_name.clone()),
+                                    None,
+                                    None,
+                                    Some(call_result),
+                                )
+                                .wrap()],
+                            None,
+                        )
+                        .wrap(),
+                )
+                .wrap();
+            statements.push(state_variable);
+            self.copy_out_parameters(
+                &state.loop_out_parameters,
+                LoopOutParameterFlags::Body,
+                CopyDirection::ToOriginal,
+                &mut statements,
+            );
+
+            if state
+                .non_local_jumps
+                .unwrap_or_default()
+                .intersects(Jump::Return)
+            {
+                let return_statement: Gc<Node /*ReturnStatement*/>;
+                if let Some(outer_state) = outer_state.as_ref() {
+                    *outer_state
+                        .borrow_mut()
+                        .non_local_jumps
+                        .get_or_insert_with(|| _d()) |= Jump::Return;
+                    return_statement = self
+                        .factory
+                        .create_return_statement(Some(loop_result_name.clone()))
+                        .wrap();
+                } else {
+                    return_statement = self
+                        .factory
+                        .create_return_statement(Some(
+                            self.factory
+                                .create_property_access_expression(
+                                    loop_result_name.clone(),
+                                    "value",
+                                )
+                                .wrap(),
+                        ))
+                        .wrap();
+                }
+                statements.push(
+                    self.factory
+                        .create_if_statement(
+                            self.factory
+                                .create_type_check(loop_result_name.clone(), "object"),
+                            return_statement,
+                            None,
+                        )
+                        .wrap(),
+                );
+            }
+
+            if state
+                .non_local_jumps
+                .unwrap_or_default()
+                .intersects(Jump::Break)
+            {
+                statements.push(
+                    self.factory
+                        .create_if_statement(
+                            self.factory
+                                .create_strict_equality(
+                                    loop_result_name.clone(),
+                                    self.factory
+                                        .create_string_literal("break".to_owned(), None, None)
+                                        .wrap(),
+                                )
+                                .wrap(),
+                            self.factory
+                                .create_break_statement(Option::<Gc<Node>>::None)
+                                .wrap(),
+                            None,
+                        )
+                        .wrap(),
+                );
+            }
+
+            if state.labeled_non_local_breaks.is_some()
+                || state.labeled_non_local_continues.is_some()
+            {
+                let mut case_clauses: Vec<Gc<Node /*CaseClause*/>> = _d();
+                self.process_labeled_jumps(
+                    state.labeled_non_local_breaks.as_ref(),
+                    true,
+                    &loop_result_name,
+                    outer_state.clone(),
+                    &mut case_clauses,
+                );
+                self.process_labeled_jumps(
+                    state.labeled_non_local_continues.as_ref(),
+                    false,
+                    &loop_result_name,
+                    outer_state.clone(),
+                    &mut case_clauses,
+                );
+                statements.push(
+                    self.factory
+                        .create_switch_statement(
+                            loop_result_name,
+                            self.factory.create_case_block(case_clauses).wrap(),
+                        )
+                        .wrap(),
+                );
+            }
+        }
+        statements
     }
 
     pub(super) fn set_labeled_jump(
         &self,
-        _state: &mut ConvertedLoopState,
-        _is_break: bool,
-        _label_text: &str,
-        _label_marker: &str,
+        state: &mut ConvertedLoopState,
+        is_break: bool,
+        label_text: String,
+        label_marker: String,
     ) {
-        unimplemented!()
+        if is_break {
+            state
+                .labeled_non_local_breaks
+                .get_or_insert_with(|| _d())
+                .insert(label_text, label_marker);
+        } else {
+            state
+                .labeled_non_local_continues
+                .get_or_insert_with(|| _d())
+                .insert(label_text, label_marker);
+        }
+    }
+
+    pub(super) fn process_labeled_jumps(
+        &self,
+        table: Option<&IndexMap<String, String>>,
+        is_break: bool,
+        loop_result_name: &Node, /*Identifier*/
+        outer_loop: Option<Gc<GcCell<ConvertedLoopState>>>,
+        case_clauses: &mut Vec<Gc<Node /*CaseClause*/>>,
+    ) {
+        let table = return_if_none!(table);
+        for (label_text, label_marker) in table {
+            let mut statements: Vec<Gc<Node /*Statement*/>> = _d();
+            if match outer_loop.as_ref() {
+                None => true,
+                Some(outer_loop) => {
+                    (**outer_loop)
+                        .borrow()
+                        .labels
+                        .as_ref()
+                        .matches(|outer_loop_labels| {
+                            outer_loop_labels.get(label_text).copied() == Some(true)
+                        })
+                }
+            } {
+                let label = self
+                    .factory
+                    .create_identifier(label_text, Option::<Gc<NodeArray>>::None, None)
+                    .wrap();
+                statements.push(if is_break {
+                    self.factory.create_break_statement(Some(label)).wrap()
+                } else {
+                    self.factory.create_continue_statement(Some(label)).wrap()
+                });
+            } else {
+                self.set_labeled_jump(
+                    &mut outer_loop.as_ref().unwrap().borrow_mut(),
+                    is_break,
+                    label_text.clone(),
+                    label_marker.clone(),
+                );
+                statements.push(
+                    self.factory
+                        .create_return_statement(Some(loop_result_name.node_wrapper()))
+                        .wrap(),
+                );
+            }
+            case_clauses.push(
+                self.factory
+                    .create_case_clause(
+                        self.factory
+                            .create_string_literal(label_marker.clone(), None, None)
+                            .wrap(),
+                        statements,
+                    )
+                    .wrap(),
+            );
+        }
     }
 
     pub(super) fn process_loop_variable_declaration(
         &self,
-        _container: &Node, /*IterationStatement*/
-        _decl: &Node,      /*VariableDeclaration | BindingElement*/
-        _loop_parameters: &mut Vec<Gc<Node /*ParameterDeclaration*/>>,
-        _loop_out_parameters: &mut Vec<LoopOutParameter>,
-        _has_captured_bindings_in_for_initializer: bool,
-    ) {
-        unimplemented!()
+        container: &Node, /*IterationStatement*/
+        decl: &Node,      /*VariableDeclaration | BindingElement*/
+        loop_parameters: &mut Vec<Gc<Node /*ParameterDeclaration*/>>,
+        loop_out_parameters: &mut Vec<LoopOutParameter>,
+        has_captured_bindings_in_for_initializer: bool,
+    ) -> io::Result<()> {
+        let ref name = decl.as_named_declaration().name();
+        if is_binding_pattern(Some(&**name)) {
+            for element in &name.as_has_elements().elements() {
+                if !is_omitted_expression(element) {
+                    self.process_loop_variable_declaration(
+                        container,
+                        element,
+                        loop_parameters,
+                        loop_out_parameters,
+                        has_captured_bindings_in_for_initializer,
+                    )?;
+                }
+            }
+        } else {
+            loop_parameters.push(
+                self.factory
+                    .create_parameter_declaration(
+                        Option::<Gc<NodeArray>>::None,
+                        Option::<Gc<NodeArray>>::None,
+                        None,
+                        Some(name.clone()),
+                        None,
+                        None,
+                        None,
+                    )
+                    .wrap(),
+            );
+            let check_flags = self.resolver.get_node_check_flags(decl);
+            if check_flags.intersects(NodeCheckFlags::NeedsLoopOutParameter)
+                || has_captured_bindings_in_for_initializer
+            {
+                let out_param_name = self
+                    .factory
+                    .create_unique_name(&format!("out_{}", id_text(name)), None);
+                let mut flags = LoopOutParameterFlags::None;
+                if check_flags.intersects(NodeCheckFlags::NeedsLoopOutParameter) {
+                    flags |= LoopOutParameterFlags::Body;
+                }
+                if is_for_statement(container)
+                    && container
+                        .as_for_statement()
+                        .initializer
+                        .as_ref()
+                        .try_matches(|container_initializer| {
+                            self.resolver
+                                .is_binding_captured_by_node(container_initializer, decl)
+                        })?
+                {
+                    flags |= LoopOutParameterFlags::Initializer;
+                }
+                loop_out_parameters.push(LoopOutParameter {
+                    flags,
+                    original_name: name.clone(),
+                    out_param_name,
+                });
+            }
+        }
+
+        Ok(())
     }
 
     pub(super) fn add_object_literal_members(
