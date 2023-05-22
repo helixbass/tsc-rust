@@ -9,10 +9,10 @@ use super::{
 };
 use crate::{
     EmitFlags, Node, NodeArray, NodeExt, NodeInterface, SyntaxKind, TransformFlags, _d, add_range,
-    id_text, insert_statements_after_standard_prologue, is_binding_pattern, is_block,
-    is_expression, is_for_statement, is_omitted_expression, is_statement, map, return_if_none,
-    set_emit_flags, set_original_node, try_visit_node, Matches, NamedDeclarationInterface,
-    NodeCheckFlags,
+    get_all_accessor_declarations, id_text, insert_statements_after_standard_prologue,
+    is_binding_pattern, is_block, is_expression, is_for_statement, is_omitted_expression,
+    is_statement, map, return_if_none, set_emit_flags, set_original_node, try_visit_node, Debug_,
+    Matches, NamedDeclarationInterface, NodeCheckFlags,
 };
 
 impl TransformES2015 {
@@ -752,11 +752,75 @@ impl TransformES2015 {
 
     pub(super) fn add_object_literal_members(
         &self,
-        _expressions: &mut Vec<Gc<Node /*Expression*/>>,
-        _node: &Node,     /*ObjectLiteralExpression*/
-        _receiver: &Node, /*Identifier*/
-        _start: usize,
-    ) {
+        expressions: &mut Vec<Gc<Node /*Expression*/>>,
+        node: &Node,     /*ObjectLiteralExpression*/
+        receiver: &Node, /*Identifier*/
+        start: usize,
+    ) -> io::Result<()> {
+        let node_as_object_literal_expression = node.as_object_literal_expression();
+        let properties = &node_as_object_literal_expression.properties;
+        for property in properties.iter().skip(start) {
+            match property.kind() {
+                SyntaxKind::GetAccessor | SyntaxKind::SetAccessor => {
+                    let accessors = get_all_accessor_declarations(
+                        &node_as_object_literal_expression.properties,
+                        property,
+                    );
+                    if Gc::ptr_eq(property, &accessors.first_accessor) {
+                        expressions.push(self.transform_accessors_to_expression(
+                            receiver,
+                            &accessors,
+                            node,
+                            node_as_object_literal_expression.multi_line == Some(true),
+                        )?);
+                    }
+                }
+                SyntaxKind::MethodDeclaration => {
+                    expressions.push(
+                        self.transform_object_literal_method_declaration_to_expression(
+                            property,
+                            receiver,
+                            node,
+                            node_as_object_literal_expression.multi_line,
+                        ),
+                    );
+                }
+                SyntaxKind::PropertyAssignment => {
+                    expressions.push(self.transform_property_assignment_to_expression(
+                        property,
+                        receiver,
+                        node_as_object_literal_expression.multi_line,
+                    ));
+                }
+                SyntaxKind::ShorthandPropertyAssignment => {
+                    expressions.push(self.transform_shorthand_property_assignment_to_expression(
+                        property,
+                        receiver,
+                        node_as_object_literal_expression.multi_line,
+                    ));
+                }
+                _ => Debug_.fail_bad_syntax_kind(node, None),
+            }
+        }
+
+        Ok(())
+    }
+
+    pub(super) fn transform_property_assignment_to_expression(
+        &self,
+        _property: &Node, /*PropertyAssignment*/
+        _receiver: &Node, /*Expression*/
+        _starts_on_new_line: Option<bool>,
+    ) -> Gc<Node> {
+        unimplemented!()
+    }
+
+    pub(super) fn transform_shorthand_property_assignment_to_expression(
+        &self,
+        _property: &Node, /*ShorthandPropertyAssignment*/
+        _receiver: &Node, /*Expression*/
+        _starts_on_new_line: Option<bool>,
+    ) -> Gc<Node> {
         unimplemented!()
     }
 }

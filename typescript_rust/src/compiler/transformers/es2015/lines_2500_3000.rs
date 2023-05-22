@@ -345,7 +345,7 @@ impl TransformES2015 {
 
         expressions.push(assignment);
 
-        self.add_object_literal_members(&mut expressions, node, &temp, num_initial_properties);
+        self.add_object_literal_members(&mut expressions, node, &temp, num_initial_properties)?;
 
         expressions.push(
             if node_as_object_literal_expression.multi_line == Some(true) {

@@ -4,6 +4,16 @@ use super::TransformES2015;
 use crate::{Node, VisitResult};
 
 impl TransformES2015 {
+    pub(super) fn transform_object_literal_method_declaration_to_expression(
+        &self,
+        _method: &Node,   /*MethodDeclaration*/
+        _receiver: &Node, /*Expression*/
+        _container: &Node,
+        _starts_on_new_line: Option<bool>,
+    ) -> Gc<Node> {
+        unimplemented!()
+    }
+
     pub(super) fn visit_catch_clause(
         &self,
         _node: &Node, /*CatchClause*/
