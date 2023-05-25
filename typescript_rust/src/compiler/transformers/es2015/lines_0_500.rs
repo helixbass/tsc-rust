@@ -527,11 +527,11 @@ impl TransformES2015 {
             }
             SyntaxKind::CatchClause => Some(self.visit_catch_clause(node)?.into()),
             SyntaxKind::ShorthandPropertyAssignment => {
-                Some(self.visit_shorthand_property_assignment(node).into())
+                Some(self.visit_shorthand_property_assignment(node)?.into())
             }
-            SyntaxKind::ComputedPropertyName => self.visit_computed_property_name(node),
+            SyntaxKind::ComputedPropertyName => self.visit_computed_property_name(node)?,
             SyntaxKind::ArrayLiteralExpression => {
-                Some(self.visit_array_literal_expression(node).into())
+                Some(self.visit_array_literal_expression(node)?.into())
             }
             SyntaxKind::CallExpression => self.visit_call_expression(node),
             SyntaxKind::NewExpression => Some(self.visit_new_expression(node).into()),
@@ -555,14 +555,14 @@ impl TransformES2015 {
             SyntaxKind::NumericLiteral => self.visit_numeric_literal(node),
             SyntaxKind::TaggedTemplateExpression => self.visit_tagged_template_expression(node),
             SyntaxKind::TemplateExpression => Some(self.visit_template_expression(node).into()),
-            SyntaxKind::YieldExpression => Some(self.visit_yield_expression(node).into()),
+            SyntaxKind::YieldExpression => Some(self.visit_yield_expression(node)?.into()),
             SyntaxKind::SpreadElement => self.visit_spread_element(node),
             SyntaxKind::SuperKeyword => Some(self.visit_super_keyword(false).into()),
             SyntaxKind::ThisKeyword => Some(self.visit_this_keyword(node).into()),
             SyntaxKind::MetaProperty => self.visit_meta_property(node),
-            SyntaxKind::MethodDeclaration => Some(self.visit_method_declaration(node).into()),
+            SyntaxKind::MethodDeclaration => Some(self.visit_method_declaration(node)?.into()),
             SyntaxKind::GetAccessor | SyntaxKind::SetAccessor => {
-                Some(self.visit_accessor_declaration(node).into())
+                Some(self.visit_accessor_declaration(node)?.into())
             }
             SyntaxKind::VariableStatement => self.visit_variable_statement(node)?.map(Into::into),
             SyntaxKind::ReturnStatement => Some(self.visit_return_statement(node)?.into()),
