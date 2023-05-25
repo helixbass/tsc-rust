@@ -525,7 +525,7 @@ impl TransformES2015 {
             SyntaxKind::ObjectLiteralExpression => {
                 Some(self.visit_object_literal_expression(node)?.into())
             }
-            SyntaxKind::CatchClause => Some(self.visit_catch_clause(node).into()),
+            SyntaxKind::CatchClause => Some(self.visit_catch_clause(node)?.into()),
             SyntaxKind::ShorthandPropertyAssignment => {
                 Some(self.visit_shorthand_property_assignment(node).into())
             }

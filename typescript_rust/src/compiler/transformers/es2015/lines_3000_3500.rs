@@ -9,10 +9,11 @@ use super::{
 };
 use crate::{
     EmitFlags, Node, NodeArray, NodeExt, NodeInterface, SyntaxKind, TransformFlags, _d, add_range,
-    get_all_accessor_declarations, id_text, insert_statements_after_standard_prologue,
-    is_binding_pattern, is_block, is_expression, is_for_statement, is_omitted_expression,
-    is_statement, map, return_if_none, set_emit_flags, set_original_node, try_visit_node, Debug_,
-    Matches, NamedDeclarationInterface, NodeCheckFlags,
+    create_member_access_for_property_name, get_all_accessor_declarations, id_text,
+    insert_statements_after_standard_prologue, is_binding_pattern, is_block, is_expression,
+    is_for_statement, is_omitted_expression, is_property_name, is_statement, map, return_if_none,
+    set_emit_flags, set_original_node, start_on_new_line, try_visit_node, Debug_,
+    HasInitializerInterface, Matches, NamedDeclarationInterface, NodeCheckFlags,
 };
 
 impl TransformES2015 {
@@ -782,7 +783,7 @@ impl TransformES2015 {
                             receiver,
                             node,
                             node_as_object_literal_expression.multi_line,
-                        ),
+                        )?,
                     );
                 }
                 SyntaxKind::PropertyAssignment => {
@@ -790,14 +791,14 @@ impl TransformES2015 {
                         property,
                         receiver,
                         node_as_object_literal_expression.multi_line,
-                    ));
+                    )?);
                 }
                 SyntaxKind::ShorthandPropertyAssignment => {
                     expressions.push(self.transform_shorthand_property_assignment_to_expression(
                         property,
                         receiver,
                         node_as_object_literal_expression.multi_line,
-                    ));
+                    )?);
                 }
                 _ => Debug_.fail_bad_syntax_kind(node, None),
             }
@@ -808,20 +809,73 @@ impl TransformES2015 {
 
     pub(super) fn transform_property_assignment_to_expression(
         &self,
-        _property: &Node, /*PropertyAssignment*/
-        _receiver: &Node, /*Expression*/
-        _starts_on_new_line: Option<bool>,
-    ) -> Gc<Node> {
-        unimplemented!()
+        property: &Node, /*PropertyAssignment*/
+        receiver: &Node, /*Expression*/
+        starts_on_new_line: Option<bool>,
+    ) -> io::Result<Gc<Node>> {
+        let property_as_property_assignment = property.as_property_assignment();
+        let expression = self
+            .factory
+            .create_assignment(
+                create_member_access_for_property_name(
+                    &self.factory,
+                    receiver,
+                    &try_visit_node(
+                        Some(property_as_property_assignment.name()),
+                        Some(|node: &Node| self.visitor(node)),
+                        Some(is_property_name),
+                        Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                    )?
+                    .unwrap(),
+                    Option::<&Node>::None,
+                ),
+                try_visit_node(
+                    Some(property_as_property_assignment.maybe_initializer().unwrap()),
+                    Some(|node: &Node| self.visitor(node)),
+                    Some(is_expression),
+                    Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                )?
+                .unwrap(),
+            )
+            .wrap()
+            .set_text_range(Some(property));
+        if starts_on_new_line == Some(true) {
+            start_on_new_line(&*expression);
+        }
+        Ok(expression)
     }
 
     pub(super) fn transform_shorthand_property_assignment_to_expression(
         &self,
-        _property: &Node, /*ShorthandPropertyAssignment*/
-        _receiver: &Node, /*Expression*/
-        _starts_on_new_line: Option<bool>,
-    ) -> Gc<Node> {
-        unimplemented!()
+        property: &Node, /*ShorthandPropertyAssignment*/
+        receiver: &Node, /*Expression*/
+        starts_on_new_line: Option<bool>,
+    ) -> io::Result<Gc<Node>> {
+        let property_as_shorthand_property_assignment = property.as_shorthand_property_assignment();
+        let expression = self
+            .factory
+            .create_assignment(
+                create_member_access_for_property_name(
+                    &self.factory,
+                    receiver,
+                    &try_visit_node(
+                        Some(property_as_shorthand_property_assignment.name()),
+                        Some(|node: &Node| self.visitor(node)),
+                        Some(is_property_name),
+                        Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                    )?
+                    .unwrap(),
+                    Option::<&Node>::None,
+                ),
+                self.factory
+                    .clone_node(&property_as_shorthand_property_assignment.name()),
+            )
+            .wrap()
+            .set_text_range(Some(property));
+        if starts_on_new_line == Some(true) {
+            start_on_new_line(&*expression);
+        }
+        Ok(expression)
     }
 }
 
