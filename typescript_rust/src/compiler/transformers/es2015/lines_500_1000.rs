@@ -793,7 +793,7 @@ impl TransformES2015 {
             {
                 super_call_expression = Some(self.visit_immediate_super_call_in_body(
                     &first_statement.as_expression_statement().expression,
-                ));
+                )?);
             }
         }
 

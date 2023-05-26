@@ -55,6 +55,11 @@ bitflags! {
     }
 }
 
+pub struct CallBinding {
+    pub target: Gc<Node /*LeftHandSideExpression*/>,
+    pub this_arg: Gc<Node /*Expression*/>,
+}
+
 pub trait ParenthesizerRules<TBaseNodeFactory: BaseNodeFactory>: Trace + Finalize {
     // fn get_parenthesize_left_side_of_binary_for_operator(&self, binary_operator: SyntaxKind) ->
     // fn get_parenthesize_right_side_of_binary_for_operator(&self, binary_operator: SyntaxKind) ->

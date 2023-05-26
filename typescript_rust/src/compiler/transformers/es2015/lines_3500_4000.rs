@@ -4,12 +4,18 @@ use gc::Gc;
 
 use super::{HierarchyFacts, TransformES2015};
 use crate::{
-    create_member_access_for_property_name, get_emit_flags, is_binding_pattern,
-    is_computed_property_name, is_expression, is_property_name, is_spread_element, is_statement,
-    is_super_property, move_range_pos, skip_outer_expressions, some, start_on_new_line,
+    cast_present, create_member_access_for_property_name, filter, first, get_emit_flags,
+    is_arrow_function, is_assignment_expression, is_binary_expression, is_binding_pattern,
+    is_block, is_call_expression, is_computed_property_name, is_expression, is_function_expression,
+    is_property_name, is_spread_element, is_statement, is_super_property, is_variable_statement,
+    move_range_pos, skip_outer_expressions, some, start_on_new_line, try_cast,
     try_flatten_destructuring_binding, try_visit_each_child, try_visit_node, try_visit_nodes,
-    try_visit_parameter_list, Debug_, EmitFlags, FlattenLevel, NamedDeclarationInterface, Node,
-    NodeArray, NodeExt, NodeInterface, ReadonlyTextRangeConcrete, SyntaxKind, VecExt, VisitResult,
+    try_visit_parameter_list, Debug_, EmitFlags, FlattenLevel, FunctionLikeDeclarationInterface,
+    HasInitializerInterface, Matches, NamedDeclarationInterface, Node, NodeArray, NodeExt,
+    NodeInterface, ReadonlyTextRangeConcrete, SyntaxKind, VecExt, VisitResult, _d, add_range,
+    element_at, is_expression_statement, is_identifier, is_return_statement, set_emit_flags,
+    set_original_node, AsDoubleDeref, CallBinding, GeneratedIdentifierFlags,
+    SignatureDeclarationInterface, TransformFlags,
 };
 
 impl TransformES2015 {
@@ -264,7 +270,7 @@ impl TransformES2015 {
     ) -> io::Result<VisitResult> {
         let node_as_call_expression = node.as_call_expression();
         if get_emit_flags(node).intersects(EmitFlags::TypeScriptClassWrapper) {
-            return Ok(self.visit_type_script_class_wrapper(node));
+            return self.visit_type_script_class_wrapper(node);
         }
 
         let ref expression = skip_outer_expressions(&node_as_call_expression.expression, None);
@@ -276,7 +282,7 @@ impl TransformES2015 {
             )
         {
             return Ok(Some(
-                self.visit_call_expression_with_potential_captured_this_assignment(node, true)
+                self.visit_call_expression_with_potential_captured_this_assignment(node, true)?
                     .into(),
             ));
         }
@@ -308,31 +314,398 @@ impl TransformES2015 {
 
     pub(super) fn visit_type_script_class_wrapper(
         &self,
-        _node: &Node, /*CallExpression*/
-    ) -> VisitResult {
-        unimplemented!()
+        node: &Node, /*CallExpression*/
+    ) -> io::Result<VisitResult> {
+        let node_as_call_expression = node.as_call_expression();
+        let body = cast_present(
+            cast_present(
+                skip_outer_expressions(&node_as_call_expression.expression, None),
+                |node: &Gc<Node>| is_arrow_function(node),
+            )
+            .as_arrow_function()
+            .maybe_body()
+            .unwrap(),
+            |node: &Gc<Node>| is_block(node),
+        );
+        let body_as_block = body.as_block();
+
+        let saved_converted_loop_state = self.maybe_converted_loop_state();
+        self.set_converted_loop_state(None);
+        let body_statements = try_visit_nodes(
+            Some(&body_as_block.statements),
+            Some(|node: &Node| self.class_wrapper_statement_visitor(node)),
+            Some(is_statement),
+            None,
+            None,
+        )?
+        .unwrap();
+        self.set_converted_loop_state(saved_converted_loop_state);
+
+        let class_statements = filter(&body_statements, |statement: &Gc<Node>| {
+            self.is_variable_statement_with_initializer(statement)
+        });
+        let remaining_statements = filter(&body_statements, |stmt: &Gc<Node>| {
+            !self.is_variable_statement_with_initializer(stmt)
+        });
+        let var_statement =
+            cast_present(first(&class_statements).clone(), |statement: &Gc<Node>| {
+                is_variable_statement(statement)
+            });
+        let var_statement_as_variable_statement = var_statement.as_variable_statement();
+
+        let variable = &var_statement_as_variable_statement
+            .declaration_list
+            .as_variable_declaration_list()
+            .declarations[0];
+        let variable_as_variable_declaration = variable.as_variable_declaration();
+        let ref initializer = skip_outer_expressions(
+            &variable_as_variable_declaration
+                .maybe_initializer()
+                .unwrap(),
+            None,
+        );
+
+        let mut alias_assignment = try_cast(initializer.clone(), |initializer: &Gc<Node>| {
+            is_assignment_expression(initializer, None)
+        });
+        if alias_assignment.is_none()
+            && is_binary_expression(initializer)
+            && initializer.as_binary_expression().operator_token.kind() == SyntaxKind::CommaToken
+        {
+            alias_assignment = try_cast(
+                initializer.as_binary_expression().left.clone(),
+                |initializer_left: &Gc<Node>| is_assignment_expression(initializer_left, None),
+            );
+        }
+
+        let call = cast_present(
+            alias_assignment.as_ref().map_or_else(
+                || initializer.clone(),
+                |alias_assignment| {
+                    skip_outer_expressions(&alias_assignment.as_binary_expression().right, None)
+                },
+            ),
+            |node: &Gc<Node>| is_call_expression(node),
+        );
+        let call_as_call_expression = call.as_call_expression();
+        let func = cast_present(
+            skip_outer_expressions(&call_as_call_expression.expression, None),
+            |node: &Gc<Node>| is_function_expression(node),
+        );
+        let func_as_function_expression = func.as_function_expression();
+
+        let func_statements = func_as_function_expression
+            .maybe_body()
+            .unwrap()
+            .as_block()
+            .statements
+            .clone();
+        let mut class_body_start = 0;
+        let mut class_body_end = -1;
+
+        let mut statements: Vec<Gc<Node /*Statement*/>> = _d();
+        if let Some(alias_assignment) = alias_assignment.as_ref() {
+            let extends_call = try_cast(
+                func_statements.get(0).cloned(),
+                |node: &Option<Gc<Node>>| {
+                    node.as_ref().matches(|node| is_expression_statement(node))
+                },
+            )
+            .flatten();
+            if let Some(extends_call) = extends_call {
+                statements.push(extends_call);
+                class_body_start += 1;
+            }
+
+            statements.push(func_statements[class_body_start].clone());
+            class_body_start += 1;
+
+            statements.push(
+                self.factory
+                    .create_expression_statement(
+                        self.factory
+                            .create_assignment(
+                                alias_assignment.as_binary_expression().left.clone(),
+                                cast_present(
+                                    variable_as_variable_declaration.name(),
+                                    |node: &Gc<Node>| is_identifier(node),
+                                ),
+                            )
+                            .wrap(),
+                    )
+                    .wrap(),
+            );
+        }
+
+        while !is_return_statement(element_at(&func_statements, class_body_end).unwrap()) {
+            class_body_end -= 1;
+        }
+
+        add_range(
+            &mut statements,
+            Some(&func_statements),
+            Some(isize::try_from(class_body_start).unwrap()),
+            Some(class_body_end),
+        );
+
+        if class_body_end < -1 {
+            add_range(
+                &mut statements,
+                Some(&func_statements),
+                Some(class_body_end + 1),
+                None,
+            );
+        }
+
+        add_range(&mut statements, Some(&remaining_statements), None, None);
+
+        add_range(&mut statements, Some(&class_statements), Some(1), None);
+
+        Ok(Some(
+            self.factory
+                .restore_outer_expressions(
+                    Some(&*node_as_call_expression.expression),
+                    &self.factory.restore_outer_expressions(
+                        variable_as_variable_declaration.maybe_initializer(),
+                        &self.factory.restore_outer_expressions(
+                            alias_assignment.as_ref().map(|alias_assignment| {
+                                alias_assignment.as_binary_expression().right.clone()
+                            }),
+                            &self.factory.update_call_expression(
+                                &call,
+                                self.factory.restore_outer_expressions(
+                                    Some(&*call_as_call_expression.expression),
+                                    &self.factory.update_function_expression(
+                                        &func,
+                                        Option::<Gc<NodeArray>>::None,
+                                        None,
+                                        None,
+                                        Option::<Gc<NodeArray>>::None,
+                                        func_as_function_expression.parameters(),
+                                        None,
+                                        self.factory.update_block(
+                                            &func_as_function_expression.maybe_body().unwrap(),
+                                            statements,
+                                        ),
+                                    ),
+                                    None,
+                                ),
+                                Option::<Gc<NodeArray>>::None,
+                                call_as_call_expression.arguments.clone(),
+                            ),
+                            None,
+                        ),
+                        None,
+                    ),
+                    None,
+                )
+                .into(),
+        ))
+    }
+
+    pub(super) fn is_variable_statement_with_initializer(
+        &self,
+        stmt: &Node, /*Statement*/
+    ) -> bool {
+        is_variable_statement(stmt)
+            && first(
+                &stmt
+                    .as_variable_statement()
+                    .declaration_list
+                    .as_variable_declaration_list()
+                    .declarations,
+            )
+            .as_variable_declaration()
+            .maybe_initializer()
+            .is_some()
     }
 
     pub(super) fn visit_immediate_super_call_in_body(
         &self,
-        _node: &Node, /*CallExpression*/
-    ) -> Gc<Node> {
-        unimplemented!()
+        node: &Node, /*CallExpression*/
+    ) -> io::Result<Gc<Node>> {
+        self.visit_call_expression_with_potential_captured_this_assignment(node, false)
     }
 
     pub(super) fn visit_call_expression_with_potential_captured_this_assignment(
         &self,
-        _node: &Node, /*CallExpression*/
-        _assign_to_captured_this: bool,
-    ) -> Gc<Node /*CallExpression | BinaryExpression*/> {
-        unimplemented!()
+        node: &Node, /*CallExpression*/
+        assign_to_captured_this: bool,
+    ) -> io::Result<Gc<Node /*CallExpression | BinaryExpression*/>> {
+        let node_as_call_expression = node.as_call_expression();
+        if node
+            .transform_flags()
+            .intersects(TransformFlags::ContainsRestOrSpread)
+            || node_as_call_expression.expression.kind() == SyntaxKind::SuperKeyword
+            || is_super_property(&skip_outer_expressions(
+                &node_as_call_expression.expression,
+                None,
+            ))
+        {
+            let CallBinding { target, this_arg } = self.factory.create_call_binding(
+                &node_as_call_expression.expression,
+                |node: &Node| {
+                    self.context.hoist_variable_declaration(node);
+                },
+                None,
+                None,
+            );
+            if node_as_call_expression.expression.kind() == SyntaxKind::SuperKeyword {
+                set_emit_flags(&*this_arg, EmitFlags::NoSubstitution);
+            }
+
+            let mut resulting_call: Gc<Node /*CallExpression | BinaryExpression*/>;
+            if node
+                .transform_flags()
+                .intersects(TransformFlags::ContainsRestOrSpread)
+            {
+                resulting_call = self.factory.create_function_apply_call(
+                    try_visit_node(
+                        Some(&*target),
+                        Some(|node: &Node| self.call_expression_visitor(node)),
+                        Some(is_expression),
+                        Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                    )?
+                    .unwrap(),
+                    if node_as_call_expression.expression.kind() == SyntaxKind::SuperKeyword {
+                        this_arg
+                    } else {
+                        try_visit_node(
+                            Some(this_arg),
+                            Some(|node: &Node| self.visitor(node)),
+                            Some(is_expression),
+                            Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                        )?
+                        .unwrap()
+                    },
+                    self.transform_and_spread_elements(
+                        &node_as_call_expression.arguments,
+                        true,
+                        false,
+                        false,
+                    ),
+                );
+            } else {
+                resulting_call = self
+                    .factory
+                    .create_function_call_call(
+                        try_visit_node(
+                            Some(&*target),
+                            Some(|node: &Node| self.call_expression_visitor(node)),
+                            Some(is_expression),
+                            Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                        )?
+                        .unwrap(),
+                        if node_as_call_expression.expression.kind() == SyntaxKind::SuperKeyword {
+                            this_arg
+                        } else {
+                            try_visit_node(
+                                Some(this_arg),
+                                Some(|node: &Node| self.visitor(node)),
+                                Some(is_expression),
+                                Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                            )?
+                            .unwrap()
+                        },
+                        try_visit_nodes(
+                            Some(&node_as_call_expression.arguments),
+                            Some(|node: &Node| self.visitor(node)),
+                            Some(is_expression),
+                            None,
+                            None,
+                        )?
+                        .unwrap(),
+                    )
+                    .set_text_range(Some(node))
+            }
+
+            if node_as_call_expression.expression.kind() == SyntaxKind::SuperKeyword {
+                let initializer = self
+                    .factory
+                    .create_logical_or(resulting_call, self.create_actual_this())
+                    .wrap();
+                resulting_call = if assign_to_captured_this {
+                    self.factory
+                        .create_assignment(
+                            self.factory.create_unique_name(
+                                "_this",
+                                Some(
+                                    GeneratedIdentifierFlags::Optimistic
+                                        | GeneratedIdentifierFlags::FileLevel,
+                                ),
+                            ),
+                            initializer,
+                        )
+                        .wrap()
+                } else {
+                    initializer
+                };
+            }
+            return Ok(set_original_node(resulting_call, Some(node.node_wrapper())));
+        }
+
+        try_visit_each_child(node, |node: &Node| self.visitor(node), &**self.context)
     }
 
     pub(super) fn visit_new_expression(
         &self,
-        _node: &Node, /*CallExpression*/
-    ) -> Gc<Node /*LeftHandSideExpression*/> {
-        unimplemented!()
+        node: &Node, /*NewExpression*/
+    ) -> io::Result<Gc<Node /*LeftHandSideExpression*/>> {
+        let node_as_new_expression = node.as_new_expression();
+        if some(
+            node_as_new_expression.arguments.as_double_deref(),
+            Some(|node: &Gc<Node>| is_spread_element(node)),
+        ) {
+            let CallBinding { target, this_arg } = self.factory.create_call_binding(
+                &self
+                    .factory
+                    .create_property_access_expression(
+                        node_as_new_expression.expression.clone(),
+                        "bind",
+                    )
+                    .wrap(),
+                |node: &Node| {
+                    self.context.hoist_variable_declaration(node);
+                },
+                None,
+                None,
+            );
+            return Ok(self
+                .factory
+                .create_new_expression(
+                    self.factory.create_function_apply_call(
+                        try_visit_node(
+                            Some(target),
+                            Some(|node: &Node| self.visitor(node)),
+                            Some(is_expression),
+                            Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                        )?
+                        .unwrap(),
+                        this_arg,
+                        self.transform_and_spread_elements(
+                            &self.factory.create_node_array(
+                                Some(
+                                    vec![self.factory.create_void_zero()].and_extend(
+                                        node_as_new_expression
+                                            .arguments
+                                            .clone()
+                                            .unwrap()
+                                            .owned_iter(),
+                                    ),
+                                ),
+                                None,
+                            ),
+                            true,
+                            false,
+                            false,
+                        ),
+                    ),
+                    Option::<Gc<NodeArray>>::None,
+                    Some(vec![]),
+                )
+                .wrap());
+        }
+        try_visit_each_child(node, |node: &Node| self.visitor(node), &**self.context)
     }
 
     pub(super) fn transform_and_spread_elements(

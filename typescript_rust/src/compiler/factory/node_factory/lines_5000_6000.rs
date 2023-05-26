@@ -7,7 +7,7 @@ use crate::{
     are_option_gcs_equal, are_option_rcs_equal, every, has_node_array_changed,
     is_binary_expression, is_comma_list_expression, is_comma_token, is_outer_expression,
     is_parse_tree_node, is_statement_or_block, node_is_synthesized, same_flat_map_rc_node,
-    set_original_node, single_or_undefined, BaseNodeFactory, BaseUnparsedNode, Bundle,
+    set_original_node, single_or_undefined, BaseNodeFactory, BaseUnparsedNode, Bundle, CallBinding,
     CommaListExpression, Debug_, EnumMember, FileReference, HasInitializerInterface,
     HasStatementsInterface, InputFiles, LanguageVariant, ModifierFlags, NamedDeclarationInterface,
     Node, NodeArray, NodeArrayOrVec, NodeFactory, NodeFlags, NodeInterface, OuterExpressionKinds,
@@ -686,6 +686,17 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         _outermost_labeled_statement: Option<impl Borrow<Node /*LabeledStatement*/>>,
         _after_restore_label_callback: Option<impl FnMut(&Node /*LabeledStatement*/)>,
     ) -> Gc<Node /*Statement*/> {
+        unimplemented!()
+    }
+
+    pub fn create_call_binding(
+        &self,
+        _expression: &Node, /*Expression*/
+        _record_temp_variable: impl FnMut(&Node /*Identifier*/),
+        _language_version: Option<ScriptTarget>,
+        cache_identifiers: Option<bool>,
+    ) -> CallBinding {
+        let _cache_identifiers = cache_identifiers.unwrap_or_default();
         unimplemented!()
     }
 

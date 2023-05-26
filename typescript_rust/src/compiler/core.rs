@@ -1142,6 +1142,20 @@ pub fn stable_sort<TItem: Clone + Trace + Finalize, TComparer: Fn(&TItem, &TItem
         .into()
 }
 
+pub fn element_at<TItem>(array: &[TItem], offset: isize) -> Option<&TItem> {
+    maybe_element_at(Some(array), offset)
+}
+
+pub fn maybe_element_at<TItem>(array: Option<&[TItem]>, offset: isize) -> Option<&TItem> {
+    array.and_then(|array| {
+        let offset = to_offset(array, offset);
+        if offset < array.len() {
+            return Some(&array[offset]);
+        }
+        None
+    })
+}
+
 pub fn first<TItem>(array: &[TItem]) -> &TItem {
     Debug_.assert(!array.is_empty(), None);
     &array[0]
