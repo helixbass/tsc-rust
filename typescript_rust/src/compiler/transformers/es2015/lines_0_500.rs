@@ -533,7 +533,7 @@ impl TransformES2015 {
             SyntaxKind::ArrayLiteralExpression => {
                 Some(self.visit_array_literal_expression(node)?.into())
             }
-            SyntaxKind::CallExpression => self.visit_call_expression(node),
+            SyntaxKind::CallExpression => self.visit_call_expression(node)?,
             SyntaxKind::NewExpression => Some(self.visit_new_expression(node).into()),
             SyntaxKind::ParenthesizedExpression => Some(
                 self.visit_parenthesized_expression(node, expression_result_is_unused)?

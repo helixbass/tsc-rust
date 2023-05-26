@@ -5,11 +5,11 @@ use gc::Gc;
 use super::{HierarchyFacts, TransformES2015};
 use crate::{
     create_member_access_for_property_name, get_emit_flags, is_binding_pattern,
-    is_computed_property_name, is_property_name, is_spread_element, is_statement, move_range_pos,
-    some, start_on_new_line, try_flatten_destructuring_binding, try_visit_each_child,
-    try_visit_node, try_visit_nodes, try_visit_parameter_list, Debug_, EmitFlags, FlattenLevel,
-    NamedDeclarationInterface, Node, NodeArray, NodeExt, NodeInterface, ReadonlyTextRangeConcrete,
-    SyntaxKind, VecExt, VisitResult,
+    is_computed_property_name, is_expression, is_property_name, is_spread_element, is_statement,
+    is_super_property, move_range_pos, skip_outer_expressions, some, start_on_new_line,
+    try_flatten_destructuring_binding, try_visit_each_child, try_visit_node, try_visit_nodes,
+    try_visit_parameter_list, Debug_, EmitFlags, FlattenLevel, NamedDeclarationInterface, Node,
+    NodeArray, NodeExt, NodeInterface, ReadonlyTextRangeConcrete, SyntaxKind, VecExt, VisitResult,
 };
 
 impl TransformES2015 {
@@ -260,6 +260,54 @@ impl TransformES2015 {
 
     pub(super) fn visit_call_expression(
         &self,
+        node: &Node, /*CallExpression*/
+    ) -> io::Result<VisitResult> {
+        let node_as_call_expression = node.as_call_expression();
+        if get_emit_flags(node).intersects(EmitFlags::TypeScriptClassWrapper) {
+            return Ok(self.visit_type_script_class_wrapper(node));
+        }
+
+        let ref expression = skip_outer_expressions(&node_as_call_expression.expression, None);
+        if expression.kind() == SyntaxKind::SuperKeyword
+            || is_super_property(expression)
+            || some(
+                Some(&node_as_call_expression.arguments),
+                Some(|argument: &Gc<Node>| is_spread_element(argument)),
+            )
+        {
+            return Ok(Some(
+                self.visit_call_expression_with_potential_captured_this_assignment(node, true)
+                    .into(),
+            ));
+        }
+
+        Ok(Some(
+            self.factory
+                .update_call_expression(
+                    node,
+                    try_visit_node(
+                        Some(&*node_as_call_expression.expression),
+                        Some(|node: &Node| self.call_expression_visitor(node)),
+                        Some(is_expression),
+                        Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                    )?
+                    .unwrap(),
+                    Option::<Gc<NodeArray>>::None,
+                    try_visit_nodes(
+                        Some(&node_as_call_expression.arguments),
+                        Some(|node: &Node| self.visitor(node)),
+                        Some(is_expression),
+                        None,
+                        None,
+                    )?
+                    .unwrap(),
+                )
+                .into(),
+        ))
+    }
+
+    pub(super) fn visit_type_script_class_wrapper(
+        &self,
         _node: &Node, /*CallExpression*/
     ) -> VisitResult {
         unimplemented!()
@@ -269,6 +317,14 @@ impl TransformES2015 {
         &self,
         _node: &Node, /*CallExpression*/
     ) -> Gc<Node> {
+        unimplemented!()
+    }
+
+    pub(super) fn visit_call_expression_with_potential_captured_this_assignment(
+        &self,
+        _node: &Node, /*CallExpression*/
+        _assign_to_captured_this: bool,
+    ) -> Gc<Node /*CallExpression | BinaryExpression*/> {
         unimplemented!()
     }
 
