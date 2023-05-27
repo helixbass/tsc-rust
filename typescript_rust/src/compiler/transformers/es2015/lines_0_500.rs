@@ -1,4 +1,4 @@
-use std::{cell::Cell, collections::HashMap, io, mem, rc::Rc};
+use std::{cell::Cell, collections::HashMap, io, mem, ptr, rc::Rc};
 
 use bitflags::bitflags;
 use derive_builder::Builder;
@@ -7,16 +7,18 @@ use indexmap::IndexMap;
 
 use crate::{
     chain_bundle, gc_cell_ref_mut_unwrapped, gc_cell_ref_unwrapped, get_emit_flags,
-    get_original_node, has_static_modifier, is_block, is_case_block, is_case_clause,
-    is_catch_clause, is_default_clause, is_if_statement, is_iteration_statement,
-    is_labeled_statement, is_property_declaration, is_return_statement, is_switch_statement,
-    is_try_statement, is_with_statement, maybe_visit_each_child, try_maybe_visit_each_child,
-    visit_each_child, BaseNodeFactorySynthetic, CompilerOptions, EmitFlags, EmitHelperFactory,
-    EmitHint, EmitResolver, Node, NodeArray, NodeExt, NodeFactory, NodeInterface, SourceFileLike,
-    SourceTextAsChars, SyntaxKind, TransformFlags, TransformationContext,
-    TransformationContextOnEmitNodeOverrider, TransformationContextOnSubstituteNodeOverrider,
-    Transformer, TransformerFactory, TransformerFactoryInterface, TransformerInterface,
-    VisitResult,
+    get_enclosing_block_scope_container, get_name_of_declaration, get_original_node,
+    get_parse_tree_node, has_static_modifier, is_block, is_case_block, is_case_clause,
+    is_catch_clause, is_class_element, is_class_like, is_default_clause, is_identifier,
+    is_if_statement, is_internal_name, is_iteration_statement, is_labeled_statement,
+    is_property_declaration, is_return_statement, is_switch_statement, is_try_statement,
+    is_with_statement, maybe_visit_each_child, try_maybe_visit_each_child, visit_each_child,
+    BaseNodeFactorySynthetic, CompilerOptions, EmitFlags, EmitHelperFactory, EmitHint,
+    EmitResolver, GeneratedIdentifierFlags, Matches, Node, NodeArray, NodeExt, NodeFactory,
+    NodeInterface, OptionTry, ReadonlyTextRange, SourceFileLike, SourceTextAsChars, SyntaxKind,
+    TransformFlags, TransformationContext, TransformationContextOnEmitNodeOverrider,
+    TransformationContextOnSubstituteNodeOverrider, Transformer, TransformerFactory,
+    TransformerFactoryInterface, TransformerInterface, VisitResult,
 };
 
 bitflags! {
@@ -643,7 +645,7 @@ struct TransformES2015OnSubstituteNodeOverrider {
 }
 
 impl TransformES2015OnSubstituteNodeOverrider {
-    fn new(
+    pub(super) fn new(
         transform_es2015: Gc<Box<TransformES2015>>,
         previous_on_substitute_node: Gc<Box<dyn TransformationContextOnSubstituteNodeOverrider>>,
     ) -> Self {
@@ -652,11 +654,173 @@ impl TransformES2015OnSubstituteNodeOverrider {
             previous_on_substitute_node,
         }
     }
+
+    pub(super) fn substitute_identifier(
+        &self,
+        node: &Node, /*Identifier*/
+    ) -> io::Result<Gc<Node>> {
+        if self
+            .transform_es2015
+            .maybe_enabled_substitutions()
+            .unwrap_or_default()
+            .intersects(ES2015SubstitutionFlags::BlockScopedBindings)
+            && !is_internal_name(node)
+        {
+            let original = get_parse_tree_node(Some(node), Some(is_identifier));
+            if let Some(original) = original
+                .try_filter(|original| self.is_name_of_declaration_with_colliding_name(original))?
+            {
+                return Ok(self
+                    .transform_es2015
+                    .factory
+                    .get_generated_name_for_node(Some(original), None)
+                    .set_text_range(Some(node)));
+            }
+        }
+
+        Ok(node.node_wrapper())
+    }
+
+    pub(super) fn is_name_of_declaration_with_colliding_name(
+        &self,
+        node: &Node, /*Identifier*/
+    ) -> io::Result<bool> {
+        Ok(match node.parent().kind() {
+            SyntaxKind::BindingElement
+            | SyntaxKind::ClassDeclaration
+            | SyntaxKind::EnumDeclaration
+            | SyntaxKind::VariableDeclaration => {
+                ptr::eq(&*node.parent().as_named_declaration().name(), node)
+                    && self
+                        .transform_es2015
+                        .resolver
+                        .is_declaration_with_colliding_name(&node.parent())?
+            }
+            _ => false,
+        })
+    }
+
+    pub(super) fn substitute_expression(
+        &self,
+        node: &Node, /*Identifier*/
+    ) -> io::Result<Gc<Node>> {
+        match node.kind() {
+            SyntaxKind::Identifier => {
+                return self.substitute_expression_identifier(node);
+            }
+            SyntaxKind::ThisKeyword => {
+                return Ok(self.substitute_this_keyword(node));
+            }
+            _ => (),
+        }
+
+        Ok(node.node_wrapper())
+    }
+
+    pub(super) fn substitute_expression_identifier(
+        &self,
+        node: &Node, /*Identifier*/
+    ) -> io::Result<Gc<Node /*Identifier*/>> {
+        if self
+            .transform_es2015
+            .maybe_enabled_substitutions()
+            .unwrap_or_default()
+            .intersects(ES2015SubstitutionFlags::BlockScopedBindings)
+            && !is_internal_name(node)
+        {
+            let declaration = self
+                .transform_es2015
+                .resolver
+                .get_referenced_declaration_with_colliding_name(node)?;
+            if let Some(declaration) = declaration.filter(|declaration| {
+                !(is_class_like(declaration) && self.is_part_of_class_body(declaration, node))
+            }) {
+                return Ok(self
+                    .transform_es2015
+                    .factory
+                    .get_generated_name_for_node(get_name_of_declaration(Some(declaration)), None)
+                    .set_text_range(Some(node)));
+            }
+        }
+
+        Ok(node.node_wrapper())
+    }
+
+    pub(super) fn is_part_of_class_body(
+        &self,
+        declaration: &Node, /*ClassLikeDeclaration*/
+        node: &Node,        /*Identifier*/
+    ) -> bool {
+        let mut current_node = get_parse_tree_node(Some(node), Option::<fn(&Node) -> bool>::None);
+        if current_node.as_ref().is_none_or_matches(|current_node| {
+            ptr::eq(&**current_node, declaration)
+                || current_node.end() <= declaration.pos()
+                || current_node.pos() >= declaration.end()
+        }) {
+            return false;
+        }
+        let ref block_scope = get_enclosing_block_scope_container(declaration).unwrap();
+        while let Some(current_node_present) = current_node.as_ref() {
+            if Gc::ptr_eq(current_node_present, block_scope)
+                || ptr::eq(&**current_node_present, declaration)
+            {
+                return false;
+            }
+            if is_class_element(current_node_present)
+                && ptr::eq(&*current_node_present.parent(), declaration)
+            {
+                return true;
+            }
+            current_node = current_node_present.maybe_parent();
+        }
+        false
+    }
+
+    pub(super) fn substitute_this_keyword(
+        &self,
+        node: &Node, /*PrimaryExpression*/
+    ) -> Gc<Node /*PrimaryExpression*/> {
+        if self
+            .transform_es2015
+            .maybe_enabled_substitutions()
+            .unwrap_or_default()
+            .intersects(ES2015SubstitutionFlags::CapturedThis)
+            && self
+                .transform_es2015
+                .maybe_hierarchy_facts()
+                .unwrap_or_default()
+                .intersects(HierarchyFacts::CapturesThis)
+        {
+            return self
+                .transform_es2015
+                .factory
+                .create_unique_name(
+                    "_this",
+                    Some(
+                        GeneratedIdentifierFlags::Optimistic | GeneratedIdentifierFlags::FileLevel,
+                    ),
+                )
+                .set_text_range(Some(node));
+        }
+        node.node_wrapper()
+    }
 }
 
 impl TransformationContextOnSubstituteNodeOverrider for TransformES2015OnSubstituteNodeOverrider {
-    fn on_substitute_node(&self, _hint: EmitHint, _node: &Node) -> io::Result<Gc<Node>> {
-        unimplemented!()
+    fn on_substitute_node(&self, hint: EmitHint, node: &Node) -> io::Result<Gc<Node>> {
+        let ref node = self
+            .previous_on_substitute_node
+            .on_substitute_node(hint, node)?;
+
+        if hint == EmitHint::Expression {
+            return self.substitute_expression(node);
+        }
+
+        if is_identifier(node) {
+            return self.substitute_identifier(node);
+        }
+
+        Ok(node.node_wrapper())
     }
 }
 
