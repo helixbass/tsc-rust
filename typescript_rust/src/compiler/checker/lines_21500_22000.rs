@@ -2,13 +2,13 @@ use gc::{Finalize, Gc, GcCell, GcCellRefMut, Trace};
 use std::cell::{Cell, RefCell, RefMut};
 use std::collections::HashMap;
 use std::ptr;
-use std::rc::Rc;
+
 use std::{cmp, io};
 
 use super::{ExpandingFlags, RecursionIdentity};
 use crate::{
-    append_if_unique_gc, append_if_unique_rc, arrays_equal, contains, contains_gc, contains_rc,
-    create_scanner, every, filter, get_check_flags, get_object_flags, map, some, try_map,
+    append_if_unique_gc, arrays_equal, contains, contains_gc,
+    create_scanner, filter, get_check_flags, get_object_flags, some, try_map,
     CheckFlags, ElementFlags, InferenceInfo, InferencePriority, Node, ObjectFlags, ScriptTarget,
     Symbol, SymbolFlags, SymbolInterface, SyntaxKind, TokenFlags, Type, TypeChecker, TypeFlags,
     TypeInterface, UnionReduction, VarianceFlags,

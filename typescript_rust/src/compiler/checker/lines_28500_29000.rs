@@ -7,14 +7,14 @@ use std::{io, ptr};
 
 use super::{signature_has_literal_types, CheckMode, ResolveNameNameArg};
 use crate::{
-    capitalize, contains, find, find_ancestor, get_assignment_target_kind, get_check_flags,
+    capitalize, contains, find_ancestor, get_assignment_target_kind, get_check_flags,
     get_containing_class, get_first_identifier, get_script_target_features,
     get_spelling_suggestion, has_effective_modifier, id_text, is_assignment_target,
     is_binding_pattern, is_call_or_new_expression, is_entity_name_expression,
     is_function_like_declaration, is_jsx_opening_like_element, is_named_declaration,
     is_optional_chain, is_private_identifier, is_private_identifier_class_element_declaration,
     is_property_access_expression, is_static, is_string_literal_like,
-    is_tagged_template_expression, is_write_only_access, map_defined, maybe_for_each,
+    is_tagged_template_expression, is_write_only_access, map_defined,
     return_ok_default_if_none, skip_parentheses, starts_with, symbol_name, try_filter,
     try_get_property_access_or_identifier_to_string, try_get_spelling_suggestion,
     try_maybe_for_each, unescape_leading_underscores, AccessFlags, AssignmentKind, CheckFlags,

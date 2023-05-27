@@ -10,13 +10,13 @@ use std::rc::Rc;
 use super::SignatureToSignatureDeclarationOptions;
 use crate::{
     add_synthetic_leading_comment, append_if_unique_gc, contains_gc, create_printer,
-    create_text_writer, default_maximum_truncation_length, every, factory, get_factory,
+    create_text_writer, default_maximum_truncation_length, every, get_factory,
     get_first_identifier, get_object_flags, get_text_of_node,
     get_trailing_semicolon_deferring_writer, has_syntactic_modifier, id_text, is_binding_element,
     is_expression, is_expression_with_type_arguments_in_class_extends_clause,
     is_external_or_common_js_module, is_identifier_text, is_import_type_node, is_in_js_file,
     is_late_visibility_painted_statement, is_module_with_string_literal_name,
-    is_type_reference_node, is_variable_declaration, is_variable_statement, map, maybe_filter,
+    is_type_reference_node, is_variable_declaration, is_variable_statement, maybe_filter,
     maybe_get_source_file_of_node, no_truncation_maximum_truncation_length,
     pseudo_big_int_to_string, ref_mut_unwrapped, ref_unwrapped, set_emit_flags, symbol_name,
     try_map, try_using_single_line_string_writer, using_single_line_string_writer, Debug_,

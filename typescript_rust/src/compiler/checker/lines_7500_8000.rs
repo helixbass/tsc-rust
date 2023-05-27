@@ -14,7 +14,7 @@ use crate::{
     is_prototype_property_assignment, is_set_accessor, is_single_or_double_quote,
     is_string_a_non_contextual_keyword, is_variable_declaration, length,
     maybe_get_source_file_of_node, set_text_range_rc_node, some, strip_quotes, symbol_name,
-    unescape_leading_underscores, with_synthetic_factory_and_factory, BoolExt, Debug_,
+    unescape_leading_underscores, BoolExt, Debug_,
     InternalSymbolName, IteratorExt, Matches, ModifierFlags, Node, NodeArray, NodeArrayOrVec,
     NodeBuilder, NodeBuilderFlags, NodeFlags, NodeInterface, NodeWrappered, ObjectFlags, OptionTry,
     SignatureKind, StrOrRcNode, Symbol, SymbolFlags, SymbolInterface, SymbolWrappered, SyntaxKind,

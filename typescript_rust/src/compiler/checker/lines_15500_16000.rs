@@ -1,22 +1,22 @@
 use gc::{Gc, GcCell};
 use std::borrow::Borrow;
-use std::cell::RefCell;
+
 use std::collections::{HashMap, HashSet};
 use std::io;
-use std::rc::Rc;
+
 
 use crate::try_every;
 use crate::{
     HasTypeArgumentsInterface, __String, append, concatenate, create_symbol_table,
-    declaration_name_to_string, every, find, get_declaration_modifier_flags_from_symbol,
+    declaration_name_to_string, get_declaration_modifier_flags_from_symbol,
     is_identifier, is_jsdoc_type_expression, is_jsdoc_type_literal, is_literal_import_type_node,
     is_optional_type_node, is_parenthesized_type_node, is_rest_type_node, is_tuple_type_node,
-    is_type_alias, is_type_operator_node, length, map, maybe_concatenate, maybe_filter,
+    is_type_alias, is_type_operator_node, length, maybe_concatenate,
     node_is_missing, same_map, try_find, try_map, try_maybe_filter, AccessFlags, CheckFlags,
     ConditionalRoot, ConditionalType, Diagnostics, IndexInfo, InferenceFlags, InferencePriority,
     MappedType, ModifierFlags, Node, NodeFlags, NodeInterface, NodeLinks, ObjectFlags,
-    ObjectFlagsTypeInterface, OptionTry, Signature, Symbol, SymbolFlags, SymbolInterface,
-    SyntaxKind, Ternary, TransientSymbolInterface, Type, TypeChecker, TypeFlags, TypeInterface,
+    ObjectFlagsTypeInterface, OptionTry, Symbol, SymbolFlags, SymbolInterface,
+    SyntaxKind, TransientSymbolInterface, Type, TypeChecker, TypeFlags, TypeInterface,
     TypeMapper, UnionOrIntersectionTypeInterface,
 };
 

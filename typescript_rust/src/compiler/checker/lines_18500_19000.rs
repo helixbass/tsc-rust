@@ -8,10 +8,10 @@ use super::{
     CheckTypeRelatedTo, ExpandingFlags, IntersectionState, MappedTypeModifiers, RecursionFlags,
 };
 use crate::{
-    are_gc_slices_equal, are_option_rcs_equal, are_rc_slices_equal, get_object_flags, same_map,
+    are_gc_slices_equal, are_option_rcs_equal, get_object_flags,
     try_map, AccessFlags, DiagnosticMessageChain, InferenceFlags, InferencePriority, Node,
     NodeInterface, ObjectFlags, ObjectTypeInterface, OutofbandVarianceMarkerHandler,
-    RelationComparisonResult, Signature, SignatureKind, Symbol, SymbolInterface, Ternary, Type,
+    RelationComparisonResult, SignatureKind, Symbol, SymbolInterface, Ternary, Type,
     TypeChecker, TypeComparer, TypeFlags, TypeInterface, TypeMapper, TypeMapperCallback,
     UnionOrIntersectionTypeInterface, VarianceFlags,
 };

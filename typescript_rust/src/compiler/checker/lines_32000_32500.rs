@@ -5,8 +5,7 @@ use std::{convert::TryInto, io};
 use super::{CheckMode, TypeFacts};
 use crate::try_every;
 use crate::{
-    add_related_info, are_option_gcs_equal, create_diagnostic_for_node, create_file_diagnostic,
-    every, first_or_undefined, get_check_flags, get_containing_class, get_containing_function,
+    add_related_info, are_option_gcs_equal, create_diagnostic_for_node, create_file_diagnostic, first_or_undefined, get_check_flags, get_containing_class, get_containing_function,
     get_containing_function_or_class_static_block, get_declaration_modifier_flags_from_symbol,
     get_effective_return_type_node, get_function_flags, get_object_flags, get_source_file_of_node,
     get_span_of_token_at_position, has_context_sensitive_parameters, is_access_expression,
@@ -14,7 +13,7 @@ use crate::{
     is_class_static_block_declaration, is_effective_external_module, is_function_expression,
     is_in_top_level_context, is_object_literal_method, is_private_identifier,
     is_property_access_expression, is_property_assignment, parse_pseudo_big_int,
-    skip_outer_expressions, skip_parentheses, some, token_to_string, try_some, AssignmentKind,
+    skip_outer_expressions, skip_parentheses, token_to_string, try_some, AssignmentKind,
     CheckFlags, Debug_, Diagnostic, DiagnosticMessage, DiagnosticRelatedInformation, Diagnostics,
     ExternalEmitHelpers, FunctionFlags, LiteralLikeNodeInterface, ModifierFlags, ModuleKind, Node,
     NodeCheckFlags, NodeFlags, NodeInterface, Number, ObjectFlags, OptionTry, OuterExpressionKinds,

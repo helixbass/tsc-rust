@@ -7,10 +7,10 @@ use std::{io, ptr};
 
 use crate::try_some;
 use crate::{
-    array_of, binary_search_copy_key, compare_values, filter, find, find_index,
+    array_of, binary_search_copy_key, compare_values, filter, find_index,
     find_last_index_returns_isize, for_each, get_object_flags, is_part_of_type_node, map,
     ordered_remove_item_at, push_if_unique_gc, reduce_left, replace_element,
-    return_ok_default_if_none, same_map, some, try_map, BaseUnionOrIntersectionType, Diagnostics,
+    return_ok_default_if_none, some, try_map, BaseUnionOrIntersectionType, Diagnostics,
     ElementFlags, IntersectionType, IteratorExt, LiteralTypeInterface, Node, ObjectFlags,
     OptionTry, PeekMoreExt, Signature, Symbol, SymbolInterface, Type, TypeChecker, TypeFlags,
     TypeId, TypeInterface, TypePredicate, TypePredicateKind, TypeReferenceInterface,

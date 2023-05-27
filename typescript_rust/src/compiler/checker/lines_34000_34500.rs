@@ -11,7 +11,7 @@ use super::{
 use crate::{
     declaration_name_to_string, get_containing_class, get_enclosing_block_scope_container,
     has_static_modifier, is_class_expression, HasTypeInterface, NodeCheckFlags, TypeId, __String,
-    chain_diagnostic_messages, for_each, get_containing_function, get_effective_return_type_node,
+    chain_diagnostic_messages, get_containing_function, get_effective_return_type_node,
     get_effective_type_parameter_declarations, get_function_flags, get_name_of_declaration,
     get_property_name_for_property_name_node, get_text_of_node, has_syntactic_modifier, id_text,
     is_binding_pattern, is_identifier, is_omitted_expression, is_parameter_property_declaration,

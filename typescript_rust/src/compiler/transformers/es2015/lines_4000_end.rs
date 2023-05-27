@@ -1,14 +1,13 @@
-use std::{borrow::Borrow, io, ptr};
+use std::{borrow::Borrow};
 
 use gc::Gc;
 
-use super::{ES2015SubstitutionFlags, HierarchyFacts, TransformES2015};
+use super::{TransformES2015};
 use crate::{
-    first_or_undefined, get_enclosing_block_scope_container, get_name_of_declaration,
-    get_parse_tree_node, is_class_element, is_class_like, is_identifier, is_internal_name,
+    first_or_undefined, is_identifier,
     is_static, node_is_synthesized, return_default_if_none, single_or_undefined,
-    FunctionLikeDeclarationInterface, GeneratedIdentifierFlags, Matches, Node, NodeExt,
-    NodeInterface, ReadonlyTextRange, SignatureDeclarationInterface, SyntaxKind, VisitResult,
+    FunctionLikeDeclarationInterface, Matches, Node,
+    NodeInterface, SignatureDeclarationInterface, SyntaxKind, VisitResult,
 };
 
 impl TransformES2015 {

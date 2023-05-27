@@ -7,8 +7,7 @@ use std::{io, ptr};
 use super::EmitResolverCreateResolver;
 use crate::{
     add_related_info, are_option_gcs_equal, bind_source_file, concatenate,
-    create_diagnostic_for_node, escape_leading_underscores, external_helpers_module_name_text,
-    for_each_child_bool, for_each_entry_bool, get_all_accessor_declarations,
+    create_diagnostic_for_node, escape_leading_underscores, external_helpers_module_name_text, for_each_entry_bool, get_all_accessor_declarations,
     get_declaration_of_kind, get_effective_modifier_flags, get_external_module_name, get_factory,
     get_first_identifier, get_parse_tree_node, get_source_file_of_node, has_syntactic_modifier,
     is_ambient_module, is_binding_pattern, is_declaration, is_declaration_readonly,
@@ -20,9 +19,8 @@ use crate::{
     is_string_literal, is_type_only_import_or_export_declaration, is_var_const,
     is_variable_declaration, is_variable_like_or_accessor, maybe_get_source_file_of_node,
     maybe_is_class_like, modifier_to_flag, node_can_be_decorated, node_is_present,
-    parse_isolated_entity_name, return_ok_default_if_none, should_preserve_const_enums, some,
-    token_to_string, try_cast, try_for_each_child_bool, try_some,
-    with_synthetic_factory_and_factory, Debug_, Diagnostic, Diagnostics, EmitResolver,
+    parse_isolated_entity_name, return_ok_default_if_none, should_preserve_const_enums,
+    token_to_string, try_cast, try_for_each_child_bool, try_some, Debug_, Diagnostic, Diagnostics, EmitResolver,
     ExternalEmitHelpers, FunctionLikeDeclarationInterface, HasInitializerInterface, LiteralType,
     ModifierFlags, NamedDeclarationInterface, Node, NodeArray, NodeBuilderFlags, NodeCheckFlags,
     NodeFlags, NodeInterface, ObjectFlags, PragmaArgumentName, PragmaName, Signature,

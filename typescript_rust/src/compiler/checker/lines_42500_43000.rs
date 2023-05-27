@@ -1,7 +1,7 @@
 use gc::Gc;
 use std::collections::HashMap;
 use std::convert::TryInto;
-use std::rc::Rc;
+
 use std::{borrow::Borrow, io};
 
 use super::DeclarationMeaning;

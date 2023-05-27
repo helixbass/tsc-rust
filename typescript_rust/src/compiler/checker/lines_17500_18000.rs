@@ -1,6 +1,6 @@
 use gc::Gc;
 use std::borrow::{Borrow, Cow};
-use std::cell::{RefCell, RefMut};
+use std::cell::{RefCell};
 use std::collections::HashMap;
 use std::rc::Rc;
 use std::{io, ptr};
@@ -11,7 +11,7 @@ use super::{
 };
 use crate::try_some;
 use crate::{
-    are_option_gcs_equal, are_option_rcs_equal, every, get_object_flags, get_symbol_id, some,
+    are_option_gcs_equal, get_object_flags, get_symbol_id,
     symbol_name, try_every, DiagnosticMessage, Diagnostics, LiteralTypeInterface, Node,
     NodeInterface, ObjectFlags, ObjectTypeInterface, RelationComparisonResult, Signature, Symbol,
     SymbolFlags, SymbolInterface, Ternary, Type, TypeChecker, TypeFlags, TypeFormatFlags,

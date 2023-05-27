@@ -6,8 +6,8 @@ use std::{borrow::Borrow, io};
 use super::{is_declaration_name_or_import_property_name, IterationUse};
 use crate::try_filter;
 use crate::{
-    cast_present, create_symbol_table, filter, find_ancestor, first_or_undefined, flat_map,
-    for_each, for_each_entry_bool, get_check_flags, get_enclosing_block_scope_container,
+    cast_present, create_symbol_table, first_or_undefined,
+    for_each, get_check_flags, get_enclosing_block_scope_container,
     get_parse_tree_node, get_source_file_of_node, id_text, index_of_node,
     is_array_literal_expression, is_assignment_pattern, is_binding_element, is_binding_pattern,
     is_block_scoped_container_top_level, is_declaration, is_export_specifier, is_expression_node,
@@ -16,8 +16,8 @@ use crate::{
     is_module_or_enum_declaration, is_namespace_export, is_object_literal_expression,
     is_part_of_type_node, is_property_access_expression, is_property_assignment,
     is_right_side_of_qualified_name_or_property_access, is_shorthand_ambient_module_symbol,
-    is_source_file, is_statement_with_locals, is_static, map_defined, node_is_missing,
-    single_element_array, some, try_find_ancestor, try_flat_map, try_for_each_entry_bool,
+    is_source_file, is_statement_with_locals, is_static, node_is_missing,
+    single_element_array, try_find_ancestor, try_flat_map, try_for_each_entry_bool,
     try_get_class_implementing_or_extending_expression_with_type_arguments, try_map_defined,
     try_some, type_has_call_or_construct_signatures, walk_up_binding_elements_and_patterns,
     CheckFlags, Debug_, IndexInfo, InterfaceTypeInterface, NamedDeclarationInterface, Node,

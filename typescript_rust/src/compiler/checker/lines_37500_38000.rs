@@ -1,13 +1,13 @@
 use gc::Gc;
 use std::ptr;
-use std::rc::Rc;
+
 use std::{borrow::Borrow, io};
 
 use super::{
     get_iteration_types_key_from_iteration_type_kind, IterationTypeKind, IterationUse, TypeFacts,
 };
 use crate::{
-    append, is_class_static_block_declaration, map, some, ObjectTypeInterface, Signature,
+    append, is_class_static_block_declaration, some, ObjectTypeInterface, Signature,
     SignatureKind, SymbolFlags, SymbolInterface, SyntaxKind, __String, escape_leading_underscores,
     get_containing_function_or_class_static_block, get_function_flags, try_map, Diagnostics,
     FunctionFlags, IterationTypeCacheKey, IterationTypes, IterationTypesResolver, Node,

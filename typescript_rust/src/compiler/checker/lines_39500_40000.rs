@@ -5,8 +5,7 @@ use gc::Gc;
 use super::{is_not_overload, is_not_overload_and_not_accessor};
 use crate::try_for_each;
 use crate::{
-    are_option_gcs_equal, count_where, create_diagnostic_for_node, declaration_name_to_string,
-    for_each, for_each_entry_bool, for_each_import_clause_declaration_bool,
+    are_option_gcs_equal, count_where, create_diagnostic_for_node, declaration_name_to_string, for_each_entry_bool,
     get_combined_node_flags, get_effective_type_annotation_node, get_emit_declarations,
     get_es_module_interop, get_external_module_name, get_first_identifier, get_source_file_of_node,
     has_effective_modifiers, has_syntactic_modifier, id_text, is_ambient_module,

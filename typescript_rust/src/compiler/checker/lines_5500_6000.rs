@@ -17,17 +17,17 @@ use crate::{
     get_original_node, get_source_file_of_node, get_text_of_jsdoc_comment, is_ambient_module,
     is_binding_element, is_computed_property_name, is_entity_name, is_identifier,
     is_identifier_type_reference, is_indexed_access_type_node, is_jsdoc_parameter_tag,
-    is_rest_parameter, is_transient_symbol, length, maybe_filter, maybe_first_defined,
-    maybe_for_each_bool, maybe_map, modifiers_to_flags, module_specifiers, node_is_synthesized,
+    is_rest_parameter, is_transient_symbol, length, maybe_filter,
+    maybe_for_each_bool, modifiers_to_flags, module_specifiers, node_is_synthesized,
     null_transformation_context, out_file, path_is_relative, set_comment_range, set_emit_flags,
     set_synthetic_leading_comments, some, symbol_name, try_maybe_first_defined, try_maybe_map,
-    try_visit_each_child, unescape_leading_underscores, visit_each_child, with_factory, CheckFlags,
+    try_visit_each_child, unescape_leading_underscores, CheckFlags,
     CompilerOptions, Debug_, EmitFlags, HasInitializerInterface, IndexInfo, InternalSymbolName,
     ModifierFlags, ModuleResolutionKind, NamedDeclarationInterface, Node, NodeArray, NodeBuilder,
     NodeBuilderFlags, NodeInterface, OptionTry, Signature, SignatureFlags, StrOrNodeArray,
     StrOrRcNode, StringOrNodeArray, Symbol, SymbolFlags, SymbolInterface, SyntaxKind,
     SynthesizedComment, TransientSymbolInterface, Type, TypeInterface, TypePredicateKind,
-    UnderscoreEscapedMultiMap, UserPreferencesBuilder, VisitResult,
+    UnderscoreEscapedMultiMap, UserPreferencesBuilder,
 };
 
 impl NodeBuilder {

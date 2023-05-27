@@ -6,7 +6,7 @@ use std::{borrow::Borrow, io};
 
 use super::{IterationUse, JsxNames};
 use crate::{
-    cast, filter, find_ancestor, get_assignment_declaration_kind, get_check_flags,
+    cast, find_ancestor, get_assignment_declaration_kind, get_check_flags,
     get_effective_type_annotation_node, get_element_or_property_access_name, get_jsdoc_type_tag,
     get_semantic_jsx_children, get_this_container, index_of_node, is_access_expression,
     is_const_type_reference, is_identifier, is_in_js_file, is_jsdoc_type_tag, is_jsx_attribute,

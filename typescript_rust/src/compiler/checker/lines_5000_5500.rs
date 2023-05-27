@@ -22,7 +22,7 @@ use crate::{
     KeywordTypeNode, ModifierFlags, Node, NodeArray, NodeBuilder, NodeBuilderFlags, NodeInterface,
     NodeLinksSerializedType, ObjectFlags, ObjectFlagsTypeInterface, PeekableExt, Signature,
     SignatureFlags, SignatureKind, Symbol, SymbolFlags, SymbolInterface, SyntaxKind, Type,
-    TypeFlags, TypeId, TypeInterface, VisitResult,
+    TypeFlags, TypeId, TypeInterface,
 };
 
 impl NodeBuilder {

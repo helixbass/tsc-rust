@@ -1,14 +1,14 @@
 use gc::Gc;
 use std::ptr;
-use std::rc::Rc;
+
 use std::{borrow::Borrow, io};
 
 use super::MappedTypeModifiers;
 use crate::try_for_each;
 use crate::try_maybe_for_each;
 use crate::{
-    add_related_info, are_option_gcs_equal, are_option_rcs_equal, create_diagnostic_for_node,
-    filter, find_ancestor, for_each, for_each_child, get_class_extends_heritage_element,
+    add_related_info, are_option_gcs_equal, create_diagnostic_for_node,
+    filter, find_ancestor, for_each, get_class_extends_heritage_element,
     get_combined_modifier_flags, get_declaration_modifier_flags_from_symbol,
     get_declaration_of_kind, get_effective_constraint_of_type_parameter,
     get_effective_modifier_flags, get_emit_script_target, get_name_of_declaration,
@@ -16,7 +16,7 @@ use crate::{
     is_assignment_target, is_global_scope_augmentation, is_in_js_file, is_in_jsdoc,
     is_module_block, is_module_declaration, is_named_tuple_member,
     is_private_identifier_class_element_declaration, is_prologue_directive, is_static,
-    is_super_call, is_type_reference_type, map, maybe_for_each, maybe_map, node_is_missing,
+    is_super_call, is_type_reference_type, node_is_missing,
     node_is_present, return_ok_default_if_none, some, symbol_name, try_cast, try_for_each_child,
     try_maybe_map, unescape_leading_underscores, DiagnosticRelatedInformation, Diagnostics,
     ElementFlags, FunctionLikeDeclarationInterface, HasInitializerInterface, ModifierFlags, Node,

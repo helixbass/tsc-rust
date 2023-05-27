@@ -1,6 +1,6 @@
 use gc::Gc;
 use std::ptr;
-use std::rc::Rc;
+
 use std::{borrow::Borrow, io};
 
 use super::{is_declaration_name_or_import_property_name, CheckMode};
@@ -26,7 +26,7 @@ use crate::{
     node_is_missing, node_is_present, AssignmentDeclarationKind, Debug_, Diagnostic,
     FindAncestorCallbackReturn, FunctionLikeDeclarationInterface, InternalSymbolName,
     NamedDeclarationInterface, Node, NodeFlags, NodeInterface, OptionTry, Symbol, SymbolFlags,
-    SymbolInterface, SymbolTable, SyntaxKind, TypeChecker, TypeInterface, __String,
+    SymbolInterface, SymbolTable, SyntaxKind, TypeChecker, TypeInterface,
 };
 
 impl TypeChecker {

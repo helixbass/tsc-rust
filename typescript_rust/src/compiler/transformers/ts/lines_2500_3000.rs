@@ -11,10 +11,10 @@ use crate::{
     is_identifier, is_import_clause, is_import_specifier, is_modifier, is_named_export_bindings,
     is_namespace_export, move_range_pos, set_comment_range, set_emit_flags, set_source_map_range,
     set_synthetic_leading_comments, set_synthetic_trailing_comments, set_text_range,
-    set_text_range_node_array, some, try_maybe_visit_each_child, try_visit_each_child,
-    try_visit_node, try_visit_nodes, visit_each_child, visit_node, visit_nodes, AsDoubleDeref,
+    set_text_range_node_array, try_maybe_visit_each_child, try_visit_each_child,
+    try_visit_node, try_visit_nodes, visit_nodes, AsDoubleDeref,
     BoolExt, Debug_, EmitFlags, ImportsNotUsedAsValues, ModifierFlags, NamedDeclarationInterface,
-    NodeArray, NodeExt, NodeFlags, NonEmpty, ReadonlyTextRangeConcrete, SingleNodeOrVecNode,
+    NodeArray, NodeExt, NodeFlags, ReadonlyTextRangeConcrete, SingleNodeOrVecNode,
     SyntaxKind,
 };
 

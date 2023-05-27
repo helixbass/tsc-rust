@@ -7,14 +7,14 @@ use std::rc::Rc;
 use std::{cmp, io};
 
 use super::{
-    anon, CheckTypeContainingMessageChain, CheckTypeRelatedTo, ErrorCalculationState,
+    anon, CheckTypeRelatedTo, ErrorCalculationState,
     IntersectionState, RecursionFlags, ReportUnmeasurableMarkers, ReportUnreliableMarkers,
     SignatureCheckMode, TypeComparerIsRelatedToWorker, TypeFacts,
 };
 use crate::{
-    are_option_gcs_equal, are_option_rcs_equal, cartesian_product, create_diagnostic_for_node,
+    are_option_gcs_equal, cartesian_product, create_diagnostic_for_node,
     factory, get_declaration_modifier_flags_from_symbol, get_symbol_name_for_private_identifier,
-    is_named_declaration, is_private_identifier, length, push_if_unique_gc, push_if_unique_rc,
+    is_named_declaration, is_private_identifier, length, push_if_unique_gc,
     reduce_left, some, CheckFlags, DiagnosticMessage, DiagnosticMessageChain, Diagnostics,
     ElementFlags, IndexInfo, ModifierFlags, Node, NodeInterface, ObjectFlags, Signature,
     SignatureFlags, SignatureKind, Symbol, SymbolFlags, SymbolInterface, SyntaxKind, Ternary, Type,

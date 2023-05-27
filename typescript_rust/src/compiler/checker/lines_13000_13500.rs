@@ -9,7 +9,7 @@ use crate::{
     get_declaration_of_kind, get_effective_container_for_jsdoc_template_tag, get_object_flags,
     index_of_gc, is_entity_name_expression, is_expression_with_type_arguments, is_identifier,
     is_in_js_file, is_jsdoc_augments_tag, is_jsdoc_index_signature, is_jsdoc_template_tag,
-    is_statement, is_type_alias, length, map, maybe_concatenate, skip_parentheses, try_map,
+    is_statement, is_type_alias, length, maybe_concatenate, skip_parentheses, try_map,
     walk_up_parenthesized_types_and_get_parent_and_child, AsDoubleDeref, BaseObjectType,
     CheckFlags, Diagnostics, HasTypeArgumentsInterface, InterfaceTypeInterface, Node, NodeFlags,
     NodeInterface, ObjectFlags, ObjectFlagsTypeInterface, OptionTry, SubstitutionType, Symbol,

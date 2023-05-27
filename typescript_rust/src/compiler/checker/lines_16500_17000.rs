@@ -1,17 +1,17 @@
 use gc::Gc;
 use std::borrow::{Borrow, Cow};
-use std::rc::Rc;
+
 use std::{io, ptr};
 
 use super::{
     CheckTypeContainingMessageChain, CheckTypeErrorOutputContainer, MappedTypeModifiers, TypeFacts,
 };
 use crate::{
-    are_gc_slices_equal, are_option_gcs_equal, are_option_rcs_equal, are_rc_slices_equal,
-    contains_gc, contains_rc, every, for_each_child_bool, get_effective_return_type_node,
+    are_gc_slices_equal, are_option_gcs_equal,
+    contains_gc, get_effective_return_type_node,
     get_object_flags, has_context_sensitive_parameters, is_function_declaration,
     is_function_expression_or_arrow_function, is_in_js_file, is_jsx_opening_element,
-    is_object_literal_method, is_part_of_type_node, map, some, try_every, try_for_each_child_bool,
+    is_object_literal_method, is_part_of_type_node, map, try_every, try_for_each_child_bool,
     try_map, try_some, AsDoubleDeref, Debug_, DiagnosticMessage, Diagnostics, ElementFlags,
     HasTypeArgumentsInterface, IndexInfo, MappedType, Node, NodeArray, NodeInterface, ObjectFlags,
     ObjectTypeInterface, ResolvableTypeInterface, Symbol, SymbolInterface, SyntaxKind, Ternary,

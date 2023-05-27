@@ -4,7 +4,7 @@ use gc::Gc;
 
 use super::{HierarchyFacts, TransformES2015};
 use crate::{
-    add_range, concatenate, create_range, first_or_undefined, flat_map, get_emit_flags,
+    add_range, concatenate, create_range, first_or_undefined, get_emit_flags,
     has_syntactic_modifier, id_text, is_binding_pattern, is_block, is_destructuring_assignment,
     is_expression, is_for_initializer, is_identifier, is_iteration_statement, is_statement,
     is_variable_declaration_list, last, move_range_end, move_range_pos, set_emit_flags,

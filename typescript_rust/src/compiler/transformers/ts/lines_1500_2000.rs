@@ -5,17 +5,15 @@ use itertools::Itertools;
 
 use super::TransformTypeScript;
 use crate::{
-    add_prologue_directives_and_initial_super_call, add_range, find_ancestor,
+    add_range, find_ancestor,
     get_parse_node_factory, get_parse_tree_node, has_static_modifier, has_syntactic_modifier,
     id_text, is_computed_property_name, is_conditional_type_node, is_expression, is_identifier,
     is_left_hand_side_expression, is_modifier, is_parameter_property_declaration,
     is_private_identifier, is_property_name, is_simple_inlineable_expression, is_statement,
     move_range_past_decorators, move_range_pos, node_is_missing, set_comment_range,
     set_source_map_range, skip_partially_emitted_expressions,
-    try_add_prologue_directives_and_initial_super_call, try_maybe_visit_each_child,
-    try_visit_each_child, try_visit_function_body, try_visit_node, try_visit_nodes,
-    try_visit_parameter_list, visit_each_child, visit_function_body, visit_node, visit_nodes,
-    visit_parameter_list, AsDoubleDeref, EmitFlags, FunctionLikeDeclarationInterface,
+    try_add_prologue_directives_and_initial_super_call, try_maybe_visit_each_child, try_visit_function_body, try_visit_node, try_visit_nodes,
+    try_visit_parameter_list, AsDoubleDeref, EmitFlags, FunctionLikeDeclarationInterface,
     HasInitializerInterface, Matches, ModifierFlags, Node, NodeArray, NodeArrayExt, NodeExt,
     NodeFlags, NodeInterface, NonEmpty, PeekableExt, ScriptTarget, SignatureDeclarationInterface,
     SyntaxKind, TypeReferenceSerializationKind, VisitResult,

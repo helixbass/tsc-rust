@@ -10,8 +10,7 @@ use super::{CheckTypeRelatedTo, IntersectionState, RecursionFlags};
 use crate::try_every;
 use crate::{
     get_declaration_modifier_flags_from_symbol, get_object_flags, ConditionalRoot,
-    OutofbandVarianceMarkerHandler, SymbolLinks, TransientSymbolInterface, __String, every,
-    for_each_bool, get_check_flags, get_selected_effective_modifier_flags, maybe_map, some,
+    OutofbandVarianceMarkerHandler, SymbolLinks, TransientSymbolInterface, __String, every, get_check_flags, get_selected_effective_modifier_flags, maybe_map, some,
     try_filter, try_for_each_bool, try_some, CheckFlags, Diagnostics, IndexInfo, ModifierFlags,
     Node, ObjectFlags, ObjectFlagsTypeInterface, OptionTry, RelationComparisonResult, Signature,
     Symbol, SymbolFlags, SymbolInterface, Ternary, Type, TypeChecker, TypeFlags, TypeInterface,

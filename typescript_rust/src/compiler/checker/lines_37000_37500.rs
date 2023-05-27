@@ -1,6 +1,6 @@
 use gc::Gc;
 use std::ptr;
-use std::rc::Rc;
+
 use std::{borrow::Borrow, io};
 
 use super::{
@@ -8,8 +8,7 @@ use super::{
 };
 use crate::try_for_each;
 use crate::{
-    append, IterationTypeCacheKey, SymbolInterface, __String, filter, for_each,
-    for_each_child_bool, get_containing_function_or_class_static_block, get_function_flags,
+    append, IterationTypeCacheKey, SymbolInterface, filter, get_containing_function_or_class_static_block, get_function_flags,
     is_binary_expression, is_binding_pattern, is_class_static_block_declaration, is_identifier,
     try_for_each_child_bool, DiagnosticMessage, Diagnostics, ExternalEmitHelpers, FunctionFlags,
     IterationTypes, NamedDeclarationInterface, Node, NodeArray, NodeInterface, OptionTry,

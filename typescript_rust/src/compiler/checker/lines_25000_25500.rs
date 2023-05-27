@@ -1,10 +1,10 @@
 use gc::Gc;
 use std::ptr;
-use std::rc::Rc;
+
 use std::{borrow::Borrow, io};
 
 use crate::{
-    add_related_info, contains_gc, contains_rc, create_diagnostic_for_node, find_ancestor,
+    add_related_info, contains_gc, create_diagnostic_for_node, find_ancestor,
     for_each_child_returns, for_each_enclosing_block_scope_container, get_ancestor,
     get_assignment_declaration_kind, get_class_extends_heritage_element,
     get_enclosing_block_scope_container, get_jsdoc_this_tag, get_jsdoc_type, get_super_container,
@@ -15,7 +15,7 @@ use crate::{
     is_iteration_statement, is_method_declaration, is_object_literal_expression,
     is_property_assignment, is_property_declaration, is_source_file, is_static, is_super_call,
     is_super_property, length, maybe_is_class_like, node_starts_new_lexical_environment,
-    push_if_unique_gc, push_if_unique_rc, text_range_contains_position_inclusive, AsDoubleDeref,
+    push_if_unique_gc, text_range_contains_position_inclusive, AsDoubleDeref,
     AssignmentDeclarationKind, DiagnosticMessage, Diagnostics, FindAncestorCallbackReturn,
     HasTypeInterface, InterfaceTypeInterface, InternalSymbolName, ModifierFlags,
     NamedDeclarationInterface, Node, NodeArray, NodeCheckFlags, NodeInterface, OptionTry,

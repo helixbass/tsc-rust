@@ -6,14 +6,13 @@ use super::UnusedKind;
 use crate::try_for_each;
 use crate::try_maybe_for_each;
 use crate::{
-    clear, compare_diagnostics, concatenate, contains_parse_error, for_each, for_each_child,
+    clear, compare_diagnostics, concatenate, contains_parse_error, for_each,
     get_host_signature_from_jsdoc, get_node_id, get_parameter_symbol_from_jsdoc,
     get_source_file_of_node, is_access_expression, is_exports_identifier, is_external_module,
     is_external_or_common_js_module, is_in_js_file, is_jsdoc_callback_tag, is_jsdoc_function_type,
     is_jsdoc_parameter_tag, is_jsdoc_type_expression, is_logging,
-    is_module_exports_access_expression, is_parameter, is_rest_parameter, last, last_or_undefined,
-    maybe_for_each, relative_complement, skip_type_checking, try_for_each_child,
-    CancellationTokenDebuggable, Debug_, Diagnostic, Diagnostics, HasStatementsInterface,
+    is_module_exports_access_expression, is_parameter, is_rest_parameter, last, last_or_undefined, relative_complement, skip_type_checking, try_for_each_child,
+    CancellationTokenDebuggable, Diagnostic, Diagnostics, HasStatementsInterface,
     ImportsNotUsedAsValues, Node, NodeArray, NodeCheckFlags, NodeFlags, NodeInterface,
     SignatureDeclarationInterface, SyntaxKind, Type, TypeChecker, TypeCheckerHost,
 };

@@ -1,17 +1,17 @@
 use gc::{Gc, GcCell};
-use std::cell::RefCell;
+
 use std::ptr;
-use std::rc::Rc;
+
 use std::{borrow::Borrow, io};
 
 use super::{CheckMode, JsxNames};
 use crate::{
-    add_related_info, create_diagnostic_for_node, create_symbol_table, every, factory,
+    add_related_info, create_diagnostic_for_node, create_symbol_table,
     get_emit_module_resolution_kind, get_jsx_implicit_import_base, get_jsx_runtime_import,
     get_jsx_transform_enabled, get_source_file_of_node, id_text, is_identifier,
-    is_intrinsic_jsx_name, is_jsx_attribute, set_parent, string_contains, synthetic_factory,
+    is_intrinsic_jsx_name, is_jsx_attribute, set_parent, string_contains,
     unescape_leading_underscores, Debug_, Diagnostics, IndexInfo, JsxFlags, ModuleResolutionKind,
-    NodeArray, PragmaName, SymbolFlags, SymbolTable, TransientSymbolInterface, __String,
+    NodeArray, PragmaName, SymbolFlags, SymbolTable, TransientSymbolInterface,
     get_factory, get_object_flags, maybe_get_source_file_of_node, try_every, Node, NodeInterface,
     ObjectFlags, OptionTry, Symbol, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags,
     TypeInterface,

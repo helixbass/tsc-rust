@@ -3,7 +3,7 @@ use std::borrow::Borrow;
 use std::cmp;
 use std::io;
 use std::ptr;
-use std::rc::Rc;
+
 
 use super::{CheckMode, IterationUse, JsxNames};
 use crate::debug_fail_if_none;
@@ -13,17 +13,15 @@ use crate::try_map;
 use crate::try_reduce_left_no_initial_value_optional;
 use crate::OptionTry;
 use crate::{
-    concatenate, filter, get_enclosing_block_scope_container, get_jsdoc_enum_tag,
+    concatenate, get_enclosing_block_scope_container, get_jsdoc_enum_tag,
     get_strict_option_value, has_static_modifier, is_assignment_target, is_binary_expression,
     is_class_expression, is_computed_property_name, is_function_expression_or_arrow_function,
     is_in_js_file, is_in_json_file, is_interface_declaration, is_known_symbol,
     is_named_declaration, is_object_literal_method, is_property_declaration, is_type_literal_node,
-    length, maybe_is_class_like, parameter_is_this_keyword, reduce_left_no_initial_value_optional,
-    same_map, unescape_leading_underscores, CheckFlags, ContextFlags, Debug_, Diagnostics,
+    length, maybe_is_class_like, parameter_is_this_keyword, unescape_leading_underscores, CheckFlags, ContextFlags, Debug_, Diagnostics,
     ElementFlags, ExternalEmitHelpers, HasInitializerInterface, IndexInfo, InterfaceTypeInterface,
     NamedDeclarationInterface, NodeCheckFlags, ScriptTarget, Signature, SignatureFlags,
-    SignatureKind, SymbolFlags, Ternary, TransientSymbolInterface, TypeMapper, UnionReduction,
-    __String, create_symbol_table, get_object_flags, Node, NodeInterface, ObjectFlags,
+    SignatureKind, SymbolFlags, Ternary, TransientSymbolInterface, TypeMapper, UnionReduction, create_symbol_table, get_object_flags, Node, NodeInterface, ObjectFlags,
     ObjectFlagsTypeInterface, Symbol, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags,
     TypeInterface,
 };

@@ -9,9 +9,9 @@ use super::{MappedTypeModifiers, WideningKind};
 use crate::{
     create_symbol_table, escape_leading_underscores, filter, find_ancestor,
     get_declaration_of_kind, is_function_type_node, is_identifier, is_method_signature, map,
-    same_map, some, ElementFlags, FindAncestorCallbackReturn, IndexInfo, NamedDeclarationInterface,
+    same_map, ElementFlags, FindAncestorCallbackReturn, IndexInfo, NamedDeclarationInterface,
     ReverseMappedType, SymbolInterface, SyntaxKind, TransientSymbolInterface, TypeComparer,
-    TypeMapper, TypeMapperCallback, __String, declaration_name_to_string, for_each_bool,
+    TypeMapper, TypeMapperCallback, __String, declaration_name_to_string,
     get_name_of_declaration, get_object_flags, get_source_file_of_node,
     is_call_signature_declaration, is_check_js_enabled_for_file, is_in_js_file, is_type_node_kind,
     try_for_each_bool, try_map, try_some, DiagnosticMessage, Diagnostics, InferenceContext,

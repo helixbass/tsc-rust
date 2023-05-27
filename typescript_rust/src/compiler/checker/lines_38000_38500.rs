@@ -4,16 +4,14 @@ use std::{convert::TryInto, io};
 
 use crate::try_maybe_for_each;
 use crate::{
-    Type, TypeChecker, __String, are_option_gcs_equal, declaration_name_to_string, find_ancestor,
-    for_each, for_each_bool, for_each_child, for_each_key, get_class_extends_heritage_element,
+    Type, TypeChecker, __String, are_option_gcs_equal, declaration_name_to_string, find_ancestor, for_each_key, get_class_extends_heritage_element,
     get_declaration_of_kind, get_effective_base_type_node,
     get_effective_constraint_of_type_parameter, get_effective_implements_type_nodes,
     get_effective_type_annotation_node, get_effective_type_parameter_declarations,
     get_name_of_declaration, get_object_flags, get_root_declaration, get_source_file_of_node,
     get_span_of_token_at_position, get_text_of_node, has_static_modifier, has_syntactic_modifier,
     is_class_like, is_entity_name_expression, is_function_like, is_identifier, is_optional_chain,
-    is_private_identifier, is_private_identifier_class_element_declaration, is_static, length,
-    maybe_for_each, some, try_for_each, try_for_each_bool, try_for_each_child, try_some,
+    is_private_identifier, is_private_identifier_class_element_declaration, is_static, length, some, try_for_each, try_for_each_bool, try_for_each_child, try_some,
     AsDoubleDeref, ClassLikeDeclarationInterface, DiagnosticMessage, Diagnostics,
     ExternalEmitHelpers, FindAncestorCallbackReturn, HasInitializerInterface,
     HasTypeArgumentsInterface, IndexInfo, InterfaceTypeInterface, ModifierFlags, ModuleKind,

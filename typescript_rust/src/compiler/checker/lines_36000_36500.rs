@@ -1,7 +1,7 @@
 use gc::Gc;
 use std::borrow::{Borrow, Cow};
 use std::collections::{HashMap, HashSet};
-use std::rc::Rc;
+
 use std::{io, ptr};
 
 use super::{get_node_id, UnusedKind};

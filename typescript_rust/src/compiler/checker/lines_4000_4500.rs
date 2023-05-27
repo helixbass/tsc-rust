@@ -5,10 +5,10 @@ use std::{borrow::Borrow, io};
 
 use super::{get_node_id, get_symbol_id, typeof_eq_facts};
 use crate::{
-    concatenate, create_symbol_table, filter, find_ancestor, for_each_entry,
+    concatenate, create_symbol_table, filter, find_ancestor,
     get_declaration_of_kind, get_source_file_of_node, is_ambient_module, is_external_module,
     is_external_module_import_equals_declaration, is_external_or_common_js_module, is_in_js_file,
-    is_namespace_reexport_declaration, is_umd_export_symbol, length, maybe_for_each,
+    is_namespace_reexport_declaration, is_umd_export_symbol, length,
     node_is_present, push_if_unique_gc, some, try_for_each_entry, try_maybe_for_each,
     BaseInterfaceType, BaseIntrinsicType, BaseObjectType, BaseType, CharacterCodes,
     FunctionLikeDeclarationInterface, IndexInfo, InternalSymbolName, Node, NodeInterface,

@@ -4,7 +4,7 @@ use gc::Gc;
 
 use super::TransformES2015;
 use crate::{
-    flatten_destructuring_binding, get_emit_flags, insert_statement_after_custom_prologue,
+    get_emit_flags, insert_statement_after_custom_prologue,
     insert_statements_after_custom_prologue, is_binding_pattern, is_expression, last_or_undefined,
     some, try_flatten_destructuring_binding, try_visit_node, EmitFlags, FlattenLevel,
     GeneratedIdentifierFlags, HasInitializerInterface, Matches, NamedDeclarationInterface, Node,

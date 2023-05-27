@@ -1,15 +1,15 @@
 use gc::{Gc, GcCell};
-use std::cell::RefCell;
+
 use std::collections::HashMap;
 use std::ptr;
-use std::rc::Rc;
+
 use std::{borrow::Borrow, io};
 
 use super::get_node_id;
 use crate::{
-    __String, count_where, create_symbol_table, find, is_assertion_expression,
+    count_where, create_symbol_table, find, is_assertion_expression,
     is_const_type_reference, is_this_identifier, is_type_alias_declaration, is_type_operator_node,
-    length, map, maybe_map, some, symbol_name, try_map, try_maybe_map, try_some, AsDoubleDeref,
+    length, map, some, symbol_name, try_map, try_maybe_map, try_some, AsDoubleDeref,
     BaseInterfaceType, CheckFlags, DiagnosticMessage, Diagnostics, ElementFlags,
     GenericableTypeInterface, HasTypeArgumentsInterface, InterfaceTypeInterface,
     InterfaceTypeWithDeclaredMembersInterface, Node, NodeInterface, Number, ObjectFlags, OptionTry,

@@ -1,11 +1,10 @@
 use gc::Gc;
-use std::rc::Rc;
+
 use std::{io, ptr};
 
 use super::{CheckMode, GetFlowTypeOfReference, TypeFacts};
 use crate::{
-    are_option_gcs_equal, are_option_rcs_equal, escape_leading_underscores, find, find_ancestor,
-    for_each_child, get_assignment_target_kind, get_containing_class, get_containing_function,
+    are_option_gcs_equal, escape_leading_underscores, find_ancestor, get_assignment_target_kind, get_containing_class, get_containing_function,
     get_immediately_invoked_function_expression, get_name_of_declaration, get_root_declaration,
     get_this_container, has_syntactic_modifier, is_access_expression, is_assignment_target,
     is_binary_expression, is_binding_element, is_call_chain, is_catch_clause,
@@ -16,12 +15,11 @@ use crate::{
     is_object_literal_or_class_expression_method_or_accessor,
     is_parameter_or_catch_clause_variable, is_property_access_expression, is_property_declaration,
     is_right_side_of_qualified_name_or_property_access, is_set_accessor, is_spread_assignment,
-    is_static, is_string_literal_like, is_variable_declaration, is_write_access, map,
+    is_static, is_string_literal_like, is_variable_declaration, is_write_access,
     node_is_decorated, should_preserve_const_enums, AssignmentKind, ContextFlags, Diagnostics,
     FindAncestorCallbackReturn, HasInitializerInterface, HasTypeInterface, ModifierFlags,
     NodeArray, NodeCheckFlags, NodeFlags, ScriptTarget, Signature, SignatureKind, SymbolFlags,
-    TypePredicate, TypePredicateKind, TypeSystemPropertyName, UnionOrIntersectionTypeInterface,
-    __String, get_object_flags, try_find, try_for_each_child, try_map, Node, NodeInterface,
+    TypePredicate, TypePredicateKind, TypeSystemPropertyName, UnionOrIntersectionTypeInterface, get_object_flags, try_find, try_for_each_child, try_map, Node, NodeInterface,
     ObjectFlags, OptionTry, Symbol, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags,
     TypeInterface,
 };

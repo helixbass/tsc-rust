@@ -13,9 +13,7 @@ use super::{
 };
 use crate::{
     create_compiler_diagnostic, for_each, get_spelling_suggestion, starts_with, trim_string,
-    AlternateModeDiagnostics, BuildOptions, CharacterCodes, CommandLineOption,
-    CommandLineOptionBase, CommandLineOptionBaseBuilder, CommandLineOptionInterface,
-    CommandLineOptionOfBooleanType, CommandLineOptionOfListType, CommandLineOptionOfStringType,
+    AlternateModeDiagnostics, BuildOptions, CharacterCodes, CommandLineOption, CommandLineOptionBaseBuilder, CommandLineOptionInterface, CommandLineOptionOfListType,
     CommandLineOptionType, CompilerOptions, CompilerOptionsBuilder, CompilerOptionsValue,
     Diagnostic, DiagnosticMessage, Diagnostics, DidYouMeanOptionsDiagnostics, GcVec, ModuleKind,
     ParsedCommandLineWithBaseOptions, ScriptTarget, StringOrDiagnosticMessage, WatchOptions,

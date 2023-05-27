@@ -1,17 +1,17 @@
 use std::{borrow::Borrow, ptr};
 
 use gc::Gc;
-use itertools::Itertools;
+
 
 use crate::{
     add_range, get_all_accessor_declarations, get_effective_return_type_node,
     get_first_constructor_with_body, get_original_node_id, get_rest_parameter_element_type,
     get_set_accessor_type_annotation_node, is_async_function, is_class_like, is_expression,
     is_function_like, is_identifier, maybe_map, move_range_past_decorators, node_is_present,
-    try_flat_map, try_maybe_map, try_visit_node, visit_node, AllAccessorDeclarations, Debug_,
+    try_flat_map, try_maybe_map, try_visit_node, AllAccessorDeclarations, Debug_,
     EmitFlags, FunctionLikeDeclarationInterface, HasTypeInterface, Matches,
     NamedDeclarationInterface, Node, NodeArray, NodeArrayOrVec, NodeExt, NodeInterface, OptionTry,
-    ScriptTarget, SignatureDeclarationInterface, SyntaxKind, UnwrapOrEmpty,
+    ScriptTarget, SignatureDeclarationInterface, SyntaxKind,
 };
 
 use super::{AllDecorators, TransformTypeScript, USE_NEW_TYPE_METADATA_FORMAT};

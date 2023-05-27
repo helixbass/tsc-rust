@@ -1,6 +1,6 @@
 use gc::{Gc, GcCell};
-use std::cell::RefCell;
-use std::rc::Rc;
+
+
 use std::{borrow::Borrow, io};
 
 use super::{
@@ -9,10 +9,9 @@ use super::{
 };
 use crate::{
     SyntaxKind, TransientSymbolInterface, Type, TypeChecker, TypeFlags, TypeInterface,
-    UnionReduction, __String, are_option_gcs_equal, are_option_rcs_equal, create_symbol_table,
-    for_each_return_statement, for_each_yield_expression, get_effective_return_type_node,
+    UnionReduction, are_option_gcs_equal, create_symbol_table, get_effective_return_type_node,
     get_effective_type_annotation_node, get_function_flags, is_import_call, is_omitted_expression,
-    is_transient_symbol, last, node_is_missing, push_if_unique_gc, push_if_unique_rc, some,
+    is_transient_symbol, last, node_is_missing, push_if_unique_gc, some,
     try_for_each_return_statement, try_for_each_yield_expression, CheckFlags, Diagnostics,
     FunctionFlags, HasTypeInterface, InferenceContext, NamedDeclarationInterface, Node, NodeFlags,
     NodeInterface, OptionTry, Signature, Symbol, SymbolFlags, SymbolInterface,

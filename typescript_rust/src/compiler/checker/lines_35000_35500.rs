@@ -1,15 +1,15 @@
 use gc::Gc;
 use std::ptr;
-use std::rc::Rc;
+
 use std::{borrow::Borrow, io};
 
 use super::{DeclarationSpaces, TypeFacts};
 use crate::{
-    map, Signature, SignatureKind, UnionReduction, __String, declaration_name_to_string,
+    Signature, SignatureKind, UnionReduction, declaration_name_to_string,
     for_each_child_returns, get_declaration_of_kind, get_escaped_text_of_identifier_or_literal,
     get_module_instance_state, get_name_of_declaration, has_syntactic_modifier, is_ambient_module,
     is_computed_property_name, is_entity_name_expression, is_export_assignment,
-    is_private_identifier, is_property_name_literal, is_static, maybe_for_each, node_is_missing,
+    is_private_identifier, is_property_name_literal, is_static, node_is_missing,
     node_is_present, return_ok_none_if_none, try_map, try_maybe_for_each, Debug_,
     DiagnosticMessage, Diagnostics, ModifierFlags, ModuleInstanceState, Node, NodeArray,
     NodeInterface, OptionTry, ReadonlyTextRange, Symbol, SymbolInterface, SyntaxKind, Type,

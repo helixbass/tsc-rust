@@ -2,13 +2,13 @@ use gc::Gc;
 use indexmap::IndexMap;
 use std::collections::HashMap;
 use std::iter::FromIterator;
-use std::{cell::RefCell, rc::Rc};
+use std::{rc::Rc};
 
 use super::spec_to_diagnostic;
 use crate::{
-    CommandLineOption, CommandLineOptionBase, CommandLineOptionBaseBuilder,
-    CommandLineOptionMapTypeValue, CommandLineOptionOfBooleanType, CommandLineOptionOfCustomType,
-    CommandLineOptionOfListType, CommandLineOptionOfNumberType, CommandLineOptionOfStringType,
+    CommandLineOption, CommandLineOptionBaseBuilder,
+    CommandLineOptionMapTypeValue,
+    CommandLineOptionOfListType,
     CommandLineOptionType, CompilerOptionsValue, Diagnostics, GcVec, ImportsNotUsedAsValues,
     JsxEmit, ModuleKind, ModuleResolutionKind, NewLineKind, PollingWatchKind, ScriptTarget,
     StringOrDiagnosticMessage, TsConfigOnlyOption, WatchDirectoryKind, WatchFileKind,

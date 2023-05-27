@@ -15,7 +15,7 @@ use crate::{
     create_diagnostic_for_node_from_message_chain, find_ancestor, first_or_undefined,
     get_emit_script_target, get_object_flags, is_identifier, is_identifier_text, is_import_call,
     is_jsx_attribute, is_jsx_attributes, is_jsx_opening_like_element,
-    is_object_literal_element_like, maybe_get_source_file_of_node, reduce_left, some,
+    is_object_literal_element_like, maybe_get_source_file_of_node, some,
     try_reduce_left, Debug_, Diagnostic, DiagnosticMessage, DiagnosticMessageChain,
     DiagnosticRelatedInformation, Diagnostics, Node, NodeInterface, ObjectFlags,
     ObjectFlagsTypeInterface, OptionTry, RelationComparisonResult, SignatureKind, Symbol,

@@ -2,18 +2,18 @@ use gc::Gc;
 use std::collections::HashMap;
 use std::convert::TryInto;
 use std::ptr;
-use std::rc::Rc;
+
 use std::{borrow::Borrow, io};
 
 use super::{get_next_flow_id, increment_next_flow_id, IterationUse, TypeFacts};
 use crate::{
-    are_option_gcs_equal, count_where, find, for_each, reduce_left, CheckFlags, FlowNodeBase,
-    TransientSymbolInterface, UnionOrIntersectionTypeInterface, __String, are_option_rcs_equal,
+    are_option_gcs_equal, count_where, find, CheckFlags, FlowNodeBase,
+    TransientSymbolInterface, UnionOrIntersectionTypeInterface, __String,
     escape_leading_underscores, find_ancestor, get_check_flags, get_node_id, get_object_flags,
     get_symbol_id, is_access_expression, is_assignment_expression, is_binary_expression,
     is_binding_element, is_identifier, is_optional_chain, is_string_or_numeric_literal_like,
     is_this_in_type_query, is_variable_declaration, is_write_only_access, node_is_missing,
-    return_ok_default_if_none, try_find, try_for_each, try_reduce_left, FindAncestorCallbackReturn,
+    return_ok_default_if_none, try_for_each, try_reduce_left, FindAncestorCallbackReturn,
     FlowNode, HasInitializerInterface, HasTypeInterface, Node, NodeInterface, Number, ObjectFlags,
     OptionTry, Symbol, SymbolFlags, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags,
     TypeId, TypeInterface,

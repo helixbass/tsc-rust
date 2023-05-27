@@ -1,21 +1,20 @@
 use gc::{Gc, GcCell};
 use std::borrow::{Borrow, Cow};
-use std::cell::RefCell;
+
 use std::convert::TryInto;
-use std::rc::Rc;
+
 use std::{io, ptr};
 
 use super::{signature_has_rest_parameter, MembersOrExportsResolutionKind};
 use crate::{
-    Type, TypeChecker, TypeFlags, TypeInterface, TypeMapper, TypePredicate, UnderscoreEscapedMap,
-    __String, append_if_unique_gc, append_if_unique_rc, are_gc_slices_equal, are_rc_slices_equal,
+    Type, TypeChecker, TypeFlags, TypeInterface, TypeMapper, TypePredicate, append_if_unique_gc, are_gc_slices_equal,
     concatenate, create_symbol_table, declaration_name_to_string, escape_leading_underscores,
-    every, filter, for_each, get_assignment_declaration_kind, get_check_flags,
+    every, for_each, get_assignment_declaration_kind, get_check_flags,
     get_class_like_declaration_of_symbol, get_members_of_declaration, get_name_of_declaration,
     get_object_flags, has_dynamic_name, has_static_modifier, has_syntactic_modifier,
     is_binary_expression, is_dynamic_name, is_element_access_expression, is_in_js_file,
-    last_or_undefined, length, map, map_defined, maybe_concatenate, maybe_for_each, maybe_map,
-    range_equals_gc, range_equals_rc, return_ok_default_if_none, same_map, some, try_map,
+    last_or_undefined, length, maybe_concatenate, maybe_for_each,
+    range_equals_gc, return_ok_default_if_none, some, try_map,
     try_map_defined, try_maybe_map, try_some, unescape_leading_underscores,
     AssignmentDeclarationKind, CheckFlags, Debug_, Diagnostics, ElementFlags, IndexInfo,
     InterfaceTypeInterface, InterfaceTypeWithDeclaredMembersInterface, InternalSymbolName,

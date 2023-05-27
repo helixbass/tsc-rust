@@ -1,12 +1,12 @@
 use gc::Gc;
 use std::convert::TryInto;
 use std::ptr;
-use std::rc::Rc;
+
 use std::{borrow::Borrow, io};
 
 use super::{signature_has_rest_parameter, CheckMode, IterationTypeKind, IterationUse};
 use crate::{
-    for_each, get_containing_function, get_effective_type_annotation_node, get_function_flags,
+    get_containing_function, get_effective_type_annotation_node, get_function_flags,
     get_immediately_invoked_function_expression, get_object_flags, get_source_file_of_node,
     get_this_parameter, has_initializer, index_of_node, is_access_expression, is_binding_element,
     is_binding_pattern, is_computed_non_literal_name, is_defaulted_expando_initializer,
@@ -14,7 +14,7 @@ use crate::{
     is_jsx_opening_like_element, is_parameter, is_private_identifier,
     is_property_access_expression, is_static, last_or_undefined, maybe_is_class_like,
     return_ok_none_if_none, try_for_each, walk_up_parenthesized_expressions, AccessFlags,
-    ContextFlags, FunctionFlags, HasInitializerInterface, InferenceContext,
+    ContextFlags, FunctionFlags, HasInitializerInterface,
     NamedDeclarationInterface, Node, NodeInterface, Number, ObjectFlags, OptionTry, Symbol,
     SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
 };

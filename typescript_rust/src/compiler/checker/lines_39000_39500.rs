@@ -16,7 +16,7 @@ use crate::{
     is_infinity_or_nan_string, is_literal_expression, is_nan, is_optional_chain,
     is_private_identifier, is_static, is_string_literal_like, length, maybe_for_each,
     maybe_get_source_file_of_node, node_is_missing, node_is_present, set_parent,
-    should_preserve_const_enums, synthetic_factory, AsDoubleDeref, Diagnostics, EnumKind,
+    should_preserve_const_enums, AsDoubleDeref, Diagnostics, EnumKind,
     FunctionLikeDeclarationInterface, HasInitializerInterface, HasTypeParametersInterface,
     InterfaceTypeInterface, ModifierFlags, NamedDeclarationInterface, Node, NodeCheckFlags,
     NodeFlags, NodeInterface, Number, OptionTry, ReadonlyTextRange, StringOrNumber, Symbol,

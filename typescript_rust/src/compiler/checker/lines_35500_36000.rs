@@ -7,7 +7,7 @@ use std::{borrow::Borrow, io};
 use super::ResolveCallContainingMessageChain;
 use crate::try_for_each;
 use crate::{
-    chain_diagnostic_messages, entity_name_to_string, for_each, get_declaration_of_kind,
+    chain_diagnostic_messages, entity_name_to_string, get_declaration_of_kind,
     get_effective_return_type_node, get_effective_type_annotation_node,
     get_effective_type_parameter_declarations, get_entity_name_from_type_node,
     get_first_constructor_with_body, get_first_identifier, get_host_signature_from_jsdoc,

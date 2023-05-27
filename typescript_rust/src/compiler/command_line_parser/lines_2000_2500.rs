@@ -14,7 +14,7 @@ use super::{
     option_declarations, tsconfig_root_options_dummy_name,
 };
 use crate::{
-    create_diagnostic_for_node_in_source_file, create_get_canonical_file_name, create_multi_map,
+    create_diagnostic_for_node_in_source_file, create_get_canonical_file_name,
     create_multi_map_ordered, extend_compiler_options, get_directory_path,
     get_file_matcher_patterns, get_locale_specific_message, get_normalized_absolute_path,
     get_regex_from_pattern, get_relative_path_from_file, get_text_of_property_name,
@@ -22,7 +22,7 @@ use crate::{
     unescape_leading_underscores, CommandLineOption, CommandLineOptionInterface,
     CommandLineOptionMapTypeValue, CommandLineOptionType, CompilerOptions, CompilerOptionsValue,
     Diagnostic, Diagnostics, DidYouMeanOptionsDiagnostics, FileMatcherPatterns,
-    JsonConversionNotifier, MultiMap, MultiMapOrdered, NamedDeclarationInterface, Node, NodeArray,
+    JsonConversionNotifier, MultiMapOrdered, NamedDeclarationInterface, Node, NodeArray,
     NodeInterface, Number, OptionsNameMap, ParsedCommandLine, ProjectReference, Push, SyntaxKind,
     ToHashMapOfCompilerOptionsValues, WatchOptions,
 };

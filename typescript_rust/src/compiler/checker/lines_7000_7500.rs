@@ -5,7 +5,7 @@ use itertools::Itertools;
 
 use crate::{
     are_option_gcs_equal, array_to_multi_map, can_have_modifiers, create_symbol_table,
-    debug_fail_if_none, filter, find_ancestor, flat_map, get_assignment_declaration_kind,
+    debug_fail_if_none, filter, find_ancestor, get_assignment_declaration_kind,
     get_effective_implements_type_nodes, get_effective_modifier_flags, get_es_module_interop,
     get_factory, get_name_of_declaration, get_parse_node_factory, get_source_file_of_node,
     get_symbol_id, get_text_of_jsdoc_comment, has_syntactic_modifier, id_text, is_ambient_module,
@@ -18,11 +18,10 @@ use crate::{
     is_module_declaration, is_named_declaration, is_namespace_export, is_parameter_declaration,
     is_private_identifier, is_property_access_expression, is_shorthand_ambient_module_symbol,
     is_source_file, is_static, is_string_literal_like, is_variable_declaration,
-    is_variable_statement, length, map, map_defined, maybe_first_defined,
-    maybe_get_source_file_of_node, maybe_map, return_ok_default_if_none, set_parent,
+    is_variable_statement, length, map,
+    maybe_get_source_file_of_node, return_ok_default_if_none, set_parent,
     set_synthetic_leading_comments_rc, set_text_range_rc_node, some, try_flat_map, try_map,
-    try_map_defined, try_maybe_first_defined, try_maybe_map, unescape_leading_underscores,
-    with_parse_base_node_factory_and_factory, with_synthetic_factory_and_factory, AsDoubleDeref,
+    try_map_defined, try_maybe_first_defined, try_maybe_map, unescape_leading_underscores, AsDoubleDeref,
     AssignmentDeclarationKind, BoolExt, Debug_, HasInitializerInterface, HasTypeArgumentsInterface,
     InternalSymbolName, IteratorExt, MapOrDefault, ModifierFlags, NamedDeclarationInterface, Node,
     NodeArray, NodeBuilderFlags, NodeFlags, NodeInterface, OptionTry, Signature, SignatureKind,

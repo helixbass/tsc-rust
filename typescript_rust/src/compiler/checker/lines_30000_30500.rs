@@ -1,6 +1,6 @@
 use gc::Gc;
 use std::ptr;
-use std::rc::Rc;
+
 use std::{convert::TryInto, io};
 
 use super::{signature_has_literal_types, signature_has_rest_parameter, CheckMode};

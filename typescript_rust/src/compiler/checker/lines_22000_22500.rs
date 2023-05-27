@@ -13,7 +13,7 @@ use crate::PeekMoreExt;
 use crate::PeekableExt;
 use crate::VecExt;
 use crate::{
-    every, find, flat_map, get_object_flags, some, DiagnosticMessage, Diagnostics, ElementFlags,
+    every, find, flat_map, get_object_flags, DiagnosticMessage, Diagnostics, ElementFlags,
     InferenceContext, InferenceFlags, InferenceInfo, InferencePriority, Node, NodeInterface,
     ObjectFlags, Signature, SignatureKind, Symbol, SymbolFlags, SymbolInterface, SyntaxKind,
     Ternary, Type, TypeChecker, TypeFlags, TypeInterface, UnionReduction,

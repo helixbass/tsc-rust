@@ -1,21 +1,21 @@
 use gc::Gc;
 use std::convert::TryInto;
 use std::ptr;
-use std::rc::Rc;
+
 use std::{borrow::Borrow, io};
 
 use super::IterationUse;
 use crate::{
-    add_related_info, contains_gc, contains_rc, create_diagnostic_for_node, create_file_diagnostic,
-    every, filter, find_ancestor, for_each, for_each_bool, get_check_flags,
+    add_related_info, contains_gc, create_diagnostic_for_node, create_file_diagnostic,
+    every, find_ancestor, for_each_bool, get_check_flags,
     get_effective_return_type_node, get_effective_type_annotation_node, get_object_flags,
     get_source_file_of_node, get_span_of_token_at_position, get_symbol_name_for_private_identifier,
     has_initializer, is_access_expression, is_assignment_target,
     is_function_expression_or_arrow_function, is_function_or_module_block, is_identifier,
     is_in_js_file, is_optional_chain, is_parameter, is_private_identifier,
     is_property_access_expression, is_property_declaration, is_property_signature,
-    is_push_or_unshift_identifier, is_string_literal_like, is_variable_declaration, map,
-    skip_parentheses, some, try_every, try_filter, try_for_each, try_map, try_some, CheckFlags,
+    is_push_or_unshift_identifier, is_string_literal_like, is_variable_declaration,
+    skip_parentheses, try_every, try_filter, try_for_each, try_map, try_some, CheckFlags,
     Diagnostic, Diagnostics, EvolvingArrayType, FlowFlags, FlowNode, FlowNodeBase, FlowType,
     HasInitializerInterface, IncompleteType, NamedDeclarationInterface, Node, NodeFlags,
     NodeInterface, ObjectFlags, ObjectFlagsTypeInterface, OptionTry, ReadonlyTextRange, Signature,
