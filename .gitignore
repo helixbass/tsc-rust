@@ -4,3 +4,4 @@ test-out*
 out
 typescript_rust/typescript_src/tests/baselines/local/
 rusty-tags.vi
+NOTES
