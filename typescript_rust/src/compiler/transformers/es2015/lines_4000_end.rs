@@ -2,11 +2,11 @@ use std::borrow::Borrow;
 
 use gc::Gc;
 
-use super::TransformES2015;
+use super::{ES2015SubstitutionFlags, HierarchyFacts, TransformES2015};
 use crate::{
     first_or_undefined, is_identifier, is_static, node_is_synthesized, return_default_if_none,
-    single_or_undefined, FunctionLikeDeclarationInterface, Matches, Node, NodeInterface,
-    SignatureDeclarationInterface, SyntaxKind, VisitResult,
+    single_or_undefined, FunctionLikeDeclarationInterface, GeneratedIdentifierFlags, Matches, Node,
+    NodeInterface, SignatureDeclarationInterface, SyntaxKind, VisitResult,
 };
 
 impl TransformES2015 {
@@ -48,21 +48,97 @@ impl TransformES2015 {
 
     pub(super) fn visit_super_keyword(
         &self,
-        _is_expression_of_call: bool,
+        is_expression_of_call: bool,
     ) -> Gc<Node /*LeftHandSideExpression*/> {
-        unimplemented!()
+        if self
+            .maybe_hierarchy_facts()
+            .unwrap_or_default()
+            .intersects(HierarchyFacts::NonStaticClassElement)
+            && !is_expression_of_call
+        {
+            self.factory
+                .create_property_access_expression(
+                    self.factory.create_unique_name(
+                        "super",
+                        Some(
+                            GeneratedIdentifierFlags::Optimistic
+                                | GeneratedIdentifierFlags::FileLevel,
+                        ),
+                    ),
+                    "prototype",
+                )
+                .wrap()
+        } else {
+            self.factory.create_unique_name(
+                "super",
+                Some(GeneratedIdentifierFlags::Optimistic | GeneratedIdentifierFlags::FileLevel),
+            )
+        }
     }
 
-    pub(super) fn visit_meta_property(&self, _node: &Node /*MetaProperty*/) -> VisitResult {
-        unimplemented!()
+    pub(super) fn visit_meta_property(&self, node: &Node /*MetaProperty*/) -> VisitResult {
+        let node_as_meta_property = node.as_meta_property();
+        if node_as_meta_property.keyword_token == SyntaxKind::NewKeyword
+            && node_as_meta_property.name.as_identifier().escaped_text == "target"
+        {
+            self.set_hierarchy_facts(Some(
+                self.maybe_hierarchy_facts().unwrap_or_default() | HierarchyFacts::NewTarget,
+            ));
+            return Some(
+                self.factory
+                    .create_unique_name(
+                        "_newTarget",
+                        Some(
+                            GeneratedIdentifierFlags::Optimistic
+                                | GeneratedIdentifierFlags::FileLevel,
+                        ),
+                    )
+                    .into(),
+            );
+        }
+        Some(node.node_wrapper().into())
     }
 
     pub(super) fn enable_substitutions_for_block_scoped_bindings(&self) {
-        unimplemented!()
+        if !self
+            .maybe_enabled_substitutions()
+            .unwrap_or_default()
+            .intersects(ES2015SubstitutionFlags::BlockScopedBindings)
+        {
+            self.set_enabled_substitutions(Some(
+                self.maybe_enabled_substitutions().unwrap_or_default()
+                    | ES2015SubstitutionFlags::BlockScopedBindings,
+            ));
+            self.context.enable_substitution(SyntaxKind::Identifier);
+        }
     }
 
     pub(super) fn enable_substitutions_for_captured_this(&self) {
-        unimplemented!()
+        if !self
+            .maybe_enabled_substitutions()
+            .unwrap_or_default()
+            .intersects(ES2015SubstitutionFlags::CapturedThis)
+        {
+            self.set_enabled_substitutions(Some(
+                self.maybe_enabled_substitutions().unwrap_or_default()
+                    | ES2015SubstitutionFlags::CapturedThis,
+            ));
+            self.context.enable_substitution(SyntaxKind::ThisKeyword);
+            self.context
+                .enable_emit_notification(SyntaxKind::Constructor);
+            self.context
+                .enable_emit_notification(SyntaxKind::MethodDeclaration);
+            self.context
+                .enable_emit_notification(SyntaxKind::GetAccessor);
+            self.context
+                .enable_emit_notification(SyntaxKind::SetAccessor);
+            self.context
+                .enable_emit_notification(SyntaxKind::ArrowFunction);
+            self.context
+                .enable_emit_notification(SyntaxKind::FunctionExpression);
+            self.context
+                .enable_emit_notification(SyntaxKind::FunctionDeclaration);
+        }
     }
 
     pub(super) fn get_class_member_prefix(

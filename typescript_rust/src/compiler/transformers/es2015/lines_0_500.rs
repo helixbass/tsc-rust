@@ -9,16 +9,16 @@ use crate::{
     chain_bundle, gc_cell_ref_mut_unwrapped, gc_cell_ref_unwrapped, get_emit_flags,
     get_enclosing_block_scope_container, get_name_of_declaration, get_original_node,
     get_parse_tree_node, has_static_modifier, is_block, is_case_block, is_case_clause,
-    is_catch_clause, is_class_element, is_class_like, is_default_clause, is_identifier,
-    is_if_statement, is_internal_name, is_iteration_statement, is_labeled_statement,
+    is_catch_clause, is_class_element, is_class_like, is_default_clause, is_function_like,
+    is_identifier, is_if_statement, is_internal_name, is_iteration_statement, is_labeled_statement,
     is_property_declaration, is_return_statement, is_switch_statement, is_try_statement,
-    is_with_statement, try_maybe_visit_each_child,
-    BaseNodeFactorySynthetic, CompilerOptions, EmitFlags, EmitHelperFactory, EmitHint,
-    EmitResolver, GeneratedIdentifierFlags, Matches, Node, NodeExt, NodeFactory,
-    NodeInterface, OptionTry, ReadonlyTextRange, SourceFileLike, SourceTextAsChars, SyntaxKind,
-    TransformFlags, TransformationContext, TransformationContextOnEmitNodeOverrider,
-    TransformationContextOnSubstituteNodeOverrider, Transformer, TransformerFactory,
-    TransformerFactoryInterface, TransformerInterface, VisitResult,
+    is_with_statement, try_maybe_visit_each_child, BaseNodeFactorySynthetic, CompilerOptions,
+    EmitFlags, EmitHelperFactory, EmitHint, EmitResolver, GeneratedIdentifierFlags, Matches, Node,
+    NodeExt, NodeFactory, NodeInterface, OptionTry, ReadonlyTextRange, SourceFileLike,
+    SourceTextAsChars, SyntaxKind, TransformFlags, TransformationContext,
+    TransformationContextOnEmitNodeOverrider, TransformationContextOnSubstituteNodeOverrider,
+    Transformer, TransformerFactory, TransformerFactoryInterface, TransformerInterface,
+    VisitResult,
 };
 
 bitflags! {
@@ -630,11 +630,37 @@ impl TransformES2015OnEmitNodeOverrider {
 impl TransformationContextOnEmitNodeOverrider for TransformES2015OnEmitNodeOverrider {
     fn on_emit_node(
         &self,
-        _hint: EmitHint,
-        _node: &Node,
-        _emit_callback: &dyn Fn(EmitHint, &Node) -> io::Result<()>,
+        hint: EmitHint,
+        node: &Node,
+        emit_callback: &dyn Fn(EmitHint, &Node) -> io::Result<()>,
     ) -> io::Result<()> {
-        unimplemented!()
+        if self
+            .transform_es2015
+            .maybe_enabled_substitutions()
+            .unwrap_or_default()
+            .intersects(ES2015SubstitutionFlags::CapturedThis)
+            && is_function_like(Some(node))
+        {
+            let ancestor_facts = self.transform_es2015.enter_subtree(
+                HierarchyFacts::FunctionExcludes,
+                if get_emit_flags(node).intersects(EmitFlags::CapturesThis) {
+                    HierarchyFacts::FunctionIncludes | HierarchyFacts::CapturesThis
+                } else {
+                    HierarchyFacts::FunctionIncludes
+                },
+            );
+            self.previous_on_emit_node
+                .on_emit_node(hint, node, emit_callback)?;
+            self.transform_es2015.exit_subtree(
+                ancestor_facts,
+                HierarchyFacts::None,
+                HierarchyFacts::None,
+            );
+            return Ok(());
+        }
+        self.previous_on_emit_node
+            .on_emit_node(hint, node, emit_callback)?;
+        return Ok(());
     }
 }
 
