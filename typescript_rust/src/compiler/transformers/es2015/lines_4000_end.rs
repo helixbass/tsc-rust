@@ -1,13 +1,12 @@
-use std::{borrow::Borrow};
+use std::borrow::Borrow;
 
 use gc::Gc;
 
-use super::{TransformES2015};
+use super::TransformES2015;
 use crate::{
-    first_or_undefined, is_identifier,
-    is_static, node_is_synthesized, return_default_if_none, single_or_undefined,
-    FunctionLikeDeclarationInterface, Matches, Node,
-    NodeInterface, SignatureDeclarationInterface, SyntaxKind, VisitResult,
+    first_or_undefined, is_identifier, is_static, node_is_synthesized, return_default_if_none,
+    single_or_undefined, FunctionLikeDeclarationInterface, Matches, Node, NodeInterface,
+    SignatureDeclarationInterface, SyntaxKind, VisitResult,
 };
 
 impl TransformES2015 {

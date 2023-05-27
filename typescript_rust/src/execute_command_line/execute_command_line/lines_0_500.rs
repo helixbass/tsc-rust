@@ -1,7 +1,6 @@
+use std::{collections::HashMap, io, ptr, rc::Rc};
+
 use gc::Gc;
-use std::ptr;
-use std::rc::Rc;
-use std::{collections::HashMap, io};
 
 use super::{
     create_watch_of_config_file, create_watch_of_files_and_compiler_options, perform_compilation,
@@ -20,7 +19,6 @@ use crate::{
     CommandLineOption, CommandLineOptionInterface, CommandLineOptionType, CompilerOptions,
     DiagnosticMessage, DiagnosticReporter, Diagnostics, ExitStatus, ExtendedConfigCacheEntry,
     Extension, Node, ParsedCommandLine, Program, StringOrDiagnosticMessage, System,
-    TypeCheckerHost,
 };
 
 #[allow(dead_code)]
