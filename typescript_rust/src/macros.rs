@@ -109,3 +109,15 @@ macro_rules! return_if_none {
         }
     };
 }
+
+#[macro_export]
+macro_rules! return_default_if_none {
+    ($expr:expr $(,)?) => {
+        match $expr {
+            None => {
+                return Default::default();
+            }
+            Some(expr) => expr,
+        }
+    };
+}

@@ -196,6 +196,7 @@ pub trait Matches {
         self,
         predicate: impl FnOnce(Self::Unwrapped) -> Result<bool, TError>,
     ) -> Result<bool, TError>;
+    fn is_none_or_matches(self, predicate: impl FnOnce(Self::Unwrapped) -> bool) -> bool;
 }
 
 impl<TValue> Matches for Option<TValue> {
@@ -213,6 +214,10 @@ impl<TValue> Matches for Option<TValue> {
             None => Ok(false),
             Some(value) => Ok(predicate(value)?),
         }
+    }
+
+    fn is_none_or_matches(self, predicate: impl FnOnce(Self::Unwrapped) -> bool) -> bool {
+        self.map_or(true, predicate)
     }
 }
 

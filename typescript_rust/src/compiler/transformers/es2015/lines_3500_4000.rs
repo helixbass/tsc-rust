@@ -13,8 +13,8 @@ use crate::{
     try_visit_parameter_list, Debug_, EmitFlags, FlattenLevel, FunctionLikeDeclarationInterface,
     HasInitializerInterface, Matches, NamedDeclarationInterface, Node, NodeArray, NodeExt,
     NodeInterface, ReadonlyTextRangeConcrete, SyntaxKind, VecExt, VisitResult, _d, add_range,
-    element_at, is_expression_statement, is_identifier, is_return_statement, set_emit_flags,
-    set_original_node, AsDoubleDeref, CallBinding, GeneratedIdentifierFlags,
+    element_at, flatten, is_expression_statement, is_identifier, is_return_statement,
+    set_emit_flags, set_original_node, AsDoubleDeref, CallBinding, GeneratedIdentifierFlags,
     SignatureDeclarationInterface, TransformFlags,
 };
 
@@ -715,6 +715,9 @@ impl TransformES2015 {
         _multi_line: bool,
         _has_trailing_comma: bool,
     ) -> Gc<Node /*Expression*/> {
+        // let num_elements = elements.len();
+        // let segments = flatten(
+        // );
         unimplemented!()
     }
 }

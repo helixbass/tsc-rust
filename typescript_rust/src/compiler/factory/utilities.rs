@@ -68,6 +68,10 @@ pub fn create_expression_for_property_name<
     unimplemented!()
 }
 
+pub fn is_internal_name(node: &Node /*Identifier*/) -> bool {
+    get_emit_flags(node).intersects(EmitFlags::InternalName)
+}
+
 pub fn is_local_name(node: &Node /*Identifier*/) -> bool {
     get_emit_flags(node).intersects(EmitFlags::LocalName)
 }

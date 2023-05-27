@@ -20,6 +20,7 @@ use crate::{
 };
 
 bitflags! {
+    #[derive(Default)]
     pub(super) struct ES2015SubstitutionFlags: u32 {
         const None = 0;
         const CapturedThis = 1 << 0;
@@ -311,6 +312,17 @@ impl TransformES2015 {
         converted_loop_state: Option<Gc<GcCell<ConvertedLoopState>>>,
     ) {
         *self.converted_loop_state.borrow_mut() = converted_loop_state;
+    }
+
+    pub(super) fn maybe_enabled_substitutions(&self) -> Option<ES2015SubstitutionFlags> {
+        self.enabled_substitutions.get()
+    }
+
+    pub(super) fn set_enabled_substitutions(
+        &self,
+        enabled_substitutions: Option<ES2015SubstitutionFlags>,
+    ) {
+        self.enabled_substitutions.set(enabled_substitutions);
     }
 
     pub(super) fn maybe_tagged_template_string_declarations(
