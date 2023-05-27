@@ -4,9 +4,9 @@ use gc::{Finalize, Gc, GcCell, Trace};
 
 use crate::{
     chain_bundle, is_block, maybe_visit_each_child, visit_each_child, visit_node,
-    BaseNodeFactorySynthetic, Node, NodeArray, NodeFactory, NodeInterface, SyntaxKind,
-    TransformFlags, TransformationContext, Transformer, TransformerFactory,
-    TransformerFactoryInterface, TransformerInterface, VisitResult,
+    BaseNodeFactorySynthetic, Node, NodeFactory, NodeInterface, SyntaxKind, TransformFlags,
+    TransformationContext, Transformer, TransformerFactory, TransformerFactoryInterface,
+    TransformerInterface, VisitResult,
 };
 
 #[derive(Trace, Finalize)]

@@ -1,4 +1,3 @@
-#![allow(unused_imports)]
 pub mod diagnostics;
 mod lines_0_500;
 pub use lines_0_500::*;

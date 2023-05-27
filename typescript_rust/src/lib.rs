@@ -1,4 +1,4 @@
-#![allow(non_upper_case_globals, non_snake_case, unused_imports)]
+#![allow(non_upper_case_globals, non_snake_case)]
 #[macro_use]
 extern crate lazy_static;
 
@@ -7,6 +7,7 @@ mod execute_command_line;
 mod macros;
 mod rust_helpers;
 
+#[allow(unused_imports)]
 use compiler::{
     binder::BindBinaryExpressionFlow,
     checker::{
