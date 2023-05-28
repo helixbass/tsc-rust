@@ -9,9 +9,10 @@ use super::{
 use crate::{
     VisitResult, _d, get_combined_node_flags, is_expression, is_for_initializer, is_for_statement,
     is_identifier, is_object_literal_element_like, is_omitted_expression, is_statement,
-    start_on_new_line, try_visit_each_child, try_visit_node, try_visit_nodes, BoolExt, Debug_,
-    EmitFlags, Matches, NamedDeclarationInterface, Node, NodeArray, NodeCheckFlags, NodeExt,
-    NodeFlags, NodeInterface, NodeWrappered, OptionTry, SyntaxKind, TransformFlags,
+    start_on_new_line, try_maybe_visit_node, try_visit_each_child, try_visit_node, try_visit_nodes,
+    BoolExt, Debug_, EmitFlags, Matches, NamedDeclarationInterface, Node, NodeArray,
+    NodeCheckFlags, NodeExt, NodeFlags, NodeInterface, NodeWrappered, OptionTry, SyntaxKind,
+    TransformFlags,
 };
 
 impl TransformES2015 {
@@ -24,12 +25,11 @@ impl TransformES2015 {
     ) -> io::Result<Gc<Node /*Statement*/>> {
         let node_as_for_of_statement = node.as_for_of_statement();
         let ref expression = try_visit_node(
-            Some(&*node_as_for_of_statement.expression),
+            &node_as_for_of_statement.expression,
             Some(|node: &Node| self.visitor(node)),
             Some(is_expression),
             Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
-        )?
-        .unwrap();
+        )?;
         let iterator = if is_identifier(expression) {
             self.factory
                 .get_generated_name_for_node(Some(&**expression), None)
@@ -629,13 +629,12 @@ impl TransformES2015 {
             let clone = self.convert_iteration_statement_core(
                 node,
                 initializer_function.as_ref(),
-                &try_visit_node(
-                    Some(node.as_has_statement().statement()),
+                &*try_visit_node(
+                    &node.as_has_statement().statement(),
                     Some(|node: &Node| self.visitor(node)),
                     Some(is_statement),
                     Some(&|nodes: &[Gc<Node>]| self.factory.lift_to_block(nodes)),
-                )?
-                .unwrap(),
+                )?,
             )?;
             loop_ = self.factory.restore_enclosing_label(
                 &clone,
@@ -703,7 +702,7 @@ impl TransformES2015 {
                 });
         Ok(self.factory.update_for_statement(
             node,
-            try_visit_node(
+            try_maybe_visit_node(
                 if let Some(initializer_function) = initializer_function.as_ref() {
                     Some(initializer_function.part.clone())
                 } else {
@@ -713,7 +712,7 @@ impl TransformES2015 {
                 Some(is_for_initializer),
                 Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
             )?,
-            try_visit_node(
+            try_maybe_visit_node(
                 if should_convert_condition {
                     None
                 } else {
@@ -723,7 +722,7 @@ impl TransformES2015 {
                 Some(is_expression),
                 Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
             )?,
-            try_visit_node(
+            try_maybe_visit_node(
                 if should_convert_incrementor {
                     None
                 } else {
@@ -747,19 +746,17 @@ impl TransformES2015 {
             node,
             None,
             try_visit_node(
-                Some(&*node_as_for_of_statement.initializer),
+                &node_as_for_of_statement.initializer,
                 Some(|node: &Node| self.visitor(node)),
                 Some(is_for_initializer),
                 Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
-            )?
-            .unwrap(),
+            )?,
             try_visit_node(
-                Some(&*node_as_for_of_statement.expression),
+                &node_as_for_of_statement.expression,
                 Some(|node: &Node| self.visitor(node)),
                 Some(is_expression),
                 Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
-            )?
-            .unwrap(),
+            )?,
             converted_loop_body.node_wrapper(),
         ))
     }
@@ -773,19 +770,17 @@ impl TransformES2015 {
         Ok(self.factory.update_for_in_statement(
             node,
             try_visit_node(
-                Some(&*node_as_for_in_statement.initializer),
+                &node_as_for_in_statement.initializer,
                 Some(|node: &Node| self.visitor(node)),
                 Some(is_for_initializer),
                 Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
-            )?
-            .unwrap(),
+            )?,
             try_visit_node(
-                Some(&*node_as_for_in_statement.expression),
+                &node_as_for_in_statement.expression,
                 Some(|node: &Node| self.visitor(node)),
                 Some(is_expression),
                 Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
-            )?
-            .unwrap(),
+            )?,
             converted_loop_body.node_wrapper(),
         ))
     }
@@ -800,12 +795,11 @@ impl TransformES2015 {
             node,
             converted_loop_body.node_wrapper(),
             try_visit_node(
-                Some(&*node_as_do_statement.expression),
+                &node_as_do_statement.expression,
                 Some(|node: &Node| self.visitor(node)),
                 Some(is_expression),
                 Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
-            )?
-            .unwrap(),
+            )?,
         ))
     }
 
@@ -818,12 +812,11 @@ impl TransformES2015 {
         Ok(self.factory.update_while_statement(
             node,
             try_visit_node(
-                Some(&*node_as_while_statement.expression),
+                &node_as_while_statement.expression,
                 Some(|node: &Node| self.visitor(node)),
                 Some(is_expression),
                 Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
-            )?
-            .unwrap(),
+            )?,
             converted_loop_body.node_wrapper(),
         ))
     }

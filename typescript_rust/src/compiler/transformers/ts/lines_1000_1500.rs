@@ -1,22 +1,18 @@
-use std::{borrow::Borrow, ptr};
+use std::{borrow::Borrow, io, ptr};
 
 use gc::Gc;
 
-
+use super::{AllDecorators, TransformTypeScript, USE_NEW_TYPE_METADATA_FORMAT};
 use crate::{
     add_range, get_all_accessor_declarations, get_effective_return_type_node,
     get_first_constructor_with_body, get_original_node_id, get_rest_parameter_element_type,
     get_set_accessor_type_annotation_node, is_async_function, is_class_like, is_expression,
     is_function_like, is_identifier, maybe_map, move_range_past_decorators, node_is_present,
-    try_flat_map, try_maybe_map, try_visit_node, AllAccessorDeclarations, Debug_,
-    EmitFlags, FunctionLikeDeclarationInterface, HasTypeInterface, Matches,
-    NamedDeclarationInterface, Node, NodeArray, NodeArrayOrVec, NodeExt, NodeInterface, OptionTry,
-    ScriptTarget, SignatureDeclarationInterface, SyntaxKind,
+    return_ok_default_if_none, try_flat_map, try_maybe_map, try_visit_node,
+    AllAccessorDeclarations, Debug_, EmitFlags, FunctionLikeDeclarationInterface, HasTypeInterface,
+    Matches, NamedDeclarationInterface, Node, NodeArray, NodeArrayOrVec, NodeExt, NodeInterface,
+    OptionTry, ScriptTarget, SignatureDeclarationInterface, SyntaxKind,
 };
-
-use super::{AllDecorators, TransformTypeScript, USE_NEW_TYPE_METADATA_FORMAT};
-use crate::return_ok_default_if_none;
-use std::io;
 
 impl TransformTypeScript {
     pub(super) fn get_all_decorators_of_class_element(
@@ -301,13 +297,12 @@ impl TransformTypeScript {
         &self,
         decorator: &Node, /*Decorator*/
     ) -> io::Result<Gc<Node>> {
-        Ok(try_visit_node(
-            Some(&*decorator.as_decorator().expression),
+        try_visit_node(
+            &decorator.as_decorator().expression,
             Some(|node: &Node| self.visitor(node)),
             Some(is_expression),
             Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
-        )?
-        .unwrap())
+        )
     }
 
     pub(super) fn transform_decorators_of_parameter(

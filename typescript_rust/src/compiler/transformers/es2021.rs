@@ -72,23 +72,21 @@ impl TransformES2021 {
             get_non_assignment_operator_for_compound_assignment(operator.kind());
         let mut left = skip_parentheses(
             &visit_node(
-                Some(&*binary_expression_as_binary_expression.left),
+                &binary_expression_as_binary_expression.left,
                 Some(|node: &Node| self.visitor(node)),
                 Some(is_left_hand_side_expression),
                 Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
-            )
-            .unwrap(),
+            ),
             None,
         );
         let mut assignment_target = left.clone();
         let right = skip_parentheses(
             &visit_node(
-                Some(&*binary_expression_as_binary_expression.right),
+                &binary_expression_as_binary_expression.right,
                 Some(|node: &Node| self.visitor(node)),
                 Some(is_expression),
                 Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
-            )
-            .unwrap(),
+            ),
             None,
         );
 

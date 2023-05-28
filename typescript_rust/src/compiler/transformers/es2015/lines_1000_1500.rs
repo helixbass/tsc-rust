@@ -221,6 +221,7 @@ impl TransformES2015 {
             );
             return Ok(true);
         } else if let Some(initializer) = initializer {
+            let initializer = initializer.borrow();
             insert_statement_after_custom_prologue(
                 statements,
                 Some(
@@ -231,12 +232,11 @@ impl TransformES2015 {
                                     self.factory
                                         .get_generated_name_for_node(Some(parameter), None),
                                     try_visit_node(
-                                        Some(initializer),
+                                        initializer,
                                         Some(|node: &Node| self.visitor(node)),
                                         Some(is_expression),
                                         Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
-                                    )?
-                                    .unwrap(),
+                                    )?,
                                 )
                                 .wrap(),
                         )
@@ -257,12 +257,11 @@ impl TransformES2015 {
         initializer: &Node, /*Expression*/
     ) -> io::Result<()> {
         let initializer = try_visit_node(
-            Some(initializer),
+            initializer,
             Some(|node: &Node| self.visitor(node)),
             Some(is_expression),
             Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
-        )?
-        .unwrap();
+        )?;
         let statement = self
             .factory
             .create_if_statement(

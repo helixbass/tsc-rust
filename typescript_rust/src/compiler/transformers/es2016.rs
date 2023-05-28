@@ -73,19 +73,17 @@ impl TransformES2016 {
         let value: Gc<Node /*Expression*/>;
         let node_as_binary_expression = node.as_binary_expression();
         let ref left = visit_node(
-            Some(&*node_as_binary_expression.left),
+            &node_as_binary_expression.left,
             Some(|node: &Node| self.visitor(node)),
             Some(is_expression),
             Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
-        )
-        .unwrap();
+        );
         let ref right = visit_node(
-            Some(&*node_as_binary_expression.right),
+            &node_as_binary_expression.right,
             Some(|node: &Node| self.visitor(node)),
             Some(is_expression),
             Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
-        )
-        .unwrap();
+        );
         if is_element_access_expression(left) {
             let left_as_element_access_expression = left.as_element_access_expression();
             let expression_temp = self.factory.create_temp_variable(
@@ -186,19 +184,17 @@ impl TransformES2016 {
     fn visit_exponentiation_expression(&self, node: &Node /*BinaryExpression*/) -> Gc<Node> {
         let node_as_binary_expression = node.as_binary_expression();
         let left = visit_node(
-            Some(&*node_as_binary_expression.left),
+            &node_as_binary_expression.left,
             Some(|node: &Node| self.visitor(node)),
             Some(is_expression),
             Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
-        )
-        .unwrap();
+        );
         let right = visit_node(
-            Some(&*node_as_binary_expression.right),
+            &node_as_binary_expression.right,
             Some(|node: &Node| self.visitor(node)),
             Some(is_expression),
             Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
-        )
-        .unwrap();
+        );
         set_text_range_rc_node(
             self.factory.create_global_method_call(
                 "Math".to_owned(),

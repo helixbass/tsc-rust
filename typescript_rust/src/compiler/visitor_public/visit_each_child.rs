@@ -26,12 +26,12 @@ use crate::{
     is_template_literal_type_span, is_template_middle_or_template_tail, is_template_span, is_token,
     is_type_element, is_type_node, is_type_node_or_type_parameter_declaration,
     is_type_parameter_declaration, is_variable_declaration, is_variable_declaration_list,
-    ClassLikeDeclarationInterface, FunctionLikeDeclarationInterface, HasInitializerInterface,
-    HasMembersInterface, HasQuestionTokenInterface, HasStatementsInterface,
-    HasTypeArgumentsInterface, HasTypeInterface, HasTypeParametersInterface,
-    InterfaceOrClassLikeDeclarationInterface, NamedDeclarationInterface, Node, NodeArray,
-    NodeFlags, NodeInterface, SignatureDeclarationInterface, SyntaxKind, TransformationContext,
-    VisitResult,
+    maybe_visit_node, ClassLikeDeclarationInterface, FunctionLikeDeclarationInterface,
+    HasInitializerInterface, HasMembersInterface, HasQuestionTokenInterface,
+    HasStatementsInterface, HasTypeArgumentsInterface, HasTypeInterface,
+    HasTypeParametersInterface, InterfaceOrClassLikeDeclarationInterface,
+    NamedDeclarationInterface, Node, NodeArray, NodeFlags, NodeInterface,
+    SignatureDeclarationInterface, SyntaxKind, TransformationContext, VisitResult,
 };
 
 pub fn visit_each_child(
@@ -115,7 +115,7 @@ pub fn maybe_visit_each_child_full(
         if let Some(node_visitor) = node_visitor.as_mut() {
             node_visitor(node, visitor, lift, test)
         } else {
-            visit_node(node, visitor, lift, test)
+            maybe_visit_node(node, visitor, lift, test)
         }
     };
     let node = node?;

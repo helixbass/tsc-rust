@@ -27,19 +27,19 @@ use crate::{
     is_private_identifier, is_property_declaration, is_require_call, is_source_file, is_static,
     is_this_property, is_type_alias_declaration, is_type_node, length, maybe_for_each,
     node_is_synthesized, null_transformation_context, out_file, push_if_unique_gc,
-    return_ok_default_if_none, set_text_range_pos_end, set_value_declaration, some, try_cast, CancellationTokenDebuggable, Comparison, DiagnosticCategory,
-    DiagnosticInterface, DiagnosticMessageChain, DiagnosticRelatedInformation,
-    DiagnosticRelatedInformationInterface, Diagnostics, DuplicateInfoForFiles,
-    DuplicateInfoForSymbol, EmitResolver, FindAncestorCallbackReturn, HasInitializerInterface,
-    InternalSymbolName, ModuleKind, NamedDeclarationInterface, NodeArray, NodeFlags,
-    PatternAmbientModule, PragmaArgumentName, PragmaName, ReadonlyTextRange, ScriptTarget,
-    VisitResult, __String, create_diagnostic_for_node, escape_leading_underscores, factory,
-    get_first_identifier, get_or_update_indexmap, get_source_file_of_node, is_jsx_opening_fragment,
-    maybe_get_source_file_of_node, maybe_visit_each_child, parse_isolated_entity_name,
-    try_find_ancestor, unescape_leading_underscores, visit_node, BaseTransientSymbol, CheckFlags,
-    Debug_, Diagnostic, DiagnosticMessage, Node, NodeInterface, NodeLinks, Symbol, SymbolFlags,
-    SymbolInterface, SymbolLinks, SymbolTable, SyntaxKind, TransientSymbol,
-    TransientSymbolInterface, TypeChecker,
+    return_ok_default_if_none, set_text_range_pos_end, set_value_declaration, some, try_cast,
+    CancellationTokenDebuggable, Comparison, DiagnosticCategory, DiagnosticInterface,
+    DiagnosticMessageChain, DiagnosticRelatedInformation, DiagnosticRelatedInformationInterface,
+    Diagnostics, DuplicateInfoForFiles, DuplicateInfoForSymbol, EmitResolver,
+    FindAncestorCallbackReturn, HasInitializerInterface, InternalSymbolName, ModuleKind,
+    NamedDeclarationInterface, NodeArray, NodeFlags, PatternAmbientModule, PragmaArgumentName,
+    PragmaName, ReadonlyTextRange, ScriptTarget, VisitResult, __String, create_diagnostic_for_node,
+    escape_leading_underscores, factory, get_first_identifier, get_or_update_indexmap,
+    get_source_file_of_node, is_jsx_opening_fragment, maybe_get_source_file_of_node,
+    maybe_visit_each_child, maybe_visit_node, parse_isolated_entity_name, try_find_ancestor,
+    unescape_leading_underscores, visit_node, BaseTransientSymbol, CheckFlags, Debug_, Diagnostic,
+    DiagnosticMessage, Node, NodeInterface, NodeLinks, Symbol, SymbolFlags, SymbolInterface,
+    SymbolLinks, SymbolTable, SyntaxKind, TransientSymbol, TransientSymbolInterface, TypeChecker,
 };
 
 impl TypeChecker {
@@ -71,7 +71,7 @@ impl TypeChecker {
                                 .clone(),
                             self.language_version,
                         );
-                        visit_node(
+                        maybe_visit_node(
                             file_local_jsx_fragment_factory.as_deref(),
                             Some(|node: &Node| self.mark_as_synthetic(node)),
                             Option::<fn(&Node) -> bool>::None,
@@ -120,7 +120,7 @@ impl TypeChecker {
                     compiler_options_jsx_factory.clone(),
                     self.language_version,
                 );
-                visit_node(
+                maybe_visit_node(
                     _jsx_factory_entity.as_deref(),
                     Some(|node: &Node| self.mark_as_synthetic(node)),
                     Option::<fn(&Node) -> bool>::None,
@@ -188,7 +188,7 @@ impl TypeChecker {
                     .clone(),
                 self.language_version,
             );
-            visit_node(
+            maybe_visit_node(
                 file_local_jsx_factory.as_deref(),
                 Some(|node: &Node| self.mark_as_synthetic(node)),
                 Option::<fn(&Node) -> bool>::None,

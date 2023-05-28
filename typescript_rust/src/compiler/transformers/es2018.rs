@@ -21,7 +21,7 @@ use crate::{
     is_block, is_destructuring_assignment, is_effective_strict_mode_source_file, is_identifier,
     is_modifier, is_object_literal_element_like, is_property_access_expression, is_property_name,
     is_super_property, is_token, is_variable_declaration_list, maybe_visit_each_child,
-    process_tagged_template_expression, set_emit_flags, set_original_node,
+    maybe_visit_node, process_tagged_template_expression, set_emit_flags, set_original_node,
     set_text_range_node_array, set_text_range_rc_node, skip_parentheses, some,
     unwrap_innermost_statement_of_label, visit_each_child, visit_iteration_body,
     visit_lexical_environment, visit_node, visit_nodes, visit_parameter_list,
@@ -496,17 +496,12 @@ impl TransformES2018 {
                 self.factory
                     .create_yield_expression(
                         None,
-                        Some(
-                            self.emit_helpers().create_await_helper(
-                                visit_node(
-                                    Some(&*node.as_await_expression().expression),
-                                    Some(|node: &Node| self.visitor(node)),
-                                    Some(is_expression),
-                                    Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
-                                )
-                                .unwrap(),
-                            ),
-                        ),
+                        Some(self.emit_helpers().create_await_helper(visit_node(
+                            &node.as_await_expression().expression,
+                            Some(|node: &Node| self.visitor(node)),
+                            Some(is_expression),
+                            Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                        ))),
                     )
                     .wrap()
                     .set_text_range(Some(node)),
@@ -531,14 +526,11 @@ impl TransformES2018 {
         {
             if node_as_yield_expression.asterisk_token.is_some() {
                 let expression = visit_node(
-                    Some(
-                        Debug_.check_defined(node_as_yield_expression.expression.as_deref(), None),
-                    ),
+                    Debug_.check_defined(node_as_yield_expression.expression.as_deref(), None),
                     Some(|node: &Node| self.visitor(node)),
                     Some(is_expression),
                     Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
-                )
-                .unwrap();
+                );
 
                 return Some(
                     set_original_node(
@@ -582,12 +574,11 @@ impl TransformES2018 {
                                 || self.factory.create_void_zero(),
                                 |node_expression| {
                                     visit_node(
-                                        Some(&**node_expression),
+                                        node_expression,
                                         Some(|node: &Node| self.visitor(node)),
                                         Some(is_expression),
                                         Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
                                     )
-                                    .unwrap()
                                 },
                             ),
                         )),
@@ -622,12 +613,11 @@ impl TransformES2018 {
                                 || self.factory.create_void_zero(),
                                 |node_expression| {
                                     visit_node(
-                                        Some(&**node_expression),
+                                        node_expression,
                                         Some(|node: &Node| self.visitor(node)),
                                         Some(is_expression),
                                         Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
                                     )
-                                    .unwrap()
                                 },
                             ),
                         )),
@@ -662,12 +652,11 @@ impl TransformES2018 {
                 self.factory
                     .restore_enclosing_label(
                         &visit_node(
-                            Some(&**statement),
+                            statement,
                             Some(|node: &Node| self.visitor(node)),
                             Some(is_statement),
                             Some(|nodes: &[Gc<Node>]| self.factory.lift_to_block(nodes)),
-                        )
-                        .unwrap(),
+                        ),
                         Some(node),
                         Option::<fn(&Node)>::None,
                     )
@@ -700,15 +689,12 @@ impl TransformES2018 {
                     );
                 }
                 let target = &e.as_spread_assignment().expression;
-                objects.push(
-                    visit_node(
-                        Some(&**target),
-                        Some(|node: &Node| self.visitor(node)),
-                        Some(is_expression),
-                        Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
-                    )
-                    .unwrap(),
-                );
+                objects.push(visit_node(
+                    target,
+                    Some(|node: &Node| self.visitor(node)),
+                    Some(is_expression),
+                    Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                ));
             } else {
                 chunk_object.get_or_insert_with(|| Default::default()).push(
                     if e.kind() == SyntaxKind::PropertyAssignment {
@@ -717,22 +703,20 @@ impl TransformES2018 {
                             .create_property_assignment(
                                 e_as_property_assignment.name(),
                                 visit_node(
-                                    e_as_property_assignment.maybe_initializer(),
+                                    &e_as_property_assignment.maybe_initializer().unwrap(),
                                     Some(|node: &Node| self.visitor(node)),
                                     Some(is_expression),
                                     Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
-                                )
-                                .unwrap(),
+                                ),
                             )
                             .wrap()
                     } else {
                         visit_node(
-                            Some(&**e),
+                            e,
                             Some(|node: &Node| self.visitor(node)),
                             Some(is_object_literal_element_like),
                             Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
                         )
-                        .unwrap()
                     },
                 );
             }
@@ -911,15 +895,14 @@ impl TransformES2018 {
             return self.factory.update_binary_expression(
                 node,
                 visit_node(
-                    Some(&*node_as_binary_expression.left),
+                    &node_as_binary_expression.left,
                     Some(|node: &Node| self.visitor_with_unused_expression_result(node)),
                     Some(is_expression),
                     Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
-                )
-                .unwrap(),
+                ),
                 node_as_binary_expression.operator_token.clone(),
                 visit_node(
-                    Some(&*node_as_binary_expression.right),
+                    &node_as_binary_expression.right,
                     Some(|node: &Node| {
                         if expression_result_is_unused {
                             self.visitor_with_unused_expression_result(node)
@@ -929,8 +912,7 @@ impl TransformES2018 {
                     }),
                     Some(is_expression),
                     Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
-                )
-                .unwrap(),
+                ),
             );
         }
         visit_each_child(node, |node: &Node| self.visitor(node), &**self.context)
@@ -952,7 +934,7 @@ impl TransformES2018 {
         let mut result: Option<Vec<Gc<Node /*Expression*/>>> = None;
         for (i, element) in node_as_comma_list_expression.elements.iter().enumerate() {
             let visited = visit_node(
-                Some(&**element),
+                element,
                 Some(|node: &Node| {
                     if i < node_as_comma_list_expression.elements.len() - 1 {
                         self.visitor_with_unused_expression_result(node)
@@ -962,8 +944,7 @@ impl TransformES2018 {
                 }),
                 Some(is_expression),
                 Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
-            )
-            .unwrap();
+            );
             if result.is_some() || !Gc::ptr_eq(&visited, element) {
                 result
                     .get_or_insert_with(|| node_as_comma_list_expression.elements[0..i].to_owned())
@@ -1019,12 +1000,11 @@ impl TransformES2018 {
                 None,
             );
             let mut block = visit_node(
-                Some(&*node_as_catch_clause.block),
+                &node_as_catch_clause.block,
                 Some(|node: &Node| self.visitor(node)),
                 Some(is_block),
                 Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
-            )
-            .unwrap();
+            );
             if !visited_bindings.is_empty() {
                 block = self.factory.update_block(
                     &block,
@@ -1127,19 +1107,19 @@ impl TransformES2018 {
             self.factory
                 .update_for_statement(
                     node,
-                    visit_node(
+                    maybe_visit_node(
                         node_as_for_statement.initializer.as_deref(),
                         Some(|node: &Node| self.visitor_with_unused_expression_result(node)),
                         Some(is_for_initializer),
                         Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
                     ),
-                    visit_node(
+                    maybe_visit_node(
                         node_as_for_statement.condition.as_deref(),
                         Some(|node: &Node| self.visitor(node)),
                         Some(is_expression),
                         Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
                     ),
-                    visit_node(
+                    maybe_visit_node(
                         node_as_for_statement.incrementor.as_deref(),
                         Some(|node: &Node| self.visitor_with_unused_expression_result(node)),
                         Some(is_expression),
@@ -1285,12 +1265,11 @@ impl TransformES2018 {
         let mut body_location: Option<Gc<Node /*TextRange*/>> = Default::default();
         let mut statements_location: Option<Gc<NodeArray /*TextRange*/>> = Default::default();
         let mut statements: Vec<Gc<Node /*Statement*/>> = vec![visit_node(
-            Some(&*binding),
+            &binding,
             Some(|node: &Node| self.visitor(node)),
             Some(is_statement),
             Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
-        )
-        .unwrap()];
+        )];
         let statement = visit_iteration_body(
             &node_as_for_of_statement.statement,
             |node: &Node| self.visitor(node),
@@ -1353,12 +1332,11 @@ impl TransformES2018 {
     ) -> VisitResult {
         let node_as_for_of_statement = node.as_for_of_statement();
         let expression = visit_node(
-            Some(&*node_as_for_of_statement.expression),
+            &node_as_for_of_statement.expression,
             Some(|node: &Node| self.visitor(node)),
             Some(is_expression),
             Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
-        )
-        .unwrap();
+        );
         let iterator = if is_identifier(&expression) {
             self.factory
                 .get_generated_name_for_node(Some(&*expression), None)
@@ -1586,7 +1564,7 @@ impl TransformES2018 {
                 Some(self.factory.get_generated_name_for_node(Some(node), None)),
                 None,
                 None,
-                visit_node(
+                maybe_visit_node(
                     node_as_parameter_declaration.maybe_initializer(),
                     Some(|node: &Node| self.visitor(node)),
                     Some(is_expression),
@@ -1640,12 +1618,11 @@ impl TransformES2018 {
             Option::<Gc<NodeArray>>::None,
             node.maybe_modifiers(),
             visit_node(
-                node_as_get_accessor_declaration.maybe_name(),
+                &node_as_get_accessor_declaration.name(),
                 Some(|node: &Node| self.visitor(node)),
                 Some(is_property_name),
                 Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
-            )
-            .unwrap(),
+            ),
             visit_parameter_list(
                 Some(&node_as_get_accessor_declaration.parameters()),
                 |node: &Node| self.visitor(node),
@@ -1680,12 +1657,11 @@ impl TransformES2018 {
             Option::<Gc<NodeArray>>::None,
             node.maybe_modifiers(),
             visit_node(
-                node_as_set_accessor_declaration.maybe_name(),
+                &node_as_set_accessor_declaration.name(),
                 Some(|node: &Node| self.visitor(node)),
                 Some(is_property_name),
                 Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
-            )
-            .unwrap(),
+            ),
             visit_parameter_list(
                 Some(&node_as_set_accessor_declaration.parameters()),
                 |node: &Node| self.visitor(node),
@@ -1741,13 +1717,12 @@ impl TransformES2018 {
                 node_as_method_declaration.maybe_asterisk_token()
             },
             visit_node(
-                node_as_method_declaration.maybe_name(),
+                &node_as_method_declaration.name(),
                 Some(|node: &Node| self.visitor(node)),
                 Some(is_property_name),
                 Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
-            )
-            .unwrap(),
-            visit_node(
+            ),
+            maybe_visit_node(
                 Option::<&Node>::None,
                 Some(|node: &Node| self.visitor(node)),
                 Some(is_token),
@@ -2100,7 +2075,7 @@ impl TransformES2018 {
         self.context.resume_lexical_environment();
         let mut statement_offset = 0;
         let mut statements: Vec<Gc<Node /*Statement*/>> = Default::default();
-        let body = visit_node(
+        let body = maybe_visit_node(
             node_as_function_like_declaration.maybe_body(),
             Some(|node: &Node| self.visitor(node)),
             Some(is_concise_body),

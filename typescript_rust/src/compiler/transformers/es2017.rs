@@ -20,8 +20,8 @@ use crate::{
     is_property_access_expression, is_super_property, is_token, is_variable_declaration_list,
     ref_mut_unwrapped, ref_unwrapped, set_emit_flags, set_original_node, set_source_map_range,
     set_text_range, set_text_range_node_array, set_text_range_rc_node, try_maybe_visit_each_child,
-    unescape_leading_underscores, BaseNodeFactorySynthetic, CompilerOptions, Debug_, EmitFlags,
-    EmitHint, EmitResolver, FunctionFlags, FunctionLikeDeclarationInterface,
+    try_maybe_visit_node, unescape_leading_underscores, BaseNodeFactorySynthetic, CompilerOptions,
+    Debug_, EmitFlags, EmitHint, EmitResolver, FunctionFlags, FunctionLikeDeclarationInterface,
     GeneratedIdentifierFlags, HasInitializerInterface, NamedDeclarationInterface, Node, NodeArray,
     NodeCheckFlags, NodeFactory, NodeFlags, NodeId, NodeInterface, NonEmpty, OptionTry,
     ReadonlyTextRange, ScriptTarget, SignatureDeclarationInterface, SyntaxKind, TransformFlags,
@@ -493,20 +493,18 @@ impl TransformES2017 {
                 .unwrap()
             } else {
                 try_visit_node(
-                    Some(&*node_as_for_in_statement.initializer),
+                    &node_as_for_in_statement.initializer,
                     Some(|node: &Node| self.visitor(node)),
                     Some(is_for_initializer),
                     Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
                 )?
-                .unwrap()
             },
             try_visit_node(
-                Some(&*node_as_for_in_statement.expression),
+                &node_as_for_in_statement.expression,
                 Some(|node: &Node| self.visitor(node)),
                 Some(is_expression),
                 Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
-            )?
-            .unwrap(),
+            )?,
             try_visit_iteration_body(
                 &node_as_for_in_statement.statement,
                 |node: &Node| self.async_body_visitor(node),
@@ -522,7 +520,7 @@ impl TransformES2017 {
         let node_as_for_of_statement = node.as_for_of_statement();
         Ok(self.factory.update_for_of_statement(
             node,
-            try_visit_node(
+            try_maybe_visit_node(
                 node_as_for_of_statement.await_modifier.as_deref(),
                 Some(|node: &Node| self.visitor(node)),
                 Some(is_token),
@@ -538,20 +536,18 @@ impl TransformES2017 {
                 .unwrap()
             } else {
                 try_visit_node(
-                    Some(&*node_as_for_of_statement.initializer),
+                    &node_as_for_of_statement.initializer,
                     Some(|node: &Node| self.visitor(node)),
                     Some(is_for_initializer),
                     Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
                 )?
-                .unwrap()
             },
             try_visit_node(
-                Some(&*node_as_for_of_statement.expression),
+                &node_as_for_of_statement.expression,
                 Some(|node: &Node| self.visitor(node)),
                 Some(is_expression),
                 Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
-            )?
-            .unwrap(),
+            )?,
             try_visit_iteration_body(
                 &node_as_for_of_statement.statement,
                 |node: &Node| self.async_body_visitor(node),
@@ -574,20 +570,20 @@ impl TransformES2017 {
                     false,
                 )?
             } else {
-                try_visit_node(
+                try_maybe_visit_node(
                     initializer,
                     Some(|node: &Node| self.visitor(node)),
                     Some(is_for_initializer),
                     Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
                 )?
             },
-            try_visit_node(
+            try_maybe_visit_node(
                 node_as_for_statement.condition.as_deref(),
                 Some(|node: &Node| self.visitor(node)),
                 Some(is_expression),
                 Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
             )?,
-            try_visit_node(
+            try_maybe_visit_node(
                 node_as_for_statement.incrementor.as_deref(),
                 Some(|node: &Node| self.visitor(node)),
                 Some(is_expression),
@@ -613,7 +609,7 @@ impl TransformES2017 {
                 self.factory
                     .create_yield_expression(
                         None,
-                        try_visit_node(
+                        try_maybe_visit_node(
                             Some(&*node.as_await_expression().expression),
                             Some(|node: &Node| self.visitor(node)),
                             Some(is_expression),
@@ -818,7 +814,7 @@ impl TransformES2017 {
         let variables = get_initialized_variables(node);
         if variables.is_empty() {
             if has_receiver {
-                return try_visit_node(
+                return try_maybe_visit_node(
                     Some(
                         self.factory
                             .converters()
@@ -881,12 +877,11 @@ impl TransformES2017 {
             Some(node.into()),
         );
         Ok(try_visit_node(
-            Some(converted),
+            &converted,
             Some(|node: &Node| self.visitor(node)),
             Some(is_expression),
             Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
-        )?
-        .unwrap())
+        )?)
     }
 
     fn collides_with_parameter_name(&self, name: &Node) -> bool {
@@ -1096,13 +1091,12 @@ impl TransformES2017 {
             )
         } else {
             self.factory.converters().convert_to_function_block(
-                &try_visit_node(
-                    Some(body),
+                &*try_visit_node(
+                    body,
                     Some(|node: &Node| self.async_body_visitor(node)),
                     Some(is_concise_body),
                     Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
-                )?
-                .unwrap(),
+                )?,
                 None,
             )
         })

@@ -11,21 +11,21 @@ use regex::{Captures, Regex};
 use super::{wrap_symbol_tracker_to_report_for_context, NodeBuilderContext};
 use crate::{
     SymbolInterface, SyntaxKind, Type, TypeFlags, TypeInterface, VisitResult, __String, every,
-    find, find_ancestor, get_effective_return_type_node,
-    get_effective_type_annotation_node, get_emit_script_target, get_factory, get_first_identifier,
-    get_line_and_character_of_position, get_name_of_declaration, get_object_flags,
-    get_text_of_node, is_entity_name, is_entity_name_expression, is_exports_identifier,
-    is_expression_with_type_arguments, is_function_like_declaration, is_get_accessor_declaration,
-    is_identifier, is_identifier_start, is_identifier_text, is_in_js_file, is_in_jsdoc,
-    is_indexed_access_type_node, is_jsdoc_all_type, is_jsdoc_construct_signature,
-    is_jsdoc_function_type, is_jsdoc_index_signature, is_jsdoc_non_nullable_type,
-    is_jsdoc_nullable_type, is_jsdoc_optional_type, is_jsdoc_type_literal, is_jsdoc_unknown_type,
-    is_jsdoc_variadic_type, is_literal_import_type_node, is_module_exports_access_expression,
-    is_module_identifier, is_qualified_name, is_single_or_double_quote, is_string_literal,
-    is_tuple_type_node, is_type_reference_node, length,
-    maybe_get_source_file_of_node, node_is_synthesized, null_transformation_context,
-    set_emit_flags, set_original_node, set_text_range, some, starts_with, try_for_each_entry_bool,
-    try_map, try_map_defined, try_maybe_map, try_visit_each_child, try_visit_node, try_visit_nodes,
+    find, find_ancestor, get_effective_return_type_node, get_effective_type_annotation_node,
+    get_emit_script_target, get_factory, get_first_identifier, get_line_and_character_of_position,
+    get_name_of_declaration, get_object_flags, get_text_of_node, is_entity_name,
+    is_entity_name_expression, is_exports_identifier, is_expression_with_type_arguments,
+    is_function_like_declaration, is_get_accessor_declaration, is_identifier, is_identifier_start,
+    is_identifier_text, is_in_js_file, is_in_jsdoc, is_indexed_access_type_node, is_jsdoc_all_type,
+    is_jsdoc_construct_signature, is_jsdoc_function_type, is_jsdoc_index_signature,
+    is_jsdoc_non_nullable_type, is_jsdoc_nullable_type, is_jsdoc_optional_type,
+    is_jsdoc_type_literal, is_jsdoc_unknown_type, is_jsdoc_variadic_type,
+    is_literal_import_type_node, is_module_exports_access_expression, is_module_identifier,
+    is_qualified_name, is_single_or_double_quote, is_string_literal, is_tuple_type_node,
+    is_type_reference_node, length, maybe_get_source_file_of_node, node_is_synthesized,
+    null_transformation_context, set_emit_flags, set_original_node, set_text_range, some,
+    starts_with, try_for_each_entry_bool, try_map, try_map_defined, try_maybe_map,
+    try_maybe_visit_node, try_visit_each_child, try_visit_node, try_visit_nodes,
     unescape_leading_underscores, AsDoubleDeref, CharacterCodes, Debug_, EmitFlags,
     HasTypeArgumentsInterface, HasTypeInterface, HasTypeParametersInterface, InternalSymbolName,
     LiteralType, Matches, NamedDeclarationInterface, Node, NodeArray, NodeBuilder,
@@ -958,7 +958,7 @@ impl NodeBuilder {
         let mut had_error = false;
         let file = maybe_get_source_file_of_node(Some(existing));
         let transformed = try_visit_node(
-            Some(existing),
+            existing,
             Some(|node: &Node| {
                 self.visit_existing_node_tree_symbols(
                     context,
@@ -970,8 +970,7 @@ impl NodeBuilder {
             }),
             Option::<fn(&Node) -> bool>::None,
             Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
-        )?
-        .unwrap();
+        )?;
         if had_error {
             return Ok(None);
         }
@@ -1013,7 +1012,7 @@ impl NodeBuilder {
                 get_factory()
                     .create_union_type_node(vec![
                         try_visit_node(
-                            node.as_base_jsdoc_unary_type().type_.as_deref(),
+                            node.as_base_jsdoc_unary_type().type_.as_deref().unwrap(),
                             Some(|node: &Node| {
                                 self.visit_existing_node_tree_symbols(
                                     context,
@@ -1025,8 +1024,7 @@ impl NodeBuilder {
                             }),
                             Option::<fn(&Node) -> bool>::None,
                             Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
-                        )?
-                        .unwrap(),
+                        )?,
                         get_factory()
                             .create_literal_type_node(get_factory().create_null().wrap())
                             .wrap(),
@@ -1040,7 +1038,7 @@ impl NodeBuilder {
                 get_factory()
                     .create_union_type_node(vec![
                         try_visit_node(
-                            node.as_base_jsdoc_unary_type().type_.as_deref(),
+                            node.as_base_jsdoc_unary_type().type_.as_deref().unwrap(),
                             Some(|node: &Node| {
                                 self.visit_existing_node_tree_symbols(
                                     context,
@@ -1052,8 +1050,7 @@ impl NodeBuilder {
                             }),
                             Option::<fn(&Node) -> bool>::None,
                             Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
-                        )?
-                        .unwrap(),
+                        )?,
                         get_factory()
                             .create_keyword_type_node(SyntaxKind::UndefinedKeyword)
                             .wrap(),
@@ -1065,7 +1062,7 @@ impl NodeBuilder {
         if is_jsdoc_non_nullable_type(node) {
             return Ok(Some(
                 try_visit_node(
-                    node.as_base_jsdoc_unary_type().type_.as_deref(),
+                    node.as_base_jsdoc_unary_type().type_.as_deref().unwrap(),
                     Some(|node: &Node| {
                         self.visit_existing_node_tree_symbols(
                             context,
@@ -1078,30 +1075,26 @@ impl NodeBuilder {
                     Option::<fn(&Node) -> bool>::None,
                     Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
                 )?
-                .unwrap()
                 .into(),
             ));
         }
         if is_jsdoc_variadic_type(node) {
             return Ok(Some(
                 get_factory()
-                    .create_array_type_node(
-                        try_visit_node(
-                            node.as_base_jsdoc_unary_type().type_.as_deref(),
-                            Some(|node: &Node| {
-                                self.visit_existing_node_tree_symbols(
-                                    context,
-                                    had_error,
-                                    include_private_symbol,
-                                    file,
-                                    node,
-                                )
-                            }),
-                            Option::<fn(&Node) -> bool>::None,
-                            Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
-                        )?
-                        .unwrap(),
-                    )
+                    .create_array_type_node(try_visit_node(
+                        node.as_base_jsdoc_unary_type().type_.as_deref().unwrap(),
+                        Some(|node: &Node| {
+                            self.visit_existing_node_tree_symbols(
+                                context,
+                                had_error,
+                                include_private_symbol,
+                                file,
+                                node,
+                            )
+                        }),
+                        Option::<fn(&Node) -> bool>::None,
+                        Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                    )?)
                     .wrap()
                     .into(),
             ));
@@ -1157,7 +1150,7 @@ impl NodeBuilder {
                                 },
                                 Some(override_type_node.try_or_else(|| {
                                     t_as_jsdoc_property_like_tag.type_expression.as_ref().try_and_then(|t_type_expression| {
-                                        try_visit_node(
+                                        try_maybe_visit_node(
                                             Some(&*t_type_expression.as_jsdoc_type_expression().type_),
                                             Some(|node: &Node| self.visit_existing_node_tree_symbols(context, had_error, include_private_symbol, file, node)),
                                             Option::<fn(&Node) -> bool>::None,
@@ -1211,7 +1204,7 @@ impl NodeBuilder {
                                     None,
                                     Some("x"),
                                     None,
-                                    try_visit_node(
+                                    try_maybe_visit_node(
                                         node.as_has_type_arguments()
                                             .maybe_type_arguments()
                                             .as_ref()
@@ -1233,7 +1226,7 @@ impl NodeBuilder {
                                     None,
                                 )
                                 .wrap()],
-                            try_visit_node(
+                            try_maybe_visit_node(
                                 node.as_has_type_arguments()
                                     .maybe_type_arguments()
                                     .as_ref()
@@ -1289,7 +1282,7 @@ impl NodeBuilder {
                                             self.get_effective_dot_dot_dot_for_parameter(p),
                                             self.get_name_for_jsdoc_function_parameter(p, i),
                                             p_as_parameter_declaration.question_token.clone(),
-                                            try_visit_node(
+                                            try_maybe_visit_node(
                                                 p_as_parameter_declaration.maybe_type(),
                                                 Some(|node: &Node| self.visit_existing_node_tree_symbols(context, had_error, include_private_symbol, file, node)),
                                                 Option::<fn(&Node) -> bool>::None,
@@ -1302,7 +1295,7 @@ impl NodeBuilder {
                             }
                         )?,
                         Some(
-                            try_visit_node(
+                            try_maybe_visit_node(
                                 new_type_node.clone().or_else(|| node_as_jsdoc_function_type.maybe_type()),
                                 Some(|node: &Node| self.visit_existing_node_tree_symbols(context, had_error, include_private_symbol, file, node)),
                                 Option::<fn(&Node) -> bool>::None,
@@ -1347,7 +1340,7 @@ impl NodeBuilder {
                                             self.get_effective_dot_dot_dot_for_parameter(p),
                                             self.get_name_for_jsdoc_function_parameter(p, i),
                                             p_as_parameter_declaration.question_token.clone(),
-                                            try_visit_node(
+                                            try_maybe_visit_node(
                                                 node_as_jsdoc_function_type.maybe_type(),
                                                 Some(|node: &Node| {
                                                     self.visit_existing_node_tree_symbols(
@@ -1367,7 +1360,7 @@ impl NodeBuilder {
                                 },
                             )?,
                             Some(
-                                try_visit_node(
+                                try_maybe_visit_node(
                                     node_as_jsdoc_function_type.maybe_type(),
                                     Some(|node: &Node| {
                                         self.visit_existing_node_tree_symbols(

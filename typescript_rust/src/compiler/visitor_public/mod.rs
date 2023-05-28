@@ -13,60 +13,56 @@ mod visit_each_child;
 pub use try_visit_each_child::*;
 pub use visit_each_child::*;
 
+use crate::return_ok_default_if_none;
+
 pub fn visit_node(
+    node: &Node,
+    visitor: Option<impl FnMut(&Node) -> VisitResult>,
+    test: Option<impl Fn(&Node) -> bool>,
+    lift: Option<impl Fn(&[Gc<Node>]) -> Gc<Node>>,
+) -> Gc<Node> {
+    maybe_visit_node(Some(node), visitor, test, lift).unwrap()
+}
+
+pub fn maybe_visit_node(
     node: Option<impl Borrow<Node>>,
     visitor: Option<impl FnMut(&Node) -> VisitResult>,
     test: Option<impl Fn(&Node) -> bool>,
     lift: Option<impl Fn(&[Gc<Node>]) -> Gc<Node>>,
 ) -> Option<Gc<Node>> {
-    let node = node?;
-    let node = node.borrow();
-    let mut visitor = visitor?;
-
-    let visited = visitor(node);
-    if visited.ptr_eq_node(node) {
-        return Some(node.node_wrapper());
-    }
-    let visited = visited?;
-    let visited_node = match &visited {
-        SingleNodeOrVecNode::VecNode(visited) => {
-            if let Some(lift) = lift {
-                Some(lift(visited))
-            } else {
-                extract_single_node(visited)
-            }
-        }
-        SingleNodeOrVecNode::SingleNode(visited) => Some(visited.clone()),
-    };
-
-    Debug_.assert_node(visited_node.as_deref(), test, None);
-    visited_node
+    try_maybe_visit_node(
+        node,
+        visitor.map(|mut visitor| move |node: &Node| Ok(visitor(node))),
+        test,
+        lift,
+    )
+    .unwrap()
 }
 
 pub fn try_visit_node(
+    node: &Node,
+    visitor: Option<impl FnMut(&Node) -> io::Result<VisitResult>>,
+    test: Option<impl Fn(&Node) -> bool>,
+    lift: Option<impl Fn(&[Gc<Node>]) -> Gc<Node>>,
+) -> io::Result<Gc<Node>> {
+    Ok(try_maybe_visit_node(Some(node), visitor, test, lift)?.unwrap())
+}
+
+pub fn try_maybe_visit_node(
     node: Option<impl Borrow<Node>>,
     visitor: Option<impl FnMut(&Node) -> io::Result<VisitResult>>,
     test: Option<impl Fn(&Node) -> bool>,
     lift: Option<impl Fn(&[Gc<Node>]) -> Gc<Node>>,
 ) -> io::Result<Option<Gc<Node>>> {
-    if node.is_none() {
-        return Ok(None);
-    }
-    let node = node.unwrap();
+    let node = return_ok_default_if_none!(node);
     let node = node.borrow();
-    if visitor.is_none() {
-        return Ok(None);
-    }
-    let mut visitor = visitor.unwrap();
+    let mut visitor = return_ok_default_if_none!(visitor);
 
     let visited = visitor(node)?;
     if visited.ptr_eq_node(node) {
         return Ok(Some(node.node_wrapper()));
     }
-    if visited.is_none() {
-        return Ok(None);
-    }
-    let visited = visited.unwrap();
+    let visited = return_ok_default_if_none!(visited);
     let visited_node = match &visited {
         SingleNodeOrVecNode::VecNode(visited) => {
             if let Some(lift) = lift {
@@ -438,12 +434,11 @@ pub fn try_visit_iteration_body(
 ) -> io::Result<Gc<Node /*Statement*/>> {
     context.start_block_scope();
     let updated = try_visit_node(
-        Some(body),
+        body,
         Some(visitor),
         Some(is_statement),
         Some(|nodes: &[Gc<Node>]| context.factory().lift_to_block(nodes)),
-    )?
-    .unwrap();
+    )?;
     let declarations = context.end_block_scope();
     if let Some(mut declarations) = declarations.non_empty()
     /*some(declarations)*/

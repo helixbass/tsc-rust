@@ -9,8 +9,8 @@ use crate::{
     id_text, insert_statements_after_standard_prologue, is_binary_expression, is_call_expression,
     is_expression, is_expression_statement, is_identifier_a_non_contextual_keyword, is_statement,
     is_super_call, set_emit_flags, single_or_many_node, skip_outer_expressions, skip_trivia,
-    try_visit_each_child, try_visit_node, try_visit_nodes, try_visit_parameter_list, AsDoubleDeref, EmitFlags,
-    FunctionLikeDeclarationInterface, GeneratedIdentifierFlags, HasStatementsInterface,
+    try_visit_each_child, try_visit_node, try_visit_nodes, try_visit_parameter_list, AsDoubleDeref,
+    EmitFlags, FunctionLikeDeclarationInterface, GeneratedIdentifierFlags, HasStatementsInterface,
     MapOrDefault, Matches, ModifierFlags, Node, NodeArray, NodeArrayExt, NodeArrayOrVec, NodeExt,
     NodeInterface, NodeWrappered, OptionTry, ReadonlyTextRange, ReadonlyTextRangeConcrete,
     SignatureDeclarationInterface, SyntaxKind, TextRange, TransformFlags, VisitResult,
@@ -169,14 +169,13 @@ impl TransformES2015 {
                                         .as_ref()
                                         .try_map_or_else(
                                             || Ok(self.factory.create_void_zero()),
-                                            |node_expression| -> io::Result<_> {
-                                                Ok(try_visit_node(
-                                                    Some(&**node_expression),
+                                            |node_expression| {
+                                                try_visit_node(
+                                                    node_expression,
                                                     Some(|node: &Node| self.visitor(node)),
                                                     Some(is_expression),
                                                     Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
-                                                )?
-                                                .unwrap())
+                                                )
                                             },
                                         )?,
                                 )
@@ -509,16 +508,13 @@ impl TransformES2015 {
                         Some(extends_clause_element.as_ref().try_map_or_default(
                             |extends_clause_element| -> io::Result<_> {
                                 Ok(vec![try_visit_node(
-                                    Some(
-                                        &*extends_clause_element
-                                            .as_expression_with_type_arguments()
-                                            .expression,
-                                    ),
+                                    &extends_clause_element
+                                        .as_expression_with_type_arguments()
+                                        .expression,
                                     Some(|node: &Node| self.visitor(node)),
                                     Some(is_expression),
                                     Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
-                                )?
-                                .unwrap()])
+                                )?])
                             },
                         )?),
                     )

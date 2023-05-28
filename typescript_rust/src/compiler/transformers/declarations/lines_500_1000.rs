@@ -18,8 +18,8 @@ use crate::{
     is_set_accessor_declaration, is_source_file, is_string_literal_like, is_tuple_type_node,
     is_type_alias_declaration, is_type_node, is_type_query_node, length, map_defined,
     needs_scope_marker, return_ok_default_if_none, set_comment_range_rc, set_emit_flags, some,
-    try_maybe_map, try_maybe_visit_each_child, try_visit_each_child, try_visit_node,
-    try_visit_nodes, visit_nodes, Debug_, EmitFlags,
+    try_maybe_map, try_maybe_visit_each_child, try_maybe_visit_node, try_visit_each_child,
+    try_visit_node, try_visit_nodes, visit_nodes, Debug_, EmitFlags,
     FunctionLikeDeclarationInterface, GetSymbolAccessibilityDiagnostic, HasQuestionTokenInterface,
     HasTypeArgumentsInterface, HasTypeInterface, HasTypeParametersInterface, ModifierFlags,
     NamedDeclarationInterface, Node, NodeArray, NodeInterface, NonEmpty, OptionTry,
@@ -46,7 +46,7 @@ impl TransformDeclarations {
                     .is_optional_uninitialized_parameter_property(node)?);
         if let Some(type_) = type_ {
             if !should_use_resolver_type {
-                return try_visit_node(
+                return try_maybe_visit_node(
                     Some(type_),
                     Some(|node: &Node| self.visit_declaration_subtree(node)),
                     Option::<fn(&Node) -> bool>::None,
@@ -56,7 +56,7 @@ impl TransformDeclarations {
         }
         if get_parse_tree_node(Some(node), Option::<fn(&Node) -> bool>::None).is_none() {
             return Ok(if let Some(type_) = type_ {
-                try_visit_node(
+                try_maybe_visit_node(
                     Some(type_),
                     Some(|node: &Node| self.visit_declaration_subtree(node)),
                     Option::<fn(&Node) -> bool>::None,
@@ -1192,7 +1192,7 @@ impl TransformDeclarations {
                                     None,
                                 )?
                                 .unwrap(),
-                                try_visit_node(
+                                try_maybe_visit_node(
                                     input_as_index_signature_declaration.maybe_type(),
                                     Some(|node: &Node| self.visit_declaration_subtree(node)),
                                     Option::<fn(&Node) -> bool>::None,
@@ -1276,38 +1276,34 @@ impl TransformDeclarations {
                 SyntaxKind::ConditionalType => {
                     let input_as_conditional_type_node = input.as_conditional_type_node();
                     let check_type = try_visit_node(
-                        Some(&*input_as_conditional_type_node.check_type),
+                        &input_as_conditional_type_node.check_type,
                         Some(|node: &Node| self.visit_declaration_subtree(node)),
                         Option::<fn(&Node) -> bool>::None,
                         Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
-                    )?
-                    .unwrap();
+                    )?;
                     let extends_type = try_visit_node(
-                        Some(&*input_as_conditional_type_node.extends_type),
+                        &input_as_conditional_type_node.extends_type,
                         Some(|node: &Node| self.visit_declaration_subtree(node)),
                         Option::<fn(&Node) -> bool>::None,
                         Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
-                    )?
-                    .unwrap();
+                    )?;
                     let old_enclosing_decl = self.maybe_enclosing_declaration();
                     self.set_enclosing_declaration(Some(
                         input_as_conditional_type_node.true_type.clone(),
                     ));
                     let true_type = try_visit_node(
-                        Some(&*input_as_conditional_type_node.true_type),
+                        &input_as_conditional_type_node.true_type,
                         Some(|node: &Node| self.visit_declaration_subtree(node)),
                         Option::<fn(&Node) -> bool>::None,
                         Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
-                    )?
-                    .unwrap();
+                    )?;
                     self.set_enclosing_declaration(old_enclosing_decl);
                     let false_type = try_visit_node(
-                        Some(&*input_as_conditional_type_node.false_type),
+                        &input_as_conditional_type_node.false_type,
                         Some(|node: &Node| self.visit_declaration_subtree(node)),
                         Option::<fn(&Node) -> bool>::None,
                         Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
-                    )?
-                    .unwrap();
+                    )?;
                     self.visit_declaration_subtree_cleanup(
                         input,
                         can_produce_diagnostic,
@@ -1351,7 +1347,7 @@ impl TransformDeclarations {
                                     None,
                                 )?
                                 .unwrap(),
-                                try_visit_node(
+                                try_maybe_visit_node(
                                     input_as_function_type_node.maybe_type(),
                                     Some(|node: &Node| self.visit_declaration_subtree(node)),
                                     Option::<fn(&Node) -> bool>::None,
@@ -1389,7 +1385,7 @@ impl TransformDeclarations {
                                     None,
                                 )?
                                 .unwrap(),
-                                try_visit_node(
+                                try_maybe_visit_node(
                                     input_as_constructor_type_node.maybe_type(),
                                     Some(|node: &Node| self.visit_declaration_subtree(node)),
                                     Option::<fn(&Node) -> bool>::None,

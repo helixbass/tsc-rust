@@ -4,21 +4,22 @@ use gc::Gc;
 
 use super::TransformTypeScript;
 use crate::{
-    add_emit_flags, add_range, are_option_gcs_equal,
-    get_initialized_variables, get_leading_comment_ranges_of_node, get_parse_tree_node,
-    has_syntactic_modifier, insert_statements_after_standard_prologue, is_assertion_expression,
-    is_binding_name, is_binding_pattern, is_enum_const, is_expression, is_instantiated_module,
-    is_jsx_attributes, is_jsx_tag_name_expression, is_left_hand_side_expression, is_modifier,
-    is_module_declaration, move_range_past_decorators, move_range_past_modifiers,
-    node_is_missing, parameter_is_this_keyword, set_comment_range, set_emit_flags,
-    set_source_map_range, set_synthetic_leading_comments, set_synthetic_trailing_comments,
-    set_text_range, set_text_range_rc_node, should_preserve_const_enums, skip_outer_expressions,
+    add_emit_flags, add_range, are_option_gcs_equal, get_initialized_variables,
+    get_leading_comment_ranges_of_node, get_parse_tree_node, has_syntactic_modifier,
+    insert_statements_after_standard_prologue, is_assertion_expression, is_binding_name,
+    is_binding_pattern, is_enum_const, is_expression, is_instantiated_module, is_jsx_attributes,
+    is_jsx_tag_name_expression, is_left_hand_side_expression, is_modifier, is_module_declaration,
+    move_range_past_decorators, move_range_past_modifiers, node_is_missing,
+    parameter_is_this_keyword, set_comment_range, set_emit_flags, set_source_map_range,
+    set_synthetic_leading_comments, set_synthetic_trailing_comments, set_text_range,
+    set_text_range_rc_node, should_preserve_const_enums, skip_outer_expressions,
     try_flatten_destructuring_assignment, try_map, try_maybe_visit_each_child,
-    try_visit_each_child, try_visit_function_body, try_visit_node, try_visit_nodes,
-    try_visit_parameter_list, visit_nodes, EmitFlags, FlattenLevel, FunctionLikeDeclarationInterface,
-    HasInitializerInterface, ModifierFlags, ModuleKind, NamedDeclarationInterface, Node, NodeArray,
-    NodeArrayExt, NodeExt, NodeInterface, NonEmpty, OuterExpressionKinds, ReadonlyTextRange,
-    SignatureDeclarationInterface, StringOrNumber, SyntaxKind, VisitResult,
+    try_maybe_visit_node, try_visit_each_child, try_visit_function_body, try_visit_node,
+    try_visit_nodes, try_visit_parameter_list, visit_nodes, EmitFlags, FlattenLevel,
+    FunctionLikeDeclarationInterface, HasInitializerInterface, ModifierFlags, ModuleKind,
+    NamedDeclarationInterface, Node, NodeArray, NodeArrayExt, NodeExt, NodeInterface, NonEmpty,
+    OuterExpressionKinds, ReadonlyTextRange, SignatureDeclarationInterface, StringOrNumber,
+    SyntaxKind, VisitResult,
 };
 
 impl TransformTypeScript {
@@ -297,7 +298,7 @@ impl TransformTypeScript {
             Option::<Gc<NodeArray>>::None,
             Option::<Gc<NodeArray>>::None,
             node_as_parameter_declaration.dot_dot_dot_token.clone(),
-            try_visit_node(
+            try_maybe_visit_node(
                 node_as_parameter_declaration.maybe_name(),
                 Some(|node: &Node| self.visitor(node)),
                 Some(is_binding_name),
@@ -305,7 +306,7 @@ impl TransformTypeScript {
             )?,
             None,
             None,
-            try_visit_node(
+            try_maybe_visit_node(
                 node_as_parameter_declaration.maybe_initializer(),
                 Some(|node: &Node| self.visitor(node)),
                 Some(is_expression),
@@ -391,12 +392,11 @@ impl TransformTypeScript {
                 .create_assignment(
                     self.get_namespace_member_name_with_source_maps_and_without_comments(name),
                     try_visit_node(
-                        node_as_variable_declaration.maybe_initializer(),
+                        &node_as_variable_declaration.maybe_initializer().unwrap(),
                         Some(|node: &Node| self.visitor(node)),
                         Some(is_expression),
                         Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
-                    )?
-                    .unwrap(),
+                    )?,
                 )
                 .wrap()
                 .set_text_range(Some(node))
@@ -412,7 +412,7 @@ impl TransformTypeScript {
             self.factory
                 .update_variable_declaration(
                     node,
-                    try_visit_node(
+                    try_maybe_visit_node(
                         node_as_variable_declaration.maybe_name(),
                         Some(|node: &Node| self.visitor(node)),
                         Some(is_binding_name),
@@ -420,7 +420,7 @@ impl TransformTypeScript {
                     )?,
                     None,
                     None,
-                    try_visit_node(
+                    try_maybe_visit_node(
                         node_as_variable_declaration.maybe_initializer(),
                         Some(|node: &Node| self.visitor(node)),
                         Some(is_expression),
@@ -442,12 +442,11 @@ impl TransformTypeScript {
         );
         if is_assertion_expression(inner_expression) {
             let expression = try_visit_node(
-                Some(&*node_as_parenthesized_expression.expression),
+                &node_as_parenthesized_expression.expression,
                 Some(|node: &Node| self.visitor(node)),
                 Some(is_expression),
                 Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
-            )?
-            .unwrap();
+            )?;
 
             if get_leading_comment_ranges_of_node(&expression, &self.current_source_file())
                 .is_non_empty()
@@ -470,12 +469,11 @@ impl TransformTypeScript {
         node: &Node, /*AssertionExpression*/
     ) -> io::Result<Gc<Node /*Expression*/>> {
         let expression = try_visit_node(
-            Some(&*node.as_has_expression().expression()),
+            &node.as_has_expression().expression(),
             Some(|node: &Node| self.visitor(node)),
             Some(is_expression),
             Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
-        )?
-        .unwrap();
+        )?;
         Ok(self
             .factory
             .create_partially_emitted_expression(expression, Some(node.node_wrapper()))
@@ -487,12 +485,11 @@ impl TransformTypeScript {
         node: &Node, /*NonNullExpression*/
     ) -> io::Result<Gc<Node /*Expression*/>> {
         let expression = try_visit_node(
-            Some(&*node.as_non_null_expression().expression),
+            &node.as_non_null_expression().expression,
             Some(|node: &Node| self.visitor(node)),
             Some(is_left_hand_side_expression),
             Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
-        )?
-        .unwrap();
+        )?;
         Ok(self
             .factory
             .create_partially_emitted_expression(expression, Some(node.node_wrapper()))
@@ -509,12 +506,11 @@ impl TransformTypeScript {
                 .update_call_expression(
                     node,
                     try_visit_node(
-                        Some(&*node_as_call_expression.expression),
+                        &node_as_call_expression.expression,
                         Some(|node: &Node| self.visitor(node)),
                         Some(is_expression),
                         Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
-                    )?
-                    .unwrap(),
+                    )?,
                     Option::<Gc<NodeArray>>::None,
                     try_visit_nodes(
                         Some(&node_as_call_expression.arguments),
@@ -539,12 +535,11 @@ impl TransformTypeScript {
                 .update_new_expression(
                     node,
                     try_visit_node(
-                        Some(&*node_as_new_expression.expression),
+                        &node_as_new_expression.expression,
                         Some(|node: &Node| self.visitor(node)),
                         Some(is_expression),
                         Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
-                    )?
-                    .unwrap(),
+                    )?,
                     Option::<Gc<NodeArray>>::None,
                     try_visit_nodes(
                         node_as_new_expression.arguments.as_deref(),
@@ -568,20 +563,18 @@ impl TransformTypeScript {
                 .update_tagged_template_expression(
                     node,
                     try_visit_node(
-                        Some(&*node_as_tagged_template_expression.tag),
+                        &node_as_tagged_template_expression.tag,
                         Some(|node: &Node| self.visitor(node)),
                         Some(is_expression),
                         Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
-                    )?
-                    .unwrap(),
+                    )?,
                     Option::<Gc<NodeArray>>::None,
                     try_visit_node(
-                        Some(&*node_as_tagged_template_expression.template),
+                        &node_as_tagged_template_expression.template,
                         Some(|node: &Node| self.visitor(node)),
                         Some(is_expression),
                         Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
-                    )?
-                    .unwrap(),
+                    )?,
                 )
                 .into(),
         ))
@@ -597,20 +590,18 @@ impl TransformTypeScript {
                 .update_jsx_self_closing_element(
                     node,
                     try_visit_node(
-                        Some(&*node_as_jsx_self_closing_element.tag_name),
+                        &node_as_jsx_self_closing_element.tag_name,
                         Some(|node: &Node| self.visitor(node)),
                         Some(is_jsx_tag_name_expression),
                         Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
-                    )?
-                    .unwrap(),
+                    )?,
                     Option::<Gc<NodeArray>>::None,
                     try_visit_node(
-                        Some(&*node_as_jsx_self_closing_element.attributes),
+                        &node_as_jsx_self_closing_element.attributes,
                         Some(|node: &Node| self.visitor(node)),
                         Some(is_jsx_attributes),
                         Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
-                    )?
-                    .unwrap(),
+                    )?,
                 )
                 .into(),
         ))
@@ -626,20 +617,18 @@ impl TransformTypeScript {
                 .update_jsx_opening_element(
                     node,
                     try_visit_node(
-                        Some(&*node_as_jsx_opening_element.tag_name),
+                        &node_as_jsx_opening_element.tag_name,
                         Some(|node: &Node| self.visitor(node)),
                         Some(is_jsx_tag_name_expression),
                         Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
-                    )?
-                    .unwrap(),
+                    )?,
                     Option::<Gc<NodeArray>>::None,
                     try_visit_node(
-                        Some(&*node_as_jsx_opening_element.attributes),
+                        &node_as_jsx_opening_element.attributes,
                         Some(|node: &Node| self.visitor(node)),
                         Some(is_jsx_attributes),
                         Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
-                    )?
-                    .unwrap(),
+                    )?,
                 )
                 .into(),
         ))
@@ -858,12 +847,11 @@ impl TransformTypeScript {
             self.enable_substitution_for_non_qualified_enum_members();
             if let Some(member_initializer) = member.as_enum_member().initializer.as_ref() {
                 try_visit_node(
-                    Some(&**member_initializer),
+                    member_initializer,
                     Some(|node: &Node| self.visitor(node)),
                     Some(is_expression),
                     Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
                 )?
-                .unwrap()
             } else {
                 self.factory.create_void_zero()
             }

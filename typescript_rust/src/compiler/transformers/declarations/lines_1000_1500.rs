@@ -25,6 +25,7 @@ use crate::{
     SymbolAccessibilityDiagnostic, SymbolAccessibilityResult, SymbolInterface, SyntaxKind,
     VisitResult, VisitResultInterface, get_parse_node_factory, try_flat_map, try_visit_nodes, try_map, try_maybe_map, try_visit_node, return_ok_default_if_none, try_map_defined, OptionTry,
 };
+use crate::try_maybe_visit_node;
 
 impl TransformDeclarations {
     pub(super) fn visit_declaration_subtree_cleanup(
@@ -273,12 +274,11 @@ impl TransformDeclarations {
                                 None,
                             )?,
                             try_visit_node(
-                                input_as_type_alias_declaration.maybe_type(),
+                                input_as_type_alias_declaration.maybe_type().as_deref().unwrap(),
                                 Some(|node: &Node| self.visit_declaration_subtree(node)),
                                 Some(is_type_node),
                                 Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
                             )?
-                            .unwrap(),
                         )
                     ),
                 )
@@ -667,7 +667,7 @@ impl TransformDeclarations {
                     self.set_needs_declare(previous_needs_declare);
                     let mods = self.ensure_modifiers(input);
                     self.set_needs_declare(false);
-                    try_visit_node(
+                    try_maybe_visit_node(
                         inner.as_double_deref(),
                         Some(|node: &Node| self.visit_declaration_statements(node)),
                         Option::<fn(&Node) -> bool>::None,

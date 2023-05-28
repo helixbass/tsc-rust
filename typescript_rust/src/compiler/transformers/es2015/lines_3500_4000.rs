@@ -34,13 +34,12 @@ impl TransformES2015 {
                 create_member_access_for_property_name(
                     &self.factory,
                     receiver,
-                    &try_visit_node(
-                        Some(method_as_method_declaration.name()),
+                    &*try_visit_node(
+                        &method_as_method_declaration.name(),
                         Some(|node: &Node| self.visitor(node)),
                         Some(is_property_name),
                         Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
-                    )?
-                    .unwrap(),
+                    )?,
                     Option::<&Node>::None,
                 ),
                 self.transform_function_like_to_expression(
@@ -293,12 +292,11 @@ impl TransformES2015 {
                 .update_call_expression(
                     node,
                     try_visit_node(
-                        Some(&*node_as_call_expression.expression),
+                        &node_as_call_expression.expression,
                         Some(|node: &Node| self.call_expression_visitor(node)),
                         Some(is_expression),
                         Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
-                    )?
-                    .unwrap(),
+                    )?,
                     Option::<Gc<NodeArray>>::None,
                     try_visit_nodes(
                         Some(&node_as_call_expression.arguments),
@@ -562,22 +560,20 @@ impl TransformES2015 {
             {
                 resulting_call = self.factory.create_function_apply_call(
                     try_visit_node(
-                        Some(&*target),
+                        &target,
                         Some(|node: &Node| self.call_expression_visitor(node)),
                         Some(is_expression),
                         Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
-                    )?
-                    .unwrap(),
+                    )?,
                     if node_as_call_expression.expression.kind() == SyntaxKind::SuperKeyword {
                         this_arg
                     } else {
                         try_visit_node(
-                            Some(this_arg),
+                            &this_arg,
                             Some(|node: &Node| self.visitor(node)),
                             Some(is_expression),
                             Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
                         )?
-                        .unwrap()
                     },
                     self.transform_and_spread_elements(
                         &node_as_call_expression.arguments,
@@ -591,22 +587,20 @@ impl TransformES2015 {
                     .factory
                     .create_function_call_call(
                         try_visit_node(
-                            Some(&*target),
+                            &target,
                             Some(|node: &Node| self.call_expression_visitor(node)),
                             Some(is_expression),
                             Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
-                        )?
-                        .unwrap(),
+                        )?,
                         if node_as_call_expression.expression.kind() == SyntaxKind::SuperKeyword {
                             this_arg
                         } else {
                             try_visit_node(
-                                Some(this_arg),
+                                &this_arg,
                                 Some(|node: &Node| self.visitor(node)),
                                 Some(is_expression),
                                 Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
                             )?
-                            .unwrap()
                         },
                         try_visit_nodes(
                             Some(&node_as_call_expression.arguments),
@@ -676,12 +670,11 @@ impl TransformES2015 {
                 .create_new_expression(
                     self.factory.create_function_apply_call(
                         try_visit_node(
-                            Some(target),
+                            &target,
                             Some(|node: &Node| self.visitor(node)),
                             Some(is_expression),
                             Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
-                        )?
-                        .unwrap(),
+                        )?,
                         this_arg,
                         self.transform_and_spread_elements(
                             &self.factory.create_node_array(

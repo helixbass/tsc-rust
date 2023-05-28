@@ -268,12 +268,11 @@ impl TransformES2015 {
             Some(container),
         )?;
         let ref property_name = try_visit_node(
-            Some(member_as_method_declaration.name()),
+            &member_as_method_declaration.name(),
             Some(|node: &Node| self.visitor(node)),
             Some(is_property_name),
             Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
-        )?
-        .unwrap();
+        )?;
         let e: Gc<Node /*Expression*/>;
         if !is_private_identifier(property_name)
             && get_use_define_for_class_fields(&self.context.get_compiler_options())
@@ -371,12 +370,11 @@ impl TransformES2015 {
             );
 
         let ref visited_accessor_name = try_visit_node(
-            first_accessor.as_named_declaration().maybe_name(),
+            &first_accessor.as_named_declaration().name(),
             Some(|node: &Node| self.visitor(node)),
             Some(is_property_name),
             Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
-        )?
-        .unwrap();
+        )?;
         if is_private_identifier(visited_accessor_name) {
             Debug_.fail_bad_syntax_kind(
                 visited_accessor_name,
@@ -799,12 +797,11 @@ impl TransformES2015 {
             }
 
             let expression = try_visit_node(
-                Some(&**body),
+                body,
                 Some(|node: &Node| self.visitor(node)),
                 Some(is_expression),
                 Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
-            )?
-            .unwrap();
+            )?;
             let return_statement = self
                 .factory
                 .create_return_statement(Some(expression))

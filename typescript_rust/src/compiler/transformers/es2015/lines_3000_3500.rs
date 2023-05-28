@@ -93,16 +93,14 @@ impl TransformES2015 {
                                             Option::<Gc<NodeArray>>::None,
                                             None,
                                             try_visit_node(
-                                                Some(
-                                                    self.factory
-                                                        .create_block(statements, Some(true))
-                                                        .wrap(),
-                                                ),
+                                                &self
+                                                    .factory
+                                                    .create_block(statements, Some(true))
+                                                    .wrap(),
                                                 Some(|node: &Node| self.visitor(node)),
                                                 Some(is_block),
                                                 Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
-                                            )?
-                                            .unwrap(),
+                                            )?,
                                         )
                                         .wrap()
                                         .set_emit_flags(emit_flags),
@@ -146,12 +144,11 @@ impl TransformES2015 {
         let function_name = self.factory.create_unique_name("_loop", None);
         self.context.start_lexical_environment();
         let statement = try_visit_node(
-            Some(node.as_has_statement().statement()),
+            &node.as_has_statement().statement(),
             Some(|node: &Node| self.visitor(node)),
             Some(is_statement),
             Some(&|nodes: &[Gc<Node>]| self.factory.lift_to_block(nodes)),
-        )?
-        .unwrap();
+        )?;
         let lexical_environment = self.context.end_lexical_environment();
 
         let mut statements: Vec<Gc<Node /*Statement*/>> = _d();
@@ -171,15 +168,12 @@ impl TransformES2015 {
                                 .clone()
                                 .unwrap(),
                             self.factory
-                                .create_expression_statement(
-                                    try_visit_node(
-                                        Some(&**node_incrementor),
-                                        Some(|node: &Node| self.visitor(node)),
-                                        Some(is_expression),
-                                        Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
-                                    )?
-                                    .unwrap(),
-                                )
+                                .create_expression_statement(try_visit_node(
+                                    node_incrementor,
+                                    Some(|node: &Node| self.visitor(node)),
+                                    Some(is_expression),
+                                    Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                                )?)
                                 .wrap(),
                             Some(
                                 self.factory
@@ -241,25 +235,22 @@ impl TransformES2015 {
                                 .create_prefix_unary_expression(
                                     SyntaxKind::ExclamationToken,
                                     try_visit_node(
-                                        node_as_for_statement.condition.as_deref(),
+                                        node_as_for_statement.condition.as_deref().unwrap(),
                                         Some(|node: &Node| self.visitor(node)),
                                         Some(is_expression),
                                         Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
-                                    )?
-                                    .unwrap(),
+                                    )?,
                                 )
                                 .wrap(),
                             try_visit_node(
-                                Some(
-                                    self.factory
-                                        .create_break_statement(Option::<Gc<Node>>::None)
-                                        .wrap(),
-                                ),
+                                &self
+                                    .factory
+                                    .create_break_statement(Option::<Gc<Node>>::None)
+                                    .wrap(),
                                 Some(|node: &Node| self.visitor(node)),
                                 Some(is_statement),
                                 Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
-                            )?
-                            .unwrap(),
+                            )?,
                             None,
                         )
                         .wrap(),
@@ -820,22 +811,20 @@ impl TransformES2015 {
                 create_member_access_for_property_name(
                     &self.factory,
                     receiver,
-                    &try_visit_node(
-                        Some(property_as_property_assignment.name()),
+                    &*try_visit_node(
+                        &property_as_property_assignment.name(),
                         Some(|node: &Node| self.visitor(node)),
                         Some(is_property_name),
                         Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
-                    )?
-                    .unwrap(),
+                    )?,
                     Option::<&Node>::None,
                 ),
                 try_visit_node(
-                    Some(property_as_property_assignment.maybe_initializer().unwrap()),
+                    &property_as_property_assignment.maybe_initializer().unwrap(),
                     Some(|node: &Node| self.visitor(node)),
                     Some(is_expression),
                     Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
-                )?
-                .unwrap(),
+                )?,
             )
             .wrap()
             .set_text_range(Some(property));
@@ -858,13 +847,12 @@ impl TransformES2015 {
                 create_member_access_for_property_name(
                     &self.factory,
                     receiver,
-                    &try_visit_node(
-                        Some(property_as_shorthand_property_assignment.name()),
+                    &*try_visit_node(
+                        &property_as_shorthand_property_assignment.name(),
                         Some(|node: &Node| self.visitor(node)),
                         Some(is_property_name),
                         Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
-                    )?
-                    .unwrap(),
+                    )?,
                     Option::<&Node>::None,
                 ),
                 self.factory

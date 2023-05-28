@@ -765,12 +765,12 @@ pub use compiler::{
         FindAncestorCallbackReturn, StrOrNodeArray,
     },
     visitor_public::{
-        maybe_visit_each_child, maybe_visit_each_child_full, try_maybe_visit_each_child,
-        try_visit_each_child, try_visit_function_body, try_visit_iteration_body,
-        try_visit_lexical_environment, try_visit_lexical_environment_full, try_visit_node,
-        try_visit_nodes, try_visit_parameter_list, visit_each_child, visit_function_body,
-        visit_iteration_body, visit_lexical_environment, visit_node, visit_nodes,
-        visit_parameter_list,
+        maybe_visit_each_child, maybe_visit_each_child_full, maybe_visit_node,
+        try_maybe_visit_each_child, try_maybe_visit_node, try_visit_each_child,
+        try_visit_function_body, try_visit_iteration_body, try_visit_lexical_environment,
+        try_visit_lexical_environment_full, try_visit_node, try_visit_nodes,
+        try_visit_parameter_list, visit_each_child, visit_function_body, visit_iteration_body,
+        visit_lexical_environment, visit_node, visit_nodes, visit_parameter_list,
     },
     watch::{
         create_diagnostic_reporter, create_watch_compiler_host_of_config_file,

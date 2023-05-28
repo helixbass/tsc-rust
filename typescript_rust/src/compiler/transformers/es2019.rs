@@ -77,12 +77,11 @@ impl TransformES2019 {
                         .wrap(),
                 ),
                 visit_node(
-                    Some(&*node_as_catch_clause.block),
+                    &node_as_catch_clause.block,
                     Some(|node: &Node| self.visitor(node)),
                     Some(is_block),
                     Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
-                )
-                .unwrap(),
+                ),
             );
         }
         visit_each_child(node, |node: &Node| self.visitor(node), &**self.context)

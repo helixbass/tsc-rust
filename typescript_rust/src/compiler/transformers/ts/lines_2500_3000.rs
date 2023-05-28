@@ -11,11 +11,10 @@ use crate::{
     is_identifier, is_import_clause, is_import_specifier, is_modifier, is_named_export_bindings,
     is_namespace_export, move_range_pos, set_comment_range, set_emit_flags, set_source_map_range,
     set_synthetic_leading_comments, set_synthetic_trailing_comments, set_text_range,
-    set_text_range_node_array, try_maybe_visit_each_child, try_visit_each_child,
-    try_visit_node, try_visit_nodes, visit_nodes, AsDoubleDeref,
-    BoolExt, Debug_, EmitFlags, ImportsNotUsedAsValues, ModifierFlags, NamedDeclarationInterface,
-    NodeArray, NodeExt, NodeFlags, ReadonlyTextRangeConcrete, SingleNodeOrVecNode,
-    SyntaxKind,
+    set_text_range_node_array, try_maybe_visit_each_child, try_maybe_visit_node,
+    try_visit_each_child, try_visit_node, try_visit_nodes, visit_nodes, AsDoubleDeref, BoolExt,
+    Debug_, EmitFlags, ImportsNotUsedAsValues, ModifierFlags, NamedDeclarationInterface, NodeArray,
+    NodeExt, NodeFlags, ReadonlyTextRangeConcrete, SingleNodeOrVecNode, SyntaxKind,
 };
 
 impl TransformTypeScript {
@@ -401,7 +400,7 @@ impl TransformTypeScript {
             return Ok(None);
         }
 
-        let import_clause = try_visit_node(
+        let import_clause = try_maybe_visit_node(
             Some(&**node_import_clause),
             Some(|node: &Node| self.visit_import_clause(node)),
             Some(is_import_clause),
@@ -443,7 +442,7 @@ impl TransformTypeScript {
         } else {
             None
         };
-        let named_bindings = try_visit_node(
+        let named_bindings = try_maybe_visit_node(
             node_as_import_clause.named_bindings.as_deref(),
             Some(|node: &Node| self.visit_named_import_bindings(node)),
             Some(is_named_import_bindings),
@@ -538,7 +537,7 @@ impl TransformTypeScript {
                 self.compiler_options.imports_not_used_as_values,
                 Some(ImportsNotUsedAsValues::Preserve) | Some(ImportsNotUsedAsValues::Error)
             );
-        let export_clause = try_visit_node(
+        let export_clause = try_maybe_visit_node(
             node_as_export_declaration.export_clause.as_deref(),
             Some(|bindings: &Node /*NamedExportBindings*/| {
                 self.visit_named_export_bindings(bindings, allow_empty)
@@ -588,12 +587,11 @@ impl TransformTypeScript {
                 .update_namespace_export(
                     node,
                     try_visit_node(
-                        Some(&*node.as_namespace_export().name),
+                        &node.as_namespace_export().name,
                         Some(|node: &Node| self.visitor(node)),
                         Some(is_identifier),
                         Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
-                    )?
-                    .unwrap(),
+                    )?,
                 )
                 .into(),
         ))

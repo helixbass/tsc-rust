@@ -5,14 +5,14 @@ use itertools::Itertools;
 
 use super::TransformTypeScript;
 use crate::{
-    add_range, find_ancestor,
-    get_parse_node_factory, get_parse_tree_node, has_static_modifier, has_syntactic_modifier,
-    id_text, is_computed_property_name, is_conditional_type_node, is_expression, is_identifier,
-    is_left_hand_side_expression, is_modifier, is_parameter_property_declaration,
-    is_private_identifier, is_property_name, is_simple_inlineable_expression, is_statement,
-    move_range_past_decorators, move_range_pos, node_is_missing, set_comment_range,
-    set_source_map_range, skip_partially_emitted_expressions,
-    try_add_prologue_directives_and_initial_super_call, try_maybe_visit_each_child, try_visit_function_body, try_visit_node, try_visit_nodes,
+    add_range, find_ancestor, get_parse_node_factory, get_parse_tree_node, has_static_modifier,
+    has_syntactic_modifier, id_text, is_computed_property_name, is_conditional_type_node,
+    is_expression, is_identifier, is_left_hand_side_expression, is_modifier,
+    is_parameter_property_declaration, is_private_identifier, is_property_name,
+    is_simple_inlineable_expression, is_statement, move_range_past_decorators, move_range_pos,
+    node_is_missing, set_comment_range, set_source_map_range, skip_partially_emitted_expressions,
+    try_add_prologue_directives_and_initial_super_call, try_maybe_visit_each_child,
+    try_maybe_visit_node, try_visit_function_body, try_visit_node, try_visit_nodes,
     try_visit_parameter_list, AsDoubleDeref, EmitFlags, FunctionLikeDeclarationInterface,
     HasInitializerInterface, Matches, ModifierFlags, Node, NodeArray, NodeArrayExt, NodeExt,
     NodeFlags, NodeInterface, NonEmpty, PeekableExt, ScriptTarget, SignatureDeclarationInterface,
@@ -358,12 +358,11 @@ impl TransformTypeScript {
         {
             let name_as_computed_property_name = name.as_computed_property_name();
             let expression = try_visit_node(
-                Some(&*name_as_computed_property_name.expression),
+                &name_as_computed_property_name.expression,
                 Some(|node: &Node| self.visitor(node)),
                 Some(is_expression),
                 Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
-            )?
-            .unwrap();
+            )?;
             let ref inner_expression = skip_partially_emitted_expressions(&expression);
             if !is_simple_inlineable_expression(inner_expression) {
                 let generated_name = self
@@ -378,13 +377,12 @@ impl TransformTypeScript {
                 ));
             }
         }
-        Ok(try_visit_node(
-            Some(&**name),
+        try_visit_node(
+            name,
             Some(|node: &Node| self.visitor(node)),
             Some(is_property_name),
             Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
-        )?
-        .unwrap())
+        )
     }
 
     pub(super) fn visit_heritage_clause(
@@ -409,12 +407,11 @@ impl TransformTypeScript {
         Ok(self.factory.update_expression_with_type_arguments(
             node,
             try_visit_node(
-                Some(&*node.as_expression_with_type_arguments().expression),
+                &node.as_expression_with_type_arguments().expression,
                 Some(|node: &Node| self.visitor(node)),
                 Some(is_left_hand_side_expression),
                 Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
-            )?
-            .unwrap(),
+            )?,
             Option::<Gc<NodeArray>>::None,
         ))
     }
@@ -448,7 +445,7 @@ impl TransformTypeScript {
             self.visit_property_name_of_class_element(node)?,
             None,
             None,
-            try_visit_node(
+            try_maybe_visit_node(
                 node.as_property_declaration().maybe_initializer(),
                 Some(|node: &Node| self.visitor(node)),
                 Option::<fn(&Node) -> bool>::None,

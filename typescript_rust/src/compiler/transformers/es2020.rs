@@ -158,12 +158,11 @@ impl TransformES2020 {
         }
 
         let mut expression = visit_node(
-            Some(&*node.as_has_expression().expression()),
+            &node.as_has_expression().expression(),
             Some(|node: &Node| self.visitor(node)),
             Some(is_expression),
             Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
-        )
-        .unwrap();
+        );
         Debug_.assert_not_node(Some(&*expression), Some(is_synthetic_reference), None);
 
         let mut this_arg: Option<Gc<Node /*Expression*/>> = Default::default();
@@ -189,24 +188,22 @@ impl TransformES2020 {
                 node,
                 expression.clone(),
                 visit_node(
-                    Some(&*node.as_property_access_expression().name),
+                    &node.as_property_access_expression().name,
                     Some(|node: &Node| self.visitor(node)),
                     Some(is_identifier),
                     Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
-                )
-                .unwrap(),
+                ),
             )
         } else {
             self.factory.update_element_access_expression(
                 node,
                 expression.clone(),
                 visit_node(
-                    Some(&*node.as_element_access_expression().argument_expression),
+                    &node.as_element_access_expression().argument_expression,
                     Some(|node: &Node| self.visitor(node)),
                     Some(is_expression),
                     Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
-                )
-                .unwrap(),
+                ),
             )
         };
         if let Some(this_arg) = this_arg {
@@ -288,12 +285,11 @@ impl TransformES2020 {
                 self.visit_non_optional_call_expression(node, capture_this_arg)
             }
             _ => visit_node(
-                Some(node),
+                node,
                 Some(|node: &Node| self.visitor(node)),
                 Some(is_expression),
                 Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
-            )
-            .unwrap(),
+            ),
         }
     }
 
@@ -351,12 +347,11 @@ impl TransformES2020 {
                             .create_property_access_expression(
                                 right_expression,
                                 visit_node(
-                                    Some(&*segment.as_property_access_expression().name),
+                                    &segment.as_property_access_expression().name,
                                     Some(|node: &Node| self.visitor(node)),
                                     Some(is_identifier),
                                     Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
-                                )
-                                .unwrap(),
+                                ),
                             )
                             .wrap()
                     } else {
@@ -364,16 +359,11 @@ impl TransformES2020 {
                             .create_element_access_expression(
                                 right_expression,
                                 visit_node(
-                                    Some(
-                                        &*segment
-                                            .as_element_access_expression()
-                                            .argument_expression,
-                                    ),
+                                    &segment.as_element_access_expression().argument_expression,
                                     Some(|node: &Node| self.visitor(node)),
                                     Some(is_expression),
                                     Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
-                                )
-                                .unwrap(),
+                                ),
                             )
                             .wrap()
                     };
@@ -502,12 +492,11 @@ impl TransformES2020 {
     ) -> VisitResult {
         let node_as_binary_expression = node.as_binary_expression();
         let mut left = visit_node(
-            Some(&*node_as_binary_expression.left),
+            &node_as_binary_expression.left,
             Some(|node: &Node| self.visitor(node)),
             Some(is_expression),
             Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
-        )
-        .unwrap();
+        );
         let mut right = left.clone();
         if !is_simple_copiable_expression(&left) {
             right = self.factory.create_temp_variable(
@@ -526,12 +515,11 @@ impl TransformES2020 {
                     right,
                     None,
                     visit_node(
-                        Some(&*node_as_binary_expression.right),
+                        &node_as_binary_expression.right,
                         Some(|node: &Node| self.visitor(node)),
                         Some(is_expression),
                         Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
-                    )
-                    .unwrap(),
+                    ),
                 )
                 .wrap()
                 .set_text_range(Some(node))
@@ -556,12 +544,11 @@ impl TransformES2020 {
                 self.factory.update_delete_expression(
                     node,
                     visit_node(
-                        Some(&*node_as_delete_expression.expression),
+                        &node_as_delete_expression.expression,
                         Some(|node: &Node| self.visitor(node)),
                         Some(is_expression),
                         Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
-                    )
-                    .unwrap(),
+                    ),
                 )
             }
             .into(),

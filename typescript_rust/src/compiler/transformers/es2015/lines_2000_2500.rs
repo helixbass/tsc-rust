@@ -9,7 +9,7 @@ use crate::{
     is_expression, is_for_initializer, is_identifier, is_iteration_statement, is_statement,
     is_variable_declaration_list, last, move_range_end, move_range_pos, set_emit_flags,
     set_source_map_range, set_text_range_end, try_flat_map, try_flatten_destructuring_assignment,
-    try_flatten_destructuring_binding, try_visit_each_child, try_visit_node,
+    try_flatten_destructuring_binding, try_maybe_visit_node, try_visit_each_child, try_visit_node,
     unwrap_innermost_statement_of_label, EmitFlags, FlattenLevel, HasInitializerInterface, Matches,
     ModifierFlags, NamedDeclarationInterface, Node, NodeArray, NodeArrayExt, NodeCheckFlags,
     NodeExt, NodeFlags, NodeInterface, Number, ReadonlyTextRange, ReadonlyTextRangeConcrete,
@@ -92,15 +92,14 @@ impl TransformES2015 {
             return Ok(self.factory.update_binary_expression(
                 node,
                 try_visit_node(
-                    Some(&*node_as_binary_expression.left),
+                    &node_as_binary_expression.left,
                     Some(|node: &Node| self.visitor_with_unused_expression_result(node)),
                     Some(is_expression),
                     Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
-                )?
-                .unwrap(),
+                )?,
                 node_as_binary_expression.operator_token.clone(),
                 try_visit_node(
-                    Some(&*node_as_binary_expression.right),
+                    &node_as_binary_expression.right,
                     Some(|node: &Node| {
                         Ok(if expression_result_is_unused {
                             self.visitor_with_unused_expression_result(node)?
@@ -110,8 +109,7 @@ impl TransformES2015 {
                     }),
                     Some(is_expression),
                     Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
-                )?
-                .unwrap(),
+                )?,
             ));
         }
         try_visit_each_child(node, |node: &Node| self.visitor(node), &**self.context)
@@ -133,7 +131,7 @@ impl TransformES2015 {
         let mut result: Option<Vec<Gc<Node /*Expression*/>>> = Default::default();
         for (i, element) in node_as_comma_list_expression.elements.iter().enumerate() {
             let visited = try_visit_node(
-                Some(&**element),
+                element,
                 Some(|node: &Node| {
                     Ok(if i < node_as_comma_list_expression.elements.len() - 1 {
                         self.visitor_with_unused_expression_result(node)?
@@ -143,8 +141,7 @@ impl TransformES2015 {
                 }),
                 Some(is_expression),
                 Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
-            )?
-            .unwrap();
+            )?;
             if result.is_some() || !Gc::ptr_eq(&visited, element) {
                 result
                     .get_or_insert_with(|| node_as_comma_list_expression.elements[0..i].to_owned())
@@ -239,12 +236,11 @@ impl TransformES2015 {
                                 decl_as_variable_declaration.name(),
                                 SyntaxKind::EqualsToken,
                                 try_visit_node(
-                                    Some(decl_initializer),
+                                    &decl_initializer,
                                     Some(|node: &Node| self.visitor(node)),
                                     Some(is_expression),
                                     Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
-                                )?
-                                .unwrap(),
+                                )?,
                             )
                             .wrap()
                             .set_text_range(Some(&**decl));
@@ -502,13 +498,12 @@ impl TransformES2015 {
             Some(
                 self.factory
                     .restore_enclosing_label(
-                        &try_visit_node(
-                            Some(&**statement),
+                        &*try_visit_node(
+                            statement,
                             Some(|node: &Node| self.visitor(node)),
                             Some(is_statement),
                             Some(|nodes: &[Gc<Node>]| self.factory.lift_to_block(nodes)),
-                        )?
-                        .unwrap(),
+                        )?,
                         Some(node),
                         if self.maybe_converted_loop_state().is_some() {
                             Some(|node: &Node| {
@@ -640,31 +635,30 @@ impl TransformES2015 {
         let node_as_for_statement = node.as_for_statement();
         Ok(self.factory.update_for_statement(
             node,
-            try_visit_node(
+            try_maybe_visit_node(
                 node_as_for_statement.initializer.as_deref(),
                 Some(|node: &Node| self.visitor_with_unused_expression_result(node)),
                 Some(is_for_initializer),
                 Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
             )?,
-            try_visit_node(
+            try_maybe_visit_node(
                 node_as_for_statement.condition.as_deref(),
                 Some(|node: &Node| self.visitor(node)),
                 Some(is_expression),
                 Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
             )?,
-            try_visit_node(
+            try_maybe_visit_node(
                 node_as_for_statement.incrementor.as_deref(),
                 Some(|node: &Node| self.visitor_with_unused_expression_result(node)),
                 Some(is_expression),
                 Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
             )?,
             try_visit_node(
-                Some(&*node_as_for_statement.statement),
+                &node_as_for_statement.statement,
                 Some(|node: &Node| self.visitor(node)),
                 Some(is_statement),
                 Some(|nodes: &[Gc<Node>]| self.factory.lift_to_block(nodes)),
-            )?
-            .unwrap(),
+            )?,
         ))
     }
 
@@ -831,15 +825,12 @@ impl TransformES2015 {
                 set_text_range_end(&**assignment, initializer.end());
                 statements.push(
                     self.factory
-                        .create_expression_statement(
-                            try_visit_node(
-                                Some(&**assignment),
-                                Some(|node: &Node| self.visitor(node)),
-                                Some(is_expression),
-                                Some(|nodes: &[Gc<Node>]| self.factory.lift_to_block(nodes)),
-                            )?
-                            .unwrap(),
-                        )
+                        .create_expression_statement(try_visit_node(
+                            assignment,
+                            Some(|node: &Node| self.visitor(node)),
+                            Some(is_expression),
+                            Some(|nodes: &[Gc<Node>]| self.factory.lift_to_block(nodes)),
+                        )?)
                         .wrap()
                         .set_text_range(Some(&ReadonlyTextRangeConcrete::from(move_range_end(
                             &**initializer,
@@ -862,12 +853,11 @@ impl TransformES2015 {
                 })
             } else {
                 let statement = try_visit_node(
-                    Some(&*node_as_for_of_statement.statement),
+                    &node_as_for_of_statement.statement,
                     Some(|node: &Node| self.visitor(node)),
                     Some(is_statement),
                     Some(|nodes: &[Gc<Node>]| self.factory.lift_to_block(nodes)),
-                )?
-                .unwrap();
+                )?;
                 if is_block(&statement) {
                     let statement_as_block = statement.as_block();
                     self.factory.update_block(
@@ -911,12 +901,11 @@ impl TransformES2015 {
     ) -> io::Result<Gc<Node /*Statement*/>> {
         let node_as_for_of_statement = node.as_for_of_statement();
         let ref expression = try_visit_node(
-            Some(&*node_as_for_of_statement.expression),
+            &node_as_for_of_statement.expression,
             Some(|node: &Node| self.visitor(node)),
             Some(is_expression),
             Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
-        )?
-        .unwrap();
+        )?;
 
         let counter = self.factory.create_loop_variable(None);
         let rhs_reference = if is_identifier(expression) {

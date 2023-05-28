@@ -31,12 +31,11 @@ impl TransformES2015 {
     ) -> io::Result<SpreadSegment> {
         let node_as_spread_element = node.as_spread_element();
         let mut expression = try_visit_node(
-            Some(&*node_as_spread_element.expression),
+            &node_as_spread_element.expression,
             Some(|node: &Node| self.visitor(node)),
             Some(is_expression),
             Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
-        )?
-        .unwrap();
+        )?;
 
         let is_call_to_read_helper = is_call_to_helper(&expression, "___read");
         let mut kind = if is_call_to_read_helper || is_packed_array_literal(&expression) {
@@ -93,12 +92,11 @@ impl TransformES2015 {
         let node_as_spread_element = node.as_spread_element();
         Ok(Some(
             try_visit_node(
-                Some(&*node_as_spread_element.expression),
+                &node_as_spread_element.expression,
                 Some(|node: &Node| self.visitor(node)),
                 Some(is_expression),
                 Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
             )?
-            .unwrap()
             .into(),
         ))
     }
@@ -181,12 +179,11 @@ impl TransformES2015 {
         for span in &node_as_template_expression.template_spans {
             let span_as_template_span = span.as_template_span();
             let mut args = vec![try_visit_node(
-                Some(&*span_as_template_span.expression),
+                &span_as_template_span.expression,
                 Some(|node: &Node| self.visitor(node)),
                 Some(is_expression),
                 Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
-            )?
-            .unwrap()];
+            )?];
 
             if !span_as_template_span
                 .literal
