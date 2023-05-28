@@ -1,11 +1,14 @@
-use std::io;
+use std::{cell::Cell, collections::HashMap, io, mem};
 
 use bitflags::bitflags;
-use gc::{Finalize, Gc, Trace};
+use gc::{Finalize, Gc, GcCell, Trace};
 
 use crate::{
-    Node, TransformationContext, Transformer, TransformerFactory, TransformerFactoryInterface,
-    TransformerInterface, UnderscoreEscapedMap,
+    chain_bundle, get_emit_script_target, get_use_define_for_class_fields,
+    BaseNodeFactorySynthetic, CompilerOptions, EmitHint, EmitResolver, Node, NodeFactory, NodeId,
+    ScriptTarget, TransformationContext, TransformationContextOnEmitNodeOverrider,
+    TransformationContextOnSubstituteNodeOverrider, Transformer, TransformerFactory,
+    TransformerFactoryInterface, TransformerInterface, UnderscoreEscapedMap,
 };
 
 bitflags! {
@@ -30,10 +33,12 @@ pub(super) trait PrivateIdentifierInfoInterface {
     fn kind(&self) -> PrivateIdentifierKind;
 }
 
+#[derive(Trace, Finalize)]
 pub(super) struct PrivateIdentifierAccessorInfo {
     brand_check_identifier: Gc<Node /*Identifier*/>,
     is_static: bool,
     is_valid: bool,
+    #[unsafe_ignore_trace]
     kind: PrivateIdentifierKind, /*PrivateIdentifierKind.Accessor*/
     pub getter_name: Option<Gc<Node /*Identifier*/>>,
     pub setter_name: Option<Gc<Node /*Identifier*/>>,
@@ -57,10 +62,12 @@ impl PrivateIdentifierInfoInterface for PrivateIdentifierAccessorInfo {
     }
 }
 
+#[derive(Trace, Finalize)]
 pub(super) struct PrivateIdentifierMethodInfo {
     brand_check_identifier: Gc<Node /*Identifier*/>,
     is_static: bool,
     is_valid: bool,
+    #[unsafe_ignore_trace]
     kind: PrivateIdentifierKind, /*PrivateIdentifierKind.Method*/
     pub method_name: Gc<Node /*Identifier*/>,
 }
@@ -83,10 +90,12 @@ impl PrivateIdentifierInfoInterface for PrivateIdentifierMethodInfo {
     }
 }
 
+#[derive(Trace, Finalize)]
 pub(super) struct PrivateIdentifierInstanceFieldInfo {
     brand_check_identifier: Gc<Node /*Identifier*/>,
     is_static: bool,
     is_valid: bool,
+    #[unsafe_ignore_trace]
     kind: PrivateIdentifierKind, /*PrivateIdentifierKind.Field*/
 }
 
@@ -108,10 +117,12 @@ impl PrivateIdentifierInfoInterface for PrivateIdentifierInstanceFieldInfo {
     }
 }
 
+#[derive(Trace, Finalize)]
 pub(super) struct PrivateIdentifierStaticFieldInfo {
     brand_check_identifier: Gc<Node /*Identifier*/>,
     is_static: bool,
     is_valid: bool,
+    #[unsafe_ignore_trace]
     kind: PrivateIdentifierKind, /*PrivateIdentifierKind.Field*/
     pub variable_name: Gc<Node /*Identifier*/>,
 }
@@ -134,6 +145,7 @@ impl PrivateIdentifierInfoInterface for PrivateIdentifierStaticFieldInfo {
     }
 }
 
+#[derive(Trace, Finalize)]
 pub(super) enum PrivateIdentifierInfo {
     PrivateIdentifierMethodInfo(PrivateIdentifierMethodInfo),
     PrivateIdentifierInstanceFieldInfo(PrivateIdentifierInstanceFieldInfo),
@@ -179,13 +191,16 @@ impl PrivateIdentifierInfoInterface for PrivateIdentifierInfo {
     }
 }
 
+#[derive(Trace, Finalize)]
 pub(super) struct PrivateIdentifierEnvironment {
     pub class_name: String,
     pub weak_set_name: Option<Gc<Node /*Identifier*/>>,
     pub identifiers: UnderscoreEscapedMap<PrivateIdentifierInfo>,
 }
 
+#[derive(Trace, Finalize)]
 pub(super) struct ClassLexicalEnvironment {
+    #[unsafe_ignore_trace]
     pub facts: ClassFacts,
     pub class_constructor: Option<Gc<Node /*Identifier*/>>,
     pub super_class_reference: Option<Gc<Node /*Identifier*/>>,
@@ -204,17 +219,143 @@ bitflags! {
 
 #[derive(Trace, Finalize)]
 struct TransformClassFields {
-    context: Gc<Box<dyn TransformationContext>>,
+    pub(super) _transformer_wrapper: GcCell<Option<Transformer>>,
+    pub(super) context: Gc<Box<dyn TransformationContext>>,
+    pub(super) factory: Gc<NodeFactory<BaseNodeFactorySynthetic>>,
+    pub(super) resolver: Gc<Box<dyn EmitResolver>>,
+    pub(super) compiler_options: Gc<CompilerOptions>,
+    #[unsafe_ignore_trace]
+    pub(super) language_version: ScriptTarget,
+    pub(super) use_define_for_class_fields: bool,
+    pub(super) should_transform_private_elements_or_class_static_blocks: bool,
+    pub(super) should_transform_super_in_static_initializers: bool,
+    pub(super) should_transform_this_in_static_initializers: bool,
+    #[unsafe_ignore_trace]
+    pub(super) enabled_substitutions: Cell<Option<ClassPropertySubstitutionFlags>>,
+    pub(super) class_aliases: GcCell<Option<Vec<Gc<Node /*Identifier*/>>>>,
+    pub(super) pending_expressions: GcCell<Option<Vec<Gc<Node /*Expression*/>>>>,
+    pub(super) pending_statements: GcCell<Option<Vec<Gc<Node /*Statement*/>>>>,
+    pub(super) class_lexical_environment_stack: GcCell<Vec<Option<Gc<ClassLexicalEnvironment>>>>,
+    pub(super) class_lexical_environment_map: GcCell<HashMap<NodeId, Gc<ClassLexicalEnvironment>>>,
+    pub(super) current_class_lexical_environment: GcCell<Option<Gc<ClassLexicalEnvironment>>>,
+    pub(super) current_computed_property_name_class_lexical_environment:
+        GcCell<Option<Gc<ClassLexicalEnvironment>>>,
+    pub(super) current_static_property_declaration_or_static_block:
+        GcCell<Option<Gc<Node /*PropertyDeclaration | ClassStaticBlockDeclaration*/>>>,
 }
 
 impl TransformClassFields {
-    fn new(context: Gc<Box<dyn TransformationContext>>) -> Self {
-        Self { context }
+    fn new(context: Gc<Box<dyn TransformationContext>>) -> Gc<Box<Self>> {
+        let compiler_options = context.get_compiler_options();
+        let language_version = get_emit_script_target(&compiler_options);
+        let use_define_for_class_fields = get_use_define_for_class_fields(&compiler_options);
+        let transformer_wrapper: Transformer = Gc::new(Box::new(Self {
+            _transformer_wrapper: Default::default(),
+            factory: context.factory(),
+            resolver: context.get_emit_resolver(),
+            context: context.clone(),
+            use_define_for_class_fields,
+            compiler_options,
+            should_transform_private_elements_or_class_static_blocks: language_version
+                < ScriptTarget::ESNext,
+            should_transform_super_in_static_initializers: (language_version
+                <= ScriptTarget::ES2021
+                || !use_define_for_class_fields)
+                && language_version >= ScriptTarget::ES2015,
+            should_transform_this_in_static_initializers: language_version <= ScriptTarget::ES2021
+                || !use_define_for_class_fields,
+            language_version,
+            enabled_substitutions: Default::default(),
+            class_aliases: Default::default(),
+            pending_expressions: Default::default(),
+            pending_statements: Default::default(),
+            class_lexical_environment_stack: Default::default(),
+            class_lexical_environment_map: Default::default(),
+            current_class_lexical_environment: Default::default(),
+            current_computed_property_name_class_lexical_environment: Default::default(),
+            current_static_property_declaration_or_static_block: Default::default(),
+        }));
+        let downcasted: Gc<Box<Self>> = unsafe { mem::transmute(transformer_wrapper.clone()) };
+        *downcasted._transformer_wrapper.borrow_mut() = Some(transformer_wrapper);
+        context.override_on_emit_node(&mut |previous_on_emit_node| {
+            Gc::new(Box::new(TransformClassFieldsOnEmitNodeOverrider::new(
+                downcasted.clone(),
+                previous_on_emit_node,
+            )))
+        });
+        context.override_on_substitute_node(&mut |previous_on_substitute_node| {
+            Gc::new(Box::new(
+                TransformClassFieldsOnSubstituteNodeOverrider::new(
+                    downcasted.clone(),
+                    previous_on_substitute_node,
+                ),
+            ))
+        });
+        downcasted
+    }
+
+    pub(super) fn as_transformer(&self) -> Transformer {
+        self._transformer_wrapper.borrow().clone().unwrap()
     }
 }
 
 impl TransformerInterface for TransformClassFields {
     fn call(&self, _node: &Node) -> io::Result<Gc<Node>> {
+        unimplemented!()
+    }
+}
+
+#[derive(Trace, Finalize)]
+struct TransformClassFieldsOnEmitNodeOverrider {
+    transform_class_fields: Gc<Box<TransformClassFields>>,
+    previous_on_emit_node: Gc<Box<dyn TransformationContextOnEmitNodeOverrider>>,
+}
+
+impl TransformClassFieldsOnEmitNodeOverrider {
+    fn new(
+        transform_class_fields: Gc<Box<TransformClassFields>>,
+        previous_on_emit_node: Gc<Box<dyn TransformationContextOnEmitNodeOverrider>>,
+    ) -> Self {
+        Self {
+            transform_class_fields,
+            previous_on_emit_node,
+        }
+    }
+}
+
+impl TransformationContextOnEmitNodeOverrider for TransformClassFieldsOnEmitNodeOverrider {
+    fn on_emit_node(
+        &self,
+        _hint: EmitHint,
+        _node: &Node,
+        _emit_callback: &dyn Fn(EmitHint, &Node) -> io::Result<()>,
+    ) -> io::Result<()> {
+        unimplemented!()
+    }
+}
+
+#[derive(Trace, Finalize)]
+struct TransformClassFieldsOnSubstituteNodeOverrider {
+    transform_class_fields: Gc<Box<TransformClassFields>>,
+    previous_on_substitute_node: Gc<Box<dyn TransformationContextOnSubstituteNodeOverrider>>,
+}
+
+impl TransformClassFieldsOnSubstituteNodeOverrider {
+    pub(super) fn new(
+        transform_class_fields: Gc<Box<TransformClassFields>>,
+        previous_on_substitute_node: Gc<Box<dyn TransformationContextOnSubstituteNodeOverrider>>,
+    ) -> Self {
+        Self {
+            transform_class_fields,
+            previous_on_substitute_node,
+        }
+    }
+}
+
+impl TransformationContextOnSubstituteNodeOverrider
+    for TransformClassFieldsOnSubstituteNodeOverrider
+{
+    fn on_substitute_node(&self, _hint: EmitHint, _node: &Node) -> io::Result<Gc<Node>> {
         unimplemented!()
     }
 }
@@ -230,7 +371,10 @@ impl TransformClassFieldsFactory {
 
 impl TransformerFactoryInterface for TransformClassFieldsFactory {
     fn call(&self, context: Gc<Box<dyn TransformationContext>>) -> Transformer {
-        Gc::new(Box::new(TransformClassFields::new(context)))
+        chain_bundle().call(
+            context.clone(),
+            TransformClassFields::new(context).as_transformer(),
+        )
     }
 }
 
