@@ -1,7 +1,6 @@
+use std::{borrow::Borrow, convert::TryInto, ptr};
+
 use gc::Gc;
-use std::borrow::Borrow;
-use std::convert::TryInto;
-use std::ptr;
 
 use crate::{
     find_ancestor, first_or_undefined, for_each_child_recursively,
@@ -323,6 +322,10 @@ fn bind_parent_to_child(
 ) -> Option<ForEachChildRecursivelyCallbackReturn<()>> {
     bind_parent_to_child_ignoring_jsdoc(incremental, child, parent)
         .or_else(|| bind_jsdoc(incremental, child))
+}
+
+pub fn is_packed_array_literal(_node: &Node /*Expression*/) -> bool {
+    unimplemented!()
 }
 
 pub fn expression_result_is_unused(node: &Node /*Expression*/) -> bool {

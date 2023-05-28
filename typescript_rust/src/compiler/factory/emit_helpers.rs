@@ -86,9 +86,26 @@ impl EmitHelperFactory {
         unimplemented!()
     }
 
+    pub fn create_spread_array_helper(
+        &self,
+        _to: Gc<Node /*Expression*/>,
+        _from: Gc<Node /*Expression*/>,
+        _pack_from: bool,
+    ) -> Gc<Node /*Expression*/> {
+        unimplemented!()
+    }
+
     pub fn create_values_helper(
         &self,
         _expression: Gc<Node /*Expression*/>,
+    ) -> Gc<Node /*Expression*/> {
+        unimplemented!()
+    }
+
+    pub fn create_read_helper(
+        &self,
+        _iterator_record: Gc<Node /*Expression*/>,
+        _count: Option<usize>,
     ) -> Gc<Node /*Expression*/> {
         unimplemented!()
     }
@@ -109,5 +126,12 @@ pub fn async_super_helper() -> Gc<EmitHelper> {
 }
 
 pub fn advanced_async_super_helper() -> Gc<EmitHelper> {
+    unimplemented!()
+}
+
+pub fn is_call_to_helper(
+    _first_segment: &Node, /*Expression*/
+    _helper_name: &str,    /*__String*/
+) -> bool {
     unimplemented!()
 }

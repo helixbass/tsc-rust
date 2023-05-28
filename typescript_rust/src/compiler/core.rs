@@ -612,6 +612,62 @@ pub fn try_add_to_set<TItem: Eq + Hash>(set: &mut HashSet<TItem>, value: TItem) 
     false
 }
 
+pub fn span_map<TItem, TKey: Eq + Clone, TMappedItem>(
+    array: &[TItem],
+    keyfn: impl FnMut(&TItem, usize) -> TKey,
+    mut mapfn: impl FnMut(&[TItem], &TKey, usize, usize) -> TMappedItem,
+) -> Vec<TMappedItem> {
+    try_span_map(array, keyfn, |a, b, c, d| -> Result<_, ()> {
+        Ok(mapfn(a, b, c, d))
+    })
+    .unwrap()
+}
+
+pub fn try_span_map<TItem, TKey: Eq + Clone, TMappedItem, TError>(
+    array: &[TItem],
+    mut keyfn: impl FnMut(&TItem, usize) -> TKey,
+    mut mapfn: impl FnMut(&[TItem], &TKey, usize, usize) -> Result<TMappedItem, TError>,
+) -> Result<Vec<TMappedItem>, TError> {
+    let mut result: Vec<TMappedItem> = _d();
+    let len = array.len();
+    let mut previous_key: Option<TKey> = _d();
+    let mut key: Option<TKey> = _d();
+    let mut start = 0;
+    let mut pos = 0;
+    while start < len {
+        while pos < len {
+            let value = &array[pos];
+            key = Some(keyfn(value, pos));
+            if pos == 0 {
+                previous_key = key.clone();
+            } else if key != previous_key {
+                break;
+            }
+
+            pos += 1;
+        }
+
+        if start < pos {
+            let v = mapfn(
+                &array[start..pos],
+                previous_key.as_ref().unwrap(),
+                start,
+                pos,
+            )?;
+            // if (v) {
+            result.push(v);
+            // }
+
+            start = pos;
+        }
+
+        previous_key = key.clone();
+        pos += 1;
+    }
+
+    Ok(result)
+}
+
 pub fn some<'item, TItem, TArray>(
     array: Option<TArray>,
     predicate: Option<impl FnMut(&TItem) -> bool>,
@@ -1717,7 +1773,7 @@ mod _MultiMapOrderedDeriveTraceScope {
 }
 pub use _MultiMapOrderedDeriveTraceScope::MultiMapOrdered;
 
-use crate::SingleNodeOrVecNode;
+use crate::{SingleNodeOrVecNode, _d};
 
 pub fn create_multi_map_ordered<TKey: Trace + Finalize, TValue: Trace + Finalize>(
 ) -> MultiMapOrdered<TKey, TValue> {

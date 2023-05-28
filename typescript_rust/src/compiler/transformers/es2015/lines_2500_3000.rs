@@ -465,6 +465,7 @@ impl TransformES2015 {
         }
     }
 
+    #[allow(dead_code)]
     pub(super) fn convert_iteration_statement_body_if_necessary(
         &self,
         node: &Node, /*IterationStatement*/

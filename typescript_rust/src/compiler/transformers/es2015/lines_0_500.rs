@@ -6,19 +6,18 @@ use gc::{Finalize, Gc, GcCell, GcCellRef, GcCellRefMut, Trace};
 use indexmap::IndexMap;
 
 use crate::{
-    chain_bundle, gc_cell_ref_mut_unwrapped, gc_cell_ref_unwrapped, get_emit_flags,
-    get_enclosing_block_scope_container, get_name_of_declaration, get_original_node,
-    get_parse_tree_node, has_static_modifier, is_block, is_case_block, is_case_clause,
-    is_catch_clause, is_class_element, is_class_like, is_default_clause, is_function_like,
-    is_identifier, is_if_statement, is_internal_name, is_iteration_statement, is_labeled_statement,
-    is_property_declaration, is_return_statement, is_switch_statement, is_try_statement,
-    is_with_statement, try_maybe_visit_each_child, BaseNodeFactorySynthetic, CompilerOptions,
-    EmitFlags, EmitHelperFactory, EmitHint, EmitResolver, GeneratedIdentifierFlags, Matches, Node,
-    NodeExt, NodeFactory, NodeInterface, OptionTry, ReadonlyTextRange, SourceFileLike,
-    SourceTextAsChars, SyntaxKind, TransformFlags, TransformationContext,
-    TransformationContextOnEmitNodeOverrider, TransformationContextOnSubstituteNodeOverrider,
-    Transformer, TransformerFactory, TransformerFactoryInterface, TransformerInterface,
-    VisitResult,
+    chain_bundle, gc_cell_ref_unwrapped, get_emit_flags, get_enclosing_block_scope_container,
+    get_name_of_declaration, get_original_node, get_parse_tree_node, has_static_modifier, is_block,
+    is_case_block, is_case_clause, is_catch_clause, is_class_element, is_class_like,
+    is_default_clause, is_function_like, is_identifier, is_if_statement, is_internal_name,
+    is_iteration_statement, is_labeled_statement, is_property_declaration, is_return_statement,
+    is_switch_statement, is_try_statement, is_with_statement, try_maybe_visit_each_child,
+    BaseNodeFactorySynthetic, CompilerOptions, EmitFlags, EmitHelperFactory, EmitHint,
+    EmitResolver, GeneratedIdentifierFlags, Matches, Node, NodeExt, NodeFactory, NodeInterface,
+    OptionTry, ReadonlyTextRange, SourceFileLike, SourceTextAsChars, SyntaxKind, TransformFlags,
+    TransformationContext, TransformationContextOnEmitNodeOverrider,
+    TransformationContextOnSubstituteNodeOverrider, Transformer, TransformerFactory,
+    TransformerFactoryInterface, TransformerInterface, VisitResult,
 };
 
 bitflags! {
@@ -166,6 +165,7 @@ pub(super) enum SpreadSegmentKind {
     PackedSpread,
 }
 
+#[derive(Clone)]
 pub(super) struct SpreadSegment {
     pub kind: SpreadSegmentKind,
     pub expression: Gc<Node /*Expression*/>,
@@ -181,6 +181,7 @@ pub(super) fn create_spread_segment(
 #[derive(Trace, Finalize)]
 pub(super) struct TransformES2015 {
     pub(super) _transformer_wrapper: GcCell<Option<Transformer>>,
+    pub(super) _rc_wrapper: GcCell<Option<Gc<Box<Self>>>>,
     pub(super) context: Gc<Box<dyn TransformationContext>>,
     pub(super) factory: Gc<NodeFactory<BaseNodeFactorySynthetic>>,
     pub(super) compiler_options: Gc<CompilerOptions>,
@@ -200,6 +201,7 @@ impl TransformES2015 {
     pub(super) fn new(context: Gc<Box<dyn TransformationContext>>) -> Gc<Box<Self>> {
         let transformer_wrapper: Transformer = Gc::new(Box::new(Self {
             _transformer_wrapper: Default::default(),
+            _rc_wrapper: Default::default(),
             factory: context.factory(),
             compiler_options: context.get_compiler_options(),
             resolver: context.get_emit_resolver(),
@@ -225,31 +227,24 @@ impl TransformES2015 {
                 previous_on_substitute_node,
             )))
         });
+        *downcasted._rc_wrapper.borrow_mut() = Some(downcasted.clone());
         downcasted
     }
 
-    fn as_transformer(&self) -> Transformer {
+    pub(super) fn as_transformer(&self) -> Transformer {
         self._transformer_wrapper.borrow().clone().unwrap()
+    }
+
+    pub(super) fn rc_wrapper(&self) -> Gc<Box<Self>> {
+        self._rc_wrapper.borrow().clone().unwrap()
     }
 
     pub(super) fn maybe_current_source_file(&self) -> GcCellRef<Option<Gc<Node /*SourceFile*/>>> {
         self.current_source_file.borrow()
     }
 
-    pub(super) fn maybe_current_source_file_mut(
-        &self,
-    ) -> GcCellRefMut<Option<Gc<Node /*SourceFile*/>>> {
-        self.current_source_file.borrow_mut()
-    }
-
     pub(super) fn current_source_file(&self) -> GcCellRef<Gc<Node /*SourceFile*/>> {
         gc_cell_ref_unwrapped(&self.current_source_file)
-    }
-
-    pub(super) fn current_source_file_mut(
-        &self,
-    ) -> GcCellRefMut<Option<Gc<Node /*SourceFile*/>>, Gc<Node /*SourceFile*/>> {
-        gc_cell_ref_mut_unwrapped(&self.current_source_file)
     }
 
     pub(super) fn set_current_source_file(
@@ -259,22 +254,8 @@ impl TransformES2015 {
         *self.current_source_file.borrow_mut() = current_source_file;
     }
 
-    pub(super) fn maybe_current_text(&self) -> GcCellRef<Option<SourceTextAsChars>> {
-        self.current_text.borrow()
-    }
-
     pub(super) fn current_text(&self) -> GcCellRef<SourceTextAsChars> {
         gc_cell_ref_unwrapped(&self.current_text)
-    }
-
-    pub(super) fn maybe_current_text_mut(&self) -> GcCellRefMut<Option<SourceTextAsChars>> {
-        self.current_text.borrow_mut()
-    }
-
-    pub(super) fn current_text_mut(
-        &self,
-    ) -> GcCellRefMut<Option<SourceTextAsChars>, SourceTextAsChars> {
-        gc_cell_ref_mut_unwrapped(&self.current_text)
     }
 
     pub(super) fn set_current_text(&self, current_text: Option<SourceTextAsChars>) {
@@ -295,18 +276,6 @@ impl TransformES2015 {
 
     pub(super) fn converted_loop_state(&self) -> Gc<GcCell<ConvertedLoopState>> {
         self.converted_loop_state.borrow().clone().unwrap()
-    }
-
-    pub(super) fn maybe_converted_loop_state_mut(
-        &self,
-    ) -> GcCellRefMut<Option<Gc<GcCell<ConvertedLoopState>>>> {
-        self.converted_loop_state.borrow_mut()
-    }
-
-    pub(super) fn converted_loop_state_mut(
-        &self,
-    ) -> GcCellRefMut<Option<Gc<GcCell<ConvertedLoopState>>>, Gc<GcCell<ConvertedLoopState>>> {
-        gc_cell_ref_mut_unwrapped(&self.converted_loop_state)
     }
 
     pub(super) fn set_converted_loop_state(
@@ -612,18 +581,6 @@ impl TransformES2015OnEmitNodeOverrider {
             transform_es2015,
             previous_on_emit_node,
         }
-    }
-
-    fn is_super_container(&self, node: &Node) -> bool {
-        let kind = node.kind();
-        matches!(
-            kind,
-            SyntaxKind::ClassDeclaration
-                | SyntaxKind::Constructor
-                | SyntaxKind::MethodDeclaration
-                | SyntaxKind::GetAccessor
-                | SyntaxKind::SetAccessor
-        )
     }
 }
 

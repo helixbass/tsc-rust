@@ -2,16 +2,90 @@ use std::{borrow::Borrow, io};
 
 use gc::Gc;
 
-use super::{ES2015SubstitutionFlags, HierarchyFacts, TransformES2015};
+use super::{
+    create_spread_segment, ES2015SubstitutionFlags, HierarchyFacts, SpreadSegment,
+    SpreadSegmentKind, TransformES2015,
+};
 use crate::{
-    first_or_undefined, is_expression, is_identifier, is_static, node_is_synthesized,
-    return_default_if_none, single_or_undefined, try_process_tagged_template_expression,
-    try_visit_node, FunctionLikeDeclarationInterface, GeneratedIdentifierFlags,
+    first_or_undefined, is_array_literal_expression, is_call_to_helper, is_expression,
+    is_identifier, is_packed_array_literal, is_static, node_is_synthesized, return_default_if_none,
+    single_or_undefined, try_map, try_process_tagged_template_expression, try_visit_node,
+    try_visit_nodes, FunctionLikeDeclarationInterface, GeneratedIdentifierFlags,
     LiteralLikeNodeInterface, Matches, Node, NodeArray, NodeExt, NodeInterface, ProcessLevel,
     SignatureDeclarationInterface, SyntaxKind, TokenFlags, VisitResult,
 };
 
 impl TransformES2015 {
+    pub(super) fn visit_span_of_spreads(
+        &self,
+        chunk: &[Gc<Node /*Expression*/>],
+    ) -> io::Result<Vec<SpreadSegment>> {
+        try_map(chunk, |node: &Gc<Node>, _| {
+            self.visit_expression_of_spread(node)
+        })
+    }
+
+    pub(super) fn visit_expression_of_spread(
+        &self,
+        node: &Node, /*SpreadElement*/
+    ) -> io::Result<SpreadSegment> {
+        let node_as_spread_element = node.as_spread_element();
+        let mut expression = try_visit_node(
+            Some(&*node_as_spread_element.expression),
+            Some(|node: &Node| self.visitor(node)),
+            Some(is_expression),
+            Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+        )?
+        .unwrap();
+
+        let is_call_to_read_helper = is_call_to_helper(&expression, "___read");
+        let mut kind = if is_call_to_read_helper || is_packed_array_literal(&expression) {
+            SpreadSegmentKind::PackedSpread
+        } else {
+            SpreadSegmentKind::UnpackedSpread
+        };
+
+        if self.compiler_options.downlevel_iteration == Some(true)
+            && kind == SpreadSegmentKind::UnpackedSpread
+            && !is_array_literal_expression(&expression)
+            && !is_call_to_read_helper
+        {
+            expression = self
+                .emit_helpers()
+                .create_read_helper(expression.clone(), None);
+            kind = SpreadSegmentKind::PackedSpread;
+        }
+
+        Ok(create_spread_segment(kind, expression))
+    }
+
+    pub(super) fn visit_span_of_non_spreads(
+        &self,
+        chunk: Vec<Gc<Node /*Expression*/>>,
+        multi_line: bool,
+        has_trailing_comma: bool,
+    ) -> io::Result<SpreadSegment> {
+        let expression = self
+            .factory
+            .create_array_literal_expression(
+                try_visit_nodes(
+                    Some(
+                        &self
+                            .factory
+                            .create_node_array(Some(chunk), Some(has_trailing_comma)),
+                    ),
+                    Some(|node: &Node| self.visitor(node)),
+                    Some(is_expression),
+                    None,
+                    None,
+                )?,
+                Some(multi_line),
+            )
+            .wrap();
+
+        Ok(create_spread_segment(SpreadSegmentKind::None, expression))
+    }
+
     pub(super) fn visit_spread_element(
         &self,
         node: &Node, /*SpreadElement*/

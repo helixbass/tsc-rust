@@ -1,8 +1,8 @@
-use std::io;
+use std::{io, rc::Rc};
 
 use gc::Gc;
 
-use super::{HierarchyFacts, TransformES2015};
+use super::{HierarchyFacts, SpreadSegment, SpreadSegmentKind, TransformES2015};
 use crate::{
     cast_present, create_member_access_for_property_name, filter, first, get_emit_flags,
     is_arrow_function, is_assignment_expression, is_binary_expression, is_binding_pattern,
@@ -13,9 +13,10 @@ use crate::{
     try_visit_parameter_list, Debug_, EmitFlags, FlattenLevel, FunctionLikeDeclarationInterface,
     HasInitializerInterface, Matches, NamedDeclarationInterface, Node, NodeArray, NodeExt,
     NodeInterface, ReadonlyTextRangeConcrete, SyntaxKind, VecExt, VisitResult, _d, add_range,
-    element_at, is_expression_statement, is_identifier, is_return_statement,
-    set_emit_flags, set_original_node, AsDoubleDeref, CallBinding, GeneratedIdentifierFlags,
-    SignatureDeclarationInterface, TransformFlags,
+    element_at, flatten, is_call_to_helper, is_expression_statement, is_identifier,
+    is_packed_array_literal, is_return_statement, set_emit_flags, set_original_node, try_span_map,
+    AsDoubleDeref, CallBinding, GeneratedIdentifierFlags, SignatureDeclarationInterface,
+    TransformFlags,
 };
 
 impl TransformES2015 {
@@ -254,12 +255,12 @@ impl TransformES2015 {
             Some(&node_as_array_literal_expression.elements),
             Some(|element: &Gc<Node>| is_spread_element(element)),
         ) {
-            return Ok(self.transform_and_spread_elements(
+            return self.transform_and_spread_elements(
                 &node_as_array_literal_expression.elements,
                 false,
                 node_as_array_literal_expression.multi_line == Some(true),
                 node_as_array_literal_expression.elements.has_trailing_comma,
-            ));
+            );
         }
         try_visit_each_child(node, |node: &Node| self.visitor(node), &**self.context)
     }
@@ -583,7 +584,7 @@ impl TransformES2015 {
                         true,
                         false,
                         false,
-                    ),
+                    )?,
                 );
             } else {
                 resulting_call = self
@@ -698,7 +699,7 @@ impl TransformES2015 {
                             true,
                             false,
                             false,
-                        ),
+                        )?,
                     ),
                     Option::<Gc<NodeArray>>::None,
                     Some(vec![]),
@@ -710,14 +711,129 @@ impl TransformES2015 {
 
     pub(super) fn transform_and_spread_elements(
         &self,
-        _elements: &NodeArray, /*<Expression>*/
-        _is_argument_list: bool,
+        elements: &NodeArray, /*<Expression>*/
+        is_argument_list: bool,
+        multi_line: bool,
+        has_trailing_comma: bool,
+    ) -> io::Result<Gc<Node /*Expression*/>> {
+        let num_elements = elements.len();
+        let segments = flatten(&try_span_map(
+            elements,
+            |node: &Gc<Node>, _| -> Rc<dyn PartitionSpread> {
+                if is_spread_element(&node) {
+                    Rc::new(PartitionSpreadVisitSpanOfSpreads::new(self.rc_wrapper()))
+                } else {
+                    Rc::new(PartitionSpreadVisitSpanOfNonSpreads::new(self.rc_wrapper()))
+                }
+            },
+            |partition: &[Gc<Node>], visit_partition, _start, end| {
+                visit_partition.call(
+                    partition,
+                    multi_line,
+                    has_trailing_comma && end == num_elements,
+                )
+            },
+        )?);
+
+        if segments.len() == 1 {
+            let first_segment = &segments[0];
+            if is_argument_list && self.compiler_options.downlevel_iteration != Some(true)
+                || is_packed_array_literal(&first_segment.expression)
+                || is_call_to_helper(&first_segment.expression, "___spreadArray")
+            {
+                return Ok(first_segment.expression.clone());
+            }
+        }
+
+        let helpers = self.emit_helpers();
+        let starts_with_spread = segments[0].kind != SpreadSegmentKind::None;
+        let mut expression: Gc<Node /*Expression*/> = if starts_with_spread {
+            self.factory
+                .create_array_literal_expression(Option::<Gc<NodeArray>>::None, None)
+                .wrap()
+        } else {
+            segments[0].expression.clone()
+        };
+        for segment in segments.iter().skip(if starts_with_spread { 0 } else { 1 }) {
+            expression = helpers.create_spread_array_helper(
+                expression,
+                segment.expression.clone(),
+                segment.kind == SpreadSegmentKind::UnpackedSpread && !is_argument_list,
+            );
+        }
+        Ok(expression)
+    }
+}
+
+pub(super) trait PartitionSpread {
+    fn call(
+        &self,
+        chunk: &[Gc<Node>],
+        multi_line: bool,
+        has_trailing_comma: bool,
+    ) -> io::Result<Vec<SpreadSegment>>;
+
+    fn eq_key(&self) -> &'static str;
+}
+
+impl Eq for dyn PartitionSpread {}
+
+impl PartialEq for dyn PartitionSpread {
+    fn eq(&self, other: &Self) -> bool {
+        self.eq_key() == other.eq_key()
+    }
+}
+
+pub(super) struct PartitionSpreadVisitSpanOfSpreads {
+    transform_es2015: Gc<Box<TransformES2015>>,
+}
+
+impl PartitionSpreadVisitSpanOfSpreads {
+    pub(super) fn new(transform_es2015: Gc<Box<TransformES2015>>) -> Self {
+        Self { transform_es2015 }
+    }
+}
+
+impl PartitionSpread for PartitionSpreadVisitSpanOfSpreads {
+    fn call(
+        &self,
+        chunk: &[Gc<Node>],
         _multi_line: bool,
         _has_trailing_comma: bool,
-    ) -> Gc<Node /*Expression*/> {
-        // let num_elements = elements.len();
-        // let segments = flatten(
-        // );
-        unimplemented!()
+    ) -> io::Result<Vec<SpreadSegment>> {
+        self.transform_es2015.visit_span_of_spreads(chunk)
+    }
+
+    fn eq_key(&self) -> &'static str {
+        "PartitionSpreadVisitSpanOfSpreads"
+    }
+}
+
+pub(super) struct PartitionSpreadVisitSpanOfNonSpreads {
+    transform_es2015: Gc<Box<TransformES2015>>,
+}
+
+impl PartitionSpreadVisitSpanOfNonSpreads {
+    pub(super) fn new(transform_es2015: Gc<Box<TransformES2015>>) -> Self {
+        Self { transform_es2015 }
+    }
+}
+
+impl PartitionSpread for PartitionSpreadVisitSpanOfNonSpreads {
+    fn call(
+        &self,
+        chunk: &[Gc<Node>],
+        multi_line: bool,
+        has_trailing_comma: bool,
+    ) -> io::Result<Vec<SpreadSegment>> {
+        Ok(vec![self.transform_es2015.visit_span_of_non_spreads(
+            chunk.to_owned(),
+            multi_line,
+            has_trailing_comma,
+        )?])
+    }
+
+    fn eq_key(&self) -> &'static str {
+        "PartitionSpreadVisitSpanOfNonSpreads"
     }
 }
