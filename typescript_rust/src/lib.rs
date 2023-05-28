@@ -367,7 +367,10 @@ pub use compiler::{
             try_flatten_destructuring_assignment, try_flatten_destructuring_binding, FlattenLevel,
         },
         is_internal_declaration,
-        tagged_template::{process_tagged_template_expression, ProcessLevel},
+        tagged_template::{
+            process_tagged_template_expression, try_process_tagged_template_expression,
+            ProcessLevel,
+        },
         transform_class_fields, transform_declarations, transform_ecmascript_module,
         transform_es2015, transform_es2016, transform_es2017, transform_es2018, transform_es2019,
         transform_es2020, transform_es2021, transform_es5, transform_esnext, transform_generators,

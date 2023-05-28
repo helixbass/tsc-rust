@@ -1,49 +1,153 @@
-use std::borrow::Borrow;
+use std::{borrow::Borrow, io};
 
 use gc::Gc;
 
 use super::{ES2015SubstitutionFlags, HierarchyFacts, TransformES2015};
 use crate::{
-    first_or_undefined, is_identifier, is_static, node_is_synthesized, return_default_if_none,
-    single_or_undefined, FunctionLikeDeclarationInterface, GeneratedIdentifierFlags, Matches, Node,
-    NodeInterface, SignatureDeclarationInterface, SyntaxKind, VisitResult,
+    first_or_undefined, is_expression, is_identifier, is_static, node_is_synthesized,
+    return_default_if_none, single_or_undefined, try_process_tagged_template_expression,
+    try_visit_node, FunctionLikeDeclarationInterface, GeneratedIdentifierFlags,
+    LiteralLikeNodeInterface, Matches, Node, NodeArray, NodeExt, NodeInterface, ProcessLevel,
+    SignatureDeclarationInterface, SyntaxKind, TokenFlags, VisitResult,
 };
 
 impl TransformES2015 {
-    pub(super) fn visit_spread_element(&self, _node: &Node /*SpreadElement*/) -> VisitResult {
-        unimplemented!()
+    pub(super) fn visit_spread_element(
+        &self,
+        node: &Node, /*SpreadElement*/
+    ) -> io::Result<VisitResult> {
+        let node_as_spread_element = node.as_spread_element();
+        Ok(Some(
+            try_visit_node(
+                Some(&*node_as_spread_element.expression),
+                Some(|node: &Node| self.visitor(node)),
+                Some(is_expression),
+                Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+            )?
+            .unwrap()
+            .into(),
+        ))
     }
 
     pub(super) fn visit_template_literal(
         &self,
-        _node: &Node, /*LiteralExpression*/
+        node: &Node, /*LiteralExpression*/
     ) -> Gc<Node /*LeftHandSideExpression*/> {
-        unimplemented!()
+        self.factory
+            .create_string_literal(node.as_literal_like_node().text().clone(), None, None)
+            .wrap()
+            .set_text_range(Some(node))
     }
 
-    pub(super) fn visit_string_literal(&self, _node: &Node /*StringLiteral*/) -> VisitResult {
-        unimplemented!()
+    pub(super) fn visit_string_literal(&self, node: &Node /*StringLiteral*/) -> VisitResult {
+        let node_as_string_literal = node.as_string_literal();
+        if node_as_string_literal.has_extended_unicode_escape() == Some(true) {
+            return Some(
+                self.factory
+                    .create_string_literal(node_as_string_literal.text().clone(), None, None)
+                    .wrap()
+                    .set_text_range(Some(node))
+                    .into(),
+            );
+        }
+        Some(node.node_wrapper().into())
     }
 
-    pub(super) fn visit_numeric_literal(
-        &self,
-        _node: &Node, /*NumericLiteral*/
-    ) -> VisitResult {
-        unimplemented!()
+    pub(super) fn visit_numeric_literal(&self, node: &Node /*NumericLiteral*/) -> VisitResult {
+        let node_as_numeric_literal = node.as_numeric_literal();
+        if node_as_numeric_literal
+            .numeric_literal_flags
+            .intersects(TokenFlags::BinaryOrOctalSpecifier)
+        {
+            return Some(
+                self.factory
+                    .create_numeric_literal(node_as_numeric_literal.text().clone(), None)
+                    .wrap()
+                    .set_text_range(Some(node))
+                    .into(),
+            );
+        }
+        Some(node.node_wrapper().into())
     }
 
     pub(super) fn visit_tagged_template_expression(
         &self,
-        _node: &Node, /*TaggedTemplateExpression*/
-    ) -> VisitResult {
-        unimplemented!()
+        node: &Node, /*TaggedTemplateExpression*/
+    ) -> io::Result<VisitResult> {
+        Ok(Some(
+            try_process_tagged_template_expression(
+                &**self.context,
+                node,
+                |node: &Node| self.visitor(node),
+                &self.current_source_file(),
+                |node: &Node| self.record_tagged_template_string(node),
+                ProcessLevel::All,
+            )?
+            .into(),
+        ))
     }
 
     pub(super) fn visit_template_expression(
         &self,
-        _node: &Node, /*TemplateExpression*/
-    ) -> Gc<Node /*Expression*/> {
-        unimplemented!()
+        node: &Node, /*TemplateExpression*/
+    ) -> io::Result<Gc<Node /*Expression*/>> {
+        let node_as_template_expression = node.as_template_expression();
+        let mut expression: Gc<Node /*Expression*/> = self
+            .factory
+            .create_string_literal(
+                node_as_template_expression
+                    .head
+                    .as_template_literal_like_node()
+                    .text()
+                    .clone(),
+                None,
+                None,
+            )
+            .wrap();
+        for span in &node_as_template_expression.template_spans {
+            let span_as_template_span = span.as_template_span();
+            let mut args = vec![try_visit_node(
+                Some(&*span_as_template_span.expression),
+                Some(|node: &Node| self.visitor(node)),
+                Some(is_expression),
+                Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+            )?
+            .unwrap()];
+
+            if !span_as_template_span
+                .literal
+                .as_template_literal_like_node()
+                .text()
+                .is_empty()
+            {
+                args.push(
+                    self.factory
+                        .create_string_literal(
+                            span_as_template_span
+                                .literal
+                                .as_template_literal_like_node()
+                                .text()
+                                .clone(),
+                            None,
+                            None,
+                        )
+                        .wrap(),
+                );
+            }
+
+            expression = self
+                .factory
+                .create_call_expression(
+                    self.factory
+                        .create_property_access_expression(expression, "concat")
+                        .wrap(),
+                    Option::<Gc<NodeArray>>::None,
+                    Some(args),
+                )
+                .wrap();
+        }
+
+        Ok(expression.set_text_range(Some(node)))
     }
 
     pub(super) fn visit_super_keyword(
