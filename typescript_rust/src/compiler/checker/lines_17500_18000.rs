@@ -1,23 +1,25 @@
+use std::{
+    borrow::{Borrow, Cow},
+    cell::RefCell,
+    collections::HashMap,
+    io, ptr,
+    rc::Rc,
+};
+
 use gc::Gc;
-use std::borrow::{Borrow, Cow};
-use std::cell::{RefCell};
-use std::collections::HashMap;
-use std::rc::Rc;
-use std::{io, ptr};
+use local_macros::enum_unwrapped;
 
 use super::{
     CheckTypeContainingMessageChain, CheckTypeErrorOutputContainer, CheckTypeRelatedTo,
     ErrorReporter, IntersectionState,
 };
-use crate::try_some;
 use crate::{
-    are_option_gcs_equal, get_object_flags, get_symbol_id,
-    symbol_name, try_every, DiagnosticMessage, Diagnostics, LiteralTypeInterface, Node,
-    NodeInterface, ObjectFlags, ObjectTypeInterface, RelationComparisonResult, Signature, Symbol,
-    SymbolFlags, SymbolInterface, Ternary, Type, TypeChecker, TypeFlags, TypeFormatFlags,
-    TypeInterface, TypePredicate, TypePredicateKind,
+    are_option_gcs_equal, get_object_flags, get_symbol_id, symbol_name, try_every, try_some,
+    DiagnosticMessage, Diagnostics, IntrinsicType, LiteralTypeInterface, Node, NodeInterface,
+    ObjectFlags, ObjectTypeInterface, RelationComparisonResult, Signature, Symbol, SymbolFlags,
+    SymbolInterface, Ternary, Type, TypeChecker, TypeFlags, TypeFormatFlags, TypeInterface,
+    TypePredicate, TypePredicateKind,
 };
-use local_macros::enum_unwrapped;
 
 impl TypeChecker {
     pub(super) fn compare_type_predicate_related_to(

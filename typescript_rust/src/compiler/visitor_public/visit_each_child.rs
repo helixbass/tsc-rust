@@ -3,7 +3,7 @@ use std::borrow::Borrow;
 use gc::Gc;
 
 use super::{
-    visit_function_body, visit_iteration_body, visit_lexical_environment, visit_node, visit_nodes,
+    visit_function_body, visit_iteration_body, visit_lexical_environment, visit_nodes,
     visit_parameter_list,
 };
 use crate::{

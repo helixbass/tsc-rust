@@ -4,7 +4,7 @@ use gc::Gc;
 
 use super::{
     try_visit_function_body_full, try_visit_iteration_body, try_visit_lexical_environment,
-    try_visit_node, try_visit_nodes, try_visit_parameter_list_full,
+    try_visit_nodes, try_visit_parameter_list_full,
 };
 use crate::{
     is_array_binding_element, is_assert_clause, is_assert_entry, is_assertion_key,

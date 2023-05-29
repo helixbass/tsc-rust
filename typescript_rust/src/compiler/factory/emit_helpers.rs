@@ -2,7 +2,7 @@ use std::borrow::Borrow;
 
 use gc::Gc;
 
-use crate::{Comparison, EmitHelper, Node, TransformationContext};
+use crate::{Comparison, EmitHelper, Node, PrivateIdentifierKind, TransformationContext};
 
 // TODO: remove #[unsafe_ignore_trace] from TransformNodesTransformationResult if this ends up
 // needing to be traced
@@ -106,6 +106,16 @@ impl EmitHelperFactory {
         &self,
         _iterator_record: Gc<Node /*Expression*/>,
         _count: Option<usize>,
+    ) -> Gc<Node /*Expression*/> {
+        unimplemented!()
+    }
+
+    pub fn create_class_private_field_get_helper(
+        &self,
+        _receiver: Gc<Node /*Expression*/>,
+        _state: Gc<Node /*Identifier*/>,
+        _kind: PrivateIdentifierKind,
+        _f: Option<Gc<Node /*Identifier*/>>,
     ) -> Gc<Node /*Expression*/> {
         unimplemented!()
     }

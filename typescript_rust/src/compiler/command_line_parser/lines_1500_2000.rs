@@ -1,10 +1,8 @@
+use std::{borrow::Borrow, cell::RefCell, collections::HashMap, io, rc::Rc};
+
 use gc::{Finalize, Gc, GcCell, Trace};
 use indexmap::IndexMap;
-use std::borrow::Borrow;
-use std::cell::RefCell;
-use std::collections::HashMap;
-use std::io;
-use std::rc::Rc;
+use local_macros::enum_unwrapped;
 
 use super::{
     compile_on_save_command_line_option, compiler_options_alternate_mode,
@@ -20,16 +18,16 @@ use crate::{
     get_base_file_name, get_directory_path, get_normalized_absolute_path, get_sys,
     is_array_literal_expression, is_object_literal_expression, maybe_text_char_at_index,
     parse_json_text, starts_with, text_char_at_index, text_substring, to_path,
-    AlternateModeDiagnostics, BaseNode, BuildOptions, CharacterCodes, CommandLineOption, CommandLineOptionBaseBuilder, CommandLineOptionInterface,
-    CommandLineOptionOfListType, CommandLineOptionType,
-    CompilerOptions, CompilerOptionsValue, Diagnostic, DiagnosticMessage,
-    DiagnosticRelatedInformationInterface, Diagnostics, DidYouMeanOptionsDiagnostics,
-    ExtendedConfigCacheEntry, FileExtensionInfo, GcVec, HasStatementsInterface, LanguageVariant,
-    Node, NodeArray, NodeFlags, NodeInterface, OptionsNameMap, ParseConfigHost, ParsedCommandLine,
-    ParsedCommandLineWithBaseOptions, Push, ScriptKind, ScriptTarget, SourceFile,
-    StringOrDiagnosticMessage, SyntaxKind, TransformFlags, TsConfigOnlyOption, WatchOptions,
+    AlternateModeDiagnostics, BaseNode, BuildOptions, CharacterCodes, CommandLineOption,
+    CommandLineOptionBaseBuilder, CommandLineOptionInterface, CommandLineOptionOfListType,
+    CommandLineOptionType, CompilerOptions, CompilerOptionsValue, Diagnostic, DiagnosticMessage,
+    DiagnosticMessageText, DiagnosticRelatedInformationInterface, Diagnostics,
+    DidYouMeanOptionsDiagnostics, ExtendedConfigCacheEntry, FileExtensionInfo, GcVec,
+    HasStatementsInterface, LanguageVariant, Node, NodeArray, NodeFlags, NodeInterface,
+    OptionsNameMap, ParseConfigHost, ParsedCommandLine, ParsedCommandLineWithBaseOptions, Push,
+    ScriptKind, ScriptTarget, SourceFile, StringOrDiagnosticMessage, SyntaxKind, TransformFlags,
+    TsConfigOnlyOption, WatchOptions,
 };
-use local_macros::enum_unwrapped;
 
 pub(super) fn parse_response_file(
     read_file: Option<&impl Fn(&str) -> io::Result<Option<String>>>,

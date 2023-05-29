@@ -2,15 +2,21 @@ use std::{cell::Cell, collections::HashMap, io, mem};
 
 use bitflags::bitflags;
 use gc::{Finalize, Gc, GcCell, GcCellRef, GcCellRefMut, Trace};
+use local_macros::enum_unwrapped;
 
 use crate::{
     chain_bundle, get_emit_script_target, get_use_define_for_class_fields, is_expression,
     is_private_identifier, is_statement, visit_each_child, visit_node, BaseNodeFactorySynthetic,
     CompilerOptions, Debug_, EmitHint, EmitResolver, Node, NodeArray, NodeExt, NodeFactory, NodeId,
-    NodeInterface, ScriptTarget, SyntaxKind, TransformFlags, TransformationContext,
-    TransformationContextOnEmitNodeOverrider, TransformationContextOnSubstituteNodeOverrider,
-    Transformer, TransformerFactory, TransformerFactoryInterface, TransformerInterface,
-    UnderscoreEscapedMap, VisitResult,
+    NodeInterface, NonEmpty, ScriptTarget, SingleNodeOrVecNode, SyntaxKind, TransformFlags,
+    TransformationContext, TransformationContextOnEmitNodeOverrider,
+    TransformationContextOnSubstituteNodeOverrider, Transformer, TransformerFactory,
+    TransformerFactoryInterface, TransformerInterface, UnderscoreEscapedMap, VecExt, VisitResult,
+    _d, gc_cell_ref_mut_unwrapped, gc_cell_ref_unwrapped, is_get_accessor, is_identifier,
+    is_modifier, is_set_accessor, is_simple_inlineable_expression, is_static_modifier,
+    is_super_property, maybe_filter, move_range_pos, set_comment_range, visit_function_body,
+    visit_nodes, visit_parameter_list, AsDoubleDeref, HasInitializerInterface,
+    NamedDeclarationInterface, ReadonlyTextRangeConcrete,
 };
 
 bitflags! {
@@ -33,6 +39,7 @@ pub(super) trait PrivateIdentifierInfoInterface {
     fn is_static(&self) -> bool;
     fn is_valid(&self) -> bool;
     fn kind(&self) -> PrivateIdentifierKind;
+    fn maybe_variable_name(&self) -> Option<Gc<Node>>;
 }
 
 #[derive(Trace, Finalize)]
@@ -62,6 +69,10 @@ impl PrivateIdentifierInfoInterface for PrivateIdentifierAccessorInfo {
     fn kind(&self) -> PrivateIdentifierKind {
         self.kind
     }
+
+    fn maybe_variable_name(&self) -> Option<Gc<Node>> {
+        None
+    }
 }
 
 #[derive(Trace, Finalize)]
@@ -90,6 +101,10 @@ impl PrivateIdentifierInfoInterface for PrivateIdentifierMethodInfo {
     fn kind(&self) -> PrivateIdentifierKind {
         self.kind
     }
+
+    fn maybe_variable_name(&self) -> Option<Gc<Node>> {
+        None
+    }
 }
 
 #[derive(Trace, Finalize)]
@@ -116,6 +131,10 @@ impl PrivateIdentifierInfoInterface for PrivateIdentifierInstanceFieldInfo {
 
     fn kind(&self) -> PrivateIdentifierKind {
         self.kind
+    }
+
+    fn maybe_variable_name(&self) -> Option<Gc<Node>> {
+        None
     }
 }
 
@@ -145,6 +164,10 @@ impl PrivateIdentifierInfoInterface for PrivateIdentifierStaticFieldInfo {
     fn kind(&self) -> PrivateIdentifierKind {
         self.kind
     }
+
+    fn maybe_variable_name(&self) -> Option<Gc<Node>> {
+        Some(self.variable_name.clone())
+    }
 }
 
 #[derive(Trace, Finalize)]
@@ -153,6 +176,16 @@ pub(super) enum PrivateIdentifierInfo {
     PrivateIdentifierInstanceFieldInfo(PrivateIdentifierInstanceFieldInfo),
     PrivateIdentifierStaticFieldInfo(PrivateIdentifierStaticFieldInfo),
     PrivateIdentifierAccessorInfo(PrivateIdentifierAccessorInfo),
+}
+
+impl PrivateIdentifierInfo {
+    pub(super) fn as_private_identifier_method_info(&self) -> &PrivateIdentifierMethodInfo {
+        enum_unwrapped!(self, [PrivateIdentifierInfo, PrivateIdentifierMethodInfo])
+    }
+
+    pub(super) fn as_private_identifier_accessor_info(&self) -> &PrivateIdentifierAccessorInfo {
+        enum_unwrapped!(self, [PrivateIdentifierInfo, PrivateIdentifierAccessorInfo])
+    }
 }
 
 impl PrivateIdentifierInfoInterface for PrivateIdentifierInfo {
@@ -189,6 +222,15 @@ impl PrivateIdentifierInfoInterface for PrivateIdentifierInfo {
             Self::PrivateIdentifierInstanceFieldInfo(value) => value.kind(),
             Self::PrivateIdentifierStaticFieldInfo(value) => value.kind(),
             Self::PrivateIdentifierAccessorInfo(value) => value.kind(),
+        }
+    }
+
+    fn maybe_variable_name(&self) -> Option<Gc<Node>> {
+        match self {
+            Self::PrivateIdentifierMethodInfo(value) => value.maybe_variable_name(),
+            Self::PrivateIdentifierInstanceFieldInfo(value) => value.maybe_variable_name(),
+            Self::PrivateIdentifierStaticFieldInfo(value) => value.maybe_variable_name(),
+            Self::PrivateIdentifierAccessorInfo(value) => value.maybe_variable_name(),
         }
     }
 }
@@ -331,10 +373,20 @@ impl TransformClassFields {
         self.pending_expressions.borrow()
     }
 
+    pub(super) fn pending_expressions(&self) -> GcCellRef<Vec<Gc<Node /*Expression*/>>> {
+        gc_cell_ref_unwrapped(&self.pending_expressions)
+    }
+
     pub(super) fn maybe_pending_expressions_mut(
         &self,
     ) -> GcCellRefMut<Option<Vec<Gc<Node /*Expression*/>>>> {
         self.pending_expressions.borrow_mut()
+    }
+
+    pub(super) fn pending_expressions_mut(
+        &self,
+    ) -> GcCellRefMut<Option<Vec<Gc<Node /*Expression*/>>>, Vec<Gc<Node /*Expression*/>>> {
+        gc_cell_ref_mut_unwrapped(&self.pending_expressions)
     }
 
     pub(super) fn set_pending_expressions(
@@ -350,10 +402,20 @@ impl TransformClassFields {
         self.pending_statements.borrow()
     }
 
+    pub(super) fn pending_statements(&self) -> GcCellRef<Vec<Gc<Node /*Statement*/>>> {
+        gc_cell_ref_unwrapped(&self.pending_statements)
+    }
+
     pub(super) fn maybe_pending_statements_mut(
         &self,
     ) -> GcCellRefMut<Option<Vec<Gc<Node /*Statement*/>>>> {
         self.pending_statements.borrow_mut()
+    }
+
+    pub(super) fn pending_statements_mut(
+        &self,
+    ) -> GcCellRefMut<Option<Vec<Gc<Node /*Statement*/>>>, Vec<Gc<Node /*Statement*/>>> {
+        gc_cell_ref_mut_unwrapped(&self.pending_statements)
     }
 
     pub(super) fn set_pending_statements(
@@ -660,25 +722,367 @@ impl TransformClassFields {
         Some(visit_each_child(node, |node: &Node| self.visitor(node), &**self.context).into())
     }
 
+    pub(super) fn class_element_visitor(&self, node: &Node) -> VisitResult /*<Node>*/ {
+        match node.kind() {
+            SyntaxKind::Constructor => None,
+            SyntaxKind::GetAccessor | SyntaxKind::SetAccessor | SyntaxKind::MethodDeclaration => {
+                self.visit_method_or_accessor_declaration(node)
+            }
+            SyntaxKind::PropertyDeclaration => self.visit_property_declaration(node),
+            SyntaxKind::ComputedPropertyName => self.visit_computed_property_name(node),
+            SyntaxKind::SemicolonClassElement => Some(node.node_wrapper().into()),
+            _ => self.visitor(node),
+        }
+    }
+
     pub(super) fn visit_variable_statement(
         &self,
-        _node: &Node, /*VariableStatement*/
+        node: &Node, /*VariableStatement*/
     ) -> VisitResult {
-        unimplemented!()
+        let saved_pending_statements = self.maybe_pending_statements().clone();
+        self.set_pending_statements(Some(_d()));
+
+        let visited_node =
+            visit_each_child(node, |node: &Node| self.visitor(node), &**self.context);
+        let statement: SingleNodeOrVecNode =
+            if self.maybe_pending_statements().as_ref().is_non_empty() {
+                vec![visited_node]
+                    .and_extend(self.pending_statements().iter().cloned())
+                    .into()
+            } else {
+                visited_node.into()
+            };
+
+        self.set_pending_statements(saved_pending_statements);
+        Some(statement)
+    }
+
+    pub(super) fn visit_computed_property_name(
+        &self,
+        name: &Node, /*ComputedPropertyName*/
+    ) -> VisitResult {
+        let name_as_computed_property_name = name.as_computed_property_name();
+        let mut node = visit_each_child(name, |node: &Node| self.visitor(node), &**self.context);
+        if self.maybe_pending_expressions().as_ref().is_non_empty() {
+            let mut expressions = self.pending_expressions().clone();
+            expressions.push(name_as_computed_property_name.expression.clone());
+            self.set_pending_expressions(Some(_d()));
+            node = self.factory.update_computed_property_name(
+                &node,
+                self.factory.inline_expressions(&expressions),
+            );
+        }
+        Some(node.into())
+    }
+
+    pub(super) fn visit_method_or_accessor_declaration(
+        &self,
+        node: &Node, /*MethodDeclaration | AccessorDeclaration*/
+    ) -> VisitResult {
+        let node_as_function_like_declaration = node.as_function_like_declaration();
+        Debug_.assert(
+            !node.maybe_decorators().as_double_deref().is_non_empty(),
+            None,
+        );
+
+        let ref node_name = node_as_function_like_declaration.name();
+        if !self.should_transform_private_elements_or_class_static_blocks
+            || !is_private_identifier(node_name)
+        {
+            return Some(
+                visit_each_child(
+                    node,
+                    |node: &Node| self.class_element_visitor(node),
+                    &**self.context,
+                )
+                .into(),
+            );
+        }
+
+        let info = self.access_private_identifier(node_name);
+        Debug_.assert(
+            info.is_some(),
+            Some("Undeclared private name for property declaration."),
+        );
+        let info = info.unwrap();
+        if !info.is_valid() {
+            return Some(node.node_wrapper().into());
+        }
+
+        let function_name = self.get_hoisted_function_name(node);
+        if let Some(function_name) = function_name {
+            self.get_pending_expressions().push(
+                self.factory
+                    .create_assignment(
+                        function_name.clone(),
+                        self.factory
+                            .create_function_expression(
+                                maybe_filter(
+                                    node.maybe_modifiers().as_double_deref(),
+                                    |m: &Gc<Node>| !is_static_modifier(m),
+                                ),
+                                node_as_function_like_declaration.maybe_asterisk_token(),
+                                Some(function_name),
+                                Option::<Gc<NodeArray>>::None,
+                                visit_parameter_list(
+                                    Some(&node_as_function_like_declaration.parameters()),
+                                    |node: &Node| self.class_element_visitor(node),
+                                    &**self.context,
+                                    Option::<
+                                        fn(
+                                            Option<&NodeArray>,
+                                            Option<&mut dyn FnMut(&Node) -> VisitResult>,
+                                            Option<&dyn Fn(&Node) -> bool>,
+                                            Option<usize>,
+                                            Option<usize>,
+                                        )
+                                            -> Option<Gc<NodeArray>>,
+                                    >::None,
+                                ),
+                                None,
+                                visit_function_body(
+                                    Some(&node_as_function_like_declaration.maybe_body().unwrap()),
+                                    |node: &Node| self.class_element_visitor(node),
+                                    &**self.context,
+                                    Option::<
+                                        fn(
+                                            Option<&Node>,
+                                            Option<&mut dyn FnMut(&Node) -> VisitResult>,
+                                            Option<&dyn Fn(&Node) -> bool>,
+                                            Option<&dyn Fn(&[Gc<Node>]) -> Gc<Node>>,
+                                        )
+                                            -> Option<Gc<Node>>,
+                                    >::None,
+                                )
+                                .unwrap(),
+                            )
+                            .wrap(),
+                    )
+                    .wrap(),
+            );
+        }
+
+        None
+    }
+
+    pub(super) fn get_hoisted_function_name(
+        &self,
+        node: &Node, /*MethodDeclaration | AccessorDeclaration*/
+    ) -> Option<Gc<Node>> {
+        let node_as_function_like_declaration = node.as_function_like_declaration();
+        let ref node_name = node_as_function_like_declaration.name();
+        Debug_.assert(is_private_identifier(node_name), None);
+        let info = self.access_private_identifier(node_name);
+        Debug_.assert(
+            info.is_some(),
+            Some("Undeclared private name for property declaration."),
+        );
+        let info = info.unwrap();
+
+        if info.kind() == PrivateIdentifierKind::Method {
+            return Some(info.as_private_identifier_method_info().method_name.clone());
+        }
+
+        if info.kind() == PrivateIdentifierKind::Accessor {
+            if is_get_accessor(node) {
+                return info
+                    .as_private_identifier_accessor_info()
+                    .getter_name
+                    .clone();
+            }
+            if is_set_accessor(node) {
+                return info
+                    .as_private_identifier_accessor_info()
+                    .setter_name
+                    .clone();
+            }
+        }
+        None
     }
 
     pub(super) fn visit_property_declaration(
         &self,
-        _node: &Node, /*PropertyDeclaration*/
+        node: &Node, /*PropertyDeclaration*/
     ) -> VisitResult {
-        unimplemented!()
+        let node_as_property_declaration = node.as_property_declaration();
+        Debug_.assert(
+            !node.maybe_decorators().as_double_deref().is_non_empty(),
+            None,
+        );
+
+        if is_private_identifier(&node_as_property_declaration.name()) {
+            if !self.should_transform_private_elements_or_class_static_blocks {
+                return Some(
+                    self.factory
+                        .update_property_declaration(
+                            node,
+                            Option::<Gc<NodeArray>>::None,
+                            visit_nodes(
+                                node.maybe_modifiers().as_deref(),
+                                Some(|node: &Node| self.visitor(node)),
+                                Some(is_modifier),
+                                None,
+                                None,
+                            ),
+                            node_as_property_declaration.name(),
+                            None,
+                            None,
+                            None,
+                        )
+                        .into(),
+                );
+            }
+
+            let info = self.access_private_identifier(&node_as_property_declaration.name());
+            Debug_.assert(
+                info.is_some(),
+                Some("Undeclared private name for property declaration."),
+            );
+            let info = info.unwrap();
+            if !info.is_valid() {
+                return Some(node.node_wrapper().into());
+            }
+        }
+        let expr = self.get_property_name_expression_if_needed(
+            &node_as_property_declaration.name(),
+            node_as_property_declaration.maybe_initializer().is_some()
+                || self.use_define_for_class_fields,
+        );
+        if let Some(expr) = expr.filter(|expr| !is_simple_inlineable_expression(expr)) {
+            self.get_pending_expressions().push(expr);
+        }
+        None
+    }
+
+    pub(super) fn create_private_identifier_access(
+        &self,
+        info: &PrivateIdentifierInfo,
+        receiver: &Node, /*Expression*/
+    ) -> Gc<Node /*Expression*/> {
+        self.create_private_identifier_access_helper(
+            info,
+            &visit_node(
+                receiver,
+                Some(|node: &Node| self.visitor(node)),
+                Some(is_expression),
+                Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+            ),
+        )
+    }
+
+    pub(super) fn create_private_identifier_access_helper(
+        &self,
+        info: &PrivateIdentifierInfo,
+        receiver: &Node, /*Expression*/
+    ) -> Gc<Node /*Expression*/> {
+        set_comment_range(
+            receiver,
+            &ReadonlyTextRangeConcrete::from(move_range_pos(receiver, -1)),
+        );
+
+        match info.kind() {
+            PrivateIdentifierKind::Accessor => self
+                .context
+                .get_emit_helper_factory()
+                .create_class_private_field_get_helper(
+                    receiver.node_wrapper(),
+                    info.brand_check_identifier(),
+                    info.kind(),
+                    info.as_private_identifier_accessor_info()
+                        .getter_name
+                        .clone(),
+                ),
+            PrivateIdentifierKind::Method => self
+                .context
+                .get_emit_helper_factory()
+                .create_class_private_field_get_helper(
+                    receiver.node_wrapper(),
+                    info.brand_check_identifier(),
+                    info.kind(),
+                    Some(info.as_private_identifier_method_info().method_name.clone()),
+                ),
+            PrivateIdentifierKind::Field => self
+                .context
+                .get_emit_helper_factory()
+                .create_class_private_field_get_helper(
+                    receiver.node_wrapper(),
+                    info.brand_check_identifier(),
+                    info.kind(),
+                    info.maybe_variable_name(),
+                ),
+            // default:
+            //     Debug.assertNever(info, "Unknown private element type");
+        }
     }
 
     pub(super) fn visit_property_access_expression(
         &self,
-        _node: &Node, /*PropertyAccessExpression*/
+        node: &Node, /*PropertyAccessExpression*/
     ) -> VisitResult {
-        unimplemented!()
+        let node_as_property_access_expression = node.as_property_access_expression();
+        if self.should_transform_private_elements_or_class_static_blocks
+            && is_private_identifier(&node_as_property_access_expression.name())
+        {
+            let private_identifier_info =
+                self.access_private_identifier(&node_as_property_access_expression.name());
+            if let Some(ref private_identifier_info) = private_identifier_info {
+                return Some(
+                    self.create_private_identifier_access(
+                        private_identifier_info,
+                        &node_as_property_access_expression.expression,
+                    )
+                    .set_original_node(Some(node.node_wrapper()))
+                    .set_text_range(Some(node))
+                    .into(),
+                );
+            }
+        }
+        if self.should_transform_super_in_static_initializers
+            && is_super_property(node)
+            && is_identifier(&node_as_property_access_expression.name())
+        {
+            if let Some(current_static_property_declaration_or_static_block) =
+                self.maybe_current_static_property_declaration_or_static_block()
+            {
+                if let Some(current_class_lexical_environment) =
+                    self.maybe_current_class_lexical_environment()
+                {
+                    let class_constructor =
+                        current_class_lexical_environment.class_constructor.as_ref();
+                    let super_class_reference = current_class_lexical_environment
+                        .super_class_reference
+                        .as_ref();
+                    let facts = current_class_lexical_environment.facts;
+                    if facts.intersects(ClassFacts::ClassWasDecorated) {
+                        return self.visit_invalid_super_property(node);
+                    }
+                    if let Some(class_constructor) = class_constructor {
+                        if let Some(super_class_reference) = super_class_reference {
+                            return Some(
+                                self.factory
+                                    .create_reflect_get_call(
+                                        super_class_reference.clone(),
+                                        self.factory
+                                            .create_string_literal_from_node(
+                                                &node_as_property_access_expression.name(),
+                                            )
+                                            .wrap(),
+                                        Some(class_constructor.clone()),
+                                    )
+                                    .set_original_node(Some(
+                                        node_as_property_access_expression.expression.clone(),
+                                    ))
+                                    .set_text_range(Some(
+                                        &*node_as_property_access_expression.expression,
+                                    ))
+                                    .into(),
+                            );
+                        }
+                    }
+                }
+            }
+        }
+        Some(visit_each_child(node, |node: &Node| self.visitor(node), &**self.context).into())
     }
 }
 

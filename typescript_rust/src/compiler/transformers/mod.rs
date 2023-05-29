@@ -1,4 +1,4 @@
-mod class_fields;
+pub mod class_fields;
 pub use class_fields::*;
 pub mod declarations;
 pub use declarations::*;

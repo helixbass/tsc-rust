@@ -1,9 +1,7 @@
+use std::{collections::HashMap, convert::TryInto, io, marker::PhantomData, rc::Rc};
+
 use gc::{Finalize, Gc, GcCell, Trace};
-use std::collections::HashMap;
-use std::convert::TryInto;
-use std::io;
-use std::marker::PhantomData;
-use std::rc::Rc;
+use local_macros::enum_unwrapped;
 
 use crate::{
     add_range, chain_diagnostic_messages, contains, convert_to_relative_path, count_where,
@@ -15,10 +13,10 @@ use crate::{
     get_referenced_file_location, get_regex_from_pattern, get_sys, is_reference_file_location,
     is_referenced_file, maybe_for_each, out_file, package_id_to_string,
     sort_and_deduplicate_diagnostics, target_option_declaration, text_substring, BuilderProgram,
-    CancellationTokenDebuggable, CommandLineOptionInterface, CompilerHost, CompilerOptions,
-    ConfigFileDiagnosticsReporter, CreateProgram, CustomTransformers, Debug_, Diagnostic,
-    DiagnosticCategory, DiagnosticMessage, DiagnosticMessageChain,
-    DiagnosticRelatedInformationInterface, DiagnosticReporter, Diagnostics,
+    CancellationTokenDebuggable, CommandLineOptionInterface, CommandLineOptionMapTypeValue,
+    CompilerHost, CompilerOptions, ConfigFileDiagnosticsReporter, CreateProgram,
+    CustomTransformers, Debug_, Diagnostic, DiagnosticCategory, DiagnosticMessage,
+    DiagnosticMessageChain, DiagnosticRelatedInformationInterface, DiagnosticReporter, Diagnostics,
     EmitAndSemanticDiagnosticsBuilderProgram, EmitResult, ExitStatus, ExtendedConfigCacheEntry,
     Extension, FileExtensionInfo, FileIncludeKind, FileIncludeReason,
     ForegroundColorEscapeSequences, FormatDiagnosticsHost, Matches, ModuleResolutionHost, Node,
@@ -28,7 +26,6 @@ use crate::{
     SourceFileLike, StringOrRcNode, System, WatchCompilerHost, WatchCompilerHostOfConfigFile,
     WatchHost, WatchOptions, WatchStatusReporter, WriteFileCallback,
 };
-use local_macros::enum_unwrapped;
 
 thread_local! {
     static sys_format_diagnostics_host: Option<Gc<SysFormatDiagnosticsHost>> = /*sys ?*/ Some(Gc::new(SysFormatDiagnosticsHost::new(get_sys())));

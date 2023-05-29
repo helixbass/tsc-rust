@@ -1,13 +1,14 @@
+use std::collections::HashMap;
+
 use darling::FromMeta;
 use proc_macro::TokenStream;
 use proc_macro2::{Ident, TokenStream as TokenStream2};
 use quote::quote;
-use std::collections::HashMap;
-use syn::parse::{Parse, ParseStream, Result};
-use syn::Data::{Enum, Struct};
 use syn::{
-    parse_macro_input, AttributeArgs, DataEnum, DeriveInput, Error, Expr, ExprArray, Fields,
-    FieldsNamed, Token,
+    parse::{Parse, ParseStream, Result},
+    parse_macro_input, AttributeArgs,
+    Data::{Enum, Struct},
+    DataEnum, DeriveInput, Error, Expr, ExprArray, Fields, FieldsNamed, Token,
 };
 
 #[derive(Debug, FromMeta)]
@@ -3625,7 +3626,7 @@ fn get_enum_unwrapped_match(argument: &Expr, ancestors: &[Ident]) -> TokenStream
     for (index, ancestor) in ancestors.iter().skip(1).rev().enumerate() {
         let previous_ancestor = &ancestors[ancestors.len() - 2 - index];
         unwrapped_variant_selector = quote! {
-            crate::#previous_ancestor::#ancestor(#unwrapped_variant_selector)
+            #previous_ancestor::#ancestor(#unwrapped_variant_selector)
         }
     }
 

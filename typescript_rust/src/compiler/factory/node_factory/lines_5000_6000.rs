@@ -651,6 +651,15 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         unimplemented!()
     }
 
+    pub fn create_reflect_get_call(
+        &self,
+        _target: Gc<Node /*Expression*/>,
+        _property_key: Gc<Node /*Expression*/>,
+        _receiver: Option<Gc<Node /*Expression*/>>,
+    ) -> Gc<Node /*CallExpression*/> {
+        unimplemented!()
+    }
+
     pub fn create_property_descriptor(
         &self,
         _attributes: PropertyDescriptorAttributes,

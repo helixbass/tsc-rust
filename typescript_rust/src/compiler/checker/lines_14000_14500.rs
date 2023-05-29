@@ -1,22 +1,24 @@
+use std::{
+    borrow::Borrow,
+    convert::{TryFrom, TryInto},
+    io, ptr,
+};
+
 use gc::Gc;
 use indexmap::IndexMap;
+use local_macros::enum_unwrapped;
 use peekmore::PeekMore;
-use std::borrow::Borrow;
-use std::convert::{TryFrom, TryInto};
-use std::{io, ptr};
 
-use crate::try_some;
 use crate::{
     array_of, binary_search_copy_key, compare_values, filter, find_index,
     find_last_index_returns_isize, for_each, get_object_flags, is_part_of_type_node, map,
     ordered_remove_item_at, push_if_unique_gc, reduce_left, replace_element,
-    return_ok_default_if_none, some, try_map, BaseUnionOrIntersectionType, Diagnostics,
-    ElementFlags, IntersectionType, IteratorExt, LiteralTypeInterface, Node, ObjectFlags,
-    OptionTry, PeekMoreExt, Signature, Symbol, SymbolInterface, Type, TypeChecker, TypeFlags,
-    TypeId, TypeInterface, TypePredicate, TypePredicateKind, TypeReferenceInterface,
+    return_ok_default_if_none, some, try_map, try_some, BaseUnionOrIntersectionType, Diagnostics,
+    ElementFlags, IntersectionType, IntrinsicType, IteratorExt, LiteralTypeInterface, Node,
+    ObjectFlags, OptionTry, PeekMoreExt, Signature, Symbol, SymbolInterface, Type, TypeChecker,
+    TypeFlags, TypeId, TypeInterface, TypePredicate, TypePredicateKind, TypeReferenceInterface,
     UnionOrIntersectionTypeInterface, UnionReduction, UnionType,
 };
-use local_macros::enum_unwrapped;
 
 impl TypeChecker {
     pub(super) fn create_normalized_type_reference(

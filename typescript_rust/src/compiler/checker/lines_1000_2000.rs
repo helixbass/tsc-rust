@@ -37,7 +37,7 @@ use crate::{
     escape_leading_underscores, factory, get_first_identifier, get_or_update_indexmap,
     get_source_file_of_node, is_jsx_opening_fragment, maybe_get_source_file_of_node,
     maybe_visit_each_child, maybe_visit_node, parse_isolated_entity_name, try_find_ancestor,
-    unescape_leading_underscores, visit_node, BaseTransientSymbol, CheckFlags, Debug_, Diagnostic,
+    unescape_leading_underscores, BaseTransientSymbol, CheckFlags, Debug_, Diagnostic,
     DiagnosticMessage, Node, NodeInterface, NodeLinks, Symbol, SymbolFlags, SymbolInterface,
     SymbolLinks, SymbolTable, SyntaxKind, TransientSymbol, TransientSymbolInterface, TypeChecker,
 };
