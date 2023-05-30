@@ -1054,7 +1054,7 @@ impl TransformClassFields {
                         .as_ref();
                     let facts = current_class_lexical_environment.facts;
                     if facts.intersects(ClassFacts::ClassWasDecorated) {
-                        return self.visit_invalid_super_property(node);
+                        return Some(self.visit_invalid_super_property(node).into());
                     }
                     if let Some(class_constructor) = class_constructor {
                         if let Some(super_class_reference) = super_class_reference {

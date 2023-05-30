@@ -68,6 +68,18 @@ pub fn create_expression_for_property_name<
     unimplemented!()
 }
 
+pub fn expand_pre_or_postfix_increment_or_decrement_expression<
+    TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize,
+>(
+    _factory: &NodeFactory<TBaseNodeFactory>,
+    _node: &Node,       /*PrefixUnaryExpression | PostfixUnaryExpression*/
+    _expression: &Node, /*Expression*/
+    _record_temp_variable: impl FnMut(&Node /*Expression*/),
+    _result_variable: Option<impl Borrow<Node /*Identifier*/>>,
+) -> Gc<Node /*Expression*/> {
+    unimplemented!()
+}
+
 pub fn is_internal_name(node: &Node /*Identifier*/) -> bool {
     get_emit_flags(node).intersects(EmitFlags::InternalName)
 }

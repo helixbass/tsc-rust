@@ -1,5 +1,7 @@
-use gc::{Finalize, Gc, GcCell, Trace};
 use std::cell::Cell;
+
+use gc::{Finalize, Gc, GcCell, Trace};
+use local_macros::ast_type;
 
 use super::{
     BaseFunctionLikeDeclaration, BaseGenericNamedDeclaration, BaseLiteralLikeNode, BaseNode,
@@ -7,7 +9,6 @@ use super::{
     HasExpressionInterface, HasQuestionTokenInterface, HasTypeInterface, NamedDeclarationInterface,
     Node, NodeArray, SyntaxKind, Type,
 };
-use local_macros::ast_type;
 
 #[derive(Debug, Trace, Finalize)]
 #[ast_type(
@@ -929,6 +930,7 @@ impl UnaryExpressionInterface for PrefixUnaryExpression {
     fn operator(&self) -> SyntaxKind {
         self.operator
     }
+
     fn operand(&self) -> Gc<Node> {
         self.operand.clone()
     }

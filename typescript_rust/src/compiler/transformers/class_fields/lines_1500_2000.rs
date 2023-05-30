@@ -1,13 +1,13 @@
 use gc::{Gc, GcCellRefMut};
 
 use super::{PrivateIdentifierInfo, TransformClassFields};
-use crate::{Node, VisitResult, _d};
+use crate::{Node, _d};
 
 impl TransformClassFields {
     pub(super) fn visit_invalid_super_property(
         &self,
         _name: &Node, /*SuperProperty*/
-    ) -> VisitResult {
+    ) -> Gc<Node> {
         unimplemented!()
     }
 
