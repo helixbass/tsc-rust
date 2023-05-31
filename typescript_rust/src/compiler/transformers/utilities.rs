@@ -62,6 +62,10 @@ pub fn is_simple_inlineable_expression(_expression: &Node /*Expression*/) -> boo
     unimplemented!()
 }
 
+pub fn is_compound_assignment(_kind: SyntaxKind) -> bool {
+    unimplemented!()
+}
+
 pub fn get_non_assignment_operator_for_compound_assignment(
     _kind: SyntaxKind, /*CompoundAssignmentOperator*/
 ) -> SyntaxKind /*LogicalOperatorOrHigher | SyntaxKind.QuestionQuestionToken*/ {

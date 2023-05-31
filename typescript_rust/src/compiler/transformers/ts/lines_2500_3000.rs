@@ -9,12 +9,12 @@ use crate::{
     get_emit_flags, has_syntactic_modifier, insert_statements_after_standard_prologue,
     is_export_specifier, is_external_module, is_external_module_import_equals_declaration,
     is_identifier, is_import_clause, is_import_specifier, is_modifier, is_named_export_bindings,
-    is_namespace_export, move_range_pos, set_comment_range, set_emit_flags, set_source_map_range,
-    set_synthetic_leading_comments, set_synthetic_trailing_comments, set_text_range,
-    set_text_range_node_array, try_maybe_visit_each_child, try_maybe_visit_node,
-    try_visit_each_child, try_visit_node, try_visit_nodes, visit_nodes, AsDoubleDeref, BoolExt,
-    Debug_, EmitFlags, ImportsNotUsedAsValues, ModifierFlags, NamedDeclarationInterface, NodeArray,
-    NodeExt, NodeFlags, ReadonlyTextRangeConcrete, SingleNodeOrVecNode, SyntaxKind,
+    is_namespace_export, maybe_visit_nodes, move_range_pos, set_comment_range, set_emit_flags,
+    set_source_map_range, set_synthetic_leading_comments, set_synthetic_trailing_comments,
+    set_text_range, set_text_range_node_array, try_maybe_visit_each_child, try_maybe_visit_node,
+    try_visit_each_child, try_visit_node, try_visit_nodes, BoolExt, Debug_, EmitFlags,
+    ImportsNotUsedAsValues, ModifierFlags, NamedDeclarationInterface, NodeArray, NodeExt,
+    NodeFlags, ReadonlyTextRangeConcrete, SingleNodeOrVecNode, SyntaxKind,
 };
 
 impl TransformTypeScript {
@@ -87,7 +87,7 @@ impl TransformTypeScript {
         let statement = self
             .factory
             .create_variable_statement(
-                visit_nodes(
+                maybe_visit_nodes(
                     node.maybe_modifiers().as_deref(),
                     Some(|node: &Node| self.modifier_visitor(node)),
                     Some(is_modifier),
@@ -296,14 +296,13 @@ impl TransformTypeScript {
                 self.try_save_state_and_invoke(node_body, |body: &Node| {
                     add_range(
                         &mut statements,
-                        try_visit_nodes(
-                            Some(&body.as_module_block().statements),
+                        Some(&try_visit_nodes(
+                            &body.as_module_block().statements,
                             Some(|node: &Node| self.namespace_element_visitor(node)),
                             Some(is_statement),
                             None,
                             None,
-                        )?
-                        .as_double_deref(),
+                        )?),
                         None,
                         None,
                     );
@@ -476,13 +475,12 @@ impl TransformTypeScript {
                     Some(ImportsNotUsedAsValues::Preserve) | Some(ImportsNotUsedAsValues::Error)
                 );
             let elements = try_visit_nodes(
-                Some(&node.as_named_imports().elements),
+                &node.as_named_imports().elements,
                 Some(|node: &Node| self.visit_import_specifier(node)),
                 Some(is_import_specifier),
                 None,
                 None,
-            )?
-            .unwrap();
+            )?;
             (allow_empty || !elements.is_empty())
                 .then(|| self.factory.update_named_imports(node, elements).into())
         })
@@ -567,13 +565,12 @@ impl TransformTypeScript {
     ) -> io::Result<VisitResult> /*<NamedExports>*/ {
         let node_as_named_exports = node.as_named_exports();
         let elements = try_visit_nodes(
-            Some(&node_as_named_exports.elements),
+            &node_as_named_exports.elements,
             Some(|node: &Node| self.visit_export_specifier(node)),
             Some(is_export_specifier),
             None,
             None,
-        )?
-        .unwrap();
+        )?;
         Ok((allow_empty || !elements.is_empty())
             .then(|| self.factory.update_named_exports(node, elements).into()))
     }
@@ -687,7 +684,7 @@ impl TransformTypeScript {
             if self.is_named_external_module_export(node) || !self.is_export_of_namespace(node) {
                 self.factory
                     .create_variable_statement(
-                        visit_nodes(
+                        maybe_visit_nodes(
                             node.maybe_modifiers().as_deref(),
                             Some(|node: &Node| self.modifier_visitor(node)),
                             Some(is_modifier),

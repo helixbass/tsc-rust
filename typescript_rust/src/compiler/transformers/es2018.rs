@@ -21,17 +21,17 @@ use crate::{
     is_block, is_destructuring_assignment, is_effective_strict_mode_source_file, is_identifier,
     is_modifier, is_object_literal_element_like, is_property_access_expression, is_property_name,
     is_super_property, is_token, is_variable_declaration_list, maybe_visit_each_child,
-    maybe_visit_node, process_tagged_template_expression, set_emit_flags, set_original_node,
-    set_text_range_node_array, set_text_range_rc_node, skip_parentheses, some,
+    maybe_visit_node, maybe_visit_nodes, process_tagged_template_expression, set_emit_flags,
+    set_original_node, set_text_range_node_array, set_text_range_rc_node, skip_parentheses, some,
     unwrap_innermost_statement_of_label, visit_each_child, visit_iteration_body,
-    visit_lexical_environment, visit_node, visit_nodes, visit_parameter_list,
-    BaseNodeFactorySynthetic, CompilerOptions, Debug_, EmitFlags, EmitHelperFactory, EmitHint,
-    EmitResolver, FlattenLevel, FunctionFlags, FunctionLikeDeclarationInterface,
-    GeneratedIdentifierFlags, HasInitializerInterface, HasStatementsInterface, Matches,
-    ModifierFlags, NamedDeclarationInterface, Node, NodeArray, NodeArrayExt, NodeArrayOrVec,
-    NodeCheckFlags, NodeExt, NodeFactory, NodeFlags, NodeId, NodeInterface, ProcessLevel,
-    ReadonlyTextRange, ReadonlyTextRangeConcrete, ScriptTarget, SignatureDeclarationInterface,
-    SyntaxKind, TransformFlags, TransformationContext, VecExt, VecExtClone, VisitResult, With,
+    visit_lexical_environment, visit_node, visit_parameter_list, BaseNodeFactorySynthetic,
+    CompilerOptions, Debug_, EmitFlags, EmitHelperFactory, EmitHint, EmitResolver, FlattenLevel,
+    FunctionFlags, FunctionLikeDeclarationInterface, GeneratedIdentifierFlags,
+    HasInitializerInterface, HasStatementsInterface, Matches, ModifierFlags,
+    NamedDeclarationInterface, Node, NodeArray, NodeArrayExt, NodeArrayOrVec, NodeCheckFlags,
+    NodeExt, NodeFactory, NodeFlags, NodeId, NodeInterface, ProcessLevel, ReadonlyTextRange,
+    ReadonlyTextRangeConcrete, ScriptTarget, SignatureDeclarationInterface, SyntaxKind,
+    TransformFlags, TransformationContext, VecExt, VecExtClone, VisitResult, With,
 };
 
 bitflags! {
@@ -1696,7 +1696,7 @@ impl TransformES2018 {
                     enclosing_function_flags.intersects(FunctionFlags::Generator)
                 })
             {
-                visit_nodes(
+                maybe_visit_nodes(
                     node.maybe_modifiers().as_deref(),
                     Some(|node: &Node| self.visitor_no_async_modifier(node)),
                     Some(is_modifier),
@@ -1780,7 +1780,7 @@ impl TransformES2018 {
                     enclosing_function_flags.intersects(FunctionFlags::Generator)
                 })
             {
-                visit_nodes(
+                maybe_visit_nodes(
                     node.maybe_modifiers().as_deref(),
                     Some(|node: &Node| self.visitor_no_async_modifier(node)),
                     Some(is_modifier),
@@ -1883,7 +1883,7 @@ impl TransformES2018 {
                     enclosing_function_flags.intersects(FunctionFlags::Generator)
                 })
             {
-                visit_nodes(
+                maybe_visit_nodes(
                     node.maybe_modifiers().as_deref(),
                     Some(|node: &Node| self.visitor_no_async_modifier(node)),
                     Some(is_modifier),

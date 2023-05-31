@@ -620,12 +620,12 @@ impl TransformDeclarations {
                                     )
                                 } else {
                                     try_visit_nodes(
-                                        Some(&source_file_as_source_file.statements()),
+                                        &source_file_as_source_file.statements(),
                                         Some(|node: &Node| self.visit_declaration_statements(node)),
                                         Option::<fn(&Node) -> bool>::None,
                                         None,
                                         None,
-                                    )?.unwrap()
+                                    )?
                                 };
                                 let new_file = 
                                     self.factory.update_source_file(
@@ -681,12 +681,12 @@ impl TransformDeclarations {
                                 )
                             } else {
                                 try_visit_nodes(
-                                    Some(&source_file_as_source_file.statements()),
+                                    &source_file_as_source_file.statements(),
                                     Some(|node: &Node| self.visit_declaration_statements(node)),
                                     Option::<fn(&Node) -> bool>::None,
                                     None,
                                     None,
-                                )?.unwrap()
+                                )?
                             };
                             Ok(Some(
                                 self.factory.update_source_file(
@@ -806,13 +806,12 @@ impl TransformDeclarations {
             )));
         } else {
             let statements = try_visit_nodes(
-                Some(&node_as_source_file.statements()),
+                &node_as_source_file.statements(),
                 Some(|node: &Node| self.visit_declaration_statements(node)),
                 Option::<fn(&Node) -> bool>::None,
                 None,
                 None,
-            )?
-            .unwrap();
+            )?;
             combined_statements = set_text_range_node_array(
                 self.factory.create_node_array(
                     Some(self.transform_and_replace_late_painted_statements(&statements)?),
@@ -1083,25 +1082,23 @@ impl TransformDeclarations {
                 self.factory.update_array_binding_pattern(
                     name,
                     try_visit_nodes(
-                        Some(&name.as_array_binding_pattern().elements),
+                        &name.as_array_binding_pattern().elements,
                         Some(|node: &Node| -> io::Result<_> { Ok(Some(self.visit_binding_element(node)?.into())) }),
                         Option::<fn(&Node) -> bool>::None,
                         None,
                         None,
-                    )?
-                    .unwrap(),
+                    )?,
                 )
             } else {
                 self.factory.update_object_binding_pattern(
                     name,
                     try_visit_nodes(
-                        Some(&name.as_object_binding_pattern().elements),
+                        &name.as_object_binding_pattern().elements,
                         Some(|node: &Node| -> io::Result<_> { Ok(Some(self.visit_binding_element(node)?.into())) }),
                         Option::<fn(&Node) -> bool>::None,
                         None,
                         None,
-                    )?
-                    .unwrap(),
+                    )?,
                 )
             }
         })

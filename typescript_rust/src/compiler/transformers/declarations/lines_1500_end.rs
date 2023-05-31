@@ -7,11 +7,10 @@ use crate::{
     create_get_symbol_accessibility_diagnostic_for_node, flatten, for_each_bool,
     get_effective_modifier_flags, get_factory, get_parse_tree_node, has_effective_modifier,
     is_binding_pattern, is_entity_name_expression, is_export_assignment, is_export_declaration,
-    is_external_module, is_internal_declaration, return_ok_default_if_none, some,
-    try_map_defined, try_visit_nodes, AllAccessorDeclarations, Debug_,
-    GetSymbolAccessibilityDiagnostic, HasTypeInterface, ModifierFlags, NamedDeclarationInterface,
-    Node, NodeArray, NodeArrayOrVec, NodeInterface, OptionTry, SignatureDeclarationInterface,
-    SyntaxKind,
+    is_external_module, is_internal_declaration, return_ok_default_if_none, some, try_map_defined,
+    try_visit_nodes, AllAccessorDeclarations, Debug_, GetSymbolAccessibilityDiagnostic,
+    HasTypeInterface, ModifierFlags, NamedDeclarationInterface, Node, NodeArray, NodeArrayOrVec,
+    NodeInterface, OptionTry, SignatureDeclarationInterface, SyntaxKind,
 };
 
 impl TransformDeclarations {
@@ -29,18 +28,16 @@ impl TransformDeclarations {
         ) {
             return Ok(None);
         }
-        let nodes = return_ok_default_if_none!(try_visit_nodes(
-            Some(
-                &input_as_variable_statement
-                    .declaration_list
-                    .as_variable_declaration_list()
-                    .declarations,
-            ),
+        let nodes = return_ok_default_if_none!(Some(try_visit_nodes(
+            &input_as_variable_statement
+                .declaration_list
+                .as_variable_declaration_list()
+                .declarations,
             Some(|node: &Node| self.visit_declaration_subtree(node)),
             Option::<fn(&Node) -> bool>::None,
             None,
             None,
-        )?);
+        )?));
         if nodes.is_empty() {
             return Ok(None);
         }
@@ -216,36 +213,33 @@ impl TransformDeclarations {
                     let clause = self.factory.update_heritage_clause(
                         clause,
                         try_visit_nodes(
-                            Some(
-                                &self.factory.create_node_array(
-                                    Some(
-                                        clause_as_heritage_clause
-                                            .types
-                                            .iter()
-                                            .filter(|t| {
-                                                let t_as_expression_with_type_arguments =
-                                                    t.as_expression_with_type_arguments();
-                                                is_entity_name_expression(
-                                                    &t_as_expression_with_type_arguments.expression,
-                                                ) || clause_as_heritage_clause.token
-                                                    == SyntaxKind::ExtendsKeyword
-                                                    && t_as_expression_with_type_arguments
-                                                        .expression
-                                                        .kind()
-                                                        == SyntaxKind::NullKeyword
-                                            })
-                                            .cloned()
-                                            .collect::<Vec<_>>(),
-                                    ),
-                                    None,
+                            &self.factory.create_node_array(
+                                Some(
+                                    clause_as_heritage_clause
+                                        .types
+                                        .iter()
+                                        .filter(|t| {
+                                            let t_as_expression_with_type_arguments =
+                                                t.as_expression_with_type_arguments();
+                                            is_entity_name_expression(
+                                                &t_as_expression_with_type_arguments.expression,
+                                            ) || clause_as_heritage_clause.token
+                                                == SyntaxKind::ExtendsKeyword
+                                                && t_as_expression_with_type_arguments
+                                                    .expression
+                                                    .kind()
+                                                    == SyntaxKind::NullKeyword
+                                        })
+                                        .cloned()
+                                        .collect::<Vec<_>>(),
                                 ),
+                                None,
                             ),
                             Some(|node: &Node| self.visit_declaration_subtree(node)),
                             Option::<fn(&Node) -> bool>::None,
                             None,
                             None,
-                        )?
-                        .unwrap(),
+                        )?,
                     );
                     if
                     /*clause.types &&*/

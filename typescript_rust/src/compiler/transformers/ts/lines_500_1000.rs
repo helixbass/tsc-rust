@@ -8,14 +8,16 @@ use crate::{
     get_effective_base_type_node, get_emit_flags, get_first_constructor_with_body, get_properties,
     get_strict_option_value, has_syntactic_modifier, insert_statements_after_standard_prologue,
     is_class_element, is_external_module, is_heritage_clause, is_identifier, is_json_source_file,
-    is_modifier, is_parameter_property_declaration, is_static, move_range_past_decorators,
-    node_or_child_is_decorated, parameter_is_this_keyword, set_emit_flags, skip_outer_expressions,
-    skip_trivia, some, try_maybe_visit_each_child, try_visit_each_child, try_visit_lexical_environment_full, try_visit_nodes, visit_nodes, AsDoubleDeref, BoolExt,
-    ClassLikeDeclarationInterface, EmitFlags, HasStatementsInterface,
-    InterfaceOrClassLikeDeclarationInterface, Matches, ModifierFlags, ModuleKind,
-    NamedDeclarationInterface, Node, NodeArray, NodeArrayExt, NodeArrayOrVec, NodeExt, NodeFlags,
-    NodeInterface, NodeWrappered, ReadonlyTextRange, ScriptTarget, SignatureDeclarationInterface,
-    SourceFileLike, SyntaxKind, TextRange, TransformFlags, VisitResult,
+    is_modifier, is_parameter_property_declaration, is_static, maybe_visit_nodes,
+    move_range_past_decorators, node_or_child_is_decorated, parameter_is_this_keyword,
+    set_emit_flags, skip_outer_expressions, skip_trivia, some, try_maybe_visit_each_child,
+    try_maybe_visit_nodes, try_visit_each_child, try_visit_lexical_environment_full,
+    try_visit_nodes, AsDoubleDeref, BoolExt, ClassLikeDeclarationInterface, EmitFlags,
+    HasStatementsInterface, InterfaceOrClassLikeDeclarationInterface, Matches, ModifierFlags,
+    ModuleKind, NamedDeclarationInterface, Node, NodeArray, NodeArrayExt, NodeArrayOrVec, NodeExt,
+    NodeFlags, NodeInterface, NodeWrappered, ReadonlyTextRange, ScriptTarget,
+    SignatureDeclarationInterface, SourceFileLike, SyntaxKind, TextRange, TransformFlags,
+    VisitResult,
 };
 
 impl TransformTypeScript {
@@ -285,7 +287,7 @@ impl TransformTypeScript {
         let node_as_class_declaration = node.as_class_declaration();
         let modifiers = (!(facts.intersects(ClassFacts::UseImmediatelyInvokedFunctionExpression)))
             .then_and(|| {
-                visit_nodes(
+                maybe_visit_nodes(
                     node.maybe_modifiers().as_deref(),
                     Some(|node: &Node| self.modifier_visitor(node)),
                     Some(is_modifier),
@@ -301,7 +303,7 @@ impl TransformTypeScript {
                 modifiers,
                 name.node_wrappered(),
                 Option::<Gc<NodeArray>>::None,
-                try_visit_nodes(
+                try_maybe_visit_nodes(
                     node_as_class_declaration
                         .maybe_heritage_clauses()
                         .as_deref(),
@@ -341,7 +343,7 @@ impl TransformTypeScript {
             self.factory.get_local_name(node, Some(false), Some(true))
         };
 
-        let heritage_clauses = try_visit_nodes(
+        let heritage_clauses = try_maybe_visit_nodes(
             node_as_class_declaration
                 .maybe_heritage_clauses()
                 .as_deref(),
@@ -412,7 +414,7 @@ impl TransformTypeScript {
                 Option::<Gc<NodeArray>>::None,
                 node_as_class_expression.maybe_name(),
                 Option::<Gc<NodeArray>>::None,
-                try_visit_nodes(
+                try_maybe_visit_nodes(
                     node_as_class_expression.maybe_heritage_clauses().as_deref(),
                     Some(|node: &Node| self.visitor(node)),
                     Some(is_heritage_clause),
@@ -462,14 +464,13 @@ impl TransformTypeScript {
         let node_as_class_like_declaration = node.as_class_like_declaration();
         add_range(
             &mut members,
-            try_visit_nodes(
-                Some(&node_as_class_like_declaration.members()),
+            Some(&try_visit_nodes(
+                &node_as_class_like_declaration.members(),
                 Some(|node: &Node| self.class_element_visitor(node)),
                 Some(is_class_element),
                 None,
                 None,
-            )?
-            .as_double_deref(),
+            )?),
             None,
             None,
         );

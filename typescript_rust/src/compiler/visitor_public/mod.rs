@@ -79,6 +79,16 @@ pub fn try_maybe_visit_node(
 }
 
 pub fn visit_nodes(
+    nodes: &NodeArray,
+    visitor: Option<impl FnMut(&Node) -> VisitResult>,
+    test: Option<impl Fn(&Node) -> bool>,
+    start: Option<usize>,
+    count: Option<usize>,
+) -> Gc<NodeArray> {
+    maybe_visit_nodes(Some(nodes), visitor, test, start, count).unwrap()
+}
+
+pub fn maybe_visit_nodes(
     nodes: Option<&NodeArray>,
     visitor: Option<impl FnMut(&Node) -> VisitResult>,
     test: Option<impl Fn(&Node) -> bool>,
@@ -164,6 +174,16 @@ pub fn visit_nodes(
 }
 
 pub fn try_visit_nodes(
+    nodes: &NodeArray,
+    visitor: Option<impl FnMut(&Node) -> io::Result<VisitResult>>,
+    test: Option<impl Fn(&Node) -> bool>,
+    start: Option<usize>,
+    count: Option<usize>,
+) -> io::Result<Gc<NodeArray>> {
+    Ok(try_maybe_visit_nodes(Some(nodes), visitor, test, start, count)?.unwrap())
+}
+
+pub fn try_maybe_visit_nodes(
     nodes: Option<&NodeArray>,
     visitor: Option<impl FnMut(&Node) -> io::Result<VisitResult>>,
     test: Option<impl Fn(&Node) -> bool>,

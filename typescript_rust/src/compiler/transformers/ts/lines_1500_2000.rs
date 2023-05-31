@@ -12,8 +12,8 @@ use crate::{
     is_simple_inlineable_expression, is_statement, move_range_past_decorators, move_range_pos,
     node_is_missing, set_comment_range, set_source_map_range, skip_partially_emitted_expressions,
     try_add_prologue_directives_and_initial_super_call, try_maybe_visit_each_child,
-    try_maybe_visit_node, try_visit_function_body, try_visit_node, try_visit_nodes,
-    try_visit_parameter_list, AsDoubleDeref, EmitFlags, FunctionLikeDeclarationInterface,
+    try_maybe_visit_node, try_maybe_visit_nodes, try_visit_function_body, try_visit_node,
+    try_visit_nodes, try_visit_parameter_list, EmitFlags, FunctionLikeDeclarationInterface,
     HasInitializerInterface, Matches, ModifierFlags, Node, NodeArray, NodeArrayExt, NodeExt,
     NodeFlags, NodeInterface, NonEmpty, PeekableExt, ScriptTarget, SignatureDeclarationInterface,
     SyntaxKind, TypeReferenceSerializationKind, VisitResult,
@@ -435,7 +435,7 @@ impl TransformTypeScript {
         let updated = self.factory.update_property_declaration(
             node,
             Option::<Gc<NodeArray>>::None,
-            try_visit_nodes(
+            try_maybe_visit_nodes(
                 node.maybe_modifiers().as_deref(),
                 Some(|node: &Node| self.visitor(node)),
                 Some(is_modifier),
@@ -548,14 +548,13 @@ impl TransformTypeScript {
 
         add_range(
             &mut statements,
-            try_visit_nodes(
-                Some(&body_as_block.statements),
+            Some(&try_visit_nodes(
+                &body_as_block.statements,
                 Some(|node: &Node| self.visitor(node)),
                 Some(is_statement),
                 Some(index_of_first_statement),
                 None,
-            )?
-            .as_double_deref(),
+            )?),
             None,
             None,
         );

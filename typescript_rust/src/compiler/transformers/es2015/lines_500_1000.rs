@@ -9,8 +9,8 @@ use crate::{
     id_text, insert_statements_after_standard_prologue, is_binary_expression, is_call_expression,
     is_expression, is_expression_statement, is_identifier_a_non_contextual_keyword, is_statement,
     is_super_call, set_emit_flags, single_or_many_node, skip_outer_expressions, skip_trivia,
-    try_visit_each_child, try_visit_node, try_visit_nodes, try_visit_parameter_list, AsDoubleDeref,
-    EmitFlags, FunctionLikeDeclarationInterface, GeneratedIdentifierFlags, HasStatementsInterface,
+    try_visit_each_child, try_visit_node, try_visit_nodes, try_visit_parameter_list, EmitFlags,
+    FunctionLikeDeclarationInterface, GeneratedIdentifierFlags, HasStatementsInterface,
     MapOrDefault, Matches, ModifierFlags, Node, NodeArray, NodeArrayExt, NodeArrayOrVec, NodeExt,
     NodeInterface, NodeWrappered, OptionTry, ReadonlyTextRange, ReadonlyTextRangeConcrete,
     SignatureDeclarationInterface, SyntaxKind, TextRange, TransformFlags, VisitResult,
@@ -37,14 +37,13 @@ impl TransformES2015 {
         )?;
         add_range(
             &mut statements,
-            try_visit_nodes(
-                Some(&node_as_source_file.statements()),
+            Some(&try_visit_nodes(
+                &node_as_source_file.statements(),
                 Some(|node: &Node| self.visitor(node)),
                 Some(is_statement),
                 Some(statement_offset),
                 None,
-            )?
-            .as_double_deref(),
+            )?),
             None,
             None,
         );
@@ -802,14 +801,13 @@ impl TransformES2015 {
 
         add_range(
             &mut statements,
-            try_visit_nodes(
-                Some(&constructor_body_as_block.statements),
+            Some(&try_visit_nodes(
+                &constructor_body_as_block.statements,
                 Some(|node: &Node| self.visitor(node)),
                 Some(is_statement),
                 None,
                 None,
-            )?
-            .as_double_deref(),
+            )?),
             None,
             None,
         );

@@ -67,17 +67,15 @@ impl TransformES2015 {
         let expression = self
             .factory
             .create_array_literal_expression(
-                try_visit_nodes(
-                    Some(
-                        &self
-                            .factory
-                            .create_node_array(Some(chunk), Some(has_trailing_comma)),
-                    ),
+                Some(try_visit_nodes(
+                    &self
+                        .factory
+                        .create_node_array(Some(chunk), Some(has_trailing_comma)),
                     Some(|node: &Node| self.visitor(node)),
                     Some(is_expression),
                     None,
                     None,
-                )?,
+                )?),
                 Some(multi_line),
             )
             .wrap();

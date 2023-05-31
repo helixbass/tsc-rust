@@ -14,8 +14,8 @@ use crate::{
     TransformerFactoryInterface, TransformerInterface, UnderscoreEscapedMap, VecExt, VisitResult,
     _d, gc_cell_ref_mut_unwrapped, gc_cell_ref_unwrapped, is_get_accessor, is_identifier,
     is_modifier, is_set_accessor, is_simple_inlineable_expression, is_static_modifier,
-    is_super_property, maybe_filter, move_range_pos, set_comment_range, visit_function_body,
-    visit_nodes, visit_parameter_list, AsDoubleDeref, HasInitializerInterface,
+    is_super_property, maybe_filter, maybe_visit_nodes, move_range_pos, set_comment_range,
+    visit_function_body, visit_parameter_list, AsDoubleDeref, HasInitializerInterface,
     NamedDeclarationInterface, ReadonlyTextRangeConcrete,
 };
 
@@ -917,7 +917,7 @@ impl TransformClassFields {
                         .update_property_declaration(
                             node,
                             Option::<Gc<NodeArray>>::None,
-                            visit_nodes(
+                            maybe_visit_nodes(
                                 node.maybe_modifiers().as_deref(),
                                 Some(|node: &Node| self.visitor(node)),
                                 Some(is_modifier),
@@ -1040,44 +1040,43 @@ impl TransformClassFields {
         if self.should_transform_super_in_static_initializers
             && is_super_property(node)
             && is_identifier(&node_as_property_access_expression.name())
+            && self
+                .maybe_current_static_property_declaration_or_static_block()
+                .is_some()
         {
-            if let Some(current_static_property_declaration_or_static_block) =
-                self.maybe_current_static_property_declaration_or_static_block()
+            if let Some(current_class_lexical_environment) =
+                self.maybe_current_class_lexical_environment()
             {
-                if let Some(current_class_lexical_environment) =
-                    self.maybe_current_class_lexical_environment()
-                {
-                    let class_constructor =
-                        current_class_lexical_environment.class_constructor.as_ref();
-                    let super_class_reference = current_class_lexical_environment
-                        .super_class_reference
-                        .as_ref();
-                    let facts = current_class_lexical_environment.facts;
-                    if facts.intersects(ClassFacts::ClassWasDecorated) {
-                        return Some(self.visit_invalid_super_property(node).into());
-                    }
-                    if let Some(class_constructor) = class_constructor {
-                        if let Some(super_class_reference) = super_class_reference {
-                            return Some(
-                                self.factory
-                                    .create_reflect_get_call(
-                                        super_class_reference.clone(),
-                                        self.factory
-                                            .create_string_literal_from_node(
-                                                &node_as_property_access_expression.name(),
-                                            )
-                                            .wrap(),
-                                        Some(class_constructor.clone()),
-                                    )
-                                    .set_original_node(Some(
-                                        node_as_property_access_expression.expression.clone(),
-                                    ))
-                                    .set_text_range(Some(
-                                        &*node_as_property_access_expression.expression,
-                                    ))
-                                    .into(),
-                            );
-                        }
+                let class_constructor =
+                    current_class_lexical_environment.class_constructor.as_ref();
+                let super_class_reference = current_class_lexical_environment
+                    .super_class_reference
+                    .as_ref();
+                let facts = current_class_lexical_environment.facts;
+                if facts.intersects(ClassFacts::ClassWasDecorated) {
+                    return Some(self.visit_invalid_super_property(node).into());
+                }
+                if let Some(class_constructor) = class_constructor {
+                    if let Some(super_class_reference) = super_class_reference {
+                        return Some(
+                            self.factory
+                                .create_reflect_get_call(
+                                    super_class_reference.clone(),
+                                    self.factory
+                                        .create_string_literal_from_node(
+                                            &node_as_property_access_expression.name(),
+                                        )
+                                        .wrap(),
+                                    Some(class_constructor.clone()),
+                                )
+                                .set_original_node(Some(
+                                    node_as_property_access_expression.expression.clone(),
+                                ))
+                                .set_text_range(Some(
+                                    &*node_as_property_access_expression.expression,
+                                ))
+                                .into(),
+                        );
                     }
                 }
             }

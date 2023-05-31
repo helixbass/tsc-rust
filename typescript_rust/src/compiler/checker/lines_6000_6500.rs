@@ -25,7 +25,7 @@ use crate::{
     is_type_reference_node, length, maybe_get_source_file_of_node, node_is_synthesized,
     null_transformation_context, set_emit_flags, set_original_node, set_text_range, some,
     starts_with, try_for_each_entry_bool, try_map, try_map_defined, try_maybe_map,
-    try_maybe_visit_node, try_visit_each_child, try_visit_node, try_visit_nodes,
+    try_maybe_visit_node, try_maybe_visit_nodes, try_visit_each_child, try_visit_node,
     unescape_leading_underscores, AsDoubleDeref, CharacterCodes, Debug_, EmitFlags,
     HasTypeArgumentsInterface, HasTypeInterface, HasTypeParametersInterface, InternalSymbolName,
     LiteralType, Matches, NamedDeclarationInterface, Node, NodeArray, NodeBuilder,
@@ -1258,7 +1258,7 @@ impl NodeBuilder {
                 return Ok(Some(
                     get_factory().create_constructor_type_node(
                         node_as_jsdoc_function_type.maybe_modifiers().clone(),
-                        try_visit_nodes(
+                        try_maybe_visit_nodes(
                             node_as_jsdoc_function_type.maybe_type_parameters().as_deref(),
                             Some(|node: &Node| self.visit_existing_node_tree_symbols(context, had_error, include_private_symbol, file, node)),
                             Option::<fn(&Node) -> bool>::None,
@@ -1312,7 +1312,7 @@ impl NodeBuilder {
                 return Ok(Some(
                     get_factory()
                         .create_function_type_node(
-                            try_visit_nodes(
+                            try_maybe_visit_nodes(
                                 node_as_jsdoc_function_type
                                     .maybe_type_parameters()
                                     .as_deref(),

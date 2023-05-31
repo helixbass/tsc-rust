@@ -18,8 +18,8 @@ use crate::{
     is_set_accessor_declaration, is_source_file, is_string_literal_like, is_tuple_type_node,
     is_type_alias_declaration, is_type_node, is_type_query_node, length, map_defined,
     needs_scope_marker, return_ok_default_if_none, set_comment_range_rc, set_emit_flags, some,
-    try_maybe_map, try_maybe_visit_each_child, try_maybe_visit_node, try_visit_each_child,
-    try_visit_node, try_visit_nodes, visit_nodes, Debug_, EmitFlags,
+    try_maybe_map, try_maybe_visit_each_child, try_maybe_visit_node, try_maybe_visit_nodes,
+    try_visit_each_child, try_visit_node, visit_nodes, Debug_, EmitFlags,
     FunctionLikeDeclarationInterface, GetSymbolAccessibilityDiagnostic, HasQuestionTokenInterface,
     HasTypeArgumentsInterface, HasTypeInterface, HasTypeParametersInterface, ModifierFlags,
     NamedDeclarationInterface, Node, NodeArray, NodeInterface, NonEmpty, OptionTry,
@@ -322,7 +322,7 @@ impl TransformDeclarations {
         Ok(if has_effective_modifier(node, ModifierFlags::Private) {
             None
         } else {
-            try_visit_nodes(
+            try_maybe_visit_nodes(
                 params,
                 Some(|node: &Node| self.visit_declaration_subtree(node)),
                 Option::<fn(&Node) -> bool>::None,
@@ -638,13 +638,12 @@ impl TransformDeclarations {
         }
 
         Ok(visit_nodes(
-            Some(statements),
+            statements,
             Some(|node: &Node| self.visit_late_visibility_marked_statements(node)),
             Option::<fn(&Node) -> bool>::None,
             None,
             None,
-        )
-        .unwrap())
+        ))
     }
 
     pub(super) fn visit_late_visibility_marked_statements(
@@ -1332,7 +1331,7 @@ impl TransformDeclarations {
                         Some(
                             &self.factory.update_function_type_node(
                                 input,
-                                try_visit_nodes(
+                                try_maybe_visit_nodes(
                                     input_as_function_type_node
                                         .maybe_type_parameters()
                                         .as_deref(),
@@ -1370,7 +1369,7 @@ impl TransformDeclarations {
                             &self.factory.update_constructor_type_node(
                                 input,
                                 self.ensure_modifiers(input),
-                                try_visit_nodes(
+                                try_maybe_visit_nodes(
                                     input_as_constructor_type_node
                                         .maybe_type_parameters()
                                         .as_deref(),
@@ -1432,7 +1431,7 @@ impl TransformDeclarations {
                                     .unwrap(),
                                 ),
                                 input_as_import_type_node.qualifier.clone(),
-                                try_visit_nodes(
+                                try_maybe_visit_nodes(
                                     input_as_import_type_node.maybe_type_arguments().as_deref(),
                                     Some(|node: &Node| self.visit_declaration_subtree(node)),
                                     Some(is_type_node),

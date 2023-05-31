@@ -232,13 +232,12 @@ impl TransformES2020 {
                 false,
             );
             let args = visit_nodes(
-                Some(&node_as_call_expression.arguments),
+                &node_as_call_expression.arguments,
                 Some(|node: &Node| self.visitor(node)),
                 Some(is_expression),
                 None,
                 None,
-            )
-            .unwrap();
+            );
             if is_synthetic_reference(&expression) {
                 let expression_as_synthetic_reference_expression =
                     expression.as_synthetic_reference_expression();
@@ -379,13 +378,12 @@ impl TransformES2020 {
                                 left_this_arg.clone()
                             },
                             visit_nodes(
-                                Some(&segment.as_call_expression().arguments),
+                                &segment.as_call_expression().arguments,
                                 Some(|node: &Node| self.visitor(node)),
                                 Some(is_expression),
                                 None,
                                 None,
-                            )
-                            .unwrap(),
+                            ),
                         );
                     } else {
                         right_expression = self
@@ -393,13 +391,13 @@ impl TransformES2020 {
                             .create_call_expression(
                                 right_expression,
                                 Option::<Gc<NodeArray>>::None,
-                                visit_nodes(
-                                    Some(&segment.as_call_expression().arguments),
+                                Some(visit_nodes(
+                                    &segment.as_call_expression().arguments,
                                     Some(|node: &Node| self.visitor(node)),
                                     Some(is_expression),
                                     None,
                                     None,
-                                ),
+                                )),
                             )
                             .wrap();
                     }

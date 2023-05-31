@@ -9,13 +9,13 @@ use crate::{
     insert_statements_after_standard_prologue, is_assertion_expression, is_binding_name,
     is_binding_pattern, is_enum_const, is_expression, is_instantiated_module, is_jsx_attributes,
     is_jsx_tag_name_expression, is_left_hand_side_expression, is_modifier, is_module_declaration,
-    move_range_past_decorators, move_range_past_modifiers, node_is_missing,
+    maybe_visit_nodes, move_range_past_decorators, move_range_past_modifiers, node_is_missing,
     parameter_is_this_keyword, set_comment_range, set_emit_flags, set_source_map_range,
     set_synthetic_leading_comments, set_synthetic_trailing_comments, set_text_range,
     set_text_range_rc_node, should_preserve_const_enums, skip_outer_expressions,
     try_flatten_destructuring_assignment, try_map, try_maybe_visit_each_child,
-    try_maybe_visit_node, try_visit_each_child, try_visit_function_body, try_visit_node,
-    try_visit_nodes, try_visit_parameter_list, visit_nodes, EmitFlags, FlattenLevel,
+    try_maybe_visit_node, try_maybe_visit_nodes, try_visit_each_child, try_visit_function_body,
+    try_visit_node, try_visit_nodes, try_visit_parameter_list, EmitFlags, FlattenLevel,
     FunctionLikeDeclarationInterface, HasInitializerInterface, ModifierFlags, ModuleKind,
     NamedDeclarationInterface, Node, NodeArray, NodeArrayExt, NodeExt, NodeInterface, NonEmpty,
     OuterExpressionKinds, ReadonlyTextRange, SignatureDeclarationInterface, StringOrNumber,
@@ -34,7 +34,7 @@ impl TransformTypeScript {
         let updated = self.factory.update_method_declaration(
             node,
             Option::<Gc<NodeArray>>::None,
-            visit_nodes(
+            maybe_visit_nodes(
                 node.maybe_modifiers().as_deref(),
                 Some(|node: &Node| self.modifier_visitor(node)),
                 Some(is_modifier),
@@ -87,7 +87,7 @@ impl TransformTypeScript {
         let updated = self.factory.update_get_accessor_declaration(
             node,
             Option::<Gc<NodeArray>>::None,
-            visit_nodes(
+            maybe_visit_nodes(
                 node.maybe_modifiers().as_deref(),
                 Some(|node: &Node| self.modifier_visitor(node)),
                 Some(is_modifier),
@@ -132,7 +132,7 @@ impl TransformTypeScript {
         let updated = self.factory.update_set_accessor_declaration(
             node,
             Option::<Gc<NodeArray>>::None,
-            visit_nodes(
+            maybe_visit_nodes(
                 node.maybe_modifiers().as_deref(),
                 Some(|node: &Node| self.modifier_visitor(node)),
                 Some(is_modifier),
@@ -180,7 +180,7 @@ impl TransformTypeScript {
         let updated = self.factory.update_function_declaration(
             node,
             Option::<Gc<NodeArray>>::None,
-            visit_nodes(
+            maybe_visit_nodes(
                 node.maybe_modifiers().as_deref(),
                 Some(|node: &Node| self.modifier_visitor(node)),
                 Some(is_modifier),
@@ -224,7 +224,7 @@ impl TransformTypeScript {
         }
         let updated = self.factory.update_function_expression(
             node,
-            visit_nodes(
+            maybe_visit_nodes(
                 node.maybe_modifiers().as_deref(),
                 Some(|node: &Node| self.modifier_visitor(node)),
                 Some(is_modifier),
@@ -258,7 +258,7 @@ impl TransformTypeScript {
         let node_as_arrow_function = node.as_arrow_function();
         let updated = self.factory.update_arrow_function(
             node,
-            visit_nodes(
+            maybe_visit_nodes(
                 node.maybe_modifiers().as_deref(),
                 Some(|node: &Node| self.modifier_visitor(node)),
                 Some(is_modifier),
@@ -513,13 +513,12 @@ impl TransformTypeScript {
                     )?,
                     Option::<Gc<NodeArray>>::None,
                     try_visit_nodes(
-                        Some(&node_as_call_expression.arguments),
+                        &node_as_call_expression.arguments,
                         Some(|node: &Node| self.visitor(node)),
                         Some(is_expression),
                         None,
                         None,
-                    )?
-                    .unwrap(),
+                    )?,
                 )
                 .into(),
         ))
@@ -541,7 +540,7 @@ impl TransformTypeScript {
                         Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
                     )?,
                     Option::<Gc<NodeArray>>::None,
-                    try_visit_nodes(
+                    try_maybe_visit_nodes(
                         node_as_new_expression.arguments.as_deref(),
                         Some(|node: &Node| self.visitor(node)),
                         Some(is_expression),

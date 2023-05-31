@@ -1,7 +1,8 @@
+use std::{cell::Cell, ops::Deref};
+
 use bitflags::bitflags;
 use gc::{Finalize, Gc, GcCell, GcCellRefMut, Trace};
-use std::cell::Cell;
-use std::ops::Deref;
+use local_macros::{ast_type, enum_unwrapped};
 
 use super::{
     BaseGenericNamedDeclaration, BaseNode, FlowNode, HasExpressionInterface,
@@ -10,13 +11,13 @@ use super::{
     ReadonlyTextRange, SyntaxKind, TransformFlags, __String,
 };
 use crate::set_text_range_node_array;
-use local_macros::{ast_type, enum_unwrapped};
 
 mod _NodeArrayDeriveTraceScope {
     use std::slice;
 
-    use super::*;
     use local_macros::Trace;
+
+    use super::*;
 
     #[derive(Clone, Trace, Finalize)]
     pub struct NodeArray {
@@ -211,8 +212,9 @@ impl NodeArrayExt for Gc<NodeArray> {
 }
 
 mod _NodeArrayOrVecDeriveTraceScope {
-    use super::*;
     use local_macros::Trace;
+
+    use super::*;
 
     #[derive(Clone, Debug, Trace, Finalize)]
     pub enum NodeArrayOrVec {
@@ -223,6 +225,10 @@ mod _NodeArrayOrVecDeriveTraceScope {
     impl NodeArrayOrVec {
         pub fn as_vec_owned(self) -> Vec<Gc<Node>> {
             enum_unwrapped!(self, [NodeArrayOrVec, Vec])
+        }
+
+        pub fn as_node_array(self) -> Gc<NodeArray> {
+            enum_unwrapped!(self, [NodeArrayOrVec, NodeArray])
         }
     }
 }

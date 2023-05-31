@@ -4,7 +4,7 @@ use gc::Gc;
 
 use super::{
     try_visit_function_body_full, try_visit_iteration_body, try_visit_lexical_environment,
-    try_visit_nodes, try_visit_parameter_list_full,
+    try_visit_parameter_list_full,
 };
 use crate::{
     is_array_binding_element, is_assert_clause, is_assert_entry, is_assertion_key,
@@ -26,12 +26,13 @@ use crate::{
     is_template_literal_type_span, is_template_middle_or_template_tail, is_template_span, is_token,
     is_type_element, is_type_node, is_type_node_or_type_parameter_declaration,
     is_type_parameter_declaration, is_variable_declaration, is_variable_declaration_list,
-    return_ok_default_if_none, try_maybe_visit_node, ClassLikeDeclarationInterface,
-    FunctionLikeDeclarationInterface, HasInitializerInterface, HasMembersInterface,
-    HasQuestionTokenInterface, HasStatementsInterface, HasTypeArgumentsInterface, HasTypeInterface,
-    HasTypeParametersInterface, InterfaceOrClassLikeDeclarationInterface,
-    NamedDeclarationInterface, Node, NodeArray, NodeFlags, NodeInterface,
-    SignatureDeclarationInterface, SyntaxKind, TransformationContext, VisitResult,
+    return_ok_default_if_none, try_maybe_visit_node, try_maybe_visit_nodes,
+    ClassLikeDeclarationInterface, FunctionLikeDeclarationInterface, HasInitializerInterface,
+    HasMembersInterface, HasQuestionTokenInterface, HasStatementsInterface,
+    HasTypeArgumentsInterface, HasTypeInterface, HasTypeParametersInterface,
+    InterfaceOrClassLikeDeclarationInterface, NamedDeclarationInterface, Node, NodeArray,
+    NodeFlags, NodeInterface, SignatureDeclarationInterface, SyntaxKind, TransformationContext,
+    VisitResult,
 };
 
 pub fn try_visit_each_child(
@@ -105,7 +106,7 @@ pub fn try_maybe_visit_each_child_full(
             if let Some(nodes_visitor) = nodes_visitor.as_mut() {
                 nodes_visitor(nodes, visitor, test, start, count)
             } else {
-                try_visit_nodes(nodes, visitor, test, start, count)
+                try_maybe_visit_nodes(nodes, visitor, test, start, count)
             }
         };
     let mut node_visitor =

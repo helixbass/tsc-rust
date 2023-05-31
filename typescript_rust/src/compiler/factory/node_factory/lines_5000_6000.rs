@@ -615,6 +615,15 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         unimplemented!()
     }
 
+    pub fn create_function_bind_call(
+        &self,
+        _target: Gc<Node /*Expression*/>,
+        _this_arg: Gc<Node /*Expression*/>,
+        _arguments_list: impl Into<NodeArrayOrVec /*Expression*/>,
+    ) -> Gc<Node> {
+        unimplemented!()
+    }
+
     pub fn create_function_call_call(
         &self,
         _target: Gc<Node /*Expression*/>,

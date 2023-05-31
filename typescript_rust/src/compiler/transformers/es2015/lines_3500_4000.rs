@@ -124,13 +124,12 @@ impl TransformES2015 {
     ) -> io::Result<Gc<Node /*Block*/>> {
         let block_as_block = block.as_block();
         let transformed_statements = try_visit_nodes(
-            Some(&block_as_block.statements),
+            &block_as_block.statements,
             Some(|node: &Node| self.visitor(node)),
             Some(is_statement),
             None,
             None,
-        )?
-        .unwrap();
+        )?;
         Ok(self.factory.update_block(
             block,
             vec![statement].and_extend(transformed_statements.owned_iter()),
@@ -299,13 +298,12 @@ impl TransformES2015 {
                     )?,
                     Option::<Gc<NodeArray>>::None,
                     try_visit_nodes(
-                        Some(&node_as_call_expression.arguments),
+                        &node_as_call_expression.arguments,
                         Some(|node: &Node| self.visitor(node)),
                         Some(is_expression),
                         None,
                         None,
-                    )?
-                    .unwrap(),
+                    )?,
                 )
                 .into(),
         ))
@@ -331,13 +329,12 @@ impl TransformES2015 {
         let saved_converted_loop_state = self.maybe_converted_loop_state();
         self.set_converted_loop_state(None);
         let body_statements = try_visit_nodes(
-            Some(&body_as_block.statements),
+            &body_as_block.statements,
             Some(|node: &Node| self.class_wrapper_statement_visitor(node)),
             Some(is_statement),
             None,
             None,
-        )?
-        .unwrap();
+        )?;
         self.set_converted_loop_state(saved_converted_loop_state);
 
         let class_statements = filter(&body_statements, |statement: &Gc<Node>| {
@@ -603,13 +600,12 @@ impl TransformES2015 {
                             )?
                         },
                         try_visit_nodes(
-                            Some(&node_as_call_expression.arguments),
+                            &node_as_call_expression.arguments,
                             Some(|node: &Node| self.visitor(node)),
                             Some(is_expression),
                             None,
                             None,
-                        )?
-                        .unwrap(),
+                        )?,
                     )
                     .set_text_range(Some(node))
             }

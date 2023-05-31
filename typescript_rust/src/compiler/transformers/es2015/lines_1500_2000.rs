@@ -12,7 +12,7 @@ use crate::{
     is_private_identifier, is_property_name, is_statement, is_static, move_range_end,
     node_is_synthesized, range_end_is_on_same_line_as_range_start, set_emit_flags,
     set_original_node, set_source_map_range, set_token_source_map_range, start_on_new_line,
-    try_visit_node, try_visit_nodes, try_visit_parameter_list, unescape_leading_underscores,
+    try_maybe_visit_nodes, try_visit_node, try_visit_parameter_list, unescape_leading_underscores,
     AllAccessorDeclarations, AsDoubleDeref, Debug_, EmitFlags, FunctionLikeDeclarationInterface,
     GeneratedIdentifierFlags, Matches, NamedDeclarationInterface, Node, NodeArray, NodeArrayExt,
     NodeExt, NodeInterface, NodeWrappered, PropertyDescriptorAttributesBuilder, ReadonlyTextRange,
@@ -625,7 +625,7 @@ impl TransformES2015 {
         Ok(self.factory.update_function_declaration(
             node,
             Option::<Gc<NodeArray>>::None,
-            try_visit_nodes(
+            try_maybe_visit_nodes(
                 node.maybe_modifiers().as_deref(),
                 Some(|node: &Node| self.visitor(node)),
                 Some(is_modifier),
@@ -763,7 +763,7 @@ impl TransformES2015 {
             statements_location = Some((&*body_as_block.statements).into());
             add_range(
                 &mut statements,
-                try_visit_nodes(
+                try_maybe_visit_nodes(
                     Some(&body_as_block.statements),
                     Some(|node: &Node| self.visitor(node)),
                     Some(is_statement),

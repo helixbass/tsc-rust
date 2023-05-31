@@ -20,14 +20,14 @@ use crate::{
     is_property_access_expression, is_super_property, is_token, is_variable_declaration_list,
     ref_mut_unwrapped, ref_unwrapped, set_emit_flags, set_original_node, set_source_map_range,
     set_text_range, set_text_range_node_array, set_text_range_rc_node, try_maybe_visit_each_child,
-    try_maybe_visit_node, unescape_leading_underscores, BaseNodeFactorySynthetic, CompilerOptions,
-    Debug_, EmitFlags, EmitHint, EmitResolver, FunctionFlags, FunctionLikeDeclarationInterface,
-    GeneratedIdentifierFlags, HasInitializerInterface, NamedDeclarationInterface, Node, NodeArray,
-    NodeCheckFlags, NodeFactory, NodeFlags, NodeId, NodeInterface, NonEmpty, OptionTry,
-    ReadonlyTextRange, ScriptTarget, SignatureDeclarationInterface, SyntaxKind, TransformFlags,
-    TransformationContext, TransformationContextOnEmitNodeOverrider,
-    TransformationContextOnSubstituteNodeOverrider, Transformer, TypeReferenceSerializationKind,
-    VisitResult,
+    try_maybe_visit_node, try_maybe_visit_nodes, unescape_leading_underscores,
+    BaseNodeFactorySynthetic, CompilerOptions, Debug_, EmitFlags, EmitHint, EmitResolver,
+    FunctionFlags, FunctionLikeDeclarationInterface, GeneratedIdentifierFlags,
+    HasInitializerInterface, NamedDeclarationInterface, Node, NodeArray, NodeCheckFlags,
+    NodeFactory, NodeFlags, NodeId, NodeInterface, NonEmpty, OptionTry, ReadonlyTextRange,
+    ScriptTarget, SignatureDeclarationInterface, SyntaxKind, TransformFlags, TransformationContext,
+    TransformationContextOnEmitNodeOverrider, TransformationContextOnSubstituteNodeOverrider,
+    Transformer, TypeReferenceSerializationKind, VisitResult,
 };
 
 bitflags! {
@@ -631,7 +631,7 @@ impl TransformES2017 {
         Ok(self.factory.update_method_declaration(
             node,
             Option::<Gc<NodeArray>>::None,
-            try_visit_nodes(
+            try_maybe_visit_nodes(
                 node.maybe_modifiers().as_deref(),
                 Some(|node: &Node| self.visitor(node)),
                 Some(is_modifier),
@@ -671,7 +671,7 @@ impl TransformES2017 {
                 .update_function_declaration(
                     node,
                     Option::<Gc<NodeArray>>::None,
-                    try_visit_nodes(
+                    try_maybe_visit_nodes(
                         node.maybe_modifiers().as_deref(),
                         Some(|node: &Node| self.visitor(node)),
                         Some(is_modifier),
@@ -709,7 +709,7 @@ impl TransformES2017 {
         let node_as_function_expression = node.as_function_expression();
         Ok(self.factory.update_function_expression(
             node,
-            try_visit_nodes(
+            try_maybe_visit_nodes(
                 node.maybe_modifiers().as_deref(),
                 Some(|node: &Node| self.visitor(node)),
                 Some(is_modifier),
@@ -743,7 +743,7 @@ impl TransformES2017 {
         let node_as_arrow_function = node.as_arrow_function();
         Ok(self.factory.update_arrow_function(
             node,
-            try_visit_nodes(
+            try_maybe_visit_nodes(
                 node.maybe_modifiers().as_deref(),
                 Some(|node: &Node| self.visitor(node)),
                 Some(is_modifier),
@@ -1081,13 +1081,12 @@ impl TransformES2017 {
             self.factory.update_block(
                 body,
                 try_visit_nodes(
-                    Some(&body.as_block().statements),
+                    &body.as_block().statements,
                     Some(|node: &Node| self.async_body_visitor(node)),
                     Some(is_statement),
                     start,
                     None,
-                )?
-                .unwrap(),
+                )?,
             )
         } else {
             self.factory.converters().convert_to_function_block(

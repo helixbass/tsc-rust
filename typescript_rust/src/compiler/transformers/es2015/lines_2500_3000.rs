@@ -9,10 +9,10 @@ use super::{
 use crate::{
     VisitResult, _d, get_combined_node_flags, is_expression, is_for_initializer, is_for_statement,
     is_identifier, is_object_literal_element_like, is_omitted_expression, is_statement,
-    start_on_new_line, try_maybe_visit_node, try_visit_each_child, try_visit_node, try_visit_nodes,
-    BoolExt, Debug_, EmitFlags, Matches, NamedDeclarationInterface, Node, NodeArray,
-    NodeCheckFlags, NodeExt, NodeFlags, NodeInterface, NodeWrappered, OptionTry, SyntaxKind,
-    TransformFlags,
+    start_on_new_line, try_maybe_visit_node, try_maybe_visit_nodes, try_visit_each_child,
+    try_visit_node, BoolExt, Debug_, EmitFlags, Matches, NamedDeclarationInterface, Node,
+    NodeArray, NodeCheckFlags, NodeExt, NodeFlags, NodeInterface, NodeWrappered, OptionTry,
+    SyntaxKind, TransformFlags,
 };
 
 impl TransformES2015 {
@@ -321,7 +321,7 @@ impl TransformES2015 {
                 temp.clone(),
                 self.factory
                     .create_object_literal_expression(
-                        try_visit_nodes(
+                        try_maybe_visit_nodes(
                             Some(properties),
                             Some(|node: &Node| self.visitor(node)),
                             Some(is_object_literal_element_like),
