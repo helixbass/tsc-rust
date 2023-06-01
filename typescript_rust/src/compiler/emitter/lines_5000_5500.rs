@@ -1,6 +1,6 @@
+use std::{convert::TryInto, io, rc::Rc};
+
 use gc::Gc;
-use std::convert::TryInto;
-use std::rc::Rc;
 
 use super::{PipelinePhase, TempFlags};
 use crate::{
@@ -14,7 +14,6 @@ use crate::{
     ReadonlyTextRange, SourceFileLike, SourceTextAsChars, SymbolFlags, SymbolInterface, SyntaxKind,
     SynthesizedComment, TextRange,
 };
-use std::io;
 
 impl Printer {
     pub(super) fn generate_name_cached(
@@ -577,15 +576,13 @@ impl Printer {
     }
 
     pub(super) fn original_nodes_have_same_parent(&self, node_a: &Node, node_b: &Node) -> bool {
-        let ref node_a =
-            get_original_node(Some(node_a), Option::<fn(Option<Gc<Node>>) -> bool>::None).unwrap();
+        let ref node_a = get_original_node(node_a);
         matches!(
             node_a.maybe_parent().as_ref(),
             Some(node_a_parent) if matches!(
                 get_original_node(
-                    Some(node_b),
-                    Option::<fn(Option<Gc<Node>>) -> bool>::None
-                ).unwrap().maybe_parent().as_ref(),
+                    node_b
+                ).maybe_parent().as_ref(),
                 Some(node_b_parent) if Gc::ptr_eq(
                     node_a_parent,
                     node_b_parent,
@@ -603,16 +600,8 @@ impl Printer {
             return false;
         }
 
-        let ref previous_node = get_original_node(
-            Some(previous_node),
-            Option::<fn(Option<Gc<Node>>) -> bool>::None,
-        )
-        .unwrap();
-        let ref next_node = get_original_node(
-            Some(next_node),
-            Option::<fn(Option<Gc<Node>>) -> bool>::None,
-        )
-        .unwrap();
+        let ref previous_node = get_original_node(previous_node);
+        let ref next_node = get_original_node(next_node);
         let parent = previous_node.maybe_parent();
         if match parent.as_ref() {
             None => true,

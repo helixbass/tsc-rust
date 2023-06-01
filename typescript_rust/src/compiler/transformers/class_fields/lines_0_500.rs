@@ -235,23 +235,24 @@ impl PrivateIdentifierInfoInterface for PrivateIdentifierInfo {
     }
 }
 
-#[derive(Trace, Finalize)]
+#[derive(Default, Trace, Finalize)]
 pub(super) struct PrivateIdentifierEnvironment {
     pub class_name: String,
     pub weak_set_name: Option<Gc<Node /*Identifier*/>>,
     pub identifiers: UnderscoreEscapedMap<PrivateIdentifierInfo>,
 }
 
-#[derive(Trace, Finalize)]
+#[derive(Default, Trace, Finalize)]
 pub(super) struct ClassLexicalEnvironment {
     #[unsafe_ignore_trace]
     pub facts: ClassFacts,
     pub class_constructor: Option<Gc<Node /*Identifier*/>>,
     pub super_class_reference: Option<Gc<Node /*Identifier*/>>,
-    pub private_identifier_environment: Option<PrivateIdentifierEnvironment>,
+    pub private_identifier_environment: Option<Gc<GcCell<PrivateIdentifierEnvironment>>>,
 }
 
 bitflags! {
+    #[derive(Default)]
     pub(super) struct ClassFacts: u32 {
         const None = 0;
         const ClassWasDecorated = 1 << 0;
@@ -279,11 +280,14 @@ pub(super) struct TransformClassFields {
     pub(super) class_aliases: GcCell<Option<Vec<Gc<Node /*Identifier*/>>>>,
     pub(super) pending_expressions: GcCell<Option<Vec<Gc<Node /*Expression*/>>>>,
     pub(super) pending_statements: GcCell<Option<Vec<Gc<Node /*Statement*/>>>>,
-    pub(super) class_lexical_environment_stack: GcCell<Vec<Option<Gc<ClassLexicalEnvironment>>>>,
-    pub(super) class_lexical_environment_map: GcCell<HashMap<NodeId, Gc<ClassLexicalEnvironment>>>,
-    pub(super) current_class_lexical_environment: GcCell<Option<Gc<ClassLexicalEnvironment>>>,
+    pub(super) class_lexical_environment_stack:
+        GcCell<Vec<Option<Gc<GcCell<ClassLexicalEnvironment>>>>>,
+    pub(super) class_lexical_environment_map:
+        GcCell<HashMap<NodeId, Gc<GcCell<ClassLexicalEnvironment>>>>,
+    pub(super) current_class_lexical_environment:
+        GcCell<Option<Gc<GcCell<ClassLexicalEnvironment>>>>,
     pub(super) current_computed_property_name_class_lexical_environment:
-        GcCell<Option<Gc<ClassLexicalEnvironment>>>,
+        GcCell<Option<Gc<GcCell<ClassLexicalEnvironment>>>>,
     pub(super) current_static_property_declaration_or_static_block:
         GcCell<Option<Gc<Node /*PropertyDeclaration | ClassStaticBlockDeclaration*/>>>,
 }
@@ -427,80 +431,74 @@ impl TransformClassFields {
 
     pub(super) fn class_lexical_environment_stack(
         &self,
-    ) -> GcCellRef<Vec<Option<Gc<ClassLexicalEnvironment>>>> {
+    ) -> GcCellRef<Vec<Option<Gc<GcCell<ClassLexicalEnvironment>>>>> {
         self.class_lexical_environment_stack.borrow()
     }
 
     pub(super) fn class_lexical_environment_stack_mut(
         &self,
-    ) -> GcCellRefMut<Vec<Option<Gc<ClassLexicalEnvironment>>>> {
+    ) -> GcCellRefMut<Vec<Option<Gc<GcCell<ClassLexicalEnvironment>>>>> {
         self.class_lexical_environment_stack.borrow_mut()
     }
 
     pub(super) fn set_class_lexical_environment_stack(
         &self,
-        class_lexical_environment_stack: Vec<Option<Gc<ClassLexicalEnvironment>>>,
+        class_lexical_environment_stack: Vec<Option<Gc<GcCell<ClassLexicalEnvironment>>>>,
     ) {
         *self.class_lexical_environment_stack.borrow_mut() = class_lexical_environment_stack;
     }
 
     pub(super) fn class_lexical_environment_map(
         &self,
-    ) -> GcCellRef<HashMap<NodeId, Gc<ClassLexicalEnvironment>>> {
+    ) -> GcCellRef<HashMap<NodeId, Gc<GcCell<ClassLexicalEnvironment>>>> {
         self.class_lexical_environment_map.borrow()
     }
 
     pub(super) fn class_lexical_environment_map_mut(
         &self,
-    ) -> GcCellRefMut<HashMap<NodeId, Gc<ClassLexicalEnvironment>>> {
+    ) -> GcCellRefMut<HashMap<NodeId, Gc<GcCell<ClassLexicalEnvironment>>>> {
         self.class_lexical_environment_map.borrow_mut()
     }
 
     pub(super) fn set_class_lexical_environment_map(
         &self,
-        class_lexical_environment_map: HashMap<NodeId, Gc<ClassLexicalEnvironment>>,
+        class_lexical_environment_map: HashMap<NodeId, Gc<GcCell<ClassLexicalEnvironment>>>,
     ) {
         *self.class_lexical_environment_map.borrow_mut() = class_lexical_environment_map;
     }
 
     pub(super) fn maybe_current_class_lexical_environment(
         &self,
-    ) -> Option<Gc<ClassLexicalEnvironment>> {
+    ) -> Option<Gc<GcCell<ClassLexicalEnvironment>>> {
         self.current_class_lexical_environment.borrow().clone()
     }
 
-    pub(super) fn maybe_current_class_lexical_environment_mut(
-        &self,
-    ) -> GcCellRefMut<Option<Gc<ClassLexicalEnvironment>>> {
-        self.current_class_lexical_environment.borrow_mut()
+    pub(super) fn current_class_lexical_environment(&self) -> Gc<GcCell<ClassLexicalEnvironment>> {
+        self.current_class_lexical_environment
+            .borrow()
+            .clone()
+            .unwrap()
     }
 
     pub(super) fn set_current_class_lexical_environment(
         &self,
-        current_class_lexical_environment: Option<Gc<ClassLexicalEnvironment>>,
+        current_class_lexical_environment: Option<Gc<GcCell<ClassLexicalEnvironment>>>,
     ) {
         *self.current_class_lexical_environment.borrow_mut() = current_class_lexical_environment;
     }
 
     pub(super) fn maybe_current_computed_property_name_class_lexical_environment(
         &self,
-    ) -> Option<Gc<ClassLexicalEnvironment>> {
+    ) -> Option<Gc<GcCell<ClassLexicalEnvironment>>> {
         self.current_computed_property_name_class_lexical_environment
             .borrow()
             .clone()
     }
 
-    pub(super) fn maybe_current_computed_property_name_class_lexical_environment_mut(
-        &self,
-    ) -> GcCellRefMut<Option<Gc<ClassLexicalEnvironment>>> {
-        self.current_computed_property_name_class_lexical_environment
-            .borrow_mut()
-    }
-
     pub(super) fn set_current_computed_property_name_class_lexical_environment(
         &self,
         current_computed_property_name_class_lexical_environment: Option<
-            Gc<ClassLexicalEnvironment>,
+            Gc<GcCell<ClassLexicalEnvironment>>,
         >,
     ) {
         *self
@@ -1047,6 +1045,8 @@ impl TransformClassFields {
             if let Some(current_class_lexical_environment) =
                 self.maybe_current_class_lexical_environment()
             {
+                let current_class_lexical_environment =
+                    (*current_class_lexical_environment).borrow();
                 let class_constructor =
                     current_class_lexical_environment.class_constructor.as_ref();
                 let super_class_reference = current_class_lexical_environment

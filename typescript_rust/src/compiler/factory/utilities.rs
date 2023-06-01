@@ -3,15 +3,15 @@ use std::{borrow::Borrow, cell::RefCell, io, ptr, rc::Rc};
 use gc::{Finalize, Gc, Trace};
 
 use crate::{
-    first_or_undefined, get_emit_flags, get_jsdoc_type, get_jsdoc_type_tag, get_original_node,
+    first_or_undefined, get_emit_flags, get_jsdoc_type, get_jsdoc_type_tag,
     is_assignment_expression, is_declaration_binding_element, is_exclamation_token, is_identifier,
     is_in_js_file, is_minus_token, is_object_literal_element_like, is_parenthesized_expression,
     is_plus_token, is_prologue_directive, is_question_token, is_readonly_keyword, is_source_file,
     is_spread_element, is_string_literal, is_this_type_node, is_type_node,
-    is_type_parameter_declaration, push_or_replace, set_starts_on_new_line, AssertionLevel,
-    BaseNodeFactory, Debug_, EmitFlags, HasInitializerInterface, LiteralLikeNodeInterface,
-    NamedDeclarationInterface, Node, NodeArray, NodeFactory, NodeInterface, OuterExpressionKinds,
-    ReadonlyTextRange, SyntaxKind,
+    is_type_parameter_declaration, maybe_get_original_node_full, push_or_replace,
+    set_starts_on_new_line, AssertionLevel, BaseNodeFactory, Debug_, EmitFlags,
+    HasInitializerInterface, LiteralLikeNodeInterface, NamedDeclarationInterface, Node, NodeArray,
+    NodeFactory, NodeInterface, OuterExpressionKinds, ReadonlyTextRange, SyntaxKind,
 };
 
 pub fn create_empty_exports<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>(
@@ -177,7 +177,7 @@ pub fn start_on_new_line<TNode: Borrow<Node>>(node: TNode) -> TNode {
 }
 
 pub fn get_external_helpers_module_name(node: &Node /*SourceFile*/) -> Option<Gc<Node>> {
-    let parse_node = get_original_node(
+    let parse_node = maybe_get_original_node_full(
         Some(node),
         Some(|node: Option<Gc<Node>>| is_source_file(node.as_ref().unwrap())),
     )?;
@@ -187,7 +187,7 @@ pub fn get_external_helpers_module_name(node: &Node /*SourceFile*/) -> Option<Gc
 }
 
 pub fn has_recorded_external_helpers(source_file: &Node /*SourceFile*/) -> bool {
-    let parse_node = get_original_node(
+    let parse_node = maybe_get_original_node_full(
         Some(source_file),
         Some(|node: Option<Gc<Node>>| is_source_file(node.as_ref().unwrap())),
     );

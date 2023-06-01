@@ -10,8 +10,8 @@ use crate::{
     get_parse_tree_node, get_strict_option_value, get_text_of_node, has_syntactic_modifier,
     is_access_expression, is_class_declaration, is_element_access_expression,
     is_generated_identifier, is_local_name, is_property_access_expression,
-    is_shorthand_property_assignment, is_source_file, is_statement, map_defined, modifier_to_flag,
-    set_constant_value, try_maybe_visit_each_child,
+    is_shorthand_property_assignment, is_source_file, is_statement, map_defined,
+    maybe_get_original_node_full, modifier_to_flag, set_constant_value, try_maybe_visit_each_child,
     BaseNodeFactorySynthetic, BoolExt, CompilerOptions, Debug_, EmitHelperFactory, EmitHint,
     EmitResolver, Matches, ModifierFlags, ModuleKind, NamedDeclarationInterface, Node,
     NodeCheckFlags, NodeExt, NodeFactory, NodeId, NodeInterface, OptionTry, ScriptTarget,
@@ -649,17 +649,11 @@ impl TransformTypeScriptOnEmitNodeOverrider {
     }
 
     pub(super) fn is_transformed_module_declaration(&self, node: &Node) -> bool {
-        get_original_node(Some(node), Option::<fn(Option<Gc<Node>>) -> bool>::None)
-            .unwrap()
-            .kind()
-            == SyntaxKind::ModuleDeclaration
+        get_original_node(node).kind() == SyntaxKind::ModuleDeclaration
     }
 
     pub(super) fn is_transformed_enum_declaration(&self, node: &Node) -> bool {
-        get_original_node(Some(node), Option::<fn(Option<Gc<Node>>) -> bool>::None)
-            .unwrap()
-            .kind()
-            == SyntaxKind::EnumDeclaration
+        get_original_node(node).kind() == SyntaxKind::EnumDeclaration
     }
 }
 
@@ -923,10 +917,13 @@ impl TransformTypeScriptOnSubstituteNodeOverrider {
                     .wrap(),
             };
             if self.transform_type_script.compiler_options.remove_comments != Some(true) {
-                let ref original_node = get_original_node(
+                let ref original_node = maybe_get_original_node_full(
                     Some(node),
                     Some(|node: Option<Gc<Node>>| is_access_expression(&node.unwrap())),
                 )
+                // TODO: this looks unsafe, the Typescript version seems to have a wrong typing
+                // where the present node argument + present nodeTest should be typed as
+                // returning T | undefined (not T), upstream?
                 .unwrap();
                 let property_name = if is_property_access_expression(original_node) {
                     declaration_name_to_string(

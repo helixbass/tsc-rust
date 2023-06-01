@@ -1,12 +1,16 @@
+use std::{
+    borrow::{Borrow, Cow},
+    cmp,
+    collections::HashMap,
+    iter,
+    ops::BitOrAssign,
+    ptr,
+};
+
 use either_n::Either3;
 use gc::Gc;
 use regex::Regex;
 use serde_json;
-use std::borrow::{Borrow, Cow};
-use std::collections::HashMap;
-use std::ops::BitOrAssign;
-use std::ptr;
-use std::{cmp, iter};
 
 use crate::{
     combine_paths, compare_diagnostics, contains, create_compiler_diagnostic,
@@ -409,7 +413,15 @@ fn try_set_language_and_territory(
     true
 }
 
-pub fn get_original_node(
+pub fn get_original_node(node: &Node) -> Gc<Node> {
+    maybe_get_original_node(Some(node)).unwrap()
+}
+
+pub fn maybe_get_original_node(node: Option<impl Borrow<Node>>) -> Option<Gc<Node>> {
+    maybe_get_original_node_full(node, Option::<fn(Option<Gc<Node>>) -> bool>::None)
+}
+
+pub fn maybe_get_original_node_full(
     node: Option<impl Borrow<Node>>,
     node_test: Option<impl FnOnce(Option<Gc<Node>>) -> bool>,
 ) -> Option<Gc<Node>> {

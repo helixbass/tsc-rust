@@ -1,21 +1,17 @@
+use std::{borrow::Cow, cell::RefCell, collections::HashSet, convert::TryInto, ptr, rc::Rc};
+
 use gc::Gc;
 use regex::Regex;
-use std::borrow::Cow;
-use std::cell::RefCell;
-use std::collections::HashSet;
-use std::convert::TryInto;
-use std::ptr;
-use std::rc::Rc;
 
 use super::TempFlags;
 use crate::{
-    are_option_gcs_equal, escape_jsx_attribute_string, escape_non_ascii_string, escape_string,
-    for_each, get_emit_flags, get_lines_between_position_and_next_non_whitespace_character,
+    escape_jsx_attribute_string, escape_non_ascii_string, escape_string, for_each, get_emit_flags,
+    get_lines_between_position_and_next_non_whitespace_character,
     get_lines_between_position_and_preceding_non_whitespace_character,
     get_lines_between_range_end_and_range_start, get_literal_text, get_original_node,
-    get_source_text_of_node_from_source_file, get_starts_on_new_line, guess_indentation, id_text,
-    is_binding_pattern, is_generated_identifier, is_identifier, is_literal_expression,
-    is_numeric_literal, is_private_identifier, last_or_undefined, maybe_get_source_file_of_node,
+    get_source_file_of_node, get_source_text_of_node_from_source_file, get_starts_on_new_line,
+    guess_indentation, id_text, is_binding_pattern, is_generated_identifier, is_identifier,
+    is_literal_expression, is_numeric_literal, is_private_identifier, last_or_undefined,
     node_is_synthesized, position_is_synthesized, range_end_is_on_same_line_as_range_start,
     range_end_positions_are_on_same_line, range_is_on_single_line,
     range_start_positions_are_on_same_line, token_to_string, Debug_, EmitFlags,
@@ -183,17 +179,9 @@ impl Printer {
                     && !node_is_synthesized(&**first_child)
                     && match first_child.maybe_parent().as_ref() {
                         None => true,
-                        Some(first_child_parent) => are_option_gcs_equal(
-                            get_original_node(
-                                Some(&**first_child_parent),
-                                Option::<fn(Option<Gc<Node>>) -> bool>::None,
-                            )
-                            .as_ref(),
-                            get_original_node(
-                                Some(parent_node),
-                                Option::<fn(Option<Gc<Node>>) -> bool>::None,
-                            )
-                            .as_ref(),
+                        Some(first_child_parent) => Gc::ptr_eq(
+                            &get_original_node(first_child_parent),
+                            &get_original_node(parent_node),
                         ),
                     }
             }) {
@@ -506,12 +494,11 @@ impl Printer {
                 || node.maybe_parent().is_some()
                     && matches!(
                         self.maybe_current_source_file().as_ref(),
-                        Some(current_source_file) if !are_option_gcs_equal(
-                            maybe_get_source_file_of_node(Some(node)).as_ref(),
-                            get_original_node(
-                                Some(&**current_source_file),
-                                Option::<fn(Option<Gc<Node>>) -> bool>::None
-                            ).as_ref()
+                        Some(current_source_file) if !Gc::ptr_eq(
+                            &get_source_file_of_node(node),
+                            &get_original_node(
+                                current_source_file,
+                            )
                         )
                     ))
         {

@@ -120,6 +120,17 @@ impl EmitHelperFactory {
         unimplemented!()
     }
 
+    pub fn create_class_private_field_set_helper(
+        &self,
+        _receiver: Gc<Node /*Expression*/>,
+        _state: Gc<Node /*Identifier*/>,
+        _value: Gc<Node /*Expression*/>,
+        _kind: PrivateIdentifierKind,
+        _f: Option<Gc<Node /*Identifier*/>>,
+    ) -> Gc<Node /*Expression*/> {
+        unimplemented!()
+    }
+
     pub fn create_class_private_field_in_helper(
         &self,
         _state: Gc<Node /*Identifier*/>,

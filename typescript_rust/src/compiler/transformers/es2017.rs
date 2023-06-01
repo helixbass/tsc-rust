@@ -15,8 +15,8 @@ use crate::{
     async_super_helper, chain_bundle, concatenate, for_each, get_emit_script_target,
     get_entity_name_from_type_node, get_function_flags, get_initialized_variables, get_node_id,
     get_original_node, insert_statements_after_standard_prologue, is_block,
-    is_effective_strict_mode_source_file, is_entity_name, is_function_like, is_identifier,
-    is_modifier, is_node_with_possible_hoisted_declaration, is_omitted_expression,
+    is_effective_strict_mode_source_file, is_entity_name, is_identifier, is_modifier,
+    is_node_with_possible_hoisted_declaration, is_omitted_expression,
     is_property_access_expression, is_super_property, is_token, is_variable_declaration_list,
     ref_mut_unwrapped, ref_unwrapped, set_emit_flags, set_original_node, set_source_map_range,
     set_text_range, set_text_range_node_array, set_text_range_rc_node, try_maybe_visit_each_child,
@@ -906,11 +906,7 @@ impl TransformES2017 {
         let node_as_function_like_declaration = node.as_function_like_declaration();
         self.context.resume_lexical_environment();
 
-        let ref original = get_original_node(
-            Some(node),
-            Some(|node: Option<Gc<Node>>| is_function_like(node.as_deref())),
-        )
-        .unwrap();
+        let ref original = get_original_node(node);
         let node_type = original.as_has_type().maybe_type();
         let promise_constructor = if self.language_version < ScriptTarget::ES2015 {
             self.get_promise_constructor(node_type.as_deref())?

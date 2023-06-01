@@ -1,17 +1,24 @@
 use gc::Gc;
 
-use super::{ClassFacts, PrivateIdentifierInfo, TransformClassFields};
+use super::{
+    ClassFacts, PrivateIdentifierInfo, PrivateIdentifierInfoInterface, TransformClassFields,
+};
 use crate::{
-    expand_pre_or_postfix_increment_or_decrement_expression,
-    get_non_assignment_operator_for_compound_assignment, get_original_node_id,
-    is_assignment_expression, is_call_chain, is_compound_assignment, is_destructuring_assignment,
-    is_element_access_expression, is_expression, is_for_initializer, is_identifier,
-    is_prefix_unary_expression, is_private_identifier,
-    is_private_identifier_property_access_expression, is_property_access_expression,
-    is_simple_inlineable_expression, is_statement, is_super_property, is_template_literal,
-    maybe_visit_node, node_is_synthesized, set_text_range, visit_each_child, visit_iteration_body,
-    visit_node, visit_nodes, CallBinding, EmitFlags, NamedDeclarationInterface, Node, NodeArray,
-    NodeExt, NodeInterface, NonEmpty, SyntaxKind, VecExt, VisitResult,
+    class_or_constructor_parameter_is_decorated,
+    expand_pre_or_postfix_increment_or_decrement_expression, filter, for_each_bool,
+    get_name_of_declaration, get_non_assignment_operator_for_compound_assignment,
+    get_original_node, get_original_node_id, id_text, is_assignment_expression, is_call_chain,
+    is_class_declaration, is_class_static_block_declaration, is_compound_assignment,
+    is_destructuring_assignment, is_element_access_expression, is_expression, is_for_initializer,
+    is_identifier, is_non_static_method_or_accessor_with_private_name, is_prefix_unary_expression,
+    is_private_identifier, is_private_identifier_property_access_expression,
+    is_property_access_expression, is_property_declaration, is_simple_inlineable_expression,
+    is_statement, is_static, is_super_property, is_template_literal, maybe_visit_node,
+    move_range_pos, node_is_synthesized, set_comment_range, set_text_range, visit_each_child,
+    visit_iteration_body, visit_node, visit_nodes, CallBinding, EmitFlags, MapOrDefault, Matches,
+    NamedDeclarationInterface, Node, NodeArray, NodeExt, NodeInterface, NonEmpty,
+    PrivateIdentifierKind, ReadonlyTextRangeConcrete, SyntaxKind, TransformFlags, VecExt,
+    VisitResult,
 };
 
 impl TransformClassFields {
@@ -29,6 +36,8 @@ impl TransformClassFields {
             if let Some(current_class_lexical_environment) =
                 self.maybe_current_class_lexical_environment()
             {
+                let current_class_lexical_environment =
+                    (*current_class_lexical_environment).borrow();
                 let class_constructor =
                     current_class_lexical_environment.class_constructor.as_ref();
                 let super_class_reference = current_class_lexical_environment
@@ -146,6 +155,8 @@ impl TransformClassFields {
                 if let Some(current_class_lexical_environment) =
                     self.maybe_current_class_lexical_environment()
                 {
+                    let current_class_lexical_environment =
+                        (*current_class_lexical_environment).borrow();
                     let class_constructor =
                         current_class_lexical_environment.class_constructor.as_ref();
                     let super_class_reference = current_class_lexical_environment
@@ -453,11 +464,13 @@ impl TransformClassFields {
                 .maybe_current_static_property_declaration_or_static_block()
                 .is_some()
         {
-            if let Some(current_class_lexical_environment_class_constructor) = self
+            if let Some(ref current_class_lexical_environment_class_constructor) = self
                 .maybe_current_class_lexical_environment()
-                .as_ref()
                 .and_then(|current_class_lexical_environment| {
-                    current_class_lexical_environment.class_constructor.as_ref()
+                    (*current_class_lexical_environment)
+                        .borrow()
+                        .class_constructor
+                        .clone()
                 })
             {
                 return Some(
@@ -549,11 +562,13 @@ impl TransformClassFields {
                 .maybe_current_static_property_declaration_or_static_block()
                 .is_some()
         {
-            if let Some(current_class_lexical_environment_class_constructor) = self
+            if let Some(ref current_class_lexical_environment_class_constructor) = self
                 .maybe_current_class_lexical_environment()
-                .as_ref()
                 .and_then(|current_class_lexical_environment| {
-                    current_class_lexical_environment.class_constructor.as_ref()
+                    (*current_class_lexical_environment)
+                        .borrow()
+                        .class_constructor
+                        .clone()
                 })
             {
                 let invocation = self
@@ -713,6 +728,8 @@ impl TransformClassFields {
                 if let Some(current_class_lexical_environment) =
                     self.maybe_current_class_lexical_environment()
                 {
+                    let current_class_lexical_environment =
+                        (*current_class_lexical_environment).borrow();
                     let class_constructor =
                         current_class_lexical_environment.class_constructor.as_ref();
                     let super_class_reference = current_class_lexical_environment
@@ -870,26 +887,248 @@ impl TransformClassFields {
 
     pub(super) fn create_private_identifier_assignment(
         &self,
-        _info: &PrivateIdentifierInfo,
-        _receiver: &Node,      /*Expression*/
-        _right: &Node,         /*Expression*/
-        _operator: SyntaxKind, /*AssignmentOperator*/
+        info: &PrivateIdentifierInfo,
+        receiver: &Node,      /*Expression*/
+        right: &Node,         /*Expression*/
+        operator: SyntaxKind, /*AssignmentOperator*/
     ) -> Gc<Node /*Expression*/> {
-        unimplemented!()
+        let mut receiver = visit_node(
+            receiver,
+            Some(|node: &Node| self.visitor(node)),
+            Some(is_expression),
+            Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+        );
+        let mut right = visit_node(
+            right,
+            Some(|node: &Node| self.visitor(node)),
+            Some(is_expression),
+            Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+        );
+
+        if is_compound_assignment(operator) {
+            let CopiableReceiverExpr {
+                read_expression,
+                initialize_expression,
+            } = self.create_copiable_receiver_expr(&receiver);
+            receiver = initialize_expression
+                .clone()
+                .unwrap_or_else(|| read_expression.clone());
+            right = self
+                .factory
+                .create_binary_expression(
+                    self.create_private_identifier_access_helper(info, &read_expression),
+                    get_non_assignment_operator_for_compound_assignment(operator),
+                    right,
+                )
+                .wrap();
+        }
+
+        set_comment_range(
+            &receiver,
+            &ReadonlyTextRangeConcrete::from(move_range_pos(&*receiver, -1)),
+        );
+
+        match info.kind() {
+            PrivateIdentifierKind::Accessor => self
+                .context
+                .get_emit_helper_factory()
+                .create_class_private_field_set_helper(
+                    receiver,
+                    info.brand_check_identifier(),
+                    right,
+                    info.kind(),
+                    info.as_private_identifier_accessor_info()
+                        .setter_name
+                        .clone(),
+                ),
+            PrivateIdentifierKind::Method => self
+                .context
+                .get_emit_helper_factory()
+                .create_class_private_field_set_helper(
+                    receiver,
+                    info.brand_check_identifier(),
+                    right,
+                    info.kind(),
+                    None,
+                ),
+            PrivateIdentifierKind::Field => self
+                .context
+                .get_emit_helper_factory()
+                .create_class_private_field_set_helper(
+                    receiver,
+                    info.brand_check_identifier(),
+                    right,
+                    info.kind(),
+                    info.maybe_variable_name(),
+                ),
+            // default:
+            // Debug.assertNever(info, "Unknown private element type");
+        }
     }
 
     pub(super) fn visit_class_like(
         &self,
-        _node: &Node, /*ClassLikeDeclaration*/
+        node: &Node, /*ClassLikeDeclaration*/
     ) -> VisitResult {
-        unimplemented!()
+        let node_as_class_like_declaration = node.as_class_like_declaration();
+        if !for_each_bool(
+            &node_as_class_like_declaration.members(),
+            |member: &Gc<Node>, _| self.does_class_element_need_transform(member),
+        ) {
+            return Some(
+                visit_each_child(node, |node: &Node| self.visitor(node), &**self.context).into(),
+            );
+        }
+
+        let saved_pending_expressions = self.maybe_pending_expressions().clone();
+        self.set_pending_expressions(None);
+        self.start_class_lexical_environment();
+
+        if self.should_transform_private_elements_or_class_static_blocks {
+            let name = get_name_of_declaration(Some(node));
+            if let Some(ref name) = name.filter(|name| is_identifier(name)) {
+                self.get_private_identifier_environment()
+                    .borrow_mut()
+                    .class_name = id_text(name).to_owned();
+            }
+
+            let private_instance_methods_and_accessors =
+                self.get_private_instance_methods_and_accessors(node);
+            if !private_instance_methods_and_accessors.is_empty() {
+                self.get_private_identifier_environment()
+                    .borrow_mut()
+                    .weak_set_name = Some(
+                    self.create_hoisted_variable_for_class(
+                        "instances",
+                        &private_instance_methods_and_accessors[0]
+                            .as_named_declaration()
+                            .name(),
+                    ),
+                );
+            }
+        }
+
+        let result = if is_class_declaration(node) {
+            self.visit_class_declaration(node)
+        } else {
+            Some(self.visit_class_expression(node).into())
+        };
+
+        self.end_class_lexical_environment();
+        self.set_pending_expressions(saved_pending_expressions);
+        result
+    }
+
+    pub(super) fn does_class_element_need_transform(
+        &self,
+        node: &Node, /*ClassElement*/
+    ) -> bool {
+        is_property_declaration(node)
+            || is_class_static_block_declaration(node)
+            || self.should_transform_private_elements_or_class_static_blocks
+                && node
+                    .as_named_declaration()
+                    .maybe_name()
+                    .matches(|ref node_name| is_private_identifier(node_name))
+    }
+
+    pub(super) fn get_private_instance_methods_and_accessors(
+        &self,
+        node: &Node, /*ClassLikeDeclaration*/
+    ) -> Vec<Gc<Node>> {
+        let node_as_class_like_declaration = node.as_class_like_declaration();
+        filter(
+            &node_as_class_like_declaration.members(),
+            |member: &Gc<Node>| is_non_static_method_or_accessor_with_private_name(member),
+        )
+    }
+
+    pub(super) fn get_class_facts(&self, node: &Node /*ClassLikeDeclaration*/) -> ClassFacts {
+        let node_as_class_like_declaration = node.as_class_like_declaration();
+        let mut facts = ClassFacts::None;
+        let ref original = get_original_node(node);
+        if is_class_declaration(original) && class_or_constructor_parameter_is_decorated(original) {
+            facts |= ClassFacts::ClassWasDecorated;
+        }
+        for member in &node_as_class_like_declaration.members() {
+            if !is_static(member) {
+                continue;
+            }
+            if member
+                .as_named_declaration()
+                .maybe_name()
+                .matches(|ref member_name| is_private_identifier(member_name))
+                && self.should_transform_private_elements_or_class_static_blocks
+            {
+                facts |= ClassFacts::NeedsClassConstructorReference;
+            }
+            if is_property_declaration(member) || is_class_static_block_declaration(member) {
+                if self.should_transform_this_in_static_initializers
+                    && member
+                        .transform_flags()
+                        .intersects(TransformFlags::ContainsLexicalThis)
+                {
+                    facts |= ClassFacts::NeedsSubstitutionForThisInClassStaticField;
+                    if !facts.intersects(ClassFacts::ClassWasDecorated) {
+                        facts |= ClassFacts::NeedsClassConstructorReference;
+                    }
+                }
+                if self.should_transform_super_in_static_initializers
+                    && member
+                        .transform_flags()
+                        .intersects(TransformFlags::ContainsLexicalSuper)
+                {
+                    if !facts.intersects(ClassFacts::ClassWasDecorated) {
+                        facts |= ClassFacts::NeedsClassConstructorReference
+                            | ClassFacts::NeedsClassSuperReference;
+                    }
+                }
+            }
+        }
+        facts
     }
 
     pub(super) fn visit_expression_with_type_arguments(
         &self,
-        _node: &Node, /*ExpressionWithTypeArguments*/
+        node: &Node, /*ExpressionWithTypeArguments*/
     ) -> VisitResult {
-        unimplemented!()
+        let node_as_expression_with_type_arguments = node.as_expression_with_type_arguments();
+        let facts = self
+            .maybe_current_class_lexical_environment()
+            .map_or_default(|current_class_lexical_environment| {
+                (*current_class_lexical_environment).borrow().facts
+            });
+        if facts.intersects(ClassFacts::NeedsClassSuperReference) {
+            let temp = self.factory.create_temp_variable(
+                Some(|node: &Node| {
+                    self.context.hoist_variable_declaration(node);
+                }),
+                Some(true),
+            );
+            self.get_class_lexical_environment()
+                .borrow_mut()
+                .super_class_reference = Some(temp.clone());
+            return Some(
+                self.factory
+                    .update_expression_with_type_arguments(
+                        node,
+                        self.factory
+                            .create_assignment(
+                                temp,
+                                visit_node(
+                                    &node_as_expression_with_type_arguments.expression,
+                                    Some(|node: &Node| self.visitor(node)),
+                                    Some(is_expression),
+                                    Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                                ),
+                            )
+                            .wrap(),
+                        Option::<Gc<NodeArray>>::None,
+                    )
+                    .into(),
+            );
+        }
+        Some(visit_each_child(node, |node: &Node| self.visitor(node), &**self.context).into())
     }
 }
 

@@ -442,9 +442,7 @@ impl TransformES2015 {
     pub(super) fn class_wrapper_statement_visitor(&self, node: &Node) -> io::Result<VisitResult> /*<Node>*/
     {
         if self.should_visit_node(node) {
-            let ref original =
-                get_original_node(Some(node), Option::<fn(Option<Gc<Node>>) -> bool>::None)
-                    .unwrap();
+            let ref original = get_original_node(node);
             if is_property_declaration(original) && has_static_modifier(original) {
                 let ancestor_facts = self.enter_subtree(
                     HierarchyFacts::StaticInitializerExcludes,

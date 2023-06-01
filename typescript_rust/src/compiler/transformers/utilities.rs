@@ -3,21 +3,18 @@ use std::{borrow::Borrow, io};
 use gc::{Finalize, Gc, Trace};
 
 use crate::{
-    get_node_id, get_original_node, BaseNodeFactory, Node, NodeFactory, NodeId, SyntaxKind,
-    TransformationContext, Transformer, VisitResult, WrapCustomTransformerFactoryHandleDefault,
+    get_node_id, get_original_node, maybe_get_original_node, BaseNodeFactory, Node, NodeFactory,
+    NodeId, SyntaxKind, TransformationContext, Transformer, VisitResult,
+    WrapCustomTransformerFactoryHandleDefault,
 };
 
 pub fn get_original_node_id(node: &Node) -> NodeId {
-    let node = get_original_node(Some(node), Option::<fn(Option<Gc<Node>>) -> bool>::None);
-    if let Some(node) = node {
-        get_node_id(&node)
-    } else {
-        0
-    }
+    let node = get_original_node(node);
+    get_node_id(&node)
 }
 
 pub fn maybe_get_original_node_id(node: Option<impl Borrow<Node>>) -> NodeId {
-    let node = get_original_node(node, Option::<fn(Option<Gc<Node>>) -> bool>::None);
+    let node = maybe_get_original_node(node);
     if let Some(node) = node {
         get_node_id(&node)
     } else {
@@ -95,5 +92,11 @@ pub fn get_properties(
     _require_initializer: bool,
     _is_static: bool,
 ) -> Vec<Gc<Node /*PropertyDeclaration*/>> {
+    unimplemented!()
+}
+
+pub fn is_non_static_method_or_accessor_with_private_name(
+    _member: &Node, /*ClassElement*/
+) -> bool {
     unimplemented!()
 }
