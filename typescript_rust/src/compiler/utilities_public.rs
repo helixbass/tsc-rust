@@ -1414,7 +1414,10 @@ pub fn is_string_text_containing_node(node: &Node) -> bool {
 
 pub(crate) fn is_generated_identifier(node: &Node) -> bool {
     is_identifier(node)
-        && matches!(node.as_identifier().maybe_auto_generate_flags(), Some(auto_generate_flags) if auto_generate_flags.intersects(GeneratedIdentifierFlags::KindMask))
+        && matches!(
+            node.as_identifier().maybe_auto_generate_flags(),
+            Some(auto_generate_flags) if auto_generate_flags.intersects(GeneratedIdentifierFlags::KindMask)
+        )
 }
 
 pub(crate) fn is_private_identifier_class_element_declaration(node: &Node) -> bool {

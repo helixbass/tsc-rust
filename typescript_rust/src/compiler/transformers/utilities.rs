@@ -95,6 +95,12 @@ pub fn get_properties(
     unimplemented!()
 }
 
+pub fn get_static_properties_and_class_static_block(
+    _node: &Node, /*ClassExpression | ClassDeclaration*/
+) -> Vec<Gc<Node /*PropertyDeclaration | ClassStaticBlockDeclaration*/>> {
+    unimplemented!()
+}
+
 pub fn is_non_static_method_or_accessor_with_private_name(
     _member: &Node, /*ClassElement*/
 ) -> bool {

@@ -788,12 +788,12 @@ impl Printer {
 
     pub(super) fn generate_name(&self, name: &Node /*GeneratedIdentifier*/) -> String {
         let name_as_identifier = name.as_identifier();
-        if name_as_identifier.auto_generate_flags.unwrap() & GeneratedIdentifierFlags::KindMask
+        if name_as_identifier.auto_generate_flags() & GeneratedIdentifierFlags::KindMask
             == GeneratedIdentifierFlags::Node
         {
             self.generate_name_cached(
                 &self.get_node_for_generated_name(name),
-                name_as_identifier.auto_generate_flags,
+                name_as_identifier.maybe_auto_generate_flags(),
             )
         } else {
             let auto_generate_id = name_as_identifier.auto_generate_id.unwrap();

@@ -987,7 +987,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         auto_generate_flags: GeneratedIdentifierFlags,
     ) -> Identifier {
         let mut node = self.create_base_identifier(text, None);
-        node.auto_generate_flags = Some(auto_generate_flags);
+        node.set_auto_generate_flags(Some(auto_generate_flags));
         node.auto_generate_id = Some(get_next_auto_generate_id());
         increment_next_auto_generate_id();
         node

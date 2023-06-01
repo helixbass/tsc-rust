@@ -380,7 +380,7 @@ pub use compiler::{
         utilities::{
             add_prologue_directives_and_initial_super_call, chain_bundle,
             get_non_assignment_operator_for_compound_assignment, get_original_node_id,
-            get_properties, is_compound_assignment,
+            get_properties, get_static_properties_and_class_static_block, is_compound_assignment,
             is_non_static_method_or_accessor_with_private_name, is_simple_copiable_expression,
             is_simple_inlineable_expression, maybe_get_original_node_id,
             try_add_prologue_directives_and_initial_super_call,

@@ -232,6 +232,7 @@ mod _NodeArrayOrVecDeriveTraceScope {
         }
     }
 }
+
 pub use _NodeArrayOrVecDeriveTraceScope::NodeArrayOrVec;
 
 impl From<Gc<NodeArray>> for NodeArrayOrVec {
@@ -308,7 +309,7 @@ pub struct Identifier {
     #[unsafe_ignore_trace]
     pub original_keyword_kind: Option<SyntaxKind>,
     #[unsafe_ignore_trace]
-    pub(crate) auto_generate_flags: Option<GeneratedIdentifierFlags>,
+    pub(crate) auto_generate_flags: Cell<Option<GeneratedIdentifierFlags>>,
     pub(crate) auto_generate_id: Option<usize>,
     generated_import_reference: GcCell<Option<Gc<Node /*ImportSpecifier*/>>>,
     #[unsafe_ignore_trace]
@@ -334,7 +335,15 @@ impl Identifier {
     }
 
     pub fn maybe_auto_generate_flags(&self) -> Option<GeneratedIdentifierFlags> {
-        self.auto_generate_flags.clone()
+        self.auto_generate_flags.get()
+    }
+
+    pub fn auto_generate_flags(&self) -> GeneratedIdentifierFlags {
+        self.auto_generate_flags.get().unwrap()
+    }
+
+    pub fn set_auto_generate_flags(&self, auto_generate_flags: Option<GeneratedIdentifierFlags>) {
+        self.auto_generate_flags.set(auto_generate_flags);
     }
 
     pub fn maybe_generated_import_reference(&self) -> GcCellRefMut<Option<Gc<Node>>> {

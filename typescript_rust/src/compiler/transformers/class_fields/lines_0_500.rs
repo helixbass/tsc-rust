@@ -277,7 +277,7 @@ pub(super) struct TransformClassFields {
     pub(super) should_transform_this_in_static_initializers: bool,
     #[unsafe_ignore_trace]
     pub(super) enabled_substitutions: Cell<Option<ClassPropertySubstitutionFlags>>,
-    pub(super) class_aliases: GcCell<Option<Vec<Gc<Node /*Identifier*/>>>>,
+    pub(super) class_aliases: GcCell<Option<HashMap<NodeId, Gc<Node /*Identifier*/>>>>,
     pub(super) pending_expressions: GcCell<Option<Vec<Gc<Node /*Expression*/>>>>,
     pub(super) pending_statements: GcCell<Option<Vec<Gc<Node /*Statement*/>>>>,
     pub(super) class_lexical_environment_stack:
@@ -357,17 +357,35 @@ impl TransformClassFields {
         self.enabled_substitutions.set(enabled_substitutions);
     }
 
-    pub(super) fn maybe_class_aliases(&self) -> GcCellRef<Option<Vec<Gc<Node /*Identifier*/>>>> {
+    pub(super) fn maybe_class_aliases(
+        &self,
+    ) -> GcCellRef<Option<HashMap<NodeId, Gc<Node /*Identifier*/>>>> {
         self.class_aliases.borrow()
+    }
+
+    pub(super) fn class_aliases(&self) -> GcCellRef<HashMap<NodeId, Gc<Node /*Identifier*/>>> {
+        gc_cell_ref_unwrapped(&self.class_aliases)
     }
 
     pub(super) fn maybe_class_aliases_mut(
         &self,
-    ) -> GcCellRefMut<Option<Vec<Gc<Node /*Identifier*/>>>> {
+    ) -> GcCellRefMut<Option<HashMap<NodeId, Gc<Node /*Identifier*/>>>> {
         self.class_aliases.borrow_mut()
     }
 
-    pub(super) fn set_class_aliases(&self, class_aliases: Option<Vec<Gc<Node /*Identifier*/>>>) {
+    pub(super) fn class_aliases_mut(
+        &self,
+    ) -> GcCellRefMut<
+        Option<HashMap<NodeId, Gc<Node /*Identifier*/>>>,
+        HashMap<NodeId, Gc<Node /*Identifier*/>>,
+    > {
+        gc_cell_ref_mut_unwrapped(&self.class_aliases)
+    }
+
+    pub(super) fn set_class_aliases(
+        &self,
+        class_aliases: Option<HashMap<NodeId, Gc<Node /*Identifier*/>>>,
+    ) {
         *self.class_aliases.borrow_mut() = class_aliases;
     }
 

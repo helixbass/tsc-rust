@@ -270,7 +270,7 @@ impl Printer {
     }
 
     pub(super) fn make_name(&self, name: &Node /*GeneratedIdentifier*/) -> String {
-        let name_auto_generate_flags = name.as_identifier().auto_generate_flags.unwrap();
+        let name_auto_generate_flags = name.as_identifier().auto_generate_flags();
         match name_auto_generate_flags & GeneratedIdentifierFlags::KindMask {
             GeneratedIdentifierFlags::Auto => self.make_temp_variable_name(
                 TempFlags::Auto,
@@ -318,8 +318,7 @@ impl Printer {
             if is_identifier(&node) && {
                 let node_as_identifier = node.as_identifier();
                 node_as_identifier
-                    .auto_generate_flags
-                    .unwrap()
+                    .auto_generate_flags()
                     .intersects(GeneratedIdentifierFlags::Node)
                     && node_as_identifier.auto_generate_id != auto_generate_id
             } {
