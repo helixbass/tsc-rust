@@ -17,7 +17,7 @@ use crate::{
     is_simple_inlineable_expression, is_static_modifier, is_super_property, maybe_filter,
     maybe_visit_nodes, move_range_pos, set_comment_range, visit_function_body,
     visit_parameter_list, AsDoubleDeref, EmitFlags, HasInitializerInterface,
-    NamedDeclarationInterface, ReadonlyTextRangeConcrete,
+    NamedDeclarationInterface, NodeCheckFlags, ReadonlyTextRangeConcrete,
 };
 
 bitflags! {
@@ -55,6 +55,25 @@ pub(super) struct PrivateIdentifierAccessorInfo {
     pub setter_name: Option<Gc<Node /*Identifier*/>>,
 }
 
+impl PrivateIdentifierAccessorInfo {
+    pub fn new(
+        brand_check_identifier: Gc<Node /*Identifier*/>,
+        is_static: bool,
+        is_valid: bool,
+        getter_name: Option<Gc<Node /*Identifier*/>>,
+        setter_name: Option<Gc<Node /*Identifier*/>>,
+    ) -> Self {
+        Self {
+            is_static,
+            kind: PrivateIdentifierKind::Accessor,
+            brand_check_identifier,
+            is_valid,
+            getter_name,
+            setter_name,
+        }
+    }
+}
+
 impl PrivateIdentifierInfoInterface for PrivateIdentifierAccessorInfo {
     fn brand_check_identifier(&self) -> Gc<Node /*Identifier*/> {
         self.brand_check_identifier.clone()
@@ -85,6 +104,23 @@ pub(super) struct PrivateIdentifierMethodInfo {
     #[unsafe_ignore_trace]
     kind: PrivateIdentifierKind, /*PrivateIdentifierKind.Method*/
     pub method_name: Gc<Node /*Identifier*/>,
+}
+
+impl PrivateIdentifierMethodInfo {
+    pub fn new(
+        brand_check_identifier: Gc<Node /*Identifier*/>,
+        is_static: bool,
+        is_valid: bool,
+        method_name: Gc<Node /*Identifier*/>,
+    ) -> Self {
+        Self {
+            is_static,
+            kind: PrivateIdentifierKind::Method,
+            brand_check_identifier,
+            is_valid,
+            method_name,
+        }
+    }
 }
 
 impl PrivateIdentifierInfoInterface for PrivateIdentifierMethodInfo {
@@ -118,6 +154,17 @@ pub(super) struct PrivateIdentifierInstanceFieldInfo {
     kind: PrivateIdentifierKind, /*PrivateIdentifierKind.Field*/
 }
 
+impl PrivateIdentifierInstanceFieldInfo {
+    pub fn new(brand_check_identifier: Gc<Node /*Identifier*/>, is_valid: bool) -> Self {
+        Self {
+            is_static: false,
+            kind: PrivateIdentifierKind::Field,
+            brand_check_identifier,
+            is_valid,
+        }
+    }
+}
+
 impl PrivateIdentifierInfoInterface for PrivateIdentifierInstanceFieldInfo {
     fn brand_check_identifier(&self) -> Gc<Node /*Identifier*/> {
         self.brand_check_identifier.clone()
@@ -148,6 +195,22 @@ pub(super) struct PrivateIdentifierStaticFieldInfo {
     #[unsafe_ignore_trace]
     kind: PrivateIdentifierKind, /*PrivateIdentifierKind.Field*/
     pub variable_name: Gc<Node /*Identifier*/>,
+}
+
+impl PrivateIdentifierStaticFieldInfo {
+    pub fn new(
+        brand_check_identifier: Gc<Node /*Identifier*/>,
+        is_valid: bool,
+        variable_name: Gc<Node /*Identifier*/>,
+    ) -> Self {
+        Self {
+            is_static: true,
+            kind: PrivateIdentifierKind::Field,
+            brand_check_identifier,
+            is_valid,
+            variable_name,
+        }
+    }
 }
 
 impl PrivateIdentifierInfoInterface for PrivateIdentifierStaticFieldInfo {
@@ -186,6 +249,12 @@ impl PrivateIdentifierInfo {
     }
 
     pub(super) fn as_private_identifier_accessor_info(&self) -> &PrivateIdentifierAccessorInfo {
+        enum_unwrapped!(self, [PrivateIdentifierInfo, PrivateIdentifierAccessorInfo])
+    }
+
+    pub(super) fn as_private_identifier_accessor_info_mut(
+        &mut self,
+    ) -> &mut PrivateIdentifierAccessorInfo {
         enum_unwrapped!(self, [PrivateIdentifierInfo, PrivateIdentifierAccessorInfo])
     }
 }
@@ -237,11 +306,59 @@ impl PrivateIdentifierInfoInterface for PrivateIdentifierInfo {
     }
 }
 
+impl From<PrivateIdentifierMethodInfo> for PrivateIdentifierInfo {
+    fn from(value: PrivateIdentifierMethodInfo) -> Self {
+        Self::PrivateIdentifierMethodInfo(value)
+    }
+}
+
+impl From<PrivateIdentifierMethodInfo> for Gc<GcCell<PrivateIdentifierInfo>> {
+    fn from(value: PrivateIdentifierMethodInfo) -> Self {
+        Gc::new(GcCell::new(value.into()))
+    }
+}
+
+impl From<PrivateIdentifierInstanceFieldInfo> for PrivateIdentifierInfo {
+    fn from(value: PrivateIdentifierInstanceFieldInfo) -> Self {
+        Self::PrivateIdentifierInstanceFieldInfo(value)
+    }
+}
+
+impl From<PrivateIdentifierInstanceFieldInfo> for Gc<GcCell<PrivateIdentifierInfo>> {
+    fn from(value: PrivateIdentifierInstanceFieldInfo) -> Self {
+        Gc::new(GcCell::new(value.into()))
+    }
+}
+
+impl From<PrivateIdentifierStaticFieldInfo> for PrivateIdentifierInfo {
+    fn from(value: PrivateIdentifierStaticFieldInfo) -> Self {
+        Self::PrivateIdentifierStaticFieldInfo(value)
+    }
+}
+
+impl From<PrivateIdentifierStaticFieldInfo> for Gc<GcCell<PrivateIdentifierInfo>> {
+    fn from(value: PrivateIdentifierStaticFieldInfo) -> Self {
+        Gc::new(GcCell::new(value.into()))
+    }
+}
+
+impl From<PrivateIdentifierAccessorInfo> for PrivateIdentifierInfo {
+    fn from(value: PrivateIdentifierAccessorInfo) -> Self {
+        Self::PrivateIdentifierAccessorInfo(value)
+    }
+}
+
+impl From<PrivateIdentifierAccessorInfo> for Gc<GcCell<PrivateIdentifierInfo>> {
+    fn from(value: PrivateIdentifierAccessorInfo) -> Self {
+        Gc::new(GcCell::new(value.into()))
+    }
+}
+
 #[derive(Default, Trace, Finalize)]
 pub(super) struct PrivateIdentifierEnvironment {
     pub class_name: String,
     pub weak_set_name: Option<Gc<Node /*Identifier*/>>,
-    pub identifiers: UnderscoreEscapedMap<PrivateIdentifierInfo>,
+    pub identifiers: UnderscoreEscapedMap<Gc<GcCell<PrivateIdentifierInfo>>>,
 }
 
 #[derive(Default, Trace, Finalize)]
@@ -1277,26 +1394,107 @@ impl TransformClassFieldsOnSubstituteNodeOverrider {
         }
     }
 
-    pub(super) fn substitute_expression(&self, node: &Node /*Expression*/) -> Gc<Node> {
-        match node.kind() {
-            SyntaxKind::Identifier => self.substitute_expression_identifier(node),
+    pub(super) fn substitute_expression(
+        &self,
+        node: &Node, /*Expression*/
+    ) -> io::Result<Gc<Node>> {
+        Ok(match node.kind() {
+            SyntaxKind::Identifier => self.substitute_expression_identifier(node)?,
             SyntaxKind::ThisKeyword => self.substitute_this_expression(node),
             _ => node.node_wrapper(),
-        }
+        })
     }
 
     pub(super) fn substitute_this_expression(
         &self,
-        _node: &Node, /*ThisExpression*/
+        node: &Node, /*ThisExpression*/
     ) -> Gc<Node> {
-        unimplemented!()
+        if self
+            .transform_class_fields
+            .maybe_enabled_substitutions()
+            .unwrap_or_default()
+            .intersects(ClassPropertySubstitutionFlags::ClassStaticThisOrSuperReference)
+        {
+            if let Some(current_class_lexical_environment) = self
+                .transform_class_fields
+                .maybe_current_class_lexical_environment()
+            {
+                let current_class_lexical_environment =
+                    (*current_class_lexical_environment).borrow();
+                let facts = current_class_lexical_environment.facts;
+                let class_constructor =
+                    current_class_lexical_environment.class_constructor.as_ref();
+                if facts.intersects(ClassFacts::ClassWasDecorated) {
+                    return self
+                        .transform_class_fields
+                        .factory
+                        .create_parenthesized_expression(
+                            self.transform_class_fields.factory.create_void_zero(),
+                        )
+                        .wrap();
+                }
+                if let Some(class_constructor) = class_constructor {
+                    return self
+                        .transform_class_fields
+                        .factory
+                        .clone_node(class_constructor)
+                        .set_original_node(Some(node.node_wrapper()))
+                        .set_text_range(Some(node));
+                }
+            }
+        }
+        node.node_wrapper()
     }
 
     pub(super) fn substitute_expression_identifier(
         &self,
-        _node: &Node, /*Identifier*/
-    ) -> Gc<Node /*Expression*/> {
-        unimplemented!()
+        node: &Node, /*Identifier*/
+    ) -> io::Result<Gc<Node /*Expression*/>> {
+        Ok(self
+            .try_substitute_class_alias(node)?
+            .unwrap_or_else(|| node.node_wrapper()))
+    }
+
+    pub(super) fn try_substitute_class_alias(
+        &self,
+        node: &Node, /*Identifier*/
+    ) -> io::Result<Option<Gc<Node /*Expression*/>>> {
+        if self
+            .transform_class_fields
+            .maybe_enabled_substitutions()
+            .unwrap_or_default()
+            .intersects(ClassPropertySubstitutionFlags::ClassAliases)
+        {
+            if self
+                .transform_class_fields
+                .resolver
+                .get_node_check_flags(node)
+                .intersects(NodeCheckFlags::ConstructorReferenceInClass)
+            {
+                let declaration = self
+                    .transform_class_fields
+                    .resolver
+                    .get_referenced_value_declaration(node)?;
+                if let Some(declaration) = declaration {
+                    let class_alias = self
+                        .transform_class_fields
+                        .class_aliases()
+                        .get(&declaration.id())
+                        .cloned();
+                    if let Some(ref class_alias) = class_alias {
+                        return Ok(Some(
+                            self.transform_class_fields
+                                .factory
+                                .clone_node(class_alias)
+                                .set_source_map_range(Some(node.into()))
+                                .set_comment_range(node),
+                        ));
+                    }
+                }
+            }
+        }
+
+        Ok(None)
     }
 }
 
@@ -1308,7 +1506,7 @@ impl TransformationContextOnSubstituteNodeOverrider
             .previous_on_substitute_node
             .on_substitute_node(hint, node)?;
         if hint == EmitHint::Expression {
-            return Ok(self.substitute_expression(&node));
+            return self.substitute_expression(&node);
         }
         Ok(node)
     }

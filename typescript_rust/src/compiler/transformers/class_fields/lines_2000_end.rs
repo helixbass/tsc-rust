@@ -33,3 +33,7 @@ pub(super) fn create_private_instance_method_initializer(
 ) -> Gc<Node> {
     unimplemented!()
 }
+
+pub(super) fn is_reserved_private_name(node: &Node /*PrivateIdentifier*/) -> bool {
+    node.as_private_identifier().escaped_text == "#constructor"
+}
