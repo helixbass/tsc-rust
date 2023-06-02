@@ -8,15 +8,18 @@ use super::{
 };
 use crate::{
     NamedDeclarationInterface, Node, NodeInterface, _d, continue_if_none,
-    get_target_of_binding_or_assignment_element, get_text_of_property_name, has_static_modifier,
-    is_accessor, is_assignment_expression, is_computed_property_name, is_element_access_expression,
-    is_expression, is_generated_identifier, is_get_accessor, is_get_accessor_declaration,
-    is_identifier, is_method_declaration, is_private_identifier_property_access_expression,
-    is_property_access_expression, is_property_declaration, is_set_accessor_declaration,
-    is_simple_copiable_expression, is_simple_inlineable_expression, is_spread_element,
-    is_super_property, is_this_property, skip_partially_emitted_expressions, visit_each_child,
-    visit_node, Debug_, GeneratedIdentifierFlags, NodeArray, NodeCheckFlags, PrivateIdentifierKind,
-    SyntaxKind, VisitResult,
+    get_initializer_of_binding_or_assignment_element, get_target_of_binding_or_assignment_element,
+    get_text_of_property_name, has_static_modifier, is_accessor, is_assignment_expression,
+    is_computed_property_name, is_element_access_expression, is_expression,
+    is_generated_identifier, is_get_accessor, is_get_accessor_declaration, is_identifier,
+    is_method_declaration, is_object_binding_or_assignment_element,
+    is_private_identifier_property_access_expression, is_property_access_expression,
+    is_property_assignment, is_property_declaration, is_property_name, is_set_accessor_declaration,
+    is_shorthand_property_assignment, is_simple_copiable_expression,
+    is_simple_inlineable_expression, is_spread_assignment, is_spread_element, is_super_property,
+    is_this_property, skip_partially_emitted_expressions, visit_each_child, visit_node, Debug_,
+    GeneratedIdentifierFlags, NodeArray, NodeCheckFlags, PrivateIdentifierKind, SyntaxKind,
+    VisitResult,
 };
 
 impl TransformClassFields {
@@ -582,6 +585,151 @@ impl TransformClassFields {
             visit_node(
                 node,
                 Some(|node: &Node| self.visitor_destructuring_target(node)),
+                Option::<fn(&Node) -> bool>::None,
+                Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+            )
+            .into(),
+        )
+    }
+
+    pub(super) fn visit_object_assignment_target(
+        &self,
+        node: &Node, /*ObjectLiteralElementLike*/
+    ) -> VisitResult {
+        if is_object_binding_or_assignment_element(node) && !is_shorthand_property_assignment(node)
+        {
+            let target = get_target_of_binding_or_assignment_element(node);
+            let mut wrapped: Option<Gc<Node /*LeftHandSideExpression*/>> = _d();
+            if let Some(ref target) = target {
+                if is_private_identifier_property_access_expression(target) {
+                    wrapped = Some(self.wrap_private_identifier_for_destructuring_target(target));
+                } else if self.should_transform_super_in_static_initializers
+                    && is_super_property(target)
+                    && self
+                        .maybe_current_static_property_declaration_or_static_block()
+                        .is_some()
+                {
+                    if let Some(current_class_lexical_environment) =
+                        self.maybe_current_class_lexical_environment()
+                    {
+                        let current_class_lexical_environment =
+                            (*current_class_lexical_environment).borrow();
+                        let class_constructor =
+                            current_class_lexical_environment.class_constructor.as_ref();
+                        let super_class_reference = current_class_lexical_environment
+                            .super_class_reference
+                            .as_ref();
+                        let facts = current_class_lexical_environment.facts;
+                        if facts.intersects(ClassFacts::ClassWasDecorated) {
+                            wrapped = Some(self.visit_invalid_super_property(target));
+                        } else if let (Some(class_constructor), Some(super_class_reference)) =
+                            (class_constructor, super_class_reference)
+                        {
+                            let name = if is_element_access_expression(target) {
+                                Some(visit_node(
+                                    &target.as_element_access_expression().argument_expression,
+                                    Some(|node: &Node| self.visitor(node)),
+                                    Some(is_expression),
+                                    Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                                ))
+                            } else if is_identifier(&target.as_property_access_expression().name())
+                            {
+                                Some(
+                                    self.factory
+                                        .create_string_literal_from_node(
+                                            &target.as_property_access_expression().name(),
+                                        )
+                                        .wrap(),
+                                )
+                            } else {
+                                None
+                            };
+                            if let Some(name) = name {
+                                let temp = self
+                                    .factory
+                                    .create_temp_variable(Option::<fn(&Node)>::None, None);
+                                wrapped = Some(self.factory.create_assignment_target_wrapper(
+                                    temp.clone(),
+                                    self.factory.create_reflect_set_call(
+                                        super_class_reference.clone(),
+                                        name,
+                                        temp,
+                                        Some(class_constructor.clone()),
+                                    ),
+                                ));
+                            }
+                        }
+                    }
+                }
+            }
+            if is_property_assignment(node) {
+                let node_as_property_assignment = node.as_property_assignment();
+                let initializer = get_initializer_of_binding_or_assignment_element(node);
+                return Some(
+                    self.factory
+                        .update_property_assignment(
+                            node,
+                            visit_node(
+                                &node_as_property_assignment.name(),
+                                Some(|node: &Node| self.visitor(node)),
+                                Some(is_property_name),
+                                Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                            ),
+                            if let Some(wrapped) = wrapped {
+                                if let Some(initializer) = initializer {
+                                    self.factory
+                                        .create_assignment(
+                                            wrapped,
+                                            visit_node(
+                                                &initializer,
+                                                Some(|node: &Node| self.visitor(node)),
+                                                Option::<fn(&Node) -> bool>::None,
+                                                Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                                            ),
+                                        )
+                                        .wrap()
+                                } else {
+                                    wrapped
+                                }
+                            } else {
+                                visit_node(
+                                    &node_as_property_assignment.initializer,
+                                    Some(|node: &Node| self.visitor_destructuring_target(node)),
+                                    Some(is_expression),
+                                    Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                                )
+                            },
+                        )
+                        .into(),
+                );
+            }
+            if is_spread_assignment(node) {
+                let node_as_spread_assignment = node.as_spread_assignment();
+                return Some(
+                    self.factory
+                        .update_spread_assignment(
+                            node,
+                            wrapped.unwrap_or_else(|| {
+                                visit_node(
+                                    &node_as_spread_assignment.expression,
+                                    Some(|node: &Node| self.visitor_destructuring_target(node)),
+                                    Some(is_expression),
+                                    Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                                )
+                            }),
+                        )
+                        .into(),
+                );
+            }
+            Debug_.assert(
+                wrapped.is_none(),
+                Some("Should not have generated a wrapped target"),
+            );
+        }
+        Some(
+            visit_node(
+                node,
+                Some(|node: &Node| self.visitor(node)),
                 Option::<fn(&Node) -> bool>::None,
                 Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
             )

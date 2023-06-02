@@ -476,20 +476,8 @@ impl TransformClassFields {
         self.enabled_substitutions.set(enabled_substitutions);
     }
 
-    pub(super) fn maybe_class_aliases(
-        &self,
-    ) -> GcCellRef<Option<HashMap<NodeId, Gc<Node /*Identifier*/>>>> {
-        self.class_aliases.borrow()
-    }
-
     pub(super) fn class_aliases(&self) -> GcCellRef<HashMap<NodeId, Gc<Node /*Identifier*/>>> {
         gc_cell_ref_unwrapped(&self.class_aliases)
-    }
-
-    pub(super) fn maybe_class_aliases_mut(
-        &self,
-    ) -> GcCellRefMut<Option<HashMap<NodeId, Gc<Node /*Identifier*/>>>> {
-        self.class_aliases.borrow_mut()
     }
 
     pub(super) fn class_aliases_mut(
@@ -547,12 +535,6 @@ impl TransformClassFields {
         gc_cell_ref_unwrapped(&self.pending_statements)
     }
 
-    pub(super) fn maybe_pending_statements_mut(
-        &self,
-    ) -> GcCellRefMut<Option<Vec<Gc<Node /*Statement*/>>>> {
-        self.pending_statements.borrow_mut()
-    }
-
     pub(super) fn pending_statements_mut(
         &self,
     ) -> GcCellRefMut<Option<Vec<Gc<Node /*Statement*/>>>, Vec<Gc<Node /*Statement*/>>> {
@@ -578,13 +560,6 @@ impl TransformClassFields {
         self.class_lexical_environment_stack.borrow_mut()
     }
 
-    pub(super) fn set_class_lexical_environment_stack(
-        &self,
-        class_lexical_environment_stack: Vec<Option<Gc<GcCell<ClassLexicalEnvironment>>>>,
-    ) {
-        *self.class_lexical_environment_stack.borrow_mut() = class_lexical_environment_stack;
-    }
-
     pub(super) fn class_lexical_environment_map(
         &self,
     ) -> GcCellRef<HashMap<NodeId, Gc<GcCell<ClassLexicalEnvironment>>>> {
@@ -597,24 +572,10 @@ impl TransformClassFields {
         self.class_lexical_environment_map.borrow_mut()
     }
 
-    pub(super) fn set_class_lexical_environment_map(
-        &self,
-        class_lexical_environment_map: HashMap<NodeId, Gc<GcCell<ClassLexicalEnvironment>>>,
-    ) {
-        *self.class_lexical_environment_map.borrow_mut() = class_lexical_environment_map;
-    }
-
     pub(super) fn maybe_current_class_lexical_environment(
         &self,
     ) -> Option<Gc<GcCell<ClassLexicalEnvironment>>> {
         self.current_class_lexical_environment.borrow().clone()
-    }
-
-    pub(super) fn current_class_lexical_environment(&self) -> Gc<GcCell<ClassLexicalEnvironment>> {
-        self.current_class_lexical_environment
-            .borrow()
-            .clone()
-            .unwrap()
     }
 
     pub(super) fn set_current_class_lexical_environment(
@@ -649,13 +610,6 @@ impl TransformClassFields {
         self.current_static_property_declaration_or_static_block
             .borrow()
             .clone()
-    }
-
-    pub(super) fn maybe_current_static_property_declaration_or_static_block_mut(
-        &self,
-    ) -> GcCellRefMut<Option<Gc<Node /*PropertyDeclaration | ClassStaticBlockDeclaration*/>>> {
-        self.current_static_property_declaration_or_static_block
-            .borrow_mut()
     }
 
     pub(super) fn set_current_static_property_declaration_or_static_block(

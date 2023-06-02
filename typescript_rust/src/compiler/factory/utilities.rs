@@ -202,6 +202,12 @@ pub fn has_recorded_external_helpers(source_file: &Node /*SourceFile*/) -> bool 
     )
 }
 
+pub fn get_initializer_of_binding_or_assignment_element(
+    _binding_element: &Node, /*BindingOrAssignmentElement*/
+) -> Option<Gc<Node /*Expression*/>> {
+    unimplemented!()
+}
+
 pub fn get_target_of_binding_or_assignment_element(
     binding_element: &Node, /*BindingOrAssignmentElement*/
 ) -> Option<Gc<Node /*BindingOrAssignmentElementTarget*/>> {
