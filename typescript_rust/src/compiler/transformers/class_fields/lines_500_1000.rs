@@ -95,6 +95,7 @@ impl TransformClassFields {
                 if let Some(info) = self
                     .access_private_identifier(&node_operand.as_property_access_expression().name())
                 {
+                    let info = (*info).borrow();
                     let ref receiver = visit_node(
                         &node_operand.as_property_access_expression().expression,
                         Some(|node: &Node| self.visitor(node)),
@@ -706,10 +707,11 @@ impl TransformClassFields {
                     .as_property_access_expression();
                 let info =
                     self.access_private_identifier(&node_left_as_property_access_expression.name);
-                if let Some(ref info) = info {
+                if let Some(info) = info {
+                    let info = (*info).borrow();
                     return Some(
                         self.create_private_identifier_assignment(
-                            info,
+                            &info,
                             &node_left_as_property_access_expression.expression,
                             &node_as_binary_expression.right,
                             node_as_binary_expression.operator_token.kind(),

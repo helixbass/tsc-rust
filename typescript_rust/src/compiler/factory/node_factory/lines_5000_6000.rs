@@ -728,6 +728,14 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         unimplemented!()
     }
 
+    pub fn create_assignment_target_wrapper(
+        &self,
+        _param_name: Gc<Node /*Identifier*/>,
+        _expression: Gc<Node /*Expression*/>,
+    ) -> Gc<Node /*LeftHandSideExpression*/> {
+        unimplemented!()
+    }
+
     pub fn inline_expressions(&self, _expressions: &[Gc<Node /*Expression*/>]) -> Gc<Node> {
         unimplemented!()
     }

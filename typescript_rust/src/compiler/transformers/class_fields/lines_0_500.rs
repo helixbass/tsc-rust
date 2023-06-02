@@ -848,7 +848,10 @@ impl TransformClassFields {
             return Some(
                 self.context
                     .get_emit_helper_factory()
-                    .create_class_private_field_in_helper(info.brand_check_identifier(), receiver)
+                    .create_class_private_field_in_helper(
+                        (*info).borrow().brand_check_identifier(),
+                        receiver,
+                    )
                     .set_original_node(Some(node.node_wrapper()))
                     .into(),
             );
@@ -940,7 +943,7 @@ impl TransformClassFields {
             Some("Undeclared private name for property declaration."),
         );
         let info = info.unwrap();
-        if !info.is_valid() {
+        if !(*info).borrow().is_valid() {
             return Some(node.node_wrapper().into());
         }
 
@@ -1013,6 +1016,7 @@ impl TransformClassFields {
             Some("Undeclared private name for property declaration."),
         );
         let info = info.unwrap();
+        let info = (*info).borrow();
 
         if info.kind() == PrivateIdentifierKind::Method {
             return Some(info.as_private_identifier_method_info().method_name.clone());
@@ -1074,7 +1078,7 @@ impl TransformClassFields {
                 Some("Undeclared private name for property declaration."),
             );
             let info = info.unwrap();
-            if !info.is_valid() {
+            if !(*info).borrow().is_valid() {
                 return Some(node.node_wrapper().into());
             }
         }
@@ -1160,10 +1164,10 @@ impl TransformClassFields {
         {
             let private_identifier_info =
                 self.access_private_identifier(&node_as_property_access_expression.name());
-            if let Some(ref private_identifier_info) = private_identifier_info {
+            if let Some(private_identifier_info) = private_identifier_info {
                 return Some(
                     self.create_private_identifier_access(
-                        private_identifier_info,
+                        &(*private_identifier_info).borrow(),
                         &node_as_property_access_expression.expression,
                     )
                     .set_original_node(Some(node.node_wrapper()))
