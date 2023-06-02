@@ -56,6 +56,13 @@ impl TransformClassFields {
         self.pending_expressions_mut()
     }
 
+    pub(super) fn add_private_identifier_to_environment(
+        &self,
+        _node: &Node, /*PrivateClassElementDeclaration*/
+    ) {
+        unimplemented!()
+    }
+
     pub(super) fn create_hoisted_variable_for_class(
         &self,
         _name: &str,  /*PrivateIdentifier*/

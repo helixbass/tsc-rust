@@ -1,14 +1,23 @@
+use std::borrow::Borrow;
+
 use gc::Gc;
+use itertools::Itertools;
 
 use super::{ClassFacts, TransformClassFields};
 use crate::{
     get_static_properties_and_class_static_block, InterfaceOrClassLikeDeclarationInterface,
-    Matches, NamedDeclarationInterface, Node, NodeInterface, NonEmpty, VisitResult, _d, add_range,
-    get_effective_base_type_node, get_emit_flags, get_original_node_id,
-    is_class_static_block_declaration, is_decorator, is_heritage_clause, is_private_identifier,
-    maybe_map, maybe_visit_nodes, set_emit_flags, skip_outer_expressions, Debug_, EmitFlags,
-    GeneratedIdentifierFlags, HasInitializerInterface, NodeArray, NodeCheckFlags, NodeExt,
-    SyntaxKind,
+    Matches, NamedDeclarationInterface, Node, NodeInterface, NonEmpty, VisitResult, _d,
+    add_prologue_directives_and_initial_super_call, add_range, filter, find_index,
+    get_effective_base_type_node, get_emit_flags, get_first_constructor_with_body,
+    get_original_node, get_original_node_id, get_properties, has_syntactic_modifier,
+    is_class_element, is_class_static_block_declaration, is_constructor_declaration, is_decorator,
+    is_heritage_clause, is_initialized_property, is_parameter_property_declaration,
+    is_private_identifier, is_private_identifier_class_element_declaration, is_statement,
+    is_static, maybe_map, maybe_visit_node, maybe_visit_nodes, set_emit_flags,
+    skip_outer_expressions, visit_each_child, visit_function_body, visit_nodes,
+    visit_parameter_list, Debug_, EmitFlags, FunctionLikeDeclarationInterface,
+    GeneratedIdentifierFlags, HasInitializerInterface, ModifierFlags, NodeArray, NodeArrayExt,
+    NodeArrayOrVec, NodeCheckFlags, NodeExt, NodeWrappered, ScriptTarget, SyntaxKind,
 };
 
 impl TransformClassFields {
@@ -293,17 +302,334 @@ impl TransformClassFields {
 
     pub(super) fn visit_class_static_block_declaration(
         &self,
-        _node: &Node, /*ClassStaticBlockDeclaration*/
+        node: &Node, /*ClassStaticBlockDeclaration*/
     ) -> VisitResult {
-        unimplemented!()
+        if !self.should_transform_private_elements_or_class_static_blocks {
+            return Some(
+                visit_each_child(
+                    node,
+                    |node: &Node| self.class_element_visitor(node),
+                    &**self.context,
+                )
+                .into(),
+            );
+        }
+        None
     }
 
     pub(super) fn transform_class_members(
         &self,
-        _node: &Node, /*ClassDeclaration | ClassExpression*/
-        _is_derived_class: bool,
+        node: &Node, /*ClassDeclaration | ClassExpression*/
+        is_derived_class: bool,
     ) -> Gc<NodeArray> {
-        unimplemented!()
+        let node_as_class_like_declaration = node.as_class_like_declaration();
+        if self.should_transform_private_elements_or_class_static_blocks {
+            for member in &node_as_class_like_declaration.members() {
+                if is_private_identifier_class_element_declaration(member) {
+                    self.add_private_identifier_to_environment(member);
+                }
+            }
+
+            if !self
+                .get_private_instance_methods_and_accessors(node)
+                .is_empty()
+            {
+                self.create_brand_check_weak_set_for_private_methods();
+            }
+        }
+
+        let mut members: Vec<Gc<Node /*ClassElement*/>> = _d();
+        let constructor = self.transform_constructor(node, is_derived_class);
+        if let Some(constructor) = constructor {
+            members.push(constructor);
+        }
+        add_range(
+            &mut members,
+            Some(&visit_nodes(
+                &node_as_class_like_declaration.members(),
+                Some(|node: &Node| self.class_element_visitor(node)),
+                Some(is_class_element),
+                None,
+                None,
+            )),
+            None,
+            None,
+        );
+        self.factory
+            .create_node_array(Some(members), None)
+            .set_text_range(Some(&*node_as_class_like_declaration.members()))
+    }
+
+    pub(super) fn create_brand_check_weak_set_for_private_methods(&self) {
+        let private_identifier_environment = self.get_private_identifier_environment();
+        let private_identifier_environment = (*private_identifier_environment).borrow();
+        let weak_set_name = private_identifier_environment.weak_set_name.as_ref();
+        Debug_.assert(
+            weak_set_name.is_some(),
+            Some("weakSetName should be set in private identifier environment"),
+        );
+        let weak_set_name = weak_set_name.unwrap();
+
+        self.get_pending_expressions().push(
+            self.factory
+                .create_assignment(
+                    weak_set_name.clone(),
+                    self.factory
+                        .create_new_expression(
+                            self.factory
+                                .create_identifier("WeakSet", Option::<Gc<NodeArray>>::None, None)
+                                .wrap(),
+                            Option::<Gc<NodeArray>>::None,
+                            Some(vec![]),
+                        )
+                        .wrap(),
+                )
+                .wrap(),
+        );
+    }
+
+    pub(super) fn is_class_element_that_requires_constructor_statement(
+        &self,
+        member: &Node, /*ClassElement*/
+    ) -> bool {
+        if is_static(member)
+            || has_syntactic_modifier(&get_original_node(member), ModifierFlags::Abstract)
+        {
+            return false;
+        }
+        if self.use_define_for_class_fields {
+            return self.language_version < ScriptTarget::ESNext;
+        }
+        is_initialized_property(member)
+            || self.should_transform_private_elements_or_class_static_blocks
+                && is_private_identifier_class_element_declaration(member)
+    }
+
+    pub(super) fn transform_constructor(
+        &self,
+        node: &Node, /*ClassDeclaration | ClassExpression*/
+        is_derived_class: bool,
+    ) -> Option<Gc<Node>> {
+        let node_as_class_like_declaration = node.as_class_like_declaration();
+        let constructor = maybe_visit_node(
+            get_first_constructor_with_body(node),
+            Some(|node: &Node| self.visitor(node)),
+            Some(is_constructor_declaration),
+            Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+        );
+        let elements = node_as_class_like_declaration
+            .members()
+            .owned_iter()
+            .filter(|member| self.is_class_element_that_requires_constructor_statement(member))
+            .collect_vec();
+        if elements.is_empty() {
+            return constructor;
+        }
+        let parameters = visit_parameter_list(
+            constructor
+                .as_ref()
+                .map(|constructor| constructor.as_signature_declaration().parameters())
+                .as_deref(),
+            |node: &Node| self.visitor(node),
+            &**self.context,
+            Option::<
+                fn(
+                    Option<&NodeArray>,
+                    Option<&mut dyn FnMut(&Node) -> VisitResult>,
+                    Option<&dyn Fn(&Node) -> bool>,
+                    Option<usize>,
+                    Option<usize>,
+                ) -> Option<Gc<NodeArray>>,
+            >::None,
+        );
+        let body =
+            self.transform_constructor_body(node, constructor.as_deref(), is_derived_class)?;
+        Some(
+            self.factory
+                .create_constructor_declaration(
+                    Option::<Gc<NodeArray>>::None,
+                    Option::<Gc<NodeArray>>::None,
+                    Some(parameters.map_or_else(|| vec![].into(), NodeArrayOrVec::from)),
+                    Some(body),
+                )
+                .wrap()
+                .set_text_range(Some(constructor.as_deref().unwrap_or(node)))
+                .set_original_node(constructor)
+                .start_on_new_line(),
+        )
+    }
+
+    pub(super) fn transform_constructor_body(
+        &self,
+        node: &Node, /*ClassDeclaration | ClassExpression*/
+        constructor: Option<impl Borrow<Node /*ConstructorDeclaration*/>>,
+        is_derived_class: bool,
+    ) -> Option<Gc<Node>> {
+        let node_as_class_like_declaration = node.as_class_like_declaration();
+        let mut properties = get_properties(node, false, false);
+        if !self.use_define_for_class_fields {
+            properties = filter(&properties, |property: &Gc<Node>| {
+                let property_as_property_declaration = property.as_property_declaration();
+                property_as_property_declaration
+                    .maybe_initializer()
+                    .is_some()
+                    || is_private_identifier(&property_as_property_declaration.name())
+            });
+        }
+
+        let private_methods_and_accessors = self.get_private_instance_methods_and_accessors(node);
+        let needs_constructor_body =
+            !properties.is_empty() || !private_methods_and_accessors.is_empty();
+
+        if constructor.is_none() && !needs_constructor_body {
+            return visit_function_body(
+                None,
+                |node: &Node| self.visitor(node),
+                &**self.context,
+                Option::<
+                    fn(
+                        Option<&Node>,
+                        Option<&mut dyn FnMut(&Node) -> VisitResult>,
+                        Option<&dyn Fn(&Node) -> bool>,
+                        Option<&dyn Fn(&[Gc<Node>]) -> Gc<Node>>,
+                    ) -> Option<Gc<Node>>,
+                >::None,
+            );
+        }
+
+        self.context.resume_lexical_environment();
+
+        let mut index_of_first_statement = 0;
+        let mut statements: Vec<Gc<Node /*Statement*/>> = _d();
+
+        if constructor.is_none() && is_derived_class {
+            statements.push(
+                self.factory
+                    .create_expression_statement(
+                        self.factory
+                            .create_call_expression(
+                                self.factory.create_super().wrap(),
+                                Option::<Gc<NodeArray>>::None,
+                                Some(vec![self
+                                    .factory
+                                    .create_spread_element(
+                                        self.factory
+                                            .create_identifier(
+                                                "arguments",
+                                                Option::<Gc<NodeArray>>::None,
+                                                None,
+                                            )
+                                            .wrap(),
+                                    )
+                                    .wrap()]),
+                            )
+                            .wrap(),
+                    )
+                    .wrap(),
+            );
+        }
+
+        let constructor = constructor.node_wrappered();
+        if let Some(constructor) = constructor.as_ref() {
+            index_of_first_statement = add_prologue_directives_and_initial_super_call(
+                &self.factory,
+                constructor,
+                &mut statements,
+                |node: &Node| self.visitor(node),
+            );
+        }
+        if let Some(constructor) = constructor.as_ref() {
+            let constructor_as_constructor_declaration = constructor.as_constructor_declaration();
+            if let Some(constructor_body) = constructor_as_constructor_declaration.maybe_body() {
+                let after_parameter_properties = find_index(
+                    &constructor_body.as_block().statements,
+                    |s: &Gc<Node>, _| {
+                        !is_parameter_property_declaration(&get_original_node(s), constructor)
+                    },
+                    Some(index_of_first_statement),
+                );
+                let after_parameter_properties = after_parameter_properties
+                    .unwrap_or_else(|| constructor_body.as_block().statements.len());
+                if after_parameter_properties > index_of_first_statement {
+                    if !self.use_define_for_class_fields {
+                        add_range(
+                            &mut statements,
+                            Some(&visit_nodes(
+                                &constructor_body.as_block().statements,
+                                Some(|node: &Node| self.visitor(node)),
+                                Some(is_statement),
+                                Some(index_of_first_statement),
+                                Some(after_parameter_properties - index_of_first_statement),
+                            )),
+                            None,
+                            None,
+                        );
+                    }
+                    index_of_first_statement = after_parameter_properties;
+                }
+            }
+        }
+        let ref receiver = self.factory.create_this().wrap();
+        self.add_method_statements(&mut statements, &private_methods_and_accessors, receiver);
+        self.add_property_or_class_static_block_statements(&mut statements, &properties, receiver);
+
+        if let Some(constructor) = constructor.as_ref() {
+            add_range(
+                &mut statements,
+                Some(&visit_nodes(
+                    &constructor
+                        .as_constructor_declaration()
+                        .maybe_body()
+                        .unwrap()
+                        .as_block()
+                        .statements,
+                    Some(|node: &Node| self.visitor(node)),
+                    Some(is_statement),
+                    Some(index_of_first_statement),
+                    None,
+                )),
+                None,
+                None,
+            );
+        }
+
+        statements = self
+            .factory
+            .merge_lexical_environment(
+                statements,
+                self.context.end_lexical_environment().as_deref(),
+            )
+            .as_vec_owned();
+
+        Some(
+            self.factory
+                .create_block(
+                    self.factory
+                        .create_node_array(Some(statements), None)
+                        .set_text_range(Some(&*constructor.as_ref().map_or_else(
+                            || node_as_class_like_declaration.members(),
+                            |constructor| {
+                                constructor
+                                    .as_constructor_declaration()
+                                    .maybe_body()
+                                    .unwrap()
+                                    .as_block()
+                                    .statements
+                                    .clone()
+                            },
+                        ))),
+                    Some(true),
+                )
+                .wrap()
+                .set_text_range(
+                    constructor
+                        .as_ref()
+                        .and_then(|constructor| {
+                            constructor.as_constructor_declaration().maybe_body()
+                        })
+                        .as_deref(),
+                ),
+        )
     }
 
     pub(super) fn add_property_or_class_static_block_statements(
@@ -330,6 +656,15 @@ impl TransformClassFields {
     }
 
     pub(super) fn enable_substitution_for_class_static_this_or_super_reference(&self) {
+        unimplemented!()
+    }
+
+    pub(super) fn add_method_statements(
+        &self,
+        _statements: &mut Vec<Gc<Node /*Statement*/>>,
+        _methods: &[Gc<Node /*MethodDeclaration | AccessorDeclaration*/>],
+        _receiver: &Node, /*LeftHandSideExpression*/
+    ) {
         unimplemented!()
     }
 }
