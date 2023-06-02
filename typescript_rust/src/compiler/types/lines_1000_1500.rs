@@ -234,6 +234,7 @@ mod _NodeArrayOrVecDeriveTraceScope {
 }
 
 pub use _NodeArrayOrVecDeriveTraceScope::NodeArrayOrVec;
+use gc::GcCellRef;
 
 impl From<Gc<NodeArray>> for NodeArrayOrVec {
     fn from(node_array: Gc<NodeArray>) -> Self {
@@ -346,8 +347,12 @@ impl Identifier {
         self.auto_generate_flags.set(auto_generate_flags);
     }
 
-    pub fn maybe_generated_import_reference(&self) -> GcCellRefMut<Option<Gc<Node>>> {
-        self.generated_import_reference.borrow_mut()
+    pub fn maybe_generated_import_reference(&self) -> GcCellRef<Option<Gc<Node>>> {
+        self.generated_import_reference.borrow()
+    }
+
+    pub fn set_generated_import_reference(&self, generated_import_reference: Option<Gc<Node>>) {
+        *self.generated_import_reference.borrow_mut() = generated_import_reference;
     }
 
     pub fn maybe_is_in_jsdoc_namespace(&self) -> Option<bool> {
