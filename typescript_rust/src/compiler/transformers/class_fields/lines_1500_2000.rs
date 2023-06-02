@@ -4,14 +4,33 @@ use super::{
     ClassLexicalEnvironment, PrivateIdentifierEnvironment, PrivateIdentifierInfo,
     TransformClassFields,
 };
-use crate::{Node, _d};
+use crate::{
+    NamedDeclarationInterface, Node, _d, is_expression, is_property_access_expression, visit_node,
+};
 
 impl TransformClassFields {
     pub(super) fn visit_invalid_super_property(
         &self,
-        _name: &Node, /*SuperProperty*/
+        node: &Node, /*SuperProperty*/
     ) -> Gc<Node> {
-        unimplemented!()
+        if is_property_access_expression(node) {
+            self.factory.update_property_access_expression(
+                node,
+                self.factory.create_void_zero(),
+                node.as_property_access_expression().name(),
+            )
+        } else {
+            self.factory.update_element_access_expression(
+                node,
+                self.factory.create_void_zero(),
+                visit_node(
+                    &node.as_element_access_expression().argument_expression,
+                    Some(|node: &Node| self.visitor(node)),
+                    Some(is_expression),
+                    Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                ),
+            )
+        }
     }
 
     pub(super) fn get_property_name_expression_if_needed(

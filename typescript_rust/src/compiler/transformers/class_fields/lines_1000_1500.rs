@@ -3,21 +3,28 @@ use std::borrow::Borrow;
 use gc::Gc;
 use itertools::Itertools;
 
-use super::{ClassFacts, TransformClassFields};
+use super::{
+    create_private_instance_field_initializer, create_private_instance_method_initializer,
+    create_private_static_field_initializer, ClassFacts, ClassPropertySubstitutionFlags,
+    PrivateIdentifierInfoInterface, TransformClassFields,
+};
 use crate::{
     get_static_properties_and_class_static_block, InterfaceOrClassLikeDeclarationInterface,
     Matches, NamedDeclarationInterface, Node, NodeInterface, NonEmpty, VisitResult, _d,
-    add_prologue_directives_and_initial_super_call, add_range, filter, find_index,
-    get_effective_base_type_node, get_emit_flags, get_first_constructor_with_body,
-    get_original_node, get_original_node_id, get_properties, has_syntactic_modifier,
-    is_class_element, is_class_static_block_declaration, is_constructor_declaration, is_decorator,
-    is_heritage_clause, is_initialized_property, is_parameter_property_declaration,
-    is_private_identifier, is_private_identifier_class_element_declaration, is_statement,
-    is_static, maybe_map, maybe_visit_node, maybe_visit_nodes, set_emit_flags,
-    skip_outer_expressions, visit_each_child, visit_function_body, visit_nodes,
-    visit_parameter_list, Debug_, EmitFlags, FunctionLikeDeclarationInterface,
-    GeneratedIdentifierFlags, HasInitializerInterface, ModifierFlags, NodeArray, NodeArrayExt,
-    NodeArrayOrVec, NodeCheckFlags, NodeExt, NodeWrappered, ScriptTarget, SyntaxKind,
+    add_emit_flags, add_prologue_directives_and_initial_super_call, add_range, continue_if_none,
+    create_member_access_for_property_name, filter, find_index, get_effective_base_type_node,
+    get_emit_flags, get_first_constructor_with_body, get_original_node, get_original_node_id,
+    get_properties, has_static_modifier, has_syntactic_modifier, is_class_element,
+    is_class_static_block_declaration, is_computed_property_name, is_constructor_declaration,
+    is_decorator, is_expression, is_heritage_clause, is_identifier, is_initialized_property,
+    is_parameter_property_declaration, is_private_identifier,
+    is_private_identifier_class_element_declaration, is_simple_inlineable_expression, is_statement,
+    is_static, maybe_map, maybe_visit_node, maybe_visit_nodes, move_range_past_modifiers,
+    set_emit_flags, set_original_node, skip_outer_expressions, unescape_leading_underscores,
+    visit_each_child, visit_function_body, visit_nodes, visit_parameter_list, Debug_, EmitFlags,
+    FunctionLikeDeclarationInterface, GeneratedIdentifierFlags, HasInitializerInterface,
+    ModifierFlags, NodeArray, NodeArrayExt, NodeArrayOrVec, NodeCheckFlags, NodeExt, NodeWrappered,
+    PrivateIdentifierKind, PropertyDescriptorAttributesBuilder, ScriptTarget, SyntaxKind,
 };
 
 impl TransformClassFields {
@@ -634,37 +641,304 @@ impl TransformClassFields {
 
     pub(super) fn add_property_or_class_static_block_statements(
         &self,
-        _statements: &mut Vec<Gc<Node /*Statement*/>>,
-        _properties: &[Gc<Node /*PropertyDeclaration | ClassStaticBlockDeclaration*/>],
-        _receiver: &Node, /*LeftHandSideExpression*/
+        statements: &mut Vec<Gc<Node /*Statement*/>>,
+        properties: &[Gc<Node /*PropertyDeclaration | ClassStaticBlockDeclaration*/>],
+        receiver: &Node, /*LeftHandSideExpression*/
     ) {
-        unimplemented!()
+        for property in properties {
+            let expression = continue_if_none!(if is_class_static_block_declaration(property) {
+                self.transform_class_static_block_declaration(property)
+            } else {
+                self.transform_property(property, receiver)
+            });
+            let statement = self
+                .factory
+                .create_expression_statement(expression)
+                .wrap()
+                .set_source_map_range(Some((&move_range_past_modifiers(property)).into()))
+                .set_comment_range(&**property)
+                .set_original_node(Some(property.clone()));
+            statements.push(statement);
+        }
     }
 
     pub(super) fn generate_initialized_property_expressions_or_class_static_block(
         &self,
-        _properties_or_class_static_blocks: &[Gc<
+        properties_or_class_static_blocks: &[Gc<
             Node, /*PropertyDeclaration | ClassStaticBlockDeclaration*/
         >],
-        _receiver: &Node, /*LeftHandSideExpression*/
+        receiver: &Node, /*LeftHandSideExpression*/
     ) -> Vec<Gc<Node>> {
-        unimplemented!()
+        let mut expressions: Vec<Gc<Node /*Expression*/>> = _d();
+        for property in properties_or_class_static_blocks {
+            let expression = continue_if_none!(if is_class_static_block_declaration(property) {
+                self.transform_class_static_block_declaration(property)
+            } else {
+                self.transform_property(property, receiver)
+            })
+            .start_on_new_line()
+            .set_source_map_range(Some((&move_range_past_modifiers(property)).into()))
+            .set_comment_range(&**property)
+            .set_original_node(Some(property.clone()));
+            expressions.push(expression);
+        }
+
+        expressions
+    }
+
+    pub(super) fn transform_property(
+        &self,
+        property: &Node, /*PropertyDeclaration*/
+        receiver: &Node, /*LeftHandSideExpression*/
+    ) -> Option<Gc<Node>> {
+        let saved_current_static_property_declaration_or_static_block =
+            self.maybe_current_static_property_declaration_or_static_block();
+        let transformed = self.transform_property_worker(property, receiver);
+        if let Some(transformed) = transformed.as_ref() {
+            if has_static_modifier(property) {
+                if let Some(current_class_lexical_environment) = self
+                    .maybe_current_class_lexical_environment()
+                    .filter(|current_class_lexical_environment| {
+                        (**current_class_lexical_environment).borrow().facts != ClassFacts::None
+                    })
+                {
+                    set_original_node(&**transformed, Some(property.node_wrapper()));
+                    add_emit_flags(&**transformed, EmitFlags::AdviseOnEmitNode);
+                    self.class_lexical_environment_map_mut().insert(
+                        get_original_node_id(transformed),
+                        current_class_lexical_environment,
+                    );
+                }
+            }
+        }
+        self.set_current_static_property_declaration_or_static_block(
+            saved_current_static_property_declaration_or_static_block,
+        );
+        transformed
+    }
+
+    pub(super) fn transform_property_worker(
+        &self,
+        property: &Node, /*PropertyDeclaration*/
+        receiver: &Node, /*LeftHandSideExpression*/
+    ) -> Option<Gc<Node>> {
+        let property_as_property_declaration = property.as_property_declaration();
+        let emit_assignment = !self.use_define_for_class_fields;
+        let ref property_name =
+            if is_computed_property_name(&property_as_property_declaration.name())
+                && !is_simple_inlineable_expression(
+                    &property_as_property_declaration
+                        .name()
+                        .as_computed_property_name()
+                        .expression,
+                )
+            {
+                self.factory.update_computed_property_name(
+                    &property_as_property_declaration.name(),
+                    self.factory.get_generated_name_for_node(
+                        Some(property_as_property_declaration.name()),
+                        None,
+                    ),
+                )
+            } else {
+                property_as_property_declaration.name()
+            };
+
+        if has_static_modifier(property) {
+            self.set_current_static_property_declaration_or_static_block(Some(
+                property.node_wrapper(),
+            ));
+        }
+
+        if self.should_transform_private_elements_or_class_static_blocks
+            && is_private_identifier(property_name)
+        {
+            let private_identifier_info = self.access_private_identifier(property_name);
+            if let Some(private_identifier_info) = private_identifier_info {
+                if private_identifier_info.kind() == PrivateIdentifierKind::Field {
+                    if !private_identifier_info.is_static() {
+                        return Some(create_private_instance_field_initializer(
+                            receiver.node_wrapper(),
+                            maybe_visit_node(
+                                property_as_property_declaration.maybe_initializer(),
+                                Some(|node: &Node| self.visitor(node)),
+                                Some(is_expression),
+                                Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                            ),
+                            private_identifier_info.brand_check_identifier(),
+                        ));
+                    } else {
+                        return Some(create_private_static_field_initializer(
+                            private_identifier_info.maybe_variable_name().unwrap(),
+                            maybe_visit_node(
+                                property_as_property_declaration.maybe_initializer(),
+                                Some(|node: &Node| self.visitor(node)),
+                                Some(is_expression),
+                                Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                            ),
+                        ));
+                    }
+                } else {
+                    return None;
+                }
+            } else {
+                Debug_.fail(Some("Undeclared private name for property declaration."));
+            }
+        }
+        if (is_private_identifier(property_name) || has_static_modifier(property))
+            && property_as_property_declaration
+                .maybe_initializer()
+                .is_none()
+        {
+            return None;
+        }
+
+        let ref property_original_node = get_original_node(property);
+        if has_syntactic_modifier(property_original_node, ModifierFlags::Abstract) {
+            return None;
+        }
+
+        let initializer = if property_as_property_declaration
+            .maybe_initializer()
+            .is_some()
+            || emit_assignment
+        {
+            maybe_visit_node(
+                property_as_property_declaration.maybe_initializer(),
+                Some(|node: &Node| self.visitor(node)),
+                Some(is_expression),
+                Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+            )
+            .unwrap_or_else(|| self.factory.create_void_zero())
+        } else if is_parameter_property_declaration(
+            property_original_node,
+            &property_original_node.parent(),
+        ) && is_identifier(property_name)
+        {
+            property_name.clone()
+        } else {
+            self.factory.create_void_zero()
+        };
+
+        Some(if emit_assignment || is_private_identifier(property_name) {
+            let member_access = create_member_access_for_property_name(
+                &self.factory,
+                receiver,
+                property_name,
+                Some(&**property_name),
+            );
+            self.factory
+                .create_assignment(member_access, initializer)
+                .wrap()
+        } else {
+            let name = if is_computed_property_name(property_name) {
+                property_name.as_computed_property_name().expression.clone()
+            } else if is_identifier(property_name) {
+                self.factory
+                    .create_string_literal(
+                        unescape_leading_underscores(&property_name.as_identifier().escaped_text)
+                            .to_owned(),
+                        None,
+                        None,
+                    )
+                    .wrap()
+            } else {
+                property_name.clone()
+            };
+            let descriptor = self.factory.create_property_descriptor(
+                PropertyDescriptorAttributesBuilder::default()
+                    .value(initializer)
+                    .configurable(true)
+                    .writable(true)
+                    .enumerable(true)
+                    .build()
+                    .unwrap(),
+                None,
+            );
+            self.factory.create_object_define_property_call(
+                receiver.node_wrapper(),
+                name,
+                descriptor,
+            )
+        })
     }
 
     pub(super) fn enable_substitution_for_class_aliases(&self) {
-        unimplemented!()
+        if !self
+            .maybe_enabled_substitutions()
+            .unwrap_or_default()
+            .intersects(ClassPropertySubstitutionFlags::ClassAliases)
+        {
+            self.set_enabled_substitutions(Some(
+                self.maybe_enabled_substitutions().unwrap_or_default()
+                    | ClassPropertySubstitutionFlags::ClassAliases,
+            ));
+
+            self.context.enable_substitution(SyntaxKind::Identifier);
+
+            self.set_class_aliases(Some(_d()));
+        }
     }
 
     pub(super) fn enable_substitution_for_class_static_this_or_super_reference(&self) {
-        unimplemented!()
+        if !self
+            .maybe_enabled_substitutions()
+            .unwrap_or_default()
+            .intersects(ClassPropertySubstitutionFlags::ClassStaticThisOrSuperReference)
+        {
+            self.set_enabled_substitutions(Some(
+                self.maybe_enabled_substitutions().unwrap_or_default()
+                    | ClassPropertySubstitutionFlags::ClassStaticThisOrSuperReference,
+            ));
+
+            self.context.enable_substitution(SyntaxKind::ThisKeyword);
+
+            self.context
+                .enable_emit_notification(SyntaxKind::FunctionDeclaration);
+            self.context
+                .enable_emit_notification(SyntaxKind::FunctionExpression);
+            self.context
+                .enable_emit_notification(SyntaxKind::Constructor);
+
+            self.context
+                .enable_emit_notification(SyntaxKind::GetAccessor);
+            self.context
+                .enable_emit_notification(SyntaxKind::SetAccessor);
+            self.context
+                .enable_emit_notification(SyntaxKind::MethodDeclaration);
+            self.context
+                .enable_emit_notification(SyntaxKind::PropertyDeclaration);
+
+            self.context
+                .enable_emit_notification(SyntaxKind::ComputedPropertyName);
+        }
     }
 
     pub(super) fn add_method_statements(
         &self,
-        _statements: &mut Vec<Gc<Node /*Statement*/>>,
-        _methods: &[Gc<Node /*MethodDeclaration | AccessorDeclaration*/>],
-        _receiver: &Node, /*LeftHandSideExpression*/
+        statements: &mut Vec<Gc<Node /*Statement*/>>,
+        methods: &[Gc<Node /*MethodDeclaration | AccessorDeclaration*/>],
+        receiver: &Node, /*LeftHandSideExpression*/
     ) {
-        unimplemented!()
+        if !self.should_transform_private_elements_or_class_static_blocks || methods.is_empty() {
+            return;
+        }
+
+        let private_identifier_environment = self.get_private_identifier_environment();
+        let private_identifier_environment = (*private_identifier_environment).borrow();
+        let weak_set_name = private_identifier_environment.weak_set_name.as_ref();
+        Debug_.assert(
+            weak_set_name.is_some(),
+            Some("weakSetName should be set in private identifier environment"),
+        );
+        let weak_set_name = weak_set_name.unwrap();
+        statements.push(
+            self.factory
+                .create_expression_statement(create_private_instance_method_initializer(
+                    receiver.node_wrapper(),
+                    weak_set_name.clone(),
+                ))
+                .wrap(),
+        );
     }
 }

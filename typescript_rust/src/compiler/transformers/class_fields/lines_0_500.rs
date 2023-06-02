@@ -12,14 +12,16 @@ use crate::{
     TransformationContext, TransformationContextOnEmitNodeOverrider,
     TransformationContextOnSubstituteNodeOverrider, Transformer, TransformerFactory,
     TransformerFactoryInterface, TransformerInterface, UnderscoreEscapedMap, VecExt, VisitResult,
-    _d, gc_cell_ref_mut_unwrapped, gc_cell_ref_unwrapped, is_get_accessor, is_identifier,
-    is_modifier, is_set_accessor, is_simple_inlineable_expression, is_static_modifier,
-    is_super_property, maybe_filter, maybe_visit_nodes, move_range_pos, set_comment_range,
-    visit_function_body, visit_parameter_list, AsDoubleDeref, HasInitializerInterface,
+    _d, gc_cell_ref_mut_unwrapped, gc_cell_ref_unwrapped, get_emit_flags, get_original_node,
+    is_arrow_function, is_get_accessor, is_identifier, is_modifier, is_set_accessor,
+    is_simple_inlineable_expression, is_static_modifier, is_super_property, maybe_filter,
+    maybe_visit_nodes, move_range_pos, set_comment_range, visit_function_body,
+    visit_parameter_list, AsDoubleDeref, EmitFlags, HasInitializerInterface,
     NamedDeclarationInterface, ReadonlyTextRangeConcrete,
 };
 
 bitflags! {
+    #[derive(Default)]
     pub(super) struct ClassPropertySubstitutionFlags: u32 {
         const None = 0;
         const ClassAliases = 1 << 0;
@@ -1130,11 +1132,131 @@ impl TransformClassFieldsOnEmitNodeOverrider {
 impl TransformationContextOnEmitNodeOverrider for TransformClassFieldsOnEmitNodeOverrider {
     fn on_emit_node(
         &self,
-        _hint: EmitHint,
-        _node: &Node,
-        _emit_callback: &dyn Fn(EmitHint, &Node) -> io::Result<()>,
+        hint: EmitHint,
+        node: &Node,
+        emit_callback: &dyn Fn(EmitHint, &Node) -> io::Result<()>,
     ) -> io::Result<()> {
-        unimplemented!()
+        let ref original = get_original_node(node);
+        if let Some(original_id) = original.maybe_id() {
+            let class_lexical_environment = self
+                .transform_class_fields
+                .class_lexical_environment_map()
+                .get(&original_id)
+                .cloned();
+            if let Some(class_lexical_environment) = class_lexical_environment {
+                let saved_class_lexical_environment = self
+                    .transform_class_fields
+                    .maybe_current_class_lexical_environment();
+                let saved_current_computed_property_name_class_lexical_environment = self
+                    .transform_class_fields
+                    .maybe_current_computed_property_name_class_lexical_environment();
+                self.transform_class_fields
+                    .set_current_class_lexical_environment(Some(class_lexical_environment.clone()));
+                self.transform_class_fields
+                    .set_current_computed_property_name_class_lexical_environment(Some(
+                        class_lexical_environment.clone(),
+                    ));
+                self.previous_on_emit_node
+                    .on_emit_node(hint, node, emit_callback)?;
+                self.transform_class_fields
+                    .set_current_class_lexical_environment(saved_class_lexical_environment);
+                self.transform_class_fields
+                    .set_current_computed_property_name_class_lexical_environment(
+                        saved_current_computed_property_name_class_lexical_environment,
+                    );
+                return Ok(());
+            }
+        }
+
+        match node.kind() {
+            SyntaxKind::FunctionExpression
+            | SyntaxKind::FunctionDeclaration
+            | SyntaxKind::Constructor => 'arm: {
+                if node.kind() == SyntaxKind::FunctionExpression
+                    && (is_arrow_function(original)
+                        || get_emit_flags(node).intersects(EmitFlags::AsyncFunctionBody))
+                {
+                    break 'arm;
+                }
+
+                let saved_class_lexical_environment = self
+                    .transform_class_fields
+                    .maybe_current_class_lexical_environment();
+                let saved_current_computed_property_name_class_lexical_environment = self
+                    .transform_class_fields
+                    .maybe_current_computed_property_name_class_lexical_environment();
+                self.transform_class_fields
+                    .set_current_class_lexical_environment(None);
+                self.transform_class_fields
+                    .set_current_computed_property_name_class_lexical_environment(None);
+                self.previous_on_emit_node
+                    .on_emit_node(hint, node, emit_callback)?;
+                self.transform_class_fields
+                    .set_current_class_lexical_environment(saved_class_lexical_environment);
+                self.transform_class_fields
+                    .set_current_computed_property_name_class_lexical_environment(
+                        saved_current_computed_property_name_class_lexical_environment,
+                    );
+                return Ok(());
+            }
+
+            SyntaxKind::GetAccessor
+            | SyntaxKind::SetAccessor
+            | SyntaxKind::MethodDeclaration
+            | SyntaxKind::PropertyDeclaration => {
+                let saved_class_lexical_environment = self
+                    .transform_class_fields
+                    .maybe_current_class_lexical_environment();
+                let saved_current_computed_property_name_class_lexical_environment = self
+                    .transform_class_fields
+                    .maybe_current_computed_property_name_class_lexical_environment();
+                self.transform_class_fields
+                    .set_current_computed_property_name_class_lexical_environment(
+                        self.transform_class_fields
+                            .maybe_current_class_lexical_environment(),
+                    );
+                self.transform_class_fields
+                    .set_current_class_lexical_environment(None);
+                self.previous_on_emit_node
+                    .on_emit_node(hint, node, emit_callback)?;
+                self.transform_class_fields
+                    .set_current_class_lexical_environment(saved_class_lexical_environment);
+                self.transform_class_fields
+                    .set_current_computed_property_name_class_lexical_environment(
+                        saved_current_computed_property_name_class_lexical_environment,
+                    );
+                return Ok(());
+            }
+            SyntaxKind::ComputedPropertyName => {
+                let saved_class_lexical_environment = self
+                    .transform_class_fields
+                    .maybe_current_class_lexical_environment();
+                let saved_current_computed_property_name_class_lexical_environment = self
+                    .transform_class_fields
+                    .maybe_current_computed_property_name_class_lexical_environment();
+                self.transform_class_fields
+                    .set_current_class_lexical_environment(
+                        self.transform_class_fields
+                            .maybe_current_computed_property_name_class_lexical_environment(),
+                    );
+                self.transform_class_fields
+                    .set_current_computed_property_name_class_lexical_environment(None);
+                self.previous_on_emit_node
+                    .on_emit_node(hint, node, emit_callback)?;
+                self.transform_class_fields
+                    .set_current_class_lexical_environment(saved_class_lexical_environment);
+                self.transform_class_fields
+                    .set_current_computed_property_name_class_lexical_environment(
+                        saved_current_computed_property_name_class_lexical_environment,
+                    );
+                return Ok(());
+            }
+            _ => (),
+        }
+        self.previous_on_emit_node
+            .on_emit_node(hint, node, emit_callback)?;
+
+        Ok(())
     }
 }
 
@@ -1154,13 +1276,41 @@ impl TransformClassFieldsOnSubstituteNodeOverrider {
             previous_on_substitute_node,
         }
     }
+
+    pub(super) fn substitute_expression(&self, node: &Node /*Expression*/) -> Gc<Node> {
+        match node.kind() {
+            SyntaxKind::Identifier => self.substitute_expression_identifier(node),
+            SyntaxKind::ThisKeyword => self.substitute_this_expression(node),
+            _ => node.node_wrapper(),
+        }
+    }
+
+    pub(super) fn substitute_this_expression(
+        &self,
+        _node: &Node, /*ThisExpression*/
+    ) -> Gc<Node> {
+        unimplemented!()
+    }
+
+    pub(super) fn substitute_expression_identifier(
+        &self,
+        _node: &Node, /*Identifier*/
+    ) -> Gc<Node /*Expression*/> {
+        unimplemented!()
+    }
 }
 
 impl TransformationContextOnSubstituteNodeOverrider
     for TransformClassFieldsOnSubstituteNodeOverrider
 {
-    fn on_substitute_node(&self, _hint: EmitHint, _node: &Node) -> io::Result<Gc<Node>> {
-        unimplemented!()
+    fn on_substitute_node(&self, hint: EmitHint, node: &Node) -> io::Result<Gc<Node>> {
+        let node = self
+            .previous_on_substitute_node
+            .on_substitute_node(hint, node)?;
+        if hint == EmitHint::Expression {
+            return Ok(self.substitute_expression(&node));
+        }
+        Ok(node)
     }
 }
 
