@@ -1,13 +1,17 @@
+use std::{
+    borrow::Borrow,
+    cell::{Cell, Ref, RefCell, RefMut},
+    cmp,
+    collections::HashMap,
+    convert::TryInto,
+    fmt,
+    iter::FromIterator,
+    rc::Rc,
+};
+
 use fancy_regex::{Captures, Regex};
 use gc::{Finalize, Gc, Trace};
-use std::borrow::Borrow;
-use std::cell::{Cell, Ref, RefCell, RefMut};
-use std::cmp;
-use std::collections::HashMap;
-use std::convert::TryInto;
-use std::fmt;
-use std::iter::FromIterator;
-use std::rc::Rc;
+use local_macros::enum_unwrapped;
 
 use crate::{
     change_any_extension, combine_paths, compare_strings_case_sensitive,
@@ -31,7 +35,6 @@ use crate::{
     ResolvedTypeReferenceDirective, ScriptKind, ScriptTarget, SourceFileLike, TypeAcquisition,
     WatchOptions,
 };
-use local_macros::enum_unwrapped;
 
 pub fn create_compiler_diagnostic_from_message_chain(
     chain: DiagnosticMessageChain,
@@ -765,9 +768,9 @@ pub fn get_compiler_option_value(
     }
 }
 
-pub fn get_jsx_implicit_import_base<TFile: Borrow<Node>>(
+pub fn get_jsx_implicit_import_base(
     compiler_options: &CompilerOptions,
-    file: Option<TFile /*SourceFile*/>,
+    file: Option<impl Borrow<Node> /*SourceFile*/>,
 ) -> Option<String> {
     let file: Option<Gc<Node>> = file.map(|file| file.borrow().node_wrapper());
     let jsx_import_source_pragmas = file.as_ref().and_then(|file| {

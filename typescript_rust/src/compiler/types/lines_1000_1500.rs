@@ -259,6 +259,15 @@ impl Deref for NodeArrayOrVec {
     }
 }
 
+impl From<&NodeArrayOrVec> for Vec<Gc<Node>> {
+    fn from(value: &NodeArrayOrVec) -> Vec<Gc<Node>> {
+        match value {
+            NodeArrayOrVec::NodeArray(value) => value.to_vec(),
+            NodeArrayOrVec::Vec(value) => value.clone(),
+        }
+    }
+}
+
 #[derive(Clone, Debug)]
 pub enum RcNodeOrNodeArrayOrVec {
     RcNode(Gc<Node>),

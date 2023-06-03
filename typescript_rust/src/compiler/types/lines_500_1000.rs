@@ -58,14 +58,14 @@ use super::{
 use crate::{
     add_emit_flags, add_emit_helpers, add_synthetic_leading_comment, get_emit_flags,
     move_synthetic_comments, remove_all_comments, set_comment_range_rc, set_emit_flags,
-    set_original_node, set_source_map_range, set_text_range_end, set_text_range_pos,
-    set_text_range_rc_node, start_on_new_line, CaseOrDefaultClauseInterface, EmitFlags, EmitHelper,
-    GcVec, HasArgumentsInterface, HasAssertClauseInterface, HasChildrenInterface,
-    HasDotDotDotTokenInterface, HasFileNameInterface, HasLeftAndRightInterface,
-    HasMembersInterface, HasModuleSpecifierInterface, HasOldFileOfCurrentEmitInterface,
-    HasTagNameInterface, HasTextsInterface, InferenceContext, JSDocHeritageTagInterface,
-    JsxOpeningLikeElementInterface, SourceFileLike, SourceMapRange, SyntheticExpression,
-    SyntheticReferenceExpression, UnparsedSyntheticReference,
+    set_original_node, set_parent_recursive, set_source_map_range, set_text_range_end,
+    set_text_range_pos, set_text_range_rc_node, start_on_new_line, CaseOrDefaultClauseInterface,
+    EmitFlags, EmitHelper, GcVec, HasArgumentsInterface, HasAssertClauseInterface,
+    HasChildrenInterface, HasDotDotDotTokenInterface, HasFileNameInterface,
+    HasLeftAndRightInterface, HasMembersInterface, HasModuleSpecifierInterface,
+    HasOldFileOfCurrentEmitInterface, HasTagNameInterface, HasTextsInterface, InferenceContext,
+    JSDocHeritageTagInterface, JsxOpeningLikeElementInterface, SourceFileLike, SourceMapRange,
+    SyntheticExpression, SyntheticReferenceExpression, UnparsedSyntheticReference,
 };
 
 bitflags! {
@@ -2105,6 +2105,7 @@ pub trait NodeExt {
     fn set_source_map_range(self, range: Option<Gc<SourceMapRange>>) -> Self;
     fn start_on_new_line(self) -> Self;
     fn and_set_parent(self, parent: Option<Gc<Node>>) -> Self;
+    fn set_parent_recursive(self, incremental: bool) -> Self;
     fn and_set_original(self, original: Option<Gc<Node>>) -> Self;
     fn remove_all_comments(self) -> Self;
     fn add_emit_helpers(self, helpers: Option<&[Gc<EmitHelper>]>) -> Self;
@@ -2164,6 +2165,11 @@ impl NodeExt for Gc<Node> {
 
     fn and_set_parent(self, parent: Option<Gc<Node>>) -> Self {
         self.set_parent(parent);
+        self
+    }
+
+    fn set_parent_recursive(self, incremental: bool) -> Self {
+        set_parent_recursive(Some(&*self), incremental);
         self
     }
 
