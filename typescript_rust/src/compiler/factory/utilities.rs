@@ -40,6 +40,44 @@ pub fn create_member_access_for_property_name<
     unimplemented!()
 }
 
+pub fn create_jsx_factory_expression<
+    TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize,
+>(
+    _factory: &NodeFactory<TBaseNodeFactory>,
+    _jsx_factory_entity: Option<impl Borrow<Node /*EntityName*/>>,
+    _react_namespace: &str,
+    _parent: &Node, /*JsxOpeningLikeElement | JsxOpeningFragment*/
+) -> Gc<Node /*Statement*/> {
+    unimplemented!()
+}
+
+pub fn create_expression_for_jsx_element<
+    TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize,
+>(
+    _factory: &NodeFactory<TBaseNodeFactory>,
+    _callee: &Node,   /*Expression*/
+    _tag_name: &Node, /*Expression*/
+    _props: Option<impl Borrow<Node /*Expression*/>>,
+    _children: Option<&[Gc<Node /*Expression*/>]>,
+    _location: &impl ReadonlyTextRange,
+) -> Gc<Node /*LeftHandSideExpression*/> {
+    unimplemented!()
+}
+
+pub fn create_expression_for_jsx_fragment<
+    TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize,
+>(
+    _factory: &NodeFactory<TBaseNodeFactory>,
+    _jsx_factory_entity: Option<impl Borrow<Node /*EntityName*/>>,
+    _jsx_fragment_factory_entity: Option<impl Borrow<Node /*EntityName*/>>,
+    _react_namespace: &str,
+    _children: &[Gc<Node /*Expression*/>],
+    _parent_element: &Node, /*JsxOpeningFragment*/
+    _location: &impl ReadonlyTextRange,
+) -> Gc<Node /*LeftHandSideExpression*/> {
+    unimplemented!()
+}
+
 pub fn create_for_of_binding_statement<
     TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize,
 >(

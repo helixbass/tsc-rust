@@ -269,8 +269,10 @@ pub use compiler::{
         parenthesizer_rules::{create_parenthesizer_rules, null_parenthesizer_rules},
         utilities::{
             can_have_modifiers, create_binary_expression_trampoline, create_empty_exports,
+            create_expression_for_jsx_element, create_expression_for_jsx_fragment,
             create_expression_for_property_name, create_expression_from_entity_name,
-            create_for_of_binding_statement, create_member_access_for_property_name,
+            create_for_of_binding_statement, create_jsx_factory_expression,
+            create_member_access_for_property_name,
             expand_pre_or_postfix_increment_or_decrement_expression, find_use_strict_prologue,
             get_elements_of_binding_or_assignment_pattern, get_external_helpers_module_name,
             get_initializer_of_binding_or_assignment_element, get_jsdoc_type_assertion_type,
