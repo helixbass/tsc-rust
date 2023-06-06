@@ -1,3 +1,5 @@
+use std::borrow::Borrow;
+
 use gc::Gc;
 
 use super::TransformGenerators;
@@ -43,6 +45,21 @@ impl TransformGenerators {
         &self,
         _node: &Node, /*LabeledStatement*/
     ) -> VisitResult {
+        unimplemented!()
+    }
+
+    pub(super) fn contains_yield(&self, _node: Option<impl Borrow<Node>>) -> bool {
+        unimplemented!()
+    }
+
+    pub(super) fn cache_expression(
+        &self,
+        _node: &Node, /*Expression*/
+    ) -> Gc<Node /*Identifier*/> {
+        unimplemented!()
+    }
+
+    pub(super) fn declare_local(&self, _name: Option<&str>) -> Gc<Node /*Identifier*/> {
         unimplemented!()
     }
 }

@@ -34,8 +34,44 @@ pub(super) enum OpCode {
     Endfinally,
 }
 
-// type OperationArguments = [Label] | [Label, Expression] | [Statement] | [Expression | undefined] | [Expression, Expression]
-type OperationArguments = ();
+#[derive(Clone, Trace, Finalize)]
+pub(super) enum OperationArguments {
+    Label(Label),
+    LabelAndNode((Label, Gc<Node /*Expression*/>)),
+    Node(Gc<Node /*Statement*/>),
+    OptionNode(Option<Gc<Node /*Expression*/>>),
+    NodeAndNode((Gc<Node /*Expression*/>, Gc<Node /*Expression*/>)),
+}
+
+impl From<Label> for OperationArguments {
+    fn from(value: Label) -> Self {
+        Self::Label(value)
+    }
+}
+
+impl From<(Label, Gc<Node /*Expression*/>)> for OperationArguments {
+    fn from(value: (Label, Gc<Node /*Expression*/>)) -> Self {
+        Self::LabelAndNode(value)
+    }
+}
+
+impl From<Gc<Node /*Statement*/>> for OperationArguments {
+    fn from(value: Gc<Node /*Statement*/>) -> Self {
+        Self::Node(value)
+    }
+}
+
+impl From<Option<Gc<Node /*Expression*/>>> for OperationArguments {
+    fn from(value: Option<Gc<Node /*Expression*/>>) -> Self {
+        Self::OptionNode(value)
+    }
+}
+
+impl From<(Gc<Node /*Expression*/>, Gc<Node /*Expression*/>)> for OperationArguments {
+    fn from(value: (Gc<Node /*Expression*/>, Gc<Node /*Expression*/>)) -> Self {
+        Self::NodeAndNode(value)
+    }
+}
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub(super) enum BlockAction {
@@ -430,8 +466,8 @@ impl TransformGenerators {
         *self.operation_locations.borrow_mut() = operation_locations;
     }
 
-    pub(super) fn maybe_state(&self) -> GcCellRef<Option<Gc<Node /*Identifier*/>>> {
-        self.state.borrow()
+    pub(super) fn maybe_state(&self) -> Option<Gc<Node /*Identifier*/>> {
+        self.state.borrow().clone()
     }
 
     pub(super) fn maybe_state_mut(&self) -> GcCellRefMut<Option<Gc<Node /*Identifier*/>>> {

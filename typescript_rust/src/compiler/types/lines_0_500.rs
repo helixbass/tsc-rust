@@ -46,6 +46,7 @@ pub trait ReadonlyTextRange {
     fn set_end(&self, end: isize);
 }
 
+#[derive(Copy, Clone)]
 pub struct ReadonlyTextRangeConcrete {
     pos: isize,
     end: isize,

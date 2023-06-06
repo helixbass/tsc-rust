@@ -1,3 +1,5 @@
+use gc::Gc;
+
 use super::TransformGenerators;
 use crate::{Node, VisitResult};
 
@@ -24,6 +26,29 @@ impl TransformGenerators {
     }
 
     pub(super) fn visit_new_expression(&self, _node: &Node /*NewExpression*/) -> VisitResult {
+        unimplemented!()
+    }
+
+    pub(super) fn transform_and_emit_statements(
+        &self,
+        _statements: &[Gc<Node /*Statement*/>],
+        start: Option<usize>,
+    ) {
+        let _start = start.unwrap_or(0);
+        unimplemented!()
+    }
+
+    pub(super) fn transform_and_emit_variable_declaration_list(
+        &self,
+        _node: &Node, /*VariableDeclarationList*/
+    ) -> Option<Gc<Node /*VariableDeclarationList*/>> {
+        unimplemented!()
+    }
+
+    pub(super) fn transform_initialized_variable(
+        &self,
+        _node: &Node, /*InitializedVariableDeclaration*/
+    ) -> Gc<Node> {
         unimplemented!()
     }
 
