@@ -1,17 +1,19 @@
 use std::{
-    cell::{Cell, RefCell},
+    cell::{Cell, Ref, RefCell, RefMut},
     collections::HashMap,
     io, mem,
     rc::Rc,
 };
 
-use gc::{Finalize, Gc, GcCell, Trace};
+use gc::{Finalize, Gc, GcCell, GcCellRef, GcCellRefMut, Trace};
 
 use crate::{
     BaseNodeFactorySynthetic, CompilerOptions, EmitHelperFactory, EmitHint, EmitResolver, Node,
     NodeFactory, NodeId, ReadonlyTextRangeConcrete, TransformationContext,
     TransformationContextOnSubstituteNodeOverrider, Transformer, TransformerFactory,
     TransformerFactoryInterface, TransformerInterface, _d, chain_bundle,
+    is_function_like_declaration, visit_each_child, NodeExt, NodeInterface, TransformFlags,
+    VisitResult,
 };
 
 pub(super) type Label = u32;
@@ -148,9 +150,9 @@ pub(super) struct TransformGenerators {
     pub(super) renamed_catch_variable_declarations:
         GcCell<HashMap<NodeId, Gc<Node /*Identifier*/>>>,
     #[unsafe_ignore_trace]
-    pub(super) is_generator_function_body: Cell<bool>,
+    pub(super) in_generator_function_body: Cell<Option<bool>>,
     #[unsafe_ignore_trace]
-    pub(super) is_statement_containing_yield: Cell<bool>,
+    pub(super) in_statement_containing_yield: Cell<Option<bool>>,
     pub(super) blocks: GcCell<Option<Vec<Gc<CodeBlock>>>>,
     #[unsafe_ignore_trace]
     pub(super) block_offsets: RefCell<Option<Vec<usize>>>,
@@ -195,8 +197,8 @@ impl TransformGenerators {
             context: context.clone(),
             renamed_catch_variables: _d(),
             renamed_catch_variable_declarations: _d(),
-            is_generator_function_body: _d(),
-            is_statement_containing_yield: _d(),
+            in_generator_function_body: _d(),
+            in_statement_containing_yield: _d(),
             blocks: _d(),
             block_offsets: _d(),
             block_actions: _d(),
@@ -234,11 +236,387 @@ impl TransformGenerators {
         self._transformer_wrapper.borrow().clone().unwrap()
     }
 
+    pub(super) fn renamed_catch_variables(&self) -> GcCellRef<HashMap<String, bool>> {
+        self.renamed_catch_variables.borrow()
+    }
+
+    pub(super) fn renamed_catch_variables_mut(&self) -> GcCellRefMut<HashMap<String, bool>> {
+        self.renamed_catch_variables.borrow_mut()
+    }
+
+    pub(super) fn set_renamed_catch_variables(
+        &self,
+        renamed_catch_variables: HashMap<String, bool>,
+    ) {
+        *self.renamed_catch_variables.borrow_mut() = renamed_catch_variables;
+    }
+
+    pub(super) fn renamed_catch_variable_declarations(
+        &self,
+    ) -> GcCellRef<HashMap<NodeId, Gc<Node /*Identifier*/>>> {
+        self.renamed_catch_variable_declarations.borrow()
+    }
+
+    pub(super) fn renamed_catch_variable_declarations_mut(
+        &self,
+    ) -> GcCellRefMut<HashMap<NodeId, Gc<Node /*Identifier*/>>> {
+        self.renamed_catch_variable_declarations.borrow_mut()
+    }
+
+    pub(super) fn set_renamed_catch_variable_declarations(
+        &self,
+        renamed_catch_variable_declarations: HashMap<NodeId, Gc<Node /*Identifier*/>>,
+    ) {
+        *self.renamed_catch_variable_declarations.borrow_mut() =
+            renamed_catch_variable_declarations;
+    }
+
+    pub(super) fn maybe_in_generator_function_body(&self) -> Option<bool> {
+        self.in_generator_function_body.get()
+    }
+
+    pub(super) fn set_in_generator_function_body(&self, in_generator_function_body: Option<bool>) {
+        self.in_generator_function_body
+            .set(in_generator_function_body);
+    }
+
+    pub(super) fn maybe_in_statement_containing_yield(&self) -> Option<bool> {
+        self.in_statement_containing_yield.get()
+    }
+
+    pub(super) fn set_in_statement_containing_yield(
+        &self,
+        in_statement_containing_yield: Option<bool>,
+    ) {
+        self.in_statement_containing_yield
+            .set(in_statement_containing_yield);
+    }
+
+    pub(super) fn maybe_blocks(&self) -> GcCellRef<Option<Vec<Gc<CodeBlock>>>> {
+        self.blocks.borrow()
+    }
+
+    pub(super) fn maybe_blocks_mut(&self) -> GcCellRefMut<Option<Vec<Gc<CodeBlock>>>> {
+        self.blocks.borrow_mut()
+    }
+
+    pub(super) fn set_blocks(&self, blocks: Option<Vec<Gc<CodeBlock>>>) {
+        *self.blocks.borrow_mut() = blocks;
+    }
+
+    pub(super) fn maybe_block_offsets(&self) -> Ref<Option<Vec<usize>>> {
+        self.block_offsets.borrow()
+    }
+
+    pub(super) fn maybe_block_offsets_mut(&self) -> RefMut<Option<Vec<usize>>> {
+        self.block_offsets.borrow_mut()
+    }
+
+    pub(super) fn set_block_offsets(&self, block_offsets: Option<Vec<usize>>) {
+        *self.block_offsets.borrow_mut() = block_offsets;
+    }
+
+    pub(super) fn maybe_block_actions(&self) -> Ref<Option<Vec<BlockAction>>> {
+        self.block_actions.borrow()
+    }
+
+    pub(super) fn maybe_block_actions_mut(&self) -> RefMut<Option<Vec<BlockAction>>> {
+        self.block_actions.borrow_mut()
+    }
+
+    pub(super) fn set_block_actions(&self, block_actions: Option<Vec<BlockAction>>) {
+        *self.block_actions.borrow_mut() = block_actions;
+    }
+
+    pub(super) fn maybe_block_stack(&self) -> GcCellRef<Option<Vec<Gc<CodeBlock>>>> {
+        self.block_stack.borrow()
+    }
+
+    pub(super) fn maybe_block_stack_mut(&self) -> GcCellRefMut<Option<Vec<Gc<CodeBlock>>>> {
+        self.block_stack.borrow_mut()
+    }
+
+    pub(super) fn set_block_stack(&self, block_stack: Option<Vec<Gc<CodeBlock>>>) {
+        *self.block_stack.borrow_mut() = block_stack;
+    }
+
+    pub(super) fn maybe_label_offsets(&self) -> Ref<Option<Vec<usize>>> {
+        self.label_offsets.borrow()
+    }
+
+    pub(super) fn maybe_label_offsets_mut(&self) -> RefMut<Option<Vec<usize>>> {
+        self.label_offsets.borrow_mut()
+    }
+
+    pub(super) fn set_label_offsets(&self, label_offsets: Option<Vec<usize>>) {
+        *self.label_offsets.borrow_mut() = label_offsets;
+    }
+
+    pub(super) fn maybe_label_expressions(
+        &self,
+    ) -> GcCellRef<Option<Vec<Vec<Gc<Node /*Mutable<LiteralExpression>*/>>>>> {
+        self.label_expressions.borrow()
+    }
+
+    pub(super) fn maybe_label_expressions_mut(
+        &self,
+    ) -> GcCellRefMut<Option<Vec<Vec<Gc<Node /*Mutable<LiteralExpression>*/>>>>> {
+        self.label_expressions.borrow_mut()
+    }
+
+    pub(super) fn set_label_expressions(
+        &self,
+        label_expressions: Option<Vec<Vec<Gc<Node /*Mutable<LiteralExpression>*/>>>>,
+    ) {
+        *self.label_expressions.borrow_mut() = label_expressions;
+    }
+
+    pub(super) fn next_label_id(&self) -> u32 {
+        self.next_label_id.get()
+    }
+
+    pub(super) fn set_next_label_id(&self, next_label_id: u32) {
+        self.next_label_id.set(next_label_id);
+    }
+
+    pub(super) fn maybe_operations(&self) -> Ref<Option<Vec<OpCode>>> {
+        self.operations.borrow()
+    }
+
+    pub(super) fn maybe_operations_mut(&self) -> RefMut<Option<Vec<OpCode>>> {
+        self.operations.borrow_mut()
+    }
+
+    pub(super) fn set_operations(&self, operations: Option<Vec<OpCode>>) {
+        *self.operations.borrow_mut() = operations;
+    }
+
+    pub(super) fn maybe_operation_arguments(
+        &self,
+    ) -> GcCellRef<Option<Vec<Option<OperationArguments>>>> {
+        self.operation_arguments.borrow()
+    }
+
+    pub(super) fn maybe_operation_arguments_mut(
+        &self,
+    ) -> GcCellRefMut<Option<Vec<Option<OperationArguments>>>> {
+        self.operation_arguments.borrow_mut()
+    }
+
+    pub(super) fn set_operation_arguments(
+        &self,
+        operation_arguments: Option<Vec<Option<OperationArguments>>>,
+    ) {
+        *self.operation_arguments.borrow_mut() = operation_arguments;
+    }
+
+    pub(super) fn maybe_operation_locations(
+        &self,
+    ) -> Ref<Option<Vec<Option<ReadonlyTextRangeConcrete>>>> {
+        self.operation_locations.borrow()
+    }
+
+    pub(super) fn maybe_operation_locations_mut(
+        &self,
+    ) -> RefMut<Option<Vec<Option<ReadonlyTextRangeConcrete>>>> {
+        self.operation_locations.borrow_mut()
+    }
+
+    pub(super) fn set_operation_locations(
+        &self,
+        operation_locations: Option<Vec<Option<ReadonlyTextRangeConcrete>>>,
+    ) {
+        *self.operation_locations.borrow_mut() = operation_locations;
+    }
+
+    pub(super) fn maybe_state(&self) -> GcCellRef<Option<Gc<Node /*Identifier*/>>> {
+        self.state.borrow()
+    }
+
+    pub(super) fn maybe_state_mut(&self) -> GcCellRefMut<Option<Gc<Node /*Identifier*/>>> {
+        self.state.borrow_mut()
+    }
+
+    pub(super) fn set_state(&self, state: Option<Gc<Node /*Identifier*/>>) {
+        *self.state.borrow_mut() = state;
+    }
+
+    pub(super) fn block_index(&self) -> usize {
+        self.block_index.get()
+    }
+
+    pub(super) fn set_block_index(&self, block_index: usize) {
+        self.block_index.set(block_index);
+    }
+
+    pub(super) fn label_number(&self) -> u32 {
+        self.label_number.get()
+    }
+
+    pub(super) fn set_label_number(&self, label_number: u32) {
+        self.label_number.set(label_number);
+    }
+
+    pub(super) fn maybe_label_numbers(&self) -> Ref<Option<Vec<Vec<u32>>>> {
+        self.label_numbers.borrow()
+    }
+
+    pub(super) fn maybe_label_numbers_mut(&self) -> RefMut<Option<Vec<Vec<u32>>>> {
+        self.label_numbers.borrow_mut()
+    }
+
+    pub(super) fn set_label_numbers(&self, label_numbers: Option<Vec<Vec<u32>>>) {
+        *self.label_numbers.borrow_mut() = label_numbers;
+    }
+
+    pub(super) fn last_operation_was_abrupt(&self) -> bool {
+        self.last_operation_was_abrupt.get()
+    }
+
+    pub(super) fn set_last_operation_was_abrupt(&self, last_operation_was_abrupt: bool) {
+        self.last_operation_was_abrupt
+            .set(last_operation_was_abrupt);
+    }
+
+    pub(super) fn last_operation_was_completion(&self) -> bool {
+        self.last_operation_was_completion.get()
+    }
+
+    pub(super) fn set_last_operation_was_completion(&self, last_operation_was_completion: bool) {
+        self.last_operation_was_completion
+            .set(last_operation_was_completion);
+    }
+
+    pub(super) fn maybe_clauses(&self) -> GcCellRef<Option<Vec<Gc<Node /*CaseClause*/>>>> {
+        self.clauses.borrow()
+    }
+
+    pub(super) fn maybe_clauses_mut(&self) -> GcCellRefMut<Option<Vec<Gc<Node /*CaseClause*/>>>> {
+        self.clauses.borrow_mut()
+    }
+
+    pub(super) fn set_clauses(&self, clauses: Option<Vec<Gc<Node /*CaseClause*/>>>) {
+        *self.clauses.borrow_mut() = clauses;
+    }
+
+    pub(super) fn maybe_statements(&self) -> GcCellRef<Option<Vec<Gc<Node /*Statement*/>>>> {
+        self.statements.borrow()
+    }
+
+    pub(super) fn maybe_statements_mut(&self) -> GcCellRefMut<Option<Vec<Gc<Node /*Statement*/>>>> {
+        self.statements.borrow_mut()
+    }
+
+    pub(super) fn set_statements(&self, statements: Option<Vec<Gc<Node /*Statement*/>>>) {
+        *self.statements.borrow_mut() = statements;
+    }
+
+    pub(super) fn maybe_exception_block_stack(
+        &self,
+    ) -> GcCellRef<Option<Vec<Gc<Node /*ExceptionBlock*/>>>> {
+        self.exception_block_stack.borrow()
+    }
+
+    pub(super) fn maybe_exception_block_stack_mut(
+        &self,
+    ) -> GcCellRefMut<Option<Vec<Gc<Node /*ExceptionBlock*/>>>> {
+        self.exception_block_stack.borrow_mut()
+    }
+
+    pub(super) fn set_exception_block_stack(
+        &self,
+        exception_block_stack: Option<Vec<Gc<Node /*ExceptionBlock*/>>>,
+    ) {
+        *self.exception_block_stack.borrow_mut() = exception_block_stack;
+    }
+
+    pub(super) fn maybe_current_exception_block(
+        &self,
+    ) -> GcCellRef<Option<Gc<Node /*ExceptionBlock*/>>> {
+        self.current_exception_block.borrow()
+    }
+
+    pub(super) fn maybe_current_exception_block_mut(
+        &self,
+    ) -> GcCellRefMut<Option<Gc<Node /*ExceptionBlock*/>>> {
+        self.current_exception_block.borrow_mut()
+    }
+
+    pub(super) fn set_current_exception_block(
+        &self,
+        current_exception_block: Option<Gc<Node /*ExceptionBlock*/>>,
+    ) {
+        *self.current_exception_block.borrow_mut() = current_exception_block;
+    }
+
+    pub(super) fn maybe_with_block_stack(&self) -> GcCellRef<Option<Vec<Gc<Node /*WithBlock*/>>>> {
+        self.with_block_stack.borrow()
+    }
+
+    pub(super) fn maybe_with_block_stack_mut(
+        &self,
+    ) -> GcCellRefMut<Option<Vec<Gc<Node /*WithBlock*/>>>> {
+        self.with_block_stack.borrow_mut()
+    }
+
+    pub(super) fn set_with_block_stack(
+        &self,
+        with_block_stack: Option<Vec<Gc<Node /*WithBlock*/>>>,
+    ) {
+        *self.with_block_stack.borrow_mut() = with_block_stack;
+    }
+
     pub(super) fn emit_helpers(&self) -> Rc<EmitHelperFactory> {
         self.context.get_emit_helper_factory()
     }
 
-    pub(super) fn transform_source_file(&self, _node: &Node /*SourceFile*/) -> Gc<Node> {
+    pub(super) fn transform_source_file(&self, node: &Node /*SourceFile*/) -> Gc<Node> {
+        let node_as_source_file = node.as_source_file();
+        if node_as_source_file.is_declaration_file()
+            || !node
+                .transform_flags()
+                .intersects(TransformFlags::ContainsGenerator)
+        {
+            return node.node_wrapper();
+        }
+
+        visit_each_child(node, |node: &Node| self.visitor(node), &**self.context)
+            .add_emit_helpers(self.context.read_emit_helpers().as_deref())
+    }
+
+    pub(super) fn visitor(&self, node: &Node) -> VisitResult /*<Node>*/ {
+        let transform_flags = node.transform_flags();
+        if self.maybe_in_statement_containing_yield() == Some(true) {
+            self.visit_java_script_in_statement_containing_yield(node)
+        } else if self.maybe_in_generator_function_body() == Some(true) {
+            self.visit_java_script_in_generator_function_body(node)
+        } else if is_function_like_declaration(node)
+            && node
+                .as_function_like_declaration()
+                .maybe_asterisk_token()
+                .is_some()
+        {
+            self.visit_generator(node)
+        } else if transform_flags.intersects(TransformFlags::ContainsGenerator) {
+            Some(visit_each_child(node, |node: &Node| self.visitor(node), &**self.context).into())
+        } else {
+            Some(node.node_wrapper().into())
+        }
+    }
+
+    pub(super) fn visit_java_script_in_statement_containing_yield(
+        &self,
+        _node: &Node,
+    ) -> VisitResult /*<Node>*/ {
+        unimplemented!()
+    }
+
+    pub(super) fn visit_java_script_in_generator_function_body(&self, _node: &Node) -> VisitResult /*<Node>*/
+    {
+        unimplemented!()
+    }
+
+    pub(super) fn visit_generator(&self, _node: &Node) -> VisitResult /*<Node>*/ {
         unimplemented!()
     }
 }
