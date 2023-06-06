@@ -12,8 +12,9 @@ use crate::{
     NodeFactory, NodeId, ReadonlyTextRangeConcrete, TransformationContext,
     TransformationContextOnSubstituteNodeOverrider, Transformer, TransformerFactory,
     TransformerFactoryInterface, TransformerInterface, _d, chain_bundle,
-    is_function_like_declaration, visit_each_child, NodeExt, NodeInterface, TransformFlags,
-    VisitResult,
+    is_function_like_declaration, visit_each_child, visit_parameter_list, Debug_,
+    FunctionLikeDeclarationInterface, NamedDeclarationInterface, NodeArray, NodeExt, NodeInterface,
+    SignatureDeclarationInterface, SyntaxKind, TransformFlags, VisitResult,
 };
 
 pub(super) type Label = u32;
@@ -606,18 +607,192 @@ impl TransformGenerators {
 
     pub(super) fn visit_java_script_in_statement_containing_yield(
         &self,
-        _node: &Node,
+        node: &Node,
     ) -> VisitResult /*<Node>*/ {
-        unimplemented!()
+        match node.kind() {
+            SyntaxKind::DoStatement => self.visit_do_statement(node),
+            SyntaxKind::WhileStatement => self.visit_while_statement(node),
+            SyntaxKind::SwitchStatement => self.visit_switch_statement(node),
+            SyntaxKind::LabeledStatement => self.visit_labeled_statement(node),
+            _ => self.visit_java_script_in_generator_function_body(node),
+        }
     }
 
-    pub(super) fn visit_java_script_in_generator_function_body(&self, _node: &Node) -> VisitResult /*<Node>*/
+    pub(super) fn visit_java_script_in_generator_function_body(&self, node: &Node) -> VisitResult /*<Node>*/
     {
-        unimplemented!()
+        match node.kind() {
+            SyntaxKind::FunctionDeclaration => {
+                self.visit_function_declaration(node).map(Into::into)
+            }
+            SyntaxKind::FunctionExpression => Some(self.visit_function_expression(node).into()),
+            SyntaxKind::GetAccessor | SyntaxKind::SetAccessor => {
+                self.visit_accessor_declaration(node)
+            }
+            SyntaxKind::VariableStatement => self.visit_variable_statement(node).map(Into::into),
+            SyntaxKind::ForStatement => self.visit_for_statement(node),
+            SyntaxKind::ForInStatement => self.visit_for_in_statement(node),
+            SyntaxKind::BreakStatement => Some(self.visit_break_statement(node).into()),
+            SyntaxKind::ContinueStatement => Some(self.visit_continue_statement(node).into()),
+            SyntaxKind::ReturnStatement => self.visit_return_statement(node),
+            _ => {
+                if node
+                    .transform_flags()
+                    .intersects(TransformFlags::ContainsYield)
+                {
+                    self.visit_java_script_containing_yield(node)
+                } else if node.transform_flags().intersects(
+                    TransformFlags::ContainsGenerator
+                        | TransformFlags::ContainsHoistedDeclarationOrCompletion,
+                ) {
+                    Some(
+                        visit_each_child(node, |node: &Node| self.visitor(node), &**self.context)
+                            .into(),
+                    )
+                } else {
+                    Some(node.node_wrapper().into())
+                }
+            }
+        }
     }
 
-    pub(super) fn visit_generator(&self, _node: &Node) -> VisitResult /*<Node>*/ {
-        unimplemented!()
+    pub(super) fn visit_java_script_containing_yield(&self, node: &Node) -> VisitResult /*<Node>*/ {
+        match node.kind() {
+            SyntaxKind::BinaryExpression => Some(self.visit_binary_expression(node).into()),
+            SyntaxKind::CommaListExpression => self.visit_comma_list_expression(node),
+            SyntaxKind::ConditionalExpression => {
+                Some(self.visit_conditional_expression(node).into())
+            }
+            SyntaxKind::YieldExpression => Some(self.visit_yield_expression(node).into()),
+            SyntaxKind::ArrayLiteralExpression => self.visit_array_literal_expression(node),
+            SyntaxKind::ObjectLiteralExpression => self.visit_object_literal_expression(node),
+            SyntaxKind::ElementAccessExpression => self.visit_element_access_expression(node),
+            SyntaxKind::CallExpression => self.visit_call_expression(node),
+            SyntaxKind::NewExpression => self.visit_new_expression(node),
+            _ => Some(
+                visit_each_child(node, |node: &Node| self.visitor(node), &**self.context).into(),
+            ),
+        }
+    }
+
+    pub(super) fn visit_generator(&self, node: &Node) -> VisitResult /*<Node>*/ {
+        match node.kind() {
+            SyntaxKind::FunctionDeclaration => {
+                self.visit_function_declaration(node).map(Into::into)
+            }
+            SyntaxKind::FunctionExpression => Some(self.visit_function_expression(node).into()),
+            _ => Debug_.fail_bad_syntax_kind(node, None),
+        }
+    }
+
+    pub(super) fn visit_function_declaration(
+        &self,
+        node: &Node, /*FunctionDeclaration*/
+    ) -> Option<Gc<Node /*Statement*/>> {
+        let mut node = node.node_wrapper();
+        if node
+            .as_function_declaration()
+            .maybe_asterisk_token()
+            .is_some()
+        {
+            node = self
+                .factory
+                .create_function_declaration(
+                    Option::<Gc<NodeArray>>::None,
+                    node.maybe_modifiers(),
+                    None,
+                    node.as_function_declaration().maybe_name(),
+                    Option::<Gc<NodeArray>>::None,
+                    visit_parameter_list(
+                        Some(&node.as_function_declaration().parameters()),
+                        |node: &Node| self.visitor(node),
+                        &**self.context,
+                        Option::<
+                            fn(
+                                Option<&NodeArray>,
+                                Option<&mut dyn FnMut(&Node) -> VisitResult>,
+                                Option<&dyn Fn(&Node) -> bool>,
+                                Option<usize>,
+                                Option<usize>,
+                            ) -> Option<Gc<NodeArray>>,
+                        >::None,
+                    )
+                    .unwrap(),
+                    None,
+                    Some(self.transform_generator_function_body(
+                        &node.as_function_declaration().maybe_body().unwrap(),
+                    )),
+                )
+                .wrap()
+                .set_text_range(Some(&*node))
+                .set_original_node(Some(node.node_wrapper()));
+        } else {
+            let saved_in_generator_function_body = self.maybe_in_generator_function_body();
+            let saved_in_statement_containing_yield = self.maybe_in_statement_containing_yield();
+            self.set_in_generator_function_body(Some(false));
+            self.set_in_statement_containing_yield(Some(false));
+            node = visit_each_child(&node, |node: &Node| self.visitor(node), &**self.context);
+            self.set_in_generator_function_body(saved_in_generator_function_body);
+            self.set_in_statement_containing_yield(saved_in_statement_containing_yield);
+        }
+
+        if self.maybe_in_generator_function_body() == Some(true) {
+            self.context.hoist_function_declaration(&node);
+            None
+        } else {
+            Some(node)
+        }
+    }
+
+    pub(super) fn visit_function_expression(
+        &self,
+        node: &Node, /*FunctionExpression*/
+    ) -> Gc<Node /*Expression*/> {
+        let mut node = node.node_wrapper();
+        if node
+            .as_function_expression()
+            .maybe_asterisk_token()
+            .is_some()
+        {
+            node = self
+                .factory
+                .create_function_expression(
+                    Option::<Gc<NodeArray>>::None,
+                    None,
+                    node.as_function_expression().maybe_name(),
+                    Option::<Gc<NodeArray>>::None,
+                    visit_parameter_list(
+                        Some(&node.as_function_expression().parameters()),
+                        |node: &Node| self.visitor(node),
+                        &**self.context,
+                        Option::<
+                            fn(
+                                Option<&NodeArray>,
+                                Option<&mut dyn FnMut(&Node) -> VisitResult>,
+                                Option<&dyn Fn(&Node) -> bool>,
+                                Option<usize>,
+                                Option<usize>,
+                            ) -> Option<Gc<NodeArray>>,
+                        >::None,
+                    ),
+                    None,
+                    self.transform_generator_function_body(
+                        &node.as_function_expression().maybe_body().unwrap(),
+                    ),
+                )
+                .wrap()
+                .set_text_range(Some(&*node))
+                .set_original_node(Some(node.node_wrapper()));
+        } else {
+            let saved_in_generator_function_body = self.maybe_in_generator_function_body();
+            let saved_in_statement_containing_yield = self.maybe_in_statement_containing_yield();
+            self.set_in_generator_function_body(Some(false));
+            self.set_in_statement_containing_yield(Some(false));
+            node = visit_each_child(&node, |node: &Node| self.visitor(node), &**self.context);
+            self.set_in_generator_function_body(saved_in_generator_function_body);
+            self.set_in_statement_containing_yield(saved_in_statement_containing_yield);
+        }
+
+        node
     }
 }
 
