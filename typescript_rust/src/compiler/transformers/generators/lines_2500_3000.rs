@@ -4,6 +4,10 @@ use super::{Label, OpCode, OperationArguments, TransformGenerators};
 use crate::{Node, ReadonlyTextRange};
 
 impl TransformGenerators {
+    pub(super) fn emit_statement(&self, _node: Gc<Node /*Statement*/>) {
+        unimplemented!()
+    }
+
     pub(super) fn emit_assignment(
         &self,
         left: Gc<Node /*Expression*/>,

@@ -106,6 +106,17 @@ pub fn create_expression_for_property_name<
     unimplemented!()
 }
 
+pub fn create_expression_for_object_literal_element_like<
+    TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize,
+>(
+    _factory: &NodeFactory<TBaseNodeFactory>,
+    _node: &Node,     /*ObjectLiteralExpression*/
+    _property: &Node, /*ObjectLiteralElementLike*/
+    _receiver: &Node, /*Expression*/
+) -> Option<Gc<Node /*Expression*/>> {
+    unimplemented!()
+}
+
 pub fn expand_pre_or_postfix_increment_or_decrement_expression<
     TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize,
 >(

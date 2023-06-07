@@ -515,11 +515,14 @@ impl TransformGenerators {
         node: &Node, /*ArrayLiteralExpression*/
     ) -> VisitResult {
         let node_as_array_literal_expression = node.as_array_literal_expression();
-        self.visit_elements(
-            &node_as_array_literal_expression.elements,
-            Option::<&Node>::None,
-            Option::<&Node>::None,
-            node_as_array_literal_expression.multi_line,
+        Some(
+            self.visit_elements(
+                &node_as_array_literal_expression.elements,
+                Option::<&Node>::None,
+                Option::<&Node>::None,
+                node_as_array_literal_expression.multi_line,
+            )
+            .into(),
         )
     }
 
@@ -529,7 +532,7 @@ impl TransformGenerators {
         leading_element: Option<impl Borrow<Node /*Expression*/>>,
         location: Option<&impl ReadonlyTextRange>,
         multi_line: Option<bool>,
-    ) -> VisitResult {
+    ) -> Gc<Node> {
         let num_initial_elements = self.count_initial_nodes_without_yield(elements);
 
         let mut temp: Option<Gc<Node /*Identifier*/>> = _d();
@@ -565,43 +568,38 @@ impl TransformGenerators {
         let expressions = reduce_left(
             elements,
             |expressions: Vec<Gc<Node>>, element: &Gc<Node>, _| {
-                self.reduce_element(expressions, element)
+                self.reduce_element(
+                    &mut temp,
+                    multi_line,
+                    &mut leading_element,
+                    expressions,
+                    element,
+                )
             },
             _d(), /*as Expression[]*/
             Some(num_initial_elements),
             None,
         );
-        Some(
-            if let Some(temp) = temp {
-                self.factory.create_array_concat_call(
-                    temp,
-                    vec![self
-                        .factory
-                        .create_array_literal_expression(Some(expressions), multi_line)
-                        .wrap()],
+        if let Some(temp) = temp {
+            self.factory.create_array_concat_call(
+                temp,
+                vec![self
+                    .factory
+                    .create_array_literal_expression(Some(expressions), multi_line)
+                    .wrap()],
+            )
+        } else {
+            self.factory
+                .create_array_literal_expression(
+                    Some(if let Some(leading_element) = leading_element {
+                        vec![leading_element].and_extend(expressions)
+                    } else {
+                        expressions
+                    }),
+                    multi_line,
                 )
-            } else {
-                self.factory
-                    .create_array_literal_expression(
-                        Some(if let Some(leading_element) = leading_element {
-                            vec![leading_element].and_extend(expressions)
-                        } else {
-                            expressions
-                        }),
-                        multi_line,
-                    )
-                    .wrap()
-                    .set_text_range(location)
-            }
-            .into(),
-        )
-    }
-
-    pub(super) fn reduce_element(
-        &self,
-        mut _expressions: Vec<Gc<Node>>,
-        _element: &Node,
-    ) -> Vec<Gc<Node>> {
-        unimplemented!()
+                .wrap()
+                .set_text_range(location)
+        }
     }
 }

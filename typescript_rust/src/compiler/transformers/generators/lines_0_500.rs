@@ -11,10 +11,10 @@ use crate::{
     BaseNodeFactorySynthetic, CompilerOptions, EmitHelperFactory, EmitHint, EmitResolver, Node,
     NodeFactory, NodeId, ReadonlyTextRangeConcrete, TransformationContext,
     TransformationContextOnSubstituteNodeOverrider, Transformer, TransformerFactory,
-    TransformerFactoryInterface, TransformerInterface, _d, chain_bundle,
+    TransformerFactoryInterface, TransformerInterface, _d, chain_bundle, get_emit_script_target,
     is_function_like_declaration, visit_each_child, visit_parameter_list, Debug_,
     FunctionLikeDeclarationInterface, NamedDeclarationInterface, NodeArray, NodeExt, NodeInterface,
-    SignatureDeclarationInterface, SyntaxKind, TransformFlags, VisitResult,
+    ScriptTarget, SignatureDeclarationInterface, SyntaxKind, TransformFlags, VisitResult,
 };
 
 pub(super) type Label = u32;
@@ -182,6 +182,8 @@ pub(super) struct TransformGenerators {
     pub(super) context: Gc<Box<dyn TransformationContext>>,
     pub(super) factory: Gc<NodeFactory<BaseNodeFactorySynthetic>>,
     pub(super) compiler_options: Gc<CompilerOptions>,
+    #[unsafe_ignore_trace]
+    pub(super) language_version: ScriptTarget,
     pub(super) resolver: Gc<Box<dyn EmitResolver>>,
     pub(super) renamed_catch_variables: GcCell<HashMap<String, bool>>,
     pub(super) renamed_catch_variable_declarations:
@@ -226,10 +228,12 @@ pub(super) struct TransformGenerators {
 
 impl TransformGenerators {
     pub fn new(context: Gc<Box<dyn TransformationContext>>) -> Gc<Box<Self>> {
+        let compiler_options = context.get_compiler_options();
         let transformer_wrapper: Transformer = Gc::new(Box::new(Self {
             _transformer_wrapper: _d(),
             factory: context.factory(),
-            compiler_options: context.get_compiler_options(),
+            language_version: get_emit_script_target(&compiler_options),
+            compiler_options,
             resolver: context.get_emit_resolver(),
             context: context.clone(),
             renamed_catch_variables: _d(),
