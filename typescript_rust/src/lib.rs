@@ -827,5 +827,5 @@ pub use rust_helpers::{
     uri::encode_uri,
     vec::{GcVec, GcVecOwnedIter, SliceExtCloneOrd, VecExt, VecExtClone, VecExtOrd},
     weak_self::WeakSelf,
-    IntoA, TypedAs, UsizeOrNegativeInfinity,
+    IntoA, UsizeOrNegativeInfinity,
 };
