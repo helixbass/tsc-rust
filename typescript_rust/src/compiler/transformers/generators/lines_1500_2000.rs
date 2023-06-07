@@ -6,10 +6,21 @@ use super::TransformGenerators;
 use crate::{Node, NodeArray, VisitResult};
 
 impl TransformGenerators {
+    pub(super) fn transform_and_emit_for_in_statement(&self, _node: &Node /*ForInStatement*/) {
+        unimplemented!()
+    }
+
     pub(super) fn visit_for_in_statement(
         &self,
         _node: &Node, /*ForInStatement*/
     ) -> VisitResult {
+        unimplemented!()
+    }
+
+    pub(super) fn transform_and_emit_continue_statement(
+        &self,
+        _node: &Node, /*ContinueStatement*/
+    ) {
         unimplemented!()
     }
 
@@ -20,10 +31,21 @@ impl TransformGenerators {
         unimplemented!()
     }
 
+    pub(super) fn transform_and_emit_break_statement(&self, _node: &Node /*BreakStatement*/) {
+        unimplemented!()
+    }
+
     pub(super) fn visit_break_statement(
         &self,
         _node: &Node, /*BreakStatement*/
     ) -> Gc<Node /*Statement*/> {
+        unimplemented!()
+    }
+
+    pub(super) fn transform_and_emit_return_statement(
+        &self,
+        _node: &Node, /*ReturnStatement*/
+    ) {
         unimplemented!()
     }
 
@@ -34,6 +56,17 @@ impl TransformGenerators {
         unimplemented!()
     }
 
+    pub(super) fn transform_and_emit_with_statement(&self, _node: &Node /*WithStatement*/) {
+        unimplemented!()
+    }
+
+    pub(super) fn transform_and_emit_switch_statement(
+        &self,
+        _node: &Node, /*SwitchStatement*/
+    ) {
+        unimplemented!()
+    }
+
     pub(super) fn visit_switch_statement(
         &self,
         _node: &Node, /*SwitchStatement*/
@@ -41,10 +74,25 @@ impl TransformGenerators {
         unimplemented!()
     }
 
+    pub(super) fn transform_and_emit_labeled_statement(
+        &self,
+        _node: &Node, /*LabeledStatement*/
+    ) {
+        unimplemented!()
+    }
+
     pub(super) fn visit_labeled_statement(
         &self,
         _node: &Node, /*LabeledStatement*/
     ) -> VisitResult {
+        unimplemented!()
+    }
+
+    pub(super) fn transform_and_emit_throw_statement(&self, _node: &Node /*ThrowStatement*/) {
+        unimplemented!()
+    }
+
+    pub(super) fn transform_and_emit_try_statement(&self, _node: &Node /*TryStatement*/) {
         unimplemented!()
     }
 
