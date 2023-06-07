@@ -3,7 +3,7 @@ use std::borrow::Borrow;
 use gc::Gc;
 
 use super::TransformGenerators;
-use crate::{Node, VisitResult};
+use crate::{Node, NodeArray, VisitResult};
 
 impl TransformGenerators {
     pub(super) fn visit_for_in_statement(
@@ -49,6 +49,13 @@ impl TransformGenerators {
     }
 
     pub(super) fn contains_yield(&self, _node: Option<impl Borrow<Node>>) -> bool {
+        unimplemented!()
+    }
+
+    pub(super) fn count_initial_nodes_without_yield(
+        &self,
+        _nodes: &NodeArray, /*<Node>*/
+    ) -> usize {
         unimplemented!()
     }
 

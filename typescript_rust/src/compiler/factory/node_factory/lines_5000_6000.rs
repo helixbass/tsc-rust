@@ -651,6 +651,14 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         unimplemented!()
     }
 
+    pub fn create_array_concat_call(
+        &self,
+        _array: Gc<Node /*Expression*/>,
+        _arguments_list: Vec<Gc<Node /*Expression*/>>,
+    ) -> Gc<Node> {
+        unimplemented!()
+    }
+
     pub fn create_object_define_property_call<'property_name>(
         &self,
         _target: Gc<Node /*Expression*/>,

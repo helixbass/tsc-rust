@@ -823,9 +823,9 @@ pub use rust_helpers::{
         fs_stat_sync, fs_unlink_sync, is_windows, millis_since_epoch_to_system_time, path_join,
         process_cwd, read_file_and_strip_leading_byte_order_mark, StatLike, Stats,
     },
-    uncapitalize,
+    typed_as, uncapitalize,
     uri::encode_uri,
     vec::{GcVec, GcVecOwnedIter, SliceExtCloneOrd, VecExt, VecExtClone, VecExtOrd},
     weak_self::WeakSelf,
-    UsizeOrNegativeInfinity,
+    IntoA, TypedAs, UsizeOrNegativeInfinity,
 };

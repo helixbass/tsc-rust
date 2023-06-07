@@ -161,3 +161,54 @@ pub fn is_option_str_empty(value: Option<&str>) -> bool {
         Some(value) if !value.is_empty()
     )
 }
+
+pub fn typed_as<TValue>(value: TValue) -> TValue {
+    value
+}
+
+pub trait TypedAs {
+    fn as_a<T>(self) -> Self
+    where
+        Self: Identity<T> + Sized;
+}
+
+impl<T> TypedAs for T {
+    fn as_a<U>(self) -> Self {
+        self
+    }
+}
+
+pub trait Identity<T> {
+    fn identity(value: T) -> Self;
+}
+
+impl<T> Identity<T> for T {
+    fn identity(value: T) -> T {
+        value
+    }
+}
+
+// pub trait ReverseIdentity<T> {
+//     fn reverse_identity(self) -> T;
+// }
+
+// impl<T, U: Identity<T>> ReverseIdentity<U> for T {
+//     fn reverse_identity(self) -> T {
+//         self
+//     }
+// }
+
+pub trait IntoA {
+    fn into_a<TTarget>(self) -> TTarget
+    where
+        Self: Into<TTarget> + Sized;
+}
+
+impl<T> IntoA for T {
+    fn into_a<TTarget>(self) -> TTarget
+    where
+        Self: Into<TTarget> + Sized,
+    {
+        self.into()
+    }
+}

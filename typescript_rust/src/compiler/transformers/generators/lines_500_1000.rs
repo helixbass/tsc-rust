@@ -1,3 +1,5 @@
+use std::borrow::Borrow;
+
 use gc::Gc;
 
 use super::{OpCode, TransformGenerators};
@@ -6,8 +8,9 @@ use crate::{
     get_expression_associativity, get_initialized_variables,
     get_non_assignment_operator_for_compound_assignment, insert_statements_after_standard_prologue,
     is_binary_expression, is_compound_assignment, is_expression, is_left_hand_side_expression,
-    is_logical_operator, map, maybe_visit_node, visit_node, Associativity, EmitFlags,
-    NamedDeclarationInterface, SyntaxKind, TransformFlags,
+    is_logical_operator, map, maybe_visit_node, reduce_left, visit_node, visit_nodes,
+    Associativity, EmitFlags, IntoA, NamedDeclarationInterface, NodeArray, NodeArrayOrVec,
+    NodeWrappered, ReadonlyTextRange, SyntaxKind, TransformFlags, TypedAs, VecExt,
 };
 
 impl TransformGenerators {
@@ -509,8 +512,96 @@ impl TransformGenerators {
 
     pub(super) fn visit_array_literal_expression(
         &self,
-        _node: &Node, /*ArrayLiteralExpression*/
+        node: &Node, /*ArrayLiteralExpression*/
     ) -> VisitResult {
+        let node_as_array_literal_expression = node.as_array_literal_expression();
+        self.visit_elements(
+            &node_as_array_literal_expression.elements,
+            Option::<&Node>::None,
+            Option::<&Node>::None,
+            node_as_array_literal_expression.multi_line,
+        )
+    }
+
+    pub(super) fn visit_elements(
+        &self,
+        elements: &NodeArray, /*<Expression>*/
+        leading_element: Option<impl Borrow<Node /*Expression*/>>,
+        location: Option<&impl ReadonlyTextRange>,
+        multi_line: Option<bool>,
+    ) -> VisitResult {
+        let num_initial_elements = self.count_initial_nodes_without_yield(elements);
+
+        let mut temp: Option<Gc<Node /*Identifier*/>> = _d();
+        let mut leading_element = leading_element.node_wrappered();
+        if num_initial_elements > 0 {
+            temp = Some(self.declare_local(None));
+            let initial_elements = visit_nodes(
+                elements,
+                Some(|node: &Node| self.visitor(node)),
+                Some(is_expression),
+                Some(0),
+                Some(num_initial_elements),
+            );
+            self.emit_assignment(
+                temp.clone().unwrap(),
+                self.factory
+                    .create_array_literal_expression(
+                        Some(if let Some(leading_element) = leading_element.as_ref() {
+                            vec![leading_element.clone()]
+                                .and_extend(initial_elements.to_vec())
+                                .into()
+                        } else {
+                            initial_elements.into_a::<NodeArrayOrVec>()
+                        }),
+                        None,
+                    )
+                    .wrap(),
+                Option::<&Node>::None,
+            );
+            leading_element = None;
+        }
+
+        let expressions = reduce_left(
+            elements,
+            |expressions: Vec<Gc<Node>>, element: &Gc<Node>, _| {
+                self.reduce_element(expressions, element)
+            },
+            _d(), /*as Expression[]*/
+            Some(num_initial_elements),
+            None,
+        );
+        Some(
+            if let Some(temp) = temp {
+                self.factory.create_array_concat_call(
+                    temp,
+                    vec![self
+                        .factory
+                        .create_array_literal_expression(Some(expressions), multi_line)
+                        .wrap()],
+                )
+            } else {
+                self.factory
+                    .create_array_literal_expression(
+                        Some(if let Some(leading_element) = leading_element {
+                            vec![leading_element].and_extend(expressions)
+                        } else {
+                            expressions
+                        }),
+                        multi_line,
+                    )
+                    .wrap()
+                    .set_text_range(location)
+            }
+            .into(),
+        )
+    }
+
+    pub(super) fn reduce_element(
+        &self,
+        mut _expressions: Vec<Gc<Node>>,
+        _element: &Node,
+    ) -> Vec<Gc<Node>> {
         unimplemented!()
     }
 }
