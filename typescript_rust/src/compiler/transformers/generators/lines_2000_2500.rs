@@ -24,6 +24,18 @@ impl TransformGenerators {
         unimplemented!()
     }
 
+    pub(super) fn find_continue_target(&self, _label_text: Option<&str>) -> Label {
+        unimplemented!()
+    }
+
+    pub(super) fn create_inline_break(
+        &self,
+        _label: Label,
+        _location: Option<&impl ReadonlyTextRange>,
+    ) -> Gc<Node /*ReturnStatement*/> {
+        unimplemented!()
+    }
+
     pub(super) fn create_generator_resume(
         &self,
         _location: Option<&impl ReadonlyTextRange>,
