@@ -12,9 +12,11 @@ use crate::{
     NodeFactory, NodeId, ReadonlyTextRangeConcrete, TransformationContext,
     TransformationContextOnSubstituteNodeOverrider, Transformer, TransformerFactory,
     TransformerFactoryInterface, TransformerInterface, _d, chain_bundle, get_emit_script_target,
-    is_function_like_declaration, visit_each_child, visit_parameter_list, Debug_,
-    FunctionLikeDeclarationInterface, NamedDeclarationInterface, NodeArray, NodeExt, NodeInterface,
-    ScriptTarget, SignatureDeclarationInterface, SyntaxKind, TransformFlags, VisitResult,
+    get_original_node, get_original_node_id, id_text, is_function_like_declaration,
+    is_generated_identifier, is_identifier, visit_each_child, visit_parameter_list, Debug_,
+    FunctionLikeDeclarationInterface, Matches, NamedDeclarationInterface, NodeArray, NodeExt,
+    NodeInterface, ScriptTarget, SignatureDeclarationInterface, SyntaxKind, TransformFlags,
+    VisitResult,
 };
 
 pub(super) type Label = u32;
@@ -185,7 +187,7 @@ pub(super) struct TransformGenerators {
     #[unsafe_ignore_trace]
     pub(super) language_version: ScriptTarget,
     pub(super) resolver: Gc<Box<dyn EmitResolver>>,
-    pub(super) renamed_catch_variables: GcCell<HashMap<String, bool>>,
+    pub(super) renamed_catch_variables: GcCell<Option<HashMap<String, bool>>>,
     pub(super) renamed_catch_variable_declarations:
         GcCell<HashMap<NodeId, Gc<Node /*Identifier*/>>>,
     #[unsafe_ignore_trace]
@@ -277,17 +279,19 @@ impl TransformGenerators {
         self._transformer_wrapper.borrow().clone().unwrap()
     }
 
-    pub(super) fn renamed_catch_variables(&self) -> GcCellRef<HashMap<String, bool>> {
+    pub(super) fn maybe_renamed_catch_variables(&self) -> GcCellRef<Option<HashMap<String, bool>>> {
         self.renamed_catch_variables.borrow()
     }
 
-    pub(super) fn renamed_catch_variables_mut(&self) -> GcCellRefMut<HashMap<String, bool>> {
+    pub(super) fn maybe_renamed_catch_variables_mut(
+        &self,
+    ) -> GcCellRefMut<Option<HashMap<String, bool>>> {
         self.renamed_catch_variables.borrow_mut()
     }
 
     pub(super) fn set_renamed_catch_variables(
         &self,
-        renamed_catch_variables: HashMap<String, bool>,
+        renamed_catch_variables: Option<HashMap<String, bool>>,
     ) {
         *self.renamed_catch_variables.borrow_mut() = renamed_catch_variables;
     }
@@ -858,13 +862,71 @@ impl TransformGeneratorsOnSubstituteNodeOverrider {
             previous_on_substitute_node,
         }
     }
+
+    fn substitute_expression(
+        &self,
+        node: &Node, /*Expression*/
+    ) -> io::Result<Gc<Node /*Expression*/>> {
+        if is_identifier(node) {
+            return self.substitute_expression_identifier(node);
+        }
+        Ok(node.node_wrapper())
+    }
+
+    fn substitute_expression_identifier(
+        &self,
+        node: &Node, /*Identifier*/
+    ) -> io::Result<Gc<Node>> {
+        if !is_generated_identifier(node)
+            && self
+                .transform_generators
+                .maybe_renamed_catch_variables()
+                .as_ref()
+                .matches(|renamed_catch_variables| {
+                    renamed_catch_variables.contains_key(id_text(node))
+                })
+        {
+            let ref original = get_original_node(node);
+            if is_identifier(original) && original.maybe_parent().is_some() {
+                let declaration = self
+                    .transform_generators
+                    .resolver
+                    .get_referenced_value_declaration(original)?;
+                if let Some(ref declaration) = declaration {
+                    let name = self
+                        .transform_generators
+                        .renamed_catch_variable_declarations()
+                        .get(&get_original_node_id(declaration))
+                        .cloned();
+                    if let Some(ref name) = name {
+                        return Ok(self
+                            .transform_generators
+                            .factory
+                            .clone_node(name)
+                            .set_text_range(Some(&**name))
+                            .and_set_parent(name.maybe_parent())
+                            .set_source_map_range(Some(node.into()))
+                            .set_comment_range(node));
+                    }
+                }
+            }
+        }
+
+        Ok(node.node_wrapper())
+    }
 }
 
 impl TransformationContextOnSubstituteNodeOverrider
     for TransformGeneratorsOnSubstituteNodeOverrider
 {
-    fn on_substitute_node(&self, _hint: EmitHint, _node: &Node) -> io::Result<Gc<Node>> {
-        unimplemented!()
+    fn on_substitute_node(&self, hint: EmitHint, node: &Node) -> io::Result<Gc<Node>> {
+        let node = self
+            .previous_on_substitute_node
+            .on_substitute_node(hint, node)?;
+        if hint == EmitHint::Expression {
+            return self.substitute_expression(&node);
+        }
+        Ok(node)
     }
 }
 

@@ -537,7 +537,9 @@ impl TransformGenerators {
 
         let mut temp: Option<Gc<Node /*Identifier*/>> = _d();
         let mut leading_element = leading_element.node_wrappered();
-        if num_initial_elements > 0 {
+        if let Some(num_initial_elements) =
+            num_initial_elements.filter(|&num_initial_elements| num_initial_elements > 0)
+        {
             temp = Some(self.declare_local(None));
             let initial_elements = visit_nodes(
                 elements,
@@ -577,7 +579,7 @@ impl TransformGenerators {
                 )
             },
             _d(), /*as Expression[]*/
-            Some(num_initial_elements),
+            num_initial_elements,
             None,
         );
         if let Some(temp) = temp {

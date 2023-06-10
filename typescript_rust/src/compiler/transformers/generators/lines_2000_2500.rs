@@ -20,6 +20,22 @@ impl TransformGenerators {
         unimplemented!()
     }
 
+    pub(super) fn begin_exception_block(&self) -> Label {
+        unimplemented!()
+    }
+
+    pub(super) fn begin_catch_block(&self, _variable: &Node /*VariableDeclaration*/) {
+        unimplemented!()
+    }
+
+    pub(super) fn begin_finally_block(&self) {
+        unimplemented!()
+    }
+
+    pub(super) fn end_exception_block(&self) {
+        unimplemented!()
+    }
+
     pub(super) fn begin_script_loop_block(&self) {
         unimplemented!()
     }
@@ -29,6 +45,30 @@ impl TransformGenerators {
     }
 
     pub(super) fn end_loop_block(&self) {
+        unimplemented!()
+    }
+
+    pub(super) fn begin_script_switch_block(&self) {
+        unimplemented!()
+    }
+
+    pub(super) fn begin_switch_block(&self) -> Label {
+        unimplemented!()
+    }
+
+    pub(super) fn end_switch_block(&self) {
+        unimplemented!()
+    }
+
+    pub(super) fn begin_script_labeled_block(&self, _label_text: &str) {
+        unimplemented!()
+    }
+
+    pub(super) fn begin_labeled_block(&self, _label_text: &str) {
+        unimplemented!()
+    }
+
+    pub(super) fn end_labeled_block(&self) {
         unimplemented!()
     }
 

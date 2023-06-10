@@ -2,11 +2,12 @@ use std::borrow::Borrow;
 
 use gc::Gc;
 
-use super::TransformGenerators;
+use super::{Label, TransformGenerators};
 use crate::{
     id_text, is_expression, is_statement, is_variable_declaration_list, maybe_visit_node,
-    visit_each_child, visit_node, NamedDeclarationInterface, Node, NodeArray, NodeInterface,
-    Number, VisitResult,
+    visit_each_child, visit_node, Matches, NamedDeclarationInterface, Node, NodeArray,
+    NodeInterface, Number, SyntaxKind, TransformFlags, VisitResult, _d, get_emit_flags,
+    is_generated_identifier, EmitFlags,
 };
 
 impl TransformGenerators {
@@ -308,61 +309,265 @@ impl TransformGenerators {
         }
     }
 
-    pub(super) fn transform_and_emit_switch_statement(
-        &self,
-        _node: &Node, /*SwitchStatement*/
-    ) {
-        unimplemented!()
+    pub(super) fn transform_and_emit_switch_statement(&self, node: &Node /*SwitchStatement*/) {
+        let node_as_switch_statement = node.as_switch_statement();
+        if self.contains_yield(Some(&*node_as_switch_statement.case_block)) {
+            let case_block = &node_as_switch_statement.case_block;
+            let case_block_as_case_block = case_block.as_case_block();
+            let num_clauses = case_block_as_case_block.clauses.len();
+            let end_label = self.begin_switch_block();
+
+            let expression = self.cache_expression(&visit_node(
+                &node_as_switch_statement.expression,
+                Some(|node: &Node| self.visitor(node)),
+                Some(is_expression),
+                Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+            ));
+
+            let mut clause_labels: Vec<Label> = _d();
+            let mut default_clause_index: Option<usize> = _d();
+            for (i, clause) in case_block_as_case_block
+                .clauses
+                .iter()
+                .enumerate()
+                .take(num_clauses)
+            {
+                clause_labels.push(self.define_label());
+                if clause.kind() == SyntaxKind::DefaultClause && default_clause_index.is_none() {
+                    default_clause_index = Some(i);
+                }
+            }
+
+            let mut clauses_written = 0;
+            let mut pending_clauses: Vec<Gc<Node /*CaseClause*/>> = _d();
+            while clauses_written < num_clauses {
+                let mut default_clauses_skipped = 0;
+                for (i, clause) in case_block_as_case_block
+                    .clauses
+                    .iter()
+                    .enumerate()
+                    .skip(clauses_written)
+                    .take(num_clauses - clauses_written)
+                {
+                    if clause.kind() == SyntaxKind::CaseClause {
+                        let clause_as_case_clause = clause.as_case_clause();
+                        if self.contains_yield(Some(&*clause_as_case_clause.expression))
+                            && !pending_clauses.is_empty()
+                        {
+                            break;
+                        }
+
+                        pending_clauses.push(
+                            self.factory
+                                .create_case_clause(
+                                    visit_node(
+                                        &clause_as_case_clause.expression,
+                                        Some(|node: &Node| self.visitor(node)),
+                                        Some(is_expression),
+                                        Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                                    ),
+                                    vec![self.create_inline_break(
+                                        clause_labels[i],
+                                        Some(&*clause_as_case_clause.expression),
+                                    )],
+                                )
+                                .wrap(),
+                        );
+                    } else {
+                        default_clauses_skipped += 1;
+                    }
+                }
+
+                if !pending_clauses.is_empty() {
+                    let pending_clauses_len = pending_clauses.len();
+                    self.emit_statement(
+                        self.factory
+                            .create_switch_statement(
+                                expression.clone(),
+                                self.factory.create_case_block(pending_clauses).wrap(),
+                            )
+                            .wrap(),
+                    );
+                    clauses_written += pending_clauses_len;
+                    pending_clauses = _d();
+                }
+                if default_clauses_skipped > 0 {
+                    clauses_written += default_clauses_skipped;
+                    // defaultClausesSkipped = 0;
+                }
+            }
+
+            if let Some(default_clause_index) = default_clause_index {
+                self.emit_break(clause_labels[default_clause_index], Option::<&Node>::None);
+            } else {
+                self.emit_break(end_label, Option::<&Node>::None);
+            }
+
+            for i in 0..num_clauses {
+                self.mark_label(clause_labels[i]);
+                self.transform_and_emit_statements(
+                    &case_block_as_case_block.clauses[i]
+                        .as_has_statements()
+                        .statements(),
+                    None,
+                );
+            }
+
+            self.end_switch_block();
+        } else {
+            self.emit_statement(visit_node(
+                node,
+                Some(|node: &Node| self.visitor(node)),
+                Some(is_statement),
+                Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+            ));
+        }
     }
 
     pub(super) fn visit_switch_statement(
         &self,
-        _node: &Node, /*SwitchStatement*/
+        node: &Node, /*SwitchStatement*/
     ) -> VisitResult {
-        unimplemented!()
+        if self.maybe_in_statement_containing_yield() == Some(true) {
+            self.begin_script_switch_block();
+        }
+
+        let node = visit_each_child(node, |node: &Node| self.visitor(node), &**self.context);
+
+        if self.maybe_in_statement_containing_yield() == Some(true) {
+            self.end_switch_block();
+        }
+
+        Some(node.into())
     }
 
     pub(super) fn transform_and_emit_labeled_statement(
         &self,
-        _node: &Node, /*LabeledStatement*/
+        node: &Node, /*LabeledStatement*/
     ) {
-        unimplemented!()
+        let node_as_labeled_statement = node.as_labeled_statement();
+        if self.contains_yield(Some(node)) {
+            self.begin_labeled_block(id_text(&node_as_labeled_statement.label));
+            self.transform_and_emit_embedded_statement(&node_as_labeled_statement.statement);
+            self.end_labeled_block();
+        } else {
+            self.emit_statement(visit_node(
+                node,
+                Some(|node: &Node| self.visitor(node)),
+                Some(is_statement),
+                Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+            ))
+        }
     }
 
     pub(super) fn visit_labeled_statement(
         &self,
-        _node: &Node, /*LabeledStatement*/
+        node: &Node, /*LabeledStatement*/
     ) -> VisitResult {
-        unimplemented!()
+        let node_as_labeled_statement = node.as_labeled_statement();
+        if self.maybe_in_statement_containing_yield() == Some(true) {
+            self.begin_script_labeled_block(id_text(&node_as_labeled_statement.label));
+        }
+
+        let node = visit_each_child(node, |node: &Node| self.visitor(node), &**self.context);
+
+        if self.maybe_in_statement_containing_yield() == Some(true) {
+            self.end_labeled_block();
+        }
+
+        Some(node.into())
     }
 
-    pub(super) fn transform_and_emit_throw_statement(&self, _node: &Node /*ThrowStatement*/) {
-        unimplemented!()
+    pub(super) fn transform_and_emit_throw_statement(&self, node: &Node /*ThrowStatement*/) {
+        let node_as_throw_statement = node.as_throw_statement();
+        self.emit_throw(
+            visit_node(
+                &node_as_throw_statement.expression, /*?? factory.createVoidZero()*/
+                Some(|node: &Node| self.visitor(node)),
+                Some(is_expression),
+                Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+            ),
+            Some(node),
+        );
     }
 
-    pub(super) fn transform_and_emit_try_statement(&self, _node: &Node /*TryStatement*/) {
-        unimplemented!()
+    pub(super) fn transform_and_emit_try_statement(&self, node: &Node /*TryStatement*/) {
+        let node_as_try_statement = node.as_try_statement();
+        if self.contains_yield(Some(node)) {
+            self.begin_exception_block();
+            self.transform_and_emit_embedded_statement(&node_as_try_statement.try_block);
+            if let Some(node_catch_clause) = node_as_try_statement.catch_clause.as_ref() {
+                let node_catch_clause_as_catch_clause = node_catch_clause.as_catch_clause();
+                self.begin_catch_block(
+                    node_catch_clause_as_catch_clause
+                        .variable_declaration
+                        .as_ref()
+                        .unwrap(),
+                );
+                self.transform_and_emit_embedded_statement(
+                    &node_catch_clause_as_catch_clause.block,
+                );
+            }
+
+            if let Some(node_finally_block) = node_as_try_statement.finally_block.as_ref() {
+                self.begin_finally_block();
+                self.transform_and_emit_embedded_statement(node_finally_block);
+            }
+
+            self.end_exception_block();
+        } else {
+            self.emit_statement(visit_each_child(
+                node,
+                |node: &Node| self.visitor(node),
+                &**self.context,
+            ));
+        }
     }
 
-    pub(super) fn contains_yield(&self, _node: Option<impl Borrow<Node>>) -> bool {
-        unimplemented!()
+    pub(super) fn contains_yield(&self, node: Option<impl Borrow<Node>>) -> bool {
+        node.matches(|node| {
+            let node = node.borrow();
+            node.transform_flags()
+                .intersects(TransformFlags::ContainsYield)
+        })
     }
 
     pub(super) fn count_initial_nodes_without_yield(
         &self,
-        _nodes: &NodeArray, /*<Node>*/
-    ) -> usize {
-        unimplemented!()
+        nodes: &NodeArray, /*<Node>*/
+    ) -> Option<usize> {
+        nodes
+            .iter()
+            .position(|node| self.contains_yield(Some(&**node)))
     }
 
     pub(super) fn cache_expression(
         &self,
-        _node: &Node, /*Expression*/
+        node: &Node, /*Expression*/
     ) -> Gc<Node /*Identifier*/> {
-        unimplemented!()
+        if is_generated_identifier(node) || get_emit_flags(node).intersects(EmitFlags::HelperName) {
+            return node.node_wrapper();
+        }
+
+        let temp = self.factory.create_temp_variable(
+            Some(|node: &Node| {
+                self.context.hoist_variable_declaration(node);
+            }),
+            None,
+        );
+        self.emit_assignment(temp.clone(), node.node_wrapper(), Some(node));
+        temp
     }
 
-    pub(super) fn declare_local(&self, _name: Option<&str>) -> Gc<Node /*Identifier*/> {
-        unimplemented!()
+    pub(super) fn declare_local(&self, name: Option<&str>) -> Gc<Node /*Identifier*/> {
+        let temp = name.map_or_else(
+            || {
+                self.factory
+                    .create_temp_variable(Option::<fn(&Node)>::None, None)
+            },
+            |name| self.factory.create_unique_name(name, None),
+        );
+        self.context.hoist_variable_declaration(&temp);
+        temp
     }
 }

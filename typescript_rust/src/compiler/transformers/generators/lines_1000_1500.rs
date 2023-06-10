@@ -70,7 +70,13 @@ impl TransformGenerators {
         let node_as_object_literal_expression = node.as_object_literal_expression();
         let properties = &node_as_object_literal_expression.properties;
         let multi_line = node_as_object_literal_expression.multi_line;
-        let num_initial_properties = self.count_initial_nodes_without_yield(properties);
+        let num_initial_properties = self
+            .count_initial_nodes_without_yield(properties)
+            // TODO: this sort of looks like a bug upstream that it could pass -1 to visitNodes()
+            // below? Shocking that using the same type to represent the absence of a value could
+            // result in such a thing
+            // So unwrapping for the moment
+            .unwrap();
 
         let temp = self.declare_local(None);
         self.emit_assignment(
