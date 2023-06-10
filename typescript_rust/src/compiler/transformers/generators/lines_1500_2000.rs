@@ -291,7 +291,7 @@ impl TransformGenerators {
     pub(super) fn transform_and_emit_with_statement(&self, node: &Node /*WithStatement*/) {
         let node_as_with_statement = node.as_with_statement();
         if self.contains_yield(Some(node)) {
-            self.begin_with_block(&self.cache_expression(&visit_node(
+            self.begin_with_block(self.cache_expression(&visit_node(
                 &node_as_with_statement.expression,
                 Some(|node: &Node| self.visitor(node)),
                 Some(is_expression),

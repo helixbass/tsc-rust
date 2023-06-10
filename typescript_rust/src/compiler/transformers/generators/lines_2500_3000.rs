@@ -4,6 +4,10 @@ use super::{Label, OpCode, OperationArguments, TransformGenerators};
 use crate::{Node, ReadonlyTextRange};
 
 impl TransformGenerators {
+    pub(super) fn emit_nop(&self) {
+        self.emit_worker(OpCode::Nop, None, Option::<&Node>::None);
+    }
+
     pub(super) fn emit_statement(&self, _node: Gc<Node /*Statement*/>) {
         unimplemented!()
     }
@@ -77,6 +81,10 @@ impl TransformGenerators {
         location: Option<&impl ReadonlyTextRange>,
     ) {
         self.emit_worker(OpCode::Throw, Some(&expression.into()), location);
+    }
+
+    pub(super) fn emit_end_finally(&self) {
+        self.emit_worker(OpCode::Endfinally, None, Option::<&Node>::None);
     }
 
     pub(super) fn build(&self) -> Gc<Node> {
