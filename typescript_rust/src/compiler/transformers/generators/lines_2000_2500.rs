@@ -12,6 +12,14 @@ impl TransformGenerators {
         unimplemented!()
     }
 
+    pub(super) fn begin_with_block(&self, _expression: &Node /*Identifier*/) {
+        unimplemented!()
+    }
+
+    pub(super) fn end_with_block(&self) {
+        unimplemented!()
+    }
+
     pub(super) fn begin_script_loop_block(&self) {
         unimplemented!()
     }
@@ -24,6 +32,10 @@ impl TransformGenerators {
         unimplemented!()
     }
 
+    pub(super) fn find_break_target(&self, _label_text: Option<&str>) -> Label {
+        unimplemented!()
+    }
+
     pub(super) fn find_continue_target(&self, _label_text: Option<&str>) -> Label {
         unimplemented!()
     }
@@ -31,6 +43,14 @@ impl TransformGenerators {
     pub(super) fn create_inline_break(
         &self,
         _label: Label,
+        _location: Option<&impl ReadonlyTextRange>,
+    ) -> Gc<Node /*ReturnStatement*/> {
+        unimplemented!()
+    }
+
+    pub(super) fn create_inline_return(
+        &self,
+        _expression: Option<Gc<Node>>,
         _location: Option<&impl ReadonlyTextRange>,
     ) -> Gc<Node /*ReturnStatement*/> {
         unimplemented!()

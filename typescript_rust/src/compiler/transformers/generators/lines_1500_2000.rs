@@ -4,8 +4,9 @@ use gc::Gc;
 
 use super::TransformGenerators;
 use crate::{
-    id_text, is_expression, is_statement, is_variable_declaration_list, visit_each_child,
-    visit_node, NamedDeclarationInterface, Node, NodeArray, NodeInterface, Number, VisitResult,
+    id_text, is_expression, is_statement, is_variable_declaration_list, maybe_visit_node,
+    visit_each_child, visit_node, NamedDeclarationInterface, Node, NodeArray, NodeInterface,
+    Number, VisitResult,
 };
 
 impl TransformGenerators {
@@ -219,33 +220,92 @@ impl TransformGenerators {
         visit_each_child(&node, |node: &Node| self.visitor(node), &**self.context)
     }
 
-    pub(super) fn transform_and_emit_break_statement(&self, _node: &Node /*BreakStatement*/) {
-        unimplemented!()
+    pub(super) fn transform_and_emit_break_statement(&self, node: &Node /*BreakStatement*/) {
+        let node_as_break_statement = node.as_break_statement();
+        let label = self.find_break_target(
+            node_as_break_statement
+                .label
+                .as_ref()
+                .map(|node_label| id_text(node_label)),
+        );
+        if label > 0 {
+            self.emit_break(label, Some(node));
+        } else {
+            self.emit_statement(node.node_wrapper())
+        }
     }
 
     pub(super) fn visit_break_statement(
         &self,
-        _node: &Node, /*BreakStatement*/
+        node: &Node, /*BreakStatement*/
     ) -> Gc<Node /*Statement*/> {
-        unimplemented!()
+        let node_as_break_statement = node.as_break_statement();
+        if self.maybe_in_statement_containing_yield() == Some(true) {
+            let label = self.find_break_target(
+                node_as_break_statement
+                    .label
+                    .as_ref()
+                    .map(|node_label| id_text(node_label)),
+            );
+            if label > 0 {
+                return self.create_inline_break(label, Some(node));
+            }
+        }
+
+        visit_each_child(&node, |node: &Node| self.visitor(node), &**self.context)
     }
 
-    pub(super) fn transform_and_emit_return_statement(
-        &self,
-        _node: &Node, /*ReturnStatement*/
-    ) {
-        unimplemented!()
+    pub(super) fn transform_and_emit_return_statement(&self, node: &Node /*ReturnStatement*/) {
+        let node_as_return_statement = node.as_return_statement();
+        self.emit_return(
+            maybe_visit_node(
+                node_as_return_statement.expression.as_deref(),
+                Some(|node: &Node| self.visitor(node)),
+                Some(is_expression),
+                Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+            ),
+            Some(node),
+        );
     }
 
     pub(super) fn visit_return_statement(
         &self,
-        _node: &Node, /*ReturnStatement*/
+        node: &Node, /*ReturnStatement*/
     ) -> VisitResult {
-        unimplemented!()
+        let node_as_return_statement = node.as_return_statement();
+        Some(
+            self.create_inline_return(
+                maybe_visit_node(
+                    node_as_return_statement.expression.as_deref(),
+                    Some(|node: &Node| self.visitor(node)),
+                    Some(is_expression),
+                    Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                ),
+                Some(node),
+            )
+            .into(),
+        )
     }
 
-    pub(super) fn transform_and_emit_with_statement(&self, _node: &Node /*WithStatement*/) {
-        unimplemented!()
+    pub(super) fn transform_and_emit_with_statement(&self, node: &Node /*WithStatement*/) {
+        let node_as_with_statement = node.as_with_statement();
+        if self.contains_yield(Some(node)) {
+            self.begin_with_block(&self.cache_expression(&visit_node(
+                &node_as_with_statement.expression,
+                Some(|node: &Node| self.visitor(node)),
+                Some(is_expression),
+                Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+            )));
+            self.transform_and_emit_embedded_statement(&node_as_with_statement.statement);
+            self.end_with_block();
+        } else {
+            self.emit_statement(visit_node(
+                node,
+                Some(|node: &Node| self.visitor(node)),
+                Some(is_statement),
+                Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+            ));
+        }
     }
 
     pub(super) fn transform_and_emit_switch_statement(

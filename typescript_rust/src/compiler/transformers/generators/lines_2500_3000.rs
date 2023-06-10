@@ -63,6 +63,14 @@ impl TransformGenerators {
         self.emit_worker(OpCode::Yield, Some(&expression.into()), location);
     }
 
+    pub(super) fn emit_return(
+        &self,
+        expression: Option<Gc<Node /*Expression*/>>,
+        location: Option<&impl ReadonlyTextRange>,
+    ) {
+        self.emit_worker(OpCode::Return, Some(&expression.into()), location);
+    }
+
     pub(super) fn build(&self) -> Gc<Node> {
         unimplemented!()
     }
