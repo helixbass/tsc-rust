@@ -447,7 +447,7 @@ impl TransformGenerators {
     ) {
         let node_as_labeled_statement = node.as_labeled_statement();
         if self.contains_yield(Some(node)) {
-            self.begin_labeled_block(id_text(&node_as_labeled_statement.label));
+            self.begin_labeled_block(id_text(&node_as_labeled_statement.label).to_owned());
             self.transform_and_emit_embedded_statement(&node_as_labeled_statement.statement);
             self.end_labeled_block();
         } else {
@@ -466,7 +466,7 @@ impl TransformGenerators {
     ) -> VisitResult {
         let node_as_labeled_statement = node.as_labeled_statement();
         if self.maybe_in_statement_containing_yield() == Some(true) {
-            self.begin_script_labeled_block(id_text(&node_as_labeled_statement.label));
+            self.begin_script_labeled_block(id_text(&node_as_labeled_statement.label).to_owned());
         }
 
         let node = visit_each_child(node, |node: &Node| self.visitor(node), &**self.context);

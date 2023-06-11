@@ -21,7 +21,7 @@ use crate::{
     VisitResult,
 };
 
-pub(super) type Label = u32;
+pub(super) type Label = i32;
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub(super) enum OpCode {
@@ -117,6 +117,16 @@ impl CodeBlock {
             Self::SwitchBlock(value) => value.kind,
             Self::LoopBlock(value) => value.kind,
             Self::WithBlock(value) => value.kind,
+        }
+    }
+
+    pub fn break_label(&self) -> Label {
+        match self {
+            Self::ExceptionBlock(_) => unreachable!(),
+            Self::LabeledBlock(value) => value.break_label,
+            Self::SwitchBlock(value) => value.break_label,
+            Self::LoopBlock(value) => value.break_label,
+            Self::WithBlock(_) => unreachable!(),
         }
     }
 
@@ -248,12 +258,33 @@ pub(super) struct LabeledBlock {
     pub break_label: Label,
 }
 
+impl LabeledBlock {
+    pub(super) fn new(label_text: String, is_script: bool, break_label: Label) -> Self {
+        Self {
+            kind: CodeBlockKind::Labeled,
+            label_text,
+            is_script,
+            break_label,
+        }
+    }
+}
+
 #[derive(Trace, Finalize)]
 pub(super) struct SwitchBlock {
     #[unsafe_ignore_trace]
     pub kind: CodeBlockKind, /*CodeBlockKind.Switch*/
     pub is_script: bool,
     pub break_label: Label,
+}
+
+impl SwitchBlock {
+    pub(super) fn new(is_script: bool, break_label: Label) -> Self {
+        Self {
+            kind: CodeBlockKind::Switch,
+            is_script,
+            break_label,
+        }
+    }
 }
 
 #[derive(Trace, Finalize)]
@@ -263,6 +294,17 @@ pub(super) struct LoopBlock {
     pub continue_label: Label,
     pub is_script: bool,
     pub break_label: Label,
+}
+
+impl LoopBlock {
+    pub(super) fn new(continue_label: Label, is_script: bool, break_label: Label) -> Self {
+        Self {
+            kind: CodeBlockKind::Loop,
+            continue_label,
+            is_script,
+            break_label,
+        }
+    }
 }
 
 #[derive(Trace, Finalize)]
@@ -332,9 +374,10 @@ pub(super) struct TransformGenerators {
     pub(super) block_stack: GcCell<Option<Vec<Gc<GcCell<CodeBlock>>>>>,
     #[unsafe_ignore_trace]
     pub(super) label_offsets: RefCell<Option<HashMap<Label, Option<usize>>>>,
-    pub(super) label_expressions: GcCell<Option<Vec<Vec<Gc<Node /*Mutable<LiteralExpression>*/>>>>>,
+    pub(super) label_expressions:
+        GcCell<Option<HashMap<Label, Vec<Gc<Node /*Mutable<LiteralExpression>*/>>>>>,
     #[unsafe_ignore_trace]
-    pub(super) next_label_id: Cell<u32>,
+    pub(super) next_label_id: Cell<Label>,
     #[unsafe_ignore_trace]
     pub(super) operations: RefCell<Option<Vec<OpCode>>>,
     pub(super) operation_arguments: GcCell<Option<Vec<Option<OperationArguments>>>>,
@@ -575,28 +618,28 @@ impl TransformGenerators {
 
     pub(super) fn maybe_label_expressions(
         &self,
-    ) -> GcCellRef<Option<Vec<Vec<Gc<Node /*Mutable<LiteralExpression>*/>>>>> {
+    ) -> GcCellRef<Option<HashMap<Label, Vec<Gc<Node /*Mutable<LiteralExpression>*/>>>>> {
         self.label_expressions.borrow()
     }
 
     pub(super) fn maybe_label_expressions_mut(
         &self,
-    ) -> GcCellRefMut<Option<Vec<Vec<Gc<Node /*Mutable<LiteralExpression>*/>>>>> {
+    ) -> GcCellRefMut<Option<HashMap<Label, Vec<Gc<Node /*Mutable<LiteralExpression>*/>>>>> {
         self.label_expressions.borrow_mut()
     }
 
     pub(super) fn set_label_expressions(
         &self,
-        label_expressions: Option<Vec<Vec<Gc<Node /*Mutable<LiteralExpression>*/>>>>,
+        label_expressions: Option<HashMap<Label, Vec<Gc<Node /*Mutable<LiteralExpression>*/>>>>,
     ) {
         *self.label_expressions.borrow_mut() = label_expressions;
     }
 
-    pub(super) fn next_label_id(&self) -> u32 {
+    pub(super) fn next_label_id(&self) -> Label {
         self.next_label_id.get()
     }
 
-    pub(super) fn set_next_label_id(&self, next_label_id: u32) {
+    pub(super) fn set_next_label_id(&self, next_label_id: Label) {
         self.next_label_id.set(next_label_id);
     }
 

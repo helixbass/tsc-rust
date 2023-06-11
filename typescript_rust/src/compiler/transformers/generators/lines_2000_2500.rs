@@ -1,12 +1,14 @@
 use gc::{Gc, GcCell};
 
 use super::{
-    BlockAction, CodeBlock, CodeBlockKind, ExceptionBlock, ExceptionBlockState, Label,
+    get_instruction_name, BlockAction, CodeBlock, CodeBlockKind, ExceptionBlock,
+    ExceptionBlockState, Instruction, Label, LabeledBlock, LoopBlock, SwitchBlock,
     TransformGenerators, WithBlock,
 };
 use crate::{
     Debug_, Node, ReadonlyTextRange, _d, get_original_node_id, id_text, is_generated_identifier,
-    last_or_undefined, NamedDeclarationInterface, NodeArray, NodeInterface, SyntaxKind,
+    last_or_undefined, NamedDeclarationInterface, NodeArray, NodeExt, NodeInterface, NonEmpty,
+    Number, SyntaxKind,
 };
 
 impl TransformGenerators {
@@ -216,69 +218,268 @@ impl TransformGenerators {
     }
 
     pub(super) fn begin_script_loop_block(&self) {
-        unimplemented!()
+        self.begin_block(LoopBlock::new(-1, true, -1).into());
     }
 
-    pub(super) fn begin_loop_block(&self, _continue_label: Label) -> Label {
-        unimplemented!()
+    pub(super) fn begin_loop_block(&self, continue_label: Label) -> Label {
+        let break_label = self.define_label();
+        self.begin_block(LoopBlock::new(continue_label, false, break_label).into());
+        break_label
     }
 
     pub(super) fn end_loop_block(&self) {
-        unimplemented!()
+        Debug_.assert(self.peek_block_kind() == Some(CodeBlockKind::Loop), None);
+        let block = self.end_block();
+        let block = (*block).borrow();
+        let block_as_switch_block = block.as_switch_block();
+        let break_label = block_as_switch_block.break_label;
+        if !block_as_switch_block.is_script {
+            self.mark_label(break_label);
+        }
     }
 
     pub(super) fn begin_script_switch_block(&self) {
-        unimplemented!()
+        self.begin_block(SwitchBlock::new(true, -1).into());
     }
 
     pub(super) fn begin_switch_block(&self) -> Label {
-        unimplemented!()
+        let break_label = self.define_label();
+        self.begin_block(SwitchBlock::new(false, break_label).into());
+        break_label
     }
 
     pub(super) fn end_switch_block(&self) {
-        unimplemented!()
+        Debug_.assert(self.peek_block_kind() == Some(CodeBlockKind::Switch), None);
+        let block = self.end_block();
+        let block = (*block).borrow();
+        let block_as_switch_block = block.as_switch_block();
+        let break_label = block_as_switch_block.break_label;
+        if !block_as_switch_block.is_script {
+            self.mark_label(break_label);
+        }
     }
 
-    pub(super) fn begin_script_labeled_block(&self, _label_text: &str) {
-        unimplemented!()
+    pub(super) fn begin_script_labeled_block(&self, label_text: String) {
+        self.begin_block(LabeledBlock::new(label_text, true, -1).into());
     }
 
-    pub(super) fn begin_labeled_block(&self, _label_text: &str) {
-        unimplemented!()
+    pub(super) fn begin_labeled_block(&self, label_text: String) {
+        let break_label = self.define_label();
+        self.begin_block(LabeledBlock::new(label_text, false, break_label).into());
     }
 
     pub(super) fn end_labeled_block(&self) {
-        unimplemented!()
+        Debug_.assert(self.peek_block_kind() == Some(CodeBlockKind::Labeled), None);
+        let block = self.end_block();
+        let block = (*block).borrow();
+        let block_as_labeled_block = block.as_labeled_block();
+        if !block_as_labeled_block.is_script {
+            self.mark_label(block_as_labeled_block.break_label);
+        }
     }
 
-    pub(super) fn find_break_target(&self, _label_text: Option<&str>) -> Label {
-        unimplemented!()
+    pub(super) fn supports_unlabeled_break(&self, block: &CodeBlock) -> bool {
+        matches!(block.kind(), CodeBlockKind::Switch | CodeBlockKind::Loop)
     }
 
-    pub(super) fn find_continue_target(&self, _label_text: Option<&str>) -> Label {
-        unimplemented!()
+    pub(super) fn supports_labeled_break_or_continue(&self, block: &CodeBlock) -> bool {
+        block.kind() == CodeBlockKind::Labeled
+    }
+
+    pub(super) fn supports_unlabeled_continue(&self, block: &CodeBlock) -> bool {
+        block.kind() == CodeBlockKind::Loop
+    }
+
+    pub(super) fn has_immediate_containing_labeled_block(
+        &self,
+        label_text: &str,
+        start: usize,
+    ) -> bool {
+        let mut j = start;
+        loop {
+            let containing_block = self.block_stack()[j].clone();
+            let containing_block = (*containing_block).borrow();
+            if self.supports_labeled_break_or_continue(&containing_block) {
+                if containing_block.as_labeled_block().label_text == label_text {
+                    return true;
+                }
+            } else {
+                break;
+            }
+            if j == 0 {
+                break;
+            }
+            j -= 1;
+        }
+
+        false
+    }
+
+    pub(super) fn find_break_target(&self, label_text: Option<&str>) -> Label {
+        if let Some(block_stack) = self.maybe_block_stack().as_ref() {
+            if let Some(label_text) = label_text.non_empty() {
+                let mut i = block_stack.len() - 1;
+                loop {
+                    let block = block_stack[i].clone();
+                    let block = (*block).borrow();
+                    if self.supports_labeled_break_or_continue(&block)
+                        && block.as_labeled_block().label_text == label_text
+                    {
+                        return block.break_label();
+                    } else if self.supports_unlabeled_break(&block)
+                        && self.has_immediate_containing_labeled_block(label_text, i - 1)
+                    {
+                        return block.break_label();
+                    }
+                    if i == 0 {
+                        break;
+                    }
+                    i -= 1;
+                }
+            } else {
+                let mut i = block_stack.len() - 1;
+                loop {
+                    let block = block_stack[i].clone();
+                    let block = (*block).borrow();
+                    if self.supports_unlabeled_break(&block) {
+                        return block.break_label();
+                    }
+                    if i == 0 {
+                        break;
+                    }
+                    i -= 1;
+                }
+            }
+        }
+        0
+    }
+
+    pub(super) fn find_continue_target(&self, label_text: Option<&str>) -> Label {
+        if let Some(block_stack) = self.maybe_block_stack().as_ref() {
+            if let Some(label_text) = label_text.non_empty() {
+                let mut i = block_stack.len() - 1;
+                loop {
+                    let block = block_stack[i].clone();
+                    let block = (*block).borrow();
+                    if self.supports_unlabeled_continue(&block)
+                        && self.has_immediate_containing_labeled_block(label_text, i - 1)
+                    {
+                        return block.as_loop_block().continue_label;
+                    }
+                    if i == 0 {
+                        break;
+                    }
+                    i -= 1;
+                }
+            } else {
+                let mut i = block_stack.len() - 1;
+                loop {
+                    let block = block_stack[i].clone();
+                    let block = (*block).borrow();
+                    if self.supports_unlabeled_continue(&block) {
+                        return block.as_loop_block().continue_label;
+                    }
+                    if i == 0 {
+                        break;
+                    }
+                    i -= 1;
+                }
+            }
+        }
+        0
+    }
+
+    pub(super) fn create_label(&self, label: Option<Label>) -> Gc<Node /*Expression*/> {
+        if let Some(label) = label.filter(|&label| label > 0) {
+            let mut label_expressions = self.maybe_label_expressions_mut();
+            let label_expressions = label_expressions.get_or_insert_with(|| _d());
+
+            let expression = self
+                .factory
+                .create_numeric_literal(Number::new(-1.0), None)
+                .wrap();
+            label_expressions
+                .entry(label)
+                .or_insert_with(|| _d())
+                .push(expression.clone());
+
+            return expression;
+        }
+
+        self.factory.create_omitted_expression().wrap()
+    }
+
+    pub(super) fn create_instruction(
+        &self,
+        instruction: Instruction,
+    ) -> Gc<Node /*NumericLiteral*/> {
+        self.factory
+            .create_numeric_literal(Number::new(instruction as u8 as f64), None)
+            .wrap()
+            .add_synthetic_trailing_comment(
+                SyntaxKind::MultiLineCommentTrivia,
+                get_instruction_name(instruction).unwrap(),
+                None,
+            )
     }
 
     pub(super) fn create_inline_break(
         &self,
-        _label: Label,
-        _location: Option<&impl ReadonlyTextRange>,
+        label: Label,
+        location: Option<&impl ReadonlyTextRange>,
     ) -> Gc<Node /*ReturnStatement*/> {
-        unimplemented!()
+        Debug_.assert_less_than(0, label, Some("Invalid label"));
+        self.factory
+            .create_return_statement(Some(
+                self.factory
+                    .create_array_literal_expression(
+                        Some(vec![
+                            self.create_instruction(Instruction::Break),
+                            self.create_label(Some(label)),
+                        ]),
+                        None,
+                    )
+                    .wrap(),
+            ))
+            .wrap()
+            .set_text_range(location)
     }
 
     pub(super) fn create_inline_return(
         &self,
-        _expression: Option<Gc<Node>>,
-        _location: Option<&impl ReadonlyTextRange>,
+        expression: Option<Gc<Node>>,
+        location: Option<&impl ReadonlyTextRange>,
     ) -> Gc<Node /*ReturnStatement*/> {
-        unimplemented!()
+        self.factory
+            .create_return_statement(Some(
+                self.factory
+                    .create_array_literal_expression(
+                        Some(if let Some(expression) = expression {
+                            vec![self.create_instruction(Instruction::Return), expression]
+                        } else {
+                            vec![self.create_instruction(Instruction::Return)]
+                        }),
+                        None,
+                    )
+                    .wrap(),
+            ))
+            .wrap()
+            .set_text_range(location)
     }
 
     pub(super) fn create_generator_resume(
         &self,
-        _location: Option<&impl ReadonlyTextRange>,
+        location: Option<&impl ReadonlyTextRange>,
     ) -> Gc<Node /*LeftHandSideExpression*/> {
-        unimplemented!()
+        self.factory
+            .create_call_expression(
+                self.factory
+                    .create_property_access_expression(self.state(), "sent")
+                    .wrap(),
+                Option::<Gc<NodeArray>>::None,
+                Some(vec![]),
+            )
+            .wrap()
+            .set_text_range(location)
     }
 }

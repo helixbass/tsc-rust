@@ -56,16 +56,17 @@ use super::{
     WithStatement, YieldExpression,
 };
 use crate::{
-    add_emit_flags, add_emit_helpers, add_synthetic_leading_comment, get_emit_flags,
-    move_synthetic_comments, remove_all_comments, set_comment_range_rc, set_emit_flags,
-    set_original_node, set_parent_recursive, set_source_map_range, set_text_range_end,
-    set_text_range_pos, set_text_range_rc_node, start_on_new_line, CaseOrDefaultClauseInterface,
-    EmitFlags, EmitHelper, GcVec, HasArgumentsInterface, HasAssertClauseInterface,
-    HasChildrenInterface, HasDotDotDotTokenInterface, HasFileNameInterface,
-    HasLeftAndRightInterface, HasMembersInterface, HasModuleSpecifierInterface,
-    HasOldFileOfCurrentEmitInterface, HasTagNameInterface, HasTextsInterface, InferenceContext,
-    JSDocHeritageTagInterface, JsxOpeningLikeElementInterface, SourceFileLike, SourceMapRange,
-    SyntheticExpression, SyntheticReferenceExpression, UnparsedSyntheticReference,
+    add_emit_flags, add_emit_helpers, add_synthetic_leading_comment,
+    add_synthetic_trailing_comment, get_emit_flags, move_synthetic_comments, remove_all_comments,
+    set_comment_range_rc, set_emit_flags, set_original_node, set_parent_recursive,
+    set_source_map_range, set_text_range_end, set_text_range_pos, set_text_range_rc_node,
+    start_on_new_line, CaseOrDefaultClauseInterface, EmitFlags, EmitHelper, GcVec,
+    HasArgumentsInterface, HasAssertClauseInterface, HasChildrenInterface,
+    HasDotDotDotTokenInterface, HasFileNameInterface, HasLeftAndRightInterface,
+    HasMembersInterface, HasModuleSpecifierInterface, HasOldFileOfCurrentEmitInterface,
+    HasTagNameInterface, HasTextsInterface, InferenceContext, JSDocHeritageTagInterface,
+    JsxOpeningLikeElementInterface, SourceFileLike, SourceMapRange, SyntheticExpression,
+    SyntheticReferenceExpression, UnparsedSyntheticReference,
 };
 
 bitflags! {
@@ -2115,6 +2116,12 @@ pub trait NodeExt {
         text: &str,
         has_trailing_new_line: Option<bool>,
     ) -> Self;
+    fn add_synthetic_trailing_comment(
+        self,
+        kind: SyntaxKind,
+        text: &str,
+        has_trailing_new_line: Option<bool>,
+    ) -> Self;
     fn move_synthetic_comments(self, original: &Node) -> Self;
 }
 
@@ -2195,6 +2202,16 @@ impl NodeExt for Gc<Node> {
         has_trailing_new_line: Option<bool>,
     ) -> Self {
         add_synthetic_leading_comment(&self, kind, text, has_trailing_new_line);
+        self
+    }
+
+    fn add_synthetic_trailing_comment(
+        self,
+        kind: SyntaxKind,
+        text: &str,
+        has_trailing_new_line: Option<bool>,
+    ) -> Self {
+        add_synthetic_trailing_comment(&self, kind, text, has_trailing_new_line);
         self
     }
 

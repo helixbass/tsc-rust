@@ -144,6 +144,22 @@ impl DebugType {
         }
     }
 
+    pub fn assert_less_than<TValue: Ord + fmt::Debug>(
+        &self,
+        a: TValue,
+        b: TValue,
+        msg: Option<&str>,
+    ) {
+        if a > b {
+            self.fail(Some(&format!(
+                "Expected {:?} < {:?}. {}",
+                a,
+                b,
+                msg.unwrap_or("")
+            )));
+        }
+    }
+
     pub fn assert_less_than_or_equal<TValue: Ord + fmt::Debug>(&self, a: TValue, b: TValue) {
         if a > b {
             self.fail(Some(&format!("Expected {:?} <= {:?}", a, b)));
