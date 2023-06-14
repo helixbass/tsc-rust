@@ -389,16 +389,16 @@ pub(super) struct TransformGenerators {
     #[unsafe_ignore_trace]
     pub(super) label_number: Cell<u32>,
     #[unsafe_ignore_trace]
-    pub(super) label_numbers: RefCell<Option<Vec<Vec<u32>>>>,
+    pub(super) label_numbers: RefCell<Option<HashMap<u32, Vec<Label>>>>,
     #[unsafe_ignore_trace]
     pub(super) last_operation_was_abrupt: Cell<bool>,
     #[unsafe_ignore_trace]
     pub(super) last_operation_was_completion: Cell<bool>,
     pub(super) clauses: GcCell<Option<Vec<Gc<Node /*CaseClause*/>>>>,
     pub(super) statements: GcCell<Option<Vec<Gc<Node /*Statement*/>>>>,
-    pub(super) exception_block_stack: GcCell<Option<Vec<Gc<Node /*ExceptionBlock*/>>>>,
-    pub(super) current_exception_block: GcCell<Option<Gc<Node /*ExceptionBlock*/>>>,
-    pub(super) with_block_stack: GcCell<Option<Vec<Gc<Node /*WithBlock*/>>>>,
+    pub(super) exception_block_stack: GcCell<Option<Vec<Gc<GcCell<CodeBlock /*ExceptionBlock*/>>>>>,
+    pub(super) current_exception_block: GcCell<Option<Gc<GcCell<CodeBlock /*ExceptionBlock*/>>>>,
+    pub(super) with_block_stack: GcCell<Option<Vec<Gc<GcCell<CodeBlock /*WithBlock*/>>>>>,
 }
 
 impl TransformGenerators {
@@ -608,8 +608,16 @@ impl TransformGenerators {
         self.label_offsets.borrow()
     }
 
+    pub(super) fn label_offsets(&self) -> Ref<HashMap<Label, Option<usize>>> {
+        ref_unwrapped(&self.label_offsets)
+    }
+
     pub(super) fn maybe_label_offsets_mut(&self) -> RefMut<Option<HashMap<Label, Option<usize>>>> {
         self.label_offsets.borrow_mut()
+    }
+
+    pub(super) fn label_offsets_mut(&self) -> RefMut<HashMap<Label, Option<usize>>> {
+        ref_mut_unwrapped(&self.label_offsets)
     }
 
     pub(super) fn set_label_offsets(&self, label_offsets: Option<HashMap<Label, Option<usize>>>) {
@@ -622,10 +630,25 @@ impl TransformGenerators {
         self.label_expressions.borrow()
     }
 
+    pub(super) fn label_expressions(
+        &self,
+    ) -> GcCellRef<HashMap<Label, Vec<Gc<Node /*Mutable<LiteralExpression>*/>>>> {
+        gc_cell_ref_unwrapped(&self.label_expressions)
+    }
+
     pub(super) fn maybe_label_expressions_mut(
         &self,
     ) -> GcCellRefMut<Option<HashMap<Label, Vec<Gc<Node /*Mutable<LiteralExpression>*/>>>>> {
         self.label_expressions.borrow_mut()
+    }
+
+    pub(super) fn label_expressions_mut(
+        &self,
+    ) -> GcCellRefMut<
+        Option<HashMap<Label, Vec<Gc<Node /*Mutable<LiteralExpression>*/>>>>,
+        HashMap<Label, Vec<Gc<Node /*Mutable<LiteralExpression>*/>>>,
+    > {
+        gc_cell_ref_mut_unwrapped(&self.label_expressions)
     }
 
     pub(super) fn set_label_expressions(
@@ -647,8 +670,16 @@ impl TransformGenerators {
         self.operations.borrow()
     }
 
+    pub(super) fn operations(&self) -> Ref<Vec<OpCode>> {
+        ref_unwrapped(&self.operations)
+    }
+
     pub(super) fn maybe_operations_mut(&self) -> RefMut<Option<Vec<OpCode>>> {
         self.operations.borrow_mut()
+    }
+
+    pub(super) fn operations_mut(&self) -> RefMut<Vec<OpCode>> {
+        ref_mut_unwrapped(&self.operations)
     }
 
     pub(super) fn set_operations(&self, operations: Option<Vec<OpCode>>) {
@@ -661,10 +692,21 @@ impl TransformGenerators {
         self.operation_arguments.borrow()
     }
 
+    pub(super) fn operation_arguments(&self) -> GcCellRef<Vec<Option<OperationArguments>>> {
+        gc_cell_ref_unwrapped(&self.operation_arguments)
+    }
+
     pub(super) fn maybe_operation_arguments_mut(
         &self,
     ) -> GcCellRefMut<Option<Vec<Option<OperationArguments>>>> {
         self.operation_arguments.borrow_mut()
+    }
+
+    pub(super) fn operation_arguments_mut(
+        &self,
+    ) -> GcCellRefMut<Option<Vec<Option<OperationArguments>>>, Vec<Option<OperationArguments>>>
+    {
+        gc_cell_ref_mut_unwrapped(&self.operation_arguments)
     }
 
     pub(super) fn set_operation_arguments(
@@ -680,10 +722,18 @@ impl TransformGenerators {
         self.operation_locations.borrow()
     }
 
+    pub(super) fn operation_locations(&self) -> Ref<Vec<Option<ReadonlyTextRangeConcrete>>> {
+        ref_unwrapped(&self.operation_locations)
+    }
+
     pub(super) fn maybe_operation_locations_mut(
         &self,
     ) -> RefMut<Option<Vec<Option<ReadonlyTextRangeConcrete>>>> {
         self.operation_locations.borrow_mut()
+    }
+
+    pub(super) fn operation_locations_mut(&self) -> RefMut<Vec<Option<ReadonlyTextRangeConcrete>>> {
+        ref_mut_unwrapped(&self.operation_locations)
     }
 
     pub(super) fn set_operation_locations(
@@ -731,15 +781,15 @@ impl TransformGenerators {
         self.label_number.set(label_number);
     }
 
-    pub(super) fn maybe_label_numbers(&self) -> Ref<Option<Vec<Vec<u32>>>> {
+    pub(super) fn maybe_label_numbers(&self) -> Ref<Option<HashMap<u32, Vec<Label>>>> {
         self.label_numbers.borrow()
     }
 
-    pub(super) fn maybe_label_numbers_mut(&self) -> RefMut<Option<Vec<Vec<u32>>>> {
+    pub(super) fn maybe_label_numbers_mut(&self) -> RefMut<Option<HashMap<u32, Vec<Label>>>> {
         self.label_numbers.borrow_mut()
     }
 
-    pub(super) fn set_label_numbers(&self, label_numbers: Option<Vec<Vec<u32>>>) {
+    pub(super) fn set_label_numbers(&self, label_numbers: Option<HashMap<u32, Vec<Label>>>) {
         *self.label_numbers.borrow_mut() = label_numbers;
     }
 
@@ -787,55 +837,98 @@ impl TransformGenerators {
 
     pub(super) fn maybe_exception_block_stack(
         &self,
-    ) -> GcCellRef<Option<Vec<Gc<Node /*ExceptionBlock*/>>>> {
+    ) -> GcCellRef<Option<Vec<Gc<GcCell<CodeBlock /*ExceptionBlock*/>>>>> {
         self.exception_block_stack.borrow()
+    }
+
+    pub(super) fn exception_block_stack(
+        &self,
+    ) -> GcCellRef<Vec<Gc<GcCell<CodeBlock /*ExceptionBlock*/>>>> {
+        gc_cell_ref_unwrapped(&self.exception_block_stack)
     }
 
     pub(super) fn maybe_exception_block_stack_mut(
         &self,
-    ) -> GcCellRefMut<Option<Vec<Gc<Node /*ExceptionBlock*/>>>> {
+    ) -> GcCellRefMut<Option<Vec<Gc<GcCell<CodeBlock /*ExceptionBlock*/>>>>> {
         self.exception_block_stack.borrow_mut()
+    }
+
+    pub(super) fn exception_block_stack_mut(
+        &self,
+    ) -> GcCellRefMut<
+        Option<Vec<Gc<GcCell<CodeBlock /*ExceptionBlock*/>>>>,
+        Vec<Gc<GcCell<CodeBlock /*ExceptionBlock*/>>>,
+    > {
+        gc_cell_ref_mut_unwrapped(&self.exception_block_stack)
     }
 
     pub(super) fn set_exception_block_stack(
         &self,
-        exception_block_stack: Option<Vec<Gc<Node /*ExceptionBlock*/>>>,
+        exception_block_stack: Option<Vec<Gc<GcCell<CodeBlock /*ExceptionBlock*/>>>>,
     ) {
         *self.exception_block_stack.borrow_mut() = exception_block_stack;
     }
 
     pub(super) fn maybe_current_exception_block(
         &self,
-    ) -> GcCellRef<Option<Gc<Node /*ExceptionBlock*/>>> {
-        self.current_exception_block.borrow()
+    ) -> Option<Gc<GcCell<CodeBlock /*ExceptionBlock*/>>> {
+        self.current_exception_block.borrow().clone()
+    }
+
+    pub(super) fn current_exception_block(&self) -> Gc<GcCell<CodeBlock /*ExceptionBlock*/>> {
+        self.current_exception_block.borrow().clone().unwrap()
     }
 
     pub(super) fn maybe_current_exception_block_mut(
         &self,
-    ) -> GcCellRefMut<Option<Gc<Node /*ExceptionBlock*/>>> {
+    ) -> GcCellRefMut<Option<Gc<GcCell<CodeBlock /*ExceptionBlock*/>>>> {
         self.current_exception_block.borrow_mut()
+    }
+
+    pub(super) fn current_exception_block_mut(
+        &self,
+    ) -> GcCellRefMut<
+        Option<Gc<GcCell<CodeBlock /*ExceptionBlock*/>>>,
+        Gc<GcCell<CodeBlock /*ExceptionBlock*/>>,
+    > {
+        gc_cell_ref_mut_unwrapped(&self.current_exception_block)
     }
 
     pub(super) fn set_current_exception_block(
         &self,
-        current_exception_block: Option<Gc<Node /*ExceptionBlock*/>>,
+        current_exception_block: Option<Gc<GcCell<CodeBlock /*ExceptionBlock*/>>>,
     ) {
         *self.current_exception_block.borrow_mut() = current_exception_block;
     }
 
-    pub(super) fn maybe_with_block_stack(&self) -> GcCellRef<Option<Vec<Gc<Node /*WithBlock*/>>>> {
+    pub(super) fn maybe_with_block_stack(
+        &self,
+    ) -> GcCellRef<Option<Vec<Gc<GcCell<CodeBlock /*WithBlock*/>>>>> {
         self.with_block_stack.borrow()
+    }
+
+    pub(super) fn with_block_stack(&self) -> GcCellRef<Vec<Gc<GcCell<CodeBlock /*WithBlock*/>>>> {
+        gc_cell_ref_unwrapped(&self.with_block_stack)
     }
 
     pub(super) fn maybe_with_block_stack_mut(
         &self,
-    ) -> GcCellRefMut<Option<Vec<Gc<Node /*WithBlock*/>>>> {
+    ) -> GcCellRefMut<Option<Vec<Gc<GcCell<CodeBlock /*WithBlock*/>>>>> {
         self.with_block_stack.borrow_mut()
+    }
+
+    pub(super) fn with_block_stack_mut(
+        &self,
+    ) -> GcCellRefMut<
+        Option<Vec<Gc<GcCell<CodeBlock /*WithBlock*/>>>>,
+        Vec<Gc<GcCell<CodeBlock /*WithBlock*/>>>,
+    > {
+        gc_cell_ref_mut_unwrapped(&self.with_block_stack)
     }
 
     pub(super) fn set_with_block_stack(
         &self,
-        with_block_stack: Option<Vec<Gc<Node /*WithBlock*/>>>,
+        with_block_stack: Option<Vec<Gc<GcCell<CodeBlock /*WithBlock*/>>>>,
     ) {
         *self.with_block_stack.borrow_mut() = with_block_stack;
     }

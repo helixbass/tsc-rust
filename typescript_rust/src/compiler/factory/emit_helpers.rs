@@ -110,6 +110,13 @@ impl EmitHelperFactory {
         unimplemented!()
     }
 
+    pub fn create_generator_helper(
+        &self,
+        _body: Gc<Node /*Expression*/>,
+    ) -> Gc<Node /*Expression*/> {
+        unimplemented!()
+    }
+
     pub fn create_class_private_field_get_helper(
         &self,
         _receiver: Gc<Node /*Expression*/>,

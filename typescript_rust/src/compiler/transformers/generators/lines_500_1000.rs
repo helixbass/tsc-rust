@@ -320,8 +320,7 @@ impl TransformGenerators {
                 self.emit_worker(
                     OpCode::Statement,
                     Some(
-                        &self
-                            .factory
+                        self.factory
                             .create_expression_statement(
                                 self.factory.inline_expressions(&pending_expressions),
                             )
@@ -358,8 +357,7 @@ impl TransformGenerators {
                     self.emit_worker(
                         OpCode::Statement,
                         Some(
-                            &self
-                                .factory
+                            self.factory
                                 .create_expression_statement(
                                     self.factory.inline_expressions(&pending_expressions),
                                 )
