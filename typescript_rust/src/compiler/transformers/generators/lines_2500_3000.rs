@@ -206,7 +206,7 @@ impl TransformGenerators {
         if self.is_final_label_reachable(operation_index) {
             self.try_enter_label(operation_index);
             self.set_with_block_stack(None);
-            self.write_return(Option::<&Node>::None, Option::<&Node>::None);
+            self.write_return(None, Option::<&Node>::None);
         }
 
         if self.maybe_statements().is_some() && self.maybe_clauses().is_some() {
@@ -360,16 +360,13 @@ impl TransformGenerators {
             self.maybe_label_numbers().as_ref(),
         ) {
             for (label_number, labels) in label_numbers {
-                let labels = label_numbers.get(label_number);
-                if let Some(labels) = labels {
-                    for label in labels {
-                        let expressions = label_expressions.get(label);
-                        if let Some(expressions) = expressions {
-                            for expression in expressions {
-                                expression
-                                    .as_literal_like_node()
-                                    .set_text(format!("{label_number}"));
-                            }
+                for label in labels {
+                    let expressions = label_expressions.get(label);
+                    if let Some(expressions) = expressions {
+                        for expression in expressions {
+                            expression
+                                .as_literal_like_node()
+                                .set_text(format!("{label_number}"));
                         }
                     }
                 }
@@ -416,7 +413,71 @@ impl TransformGenerators {
         }
     }
 
-    pub(super) fn write_operation(&self, _operation_index: usize) {
-        unimplemented!()
+    pub(super) fn write_operation(&self, operation_index: usize) {
+        self.try_enter_label(operation_index);
+        self.try_enter_or_leave_block(operation_index);
+
+        if self.last_operation_was_abrupt() {
+            return;
+        }
+
+        self.set_last_operation_was_abrupt(false);
+        self.set_last_operation_was_completion(false);
+
+        let opcode = self.operations()[operation_index];
+        if opcode == OpCode::Nop {
+            return;
+        } else if opcode == OpCode::Endfinally {
+            return self.write_end_finally();
+        }
+
+        let args = self.operation_arguments()[operation_index].clone().unwrap();
+        if opcode == OpCode::Statement {
+            return self.write_statement(args.as_node());
+        }
+
+        let location = self.operation_locations()[operation_index];
+        match opcode {
+            OpCode::Assign => {
+                let (args_0, args_1) = args.as_node_and_node();
+                self.write_assign(args_0, args_1, location.as_ref());
+            }
+            OpCode::Break => self.write_break(args.as_label(), location.as_ref()),
+            OpCode::BreakWhenTrue => {
+                let (args_0, args_1) = args.as_label_and_node();
+                self.write_break_when_true(args_0, args_1, location.as_ref());
+            }
+            OpCode::BreakWhenFalse => {
+                let (args_0, args_1) = args.as_label_and_node();
+                self.write_break_when_false(args_0, args_1, location.as_ref());
+            }
+            OpCode::Yield => self.write_yield(args.as_node(), location.as_ref()),
+            OpCode::YieldStar => self.write_yield_star(args.as_node(), location.as_ref()),
+            OpCode::Return => self.write_return(Some(args.as_node()), location.as_ref()),
+            OpCode::Throw => self.write_throw(args.as_node(), location.as_ref()),
+            _ => (),
+        }
+    }
+
+    pub(super) fn write_statement(&self, statement: Gc<Node /*Statement*/>) {
+        // if (statement) {
+        self.maybe_statements_mut()
+            .get_or_insert_with(|| _d())
+            .push(statement);
+        // }
+    }
+
+    pub(super) fn write_assign(
+        &self,
+        left: Gc<Node /*Expression*/>,
+        right: Gc<Node /*Expression*/>,
+        operation_location: Option<&impl ReadonlyTextRange>,
+    ) {
+        self.write_statement(
+            self.factory
+                .create_expression_statement(self.factory.create_assignment(left, right).wrap())
+                .wrap()
+                .set_text_range(operation_location),
+        );
     }
 }
