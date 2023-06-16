@@ -9,9 +9,9 @@ use crate::{
     is_plus_token, is_prologue_directive, is_question_token, is_readonly_keyword, is_source_file,
     is_spread_element, is_string_literal, is_this_type_node, is_type_node,
     is_type_parameter_declaration, maybe_get_original_node_full, push_or_replace,
-    set_starts_on_new_line, AssertionLevel, BaseNodeFactory, Debug_, EmitFlags,
-    HasInitializerInterface, LiteralLikeNodeInterface, NamedDeclarationInterface, Node, NodeArray,
-    NodeFactory, NodeInterface, OuterExpressionKinds, ReadonlyTextRange, SyntaxKind,
+    set_starts_on_new_line, AssertionLevel, BaseNodeFactory, CompilerOptions, Debug_, EmitFlags,
+    EmitHost, HasInitializerInterface, LiteralLikeNodeInterface, NamedDeclarationInterface, Node,
+    NodeArray, NodeFactory, NodeInterface, OuterExpressionKinds, ReadonlyTextRange, SyntaxKind,
 };
 
 pub fn create_empty_exports<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>(
@@ -249,6 +249,17 @@ pub fn has_recorded_external_helpers(source_file: &Node /*SourceFile*/) -> bool 
                 emit_node.external_helpers == Some(true)
         }
     )
+}
+
+pub fn try_get_module_name_from_file<
+    TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize,
+>(
+    factory: &NodeFactory<TBaseNodeFactory>,
+    file: Option<impl Borrow<Node /*SourceFile*/>>,
+    host: &dyn EmitHost,
+    options: &CompilerOptions,
+) -> Option<Gc<Node /*StringLiteral*/>> {
+    unimplemented!()
 }
 
 pub fn get_initializer_of_binding_or_assignment_element(

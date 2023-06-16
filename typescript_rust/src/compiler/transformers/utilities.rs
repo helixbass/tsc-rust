@@ -1,11 +1,11 @@
-use std::{borrow::Borrow, io};
+use std::{borrow::Borrow, collections::HashMap, io};
 
 use gc::{Finalize, Gc, Trace};
 
 use crate::{
-    get_node_id, get_original_node, maybe_get_original_node, BaseNodeFactory, Node, NodeFactory,
-    NodeId, SyntaxKind, TransformationContext, Transformer, VisitResult,
-    WrapCustomTransformerFactoryHandleDefault,
+    get_node_id, get_original_node, maybe_get_original_node, BaseNodeFactory, CompilerOptions,
+    EmitResolver, Node, NodeFactory, NodeId, SyntaxKind, TransformationContext, Transformer,
+    VisitResult, WrapCustomTransformerFactoryHandleDefault,
 };
 
 pub fn get_original_node_id(node: &Node) -> NodeId {
@@ -20,6 +20,18 @@ pub fn maybe_get_original_node_id(node: Option<impl Borrow<Node>>) -> NodeId {
     } else {
         0
     }
+}
+
+#[derive(Trace, Finalize)]
+pub struct ExternalModuleInfo {
+    pub external_imports:
+        Vec<Gc<Node /*ImportDeclaration | ImportEqualsDeclaration | ExportDeclaration*/>>,
+    pub external_helpers_import_declaration: Option<Gc<Node /*ImportDeclaration*/>>,
+    pub export_specifiers: HashMap<String, Vec<Gc<Node /*ExportSpecifier*/>>>,
+    pub exported_bindings: Vec<Vec<Gc<Node /*Identifier*/>>>,
+    pub exported_names: Option<Vec<Gc<Node /*Identifier*/>>>,
+    pub export_equals: Option<Gc<Node /*ExportAssignment*/>>,
+    pub has_export_stars_to_export_values: bool,
 }
 
 // TODO: does chain_bundle() need to accept any CoreTnansformationContext's that aren't TransformationContext's?
@@ -49,6 +61,15 @@ pub fn chain_bundle() -> Gc<Box<dyn WrapCustomTransformerFactoryHandleDefault>> 
         static CHAIN_BUNDLE: Gc<Box<dyn WrapCustomTransformerFactoryHandleDefault>> = Gc::new(Box::new(ChainBundle));
     }
     CHAIN_BUNDLE.with(|chain_bundle| chain_bundle.clone())
+}
+
+pub fn collect_external_module_info(
+    _context: &dyn TransformationContext,
+    _source_file: &Node, /*SourceFile*/
+    resolver: &dyn EmitResolver,
+    compiler_options: &CompilerOptions,
+) -> ExternalModuleInfo {
+    unimplemented!()
 }
 
 pub fn is_simple_copiable_expression(_expression: &Node /*Expression*/) -> bool {

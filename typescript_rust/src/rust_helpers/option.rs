@@ -6,79 +6,73 @@ use itertools::Either;
 use crate::{Node, NodeArray, NodeInterface, Symbol, SymbolInterface, Type, TypeInterface};
 
 pub trait NonEmpty {
-    fn non_empty(self) -> Self;
-    fn is_non_empty(self) -> bool;
+    type Optional;
+
+    fn non_empty(self) -> Self::Optional;
+    fn is_non_empty(&self) -> bool;
 }
 
-impl NonEmpty for Option<&str> {
-    fn non_empty(self) -> Self {
-        self.filter(|value| !value.is_empty())
-    }
+#[macro_export]
+macro_rules! impl_non_empty_for_option_and_non_option {
+    ($type:ty $(,)?) => {
+        impl NonEmpty for Option<$type> {
+            type Optional = Self;
 
-    fn is_non_empty(self) -> bool {
-        self.non_empty().is_some()
-    }
+            fn non_empty(self) -> Self::Optional {
+                self.filter(|value| !value.is_empty())
+            }
+
+            fn is_non_empty(&self) -> bool {
+                self.as_ref().filter(|value| !value.is_empty()).is_some()
+            }
+        }
+
+        impl NonEmpty for $type {
+            type Optional = Option<Self>;
+
+            fn non_empty(self) -> Self::Optional {
+                (!self.is_empty()).then_some(self)
+            }
+
+            fn is_non_empty(&self) -> bool {
+                !self.is_empty()
+            }
+        }
+    };
+    ($type:ty, $generic:ident $(,)?) => {
+        impl<$generic> NonEmpty for Option<$type> {
+            type Optional = Self;
+
+            fn non_empty(self) -> Self::Optional {
+                self.filter(|value| !value.is_empty())
+            }
+
+            fn is_non_empty(&self) -> bool {
+                self.as_ref().filter(|value| !value.is_empty()).is_some()
+            }
+        }
+
+        impl<$generic> NonEmpty for $type {
+            type Optional = Option<Self>;
+
+            fn non_empty(self) -> Self::Optional {
+                (!self.is_empty()).then_some(self)
+            }
+
+            fn is_non_empty(&self) -> bool {
+                !self.is_empty()
+            }
+        }
+    };
 }
 
-impl NonEmpty for Option<&String> {
-    fn non_empty(self) -> Self {
-        self.filter(|value| !value.is_empty())
-    }
-
-    fn is_non_empty(self) -> bool {
-        self.non_empty().is_some()
-    }
-}
-
-impl NonEmpty for Option<String> {
-    fn non_empty(self) -> Self {
-        self.filter(|value| !value.is_empty())
-    }
-
-    fn is_non_empty(self) -> bool {
-        self.non_empty().is_some()
-    }
-}
-
-impl<TItem> NonEmpty for Option<&[TItem]> {
-    fn non_empty(self) -> Self {
-        self.filter(|value| !value.is_empty())
-    }
-
-    fn is_non_empty(self) -> bool {
-        self.non_empty().is_some()
-    }
-}
-
-impl<TItem> NonEmpty for Option<&Vec<TItem>> {
-    fn non_empty(self) -> Self {
-        self.filter(|value| !value.is_empty())
-    }
-
-    fn is_non_empty(self) -> bool {
-        self.non_empty().is_some()
-    }
-}
-
-impl<TItem> NonEmpty for Option<Vec<TItem>> {
-    fn non_empty(self) -> Self {
-        self.filter(|value| !value.is_empty())
-    }
-
-    fn is_non_empty(self) -> bool {
-        self.non_empty().is_some()
-    }
-}
-
-impl NonEmpty for Option<Gc<NodeArray>> {
-    fn non_empty(self) -> Self {
-        self.filter(|value| !value.is_empty())
-    }
-
-    fn is_non_empty(self) -> bool {
-        self.non_empty().is_some()
-    }
-}
+impl_non_empty_for_option_and_non_option!(&str);
+impl_non_empty_for_option_and_non_option!(&String);
+impl_non_empty_for_option_and_non_option!(String);
+impl_non_empty_for_option_and_non_option!(&[TItem], TItem);
+impl_non_empty_for_option_and_non_option!(&Vec<TItem>, TItem);
+impl_non_empty_for_option_and_non_option!(Vec<TItem>, TItem);
+impl_non_empty_for_option_and_non_option!(Gc<NodeArray>);
 
 pub trait GetOrInsertDefault {
     type Unwrapped;
