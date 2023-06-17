@@ -654,18 +654,13 @@ impl NodeBuilder {
                                         } else {
                                             None
                                         },
-                                        get_factory()
-                                            .create_identifier(
-                                                &unescape_leading_underscores(
-                                                    &self.type_checker.get_tuple_element_label(
-                                                        &type_target_labeled_element_declarations
-                                                            [i],
-                                                    ),
+                                        get_factory().create_identifier(
+                                            &unescape_leading_underscores(
+                                                &self.type_checker.get_tuple_element_label(
+                                                    &type_target_labeled_element_declarations[i],
                                                 ),
-                                                Option::<Gc<NodeArray>>::None,
-                                                None,
-                                            )
-                                            .wrap(),
+                                            ),
+                                        ),
                                         if flags.intersects(ElementFlags::Optional) {
                                             Some(
                                                 get_factory()
@@ -1052,9 +1047,7 @@ impl NodeBuilder {
             return factory.with(|factory_| {
                 factory_
                     .create_type_reference_node(
-                        factory_
-                            .create_identifier("...", Option::<Gc<NodeArray>>::None, None)
-                            .wrap(),
+                        factory_.create_identifier("..."),
                         Option::<Gc<NodeArray>>::None,
                     )
                     .wrap()

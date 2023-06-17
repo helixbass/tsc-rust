@@ -509,8 +509,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         {
             node_as_jsdoc_tag.tag_name()
         } else {
-            self.create_identifier(default_tag_name, Option::<Gc<NodeArray>>::None, None)
-                .wrap()
+            self.create_identifier(default_tag_name)
         }
     }
 
@@ -536,10 +535,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     ) -> JSDocTemplateTag {
         let node = self.create_base_jsdoc_tag(
             SyntaxKind::JSDocTemplateTag,
-            tag_name.unwrap_or_else(|| {
-                self.create_identifier("template", Option::<Gc<NodeArray>>::None, None)
-                    .wrap()
-            }),
+            tag_name.unwrap_or_else(|| self.create_identifier("template")),
             comment,
         );
         JSDocTemplateTag::new(
@@ -558,10 +554,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     ) -> JSDocTypedefTag {
         let node = self.create_base_jsdoc_tag(
             SyntaxKind::JSDocTypedefTag,
-            tag_name.unwrap_or_else(|| {
-                self.create_identifier("typedef", Option::<Gc<NodeArray>>::None, None)
-                    .wrap()
-            }),
+            tag_name.unwrap_or_else(|| self.create_identifier("typedef")),
             comment,
         );
         JSDocTypedefTag::new(
@@ -583,10 +576,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     ) -> JSDocPropertyLikeTag {
         let node = self.create_base_jsdoc_tag(
             SyntaxKind::JSDocParameterTag,
-            tag_name.unwrap_or_else(|| {
-                self.create_identifier("param", Option::<Gc<NodeArray>>::None, None)
-                    .wrap()
-            }),
+            tag_name.unwrap_or_else(|| self.create_identifier("param")),
             comment,
         );
         JSDocPropertyLikeTag::new(
@@ -598,21 +588,18 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         )
     }
 
-    pub fn create_jsdoc_property_tag<TComment: Into<StringOrNodeArray>>(
+    pub fn create_jsdoc_property_tag(
         &self,
         tag_name: Option<Gc<Node /*Identifier*/>>,
         name: Gc<Node /*EntityName*/>,
         is_bracketed: bool,
         type_expression: Option<Gc<Node /*JSDocTypeExpression*/>>,
         is_name_first: Option<bool>,
-        comment: Option<TComment>,
+        comment: Option<impl Into<StringOrNodeArray>>,
     ) -> JSDocPropertyLikeTag {
         let node = self.create_base_jsdoc_tag(
             SyntaxKind::JSDocPropertyTag,
-            tag_name.unwrap_or_else(|| {
-                self.create_identifier("prop", Option::<Gc<NodeArray>>::None, None)
-                    .wrap()
-            }),
+            tag_name.unwrap_or_else(|| self.create_identifier("prop")),
             comment,
         );
         JSDocPropertyLikeTag::new(
@@ -624,19 +611,16 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         )
     }
 
-    pub fn create_jsdoc_callback_tag<TComment: Into<StringOrNodeArray>>(
+    pub fn create_jsdoc_callback_tag(
         &self,
         tag_name: Option<Gc<Node /*Identifier*/>>,
         type_expression: Gc<Node /*JSDocSignature*/>,
         full_name: Option<Gc<Node /*Identifier | JSDocNamespaceDeclaration*/>>,
-        comment: Option<TComment>,
+        comment: Option<impl Into<StringOrNodeArray>>,
     ) -> JSDocCallbackTag {
         let node = self.create_base_jsdoc_tag(
             SyntaxKind::JSDocCallbackTag,
-            tag_name.unwrap_or_else(|| {
-                self.create_identifier("callback", Option::<Gc<NodeArray>>::None, None)
-                    .wrap()
-            }),
+            tag_name.unwrap_or_else(|| self.create_identifier("callback")),
             comment,
         );
         JSDocCallbackTag::new(
@@ -655,10 +639,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     ) -> JSDocAugmentsTag {
         let node = self.create_base_jsdoc_tag(
             SyntaxKind::JSDocAugmentsTag,
-            tag_name.unwrap_or_else(|| {
-                self.create_identifier("augments", Option::<Gc<NodeArray>>::None, None)
-                    .wrap()
-            }),
+            tag_name.unwrap_or_else(|| self.create_identifier("augments")),
             comment,
         );
         JSDocAugmentsTag::new(node, class_name)
@@ -672,10 +653,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     ) -> JSDocImplementsTag {
         let node = self.create_base_jsdoc_tag(
             SyntaxKind::JSDocImplementsTag,
-            tag_name.unwrap_or_else(|| {
-                self.create_identifier("implements", Option::<Gc<NodeArray>>::None, None)
-                    .wrap()
-            }),
+            tag_name.unwrap_or_else(|| self.create_identifier("implements")),
             comment,
         );
         JSDocImplementsTag::new(node, class_name)
@@ -689,10 +667,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     ) -> JSDocSeeTag {
         let node = self.create_base_jsdoc_tag(
             SyntaxKind::JSDocSeeTag,
-            tag_name.unwrap_or_else(|| {
-                self.create_identifier("see", Option::<Gc<NodeArray>>::None, None)
-                    .wrap()
-            }),
+            tag_name.unwrap_or_else(|| self.create_identifier("see")),
             comment,
         );
         JSDocSeeTag::new(node, name)
@@ -754,14 +729,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     ) -> BaseJSDocTag {
         self.create_base_jsdoc_tag(
             kind,
-            tag_name.unwrap_or_else(|| {
-                self.create_identifier(
-                    get_default_tag_name_for_kind(kind),
-                    Option::<Gc<NodeArray>>::None,
-                    None,
-                )
-                .wrap()
-            }),
+            tag_name.unwrap_or_else(|| self.create_identifier(get_default_tag_name_for_kind(kind))),
             comment,
         )
     }
@@ -775,14 +743,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     ) -> BaseJSDocTypeLikeTag {
         let node = self.create_base_jsdoc_tag(
             kind,
-            tag_name.unwrap_or_else(|| {
-                self.create_identifier(
-                    get_default_tag_name_for_kind(kind),
-                    Option::<Gc<NodeArray>>::None,
-                    None,
-                )
-                .wrap()
-            }),
+            tag_name.unwrap_or_else(|| self.create_identifier(get_default_tag_name_for_kind(kind))),
             comment,
         );
         BaseJSDocTypeLikeTag::new(node, type_expression)

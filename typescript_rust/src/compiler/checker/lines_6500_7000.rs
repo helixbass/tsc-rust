@@ -1,4 +1,3 @@
-use gc::{Finalize, Gc, GcCell, GcCellRef, GcCellRefMut, Trace};
 use std::{
     borrow::Borrow,
     cell::{Cell, RefCell},
@@ -6,6 +5,8 @@ use std::{
     io, ptr,
     rc::Rc,
 };
+
+use gc::{Finalize, Gc, GcCell, GcCellRef, GcCellRefMut, Trace};
 
 use super::{
     wrap_symbol_tracker_to_report_for_context, MakeSerializePropertySymbol,
@@ -24,11 +25,10 @@ use crate::{
     is_string_a_non_contextual_keyword, is_string_literal, is_variable_declaration,
     is_variable_declaration_list, is_variable_statement, length, map, map_defined,
     needs_scope_marker, node_has_name, ordered_remove_item_at, set_text_range_rc_node,
-    unescape_leading_underscores, InternalSymbolName,
-    LiteralLikeNodeInterface, ModifierFlags, Node, NodeArray, NodeArrayOrVec, NodeBuilder,
-    NodeBuilderFlags, NodeFlags, NodeInterface, StrOrRcNode, Symbol, SymbolAccessibility,
-    SymbolFlags, SymbolId, SymbolInterface, SymbolTable, SymbolTracker, SyntaxKind, TypeChecker,
-    TypeInterface,
+    unescape_leading_underscores, InternalSymbolName, LiteralLikeNodeInterface, ModifierFlags,
+    Node, NodeArray, NodeArrayOrVec, NodeBuilder, NodeBuilderFlags, NodeFlags, NodeInterface,
+    StrOrRcNode, Symbol, SymbolAccessibility, SymbolFlags, SymbolId, SymbolInterface, SymbolTable,
+    SymbolTracker, SyntaxKind, TypeChecker, TypeInterface,
 };
 
 impl NodeBuilder {
@@ -1080,12 +1080,7 @@ impl SymbolTableToDeclarationStatements {
                         Option::<Gc<NodeArray>>::None,
                         Some(false),
                         get_factory()
-                            .create_identifier(
-                                &self.get_internal_symbol_name(symbol, symbol_name),
-                                Option::<Gc<NodeArray>>::None,
-                                None,
-                            )
-                            .wrap(),
+                            .create_identifier(&self.get_internal_symbol_name(symbol, symbol_name)),
                     )
                     .wrap(),
                 ModifierFlags::None,

@@ -525,10 +525,7 @@ impl TransformTypeScript {
             }
             SyntaxKind::ClassDeclaration
             | SyntaxKind::ClassExpression
-            | SyntaxKind::MethodDeclaration => self
-                .factory
-                .create_identifier("Function", Option::<Gc<NodeArray>>::None, None)
-                .wrap(),
+            | SyntaxKind::MethodDeclaration => self.factory.create_identifier("Function"),
             _ => self.factory.create_void_zero(),
         })
     }
@@ -609,10 +606,7 @@ impl TransformTypeScript {
         if is_function_like(Some(node)) && node.as_has_type().maybe_type().is_some() {
             return self.serialize_type_node(node.as_has_type().maybe_type());
         } else if is_async_function(node) {
-            return Ok(self
-                .factory
-                .create_identifier("Promise", Option::<Gc<NodeArray>>::None, None)
-                .wrap());
+            return Ok(self.factory.create_identifier("Promise"));
         }
 
         Ok(self.factory.create_void_zero())
@@ -623,10 +617,7 @@ impl TransformTypeScript {
         node: Option<impl Borrow<Node /*TypeNode*/>>,
     ) -> io::Result<Gc<Node /*SerializedTypeNode*/>> {
         if node.is_none() {
-            return Ok(self
-                .factory
-                .create_identifier("Object", Option::<Gc<NodeArray>>::None, None)
-                .wrap());
+            return Ok(self.factory.create_identifier("Object"));
         }
         let node = node.unwrap();
         let node: &Node = node.borrow();
@@ -641,58 +632,40 @@ impl TransformTypeScript {
             }
 
             SyntaxKind::FunctionType | SyntaxKind::ConstructorType => {
-                return Ok(self
-                    .factory
-                    .create_identifier("Function", Option::<Gc<NodeArray>>::None, None)
-                    .wrap());
+                return Ok(self.factory.create_identifier("Function"));
             }
 
             SyntaxKind::ArrayType | SyntaxKind::TupleType => {
-                return Ok(self
-                    .factory
-                    .create_identifier("Array", Option::<Gc<NodeArray>>::None, None)
-                    .wrap());
+                return Ok(self.factory.create_identifier("Array"));
             }
 
             SyntaxKind::TypePredicate | SyntaxKind::BooleanKeyword => {
-                return Ok(self
-                    .factory
-                    .create_identifier("Boolean", Option::<Gc<NodeArray>>::None, None)
-                    .wrap());
+                return Ok(self.factory.create_identifier("Boolean"));
             }
 
             SyntaxKind::StringKeyword => {
-                return Ok(self
-                    .factory
-                    .create_identifier("String", Option::<Gc<NodeArray>>::None, None)
-                    .wrap());
+                return Ok(self.factory.create_identifier("String"));
             }
 
             SyntaxKind::ObjectKeyword => {
-                return Ok(self
-                    .factory
-                    .create_identifier("Object", Option::<Gc<NodeArray>>::None, None)
-                    .wrap());
+                return Ok(self.factory.create_identifier("Object"));
             }
 
             SyntaxKind::LiteralType => {
                 return Ok(match node.as_literal_type_node().literal.kind() {
-                    SyntaxKind::StringLiteral | SyntaxKind::NoSubstitutionTemplateLiteral => self
-                        .factory
-                        .create_identifier("String", Option::<Gc<NodeArray>>::None, None)
-                        .wrap(),
+                    SyntaxKind::StringLiteral | SyntaxKind::NoSubstitutionTemplateLiteral => {
+                        self.factory.create_identifier("String")
+                    }
 
-                    SyntaxKind::PrefixUnaryExpression | SyntaxKind::NumericLiteral => self
-                        .factory
-                        .create_identifier("Number", Option::<Gc<NodeArray>>::None, None)
-                        .wrap(),
+                    SyntaxKind::PrefixUnaryExpression | SyntaxKind::NumericLiteral => {
+                        self.factory.create_identifier("Number")
+                    }
 
                     SyntaxKind::BigIntLiteral => self.get_global_big_int_name_with_fallback(),
 
-                    SyntaxKind::TrueKeyword | SyntaxKind::FalseKeyword => self
-                        .factory
-                        .create_identifier("Boolean", Option::<Gc<NodeArray>>::None, None)
-                        .wrap(),
+                    SyntaxKind::TrueKeyword | SyntaxKind::FalseKeyword => {
+                        self.factory.create_identifier("Boolean")
+                    }
 
                     SyntaxKind::NullKeyword => self.factory.create_void_zero(),
 
@@ -701,10 +674,7 @@ impl TransformTypeScript {
             }
 
             SyntaxKind::NumberKeyword => {
-                return Ok(self
-                    .factory
-                    .create_identifier("Number", Option::<Gc<NodeArray>>::None, None)
-                    .wrap());
+                return Ok(self.factory.create_identifier("Number"));
             }
 
             SyntaxKind::BigIntKeyword => {
@@ -715,9 +685,7 @@ impl TransformTypeScript {
                 return Ok(if self.language_version < ScriptTarget::ES2015 {
                     self.get_global_symbol_name_with_fallback()
                 } else {
-                    self.factory
-                        .create_identifier("Symbol", Option::<Gc<NodeArray>>::None, None)
-                        .wrap()
+                    self.factory.create_identifier("Symbol")
                 });
             }
 
@@ -768,9 +736,6 @@ impl TransformTypeScript {
             _ => (),
         }
 
-        Ok(self
-            .factory
-            .create_identifier("Object", Option::<Gc<NodeArray>>::None, None)
-            .wrap())
+        Ok(self.factory.create_identifier("Object"))
     }
 }

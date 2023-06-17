@@ -1,30 +1,31 @@
+use std::{
+    borrow::{Borrow, Cow},
+    cell::RefCell,
+    collections::HashSet,
+    convert::{TryFrom, TryInto},
+    io, ptr,
+};
+
 use gc::{Gc, GcCell};
-use std::borrow::{Borrow, Cow};
-use std::cell::RefCell;
-use std::collections::HashSet;
-use std::convert::{TryFrom, TryInto};
-use std::{io, ptr};
 
 use super::{get_symbol_id, NodeBuilderContext, TypeFacts};
 use crate::{
     are_option_gcs_equal, create_printer, create_symbol_table, declaration_name_to_string,
-    escape_string, find_ancestor, first_defined, get_check_flags,
-    get_combined_modifier_flags, get_declaration_modifier_flags_from_symbol,
-    get_emit_script_target, get_factory, get_first_identifier, get_name_of_declaration,
-    get_root_declaration, has_effective_modifier, is_ambient_module,
-    is_bindable_object_define_property_call, is_binding_pattern, is_call_expression,
-    is_computed_property_name, is_external_module_augmentation, is_identifier_text,
-    is_internal_module_import_equals_declaration, is_left_hand_side_expression, is_source_file,
-    map, maybe_get_source_file_of_node,
-    parse_node_factory, push_if_unique_gc, return_ok_default_if_none, return_ok_none_if_none,
-    set_parent, set_text_range, starts_with, symbol_name, try_add_to_set, try_map,
-    try_maybe_for_each, try_using_single_line_string_writer,
+    escape_string, find_ancestor, first_defined, get_check_flags, get_combined_modifier_flags,
+    get_declaration_modifier_flags_from_symbol, get_emit_script_target, get_factory,
+    get_first_identifier, get_name_of_declaration, get_root_declaration, has_effective_modifier,
+    is_ambient_module, is_bindable_object_define_property_call, is_binding_pattern,
+    is_call_expression, is_computed_property_name, is_external_module_augmentation,
+    is_identifier_text, is_internal_module_import_equals_declaration, is_left_hand_side_expression,
+    is_source_file, map, maybe_get_source_file_of_node, parse_node_factory, push_if_unique_gc,
+    return_ok_default_if_none, return_ok_none_if_none, set_parent, set_text_range, starts_with,
+    symbol_name, try_add_to_set, try_map, try_maybe_for_each, try_using_single_line_string_writer,
     walk_up_parenthesized_types, CharacterCodes, CheckFlags, EmitHint, EmitTextWriter,
     InterfaceTypeInterface, InternalSymbolName, LiteralType, ModifierFlags,
-    NamedDeclarationInterface, Node, NodeArray, NodeBuilderFlags, NodeFlags, NodeInterface,
-    ObjectFlags, ObjectFlagsTypeInterface, OptionTry, PrinterOptionsBuilder, Symbol, SymbolFlags,
-    SymbolId, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeFormatFlags,
-    TypeInterface, TypePredicate, TypePredicateKind, TypeReferenceInterface, TypeSystemEntity,
+    NamedDeclarationInterface, Node, NodeBuilderFlags, NodeFlags, NodeInterface, ObjectFlags,
+    ObjectFlagsTypeInterface, OptionTry, PrinterOptionsBuilder, Symbol, SymbolFlags, SymbolId,
+    SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeFormatFlags, TypeInterface,
+    TypePredicate, TypePredicateKind, TypeReferenceInterface, TypeSystemEntity,
     TypeSystemPropertyName, UnionOrIntersectionTypeInterface,
 };
 
@@ -84,13 +85,7 @@ impl TypeChecker {
                     type_predicate.kind,
                     TypePredicateKind::Identifier | TypePredicateKind::AssertsIdentifier
                 ) {
-                    get_factory()
-                        .create_identifier(
-                            type_predicate.parameter_name.as_ref().unwrap(),
-                            Option::<Gc<NodeArray>>::None,
-                            None,
-                        )
-                        .wrap()
+                    get_factory().create_identifier(type_predicate.parameter_name.as_ref().unwrap())
                 } else {
                     get_factory().create_this_type_node().wrap()
                 },

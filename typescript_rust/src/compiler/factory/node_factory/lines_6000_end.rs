@@ -294,9 +294,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         name: Option<TName>,
     ) -> Option<Gc<Node>> {
         name.map(|name| match name.into() {
-            StrOrRcNode::Str(name) => self
-                .create_identifier(name, Option::<Gc<NodeArray>>::None, None)
-                .wrap(),
+            StrOrRcNode::Str(name) => self.create_identifier(name),
             StrOrRcNode::RcNode(name) => name,
         })
     }

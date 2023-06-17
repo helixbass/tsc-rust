@@ -365,15 +365,7 @@ impl TransformDeclarations {
                             Option::<Gc<NodeArray>>::None,
                             clean_as_function_declaration
                                 .maybe_name()
-                                .unwrap_or_else(|| {
-                                    self.factory
-                                        .create_identifier(
-                                            "_default",
-                                            Option::<Gc<NodeArray>>::None,
-                                            None,
-                                        )
-                                        .wrap()
-                                }),
+                                .unwrap_or_else(|| self.factory.create_identifier("_default")),
                             Some(self.factory.create_module_block(Some(vec![])).wrap()),
                             Some(NodeFlags::Namespace),
                         )
@@ -413,13 +405,7 @@ impl TransformDeclarations {
                                 self.factory
                                     .get_generated_name_for_node(Some(&**p_value_declaration), None)
                             } else {
-                                self.factory
-                                    .create_identifier(
-                                        name_str,
-                                        Option::<Gc<NodeArray>>::None,
-                                        None,
-                                    )
-                                    .wrap()
+                                self.factory.create_identifier(name_str)
                             };
                             if is_non_contextual_keyword_name {
                                 export_mappings.push((name.clone(), name_str.to_owned()));

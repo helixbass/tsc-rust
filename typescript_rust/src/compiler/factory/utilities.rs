@@ -10,8 +10,9 @@ use crate::{
     is_spread_element, is_string_literal, is_this_type_node, is_type_node,
     is_type_parameter_declaration, maybe_get_original_node_full, push_or_replace,
     set_starts_on_new_line, AssertionLevel, BaseNodeFactory, CompilerOptions, Debug_, EmitFlags,
-    EmitHost, HasInitializerInterface, LiteralLikeNodeInterface, NamedDeclarationInterface, Node,
-    NodeArray, NodeFactory, NodeInterface, OuterExpressionKinds, ReadonlyTextRange, SyntaxKind,
+    EmitHost, EmitResolver, HasInitializerInterface, LiteralLikeNodeInterface,
+    NamedDeclarationInterface, Node, NodeArray, NodeFactory, NodeInterface, OuterExpressionKinds,
+    ReadonlyTextRange, SyntaxKind,
 };
 
 pub fn create_empty_exports<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>(
@@ -251,13 +252,36 @@ pub fn has_recorded_external_helpers(source_file: &Node /*SourceFile*/) -> bool 
     )
 }
 
+pub fn get_local_name_for_external_import<
+    TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize,
+>(
+    _factory: &NodeFactory<TBaseNodeFactory>,
+    _node: &Node, /*ImportDeclaration | ExportDeclaration | ImportEqualsDeclaration*/
+    _source_file: &Node, /*SourceFile*/
+) -> Option<Gc<Node /*Identifier*/>> {
+    unimplemented!()
+}
+
+pub fn get_external_module_name_literal<
+    TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize,
+>(
+    _factory: &NodeFactory<TBaseNodeFactory>,
+    _import_node: &Node, /*ImportDeclaration | ExportDeclaration | ImportEqualsDeclaration | ImportCall*/
+    _source_file: &Node, /*SourceFile*/
+    _host: &dyn EmitHost,
+    _resolver: &dyn EmitResolver,
+    _compiler_options: &CompilerOptions,
+) -> Option<Gc<Node>> {
+    unimplemented!()
+}
+
 pub fn try_get_module_name_from_file<
     TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize,
 >(
-    factory: &NodeFactory<TBaseNodeFactory>,
-    file: Option<impl Borrow<Node /*SourceFile*/>>,
-    host: &dyn EmitHost,
-    options: &CompilerOptions,
+    _factory: &NodeFactory<TBaseNodeFactory>,
+    _file: Option<impl Borrow<Node /*SourceFile*/>>,
+    _host: &dyn EmitHost,
+    _options: &CompilerOptions,
 ) -> Option<Gc<Node /*StringLiteral*/>> {
     unimplemented!()
 }

@@ -66,8 +66,8 @@ pub fn chain_bundle() -> Gc<Box<dyn WrapCustomTransformerFactoryHandleDefault>> 
 pub fn collect_external_module_info(
     _context: &dyn TransformationContext,
     _source_file: &Node, /*SourceFile*/
-    resolver: &dyn EmitResolver,
-    compiler_options: &CompilerOptions,
+    _resolver: &dyn EmitResolver,
+    _compiler_options: &CompilerOptions,
 ) -> ExternalModuleInfo {
     unimplemented!()
 }

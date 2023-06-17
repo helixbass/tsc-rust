@@ -149,12 +149,7 @@ impl TypeChecker {
                     factory_
                         .create_qualified_name(
                             factory_
-                                .create_identifier(
-                                    &unescape_leading_underscores(&_jsx_namespace),
-                                    Option::<Gc<NodeArray>>::None,
-                                    None,
-                                )
-                                .wrap(),
+                                .create_identifier(&unescape_leading_underscores(&_jsx_namespace)),
                             "createElement",
                         )
                         .wrap(),

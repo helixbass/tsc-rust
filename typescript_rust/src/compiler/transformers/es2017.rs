@@ -1506,13 +1506,7 @@ pub fn create_super_access_variable_statement(
                                                 .wrap(),
                                             EmitFlags::NoSubstitution,
                                         ),
-                                        factory
-                                            .create_identifier(
-                                                "v",
-                                                Option::<Gc<NodeArray>>::None,
-                                                None,
-                                            )
-                                            .wrap(),
+                                        factory.create_identifier("v"),
                                     )
                                     .wrap(),
                             )
@@ -1553,13 +1547,7 @@ pub fn create_super_access_variable_statement(
                                     .create_call_expression(
                                         factory
                                             .create_property_access_expression(
-                                                factory
-                                                    .create_identifier(
-                                                        "Object",
-                                                        Option::<Gc<NodeArray>>::None,
-                                                        None,
-                                                    )
-                                                    .wrap(),
+                                                factory.create_identifier("Object"),
                                                 "create",
                                             )
                                             .wrap(),

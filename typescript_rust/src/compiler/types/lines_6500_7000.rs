@@ -1,11 +1,13 @@
+use std::{
+    cell::{Cell, Ref, RefCell, RefMut},
+    collections::HashMap,
+    fmt, io,
+    rc::Rc,
+};
+
 use bitflags::bitflags;
 use derive_builder::Builder;
 use gc::{Finalize, Gc, GcCellRef, Trace};
-use std::cell::{Cell, Ref, RefCell, RefMut};
-use std::collections::HashMap;
-use std::fmt;
-use std::io;
-use std::rc::Rc;
 
 use super::{
     BaseTextRange, CompilerOptions, FileReference, Node, RedirectTargetsMap,
@@ -801,8 +803,9 @@ pub trait EmitHelperBase {
 }
 
 mod _EmitHelperTextDeriveTraceScope {
-    use super::*;
     use local_macros::Trace;
+
+    use super::*;
 
     #[derive(Clone, Trace, Finalize)]
     pub enum EmitHelperText {
@@ -834,13 +837,35 @@ impl From<Gc<Box<dyn EmitHelperTextCallback>>> for EmitHelperText {
     }
 }
 
-#[derive(Debug, Trace, Finalize)]
+#[derive(Builder, Debug, Trace, Finalize)]
+#[builder(setter(strip_option, into))]
 pub struct ScopedEmitHelper {
     name: String,
+    #[builder(setter(skip), default = "true")]
     scoped: bool, /*true*/
     text: EmitHelperText,
+    #[builder(default)]
     priority: Option<usize>,
+    #[builder(default)]
     dependencies: Option<Vec<Gc<EmitHelper>>>,
+}
+
+impl ScopedEmitHelper {
+    pub fn new(
+        name: String,
+        text: impl Into<EmitHelperText>,
+        priority: Option<usize>,
+        dependencies: Option<Vec<Gc<EmitHelper>>>,
+    ) -> Self {
+        let text = text.into();
+        Self {
+            name,
+            scoped: true,
+            text,
+            priority,
+            dependencies,
+        }
+    }
 }
 
 impl EmitHelperBase for ScopedEmitHelper {
@@ -865,13 +890,18 @@ impl EmitHelperBase for ScopedEmitHelper {
     }
 }
 
-#[derive(Debug, Trace, Finalize)]
+#[derive(Builder, Debug, Trace, Finalize)]
+#[builder(setter(strip_option, into))]
 pub struct UnscopedEmitHelper {
     name: String,
+    #[builder(setter(skip), default = "false")]
     scoped: bool, /*false*/
     text: String,
+    #[builder(default)]
     priority: Option<usize>,
+    #[builder(default)]
     dependencies: Option<Vec<Gc<EmitHelper>>>,
+    #[builder(default)]
     pub(crate) import_name: Option<String>,
 }
 
@@ -901,6 +931,30 @@ impl EmitHelperBase for UnscopedEmitHelper {
 pub enum EmitHelper {
     ScopedEmitHelper(ScopedEmitHelper),
     UnscopedEmitHelper(UnscopedEmitHelper),
+}
+
+impl From<ScopedEmitHelper> for EmitHelper {
+    fn from(value: ScopedEmitHelper) -> Self {
+        Self::ScopedEmitHelper(value)
+    }
+}
+
+impl From<ScopedEmitHelper> for Gc<EmitHelper> {
+    fn from(value: ScopedEmitHelper) -> Self {
+        Gc::new(value.into())
+    }
+}
+
+impl From<UnscopedEmitHelper> for EmitHelper {
+    fn from(value: UnscopedEmitHelper) -> Self {
+        Self::UnscopedEmitHelper(value)
+    }
+}
+
+impl From<UnscopedEmitHelper> for Gc<EmitHelper> {
+    fn from(value: UnscopedEmitHelper) -> Self {
+        Gc::new(value.into())
+    }
 }
 
 impl EmitHelperBase for EmitHelper {

@@ -769,8 +769,7 @@ impl TransformClassFields {
         }
         Some(
             self.factory
-                .create_identifier("", Option::<Gc<NodeArray>>::None, None)
-                .wrap()
+                .create_identifier("")
                 .set_original_node(Some(node.node_wrapper()))
                 .into(),
         )

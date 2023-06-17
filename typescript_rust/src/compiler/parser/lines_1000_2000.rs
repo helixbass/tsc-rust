@@ -1,6 +1,6 @@
+use std::{borrow::Borrow, convert::TryInto};
+
 use gc::{Finalize, Gc, GcCell, Trace};
-use std::borrow::Borrow;
-use std::convert::TryInto;
 
 use super::{ParserType, ParsingContext, SpeculationKind};
 use crate::{
@@ -1143,7 +1143,7 @@ impl ParserType {
         let pos = self.get_node_pos();
         let result = if kind == SyntaxKind::Identifier {
             self.factory()
-                .create_identifier("", Option::<Gc<NodeArray>>::None, None)
+                .create_identifier_raw("", Option::<Gc<NodeArray>>::None, None)
                 .into()
         } else if is_template_literal_kind(kind) {
             self.factory()
@@ -1192,7 +1192,7 @@ impl ParserType {
             self.next_token_without_check();
             return self.finish_node(
                 self.factory()
-                    .create_identifier(
+                    .create_identifier_raw(
                         &text,
                         Option::<Gc<NodeArray>>::None,
                         Some(original_keyword_kind),

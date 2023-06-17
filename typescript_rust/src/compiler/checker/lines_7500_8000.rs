@@ -3,6 +3,9 @@ use std::{borrow::Borrow, io};
 use gc::{Finalize, Gc, Trace};
 use regex::Regex;
 
+use super::{
+    NodeBuilderContext, SignatureToSignatureDeclarationOptions, SymbolTableToDeclarationStatements,
+};
 use crate::{
     are_option_gcs_equal, get_declaration_modifier_flags_from_symbol,
     get_export_assignment_expression, get_factory, get_object_flags,
@@ -14,15 +17,11 @@ use crate::{
     is_prototype_property_assignment, is_set_accessor, is_single_or_double_quote,
     is_string_a_non_contextual_keyword, is_variable_declaration, length,
     maybe_get_source_file_of_node, set_text_range_rc_node, some, strip_quotes, symbol_name,
-    unescape_leading_underscores, BoolExt, Debug_,
-    InternalSymbolName, IteratorExt, Matches, ModifierFlags, Node, NodeArray, NodeArrayOrVec,
-    NodeBuilder, NodeBuilderFlags, NodeFlags, NodeInterface, NodeWrappered, ObjectFlags, OptionTry,
-    SignatureKind, StrOrRcNode, Symbol, SymbolFlags, SymbolInterface, SymbolWrappered, SyntaxKind,
-    Ternary, Type, TypeChecker, TypeInterface, TypeWrappered,
-};
-
-use super::{
-    NodeBuilderContext, SignatureToSignatureDeclarationOptions, SymbolTableToDeclarationStatements,
+    unescape_leading_underscores, BoolExt, Debug_, InternalSymbolName, IteratorExt, Matches,
+    ModifierFlags, Node, NodeArray, NodeArrayOrVec, NodeBuilder, NodeBuilderFlags, NodeFlags,
+    NodeInterface, NodeWrappered, ObjectFlags, OptionTry, SignatureKind, StrOrRcNode, Symbol,
+    SymbolFlags, SymbolInterface, SymbolWrappered, SyntaxKind, Ternary, Type, TypeChecker,
+    TypeInterface, TypeWrappered,
 };
 
 impl SymbolTableToDeclarationStatements {
@@ -154,13 +153,7 @@ impl SymbolTableToDeclarationStatements {
                                     Option::<Gc<NodeArray>>::None,
                                     Option::<Gc<NodeArray>>::None,
                                     false,
-                                    get_factory()
-                                        .create_identifier(
-                                            &var_name,
-                                            Option::<Gc<NodeArray>>::None,
-                                            None,
-                                        )
-                                        .wrap(),
+                                    get_factory().create_identifier(&var_name),
                                     self.node_builder.symbol_to_name(
                                         target,
                                         &self.context(),
@@ -248,13 +241,7 @@ impl SymbolTableToDeclarationStatements {
                                 Option::<Gc<NodeArray>>::None,
                                 Option::<Gc<NodeArray>>::None,
                                 Some(is_export_equals),
-                                get_factory()
-                                    .create_identifier(
-                                        &var_name,
-                                        Option::<Gc<NodeArray>>::None,
-                                        None,
-                                    )
-                                    .wrap(),
+                                get_factory().create_identifier(&var_name),
                             )
                             .wrap(),
                     );
@@ -522,9 +509,7 @@ impl SymbolTableToDeclarationStatements {
         self.add_result(&statement, ModifierFlags::None);
         Ok(get_factory()
             .create_expression_with_type_arguments(
-                get_factory()
-                    .create_identifier(&temp_name, Option::<Gc<NodeArray>>::None, None)
-                    .wrap(),
+                get_factory().create_identifier(&temp_name),
                 Option::<Gc<NodeArray>>::None,
             )
             .wrap())

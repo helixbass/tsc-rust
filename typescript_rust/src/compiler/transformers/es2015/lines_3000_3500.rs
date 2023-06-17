@@ -638,10 +638,7 @@ impl TransformES2015 {
                         })
                 }
             } {
-                let label = self
-                    .factory
-                    .create_identifier(label_text, Option::<Gc<NodeArray>>::None, None)
-                    .wrap();
+                let label = self.factory.create_identifier(label_text);
                 statements.push(if is_break {
                     self.factory.create_break_statement(Some(label)).wrap()
                 } else {

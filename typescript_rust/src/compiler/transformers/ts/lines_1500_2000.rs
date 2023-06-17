@@ -52,10 +52,7 @@ impl TransformTypeScript {
                     || serialized_union.as_identifier().escaped_text
                         != serialized_individual.as_identifier().escaped_text
                 {
-                    return Ok(self
-                        .factory
-                        .create_identifier("Object", Option::<Gc<NodeArray>>::None, None)
-                        .wrap());
+                    return Ok(self.factory.create_identifier("Object"));
                 }
             } else {
                 serialized_union = Some(serialized_individual);
@@ -90,10 +87,7 @@ impl TransformTypeScript {
                 })
                 .is_some()
                 {
-                    return Ok(self
-                        .factory
-                        .create_identifier("Object", Option::<Gc<NodeArray>>::None, None)
-                        .wrap());
+                    return Ok(self.factory.create_identifier("Object"));
                 }
 
                 let serialized = self.serialize_entity_name_as_expression_fallback(
@@ -114,9 +108,7 @@ impl TransformTypeScript {
                         None,
                         temp,
                         None,
-                        self.factory
-                            .create_identifier("Object", Option::<Gc<NodeArray>>::None, None)
-                            .wrap(),
+                        self.factory.create_identifier("Object"),
                     )
                     .wrap()
             }
@@ -129,43 +121,30 @@ impl TransformTypeScript {
             TypeReferenceSerializationKind::BigIntLikeType => {
                 self.get_global_big_int_name_with_fallback()
             }
-            TypeReferenceSerializationKind::BooleanType => self
-                .factory
-                .create_identifier("Boolean", Option::<Gc<NodeArray>>::None, None)
-                .wrap(),
-            TypeReferenceSerializationKind::NumberLikeType => self
-                .factory
-                .create_identifier("Number", Option::<Gc<NodeArray>>::None, None)
-                .wrap(),
-            TypeReferenceSerializationKind::StringLikeType => self
-                .factory
-                .create_identifier("String", Option::<Gc<NodeArray>>::None, None)
-                .wrap(),
-            TypeReferenceSerializationKind::ArrayLikeType => self
-                .factory
-                .create_identifier("Array", Option::<Gc<NodeArray>>::None, None)
-                .wrap(),
+            TypeReferenceSerializationKind::BooleanType => {
+                self.factory.create_identifier("Boolean")
+            }
+            TypeReferenceSerializationKind::NumberLikeType => {
+                self.factory.create_identifier("Number")
+            }
+            TypeReferenceSerializationKind::StringLikeType => {
+                self.factory.create_identifier("String")
+            }
+            TypeReferenceSerializationKind::ArrayLikeType => {
+                self.factory.create_identifier("Array")
+            }
             TypeReferenceSerializationKind::ESSymbolType => {
                 if self.language_version < ScriptTarget::ES2015 {
                     self.get_global_symbol_name_with_fallback()
                 } else {
-                    self.factory
-                        .create_identifier("Symbol", Option::<Gc<NodeArray>>::None, None)
-                        .wrap()
+                    self.factory.create_identifier("Symbol")
                 }
             }
-            TypeReferenceSerializationKind::TypeWithCallSignature => self
-                .factory
-                .create_identifier("Function", Option::<Gc<NodeArray>>::None, None)
-                .wrap(),
-            TypeReferenceSerializationKind::Promise => self
-                .factory
-                .create_identifier("Promise", Option::<Gc<NodeArray>>::None, None)
-                .wrap(),
-            TypeReferenceSerializationKind::ObjectType => self
-                .factory
-                .create_identifier("Object", Option::<Gc<NodeArray>>::None, None)
-                .wrap(),
+            TypeReferenceSerializationKind::TypeWithCallSignature => {
+                self.factory.create_identifier("Function")
+            }
+            TypeReferenceSerializationKind::Promise => self.factory.create_identifier("Promise"),
+            TypeReferenceSerializationKind::ObjectType => self.factory.create_identifier("Object"),
             // default:
             //     return Debug.assertNever(kind);
         })
@@ -273,20 +252,12 @@ impl TransformTypeScript {
     ) -> Gc<Node /*ConditionalExpression*/> {
         self.factory
             .create_conditional_expression(
-                self.factory.create_type_check(
-                    self.factory
-                        .create_identifier("Symbol", Option::<Gc<NodeArray>>::None, None)
-                        .wrap(),
-                    "function",
-                ),
-                None,
                 self.factory
-                    .create_identifier("Symbol", Option::<Gc<NodeArray>>::None, None)
-                    .wrap(),
+                    .create_type_check(self.factory.create_identifier("Symbol"), "function"),
                 None,
-                self.factory
-                    .create_identifier("Object", Option::<Gc<NodeArray>>::None, None)
-                    .wrap(),
+                self.factory.create_identifier("Symbol"),
+                None,
+                self.factory.create_identifier("Object"),
             )
             .wrap()
     }
@@ -295,26 +266,16 @@ impl TransformTypeScript {
         if self.language_version < ScriptTarget::ESNext {
             self.factory
                 .create_conditional_expression(
-                    self.factory.create_type_check(
-                        self.factory
-                            .create_identifier("BigInt", Option::<Gc<NodeArray>>::None, None)
-                            .wrap(),
-                        "function",
-                    ),
-                    None,
                     self.factory
-                        .create_identifier("BigInt", Option::<Gc<NodeArray>>::None, None)
-                        .wrap(),
+                        .create_type_check(self.factory.create_identifier("BigInt"), "function"),
                     None,
-                    self.factory
-                        .create_identifier("Object", Option::<Gc<NodeArray>>::None, None)
-                        .wrap(),
+                    self.factory.create_identifier("BigInt"),
+                    None,
+                    self.factory.create_identifier("Object"),
                 )
                 .wrap()
         } else {
-            self.factory
-                .create_identifier("BigInt", Option::<Gc<NodeArray>>::None, None)
-                .wrap()
+            self.factory.create_identifier("BigInt")
         }
     }
 
@@ -325,9 +286,7 @@ impl TransformTypeScript {
     ) -> Gc<Node /*Expression*/> {
         let name = member.as_named_declaration().name();
         if is_private_identifier(&name) {
-            self.factory
-                .create_identifier("", Option::<Gc<NodeArray>>::None, None)
-                .wrap()
+            self.factory.create_identifier("")
         } else if is_computed_property_name(&name) {
             let name_as_computed_property_name = name.as_computed_property_name();
             if generate_name_for_computed_property_name

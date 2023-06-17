@@ -105,7 +105,7 @@ impl ParserType {
                         self.finish_node(
                             self.factory().create_jsx_closing_element(
                                 self.finish_node(
-                                    self.factory().create_identifier(
+                                    self.factory().create_identifier_raw(
                                         "",
                                         Option::<Gc<NodeArray>>::None,
                                         None,

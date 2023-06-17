@@ -383,9 +383,7 @@ impl TransformClassFields {
                     weak_set_name.clone(),
                     self.factory
                         .create_new_expression(
-                            self.factory
-                                .create_identifier("WeakSet", Option::<Gc<NodeArray>>::None, None)
-                                .wrap(),
+                            self.factory.create_identifier("WeakSet"),
                             Option::<Gc<NodeArray>>::None,
                             Some(vec![]),
                         )
@@ -520,13 +518,7 @@ impl TransformClassFields {
                                 Some(vec![self
                                     .factory
                                     .create_spread_element(
-                                        self.factory
-                                            .create_identifier(
-                                                "arguments",
-                                                Option::<Gc<NodeArray>>::None,
-                                                None,
-                                            )
-                                            .wrap(),
+                                        self.factory.create_identifier("arguments"),
                                     )
                                     .wrap()]),
                             )

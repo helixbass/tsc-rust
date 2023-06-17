@@ -1,7 +1,6 @@
+use std::{borrow::Borrow, convert::TryInto, io, ptr};
+
 use gc::{Gc, GcCell};
-use std::convert::TryInto;
-use std::ptr;
-use std::{borrow::Borrow, io};
 
 use super::{IterationUse, TypeFacts};
 use crate::{
@@ -16,14 +15,15 @@ use crate::{
     is_class_static_block_declaration, is_function_type_node, is_in_js_file, is_jsx_attribute,
     is_module_exports_access_expression, is_named_declaration, is_object_literal_expression,
     is_parameter, is_parameter_declaration, is_property_access_expression, is_property_declaration,
-    is_property_signature, is_string_or_numeric_literal_like, is_variable_declaration, length, return_ok_default_if_none, return_ok_none_if_none, set_parent, skip_parentheses,
-    some, starts_with, try_cast, try_maybe_every, unescape_leading_underscores,
+    is_property_signature, is_string_or_numeric_literal_like, is_variable_declaration, length,
+    return_ok_default_if_none, return_ok_none_if_none, set_parent, skip_parentheses, some,
+    starts_with, try_cast, try_maybe_every, unescape_leading_underscores,
     walk_up_binding_elements_and_patterns, AccessFlags, AssignmentDeclarationKind, Debug_,
     Diagnostics, HasInitializerInterface, HasTypeInterface, InternalSymbolName, LiteralType,
-    ModifierFlags, NamedDeclarationInterface, Node, NodeArray, NodeFlags, NodeInterface, Number,
-    ObjectFlags, ObjectFlagsTypeInterface, OptionTry, StrOrRcNode, Symbol, SymbolFlags,
-    SymbolInterface, SyntaxKind, TransientSymbolInterface, Type, TypeChecker, TypeFlags,
-    TypeInterface, UnionReduction,
+    ModifierFlags, NamedDeclarationInterface, Node, NodeFlags, NodeInterface, Number, ObjectFlags,
+    ObjectFlagsTypeInterface, OptionTry, StrOrRcNode, Symbol, SymbolFlags, SymbolInterface,
+    SyntaxKind, TransientSymbolInterface, Type, TypeChecker, TypeFlags, TypeInterface,
+    UnionReduction,
 };
 
 impl TypeChecker {
@@ -648,20 +648,8 @@ impl TypeChecker {
                     .create_property_access_expression(
                         factory_
                             .create_property_access_expression(
-                                factory_
-                                    .create_identifier(
-                                        "module",
-                                        Option::<Gc<NodeArray>>::None,
-                                        None,
-                                    )
-                                    .wrap(),
-                                factory_
-                                    .create_identifier(
-                                        "exports",
-                                        Option::<Gc<NodeArray>>::None,
-                                        None,
-                                    )
-                                    .wrap(),
+                                factory_.create_identifier("module"),
+                                factory_.create_identifier("exports"),
                             )
                             .wrap(),
                         access_name,
@@ -672,9 +660,7 @@ impl TypeChecker {
             factory.with(|factory_| {
                 factory_
                     .create_property_access_expression(
-                        factory_
-                            .create_identifier("exports", Option::<Gc<NodeArray>>::None, None)
-                            .wrap(),
+                        factory_.create_identifier("exports"),
                         access_name,
                     )
                     .wrap()

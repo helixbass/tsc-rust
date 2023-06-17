@@ -72,9 +72,7 @@ impl TransformES2015 {
                                 ),
                             ),
                             self.create_actual_this(),
-                            self.factory
-                                .create_identifier("arguments", Option::<Gc<NodeArray>>::None, None)
-                                .wrap(),
+                            self.factory.create_identifier("arguments"),
                         ),
                     )
                     .wrap(),
@@ -425,13 +423,7 @@ impl TransformES2015 {
                             temp.clone(),
                             self.factory
                                 .create_property_access_expression(
-                                    self.factory
-                                        .create_identifier(
-                                            "arguments",
-                                            Option::<Gc<NodeArray>>::None,
-                                            None,
-                                        )
-                                        .wrap(),
+                                    self.factory.create_identifier("arguments"),
                                     "length",
                                 )
                                 .wrap(),
@@ -474,13 +466,7 @@ impl TransformES2015 {
                                             .wrap(),
                                         self.factory
                                             .create_element_access_expression(
-                                                self.factory
-                                                    .create_identifier(
-                                                        "arguments",
-                                                        Option::<Gc<NodeArray>>::None,
-                                                        None,
-                                                    )
-                                                    .wrap(),
+                                                self.factory.create_identifier("arguments"),
                                                 temp.clone(),
                                             )
                                             .wrap(),

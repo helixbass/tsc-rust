@@ -362,12 +362,7 @@ impl NodeBuilder {
             ) {
                 set_emit_flags(
                     get_factory()
-                        .create_identifier(
-                            type_predicate.parameter_name.as_ref().unwrap(),
-                            Option::<Gc<NodeArray>>::None,
-                            None,
-                        )
-                        .wrap(),
+                        .create_identifier(type_predicate.parameter_name.as_ref().unwrap()),
                     EmitFlags::NoAsciiEscaping,
                 )
             } else {
@@ -449,11 +444,7 @@ impl NodeBuilder {
                     options
                         .as_ref()
                         .and_then(|options| options.name.clone())
-                        .unwrap_or_else(|| {
-                            get_factory()
-                                .create_identifier("", Option::<Gc<NodeArray>>::None, None)
-                                .wrap()
-                        }),
+                        .unwrap_or_else(|| get_factory().create_identifier("")),
                     None,
                     type_parameters,
                     parameters,
@@ -476,11 +467,7 @@ impl NodeBuilder {
                     options
                         .as_ref()
                         .and_then(|options| options.name.clone())
-                        .unwrap_or_else(|| {
-                            get_factory()
-                                .create_identifier("", Option::<Gc<NodeArray>>::None, None)
-                                .wrap()
-                        }),
+                        .unwrap_or_else(|| get_factory().create_identifier("")),
                     parameters,
                     return_type_node,
                     None,
@@ -493,11 +480,7 @@ impl NodeBuilder {
                     options
                         .as_ref()
                         .and_then(|options| options.name.clone())
-                        .unwrap_or_else(|| {
-                            get_factory()
-                                .create_identifier("", Option::<Gc<NodeArray>>::None, None)
-                                .wrap()
-                        }),
+                        .unwrap_or_else(|| get_factory().create_identifier("")),
                     parameters,
                     None,
                 )
@@ -520,9 +503,7 @@ impl NodeBuilder {
                     Some(return_type_node.unwrap_or_else(|| {
                         get_factory()
                             .create_type_reference_node(
-                                get_factory()
-                                    .create_identifier("", Option::<Gc<NodeArray>>::None, None)
-                                    .wrap(),
+                                get_factory().create_identifier(""),
                                 Option::<Gc<NodeArray>>::None,
                             )
                             .wrap()
@@ -537,9 +518,7 @@ impl NodeBuilder {
                     Some(return_type_node.unwrap_or_else(|| {
                         get_factory()
                             .create_type_reference_node(
-                                get_factory()
-                                    .create_identifier("", Option::<Gc<NodeArray>>::None, None)
-                                    .wrap(),
+                                get_factory().create_identifier(""),
                                 Option::<Gc<NodeArray>>::None,
                             )
                             .wrap()
@@ -556,11 +535,7 @@ impl NodeBuilder {
                             .as_ref()
                             .and_then(|options| options.name.clone())
                             .map(|name| cast_present(name, |name: &Gc<Node>| is_identifier(name)))
-                            .unwrap_or_else(|| {
-                                get_factory()
-                                    .create_identifier("", Option::<Gc<NodeArray>>::None, None)
-                                    .wrap()
-                            }),
+                            .unwrap_or_else(|| get_factory().create_identifier("")),
                     ),
                     type_parameters,
                     parameters,
@@ -577,11 +552,7 @@ impl NodeBuilder {
                             .as_ref()
                             .and_then(|options| options.name.clone())
                             .map(|name| cast_present(name, |name: &Gc<Node>| is_identifier(name)))
-                            .unwrap_or_else(|| {
-                                get_factory()
-                                    .create_identifier("", Option::<Gc<NodeArray>>::None, None)
-                                    .wrap()
-                            }),
+                            .unwrap_or_else(|| get_factory().create_identifier("")),
                     ),
                     type_parameters,
                     Some(parameters),
@@ -1317,13 +1288,8 @@ impl NodeBuilder {
     }
 
     pub(super) fn symbol_to_entity_name_node(&self, symbol: &Symbol) -> Gc<Node /*EntityName*/> {
-        let identifier = get_factory()
-            .create_identifier(
-                &unescape_leading_underscores(symbol.escaped_name()),
-                Option::<Gc<NodeArray>>::None,
-                None,
-            )
-            .wrap();
+        let identifier =
+            get_factory().create_identifier(&unescape_leading_underscores(symbol.escaped_name()));
         if let Some(symbol_parent) = symbol.maybe_parent().as_ref() {
             get_factory()
                 .create_qualified_name(self.symbol_to_entity_name_node(symbol_parent), identifier)

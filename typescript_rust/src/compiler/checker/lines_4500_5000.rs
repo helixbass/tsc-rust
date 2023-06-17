@@ -1,11 +1,12 @@
+use std::{
+    borrow::Borrow,
+    cell::{Cell, Ref, RefCell, RefMut},
+    collections::{HashMap, HashSet},
+    io, mem, ptr,
+    rc::Rc,
+};
+
 use gc::{Finalize, Gc, GcCell, Trace};
-use std::borrow::Borrow;
-use std::cell::{Cell, Ref, RefCell, RefMut};
-use std::collections::{HashMap, HashSet};
-use std::io;
-use std::mem;
-use std::ptr;
-use std::rc::Rc;
 
 use super::SignatureToSignatureDeclarationOptions;
 use crate::{
@@ -1214,9 +1215,7 @@ impl NodeBuilder {
                         return Ok(Some(
                             get_factory()
                                 .create_type_reference_node(
-                                    get_factory()
-                                        .create_identifier("", Option::<Gc<NodeArray>>::None, None)
-                                        .wrap(),
+                                    get_factory().create_identifier(""),
                                     type_argument_nodes,
                                 )
                                 .wrap(),
@@ -1280,13 +1279,7 @@ impl NodeBuilder {
                 return Ok(Some(
                     get_factory()
                         .create_type_reference_node(
-                            get_factory()
-                                .create_identifier(
-                                    &id_text(&name),
-                                    Option::<Gc<NodeArray>>::None,
-                                    None,
-                                )
-                                .wrap(),
+                            get_factory().create_identifier(&id_text(&name)),
                             Option::<Gc<NodeArray>>::None,
                         )
                         .wrap(),
@@ -1297,9 +1290,7 @@ impl NodeBuilder {
             } else {
                 get_factory()
                     .create_type_reference_node(
-                        get_factory()
-                            .create_identifier("?", Option::<Gc<NodeArray>>::None, None)
-                            .wrap(),
+                        get_factory().create_identifier("?"),
                         Option::<Gc<NodeArray>>::None,
                     )
                     .wrap()

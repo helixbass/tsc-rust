@@ -71,7 +71,7 @@ impl ParserType {
             expression = Some(
                 self.finish_node(
                     self.factory()
-                        .create_identifier("", Option::<Gc<NodeArray>>::None, None),
+                        .create_identifier_raw("", Option::<Gc<NodeArray>>::None, None),
                     self.get_node_pos(),
                     None,
                 )

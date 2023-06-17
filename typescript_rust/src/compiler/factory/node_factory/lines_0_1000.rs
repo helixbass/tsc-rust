@@ -993,7 +993,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         node
     }
 
-    pub fn create_identifier(
+    pub fn create_identifier_raw(
         &self,
         text: &str,
         type_arguments: Option<impl Into<NodeArrayOrVec>>,
@@ -1010,6 +1010,20 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         node
     }
 
+    pub fn create_identifier_full(
+        &self,
+        text: &str,
+        type_arguments: Option<impl Into<NodeArrayOrVec>>,
+        original_keyword_kind: Option<SyntaxKind>,
+    ) -> Gc<Node> {
+        self.create_identifier_raw(text, type_arguments, original_keyword_kind)
+            .wrap()
+    }
+
+    pub fn create_identifier(&self, text: &str) -> Gc<Node> {
+        self.create_identifier_full(text, Option::<Gc<NodeArray>>::None, None)
+    }
+
     pub fn update_identifier(
         &self,
         node: &Node, /*Identifier*/
@@ -1021,8 +1035,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         let node_type_arguments = node.as_identifier().maybe_type_arguments();
         if has_option_node_array_changed(node_type_arguments.as_deref(), type_arguments.as_ref()) {
             self.update(
-                self.create_identifier(&id_text(node), type_arguments, None)
-                    .wrap(),
+                self.create_identifier_full(id_text(node), type_arguments, None),
                 node,
             )
         } else {

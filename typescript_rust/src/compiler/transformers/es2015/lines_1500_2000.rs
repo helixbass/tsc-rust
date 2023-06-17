@@ -456,9 +456,7 @@ impl TransformES2015 {
             .create_call_expression(
                 self.factory
                     .create_property_access_expression(
-                        self.factory
-                            .create_identifier("Object", Option::<Gc<NodeArray>>::None, None)
-                            .wrap(),
+                        self.factory.create_identifier("Object"),
                         "defineProperty",
                     )
                     .wrap(),

@@ -196,11 +196,7 @@ impl TransformJsx {
             .factory
             .create_import_specifier(
                 false,
-                Some(
-                    self.factory
-                        .create_identifier(name, Option::<Gc<NodeArray>>::None, None)
-                        .wrap(),
-                ),
+                Some(self.factory.create_identifier(name)),
                 generated_name.clone(),
             )
             .wrap();
@@ -337,13 +333,7 @@ impl TransformJsx {
                                             Some(
                                                 self.factory
                                                     .create_call_expression(
-                                                        self.factory
-                                                            .create_identifier(
-                                                                "require",
-                                                                Option::<Gc<NodeArray>>::None,
-                                                                None,
-                                                            )
-                                                            .wrap(),
+                                                        self.factory.create_identifier("require"),
                                                         Option::<Gc<NodeArray>>::None,
                                                         Some(vec![self
                                                             .factory

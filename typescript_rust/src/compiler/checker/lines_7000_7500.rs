@@ -3,6 +3,10 @@ use std::{io, ptr, rc::Rc};
 use gc::{Gc, GcCell};
 use itertools::Itertools;
 
+use super::{
+    SignatureToSignatureDeclarationOptions, SymbolTableToDeclarationStatements,
+    TrackExistingEntityNameReturn,
+};
 use crate::{
     are_option_gcs_equal, array_to_multi_map, can_have_modifiers, create_symbol_table,
     debug_fail_if_none, filter, find_ancestor, get_assignment_declaration_kind,
@@ -18,20 +22,14 @@ use crate::{
     is_module_declaration, is_named_declaration, is_namespace_export, is_parameter_declaration,
     is_private_identifier, is_property_access_expression, is_shorthand_ambient_module_symbol,
     is_source_file, is_static, is_string_literal_like, is_variable_declaration,
-    is_variable_statement, length, map,
-    maybe_get_source_file_of_node, return_ok_default_if_none, set_parent,
-    set_synthetic_leading_comments_rc, set_text_range_rc_node, some, try_flat_map, try_map,
-    try_map_defined, try_maybe_first_defined, try_maybe_map, unescape_leading_underscores, AsDoubleDeref,
-    AssignmentDeclarationKind, BoolExt, Debug_, HasInitializerInterface, HasTypeArgumentsInterface,
-    InternalSymbolName, IteratorExt, MapOrDefault, ModifierFlags, NamedDeclarationInterface, Node,
-    NodeArray, NodeBuilderFlags, NodeFlags, NodeInterface, OptionTry, Signature, SignatureKind,
-    StringOrNumber, Symbol, SymbolFlags, SymbolInterface, SyntaxKind, SynthesizedComment, Type,
-    TypeInterface,
-};
-
-use super::{
-    SignatureToSignatureDeclarationOptions, SymbolTableToDeclarationStatements,
-    TrackExistingEntityNameReturn,
+    is_variable_statement, length, map, maybe_get_source_file_of_node, return_ok_default_if_none,
+    set_parent, set_synthetic_leading_comments_rc, set_text_range_rc_node, some, try_flat_map,
+    try_map, try_map_defined, try_maybe_first_defined, try_maybe_map, unescape_leading_underscores,
+    AsDoubleDeref, AssignmentDeclarationKind, BoolExt, Debug_, HasInitializerInterface,
+    HasTypeArgumentsInterface, InternalSymbolName, IteratorExt, MapOrDefault, ModifierFlags,
+    NamedDeclarationInterface, Node, NodeArray, NodeBuilderFlags, NodeFlags, NodeInterface,
+    OptionTry, Signature, SignatureKind, StringOrNumber, Symbol, SymbolFlags, SymbolInterface,
+    SyntaxKind, SynthesizedComment, Type, TypeInterface,
 };
 
 impl SymbolTableToDeclarationStatements {
@@ -493,9 +491,7 @@ impl SymbolTableToDeclarationStatements {
                     .create_module_declaration(
                         Option::<Gc<NodeArray>>::None,
                         Option::<Gc<NodeArray>>::None,
-                        get_factory()
-                            .create_identifier(&local_name, Option::<Gc<NodeArray>>::None, None)
-                            .wrap(),
+                        get_factory().create_identifier(&local_name),
                         Some(ns_body),
                         Some(NodeFlags::Namespace),
                     )
@@ -596,11 +592,7 @@ impl SymbolTableToDeclarationStatements {
                     SyntaxKind::FunctionDeclaration,
                     &self.context(),
                     Some(SignatureToSignatureDeclarationOptions {
-                        name: Some(
-                            get_factory()
-                                .create_identifier(local_name, Option::<Gc<NodeArray>>::None, None)
-                                .wrap(),
-                        ),
+                        name: Some(get_factory().create_identifier(local_name)),
                         private_symbol_visitor: Some(|symbol: &Symbol| {
                             self.include_private_symbol(symbol);
                         }),
@@ -705,9 +697,7 @@ impl SymbolTableToDeclarationStatements {
                 .create_module_declaration(
                     Option::<Gc<NodeArray>>::None,
                     Option::<Gc<NodeArray>>::None,
-                    get_factory()
-                        .create_identifier(local_name, Option::<Gc<NodeArray>>::None, None)
-                        .wrap(),
+                    get_factory().create_identifier(local_name),
                     Some(get_factory().create_module_block(Some(vec![])).wrap()),
                     Some(NodeFlags::Namespace),
                 )
@@ -754,12 +744,7 @@ impl SymbolTableToDeclarationStatements {
                                             false,
                                             Some(d.as_export_assignment().expression.clone()),
                                             get_factory()
-                                                .create_identifier(
-                                                    InternalSymbolName::Default,
-                                                    Option::<Gc<NodeArray>>::None,
-                                                    None,
-                                                )
-                                                .wrap(),
+                                                .create_identifier(InternalSymbolName::Default),
                                         )
                                         .wrap()])
                                     .wrap(),
@@ -1208,18 +1193,11 @@ impl SymbolTableToDeclarationStatements {
                                                                 })
                                                                 .map(|property_name| {
                                                                     get_factory().create_identifier(
-                                                                id_text(property_name),
-                                                                Option::<Gc<NodeArray>>::None,
-                                                                None,
-                                                            ).wrap()
+                                                                        id_text(property_name),
+                                                                    )
                                                                 }),
                                                             get_factory()
-                                                                .create_identifier(
-                                                                    local_name,
-                                                                    Option::<Gc<NodeArray>>::None,
-                                                                    None,
-                                                                )
-                                                                .wrap(),
+                                                                .create_identifier(local_name),
                                                         )
                                                         .wrap()])
                                                     .wrap(),
@@ -1294,13 +1272,7 @@ impl SymbolTableToDeclarationStatements {
                                 Option::<Gc<NodeArray>>::None,
                                 Option::<Gc<NodeArray>>::None,
                                 false,
-                                get_factory()
-                                    .create_identifier(
-                                        local_name,
-                                        Option::<Gc<NodeArray>>::None,
-                                        None,
-                                    )
-                                    .wrap(),
+                                get_factory().create_identifier(local_name),
                                 get_factory()
                                     .create_qualified_name(
                                         unique_name,
@@ -1330,9 +1302,7 @@ impl SymbolTableToDeclarationStatements {
                             Option::<Gc<NodeArray>>::None,
                             Option::<Gc<NodeArray>>::None,
                             false,
-                            get_factory()
-                                .create_identifier(local_name, Option::<Gc<NodeArray>>::None, None)
-                                .wrap(),
+                            get_factory().create_identifier(local_name),
                             if is_local_import {
                                 self.node_builder.symbol_to_name(
                                     target,
@@ -1383,9 +1353,7 @@ impl SymbolTableToDeclarationStatements {
                             Option::<Gc<NodeArray>>::None,
                             Option::<Gc<NodeArray>>::None,
                             false,
-                            get_factory()
-                                .create_identifier(local_name, Option::<Gc<NodeArray>>::None, None)
-                                .wrap(),
+                            get_factory().create_identifier(local_name),
                             if is_local_import {
                                 self.node_builder.symbol_to_name(
                                     target,
@@ -1438,15 +1406,7 @@ impl SymbolTableToDeclarationStatements {
                                 get_factory()
                                     .create_import_clause(
                                         false,
-                                        Some(
-                                            get_factory()
-                                                .create_identifier(
-                                                    local_name,
-                                                    Option::<Gc<NodeArray>>::None,
-                                                    None,
-                                                )
-                                                .wrap(),
-                                        ),
+                                        Some(get_factory().create_identifier(local_name)),
                                         None,
                                     )
                                     .wrap(),
@@ -1481,13 +1441,7 @@ impl SymbolTableToDeclarationStatements {
                                         Some(
                                             get_factory()
                                                 .create_namespace_import(
-                                                    get_factory()
-                                                        .create_identifier(
-                                                            local_name,
-                                                            Option::<Gc<NodeArray>>::None,
-                                                            None,
-                                                        )
-                                                        .wrap(),
+                                                    get_factory().create_identifier(local_name),
                                                 )
                                                 .wrap(),
                                         ),
@@ -1518,13 +1472,7 @@ impl SymbolTableToDeclarationStatements {
                             Some(
                                 get_factory()
                                     .create_namespace_export(
-                                        get_factory()
-                                            .create_identifier(
-                                                local_name,
-                                                Option::<Gc<NodeArray>>::None,
-                                                None,
-                                            )
-                                            .wrap(),
+                                        get_factory().create_identifier(local_name),
                                     )
                                     .wrap(),
                             ),
@@ -1565,19 +1513,11 @@ impl SymbolTableToDeclarationStatements {
                                                         (local_name != verbatim_target_name).then(
                                                             || {
                                                                 get_factory().create_identifier(
-                                                                &verbatim_target_name,
-                                                                Option::<Gc<NodeArray>>::None,
-                                                                None,
-                                                            ).wrap()
+                                                                    &verbatim_target_name,
+                                                                )
                                                             },
                                                         ),
-                                                        get_factory()
-                                                            .create_identifier(
-                                                                local_name,
-                                                                Option::<Gc<NodeArray>>::None,
-                                                                None,
-                                                            )
-                                                            .wrap(),
+                                                        get_factory().create_identifier(local_name),
                                                     )
                                                     .wrap()])
                                                 .wrap(),

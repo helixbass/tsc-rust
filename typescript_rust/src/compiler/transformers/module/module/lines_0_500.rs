@@ -2,19 +2,21 @@ use std::{cell::Cell, collections::HashMap, io, mem, rc::Rc};
 
 use gc::{Finalize, Gc, GcCell, GcCellRef, GcCellRefMut, Trace};
 
+use super::dynamic_import_umd_helper;
 use crate::{
     BaseNodeFactorySynthetic, CompilerOptions, EmitResolver, ExternalModuleInfo, ModuleKind, Node,
     NodeFactory, NodeId, ScriptTarget, TransformationContext, Transformer, TransformerFactory,
-    TransformerFactoryInterface, TransformerInterface, _d, add_range, append, chain_bundle,
-    collect_external_module_info, gc_cell_ref_mut_unwrapped, get_emit_module_kind,
-    get_emit_script_target, get_original_node_id, get_strict_option_value,
-    has_json_module_emit_enabled, id_text, insert_statements_after_standard_prologue,
-    is_effective_external_module, is_external_module, is_json_source_file, is_statement,
-    maybe_visit_node, out_file, reduce_left, try_get_module_name_from_file, visit_nodes, EmitFlags,
-    EmitHelperFactory, EmitHint, EmitHost, HasStatementsInterface, NodeArray, NodeArrayExt,
-    NodeExt, NodeInterface, NonEmpty, SyntaxKind, TransformFlags,
-    TransformationContextOnEmitNodeOverrider, TransformationContextOnSubstituteNodeOverrider,
-    VecExt,
+    TransformerFactoryInterface, TransformerInterface, _d, add_emit_helper, add_range, append,
+    chain_bundle, collect_external_module_info, gc_cell_ref_mut_unwrapped, get_emit_module_kind,
+    get_emit_script_target, get_external_module_name_literal, get_local_name_for_external_import,
+    get_original_node_id, get_strict_option_value, has_json_module_emit_enabled, id_text,
+    insert_statements_after_standard_prologue, is_effective_external_module, is_export_declaration,
+    is_external_module, is_import_equals_declaration, is_json_source_file, is_statement,
+    map_defined, maybe_visit_node, out_file, reduce_left, set_emit_flags,
+    try_get_module_name_from_file, visit_node, visit_nodes, EmitFlags, EmitHelperFactory, EmitHint,
+    EmitHost, HasStatementsInterface, NodeArray, NodeArrayExt, NodeExt, NodeInterface, NonEmpty,
+    SyntaxKind, TransformFlags, TransformationContextOnEmitNodeOverrider,
+    TransformationContextOnSubstituteNodeOverrider, VecExt,
 };
 
 pub(super) struct AsynchronousDependencies {
@@ -281,20 +283,8 @@ impl TransformModule {
                                     .create_assignment(
                                         self.factory
                                             .create_property_access_expression(
-                                                self.factory
-                                                    .create_identifier(
-                                                        "exports",
-                                                        Option::<Gc<NodeArray>>::None,
-                                                        None,
-                                                    )
-                                                    .wrap(),
-                                                self.factory
-                                                    .create_identifier(
-                                                        id_text(next_id),
-                                                        Option::<Gc<NodeArray>>::None,
-                                                        None,
-                                                    )
-                                                    .wrap(),
+                                                self.factory.create_identifier("exports"),
+                                                self.factory.create_identifier(id_text(next_id)),
                                             )
                                             .wrap(),
                                         prev,
@@ -357,10 +347,7 @@ impl TransformModule {
 
     pub(super) fn transform_amd_module(&self, node: &Node /*SourceFile*/) -> Gc<Node> {
         let node_as_source_file = node.as_source_file();
-        let define = self
-            .factory
-            .create_identifier("define", Option::<Gc<NodeArray>>::None, None)
-            .wrap();
+        let define = self.factory.create_identifier("define");
         let module_name = try_get_module_name_from_file(
             &self.factory,
             Some(node),
@@ -490,47 +477,51 @@ impl TransformModule {
             &**self.host,
             &self.compiler_options,
         );
-        let umd_header = self.factory.create_function_expression(
-            Option::<Gc<NodeArray>>::None,
-            None,
-            Option::<Gc<Node>>::None,
-            Option::<Gc<NodeArray>>::None,
-            Some(vec![
-                self.factory.create_parameter_declaration(
-                    Option::<Gc<NodeArray>>::None,
-                    Option::<Gc<NodeArray>>::None,
-                    None,
-                    Some("factory"),
-                    None, None, None
-                ).wrap()
-            ]),
-            None,
-            self.factory.create_block(
-                vec![
-                    self.factory.create_if_statement(
-                        self.factory.create_logical_and(
-                            self.factory.create_type_check(
-                                self.factory.create_identifier(
-                                    "module",
-                                    Option::<Gc<NodeArray>>::None,
-                                    None,
-                                ).wrap(),
-                                "object"
-                            ),
-                            self.factory.create_type_check(
-                                self.factory.create_property_access_expression(
-                                    self.factory.create_identifier(
-                                        "module",
-                                        Option::<Gc<NodeArray>>::None,
-                                        None,
-                                    ).wrap(),
-                                    "exports",
-                                ).wrap(),
-                                "object"
-                            ),
-                        ).wrap(),
-                        self.factory.create_block(
-                            vec![
+        let umd_header = self
+            .factory
+            .create_function_expression(
+                Option::<Gc<NodeArray>>::None,
+                None,
+                Option::<Gc<Node>>::None,
+                Option::<Gc<NodeArray>>::None,
+                Some(vec![self
+                    .factory
+                    .create_parameter_declaration(
+                        Option::<Gc<NodeArray>>::None,
+                        Option::<Gc<NodeArray>>::None,
+                        None,
+                        Some("factory"),
+                        None,
+                        None,
+                        None,
+                    )
+                    .wrap()]),
+                None,
+                self.factory
+                    .create_block(
+                        vec![self
+                            .factory
+                            .create_if_statement(
+                                self.factory
+                                    .create_logical_and(
+                                        self.factory.create_type_check(
+                                            self.factory.create_identifier("module"),
+                                            "object",
+                                        ),
+                                        self.factory.create_type_check(
+                                            self.factory
+                                                .create_property_access_expression(
+                                                    self.factory.create_identifier("module"),
+                                                    "exports",
+                                                )
+                                                .wrap(),
+                                            "object",
+                                        ),
+                                    )
+                                    .wrap(),
+                                self.factory
+                                    .create_block(
+                                        vec![
                                 self.factory.create_variable_statement(
                                     Option::<Gc<NodeArray>>::None,
                                     vec![
@@ -538,11 +529,11 @@ impl TransformModule {
                                             Some("v"),
                                             None, None,
                                             Some(self.factory.create_call_expression(
-                                                self.factory.create_identifier("factory", Option::<Gc<NodeArray>>::None, None).wrap(),
+                                                self.factory.create_identifier("factory"),
                                                 Option::<Gc<NodeArray>>::None,
                                                 Some(vec![
-                                                    self.factory.create_identifier("require", Option::<Gc<NodeArray>>::None, None).wrap(),
-                                                    self.factory.create_identifier("exports", Option::<Gc<NodeArray>>::None, None).wrap(),
+                                                    self.factory.create_identifier("require"),
+                                                    self.factory.create_identifier("exports"),
                                                 ])
                                             ).wrap())
                                         ).wrap()
@@ -550,40 +541,49 @@ impl TransformModule {
                                 ).wrap(),
                                 self.factory.create_if_statement(
                                     self.factory.create_strict_inequality(
-                                        self.factory.create_identifier("v", Option::<Gc<NodeArray>>::None, None).wrap(),
-                                        self.factory.create_identifier("undefined", Option::<Gc<NodeArray>>::None, None).wrap(),
+                                        self.factory.create_identifier("v"),
+                                        self.factory.create_identifier("undefined"),
                                     ).wrap(),
                                     self.factory.create_expression_statement(
                                         self.factory.create_assignment(
                                             self.factory.create_property_access_expression(
-                                                self.factory.create_identifier("module", Option::<Gc<NodeArray>>::None, None).wrap(),
+                                                self.factory.create_identifier("module"),
                                                 "exports"
                                             ).wrap(),
-                                            self.factory.create_identifier("v", Option::<Gc<NodeArray>>::None, None).wrap()
+                                            self.factory.create_identifier("v")
                                         ).wrap()
                                     ).wrap(),
                                     None,
                                 ).wrap()
                                     .set_emit_flags(EmitFlags::SingleLine)
                             ],
-                            None,
-                        ).wrap(),
-                        Some(self.factory.create_if_statement(
-                            self.factory.create_logical_and(
-                                self.factory.create_type_check(
-                                    self.factory.create_identifier("define", Option::<Gc<NodeArray>>::None, None).wrap(),
-                                    "function"
-                                ),
-                                self.factory.create_property_access_expression(
-                                    self.factory.create_identifier("define", Option::<Gc<NodeArray>>::None, None).wrap(),
-                                    "amd"
-                                ).wrap()
-                            ).wrap(),
-                            self.factory.create_block(
-                                vec![
+                                        None,
+                                    )
+                                    .wrap(),
+                                Some(
+                                    self.factory
+                                        .create_if_statement(
+                                            self.factory
+                                                .create_logical_and(
+                                                    self.factory.create_type_check(
+                                                        self.factory.create_identifier("define"),
+                                                        "function",
+                                                    ),
+                                                    self.factory
+                                                        .create_property_access_expression(
+                                                            self.factory
+                                                                .create_identifier("define"),
+                                                            "amd",
+                                                        )
+                                                        .wrap(),
+                                                )
+                                                .wrap(),
+                                            self.factory
+                                                .create_block(
+                                                    vec![
                                     self.factory.create_expression_statement(
                                         self.factory.create_call_expression(
-                                            self.factory.create_identifier("define", Option::<Gc<NodeArray>>::None, None).wrap(),
+                                            self.factory.create_identifier("define"),
                                             Option::<Gc<NodeArray>>::None,
                                             Some(if let Some(module_name) = module_name {
                                                 vec![
@@ -615,21 +615,26 @@ impl TransformModule {
                                                     ),
                                                     None,
                                                 ).wrap(),
-                                                self.factory.create_identifier("factory", Option::<Gc<NodeArray>>::None, None).wrap()
+                                                self.factory.create_identifier("factory")
                                             ]))
                                         ).wrap()
                                     ).wrap()
                                 ],
-                                None,
-                            ).wrap(),
-                            None,
-                        ).wrap())
-                    ).wrap()
-                ],
-                Some(true)
-            ).wrap()
-                .set_text_range(Option::<&Node>::None)
-        ).wrap();
+                                                    None,
+                                                )
+                                                .wrap(),
+                                            None,
+                                        )
+                                        .wrap(),
+                                ),
+                            )
+                            .wrap()],
+                        Some(true),
+                    )
+                    .wrap()
+                    .set_text_range(Option::<&Node>::None),
+            )
+            .wrap();
 
         self.factory
             .update_source_file(
@@ -699,25 +704,273 @@ impl TransformModule {
 
     pub(super) fn collect_asynchronous_dependencies(
         &self,
-        _node: &Node, /*SourceFile*/
-        _include_non_amd_dependencies: bool,
+        node: &Node, /*SourceFile*/
+        include_non_amd_dependencies: bool,
     ) -> AsynchronousDependencies {
-        unimplemented!()
+        let node_as_source_file = node.as_source_file();
+        let mut aliased_module_names: Vec<Gc<Node /*Expression*/>> = _d();
+
+        let mut unaliased_module_names: Vec<Gc<Node /*Expression*/>> = _d();
+
+        let mut import_alias_names: Vec<Gc<Node /*ParameterDeclaration*/>> = _d();
+
+        for amd_dependency in &*node_as_source_file.amd_dependencies() {
+            if let Some(amd_dependency_name) = amd_dependency.name.as_ref().non_empty() {
+                aliased_module_names.push(
+                    self.factory
+                        .create_string_literal(amd_dependency.path.clone(), None, None)
+                        .wrap(),
+                );
+                import_alias_names.push(
+                    self.factory
+                        .create_parameter_declaration(
+                            Option::<Gc<NodeArray>>::None,
+                            Option::<Gc<NodeArray>>::None,
+                            None,
+                            Some(&**amd_dependency_name),
+                            None,
+                            None,
+                            None,
+                        )
+                        .wrap(),
+                );
+            } else {
+                unaliased_module_names.push(
+                    self.factory
+                        .create_string_literal(amd_dependency.path.clone(), None, None)
+                        .wrap(),
+                );
+            }
+        }
+
+        for import_node in &self.current_module_info().external_imports {
+            let external_module_name = get_external_module_name_literal(
+                &self.factory,
+                import_node,
+                &self.current_source_file(),
+                &**self.host,
+                &**self.resolver,
+                &self.compiler_options,
+            );
+
+            let import_alias_name = get_local_name_for_external_import(
+                &self.factory,
+                import_node,
+                &self.current_source_file(),
+            );
+            if let Some(external_module_name) = external_module_name {
+                if let Some(import_alias_name) =
+                    import_alias_name.filter(|_| include_non_amd_dependencies)
+                {
+                    set_emit_flags(&*import_alias_name, EmitFlags::NoSubstitution);
+                    aliased_module_names.push(external_module_name);
+                    import_alias_names.push(
+                        self.factory
+                            .create_parameter_declaration(
+                                Option::<Gc<NodeArray>>::None,
+                                Option::<Gc<NodeArray>>::None,
+                                None,
+                                Some(import_alias_name),
+                                None,
+                                None,
+                                None,
+                            )
+                            .wrap(),
+                    );
+                } else {
+                    unaliased_module_names.push(external_module_name);
+                }
+            }
+        }
+
+        AsynchronousDependencies {
+            aliased_module_names,
+            unaliased_module_names,
+            import_alias_names,
+        }
+    }
+
+    pub(super) fn get_amd_import_expression_for_import(
+        &self,
+        node: &Node, /*ImportDeclaration | ExportDeclaration | ImportEqualsDeclaration*/
+    ) -> Option<Gc<Node>> {
+        if is_import_equals_declaration(node)
+            || is_export_declaration(node)
+            || get_external_module_name_literal(
+                &self.factory,
+                node,
+                &self.current_source_file(),
+                &**self.host,
+                &**self.resolver,
+                &self.compiler_options,
+            )
+            .is_none()
+        {
+            return None;
+        }
+        let name =
+            get_local_name_for_external_import(&self.factory, node, &self.current_source_file())
+                .unwrap();
+        let expr = self.get_helper_expression_for_import(node, &name);
+        if Gc::ptr_eq(&expr, &name) {
+            return None;
+        }
+        Some(
+            self.factory
+                .create_expression_statement(self.factory.create_assignment(name, expr).wrap())
+                .wrap(),
+        )
     }
 
     pub(super) fn transform_asynchronous_module_body(
         &self,
-        _node: &Node, /*SourceFile*/
+        node: &Node, /*SourceFile*/
     ) -> Gc<Node> {
-        unimplemented!()
+        let node_as_source_file = node.as_source_file();
+        self.context.start_lexical_environment();
+
+        let mut statements: Vec<Gc<Node /*Statement*/>> = _d();
+        let statement_offset = self.factory.copy_prologue(
+            &node_as_source_file.statements(),
+            &mut statements,
+            Some(self.compiler_options.no_implicit_use_strict != Some(true)),
+            Some(|node: &Node| self.top_level_visitor(node)),
+        );
+
+        if self.should_emit_underscore_underscore_es_module() {
+            statements.push(self.create_underscore_underscore_es_module());
+        }
+        if let Some(current_module_info_exported_names) = self
+            .current_module_info()
+            .exported_names
+            .as_ref()
+            .non_empty()
+        {
+            statements.push(
+                self.factory
+                    .create_expression_statement(reduce_left(
+                        current_module_info_exported_names,
+                        |prev: Gc<Node>, next_id: &Gc<Node>, _| {
+                            self.factory
+                                .create_assignment(
+                                    self.factory
+                                        .create_property_access_expression(
+                                            self.factory.create_identifier("exports"),
+                                            self.factory.create_identifier(id_text(next_id)),
+                                        )
+                                        .wrap(),
+                                    prev,
+                                )
+                                .wrap()
+                        },
+                        self.factory.create_void_zero(),
+                        None,
+                        None,
+                    ))
+                    .wrap(),
+            );
+        }
+
+        append(
+            &mut statements,
+            maybe_visit_node(
+                self.current_module_info()
+                    .external_helpers_import_declaration
+                    .as_deref(),
+                Some(|node: &Node| self.top_level_visitor(node)),
+                Some(is_statement),
+                Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+            ),
+        );
+        if self.module_kind == ModuleKind::AMD {
+            add_range(
+                &mut statements,
+                Some(&map_defined(
+                    Some(&self.current_module_info().external_imports),
+                    |external_import: &Gc<Node>, _| {
+                        self.get_amd_import_expression_for_import(external_import)
+                    },
+                )),
+                None,
+                None,
+            );
+        }
+        add_range(
+            &mut statements,
+            Some(&visit_nodes(
+                &node_as_source_file.statements(),
+                Some(|node: &Node| self.top_level_visitor(node)),
+                Some(is_statement),
+                Some(statement_offset),
+                None,
+            )),
+            None,
+            None,
+        );
+
+        self.add_export_equals_if_needed(&mut statements, true);
+
+        insert_statements_after_standard_prologue(
+            &mut statements,
+            self.context.end_lexical_environment().as_deref(),
+        );
+
+        let body = self.factory.create_block(statements, Some(true)).wrap();
+        if self.need_umd_dynamic_import_helper() {
+            add_emit_helper(&body, dynamic_import_umd_helper());
+        }
+
+        body
     }
 
     pub(super) fn add_export_equals_if_needed(
         &self,
-        _statements: &mut Vec<Gc<Node /*Statement*/>>,
-        _emit_as_return: bool,
+        statements: &mut Vec<Gc<Node /*Statement*/>>,
+        emit_as_return: bool,
     ) {
-        unimplemented!()
+        if let Some(current_module_info_export_equals) =
+            self.current_module_info().export_equals.as_ref()
+        {
+            let expression_result = visit_node(
+                &current_module_info_export_equals
+                    .as_export_assignment()
+                    .expression,
+                Some(|node: &Node| self.visitor(node)),
+                Option::<fn(&Node) -> bool>::None,
+                Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+            );
+            // if (expressionResult) {
+            if emit_as_return {
+                let statement = self
+                    .factory
+                    .create_return_statement(Some(expression_result))
+                    .wrap()
+                    .set_text_range(Some(&**current_module_info_export_equals))
+                    .set_emit_flags(EmitFlags::NoTokenSourceMaps | EmitFlags::NoComments);
+                statements.push(statement);
+            } else {
+                let statement = self
+                    .factory
+                    .create_expression_statement(
+                        self.factory
+                            .create_assignment(
+                                self.factory
+                                    .create_property_access_expression(
+                                        self.factory.create_identifier("module"),
+                                        "exports",
+                                    )
+                                    .wrap(),
+                                expression_result,
+                            )
+                            .wrap(),
+                    )
+                    .wrap()
+                    .set_text_range(Some(&**current_module_info_export_equals))
+                    .set_emit_flags(EmitFlags::NoComments);
+                statements.push(statement);
+            }
+            // }
+        }
     }
 }
 

@@ -157,9 +157,7 @@ impl NodeBuilder {
         }
 
         let identifier = set_emit_flags(
-            get_factory()
-                .create_identifier(&symbol_name, type_parameter_nodes, None)
-                .wrap(),
+            get_factory().create_identifier_full(&symbol_name, type_parameter_nodes, None),
             EmitFlags::NoAsciiEscaping,
         );
         identifier.set_symbol(symbol.clone());
@@ -239,13 +237,7 @@ impl NodeBuilder {
             self.symbol_to_name(&type_.symbol(), context, Some(SymbolFlags::Type), true)?;
         // TODO: the Typescript version has & SyntaxKind.Identifier which is presumably a bug?
         if result.kind() != SyntaxKind::Identifier {
-            return Ok(get_factory()
-                .create_identifier(
-                    "(Missing type parameter)",
-                    Option::<Gc<NodeArray>>::None,
-                    None,
-                )
-                .wrap());
+            return Ok(get_factory().create_identifier("(Missing type parameter)"));
         }
         if context
             .flags()
@@ -271,13 +263,11 @@ impl NodeBuilder {
                 text = format!("{}_{}", rawtext, i);
             }
             if text != rawtext {
-                result = get_factory()
-                    .create_identifier(
-                        &text,
-                        result.as_identifier().maybe_type_arguments().clone(),
-                        None,
-                    )
-                    .wrap();
+                result = get_factory().create_identifier_full(
+                    &text,
+                    result.as_identifier().maybe_type_arguments().clone(),
+                    None,
+                );
             }
             context
                 .type_parameter_names_by_text_next_name_count
@@ -339,9 +329,7 @@ impl NodeBuilder {
         }
 
         let identifier: Gc<Node> = set_emit_flags(
-            get_factory()
-                .create_identifier(&symbol_name, type_parameter_nodes, None)
-                .wrap(),
+            get_factory().create_identifier_full(&symbol_name, type_parameter_nodes, None),
             EmitFlags::NoAsciiEscaping,
         );
         identifier.set_symbol(symbol.clone());
@@ -419,9 +407,7 @@ impl NodeBuilder {
 
         Ok(if index == 0 || can_use_property_access {
             let identifier = set_emit_flags(
-                get_factory()
-                    .create_identifier(&symbol_name, type_parameter_nodes, None)
-                    .wrap(),
+                get_factory().create_identifier_full(&symbol_name, type_parameter_nodes, None),
                 EmitFlags::NoAsciiEscaping,
             );
             identifier.set_symbol(symbol.symbol_wrapper());
@@ -477,9 +463,7 @@ impl NodeBuilder {
             }
             if expression.is_none() {
                 expression = Some(set_emit_flags(
-                    get_factory()
-                        .create_identifier(&symbol_name, type_parameter_nodes, None)
-                        .wrap(),
+                    get_factory().create_identifier_full(&symbol_name, type_parameter_nodes, None),
                     EmitFlags::NoAsciiEscaping,
                 ));
                 expression.as_ref().unwrap().set_symbol(symbol.clone());
@@ -629,9 +613,7 @@ impl NodeBuilder {
             Some(get_emit_script_target(&self.type_checker.compiler_options)),
             None,
         ) {
-            get_factory()
-                .create_identifier(&name, Option::<Gc<NodeArray>>::None, None)
-                .wrap()
+            get_factory().create_identifier(&name)
         } else if string_named != Some(true)
             && self.type_checker.is_numeric_literal_name(&name)
             && name.parse::<f64>().unwrap() >= 0.0

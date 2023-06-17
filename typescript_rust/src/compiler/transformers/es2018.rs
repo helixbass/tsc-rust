@@ -2408,12 +2408,7 @@ impl TransformES2018OnSubstituteNodeOverrider {
                         .create_call_expression(
                             self.transform_es2018
                                 .factory
-                                .create_identifier(
-                                    "_superIndex",
-                                    Option::<Gc<NodeArray>>::None,
-                                    None,
-                                )
-                                .wrap(),
+                                .create_identifier("_superIndex"),
                             Option::<Gc<NodeArray>>::None,
                             Some(vec![argument_expression.node_wrapper()]),
                         )
@@ -2428,8 +2423,7 @@ impl TransformES2018OnSubstituteNodeOverrider {
                 .create_call_expression(
                     self.transform_es2018
                         .factory
-                        .create_identifier("_superIndex", Option::<Gc<NodeArray>>::None, None)
-                        .wrap(),
+                        .create_identifier("_superIndex"),
                     Option::<Gc<NodeArray>>::None,
                     Some(vec![argument_expression.node_wrapper()]),
                 )

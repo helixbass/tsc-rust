@@ -156,13 +156,7 @@ impl TransformES2015 {
                             Some(vec![self
                                 .factory
                                 .create_property_assignment(
-                                    self.factory
-                                        .create_identifier(
-                                            "value",
-                                            Option::<Gc<NodeArray>>::None,
-                                            None,
-                                        )
-                                        .wrap(),
+                                    self.factory.create_identifier("value"),
                                     node.as_return_statement()
                                         .expression
                                         .as_ref()

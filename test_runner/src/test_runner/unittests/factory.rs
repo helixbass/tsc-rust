@@ -231,9 +231,7 @@ mod tests {
         #[test]
         fn test_parenthesizes_arrow_function_in_rhs_if_necessary() {
             let factory = get_factory();
-            let lhs = factory
-                .create_identifier("foo", Option::<Gc<NodeArray>>::None, None)
-                .wrap();
+            let lhs = factory.create_identifier("foo");
             let rhs = factory
                 .create_arrow_function(
                     Option::<Gc<NodeArray>>::None,

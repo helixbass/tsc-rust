@@ -900,15 +900,7 @@ impl TransformES2015 {
                                 Some(state_arguments_name.clone()),
                                 None,
                                 None,
-                                Some(
-                                    self.factory
-                                        .create_identifier(
-                                            "arguments",
-                                            Option::<Gc<NodeArray>>::None,
-                                            None,
-                                        )
-                                        .wrap(),
-                                ),
+                                Some(self.factory.create_identifier("arguments")),
                             )
                             .wrap(),
                     );
@@ -927,15 +919,7 @@ impl TransformES2015 {
                                 Some(state_this_name.clone()),
                                 None,
                                 None,
-                                Some(
-                                    self.factory
-                                        .create_identifier(
-                                            "this",
-                                            Option::<Gc<NodeArray>>::None,
-                                            None,
-                                        )
-                                        .wrap(),
-                                ),
+                                Some(self.factory.create_identifier("this")),
                             )
                             .wrap(),
                     );

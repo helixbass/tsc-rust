@@ -1,5 +1,6 @@
-use gc::Gc;
 use std::convert::TryInto;
+
+use gc::Gc;
 
 use super::{ParseJSDocCommentWorker, PropertyLikeParse};
 use crate::{
@@ -1174,7 +1175,7 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
         let result: Node = self
             .parser
             .finish_node(
-                self.parser.factory().create_identifier(
+                self.parser.factory().create_identifier_raw(
                     &text,
                     Option::<Gc<NodeArray>>::None,
                     Some(original_keyword_kind),
