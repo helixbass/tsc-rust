@@ -27,23 +27,23 @@ pub(super) struct AsynchronousDependencies {
 
 #[derive(Trace, Finalize)]
 pub(super) struct TransformModule {
-    _transformer_wrapper: GcCell<Option<Transformer>>,
-    context: Gc<Box<dyn TransformationContext>>,
-    factory: Gc<NodeFactory<BaseNodeFactorySynthetic>>,
-    resolver: Gc<Box<dyn EmitResolver>>,
-    host: Gc<Box<dyn EmitHost>>,
-    compiler_options: Gc<CompilerOptions>,
+    pub(super) _transformer_wrapper: GcCell<Option<Transformer>>,
+    pub(super) context: Gc<Box<dyn TransformationContext>>,
+    pub(super) factory: Gc<NodeFactory<BaseNodeFactorySynthetic>>,
+    pub(super) resolver: Gc<Box<dyn EmitResolver>>,
+    pub(super) host: Gc<Box<dyn EmitHost>>,
+    pub(super) compiler_options: Gc<CompilerOptions>,
     #[unsafe_ignore_trace]
-    language_version: ScriptTarget,
+    pub(super) language_version: ScriptTarget,
     #[unsafe_ignore_trace]
-    module_kind: ModuleKind,
-    module_info_map: GcCell<HashMap<NodeId, Gc<ExternalModuleInfo>>>,
-    deferred_exports: GcCell<Vec<Option<Vec<Gc<Node /*Statement*/>>>>>,
-    current_source_file: GcCell<Option<Gc<Node /*SourceFile*/>>>,
-    current_module_info: GcCell<Option<Gc<ExternalModuleInfo>>>,
-    no_substitution: GcCell<Vec<bool>>,
+    pub(super) module_kind: ModuleKind,
+    pub(super) module_info_map: GcCell<HashMap<NodeId, Gc<ExternalModuleInfo>>>,
+    pub(super) deferred_exports: GcCell<Vec<Option<Vec<Gc<Node /*Statement*/>>>>>,
+    pub(super) current_source_file: GcCell<Option<Gc<Node /*SourceFile*/>>>,
+    pub(super) current_module_info: GcCell<Option<Gc<ExternalModuleInfo>>>,
+    pub(super) no_substitution: GcCell<Vec<bool>>,
     #[unsafe_ignore_trace]
-    need_umd_dynamic_import_helper: Cell<bool>,
+    pub(super) need_umd_dynamic_import_helper: Cell<bool>,
 }
 
 impl TransformModule {

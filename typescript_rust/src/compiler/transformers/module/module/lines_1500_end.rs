@@ -8,6 +8,13 @@ impl TransformModule {
     pub(super) fn create_underscore_underscore_es_module(&self) -> Gc<Node> {
         unimplemented!()
     }
+
+    pub(super) fn get_exports(
+        &self,
+        _name: &Node, /*Identifier*/
+    ) -> Option<Vec<Gc<Node /*Identifier*/>>> {
+        unimplemented!()
+    }
 }
 
 thread_local! {

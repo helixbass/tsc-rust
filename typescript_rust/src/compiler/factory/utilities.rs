@@ -138,6 +138,10 @@ pub fn is_local_name(node: &Node /*Identifier*/) -> bool {
     get_emit_flags(node).intersects(EmitFlags::LocalName)
 }
 
+pub fn is_export_name(node: &Node /*Identifier*/) -> bool {
+    get_emit_flags(node).intersects(EmitFlags::ExportName)
+}
+
 fn is_use_strict_prologue(node: &Node /*ExpressionStatement*/) -> bool {
     let node_as_expression_statement = node.as_expression_statement();
     is_string_literal(&node_as_expression_statement.expression)
