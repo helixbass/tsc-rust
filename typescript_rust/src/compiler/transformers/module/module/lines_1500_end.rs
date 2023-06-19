@@ -5,6 +5,15 @@ use super::TransformModule;
 use crate::{EmitHelper, Node, ReadonlyTextRange, ScopedEmitHelperBuilder};
 
 impl TransformModule {
+    pub(super) fn append_exports_of_import_equals_declaration(
+        &self,
+        _statements: &mut Option<Vec<Gc<Node /*Statement*/>>>,
+        _decl: &Node, /*ImportEqualsDeclaration*/
+    ) /*: Statement[] | undefined */
+    {
+        unimplemented!()
+    }
+
     pub(super) fn create_underscore_underscore_es_module(&self) -> Gc<Node> {
         unimplemented!()
     }

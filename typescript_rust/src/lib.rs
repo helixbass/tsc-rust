@@ -1,4 +1,4 @@
-#![allow(non_upper_case_globals, non_snake_case)]
+#![allow(non_upper_case_globals, non_snake_case, clippy::collapsible_else_if)]
 #[macro_use]
 extern crate lazy_static;
 

@@ -70,6 +70,7 @@ use crate::{
 };
 
 bitflags! {
+    #[derive(Default)]
     pub struct NodeFlags: u32 {
         const None = 0;
         const Let = 1 << 0;

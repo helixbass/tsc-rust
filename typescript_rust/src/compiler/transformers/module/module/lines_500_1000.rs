@@ -10,9 +10,11 @@ use crate::{
     NamedDeclarationInterface, Node, NodeExt, NodeInterface, ReadonlyTextRange, SyntaxKind,
     TransformFlags, VisitResult, _d, first_or_undefined, get_emit_flags, get_es_module_interop,
     get_export_needs_import_star_helper, get_external_module_name_literal,
-    get_import_needs_import_default_helper, get_import_needs_import_star_helper, get_node_id,
+    get_import_needs_import_default_helper, get_import_needs_import_star_helper,
+    get_namespace_declaration_node, get_node_id, get_original_node_id, is_default_import,
     is_prefix_unary_expression, is_simple_copiable_expression, is_string_literal, set_emit_flags,
-    EmitFlags, LiteralLikeNodeInterface, MapOrDefault, ModuleKind, NodeArray, ScriptTarget,
+    single_or_many_node, EmitFlags, LiteralLikeNodeInterface, MapOrDefault, ModuleKind, NodeArray,
+    NodeFlags, ScriptTarget,
 };
 
 impl TransformModule {
@@ -673,8 +675,171 @@ impl TransformModule {
 
     pub(super) fn visit_import_declaration(
         &self,
-        _node: &Node, /*ImportDeclaration*/
+        node: &Node, /*ImportDeclaration*/
     ) -> VisitResult /*<Statement>*/ {
-        unimplemented!()
+        let node_as_import_declaration = node.as_import_declaration();
+        let mut statements: Option<Vec<Gc<Node /*Statement*/>>> = _d();
+        let namespace_declaration = get_namespace_declaration_node(node);
+        if self.module_kind != ModuleKind::AMD {
+            if node_as_import_declaration.import_clause.is_none() {
+                return Some(
+                    self.factory
+                        .create_expression_statement(self.create_require_call(node))
+                        .wrap()
+                        .set_text_range(Some(node))
+                        .set_original_node(Some(node.node_wrapper()))
+                        .into(),
+                );
+            } else {
+                let mut variables: Vec<Gc<Node /*VariableDeclaration*/>> = _d();
+                if let Some(namespace_declaration) = namespace_declaration
+                    .as_ref()
+                    .filter(|_| !is_default_import(node))
+                {
+                    variables.push(
+                        self.factory
+                            .create_variable_declaration(
+                                Some(self.factory.clone_node(
+                                    &namespace_declaration.as_named_declaration().name(),
+                                )),
+                                None,
+                                None,
+                                Some(self.get_helper_expression_for_import(
+                                    node,
+                                    self.create_require_call(node),
+                                )),
+                            )
+                            .wrap(),
+                    );
+                } else {
+                    variables.push(
+                        self.factory
+                            .create_variable_declaration(
+                                Some(self.factory.get_generated_name_for_node(Some(node), None)),
+                                None,
+                                None,
+                                Some(self.get_helper_expression_for_import(
+                                    node,
+                                    self.create_require_call(node),
+                                )),
+                            )
+                            .wrap(),
+                    );
+
+                    if let Some(namespace_declaration) = namespace_declaration
+                        .as_ref()
+                        .filter(|_| is_default_import(node))
+                    {
+                        variables.push(
+                            self.factory
+                                .create_variable_declaration(
+                                    Some(self.factory.clone_node(
+                                        &namespace_declaration.as_named_declaration().name(),
+                                    )),
+                                    None,
+                                    None,
+                                    Some(
+                                        self.factory.get_generated_name_for_node(Some(node), None),
+                                    ),
+                                )
+                                .wrap(),
+                        );
+                    }
+                }
+
+                statements.get_or_insert_with(|| _d()).push(
+                    self.factory
+                        .create_variable_statement(
+                            Option::<Gc<NodeArray>>::None,
+                            self.factory
+                                .create_variable_declaration_list(
+                                    variables,
+                                    Some(
+                                        (self.language_version >= ScriptTarget::ES2015)
+                                            .then_some(NodeFlags::Const)
+                                            .unwrap_or_default(),
+                                    ),
+                                )
+                                .wrap(),
+                        )
+                        .wrap()
+                        .set_text_range(Some(node))
+                        .set_original_node(Some(node.node_wrapper())),
+                );
+            }
+        } else if let Some(namespace_declaration) = namespace_declaration
+            .as_ref()
+            .filter(|_| is_default_import(node))
+        {
+            statements.get_or_insert_with(|| _d()).push(
+                self.factory
+                    .create_variable_statement(
+                        Option::<Gc<NodeArray>>::None,
+                        self.factory
+                            .create_variable_declaration_list(
+                                vec![self
+                                    .factory
+                                    .create_variable_declaration(
+                                        Some(self.factory.clone_node(
+                                            &namespace_declaration.as_named_declaration().name(),
+                                        )),
+                                        None,
+                                        None,
+                                        Some(
+                                            self.factory
+                                                .get_generated_name_for_node(Some(node), None),
+                                        ),
+                                    )
+                                    .wrap()],
+                                Some(
+                                    (self.language_version >= ScriptTarget::ES2015)
+                                        .then_some(NodeFlags::Const)
+                                        .unwrap_or_default(),
+                                ),
+                            )
+                            .wrap(),
+                    )
+                    .wrap(),
+            );
+        }
+
+        if self.has_associated_end_of_declaration_marker(node) {
+            let id = get_original_node_id(node);
+            self.deferred_exports_mut().insert(id, {
+                self.append_exports_of_import_declaration(&mut statements, node);
+                statements.clone()
+            });
+        } else {
+            /*statements = */
+            self.append_exports_of_import_declaration(&mut statements, node);
+        }
+
+        statements.map(single_or_many_node)
+    }
+
+    pub(super) fn create_require_call(
+        &self,
+        import_node: &Node, /*ImportDeclaration | ImportEqualsDeclaration | ExportDeclaration*/
+    ) -> Gc<Node> {
+        let module_name = get_external_module_name_literal(
+            &self.factory,
+            import_node,
+            &self.current_source_file(),
+            &**self.host,
+            &**self.resolver,
+            &self.compiler_options,
+        );
+        let mut args: Vec<Gc<Node /*Expression*/>> = _d();
+        if let Some(module_name) = module_name {
+            args.push(module_name);
+        }
+
+        self.factory
+            .create_call_expression(
+                self.factory.create_identifier("require"),
+                Option::<Gc<NodeArray>>::None,
+                Some(args),
+            )
+            .wrap()
     }
 }

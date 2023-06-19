@@ -38,7 +38,7 @@ pub(super) struct TransformModule {
     #[unsafe_ignore_trace]
     pub(super) module_kind: ModuleKind,
     pub(super) module_info_map: GcCell<HashMap<NodeId, Gc<ExternalModuleInfo>>>,
-    pub(super) deferred_exports: GcCell<Vec<Option<Vec<Gc<Node /*Statement*/>>>>>,
+    pub(super) deferred_exports: GcCell<HashMap<NodeId, Option<Vec<Gc<Node /*Statement*/>>>>>,
     pub(super) current_source_file: GcCell<Option<Gc<Node /*SourceFile*/>>>,
     pub(super) current_module_info: GcCell<Option<Gc<ExternalModuleInfo>>>,
     pub(super) no_substitution: GcCell<HashMap<NodeId, bool>>,
@@ -113,19 +113,21 @@ impl TransformModule {
         *self.module_info_map.borrow_mut() = module_info_map;
     }
 
-    pub(super) fn deferred_exports(&self) -> GcCellRef<Vec<Option<Vec<Gc<Node /*Statement*/>>>>> {
+    pub(super) fn deferred_exports(
+        &self,
+    ) -> GcCellRef<HashMap<NodeId, Option<Vec<Gc<Node /*Statement*/>>>>> {
         self.deferred_exports.borrow()
     }
 
     pub(super) fn deferred_exports_mut(
         &self,
-    ) -> GcCellRefMut<Vec<Option<Vec<Gc<Node /*Statement*/>>>>> {
+    ) -> GcCellRefMut<HashMap<NodeId, Option<Vec<Gc<Node /*Statement*/>>>>> {
         self.deferred_exports.borrow_mut()
     }
 
     pub(super) fn set_deferred_exports(
         &self,
-        deferred_exports: Vec<Option<Vec<Gc<Node /*Statement*/>>>>,
+        deferred_exports: HashMap<NodeId, Option<Vec<Gc<Node /*Statement*/>>>>,
     ) {
         *self.deferred_exports.borrow_mut() = deferred_exports;
     }

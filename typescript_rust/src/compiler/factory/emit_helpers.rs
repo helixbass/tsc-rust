@@ -117,6 +117,15 @@ impl EmitHelperFactory {
         unimplemented!()
     }
 
+    pub fn create_create_binding_helper(
+        &self,
+        _module: Gc<Node /*Expression*/>,
+        _input_name: Gc<Node /*Expression*/>,
+        _output_name: Option<Gc<Node /*Expression*/>>,
+    ) -> Gc<Node /*Expression*/> {
+        unimplemented!()
+    }
+
     pub fn create_import_star_helper(
         &self,
         _expression: Gc<Node /*Expression*/>,
@@ -131,6 +140,14 @@ impl EmitHelperFactory {
     pub fn create_import_default_helper(
         &self,
         _expression: Gc<Node /*Expression*/>,
+    ) -> Gc<Node /*Expression*/> {
+        unimplemented!()
+    }
+
+    pub fn create_export_star_helper(
+        &self,
+        _module_expression: Gc<Node /*Expression*/>,
+        _exports_expression: Option<Gc<Node /*Expression*/>>,
     ) -> Gc<Node /*Expression*/> {
         unimplemented!()
     }

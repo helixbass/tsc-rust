@@ -766,6 +766,15 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         unimplemented!()
     }
 
+    pub fn get_export_name(
+        &self,
+        _node: &Node, /*Declaration*/
+        _allow_comments: Option<bool>,
+        _allow_source_maps: Option<bool>,
+    ) -> Gc<Node /*Identifier*/> {
+        unimplemented!()
+    }
+
     pub fn get_declaration_name(
         &self,
         _node: Option<impl Borrow<Node> /*Declaration*/>,
