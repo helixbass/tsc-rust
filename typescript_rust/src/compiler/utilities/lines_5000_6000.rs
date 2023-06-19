@@ -406,6 +406,10 @@ pub fn get_lines_between_position_and_next_non_whitespace_character(
     unimplemented!()
 }
 
+pub fn is_declaration_name_of_enum_or_namespace(_node: &Node /*Identifier*/) -> bool {
+    unimplemented!()
+}
+
 pub fn get_initialized_variables(node: &Node /*VariableDeclarationList*/) -> Vec<Gc<Node>> {
     filter(
         &node.as_variable_declaration_list().declarations,

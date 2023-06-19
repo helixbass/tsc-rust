@@ -63,6 +63,18 @@ pub fn chain_bundle() -> Gc<Box<dyn WrapCustomTransformerFactoryHandleDefault>> 
     CHAIN_BUNDLE.with(|chain_bundle| chain_bundle.clone())
 }
 
+pub fn get_export_needs_import_star_helper(_node: &Node /*ExportDeclaration*/) -> bool {
+    unimplemented!()
+}
+
+pub fn get_import_needs_import_star_helper(_node: &Node /*ImportDeclaration*/) -> bool {
+    unimplemented!()
+}
+
+pub fn get_import_needs_import_default_helper(_node: &Node /*ImportDeclaration*/) -> bool {
+    unimplemented!()
+}
+
 pub fn collect_external_module_info(
     _context: &dyn TransformationContext,
     _source_file: &Node, /*SourceFile*/

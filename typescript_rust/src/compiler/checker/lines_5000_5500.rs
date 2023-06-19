@@ -184,6 +184,7 @@ impl NodeBuilder {
         Ok(set_emit_flags(mapped_type_node, EmitFlags::SingleLine))
     }
 
+    #[allow(clippy::if_same_then_else)]
     pub(super) fn create_anonymous_type_node(
         &self,
         context: &NodeBuilderContext,

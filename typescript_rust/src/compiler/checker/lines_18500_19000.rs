@@ -1,19 +1,17 @@
+use std::{cell::Cell, io, ptr, rc::Rc};
+
 use gc::{Finalize, Gc, Trace};
 use regex::{Captures, Regex};
-use std::ptr;
-use std::rc::Rc;
-use std::{cell::Cell, io};
 
 use super::{
     CheckTypeRelatedTo, ExpandingFlags, IntersectionState, MappedTypeModifiers, RecursionFlags,
 };
 use crate::{
-    are_gc_slices_equal, are_option_rcs_equal, get_object_flags,
-    try_map, AccessFlags, DiagnosticMessageChain, InferenceFlags, InferencePriority, Node,
-    NodeInterface, ObjectFlags, ObjectTypeInterface, OutofbandVarianceMarkerHandler,
-    RelationComparisonResult, SignatureKind, Symbol, SymbolInterface, Ternary, Type,
-    TypeChecker, TypeComparer, TypeFlags, TypeInterface, TypeMapper, TypeMapperCallback,
-    UnionOrIntersectionTypeInterface, VarianceFlags,
+    are_gc_slices_equal, are_option_rcs_equal, get_object_flags, try_map, AccessFlags,
+    DiagnosticMessageChain, InferenceFlags, InferencePriority, Node, NodeInterface, ObjectFlags,
+    ObjectTypeInterface, OutofbandVarianceMarkerHandler, RelationComparisonResult, SignatureKind,
+    Symbol, SymbolInterface, Ternary, Type, TypeChecker, TypeComparer, TypeFlags, TypeInterface,
+    TypeMapper, TypeMapperCallback, UnionOrIntersectionTypeInterface, VarianceFlags,
 };
 
 impl CheckTypeRelatedTo {
@@ -596,6 +594,7 @@ impl CheckTypeRelatedTo {
         Ok(result)
     }
 
+    #[allow(clippy::if_same_then_else)]
     pub(super) fn structured_type_related_to_worker(
         &self,
         source: &Type,

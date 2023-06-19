@@ -41,7 +41,7 @@ pub(super) struct TransformModule {
     pub(super) deferred_exports: GcCell<Vec<Option<Vec<Gc<Node /*Statement*/>>>>>,
     pub(super) current_source_file: GcCell<Option<Gc<Node /*SourceFile*/>>>,
     pub(super) current_module_info: GcCell<Option<Gc<ExternalModuleInfo>>>,
-    pub(super) no_substitution: GcCell<Vec<bool>>,
+    pub(super) no_substitution: GcCell<HashMap<NodeId, bool>>,
     #[unsafe_ignore_trace]
     pub(super) need_umd_dynamic_import_helper: Cell<bool>,
 }
@@ -184,15 +184,15 @@ impl TransformModule {
         *self.current_module_info.borrow_mut() = current_module_info;
     }
 
-    pub(super) fn no_substitution(&self) -> GcCellRef<Vec<bool>> {
+    pub(super) fn no_substitution(&self) -> GcCellRef<HashMap<NodeId, bool>> {
         self.no_substitution.borrow()
     }
 
-    pub(super) fn no_substitution_mut(&self) -> GcCellRefMut<Vec<bool>> {
+    pub(super) fn no_substitution_mut(&self) -> GcCellRefMut<HashMap<NodeId, bool>> {
         self.no_substitution.borrow_mut()
     }
 
-    pub(super) fn set_no_substitution(&self, no_substitution: Vec<bool>) {
+    pub(super) fn set_no_substitution(&self, no_substitution: HashMap<NodeId, bool>) {
         *self.no_substitution.borrow_mut() = no_substitution;
     }
 
@@ -811,7 +811,7 @@ impl TransformModule {
         let name =
             get_local_name_for_external_import(&self.factory, node, &self.current_source_file())
                 .unwrap();
-        let expr = self.get_helper_expression_for_import(node, &name);
+        let expr = self.get_helper_expression_for_import(node, name.clone());
         if Gc::ptr_eq(&expr, &name) {
             return None;
         }

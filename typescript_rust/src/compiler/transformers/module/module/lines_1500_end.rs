@@ -2,10 +2,20 @@ use gc::Gc;
 use once_cell::unsync::Lazy;
 
 use super::TransformModule;
-use crate::{EmitHelper, Node, ScopedEmitHelperBuilder};
+use crate::{EmitHelper, Node, ReadonlyTextRange, ScopedEmitHelperBuilder};
 
 impl TransformModule {
     pub(super) fn create_underscore_underscore_es_module(&self) -> Gc<Node> {
+        unimplemented!()
+    }
+
+    pub(super) fn create_export_expression(
+        &self,
+        _name: &Node,  /*Identifier*/
+        _value: &Node, /*Expression*/
+        _location: Option<&impl ReadonlyTextRange>,
+        _live_binding: Option<bool>,
+    ) -> Gc<Node> {
         unimplemented!()
     }
 

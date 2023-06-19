@@ -1,7 +1,6 @@
+use std::{collections::HashMap, convert::TryInto, io, ptr};
+
 use gc::Gc;
-use std::convert::TryInto;
-use std::ptr;
-use std::{collections::HashMap, io};
 
 use crate::{
     add_related_info, create_diagnostic_for_node, first, get_containing_function,
@@ -563,6 +562,7 @@ impl TypeChecker {
         Ok(false)
     }
 
+    #[allow(clippy::if_same_then_else)]
     pub(super) fn check_grammar_method(
         &self,
         node: &Node, /*MethodDeclaration | MethodSignature*/

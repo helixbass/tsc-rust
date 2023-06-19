@@ -117,6 +117,24 @@ impl EmitHelperFactory {
         unimplemented!()
     }
 
+    pub fn create_import_star_helper(
+        &self,
+        _expression: Gc<Node /*Expression*/>,
+    ) -> Gc<Node /*Expression*/> {
+        unimplemented!()
+    }
+
+    pub fn create_import_star_callback_helper(&self) -> Gc<Node /*Expression*/> {
+        unimplemented!()
+    }
+
+    pub fn create_import_default_helper(
+        &self,
+        _expression: Gc<Node /*Expression*/>,
+    ) -> Gc<Node /*Expression*/> {
+        unimplemented!()
+    }
+
     pub fn create_class_private_field_get_helper(
         &self,
         _receiver: Gc<Node /*Expression*/>,
