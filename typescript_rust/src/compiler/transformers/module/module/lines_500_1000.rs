@@ -149,7 +149,7 @@ impl TransformModule {
                 FlattenLevel::All,
                 Some(!value_is_discarded),
                 Some(|a: &Node, b: &Node, c: Option<&dyn ReadonlyTextRange>| {
-                    self.create_all_export_expressions(a, b, c)
+                    self.create_all_export_expressions(a, b.node_wrapper(), c)
                 }),
             );
         }
