@@ -28,7 +28,7 @@ pub struct ExternalModuleInfo {
         Vec<Gc<Node /*ImportDeclaration | ImportEqualsDeclaration | ExportDeclaration*/>>,
     pub external_helpers_import_declaration: Option<Gc<Node /*ImportDeclaration*/>>,
     pub export_specifiers: HashMap<String, Vec<Gc<Node /*ExportSpecifier*/>>>,
-    pub exported_bindings: Vec<Vec<Gc<Node /*Identifier*/>>>,
+    pub exported_bindings: HashMap<NodeId, Vec<Gc<Node /*Identifier*/>>>,
     pub exported_names: Option<Vec<Gc<Node /*Identifier*/>>>,
     pub export_equals: Option<Gc<Node /*ExportAssignment*/>>,
     pub has_export_stars_to_export_values: bool,

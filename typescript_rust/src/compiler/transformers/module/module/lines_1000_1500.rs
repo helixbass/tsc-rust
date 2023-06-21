@@ -1,16 +1,19 @@
+use std::io;
+
 use gc::Gc;
 
 use super::TransformModule;
 use crate::{
     has_syntactic_modifier, is_external_module_import_equals_declaration, Debug_, ModifierFlags,
     ModuleKind, NamedDeclarationInterface, Node, NodeArray, NodeExt, NodeFlags, NodeInterface,
-    ReadonlyTextRange, ScriptTarget, VisitResult, _d, flatten_destructuring_assignment,
-    get_emit_flags, get_es_module_interop, get_original_node_id, get_text_of_identifier_or_literal,
-    id_text, is_arrow_function, is_binding_pattern, is_class_expression, is_export_name,
+    OptionTry, ReadonlyTextRange, ScriptTarget, VisitResult, _d, get_emit_flags,
+    get_es_module_interop, get_original_node_id, get_text_of_identifier_or_literal, id_text,
+    is_arrow_function, is_binding_pattern, is_class_expression, is_export_name,
     is_export_namespace_as_default_declaration, is_function_expression, is_identifier,
-    is_local_name, is_modifier, is_named_exports, maybe_visit_each_child, maybe_visit_nodes,
-    remove_all_comments, return_if_none, set_emit_flags, single_or_many_node, visit_each_child,
-    visit_node, visit_nodes, ClassLikeDeclarationInterface, EmitFlags, FlattenLevel,
+    is_local_name, is_modifier, is_named_exports, maybe_visit_nodes, remove_all_comments,
+    return_if_none, set_emit_flags, single_or_many_node, try_flatten_destructuring_assignment,
+    try_maybe_visit_each_child, try_maybe_visit_nodes, try_visit_each_child, try_visit_node,
+    try_visit_nodes, ClassLikeDeclarationInterface, EmitFlags, FlattenLevel,
     FunctionLikeDeclarationInterface, HasInitializerInterface, HasTypeInterface,
     InterfaceOrClassLikeDeclarationInterface, Matches, SignatureDeclarationInterface, SyntaxKind,
 };
@@ -270,10 +273,10 @@ impl TransformModule {
     pub(super) fn visit_export_assignment(
         &self,
         node: &Node, /*ExportAssignment*/
-    ) -> VisitResult /*<Statement>*/ {
+    ) -> io::Result<VisitResult> /*<Statement>*/ {
         let node_as_export_assignment = node.as_export_assignment();
         if node_as_export_assignment.is_export_equals == Some(true) {
-            return None;
+            return Ok(None);
         }
 
         let mut statements: Option<Vec<Gc<Node /*Statement*/>>> = _d();
@@ -286,12 +289,12 @@ impl TransformModule {
             self.append_export_statement(
                 self.deferred_exports_mut().entry(id).or_default(),
                 &self.factory.create_identifier("default"),
-                &visit_node(
+                &*try_visit_node(
                     &node_as_export_assignment.expression,
                     Some(|node: &Node| self.visitor(node)),
                     Option::<fn(&Node) -> bool>::None,
                     Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
-                ),
+                )?,
                 Some(node),
                 Some(true),
                 None,
@@ -300,25 +303,25 @@ impl TransformModule {
             self.append_export_statement(
                 &mut statements,
                 &self.factory.create_identifier("default"),
-                &visit_node(
+                &*try_visit_node(
                     &node_as_export_assignment.expression,
                     Some(|node: &Node| self.visitor(node)),
                     Option::<fn(&Node) -> bool>::None,
                     Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
-                ),
+                )?,
                 Some(node),
                 Some(true),
                 None,
             );
         }
 
-        statements.map(single_or_many_node)
+        Ok(statements.map(single_or_many_node))
     }
 
     pub(super) fn visit_function_declaration(
         &self,
         node: &Node, /*FunctionDeclaration*/
-    ) -> VisitResult /*<Statement>*/ {
+    ) -> io::Result<VisitResult> /*<Statement>*/ {
         let node_as_function_declaration = node.as_function_declaration();
         let mut statements: Option<Vec<Gc<Node /*Statement*/>>> = _d();
         if has_syntactic_modifier(node, ModifierFlags::Export) {
@@ -339,19 +342,19 @@ impl TransformModule {
                                 .get_declaration_name(Some(node), Some(true), Some(true)),
                         ),
                         Option::<Gc<NodeArray>>::None,
-                        visit_nodes(
+                        try_visit_nodes(
                             &node_as_function_declaration.parameters(),
                             Some(|node: &Node| self.visitor(node)),
                             Option::<fn(&Node) -> bool>::None,
                             None,
                             None,
-                        ),
+                        )?,
                         None,
-                        maybe_visit_each_child(
+                        try_maybe_visit_each_child(
                             node_as_function_declaration.maybe_body(),
                             |node: &Node| self.visitor(node),
                             &**self.context,
-                        ),
+                        )?,
                     )
                     .wrap()
                     .set_text_range(Some(node))
@@ -360,11 +363,11 @@ impl TransformModule {
         } else {
             statements
                 .get_or_insert_with(|| _d())
-                .push(visit_each_child(
+                .push(try_visit_each_child(
                     node,
                     |node: &Node| self.visitor(node),
                     &**self.context,
-                ));
+                )?);
         }
 
         if self.has_associated_end_of_declaration_marker(node) {
@@ -377,13 +380,13 @@ impl TransformModule {
             self.append_exports_of_hoisted_declaration(&mut statements, node);
         }
 
-        statements.map(single_or_many_node)
+        Ok(statements.map(single_or_many_node))
     }
 
     pub(super) fn visit_class_declaration(
         &self,
         node: &Node, /*ClassDeclaration*/
-    ) -> VisitResult /*<Statement>*/ {
+    ) -> io::Result<VisitResult> /*<Statement>*/ {
         let node_as_class_declaration = node.as_class_declaration();
         let mut statements: Option<Vec<Gc<Node /*Statement*/>>> = _d();
         if has_syntactic_modifier(node, ModifierFlags::Export) {
@@ -403,7 +406,7 @@ impl TransformModule {
                                 .get_declaration_name(Some(node), Some(true), Some(true)),
                         ),
                         Option::<Gc<NodeArray>>::None,
-                        maybe_visit_nodes(
+                        try_maybe_visit_nodes(
                             node_as_class_declaration
                                 .maybe_heritage_clauses()
                                 .as_deref(),
@@ -411,14 +414,14 @@ impl TransformModule {
                             Option::<fn(&Node) -> bool>::None,
                             None,
                             None,
-                        ),
-                        visit_nodes(
+                        )?,
+                        try_visit_nodes(
                             &node_as_class_declaration.members(),
                             Some(|node: &Node| self.visitor(node)),
                             Option::<fn(&Node) -> bool>::None,
                             None,
                             None,
-                        ),
+                        )?,
                     )
                     .wrap()
                     .set_text_range(Some(node))
@@ -427,11 +430,11 @@ impl TransformModule {
         } else {
             statements
                 .get_or_insert_with(|| _d())
-                .push(visit_each_child(
+                .push(try_visit_each_child(
                     node,
                     |node: &Node| self.visitor(node),
                     &**self.context,
-                ));
+                )?);
         }
 
         if self.has_associated_end_of_declaration_marker(node) {
@@ -444,13 +447,13 @@ impl TransformModule {
             self.append_exports_of_hoisted_declaration(&mut statements, node);
         }
 
-        statements.map(single_or_many_node)
+        Ok(statements.map(single_or_many_node))
     }
 
     pub(super) fn visit_variable_statement(
         &self,
         node: &Node, /*VariableStatement*/
-    ) -> VisitResult /*<Statement>*/ {
+    ) -> io::Result<VisitResult> /*<Statement>*/ {
         let node_as_variable_statement = node.as_variable_statement();
         let mut statements: Option<Vec<Gc<Node /*Statement*/>>> = _d();
         let mut variables: Option<Vec<Gc<Node /*VariableDeclaration*/>>> = _d();
@@ -511,12 +514,12 @@ impl TransformModule {
                                 Some(variable_as_variable_declaration.name()),
                                 variable_as_variable_declaration.exclamation_token.clone(),
                                 variable_as_variable_declaration.maybe_type(),
-                                Some(visit_node(
+                                Some(try_visit_node(
                                     variable_initializer,
                                     Some(|node: &Node| self.visitor(node)),
                                     Option::<fn(&Node) -> bool>::None,
                                     Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
-                                )),
+                                )?),
                             )
                             .wrap();
 
@@ -526,7 +529,7 @@ impl TransformModule {
                     } else {
                         expressions
                             .get_or_insert_with(|| _d())
-                            .push(self.transform_initialized_variable(variable));
+                            .push(self.transform_initialized_variable(variable)?);
                     }
                 }
             }
@@ -559,11 +562,11 @@ impl TransformModule {
         } else {
             statements
                 .get_or_insert_with(|| _d())
-                .push(visit_each_child(
+                .push(try_visit_each_child(
                     node,
                     |node: &Node| self.visitor(node),
                     &**self.context,
-                ));
+                )?);
         }
 
         if self.has_associated_end_of_declaration_marker(node) {
@@ -576,7 +579,7 @@ impl TransformModule {
             self.append_exports_of_variable_statement(&mut statements, node);
         }
 
-        statements.map(single_or_many_node)
+        Ok(statements.map(single_or_many_node))
     }
 
     pub(super) fn create_all_export_expressions(
@@ -584,8 +587,8 @@ impl TransformModule {
         name: &Node, /*Identifier*/
         value: Gc<Node /*Expression*/>,
         location: Option<&(impl ReadonlyTextRange + ?Sized)>,
-    ) -> Gc<Node> {
-        let exported_names = self.get_exports(name);
+    ) -> io::Result<Gc<Node>> {
+        let exported_names = self.get_exports(name)?;
         if let Some(exported_names) = exported_names {
             let mut expression/*: Expression*/ = if is_export_name(name) {
                 value
@@ -601,62 +604,65 @@ impl TransformModule {
                     self.create_export_expression(&export_name, &expression, location, None);
             }
 
-            return expression;
+            return Ok(expression);
         }
-        self.factory
+        Ok(self
+            .factory
             .create_assignment(name.node_wrapper(), value)
-            .wrap()
+            .wrap())
     }
 
     pub(super) fn transform_initialized_variable(
         &self,
         node: &Node, /*InitializedVariableDeclaration*/
-    ) -> Gc<Node /*Expression*/> {
+    ) -> io::Result<Gc<Node /*Expression*/>> {
         let node_as_variable_declaration = node.as_variable_declaration();
-        if is_binding_pattern(node_as_variable_declaration.maybe_name()) {
-            flatten_destructuring_assignment(
-                &visit_node(
-                    node,
-                    Some(|node: &Node| self.visitor(node)),
-                    Option::<fn(&Node) -> bool>::None,
-                    Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
-                ),
-                Option::<fn(&Node) -> VisitResult>::None,
-                &**self.context,
-                FlattenLevel::All,
-                Some(false),
-                Some(
-                    |name: &Node, value: &Node, location: Option<&dyn ReadonlyTextRange>| {
-                        self.create_all_export_expressions(name, value.node_wrapper(), location)
-                    },
-                ),
-            )
-        } else {
-            self.factory
-                .create_assignment(
-                    self.factory
-                        .create_property_access_expression(
-                            self.factory.create_identifier("exports"),
-                            node_as_variable_declaration.name(),
-                        )
-                        .wrap()
-                        .set_text_range(Some(&*node_as_variable_declaration.name())),
-                    node_as_variable_declaration
-                        .maybe_initializer()
-                        .map_or_else(
-                            || self.factory.create_void_zero(),
-                            |ref node_initializer| {
-                                visit_node(
-                                    node_initializer,
-                                    Some(|node: &Node| self.visitor(node)),
-                                    Option::<fn(&Node) -> bool>::None,
-                                    Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
-                                )
-                            },
-                        ),
-                )
-                .wrap()
-        }
+        Ok(
+            if is_binding_pattern(node_as_variable_declaration.maybe_name()) {
+                try_flatten_destructuring_assignment(
+                    &*try_visit_node(
+                        node,
+                        Some(|node: &Node| self.visitor(node)),
+                        Option::<fn(&Node) -> bool>::None,
+                        Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                    )?,
+                    Option::<fn(&Node) -> io::Result<VisitResult>>::None,
+                    &**self.context,
+                    FlattenLevel::All,
+                    Some(false),
+                    Some(
+                        |name: &Node, value: &Node, location: Option<&dyn ReadonlyTextRange>| {
+                            self.create_all_export_expressions(name, value.node_wrapper(), location)
+                        },
+                    ),
+                )?
+            } else {
+                self.factory
+                    .create_assignment(
+                        self.factory
+                            .create_property_access_expression(
+                                self.factory.create_identifier("exports"),
+                                node_as_variable_declaration.name(),
+                            )
+                            .wrap()
+                            .set_text_range(Some(&*node_as_variable_declaration.name())),
+                        node_as_variable_declaration
+                            .maybe_initializer()
+                            .try_map_or_else(
+                                || Ok(self.factory.create_void_zero()),
+                                |ref node_initializer| {
+                                    try_visit_node(
+                                        node_initializer,
+                                        Some(|node: &Node| self.visitor(node)),
+                                        Option::<fn(&Node) -> bool>::None,
+                                        Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                                    )
+                                },
+                            )?,
+                    )
+                    .wrap()
+            },
+        )
     }
 
     pub(super) fn visit_merge_declaration_marker(

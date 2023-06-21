@@ -1,46 +1,51 @@
+use std::io;
+
 use gc::Gc;
 
 use super::TransformModule;
 use crate::{
-    flatten_destructuring_assignment, is_array_literal_expression,
-    is_declaration_name_of_enum_or_namespace, is_destructuring_assignment, is_export_name,
-    is_expression, is_for_initializer, is_generated_identifier, is_identifier, is_import_call,
-    is_local_name, is_object_literal_expression, is_spread_element, length, maybe_visit_node,
-    visit_each_child, visit_iteration_body, visit_node, Debug_, FlattenLevel,
+    is_array_literal_expression, is_declaration_name_of_enum_or_namespace,
+    is_destructuring_assignment, is_export_name, is_expression, is_for_initializer,
+    is_generated_identifier, is_identifier, is_import_call, is_local_name,
+    is_object_literal_expression, is_spread_element, length, Debug_, FlattenLevel,
     NamedDeclarationInterface, Node, NodeExt, NodeInterface, ReadonlyTextRange, SyntaxKind,
     TransformFlags, VisitResult, _d, first_or_undefined, get_emit_flags, get_es_module_interop,
     get_export_needs_import_star_helper, get_external_module_name_literal,
     get_import_needs_import_default_helper, get_import_needs_import_star_helper,
     get_namespace_declaration_node, get_node_id, get_original_node_id, is_default_import,
     is_prefix_unary_expression, is_simple_copiable_expression, is_string_literal, set_emit_flags,
-    single_or_many_node, EmitFlags, LiteralLikeNodeInterface, MapOrDefault, ModuleKind, NodeArray,
-    NodeFlags, ScriptTarget,
+    single_or_many_node, try_flatten_destructuring_assignment, try_maybe_visit_node,
+    try_visit_each_child, try_visit_iteration_body, try_visit_node, EmitFlags,
+    LiteralLikeNodeInterface, MapOrDefault, ModuleKind, NodeArray, NodeFlags, ScriptTarget,
 };
 
 impl TransformModule {
-    pub(super) fn top_level_visitor(&self, node: &Node) -> VisitResult /*<Node>*/ {
-        match node.kind() {
+    pub(super) fn top_level_visitor(&self, node: &Node) -> io::Result<VisitResult> /*<Node>*/ {
+        Ok(match node.kind() {
             SyntaxKind::ImportDeclaration => self.visit_import_declaration(node),
             SyntaxKind::ImportEqualsDeclaration => self.visit_import_equals_declaration(node),
             SyntaxKind::ExportDeclaration => self.visit_export_declaration(node),
-            SyntaxKind::ExportAssignment => self.visit_export_assignment(node),
-            SyntaxKind::VariableStatement => self.visit_variable_statement(node),
-            SyntaxKind::FunctionDeclaration => self.visit_function_declaration(node),
-            SyntaxKind::ClassDeclaration => self.visit_class_declaration(node),
+            SyntaxKind::ExportAssignment => self.visit_export_assignment(node)?,
+            SyntaxKind::VariableStatement => self.visit_variable_statement(node)?,
+            SyntaxKind::FunctionDeclaration => self.visit_function_declaration(node)?,
+            SyntaxKind::ClassDeclaration => self.visit_class_declaration(node)?,
             SyntaxKind::MergeDeclarationMarker => self.visit_merge_declaration_marker(node),
             SyntaxKind::EndOfDeclarationMarker => self.visit_end_of_declaration_marker(node),
-            _ => self.visitor(node),
-        }
+            _ => self.visitor(node)?,
+        })
     }
 
-    pub(super) fn visitor_worker(&self, node: &Node, value_is_discarded: bool) -> VisitResult /*<Node>*/
-    {
+    pub(super) fn visitor_worker(
+        &self,
+        node: &Node,
+        value_is_discarded: bool,
+    ) -> io::Result<VisitResult> /*<Node>*/ {
         if !node.transform_flags().intersects(
             TransformFlags::ContainsDynamicImport
                 | TransformFlags::ContainsDestructuringAssignment
                 | TransformFlags::ContainsUpdateExpressionForIdentifier,
         ) {
-            return Some(node.node_wrapper().into());
+            return Ok(Some(node.node_wrapper().into()));
         }
 
         match node.kind() {
@@ -60,15 +65,15 @@ impl TransformModule {
                         .maybe_implied_node_format()
                         .is_none()
                 {
-                    return Some(self.visit_import_call_expression(node).into());
+                    return Ok(Some(self.visit_import_call_expression(node)?.into()));
                 }
             }
             SyntaxKind::BinaryExpression => {
                 if is_destructuring_assignment(node) {
-                    return Some(
-                        self.visit_destructuring_assignment(node, value_is_discarded)
+                    return Ok(Some(
+                        self.visit_destructuring_assignment(node, value_is_discarded)?
                             .into(),
-                    );
+                    ));
                 }
             }
             SyntaxKind::PrefixUnaryExpression | SyntaxKind::PostfixUnaryExpression => {
@@ -77,72 +82,78 @@ impl TransformModule {
             _ => (),
         }
 
-        Some(visit_each_child(node, |node: &Node| self.visitor(node), &**self.context).into())
+        Ok(Some(
+            try_visit_each_child(node, |node: &Node| self.visitor(node), &**self.context)?.into(),
+        ))
     }
 
-    pub(super) fn visitor(&self, node: &Node) -> VisitResult /*<Node>*/ {
+    pub(super) fn visitor(&self, node: &Node) -> io::Result<VisitResult> /*<Node>*/ {
         self.visitor_worker(node, false)
     }
 
-    pub(super) fn discarded_value_visitor(&self, node: &Node) -> VisitResult /*<Node>*/ {
+    pub(super) fn discarded_value_visitor(&self, node: &Node) -> io::Result<VisitResult> /*<Node>*/
+    {
         self.visitor_worker(node, true)
     }
 
-    pub(super) fn destructuring_needs_flattening(&self, node: &Node /*Expression*/) -> bool {
+    pub(super) fn destructuring_needs_flattening(
+        &self,
+        node: &Node, /*Expression*/
+    ) -> io::Result<bool> {
         if is_object_literal_expression(node) {
             for elem in &node.as_object_literal_expression().properties {
                 match elem.kind() {
                     SyntaxKind::PropertyAssignment => {
                         if self.destructuring_needs_flattening(
                             &elem.as_property_assignment().initializer,
-                        ) {
-                            return true;
+                        )? {
+                            return Ok(true);
                         }
                     }
                     SyntaxKind::ShorthandPropertyAssignment => {
                         if self.destructuring_needs_flattening(
                             &elem.as_shorthand_property_assignment().name(),
-                        ) {
-                            return true;
+                        )? {
+                            return Ok(true);
                         }
                     }
                     SyntaxKind::SpreadAssignment => {
-                        if self
-                            .destructuring_needs_flattening(&elem.as_spread_assignment().expression)
-                        {
-                            return true;
+                        if self.destructuring_needs_flattening(
+                            &elem.as_spread_assignment().expression,
+                        )? {
+                            return Ok(true);
                         }
                     }
                     SyntaxKind::MethodDeclaration
                     | SyntaxKind::GetAccessor
-                    | SyntaxKind::SetAccessor => return false,
+                    | SyntaxKind::SetAccessor => return Ok(false),
                     _ => Debug_.assert_never(elem, Some("Unhandled object member kind")),
                 }
             }
         } else if is_array_literal_expression(node) {
             for elem in &node.as_array_literal_expression().elements {
                 if is_spread_element(elem) {
-                    if self.destructuring_needs_flattening(&elem.as_spread_element().expression) {
-                        return true;
+                    if self.destructuring_needs_flattening(&elem.as_spread_element().expression)? {
+                        return Ok(true);
                     }
-                } else if self.destructuring_needs_flattening(elem) {
-                    return true;
+                } else if self.destructuring_needs_flattening(elem)? {
+                    return Ok(true);
                 }
             }
         } else if is_identifier(node) {
-            return length(self.get_exports(node).as_deref())
-                > if is_export_name(node) { 1 } else { 0 };
+            return Ok(length(self.get_exports(node)?.as_deref())
+                > if is_export_name(node) { 1 } else { 0 });
         }
-        false
+        Ok(false)
     }
 
     pub(super) fn visit_destructuring_assignment(
         &self,
         node: &Node, /*DestructuringAssignment*/
         value_is_discarded: bool,
-    ) -> Gc<Node /*Expression*/> {
-        if self.destructuring_needs_flattening(&node.as_binary_expression().left) {
-            return flatten_destructuring_assignment(
+    ) -> io::Result<Gc<Node /*Expression*/>> {
+        if self.destructuring_needs_flattening(&node.as_binary_expression().left)? {
+            return try_flatten_destructuring_assignment(
                 node,
                 Some(|node: &Node| self.visitor(node)),
                 &**self.context,
@@ -153,74 +164,77 @@ impl TransformModule {
                 }),
             );
         }
-        visit_each_child(node, |node: &Node| self.visitor(node), &**self.context)
+        try_visit_each_child(node, |node: &Node| self.visitor(node), &**self.context)
     }
 
-    pub(super) fn visit_for_statement(&self, node: &Node /*ForStatement*/) -> VisitResult {
+    pub(super) fn visit_for_statement(
+        &self,
+        node: &Node, /*ForStatement*/
+    ) -> io::Result<VisitResult> {
         let node_as_for_statement = node.as_for_statement();
-        Some(
+        Ok(Some(
             self.factory
                 .update_for_statement(
                     node,
-                    maybe_visit_node(
+                    try_maybe_visit_node(
                         node_as_for_statement.initializer.as_deref(),
                         Some(|node: &Node| self.discarded_value_visitor(node)),
                         Some(is_for_initializer),
                         Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
-                    ),
-                    maybe_visit_node(
+                    )?,
+                    try_maybe_visit_node(
                         node_as_for_statement.condition.as_deref(),
                         Some(|node: &Node| self.visitor(node)),
                         Some(is_expression),
                         Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
-                    ),
-                    maybe_visit_node(
+                    )?,
+                    try_maybe_visit_node(
                         node_as_for_statement.incrementor.as_deref(),
                         Some(|node: &Node| self.discarded_value_visitor(node)),
                         Some(is_expression),
                         Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
-                    ),
-                    visit_iteration_body(
+                    )?,
+                    try_visit_iteration_body(
                         &node_as_for_statement.statement,
                         |node: &Node| self.visitor(node),
                         &**self.context,
-                    ),
+                    )?,
                 )
                 .into(),
-        )
+        ))
     }
 
     pub(super) fn visit_expression_statement(
         &self,
         node: &Node, /*ExpressionStatement*/
-    ) -> VisitResult {
+    ) -> io::Result<VisitResult> {
         let node_as_expression_statement = node.as_expression_statement();
-        Some(
+        Ok(Some(
             self.factory
                 .update_expression_statement(
                     node,
-                    visit_node(
+                    try_visit_node(
                         &node_as_expression_statement.expression,
                         Some(|node: &Node| self.discarded_value_visitor(node)),
                         Some(is_expression),
                         Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
-                    ),
+                    )?,
                 )
                 .into(),
-        )
+        ))
     }
 
     pub(super) fn visit_parenthesized_expression(
         &self,
         node: &Node, /*ParenthesizedExpression*/
         value_is_discarded: bool,
-    ) -> VisitResult {
+    ) -> io::Result<VisitResult> {
         let node_as_parenthesized_expression = node.as_parenthesized_expression();
-        Some(
+        Ok(Some(
             self.factory
                 .update_parenthesized_expression(
                     node,
-                    visit_node(
+                    try_visit_node(
                         &node_as_parenthesized_expression.expression,
                         Some(|node: &Node| {
                             if value_is_discarded {
@@ -231,23 +245,23 @@ impl TransformModule {
                         }),
                         Some(is_expression),
                         Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
-                    ),
+                    )?,
                 )
                 .into(),
-        )
+        ))
     }
 
     pub(super) fn visit_partially_emitted_expression(
         &self,
         node: &Node, /*PartiallyEmittedExpression*/
         value_is_discarded: bool,
-    ) -> VisitResult {
+    ) -> io::Result<VisitResult> {
         let node_as_partially_emitted_expression = node.as_partially_emitted_expression();
-        Some(
+        Ok(Some(
             self.factory
                 .update_partially_emitted_expression(
                     node,
-                    visit_node(
+                    try_visit_node(
                         &node_as_partially_emitted_expression.expression,
                         Some(|node: &Node| {
                             if value_is_discarded {
@@ -258,17 +272,17 @@ impl TransformModule {
                         }),
                         Some(is_expression),
                         Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
-                    ),
+                    )?,
                 )
                 .into(),
-        )
+        ))
     }
 
     pub(super) fn visit_pre_or_postfix_unary_expression(
         &self,
         node: &Node, /*PrefixUnaryExpression | PostfixUnaryExpression*/
         value_is_discarded: bool,
-    ) -> VisitResult {
+    ) -> io::Result<VisitResult> {
         let node_as_unary_expression = node.as_unary_expression();
         if matches!(
             node_as_unary_expression.operator(),
@@ -278,15 +292,15 @@ impl TransformModule {
             && !is_local_name(&node_as_unary_expression.operand())
             && !is_declaration_name_of_enum_or_namespace(&node_as_unary_expression.operand())
         {
-            let exported_names = self.get_exports(&node_as_unary_expression.operand());
+            let exported_names = self.get_exports(&node_as_unary_expression.operand())?;
             if let Some(exported_names) = exported_names {
                 let mut temp: Option<Gc<Node /*Identifier*/>> = _d();
-                let mut expression/*: Expression*/ = visit_node(
+                let mut expression/*: Expression*/ = try_visit_node(
                     &node_as_unary_expression.operand(),
                     Some(|node: &Node| self.visitor(node)),
                     Some(is_expression),
                     Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
-                );
+                )?;
                 if is_prefix_unary_expression(node) {
                     expression = self
                         .factory
@@ -332,17 +346,19 @@ impl TransformModule {
                         .wrap()
                         .set_text_range(Some(node));
                 }
-                return Some(expression.into());
+                return Ok(Some(expression.into()));
             }
         }
 
-        Some(visit_each_child(node, |node: &Node| self.visitor(node), &**self.context).into())
+        Ok(Some(
+            try_visit_each_child(node, |node: &Node| self.visitor(node), &**self.context)?.into(),
+        ))
     }
 
     pub(super) fn visit_import_call_expression(
         &self,
         node: &Node, /*ImportCall*/
-    ) -> Gc<Node /*Expression*/> {
+    ) -> io::Result<Gc<Node /*Expression*/>> {
         let node_as_call_expression = node.as_call_expression();
         let external_module_name = get_external_module_name_literal(
             &self.factory,
@@ -352,12 +368,12 @@ impl TransformModule {
             &**self.resolver,
             &self.compiler_options,
         );
-        let first_argument = maybe_visit_node(
+        let first_argument = try_maybe_visit_node(
             first_or_undefined(&node_as_call_expression.arguments).cloned(),
             Some(|node: &Node| self.visitor(node)),
             Option::<fn(&Node) -> bool>::None,
             Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
-        );
+        )?;
         let argument = external_module_name
             .filter(|external_module_name| match first_argument.as_ref() {
                 None => true,
@@ -371,7 +387,7 @@ impl TransformModule {
         let contains_lexical_this = node
             .transform_flags()
             .intersects(TransformFlags::ContainsLexicalThis);
-        match self.compiler_options.module {
+        Ok(match self.compiler_options.module {
             Some(ModuleKind::AMD) => {
                 self.create_import_call_expression_amd(argument, contains_lexical_this)
             }
@@ -380,7 +396,7 @@ impl TransformModule {
                 contains_lexical_this,
             ),
             _ => self.create_import_call_expression_common_js(argument, contains_lexical_this),
-        }
+        })
     }
 
     pub(super) fn create_import_call_expression_umd(

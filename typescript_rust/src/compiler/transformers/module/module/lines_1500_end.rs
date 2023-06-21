@@ -1,3 +1,5 @@
+use std::io;
+
 use gc::Gc;
 use once_cell::unsync::Lazy;
 
@@ -6,6 +8,7 @@ use crate::{
     has_syntactic_modifier, id_text, is_binding_pattern, is_generated_identifier,
     is_omitted_expression, EmitFlags, EmitHelper, ModifierFlags, Node, NodeArray, NodeExt,
     NodeInterface, ReadonlyTextRange, ScopedEmitHelperBuilder, ScriptTarget, VisitResult, _d,
+    get_original_node_id, set_emit_flags, OptionTry, SyntaxKind,
 };
 
 impl TransformModule {
@@ -203,34 +206,136 @@ impl TransformModule {
 
     pub(super) fn create_export_statement(
         &self,
-        _name: &Node,  /*Identifier*/
-        _value: &Node, /*Expression*/
-        _location: Option<&impl ReadonlyTextRange>,
-        _allow_comments: Option<bool>,
-        _live_binding: Option<bool>,
+        name: &Node,  /*Identifier*/
+        value: &Node, /*Expression*/
+        location: Option<&impl ReadonlyTextRange>,
+        allow_comments: Option<bool>,
+        live_binding: Option<bool>,
     ) -> Gc<Node> {
-        unimplemented!()
+        let statement = self
+            .factory
+            .create_expression_statement(self.create_export_expression(
+                name,
+                value,
+                Option::<&Node>::None,
+                live_binding,
+            ))
+            .wrap()
+            .set_text_range(location)
+            .start_on_new_line();
+        if allow_comments != Some(true) {
+            set_emit_flags(&*statement, EmitFlags::NoComments);
+        }
+
+        statement
     }
 
     pub(super) fn create_export_expression(
         &self,
-        _name: &Node,  /*Identifier*/
-        _value: &Node, /*Expression*/
-        _location: Option<&(impl ReadonlyTextRange + ?Sized)>,
-        _live_binding: Option<bool>,
+        name: &Node,  /*Identifier*/
+        value: &Node, /*Expression*/
+        location: Option<&(impl ReadonlyTextRange + ?Sized)>,
+        live_binding: Option<bool>,
     ) -> Gc<Node> {
-        unimplemented!()
+        if live_binding == Some(true) && self.language_version != ScriptTarget::ES3 {
+            self.factory
+                .create_call_expression(
+                    self.factory
+                        .create_property_access_expression(
+                            self.factory.create_identifier("Object"),
+                            "defineProperty",
+                        )
+                        .wrap(),
+                    Option::<Gc<NodeArray>>::None,
+                    Some(vec![
+                        self.factory.create_identifier("exports"),
+                        self.factory.create_string_literal_from_node(name).wrap(),
+                        self.factory
+                            .create_object_literal_expression(
+                                Some(vec![
+                                    self.factory
+                                        .create_property_assignment(
+                                            "enumerable",
+                                            self.factory.create_true().wrap(),
+                                        )
+                                        .wrap(),
+                                    self.factory
+                                        .create_property_assignment(
+                                            "get",
+                                            self.factory
+                                                .create_function_expression(
+                                                    Option::<Gc<NodeArray>>::None,
+                                                    None,
+                                                    Option::<Gc<Node>>::None,
+                                                    Option::<Gc<NodeArray>>::None,
+                                                    Some(vec![]),
+                                                    None,
+                                                    self.factory
+                                                        .create_block(
+                                                            vec![self
+                                                                .factory
+                                                                .create_return_statement(Some(
+                                                                    value.node_wrapper(),
+                                                                ))
+                                                                .wrap()],
+                                                            None,
+                                                        )
+                                                        .wrap(),
+                                                )
+                                                .wrap(),
+                                        )
+                                        .wrap(),
+                                ]),
+                                None,
+                            )
+                            .wrap(),
+                    ]),
+                )
+                .wrap()
+        } else {
+            self.factory
+                .create_assignment(
+                    self.factory
+                        .create_property_access_expression(
+                            self.factory.create_identifier("exports"),
+                            self.factory.clone_node(name),
+                        )
+                        .wrap(),
+                    value.node_wrapper(),
+                )
+                .wrap()
+        }
+        .set_text_range(location)
     }
 
-    pub(super) fn modifier_visitor(&self, _node: &Node) -> VisitResult /*<Node>*/ {
-        unimplemented!()
+    pub(super) fn modifier_visitor(&self, node: &Node) -> VisitResult /*<Node>*/ {
+        match node.kind() {
+            SyntaxKind::ExportKeyword | SyntaxKind::DefaultKeyword => None,
+            _ => Some(node.node_wrapper().into()),
+        }
     }
 
     pub(super) fn get_exports(
         &self,
-        _name: &Node, /*Identifier*/
-    ) -> Option<Vec<Gc<Node /*Identifier*/>>> {
-        unimplemented!()
+        name: &Node, /*Identifier*/
+    ) -> io::Result<Option<Vec<Gc<Node /*Identifier*/>>>> {
+        if !is_generated_identifier(name) {
+            let value_declaration = self
+                .resolver
+                .get_referenced_import_declaration(name)?
+                .try_or_else(|| self.resolver.get_referenced_value_declaration(name))?;
+            if let Some(ref value_declaration) = value_declaration {
+                return Ok(self
+                    .maybe_current_module_info()
+                    .and_then(|current_module_info| {
+                        current_module_info
+                            .exported_bindings
+                            .get(&get_original_node_id(value_declaration))
+                            .cloned()
+                    }));
+            }
+        }
+        Ok(None)
     }
 }
 
