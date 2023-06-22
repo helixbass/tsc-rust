@@ -14,8 +14,9 @@ use crate::{
     return_if_none, set_emit_flags, single_or_many_node, try_flatten_destructuring_assignment,
     try_maybe_visit_each_child, try_maybe_visit_nodes, try_visit_each_child, try_visit_node,
     try_visit_nodes, ClassLikeDeclarationInterface, EmitFlags, FlattenLevel,
-    FunctionLikeDeclarationInterface, HasInitializerInterface, HasTypeInterface,
-    InterfaceOrClassLikeDeclarationInterface, Matches, SignatureDeclarationInterface, SyntaxKind,
+    FunctionLikeDeclarationInterface, GetOrInsertDefault, HasInitializerInterface,
+    HasTypeInterface, InterfaceOrClassLikeDeclarationInterface, Matches,
+    SignatureDeclarationInterface, SyntaxKind,
 };
 
 impl TransformModule {
@@ -32,7 +33,7 @@ impl TransformModule {
         let mut statements: Option<Vec<Gc<Node /*Statement*/>>> = _d();
         if self.module_kind != ModuleKind::AMD {
             if has_syntactic_modifier(node, ModifierFlags::Export) {
-                statements.get_or_insert_with(|| _d()).push(
+                statements.get_or_insert_default_().push(
                     self.factory
                         .create_expression_statement(self.create_export_expression(
                             &node_as_import_equals_declaration.name(),
@@ -44,7 +45,7 @@ impl TransformModule {
                         .set_original_node(Some(node.node_wrapper())),
                 );
             } else {
-                statements.get_or_insert_with(|| _d()).push(
+                statements.get_or_insert_default_().push(
                     self.factory
                         .create_variable_statement(
                             Option::<Gc<NodeArray>>::None,
@@ -71,7 +72,7 @@ impl TransformModule {
             }
         } else {
             if has_syntactic_modifier(node, ModifierFlags::Export) {
-                statements.get_or_insert_with(|| _d()).push(
+                statements.get_or_insert_default_().push(
                     self.factory
                         .create_expression_statement(self.create_export_expression(
                             &self.factory.get_export_name(node, None, None),
@@ -301,7 +302,7 @@ impl TransformModule {
         let node_as_function_declaration = node.as_function_declaration();
         let mut statements: Option<Vec<Gc<Node /*Statement*/>>> = _d();
         if has_syntactic_modifier(node, ModifierFlags::Export) {
-            statements.get_or_insert_with(|| _d()).push(
+            statements.get_or_insert_default_().push(
                 self.factory
                     .create_function_declaration(
                         Option::<Gc<NodeArray>>::None,
@@ -337,7 +338,7 @@ impl TransformModule {
             );
         } else {
             statements
-                .get_or_insert_with(|| _d())
+                .get_or_insert_default_()
                 .push(try_visit_each_child(
                     node,
                     |node: &Node| self.visitor(node),
@@ -365,7 +366,7 @@ impl TransformModule {
         let node_as_class_declaration = node.as_class_declaration();
         let mut statements: Option<Vec<Gc<Node /*Statement*/>>> = _d();
         if has_syntactic_modifier(node, ModifierFlags::Export) {
-            statements.get_or_insert_with(|| _d()).push(
+            statements.get_or_insert_default_().push(
                 self.factory
                     .create_class_declaration(
                         Option::<Gc<NodeArray>>::None,
@@ -403,7 +404,7 @@ impl TransformModule {
             );
         } else {
             statements
-                .get_or_insert_with(|| _d())
+                .get_or_insert_default_()
                 .push(try_visit_each_child(
                     node,
                     |node: &Node| self.visitor(node),
@@ -455,7 +456,7 @@ impl TransformModule {
                             None,
                         );
                     }
-                    variables.get_or_insert_with(|| _d()).push(variable.clone());
+                    variables.get_or_insert_default_().push(variable.clone());
                 } else if let Some(ref variable_initializer) =
                     variable_as_variable_declaration.maybe_initializer()
                 {
@@ -488,28 +489,28 @@ impl TransformModule {
                             )?),
                         );
 
-                        variables.get_or_insert_with(|| _d()).push(updated_variable);
-                        expressions.get_or_insert_with(|| _d()).push(expression);
+                        variables.get_or_insert_default_().push(updated_variable);
+                        expressions.get_or_insert_default_().push(expression);
                         remove_comments_on_expressions = true;
                     } else {
                         expressions
-                            .get_or_insert_with(|| _d())
+                            .get_or_insert_default_()
                             .push(self.transform_initialized_variable(variable)?);
                     }
                 }
             }
 
             if let Some(variables) = variables {
-                statements.get_or_insert_with(|| _d()).push(
-                    self.factory.update_variable_statement(
+                statements
+                    .get_or_insert_default_()
+                    .push(self.factory.update_variable_statement(
                         node,
                         modifiers,
                         self.factory.update_variable_declaration_list(
                             &node_as_variable_statement.declaration_list,
                             variables,
                         ),
-                    ),
-                );
+                    ));
             }
 
             if let Some(expressions) = expressions {
@@ -521,11 +522,11 @@ impl TransformModule {
                 if remove_comments_on_expressions {
                     remove_all_comments(&*statement);
                 }
-                statements.get_or_insert_with(|| _d()).push(statement);
+                statements.get_or_insert_default_().push(statement);
             }
         } else {
             statements
-                .get_or_insert_with(|| _d())
+                .get_or_insert_default_()
                 .push(try_visit_each_child(
                     node,
                     |node: &Node| self.visitor(node),

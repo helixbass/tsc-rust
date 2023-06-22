@@ -10,10 +10,10 @@ use crate::{
     is_variable_declaration_list, last, move_range_end, move_range_pos, set_emit_flags,
     set_source_map_range, set_text_range_end, try_flat_map, try_flatten_destructuring_assignment,
     try_flatten_destructuring_binding, try_maybe_visit_node, try_visit_each_child, try_visit_node,
-    unwrap_innermost_statement_of_label, EmitFlags, FlattenLevel, HasInitializerInterface, Matches,
-    ModifierFlags, NamedDeclarationInterface, Node, NodeArray, NodeArrayExt, NodeCheckFlags,
-    NodeExt, NodeFlags, NodeInterface, Number, ReadonlyTextRange, ReadonlyTextRangeConcrete,
-    SourceMapRange, SyntaxKind, TransformFlags, VisitResult,
+    unwrap_innermost_statement_of_label, EmitFlags, FlattenLevel, GetOrInsertDefault,
+    HasInitializerInterface, Matches, ModifierFlags, NamedDeclarationInterface, Node, NodeArray,
+    NodeArrayExt, NodeCheckFlags, NodeExt, NodeFlags, NodeInterface, Number, ReadonlyTextRange,
+    ReadonlyTextRangeConcrete, SourceMapRange, SyntaxKind, TransformFlags, VisitResult,
 };
 
 impl TransformES2015 {
@@ -245,9 +245,7 @@ impl TransformES2015 {
                             .set_text_range(Some(&**decl));
                     }
 
-                    assignments
-                        .get_or_insert_with(|| Default::default())
-                        .push(assignment);
+                    assignments.get_or_insert_default_().push(assignment);
                 }
             }
             if let Some(assignments) = assignments {
@@ -479,7 +477,7 @@ impl TransformES2015 {
                 converted_loop_state
                     .borrow_mut()
                     .labels
-                    .get_or_insert_with(|| Default::default());
+                    .get_or_insert_default_();
             });
         let ref statement = unwrap_innermost_statement_of_label(
             node,

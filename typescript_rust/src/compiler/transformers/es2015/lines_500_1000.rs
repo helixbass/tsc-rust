@@ -10,10 +10,11 @@ use crate::{
     is_expression, is_expression_statement, is_identifier_a_non_contextual_keyword, is_statement,
     is_super_call, set_emit_flags, single_or_many_node, skip_outer_expressions, skip_trivia,
     try_visit_each_child, try_visit_node, try_visit_nodes, try_visit_parameter_list, EmitFlags,
-    FunctionLikeDeclarationInterface, GeneratedIdentifierFlags, HasStatementsInterface,
-    MapOrDefault, Matches, ModifierFlags, Node, NodeArray, NodeArrayExt, NodeArrayOrVec, NodeExt,
-    NodeInterface, NodeWrappered, OptionTry, ReadonlyTextRange, ReadonlyTextRangeConcrete,
-    SignatureDeclarationInterface, SyntaxKind, TextRange, TransformFlags, VisitResult,
+    FunctionLikeDeclarationInterface, GeneratedIdentifierFlags, GetOrInsertDefault,
+    HasStatementsInterface, MapOrDefault, Matches, ModifierFlags, Node, NodeArray, NodeArrayExt,
+    NodeArrayOrVec, NodeExt, NodeInterface, NodeWrappered, OptionTry, ReadonlyTextRange,
+    ReadonlyTextRangeConcrete, SignatureDeclarationInterface, SyntaxKind, TextRange,
+    TransformFlags, VisitResult,
 };
 
 impl TransformES2015 {
@@ -267,14 +268,14 @@ impl TransformES2015 {
                                 .converted_loop_state()
                                 .borrow_mut()
                                 .non_local_jumps
-                                .get_or_insert_with(|| Default::default()) |= Jump::Break;
+                                .get_or_insert_default_() |= Jump::Break;
                             label_marker = "break".to_owned();
                         } else {
                             *self
                                 .converted_loop_state()
                                 .borrow_mut()
                                 .non_local_jumps
-                                .get_or_insert_with(|| Default::default()) |= Jump::Continue;
+                                .get_or_insert_default_() |= Jump::Continue;
                             label_marker = "continue".to_owned();
                         }
                     }

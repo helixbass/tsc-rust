@@ -43,13 +43,13 @@ use crate::{
     Diagnostics, DirectoryStructureHost, EmitFileNames, EmitResult, Extension, FileIncludeKind,
     FileIncludeReason, FilePreprocessingDiagnostics, FilePreprocessingDiagnosticsKind,
     FilePreprocessingFileExplainingDiagnostic, FilePreprocessingReferencedDiagnostic,
-    FileReference, GetCanonicalFileName, JsxEmit, ModuleKind, ModuleResolutionHost,
-    ModuleResolutionHostOverrider, ModuleResolutionKind, NamedDeclarationInterface, Node,
-    NodeFlags, NodeInterface, NodeWrappered, ParseConfigFileHost, ParseConfigHost,
-    ParsedCommandLine, Path, PeekableExt, Program, ProjectReference, ReadFileCallback,
-    ReferencedFile, ResolvedModuleFull, ResolvedProjectReference, ResolvedProjectReferenceBuilder,
-    ScriptKind, ScriptReferenceHost, ScriptTarget, SymlinkCache, SyntaxKind, UnwrapOrEmpty,
-    WriteFileCallback,
+    FileReference, GetCanonicalFileName, GetOrInsertDefault, JsxEmit, ModuleKind,
+    ModuleResolutionHost, ModuleResolutionHostOverrider, ModuleResolutionKind,
+    NamedDeclarationInterface, Node, NodeFlags, NodeInterface, NodeWrappered, ParseConfigFileHost,
+    ParseConfigHost, ParsedCommandLine, Path, PeekableExt, Program, ProjectReference,
+    ReadFileCallback, ReferencedFile, ResolvedModuleFull, ResolvedProjectReference,
+    ResolvedProjectReferenceBuilder, ScriptKind, ScriptReferenceHost, ScriptTarget, SymlinkCache,
+    SyntaxKind, UnwrapOrEmpty, WriteFileCallback,
 };
 
 impl Program {
@@ -92,9 +92,7 @@ impl Program {
                     } else {
                         &*Diagnostics::Cannot_find_lib_definition_for_0
                     };
-                    self.maybe_file_processing_diagnostics().get_or_insert_with(|| {
-                        vec![]
-                    }).push(
+                    self.maybe_file_processing_diagnostics().get_or_insert_default_().push(
                         Gc::new(FilePreprocessingDiagnostics::FilePreprocessingReferencedDiagnostic(FilePreprocessingReferencedDiagnostic {
                             kind: FilePreprocessingDiagnosticsKind::FilePreprocessingReferencedDiagnostic,
                             reason: ReferencedFile {
@@ -1251,9 +1249,13 @@ impl Program {
         file_processing_reason: &mut Option<Gc<FileIncludeReason>>,
         reason: Gc<FileIncludeReason>,
     ) {
-        file_include_reasons.get_or_insert_with(|| vec![]).push(
-            file_include_reason_to_diagnostics(self, &reason, Option::<fn(&str) -> String>::None),
-        );
+        file_include_reasons
+            .get_or_insert_default_()
+            .push(file_include_reason_to_diagnostics(
+                self,
+                &reason,
+                Option::<fn(&str) -> String>::None,
+            ));
         if location_reason.is_none() && is_referenced_file(Some(&reason)) {
             *location_reason = Some(reason.clone());
         } else if !matches!(
@@ -1264,7 +1266,7 @@ impl Program {
                 self.file_include_reason_to_related_information(&reason)
             {
                 related_info
-                    .get_or_insert_with(|| vec![])
+                    .get_or_insert_default_()
                     .push(related_information);
             }
         }
@@ -1284,7 +1286,7 @@ impl Program {
         args: Option<Vec<String>>,
     ) {
         self.maybe_file_processing_diagnostics()
-            .get_or_insert_with(|| vec![])
+            .get_or_insert_default_()
             .push(Gc::new(FilePreprocessingDiagnostics::FilePreprocessingFileExplainingDiagnostic(FilePreprocessingFileExplainingDiagnostic {
                 kind: FilePreprocessingDiagnosticsKind::FilePreprocessingFileExplainingDiagnostic,
                 file: file.map(|file| file.borrow().as_source_file().path().clone()),

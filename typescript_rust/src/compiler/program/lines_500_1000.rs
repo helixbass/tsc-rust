@@ -30,15 +30,16 @@ use crate::{
     stable_sort, to_file_name_lower_case, try_maybe_for_each, walk_up_parenthesized_expressions,
     AsDoubleDeref, AutomaticTypeDirectiveFile, CompilerHost, CompilerOptions, CreateProgramOptions,
     Debug_, Diagnostic, DiagnosticCollection, Extension, FileIncludeKind, FileIncludeReason,
-    FilePreprocessingDiagnostics, FilePreprocessingDiagnosticsKind, GetProgramBuildInfo, LibFile,
-    ModuleKind, ModuleResolutionCache, ModuleResolutionHost, ModuleResolutionHostOverrider,
-    ModuleResolutionKind, ModuleSpecifierResolutionHost, MultiMap, Node, NodeInterface, NonEmpty,
-    OptionTry, PackageId, PackageJsonInfoCache, ParseConfigFileHost, ParsedCommandLine, Path,
-    Program, ProjectReference, ProjectReferenceFile, ReadonlyTextRange, RedirectTargetsMap,
-    ReferencedFile, ResolvedModuleFull, ResolvedProjectReference, ResolvedTypeReferenceDirective,
-    RootFile, ScriptReferenceHost, SourceFile, SourceFileLike, SourceFileMayBeEmittedHost,
-    SourceOfProjectReferenceRedirect, StructureIsReused, SymlinkCache, TextRange, TypeCheckerHost,
-    TypeCheckerHostDebuggable, TypeReferenceDirectiveResolutionCache, VecExt,
+    FilePreprocessingDiagnostics, FilePreprocessingDiagnosticsKind, GetOrInsertDefault,
+    GetProgramBuildInfo, LibFile, ModuleKind, ModuleResolutionCache, ModuleResolutionHost,
+    ModuleResolutionHostOverrider, ModuleResolutionKind, ModuleSpecifierResolutionHost, MultiMap,
+    Node, NodeInterface, NonEmpty, OptionTry, PackageId, PackageJsonInfoCache, ParseConfigFileHost,
+    ParsedCommandLine, Path, Program, ProjectReference, ProjectReferenceFile, ReadonlyTextRange,
+    RedirectTargetsMap, ReferencedFile, ResolvedModuleFull, ResolvedProjectReference,
+    ResolvedTypeReferenceDirective, RootFile, ScriptReferenceHost, SourceFile, SourceFileLike,
+    SourceFileMayBeEmittedHost, SourceOfProjectReferenceRedirect, StructureIsReused, SymlinkCache,
+    TextRange, TypeCheckerHost, TypeCheckerHostDebuggable, TypeReferenceDirectiveResolutionCache,
+    VecExt,
 };
 
 pub trait LoadWithLocalCacheLoader<TValue>: Trace + Finalize {
@@ -459,7 +460,7 @@ fn for_each_project_reference_worker<TReturn>(
             let resolved_ref = resolved_ref.as_ref().unwrap();
 
             seen_resolved_refs
-                .get_or_insert_with(|| HashSet::new())
+                .get_or_insert_default_()
                 .insert(resolved_ref.source_file.as_source_file().path().clone());
             for_each_project_reference_worker(
                 cb_ref,
@@ -519,7 +520,7 @@ fn for_each_project_reference_worker_fallible<TReturn, TError>(
             let resolved_ref = resolved_ref.as_ref().unwrap();
 
             seen_resolved_refs
-                .get_or_insert_with(|| HashSet::new())
+                .get_or_insert_default_()
                 .insert(resolved_ref.source_file.as_source_file().path().clone());
             for_each_project_reference_worker_fallible(
                 cb_ref,

@@ -7,9 +7,9 @@ use crate::{
     compare_emit_helpers, get_emit_helpers, get_external_helpers_module_name,
     has_recorded_external_helpers, is_source_file, is_template_literal_kind, is_unparsed_source,
     stable_sort, BundleFileSection, BundleFileSectionKind, Debug_, EmitHelper, EmitHelperBase,
-    EmitHelperText, EmitHint, HasTypeArgumentsInterface, ListFormat, ModuleKind,
-    NamedDeclarationInterface, Node, NodeInterface, Printer, ReadonlyTextRange, SnippetElement,
-    SnippetKind, SortedArray, SourceFileLike, SyntaxKind, TextRange,
+    EmitHelperText, EmitHint, GetOrInsertDefault, HasTypeArgumentsInterface, ListFormat,
+    ModuleKind, NamedDeclarationInterface, Node, NodeInterface, Printer, ReadonlyTextRange,
+    SnippetElement, SnippetKind, SortedArray, SourceFileLike, SyntaxKind, TextRange,
 };
 
 impl Printer {
@@ -74,7 +74,7 @@ impl Printer {
                 {
                     bundled_helpers.insert(helper.name().to_owned(), true);
                     result
-                        .get_or_insert_with(|| vec![])
+                        .get_or_insert_default_()
                         .push(helper.name().to_owned());
                 }
             }

@@ -1,7 +1,9 @@
 use gc::Gc;
 
 use super::{BlockAction, CodeBlockKind, Label, OpCode, OperationArguments, TransformGenerators};
-use crate::{EmitFlags, Node, NodeArray, NodeExt, Number, ReadonlyTextRange, _d};
+use crate::{
+    EmitFlags, GetOrInsertDefault, Node, NodeArray, NodeExt, Number, ReadonlyTextRange, _d,
+};
 
 impl TransformGenerators {
     pub(super) fn emit_nop(&self) {
@@ -229,7 +231,7 @@ impl TransformGenerators {
 
     pub(super) fn append_label(&self, mark_label_end: bool) {
         let mut clauses = self.maybe_clauses_mut();
-        let clauses = clauses.get_or_insert_with(|| _d());
+        let clauses = clauses.get_or_insert_default_();
 
         if let Some(statements) = self.maybe_statements_mut().as_mut() {
             if let Some(with_block_stack) = self.maybe_with_block_stack().as_ref() {
@@ -311,7 +313,7 @@ impl TransformGenerators {
             if label_offset == Some(operation_index) {
                 self.flush_label();
                 self.maybe_label_numbers_mut()
-                    .get_or_insert_with(|| _d())
+                    .get_or_insert_default_()
                     .entry(self.label_number())
                     .or_insert_with(|| _d())
                     .push(label);
@@ -349,9 +351,9 @@ impl TransformGenerators {
                 match (*block).borrow().kind() {
                     CodeBlockKind::Exception => match block_action {
                         BlockAction::Open => {
-                            self.maybe_statements_mut().get_or_insert_with(|| _d());
+                            self.maybe_statements_mut().get_or_insert_default_();
                             self.maybe_exception_block_stack_mut()
-                                .get_or_insert_with(|| _d())
+                                .get_or_insert_default_()
                                 .push(self.current_exception_block());
                             self.set_current_exception_block(Some(block.clone()));
                         }
@@ -364,7 +366,7 @@ impl TransformGenerators {
                     CodeBlockKind::With => match block_action {
                         BlockAction::Open => {
                             self.maybe_with_block_stack_mut()
-                                .get_or_insert_with(|| _d())
+                                .get_or_insert_default_()
                                 .push(block.clone());
                         }
                         BlockAction::Close => {
@@ -427,7 +429,7 @@ impl TransformGenerators {
     pub(super) fn write_statement(&self, statement: Gc<Node /*Statement*/>) {
         // if (statement) {
         self.maybe_statements_mut()
-            .get_or_insert_with(|| _d())
+            .get_or_insert_default_()
             .push(statement);
         // }
     }

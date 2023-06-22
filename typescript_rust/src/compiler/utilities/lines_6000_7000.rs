@@ -29,9 +29,9 @@ use crate::{
     CommandLineOptionType, Comparison, CompilerOptions, CompilerOptionsValue, Debug_, Diagnostic,
     DiagnosticInterface, DiagnosticMessage, DiagnosticMessageChain, DiagnosticMessageText,
     DiagnosticRelatedInformation, DiagnosticRelatedInformationInterface, Extension,
-    FileExtensionInfo, GetCanonicalFileName, JsxEmit, LanguageVariant, MapLike, Matches,
-    ModuleKind, ModuleResolutionKind, MultiMap, Node, NodeArray, NodeInterface, Path, Pattern,
-    PluginImport, PragmaArgumentName, PragmaName, ReadonlyTextRange, ResolvedModuleFull,
+    FileExtensionInfo, GetCanonicalFileName, GetOrInsertDefault, JsxEmit, LanguageVariant, MapLike,
+    Matches, ModuleKind, ModuleResolutionKind, MultiMap, Node, NodeArray, NodeInterface, Path,
+    Pattern, PluginImport, PragmaArgumentName, PragmaName, ReadonlyTextRange, ResolvedModuleFull,
     ResolvedTypeReferenceDirective, ScriptKind, ScriptTarget, SourceFileLike, TypeAcquisition,
     WatchOptions,
 };
@@ -942,7 +942,7 @@ impl SymlinkCache {
             }
             self.symlinked_directories
                 .borrow_mut()
-                .get_or_insert_with(|| HashMap::new())
+                .get_or_insert_default_()
                 .insert(symlink_path, real);
         }
     }

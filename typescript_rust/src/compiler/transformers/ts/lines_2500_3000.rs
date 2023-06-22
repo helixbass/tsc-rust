@@ -13,8 +13,8 @@ use crate::{
     set_source_map_range, set_synthetic_leading_comments, set_synthetic_trailing_comments,
     set_text_range, set_text_range_node_array, try_maybe_visit_each_child, try_maybe_visit_node,
     try_visit_each_child, try_visit_node, try_visit_nodes, BoolExt, Debug_, EmitFlags,
-    ImportsNotUsedAsValues, ModifierFlags, NamedDeclarationInterface, NodeArray, NodeExt,
-    NodeFlags, ReadonlyTextRangeConcrete, SingleNodeOrVecNode, SyntaxKind,
+    GetOrInsertDefault, ImportsNotUsedAsValues, ModifierFlags, NamedDeclarationInterface,
+    NodeArray, NodeExt, NodeFlags, ReadonlyTextRangeConcrete, SingleNodeOrVecNode, SyntaxKind,
 };
 
 impl TransformTypeScript {
@@ -38,7 +38,7 @@ impl TransformTypeScript {
         let mut current_scope_first_declarations_of_name =
             self.maybe_current_scope_first_declarations_of_name_mut();
         let current_scope_first_declarations_of_name =
-            current_scope_first_declarations_of_name.get_or_insert_with(|| Default::default());
+            current_scope_first_declarations_of_name.get_or_insert_default_();
 
         let name = self.declared_name_in_scope(node);
         if !current_scope_first_declarations_of_name.contains_key(&name) {

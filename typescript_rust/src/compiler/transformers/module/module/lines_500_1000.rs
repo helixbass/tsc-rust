@@ -15,7 +15,7 @@ use crate::{
     get_namespace_declaration_node, get_node_id, get_original_node_id, is_default_import,
     is_prefix_unary_expression, is_simple_copiable_expression, is_string_literal, set_emit_flags,
     single_or_many_node, try_flatten_destructuring_assignment, try_maybe_visit_node,
-    try_visit_each_child, try_visit_iteration_body, try_visit_node, EmitFlags,
+    try_visit_each_child, try_visit_iteration_body, try_visit_node, EmitFlags, GetOrInsertDefault,
     LiteralLikeNodeInterface, MapOrDefault, ModuleKind, NodeArray, NodeFlags, ScriptTarget,
 };
 
@@ -696,7 +696,7 @@ impl TransformModule {
                     }
                 }
 
-                statements.get_or_insert_with(|| _d()).push(
+                statements.get_or_insert_default_().push(
                     self.factory
                         .create_variable_statement(
                             Option::<Gc<NodeArray>>::None,
@@ -717,7 +717,7 @@ impl TransformModule {
             .as_ref()
             .filter(|_| is_default_import(node))
         {
-            statements.get_or_insert_with(|| _d()).push(
+            statements.get_or_insert_default_().push(
                 self.factory.create_variable_statement(
                     Option::<Gc<NodeArray>>::None,
                     self.factory.create_variable_declaration_list(

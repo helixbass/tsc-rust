@@ -18,7 +18,7 @@ use crate::{
     is_var_const, is_variable_declaration, length, maybe_is_class_like,
     resolve_tripleslash_reference, return_ok_default_if_none, skip_trivia, text_span_end,
     token_to_string, try_find, AllAccessorDeclarations, CheckFlags, Debug_, DiagnosticMessage,
-    Diagnostics, EmitResolver, HasInitializerInterface, HasStatementsInterface,
+    Diagnostics, EmitResolver, GetOrInsertDefault, HasInitializerInterface, HasStatementsInterface,
     HasTypeArgumentsInterface, HasTypeInterface, HasTypeParametersInterface, IterationTypesKey,
     LiteralLikeNodeInterface, ModifierFlags, ModuleKind, NamedDeclarationInterface, Node,
     NodeBuilderFlags, NodeCheckFlags, NodeFlags, NodeInterface, NonEmpty, ObjectFlags, OptionTry,
@@ -1379,7 +1379,7 @@ impl EmitResolver for EmitResolverCreateResolver {
                     file_to_directive.get(&**file.as_source_file().path());
                 if let Some(type_reference_directive) = type_reference_directive.non_empty() {
                     type_reference_directives
-                        .get_or_insert_with(|| vec![])
+                        .get_or_insert_default_()
                         .push(type_reference_directive.clone());
                 } else {
                     return Ok(None);

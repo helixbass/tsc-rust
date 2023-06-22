@@ -15,8 +15,8 @@ use crate::{
     is_property_access_expression, is_prototype_access, is_shorthand_property_assignment,
     is_source_file, is_special_property_declaration, is_static, is_this_initialized_declaration,
     remove_file_extension, set_parent, set_value_declaration, AssignmentDeclarationKind, Debug_,
-    Diagnostics, HasStatementsInterface, InternalSymbolName, Node, NodeInterface, Symbol,
-    SymbolFlags, SymbolInterface, SymbolTable, SyntaxKind,
+    Diagnostics, GetOrInsertDefault, HasStatementsInterface, InternalSymbolName, Node,
+    NodeInterface, Symbol, SymbolFlags, SymbolInterface, SymbolTable, SyntaxKind,
 };
 
 impl BinderType {
@@ -409,7 +409,7 @@ impl BinderType {
             | SyntaxKind::JSDocCallbackTag
             | SyntaxKind::JSDocEnumTag => {
                 self.maybe_delayed_type_aliases()
-                    .get_or_insert_with(|| vec![])
+                    .get_or_insert_default_()
                     .push(node.node_wrapper());
             }
             _ => (),

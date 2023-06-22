@@ -25,9 +25,9 @@ use crate::{
     is_jsx_spread_attribute, is_line_break, is_source_file, is_string_double_quoted,
     is_white_space_single_line, map, map_defined, maybe_get_original_node, maybe_visit_node, regex,
     single_or_undefined, span_map, start_on_new_line, utf16_encode_as_string, visit_each_child,
-    visit_node, Debug_, HasStatementsInterface, LiteralLikeNodeInterface, MapOrDefault, Matches,
-    NodeArray, NodeArrayOrVec, NodeExt, NodeFlags, NonEmpty, Number, ReadonlyTextRange,
-    ScriptTarget, SyntaxKind, TransformFlags, VisitResult,
+    visit_node, Debug_, GetOrInsertDefault, HasStatementsInterface, LiteralLikeNodeInterface,
+    MapOrDefault, Matches, NodeArray, NodeArrayOrVec, NodeExt, NodeFlags, NonEmpty, Number,
+    ReadonlyTextRange, ScriptTarget, SyntaxKind, TransformFlags, VisitResult,
 };
 
 #[derive(Builder, Default, Trace, Finalize)]
@@ -174,7 +174,7 @@ impl TransformJsx {
         let mut current_file_state = self.current_file_state_mut();
         let specifier_source_imports = current_file_state
             .utilized_implicit_runtime_imports
-            .get_or_insert_with(|| _d())
+            .get_or_insert_default_()
             .entry(import_source)
             .or_insert_with(|| _d());
         let generated_name = self.factory.create_unique_name(

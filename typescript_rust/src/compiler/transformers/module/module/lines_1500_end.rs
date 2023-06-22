@@ -5,10 +5,10 @@ use once_cell::unsync::Lazy;
 
 use super::TransformModule;
 use crate::{
-    has_syntactic_modifier, id_text, is_binding_pattern, is_generated_identifier,
-    is_omitted_expression, EmitFlags, EmitHelper, ModifierFlags, Node, NodeArray, NodeExt,
-    NodeInterface, ReadonlyTextRange, ScopedEmitHelperBuilder, ScriptTarget, VisitResult, _d,
-    get_original_node_id, set_emit_flags, OptionTry, SyntaxKind,
+    get_original_node_id, has_syntactic_modifier, id_text, is_binding_pattern,
+    is_generated_identifier, is_omitted_expression, set_emit_flags, EmitFlags, EmitHelper,
+    GetOrInsertDefault, ModifierFlags, Node, NodeArray, NodeExt, NodeInterface, OptionTry,
+    ReadonlyTextRange, ScopedEmitHelperBuilder, ScriptTarget, SyntaxKind, VisitResult,
 };
 
 impl TransformModule {
@@ -86,7 +86,7 @@ impl TransformModule {
         }
 
         if has_syntactic_modifier(decl, ModifierFlags::Export) {
-            let ref export_name = if has_syntactic_modifier(decl, ModifierFlags::Default) {
+            let export_name = &if has_syntactic_modifier(decl, ModifierFlags::Default) {
                 self.factory.create_identifier("default")
             } else {
                 self.factory.get_declaration_name(Some(decl), None, None)
@@ -115,7 +115,7 @@ impl TransformModule {
         live_binding: Option<bool>,
     ) /*: Statement[] | undefined */
     {
-        let ref name = self.factory.get_declaration_name(Some(decl), None, None);
+        let name = &self.factory.get_declaration_name(Some(decl), None, None);
         let current_module_info = self.current_module_info();
         let export_specifiers = current_module_info.export_specifiers.get(id_text(name));
         if let Some(export_specifiers) = export_specifiers {
@@ -145,7 +145,7 @@ impl TransformModule {
     ) /*: Statement[] | undefined */
     {
         statements
-            .get_or_insert_with(|| _d())
+            .get_or_insert_default_()
             .push(self.create_export_statement(
                 export_name,
                 expression,

@@ -1,7 +1,6 @@
 use std::{
     borrow::{Borrow, Cow},
     cmp::Ordering,
-    collections::{HashMap, HashSet},
     convert::TryInto,
     io, ptr,
     rc::Rc,
@@ -22,11 +21,12 @@ use crate::{
     out_file, path_is_relative, set_comment_range, set_emit_flags, set_synthetic_leading_comments,
     some, symbol_name, try_maybe_first_defined, try_maybe_map, try_visit_each_child,
     unescape_leading_underscores, CheckFlags, CompilerOptions, Debug_, EmitFlags,
-    HasInitializerInterface, IndexInfo, InternalSymbolName, ModifierFlags, ModuleResolutionKind,
-    NamedDeclarationInterface, Node, NodeArray, NodeBuilder, NodeBuilderFlags, NodeInterface,
-    OptionTry, Signature, SignatureFlags, StrOrNodeArray, StrOrRcNode, StringOrNodeArray, Symbol,
-    SymbolFlags, SymbolInterface, SyntaxKind, SynthesizedComment, TransientSymbolInterface, Type,
-    TypeInterface, TypePredicateKind, UnderscoreEscapedMultiMap, UserPreferencesBuilder,
+    GetOrInsertDefault, HasInitializerInterface, IndexInfo, InternalSymbolName, ModifierFlags,
+    ModuleResolutionKind, NamedDeclarationInterface, Node, NodeArray, NodeBuilder,
+    NodeBuilderFlags, NodeInterface, OptionTry, Signature, SignatureFlags, StrOrNodeArray,
+    StrOrRcNode, StringOrNodeArray, Symbol, SymbolFlags, SymbolInterface, SyntaxKind,
+    SynthesizedComment, TransientSymbolInterface, Type, TypeInterface, TypePredicateKind,
+    UnderscoreEscapedMultiMap, UserPreferencesBuilder,
 };
 
 impl NodeBuilder {
@@ -1060,7 +1060,7 @@ impl NodeBuilder {
         context
             .type_parameter_symbol_list
             .borrow_mut()
-            .get_or_insert_with(|| HashSet::new())
+            .get_or_insert_default_()
             .insert(symbol_id);
         let mut type_parameter_nodes: Option<
             Vec<Gc<Node /*TypeNode[] | TypeParameterDeclaration[]*/>>,
@@ -1232,7 +1232,7 @@ impl NodeBuilder {
             links
                 .borrow_mut()
                 .specifier_cache
-                .get_or_insert_with(|| HashMap::new())
+                .get_or_insert_default_()
                 .insert(
                     context_file.as_source_file().path().to_string(),
                     specifier.clone().unwrap(),

@@ -26,7 +26,7 @@ use crate::{
     unwrap_innermost_statement_of_label, visit_each_child, visit_iteration_body,
     visit_lexical_environment, visit_node, visit_parameter_list, BaseNodeFactorySynthetic,
     CompilerOptions, Debug_, EmitFlags, EmitHelperFactory, EmitHint, EmitResolver, FlattenLevel,
-    FunctionFlags, FunctionLikeDeclarationInterface, GeneratedIdentifierFlags,
+    FunctionFlags, FunctionLikeDeclarationInterface, GeneratedIdentifierFlags, GetOrInsertDefault,
     HasInitializerInterface, HasStatementsInterface, Matches, ModifierFlags,
     NamedDeclarationInterface, Node, NodeArray, NodeArrayExt, NodeArrayOrVec, NodeCheckFlags,
     NodeExt, NodeFactory, NodeFlags, NodeId, NodeInterface, ProcessLevel, ReadonlyTextRange,
@@ -267,7 +267,7 @@ impl TransformES2018 {
 
     fn record_tagged_template_string(&self, temp: &Node /*Identifier*/) {
         self.maybe_tagged_template_string_declarations_mut()
-            .get_or_insert_with(|| Default::default())
+            .get_or_insert_default_()
             .push(self.factory.create_variable_declaration(
                 Some(temp.node_wrapper()),
                 None,
@@ -693,7 +693,7 @@ impl TransformES2018 {
                     Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
                 ));
             } else {
-                chunk_object.get_or_insert_with(|| Default::default()).push(
+                chunk_object.get_or_insert_default_().push(
                     if e.kind() == SyntaxKind::PropertyAssignment {
                         let e_as_property_assignment = e.as_property_assignment();
                         self.factory.create_property_assignment(
@@ -2113,9 +2113,7 @@ impl TransformES2018 {
                             .create_variable_declaration_list(declarations, None),
                     );
                     set_emit_flags(&*statement, EmitFlags::CustomPrologue);
-                    statements
-                        .get_or_insert_with(|| Default::default())
-                        .push(statement);
+                    statements.get_or_insert_default_().push(statement);
                 }
             }
         }

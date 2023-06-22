@@ -1,6 +1,6 @@
 use std::{borrow::Borrow, cell::RefCell, collections::HashMap, fmt, ptr};
 
-use gc::{Finalize, Gc, GcCell, Trace};
+use gc::{Finalize, Gc, Trace};
 
 use super::{create_node_factory, NodeFactoryFlags};
 use crate::{
@@ -14,9 +14,9 @@ use crate::{
     is_type_alias_declaration, is_variable_statement, maybe_append_if_unique_gc,
     parse_node_factory, set_text_range, BaseNode, BaseNodeFactory, BaseNodeFactoryConcrete,
     BuildInfo, ClassLikeDeclarationInterface, Debug_, EmitFlags, EmitNode,
-    FunctionLikeDeclarationInterface, HasInitializerInterface, HasMembersInterface,
-    HasQuestionTokenInterface, HasTypeInterface, HasTypeParametersInterface, InputFiles,
-    InterfaceOrClassLikeDeclarationInterface, LanguageVariant, ModifierFlags,
+    FunctionLikeDeclarationInterface, GetOrInsertDefault, HasInitializerInterface,
+    HasMembersInterface, HasQuestionTokenInterface, HasTypeInterface, HasTypeParametersInterface,
+    InputFiles, InterfaceOrClassLikeDeclarationInterface, LanguageVariant, ModifierFlags,
     NamedDeclarationInterface, Node, NodeArray, NodeArrayOrVec, NodeFactory, NodeFlags,
     NodeInterface, PseudoBigInt, Scanner, ScriptTarget, SignatureDeclarationInterface,
     SourceMapRange, StrOrRcNode, StringOrBool, StringOrNumberOrBoolOrRcNode, StringOrRcNode,
@@ -786,7 +786,7 @@ pub fn set_original_node<TNode: Borrow<Node>>(node: TNode, original: Option<Gc<N
         if let Some(emit_node) = emit_node.as_ref() {
             let node_emit_node = node_as_node
                 .maybe_emit_node_mut()
-                .get_or_insert_with(|| Gc::new(GcCell::new(Default::default())))
+                .get_or_insert_default_()
                 .clone();
             // looks like node and original can share the same Gc<GcCell<EmitNode>> (eg from
             // clone_node(), which I believe is correctly mimicking the Typescript version in

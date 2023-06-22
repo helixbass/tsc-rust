@@ -28,15 +28,15 @@ use crate::{
     skip_trivia, starts_with, string_contains, to_file_name_lower_case, to_path, transform_nodes,
     try_map, try_map_defined, try_maybe_for_each, try_visit_nodes, BaseNodeFactorySynthetic,
     CommentRange, CompilerOptions, Debug_, Diagnostic, Diagnostics, EmitHost, EmitResolver,
-    FileReference, GetSymbolAccessibilityDiagnostic, GetSymbolAccessibilityDiagnosticInterface,
-    HasInitializerInterface, HasStatementsInterface, HasTypeInterface, LiteralLikeNodeInterface,
-    ModifierFlags, ModuleSpecifierResolutionHostAndGetCommonSourceDirectory,
-    NamedDeclarationInterface, Node, NodeArray, NodeBuilderFlags, NodeFactory, NodeId,
-    NodeInterface, NonEmpty, ReadonlyTextRange, ScriptReferenceHost, SourceFileLike, Symbol,
-    SymbolAccessibility, SymbolAccessibilityDiagnostic, SymbolAccessibilityResult, SymbolFlags,
-    SymbolInterface, SymbolTracker, SyntaxKind, TextRange, TransformationContext,
-    TransformationResult, Transformer, TransformerFactory, TransformerFactoryInterface,
-    TransformerInterface, VisitResult,
+    FileReference, GetOrInsertDefault, GetSymbolAccessibilityDiagnostic,
+    GetSymbolAccessibilityDiagnosticInterface, HasInitializerInterface, HasStatementsInterface,
+    HasTypeInterface, LiteralLikeNodeInterface, ModifierFlags,
+    ModuleSpecifierResolutionHostAndGetCommonSourceDirectory, NamedDeclarationInterface, Node,
+    NodeArray, NodeBuilderFlags, NodeFactory, NodeId, NodeInterface, NonEmpty, ReadonlyTextRange,
+    ScriptReferenceHost, SourceFileLike, Symbol, SymbolAccessibility,
+    SymbolAccessibilityDiagnostic, SymbolAccessibilityResult, SymbolFlags, SymbolInterface,
+    SymbolTracker, SyntaxKind, TextRange, TransformationContext, TransformationResult, Transformer,
+    TransformerFactory, TransformerFactoryInterface, TransformerInterface, VisitResult,
 };
 
 pub fn get_declaration_diagnostics(
@@ -455,8 +455,7 @@ impl TransformDeclarations {
         }
         let type_reference_directives = type_reference_directives.unwrap();
         let mut necessary_type_references = self.maybe_necessary_type_references_mut();
-        let necessary_type_references =
-            necessary_type_references.get_or_insert_with(|| Default::default());
+        let necessary_type_references = necessary_type_references.get_or_insert_default_();
         for ref_ in type_reference_directives {
             necessary_type_references.insert(ref_.clone());
         }
@@ -1488,7 +1487,7 @@ impl SymbolTracker for TransformDeclarationsSymbolTracker {
         if !self.transform_declarations.is_bundled_emit() {
             self.transform_declarations
                 .maybe_exported_modules_from_declaration_emit_mut()
-                .get_or_insert_with(|| vec![])
+                .get_or_insert_default_()
                 .push(symbol.symbol_wrapper());
         }
     }

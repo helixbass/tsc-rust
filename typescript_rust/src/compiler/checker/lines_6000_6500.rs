@@ -1,9 +1,4 @@
-use std::{
-    borrow::Borrow,
-    collections::{HashMap, HashSet},
-    convert::TryInto,
-    io, ptr,
-};
+use std::{borrow::Borrow, convert::TryInto, io, ptr};
 
 use gc::Gc;
 use regex::{Captures, Regex};
@@ -27,10 +22,11 @@ use crate::{
     starts_with, try_for_each_entry_bool, try_map, try_map_defined, try_maybe_map,
     try_maybe_visit_node, try_maybe_visit_nodes, try_visit_each_child, try_visit_node,
     unescape_leading_underscores, AsDoubleDeref, CharacterCodes, Debug_, EmitFlags,
-    HasTypeArgumentsInterface, HasTypeInterface, HasTypeParametersInterface, InternalSymbolName,
-    LiteralType, Matches, NamedDeclarationInterface, Node, NodeArray, NodeBuilder,
-    NodeBuilderFlags, NodeInterface, Number, ObjectFlags, OptionTry, ReadonlyTextRange, Signature,
-    SignatureDeclarationInterface, Symbol, SymbolAccessibility, SymbolFlags,
+    GetOrInsertDefault, HasTypeArgumentsInterface, HasTypeInterface, HasTypeParametersInterface,
+    InternalSymbolName, LiteralType, Matches, NamedDeclarationInterface, Node, NodeArray,
+    NodeBuilder, NodeBuilderFlags, NodeInterface, Number, ObjectFlags, OptionTry,
+    ReadonlyTextRange, Signature, SignatureDeclarationInterface, Symbol, SymbolAccessibility,
+    SymbolFlags,
 };
 
 impl NodeBuilder {
@@ -256,17 +252,17 @@ impl NodeBuilder {
             context
                 .type_parameter_names_by_text_next_name_count
                 .borrow_mut()
-                .get_or_insert_with(|| HashMap::new())
+                .get_or_insert_default_()
                 .insert(rawtext.clone(), i);
             context
                 .type_parameter_names
                 .borrow_mut()
-                .get_or_insert_with(|| HashMap::new())
+                .get_or_insert_default_()
                 .insert(self.type_checker.get_type_id(type_), result.clone());
             context
                 .type_parameter_names_by_text
                 .borrow_mut()
-                .get_or_insert_with(|| HashSet::new())
+                .get_or_insert_default_()
                 .insert(rawtext.clone());
         }
         Ok(result)

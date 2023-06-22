@@ -7,8 +7,8 @@ use gc::{Finalize, Gc, Trace};
 
 use crate::{
     combine_paths, get_directory_path, get_relative_path_to_directory_or_url, CharacterCodes,
-    Debug_, EmitHost, LineAndCharacter, NonEmpty, RawSourceMap, ScriptReferenceHost,
-    SourceMapGenerator, SourceMapOptions,
+    Debug_, EmitHost, GetOrInsertDefault, LineAndCharacter, NonEmpty, RawSourceMap,
+    ScriptReferenceHost, SourceMapGenerator, SourceMapOptions,
 };
 
 pub struct SourceMapGeneratorOptions {
@@ -558,7 +558,7 @@ impl SourceMapGenerator for SourceMapGeneratorConcrete {
         // enter();
         if let Some(content) = content {
             let mut sources_content = self.maybe_sources_content_mut();
-            let sources_content = sources_content.get_or_insert_with(|| vec![]);
+            let sources_content = sources_content.get_or_insert_default_();
             while sources_content.len() < source_index {
                 sources_content.push(None);
             }
@@ -574,8 +574,7 @@ impl SourceMapGenerator for SourceMapGeneratorConcrete {
     fn add_name(&self, name: &str) -> usize {
         // enter();
         let mut name_to_name_index_map = self.maybe_name_to_name_index_map_mut();
-        let name_to_name_index_map =
-            name_to_name_index_map.get_or_insert_with(|| Default::default());
+        let name_to_name_index_map = name_to_name_index_map.get_or_insert_default_();
         let mut name_index = name_to_name_index_map.get(name).copied();
         if name_index.is_none() {
             name_index = Some(self.names().len());
@@ -686,7 +685,7 @@ impl SourceMapGenerator for SourceMapGeneratorConcrete {
                     (map.names.as_ref(), raw.name_index)
                 {
                     let name_index_to_new_name_index_map =
-                        name_index_to_new_name_index_map.get_or_insert_with(|| Default::default());
+                        name_index_to_new_name_index_map.get_or_insert_default_();
                     new_name_index = name_index_to_new_name_index_map
                         .get(&raw_name_index)
                         .copied();

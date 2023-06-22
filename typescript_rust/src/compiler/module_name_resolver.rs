@@ -18,12 +18,12 @@ use crate::{
     starts_with, string_contains, to_path, try_first_defined, try_for_each,
     try_for_each_ancestor_directory, try_get_extension_from_path, try_maybe_for_each,
     try_parse_patterns, try_remove_extension, version, version_major_minor, CharacterCodes,
-    Comparison, CompilerOptions, Debug_, DiagnosticMessage, Diagnostics, Extension, MapLike,
-    ModuleKind, ModuleResolutionHost, ModuleResolutionKind, Node, OptionTry, PackageId, Path,
-    PathAndParts, ResolvedModuleFull, ResolvedModuleWithFailedLookupLocations,
-    ResolvedProjectReference, ResolvedTypeReferenceDirective,
-    ResolvedTypeReferenceDirectiveWithFailedLookupLocations, StringOrBool, StringOrPattern,
-    Version, VersionRange,
+    Comparison, CompilerOptions, Debug_, DiagnosticMessage, Diagnostics, Extension,
+    GetOrInsertDefault, MapLike, ModuleKind, ModuleResolutionHost, ModuleResolutionKind, Node,
+    OptionTry, PackageId, Path, PathAndParts, ResolvedModuleFull,
+    ResolvedModuleWithFailedLookupLocations, ResolvedProjectReference,
+    ResolvedTypeReferenceDirective, ResolvedTypeReferenceDirectiveWithFailedLookupLocations,
+    StringOrBool, StringOrPattern, Version, VersionRange,
 };
 
 pub(crate) fn trace(
@@ -498,7 +498,7 @@ fn get_default_type_roots<
         |directory| -> Option<()> {
             let at_types = combine_paths(directory, &[Some(&node_modules_at_types)]);
             if host_directory_exists(&at_types).unwrap() {
-                type_roots.get_or_insert_with(|| vec![]).push(at_types);
+                type_roots.get_or_insert_default_().push(at_types);
             }
             None
         },
@@ -1115,15 +1115,12 @@ impl PackageJsonInfoCache for PackageJsonInfoCacheConcrete {
     }
 
     fn set_package_json_info(&self, package_json_path: &str, info: PackageJsonInfoOrBool) {
-        self.cache
-            .borrow_mut()
-            .get_or_insert_with(|| HashMap::new())
-            .insert(
-                to_path(package_json_path, Some(&self.current_directory), |path| {
-                    self.get_canonical_file_name.call(path)
-                }),
-                info,
-            );
+        self.cache.borrow_mut().get_or_insert_default_().insert(
+            to_path(package_json_path, Some(&self.current_directory), |path| {
+                self.get_canonical_file_name.call(path)
+            }),
+            info,
+        );
     }
 
     fn clear(&self) {

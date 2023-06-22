@@ -18,8 +18,8 @@ use crate::{
     is_shorthand_property_assignment, is_simple_copiable_expression,
     is_simple_inlineable_expression, is_spread_assignment, is_spread_element, is_super_property,
     is_this_property, skip_partially_emitted_expressions, visit_each_child, visit_node, Debug_,
-    GeneratedIdentifierFlags, NodeArray, NodeCheckFlags, PrivateIdentifierKind, SyntaxKind,
-    VisitResult,
+    GeneratedIdentifierFlags, GetOrInsertDefault, NodeArray, NodeCheckFlags, PrivateIdentifierKind,
+    SyntaxKind, VisitResult,
 };
 
 impl TransformClassFields {
@@ -95,7 +95,7 @@ impl TransformClassFields {
 
     pub(super) fn get_class_lexical_environment(&self) -> Gc<GcCell<ClassLexicalEnvironment>> {
         self.maybe_current_class_lexical_environment()
-            .get_or_insert_with(|| _d())
+            .get_or_insert_default_()
             .clone()
     }
 
@@ -106,7 +106,7 @@ impl TransformClassFields {
         let ret = lex
             .borrow_mut()
             .private_identifier_environment
-            .get_or_insert_with(|| _d())
+            .get_or_insert_default_()
             .clone();
         ret
     }
@@ -115,7 +115,7 @@ impl TransformClassFields {
         &self,
     ) -> GcCellRefMut<Option<Vec<Gc<Node>>>, Vec<Gc<Node>>> {
         self.maybe_pending_expressions_mut()
-            .get_or_insert_with(|| _d());
+            .get_or_insert_default_();
         self.pending_expressions_mut()
     }
 

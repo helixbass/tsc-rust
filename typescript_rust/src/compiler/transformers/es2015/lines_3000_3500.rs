@@ -13,7 +13,8 @@ use crate::{
     insert_statements_after_standard_prologue, is_binding_pattern, is_block, is_expression,
     is_for_statement, is_omitted_expression, is_property_name, is_statement, map, return_if_none,
     set_emit_flags, set_original_node, start_on_new_line, try_visit_node, Debug_,
-    HasInitializerInterface, Matches, NamedDeclarationInterface, NodeCheckFlags,
+    GetOrInsertDefault, HasInitializerInterface, Matches, NamedDeclarationInterface,
+    NodeCheckFlags,
 };
 
 impl TransformES2015 {
@@ -435,7 +436,7 @@ impl TransformES2015 {
                     *outer_state
                         .borrow_mut()
                         .non_local_jumps
-                        .get_or_insert_with(|| _d()) |= Jump::Return;
+                        .get_or_insert_default_() |= Jump::Return;
                     return_statement = self
                         .factory
                         .create_return_statement(Some(loop_result_name.clone()));
@@ -511,12 +512,12 @@ impl TransformES2015 {
         if is_break {
             state
                 .labeled_non_local_breaks
-                .get_or_insert_with(|| _d())
+                .get_or_insert_default_()
                 .insert(label_text, label_marker);
         } else {
             state
                 .labeled_non_local_continues
-                .get_or_insert_with(|| _d())
+                .get_or_insert_default_()
                 .insert(label_text, label_marker);
         }
     }

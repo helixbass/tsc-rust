@@ -20,10 +20,11 @@ use crate::{
     needs_scope_marker, return_ok_default_if_none, set_comment_range_rc, set_emit_flags, some,
     try_maybe_map, try_maybe_visit_each_child, try_maybe_visit_node, try_maybe_visit_nodes,
     try_visit_each_child, try_visit_node, visit_nodes, Debug_, EmitFlags,
-    FunctionLikeDeclarationInterface, GetSymbolAccessibilityDiagnostic, HasQuestionTokenInterface,
-    HasTypeArgumentsInterface, HasTypeInterface, HasTypeParametersInterface, ModifierFlags,
-    NamedDeclarationInterface, Node, NodeArray, NodeInterface, NonEmpty, OptionTry,
-    ReadonlyTextRange, SignatureDeclarationInterface, SymbolInterface, SyntaxKind, VisitResult,
+    FunctionLikeDeclarationInterface, GetOrInsertDefault, GetSymbolAccessibilityDiagnostic,
+    HasQuestionTokenInterface, HasTypeArgumentsInterface, HasTypeInterface,
+    HasTypeParametersInterface, ModifierFlags, NamedDeclarationInterface, Node, NodeArray,
+    NodeInterface, NonEmpty, OptionTry, ReadonlyTextRange, SignatureDeclarationInterface,
+    SymbolInterface, SyntaxKind, VisitResult,
 };
 
 impl TransformDeclarations {
@@ -397,7 +398,7 @@ impl TransformDeclarations {
                     .get_symbol_of_external_module_specifier(input)?;
                 if let Some(symbol) = symbol {
                     self.maybe_exported_modules_from_declaration_emit_mut()
-                        .get_or_insert_with(|| vec![])
+                        .get_or_insert_default_()
                         .push(symbol);
                 }
             }

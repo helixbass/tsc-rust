@@ -11,11 +11,11 @@ use crate::{
     is_empty_statement, is_function_like, is_identifier, is_prologue_directive, is_source_file,
     is_unparsed_source, range_is_on_single_line, single_or_undefined, some, AsDoubleDeref,
     BundleFileSection, BundleFileSectionKind, CurrentParenthesizerRule, Debug_, EmitFlags,
-    EmitHint, HasInitializerInterface, HasStatementsInterface, HasTypeInterface,
-    HasTypeParametersInterface, ListFormat, LiteralLikeNodeInterface, NamedDeclarationInterface,
-    Node, NodeArray, NodeInterface, Printer, ReadonlyTextRange, SourceFileLike,
-    SourceFilePrologueDirective, SourceFilePrologueDirectiveExpression, SourceFilePrologueInfo,
-    Symbol, SyntaxKind, TextRange, UnparsedSectionInterface,
+    EmitHint, GetOrInsertDefault, HasInitializerInterface, HasStatementsInterface,
+    HasTypeInterface, HasTypeParametersInterface, ListFormat, LiteralLikeNodeInterface,
+    NamedDeclarationInterface, Node, NodeArray, NodeInterface, Printer, ReadonlyTextRange,
+    SourceFileLike, SourceFilePrologueDirective, SourceFilePrologueDirectiveExpression,
+    SourceFilePrologueInfo, Symbol, SyntaxKind, TextRange, UnparsedSectionInterface,
 };
 
 impl Printer {
@@ -124,7 +124,7 @@ impl Printer {
                         .clone(),
                 );
                 directives
-                    .get_or_insert_with(|| vec![])
+                    .get_or_insert_default_()
                     .push(SourceFilePrologueDirective {
                         pos: statement.pos(),
                         end: statement.end(),
@@ -146,7 +146,7 @@ impl Printer {
             }
             if let Some(directives) = directives {
                 prologues
-                    .get_or_insert_with(|| vec![])
+                    .get_or_insert_default_()
                     .push(SourceFilePrologueInfo {
                         file: index,
                         text: source_file_as_source_file.text_as_chars()

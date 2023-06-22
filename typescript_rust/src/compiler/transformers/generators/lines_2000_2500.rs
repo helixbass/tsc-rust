@@ -7,7 +7,8 @@ use super::{
 };
 use crate::{
     Debug_, Node, ReadonlyTextRange, _d, get_original_node_id, id_text, is_generated_identifier,
-    last_or_undefined, NamedDeclarationInterface, NodeArray, NodeExt, NonEmpty, Number, SyntaxKind,
+    last_or_undefined, GetOrInsertDefault, NamedDeclarationInterface, NodeArray, NodeExt, NonEmpty,
+    Number, SyntaxKind,
 };
 
 impl TransformGenerators {
@@ -15,7 +16,7 @@ impl TransformGenerators {
         let label = self.next_label_id();
         self.set_next_label_id(self.next_label_id() + 1);
         self.maybe_label_offsets_mut()
-            .get_or_insert_with(|| _d())
+            .get_or_insert_default_()
             .insert(label, None);
         label
     }
@@ -388,7 +389,7 @@ impl TransformGenerators {
     pub(super) fn create_label(&self, label: Option<Label>) -> Gc<Node /*Expression*/> {
         if let Some(label) = label.filter(|&label| label > 0) {
             let mut label_expressions = self.maybe_label_expressions_mut();
-            let label_expressions = label_expressions.get_or_insert_with(|| _d());
+            let label_expressions = label_expressions.get_or_insert_default_();
 
             let expression = self.factory.create_numeric_literal(Number::new(-1.0), None);
             label_expressions

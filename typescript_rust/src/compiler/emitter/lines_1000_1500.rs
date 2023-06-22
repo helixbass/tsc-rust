@@ -15,7 +15,7 @@ use crate::{
     is_keyword, is_source_file, is_string_literal, is_token_kind, is_type_parameter_declaration,
     is_unparsed_prepend, is_unparsed_source, is_variable_statement, BundleFileSection,
     BundleFileSectionKind, CurrentParenthesizerRule, Debug_, EmitFlags, EmitHint, EmitTextWriter,
-    Node, NodeInterface, Printer, SourceMapGenerator, SyntaxKind, TempFlags,
+    GetOrInsertDefault, Node, NodeInterface, Printer, SourceMapGenerator, SyntaxKind, TempFlags,
 };
 
 impl Printer {
@@ -136,7 +136,7 @@ impl Printer {
                         bundle_file_info
                             .borrow_mut()
                             .sources
-                            .get_or_insert_with(Default::default)
+                            .get_or_insert_default_()
                             .prologues = Some(prologues);
                     }
 
@@ -145,7 +145,7 @@ impl Printer {
                         bundle_file_info
                             .borrow_mut()
                             .sources
-                            .get_or_insert_with(Default::default)
+                            .get_or_insert_default_()
                             .helpers = Some(helpers);
                     }
                 }

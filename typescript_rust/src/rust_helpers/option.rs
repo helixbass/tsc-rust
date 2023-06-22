@@ -77,13 +77,13 @@ impl_non_empty_for_option_and_non_option!(Gc<NodeArray>);
 pub trait GetOrInsertDefault {
     type Unwrapped;
 
-    fn get_or_insert_default(&mut self) -> &mut Self::Unwrapped;
+    fn get_or_insert_default_(&mut self) -> &mut Self::Unwrapped;
 }
 
 impl<TValue: Default> GetOrInsertDefault for Option<TValue> {
     type Unwrapped = TValue;
 
-    fn get_or_insert_default(&mut self) -> &mut TValue {
+    fn get_or_insert_default_(&mut self) -> &mut TValue {
         self.get_or_insert_with(|| Default::default())
     }
 }

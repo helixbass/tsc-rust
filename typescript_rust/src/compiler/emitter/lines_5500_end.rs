@@ -9,9 +9,9 @@ use crate::{
     for_each_trailing_comment_range, get_emit_flags, get_line_and_character_of_position,
     get_source_map_range, is_in_json_file, is_recognized_triple_slash_comment, is_unparsed_source,
     last, position_is_synthesized, skip_trivia, try_parse_raw_source_map, write_comment_range,
-    Debug_, EmitFlags, EmitHint, EmitTextWriter, Extension, LineAndCharacter, ListFormat, Node,
-    NodeInterface, Printer, RawSourceMap, ReadonlyTextRange, SourceFileLike, SourceMapSource,
-    SourceTextAsChars, SyntaxKind, TextRange,
+    Debug_, EmitFlags, EmitHint, EmitTextWriter, Extension, GetOrInsertDefault, LineAndCharacter,
+    ListFormat, Node, NodeInterface, Printer, RawSourceMap, ReadonlyTextRange, SourceFileLike,
+    SourceMapSource, SourceTextAsChars, SyntaxKind, TextRange,
 };
 
 impl Printer {
@@ -269,7 +269,7 @@ impl Printer {
         );
         if let Some(current_detached_comment_info) = current_detached_comment_info {
             self.maybe_detached_comments_info_mut()
-                .get_or_insert_with(|| Default::default())
+                .get_or_insert_default_()
                 .push(current_detached_comment_info);
         }
     }

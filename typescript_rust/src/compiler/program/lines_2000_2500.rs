@@ -18,7 +18,7 @@ use crate::{
     sort_and_deduplicate_diagnostics, starts_with, token_to_string, CancellationTokenDebuggable,
     CommentDirective, CommentDirectivesMap, Debug_, Diagnostic, DiagnosticMessage,
     DiagnosticRelatedInformationInterface, DiagnosticWithLocation, Diagnostics, EmitFlags,
-    FileIncludeReason, FileReference, ForEachChildRecursivelyCallbackReturn,
+    FileIncludeReason, FileReference, ForEachChildRecursivelyCallbackReturn, GetOrInsertDefault,
     HasStatementsInterface, LiteralLikeNodeInterface, ModifierFlags, Node, NodeArray, NodeFlags,
     NodeInterface, Program, ReadonlyTextRange, ResolvedProjectReference, ScriptKind, SortedArray,
     SourceFileLike, SyntaxKind,
@@ -779,7 +779,7 @@ impl Program {
         if let Some(source_file) = source_file {
             cache
                 .per_file
-                .get_or_insert_with(|| Default::default())
+                .get_or_insert_default_()
                 .insert(source_file.as_source_file().path().clone(), result.clone());
         } else {
             cache.all_diagnostics = Some(result.clone());
@@ -937,7 +937,7 @@ impl Program {
                 .filter(|jsx_import| !jsx_import.is_empty())
             {
                 imports
-                    .get_or_insert_with(|| vec![])
+                    .get_or_insert_default_()
                     .push(self.create_synthetic_import(jsx_import, file));
             }
         }
@@ -990,7 +990,7 @@ impl Program {
             }) {
                 set_parent_recursive(Some(node), false);
                 append(
-                    imports.get_or_insert_with(|| vec![]),
+                    imports.get_or_insert_default_(),
                     Some(module_name_expr.clone()),
                 );
                 if !self.uses_uri_style_node_core_modules()
@@ -1016,12 +1016,12 @@ impl Program {
                     || (in_ambient_module && !is_external_module_name_relative(&name_text))
                 {
                     module_augmentations
-                        .get_or_insert_with(|| vec![])
+                        .get_or_insert_default_()
                         .push(node_name);
                 } else if !in_ambient_module {
                     if file.as_source_file().is_declaration_file() {
                         ambient_modules
-                            .get_or_insert_with(|| vec![])
+                            .get_or_insert_default_()
                             .push(name_text.into_owned());
                     }
                     let body = node.as_module_declaration().body.as_ref();
@@ -1063,10 +1063,7 @@ impl Program {
                 set_parent_recursive(Some(&**node), false);
                 if let Some(node_arguments_0) = node.as_call_expression().arguments.get(0).cloned()
                 {
-                    append(
-                        imports.get_or_insert_with(|| vec![]),
-                        Some(node_arguments_0),
-                    );
+                    append(imports.get_or_insert_default_(), Some(node_arguments_0));
                 }
             } else if is_import_call(node) && {
                 let node_arguments = &node.as_call_expression().arguments;
@@ -1075,15 +1072,12 @@ impl Program {
                 set_parent_recursive(Some(&**node), false);
                 if let Some(node_arguments_0) = node.as_call_expression().arguments.get(0).cloned()
                 {
-                    append(
-                        imports.get_or_insert_with(|| vec![]),
-                        Some(node_arguments_0),
-                    );
+                    append(imports.get_or_insert_default_(), Some(node_arguments_0));
                 }
             } else if is_literal_import_type_node(node) {
                 set_parent_recursive(Some(&**node), false);
                 append(
-                    imports.get_or_insert_with(|| vec![]),
+                    imports.get_or_insert_default_(),
                     Some(
                         node.as_import_type_node()
                             .argument

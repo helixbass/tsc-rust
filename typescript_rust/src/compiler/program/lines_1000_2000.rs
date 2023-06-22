@@ -26,7 +26,7 @@ use crate::{
     type_directive_is_equal_to, zip_to_mode_aware_cache, AsDoubleDeref,
     CancellationTokenDebuggable, Comparison, CompilerHost, CompilerOptions, CustomTransformers,
     Debug_, Diagnostic, Diagnostics, EmitHost, EmitResult, Extension, FileIncludeReason,
-    FileReference, FilesByNameValue, ModuleSpecifierResolutionHost,
+    FileReference, FilesByNameValue, GetOrInsertDefault, ModuleSpecifierResolutionHost,
     ModuleSpecifierResolutionHostAndGetCommonSourceDirectory, MultiMap, Node, NodeFlags,
     NodeInterface, NonEmpty, Path, Program, ProgramBuildInfo, ProjectReference, ReadFileCallback,
     RedirectTargetsMap, ResolveModuleNameResolutionHost, ResolvedModuleFull,
@@ -509,7 +509,7 @@ impl Program {
                             ),
                         );
                         reused_names
-                            .get_or_insert_with(|| vec![])
+                            .get_or_insert_default_()
                             .push(module_name.clone());
                         continue;
                     }
@@ -547,7 +547,7 @@ impl Program {
                 result.get_or_insert_with(|| vec![None; module_names.len()])[i] = Some(ResolveModuleNamesReusingOldStateResultItem::PredictedToResolveToAmbientModuleMarker);
             } else {
                 unknown_module_names
-                    .get_or_insert_with(|| vec![])
+                    .get_or_insert_default_()
                     .push(module_name.clone());
             }
         }

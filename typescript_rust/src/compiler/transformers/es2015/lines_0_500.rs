@@ -13,9 +13,9 @@ use crate::{
     is_iteration_statement, is_labeled_statement, is_property_declaration, is_return_statement,
     is_switch_statement, is_try_statement, is_with_statement, try_maybe_visit_each_child,
     BaseNodeFactorySynthetic, CompilerOptions, EmitFlags, EmitHelperFactory, EmitHint,
-    EmitResolver, GeneratedIdentifierFlags, Matches, Node, NodeExt, NodeFactory, NodeInterface,
-    OptionTry, ReadonlyTextRange, SourceFileLike, SourceTextAsChars, SyntaxKind, TransformFlags,
-    TransformationContext, TransformationContextOnEmitNodeOverrider,
+    EmitResolver, GeneratedIdentifierFlags, GetOrInsertDefault, Matches, Node, NodeExt,
+    NodeFactory, NodeInterface, OptionTry, ReadonlyTextRange, SourceFileLike, SourceTextAsChars,
+    SyntaxKind, TransformFlags, TransformationContext, TransformationContextOnEmitNodeOverrider,
     TransformationContextOnSubstituteNodeOverrider, Transformer, TransformerFactory,
     TransformerFactoryInterface, TransformerInterface, VisitResult,
 };
@@ -322,7 +322,7 @@ impl TransformES2015 {
 
     pub(super) fn record_tagged_template_string(&self, temp: &Node /*Identifier*/) {
         self.maybe_tagged_template_string_declarations_mut()
-            .get_or_insert_with(|| Default::default())
+            .get_or_insert_default_()
             .push(self.factory.create_variable_declaration(
                 Some(temp.node_wrapper()),
                 None,

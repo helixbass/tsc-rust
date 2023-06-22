@@ -10,9 +10,9 @@ use crate::{
     VisitResult, _d, get_combined_node_flags, is_expression, is_for_initializer, is_for_statement,
     is_identifier, is_object_literal_element_like, is_omitted_expression, is_statement,
     start_on_new_line, try_maybe_visit_node, try_maybe_visit_nodes, try_visit_each_child,
-    try_visit_node, BoolExt, Debug_, EmitFlags, Matches, NamedDeclarationInterface, Node,
-    NodeArray, NodeCheckFlags, NodeExt, NodeFlags, NodeInterface, NodeWrappered, OptionTry,
-    SyntaxKind, TransformFlags,
+    try_visit_node, BoolExt, Debug_, EmitFlags, GetOrInsertDefault, Matches,
+    NamedDeclarationInterface, Node, NodeArray, NodeCheckFlags, NodeExt, NodeFlags, NodeInterface,
+    NodeWrappered, OptionTry, SyntaxKind, TransformFlags,
 };
 
 impl TransformES2015 {
@@ -380,9 +380,7 @@ impl TransformES2015 {
         node: &Node, /*VariableDeclaration*/
     ) {
         let node_as_variable_declaration = node.as_variable_declaration();
-        state
-            .hoisted_local_variables
-            .get_or_insert_with(|| Default::default());
+        state.hoisted_local_variables.get_or_insert_default_();
 
         self.hoist_variable_declaration_declared_in_converted_loop_visit(
             state,
@@ -839,14 +837,14 @@ impl TransformES2015 {
             if let Some(outer_state) = outer_state.as_ref() {
                 outer_state.borrow_mut().arguments_name = Some(state_arguments_name.clone());
             } else {
-                extra_variable_declarations
-                    .get_or_insert_with(|| _d())
-                    .push(self.factory.create_variable_declaration(
+                extra_variable_declarations.get_or_insert_default_().push(
+                    self.factory.create_variable_declaration(
                         Some(state_arguments_name.clone()),
                         None,
                         None,
                         Some(self.factory.create_identifier("arguments")),
-                    ));
+                    ),
+                );
             }
         }
 
@@ -854,14 +852,14 @@ impl TransformES2015 {
             if let Some(outer_state) = outer_state.as_ref() {
                 outer_state.borrow_mut().this_name = Some(state_this_name.clone());
             } else {
-                extra_variable_declarations
-                    .get_or_insert_with(|| _d())
-                    .push(self.factory.create_variable_declaration(
+                extra_variable_declarations.get_or_insert_default_().push(
+                    self.factory.create_variable_declaration(
                         Some(state_this_name.clone()),
                         None,
                         None,
                         Some(self.factory.create_identifier("this")),
-                    ));
+                    ),
+                );
             }
         }
 
@@ -871,7 +869,7 @@ impl TransformES2015 {
                     Some(state_hoisted_local_variables.clone());
             } else {
                 let extra_variable_declarations =
-                    extra_variable_declarations.get_or_insert_with(|| _d());
+                    extra_variable_declarations.get_or_insert_default_();
                 for identifier in state_hoisted_local_variables {
                     extra_variable_declarations.push(self.factory.create_variable_declaration(
                         Some(identifier.clone()),
@@ -884,8 +882,7 @@ impl TransformES2015 {
         }
 
         if !state.loop_out_parameters.is_empty() {
-            let extra_variable_declarations =
-                extra_variable_declarations.get_or_insert_with(|| _d());
+            let extra_variable_declarations = extra_variable_declarations.get_or_insert_default_();
             for out_param in &state.loop_out_parameters {
                 extra_variable_declarations.push(self.factory.create_variable_declaration(
                     Some(out_param.out_param_name.clone()),
@@ -897,14 +894,14 @@ impl TransformES2015 {
         }
 
         if let Some(state_condition_variable) = state.condition_variable.as_ref() {
-            extra_variable_declarations
-                .get_or_insert_with(|| _d())
-                .push(self.factory.create_variable_declaration(
+            extra_variable_declarations.get_or_insert_default_().push(
+                self.factory.create_variable_declaration(
                     Some(state_condition_variable.clone()),
                     None,
                     None,
                     Some(self.factory.create_false()),
-                ));
+                ),
+            );
         }
 
         if let Some(extra_variable_declarations) = extra_variable_declarations {

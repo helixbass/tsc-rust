@@ -9,9 +9,10 @@ use crate::{
     get_set_accessor_type_annotation_node, is_async_function, is_class_like, is_expression,
     is_function_like, is_identifier, maybe_map, move_range_past_decorators, node_is_present,
     return_ok_default_if_none, try_flat_map, try_maybe_map, try_visit_node,
-    AllAccessorDeclarations, Debug_, EmitFlags, FunctionLikeDeclarationInterface, HasTypeInterface,
-    Matches, NamedDeclarationInterface, Node, NodeArray, NodeArrayOrVec, NodeExt, NodeInterface,
-    OptionTry, ScriptTarget, SignatureDeclarationInterface, SyntaxKind,
+    AllAccessorDeclarations, Debug_, EmitFlags, FunctionLikeDeclarationInterface,
+    GetOrInsertDefault, HasTypeInterface, Matches, NamedDeclarationInterface, Node, NodeArray,
+    NodeArrayOrVec, NodeExt, NodeInterface, OptionTry, ScriptTarget, SignatureDeclarationInterface,
+    SyntaxKind,
 };
 
 impl TransformTypeScript {
@@ -185,9 +186,7 @@ impl TransformTypeScript {
         for ref member in members {
             let expression = self.generate_class_element_decoration_expression(node, member)?;
             if let Some(expression) = expression {
-                expressions
-                    .get_or_insert_with(|| Default::default())
-                    .push(expression);
+                expressions.get_or_insert_default_().push(expression);
             }
         }
         Ok(expressions)
@@ -309,7 +308,7 @@ impl TransformTypeScript {
     ) -> io::Result<Option<Vec<Gc<Node>>>> {
         let mut expressions: Option<Vec<Gc<Node /*Expression*/>>> = Default::default();
         if let Some(decorators) = decorators {
-            let expressions = expressions.get_or_insert_with(|| Default::default());
+            let expressions = expressions.get_or_insert_default_();
             for decorator in decorators {
                 let helper = self
                     .emit_helpers()
@@ -378,7 +377,7 @@ impl TransformTypeScript {
             let mut properties: Option<Vec<Gc<Node /*ObjectLiteralElementLike*/>>> =
                 Default::default();
             if self.should_add_type_metadata(node) {
-                properties.get_or_insert_with(|| Default::default()).push(
+                properties.get_or_insert_default_().push(
                     self.factory.create_property_assignment(
                         "type",
                         self.factory.create_arrow_function(
@@ -396,7 +395,7 @@ impl TransformTypeScript {
                 );
             }
             if self.should_add_param_types_metadata(node) {
-                properties.get_or_insert_with(|| Default::default()).push(
+                properties.get_or_insert_default_().push(
                     self.factory.create_property_assignment(
                         "paramTypes",
                         self.factory.create_arrow_function(
@@ -414,7 +413,7 @@ impl TransformTypeScript {
                 );
             }
             if self.should_add_return_type_metadata(node) {
-                properties.get_or_insert_with(|| Default::default()).push(
+                properties.get_or_insert_default_().push(
                     self.factory.create_property_assignment(
                         "returnType",
                         self.factory.create_arrow_function(

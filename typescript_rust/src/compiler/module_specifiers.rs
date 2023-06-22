@@ -22,11 +22,11 @@ use crate::{
     remove_trailing_directory_separator, resolve_path, return_ok_default_if_none, some,
     starts_with, starts_with_directory, to_path, try_get_extension_from_path, try_map_defined,
     CharacterCodes, Comparison, CompilerOptions, CompilerOptionsBuilder, Debug_, Extension,
-    FileExtensionInfo, FileIncludeKind, FileIncludeReason, JsxEmit, LiteralLikeNodeInterface,
-    ModuleKind, ModulePath, ModuleResolutionHost, ModuleResolutionHostOverrider,
-    ModuleResolutionKind, ModuleSpecifierCache, ModuleSpecifierResolutionHost, Node, NodeFlags,
-    NodeInterface, NonEmpty, OptionTry, Path, ScriptKind, StringOrBool, Symbol, SymbolFlags,
-    SymbolInterface, TypeChecker, UserPreferences,
+    FileExtensionInfo, FileIncludeKind, FileIncludeReason, GetOrInsertDefault, JsxEmit,
+    LiteralLikeNodeInterface, ModuleKind, ModulePath, ModuleResolutionHost,
+    ModuleResolutionHostOverrider, ModuleResolutionKind, ModuleSpecifierCache,
+    ModuleSpecifierResolutionHost, Node, NodeFlags, NodeInterface, NonEmpty, OptionTry, Path,
+    ScriptKind, StringOrBool, Symbol, SymbolFlags, SymbolInterface, TypeChecker, UserPreferences,
 };
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
@@ -486,7 +486,7 @@ fn compute_module_specifiers(
             try_get_module_name_as_node_module(module_path, &info, host, &compiler_options, None);
         if let Some(specifier) = specifier.as_ref() {
             append(
-                node_modules_specifiers.get_or_insert_with(|| vec![]),
+                node_modules_specifiers.get_or_insert_default_(),
                 Some(specifier.clone()),
             );
         }
@@ -505,12 +505,9 @@ fn compute_module_specifiers(
                 preferences,
             )?;
             if path_is_bare_specifier(&local) {
-                append(paths_specifiers.get_or_insert_with(|| vec![]), Some(local));
+                append(paths_specifiers.get_or_insert_default_(), Some(local));
             } else if !imported_file_is_in_node_modules || module_path.is_in_node_modules {
-                append(
-                    relative_specifiers.get_or_insert_with(|| vec![]),
-                    Some(local),
-                );
+                append(relative_specifiers.get_or_insert_default_(), Some(local));
             }
         }
     }
@@ -965,7 +962,7 @@ fn get_all_module_paths_worker(
             let is_in_node_modules = value.is_in_node_modules;
             if starts_with(path, &directory_start) {
                 paths_in_directory
-                    .get_or_insert_with(|| vec![])
+                    .get_or_insert_default_()
                     .push(ModulePath {
                         path: file_name.clone(),
                         is_in_node_modules,

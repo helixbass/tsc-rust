@@ -19,7 +19,7 @@ use crate::{
     try_flat_map, try_map, try_map_defined, try_maybe_map, try_maybe_visit_node,
     try_maybe_visit_nodes, try_visit_node, try_visit_nodes, unescape_leading_underscores,
     visit_nodes, AsDoubleDeref, ClassLikeDeclarationInterface, Debug_, Diagnostics,
-    GeneratedIdentifierFlags, GetSymbolAccessibilityDiagnostic,
+    GeneratedIdentifierFlags, GetOrInsertDefault, GetSymbolAccessibilityDiagnostic,
     GetSymbolAccessibilityDiagnosticInterface, HasQuestionTokenInterface,
     HasTypeArgumentsInterface, HasTypeInterface, HasTypeParametersInterface,
     InterfaceOrClassLikeDeclarationInterface, ModifierFlags, NamedDeclarationInterface, Node,
@@ -976,7 +976,7 @@ impl TransformDeclarations {
                 );
             }
             elems
-                .get_or_insert_with(|| vec![])
+                .get_or_insert_default_()
                 .push(self.factory.create_property_declaration(
                     Option::<Gc<NodeArray>>::None,
                     self.ensure_modifiers(param),
