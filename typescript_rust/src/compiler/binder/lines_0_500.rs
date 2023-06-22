@@ -1,9 +1,12 @@
+use std::{
+    borrow::{Borrow, Cow},
+    cell::{Cell, RefCell},
+    collections::{HashMap, HashSet},
+    rc::Rc,
+};
+
 use bitflags::bitflags;
 use gc::{Finalize, Gc, GcCell, GcCellRefMut, Trace};
-use std::borrow::{Borrow, Cow};
-use std::cell::{Cell, RefCell};
-use std::collections::{HashMap, HashSet};
-use std::rc::Rc;
 
 use crate::{
     add_related_info, create_diagnostic_for_node_in_source_file, declaration_name_to_string,

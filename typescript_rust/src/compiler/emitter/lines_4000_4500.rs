@@ -1,7 +1,6 @@
+use std::{borrow::Borrow, collections::HashSet, convert::TryInto, io};
+
 use gc::Gc;
-use std::borrow::Borrow;
-use std::collections::HashSet;
-use std::convert::TryInto;
 
 use super::{
     get_closing_bracket, get_opening_bracket,
@@ -18,7 +17,6 @@ use crate::{
     SourceFilePrologueDirective, SourceFilePrologueDirectiveExpression, SourceFilePrologueInfo,
     Symbol, SyntaxKind, TextRange, UnparsedSectionInterface,
 };
-use std::io;
 
 impl Printer {
     pub(super) fn emit_unparsed_prologues(

@@ -89,19 +89,18 @@ impl NodeBuilder {
             {
                 if self.check_truncation_length(context) {
                     if is_bare_list != Some(true) {
-                        return Ok(Some(vec![get_factory()
-                            .create_type_reference_node("...", Option::<Gc<NodeArray>>::None)
-                            ]));
+                        return Ok(Some(vec![get_factory().create_type_reference_node(
+                            "...",
+                            Option::<Gc<NodeArray>>::None,
+                        )]));
                     } else if types.len() > 2 {
                         return Ok(Some(vec![
                             self.type_to_type_node_helper(Some(&*types[0]), context)?
                                 .unwrap(),
-                            get_factory()
-                                .create_type_reference_node(
-                                    &*format!("... {} more ...", types.len() - 2),
-                                    Option::<Gc<NodeArray>>::None,
-                                )
-                                ,
+                            get_factory().create_type_reference_node(
+                                &*format!("... {} more ...", types.len() - 2),
+                                Option::<Gc<NodeArray>>::None,
+                            ),
                             self.type_to_type_node_helper(Some(&*types[types.len() - 1]), context)?
                                 .unwrap(),
                         ]));
@@ -121,14 +120,10 @@ impl NodeBuilder {
                 for type_ in types {
                     i += 1;
                     if self.check_truncation_length(context) && i + 2 < types.len() - 1 {
-                        result.push(
-                            get_factory()
-                                .create_type_reference_node(
-                                    &*format!("... {} more ...", types.len() - i),
-                                    Option::<Gc<NodeArray>>::None,
-                                )
-                                ,
-                        );
+                        result.push(get_factory().create_type_reference_node(
+                            &*format!("... {} more ...", types.len() - i),
+                            Option::<Gc<NodeArray>>::None,
+                        ));
                         let type_node =
                             self.type_to_type_node_helper(Some(&*types[types.len() - 1]), context)?;
                         if let Some(type_node) = type_node {
@@ -202,17 +197,15 @@ impl NodeBuilder {
         let indexer_type_node =
             self.type_to_type_node_helper(Some(&*index_info.key_type), context)?;
 
-        let indexing_parameter = get_factory()
-            .create_parameter_declaration(
-                Option::<Gc<NodeArray>>::None,
-                Option::<Gc<NodeArray>>::None,
-                None,
-                Some(&*name),
-                None,
-                indexer_type_node,
-                None,
-            )
-            ;
+        let indexing_parameter = get_factory().create_parameter_declaration(
+            Option::<Gc<NodeArray>>::None,
+            Option::<Gc<NodeArray>>::None,
+            None,
+            Some(&*name),
+            None,
+            indexer_type_node,
+            None,
+        );
         let type_node = type_node
             .map(|type_node| type_node.borrow().node_wrapper())
             .try_or_else(|| {
@@ -222,20 +215,16 @@ impl NodeBuilder {
         //     context.encounteredError = true;
         // }
         context.increment_approximate_length_by(name.len() + 4);
-        Ok(get_factory()
-            .create_index_signature(
-                Option::<Gc<NodeArray>>::None,
-                if index_info.is_readonly {
-                    Some(vec![get_factory()
-                        .create_token(SyntaxKind::ReadonlyKeyword)
-                        ])
-                } else {
-                    None
-                },
-                vec![indexing_parameter],
-                type_node,
-            )
-            )
+        Ok(get_factory().create_index_signature(
+            Option::<Gc<NodeArray>>::None,
+            if index_info.is_readonly {
+                Some(vec![get_factory().create_token(SyntaxKind::ReadonlyKeyword)])
+            } else {
+                None
+            },
+            vec![indexing_parameter],
+            type_node,
+        ))
     }
 
     pub(super) fn signature_to_signature_declaration_helper(
@@ -348,11 +337,7 @@ impl NodeBuilder {
                 type_predicate.kind,
                 TypePredicateKind::AssertsThis | TypePredicateKind::AssertsIdentifier
             ) {
-                Some(
-                    get_factory()
-                        .create_token(SyntaxKind::AssertsKeyword)
-                        ,
-                )
+                Some(get_factory().create_token(SyntaxKind::AssertsKeyword))
             } else {
                 None
             };
@@ -374,11 +359,11 @@ impl NodeBuilder {
                 .try_and_then(|type_predicate_type| {
                     self.type_to_type_node_helper(Some(&**type_predicate_type), context)
                 })?;
-            return_type_node = Some(
-                get_factory()
-                    .create_type_predicate_node(asserts_modifier, parameter_name, type_node)
-                    ,
-            );
+            return_type_node = Some(get_factory().create_type_predicate_node(
+                asserts_modifier,
+                parameter_name,
+                type_node,
+            ));
         } else {
             let ref return_type = self
                 .type_checker
@@ -398,11 +383,8 @@ impl NodeBuilder {
                     )?,
                 );
             } else if !suppress_any {
-                return_type_node = Some(
-                    get_factory()
-                        .create_keyword_type_node(SyntaxKind::AnyKeyword)
-                        ,
-                );
+                return_type_node =
+                    Some(get_factory().create_keyword_type_node(SyntaxKind::AnyKeyword));
             }
         }
         let mut modifiers = options
@@ -418,158 +400,134 @@ impl NodeBuilder {
         }
 
         let node: Gc<Node> = match kind {
-            SyntaxKind::CallSignature => get_factory()
-                .create_call_signature(type_parameters, parameters, return_type_node)
-                ,
-            SyntaxKind::ConstructSignature => get_factory()
-                .create_construct_signature(type_parameters, parameters, return_type_node)
-                ,
-            SyntaxKind::MethodSignature => get_factory()
-                .create_method_signature(
-                    modifiers,
-                    options.as_ref().and_then(|options| options.name.clone()),
-                    options
-                        .as_ref()
-                        .and_then(|options| options.question_token.clone()),
-                    type_parameters,
-                    Some(parameters),
-                    return_type_node,
-                )
-                ,
-            SyntaxKind::MethodDeclaration => get_factory()
-                .create_method_declaration(
-                    Option::<Gc<NodeArray>>::None,
-                    modifiers,
-                    None,
+            SyntaxKind::CallSignature => {
+                get_factory().create_call_signature(type_parameters, parameters, return_type_node)
+            }
+            SyntaxKind::ConstructSignature => get_factory().create_construct_signature(
+                type_parameters,
+                parameters,
+                return_type_node,
+            ),
+            SyntaxKind::MethodSignature => get_factory().create_method_signature(
+                modifiers,
+                options.as_ref().and_then(|options| options.name.clone()),
+                options
+                    .as_ref()
+                    .and_then(|options| options.question_token.clone()),
+                type_parameters,
+                Some(parameters),
+                return_type_node,
+            ),
+            SyntaxKind::MethodDeclaration => get_factory().create_method_declaration(
+                Option::<Gc<NodeArray>>::None,
+                modifiers,
+                None,
+                options
+                    .as_ref()
+                    .and_then(|options| options.name.clone())
+                    .unwrap_or_else(|| get_factory().create_identifier("")),
+                None,
+                type_parameters,
+                parameters,
+                return_type_node,
+                None,
+            ),
+            SyntaxKind::Constructor => get_factory().create_constructor_declaration(
+                Option::<Gc<NodeArray>>::None,
+                modifiers,
+                Some(parameters),
+                None,
+            ),
+            SyntaxKind::GetAccessor => get_factory().create_get_accessor_declaration(
+                Option::<Gc<NodeArray>>::None,
+                modifiers,
+                options
+                    .as_ref()
+                    .and_then(|options| options.name.clone())
+                    .unwrap_or_else(|| get_factory().create_identifier("")),
+                parameters,
+                return_type_node,
+                None,
+            ),
+            SyntaxKind::SetAccessor => get_factory().create_set_accessor_declaration(
+                Option::<Gc<NodeArray>>::None,
+                modifiers,
+                options
+                    .as_ref()
+                    .and_then(|options| options.name.clone())
+                    .unwrap_or_else(|| get_factory().create_identifier("")),
+                parameters,
+                None,
+            ),
+            SyntaxKind::IndexSignature => get_factory().create_index_signature(
+                Option::<Gc<NodeArray>>::None,
+                modifiers,
+                parameters,
+                return_type_node,
+            ),
+            SyntaxKind::JSDocFunctionType => {
+                get_factory().create_jsdoc_function_type(parameters, return_type_node)
+            }
+            SyntaxKind::FunctionType => get_factory().create_function_type_node(
+                type_parameters,
+                parameters,
+                Some(return_type_node.unwrap_or_else(|| {
+                    get_factory().create_type_reference_node(
+                        get_factory().create_identifier(""),
+                        Option::<Gc<NodeArray>>::None,
+                    )
+                })),
+            ),
+            SyntaxKind::ConstructorType => get_factory().create_constructor_type_node(
+                modifiers,
+                type_parameters,
+                parameters,
+                Some(return_type_node.unwrap_or_else(|| {
+                    get_factory().create_type_reference_node(
+                        get_factory().create_identifier(""),
+                        Option::<Gc<NodeArray>>::None,
+                    )
+                })),
+            ),
+            SyntaxKind::FunctionDeclaration => get_factory().create_function_declaration(
+                Option::<Gc<NodeArray>>::None,
+                modifiers,
+                None,
+                Some(
                     options
                         .as_ref()
                         .and_then(|options| options.name.clone())
+                        .map(|name| cast_present(name, |name: &Gc<Node>| is_identifier(name)))
                         .unwrap_or_else(|| get_factory().create_identifier("")),
-                    None,
-                    type_parameters,
-                    parameters,
-                    return_type_node,
-                    None,
-                )
-                ,
-            SyntaxKind::Constructor => get_factory()
-                .create_constructor_declaration(
-                    Option::<Gc<NodeArray>>::None,
-                    modifiers,
-                    Some(parameters),
-                    None,
-                )
-                ,
-            SyntaxKind::GetAccessor => get_factory()
-                .create_get_accessor_declaration(
-                    Option::<Gc<NodeArray>>::None,
-                    modifiers,
+                ),
+                type_parameters,
+                parameters,
+                return_type_node,
+                None,
+            ),
+            SyntaxKind::FunctionExpression => get_factory().create_function_expression(
+                modifiers,
+                None,
+                Some(
                     options
                         .as_ref()
                         .and_then(|options| options.name.clone())
+                        .map(|name| cast_present(name, |name: &Gc<Node>| is_identifier(name)))
                         .unwrap_or_else(|| get_factory().create_identifier("")),
-                    parameters,
-                    return_type_node,
-                    None,
-                )
-                ,
-            SyntaxKind::SetAccessor => get_factory()
-                .create_set_accessor_declaration(
-                    Option::<Gc<NodeArray>>::None,
-                    modifiers,
-                    options
-                        .as_ref()
-                        .and_then(|options| options.name.clone())
-                        .unwrap_or_else(|| get_factory().create_identifier("")),
-                    parameters,
-                    None,
-                )
-                ,
-            SyntaxKind::IndexSignature => get_factory()
-                .create_index_signature(
-                    Option::<Gc<NodeArray>>::None,
-                    modifiers,
-                    parameters,
-                    return_type_node,
-                )
-                ,
-            SyntaxKind::JSDocFunctionType => get_factory()
-                .create_jsdoc_function_type(parameters, return_type_node)
-                ,
-            SyntaxKind::FunctionType => get_factory()
-                .create_function_type_node(
-                    type_parameters,
-                    parameters,
-                    Some(return_type_node.unwrap_or_else(|| {
-                        get_factory()
-                            .create_type_reference_node(
-                                get_factory().create_identifier(""),
-                                Option::<Gc<NodeArray>>::None,
-                            )
-                            
-                    })),
-                )
-                ,
-            SyntaxKind::ConstructorType => get_factory()
-                .create_constructor_type_node(
-                    modifiers,
-                    type_parameters,
-                    parameters,
-                    Some(return_type_node.unwrap_or_else(|| {
-                        get_factory()
-                            .create_type_reference_node(
-                                get_factory().create_identifier(""),
-                                Option::<Gc<NodeArray>>::None,
-                            )
-                            
-                    })),
-                )
-                ,
-            SyntaxKind::FunctionDeclaration => get_factory()
-                .create_function_declaration(
-                    Option::<Gc<NodeArray>>::None,
-                    modifiers,
-                    None,
-                    Some(
-                        options
-                            .as_ref()
-                            .and_then(|options| options.name.clone())
-                            .map(|name| cast_present(name, |name: &Gc<Node>| is_identifier(name)))
-                            .unwrap_or_else(|| get_factory().create_identifier("")),
-                    ),
-                    type_parameters,
-                    parameters,
-                    return_type_node,
-                    None,
-                )
-                ,
-            SyntaxKind::FunctionExpression => get_factory()
-                .create_function_expression(
-                    modifiers,
-                    None,
-                    Some(
-                        options
-                            .as_ref()
-                            .and_then(|options| options.name.clone())
-                            .map(|name| cast_present(name, |name: &Gc<Node>| is_identifier(name)))
-                            .unwrap_or_else(|| get_factory().create_identifier("")),
-                    ),
-                    type_parameters,
-                    Some(parameters),
-                    return_type_node,
-                    get_factory().create_block(vec![], None),
-                )
-                ,
-            SyntaxKind::ArrowFunction => get_factory()
-                .create_arrow_function(
-                    modifiers,
-                    type_parameters,
-                    parameters,
-                    return_type_node,
-                    None,
-                    get_factory().create_block(vec![], None),
-                )
-                ,
+                ),
+                type_parameters,
+                Some(parameters),
+                return_type_node,
+                get_factory().create_block(vec![], None),
+            ),
+            SyntaxKind::ArrowFunction => get_factory().create_arrow_function(
+                modifiers,
+                type_parameters,
+                parameters,
+                return_type_node,
+                None,
+                get_factory().create_block(vec![], None),
+            ),
             _ => Debug_.assert_never(kind, None),
         };
 
@@ -601,9 +559,11 @@ impl NodeBuilder {
                     self.type_to_type_node_helper(Some(&**default_parameter), context)
                 })?;
         context.set_flags(saved_context_flags);
-        Ok(get_factory()
-            .create_type_parameter_declaration(name, constraint_node, default_parameter_node)
-            )
+        Ok(get_factory().create_type_parameter_declaration(
+            name,
+            constraint_node,
+            default_parameter_node,
+        ))
     }
 
     pub(super) fn type_parameter_to_declaration_(
@@ -692,11 +652,7 @@ impl NodeBuilder {
             Some(parameter_declaration) if is_rest_parameter(parameter_declaration)
         ) || get_check_flags(parameter_symbol).intersects(CheckFlags::RestParameter);
         let dot_dot_dot_token: Option<Gc<Node>> = if is_rest {
-            Some(
-                get_factory()
-                    .create_token(SyntaxKind::DotDotDotToken)
-                    ,
-            )
+            Some(get_factory().create_token(SyntaxKind::DotDotDotToken))
         } else {
             None
         };
@@ -739,17 +695,15 @@ impl NodeBuilder {
         } else {
             None
         };
-        let parameter_node = get_factory()
-            .create_parameter_declaration(
-                Option::<Gc<NodeArray>>::None,
-                modifiers,
-                dot_dot_dot_token,
-                Some(name),
-                question_token,
-                Some(parameter_type_node),
-                None,
-            )
-            ;
+        let parameter_node = get_factory().create_parameter_declaration(
+            Option::<Gc<NodeArray>>::None,
+            modifiers,
+            dot_dot_dot_token,
+            Some(name),
+            question_token,
+            Some(parameter_type_node),
+            None,
+        );
         context.increment_approximate_length_by(symbol_name(parameter_symbol).len() + 3);
         Ok(parameter_node)
     }
@@ -1293,7 +1247,6 @@ impl NodeBuilder {
         if let Some(symbol_parent) = symbol.maybe_parent().as_ref() {
             get_factory()
                 .create_qualified_name(self.symbol_to_entity_name_node(symbol_parent), identifier)
-                
         } else {
             identifier
         }
@@ -1352,13 +1305,9 @@ impl NodeBuilder {
                     .tracker()
                     .report_likely_unsafe_import_required_error(&specifier);
             }
-            let lit: Gc<Node> = get_factory()
-                .create_literal_type_node(
-                    get_factory()
-                        .create_string_literal(specifier.clone(), None, None)
-                        ,
-                )
-                ;
+            let lit: Gc<Node> = get_factory().create_literal_type_node(
+                get_factory().create_string_literal(specifier.clone(), None, None),
+            );
             context
                 .tracker()
                 .track_external_module_symbol_of_import_type_node(&chain[0]);
@@ -1375,14 +1324,12 @@ impl NodeBuilder {
                     };
                     *last_id.as_identifier().maybe_type_arguments_mut() = None;
                 }
-                return Ok(get_factory()
-                    .create_import_type_node(
-                        lit,
-                        non_root_parts,
-                        type_parameter_nodes,
-                        Some(is_type_of),
-                    )
-                    );
+                return Ok(get_factory().create_import_type_node(
+                    lit,
+                    non_root_parts,
+                    type_parameter_nodes,
+                    Some(is_type_of),
+                ));
             } else {
                 let split_node =
                     self.get_topmost_indexed_access_type(non_root_parts.as_ref().unwrap());
@@ -1391,19 +1338,15 @@ impl NodeBuilder {
                     .object_type
                     .as_type_reference_node()
                     .type_name;
-                return Ok(get_factory()
-                    .create_indexed_access_type_node(
-                        get_factory()
-                            .create_import_type_node(
-                                lit,
-                                Some(qualifier.clone()),
-                                type_parameter_nodes,
-                                Some(is_type_of),
-                            )
-                            ,
-                        split_node.as_indexed_access_type_node().index_type.clone(),
-                    )
-                    );
+                return Ok(get_factory().create_indexed_access_type_node(
+                    get_factory().create_import_type_node(
+                        lit,
+                        Some(qualifier.clone()),
+                        type_parameter_nodes,
+                        Some(is_type_of),
+                    ),
+                    split_node.as_indexed_access_type_node().index_type.clone(),
+                ));
             }
         }
 
@@ -1426,9 +1369,7 @@ impl NodeBuilder {
                 entity_name.as_qualified_name().right.clone()
             };
             let last_type_args = last_id.as_identifier().maybe_type_arguments_mut().take();
-            get_factory()
-                .create_type_reference_node(entity_name, last_type_args)
-                
+            get_factory().create_type_reference_node(entity_name, last_type_args)
         })
     }
 }

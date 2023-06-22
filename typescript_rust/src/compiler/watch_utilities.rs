@@ -1,5 +1,6 @@
-use gc::{Finalize, Trace};
 use std::io;
+
+use gc::{Finalize, Trace};
 
 pub trait DirectoryStructureHost: Trace + Finalize {
     fn file_exists(&self, path: &str) -> bool;

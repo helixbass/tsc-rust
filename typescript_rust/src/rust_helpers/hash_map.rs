@@ -1,5 +1,4 @@
-use std::ops::Deref;
-use std::{collections::HashMap, hash};
+use std::{collections::HashMap, hash, ops::Deref};
 
 use gc::{Finalize, Gc, Trace};
 

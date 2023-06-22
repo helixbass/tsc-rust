@@ -95,36 +95,29 @@ impl TransformES2016 {
                 None,
             );
             target = set_text_range_rc_node(
-                self.factory
-                    .create_element_access_expression(
-                        set_text_range_rc_node(
-                            self.factory
-                                .create_assignment(
-                                    expression_temp.clone(),
-                                    left_as_element_access_expression.expression.clone(),
-                                )
-                                ,
-                            Some(&*left_as_element_access_expression.expression),
+                self.factory.create_element_access_expression(
+                    set_text_range_rc_node(
+                        self.factory.create_assignment(
+                            expression_temp.clone(),
+                            left_as_element_access_expression.expression.clone(),
                         ),
-                        set_text_range_rc_node(
-                            self.factory
-                                .create_assignment(
-                                    argument_expression_temp.clone(),
-                                    left_as_element_access_expression
-                                        .argument_expression
-                                        .clone(),
-                                )
-                                ,
-                            Some(&*left_as_element_access_expression.argument_expression),
+                        Some(&*left_as_element_access_expression.expression),
+                    ),
+                    set_text_range_rc_node(
+                        self.factory.create_assignment(
+                            argument_expression_temp.clone(),
+                            left_as_element_access_expression
+                                .argument_expression
+                                .clone(),
                         ),
-                    )
-                    ,
+                        Some(&*left_as_element_access_expression.argument_expression),
+                    ),
+                ),
                 Some(&**left),
             );
             value = set_text_range_rc_node(
                 self.factory
-                    .create_element_access_expression(expression_temp, argument_expression_temp)
-                    ,
+                    .create_element_access_expression(expression_temp, argument_expression_temp),
                 Some(&**left),
             );
         } else if is_property_access_expression(left) {
@@ -134,29 +127,23 @@ impl TransformES2016 {
                 None,
             );
             target = set_text_range_rc_node(
-                self.factory
-                    .create_property_access_expression(
-                        set_text_range_rc_node(
-                            self.factory
-                                .create_assignment(
-                                    expression_temp.clone(),
-                                    left_as_property_access_expression.expression.clone(),
-                                )
-                                ,
-                            Some(&*left_as_property_access_expression.expression),
+                self.factory.create_property_access_expression(
+                    set_text_range_rc_node(
+                        self.factory.create_assignment(
+                            expression_temp.clone(),
+                            left_as_property_access_expression.expression.clone(),
                         ),
-                        left_as_property_access_expression.name.clone(),
-                    )
-                    ,
+                        Some(&*left_as_property_access_expression.expression),
+                    ),
+                    left_as_property_access_expression.name.clone(),
+                ),
                 Some(&**left),
             );
             value = set_text_range_rc_node(
-                self.factory
-                    .create_property_access_expression(
-                        expression_temp,
-                        left_as_property_access_expression.name.clone(),
-                    )
-                    ,
+                self.factory.create_property_access_expression(
+                    expression_temp,
+                    left_as_property_access_expression.name.clone(),
+                ),
                 Some(&**left),
             );
         } else {
@@ -164,19 +151,17 @@ impl TransformES2016 {
             value = left.clone();
         }
         set_text_range_rc_node(
-            self.factory
-                .create_assignment(
-                    target,
-                    set_text_range_rc_node(
-                        self.factory.create_global_method_call(
-                            "Math".to_owned(),
-                            "pow".to_owned(),
-                            vec![value, right.clone()],
-                        ),
-                        Some(node),
+            self.factory.create_assignment(
+                target,
+                set_text_range_rc_node(
+                    self.factory.create_global_method_call(
+                        "Math".to_owned(),
+                        "pow".to_owned(),
+                        vec![value, right.clone()],
                     ),
-                )
-                ,
+                    Some(node),
+                ),
+            ),
             Some(node),
         )
     }

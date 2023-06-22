@@ -1,3 +1,5 @@
+use std::io;
+
 use gc::Gc;
 
 use super::{
@@ -16,7 +18,6 @@ use crate::{
     NamedDeclarationInterface, Node, NodeInterface, Printer, ReadonlyTextRange, ScriptTarget,
     SignatureDeclarationInterface, StringOrNumber, SyntaxKind, TokenFlags,
 };
-use std::io;
 
 impl Printer {
     pub(super) fn emit_type_parameter(

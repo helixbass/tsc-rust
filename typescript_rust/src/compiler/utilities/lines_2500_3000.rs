@@ -1,6 +1,6 @@
+use std::{borrow::Borrow, ptr};
+
 use gc::Gc;
-use std::borrow::Borrow;
-use std::ptr;
 
 use crate::{
     add_range, find, find_ancestor, first_or_undefined, get_assignment_declaration_kind,

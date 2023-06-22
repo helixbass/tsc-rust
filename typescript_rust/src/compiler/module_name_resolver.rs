@@ -1,10 +1,7 @@
+use std::{borrow::Cow, cell::RefCell, cmp, collections::HashMap, io, iter::FromIterator, rc::Rc};
+
 use bitflags::bitflags;
 use gc::{Finalize, Gc, GcCell, Trace};
-use std::collections::HashMap;
-use std::iter::FromIterator;
-use std::rc::Rc;
-use std::{borrow::Cow, cell::RefCell};
-use std::{cmp, io};
 
 use crate::{
     combine_paths, compare_paths, contains, contains_path, create_get_canonical_file_name,
@@ -3941,8 +3938,9 @@ fn load_module_from_specific_node_modules_directory(
 }
 
 mod _PackageJsonInfoOrBoolDeriveTraceScope {
-    use super::*;
     use local_macros::Trace;
+
+    use super::*;
 
     #[derive(Clone, Trace, Finalize)]
     pub enum PackageJsonInfoOrBool {

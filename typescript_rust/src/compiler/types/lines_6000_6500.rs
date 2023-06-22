@@ -1,21 +1,24 @@
+use std::{
+    cell::{RefCell, RefMut},
+    collections::HashMap,
+    convert::TryInto,
+    fmt,
+    iter::FromIterator,
+    rc::Rc,
+};
+
 use bitflags::bitflags;
 use derive_builder::Builder;
 use gc::{unsafe_empty_trace, Finalize, Gc, GcCell, Trace};
 use indexmap::IndexMap;
+use local_macros::{command_line_option_type, enum_unwrapped};
 use serde::Serialize;
-use std::cell::{RefCell, RefMut};
-use std::collections::HashMap;
-use std::convert::TryInto;
-use std::fmt;
-use std::iter::FromIterator;
-use std::rc::Rc;
 
 use super::{DiagnosticMessage, ModuleResolutionKind, Node};
 use crate::{
     are_option_gcs_equal, hash_map_to_compiler_options, CompilerHost, Diagnostic, GcVec, MapLike,
     Number, OptionsNameMap, ParseCommandLineWorkerDiagnostics, Program, StringOrPattern,
 };
-use local_macros::{command_line_option_type, enum_unwrapped};
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 pub struct PluginImport {
@@ -393,8 +396,9 @@ impl From<Option<PollingWatchKind>> for CompilerOptionsValue {
 }
 
 mod _CompilerOptionsDeriveTraceScope {
-    use super::*;
     use local_macros::Trace;
+
+    use super::*;
 
     #[derive(Builder, Clone, Debug, Default, Serialize, Trace, Finalize)]
     #[builder(setter(into, strip_option), default)]
@@ -2062,8 +2066,9 @@ impl ParsedCommandLineWithBaseOptions {
 }
 
 mod _ParsedCommandLineDeriveTraceScope {
-    use super::*;
     use local_macros::Trace;
+
+    use super::*;
 
     #[derive(Builder, Debug, Default, Trace, Finalize)]
     #[builder(default, setter(into, strip_option))]
@@ -2121,8 +2126,9 @@ impl ConfigFileSpecs {
 pub type RequireResult = ();
 
 mod _CreateProgramOptionsDeriveTraceScope {
-    use super::*;
     use local_macros::Trace;
+
+    use super::*;
 
     #[derive(Builder, Default, Trace, Finalize)]
     #[builder(default, setter(into))]

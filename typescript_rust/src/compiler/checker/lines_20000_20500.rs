@@ -1,19 +1,22 @@
+use std::{
+    borrow::{Borrow, Cow},
+    cell::{Cell, RefCell},
+    collections::HashMap,
+    io, ptr,
+    rc::Rc,
+};
+
 use gc::{Finalize, Gc, GcCell, Trace};
 use itertools::Itertools;
-use std::borrow::{Borrow, Cow};
-use std::cell::{Cell, RefCell};
-use std::collections::HashMap;
-use std::rc::Rc;
-use std::{io, ptr};
 
 use super::{CheckTypeRelatedTo, IntersectionState, RecursionFlags};
-use crate::try_every;
 use crate::{
-    get_declaration_modifier_flags_from_symbol, get_object_flags, ConditionalRoot,
-    OutofbandVarianceMarkerHandler, SymbolLinks, TransientSymbolInterface, __String, every, get_check_flags, get_selected_effective_modifier_flags, maybe_map, some,
-    try_filter, try_for_each_bool, try_some, CheckFlags, Diagnostics, IndexInfo, ModifierFlags,
-    Node, ObjectFlags, ObjectFlagsTypeInterface, OptionTry, RelationComparisonResult, Signature,
-    Symbol, SymbolFlags, SymbolInterface, Ternary, Type, TypeChecker, TypeFlags, TypeInterface,
+    get_declaration_modifier_flags_from_symbol, get_object_flags, try_every, ConditionalRoot,
+    OutofbandVarianceMarkerHandler, SymbolLinks, TransientSymbolInterface, __String, every,
+    get_check_flags, get_selected_effective_modifier_flags, maybe_map, some, try_filter,
+    try_for_each_bool, try_some, CheckFlags, Diagnostics, IndexInfo, ModifierFlags, Node,
+    ObjectFlags, ObjectFlagsTypeInterface, OptionTry, RelationComparisonResult, Signature, Symbol,
+    SymbolFlags, SymbolInterface, Ternary, Type, TypeChecker, TypeFlags, TypeInterface,
     UnionOrIntersectionTypeInterface, VarianceFlags,
 };
 

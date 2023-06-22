@@ -399,7 +399,11 @@ impl ParserType {
             }
             node = self
                 .factory()
-                .create_jsx_self_closing_element_raw(tag_name.wrap(), type_arguments, attributes.wrap())
+                .create_jsx_self_closing_element_raw(
+                    tag_name.wrap(),
+                    type_arguments,
+                    attributes.wrap(),
+                )
                 .into();
         }
 
@@ -520,7 +524,8 @@ impl ParserType {
             }
         }
         self.finish_node(
-            self.factory().create_jsx_closing_element_raw(tag_name.wrap()),
+            self.factory()
+                .create_jsx_closing_element_raw(tag_name.wrap()),
             pos,
             None,
         )
@@ -546,7 +551,11 @@ impl ParserType {
                 self.scan_jsx_text();
             }
         }
-        self.finish_node(self.factory().create_jsx_jsx_closing_fragment_raw(), pos, None)
+        self.finish_node(
+            self.factory().create_jsx_jsx_closing_fragment_raw(),
+            pos,
+            None,
+        )
     }
 
     pub(super) fn parse_type_assertion(&self) -> TypeAssertion {
@@ -607,8 +616,11 @@ impl ParserType {
         let is_optional_chain =
             question_dot_token.is_some() || self.try_reparse_optional_chain(&expression);
         let property_access = if is_optional_chain {
-            self.factory()
-                .create_property_access_chain_raw(expression, question_dot_token, name.wrap())
+            self.factory().create_property_access_chain_raw(
+                expression,
+                question_dot_token,
+                name.wrap(),
+            )
         } else {
             self.factory()
                 .create_property_access_expression_raw(expression, name.wrap())

@@ -1,7 +1,7 @@
+use std::{borrow::Borrow, iter, ptr};
+
 use gc::Gc;
 use itertools::Either;
-use std::ptr;
-use std::{borrow::Borrow, iter};
 
 use crate::{
     find, find_ancestor, first_defined, get_first_constructor_with_body, get_text_of_property_name,

@@ -1,11 +1,9 @@
+use std::{cmp, collections::HashMap, io, ptr, rc::Rc};
+
 use fancy_regex::Regex;
 use gc::{Gc, GcCell};
 use indexmap::IndexMap;
 use serde::Serialize;
-use std::collections::HashMap;
-use std::ptr;
-use std::rc::Rc;
-use std::{cmp, io};
 
 use super::{
     command_options_without_build, create_diagnostic_for_invalid_custom_type,

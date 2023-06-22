@@ -1,16 +1,15 @@
+use std::{borrow::Borrow, collections::HashMap, io, ptr};
+
 use gc::Gc;
 
-use std::{borrow::Borrow, collections::HashMap};
-use std::{io, ptr};
-
-use crate::try_every;
 use crate::{
     concatenate, create_symbol_table, every, get_effective_constraint_of_type_parameter,
     get_effective_return_type_node, get_effective_type_annotation_node,
     get_effective_type_parameter_declarations, get_interface_base_type_nodes, has_initializer,
     is_computed_property_name, is_element_access_expression, is_entity_name_expression,
     is_jsdoc_type_alias, is_named_declaration, is_private_identifier_class_element_declaration,
-    is_static, is_string_literal_like, is_type_alias, node_is_missing, BaseInterfaceType, Debug_, Diagnostics, EnumKind, GenericableTypeInterface,
+    is_static, is_string_literal_like, is_type_alias, node_is_missing, try_every,
+    BaseInterfaceType, Debug_, Diagnostics, EnumKind, GenericableTypeInterface,
     HasTypeArgumentsInterface, InterfaceTypeInterface, InterfaceTypeWithDeclaredMembersInterface,
     InternalSymbolName, Node, NodeFlags, NodeInterface, Number, ObjectFlags,
     ObjectFlagsTypeInterface, OptionTry, Symbol, SymbolFlags, SymbolInterface, SymbolTable,

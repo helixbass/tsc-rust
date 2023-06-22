@@ -1,11 +1,8 @@
+use std::{borrow::Borrow, cell::RefCell, io, ptr, rc::Rc};
+
 use gc::Gc;
-use std::cell::RefCell;
-use std::ptr;
-use std::rc::Rc;
-use std::{borrow::Borrow, io};
 
 use super::ResolveCallContainingMessageChain;
-use crate::try_for_each;
 use crate::{
     chain_diagnostic_messages, entity_name_to_string, get_declaration_of_kind,
     get_effective_return_type_node, get_effective_type_annotation_node,
@@ -13,10 +10,10 @@ use crate::{
     get_first_constructor_with_body, get_first_identifier, get_host_signature_from_jsdoc,
     get_jsdoc_tags, get_parameter_symbol_from_jsdoc, get_rest_parameter_element_type, id_text,
     is_binding_pattern, is_entity_name, is_identifier, is_jsdoc_construct_signature,
-    is_jsdoc_parameter_tag, is_qualified_name, is_rest_parameter, node_can_be_decorated, Debug_,
-    DiagnosticMessageChain, Diagnostics, ExternalEmitHelpers, HasTypeInterface,
-    NamedDeclarationInterface, Node, NodeInterface, OptionTry, ScriptTarget, Symbol, SymbolFlags,
-    SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
+    is_jsdoc_parameter_tag, is_qualified_name, is_rest_parameter, node_can_be_decorated,
+    try_for_each, Debug_, DiagnosticMessageChain, Diagnostics, ExternalEmitHelpers,
+    HasTypeInterface, NamedDeclarationInterface, Node, NodeInterface, OptionTry, ScriptTarget,
+    Symbol, SymbolFlags, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
 };
 
 impl TypeChecker {

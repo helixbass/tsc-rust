@@ -1,6 +1,6 @@
+use std::{borrow::Borrow, ops::Deref};
+
 use gc::Gc;
-use std::borrow::Borrow;
-use std::ops::Deref;
 
 use crate::{
     get_jsdoc_type_tag, get_text_of_identifier_or_literal, is_effective_module_declaration,

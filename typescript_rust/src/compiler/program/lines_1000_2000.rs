@@ -1,11 +1,12 @@
-use gc::{Finalize, Gc, GcCell, GcCellRef, Trace};
-use itertools::Itertools;
 use std::{
     cell::{Ref, RefCell},
     collections::HashMap,
     io, ptr,
     rc::Rc,
 };
+
+use gc::{Finalize, Gc, GcCell, GcCellRef, Trace};
+use itertools::Itertools;
 
 use super::{
     create_prepend_nodes, filter_semantic_diagnostics, get_module_names, handle_no_emit_options,

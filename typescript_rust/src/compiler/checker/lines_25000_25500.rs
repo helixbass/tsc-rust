@@ -1,7 +1,6 @@
-use gc::Gc;
-use std::ptr;
+use std::{borrow::Borrow, io, ptr};
 
-use std::{borrow::Borrow, io};
+use gc::Gc;
 
 use crate::{
     add_related_info, contains_gc, create_diagnostic_for_node, find_ancestor,

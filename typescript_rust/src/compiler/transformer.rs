@@ -1,9 +1,12 @@
+use std::{
+    cell::{Cell, RefCell, RefMut},
+    collections::HashMap,
+    io, mem,
+    rc::Rc,
+};
+
 use bitflags::bitflags;
 use gc::{Finalize, Gc, GcCell, GcCellRef, GcCellRefMut, Trace};
-use std::cell::{Cell, RefCell, RefMut};
-use std::collections::HashMap;
-use std::mem;
-use std::rc::Rc;
 
 use crate::{
     add_range, append, chain_bundle, create_emit_helper_factory, dispose_emit_nodes,
@@ -23,7 +26,6 @@ use crate::{
     TransformerFactory, TransformerFactoryInterface, TransformerFactoryOrCustomTransformerFactory,
     TransformerInterface,
 };
-use std::io;
 
 fn get_module_transformer(module_kind: ModuleKind) -> TransformerFactory {
     match module_kind {
@@ -838,18 +840,13 @@ impl CoreTransformationContext<BaseNodeFactorySynthetic> for TransformNodesTrans
             if let Some(lexical_environment_variable_declarations) =
                 lexical_environment_variable_declarations.as_ref()
             {
-                let statement = self
-                    .factory
-                    .create_variable_statement(
-                        Option::<Gc<NodeArray>>::None,
-                        self.factory
-                            .create_variable_declaration_list(
-                                lexical_environment_variable_declarations.clone(),
-                                None,
-                            )
-                            ,
-                    )
-                    ;
+                let statement = self.factory.create_variable_statement(
+                    Option::<Gc<NodeArray>>::None,
+                    self.factory.create_variable_declaration_list(
+                        lexical_environment_variable_declarations.clone(),
+                        None,
+                    ),
+                );
 
                 let statement = set_emit_flags(statement, EmitFlags::CustomPrologue);
 
@@ -926,8 +923,7 @@ impl CoreTransformationContext<BaseNodeFactorySynthetic> for TransformNodesTrans
         );
         let decl = set_emit_flags(
             self.factory()
-                .create_variable_declaration(Some(name.node_wrapper()), None, None, None)
-                ,
+                .create_variable_declaration(Some(name.node_wrapper()), None, None, None),
             EmitFlags::NoNestedSourceMaps,
         );
         let mut lexical_environment_variable_declarations =
@@ -979,32 +975,25 @@ impl CoreTransformationContext<BaseNodeFactorySynthetic> for TransformNodesTrans
             block_scoped_variable_declarations.as_deref(),
             Option::<fn(&Gc<Node>) -> bool>::None,
         ) {
-            Some(vec![self
-                .factory()
-                .create_variable_statement(
-                    Option::<Gc<NodeArray>>::None,
-                    self.factory()
-                        .create_variable_declaration_list(
-                            block_scoped_variable_declarations
-                                .as_ref()
-                                .unwrap()
-                                .iter()
-                                .map(|identifier| {
-                                    self.factory()
-                                        .create_variable_declaration(
-                                            Some(identifier.clone()),
-                                            None,
-                                            None,
-                                            None,
-                                        )
-                                        
-                                })
-                                .collect::<Vec<_>>(),
-                            Some(NodeFlags::Let),
-                        )
-                        ,
-                )
-                ])
+            Some(vec![self.factory().create_variable_statement(
+                Option::<Gc<NodeArray>>::None,
+                self.factory().create_variable_declaration_list(
+                    block_scoped_variable_declarations
+                        .as_ref()
+                        .unwrap()
+                        .iter()
+                        .map(|identifier| {
+                            self.factory().create_variable_declaration(
+                                Some(identifier.clone()),
+                                None,
+                                None,
+                                None,
+                            )
+                        })
+                        .collect::<Vec<_>>(),
+                    Some(NodeFlags::Let),
+                ),
+            )])
         } else {
             None
         };

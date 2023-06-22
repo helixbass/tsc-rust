@@ -92,12 +92,10 @@ impl TypeChecker {
         for ref static_block in static_blocks {
             if static_block.pos() >= start_pos && static_block.pos() <= end_pos {
                 let reference: Gc<Node> = factory.with(|factory_| {
-                    factory_
-                        .create_property_access_expression(
-                            factory_.create_this(),
-                            prop_name.node_wrapper(),
-                        )
-                        
+                    factory_.create_property_access_expression(
+                        factory_.create_this(),
+                        prop_name.node_wrapper(),
+                    )
                 });
                 set_parent(
                     &reference.as_property_access_expression().expression,
@@ -130,12 +128,10 @@ impl TypeChecker {
         prop_type: &Type,
         constructor: &Node, /*ConstructorDeclaration*/
     ) -> io::Result<bool> {
-        let reference = get_factory()
-            .create_property_access_expression(
-                get_factory().create_this(),
-                prop_name.node_wrapper(),
-            )
-            ;
+        let reference = get_factory().create_property_access_expression(
+            get_factory().create_this(),
+            prop_name.node_wrapper(),
+        );
         set_parent(
             &reference.as_property_access_expression().expression,
             Some(&*reference),

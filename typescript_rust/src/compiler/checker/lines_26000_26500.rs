@@ -1,8 +1,7 @@
+use std::{borrow::Borrow, convert::TryInto, io, ptr};
+
 use gc::Gc;
 use itertools::Itertools;
-use std::convert::TryInto;
-use std::ptr;
-use std::{borrow::Borrow, io};
 
 use super::{IterationUse, JsxNames};
 use crate::{

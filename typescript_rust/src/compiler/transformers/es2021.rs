@@ -109,25 +109,18 @@ impl TransformES2021 {
             } else {
                 self.factory
                     .create_assignment(property_access_target.clone(), left_expression.clone())
-                    
             };
 
             if is_property_access_expression(&left) {
                 let left_as_property_access_expression = left.as_property_access_expression();
-                assignment_target = self
-                    .factory
-                    .create_property_access_expression(
-                        property_access_target,
-                        left_as_property_access_expression.name.clone(),
-                    )
-                    ;
-                left = self
-                    .factory
-                    .create_property_access_expression(
-                        property_access_target_assignment,
-                        left_as_property_access_expression.name.clone(),
-                    )
-                    ;
+                assignment_target = self.factory.create_property_access_expression(
+                    property_access_target,
+                    left_as_property_access_expression.name.clone(),
+                );
+                left = self.factory.create_property_access_expression(
+                    property_access_target_assignment,
+                    left_as_property_access_expression.name.clone(),
+                );
             } else {
                 let left_as_element_access_expression = left.as_element_access_expression();
                 let element_access_argument_simple_copiable = is_simple_copiable_expression(
@@ -146,33 +139,25 @@ impl TransformES2021 {
                     )
                 };
 
-                assignment_target = self
-                    .factory
-                    .create_element_access_expression(
-                        property_access_target,
-                        element_access_argument.clone(),
-                    )
-                    ;
-                left = self
-                    .factory
-                    .create_element_access_expression(
-                        property_access_target_assignment,
-                        if element_access_argument_simple_copiable {
+                assignment_target = self.factory.create_element_access_expression(
+                    property_access_target,
+                    element_access_argument.clone(),
+                );
+                left = self.factory.create_element_access_expression(
+                    property_access_target_assignment,
+                    if element_access_argument_simple_copiable {
+                        left_as_element_access_expression
+                            .argument_expression
+                            .clone()
+                    } else {
+                        self.factory.create_assignment(
+                            element_access_argument,
                             left_as_element_access_expression
                                 .argument_expression
-                                .clone()
-                        } else {
-                            self.factory
-                                .create_assignment(
-                                    element_access_argument,
-                                    left_as_element_access_expression
-                                        .argument_expression
-                                        .clone(),
-                                )
-                                
-                        },
-                    )
-                    ;
+                                .clone(),
+                        )
+                    },
+                );
             }
         }
 
@@ -181,15 +166,10 @@ impl TransformES2021 {
                 .create_binary_expression(
                     left,
                     non_assignment_operator,
-                    self.factory
-                        .create_parenthesized_expression(
-                            self.factory
-                                .create_assignment(assignment_target, right)
-                                ,
-                        )
-                        ,
+                    self.factory.create_parenthesized_expression(
+                        self.factory.create_assignment(assignment_target, right),
+                    ),
                 )
-                
                 .into(),
         )
     }

@@ -1,26 +1,27 @@
+use std::{
+    borrow::{Borrow, Cow},
+    convert::TryInto,
+    io, ptr,
+};
+
 use gc::{Gc, GcCell};
-use std::borrow::{Borrow, Cow};
-
-use std::convert::TryInto;
-
-use std::{io, ptr};
 
 use super::{signature_has_rest_parameter, MembersOrExportsResolutionKind};
 use crate::{
-    Type, TypeChecker, TypeFlags, TypeInterface, TypeMapper, TypePredicate, append_if_unique_gc, are_gc_slices_equal,
-    concatenate, create_symbol_table, declaration_name_to_string, escape_leading_underscores,
-    every, for_each, get_assignment_declaration_kind, get_check_flags,
-    get_class_like_declaration_of_symbol, get_members_of_declaration, get_name_of_declaration,
-    get_object_flags, has_dynamic_name, has_static_modifier, has_syntactic_modifier,
-    is_binary_expression, is_dynamic_name, is_element_access_expression, is_in_js_file,
-    last_or_undefined, length, maybe_concatenate, maybe_for_each,
-    range_equals_gc, return_ok_default_if_none, some, try_map,
-    try_map_defined, try_maybe_map, try_some, unescape_leading_underscores,
-    AssignmentDeclarationKind, CheckFlags, Debug_, Diagnostics, ElementFlags, IndexInfo,
-    InterfaceTypeInterface, InterfaceTypeWithDeclaredMembersInterface, InternalSymbolName,
-    LiteralType, ModifierFlags, Node, NodeInterface, ObjectFlags, OptionTry, Signature,
-    SignatureFlags, SignatureKind, SignatureOptionalCallSignatureCache, Symbol, SymbolFlags,
-    SymbolInterface, SymbolLinks, SymbolTable, Ternary, TransientSymbolInterface,
+    append_if_unique_gc, are_gc_slices_equal, concatenate, create_symbol_table,
+    declaration_name_to_string, escape_leading_underscores, every, for_each,
+    get_assignment_declaration_kind, get_check_flags, get_class_like_declaration_of_symbol,
+    get_members_of_declaration, get_name_of_declaration, get_object_flags, has_dynamic_name,
+    has_static_modifier, has_syntactic_modifier, is_binary_expression, is_dynamic_name,
+    is_element_access_expression, is_in_js_file, last_or_undefined, length, maybe_concatenate,
+    maybe_for_each, range_equals_gc, return_ok_default_if_none, some, try_map, try_map_defined,
+    try_maybe_map, try_some, unescape_leading_underscores, AssignmentDeclarationKind, CheckFlags,
+    Debug_, Diagnostics, ElementFlags, IndexInfo, InterfaceTypeInterface,
+    InterfaceTypeWithDeclaredMembersInterface, InternalSymbolName, LiteralType, ModifierFlags,
+    Node, NodeInterface, ObjectFlags, OptionTry, Signature, SignatureFlags, SignatureKind,
+    SignatureOptionalCallSignatureCache, Symbol, SymbolFlags, SymbolInterface, SymbolLinks,
+    SymbolTable, Ternary, TransientSymbolInterface, Type, TypeChecker, TypeFlags, TypeInterface,
+    TypeMapper, TypePredicate,
 };
 
 impl TypeChecker {

@@ -1,5 +1,6 @@
-use gc::Gc;
 use std::convert::TryInto;
+
+use gc::Gc;
 
 use super::{ParserType, ParsingContext};
 use crate::{
@@ -112,7 +113,11 @@ impl ParserType {
             || self.parse_expression_with_type_arguments().wrap(),
             None,
         );
-        self.finish_node(self.factory().create_heritage_clause_raw(tok, types), pos, None)
+        self.finish_node(
+            self.factory().create_heritage_clause_raw(tok, types),
+            pos,
+            None,
+        )
     }
 
     pub(super) fn parse_expression_with_type_arguments(&self) -> ExpressionWithTypeArguments {
@@ -475,7 +480,11 @@ impl ParserType {
         let value: Gc<Node> = self
             .parse_literal_like_node(SyntaxKind::StringLiteral)
             .wrap();
-        self.finish_node(self.factory().create_assert_entry_raw(name, value), pos, None)
+        self.finish_node(
+            self.factory().create_assert_entry_raw(name, value),
+            pos,
+            None,
+        )
     }
 
     pub(super) fn parse_assert_clause(&self) -> AssertClause {
@@ -519,7 +528,8 @@ impl ParserType {
         } else {
             let elements = self.create_node_array(vec![], self.get_node_pos(), None, Some(false));
             self.finish_node(
-                self.factory().create_assert_clause_raw(elements, Some(false)),
+                self.factory()
+                    .create_assert_clause_raw(elements, Some(false)),
                 pos,
                 None,
             )
@@ -605,7 +615,8 @@ impl ParserType {
         let expression = self.parse_module_specifier();
         self.parse_expected(SyntaxKind::CloseParenToken, None, None);
         self.finish_node(
-            self.factory().create_external_module_reference_raw(expression),
+            self.factory()
+                .create_external_module_reference_raw(expression),
             pos,
             None,
         )

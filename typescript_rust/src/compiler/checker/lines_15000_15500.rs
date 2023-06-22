@@ -1,23 +1,26 @@
-use gc::Gc;
-use std::borrow::{Borrow, Cow};
-use std::convert::TryInto;
+use std::{
+    borrow::{Borrow, Cow},
+    convert::TryInto,
+    io, ptr,
+};
 
-use std::{io, ptr};
+use gc::Gc;
 
 use super::{get_symbol_id, intrinsic_type_kinds, IntrinsicTypeKind};
 use crate::{
-    TemplateLiteralType, Type, TypeChecker, UnionOrIntersectionTypeInterface, UnionReduction, append, capitalize, chain_diagnostic_messages, create_diagnostic_for_node,
+    append, capitalize, chain_diagnostic_messages, create_diagnostic_for_node,
     create_diagnostic_for_node_from_message_chain, every, find_ancestor,
     get_assignment_target_kind, get_combined_node_flags, get_object_flags,
     get_property_name_for_property_name_node, get_text_of_node, is_access_expression,
     is_assignment_target, is_call_like_expression, is_call_or_new_expression, is_delete_target,
     is_function_like, is_identifier, is_indexed_access_type_node, is_private_identifier,
-    is_property_name, maybe_every, pseudo_big_int_to_string, try_every,
-    try_map, try_reduce_left, try_some, uncapitalize, unescape_leading_underscores, AccessFlags,
-    AssignmentKind, DiagnosticMessageChain, Diagnostics, IndexInfo, IndexedAccessType, LiteralType,
-    Node, NodeFlags, NodeInterface, Number, ObjectFlags, ObjectFlagsTypeInterface,
-    ObjectTypeInterface, OptionTry, StringMappingType, Symbol, SymbolFlags, SymbolInterface,
-    SyntaxKind, TypeFlags, TypeInterface,
+    is_property_name, maybe_every, pseudo_big_int_to_string, try_every, try_map, try_reduce_left,
+    try_some, uncapitalize, unescape_leading_underscores, AccessFlags, AssignmentKind,
+    DiagnosticMessageChain, Diagnostics, IndexInfo, IndexedAccessType, LiteralType, Node,
+    NodeFlags, NodeInterface, Number, ObjectFlags, ObjectFlagsTypeInterface, ObjectTypeInterface,
+    OptionTry, StringMappingType, Symbol, SymbolFlags, SymbolInterface, SyntaxKind,
+    TemplateLiteralType, Type, TypeChecker, TypeFlags, TypeInterface,
+    UnionOrIntersectionTypeInterface, UnionReduction,
 };
 
 impl TypeChecker {

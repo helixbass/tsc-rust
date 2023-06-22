@@ -1,8 +1,11 @@
+use std::{
+    borrow::{Borrow, Cow},
+    cell::RefCell,
+    io,
+    rc::Rc,
+};
+
 use gc::{Finalize, Gc, Trace};
-use std::borrow::{Borrow, Cow};
-use std::cell::RefCell;
-use std::io;
-use std::rc::Rc;
 
 use super::{CheckMode, CheckTypeContainingMessageChain, JsxNames};
 use crate::{
@@ -12,8 +15,8 @@ use crate::{
     get_text_of_identifier_or_literal, get_text_of_node, is_binary_expression, is_in_js_file,
     is_jsx_opening_fragment, is_jsx_opening_like_element, is_object_binding_pattern,
     is_this_initialized_declaration, is_this_initialized_object_binding_expression,
-    is_this_property, some, unescape_leading_underscores, AssignmentDeclarationKind,
-    CheckFlags, Debug_, DiagnosticMessageChain, Diagnostics, HasTypeInterface, JsxEmit, JsxFlags,
+    is_this_property, some, unescape_leading_underscores, AssignmentDeclarationKind, CheckFlags,
+    Debug_, DiagnosticMessageChain, Diagnostics, HasTypeInterface, JsxEmit, JsxFlags,
     JsxReferenceKind, ModifierFlags, NodeFlags, ScriptTarget, Signature, SignatureKind,
     SymbolFlags, UnionOrIntersectionTypeInterface, __String, get_object_flags, try_map, Node,
     NodeInterface, ObjectFlags, OptionTry, Symbol, SymbolInterface, SyntaxKind, Type, TypeChecker,

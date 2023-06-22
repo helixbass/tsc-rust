@@ -1,9 +1,8 @@
+use std::{borrow::Borrow, collections::HashMap, io, rc::Rc};
+
 use fancy_regex::Regex;
 use gc::{Gc, GcCell};
 use indexmap::IndexMap;
-use std::collections::HashMap;
-use std::rc::Rc;
-use std::{borrow::Borrow, io};
 
 use super::{
     compile_on_save_command_line_option, compiler_options_did_you_mean_diagnostics,

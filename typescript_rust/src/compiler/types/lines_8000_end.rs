@@ -1,12 +1,16 @@
+use std::{
+    cell::{Cell, RefCell},
+    collections::{HashMap, HashSet},
+    io,
+    iter::FromIterator,
+    rc::Rc,
+};
+
 use bitflags::bitflags;
 use derive_builder::Builder;
 use gc::{Finalize, Gc, GcCell, Trace};
+use local_macros::{ast_type, enum_unwrapped};
 use serde::Serialize;
-use std::cell::{Cell, RefCell};
-use std::collections::{HashMap, HashSet};
-use std::io;
-use std::iter::FromIterator;
-use std::rc::Rc;
 
 use super::{BaseNode, CommentDirective, Diagnostic, Node, Symbol, SymbolFlags, SymbolWriter};
 use crate::{
@@ -15,7 +19,6 @@ use crate::{
     Path, ProgramBuildInfo, RedirectTargetsMap, ScriptTarget, SortedArray, SourceMapSource,
     SymlinkCache, SyntaxKind, TempFlags, TextRange,
 };
-use local_macros::{ast_type, enum_unwrapped};
 
 #[derive(Trace, Finalize)]
 pub struct Printer {
@@ -684,8 +687,9 @@ pub trait PrintHandlers: Trace + Finalize {
 }
 
 mod _PrinterOptionsDeriveTraceScope {
-    use super::*;
     use local_macros::Trace;
+
+    use super::*;
 
     #[derive(Builder, Default, Trace, Finalize)]
     #[builder(default)]

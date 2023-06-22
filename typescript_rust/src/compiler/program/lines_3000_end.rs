@@ -1,11 +1,14 @@
+use std::{
+    borrow::Borrow,
+    cell::RefCell,
+    collections::{HashMap, HashSet},
+    convert::TryInto,
+    io,
+    iter::FromIterator,
+    rc::Rc,
+};
+
 use gc::{Finalize, Gc, Trace};
-use std::borrow::Borrow;
-use std::cell::RefCell;
-use std::collections::{HashMap, HashSet};
-use std::convert::TryInto;
-use std::io;
-use std::iter::FromIterator;
-use std::rc::Rc;
 
 use super::{
     for_each_project_reference, get_mode_for_resolution_at_index, SourceFileImportsList, ToPath,

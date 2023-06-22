@@ -64,17 +64,15 @@ impl TransformES2019 {
             return self.factory.update_catch_clause(
                 node,
                 Some(
-                    self.factory
-                        .create_variable_declaration(
-                            Some(
-                                self.factory
-                                    .create_temp_variable(Option::<fn(&Node)>::None, None),
-                            ),
-                            None,
-                            None,
-                            None,
-                        )
-                        ,
+                    self.factory.create_variable_declaration(
+                        Some(
+                            self.factory
+                                .create_temp_variable(Option::<fn(&Node)>::None, None),
+                        ),
+                        None,
+                        None,
+                        None,
+                    ),
                 ),
                 visit_node(
                     &node_as_catch_clause.block,

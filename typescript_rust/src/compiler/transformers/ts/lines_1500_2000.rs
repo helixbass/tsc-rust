@@ -97,20 +97,16 @@ impl TransformTypeScript {
                     Some(|node: &Node| self.context.hoist_variable_declaration(node)),
                     None,
                 );
-                self.factory
-                    .create_conditional_expression(
-                        self.factory.create_type_check(
-                            self.factory
-                                .create_assignment(temp.clone(), serialized)
-                                ,
-                            "function",
-                        ),
-                        None,
-                        temp,
-                        None,
-                        self.factory.create_identifier("Object"),
-                    )
-                    
+                self.factory.create_conditional_expression(
+                    self.factory.create_type_check(
+                        self.factory.create_assignment(temp.clone(), serialized),
+                        "function",
+                    ),
+                    None,
+                    temp,
+                    None,
+                    self.factory.create_identifier("Object"),
+                )
             }
             TypeReferenceSerializationKind::TypeWithConstructSignatureAndValue => {
                 self.serialize_entity_name_as_expression(&node_as_type_reference_node.type_name)
@@ -155,19 +151,14 @@ impl TransformTypeScript {
         left: Gc<Node /*Expression*/>,
         right: Gc<Node /*Expression*/>,
     ) -> Gc<Node> {
-        self.factory
-            .create_logical_and(
+        self.factory.create_logical_and(
+            self.factory.create_strict_inequality(
+                self.factory.create_type_of_expression(left),
                 self.factory
-                    .create_strict_inequality(
-                        self.factory.create_type_of_expression(left),
-                        self.factory
-                            .create_string_literal("undefined".to_owned(), None, None)
-                            ,
-                    )
-                    ,
-                right,
-            )
-            
+                    .create_string_literal("undefined".to_owned(), None, None),
+            ),
+            right,
+        )
     }
 
     pub(super) fn serialize_entity_name_as_expression_fallback(
@@ -190,29 +181,18 @@ impl TransformTypeScript {
             Some(|node: &Node| self.context.hoist_variable_declaration(node)),
             None,
         );
-        self.factory
-            .create_logical_and(
-                self.factory
-                    .create_logical_and(
-                        left.as_binary_expression().left.clone(),
-                        self.factory
-                            .create_strict_inequality(
-                                self.factory
-                                    .create_assignment(
-                                        temp.clone(),
-                                        left.as_binary_expression().right.clone(),
-                                    )
-                                    ,
-                                self.factory.create_void_zero(),
-                            )
-                            ,
-                    )
-                    ,
-                self.factory
-                    .create_property_access_expression(temp, node_as_qualified_name.right.clone())
-                    ,
-            )
-            
+        self.factory.create_logical_and(
+            self.factory.create_logical_and(
+                left.as_binary_expression().left.clone(),
+                self.factory.create_strict_inequality(
+                    self.factory
+                        .create_assignment(temp.clone(), left.as_binary_expression().right.clone()),
+                    self.factory.create_void_zero(),
+                ),
+            ),
+            self.factory
+                .create_property_access_expression(temp, node_as_qualified_name.right.clone()),
+        )
     }
 
     pub(super) fn serialize_entity_name_as_expression(
@@ -239,41 +219,35 @@ impl TransformTypeScript {
         node: &Node, /*QualifiedName*/
     ) -> Gc<Node /*SerializedEntityNameAsExpression*/> {
         let node_as_qualified_name = node.as_qualified_name();
-        self.factory
-            .create_property_access_expression(
-                self.serialize_entity_name_as_expression(&node_as_qualified_name.left),
-                node_as_qualified_name.right.clone(),
-            )
-            
+        self.factory.create_property_access_expression(
+            self.serialize_entity_name_as_expression(&node_as_qualified_name.left),
+            node_as_qualified_name.right.clone(),
+        )
     }
 
     pub(super) fn get_global_symbol_name_with_fallback(
         &self,
     ) -> Gc<Node /*ConditionalExpression*/> {
-        self.factory
-            .create_conditional_expression(
-                self.factory
-                    .create_type_check(self.factory.create_identifier("Symbol"), "function"),
-                None,
-                self.factory.create_identifier("Symbol"),
-                None,
-                self.factory.create_identifier("Object"),
-            )
-            
+        self.factory.create_conditional_expression(
+            self.factory
+                .create_type_check(self.factory.create_identifier("Symbol"), "function"),
+            None,
+            self.factory.create_identifier("Symbol"),
+            None,
+            self.factory.create_identifier("Object"),
+        )
     }
 
     pub(super) fn get_global_big_int_name_with_fallback(&self) -> Gc<Node /*SerializedTypeNode*/> {
         if self.language_version < ScriptTarget::ESNext {
-            self.factory
-                .create_conditional_expression(
-                    self.factory
-                        .create_type_check(self.factory.create_identifier("BigInt"), "function"),
-                    None,
-                    self.factory.create_identifier("BigInt"),
-                    None,
-                    self.factory.create_identifier("Object"),
-                )
-                
+            self.factory.create_conditional_expression(
+                self.factory
+                    .create_type_check(self.factory.create_identifier("BigInt"), "function"),
+                None,
+                self.factory.create_identifier("BigInt"),
+                None,
+                self.factory.create_identifier("Object"),
+            )
         } else {
             self.factory.create_identifier("BigInt")
         }
@@ -299,7 +273,6 @@ impl TransformTypeScript {
         } else if is_identifier(&name) {
             self.factory
                 .create_string_literal(id_text(&name).to_owned(), None, None)
-                
         } else {
             self.factory.clone_node(&name)
         }
@@ -330,9 +303,7 @@ impl TransformTypeScript {
                 self.context.hoist_variable_declaration(&generated_name);
                 return Ok(self.factory.update_computed_property_name(
                     name,
-                    self.factory
-                        .create_assignment(generated_name, expression)
-                        ,
+                    self.factory.create_assignment(generated_name, expression),
                 ));
             }
         }
@@ -533,7 +504,6 @@ impl TransformTypeScript {
                     .set_text_range(Some(&*body_as_block.statements)),
                 Some(true),
             )
-            
             .set_text_range(Some(body))
             .set_original_node(Some(body.node_wrapper())))
     }
@@ -564,22 +534,16 @@ impl TransformTypeScript {
         Some(
             self.factory
                 .create_expression_statement(
-                    self.factory
-                        .create_assignment(
-                            self.factory
-                                .create_property_access_expression(
-                                    self.factory.create_this(),
-                                    property_name,
-                                )
-                                
-                                .set_text_range(
-                                    node.as_named_declaration().maybe_name().as_deref(),
-                                ),
-                            local_name,
-                        )
-                        ,
+                    self.factory.create_assignment(
+                        self.factory
+                            .create_property_access_expression(
+                                self.factory.create_this(),
+                                property_name,
+                            )
+                            .set_text_range(node.as_named_declaration().maybe_name().as_deref()),
+                        local_name,
+                    ),
                 )
-                
                 .set_original_node(Some(node.node_wrapper()))
                 .set_text_range(Some(&move_range_pos(node, -1).into_readonly_text_range()))
                 .remove_all_comments()

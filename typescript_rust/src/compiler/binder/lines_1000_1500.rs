@@ -1,6 +1,6 @@
+use std::{borrow::Borrow, ptr};
+
 use gc::Gc;
-use std::borrow::Borrow;
-use std::ptr;
 
 use super::{init_flow_node, ActiveLabel, BinderType};
 use crate::{

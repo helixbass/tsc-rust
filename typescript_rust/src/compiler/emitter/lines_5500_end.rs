@@ -1,9 +1,7 @@
+use std::{collections::HashMap, convert::TryInto, io, iter::FromIterator, rc::Rc};
+
 use bitflags::bitflags;
 use gc::Gc;
-use std::collections::HashMap;
-use std::convert::TryInto;
-use std::iter::FromIterator;
-use std::rc::Rc;
 
 use super::{brackets, PipelinePhase};
 use crate::{
@@ -15,7 +13,6 @@ use crate::{
     NodeInterface, Printer, RawSourceMap, ReadonlyTextRange, SourceFileLike, SourceMapSource,
     SourceTextAsChars, SyntaxKind, TextRange,
 };
-use std::io;
 
 impl Printer {
     pub(super) fn emit_trailing_comment(

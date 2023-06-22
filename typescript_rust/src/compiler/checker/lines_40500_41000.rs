@@ -1,7 +1,6 @@
-use gc::Gc;
-use std::ptr;
+use std::{borrow::Borrow, io, ptr};
 
-use std::{borrow::Borrow, io};
+use gc::Gc;
 
 use super::{is_declaration_name_or_import_property_name, CheckMode};
 use crate::{

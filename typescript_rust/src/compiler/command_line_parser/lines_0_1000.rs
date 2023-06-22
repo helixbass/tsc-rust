@@ -1,17 +1,15 @@
+use std::{collections::HashMap, iter::FromIterator, rc::Rc};
+
 use gc::Gc;
 use indexmap::IndexMap;
-use std::collections::HashMap;
-use std::iter::FromIterator;
-use std::{rc::Rc};
 
 use super::spec_to_diagnostic;
 use crate::{
-    CommandLineOption, CommandLineOptionBaseBuilder,
-    CommandLineOptionMapTypeValue,
-    CommandLineOptionOfListType,
-    CommandLineOptionType, CompilerOptionsValue, Diagnostics, GcVec, ImportsNotUsedAsValues,
-    JsxEmit, ModuleKind, ModuleResolutionKind, NewLineKind, PollingWatchKind, ScriptTarget,
-    StringOrDiagnosticMessage, TsConfigOnlyOption, WatchDirectoryKind, WatchFileKind,
+    CommandLineOption, CommandLineOptionBaseBuilder, CommandLineOptionMapTypeValue,
+    CommandLineOptionOfListType, CommandLineOptionType, CompilerOptionsValue, Diagnostics, GcVec,
+    ImportsNotUsedAsValues, JsxEmit, ModuleKind, ModuleResolutionKind, NewLineKind,
+    PollingWatchKind, ScriptTarget, StringOrDiagnosticMessage, TsConfigOnlyOption,
+    WatchDirectoryKind, WatchFileKind,
 };
 
 thread_local! {

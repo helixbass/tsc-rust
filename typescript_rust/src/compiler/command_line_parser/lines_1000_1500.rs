@@ -1,10 +1,9 @@
+use std::{cell::RefCell, collections::HashMap, io, rc::Rc};
+
 use gc::Gc;
 use indexmap::IndexMap;
 use itertools::Itertools;
-use std::cell::RefCell;
-use std::collections::HashMap;
-use std::io;
-use std::rc::Rc;
+use local_macros::enum_unwrapped;
 
 use super::{
     command_options_without_build, common_options_with_build, convert_json_option_of_custom_type,
@@ -13,12 +12,12 @@ use super::{
 };
 use crate::{
     create_compiler_diagnostic, for_each, get_spelling_suggestion, starts_with, trim_string,
-    AlternateModeDiagnostics, BuildOptions, CharacterCodes, CommandLineOption, CommandLineOptionBaseBuilder, CommandLineOptionInterface, CommandLineOptionOfListType,
+    AlternateModeDiagnostics, BuildOptions, CharacterCodes, CommandLineOption,
+    CommandLineOptionBaseBuilder, CommandLineOptionInterface, CommandLineOptionOfListType,
     CommandLineOptionType, CompilerOptions, CompilerOptionsBuilder, CompilerOptionsValue,
     Diagnostic, DiagnosticMessage, Diagnostics, DidYouMeanOptionsDiagnostics, GcVec, ModuleKind,
     ParsedCommandLineWithBaseOptions, ScriptTarget, StringOrDiagnosticMessage, WatchOptions,
 };
-use local_macros::enum_unwrapped;
 
 thread_local! {
     pub static option_declarations: GcVec<Gc<CommandLineOption>>  =

@@ -1,9 +1,12 @@
+use std::{
+    cell::{Cell, Ref, RefCell, RefMut},
+    collections::{HashMap, HashSet},
+    fmt, io,
+    rc::Rc,
+};
+
 use gc::{Finalize, Gc, GcCell, GcCellRef, GcCellRefMut, Trace};
-use std::cell::{Cell, Ref, RefCell, RefMut};
-use std::collections::{HashMap, HashSet};
-use std::fmt;
-use std::io;
-use std::rc::Rc;
+use local_macros::{ast_type, enum_unwrapped};
 
 use super::{
     BaseNode, BaseTextRange, BuildInfo, CompilerOptions, Diagnostic, EmitHelper, FileReference,
@@ -22,7 +25,6 @@ use crate::{
     TypeCheckerHostDebuggable, TypeFlags, TypeInterface, TypeReferenceDirectiveResolutionCache,
     __String, get_line_and_character_of_position, LineAndCharacter, ProgramBuildInfo,
 };
-use local_macros::{ast_type, enum_unwrapped};
 
 #[derive(Clone, Debug, Trace, Finalize)]
 pub enum FlowType {

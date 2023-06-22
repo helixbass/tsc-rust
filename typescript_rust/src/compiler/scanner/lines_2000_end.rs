@@ -1,7 +1,10 @@
+use std::{
+    cell::{Ref, RefMut},
+    convert::TryInto,
+    rc::Rc,
+};
+
 use regex::Regex;
-use std::cell::{Ref, RefMut};
-use std::convert::TryInto;
-use std::rc::Rc;
 
 use super::{
     is_conflict_marker_trivia, is_identifier_part, is_identifier_start, is_line_break,

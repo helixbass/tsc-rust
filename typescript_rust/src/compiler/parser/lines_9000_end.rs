@@ -1,9 +1,12 @@
+use std::{
+    cell::{Cell, RefCell, RefMut},
+    collections::HashMap,
+    convert::TryInto,
+    rc::Rc,
+};
+
 use gc::{Finalize, Gc, GcCell, Trace};
 use regex::{Captures, Regex};
-use std::cell::{Cell, RefCell, RefMut};
-use std::collections::HashMap;
-use std::convert::TryInto;
-use std::rc::Rc;
 
 use crate::{
     file_extension_is_one_of, for_each_child_bool, get_leading_comment_ranges, get_pragma_spec,

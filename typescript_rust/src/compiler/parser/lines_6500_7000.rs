@@ -640,7 +640,11 @@ impl ParserType {
         if self.token() == SyntaxKind::SemicolonToken {
             self.next_token();
             return self
-                .finish_node(self.factory().create_semicolon_class_element_raw(), pos, None)
+                .finish_node(
+                    self.factory().create_semicolon_class_element_raw(),
+                    pos,
+                    None,
+                )
                 .wrap();
         }
 

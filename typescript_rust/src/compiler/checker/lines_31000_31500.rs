@@ -1,8 +1,9 @@
+use std::{
+    borrow::{Borrow, Cow},
+    io,
+};
+
 use gc::{Gc, GcCell};
-use std::borrow::{Borrow, Cow};
-
-use std::io;
-
 
 use super::{signature_has_rest_parameter, CheckMode, MinArgumentCountFlags};
 use crate::{

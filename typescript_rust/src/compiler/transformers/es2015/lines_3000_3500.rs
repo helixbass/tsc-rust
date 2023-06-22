@@ -18,14 +18,12 @@ use crate::{
 
 impl TransformES2015 {
     pub(super) fn create_out_variable(&self, p: &LoopOutParameter) -> Gc<Node> {
-        self.factory
-            .create_variable_declaration(
-                Some(p.original_name.clone()),
-                None,
-                None,
-                Some(p.out_param_name.clone()),
-            )
-            
+        self.factory.create_variable_declaration(
+            Some(p.original_name.clone()),
+            None,
+            None,
+            Some(p.out_param_name.clone()),
+        )
     }
 
     pub(super) fn create_function_for_initializer_of_for_statement(
@@ -57,8 +55,7 @@ impl TransformES2015 {
         let mut statements: Vec<Gc<Node /*Statement*/>> = _d();
         statements.push(
             self.factory
-                .create_variable_statement(Option::<Gc<NodeArray>>::None, node_initializer.clone())
-                ,
+                .create_variable_statement(Option::<Gc<NodeArray>>::None, node_initializer.clone()),
         );
         self.copy_out_parameters(
             &current_state.loop_out_parameters,
@@ -67,65 +64,49 @@ impl TransformES2015 {
             &mut statements,
         );
 
-        let function_declaration = self
-            .factory
-            .create_variable_statement(
-                Option::<Gc<NodeArray>>::None,
-                self.factory
-                    .create_variable_declaration_list(
-                        vec![self
-                            .factory
-                            .create_variable_declaration(
-                                Some(function_name.clone()),
-                                None,
-                                None,
-                                Some(
-                                    self.factory
-                                        .create_function_expression(
-                                            Option::<Gc<NodeArray>>::None,
-                                            contains_yield.then(|| {
-                                                self.factory
-                                                    .create_token(SyntaxKind::AsteriskToken)
-                                                    
-                                            }),
-                                            Option::<Gc<Node>>::None,
-                                            Option::<Gc<NodeArray>>::None,
-                                            Option::<Gc<NodeArray>>::None,
-                                            None,
-                                            try_visit_node(
-                                                &self
-                                                    .factory
-                                                    .create_block(statements, Some(true))
-                                                    ,
-                                                Some(|node: &Node| self.visitor(node)),
-                                                Some(is_block),
-                                                Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
-                                            )?,
-                                        )
-                                        
-                                        .set_emit_flags(emit_flags),
-                                ),
-                            )
-                            ],
+        let function_declaration = self.factory.create_variable_statement(
+            Option::<Gc<NodeArray>>::None,
+            self.factory
+                .create_variable_declaration_list(
+                    vec![self.factory.create_variable_declaration(
+                        Some(function_name.clone()),
                         None,
-                    )
-                    
-                    .set_emit_flags(EmitFlags::NoHoisting),
-            )
-            ;
+                        None,
+                        Some(
+                            self.factory
+                                .create_function_expression(
+                                    Option::<Gc<NodeArray>>::None,
+                                    contains_yield.then(|| {
+                                        self.factory.create_token(SyntaxKind::AsteriskToken)
+                                    }),
+                                    Option::<Gc<Node>>::None,
+                                    Option::<Gc<NodeArray>>::None,
+                                    Option::<Gc<NodeArray>>::None,
+                                    None,
+                                    try_visit_node(
+                                        &self.factory.create_block(statements, Some(true)),
+                                        Some(|node: &Node| self.visitor(node)),
+                                        Some(is_block),
+                                        Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                                    )?,
+                                )
+                                .set_emit_flags(emit_flags),
+                        ),
+                    )],
+                    None,
+                )
+                .set_emit_flags(EmitFlags::NoHoisting),
+        );
 
-        let part = self
-            .factory
-            .create_variable_declaration_list(
-                map(
-                    &current_state.loop_out_parameters,
-                    |loop_out_parameter: &LoopOutParameter, _| {
-                        self.create_out_variable(loop_out_parameter)
-                    },
-                ),
-                None,
-            )
-            ;
+        let part = self.factory.create_variable_declaration_list(
+            map(
+                &current_state.loop_out_parameters,
+                |loop_out_parameter: &LoopOutParameter, _| {
+                    self.create_out_variable(loop_out_parameter)
+                },
+            ),
+            None,
+        );
 
         Ok(IterationStatementPartFunction {
             function_name,
@@ -160,100 +141,79 @@ impl TransformES2015 {
             let node_as_for_statement = node.as_for_statement();
             if let Some(node_incrementor) = node_as_for_statement.incrementor.as_ref() {
                 statements.push(
-                    self.factory
-                        .create_if_statement(
-                            (*current_state)
-                                .borrow()
-                                .condition_variable
-                                .clone()
-                                .unwrap(),
-                            self.factory
-                                .create_expression_statement(try_visit_node(
-                                    node_incrementor,
-                                    Some(|node: &Node| self.visitor(node)),
-                                    Some(is_expression),
-                                    Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
-                                )?)
-                                ,
-                            Some(
-                                self.factory
-                                    .create_expression_statement(
-                                        self.factory
-                                            .create_assignment(
-                                                (*current_state)
-                                                    .borrow()
-                                                    .condition_variable
-                                                    .clone()
-                                                    .unwrap(),
-                                                self.factory.create_true(),
-                                            )
-                                            ,
-                                    )
-                                    ,
-                            ),
-                        )
-                        ,
-                );
-            } else {
-                statements.push(
-                    self.factory
-                        .create_if_statement(
-                            self.factory
-                                .create_logical_not(
+                    self.factory.create_if_statement(
+                        (*current_state)
+                            .borrow()
+                            .condition_variable
+                            .clone()
+                            .unwrap(),
+                        self.factory.create_expression_statement(try_visit_node(
+                            node_incrementor,
+                            Some(|node: &Node| self.visitor(node)),
+                            Some(is_expression),
+                            Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                        )?),
+                        Some(
+                            self.factory.create_expression_statement(
+                                self.factory.create_assignment(
                                     (*current_state)
                                         .borrow()
                                         .condition_variable
                                         .clone()
                                         .unwrap(),
-                                )
-                                ,
-                            self.factory
-                                .create_expression_statement(
-                                    self.factory
-                                        .create_assignment(
-                                            (*current_state)
-                                                .borrow()
-                                                .condition_variable
-                                                .clone()
-                                                .unwrap(),
-                                            self.factory.create_true(),
-                                        )
-                                        ,
-                                )
-                                ,
-                            None,
-                        )
-                        ,
+                                    self.factory.create_true(),
+                                ),
+                            ),
+                        ),
+                    ),
+                );
+            } else {
+                statements.push(
+                    self.factory.create_if_statement(
+                        self.factory.create_logical_not(
+                            (*current_state)
+                                .borrow()
+                                .condition_variable
+                                .clone()
+                                .unwrap(),
+                        ),
+                        self.factory.create_expression_statement(
+                            self.factory.create_assignment(
+                                (*current_state)
+                                    .borrow()
+                                    .condition_variable
+                                    .clone()
+                                    .unwrap(),
+                                self.factory.create_true(),
+                            ),
+                        ),
+                        None,
+                    ),
                 );
             }
 
             if self.should_convert_condition_of_for_statement(node) {
                 statements.push(
-                    self.factory
-                        .create_if_statement(
-                            self.factory
-                                .create_prefix_unary_expression(
-                                    SyntaxKind::ExclamationToken,
-                                    try_visit_node(
-                                        node_as_for_statement.condition.as_deref().unwrap(),
-                                        Some(|node: &Node| self.visitor(node)),
-                                        Some(is_expression),
-                                        Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
-                                    )?,
-                                )
-                                ,
+                    self.factory.create_if_statement(
+                        self.factory.create_prefix_unary_expression(
+                            SyntaxKind::ExclamationToken,
                             try_visit_node(
-                                &self
-                                    .factory
-                                    .create_break_statement(Option::<Gc<Node>>::None)
-                                    ,
+                                node_as_for_statement.condition.as_deref().unwrap(),
                                 Some(|node: &Node| self.visitor(node)),
-                                Some(is_statement),
+                                Some(is_expression),
                                 Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
                             )?,
-                            None,
-                        )
-                        ,
+                        ),
+                        try_visit_node(
+                            &self
+                                .factory
+                                .create_break_statement(Option::<Gc<Node>>::None),
+                            Some(|node: &Node| self.visitor(node)),
+                            Some(is_statement),
+                            Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                        )?,
+                        None,
+                    ),
                 );
             }
         }
@@ -301,44 +261,34 @@ impl TransformES2015 {
             emit_flags |= EmitFlags::AsyncFunctionBody;
         }
 
-        let function_declaration = self
-            .factory
-            .create_variable_statement(
-                Option::<Gc<NodeArray>>::None,
-                self.factory
-                    .create_variable_declaration_list(
-                        vec![self
-                            .factory
-                            .create_variable_declaration(
-                                Some(function_name.clone()),
-                                None,
-                                None,
-                                Some(
-                                    self.factory
-                                        .create_function_expression(
-                                            Option::<Gc<NodeArray>>::None,
-                                            contains_yield.then(|| {
-                                                self.factory
-                                                    .create_token(SyntaxKind::AsteriskToken)
-                                                    
-                                            }),
-                                            Option::<Gc<Node>>::None,
-                                            Option::<Gc<NodeArray>>::None,
-                                            Some((*current_state).borrow().loop_parameters.clone()),
-                                            None,
-                                            loop_body,
-                                        )
-                                        
-                                        .set_emit_flags(emit_flags),
-                                ),
-                            )
-                            ],
+        let function_declaration = self.factory.create_variable_statement(
+            Option::<Gc<NodeArray>>::None,
+            self.factory
+                .create_variable_declaration_list(
+                    vec![self.factory.create_variable_declaration(
+                        Some(function_name.clone()),
                         None,
-                    )
-                    
-                    .set_emit_flags(EmitFlags::NoHoisting),
-            )
-            ;
+                        None,
+                        Some(
+                            self.factory
+                                .create_function_expression(
+                                    Option::<Gc<NodeArray>>::None,
+                                    contains_yield.then(|| {
+                                        self.factory.create_token(SyntaxKind::AsteriskToken)
+                                    }),
+                                    Option::<Gc<Node>>::None,
+                                    Option::<Gc<NodeArray>>::None,
+                                    Some((*current_state).borrow().loop_parameters.clone()),
+                                    None,
+                                    loop_body,
+                                )
+                                .set_emit_flags(emit_flags),
+                        ),
+                    )],
+                    None,
+                )
+                .set_emit_flags(EmitFlags::NoHoisting),
+        );
 
         let part = self.generate_call_to_converted_loop(
             &function_name,
@@ -372,7 +322,6 @@ impl TransformES2015 {
         };
         self.factory
             .create_binary_expression(target, SyntaxKind::EqualsToken, source)
-            
     }
 
     pub(super) fn copy_out_parameters(
@@ -384,13 +333,9 @@ impl TransformES2015 {
     ) {
         for out_param in out_params {
             if out_param.flags.intersects(part_flags) {
-                statements.push(
-                    self.factory
-                        .create_expression_statement(
-                            self.copy_out_parameter(out_param, copy_direction),
-                        )
-                        ,
-                );
+                statements.push(self.factory.create_expression_statement(
+                    self.copy_out_parameter(out_param, copy_direction),
+                ));
             }
         }
     }
@@ -400,21 +345,16 @@ impl TransformES2015 {
         init_function_expression_name: &Node, /*Identifier*/
         contains_yield: bool,
     ) -> Gc<Node /*Statement*/> {
-        let call = self
-            .factory
-            .create_call_expression(
-                init_function_expression_name.node_wrapper(),
-                Option::<Gc<NodeArray>>::None,
-                Some(vec![]),
-            )
-            ;
+        let call = self.factory.create_call_expression(
+            init_function_expression_name.node_wrapper(),
+            Option::<Gc<NodeArray>>::None,
+            Some(vec![]),
+        );
         let call_result = if contains_yield {
-            self.factory
-                .create_yield_expression(
-                    Some(self.factory.create_token(SyntaxKind::AsteriskToken)),
-                    Some(set_emit_flags(call, EmitFlags::Iterator)),
-                )
-                
+            self.factory.create_yield_expression(
+                Some(self.factory.create_token(SyntaxKind::AsteriskToken)),
+                Some(set_emit_flags(call, EmitFlags::Iterator)),
+            )
         } else {
             call
         };
@@ -437,31 +377,25 @@ impl TransformES2015 {
             && state.labeled_non_local_breaks.is_none()
             && state.labeled_non_local_continues.is_none();
 
-        let call = self
-            .factory
-            .create_call_expression(
-                loop_function_expression_name.node_wrapper(),
-                Option::<Gc<NodeArray>>::None,
-                Some(map(&state.loop_parameters, |p: &Gc<Node>, _| {
-                    p.as_parameter_declaration().name()
-                })),
-            )
-            ;
+        let call = self.factory.create_call_expression(
+            loop_function_expression_name.node_wrapper(),
+            Option::<Gc<NodeArray>>::None,
+            Some(map(&state.loop_parameters, |p: &Gc<Node>, _| {
+                p.as_parameter_declaration().name()
+            })),
+        );
         let call_result = if contains_yield {
-            self.factory
-                .create_yield_expression(
-                    Some(self.factory.create_token(SyntaxKind::AsteriskToken)),
-                    Some(set_emit_flags(call, EmitFlags::Iterator)),
-                )
-                
+            self.factory.create_yield_expression(
+                Some(self.factory.create_token(SyntaxKind::AsteriskToken)),
+                Some(set_emit_flags(call, EmitFlags::Iterator)),
+            )
         } else {
             call
         };
         if is_simple_loop {
             statements.push(
                 self.factory
-                    .create_expression_statement(call_result.clone())
-                    ,
+                    .create_expression_statement(call_result.clone()),
             );
             self.copy_out_parameters(
                 &state.loop_out_parameters,
@@ -471,26 +405,18 @@ impl TransformES2015 {
             );
         } else {
             let loop_result_name = self.factory.create_unique_name("state", None);
-            let state_variable = self
-                .factory
-                .create_variable_statement(
-                    Option::<Gc<NodeArray>>::None,
-                    self.factory
-                        .create_variable_declaration_list(
-                            vec![self
-                                .factory
-                                .create_variable_declaration(
-                                    Some(loop_result_name.clone()),
-                                    None,
-                                    None,
-                                    Some(call_result),
-                                )
-                                ],
-                            None,
-                        )
-                        ,
-                )
-                ;
+            let state_variable = self.factory.create_variable_statement(
+                Option::<Gc<NodeArray>>::None,
+                self.factory.create_variable_declaration_list(
+                    vec![self.factory.create_variable_declaration(
+                        Some(loop_result_name.clone()),
+                        None,
+                        None,
+                        Some(call_result),
+                    )],
+                    None,
+                ),
+            );
             statements.push(state_variable);
             self.copy_out_parameters(
                 &state.loop_out_parameters,
@@ -512,30 +438,20 @@ impl TransformES2015 {
                         .get_or_insert_with(|| _d()) |= Jump::Return;
                     return_statement = self
                         .factory
-                        .create_return_statement(Some(loop_result_name.clone()))
-                        ;
+                        .create_return_statement(Some(loop_result_name.clone()));
                 } else {
-                    return_statement = self
-                        .factory
-                        .create_return_statement(Some(
-                            self.factory
-                                .create_property_access_expression(
-                                    loop_result_name.clone(),
-                                    "value",
-                                )
-                                ,
-                        ))
-                        ;
+                    return_statement = self.factory.create_return_statement(Some(
+                        self.factory
+                            .create_property_access_expression(loop_result_name.clone(), "value"),
+                    ));
                 }
                 statements.push(
-                    self.factory
-                        .create_if_statement(
-                            self.factory
-                                .create_type_check(loop_result_name.clone(), "object"),
-                            return_statement,
-                            None,
-                        )
-                        ,
+                    self.factory.create_if_statement(
+                        self.factory
+                            .create_type_check(loop_result_name.clone(), "object"),
+                        return_statement,
+                        None,
+                    ),
                 );
             }
 
@@ -545,22 +461,16 @@ impl TransformES2015 {
                 .intersects(Jump::Break)
             {
                 statements.push(
-                    self.factory
-                        .create_if_statement(
+                    self.factory.create_if_statement(
+                        self.factory.create_strict_equality(
+                            loop_result_name.clone(),
                             self.factory
-                                .create_strict_equality(
-                                    loop_result_name.clone(),
-                                    self.factory
-                                        .create_string_literal("break".to_owned(), None, None)
-                                        ,
-                                )
-                                ,
-                            self.factory
-                                .create_break_statement(Option::<Gc<Node>>::None)
-                                ,
-                            None,
-                        )
-                        ,
+                                .create_string_literal("break".to_owned(), None, None),
+                        ),
+                        self.factory
+                            .create_break_statement(Option::<Gc<Node>>::None),
+                        None,
+                    ),
                 );
             }
 
@@ -582,14 +492,10 @@ impl TransformES2015 {
                     outer_state.clone(),
                     &mut case_clauses,
                 );
-                statements.push(
-                    self.factory
-                        .create_switch_statement(
-                            loop_result_name,
-                            self.factory.create_case_block(case_clauses),
-                        )
-                        ,
-                );
+                statements.push(self.factory.create_switch_statement(
+                    loop_result_name,
+                    self.factory.create_case_block(case_clauses),
+                ));
             }
         }
         statements
@@ -653,19 +559,15 @@ impl TransformES2015 {
                 );
                 statements.push(
                     self.factory
-                        .create_return_statement(Some(loop_result_name.node_wrapper()))
-                        ,
+                        .create_return_statement(Some(loop_result_name.node_wrapper())),
                 );
             }
             case_clauses.push(
-                self.factory
-                    .create_case_clause(
-                        self.factory
-                            .create_string_literal(label_marker.clone(), None, None)
-                            ,
-                        statements,
-                    )
-                    ,
+                self.factory.create_case_clause(
+                    self.factory
+                        .create_string_literal(label_marker.clone(), None, None),
+                    statements,
+                ),
             );
         }
     }
@@ -692,19 +594,15 @@ impl TransformES2015 {
                 }
             }
         } else {
-            loop_parameters.push(
-                self.factory
-                    .create_parameter_declaration(
-                        Option::<Gc<NodeArray>>::None,
-                        Option::<Gc<NodeArray>>::None,
-                        None,
-                        Some(name.clone()),
-                        None,
-                        None,
-                        None,
-                    )
-                    ,
-            );
+            loop_parameters.push(self.factory.create_parameter_declaration(
+                Option::<Gc<NodeArray>>::None,
+                Option::<Gc<NodeArray>>::None,
+                None,
+                Some(name.clone()),
+                None,
+                None,
+                None,
+            ));
             let check_flags = self.resolver.get_node_check_flags(decl);
             if check_flags.intersects(NodeCheckFlags::NeedsLoopOutParameter)
                 || has_captured_bindings_in_for_initializer
@@ -823,7 +721,6 @@ impl TransformES2015 {
                     Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
                 )?,
             )
-            
             .set_text_range(Some(property));
         if starts_on_new_line == Some(true) {
             start_on_new_line(&*expression);
@@ -855,7 +752,6 @@ impl TransformES2015 {
                 self.factory
                     .clone_node(&property_as_shorthand_property_assignment.name()),
             )
-            
             .set_text_range(Some(property));
         if starts_on_new_line == Some(true) {
             start_on_new_line(&*expression);

@@ -1,8 +1,6 @@
+use std::{cell::RefCell, collections::HashMap, io, ptr, rc::Rc};
+
 use gc::{Finalize, Gc, Trace};
-use std::collections::HashMap;
-use std::ptr;
-use std::rc::Rc;
-use std::{cell::RefCell, io};
 
 use super::{
     signature_has_rest_parameter, CheckTypeContainingMessageChain, DeclarationMeaning,

@@ -1,8 +1,10 @@
 // copied from https://github.com/eun-ice/weak-self
 
-use std::cell::UnsafeCell;
-use std::fmt;
-use std::rc::{Rc, Weak};
+use std::{
+    cell::UnsafeCell,
+    fmt,
+    rc::{Rc, Weak},
+};
 
 pub struct WeakSelf<T: ?Sized> {
     cell: UnsafeCell<Option<Weak<T>>>,

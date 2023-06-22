@@ -1,19 +1,17 @@
-use gc::Gc;
-use std::ptr;
+use std::{borrow::Borrow, io, ptr};
 
-use std::{borrow::Borrow, io};
+use gc::Gc;
 
 use super::{
     get_iteration_types_key_from_iteration_type_kind, CheckMode, IterationTypeKind, IterationUse,
 };
-use crate::try_for_each;
 use crate::{
-    append, IterationTypeCacheKey, SymbolInterface, filter, get_containing_function_or_class_static_block, get_function_flags,
+    append, filter, get_containing_function_or_class_static_block, get_function_flags,
     is_binary_expression, is_binding_pattern, is_class_static_block_declaration, is_identifier,
-    try_for_each_child_bool, DiagnosticMessage, Diagnostics, ExternalEmitHelpers, FunctionFlags,
-    IterationTypes, NamedDeclarationInterface, Node, NodeArray, NodeInterface, OptionTry,
-    ScriptTarget, Symbol, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
-    UnionOrIntersectionTypeInterface, UnionReduction,
+    try_for_each, try_for_each_child_bool, DiagnosticMessage, Diagnostics, ExternalEmitHelpers,
+    FunctionFlags, IterationTypeCacheKey, IterationTypes, NamedDeclarationInterface, Node,
+    NodeArray, NodeInterface, OptionTry, ScriptTarget, Symbol, SymbolInterface, SyntaxKind, Type,
+    TypeChecker, TypeFlags, TypeInterface, UnionOrIntersectionTypeInterface, UnionReduction,
 };
 
 impl TypeChecker {

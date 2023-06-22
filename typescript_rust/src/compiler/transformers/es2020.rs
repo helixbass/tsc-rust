@@ -176,8 +176,7 @@ impl TransformES2020 {
                 ));
                 expression = self
                     .factory
-                    .create_assignment(this_arg.clone().unwrap(), expression)
-                    ;
+                    .create_assignment(this_arg.clone().unwrap(), expression);
             } else {
                 this_arg = Some(expression.clone());
             }
@@ -317,8 +316,7 @@ impl TransformES2020 {
             );
             left_expression = self
                 .factory
-                .create_assignment(captured_left.clone(), left_expression.clone())
-                ;
+                .create_assignment(captured_left.clone(), left_expression.clone());
         }
         let mut right_expression = captured_left.clone();
         let mut this_arg: Option<Gc<Node /*Expression*/>> = Default::default();
@@ -335,36 +333,31 @@ impl TransformES2020 {
                             ));
                             right_expression = self
                                 .factory
-                                .create_assignment(this_arg.clone().unwrap(), right_expression)
-                                ;
+                                .create_assignment(this_arg.clone().unwrap(), right_expression);
                         } else {
                             this_arg = Some(right_expression.clone());
                         }
                     }
                     right_expression = if segment.kind() == SyntaxKind::PropertyAccessExpression {
-                        self.factory
-                            .create_property_access_expression(
-                                right_expression,
-                                visit_node(
-                                    &segment.as_property_access_expression().name,
-                                    Some(|node: &Node| self.visitor(node)),
-                                    Some(is_identifier),
-                                    Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
-                                ),
-                            )
-                            
+                        self.factory.create_property_access_expression(
+                            right_expression,
+                            visit_node(
+                                &segment.as_property_access_expression().name,
+                                Some(|node: &Node| self.visitor(node)),
+                                Some(is_identifier),
+                                Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                            ),
+                        )
                     } else {
-                        self.factory
-                            .create_element_access_expression(
-                                right_expression,
-                                visit_node(
-                                    &segment.as_element_access_expression().argument_expression,
-                                    Some(|node: &Node| self.visitor(node)),
-                                    Some(is_expression),
-                                    Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
-                                ),
-                            )
-                            
+                        self.factory.create_element_access_expression(
+                            right_expression,
+                            visit_node(
+                                &segment.as_element_access_expression().argument_expression,
+                                Some(|node: &Node| self.visitor(node)),
+                                Some(is_expression),
+                                Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                            ),
+                        )
                     };
                 }
                 SyntaxKind::CallExpression => {
@@ -386,20 +379,17 @@ impl TransformES2020 {
                             ),
                         );
                     } else {
-                        right_expression = self
-                            .factory
-                            .create_call_expression(
-                                right_expression,
-                                Option::<Gc<NodeArray>>::None,
-                                Some(visit_nodes(
-                                    &segment.as_call_expression().arguments,
-                                    Some(|node: &Node| self.visitor(node)),
-                                    Some(is_expression),
-                                    None,
-                                    None,
-                                )),
-                            )
-                            ;
+                        right_expression = self.factory.create_call_expression(
+                            right_expression,
+                            Option::<Gc<NodeArray>>::None,
+                            Some(visit_nodes(
+                                &segment.as_call_expression().arguments,
+                                Some(|node: &Node| self.visitor(node)),
+                                Some(is_expression),
+                                None,
+                                None,
+                            )),
+                        );
                     }
                 }
                 _ => (),
@@ -408,27 +398,21 @@ impl TransformES2020 {
         }
 
         let target = if is_delete {
-            self.factory
-                .create_conditional_expression(
-                    self.create_not_null_condition(left_expression, captured_left, Some(true)),
-                    None,
-                    self.factory.create_true(),
-                    None,
-                    self.factory
-                        .create_delete_expression(right_expression)
-                        ,
-                )
-                
+            self.factory.create_conditional_expression(
+                self.create_not_null_condition(left_expression, captured_left, Some(true)),
+                None,
+                self.factory.create_true(),
+                None,
+                self.factory.create_delete_expression(right_expression),
+            )
         } else {
-            self.factory
-                .create_conditional_expression(
-                    self.create_not_null_condition(left_expression, captured_left, Some(true)),
-                    None,
-                    self.factory.create_void_zero(),
-                    None,
-                    right_expression,
-                )
-                
+            self.factory.create_conditional_expression(
+                self.create_not_null_condition(left_expression, captured_left, Some(true)),
+                None,
+                self.factory.create_void_zero(),
+                None,
+                right_expression,
+            )
         }
         .set_text_range(Some(node));
         if let Some(this_arg) = this_arg {
@@ -445,43 +429,31 @@ impl TransformES2020 {
         right: Gc<Node>, /*Expression*/
         invert: Option<bool>,
     ) -> Gc<Node> {
-        self.factory
-            .create_binary_expression(
-                self.factory
-                    .create_binary_expression(
-                        left,
-                        self.factory
-                            .create_token(if invert == Some(true) {
-                                SyntaxKind::EqualsEqualsEqualsToken
-                            } else {
-                                SyntaxKind::ExclamationEqualsEqualsToken
-                            })
-                            ,
-                        self.factory.create_null(),
-                    )
-                    ,
-                self.factory
-                    .create_token(if invert == Some(true) {
-                        SyntaxKind::BarBarToken
-                    } else {
-                        SyntaxKind::AmpersandAmpersandToken
-                    })
-                    ,
-                self.factory
-                    .create_binary_expression(
-                        right,
-                        self.factory
-                            .create_token(if invert == Some(true) {
-                                SyntaxKind::EqualsEqualsEqualsToken
-                            } else {
-                                SyntaxKind::ExclamationEqualsEqualsToken
-                            })
-                            ,
-                        self.factory.create_void_zero(),
-                    )
-                    ,
-            )
-            
+        self.factory.create_binary_expression(
+            self.factory.create_binary_expression(
+                left,
+                self.factory.create_token(if invert == Some(true) {
+                    SyntaxKind::EqualsEqualsEqualsToken
+                } else {
+                    SyntaxKind::ExclamationEqualsEqualsToken
+                }),
+                self.factory.create_null(),
+            ),
+            self.factory.create_token(if invert == Some(true) {
+                SyntaxKind::BarBarToken
+            } else {
+                SyntaxKind::AmpersandAmpersandToken
+            }),
+            self.factory.create_binary_expression(
+                right,
+                self.factory.create_token(if invert == Some(true) {
+                    SyntaxKind::EqualsEqualsEqualsToken
+                } else {
+                    SyntaxKind::ExclamationEqualsEqualsToken
+                }),
+                self.factory.create_void_zero(),
+            ),
+        )
     }
 
     fn transform_nullish_coalescing_expression(
@@ -519,7 +491,6 @@ impl TransformES2020 {
                         Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
                     ),
                 )
-                
                 .set_text_range(Some(node))
                 .into(),
         )

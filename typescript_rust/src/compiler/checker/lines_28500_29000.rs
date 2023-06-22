@@ -1,9 +1,13 @@
+use std::{
+    borrow::{Borrow, Cow},
+    convert::TryInto,
+    io, ptr,
+};
+
 use gc::Gc;
 use itertools::{Either, Itertools};
+use local_macros::enum_unwrapped;
 use regex::Regex;
-use std::borrow::{Borrow, Cow};
-use std::convert::TryInto;
-use std::{io, ptr};
 
 use super::{signature_has_literal_types, CheckMode, ResolveNameNameArg};
 use crate::{
@@ -14,8 +18,8 @@ use crate::{
     is_function_like_declaration, is_jsx_opening_like_element, is_named_declaration,
     is_optional_chain, is_private_identifier, is_private_identifier_class_element_declaration,
     is_property_access_expression, is_static, is_string_literal_like,
-    is_tagged_template_expression, is_write_only_access, map_defined,
-    return_ok_default_if_none, skip_parentheses, starts_with, symbol_name, try_filter,
+    is_tagged_template_expression, is_write_only_access, map_defined, return_ok_default_if_none,
+    skip_parentheses, starts_with, symbol_name, try_filter,
     try_get_property_access_or_identifier_to_string, try_get_spelling_suggestion,
     try_maybe_for_each, unescape_leading_underscores, AccessFlags, AssignmentKind, CheckFlags,
     Debug_, Diagnostics, ModifierFlags, NamedDeclarationInterface, Node, NodeFlags, NodeInterface,
@@ -23,7 +27,6 @@ use crate::{
     SymbolTable, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
     UnionOrIntersectionTypeInterface,
 };
-use local_macros::enum_unwrapped;
 
 impl TypeChecker {
     pub(super) fn container_seems_to_be_empty_dom_element(

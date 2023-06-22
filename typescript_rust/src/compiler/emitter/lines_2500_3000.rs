@@ -1,6 +1,6 @@
+use std::{cell::RefCell, io, rc::Rc};
+
 use gc::{Finalize, Gc, Trace};
-use std::rc::Rc;
-use std::{cell::RefCell, io};
 
 use super::PipelinePhase;
 use crate::{

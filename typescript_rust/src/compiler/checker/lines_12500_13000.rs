@@ -1,27 +1,25 @@
+use std::{borrow::Borrow, collections::HashMap, io, ptr};
+
 use gc::Gc;
 use itertools::Either;
-use std::collections::HashMap;
-use std::ptr;
-use std::{borrow::Borrow, io};
 
 use super::signature_has_rest_parameter;
-use crate::try_some;
 use crate::{
-    declaration_name_to_string, find_index, first_defined,
-    get_declaration_of_kind, get_effective_constraint_of_type_parameter,
-    get_effective_return_type_node, get_immediately_invoked_function_expression,
-    get_jsdoc_parameter_tags, get_jsdoc_tags, get_jsdoc_type, get_jsdoc_type_tag,
-    get_name_of_declaration, has_effective_modifier, has_jsdoc_parameter_tags, has_rest_parameter,
-    has_syntactic_modifier, is_binding_pattern, is_constructor_declaration,
-    is_constructor_type_node, is_function_like, is_function_like_declaration, is_in_js_file,
-    is_jsdoc_construct_signature, is_jsdoc_parameter_tag, is_jsdoc_signature,
-    is_jsdoc_variadic_type, is_part_of_type_node, is_rest_parameter, is_type_parameter_declaration,
-    is_type_predicate_node, is_value_signature_declaration, last_or_undefined, length,
-    map_defined, maybe_filter, node_is_missing, node_starts_new_lexical_environment,
-    return_ok_default_if_none, return_ok_false_if_none, try_for_each_child_bool, try_map,
-    try_maybe_map, CheckFlags, Debug_, Diagnostics, HasInitializerInterface, HasTypeInterface,
-    IndexInfo, InterfaceTypeInterface, InternalSymbolName, ModifierFlags, Node, NodeArray,
-    NodeCheckFlags, NodeInterface, ObjectFlags, OptionTry, ReadonlyTextRange, Signature,
+    declaration_name_to_string, find_index, first_defined, get_declaration_of_kind,
+    get_effective_constraint_of_type_parameter, get_effective_return_type_node,
+    get_immediately_invoked_function_expression, get_jsdoc_parameter_tags, get_jsdoc_tags,
+    get_jsdoc_type, get_jsdoc_type_tag, get_name_of_declaration, has_effective_modifier,
+    has_jsdoc_parameter_tags, has_rest_parameter, has_syntactic_modifier, is_binding_pattern,
+    is_constructor_declaration, is_constructor_type_node, is_function_like,
+    is_function_like_declaration, is_in_js_file, is_jsdoc_construct_signature,
+    is_jsdoc_parameter_tag, is_jsdoc_signature, is_jsdoc_variadic_type, is_part_of_type_node,
+    is_rest_parameter, is_type_parameter_declaration, is_type_predicate_node,
+    is_value_signature_declaration, last_or_undefined, length, map_defined, maybe_filter,
+    node_is_missing, node_starts_new_lexical_environment, return_ok_default_if_none,
+    return_ok_false_if_none, try_for_each_child_bool, try_map, try_maybe_map, try_some, CheckFlags,
+    Debug_, Diagnostics, HasInitializerInterface, HasTypeInterface, IndexInfo,
+    InterfaceTypeInterface, InternalSymbolName, ModifierFlags, Node, NodeArray, NodeCheckFlags,
+    NodeInterface, ObjectFlags, OptionTry, ReadonlyTextRange, Signature,
     SignatureDeclarationInterface, SignatureFlags, Symbol, SymbolFlags, SymbolInterface,
     SymbolTable, SyntaxKind, TransientSymbolInterface, Type, TypeChecker, TypeFlags, TypeInterface,
     TypeMapper, TypePredicate, TypePredicateKind, TypeSystemPropertyName, UnionReduction,

@@ -1,8 +1,10 @@
+use std::{
+    borrow::Borrow,
+    cell::{Cell, Ref, RefCell, RefMut},
+    io, mem,
+};
+
 use gc::{Finalize, Gc, GcCell, Trace};
-use std::borrow::Borrow;
-use std::cell::{Cell, Ref, RefCell, RefMut};
-use std::io;
-use std::mem;
 
 use super::is_static;
 use crate::{

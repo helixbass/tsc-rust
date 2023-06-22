@@ -1,15 +1,19 @@
+use std::{
+    borrow::Cow,
+    cell::{Cell, Ref, RefCell, RefMut},
+    collections::HashMap,
+    convert::{TryFrom, TryInto},
+    fmt, io,
+    ops::{BitAnd, BitAndAssign},
+    rc::Rc,
+    sync::{Arc, Mutex},
+};
+
 use bitflags::bitflags;
 use derive_builder::Builder;
 use gc::{Finalize, Gc, GcCell, GcCellRef, GcCellRefMut, Trace};
+use local_macros::{enum_unwrapped, type_type};
 use serde::Serialize;
-use std::borrow::Cow;
-use std::cell::{Cell, Ref, RefCell, RefMut};
-use std::collections::HashMap;
-use std::convert::{TryFrom, TryInto};
-use std::ops::{BitAnd, BitAndAssign};
-use std::rc::Rc;
-use std::sync::{Arc, Mutex};
-use std::{fmt, io};
 
 use super::{
     BaseObjectType, BaseType, BaseUnionOrIntersectionType, Node, ObjectFlagsTypeInterface,
@@ -17,7 +21,6 @@ use super::{
     TypePredicate,
 };
 use crate::{Debug_, GcVec, ObjectFlags, ScriptKind, TypeFlags, __String, are_option_gcs_equal};
-use local_macros::{enum_unwrapped, type_type};
 
 #[derive(Clone, Debug, Trace, Finalize)]
 #[type_type(

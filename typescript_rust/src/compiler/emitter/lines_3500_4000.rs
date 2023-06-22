@@ -1,7 +1,7 @@
+use std::{collections::HashSet, convert::TryInto, io};
+
 use gc::Gc;
 use regex::Regex;
-use std::collections::HashSet;
-use std::convert::TryInto;
 
 use super::ParenthesizeExpressionForDisallowedCommaCurrentParenthesizerRule;
 use crate::{
@@ -16,7 +16,6 @@ use crate::{
     Node, NodeArray, NodeInterface, Printer, ReadonlyTextRange, SourceFileLike, StrOrNodeArray,
     SyntaxKind, TextRange,
 };
-use std::io;
 
 impl Printer {
     pub(super) fn emit_jsx_element(&self, node: &Node /*JsxElement*/) -> io::Result<()> {

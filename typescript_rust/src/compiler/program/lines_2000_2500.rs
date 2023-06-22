@@ -1,9 +1,9 @@
+use std::{convert::TryInto, io, ptr, rc::Rc};
+
 use gc::{Gc, GcCell};
 use regex::Regex;
-use std::io;
-use std::rc::Rc;
-use std::{convert::TryInto, ptr};
 
+use super::DiagnosticCache;
 use crate::{
     add_emit_flags, append, compute_line_and_character_of_position, concatenate,
     create_comment_directives_map, create_diagnostic_for_node_in_source_file,
@@ -23,8 +23,6 @@ use crate::{
     NodeInterface, Program, ReadonlyTextRange, ResolvedProjectReference, ScriptKind, SortedArray,
     SourceFileLike, SyntaxKind,
 };
-
-use super::DiagnosticCache;
 
 impl Program {
     pub(super) fn get_bind_and_check_diagnostics_for_file(
@@ -889,18 +887,15 @@ impl Program {
     }
 
     pub fn create_synthetic_import(&self, text: &str, file: &Node /*SourceFile*/) -> Gc<Node> {
-        let external_helpers_module_reference = get_factory()
-            .create_string_literal(text.to_owned(), None, None)
-            ;
-        let import_decl = get_factory()
-            .create_import_declaration(
-                Option::<Gc<NodeArray>>::None,
-                Option::<Gc<NodeArray>>::None,
-                None,
-                external_helpers_module_reference.clone(),
-                None,
-            )
-            ;
+        let external_helpers_module_reference =
+            get_factory().create_string_literal(text.to_owned(), None, None);
+        let import_decl = get_factory().create_import_declaration(
+            Option::<Gc<NodeArray>>::None,
+            Option::<Gc<NodeArray>>::None,
+            None,
+            external_helpers_module_reference.clone(),
+            None,
+        );
         add_emit_flags(import_decl.clone(), EmitFlags::NeverApplyImportHelper);
         set_parent(&external_helpers_module_reference, Some(&*import_decl));
         set_parent(&import_decl, Some(file));

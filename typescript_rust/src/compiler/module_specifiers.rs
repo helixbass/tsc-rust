@@ -1,8 +1,6 @@
+use std::{collections::HashMap, convert::TryInto, io, rc::Rc};
+
 use gc::Gc;
-use std::collections::HashMap;
-use std::convert::TryInto;
-use std::io;
-use std::rc::Rc;
 
 use crate::{
     append, combine_paths, compare_booleans, compare_number_of_directory_separators,
@@ -18,16 +16,17 @@ use crate::{
     get_source_file_of_module, get_supported_extensions, get_text_of_identifier_or_literal,
     has_js_file_extension, has_ts_file_extension, host_get_canonical_file_name, is_ambient_module,
     is_external_module_augmentation, is_external_module_name_relative, is_module_block,
-    is_module_declaration, is_non_global_ambient_module, is_rooted_disk_path, is_source_file, maybe_for_each, node_modules_path_part, normalize_path,
-    path_contains_node_modules, path_is_bare_specifier, path_is_relative, remove_file_extension,
-    remove_suffix, remove_trailing_directory_separator, resolve_path, return_ok_default_if_none,
-    some, starts_with, starts_with_directory, to_path, try_get_extension_from_path,
-    try_map_defined, CharacterCodes, Comparison, CompilerOptions, CompilerOptionsBuilder, Debug_,
-    Extension, FileExtensionInfo, FileIncludeKind, FileIncludeReason, JsxEmit,
-    LiteralLikeNodeInterface, ModuleKind, ModulePath, ModuleResolutionHost,
-    ModuleResolutionHostOverrider, ModuleResolutionKind, ModuleSpecifierCache,
-    ModuleSpecifierResolutionHost, Node, NodeFlags, NodeInterface, NonEmpty, OptionTry, Path,
-    ScriptKind, StringOrBool, Symbol, SymbolFlags, SymbolInterface, TypeChecker, UserPreferences,
+    is_module_declaration, is_non_global_ambient_module, is_rooted_disk_path, is_source_file,
+    maybe_for_each, node_modules_path_part, normalize_path, path_contains_node_modules,
+    path_is_bare_specifier, path_is_relative, remove_file_extension, remove_suffix,
+    remove_trailing_directory_separator, resolve_path, return_ok_default_if_none, some,
+    starts_with, starts_with_directory, to_path, try_get_extension_from_path, try_map_defined,
+    CharacterCodes, Comparison, CompilerOptions, CompilerOptionsBuilder, Debug_, Extension,
+    FileExtensionInfo, FileIncludeKind, FileIncludeReason, JsxEmit, LiteralLikeNodeInterface,
+    ModuleKind, ModulePath, ModuleResolutionHost, ModuleResolutionHostOverrider,
+    ModuleResolutionKind, ModuleSpecifierCache, ModuleSpecifierResolutionHost, Node, NodeFlags,
+    NodeInterface, NonEmpty, OptionTry, Path, ScriptKind, StringOrBool, Symbol, SymbolFlags,
+    SymbolInterface, TypeChecker, UserPreferences,
 };
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]

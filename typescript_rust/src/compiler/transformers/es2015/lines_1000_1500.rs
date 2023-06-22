@@ -42,43 +42,36 @@ impl TransformES2015 {
     pub(super) fn create_actual_this(&self) -> Gc<Node> {
         self.factory
             .create_this()
-            
             .set_emit_flags(EmitFlags::NoSubstitution)
     }
 
     pub(super) fn create_default_super_call_or_this(&self) -> Gc<Node> {
-        self.factory
-            .create_logical_or(
-                self.factory
-                    .create_logical_and(
-                        self.factory
-                            .create_strict_inequality(
-                                self.factory.create_unique_name(
-                                    "_super",
-                                    Some(
-                                        GeneratedIdentifierFlags::Optimistic
-                                            | GeneratedIdentifierFlags::FileLevel,
-                                    ),
-                                ),
-                                self.factory.create_null(),
-                            )
-                            ,
-                        self.factory.create_function_apply_call(
-                            self.factory.create_unique_name(
-                                "_super",
-                                Some(
-                                    GeneratedIdentifierFlags::Optimistic
-                                        | GeneratedIdentifierFlags::FileLevel,
-                                ),
-                            ),
-                            self.create_actual_this(),
-                            self.factory.create_identifier("arguments"),
+        self.factory.create_logical_or(
+            self.factory.create_logical_and(
+                self.factory.create_strict_inequality(
+                    self.factory.create_unique_name(
+                        "_super",
+                        Some(
+                            GeneratedIdentifierFlags::Optimistic
+                                | GeneratedIdentifierFlags::FileLevel,
                         ),
-                    )
-                    ,
-                self.create_actual_this(),
-            )
-            
+                    ),
+                    self.factory.create_null(),
+                ),
+                self.factory.create_function_apply_call(
+                    self.factory.create_unique_name(
+                        "_super",
+                        Some(
+                            GeneratedIdentifierFlags::Optimistic
+                                | GeneratedIdentifierFlags::FileLevel,
+                        ),
+                    ),
+                    self.create_actual_this(),
+                    self.factory.create_identifier("arguments"),
+                ),
+            ),
+            self.create_actual_this(),
+        )
     }
 
     pub(super) fn visit_parameter(
@@ -100,7 +93,6 @@ impl TransformES2015 {
                         None,
                         None,
                     )
-                    
                     .set_text_range(Some(node))
                     .set_original_node(Some(node.node_wrapper())),
             )
@@ -116,7 +108,6 @@ impl TransformES2015 {
                         None,
                         None,
                     )
-                    
                     .set_text_range(Some(node))
                     .set_original_node(Some(node.node_wrapper())),
             )
@@ -195,25 +186,22 @@ impl TransformES2015 {
                     self.factory
                         .create_variable_statement(
                             Option::<Gc<NodeArray>>::None,
-                            self.factory
-                                .create_variable_declaration_list(
-                                    try_flatten_destructuring_binding(
-                                        parameter,
-                                        |node: &Node| self.visitor(node),
-                                        &**self.context,
-                                        FlattenLevel::All,
-                                        Some(
-                                            self.factory
-                                                .get_generated_name_for_node(Some(parameter), None),
-                                        ),
-                                        None,
-                                        None,
-                                    )?,
+                            self.factory.create_variable_declaration_list(
+                                try_flatten_destructuring_binding(
+                                    parameter,
+                                    |node: &Node| self.visitor(node),
+                                    &**self.context,
+                                    FlattenLevel::All,
+                                    Some(
+                                        self.factory
+                                            .get_generated_name_for_node(Some(parameter), None),
+                                    ),
                                     None,
-                                )
-                                ,
+                                    None,
+                                )?,
+                                None,
+                            ),
                         )
-                        
                         .set_emit_flags(EmitFlags::CustomPrologue),
                 ),
             );
@@ -225,20 +213,17 @@ impl TransformES2015 {
                 Some(
                     self.factory
                         .create_expression_statement(
-                            self.factory
-                                .create_assignment(
-                                    self.factory
-                                        .get_generated_name_for_node(Some(parameter), None),
-                                    try_visit_node(
-                                        initializer,
-                                        Some(|node: &Node| self.visitor(node)),
-                                        Some(is_expression),
-                                        Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
-                                    )?,
-                                )
-                                ,
+                            self.factory.create_assignment(
+                                self.factory
+                                    .get_generated_name_for_node(Some(parameter), None),
+                                try_visit_node(
+                                    initializer,
+                                    Some(|node: &Node| self.visitor(node)),
+                                    Some(is_expression),
+                                    Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                                )?,
+                            ),
                         )
-                        
                         .set_emit_flags(EmitFlags::CustomPrologue),
                 ),
             );
@@ -267,30 +252,25 @@ impl TransformES2015 {
                     .create_type_check(self.factory.clone_node(name), "undefined"),
                 self.factory
                     .create_block(
-                        vec![self
-                            .factory
-                            .create_expression_statement(
-                                self.factory
-                                    .create_assignment(
-                                        self.factory
-                                            .clone_node(name)
-                                            .set_text_range(Some(name))
-                                            .and_set_parent(name.maybe_parent())
-                                            .set_emit_flags(EmitFlags::NoSourceMap),
-                                        initializer.clone().set_emit_flags(
-                                            EmitFlags::NoSourceMap
-                                                | get_emit_flags(&initializer)
-                                                | EmitFlags::NoComments,
-                                        ),
-                                    )
-                                    
-                                    .set_text_range(Some(parameter))
-                                    .set_emit_flags(EmitFlags::NoComments),
-                            )
-                            ],
+                        vec![self.factory.create_expression_statement(
+                            self.factory
+                                .create_assignment(
+                                    self.factory
+                                        .clone_node(name)
+                                        .set_text_range(Some(name))
+                                        .and_set_parent(name.maybe_parent())
+                                        .set_emit_flags(EmitFlags::NoSourceMap),
+                                    initializer.clone().set_emit_flags(
+                                        EmitFlags::NoSourceMap
+                                            | get_emit_flags(&initializer)
+                                            | EmitFlags::NoComments,
+                                    ),
+                                )
+                                .set_text_range(Some(parameter))
+                                .set_emit_flags(EmitFlags::NoComments),
+                        )],
                         None,
                     )
-                    
                     .set_text_range(Some(parameter))
                     .set_emit_flags(
                         EmitFlags::SingleLine
@@ -300,7 +280,6 @@ impl TransformES2015 {
                     ),
                 None,
             )
-            
             .start_on_new_line()
             .set_text_range(Some(parameter))
             .set_emit_flags(
@@ -366,123 +345,88 @@ impl TransformES2015 {
             self.factory
                 .create_variable_statement(
                     Option::<Gc<NodeArray>>::None,
-                    self.factory
-                        .create_variable_declaration_list(
-                            vec![self
-                                .factory
-                                .create_variable_declaration(
-                                    Some(declaration_name),
-                                    None,
-                                    None,
-                                    Some(
-                                        self.factory
-                                            .create_array_literal_expression(Some(vec![]), None)
-                                            ,
-                                    ),
-                                )
-                                ],
+                    self.factory.create_variable_declaration_list(
+                        vec![self.factory.create_variable_declaration(
+                            Some(declaration_name),
                             None,
-                        )
-                        ,
+                            None,
+                            Some(
+                                self.factory
+                                    .create_array_literal_expression(Some(vec![]), None),
+                            ),
+                        )],
+                        None,
+                    ),
                 )
-                
                 .set_text_range(Some(&*parameter))
                 .set_emit_flags(EmitFlags::CustomPrologue),
         );
 
-        let for_statement = self
-            .factory
-            .create_for_statement(
-                Some(
-                    self.factory
-                        .create_variable_declaration_list(
-                            vec![self
-                                .factory
-                                .create_variable_declaration(
+        let for_statement =
+            self.factory
+                .create_for_statement(
+                    Some(
+                        self.factory
+                            .create_variable_declaration_list(
+                                vec![self.factory.create_variable_declaration(
                                     Some(temp.clone()),
                                     None,
                                     None,
-                                    Some(
-                                        self.factory
-                                            .create_numeric_literal(
-                                                Number::new(rest_index as f64),
-                                                None,
-                                            )
-                                            ,
-                                    ),
-                                )
-                                ],
-                            None,
-                        )
-                        
-                        .set_text_range(Some(&*parameter)),
-                ),
-                Some(
-                    self.factory
-                        .create_less_than(
-                            temp.clone(),
-                            self.factory
-                                .create_property_access_expression(
+                                    Some(self.factory.create_numeric_literal(
+                                        Number::new(rest_index as f64),
+                                        None,
+                                    )),
+                                )],
+                                None,
+                            )
+                            .set_text_range(Some(&*parameter)),
+                    ),
+                    Some(
+                        self.factory
+                            .create_less_than(
+                                temp.clone(),
+                                self.factory.create_property_access_expression(
                                     self.factory.create_identifier("arguments"),
                                     "length",
-                                )
-                                ,
-                        )
-                        
-                        .set_text_range(Some(&*parameter)),
-                ),
-                Some(
-                    self.factory
-                        .create_postfix_increment(temp.clone())
-                        
-                        .set_text_range(Some(&*parameter)),
-                ),
-                self.factory
-                    .create_block(
+                                ),
+                            )
+                            .set_text_range(Some(&*parameter)),
+                    ),
+                    Some(
+                        self.factory
+                            .create_postfix_increment(temp.clone())
+                            .set_text_range(Some(&*parameter)),
+                    ),
+                    self.factory.create_block(
                         vec![self
                             .factory
-                            .create_expression_statement(
-                                self.factory
-                                    .create_assignment(
-                                        self.factory
-                                            .create_element_access_expression(
-                                                expression_name.clone(),
-                                                if rest_index == 0 {
-                                                    temp.clone()
-                                                } else {
-                                                    self.factory
-                                                        .create_subtract(
-                                                            temp.clone(),
-                                                            self.factory
-                                                                .create_numeric_literal(
-                                                                    Number::new(rest_index as f64),
-                                                                    None,
-                                                                )
-                                                                ,
-                                                        )
-                                                        
-                                                },
-                                            )
-                                            ,
-                                        self.factory
-                                            .create_element_access_expression(
-                                                self.factory.create_identifier("arguments"),
-                                                temp.clone(),
-                                            )
-                                            ,
-                                    )
-                                    ,
-                            )
-                            
+                            .create_expression_statement(self.factory.create_assignment(
+                                self.factory.create_element_access_expression(
+                                    expression_name.clone(),
+                                    if rest_index == 0 {
+                                        temp.clone()
+                                    } else {
+                                        self.factory.create_subtract(
+                                            temp.clone(),
+                                            self.factory.create_numeric_literal(
+                                                Number::new(rest_index as f64),
+                                                None,
+                                            ),
+                                        )
+                                    },
+                                ),
+                                self.factory.create_element_access_expression(
+                                    self.factory.create_identifier("arguments"),
+                                    temp.clone(),
+                                ),
+                            ))
                             .set_text_range(Some(&*parameter))
                             .start_on_new_line()],
                         None,
-                    )
-                    ,
-            )
-            
-            .set_emit_flags(EmitFlags::CustomPrologue)
-            .start_on_new_line();
+                    ),
+                )
+                .set_emit_flags(EmitFlags::CustomPrologue)
+                .start_on_new_line();
 
         prologue_statements.push(for_statement);
 
@@ -491,22 +435,19 @@ impl TransformES2015 {
                 self.factory
                     .create_variable_statement(
                         Option::<Gc<NodeArray>>::None,
-                        self.factory
-                            .create_variable_declaration_list(
-                                try_flatten_destructuring_binding(
-                                    &parameter,
-                                    |node: &Node| self.visitor(node),
-                                    &**self.context,
-                                    FlattenLevel::All,
-                                    Some(expression_name.clone()),
-                                    None,
-                                    None,
-                                )?,
+                        self.factory.create_variable_declaration_list(
+                            try_flatten_destructuring_binding(
+                                &parameter,
+                                |node: &Node| self.visitor(node),
+                                &**self.context,
+                                FlattenLevel::All,
+                                Some(expression_name.clone()),
                                 None,
-                            )
-                            ,
+                                None,
+                            )?,
+                            None,
+                        ),
                     )
-                    
                     .set_text_range(Some(&*parameter))
                     .set_emit_flags(EmitFlags::CustomPrologue),
             );

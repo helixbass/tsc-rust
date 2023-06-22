@@ -1,8 +1,11 @@
+use std::{
+    collections::{hash_map, hash_set, HashMap, HashSet},
+    hash::Hash,
+    ops::Deref,
+};
+
 use gc::{Finalize, Trace};
 use indexmap::IndexMap;
-use std::collections::{hash_map, hash_set, HashMap, HashSet};
-use std::hash::Hash;
-use std::ops::Deref;
 
 pub const version_major_minor: &str = "4.5";
 
@@ -11,8 +14,9 @@ pub const version: &str = "4.5.2";
 pub type MapLike<TValue> = HashMap<String, TValue>;
 
 mod _SortedArrayDeriveTraceScope {
-    use super::*;
     use local_macros::Trace;
+
+    use super::*;
 
     #[derive(Clone, Debug, Trace, Finalize)]
     pub struct SortedArray<TItem: Trace + Finalize> {

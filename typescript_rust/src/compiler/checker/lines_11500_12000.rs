@@ -1,15 +1,15 @@
+use std::{io, iter, ptr};
+
 use gc::Gc;
 use itertools::Either;
-
-use std::{io, iter, ptr};
 
 use super::MappedTypeModifiers;
 use crate::{
     add_related_info, append, create_diagnostic_for_node, create_symbol_table,
     get_effective_constraint_of_type_parameter, get_object_flags, is_node_descendant_of,
-    is_type_parameter_declaration, maybe_for_each, maybe_for_each_bool, Diagnostics,
-    IteratorExt, Node, NodeInterface, ObjectFlags, ObjectFlagsTypeInterface, ObjectTypeInterface,
-    OptionTry, Symbol, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
+    is_type_parameter_declaration, maybe_for_each, maybe_for_each_bool, Diagnostics, IteratorExt,
+    Node, NodeInterface, ObjectFlags, ObjectFlagsTypeInterface, ObjectTypeInterface, OptionTry,
+    Symbol, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
     TypeSystemPropertyName, __String, try_map_defined,
 };
 

@@ -3,19 +3,19 @@ use std::io;
 use gc::Gc;
 
 use super::{is_not_overload, is_not_overload_and_not_accessor};
-use crate::try_for_each;
 use crate::{
-    are_option_gcs_equal, count_where, create_diagnostic_for_node, declaration_name_to_string, for_each_entry_bool,
-    get_combined_node_flags, get_effective_type_annotation_node, get_emit_declarations,
-    get_es_module_interop, get_external_module_name, get_first_identifier, get_source_file_of_node,
-    has_effective_modifiers, has_syntactic_modifier, id_text, is_ambient_module,
-    is_entity_name_expression, is_external_module_name_relative, is_external_module_reference,
-    is_import_declaration, is_import_equals_declaration, is_import_specifier, is_in_js_file,
-    is_internal_module_import_equals_declaration, is_module_exports_access_expression,
-    is_named_exports, is_namespace_export, is_private_identifier, is_string_literal,
-    is_type_only_import_or_export_declaration, length, maybe_get_source_file_of_node,
-    node_is_missing, try_for_each_import_clause_declaration_bool, unescape_leading_underscores,
-    Debug_, DiagnosticMessage, Diagnostics, ExternalEmitHelpers, HasStatementsInterface,
+    are_option_gcs_equal, count_where, create_diagnostic_for_node, declaration_name_to_string,
+    for_each_entry_bool, get_combined_node_flags, get_effective_type_annotation_node,
+    get_emit_declarations, get_es_module_interop, get_external_module_name, get_first_identifier,
+    get_source_file_of_node, has_effective_modifiers, has_syntactic_modifier, id_text,
+    is_ambient_module, is_entity_name_expression, is_external_module_name_relative,
+    is_external_module_reference, is_import_declaration, is_import_equals_declaration,
+    is_import_specifier, is_in_js_file, is_internal_module_import_equals_declaration,
+    is_module_exports_access_expression, is_named_exports, is_namespace_export,
+    is_private_identifier, is_string_literal, is_type_only_import_or_export_declaration, length,
+    maybe_get_source_file_of_node, node_is_missing, try_for_each,
+    try_for_each_import_clause_declaration_bool, unescape_leading_underscores, Debug_,
+    DiagnosticMessage, Diagnostics, ExternalEmitHelpers, HasStatementsInterface,
     LiteralLikeNodeInterface, ModifierFlags, ModuleKind, NamedDeclarationInterface, Node,
     NodeFlags, NodeInterface, OptionTry, ScriptTarget, Symbol, SymbolFlags, SymbolInterface,
     SyntaxKind, TypeChecker,

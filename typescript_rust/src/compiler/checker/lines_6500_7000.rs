@@ -313,38 +313,37 @@ impl SymbolTableToDeclarationStatements {
                                     &body,
                                     get_factory().create_node_array(
                                         Some({
-                                            let mut arg = ns_body.as_module_block().statements.to_vec();
-                                            arg.push(
-                                                get_factory().create_export_declaration(
-                                                    Option::<Gc<NodeArray>>::None,
-                                                    Option::<Gc<NodeArray>>::None,
-                                                    false,
-                                                    Some(get_factory().create_named_exports(
-                                                        map(
-                                                            flat_map(
-                                                                Some(&excess_exports),
-                                                                |e: &Gc<Node>, _| self.get_names_of_declaration(e)
-                                                            ),
-                                                            |id: Gc<Node>, _| {
-                                                                get_factory().create_export_specifier(
-                                                                    false,
-                                                                    Option::<Gc<Node>>::None,
-                                                                    id,
-                                                                )
-                                                            }
+                                            let mut arg =
+                                                ns_body.as_module_block().statements.to_vec();
+                                            arg.push(get_factory().create_export_declaration(
+                                                Option::<Gc<NodeArray>>::None,
+                                                Option::<Gc<NodeArray>>::None,
+                                                false,
+                                                Some(get_factory().create_named_exports(map(
+                                                    flat_map(
+                                                        Some(&excess_exports),
+                                                        |e: &Gc<Node>, _| {
+                                                            self.get_names_of_declaration(e)
+                                                        },
+                                                    ),
+                                                    |id: Gc<Node>, _| {
+                                                        get_factory().create_export_specifier(
+                                                            false,
+                                                            Option::<Gc<Node>>::None,
+                                                            id,
                                                         )
-                                                    )),
-                                                    None,
-                                                    None,
-                                                )
-                                            );
+                                                    },
+                                                ))),
+                                                None,
+                                                None,
+                                            ));
                                             arg
                                         }),
                                         None,
-                                    )
+                                    ),
                                 );
                                 body.clone()
-                            })
+                            }),
                         );
                         let mut statements_ = statements[0..ns_index.unwrap()].to_owned();
                         statements_.push(ns.clone());
@@ -412,35 +411,25 @@ impl SymbolTableToDeclarationStatements {
             });
             statements = {
                 let mut statements = non_exports;
-                statements.push(
-                    get_factory()
-                        .create_export_declaration(
-                            Option::<Gc<NodeArray>>::None,
-                            Option::<Gc<NodeArray>>::None,
-                            false,
-                            Some(
-                                get_factory()
-                                    .create_named_exports(flat_map(
-                                        Some(&exports),
-                                        |e: &Gc<Node>, _| {
-                                            cast(
-                                                e.as_export_declaration().export_clause.as_ref(),
-                                                |export_clause: &&Gc<Node>| {
-                                                    is_named_exports(export_clause)
-                                                },
-                                            )
-                                            .as_named_exports()
-                                            .elements
-                                            .to_vec()
-                                        },
-                                    ))
-                                    ,
-                            ),
-                            None,
-                            None,
-                        )
-                        ,
-                );
+                statements.push(get_factory().create_export_declaration(
+                    Option::<Gc<NodeArray>>::None,
+                    Option::<Gc<NodeArray>>::None,
+                    false,
+                    Some(get_factory().create_named_exports(flat_map(
+                        Some(&exports),
+                        |e: &Gc<Node>, _| {
+                            cast(
+                                e.as_export_declaration().export_clause.as_ref(),
+                                |export_clause: &&Gc<Node>| is_named_exports(export_clause),
+                            )
+                            .as_named_exports()
+                            .elements
+                            .to_vec()
+                        },
+                    ))),
+                    None,
+                    None,
+                ));
                 statements
             };
         }
@@ -491,37 +480,27 @@ impl SymbolTableToDeclarationStatements {
                                     .position(|item: &Gc<Node>| Gc::ptr_eq(item, s))
                                     .is_none()
                             });
-                            statements.push(
-                                get_factory()
-                                    .create_export_declaration(
-                                        Option::<Gc<NodeArray>>::None,
-                                        Option::<Gc<NodeArray>>::None,
-                                        false,
-                                        Some(
-                                            get_factory()
-                                                .create_named_exports(flat_map(
-                                                    Some(&group),
-                                                    |e: &Gc<Node>, _| {
-                                                        cast(
-                                                            e.as_export_declaration()
-                                                                .export_clause
-                                                                .as_ref(),
-                                                            |export_clause: &&Gc<Node>| {
-                                                                is_named_exports(export_clause)
-                                                            },
-                                                        )
-                                                        .as_named_exports()
-                                                        .elements
-                                                        .to_vec()
-                                                    },
-                                                ))
-                                                ,
-                                        ),
-                                        group[0].as_export_declaration().module_specifier.clone(),
-                                        None,
-                                    )
-                                    ,
-                            );
+                            statements.push(get_factory().create_export_declaration(
+                                Option::<Gc<NodeArray>>::None,
+                                Option::<Gc<NodeArray>>::None,
+                                false,
+                                Some(get_factory().create_named_exports(flat_map(
+                                    Some(&group),
+                                    |e: &Gc<Node>, _| {
+                                        cast(
+                                            e.as_export_declaration().export_clause.as_ref(),
+                                            |export_clause: &&Gc<Node>| {
+                                                is_named_exports(export_clause)
+                                            },
+                                        )
+                                        .as_named_exports()
+                                        .elements
+                                        .to_vec()
+                                    },
+                                ))),
+                                group[0].as_export_declaration().module_specifier.clone(),
+                                None,
+                            ));
                             statements
                         }
                     }
@@ -1046,27 +1025,21 @@ impl SymbolTableToDeclarationStatements {
                             None,
                         )?);
                     self.add_result(
-                        &get_factory()
-                            .create_export_declaration(
-                                Option::<Gc<NodeArray>>::None,
-                                Option::<Gc<NodeArray>>::None,
-                                false,
+                        &get_factory().create_export_declaration(
+                            Option::<Gc<NodeArray>>::None,
+                            Option::<Gc<NodeArray>>::None,
+                            false,
+                            None,
+                            Some(get_factory().create_string_literal(
+                                self.node_builder.get_specifier_for_module_symbol(
+                                    resolved_module,
+                                    &self.context(),
+                                )?,
                                 None,
-                                Some(
-                                    get_factory()
-                                        .create_string_literal(
-                                            self.node_builder.get_specifier_for_module_symbol(
-                                                resolved_module,
-                                                &self.context(),
-                                            )?,
-                                            None,
-                                            None,
-                                        )
-                                        ,
-                                ),
                                 None,
-                            )
-                            ,
+                            )),
+                            None,
+                        ),
                         ModifierFlags::None,
                     );
                 }
@@ -1074,39 +1047,31 @@ impl SymbolTableToDeclarationStatements {
         }
         if needs_post_export_default {
             self.add_result(
-                &get_factory()
-                    .create_export_assignment(
-                        Option::<Gc<NodeArray>>::None,
-                        Option::<Gc<NodeArray>>::None,
-                        Some(false),
-                        get_factory()
-                            .create_identifier(&self.get_internal_symbol_name(symbol, symbol_name)),
-                    )
-                    ,
+                &get_factory().create_export_assignment(
+                    Option::<Gc<NodeArray>>::None,
+                    Option::<Gc<NodeArray>>::None,
+                    Some(false),
+                    get_factory()
+                        .create_identifier(&self.get_internal_symbol_name(symbol, symbol_name)),
+                ),
                 ModifierFlags::None,
             );
         } else if needs_export_declaration {
             self.add_result(
-                &get_factory()
-                    .create_export_declaration(
-                        Option::<Gc<NodeArray>>::None,
-                        Option::<Gc<NodeArray>>::None,
-                        false,
-                        Some(
-                            get_factory()
-                                .create_named_exports(vec![get_factory()
-                                    .create_export_specifier(
-                                        false,
-                                        Some(&*self.get_internal_symbol_name(symbol, symbol_name)),
-                                        symbol_name,
-                                    )
-                                    ])
-                                ,
+                &get_factory().create_export_declaration(
+                    Option::<Gc<NodeArray>>::None,
+                    Option::<Gc<NodeArray>>::None,
+                    false,
+                    Some(get_factory().create_named_exports(vec![
+                        get_factory().create_export_specifier(
+                            false,
+                            Some(&*self.get_internal_symbol_name(symbol, symbol_name)),
+                            symbol_name,
                         ),
-                        None,
-                        None,
-                    )
-                    ,
+                    ])),
+                    None,
+                    None,
+                ),
                 ModifierFlags::None,
             );
         }
@@ -1359,8 +1324,6 @@ impl MakeSerializePropertySymbolCreateProperty
         type_: Option<Gc<Node /*TypeNode*/>>,
         _initializer: Option<Gc<Node /*Expression*/>>,
     ) -> Gc<Node> {
-        get_factory()
-            .create_property_signature(mods, name, question, type_)
-            
+        get_factory().create_property_signature(mods, name, question, type_)
     }
 }

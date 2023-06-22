@@ -1,10 +1,8 @@
-use gc::Gc;
-use std::ptr;
+use std::{borrow::Borrow, io, ptr};
 
-use std::{borrow::Borrow, io};
+use gc::Gc;
 
 use super::signature_has_rest_parameter;
-use crate::try_some;
 use crate::{
     add_related_info, append, chain_diagnostic_messages, concatenate, create_diagnostic_for_node,
     create_diagnostic_for_node_from_message_chain, filter, find, find_ancestor, flat_map,
@@ -14,7 +12,7 @@ use crate::{
     get_object_flags, get_parameter_symbol_from_jsdoc, is_access_expression, is_binary_expression,
     is_export_assignment, is_in_js_file, is_jsdoc_template_tag, is_shorthand_ambient_module_symbol,
     is_source_file, is_type_alias, length, maybe_append_if_unique_gc, resolving_empty_array,
-    return_ok_default_if_none, some, try_map, try_maybe_first_defined, try_maybe_map,
+    return_ok_default_if_none, some, try_map, try_maybe_first_defined, try_maybe_map, try_some,
     AsDoubleDeref, AssignmentDeclarationKind, CheckFlags, Debug_, Diagnostics, ElementFlags,
     HasTypeArgumentsInterface, InterfaceTypeInterface, InternalSymbolName, Node, NodeInterface,
     ObjectFlags, OptionTry, Signature, SignatureKind, Symbol, SymbolFlags, SymbolInterface,

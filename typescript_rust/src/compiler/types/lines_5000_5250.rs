@@ -1,9 +1,9 @@
+use std::{cell::Cell, collections::HashMap, rc::Rc};
+
 use bitflags::bitflags;
 use gc::{Finalize, Gc, GcCell, GcCellRefMut, Trace};
 use indexmap::IndexMap;
-use std::cell::Cell;
-use std::collections::HashMap;
-use std::rc::Rc;
+use local_macros::{enum_unwrapped, symbol_type, type_type};
 
 use super::{
     BaseInterfaceType, BigIntLiteralType, ConditionalType, IndexType, IndexedAccessType,
@@ -18,7 +18,6 @@ use crate::{
     InterfaceTypeInterface, IterationTypeCacheKey, IterationTypes, JsxFlags, Node, NodeId,
     NotActuallyInterfaceType, ObjectFlags, Pattern, StringOrNumber, TypeReferenceInterface,
 };
-use local_macros::{enum_unwrapped, symbol_type, type_type};
 
 #[derive(Debug, Trace, Finalize)]
 #[symbol_type(ancestors = "TransientSymbol", interfaces = "TransientSymbolInterface")]

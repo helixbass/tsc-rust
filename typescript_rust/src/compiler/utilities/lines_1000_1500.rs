@@ -1,7 +1,10 @@
+use std::{
+    borrow::Borrow,
+    convert::{TryFrom, TryInto},
+};
+
 use gc::Gc;
 use regex::Regex;
-use std::borrow::Borrow;
-use std::convert::{TryFrom, TryInto};
 
 use crate::{
     concatenate, contains_gc, create_file_diagnostic, create_scanner, create_text_span,

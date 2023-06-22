@@ -644,26 +644,20 @@ impl TypeChecker {
         );
         let reference: Gc<Node> = if are_all_module_exports {
             factory.with(|factory_| {
-                factory_
-                    .create_property_access_expression(
-                        factory_
-                            .create_property_access_expression(
-                                factory_.create_identifier("module"),
-                                factory_.create_identifier("exports"),
-                            )
-                            ,
-                        access_name,
-                    )
-                    
+                factory_.create_property_access_expression(
+                    factory_.create_property_access_expression(
+                        factory_.create_identifier("module"),
+                        factory_.create_identifier("exports"),
+                    ),
+                    access_name,
+                )
             })
         } else {
             factory.with(|factory_| {
-                factory_
-                    .create_property_access_expression(
-                        factory_.create_identifier("exports"),
-                        access_name,
-                    )
-                    
+                factory_.create_property_access_expression(
+                    factory_.create_identifier("exports"),
+                    access_name,
+                )
             })
         };
         if are_all_module_exports {
@@ -699,7 +693,6 @@ impl TypeChecker {
             factory.with(|factory_| {
                 factory_
                     .create_private_identifier((&*symbol.escaped_name()).split("@").nth(1).unwrap())
-                    
                     .into()
             })
         } else {
@@ -708,11 +701,7 @@ impl TypeChecker {
         for static_block in static_blocks {
             let reference = factory.with(|factory_| {
                 factory_
-                    .create_property_access_expression(
-                        factory_.create_this(),
-                        access_name.clone(),
-                    )
-                    
+                    .create_property_access_expression(factory_.create_this(), access_name.clone())
             });
             set_parent(
                 &reference.as_property_access_expression().expression,
@@ -755,16 +744,13 @@ impl TypeChecker {
             factory.with(|factory_| {
                 factory_
                     .create_private_identifier((&*symbol.escaped_name()).split("@").nth(1).unwrap())
-                    
                     .into()
             })
         } else {
             unescape_leading_underscores(symbol.escaped_name()).into()
         };
         let reference = factory.with(|factory_| {
-            factory_
-                .create_property_access_expression(factory_.create_this(), access_name)
-                
+            factory_.create_property_access_expression(factory_.create_this(), access_name)
         });
         set_parent(
             &reference.as_property_access_expression().expression,

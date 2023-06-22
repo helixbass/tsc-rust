@@ -1,13 +1,9 @@
+use std::{borrow::Borrow, cell::RefCell, collections::HashMap, io, ptr, rc::Rc};
+
 use gc::{Finalize, Gc, Trace};
 use itertools::Either;
-use std::cell::RefCell;
-use std::collections::HashMap;
-use std::ptr;
-use std::rc::Rc;
-use std::{borrow::Borrow, io};
 
 use super::CheckTypeContainingMessageChain;
-use crate::try_for_each;
 use crate::{
     __String, chain_diagnostic_messages, continue_if_none,
     create_diagnostic_for_node_from_message_chain, escape_leading_underscores, first, for_each,
@@ -17,9 +13,9 @@ use crate::{
     has_ambient_modifier, has_effective_modifier, has_override_modifier, has_syntactic_modifier,
     is_binary_expression, is_constructor_declaration, is_identifier, is_in_js_file,
     is_parameter_property_declaration, is_property_declaration, is_static, length, maybe_filter,
-    maybe_for_each, some, symbol_name, unescape_leading_underscores, CheckFlags, Debug_,
-    DiagnosticMessage, DiagnosticMessageChain, Diagnostics, GcHashMap, HasInitializerInterface,
-    InterfaceTypeInterface, Matches, MemberOverrideStatus, ModifierFlags,
+    maybe_for_each, some, symbol_name, try_for_each, unescape_leading_underscores, CheckFlags,
+    Debug_, DiagnosticMessage, DiagnosticMessageChain, Diagnostics, GcHashMap,
+    HasInitializerInterface, InterfaceTypeInterface, Matches, MemberOverrideStatus, ModifierFlags,
     NamedDeclarationInterface, Node, NodeFlags, NodeInterface, OptionTry,
     SignatureDeclarationInterface, SignatureKind, Symbol, SymbolFlags, SymbolInterface, SyntaxKind,
     TransientSymbolInterface, Type, TypeChecker, TypeInterface,

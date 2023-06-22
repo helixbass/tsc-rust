@@ -1,15 +1,13 @@
+use std::io;
+
 use gc::Gc;
 
-use crate::{
-    create_range, get_original_node_id, id_text, is_static,
-    NamedDeclarationInterface, NodeCheckFlags, NodeExt, SyntaxKind,
-};
-use crate::{Node, NodeInterface, ReadonlyTextRange};
-
 use super::{TransformTypeScript, TypeScriptSubstitutionFlags};
-use crate::has_syntactic_modifier;
-use crate::ModifierFlags;
-use std::io;
+use crate::{
+    create_range, get_original_node_id, has_syntactic_modifier, id_text, is_static, ModifierFlags,
+    NamedDeclarationInterface, Node, NodeCheckFlags, NodeExt, NodeInterface, ReadonlyTextRange,
+    SyntaxKind,
+};
 
 impl TransformTypeScript {
     pub(super) fn is_export_of_namespace(&self, node: &Node) -> bool {
@@ -51,7 +49,6 @@ impl TransformTypeScript {
                 ),
                 self.factory.get_local_name(node, None, None),
             )
-            
             .set_source_map_range(Some(
                 (&create_range(
                     node.as_named_declaration()
@@ -65,7 +62,6 @@ impl TransformTypeScript {
         let statement = self
             .factory
             .create_expression_statement(expression)
-            
             .set_source_map_range(Some((&create_range(-1, Some(node.end()))).into()));
         statements.push(statement);
     }
@@ -77,20 +73,15 @@ impl TransformTypeScript {
         location: Option<&impl ReadonlyTextRange>,
     ) -> Gc<Node> {
         self.factory
-            .create_expression_statement(
-                self.factory
-                    .create_assignment(
-                        self.factory.get_namespace_member_name(
-                            &self.current_namespace_container_name(),
-                            export_name,
-                            Some(false),
-                            Some(true),
-                        ),
-                        export_value.node_wrapper(),
-                    )
-                    ,
-            )
-            
+            .create_expression_statement(self.factory.create_assignment(
+                self.factory.get_namespace_member_name(
+                    &self.current_namespace_container_name(),
+                    export_name,
+                    Some(false),
+                    Some(true),
+                ),
+                export_value.node_wrapper(),
+            ))
             .set_text_range(location)
     }
 
@@ -105,7 +96,6 @@ impl TransformTypeScript {
                 self.get_namespace_member_name_with_source_maps_and_without_comments(export_name),
                 export_value.node_wrapper(),
             )
-            
             .set_text_range(location)
     }
 
@@ -171,12 +161,10 @@ impl TransformTypeScript {
         &self,
         node: &Node, /*ClassExpression | ClassDeclaration*/
     ) -> Gc<Node> {
-        self.factory
-            .create_property_access_expression(
-                self.factory.get_declaration_name(Some(node), None, None),
-                "prototype",
-            )
-            
+        self.factory.create_property_access_expression(
+            self.factory.get_declaration_name(Some(node), None, None),
+            "prototype",
+        )
     }
 
     pub(super) fn get_class_member_prefix(

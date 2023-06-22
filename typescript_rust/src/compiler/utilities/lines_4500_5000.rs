@@ -1,8 +1,6 @@
+use std::{borrow::Borrow, cmp, convert::TryInto, ptr};
+
 use gc::Gc;
-use std::borrow::Borrow;
-use std::cmp;
-use std::convert::TryInto;
-use std::ptr;
 
 use super::{
     get_indent_size, get_indent_string, get_line_of_local_position_from_line_map,

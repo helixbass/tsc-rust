@@ -242,7 +242,6 @@ impl TransformES2015 {
                                     Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
                                 )?,
                             )
-                            
                             .set_text_range(Some(&**decl));
                     }
 
@@ -255,7 +254,6 @@ impl TransformES2015 {
                 updated = Some(
                     self.factory
                         .create_expression_statement(self.factory.inline_expressions(&assignments))
-                        
                         .set_text_range(Some(node)),
                 );
             } else {
@@ -303,7 +301,6 @@ impl TransformES2015 {
             let declaration_list = self
                 .factory
                 .create_variable_declaration_list(declarations.clone(), None)
-                
                 .set_original_node(Some(node.node_wrapper()))
                 .set_text_range(Some(node))
                 .set_comment_range(node);
@@ -754,7 +751,6 @@ impl TransformES2015 {
                 let declaration_list = self
                     .factory
                     .create_variable_declaration_list(declarations.clone(), None)
-                    
                     .set_text_range(Some(&*node_as_for_of_statement.initializer))
                     .set_source_map_range(Some(
                         (&create_range(declarations[0].pos(), Some(last(&declarations).end())))
@@ -763,8 +759,7 @@ impl TransformES2015 {
 
                 statements.push(
                     self.factory
-                        .create_variable_statement(Option::<Gc<NodeArray>>::None, declaration_list)
-                        ,
+                        .create_variable_statement(Option::<Gc<NodeArray>>::None, declaration_list),
                 );
             } else {
                 statements.push(
@@ -773,35 +768,30 @@ impl TransformES2015 {
                             Option::<Gc<NodeArray>>::None,
                             self.factory
                                 .create_variable_declaration_list(
-                                    vec![self
-                                        .factory
-                                        .create_variable_declaration(
-                                            if let Some(first_original_declaration) =
-                                                first_original_declaration
-                                            {
-                                                first_original_declaration
-                                                    .as_variable_declaration()
-                                                    .maybe_name()
-                                            } else {
-                                                Some(self.factory.create_temp_variable(
-                                                    Option::<fn(&Node)>::None,
-                                                    None,
-                                                ))
-                                            },
-                                            None,
-                                            None,
-                                            Some(bound_value.node_wrapper()),
-                                        )
-                                        ],
+                                    vec![self.factory.create_variable_declaration(
+                                        if let Some(first_original_declaration) =
+                                            first_original_declaration
+                                        {
+                                            first_original_declaration
+                                                .as_variable_declaration()
+                                                .maybe_name()
+                                        } else {
+                                            Some(self.factory.create_temp_variable(
+                                                Option::<fn(&Node)>::None,
+                                                None,
+                                            ))
+                                        },
+                                        None,
+                                        None,
+                                        Some(bound_value.node_wrapper()),
+                                    )],
                                     None,
                                 )
-                                
                                 .set_text_range(Some(&ReadonlyTextRangeConcrete::from(
                                     move_range_pos(&**initializer, -1),
                                 )))
                                 .set_original_node(Some(initializer.clone())),
                         )
-                        
                         .set_text_range(Some(&ReadonlyTextRangeConcrete::from(move_range_end(
                             &**initializer,
                             -1,
@@ -811,15 +801,12 @@ impl TransformES2015 {
         } else {
             let ref assignment = self
                 .factory
-                .create_assignment(initializer.clone(), bound_value.node_wrapper())
-                ;
+                .create_assignment(initializer.clone(), bound_value.node_wrapper());
             if is_destructuring_assignment(assignment) {
                 statements.push(
-                    self.factory
-                        .create_expression_statement(
-                            self.visit_binary_expression(assignment, true)?,
-                        )
-                        ,
+                    self.factory.create_expression_statement(
+                        self.visit_binary_expression(assignment, true)?,
+                    ),
                 );
             } else {
                 set_text_range_end(&**assignment, initializer.end());
@@ -831,7 +818,6 @@ impl TransformES2015 {
                             Some(is_expression),
                             Some(|nodes: &[Gc<Node>]| self.factory.lift_to_block(nodes)),
                         )?)
-                        
                         .set_text_range(Some(&ReadonlyTextRangeConcrete::from(move_range_end(
                             &**initializer,
                             -1,
@@ -889,7 +875,6 @@ impl TransformES2015 {
                 self.factory.create_node_array(Some(statements), None),
                 Some(true),
             )
-            
             .set_emit_flags(EmitFlags::NoSourceMap | EmitFlags::NoTokenSourceMaps)
     }
 
@@ -935,11 +920,9 @@ impl TransformES2015 {
                                         None,
                                         Some(
                                             self.factory
-                                                .create_numeric_literal(Number::new(0.0), None)
-                                                ,
+                                                .create_numeric_literal(Number::new(0.0), None),
                                         ),
                                     )
-                                    
                                     .set_text_range(Some(&ReadonlyTextRangeConcrete::from(
                                         move_range_pos(&*node_as_for_of_statement.expression, -1),
                                     ))),
@@ -950,12 +933,10 @@ impl TransformES2015 {
                                         None,
                                         Some(expression.clone()),
                                     )
-                                    
                                     .set_text_range(Some(&*node_as_for_of_statement.expression)),
                             ],
                             None,
                         )
-                        
                         .set_text_range(Some(&*node_as_for_of_statement.expression))
                         .set_emit_flags(EmitFlags::NoHoisting),
                 ),
@@ -964,28 +945,23 @@ impl TransformES2015 {
                         .create_less_than(
                             counter.clone(),
                             self.factory
-                                .create_property_access_expression(rhs_reference.clone(), "length")
-                                ,
+                                .create_property_access_expression(rhs_reference.clone(), "length"),
                         )
-                        
                         .set_text_range(Some(&*node_as_for_of_statement.expression)),
                 ),
                 Some(
                     self.factory
                         .create_postfix_increment(counter.clone())
-                        
                         .set_text_range(Some(&*node_as_for_of_statement.expression)),
                 ),
                 self.convert_for_of_statement_head(
                     node,
                     &self
                         .factory
-                        .create_element_access_expression(rhs_reference, counter)
-                        ,
+                        .create_element_access_expression(rhs_reference, counter),
                     converted_loop_body_statements,
                 )?,
             )
-            
             .set_text_range(Some(node))
             .set_emit_flags(EmitFlags::NoTokenTrailingSourceMaps)
             // TODO: this appears to be duplicate wrt above, upstream?

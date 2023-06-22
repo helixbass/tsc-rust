@@ -1,7 +1,7 @@
+use std::{borrow::Borrow, cell::RefCell};
+
 use bitflags::bitflags;
 use gc::{Finalize, Gc, Trace};
-use std::borrow::Borrow;
-use std::cell::RefCell;
 
 use crate::{
     create_node_factory, maybe_text_char_at_index, object_allocator, BaseNode, BaseNodeFactory,

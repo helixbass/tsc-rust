@@ -1,9 +1,6 @@
+use std::{cell::RefCell, cmp, collections::HashMap, io, ptr, rc::Rc};
+
 use gc::{Finalize, Gc, GcCell, Trace};
-use std::cmp;
-use std::collections::HashMap;
-use std::ptr;
-use std::rc::Rc;
-use std::{cell::RefCell, io};
 
 use super::{MappedTypeModifiers, WideningKind};
 use crate::{
@@ -11,13 +8,12 @@ use crate::{
     get_declaration_of_kind, is_function_type_node, is_identifier, is_method_signature, map,
     same_map, ElementFlags, FindAncestorCallbackReturn, IndexInfo, NamedDeclarationInterface,
     ReverseMappedType, SymbolInterface, SyntaxKind, TransientSymbolInterface, TypeComparer,
-    TypeMapper, TypeMapperCallback, __String, declaration_name_to_string,
-    get_name_of_declaration, get_object_flags, get_source_file_of_node,
-    is_call_signature_declaration, is_check_js_enabled_for_file, is_in_js_file, is_type_node_kind,
-    try_for_each_bool, try_map, try_some, DiagnosticMessage, Diagnostics, InferenceContext,
-    InferenceFlags, InferenceInfo, IteratorExt, Node, NodeInterface, ObjectFlags, Signature,
-    Symbol, SymbolFlags, Ternary, Type, TypeChecker, TypeFlags, TypeInterface, UnionReduction,
-    WideningContext,
+    TypeMapper, TypeMapperCallback, __String, declaration_name_to_string, get_name_of_declaration,
+    get_object_flags, get_source_file_of_node, is_call_signature_declaration,
+    is_check_js_enabled_for_file, is_in_js_file, is_type_node_kind, try_for_each_bool, try_map,
+    try_some, DiagnosticMessage, Diagnostics, InferenceContext, InferenceFlags, InferenceInfo,
+    IteratorExt, Node, NodeInterface, ObjectFlags, Signature, Symbol, SymbolFlags, Ternary, Type,
+    TypeChecker, TypeFlags, TypeInterface, UnionReduction, WideningContext,
 };
 
 impl TypeChecker {

@@ -1,26 +1,26 @@
+use std::{borrow::Borrow, collections::HashMap, io, iter, ptr};
+
 use gc::Gc;
 use itertools::Either;
-use std::collections::HashMap;
-use std::{borrow::Borrow, iter};
-use std::{io, ptr};
 
 use super::EmitResolverCreateResolver;
 use crate::{
     add_related_info, are_option_gcs_equal, bind_source_file, concatenate,
-    create_diagnostic_for_node, escape_leading_underscores, external_helpers_module_name_text, for_each_entry_bool, get_all_accessor_declarations,
-    get_declaration_of_kind, get_effective_modifier_flags, get_external_module_name, get_factory,
-    get_first_identifier, get_parse_tree_node, get_source_file_of_node, has_syntactic_modifier,
-    is_ambient_module, is_binding_pattern, is_declaration, is_declaration_readonly,
-    is_effective_external_module, is_entity_name, is_enum_const, is_expression,
-    is_external_or_common_js_module, is_function_declaration, is_function_like,
-    is_generated_identifier, is_get_accessor, is_global_scope_augmentation, is_identifier,
-    is_jsdoc_parameter_tag, is_named_declaration, is_private_identifier_class_element_declaration,
-    is_property_access_expression, is_property_declaration, is_qualified_name, is_set_accessor,
-    is_string_literal, is_type_only_import_or_export_declaration, is_var_const,
-    is_variable_declaration, is_variable_like_or_accessor, maybe_get_source_file_of_node,
-    maybe_is_class_like, modifier_to_flag, node_can_be_decorated, node_is_present,
-    parse_isolated_entity_name, return_ok_default_if_none, should_preserve_const_enums,
-    token_to_string, try_cast, try_for_each_child_bool, try_some, Debug_, Diagnostic, Diagnostics, EmitResolver,
+    create_diagnostic_for_node, escape_leading_underscores, external_helpers_module_name_text,
+    for_each_entry_bool, get_all_accessor_declarations, get_declaration_of_kind,
+    get_effective_modifier_flags, get_external_module_name, get_factory, get_first_identifier,
+    get_parse_tree_node, get_source_file_of_node, has_syntactic_modifier, is_ambient_module,
+    is_binding_pattern, is_declaration, is_declaration_readonly, is_effective_external_module,
+    is_entity_name, is_enum_const, is_expression, is_external_or_common_js_module,
+    is_function_declaration, is_function_like, is_generated_identifier, is_get_accessor,
+    is_global_scope_augmentation, is_identifier, is_jsdoc_parameter_tag, is_named_declaration,
+    is_private_identifier_class_element_declaration, is_property_access_expression,
+    is_property_declaration, is_qualified_name, is_set_accessor, is_string_literal,
+    is_type_only_import_or_export_declaration, is_var_const, is_variable_declaration,
+    is_variable_like_or_accessor, maybe_get_source_file_of_node, maybe_is_class_like,
+    modifier_to_flag, node_can_be_decorated, node_is_present, parse_isolated_entity_name,
+    return_ok_default_if_none, should_preserve_const_enums, token_to_string, try_cast,
+    try_for_each_child_bool, try_some, Debug_, Diagnostic, Diagnostics, EmitResolver,
     ExternalEmitHelpers, FunctionLikeDeclarationInterface, HasInitializerInterface, LiteralType,
     ModifierFlags, NamedDeclarationInterface, Node, NodeArray, NodeBuilderFlags, NodeCheckFlags,
     NodeFlags, NodeInterface, ObjectFlags, PragmaArgumentName, PragmaName, Signature,
@@ -422,9 +422,7 @@ impl TypeChecker {
             Some(|node: &Node| is_variable_like_or_accessor(node)),
         );
         if declaration.is_none() {
-            return Ok(Some(
-                get_factory().create_token(SyntaxKind::AnyKeyword),
-            ));
+            return Ok(Some(get_factory().create_token(SyntaxKind::AnyKeyword)));
         }
         let declaration = declaration.as_ref().unwrap();
         let symbol = self.get_symbol_of_node(declaration)?;
@@ -465,9 +463,7 @@ impl TypeChecker {
             Some(|node: &Node| is_function_like(Some(node))),
         );
         if signature_declaration.is_none() {
-            return Ok(Some(
-                get_factory().create_token(SyntaxKind::AnyKeyword),
-            ));
+            return Ok(Some(get_factory().create_token(SyntaxKind::AnyKeyword)));
         }
         let signature_declaration = signature_declaration.as_ref().unwrap();
         let signature = self.get_signature_from_declaration_(signature_declaration)?;
@@ -488,9 +484,7 @@ impl TypeChecker {
     ) -> io::Result<Option<Gc<Node /*TypeNode*/>>> {
         let expr = get_parse_tree_node(Some(expr_in), Some(|node: &Node| is_expression(node)));
         if expr.is_none() {
-            return Ok(Some(
-                get_factory().create_token(SyntaxKind::AnyKeyword),
-            ));
+            return Ok(Some(get_factory().create_token(SyntaxKind::AnyKeyword)));
         }
         let expr = expr.as_ref().unwrap();
         let ref type_ = self.get_widened_type(&*self.get_regular_type_of_expression(expr)?)?;
@@ -605,15 +599,15 @@ impl TypeChecker {
             return Ok(enum_result);
         }
         Ok(match type_ {
-            Type::LiteralType(LiteralType::BigIntLiteralType(type_)) => get_factory()
-                .create_big_int_literal(type_.value.clone())
-                ,
-            Type::LiteralType(LiteralType::NumberLiteralType(type_)) => get_factory()
-                .create_numeric_literal(type_.value.clone(), None)
-                ,
-            Type::LiteralType(LiteralType::StringLiteralType(type_)) => get_factory()
-                .create_string_literal(type_.value.clone(), None, None)
-                ,
+            Type::LiteralType(LiteralType::BigIntLiteralType(type_)) => {
+                get_factory().create_big_int_literal(type_.value.clone())
+            }
+            Type::LiteralType(LiteralType::NumberLiteralType(type_)) => {
+                get_factory().create_numeric_literal(type_.value.clone(), None)
+            }
+            Type::LiteralType(LiteralType::StringLiteralType(type_)) => {
+                get_factory().create_string_literal(type_.value.clone(), None, None)
+            }
             _ => unreachable!(),
         })
     }

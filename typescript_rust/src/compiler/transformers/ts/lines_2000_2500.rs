@@ -350,7 +350,6 @@ impl TransformTypeScript {
                                 self.transform_initialized_variable(variable)
                             })?),
                     )
-                    
                     .set_text_range(Some(node)),
             )
         } else {
@@ -398,7 +397,6 @@ impl TransformTypeScript {
                         Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
                     )?,
                 )
-                
                 .set_text_range(Some(node))
         })
     }
@@ -457,8 +455,7 @@ impl TransformTypeScript {
             }
             return Ok(self
                 .factory
-                .create_partially_emitted_expression(expression, Some(node.node_wrapper()))
-                );
+                .create_partially_emitted_expression(expression, Some(node.node_wrapper())));
         }
 
         try_visit_each_child(node, |node: &Node| self.visitor(node), &**self.context)
@@ -476,8 +473,7 @@ impl TransformTypeScript {
         )?;
         Ok(self
             .factory
-            .create_partially_emitted_expression(expression, Some(node.node_wrapper()))
-            )
+            .create_partially_emitted_expression(expression, Some(node.node_wrapper())))
     }
 
     pub(super) fn visit_non_null_expression(
@@ -492,8 +488,7 @@ impl TransformTypeScript {
         )?;
         Ok(self
             .factory
-            .create_partially_emitted_expression(expression, Some(node.node_wrapper()))
-            )
+            .create_partially_emitted_expression(expression, Some(node.node_wrapper())))
     }
 
     pub(super) fn visit_call_expression(
@@ -683,63 +678,44 @@ impl TransformTypeScript {
             self.factory.get_local_name(node, Some(false), Some(true))
         };
 
-        let mut module_arg = self
-            .factory
-            .create_logical_or(
-                export_name.clone(),
+        let mut module_arg = self.factory.create_logical_or(
+            export_name.clone(),
+            self.factory.create_assignment(
+                export_name,
                 self.factory
-                    .create_assignment(
-                        export_name,
-                        self.factory
-                            .create_object_literal_expression(Option::<Gc<NodeArray>>::None, None)
-                            ,
-                    )
-                    ,
-            )
-            ;
+                    .create_object_literal_expression(Option::<Gc<NodeArray>>::None, None),
+            ),
+        );
 
         if self.has_namespace_qualified_export_name(node) {
             let local_name = self.factory.get_local_name(node, Some(false), Some(true));
 
-            module_arg = self
-                .factory
-                .create_assignment(local_name, module_arg)
-                ;
+            module_arg = self.factory.create_assignment(local_name, module_arg);
         }
 
         let enum_statement = self
             .factory
-            .create_expression_statement(
-                self.factory
-                    .create_call_expression(
-                        self.factory
-                            .create_function_expression(
-                                Option::<Gc<NodeArray>>::None,
-                                None,
-                                Option::<Gc<Node>>::None,
-                                Option::<Gc<NodeArray>>::None,
-                                Some(vec![self
-                                    .factory
-                                    .create_parameter_declaration(
-                                        Option::<Gc<NodeArray>>::None,
-                                        Option::<Gc<NodeArray>>::None,
-                                        None,
-                                        Some(parameter_name),
-                                        None,
-                                        None,
-                                        None,
-                                    )
-                                    ]),
-                                None,
-                                self.transform_enum_body(node, &container_name)?,
-                            )
-                            ,
+            .create_expression_statement(self.factory.create_call_expression(
+                self.factory.create_function_expression(
+                    Option::<Gc<NodeArray>>::None,
+                    None,
+                    Option::<Gc<Node>>::None,
+                    Option::<Gc<NodeArray>>::None,
+                    Some(vec![self.factory.create_parameter_declaration(
                         Option::<Gc<NodeArray>>::None,
-                        Some(vec![module_arg]),
-                    )
-                    ,
-            )
-            
+                        Option::<Gc<NodeArray>>::None,
+                        None,
+                        Some(parameter_name),
+                        None,
+                        None,
+                        None,
+                    )]),
+                    None,
+                    self.transform_enum_body(node, &container_name)?,
+                ),
+                Option::<Gc<NodeArray>>::None,
+                Some(vec![module_arg]),
+            ))
             .set_original_node(Some(node.node_wrapper()));
         if var_added {
             set_synthetic_leading_comments(&enum_statement, None);
@@ -777,15 +753,12 @@ impl TransformTypeScript {
         add_range(&mut statements, Some(&members), None, None);
 
         self.set_current_namespace_container_name(saved_current_namespace_local_name);
-        Ok(self
-            .factory
-            .create_block(
-                self.factory
-                    .create_node_array(Some(statements), None)
-                    .set_text_range(Some(&*node_as_enum_declaration.members)),
-                Some(true),
-            )
-            )
+        Ok(self.factory.create_block(
+            self.factory
+                .create_node_array(Some(statements), None)
+                .set_text_range(Some(&*node_as_enum_declaration.members)),
+            Some(true),
+        ))
     }
 
     pub(super) fn transform_enum_member(
@@ -794,37 +767,27 @@ impl TransformTypeScript {
     ) -> io::Result<Gc<Node /*Statement*/>> {
         let name = self.get_expression_for_property_name(member, false);
         let value_expression = self.transform_enum_member_declaration_value(member)?;
-        let inner_assignment = self
-            .factory
-            .create_assignment(
-                self.factory
-                    .create_element_access_expression(
-                        self.current_namespace_container_name(),
-                        name.clone(),
-                    )
-                    ,
-                value_expression.clone(),
-            )
-            ;
+        let inner_assignment = self.factory.create_assignment(
+            self.factory.create_element_access_expression(
+                self.current_namespace_container_name(),
+                name.clone(),
+            ),
+            value_expression.clone(),
+        );
         let outer_assignment = if value_expression.kind() == SyntaxKind::StringLiteral {
             inner_assignment
         } else {
-            self.factory
-                .create_assignment(
-                    self.factory
-                        .create_element_access_expression(
-                            self.current_namespace_container_name(),
-                            inner_assignment,
-                        )
-                        ,
-                    name,
-                )
-                
+            self.factory.create_assignment(
+                self.factory.create_element_access_expression(
+                    self.current_namespace_container_name(),
+                    inner_assignment,
+                ),
+                name,
+            )
         };
         Ok(self
             .factory
             .create_expression_statement(set_text_range_rc_node(outer_assignment, Some(member)))
-            
             .set_text_range(Some(member)))
     }
 
@@ -838,9 +801,7 @@ impl TransformTypeScript {
                 StringOrNumber::String(value) => {
                     self.factory.create_string_literal(value, None, None)
                 }
-                StringOrNumber::Number(value) => {
-                    self.factory.create_numeric_literal(value, None)
-                }
+                StringOrNumber::Number(value) => self.factory.create_numeric_literal(value, None),
             }
         } else {
             self.enable_substitution_for_non_qualified_enum_members();

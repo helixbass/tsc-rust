@@ -1,6 +1,6 @@
+use std::{borrow::Borrow, marker::PhantomData};
+
 use gc::{Finalize, Gc, Trace};
-use std::borrow::Borrow;
-use std::marker::PhantomData;
 
 use crate::{
     compare_values, get_expression_associativity, get_expression_precedence,
@@ -176,7 +176,6 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>
         ) {
             self.factory
                 .create_parenthesized_expression(operand.node_wrapper())
-                
         } else {
             operand.node_wrapper()
         }
@@ -194,9 +193,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>
                 .maybe_type_parameters()
                 .is_some()
         {
-            self.factory
-                .create_parenthesized_type(node.node_wrapper())
-                
+            self.factory.create_parenthesized_type(node.node_wrapper())
         } else {
             node.node_wrapper()
         }
@@ -227,7 +224,6 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>
         if is_comma_sequence(expression) {
             self.factory
                 .create_parenthesized_expression(expression.node_wrapper())
-                
         } else {
             expression.node_wrapper()
         }
@@ -246,8 +242,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>
         {
             return self
                 .factory
-                .create_parenthesized_expression(condition.node_wrapper())
-                ;
+                .create_parenthesized_expression(condition.node_wrapper());
         }
         condition.node_wrapper()
     }
@@ -257,7 +252,6 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>
         if is_comma_sequence(&emitted_expression) {
             self.factory
                 .create_parenthesized_expression(branch.node_wrapper())
-                
         } else {
             branch.node_wrapper()
         }
@@ -277,7 +271,6 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>
         if needs_parens {
             self.factory
                 .create_parenthesized_expression(expression.node_wrapper())
-                
         } else {
             expression.node_wrapper()
         }
@@ -289,15 +282,13 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>
             SyntaxKind::CallExpression => {
                 return self
                     .factory
-                    .create_parenthesized_expression(expression.node_wrapper())
-                    ;
+                    .create_parenthesized_expression(expression.node_wrapper());
             }
 
             SyntaxKind::NewExpression => {
                 return if leftmost_expr.as_new_expression().arguments.is_none() {
                     self.factory
                         .create_parenthesized_expression(expression.node_wrapper())
-                        
                 } else {
                     expression.node_wrapper()
                 };
@@ -320,8 +311,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>
         set_text_range(
             &*self
                 .factory
-                .create_parenthesized_expression(expression.node_wrapper())
-                ,
+                .create_parenthesized_expression(expression.node_wrapper()),
             Some(expression),
         )
         .node_wrapper()
@@ -334,8 +324,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>
             set_text_range(
                 &*self
                     .factory
-                    .create_parenthesized_expression(operand.node_wrapper())
-                    ,
+                    .create_parenthesized_expression(operand.node_wrapper()),
                 Some(operand),
             )
             .node_wrapper()
@@ -349,8 +338,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>
             set_text_range(
                 &*self
                     .factory
-                    .create_parenthesized_expression(operand.node_wrapper())
-                    ,
+                    .create_parenthesized_expression(operand.node_wrapper()),
                 Some(operand),
             )
             .node_wrapper()
@@ -398,8 +386,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>
             set_text_range(
                 &*self
                     .factory
-                    .create_parenthesized_expression(expression.node_wrapper())
-                    ,
+                    .create_parenthesized_expression(expression.node_wrapper()),
                 Some(expression),
             )
             .node_wrapper()
@@ -420,8 +407,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>
                     &emitted_expression,
                     set_text_range_rc_node(
                         self.factory
-                            .create_parenthesized_expression(callee.node_wrapper())
-                            ,
+                            .create_parenthesized_expression(callee.node_wrapper()),
                         Some(&**callee),
                     ),
                     emitted_expression_as_call_expression.maybe_type_arguments(),
@@ -443,8 +429,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>
             return set_text_range(
                 &*self
                     .factory
-                    .create_parenthesized_expression(expression.node_wrapper())
-                    ,
+                    .create_parenthesized_expression(expression.node_wrapper()),
                 Some(expression),
             )
             .node_wrapper();
@@ -462,8 +447,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>
             return set_text_range(
                 &*self
                     .factory
-                    .create_parenthesized_expression(body.node_wrapper())
-                    ,
+                    .create_parenthesized_expression(body.node_wrapper()),
                 Some(body),
             )
             .node_wrapper();
@@ -476,7 +460,6 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>
         if member.kind() == SyntaxKind::ConditionalType {
             self.factory
                 .create_parenthesized_type(member.node_wrapper())
-                
         } else {
             member.node_wrapper()
         }
@@ -489,8 +472,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>
             | SyntaxKind::FunctionType
             | SyntaxKind::ConstructorType => self
                 .factory
-                .create_parenthesized_type(member.node_wrapper())
-                ,
+                .create_parenthesized_type(member.node_wrapper()),
             _ => self.parenthesize_member_of_conditional_type(member),
         }
     }
@@ -499,8 +481,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>
         match member.kind() {
             SyntaxKind::TypeQuery | SyntaxKind::TypeOperator | SyntaxKind::InferType => self
                 .factory
-                .create_parenthesized_type(member.node_wrapper())
-                ,
+                .create_parenthesized_type(member.node_wrapper()),
             _ => self.parenthesize_member_of_element_type(member),
         }
     }

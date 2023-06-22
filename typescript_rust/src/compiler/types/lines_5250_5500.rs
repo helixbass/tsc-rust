@@ -1,8 +1,12 @@
+use std::{
+    cell::{Cell, RefCell, RefMut},
+    collections::HashMap,
+    rc::Rc,
+};
+
 use bitflags::bitflags;
 use gc::{Finalize, Gc, GcCell, GcCellRef, GcCellRefMut, Trace};
-use std::cell::{Cell, RefCell, RefMut};
-use std::collections::HashMap;
-use std::rc::Rc;
+use local_macros::type_type;
 
 use super::{
     BaseType, IndexInfo, IntersectionType, MappedType, Node, PseudoBigInt, ResolvedTypeInterface,
@@ -12,7 +16,6 @@ use crate::{
     EvolvingArrayType, FreshObjectLiteralTypeInterface, GcVec, Number, TypeId, TypeMapper,
     __String, gc_cell_ref_mut_unwrapped,
 };
-use local_macros::type_type;
 
 pub trait LiteralTypeInterface: TypeInterface {
     fn fresh_type(&self) -> Option<Gc<Type>>;

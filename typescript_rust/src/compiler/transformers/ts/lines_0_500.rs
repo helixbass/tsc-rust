@@ -277,33 +277,30 @@ impl TransformTypeScript {
 
     pub(super) fn transform_bundle(&self, node: &Node /*Bundle*/) -> io::Result<Gc<Node>> {
         let node_as_bundle = node.as_bundle();
-        Ok(self
-            .factory
-            .create_bundle(
-                node_as_bundle
-                    .source_files
-                    .iter()
-                    .map(|source_file| -> io::Result<_> {
-                        Ok(Some(
-                            self.transform_source_file(source_file.as_ref().unwrap())?,
-                        ))
-                    })
-                    .collect::<Result<Vec<_>, _>>()?,
-                Some(map_defined(
-                    Some(&node_as_bundle.prepends),
-                    |prepend: &Gc<Node>, _| {
-                        if prepend.kind() == SyntaxKind::InputFiles {
-                            return Some(create_unparsed_source_file(
-                                prepend.clone(),
-                                Some("js"),
-                                Option::<String>::None,
-                            ));
-                        }
-                        Some(prepend.clone())
-                    },
-                )),
-            )
-            )
+        Ok(self.factory.create_bundle(
+            node_as_bundle
+                .source_files
+                .iter()
+                .map(|source_file| -> io::Result<_> {
+                    Ok(Some(
+                        self.transform_source_file(source_file.as_ref().unwrap())?,
+                    ))
+                })
+                .collect::<Result<Vec<_>, _>>()?,
+            Some(map_defined(
+                Some(&node_as_bundle.prepends),
+                |prepend: &Gc<Node>, _| {
+                    if prepend.kind() == SyntaxKind::InputFiles {
+                        return Some(create_unparsed_source_file(
+                            prepend.clone(),
+                            Some("js"),
+                            Option::<String>::None,
+                        ));
+                    }
+                    Some(prepend.clone())
+                },
+            )),
+        ))
     }
 
     pub(super) fn transform_source_file(
@@ -743,26 +740,20 @@ impl TransformTypeScriptOnSubstituteNodeOverrider {
                         .object_assignment_initializer
                         .as_ref()
                 {
-                    let initializer = self
-                        .transform_type_script
-                        .factory
-                        .create_assignment(
-                            exported_name,
-                            node_object_assignment_initializer.clone(),
-                        )
-                        ;
+                    let initializer = self.transform_type_script.factory.create_assignment(
+                        exported_name,
+                        node_object_assignment_initializer.clone(),
+                    );
                     return Ok(self
                         .transform_type_script
                         .factory
                         .create_property_assignment(name, initializer)
-                        
                         .set_text_range(Some(node)));
                 }
                 return Ok(self
                     .transform_type_script
                     .factory
                     .create_property_assignment(name, exported_name)
-                    
                     .set_text_range(Some(node)));
             }
         }
@@ -871,7 +862,6 @@ impl TransformTypeScriptOnSubstituteNodeOverrider {
                                     .get_generated_name_for_node(Some(container), None),
                                 node.node_wrapper(),
                             )
-                            
                             .set_text_range(Some(node)),
                     ));
                 }
@@ -908,13 +898,11 @@ impl TransformTypeScriptOnSubstituteNodeOverrider {
                 StringOrNumber::String(constant_value) => self
                     .transform_type_script
                     .factory
-                    .create_string_literal(constant_value, None, None)
-                    ,
+                    .create_string_literal(constant_value, None, None),
                 StringOrNumber::Number(constant_value) => self
                     .transform_type_script
                     .factory
-                    .create_numeric_literal(constant_value, None)
-                    ,
+                    .create_numeric_literal(constant_value, None),
             };
             if self.transform_type_script.compiler_options.remove_comments != Some(true) {
                 let ref original_node = maybe_get_original_node_full(

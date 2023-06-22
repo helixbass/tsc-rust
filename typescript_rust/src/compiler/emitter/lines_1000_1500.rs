@@ -1,8 +1,11 @@
+use std::{
+    cell::Ref,
+    collections::{HashMap, HashSet},
+    convert::TryInto,
+    io, ptr,
+};
+
 use gc::Gc;
-use std::cell::Ref;
-use std::collections::{HashMap, HashSet};
-use std::convert::TryInto;
-use std::ptr;
 
 use super::PipelinePhase;
 use crate::{
@@ -14,7 +17,6 @@ use crate::{
     BundleFileSectionKind, CurrentParenthesizerRule, Debug_, EmitFlags, EmitHint, EmitTextWriter,
     Node, NodeInterface, Printer, SourceMapGenerator, SyntaxKind, TempFlags,
 };
-use std::io;
 
 impl Printer {
     pub(super) fn record_bundle_file_internal_section_start(

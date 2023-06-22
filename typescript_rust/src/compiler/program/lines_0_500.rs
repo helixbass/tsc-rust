@@ -1,15 +1,11 @@
+use std::{
+    borrow::Borrow, cell::RefCell, cmp, collections::HashMap, convert::TryInto, io, time,
+    time::SystemTime,
+};
+
 use gc::{Finalize, Gc, GcCell, Trace};
 use regex::Regex;
-use std::borrow::Borrow;
-use std::cell::RefCell;
-use std::cmp;
-use std::collections::HashMap;
-use std::convert::TryInto;
-use std::io;
-use std::time;
-use std::time::SystemTime;
 
-use crate::OptionTry;
 use crate::{
     add_range, combine_paths, convert_to_relative_path, create_get_canonical_file_name,
     create_source_file, diagnostic_category_name, file_extension_is, for_each,
@@ -22,7 +18,7 @@ use crate::{
     CancellationTokenDebuggable, CompilerHost, CompilerOptions, Debug_, Diagnostic,
     DiagnosticCategory, DiagnosticInterface, DiagnosticMessageText,
     DiagnosticRelatedInformationInterface, Extension, LineAndCharacter, ModuleResolutionHost,
-    ModuleResolutionHostOverrider, Node, NodeInterface, Path, ProgramOrBuilderProgram,
+    ModuleResolutionHostOverrider, Node, NodeInterface, OptionTry, Path, ProgramOrBuilderProgram,
     ScriptTarget, SourceFileLike, System,
 };
 

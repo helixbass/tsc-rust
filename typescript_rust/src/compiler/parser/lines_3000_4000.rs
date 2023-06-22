@@ -19,7 +19,8 @@ impl ParserType {
             let type_ = self.parse_return_type(SyntaxKind::ColonToken, false);
             return self.with_jsdoc(
                 self.finish_node(
-                    self.factory().create_jsdoc_function_type_raw(parameters, type_),
+                    self.factory()
+                        .create_jsdoc_function_type_raw(parameters, type_),
                     pos,
                     None,
                 )
@@ -140,9 +141,11 @@ impl ParserType {
         } else {
             None
         };
-        let mut node =
-            self.factory()
-                .create_type_parameter_declaration_raw(name.wrap(), constraint, default_type);
+        let mut node = self.factory().create_type_parameter_declaration_raw(
+            name.wrap(),
+            constraint,
+            default_type,
+        );
         node.expression = expression;
         self.finish_node(node, pos, None)
     }
@@ -694,7 +697,10 @@ impl ParserType {
         if is_jsdoc_nullable_type(&type_) {
             let type_type = type_.as_base_jsdoc_unary_type().type_.clone().unwrap();
             if type_.pos() == type_type.pos() {
-                let node: Node = self.factory().create_optional_type_node_raw(type_type).into();
+                let node: Node = self
+                    .factory()
+                    .create_optional_type_node_raw(type_type)
+                    .into();
                 set_text_range(&node, Some(&*type_));
                 node.set_flags(type_.flags());
                 return node.wrap();
@@ -837,7 +843,8 @@ impl ParserType {
             );
         }
         self.finish_node(
-            self.factory().create_literal_type_node_raw(expression.wrap()),
+            self.factory()
+                .create_literal_type_node_raw(expression.wrap()),
             pos,
             None,
         )
@@ -1031,7 +1038,8 @@ impl ParserType {
                     self.next_token();
                     type_ = self
                         .finish_node(
-                            self.factory().create_jsdoc_non_nullable_type_raw(Some(type_)),
+                            self.factory()
+                                .create_jsdoc_non_nullable_type_raw(Some(type_)),
                             pos,
                             None,
                         )
@@ -1066,7 +1074,11 @@ impl ParserType {
                     } else {
                         self.parse_expected(SyntaxKind::CloseBracketToken, None, None);
                         type_ = self
-                            .finish_node(self.factory().create_array_type_node_raw(type_), pos, None)
+                            .finish_node(
+                                self.factory().create_array_type_node_raw(type_),
+                                pos,
+                                None,
+                            )
                             .wrap();
                     }
                 }

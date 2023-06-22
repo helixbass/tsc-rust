@@ -81,15 +81,12 @@ impl TransformDeclarations {
             Ok(if is_binding_pattern(Some(&*e_name)) {
                 Some(self.recreate_binding_pattern(&e_name)?)
             } else {
-                Some(vec![self
-                    .factory
-                    .create_variable_declaration(
-                        Some(e_name),
-                        None,
-                        self.ensure_type(e, None, None)?,
-                        None,
-                    )
-                    ])
+                Some(vec![self.factory.create_variable_declaration(
+                    Some(e_name),
+                    None,
+                    self.ensure_type(e, None, None)?,
+                    None,
+                )])
             })
         })
     }

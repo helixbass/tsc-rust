@@ -1,8 +1,6 @@
-use gc::Gc;
-use std::collections::HashMap;
-use std::convert::TryInto;
+use std::{borrow::Borrow, collections::HashMap, convert::TryInto, io};
 
-use std::{borrow::Borrow, io};
+use gc::Gc;
 
 use super::DeclarationMeaning;
 use crate::{

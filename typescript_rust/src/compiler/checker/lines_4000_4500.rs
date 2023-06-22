@@ -1,21 +1,19 @@
+use std::{borrow::Borrow, collections::HashMap, io, ptr};
+
 use gc::{Gc, GcCell};
-use std::collections::HashMap;
-use std::ptr;
-use std::{borrow::Borrow, io};
 
 use super::{get_node_id, get_symbol_id, typeof_eq_facts};
 use crate::{
-    concatenate, create_symbol_table, filter, find_ancestor,
-    get_declaration_of_kind, get_source_file_of_node, is_ambient_module, is_external_module,
+    concatenate, create_symbol_table, filter, find_ancestor, get_declaration_of_kind,
+    get_source_file_of_node, is_ambient_module, is_external_module,
     is_external_module_import_equals_declaration, is_external_or_common_js_module, is_in_js_file,
-    is_namespace_reexport_declaration, is_umd_export_symbol, length,
-    node_is_present, push_if_unique_gc, some, try_for_each_entry, try_maybe_for_each,
-    BaseInterfaceType, BaseIntrinsicType, BaseObjectType, BaseType, CharacterCodes,
-    FunctionLikeDeclarationInterface, IndexInfo, InternalSymbolName, Node, NodeInterface,
-    ObjectFlags, OptionTry, ResolvableTypeInterface, ResolvedTypeInterface, Signature,
-    SignatureFlags, Symbol, SymbolAccessibility, SymbolAccessibilityResult, SymbolFlags, SymbolId,
-    SymbolInterface, SymbolTable, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
-    TypeParameter,
+    is_namespace_reexport_declaration, is_umd_export_symbol, length, node_is_present,
+    push_if_unique_gc, some, try_for_each_entry, try_maybe_for_each, BaseInterfaceType,
+    BaseIntrinsicType, BaseObjectType, BaseType, CharacterCodes, FunctionLikeDeclarationInterface,
+    IndexInfo, InternalSymbolName, Node, NodeInterface, ObjectFlags, OptionTry,
+    ResolvableTypeInterface, ResolvedTypeInterface, Signature, SignatureFlags, Symbol,
+    SymbolAccessibility, SymbolAccessibilityResult, SymbolFlags, SymbolId, SymbolInterface,
+    SymbolTable, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface, TypeParameter,
 };
 
 impl TypeChecker {

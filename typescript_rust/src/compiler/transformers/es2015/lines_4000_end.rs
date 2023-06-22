@@ -64,21 +64,18 @@ impl TransformES2015 {
         multi_line: bool,
         has_trailing_comma: bool,
     ) -> io::Result<SpreadSegment> {
-        let expression = self
-            .factory
-            .create_array_literal_expression(
-                Some(try_visit_nodes(
-                    &self
-                        .factory
-                        .create_node_array(Some(chunk), Some(has_trailing_comma)),
-                    Some(|node: &Node| self.visitor(node)),
-                    Some(is_expression),
-                    None,
-                    None,
-                )?),
-                Some(multi_line),
-            )
-            ;
+        let expression = self.factory.create_array_literal_expression(
+            Some(try_visit_nodes(
+                &self
+                    .factory
+                    .create_node_array(Some(chunk), Some(has_trailing_comma)),
+                Some(|node: &Node| self.visitor(node)),
+                Some(is_expression),
+                None,
+                None,
+            )?),
+            Some(multi_line),
+        );
 
         Ok(create_spread_segment(SpreadSegmentKind::None, expression))
     }
@@ -105,7 +102,6 @@ impl TransformES2015 {
     ) -> Gc<Node /*LeftHandSideExpression*/> {
         self.factory
             .create_string_literal(node.as_literal_like_node().text().clone(), None, None)
-            
             .set_text_range(Some(node))
     }
 
@@ -115,7 +111,6 @@ impl TransformES2015 {
             return Some(
                 self.factory
                     .create_string_literal(node_as_string_literal.text().clone(), None, None)
-                    
                     .set_text_range(Some(node))
                     .into(),
             );
@@ -132,7 +127,6 @@ impl TransformES2015 {
             return Some(
                 self.factory
                     .create_numeric_literal(node_as_numeric_literal.text().clone(), None)
-                    
                     .set_text_range(Some(node))
                     .into(),
             );
@@ -162,18 +156,15 @@ impl TransformES2015 {
         node: &Node, /*TemplateExpression*/
     ) -> io::Result<Gc<Node /*Expression*/>> {
         let node_as_template_expression = node.as_template_expression();
-        let mut expression: Gc<Node /*Expression*/> = self
-            .factory
-            .create_string_literal(
-                node_as_template_expression
-                    .head
-                    .as_template_literal_like_node()
-                    .text()
-                    .clone(),
-                None,
-                None,
-            )
-            ;
+        let mut expression: Gc<Node /*Expression*/> = self.factory.create_string_literal(
+            node_as_template_expression
+                .head
+                .as_template_literal_like_node()
+                .text()
+                .clone(),
+            None,
+            None,
+        );
         for span in &node_as_template_expression.template_spans {
             let span_as_template_span = span.as_template_span();
             let mut args = vec![try_visit_node(
@@ -190,30 +181,24 @@ impl TransformES2015 {
                 .is_empty()
             {
                 args.push(
-                    self.factory
-                        .create_string_literal(
-                            span_as_template_span
-                                .literal
-                                .as_template_literal_like_node()
-                                .text()
-                                .clone(),
-                            None,
-                            None,
-                        )
-                        ,
+                    self.factory.create_string_literal(
+                        span_as_template_span
+                            .literal
+                            .as_template_literal_like_node()
+                            .text()
+                            .clone(),
+                        None,
+                        None,
+                    ),
                 );
             }
 
-            expression = self
-                .factory
-                .create_call_expression(
-                    self.factory
-                        .create_property_access_expression(expression, "concat")
-                        ,
-                    Option::<Gc<NodeArray>>::None,
-                    Some(args),
-                )
-                ;
+            expression = self.factory.create_call_expression(
+                self.factory
+                    .create_property_access_expression(expression, "concat"),
+                Option::<Gc<NodeArray>>::None,
+                Some(args),
+            );
         }
 
         Ok(expression.set_text_range(Some(node)))
@@ -229,18 +214,15 @@ impl TransformES2015 {
             .intersects(HierarchyFacts::NonStaticClassElement)
             && !is_expression_of_call
         {
-            self.factory
-                .create_property_access_expression(
-                    self.factory.create_unique_name(
-                        "super",
-                        Some(
-                            GeneratedIdentifierFlags::Optimistic
-                                | GeneratedIdentifierFlags::FileLevel,
-                        ),
+            self.factory.create_property_access_expression(
+                self.factory.create_unique_name(
+                    "super",
+                    Some(
+                        GeneratedIdentifierFlags::Optimistic | GeneratedIdentifierFlags::FileLevel,
                     ),
-                    "prototype",
-                )
-                
+                ),
+                "prototype",
+            )
         } else {
             self.factory.create_unique_name(
                 "super",
@@ -322,12 +304,10 @@ impl TransformES2015 {
         if is_static(member) {
             self.factory.get_internal_name(node, None, None)
         } else {
-            self.factory
-                .create_property_access_expression(
-                    self.factory.get_internal_name(node, None, None),
-                    "prototype",
-                )
-                
+            self.factory.create_property_access_expression(
+                self.factory.get_internal_name(node, None, None),
+                "prototype",
+            )
         }
     }
 

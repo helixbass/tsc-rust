@@ -1,8 +1,7 @@
+use std::{borrow::Borrow, convert::TryInto, io, ptr};
+
 use gc::Gc;
 use indexmap::IndexMap;
-use std::convert::TryInto;
-use std::ptr;
-use std::{borrow::Borrow, io};
 
 use super::{get_symbol_id, MinArgumentCountFlags};
 use crate::{
@@ -11,13 +10,13 @@ use crate::{
     get_effective_type_parameter_declarations, get_immediately_invoked_function_expression,
     get_jsdoc_parameter_tags, get_object_flags, has_question_token, index_of_gc,
     is_external_module_name_relative, is_in_js_file, is_jsdoc_property_like_tag,
-    is_property_declaration, length, map, maybe_append_if_unique_gc, reduce_left,
-    try_filter, try_map, unescape_leading_underscores, CheckFlags, Debug_, DiagnosticMessageChain,
-    Diagnostics, HasInitializerInterface, HasTypeInterface, IndexInfo, IteratorExt, ModifierFlags,
-    Node, NodeInterface, ObjectFlags, ObjectFlagsTypeInterface, ScriptTarget, Signature,
-    SignatureKind, Symbol, SymbolFlags, SymbolId, SymbolInterface, SymbolTable, SyntaxKind,
-    Ternary, TransientSymbolInterface, Type, TypeChecker, TypeFlags, TypeFormatFlags,
-    TypeInterface, TypePredicate, TypePredicateKind, UnionOrIntersectionTypeInterface,
+    is_property_declaration, length, map, maybe_append_if_unique_gc, reduce_left, try_filter,
+    try_map, unescape_leading_underscores, CheckFlags, Debug_, DiagnosticMessageChain, Diagnostics,
+    HasInitializerInterface, HasTypeInterface, IndexInfo, IteratorExt, ModifierFlags, Node,
+    NodeInterface, ObjectFlags, ObjectFlagsTypeInterface, ScriptTarget, Signature, SignatureKind,
+    Symbol, SymbolFlags, SymbolId, SymbolInterface, SymbolTable, SyntaxKind, Ternary,
+    TransientSymbolInterface, Type, TypeChecker, TypeFlags, TypeFormatFlags, TypeInterface,
+    TypePredicate, TypePredicateKind, UnionOrIntersectionTypeInterface,
 };
 
 impl TypeChecker {

@@ -1,6 +1,6 @@
+use std::{borrow::Borrow, io, ptr};
+
 use gc::{Gc, GcCell};
-use std::ptr;
-use std::{borrow::Borrow, io};
 
 use crate::{
     declaration_name_to_string, entity_name_to_string, file_extension_is, find, find_ancestor,

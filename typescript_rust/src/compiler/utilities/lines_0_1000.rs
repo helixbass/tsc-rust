@@ -1,16 +1,19 @@
+use std::{
+    borrow::{Borrow, Cow},
+    cell::{Ref, RefCell, RefMut},
+    collections::HashMap,
+    convert::TryInto,
+    hash::Hash,
+    io,
+    iter::FromIterator,
+    mem, ptr,
+    rc::Rc,
+};
+
 use bitflags::bitflags;
 use gc::{Finalize, Gc, GcCell, Trace};
 use indexmap::IndexMap;
 use regex::Regex;
-use std::borrow::{Borrow, Cow};
-use std::cell::{Ref, RefCell, RefMut};
-use std::collections::HashMap;
-use std::convert::TryInto;
-use std::hash::Hash;
-use std::iter::FromIterator;
-use std::ptr;
-use std::rc::Rc;
-use std::{io, mem};
 
 use super::{
     default_lib_reference_reg_ex, escape_template_substitution,

@@ -1,5 +1,6 @@
-use gc::Gc;
 use std::convert::TryInto;
+
+use gc::Gc;
 
 use super::{ParserType, ParsingContext, SignatureFlags};
 use crate::{
@@ -120,7 +121,8 @@ impl ParserType {
         self.parse_expected(SyntaxKind::CloseParenToken, None, None);
         self.with_jsdoc(
             self.finish_node(
-                self.factory().create_parenthesized_expression_raw(expression),
+                self.factory()
+                    .create_parenthesized_expression_raw(expression),
                 pos,
                 None,
             )
@@ -275,8 +277,9 @@ impl ParserType {
         } else {
             self.parse_expected(SyntaxKind::ColonToken, None, None);
             let initializer = self.allow_in_and(|| self.parse_assignment_expression_or_higher());
-            let mut node_as_property_assignment =
-                self.factory().create_property_assignment_raw(name, initializer);
+            let mut node_as_property_assignment = self
+                .factory()
+                .create_property_assignment_raw(name, initializer);
             node_as_property_assignment.question_token = question_token;
             node_as_property_assignment.exclamation_token = exclamation_token;
             node = node_as_property_assignment.into();
@@ -484,7 +487,8 @@ impl ParserType {
             }
             let result = self.with_jsdoc(
                 self.finish_node(
-                    self.factory().create_block_raw(statements, Some(multi_line)),
+                    self.factory()
+                        .create_block_raw(statements, Some(multi_line)),
                     pos,
                     None,
                 )
@@ -591,7 +595,8 @@ impl ParserType {
         self.parse_optional(SyntaxKind::SemicolonToken);
         self.with_jsdoc(
             self.finish_node(
-                self.factory().create_do_statement_raw(statement, expression),
+                self.factory()
+                    .create_do_statement_raw(statement, expression),
                 pos,
                 None,
             )
@@ -610,7 +615,8 @@ impl ParserType {
         let statement = self.parse_statement();
         self.with_jsdoc(
             self.finish_node(
-                self.factory().create_while_statement_raw(expression, statement),
+                self.factory()
+                    .create_while_statement_raw(expression, statement),
                 pos,
                 None,
             )
@@ -660,7 +666,11 @@ impl ParserType {
             self.parse_expected(SyntaxKind::CloseParenToken, None, None);
             node = self
                 .factory()
-                .create_for_in_statement_raw(initializer.unwrap(), expression, self.parse_statement())
+                .create_for_in_statement_raw(
+                    initializer.unwrap(),
+                    expression,
+                    self.parse_statement(),
+                )
                 .into();
         } else {
             self.parse_expected(SyntaxKind::SemicolonToken, None, None);
@@ -681,7 +691,12 @@ impl ParserType {
             self.parse_expected(SyntaxKind::CloseParenToken, None, None);
             node = self
                 .factory()
-                .create_for_statement_raw(initializer, condition, incrementor, self.parse_statement())
+                .create_for_statement_raw(
+                    initializer,
+                    condition,
+                    incrementor,
+                    self.parse_statement(),
+                )
                 .into();
         }
 
@@ -751,7 +766,8 @@ impl ParserType {
             self.do_inside_of_context(NodeFlags::InWithStatement, || self.parse_statement());
         self.with_jsdoc(
             self.finish_node(
-                self.factory().create_with_statement_raw(expression, statement),
+                self.factory()
+                    .create_with_statement_raw(expression, statement),
                 pos,
                 None,
             )
@@ -769,7 +785,8 @@ impl ParserType {
             self.parse_statement()
         });
         self.finish_node(
-            self.factory().create_case_clause_raw(expression, statements),
+            self.factory()
+                .create_case_clause_raw(expression, statements),
             pos,
             None,
         )

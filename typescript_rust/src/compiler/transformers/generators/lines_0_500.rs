@@ -1014,7 +1014,6 @@ impl TransformGenerators {
                         &node.as_function_declaration().maybe_body().unwrap(),
                     )),
                 )
-                
                 .set_text_range(Some(&*node))
                 .set_original_node(Some(node.node_wrapper()));
         } else {
@@ -1071,7 +1070,6 @@ impl TransformGenerators {
                         &node.as_function_expression().maybe_body().unwrap(),
                     ),
                 )
-                
                 .set_text_range(Some(&*node))
                 .set_original_node(Some(node.node_wrapper()));
         } else {

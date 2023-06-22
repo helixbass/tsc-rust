@@ -1,7 +1,6 @@
-use regex::Regex;
-use std::rc::Rc;
+use std::{io, rc::Rc};
 
-use std::io;
+use regex::Regex;
 use typescript_rust::{execute_command_line, get_sys, Debug_, LogLevel, LoggingHost};
 
 fn main() -> io::Result<()> {

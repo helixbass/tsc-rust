@@ -1,9 +1,13 @@
+use std::{
+    borrow::{Borrow, Cow},
+    cell::RefCell,
+    cmp,
+    collections::HashMap,
+    io,
+    rc::Rc,
+};
+
 use gc::{Finalize, Gc, GcCell, Trace};
-use std::borrow::{Borrow, Cow};
-use std::cell::RefCell;
-use std::collections::HashMap;
-use std::rc::Rc;
-use std::{cmp, io};
 
 use super::{
     signature_has_rest_parameter, CheckMode, SignatureCheckMode, TypeComparerCompareTypesAssignable,
@@ -13,13 +17,13 @@ use crate::{
     format_message, get_function_flags, get_semantic_jsx_children, get_source_file_of_node,
     get_text_of_node, has_type, id_text, is_block, is_computed_non_literal_name,
     is_identifier_type_predicate, is_jsx_element, is_jsx_opening_element, is_jsx_spread_attribute,
-    is_omitted_expression, is_spread_assignment, length, some, try_flat_map, try_map,
-    try_some, unescape_leading_underscores, Debug_, Diagnostic, DiagnosticMessage,
-    DiagnosticMessageChain, Diagnostics, FunctionFlags, FunctionLikeDeclarationInterface,
-    HasInitializerInterface, NamedDeclarationInterface, Node, NodeInterface, Number, OptionTry,
-    RelationComparisonResult, Signature, SignatureDeclarationInterface, SignatureKind, Symbol,
-    SymbolFlags, SymbolInterface, SyntaxKind, Ternary, Type, TypeChecker, TypeComparer, TypeFlags,
-    TypeInterface, TypeMapper, UnionOrIntersectionTypeInterface,
+    is_omitted_expression, is_spread_assignment, length, some, try_flat_map, try_map, try_some,
+    unescape_leading_underscores, Debug_, Diagnostic, DiagnosticMessage, DiagnosticMessageChain,
+    Diagnostics, FunctionFlags, FunctionLikeDeclarationInterface, HasInitializerInterface,
+    NamedDeclarationInterface, Node, NodeInterface, Number, OptionTry, RelationComparisonResult,
+    Signature, SignatureDeclarationInterface, SignatureKind, Symbol, SymbolFlags, SymbolInterface,
+    SyntaxKind, Ternary, Type, TypeChecker, TypeComparer, TypeFlags, TypeInterface, TypeMapper,
+    UnionOrIntersectionTypeInterface,
 };
 
 impl TypeChecker {

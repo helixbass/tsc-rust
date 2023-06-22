@@ -1,6 +1,8 @@
+use std::cell::Cell;
+
 use bitflags::bitflags;
 use gc::{Finalize, Gc, GcCell, GcCellRef, GcCellRefMut, Trace};
-use std::cell::Cell;
+use local_macros::{ast_type, enum_unwrapped};
 
 use super::{
     BaseNamedDeclaration, BaseNode, BaseSignatureDeclaration, HasElementsInterface,
@@ -8,7 +10,6 @@ use super::{
     HasTypeParametersInterface, NamedDeclarationInterface, Node, NodeArray,
     SignatureDeclarationInterface, SyntaxKind, TextRange,
 };
-use local_macros::{ast_type, enum_unwrapped};
 
 #[derive(Debug, Trace, Finalize)]
 #[ast_type]
@@ -845,8 +846,9 @@ impl JSDocText {
 }
 
 mod _StringOrNodeArrayDeriveTraceScope {
-    use super::*;
     use local_macros::Trace;
+
+    use super::*;
 
     #[derive(Clone, Debug, Trace, Finalize)]
     pub enum StringOrNodeArray {

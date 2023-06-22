@@ -18,16 +18,14 @@ use crate::{
 pub fn create_empty_exports<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>(
     factory: &NodeFactory<TBaseNodeFactory>,
 ) -> Gc<Node> {
-    factory
-        .create_export_declaration(
-            Option::<Gc<NodeArray>>::None,
-            Option::<Gc<NodeArray>>::None,
-            false,
-            Some(factory.create_named_exports(vec![])),
-            None,
-            None,
-        )
-        
+    factory.create_export_declaration(
+        Option::<Gc<NodeArray>>::None,
+        Option::<Gc<NodeArray>>::None,
+        false,
+        Some(factory.create_named_exports(vec![])),
+        None,
+        None,
+    )
 }
 
 pub fn create_member_access_for_property_name<

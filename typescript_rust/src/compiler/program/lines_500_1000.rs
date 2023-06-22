@@ -1,10 +1,13 @@
+use std::{
+    cell::{Ref, RefCell, RefMut},
+    collections::{HashMap, HashSet},
+    convert::TryInto,
+    io, mem,
+    rc::Rc,
+};
+
 use gc::{Finalize, Gc, GcCell, GcCellRef, GcCellRefMut, Trace};
-use std::cell::{Ref, RefCell, RefMut};
-use std::collections::{HashMap, HashSet};
-use std::convert::TryInto;
-use std::io;
-use std::mem;
-use std::rc::Rc;
+use local_macros::enum_unwrapped;
 
 use super::{
     create_compiler_host, get_module_name_string_literal_at,
@@ -17,13 +20,12 @@ use crate::{
     change_extension, clone, combine_paths, create_diagnostic_collection, create_file_diagnostic,
     create_module_resolution_cache, create_multi_map,
     create_type_reference_directive_resolution_cache, extension_from_path, file_extension_is,
-    file_extension_is_one_of, gc_cell_ref_mut_unwrapped,
-    get_automatic_type_directive_names, get_common_source_directory_of_config, get_directory_path,
-    get_emit_module_kind, get_emit_module_resolution_kind, get_output_declaration_file_name,
-    get_package_scope_for_path, get_supported_extensions,
-    get_supported_extensions_with_json_if_resolve_json_module, is_import_call,
-    is_import_equals_declaration, is_logging, map_defined, maybe_for_each, options_have_changes,
-    out_file, ref_mut_unwrapped, ref_unwrapped, resolve_module_name,
+    file_extension_is_one_of, gc_cell_ref_mut_unwrapped, get_automatic_type_directive_names,
+    get_common_source_directory_of_config, get_directory_path, get_emit_module_kind,
+    get_emit_module_resolution_kind, get_output_declaration_file_name, get_package_scope_for_path,
+    get_supported_extensions, get_supported_extensions_with_json_if_resolve_json_module,
+    is_import_call, is_import_equals_declaration, is_logging, map_defined, maybe_for_each,
+    options_have_changes, out_file, ref_mut_unwrapped, ref_unwrapped, resolve_module_name,
     resolve_type_reference_directive, skip_trivia, source_file_affecting_compiler_options,
     stable_sort, to_file_name_lower_case, try_maybe_for_each, walk_up_parenthesized_expressions,
     AsDoubleDeref, AutomaticTypeDirectiveFile, CompilerHost, CompilerOptions, CreateProgramOptions,
@@ -38,7 +40,6 @@ use crate::{
     SourceOfProjectReferenceRedirect, StructureIsReused, SymlinkCache, TextRange, TypeCheckerHost,
     TypeCheckerHostDebuggable, TypeReferenceDirectiveResolutionCache, VecExt,
 };
-use local_macros::enum_unwrapped;
 
 pub trait LoadWithLocalCacheLoader<TValue>: Trace + Finalize {
     fn call(
@@ -940,11 +941,12 @@ impl Program {
         )));
 
         self.skip_default_lib.set(self.options.no_lib);
-        *self.default_library_path.borrow_mut() = Some(
-            self.host()
-                .get_default_lib_location()?
-                .try_unwrap_or_else(|| -> io::Result<_> { Ok(get_directory_path(&self.get_default_library_file_name()?)) })?,
-        );
+        *self.default_library_path.borrow_mut() =
+            Some(self.host().get_default_lib_location()?.try_unwrap_or_else(
+                || -> io::Result<_> {
+                    Ok(get_directory_path(&self.get_default_library_file_name()?))
+                },
+            )?);
         *self.program_diagnostics.borrow_mut() = Some(create_diagnostic_collection());
         *self.current_directory.borrow_mut() =
             Some(CompilerHost::get_current_directory(&**self.host())?);
@@ -1148,7 +1150,7 @@ impl Program {
                                     }
                                 }
                             }
-                            
+
                             Ok(())
                         })?;
 
@@ -1790,8 +1792,9 @@ impl GetResolvedProjectReferences for ProgramGetResolvedProjectReferences {
 }
 
 mod _FilesByNameValueDeriveTraceScope {
-    use super::*;
     use local_macros::Trace;
+
+    use super::*;
 
     #[derive(Clone, Trace, Finalize)]
     pub enum FilesByNameValue {
@@ -1812,8 +1815,9 @@ mod _FilesByNameValueDeriveTraceScope {
         }
     }
 }
-use crate::try_for_each;
 pub use _FilesByNameValueDeriveTraceScope::FilesByNameValue;
+
+use crate::try_for_each;
 
 pub trait ActualResolveModuleNamesWorker: Trace + Finalize {
     fn call(

@@ -1,6 +1,6 @@
+use std::{collections::HashMap, convert::TryInto, io};
+
 use gc::Gc;
-use std::collections::HashMap;
-use std::convert::TryInto;
 
 use super::{ParenthesizeExpressionOfComputedPropertyNameCurrentParenthesizerRule, PipelinePhase};
 use crate::{
@@ -11,7 +11,6 @@ use crate::{
     NamedDeclarationInterface, Node, NodeInterface, Printer, ReadonlyTextRange, SnippetElement,
     SnippetKind, SortedArray, SourceFileLike, SyntaxKind, TextRange,
 };
-use std::io;
 
 impl Printer {
     pub(super) fn emit_mapped_type_parameter(

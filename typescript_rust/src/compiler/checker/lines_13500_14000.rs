@@ -1,20 +1,17 @@
+use std::{borrow::Borrow, collections::HashMap, io, ptr};
+
 use gc::{Gc, GcCell};
-
-use std::collections::HashMap;
-use std::ptr;
-
-use std::{borrow::Borrow, io};
 
 use super::get_node_id;
 use crate::{
-    count_where, create_symbol_table, find, is_assertion_expression,
-    is_const_type_reference, is_this_identifier, is_type_alias_declaration, is_type_operator_node,
-    length, map, some, symbol_name, try_map, try_maybe_map, try_some, AsDoubleDeref,
-    BaseInterfaceType, CheckFlags, DiagnosticMessage, Diagnostics, ElementFlags,
-    GenericableTypeInterface, HasTypeArgumentsInterface, InterfaceTypeInterface,
-    InterfaceTypeWithDeclaredMembersInterface, Node, NodeInterface, Number, ObjectFlags, OptionTry,
-    Symbol, SymbolFlags, SymbolInterface, SyntaxKind, TransientSymbolInterface, TupleType, Type,
-    TypeChecker, TypeFlags, TypeInterface, TypeReferenceInterface,
+    count_where, create_symbol_table, find, is_assertion_expression, is_const_type_reference,
+    is_this_identifier, is_type_alias_declaration, is_type_operator_node, length, map, some,
+    symbol_name, try_map, try_maybe_map, try_some, AsDoubleDeref, BaseInterfaceType, CheckFlags,
+    DiagnosticMessage, Diagnostics, ElementFlags, GenericableTypeInterface,
+    HasTypeArgumentsInterface, InterfaceTypeInterface, InterfaceTypeWithDeclaredMembersInterface,
+    Node, NodeInterface, Number, ObjectFlags, OptionTry, Symbol, SymbolFlags, SymbolInterface,
+    SyntaxKind, TransientSymbolInterface, TupleType, Type, TypeChecker, TypeFlags, TypeInterface,
+    TypeReferenceInterface,
 };
 
 impl TypeChecker {

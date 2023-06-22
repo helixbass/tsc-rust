@@ -206,15 +206,13 @@ impl SymbolTableToDeclarationStatements {
             })?;
         self.add_result(
             &set_synthetic_leading_comments_rc(
-                get_factory()
-                    .create_type_alias_declaration(
-                        Option::<Gc<NodeArray>>::None,
-                        Option::<Gc<NodeArray>>::None,
-                        &*self.get_internal_symbol_name(symbol, symbol_name),
-                        type_param_decls,
-                        type_node,
-                    )
-                    ,
+                get_factory().create_type_alias_declaration(
+                    Option::<Gc<NodeArray>>::None,
+                    Option::<Gc<NodeArray>>::None,
+                    &*self.get_internal_symbol_name(symbol, symbol_name),
+                    type_param_decls,
+                    type_node,
+                ),
                 Some(match comment_text {
                     None => vec![],
                     Some(comment_text) => vec![Rc::new(SynthesizedComment {
@@ -290,34 +288,30 @@ impl SymbolTableToDeclarationStatements {
         let heritage_clauses: Option<Vec<Gc<Node>>> = if base_types.is_empty() {
             None
         } else {
-            Some(vec![get_factory()
-                .create_heritage_clause(
-                    SyntaxKind::ExtendsKeyword,
-                    try_map_defined(Some(&base_types), |b: &Gc<Type>, _| {
-                        self.try_serialize_as_type_reference(b, SymbolFlags::Value)
-                    })?,
-                )
-                ])
+            Some(vec![get_factory().create_heritage_clause(
+                SyntaxKind::ExtendsKeyword,
+                try_map_defined(Some(&base_types), |b: &Gc<Type>, _| {
+                    self.try_serialize_as_type_reference(b, SymbolFlags::Value)
+                })?,
+            )])
         };
         self.add_result(
-            &get_factory()
-                .create_interface_declaration(
-                    Option::<Gc<NodeArray>>::None,
-                    Option::<Gc<NodeArray>>::None,
-                    &*self.get_internal_symbol_name(symbol, symbol_name),
-                    type_param_decls,
-                    heritage_clauses,
-                    Itertools::concat(
-                        [
-                            index_signatures,
-                            construct_signatures,
-                            call_signatures,
-                            members,
-                        ]
-                        .into_iter(),
-                    ),
-                )
-                ,
+            &get_factory().create_interface_declaration(
+                Option::<Gc<NodeArray>>::None,
+                Option::<Gc<NodeArray>>::None,
+                &*self.get_internal_symbol_name(symbol, symbol_name),
+                type_param_decls,
+                heritage_clauses,
+                Itertools::concat(
+                    [
+                        index_signatures,
+                        construct_signatures,
+                        call_signatures,
+                        members,
+                    ]
+                    .into_iter(),
+                ),
+            ),
             modifier_flags,
         );
 
@@ -395,107 +389,85 @@ impl SymbolTableToDeclarationStatements {
             let containing_file =
                 maybe_get_source_file_of_node(self.context().maybe_enclosing_declaration());
             let local_name = self.get_internal_symbol_name(symbol, symbol_name);
-            let ns_body = get_factory()
-                .create_module_block(Some(vec![get_factory()
-                    .create_export_declaration(
-                        Option::<Gc<NodeArray>>::None,
-                        Option::<Gc<NodeArray>>::None,
-                        false,
-                        Some(
-                            get_factory()
-                                .create_named_exports(try_map_defined(
-                                    Some(&filter(&merged_members, |n: &Gc<Symbol>| {
-                                        n.escaped_name() != InternalSymbolName::ExportEquals
-                                    })),
-                                    |s: &Gc<Symbol>, _| -> io::Result<Option<Gc<Node>>> {
-                                        let name = unescape_leading_underscores(s.escaped_name());
-                                        let local_name = self.get_internal_symbol_name(s, name);
-                                        let alias_decl = s
-                                            .maybe_declarations()
-                                            .is_some()
-                                            .try_then_and(|| {
-                                                self.type_checker.get_declaration_of_alias_symbol(s)
-                                            })?;
-                                        if let Some(containing_file) =
-                                            containing_file.as_ref().filter(|containing_file| {
-                                                if let Some(alias_decl) = alias_decl.as_ref() {
-                                                    !Gc::ptr_eq(
-                                                        *containing_file,
-                                                        &get_source_file_of_node(alias_decl),
-                                                    )
-                                                } else {
-                                                    !some(
-                                                        s.maybe_declarations().as_deref(),
-                                                        Some(|d: &Gc<Node>| {
-                                                            Gc::ptr_eq(
-                                                                &get_source_file_of_node(d),
-                                                                *containing_file,
-                                                            )
-                                                        }),
-                                                    )
-                                                }
-                                            })
-                                        {
-                                            self.context().tracker().report_nonlocal_augmentation(
-                                                containing_file,
-                                                symbol,
-                                                s,
-                                            );
-                                            return Ok(None);
-                                        }
-                                        let target =
-                                            alias_decl.as_ref().try_and_then(|alias_decl| {
-                                                self.type_checker.get_target_of_alias_declaration(
-                                                    alias_decl,
-                                                    Some(true),
+            let ns_body = get_factory().create_module_block(Some(vec![get_factory()
+                .create_export_declaration(
+                    Option::<Gc<NodeArray>>::None,
+                    Option::<Gc<NodeArray>>::None,
+                    false,
+                    Some(get_factory().create_named_exports(try_map_defined(
+                        Some(&filter(&merged_members, |n: &Gc<Symbol>| {
+                            n.escaped_name() != InternalSymbolName::ExportEquals
+                        })),
+                        |s: &Gc<Symbol>, _| -> io::Result<Option<Gc<Node>>> {
+                            let name = unescape_leading_underscores(s.escaped_name());
+                            let local_name = self.get_internal_symbol_name(s, name);
+                            let alias_decl =
+                                s.maybe_declarations().is_some().try_then_and(|| {
+                                    self.type_checker.get_declaration_of_alias_symbol(s)
+                                })?;
+                            if let Some(containing_file) =
+                                containing_file.as_ref().filter(|containing_file| {
+                                    if let Some(alias_decl) = alias_decl.as_ref() {
+                                        !Gc::ptr_eq(
+                                            *containing_file,
+                                            &get_source_file_of_node(alias_decl),
+                                        )
+                                    } else {
+                                        !some(
+                                            s.maybe_declarations().as_deref(),
+                                            Some(|d: &Gc<Node>| {
+                                                Gc::ptr_eq(
+                                                    &get_source_file_of_node(d),
+                                                    *containing_file,
                                                 )
-                                            })?;
-                                        self.include_private_symbol(
-                                            target.as_deref().unwrap_or(&**s),
-                                        );
-                                        let target_name = target.as_ref().map_or_else(
-                                            || local_name.clone(),
-                                            |target| {
-                                                self.get_internal_symbol_name(
-                                                    target,
-                                                    unescape_leading_underscores(
-                                                        target.escaped_name(),
-                                                    ),
-                                                )
-                                            },
-                                        );
-                                        Ok(Some(
-                                            get_factory()
-                                                .create_export_specifier(
-                                                    false,
-                                                    if name == target_name {
-                                                        None
-                                                    } else {
-                                                        Some(&*target_name)
-                                                    },
-                                                    name,
-                                                )
-                                                ,
-                                        ))
-                                    },
-                                )?)
-                                ,
-                        ),
-                        None,
-                        None,
-                    )
-                    ]))
-                ;
+                                            }),
+                                        )
+                                    }
+                                })
+                            {
+                                self.context().tracker().report_nonlocal_augmentation(
+                                    containing_file,
+                                    symbol,
+                                    s,
+                                );
+                                return Ok(None);
+                            }
+                            let target = alias_decl.as_ref().try_and_then(|alias_decl| {
+                                self.type_checker
+                                    .get_target_of_alias_declaration(alias_decl, Some(true))
+                            })?;
+                            self.include_private_symbol(target.as_deref().unwrap_or(&**s));
+                            let target_name = target.as_ref().map_or_else(
+                                || local_name.clone(),
+                                |target| {
+                                    self.get_internal_symbol_name(
+                                        target,
+                                        unescape_leading_underscores(target.escaped_name()),
+                                    )
+                                },
+                            );
+                            Ok(Some(get_factory().create_export_specifier(
+                                false,
+                                if name == target_name {
+                                    None
+                                } else {
+                                    Some(&*target_name)
+                                },
+                                name,
+                            )))
+                        },
+                    )?)),
+                    None,
+                    None,
+                )]));
             self.add_result(
-                &get_factory()
-                    .create_module_declaration(
-                        Option::<Gc<NodeArray>>::None,
-                        Option::<Gc<NodeArray>>::None,
-                        get_factory().create_identifier(&local_name),
-                        Some(ns_body),
-                        Some(NodeFlags::Namespace),
-                    )
-                    ,
+                &get_factory().create_module_declaration(
+                    Option::<Gc<NodeArray>>::None,
+                    Option::<Gc<NodeArray>>::None,
+                    get_factory().create_identifier(&local_name),
+                    Some(ns_body),
+                    Some(NodeFlags::Namespace),
+                ),
                 ModifierFlags::None,
             );
         }
@@ -510,64 +482,45 @@ impl SymbolTableToDeclarationStatements {
         modifier_flags: ModifierFlags,
     ) -> io::Result<()> {
         self.add_result(
-            &get_factory()
-                .create_enum_declaration(
-                    Option::<Gc<NodeArray>>::None,
-                    Some(get_factory().create_modifiers_from_modifier_flags(
-                        if self.type_checker.is_const_enum_symbol(symbol) {
-                            ModifierFlags::Const
-                        } else {
-                            ModifierFlags::None
-                        },
-                    )),
-                    &*self.get_internal_symbol_name(symbol, symbol_name),
-                    Some(
-                        self.type_checker
-                            .get_properties_of_type(
-                                &*self.type_checker.get_type_of_symbol(symbol)?,
-                            )?
-                            .filter(|p| p.flags().intersects(SymbolFlags::EnumMember))
-                            .map(|p| -> io::Result<Gc<Node>> {
-                                let initialized_value = p
-                                    .maybe_declarations()
-                                    .as_ref()
-                                    .and_then(|p_declarations| p_declarations.get(0).cloned())
-                                    .filter(|p_declarations_0| is_enum_member(p_declarations_0))
-                                    .as_ref()
-                                    .try_and_then(|p_declarations_0| {
-                                        self.type_checker.get_constant_value_(p_declarations_0)
-                                    })?;
-                                Ok(get_factory()
-                                    .create_enum_member(
-                                        unescape_leading_underscores(p.escaped_name()),
-                                        initialized_value.map(|initialized_value| {
-                                            match initialized_value {
-                                                StringOrNumber::String(initialized_value) => {
-                                                    get_factory()
-                                                        .create_string_literal(
-                                                            initialized_value,
-                                                            None,
-                                                            None,
-                                                        )
-                                                        
-                                                }
-                                                StringOrNumber::Number(initialized_value) => {
-                                                    get_factory()
-                                                        .create_numeric_literal(
-                                                            initialized_value,
-                                                            None,
-                                                        )
-                                                        
-                                                }
-                                            }
-                                        }),
-                                    )
-                                    )
-                            })
-                            .collect::<Result<Vec<_>, _>>()?,
-                    ),
-                )
-                ,
+            &get_factory().create_enum_declaration(
+                Option::<Gc<NodeArray>>::None,
+                Some(get_factory().create_modifiers_from_modifier_flags(
+                    if self.type_checker.is_const_enum_symbol(symbol) {
+                        ModifierFlags::Const
+                    } else {
+                        ModifierFlags::None
+                    },
+                )),
+                &*self.get_internal_symbol_name(symbol, symbol_name),
+                Some(
+                    self.type_checker
+                        .get_properties_of_type(&*self.type_checker.get_type_of_symbol(symbol)?)?
+                        .filter(|p| p.flags().intersects(SymbolFlags::EnumMember))
+                        .map(|p| -> io::Result<Gc<Node>> {
+                            let initialized_value = p
+                                .maybe_declarations()
+                                .as_ref()
+                                .and_then(|p_declarations| p_declarations.get(0).cloned())
+                                .filter(|p_declarations_0| is_enum_member(p_declarations_0))
+                                .as_ref()
+                                .try_and_then(|p_declarations_0| {
+                                    self.type_checker.get_constant_value_(p_declarations_0)
+                                })?;
+                            Ok(get_factory().create_enum_member(
+                                unescape_leading_underscores(p.escaped_name()),
+                                initialized_value.map(
+                                    |initialized_value| match initialized_value {
+                                        StringOrNumber::String(initialized_value) => get_factory()
+                                            .create_string_literal(initialized_value, None, None),
+                                        StringOrNumber::Number(initialized_value) => get_factory()
+                                            .create_numeric_literal(initialized_value, None),
+                                    },
+                                ),
+                            ))
+                        })
+                        .collect::<Result<Vec<_>, _>>()?,
+                ),
+            ),
             modifier_flags,
         );
 
@@ -693,15 +646,13 @@ impl SymbolTableToDeclarationStatements {
                 .get(&"local")
                 .cloned()
                 .unwrap_or_default();
-            let mut fakespace = get_parse_node_factory()
-                .create_module_declaration(
-                    Option::<Gc<NodeArray>>::None,
-                    Option::<Gc<NodeArray>>::None,
-                    get_factory().create_identifier(local_name),
-                    Some(get_factory().create_module_block(Some(vec![]))),
-                    Some(NodeFlags::Namespace),
-                )
-                ;
+            let mut fakespace = get_parse_node_factory().create_module_declaration(
+                Option::<Gc<NodeArray>>::None,
+                Option::<Gc<NodeArray>>::None,
+                get_factory().create_identifier(local_name),
+                Some(get_factory().create_module_block(Some(vec![]))),
+                Some(NodeFlags::Namespace),
+            );
             set_parent(&fakespace, Some(&*self.enclosing_declaration));
             fakespace.set_locals(Some(Gc::new(GcCell::new(create_symbol_table(Some(props))))));
             if let Some(props_0_parent) = props[0].maybe_parent() {
@@ -732,27 +683,20 @@ impl SymbolTableToDeclarationStatements {
                     d_as_export_assignment.is_export_equals != Some(true)
                         && is_identifier(&d_as_export_assignment.expression)
                 } {
-                    get_factory()
-                        .create_export_declaration(
-                            Option::<Gc<NodeArray>>::None,
-                            Option::<Gc<NodeArray>>::None,
-                            false,
-                            Some(
-                                get_factory()
-                                    .create_named_exports(vec![get_factory()
-                                        .create_export_specifier(
-                                            false,
-                                            Some(d.as_export_assignment().expression.clone()),
-                                            get_factory()
-                                                .create_identifier(InternalSymbolName::Default),
-                                        )
-                                        ])
-                                    ,
+                    get_factory().create_export_declaration(
+                        Option::<Gc<NodeArray>>::None,
+                        Option::<Gc<NodeArray>>::None,
+                        false,
+                        Some(get_factory().create_named_exports(vec![
+                            get_factory().create_export_specifier(
+                                false,
+                                Some(d.as_export_assignment().expression.clone()),
+                                get_factory().create_identifier(InternalSymbolName::Default),
                             ),
-                            None,
-                            None,
-                        )
-                        
+                        ])),
+                        None,
+                        None,
+                    )
                 } else {
                     d.clone()
                 }
@@ -772,11 +716,7 @@ impl SymbolTableToDeclarationStatements {
                 fakespace.maybe_decorators(),
                 fakespace.maybe_modifiers(),
                 fakespace.as_module_declaration().name.clone(),
-                Some(
-                    get_factory()
-                        .create_module_block(Some(export_modifier_stripped))
-                        ,
-                ),
+                Some(get_factory().create_module_block(Some(export_modifier_stripped))),
             );
             self.add_result(&fakespace, modifier_flags);
         }
@@ -826,40 +766,38 @@ impl SymbolTableToDeclarationStatements {
             Ok(self.sanitize_jsdoc_implements_cleanup(
                 old_enclosing,
                 Some(
-                    get_factory()
-                        .create_expression_with_type_arguments(
-                            expr,
-                            try_maybe_map(
-                                e_as_expression_with_type_arguments
-                                    .maybe_type_arguments()
-                                    .as_deref(),
-                                |a: &Gc<Node>, _| -> io::Result<_> {
-                                    self.node_builder
-                                        .serialize_existing_type_node(
-                                            &self.context(),
-                                            a,
-                                            Some(&|symbol: &Symbol| {
-                                                self.include_private_symbol(symbol);
-                                            }),
-                                            self.bundled,
-                                        )?
-                                        .try_unwrap_or_else(|| {
-                                            Ok(self
-                                                .node_builder
-                                                .type_to_type_node_helper(
-                                                    Some(
-                                                        self.type_checker
-                                                            .get_type_from_type_node_(a)?,
-                                                    ),
-                                                    &self.context(),
-                                                )?
-                                                .unwrap())
-                                        })
-                                },
-                            )
-                            .transpose()?,
+                    get_factory().create_expression_with_type_arguments(
+                        expr,
+                        try_maybe_map(
+                            e_as_expression_with_type_arguments
+                                .maybe_type_arguments()
+                                .as_deref(),
+                            |a: &Gc<Node>, _| -> io::Result<_> {
+                                self.node_builder
+                                    .serialize_existing_type_node(
+                                        &self.context(),
+                                        a,
+                                        Some(&|symbol: &Symbol| {
+                                            self.include_private_symbol(symbol);
+                                        }),
+                                        self.bundled,
+                                    )?
+                                    .try_unwrap_or_else(|| {
+                                        Ok(self
+                                            .node_builder
+                                            .type_to_type_node_helper(
+                                                Some(
+                                                    self.type_checker
+                                                        .get_type_from_type_node_(a)?,
+                                                ),
+                                                &self.context(),
+                                            )?
+                                            .unwrap())
+                                    })
+                            },
                         )
-                        ,
+                        .transpose()?,
+                    ),
                 ),
             ))
         })?;
@@ -933,32 +871,25 @@ impl SymbolTableToDeclarationStatements {
         } else {
             self.type_checker.any_type()
         };
-        let heritage_clauses: Vec<Gc<Node>> = {
-            let mut heritage_clauses = vec![];
-            if !base_types.is_empty() {
-                heritage_clauses.push(
-                    get_factory()
-                        .create_heritage_clause(
-                            SyntaxKind::ExtendsKeyword,
-                            try_map(&base_types, |b: &Gc<Type>, _| {
-                                self.serialize_base_type(b, static_base_type, local_name)
-                            })?,
-                        )
-                        ,
-                );
-            }
-            if !implements_expressions.is_empty() {
-                heritage_clauses.push(
-                    get_factory()
-                        .create_heritage_clause(
-                            SyntaxKind::ImplementsKeyword,
-                            implements_expressions,
-                        )
-                        ,
-                );
-            }
-            heritage_clauses
-        };
+        let heritage_clauses: Vec<Gc<Node>> =
+            {
+                let mut heritage_clauses = vec![];
+                if !base_types.is_empty() {
+                    heritage_clauses.push(get_factory().create_heritage_clause(
+                        SyntaxKind::ExtendsKeyword,
+                        try_map(&base_types, |b: &Gc<Type>, _| {
+                            self.serialize_base_type(b, static_base_type, local_name)
+                        })?,
+                    ));
+                }
+                if !implements_expressions.is_empty() {
+                    heritage_clauses.push(get_factory().create_heritage_clause(
+                        SyntaxKind::ImplementsKeyword,
+                        implements_expressions,
+                    ));
+                }
+                heritage_clauses
+            };
         let mut symbol_props = self.type_checker.get_non_interhited_properties(
             class_type,
             &base_types,
@@ -1035,16 +966,12 @@ impl SymbolTableToDeclarationStatements {
                 Option::<fn(&Gc<Signature>) -> bool>::None,
             );
         let constructors = if is_non_constructable_class_like_in_js_file {
-            vec![get_factory()
-                .create_constructor_declaration(
-                    Option::<Gc<NodeArray>>::None,
-                    Some(
-                        get_factory().create_modifiers_from_modifier_flags(ModifierFlags::Private),
-                    ),
-                    Some(vec![]),
-                    None,
-                )
-                ]
+            vec![get_factory().create_constructor_declaration(
+                Option::<Gc<NodeArray>>::None,
+                Some(get_factory().create_modifiers_from_modifier_flags(ModifierFlags::Private)),
+                Some(vec![]),
+                None,
+            )]
         } else {
             self.serialize_signatures(
                 SignatureKind::Construct,
@@ -1058,25 +985,23 @@ impl SymbolTableToDeclarationStatements {
         self.context().set_enclosing_declaration(old_enclosing);
         self.add_result(
             &set_text_range_rc_node(
-                get_factory()
-                    .create_class_declaration(
-                        Option::<Gc<NodeArray>>::None,
-                        Option::<Gc<NodeArray>>::None,
-                        Some(local_name),
-                        type_param_decls,
-                        Some(heritage_clauses),
-                        Itertools::concat(
-                            [
-                                index_signatures,
-                                static_members,
-                                constructors,
-                                public_properties,
-                                private_properties,
-                            ]
-                            .into_iter(),
-                        ),
-                    )
-                    ,
+                get_factory().create_class_declaration(
+                    Option::<Gc<NodeArray>>::None,
+                    Option::<Gc<NodeArray>>::None,
+                    Some(local_name),
+                    type_param_decls,
+                    Some(heritage_clauses),
+                    Itertools::concat(
+                        [
+                            index_signatures,
+                            static_members,
+                            constructors,
+                            public_properties,
+                            private_properties,
+                        ]
+                        .into_iter(),
+                    ),
+                ),
                 symbol
                     .maybe_declarations()
                     .as_ref()
@@ -1173,18 +1098,13 @@ impl SymbolTableToDeclarationStatements {
                     )?;
                     let property_name = node.as_binding_element().property_name.as_ref();
                     self.add_result(
-                        &get_factory()
-                            .create_import_declaration(
-                                Option::<Gc<NodeArray>>::None,
-                                Option::<Gc<NodeArray>>::None,
-                                Some(
-                                    get_factory()
-                                        .create_import_clause(
-                                            false,
-                                            None,
-                                            Some(
-                                                get_factory()
-                                                    .create_named_imports(vec![get_factory()
+                        &get_factory().create_import_declaration(
+                            Option::<Gc<NodeArray>>::None,
+                            Option::<Gc<NodeArray>>::None,
+                            Some(get_factory().create_import_clause(
+                                false,
+                                None,
+                                Some(get_factory().create_named_imports(vec![get_factory()
                                                         .create_import_specifier(
                                                             false,
                                                             property_name
@@ -1199,18 +1119,11 @@ impl SymbolTableToDeclarationStatements {
                                                             get_factory()
                                                                 .create_identifier(local_name),
                                                         )
-                                                        ])
-                                                    ,
-                                            ),
-                                        )
-                                        ,
-                                ),
-                                get_factory()
-                                    .create_string_literal(specifier, None, None)
-                                    ,
-                                None,
-                            )
-                            ,
+                                                        ])),
+                            )),
+                            get_factory().create_string_literal(specifier, None, None),
+                            None,
+                        ),
                         ModifierFlags::None,
                     );
                     break 'case;
@@ -1249,38 +1162,28 @@ impl SymbolTableToDeclarationStatements {
                         &self.context(),
                     )?;
                     self.add_result(
-                        &get_factory()
-                            .create_import_equals_declaration(
-                                Option::<Gc<NodeArray>>::None,
-                                Option::<Gc<NodeArray>>::None,
-                                false,
-                                unique_name.clone(),
-                                get_factory()
-                                    .create_external_module_reference(
-                                        get_factory()
-                                            .create_string_literal(specifier, None, None)
-                                            ,
-                                    )
-                                    ,
-                            )
-                            ,
+                        &get_factory().create_import_equals_declaration(
+                            Option::<Gc<NodeArray>>::None,
+                            Option::<Gc<NodeArray>>::None,
+                            false,
+                            unique_name.clone(),
+                            get_factory().create_external_module_reference(
+                                get_factory().create_string_literal(specifier, None, None),
+                            ),
+                        ),
                         ModifierFlags::None,
                     );
                     self.add_result(
-                        &get_factory()
-                            .create_import_equals_declaration(
-                                Option::<Gc<NodeArray>>::None,
-                                Option::<Gc<NodeArray>>::None,
-                                false,
-                                get_factory().create_identifier(local_name),
-                                get_factory()
-                                    .create_qualified_name(
-                                        unique_name,
-                                        initializer.as_property_access_expression().name.clone(),
-                                    )
-                                    ,
-                            )
-                            ,
+                        &get_factory().create_import_equals_declaration(
+                            Option::<Gc<NodeArray>>::None,
+                            Option::<Gc<NodeArray>>::None,
+                            false,
+                            get_factory().create_identifier(local_name),
+                            get_factory().create_qualified_name(
+                                unique_name,
+                                initializer.as_property_access_expression().name.clone(),
+                            ),
+                        ),
                         modifier_flags,
                     );
                 }
@@ -1297,37 +1200,29 @@ impl SymbolTableToDeclarationStatements {
                 let is_local_import = !target.flags().intersects(SymbolFlags::ValueModule)
                     && !is_variable_declaration(node);
                 self.add_result(
-                    &get_factory()
-                        .create_import_equals_declaration(
-                            Option::<Gc<NodeArray>>::None,
-                            Option::<Gc<NodeArray>>::None,
-                            false,
-                            get_factory().create_identifier(local_name),
-                            if is_local_import {
-                                self.node_builder.symbol_to_name(
-                                    target,
-                                    &self.context(),
-                                    Some(SymbolFlags::All),
-                                    false,
-                                )?
-                            } else {
-                                get_factory()
-                                    .create_external_module_reference(
-                                        get_factory()
-                                            .create_string_literal(
-                                                self.node_builder.get_specifier_for_module_symbol(
-                                                    target,
-                                                    &self.context(),
-                                                )?,
-                                                None,
-                                                None,
-                                            )
-                                            ,
-                                    )
-                                    
-                            },
-                        )
-                        ,
+                    &get_factory().create_import_equals_declaration(
+                        Option::<Gc<NodeArray>>::None,
+                        Option::<Gc<NodeArray>>::None,
+                        false,
+                        get_factory().create_identifier(local_name),
+                        if is_local_import {
+                            self.node_builder.symbol_to_name(
+                                target,
+                                &self.context(),
+                                Some(SymbolFlags::All),
+                                false,
+                            )?
+                        } else {
+                            get_factory().create_external_module_reference(
+                                get_factory().create_string_literal(
+                                    self.node_builder
+                                        .get_specifier_for_module_symbol(target, &self.context())?,
+                                    None,
+                                    None,
+                                ),
+                            )
+                        },
+                    ),
                     if is_local_import {
                         modifier_flags
                     } else {
@@ -1348,37 +1243,29 @@ impl SymbolTableToDeclarationStatements {
                 let is_local_import = !target.flags().intersects(SymbolFlags::ValueModule)
                     && !is_variable_declaration(node);
                 self.add_result(
-                    &get_factory()
-                        .create_import_equals_declaration(
-                            Option::<Gc<NodeArray>>::None,
-                            Option::<Gc<NodeArray>>::None,
-                            false,
-                            get_factory().create_identifier(local_name),
-                            if is_local_import {
-                                self.node_builder.symbol_to_name(
-                                    target,
-                                    &self.context(),
-                                    Some(SymbolFlags::All),
-                                    false,
-                                )?
-                            } else {
-                                get_factory()
-                                    .create_external_module_reference(
-                                        get_factory()
-                                            .create_string_literal(
-                                                self.node_builder.get_specifier_for_module_symbol(
-                                                    target,
-                                                    &self.context(),
-                                                )?,
-                                                None,
-                                                None,
-                                            )
-                                            ,
-                                    )
-                                    
-                            },
-                        )
-                        ,
+                    &get_factory().create_import_equals_declaration(
+                        Option::<Gc<NodeArray>>::None,
+                        Option::<Gc<NodeArray>>::None,
+                        false,
+                        get_factory().create_identifier(local_name),
+                        if is_local_import {
+                            self.node_builder.symbol_to_name(
+                                target,
+                                &self.context(),
+                                Some(SymbolFlags::All),
+                                false,
+                            )?
+                        } else {
+                            get_factory().create_external_module_reference(
+                                get_factory().create_string_literal(
+                                    self.node_builder
+                                        .get_specifier_for_module_symbol(target, &self.context())?,
+                                    None,
+                                    None,
+                                ),
+                            )
+                        },
+                    ),
                     if is_local_import {
                         modifier_flags
                     } else {
@@ -1388,156 +1275,110 @@ impl SymbolTableToDeclarationStatements {
             }
             SyntaxKind::NamespaceExportDeclaration => {
                 self.add_result(
-                    &get_factory()
-                        .create_namespace_export_declaration(id_text(
-                            &node.as_namespace_export_declaration().name(),
-                        ))
-                        ,
+                    &get_factory().create_namespace_export_declaration(id_text(
+                        &node.as_namespace_export_declaration().name(),
+                    )),
                     ModifierFlags::None,
                 );
             }
             SyntaxKind::ImportClause => {
                 self.add_result(
-                    &get_factory()
-                        .create_import_declaration(
-                            Option::<Gc<NodeArray>>::None,
-                            Option::<Gc<NodeArray>>::None,
-                            Some(
-                                get_factory()
-                                    .create_import_clause(
-                                        false,
-                                        Some(get_factory().create_identifier(local_name)),
-                                        None,
-                                    )
-                                    ,
-                            ),
-                            get_factory()
-                                .create_string_literal(
-                                    self.node_builder.get_specifier_for_module_symbol(
-                                        target.maybe_parent().as_ref().unwrap_or(target),
-                                        &self.context(),
-                                    )?,
-                                    None,
-                                    None,
-                                )
-                                ,
+                    &get_factory().create_import_declaration(
+                        Option::<Gc<NodeArray>>::None,
+                        Option::<Gc<NodeArray>>::None,
+                        Some(get_factory().create_import_clause(
+                            false,
+                            Some(get_factory().create_identifier(local_name)),
                             None,
-                        )
-                        ,
+                        )),
+                        get_factory().create_string_literal(
+                            self.node_builder.get_specifier_for_module_symbol(
+                                target.maybe_parent().as_ref().unwrap_or(target),
+                                &self.context(),
+                            )?,
+                            None,
+                            None,
+                        ),
+                        None,
+                    ),
                     ModifierFlags::None,
                 );
             }
             SyntaxKind::NamespaceImport => {
                 self.add_result(
-                    &get_factory()
-                        .create_import_declaration(
-                            Option::<Gc<NodeArray>>::None,
-                            Option::<Gc<NodeArray>>::None,
-                            Some(
-                                get_factory()
-                                    .create_import_clause(
-                                        false,
-                                        None,
-                                        Some(
-                                            get_factory()
-                                                .create_namespace_import(
-                                                    get_factory().create_identifier(local_name),
-                                                )
-                                                ,
-                                        ),
-                                    )
-                                    ,
-                            ),
-                            get_factory()
-                                .create_string_literal(
-                                    self.node_builder
-                                        .get_specifier_for_module_symbol(target, &self.context())?,
-                                    None,
-                                    None,
-                                )
-                                ,
+                    &get_factory().create_import_declaration(
+                        Option::<Gc<NodeArray>>::None,
+                        Option::<Gc<NodeArray>>::None,
+                        Some(get_factory().create_import_clause(
+                            false,
                             None,
-                        )
-                        ,
+                            Some(get_factory().create_namespace_import(
+                                get_factory().create_identifier(local_name),
+                            )),
+                        )),
+                        get_factory().create_string_literal(
+                            self.node_builder
+                                .get_specifier_for_module_symbol(target, &self.context())?,
+                            None,
+                            None,
+                        ),
+                        None,
+                    ),
                     ModifierFlags::None,
                 );
             }
             SyntaxKind::NamespaceExport => {
                 self.add_result(
-                    &get_factory()
-                        .create_export_declaration(
-                            Option::<Gc<NodeArray>>::None,
-                            Option::<Gc<NodeArray>>::None,
-                            false,
-                            Some(
-                                get_factory()
-                                    .create_namespace_export(
-                                        get_factory().create_identifier(local_name),
-                                    )
-                                    ,
+                    &get_factory().create_export_declaration(
+                        Option::<Gc<NodeArray>>::None,
+                        Option::<Gc<NodeArray>>::None,
+                        false,
+                        Some(
+                            get_factory().create_namespace_export(
+                                get_factory().create_identifier(local_name),
                             ),
-                            Some(
-                                get_factory()
-                                    .create_string_literal(
-                                        self.node_builder.get_specifier_for_module_symbol(
-                                            target,
-                                            &self.context(),
-                                        )?,
-                                        None,
-                                        None,
-                                    )
-                                    ,
+                        ),
+                        Some(
+                            get_factory().create_string_literal(
+                                self.node_builder
+                                    .get_specifier_for_module_symbol(target, &self.context())?,
+                                None,
+                                None,
                             ),
-                            None,
-                        )
-                        ,
+                        ),
+                        None,
+                    ),
                     ModifierFlags::None,
                 );
             }
             SyntaxKind::ImportSpecifier => {
                 self.add_result(
-                    &get_factory()
-                        .create_import_declaration(
-                            Option::<Gc<NodeArray>>::None,
-                            Option::<Gc<NodeArray>>::None,
-                            Some(
-                                get_factory()
-                                    .create_import_clause(
-                                        false,
-                                        None,
-                                        Some(
-                                            get_factory()
-                                                .create_named_imports(vec![get_factory()
-                                                    .create_import_specifier(
-                                                        false,
-                                                        (local_name != verbatim_target_name).then(
-                                                            || {
-                                                                get_factory().create_identifier(
-                                                                    &verbatim_target_name,
-                                                                )
-                                                            },
-                                                        ),
-                                                        get_factory().create_identifier(local_name),
-                                                    )
-                                                    ])
-                                                ,
-                                        ),
-                                    )
-                                    ,
-                            ),
-                            get_factory()
-                                .create_string_literal(
-                                    self.node_builder.get_specifier_for_module_symbol(
-                                        target.maybe_parent().as_ref().unwrap_or(target),
-                                        &self.context(),
-                                    )?,
-                                    None,
-                                    None,
-                                )
-                                ,
+                    &get_factory().create_import_declaration(
+                        Option::<Gc<NodeArray>>::None,
+                        Option::<Gc<NodeArray>>::None,
+                        Some(get_factory().create_import_clause(
+                            false,
                             None,
-                        )
-                        ,
+                            Some(get_factory().create_named_imports(vec![
+                                get_factory().create_import_specifier(
+                                    false,
+                                    (local_name != verbatim_target_name).then(|| {
+                                        get_factory().create_identifier(&verbatim_target_name)
+                                    }),
+                                    get_factory().create_identifier(local_name),
+                                ),
+                            ])),
+                        )),
+                        get_factory().create_string_literal(
+                            self.node_builder.get_specifier_for_module_symbol(
+                                target.maybe_parent().as_ref().unwrap_or(target),
+                                &self.context(),
+                            )?,
+                            None,
+                            None,
+                        ),
+                        None,
+                    ),
                     ModifierFlags::None,
                 );
             }
@@ -1558,13 +1399,11 @@ impl SymbolTableToDeclarationStatements {
                         .as_ref()
                         .filter(|specifier| is_string_literal_like(specifier))
                         .map(|specifier| {
-                            get_factory()
-                                .create_string_literal(
-                                    specifier.as_literal_like_node().text().clone(),
-                                    None,
-                                    None,
-                                )
-                                
+                            get_factory().create_string_literal(
+                                specifier.as_literal_like_node().text().clone(),
+                                None,
+                                None,
+                            )
                         }),
                 );
             }

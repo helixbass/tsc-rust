@@ -1,7 +1,10 @@
+use std::{
+    borrow::Cow,
+    cmp,
+    convert::{TryFrom, TryInto},
+};
+
 use regex::Regex;
-use std::borrow::Cow;
-use std::cmp;
-use std::convert::{TryFrom, TryInto};
 
 use crate::{
     compare_strings_case_insensitive, compare_strings_case_sensitive, compare_values, ends_with,

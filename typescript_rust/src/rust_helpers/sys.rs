@@ -1,11 +1,14 @@
+use std::{
+    convert::TryInto,
+    env,
+    ffi::OsString,
+    fs::{self, DirEntry, Metadata},
+    io::{self, Read},
+    path::{Path as StdPath, PathBuf},
+    time::{Duration, SystemTime, UNIX_EPOCH},
+};
+
 use encoding_rs_io::DecodeReaderBytes;
-use std::convert::TryInto;
-use std::env;
-use std::ffi::OsString;
-use std::fs::{self, DirEntry, Metadata};
-use std::io::{self, Read};
-use std::path::{Path as StdPath, PathBuf};
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 /*const*/
 pub fn is_windows() -> bool {

@@ -15,7 +15,11 @@ impl ParserType {
         let statements = self.parse_list(ParsingContext::SwitchClauseStatements, &mut || {
             self.parse_statement()
         });
-        self.finish_node(self.factory().create_default_clause_raw(statements), pos, None)
+        self.finish_node(
+            self.factory().create_default_clause_raw(statements),
+            pos,
+            None,
+        )
     }
 
     pub(super) fn parse_case_or_default_clause(&self) -> Node /*CaseOrDefaultClause*/ {
@@ -83,8 +87,12 @@ impl ParserType {
             self.parse_error_for_missing_semicolon_after(&expression);
         }
         self.with_jsdoc(
-            self.finish_node(self.factory().create_throw_statement_raw(expression), pos, None)
-                .wrap(),
+            self.finish_node(
+                self.factory().create_throw_statement_raw(expression),
+                pos,
+                None,
+            )
+            .wrap(),
             has_jsdoc,
         )
     }
@@ -570,7 +578,11 @@ impl ParserType {
     pub(super) fn parse_array_binding_element(&self) -> Node /*ArrayBindingElement*/ {
         let pos = self.get_node_pos();
         if self.token() == SyntaxKind::CommaToken {
-            return self.finish_node(self.factory().create_omitted_expression_raw().into(), pos, None);
+            return self.finish_node(
+                self.factory().create_omitted_expression_raw().into(),
+                pos,
+                None,
+            );
         }
         let dot_dot_dot_token = self
             .parse_optional_token(SyntaxKind::DotDotDotToken)

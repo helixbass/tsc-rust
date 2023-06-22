@@ -1,17 +1,12 @@
+use std::{borrow::Borrow, collections::HashMap, io, ptr};
+
 use gc::{Gc, GcCell};
-
-use std::collections::HashMap;
-use std::ptr;
-
-use std::{borrow::Borrow, io};
 
 use super::{
     signature_has_rest_parameter, CheckMode, GetDiagnosticSpanForCallNodeReturn,
     InvocationErrorDetails, JsxNames,
 };
-use crate::try_maybe_for_each;
 use crate::{
-    TransientSymbolInterface, Type, TypeChecker, TypeFlags, TypeInterface,
     add_related_info, chain_diagnostic_messages, create_diagnostic_for_node,
     create_diagnostic_for_node_array, create_diagnostic_for_node_from_message_chain,
     create_symbol_table, every, get_expando_initializer, get_factory,
@@ -21,12 +16,14 @@ use crate::{
     is_function_declaration, is_function_expression, is_function_like_declaration, is_import_call,
     is_in_js_file, is_jsdoc_construct_signature, is_object_literal_expression, is_prototype_access,
     is_qualified_name, is_same_entity_name, is_transient_symbol, is_var_const,
-    is_variable_declaration, length, return_ok_default_if_none, skip_parentheses, try_get_property_access_or_identifier_to_string,
+    is_variable_declaration, length, return_ok_default_if_none, skip_parentheses,
+    try_get_property_access_or_identifier_to_string, try_maybe_for_each,
     walk_up_parenthesized_expressions, AsDoubleDeref, Debug_, Diagnostic, DiagnosticMessage,
     DiagnosticRelatedInformation, DiagnosticRelatedInformationInterface, Diagnostics,
     HasInitializerInterface, Matches, NamedDeclarationInterface, Node, NodeArray, NodeFlags,
     NodeInterface, ObjectFlags, OptionTry, Signature, SignatureFlags, SignatureKind, Symbol,
-    SymbolFlags, SymbolInterface, SyntaxKind,
+    SymbolFlags, SymbolInterface, SyntaxKind, TransientSymbolInterface, Type, TypeChecker,
+    TypeFlags, TypeInterface,
 };
 
 impl TypeChecker {
@@ -315,32 +312,24 @@ impl TypeChecker {
                 None,
             )
         })?;
-        let declaration = get_factory()
-            .create_function_type_node(
+        let declaration = get_factory().create_function_type_node(
+            Option::<Gc<NodeArray>>::None,
+            vec![get_factory().create_parameter_declaration(
                 Option::<Gc<NodeArray>>::None,
-                vec![get_factory()
-                    .create_parameter_declaration(
-                        Option::<Gc<NodeArray>>::None,
-                        Option::<Gc<NodeArray>>::None,
-                        None,
-                        Some("props"),
-                        None,
-                        self.node_builder()
-                            .type_to_type_node(result, Some(node), None, None)?,
-                        None,
-                    )
-                    ],
-                Some(if let Some(return_node) = return_node {
-                    get_factory()
-                        .create_type_reference_node(return_node, Option::<Gc<NodeArray>>::None)
-                        
-                } else {
-                    get_factory()
-                        .create_keyword_type_node(SyntaxKind::AnyKeyword)
-                        
-                }),
-            )
-            ;
+                Option::<Gc<NodeArray>>::None,
+                None,
+                Some("props"),
+                None,
+                self.node_builder()
+                    .type_to_type_node(result, Some(node), None, None)?,
+                None,
+            )],
+            Some(if let Some(return_node) = return_node {
+                get_factory().create_type_reference_node(return_node, Option::<Gc<NodeArray>>::None)
+            } else {
+                get_factory().create_keyword_type_node(SyntaxKind::AnyKeyword)
+            }),
+        );
         let parameter_symbol: Gc<Symbol> = self
             .create_symbol(
                 SymbolFlags::FunctionScopedVariable,

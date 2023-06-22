@@ -1,20 +1,17 @@
+use std::{borrow::Borrow, io, ptr};
+
 use gc::{Gc, GcCell};
-
-use std::ptr;
-
-use std::{borrow::Borrow, io};
 
 use super::{CheckMode, JsxNames};
 use crate::{
     add_related_info, create_diagnostic_for_node, create_symbol_table,
-    get_emit_module_resolution_kind, get_jsx_implicit_import_base, get_jsx_runtime_import,
-    get_jsx_transform_enabled, get_source_file_of_node, id_text, is_identifier,
-    is_intrinsic_jsx_name, is_jsx_attribute, set_parent, string_contains,
-    unescape_leading_underscores, Debug_, Diagnostics, IndexInfo, JsxFlags, ModuleResolutionKind,
-    NodeArray, PragmaName, SymbolFlags, SymbolTable, TransientSymbolInterface,
-    get_factory, get_object_flags, maybe_get_source_file_of_node, try_every, Node, NodeInterface,
-    ObjectFlags, OptionTry, Symbol, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags,
-    TypeInterface,
+    get_emit_module_resolution_kind, get_factory, get_jsx_implicit_import_base,
+    get_jsx_runtime_import, get_jsx_transform_enabled, get_object_flags, get_source_file_of_node,
+    id_text, is_identifier, is_intrinsic_jsx_name, is_jsx_attribute, maybe_get_source_file_of_node,
+    set_parent, string_contains, try_every, unescape_leading_underscores, Debug_, Diagnostics,
+    IndexInfo, JsxFlags, ModuleResolutionKind, Node, NodeArray, NodeInterface, ObjectFlags,
+    OptionTry, PragmaName, Symbol, SymbolFlags, SymbolInterface, SymbolTable, SyntaxKind,
+    TransientSymbolInterface, Type, TypeChecker, TypeFlags, TypeInterface,
 };
 
 impl TypeChecker {
@@ -461,14 +458,12 @@ impl TypeChecker {
                         )
                     });
                     children_prop_symbol.set_value_declaration(
-                        get_factory()
-                            .create_property_signature(
-                                Option::<Gc<NodeArray>>::None,
-                                unescape_leading_underscores(jsx_children_property_name),
-                                None,
-                                None,
-                            )
-                            ,
+                        get_factory().create_property_signature(
+                            Option::<Gc<NodeArray>>::None,
+                            unescape_leading_underscores(jsx_children_property_name),
+                            None,
+                            None,
+                        ),
                     );
                     set_parent(
                         children_prop_symbol

@@ -162,7 +162,6 @@ impl TransformES5OnSubstituteNodeOverrider {
                     node_as_property_access_expression.expression.clone(),
                     literal_name,
                 )
-                
                 .set_text_range(Some(node));
         }
         node.node_wrapper()
@@ -197,7 +196,6 @@ impl TransformES5OnSubstituteNodeOverrider {
                 self.transform_es5
                     .factory
                     .create_string_literal_from_node(name)
-                    
                     .set_text_range(Some(name)),
             );
         }

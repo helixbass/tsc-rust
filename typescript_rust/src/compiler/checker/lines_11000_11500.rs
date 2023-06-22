@@ -1,19 +1,15 @@
+use std::{borrow::Borrow, cmp, convert::TryInto, io, ptr};
+
 use gc::{Gc, GcCell};
-use std::cmp;
-use std::convert::TryInto;
-use std::ptr;
-use std::{borrow::Borrow, io};
 
 use super::MappedTypeModifiers;
-use crate::try_reduce_left;
 use crate::{
-    add_range, append, concatenate, count_where, create_symbol_table, get_check_flags,
-    index_of, try_count_where, try_every, try_map,
-    try_map_defined, try_some, CheckFlags, Diagnostics, IndexInfo, InternalSymbolName, Node,
-    Number, ObjectTypeInterface, OptionTry, ResolvedTypeInterface, Signature, SignatureFlags,
-    SignatureKind, Symbol, SymbolFlags, SymbolInterface, SymbolTable, Ternary,
-    TransientSymbolInterface, Type, TypeChecker, TypeFlags, TypeInterface, TypeMapper,
-    TypeSystemPropertyName, UnionOrIntersectionTypeInterface,
+    add_range, append, concatenate, count_where, create_symbol_table, get_check_flags, index_of,
+    try_count_where, try_every, try_map, try_map_defined, try_reduce_left, try_some, CheckFlags,
+    Diagnostics, IndexInfo, InternalSymbolName, Node, Number, ObjectTypeInterface, OptionTry,
+    ResolvedTypeInterface, Signature, SignatureFlags, SignatureKind, Symbol, SymbolFlags,
+    SymbolInterface, SymbolTable, Ternary, TransientSymbolInterface, Type, TypeChecker, TypeFlags,
+    TypeInterface, TypeMapper, TypeSystemPropertyName, UnionOrIntersectionTypeInterface,
 };
 
 impl TypeChecker {

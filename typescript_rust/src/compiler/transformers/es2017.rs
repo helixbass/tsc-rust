@@ -466,8 +466,9 @@ impl TransformES2017 {
                 &node_as_variable_statement.declaration_list,
                 false,
             )?;
-            return Ok(expression
-                .map(|expression| self.factory.create_expression_statement(expression)));
+            return Ok(
+                expression.map(|expression| self.factory.create_expression_statement(expression))
+            );
         }
         try_maybe_visit_each_child(
             Some(node),
@@ -606,17 +607,15 @@ impl TransformES2017 {
         }
         Ok(set_original_node(
             set_text_range_rc_node(
-                self.factory
-                    .create_yield_expression(
-                        None,
-                        try_maybe_visit_node(
-                            Some(&*node.as_await_expression().expression),
-                            Some(|node: &Node| self.visitor(node)),
-                            Some(is_expression),
-                            Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
-                        )?,
-                    )
-                    ,
+                self.factory.create_yield_expression(
+                    None,
+                    try_maybe_visit_node(
+                        Some(&*node.as_await_expression().expression),
+                        Some(|node: &Node| self.visitor(node)),
+                        Some(is_expression),
+                        Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                    )?,
+                ),
                 Some(node),
             ),
             Some(node.node_wrapper()),
@@ -866,14 +865,12 @@ impl TransformES2017 {
     ) -> io::Result<Gc<Node>> {
         let node_as_variable_declaration = node.as_variable_declaration();
         let converted = set_source_map_range(
-            self.factory
-                .create_assignment(
-                    self.factory
-                        .converters()
-                        .convert_to_assignment_element_target(&node_as_variable_declaration.name()),
-                    node_as_variable_declaration.maybe_initializer().unwrap(),
-                )
-                ,
+            self.factory.create_assignment(
+                self.factory
+                    .converters()
+                    .convert_to_assignment_element_target(&node_as_variable_declaration.name()),
+                node_as_variable_declaration.maybe_initializer().unwrap(),
+            ),
             Some(node.into()),
         );
         Ok(try_visit_node(
@@ -950,21 +947,19 @@ impl TransformES2017 {
                 Some(|node: &Node| self.visitor(node)),
             )?;
             statements.push(
-                self.factory
-                    .create_return_statement(Some(
-                        self.context
-                            .get_emit_helper_factory()
-                            .create_awaiter_helper(
-                                self.in_has_lexical_this_context(),
-                                has_lexical_arguments,
-                                promise_constructor.clone(),
-                                self.transform_async_function_body_worker(
-                                    &node_as_function_like_declaration.maybe_body().unwrap(),
-                                    Some(statement_offset),
-                                )?,
-                            ),
-                    ))
-                    ,
+                self.factory.create_return_statement(Some(
+                    self.context
+                        .get_emit_helper_factory()
+                        .create_awaiter_helper(
+                            self.in_has_lexical_this_context(),
+                            has_lexical_arguments,
+                            promise_constructor.clone(),
+                            self.transform_async_function_body_worker(
+                                &node_as_function_like_declaration.maybe_body().unwrap(),
+                                Some(statement_offset),
+                            )?,
+                        ),
+                )),
             );
 
             insert_statements_after_standard_prologue(
@@ -1173,18 +1168,16 @@ impl TransformES2017 {
         let node_as_property_access_expression = node.as_property_access_expression();
         if node_as_property_access_expression.expression.kind() == SyntaxKind::SuperKeyword {
             return set_text_range_rc_node(
-                self.factory
-                    .create_property_access_expression(
-                        self.factory.create_unique_name(
-                            "_super",
-                            Some(
-                                GeneratedIdentifierFlags::Optimistic
-                                    | GeneratedIdentifierFlags::FileLevel,
-                            ),
+                self.factory.create_property_access_expression(
+                    self.factory.create_unique_name(
+                        "_super",
+                        Some(
+                            GeneratedIdentifierFlags::Optimistic
+                                | GeneratedIdentifierFlags::FileLevel,
                         ),
-                        node_as_property_access_expression.name.clone(),
-                    )
-                    ,
+                    ),
+                    node_as_property_access_expression.name.clone(),
+                ),
                 Some(node),
             );
         }
@@ -1214,22 +1207,18 @@ impl TransformES2017 {
             } else {
                 self.substitute_element_access_expression(expression)
             };
-            return self
-                .factory
-                .create_call_expression(
-                    self.factory
-                        .create_property_access_expression(argument_expression, "call")
-                        ,
-                    Option::<Gc<NodeArray>>::None,
-                    Some(
-                        [
-                            vec![self.factory.create_this()],
-                            node_as_call_expression.arguments.to_vec(),
-                        ]
-                        .concat(),
-                    ),
-                )
-                ;
+            return self.factory.create_call_expression(
+                self.factory
+                    .create_property_access_expression(argument_expression, "call"),
+                Option::<Gc<NodeArray>>::None,
+                Some(
+                    [
+                        vec![self.factory.create_this()],
+                        node_as_call_expression.arguments.to_vec(),
+                    ]
+                    .concat(),
+                ),
+            );
         }
         node.node_wrapper()
     }
@@ -1256,30 +1245,8 @@ impl TransformES2017 {
             .intersects(NodeCheckFlags::AsyncMethodWithSuperBinding)
         {
             set_text_range_rc_node(
-                self.factory
-                    .create_property_access_expression(
-                        self.factory
-                            .create_call_expression(
-                                self.factory.create_unique_name(
-                                    "_superIndex",
-                                    Some(
-                                        GeneratedIdentifierFlags::Optimistic
-                                            | GeneratedIdentifierFlags::FileLevel,
-                                    ),
-                                ),
-                                Option::<Gc<NodeArray>>::None,
-                                Some(vec![argument_expression.node_wrapper()]),
-                            )
-                            ,
-                        "value",
-                    )
-                    ,
-                Some(location),
-            )
-        } else {
-            set_text_range_rc_node(
-                self.factory
-                    .create_call_expression(
+                self.factory.create_property_access_expression(
+                    self.factory.create_call_expression(
                         self.factory.create_unique_name(
                             "_superIndex",
                             Some(
@@ -1289,8 +1256,24 @@ impl TransformES2017 {
                         ),
                         Option::<Gc<NodeArray>>::None,
                         Some(vec![argument_expression.node_wrapper()]),
-                    )
-                    ,
+                    ),
+                    "value",
+                ),
+                Some(location),
+            )
+        } else {
+            set_text_range_rc_node(
+                self.factory.create_call_expression(
+                    self.factory.create_unique_name(
+                        "_superIndex",
+                        Some(
+                            GeneratedIdentifierFlags::Optimistic
+                                | GeneratedIdentifierFlags::FileLevel,
+                        ),
+                    ),
+                    Option::<Gc<NodeArray>>::None,
+                    Some(vec![argument_expression.node_wrapper()]),
+                ),
                 Some(location),
             )
         }
@@ -1442,133 +1425,83 @@ pub fn create_super_access_variable_statement(
     names.iter().for_each(|key| {
         let name = unescape_leading_underscores(key);
         let mut getter_and_setter: Vec<Gc<Node /*PropertyAssignment*/>> = Default::default();
-        getter_and_setter.push(
-            factory
-                .create_property_assignment(
-                    "get",
-                    factory
-                        .create_arrow_function(
-                            Option::<Gc<NodeArray>>::None,
-                            Option::<Gc<NodeArray>>::None,
-                            vec![],
-                            None,
-                            None,
-                            set_emit_flags(
-                                factory
-                                    .create_property_access_expression(
-                                        set_emit_flags(
-                                            factory.create_super(),
-                                            EmitFlags::NoSubstitution,
-                                        ),
-                                        name,
-                                    )
-                                    ,
-                                EmitFlags::NoSubstitution,
-                            ),
-                        )
-                        ,
-                )
-                ,
-        );
+        getter_and_setter.push(factory.create_property_assignment(
+            "get",
+            factory.create_arrow_function(
+                Option::<Gc<NodeArray>>::None,
+                Option::<Gc<NodeArray>>::None,
+                vec![],
+                None,
+                None,
+                set_emit_flags(
+                    factory.create_property_access_expression(
+                        set_emit_flags(factory.create_super(), EmitFlags::NoSubstitution),
+                        name,
+                    ),
+                    EmitFlags::NoSubstitution,
+                ),
+            ),
+        ));
         if has_binding {
-            getter_and_setter.push(
-                factory
-                    .create_property_assignment(
-                        "set",
-                        factory
-                            .create_arrow_function(
-                                Option::<Gc<NodeArray>>::None,
-                                Option::<Gc<NodeArray>>::None,
-                                vec![factory
-                                    .create_parameter_declaration(
-                                        Option::<Gc<NodeArray>>::None,
-                                        Option::<Gc<NodeArray>>::None,
-                                        None,
-                                        Some("v"),
-                                        None,
-                                        None,
-                                        None,
-                                    )
-                                    ],
-                                None,
-                                None,
-                                factory
-                                    .create_assignment(
-                                        set_emit_flags(
-                                            factory
-                                                .create_property_access_expression(
-                                                    set_emit_flags(
-                                                        factory.create_super(),
-                                                        EmitFlags::NoSubstitution,
-                                                    ),
-                                                    name,
-                                                )
-                                                ,
-                                            EmitFlags::NoSubstitution,
-                                        ),
-                                        factory.create_identifier("v"),
-                                    )
-                                    ,
-                            )
-                            ,
-                    )
-                    ,
-            );
-        }
-        accessors.push(
-            factory
-                .create_property_assignment(
-                    name,
-                    factory
-                        .create_object_literal_expression(Some(getter_and_setter), None)
-                        ,
-                )
-                ,
-        );
-    });
-    factory
-        .create_variable_statement(
-            Option::<Gc<NodeArray>>::None,
-            factory
-                .create_variable_declaration_list(
-                    vec![factory
-                        .create_variable_declaration(
-                            Some(factory.create_unique_name(
-                                "_super",
-                                Some(
-                                    GeneratedIdentifierFlags::Optimistic
-                                        | GeneratedIdentifierFlags::FileLevel,
-                                ),
-                            )),
-                            None,
-                            None,
-                            Some(
-                                factory
-                                    .create_call_expression(
-                                        factory
-                                            .create_property_access_expression(
-                                                factory.create_identifier("Object"),
-                                                "create",
-                                            )
-                                            ,
-                                        Option::<Gc<NodeArray>>::None,
-                                        Some(vec![
-                                            factory.create_null(),
-                                            factory
-                                                .create_object_literal_expression(
-                                                    Some(accessors),
-                                                    Some(true),
-                                                )
-                                                ,
-                                        ]),
-                                    )
-                                    ,
+            getter_and_setter.push(factory.create_property_assignment(
+                "set",
+                factory.create_arrow_function(
+                    Option::<Gc<NodeArray>>::None,
+                    Option::<Gc<NodeArray>>::None,
+                    vec![factory.create_parameter_declaration(
+                        Option::<Gc<NodeArray>>::None,
+                        Option::<Gc<NodeArray>>::None,
+                        None,
+                        Some("v"),
+                        None,
+                        None,
+                        None,
+                    )],
+                    None,
+                    None,
+                    factory.create_assignment(
+                        set_emit_flags(
+                            factory.create_property_access_expression(
+                                set_emit_flags(factory.create_super(), EmitFlags::NoSubstitution),
+                                name,
                             ),
-                        )
-                        ],
-                    Some(NodeFlags::Const),
-                )
-                ,
-        )
-        
+                            EmitFlags::NoSubstitution,
+                        ),
+                        factory.create_identifier("v"),
+                    ),
+                ),
+            ));
+        }
+        accessors.push(factory.create_property_assignment(
+            name,
+            factory.create_object_literal_expression(Some(getter_and_setter), None),
+        ));
+    });
+    factory.create_variable_statement(
+        Option::<Gc<NodeArray>>::None,
+        factory.create_variable_declaration_list(
+            vec![factory.create_variable_declaration(
+                Some(factory.create_unique_name(
+                    "_super",
+                    Some(
+                        GeneratedIdentifierFlags::Optimistic | GeneratedIdentifierFlags::FileLevel,
+                    ),
+                )),
+                None,
+                None,
+                Some(factory.create_call_expression(
+                    factory.create_property_access_expression(
+                        factory.create_identifier("Object"),
+                        "create",
+                    ),
+                    Option::<Gc<NodeArray>>::None,
+                    Some(vec![
+                        factory.create_null(),
+                        factory.create_object_literal_expression(Some(accessors), Some(true)),
+                    ]),
+                )),
+            )],
+            Some(NodeFlags::Const),
+        ),
+    )
 }

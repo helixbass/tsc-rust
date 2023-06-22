@@ -1,5 +1,6 @@
-use gc::Gc;
 use std::convert::TryInto;
+
+use gc::Gc;
 
 use super::{ParserType, ParsingContext};
 use crate::{
@@ -804,7 +805,8 @@ impl ParserType {
         name: Gc<Node /*Identifier*/>,
     ) -> QualifiedName {
         self.finish_node(
-            self.factory().create_qualified_name_raw(entity.clone(), name),
+            self.factory()
+                .create_qualified_name_raw(entity.clone(), name),
             entity.pos(),
             None,
         )
@@ -1106,8 +1108,11 @@ impl ParserType {
     ) -> TypePredicateNode {
         self.next_token();
         self.finish_node(
-            self.factory()
-                .create_type_predicate_node_raw(None, lhs.clone(), Some(self.parse_type())),
+            self.factory().create_type_predicate_node_raw(
+                None,
+                lhs.clone(),
+                Some(self.parse_type()),
+            ),
             lhs.pos(),
             None,
         )
@@ -1149,7 +1154,11 @@ impl ParserType {
                 | SyntaxKind::EqualsToken
                 | SyntaxKind::BarToken
         ) {
-            self.finish_node(self.factory().create_jsdoc_unknown_type_raw(None), pos, None)
+            self.finish_node(
+                self.factory().create_jsdoc_unknown_type_raw(None),
+                pos,
+                None,
+            )
         } else {
             self.finish_node(
                 self.factory()

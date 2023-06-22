@@ -1,19 +1,20 @@
-use gc::{Finalize, Gc, GcCell, GcCellRefMut, Trace};
-use std::cell::{Cell, RefCell, RefMut};
-use std::collections::HashMap;
-use std::ptr;
+use std::{
+    cell::{Cell, RefCell, RefMut},
+    cmp,
+    collections::HashMap,
+    io, ptr,
+};
 
-use std::{cmp, io};
+use gc::{Finalize, Gc, GcCell, GcCellRefMut, Trace};
 
 use super::{ExpandingFlags, RecursionIdentity};
 use crate::{
-    append_if_unique_gc, arrays_equal, contains, contains_gc,
-    create_scanner, filter, get_check_flags, get_object_flags, some, try_map,
-    CheckFlags, ElementFlags, InferenceInfo, InferencePriority, Node, ObjectFlags, ScriptTarget,
-    Symbol, SymbolFlags, SymbolInterface, SyntaxKind, TokenFlags, Type, TypeChecker, TypeFlags,
+    append_if_unique_gc, arrays_equal, contains, contains_gc, create_scanner, filter,
+    get_check_flags, get_object_flags, some, try_every, try_map, try_some, CheckFlags,
+    ElementFlags, InferenceInfo, InferencePriority, Node, ObjectFlags, ScriptTarget, Symbol,
+    SymbolFlags, SymbolInterface, SyntaxKind, TokenFlags, Type, TypeChecker, TypeFlags,
     TypeInterface, UnionReduction, VarianceFlags,
 };
-use crate::{try_every, try_some};
 
 impl TypeChecker {
     pub(super) fn infer_reverse_mapped_type(

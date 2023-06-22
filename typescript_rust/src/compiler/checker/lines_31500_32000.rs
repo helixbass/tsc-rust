@@ -1,20 +1,19 @@
-use gc::{Gc, GcCell};
-
-
 use std::{borrow::Borrow, io};
+
+use gc::{Gc, GcCell};
 
 use super::{
     signature_has_rest_parameter, typeof_eq_facts, typeof_ne_facts, CheckMode, IterationTypeKind,
     IterationUse, TypeFacts, WideningKind,
 };
 use crate::{
-    SyntaxKind, TransientSymbolInterface, Type, TypeChecker, TypeFlags, TypeInterface,
-    UnionReduction, are_option_gcs_equal, create_symbol_table, get_effective_return_type_node,
+    are_option_gcs_equal, create_symbol_table, get_effective_return_type_node,
     get_effective_type_annotation_node, get_function_flags, is_import_call, is_omitted_expression,
     is_transient_symbol, last, node_is_missing, push_if_unique_gc, some,
     try_for_each_return_statement, try_for_each_yield_expression, CheckFlags, Diagnostics,
     FunctionFlags, HasTypeInterface, InferenceContext, NamedDeclarationInterface, Node, NodeFlags,
-    NodeInterface, OptionTry, Signature, Symbol, SymbolFlags, SymbolInterface,
+    NodeInterface, OptionTry, Signature, Symbol, SymbolFlags, SymbolInterface, SyntaxKind,
+    TransientSymbolInterface, Type, TypeChecker, TypeFlags, TypeInterface, UnionReduction,
 };
 
 impl TypeChecker {

@@ -186,14 +186,12 @@ impl TransformTypeScript {
             let outer = self
                 .factory
                 .create_partially_emitted_expression(local_name, None)
-                
                 .set_text_range_end(closing_brace_location.end())
                 .set_emit_flags(EmitFlags::NoComments);
 
             let statement = self
                 .factory
                 .create_return_statement(Some(outer))
-                
                 .set_text_range_pos(closing_brace_location.pos())
                 .set_emit_flags(EmitFlags::NoComments | EmitFlags::NoTokenSourceMaps);
             statements.push(statement);
@@ -212,26 +210,16 @@ impl TransformTypeScript {
                 .factory
                 .create_variable_statement(
                     Option::<Gc<NodeArray>>::None,
-                    self.factory
-                        .create_variable_declaration_list(
-                            vec![self
-                                .factory
-                                .create_variable_declaration(
-                                    Some(self.factory.get_local_name(
-                                        node,
-                                        Some(false),
-                                        Some(false),
-                                    )),
-                                    None,
-                                    None,
-                                    Some(iife),
-                                )
-                                ],
+                    self.factory.create_variable_declaration_list(
+                        vec![self.factory.create_variable_declaration(
+                            Some(self.factory.get_local_name(node, Some(false), Some(false))),
                             None,
-                        )
-                        ,
+                            None,
+                            Some(iife),
+                        )],
+                        None,
+                    ),
                 )
-                
                 .set_original_node(Some(node.node_wrapper()))
                 .set_comment_range(node)
                 .set_source_map_range(Some((&move_range_past_decorators(node)).into()))
@@ -296,25 +284,22 @@ impl TransformTypeScript {
                 )
             });
 
-        let class_declaration = self
-            .factory
-            .create_class_declaration(
-                Option::<Gc<NodeArray>>::None,
-                modifiers,
-                name.node_wrappered(),
-                Option::<Gc<NodeArray>>::None,
-                try_maybe_visit_nodes(
-                    node_as_class_declaration
-                        .maybe_heritage_clauses()
-                        .as_deref(),
-                    Some(|node: &Node| self.visitor(node)),
-                    Some(is_heritage_clause),
-                    None,
-                    None,
-                )?,
-                self.transform_class_members(node)?,
-            )
-            ;
+        let class_declaration = self.factory.create_class_declaration(
+            Option::<Gc<NodeArray>>::None,
+            modifiers,
+            name.node_wrappered(),
+            Option::<Gc<NodeArray>>::None,
+            try_maybe_visit_nodes(
+                node_as_class_declaration
+                    .maybe_heritage_clauses()
+                    .as_deref(),
+                Some(|node: &Node| self.visitor(node)),
+                Some(is_heritage_clause),
+                None,
+                None,
+            )?,
+            self.transform_class_members(node)?,
+        );
 
         let mut emit_flags = get_emit_flags(node);
         if facts.intersects(ClassFacts::HasStaticInitializedProperties) {
@@ -363,7 +348,6 @@ impl TransformTypeScript {
                 heritage_clauses,
                 members,
             )
-            
             .set_original_node(Some(node.node_wrapper()))
             .set_text_range(Some(&location.to_readonly_text_range()));
 
@@ -371,28 +355,21 @@ impl TransformTypeScript {
             .factory
             .create_variable_statement(
                 Option::<Gc<NodeArray>>::None,
-                self.factory
-                    .create_variable_declaration_list(
-                        vec![self
-                            .factory
-                            .create_variable_declaration(
-                                Some(decl_name),
-                                None,
-                                None,
-                                Some(if let Some(class_alias) = class_alias {
-                                    self.factory
-                                        .create_assignment(class_alias, class_expression)
-                                        
-                                } else {
-                                    class_expression
-                                }),
-                            )
-                            ],
-                        Some(NodeFlags::Let),
-                    )
-                    ,
+                self.factory.create_variable_declaration_list(
+                    vec![self.factory.create_variable_declaration(
+                        Some(decl_name),
+                        None,
+                        None,
+                        Some(if let Some(class_alias) = class_alias {
+                            self.factory
+                                .create_assignment(class_alias, class_expression)
+                        } else {
+                            class_expression
+                        }),
+                    )],
+                    Some(NodeFlags::Let),
+                ),
             )
-            
             .set_original_node(Some(node.node_wrapper()))
             .set_text_range(Some(&location.to_readonly_text_range()))
             .set_comment_range(node))
@@ -423,7 +400,6 @@ impl TransformTypeScript {
                 )?,
                 self.transform_class_members(node)?,
             )
-            
             .set_original_node(Some(node.node_wrapper()))
             .set_text_range(Some(node)))
     }

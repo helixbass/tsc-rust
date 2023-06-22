@@ -307,9 +307,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
             StringOrNumberOrBoolOrRcNode::String(value) => {
                 self.create_string_literal(value, None, None)
             }
-            StringOrNumberOrBoolOrRcNode::Number(value) => {
-                self.create_numeric_literal(value, None)
-            }
+            StringOrNumberOrBoolOrRcNode::Number(value) => self.create_numeric_literal(value, None),
             StringOrNumberOrBoolOrRcNode::Bool(value) => {
                 if value {
                     self.create_true()

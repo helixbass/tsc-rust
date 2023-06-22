@@ -323,11 +323,12 @@ impl TransformES2015 {
     pub(super) fn record_tagged_template_string(&self, temp: &Node /*Identifier*/) {
         self.maybe_tagged_template_string_declarations_mut()
             .get_or_insert_with(|| Default::default())
-            .push(
-                self.factory
-                    .create_variable_declaration(Some(temp.node_wrapper()), None, None, None)
-                    ,
-            );
+            .push(self.factory.create_variable_declaration(
+                Some(temp.node_wrapper()),
+                None,
+                None,
+                None,
+            ));
     }
 
     pub(super) fn transform_source_file(

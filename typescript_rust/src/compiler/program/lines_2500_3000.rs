@@ -1,6 +1,6 @@
+use std::{borrow::Borrow, collections::HashMap, io};
+
 use gc::{Finalize, Gc, Trace};
-use std::collections::HashMap;
-use std::{borrow::Borrow, io};
 
 use super::{
     for_each_resolved_project_reference, get_implied_node_format_for_file, is_referenced_file,
@@ -13,14 +13,13 @@ use crate::{
     has_js_file_extension, has_jsdoc_nodes, is_declaration_file_name, maybe_for_each, maybe_map,
     node_modules_path_part, out_file, package_id_to_string, resolve_module_name,
     set_resolved_type_reference_directive, some, string_contains, to_file_name_lower_case,
-    try_for_each, AsDoubleDeref, CompilerHost, CompilerOptionsBuilder, DiagnosticMessage,
-    Diagnostics, Extension, FileIncludeKind, FileIncludeReason, FileReference,
+    try_for_each, try_maybe_for_each, AsDoubleDeref, CompilerHost, CompilerOptionsBuilder,
+    DiagnosticMessage, Diagnostics, Extension, FileIncludeKind, FileIncludeReason, FileReference,
     ModuleResolutionKind, Node, NodeArray, NodeId, NodeIdOverride, NodeInterface,
-    NodeSymbolOverride, PackageId, Path, Program, RedirectInfo, ReferencedFile,
+    NodeSymbolOverride, NonEmpty, PackageId, Path, Program, RedirectInfo, ReferencedFile,
     ResolvedProjectReference, ResolvedTypeReferenceDirective, ScriptReferenceHost, SourceFile,
     SourceFileLike, SourceOfProjectReferenceRedirect, Symbol,
 };
-use crate::{try_maybe_for_each, NonEmpty};
 
 impl Program {
     pub(super) fn get_node_at_position(

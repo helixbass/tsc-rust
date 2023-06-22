@@ -1,10 +1,11 @@
+use std::io;
+
 use gc::{Finalize, Gc, Trace};
 
 use crate::{
     Node, TransformationContext, Transformer, TransformerFactory, TransformerFactoryInterface,
     TransformerInterface,
 };
-use std::io;
 
 #[derive(Trace, Finalize)]
 struct TransformNodeModule {

@@ -1,7 +1,10 @@
+use std::{
+    cell::{Cell, Ref, RefCell, RefMut},
+    convert::{TryFrom, TryInto},
+    rc::Rc,
+};
+
 use regex::Regex;
-use std::cell::{Cell, Ref, RefCell, RefMut};
-use std::convert::{TryFrom, TryInto};
-use std::rc::Rc;
 
 use super::{
     is_line_break, is_unicode_identifier_part, is_unicode_identifier_start, is_white_space_like,

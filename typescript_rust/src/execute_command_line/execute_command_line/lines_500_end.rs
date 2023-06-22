@@ -1,7 +1,6 @@
+use std::{collections::HashMap, io, ptr, rc::Rc};
+
 use gc::{Finalize, Gc, Trace};
-use std::ptr;
-use std::rc::Rc;
-use std::{collections::HashMap, io};
 
 use super::{
     execute_command_line_worker, print_build_help, print_version, should_be_pretty,

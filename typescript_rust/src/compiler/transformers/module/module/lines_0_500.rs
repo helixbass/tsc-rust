@@ -240,29 +240,21 @@ impl TransformModule {
             let chunk_size = 50;
             let mut i = 0;
             while i < current_module_info_exported_names.len() {
-                statements.push(
-                    self.factory
-                        .create_expression_statement(reduce_left(
-                            &current_module_info_exported_names[i..i + chunk_size],
-                            |prev: Gc<Node>, next_id: &Gc<Node>, _| {
-                                self.factory
-                                    .create_assignment(
-                                        self.factory
-                                            .create_property_access_expression(
-                                                self.factory.create_identifier("exports"),
-                                                self.factory.create_identifier(id_text(next_id)),
-                                            )
-                                            ,
-                                        prev,
-                                    )
-                                    
-                            },
-                            self.factory.create_void_zero(),
-                            None,
-                            None,
-                        ))
-                        ,
-                );
+                statements.push(self.factory.create_expression_statement(reduce_left(
+                    &current_module_info_exported_names[i..i + chunk_size],
+                    |prev: Gc<Node>, next_id: &Gc<Node>, _| {
+                        self.factory.create_assignment(
+                            self.factory.create_property_access_expression(
+                                self.factory.create_identifier("exports"),
+                                self.factory.create_identifier(id_text(next_id)),
+                            ),
+                            prev,
+                        )
+                    },
+                    self.factory.create_void_zero(),
+                    None,
+                    None,
+                )));
                 i += chunk_size;
             }
         }
@@ -332,106 +324,111 @@ impl TransformModule {
             import_alias_names,
         } = self.collect_asynchronous_dependencies(node, true);
 
-        Ok(self.factory.update_source_file(
-            node,
-            self.factory
-                .create_node_array(
-                    Some(vec![self
-                        .factory
-                        .create_expression_statement(
-                            self.factory
-                                .create_call_expression(
-                                    define,
-                                    Option::<Gc<NodeArray>>::None,
-                                    Some(
-                                        if let Some(module_name) = module_name {
-                                            vec![module_name]
-                                        } else {
-                                            _d()
-                                        }
-                                        .and_extend([
-                                            self.factory
-                                                .create_array_literal_expression(
-                                                    Some(if json_source_file.is_some() {
-                                                        _d()
-                                                    } else {
-                                                        vec![
-                                                            self.factory
-                                                                .create_string_literal(
-                                                                    "require".to_owned(),
-                                                                    None,
-                                                                    None,
-                                                                )
-                                                                ,
-                                                            self.factory
-                                                                .create_string_literal(
-                                                                    "exports".to_owned(),
-                                                                    None,
-                                                                    None,
-                                                                )
-                                                                ,
-                                                        ]
-                                                        .and_extend(aliased_module_names)
-                                                        .and_extend(unaliased_module_names)
-                                                    }),
-                                                    None,
-                                                )
-                                                ,
-                                            if let Some(json_source_file) = json_source_file {
-                                                json_source_file
-                                                    .as_source_file()
-                                                    .statements()
-                                                    .non_empty()
-                                                    .map_or_else(
-                                                        || self.factory.create_object_literal_expression(
-                                                            Option::<Gc<NodeArray>>::None,
-                                                            None,
-                                                        ),
-                                                        |json_source_file_statements| json_source_file_statements[0].as_expression_statement().expression.clone(),
-                                                    )
+        Ok(self
+            .factory
+            .update_source_file(
+                node,
+                self.factory
+                    .create_node_array(
+                        Some(vec![self.factory.create_expression_statement(
+                            self.factory.create_call_expression(
+                                define,
+                                Option::<Gc<NodeArray>>::None,
+                                Some(
+                                    if let Some(module_name) = module_name {
+                                        vec![module_name]
+                                    } else {
+                                        _d()
+                                    }
+                                    .and_extend([
+                                        self.factory.create_array_literal_expression(
+                                            Some(if json_source_file.is_some() {
+                                                _d()
                                             } else {
-                                                self.factory.create_function_expression(
-                                                    Option::<Gc<NodeArray>>::None,
-                                                    None,
-                                                    Option::<Gc<Node>>::None,
-                                                    Option::<Gc<NodeArray>>::None,
-                                                    Some(vec![
+                                                vec![
+                                                    self.factory.create_string_literal(
+                                                        "require".to_owned(),
+                                                        None,
+                                                        None,
+                                                    ),
+                                                    self.factory.create_string_literal(
+                                                        "exports".to_owned(),
+                                                        None,
+                                                        None,
+                                                    ),
+                                                ]
+                                                .and_extend(aliased_module_names)
+                                                .and_extend(unaliased_module_names)
+                                            }),
+                                            None,
+                                        ),
+                                        if let Some(json_source_file) = json_source_file {
+                                            json_source_file
+                                                .as_source_file()
+                                                .statements()
+                                                .non_empty()
+                                                .map_or_else(
+                                                    || {
+                                                        self.factory
+                                                            .create_object_literal_expression(
+                                                                Option::<Gc<NodeArray>>::None,
+                                                                None,
+                                                            )
+                                                    },
+                                                    |json_source_file_statements| {
+                                                        json_source_file_statements[0]
+                                                            .as_expression_statement()
+                                                            .expression
+                                                            .clone()
+                                                    },
+                                                )
+                                        } else {
+                                            self.factory.create_function_expression(
+                                                Option::<Gc<NodeArray>>::None,
+                                                None,
+                                                Option::<Gc<Node>>::None,
+                                                Option::<Gc<NodeArray>>::None,
+                                                Some(
+                                                    vec![
                                                         self.factory.create_parameter_declaration(
                                                             Option::<Gc<NodeArray>>::None,
                                                             Option::<Gc<NodeArray>>::None,
                                                             None,
                                                             Some("require"),
-                                                            None, None, None,
+                                                            None,
+                                                            None,
+                                                            None,
                                                         ),
                                                         self.factory.create_parameter_declaration(
                                                             Option::<Gc<NodeArray>>::None,
                                                             Option::<Gc<NodeArray>>::None,
                                                             None,
                                                             Some("exports"),
-                                                            None, None, None,
+                                                            None,
+                                                            None,
+                                                            None,
                                                         ),
-                                                    ].and_extend(import_alias_names)),
-                                                    None,
-                                                    self.transform_asynchronous_module_body(
-                                                        node,
-                                                    )?
-                                                )
-                                            },
-                                        ]),
-                                    ),
-                                )
-                                ,
-                        )
-                        ]),
-                    None,
-                )
-                .set_text_range(Some(&*node_as_source_file.statements())),
-            None,
-            None,
-            None,
-            None,
-            None,
-        ).add_emit_helpers(self.context.read_emit_helpers().as_deref()))
+                                                    ]
+                                                    .and_extend(import_alias_names),
+                                                ),
+                                                None,
+                                                self.transform_asynchronous_module_body(node)?,
+                                            )
+                                        },
+                                    ]),
+                                ),
+                            ),
+                        )]),
+                        None,
+                    )
+                    .set_text_range(Some(&*node_as_source_file.statements())),
+                None,
+                None,
+                None,
+                None,
+                None,
+            )
+            .add_emit_helpers(self.context.read_emit_helpers().as_deref()))
     }
 
     pub(super) fn transform_umd_module(
@@ -450,110 +447,89 @@ impl TransformModule {
             &**self.host,
             &self.compiler_options,
         );
-        let umd_header = self
-            .factory
-            .create_function_expression(
+        let umd_header = self.factory.create_function_expression(
+            Option::<Gc<NodeArray>>::None,
+            None,
+            Option::<Gc<Node>>::None,
+            Option::<Gc<NodeArray>>::None,
+            Some(vec![self.factory.create_parameter_declaration(
+                Option::<Gc<NodeArray>>::None,
                 Option::<Gc<NodeArray>>::None,
                 None,
-                Option::<Gc<Node>>::None,
-                Option::<Gc<NodeArray>>::None,
-                Some(vec![self
-                    .factory
-                    .create_parameter_declaration(
-                        Option::<Gc<NodeArray>>::None,
-                        Option::<Gc<NodeArray>>::None,
-                        None,
-                        Some("factory"),
-                        None,
-                        None,
-                        None,
-                    )
-                    ]),
+                Some("factory"),
                 None,
-                self.factory
-                    .create_block(
-                        vec![self
-                            .factory
-                            .create_if_statement(
-                                self.factory
-                                    .create_logical_and(
-                                        self.factory.create_type_check(
-                                            self.factory.create_identifier("module"),
-                                            "object",
-                                        ),
-                                        self.factory.create_type_check(
-                                            self.factory
-                                                .create_property_access_expression(
-                                                    self.factory.create_identifier("module"),
-                                                    "exports",
-                                                )
-                                                ,
-                                            "object",
-                                        ),
-                                    )
-                                    ,
-                                self.factory
-                                    .create_block(
-                                        vec![
+                None,
+                None,
+            )]),
+            None,
+            self.factory
+                .create_block(
+                    vec![self.factory.create_if_statement(
+                        self.factory.create_logical_and(
+                            self.factory.create_type_check(
+                                self.factory.create_identifier("module"),
+                                "object",
+                            ),
+                            self.factory.create_type_check(
+                                self.factory.create_property_access_expression(
+                                    self.factory.create_identifier("module"),
+                                    "exports",
+                                ),
+                                "object",
+                            ),
+                        ),
+                        self.factory.create_block(
+                            vec![
                                 self.factory.create_variable_statement(
                                     Option::<Gc<NodeArray>>::None,
-                                    vec![
-                                        self.factory.create_variable_declaration(
-                                            Some("v"),
-                                            None, None,
-                                            Some(self.factory.create_call_expression(
-                                                self.factory.create_identifier("factory"),
-                                                Option::<Gc<NodeArray>>::None,
-                                                Some(vec![
-                                                    self.factory.create_identifier("require"),
-                                                    self.factory.create_identifier("exports"),
-                                                ])
-                                            ))
-                                        )
-                                    ]
+                                    vec![self.factory.create_variable_declaration(
+                                        Some("v"),
+                                        None,
+                                        None,
+                                        Some(self.factory.create_call_expression(
+                                            self.factory.create_identifier("factory"),
+                                            Option::<Gc<NodeArray>>::None,
+                                            Some(vec![
+                                                self.factory.create_identifier("require"),
+                                                self.factory.create_identifier("exports"),
+                                            ]),
+                                        )),
+                                    )],
                                 ),
-                                self.factory.create_if_statement(
-                                    self.factory.create_strict_inequality(
-                                        self.factory.create_identifier("v"),
-                                        self.factory.create_identifier("undefined"),
-                                    ),
-                                    self.factory.create_expression_statement(
-                                        self.factory.create_assignment(
-                                            self.factory.create_property_access_expression(
-                                                self.factory.create_identifier("module"),
-                                                "exports"
+                                self.factory
+                                    .create_if_statement(
+                                        self.factory.create_strict_inequality(
+                                            self.factory.create_identifier("v"),
+                                            self.factory.create_identifier("undefined"),
+                                        ),
+                                        self.factory.create_expression_statement(
+                                            self.factory.create_assignment(
+                                                self.factory.create_property_access_expression(
+                                                    self.factory.create_identifier("module"),
+                                                    "exports",
+                                                ),
+                                                self.factory.create_identifier("v"),
                                             ),
-                                            self.factory.create_identifier("v")
-                                        )
-                                    ),
-                                    None,
-                                )
-                                    .set_emit_flags(EmitFlags::SingleLine)
-                            ],
+                                        ),
                                         None,
                                     )
-                                    ,
-                                Some(
-                                    self.factory
-                                        .create_if_statement(
-                                            self.factory
-                                                .create_logical_and(
-                                                    self.factory.create_type_check(
-                                                        self.factory.create_identifier("define"),
-                                                        "function",
-                                                    ),
-                                                    self.factory
-                                                        .create_property_access_expression(
-                                                            self.factory
-                                                                .create_identifier("define"),
-                                                            "amd",
-                                                        )
-                                                        ,
-                                                )
-                                                ,
-                                            self.factory
-                                                .create_block(
-                                                    vec![
+                                    .set_emit_flags(EmitFlags::SingleLine),
+                            ],
+                            None,
+                        ),
+                        Some(self.factory.create_if_statement(
+                            self.factory.create_logical_and(
+                                self.factory.create_type_check(
+                                    self.factory.create_identifier("define"),
+                                    "function",
+                                ),
+                                self.factory.create_property_access_expression(
+                                    self.factory.create_identifier("define"),
+                                    "amd",
+                                ),
+                            ),
+                            self.factory.create_block(
+                                vec![
                                     self.factory.create_expression_statement(
                                         self.factory.create_call_expression(
                                             self.factory.create_identifier("define"),
@@ -593,21 +569,15 @@ impl TransformModule {
                                         )
                                     )
                                 ],
-                                                    None,
-                                                )
-                                                ,
-                                            None,
-                                        )
-                                        ,
-                                ),
-                            )
-                            ],
-                        Some(true),
-                    )
-                    
-                    .set_text_range(Option::<&Node>::None),
-            )
-            ;
+                                None,
+                            ),
+                            None,
+                        )),
+                    )],
+                    Some(true),
+                )
+                .set_text_range(Option::<&Node>::None),
+        );
 
         Ok(self
             .factory
@@ -615,55 +585,43 @@ impl TransformModule {
                 node,
                 self.factory
                     .create_node_array(
-                        Some(vec![self
-                            .factory
-                            .create_expression_statement(
-                                self.factory
-                                    .create_call_expression(
-                                        umd_header,
-                                        Option::<Gc<NodeArray>>::None,
-                                        Some(vec![self
-                                            .factory
-                                            .create_function_expression(
+                        Some(vec![self.factory.create_expression_statement(
+                            self.factory.create_call_expression(
+                                umd_header,
+                                Option::<Gc<NodeArray>>::None,
+                                Some(vec![self.factory.create_function_expression(
+                                    Option::<Gc<NodeArray>>::None,
+                                    None,
+                                    Option::<Gc<Node>>::None,
+                                    Option::<Gc<NodeArray>>::None,
+                                    Some(
+                                        vec![
+                                            self.factory.create_parameter_declaration(
+                                                Option::<Gc<NodeArray>>::None,
                                                 Option::<Gc<NodeArray>>::None,
                                                 None,
-                                                Option::<Gc<Node>>::None,
-                                                Option::<Gc<NodeArray>>::None,
-                                                Some(
-                                                    vec![
-                                                        self.factory
-                                                            .create_parameter_declaration(
-                                                                Option::<Gc<NodeArray>>::None,
-                                                                Option::<Gc<NodeArray>>::None,
-                                                                None,
-                                                                Some("require"),
-                                                                None,
-                                                                None,
-                                                                None,
-                                                            )
-                                                            ,
-                                                        self.factory
-                                                            .create_parameter_declaration(
-                                                                Option::<Gc<NodeArray>>::None,
-                                                                Option::<Gc<NodeArray>>::None,
-                                                                None,
-                                                                Some("exports"),
-                                                                None,
-                                                                None,
-                                                                None,
-                                                            )
-                                                            ,
-                                                    ]
-                                                    .and_extend(import_alias_names),
-                                                ),
+                                                Some("require"),
                                                 None,
-                                                self.transform_asynchronous_module_body(node)?,
-                                            )
-                                            ]),
-                                    )
-                                    ,
-                            )
-                            ]),
+                                                None,
+                                                None,
+                                            ),
+                                            self.factory.create_parameter_declaration(
+                                                Option::<Gc<NodeArray>>::None,
+                                                Option::<Gc<NodeArray>>::None,
+                                                None,
+                                                Some("exports"),
+                                                None,
+                                                None,
+                                                None,
+                                            ),
+                                        ]
+                                        .and_extend(import_alias_names),
+                                    ),
+                                    None,
+                                    self.transform_asynchronous_module_body(node)?,
+                                )]),
+                            ),
+                        )]),
                         None,
                     )
                     .set_text_range(Some(&*node_as_source_file.statements())),
@@ -690,30 +648,26 @@ impl TransformModule {
 
         for amd_dependency in &*node_as_source_file.amd_dependencies() {
             if let Some(amd_dependency_name) = amd_dependency.name.as_ref().non_empty() {
-                aliased_module_names.push(
-                    self.factory
-                        .create_string_literal(amd_dependency.path.clone(), None, None)
-                        ,
-                );
-                import_alias_names.push(
-                    self.factory
-                        .create_parameter_declaration(
-                            Option::<Gc<NodeArray>>::None,
-                            Option::<Gc<NodeArray>>::None,
-                            None,
-                            Some(&**amd_dependency_name),
-                            None,
-                            None,
-                            None,
-                        )
-                        ,
-                );
+                aliased_module_names.push(self.factory.create_string_literal(
+                    amd_dependency.path.clone(),
+                    None,
+                    None,
+                ));
+                import_alias_names.push(self.factory.create_parameter_declaration(
+                    Option::<Gc<NodeArray>>::None,
+                    Option::<Gc<NodeArray>>::None,
+                    None,
+                    Some(&**amd_dependency_name),
+                    None,
+                    None,
+                    None,
+                ));
             } else {
-                unaliased_module_names.push(
-                    self.factory
-                        .create_string_literal(amd_dependency.path.clone(), None, None)
-                        ,
-                );
+                unaliased_module_names.push(self.factory.create_string_literal(
+                    amd_dependency.path.clone(),
+                    None,
+                    None,
+                ));
             }
         }
 
@@ -738,19 +692,15 @@ impl TransformModule {
                 {
                     set_emit_flags(&*import_alias_name, EmitFlags::NoSubstitution);
                     aliased_module_names.push(external_module_name);
-                    import_alias_names.push(
-                        self.factory
-                            .create_parameter_declaration(
-                                Option::<Gc<NodeArray>>::None,
-                                Option::<Gc<NodeArray>>::None,
-                                None,
-                                Some(import_alias_name),
-                                None,
-                                None,
-                                None,
-                            )
-                            ,
-                    );
+                    import_alias_names.push(self.factory.create_parameter_declaration(
+                        Option::<Gc<NodeArray>>::None,
+                        Option::<Gc<NodeArray>>::None,
+                        None,
+                        Some(import_alias_name),
+                        None,
+                        None,
+                        None,
+                    ));
                 } else {
                     unaliased_module_names.push(external_module_name);
                 }
@@ -791,8 +741,7 @@ impl TransformModule {
         }
         Some(
             self.factory
-                .create_expression_statement(self.factory.create_assignment(name, expr))
-                ,
+                .create_expression_statement(self.factory.create_assignment(name, expr)),
         )
     }
 
@@ -820,29 +769,21 @@ impl TransformModule {
             .as_ref()
             .non_empty()
         {
-            statements.push(
-                self.factory
-                    .create_expression_statement(reduce_left(
-                        current_module_info_exported_names,
-                        |prev: Gc<Node>, next_id: &Gc<Node>, _| {
-                            self.factory
-                                .create_assignment(
-                                    self.factory
-                                        .create_property_access_expression(
-                                            self.factory.create_identifier("exports"),
-                                            self.factory.create_identifier(id_text(next_id)),
-                                        )
-                                        ,
-                                    prev,
-                                )
-                                
-                        },
-                        self.factory.create_void_zero(),
-                        None,
-                        None,
-                    ))
-                    ,
-            );
+            statements.push(self.factory.create_expression_statement(reduce_left(
+                current_module_info_exported_names,
+                |prev: Gc<Node>, next_id: &Gc<Node>, _| {
+                    self.factory.create_assignment(
+                        self.factory.create_property_access_expression(
+                            self.factory.create_identifier("exports"),
+                            self.factory.create_identifier(id_text(next_id)),
+                        ),
+                        prev,
+                    )
+                },
+                self.factory.create_void_zero(),
+                None,
+                None,
+            )));
         }
 
         append(
@@ -919,27 +860,19 @@ impl TransformModule {
                     let statement = self
                         .factory
                         .create_return_statement(Some(expression_result))
-                        
                         .set_text_range(Some(&**current_module_info_export_equals))
                         .set_emit_flags(EmitFlags::NoTokenSourceMaps | EmitFlags::NoComments);
                     statements.push(statement);
                 } else {
                     let statement = self
                         .factory
-                        .create_expression_statement(
-                            self.factory
-                                .create_assignment(
-                                    self.factory
-                                        .create_property_access_expression(
-                                            self.factory.create_identifier("module"),
-                                            "exports",
-                                        )
-                                        ,
-                                    expression_result,
-                                )
-                                ,
-                        )
-                        
+                        .create_expression_statement(self.factory.create_assignment(
+                            self.factory.create_property_access_expression(
+                                self.factory.create_identifier("module"),
+                                "exports",
+                            ),
+                            expression_result,
+                        ))
                         .set_text_range(Some(&**current_module_info_export_equals))
                         .set_emit_flags(EmitFlags::NoComments);
                     statements.push(statement);
@@ -1034,26 +967,20 @@ impl TransformModuleOnSubstituteNodeOverrider {
                 .object_assignment_initializer
                 .as_ref()
             {
-                let initializer = self
-                    .transform_module
-                    .factory
-                    .create_assignment(
-                        exported_or_imported_name,
-                        node_object_assignment_initializer.clone(),
-                    )
-                    ;
+                let initializer = self.transform_module.factory.create_assignment(
+                    exported_or_imported_name,
+                    node_object_assignment_initializer.clone(),
+                );
                 return Ok(self
                     .transform_module
                     .factory
                     .create_property_assignment(name, initializer)
-                    
                     .set_text_range(Some(node)));
             }
             return Ok(self
                 .transform_module
                 .factory
                 .create_property_assignment(name, exported_or_imported_name)
-                
                 .set_text_range(Some(node)));
         }
         Ok(node.node_wrapper())
@@ -1140,8 +1067,7 @@ impl TransformModuleOnSubstituteNodeOverrider {
                     .create_property_access_expression(
                         external_helpers_module_name,
                         node.node_wrapper(),
-                    )
-                    );
+                    ));
             }
             return Ok(node.node_wrapper());
         } else if !(is_generated_identifier(node)
@@ -1167,7 +1093,6 @@ impl TransformModuleOnSubstituteNodeOverrider {
                         self.transform_module.factory.create_identifier("exports"),
                         self.transform_module.factory.clone_node(node),
                     )
-                    
                     .set_text_range(Some(node)));
             }
             let import_declaration = self
@@ -1186,7 +1111,6 @@ impl TransformModuleOnSubstituteNodeOverrider {
                             ),
                             self.transform_module.factory.create_identifier("default"),
                         )
-                        
                         .set_text_range(Some(node)));
                 } else if is_import_specifier(&import_declaration) {
                     let import_declaration_as_import_specifier =
@@ -1215,7 +1139,6 @@ impl TransformModuleOnSubstituteNodeOverrider {
                             ),
                             self.transform_module.factory.clone_node(&name),
                         )
-                        
                         .set_text_range(Some(node)));
                 }
             }

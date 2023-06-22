@@ -67,42 +67,36 @@ impl TypeChecker {
     ) -> io::Result<()> {
         let enclosing_declaration = enclosing_declaration
             .map(|enclosing_declaration| enclosing_declaration.borrow().node_wrapper());
-        let predicate = get_factory()
-            .create_type_predicate_node(
-                if matches!(
-                    type_predicate.kind,
-                    TypePredicateKind::AssertsThis | TypePredicateKind::AssertsIdentifier
-                ) {
+        let predicate = get_factory().create_type_predicate_node(
+            if matches!(
+                type_predicate.kind,
+                TypePredicateKind::AssertsThis | TypePredicateKind::AssertsIdentifier
+            ) {
+                Some(get_factory().create_token(SyntaxKind::AssertsKeyword))
+            } else {
+                None
+            },
+            if matches!(
+                type_predicate.kind,
+                TypePredicateKind::Identifier | TypePredicateKind::AssertsIdentifier
+            ) {
+                get_factory().create_identifier(type_predicate.parameter_name.as_ref().unwrap())
+            } else {
+                get_factory().create_this_type_node()
+            },
+            type_predicate.type_.as_ref().try_and_then(|type_| {
+                self.node_builder().type_to_type_node(
+                    type_,
+                    enclosing_declaration.as_deref(),
                     Some(
-                        get_factory()
-                            .create_token(SyntaxKind::AssertsKeyword)
-                            ,
-                    )
-                } else {
-                    None
-                },
-                if matches!(
-                    type_predicate.kind,
-                    TypePredicateKind::Identifier | TypePredicateKind::AssertsIdentifier
-                ) {
-                    get_factory().create_identifier(type_predicate.parameter_name.as_ref().unwrap())
-                } else {
-                    get_factory().create_this_type_node()
-                },
-                type_predicate.type_.as_ref().try_and_then(|type_| {
-                    self.node_builder().type_to_type_node(
-                        type_,
-                        enclosing_declaration.as_deref(),
-                        Some(
-                            self.to_node_builder_flags(Some(flags))
-                                | NodeBuilderFlags::IgnoreErrors
-                                | NodeBuilderFlags::WriteTypeParametersInQualifiedName,
-                        ),
-                        None,
-                    )
-                })?,
-            )
-            ;
+                        self.to_node_builder_flags(Some(flags))
+                            | NodeBuilderFlags::IgnoreErrors
+                            | NodeBuilderFlags::WriteTypeParametersInQualifiedName,
+                    ),
+                    None,
+                )
+            })?,
+        );
         let printer = create_printer(
             PrinterOptionsBuilder::default()
                 .remove_comments(Some(true))
@@ -899,24 +893,19 @@ impl TypeChecker {
                 let prop_name =
                     return_ok_default_if_none!(self.get_destructuring_property_name(node)?);
                 let literal = parse_node_factory.with(|parse_node_factory_| {
-                    parse_node_factory_
-                        .create_string_literal(prop_name, None, None)
-                        
+                    parse_node_factory_.create_string_literal(prop_name, None, None)
                 });
                 set_text_range(&*literal, Some(node));
                 let lhs_expr = if is_left_hand_side_expression(&parent_access) {
                     parent_access.clone()
                 } else {
                     parse_node_factory.with(|parse_node_factory_| {
-                        parse_node_factory_
-                            .create_parenthesized_expression(parent_access.clone())
-                            
+                        parse_node_factory_.create_parenthesized_expression(parent_access.clone())
                     })
                 };
                 let result = parse_node_factory.with(|parse_node_factory_| {
                     parse_node_factory_
                         .create_element_access_expression(lhs_expr.clone(), literal.clone())
-                        
                 });
                 set_text_range(&*result, Some(node));
                 set_parent(&literal, Some(&*result));

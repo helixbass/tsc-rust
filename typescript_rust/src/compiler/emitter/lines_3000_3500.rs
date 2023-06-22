@@ -1,3 +1,5 @@
+use std::io;
+
 use gc::Gc;
 
 use super::{
@@ -13,7 +15,6 @@ use crate::{
     ListFormat, NamedDeclarationInterface, Node, NodeFlags, NodeInterface, Printer,
     ReadonlyTextRange, SyntaxKind, TextRange,
 };
-use std::io;
 
 impl Printer {
     pub(super) fn emit_switch_statement(

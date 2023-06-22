@@ -1,42 +1,43 @@
+use std::{
+    cell::{Cell, Ref, RefCell, RefMut},
+    collections::{HashMap, HashSet},
+    io,
+    rc::Rc,
+};
+
 use gc::{Finalize, Gc, GcCell, Trace};
-use std::cell::{Cell, Ref, RefCell, RefMut};
-use std::collections::{HashMap, HashSet};
-use std::io;
-use std::rc::Rc;
 
 use super::{create_brackets_map, TempFlags};
-use crate::change_extension;
-use crate::create_get_canonical_file_name;
-use crate::get_declaration_emit_extension_for_path;
-use crate::supported_js_extensions_flat;
-use crate::try_for_each_child;
 use crate::{
-    base64_encode, combine_paths, compare_paths, compute_common_source_directory_of_filenames,
-    create_diagnostic_collection, create_source_map_generator, create_text_writer,
+    base64_encode, change_extension, combine_paths, compare_paths,
+    compute_common_source_directory_of_filenames, create_diagnostic_collection,
+    create_get_canonical_file_name, create_source_map_generator, create_text_writer,
     directory_separator_str, encode_uri, ensure_path_is_non_module_name,
     ensure_trailing_directory_separator, factory, file_extension_is, file_extension_is_one_of,
     filter, get_are_declaration_maps_enabled, get_base_file_name,
-    get_declaration_emit_output_file_path, get_directory_path, get_emit_declarations,
-    get_emit_module_kind_from_module_and_target, get_factory, get_new_line_character,
-    get_normalized_absolute_path, get_own_emit_output_file_path, get_relative_path_from_directory,
+    get_declaration_emit_extension_for_path, get_declaration_emit_output_file_path,
+    get_directory_path, get_emit_declarations, get_emit_module_kind_from_module_and_target,
+    get_factory, get_new_line_character, get_normalized_absolute_path,
+    get_own_emit_output_file_path, get_relative_path_from_directory,
     get_relative_path_to_directory_or_url, get_root_length, get_source_file_path_in_new_dir,
     get_source_files_to_emit, get_synthetic_factory, get_sys, is_bundle, is_export_assignment,
     is_export_specifier, is_expression, is_identifier, is_incremental_compilation,
     is_json_source_file, is_option_str_empty, is_source_file, is_source_file_not_json,
     last_or_undefined, length, no_emit_notification, no_emit_substitution, normalize_path,
-    normalize_slashes, out_file, remove_file_extension, resolve_path, transform_nodes, version,
-    write_file, AllAccessorDeclarations, BaseNodeFactorySynthetic, BuildInfo, BundleBuildInfo,
-    BundleFileInfo, BundleFileSection, BundleFileSectionInterface, BundleFileSectionKind,
-    Comparison, CompilerOptions, CurrentParenthesizerRule, Debug_, DetachedCommentInfo,
-    DiagnosticCollection, EmitBinaryExpression, EmitFileNames, EmitHint, EmitHost,
-    EmitHostWriteFileCallback, EmitResolver, EmitResult, EmitTextWriter, EmitTransformers,
-    ExportedModulesFromDeclarationEmit, Extension, JsxEmit, ListFormat,
-    ModuleSpecifierResolutionHostAndGetCommonSourceDirectory, Node, NodeArray, NodeId,
-    NodeInterface, NonEmpty, ParenthesizerRules, ParsedCommandLine, PrintHandlers, Printer,
-    PrinterOptions, RelativeToBuildInfo, ScriptReferenceHost, SourceMapEmitResult,
-    SourceMapGenerator, SourceMapSource, StringOrNumber, Symbol, SymbolAccessibilityResult,
-    SymbolVisibilityResult, SyntaxKind, TextRange, TransformNodesTransformationResult,
-    TransformationResult, TransformerFactory, TypeReferenceSerializationKind,
+    normalize_slashes, out_file, remove_file_extension, resolve_path, supported_js_extensions_flat,
+    transform_nodes, try_for_each_child, version, write_file, AllAccessorDeclarations,
+    BaseNodeFactorySynthetic, BuildInfo, BundleBuildInfo, BundleFileInfo, BundleFileSection,
+    BundleFileSectionInterface, BundleFileSectionKind, Comparison, CompilerOptions,
+    CurrentParenthesizerRule, Debug_, DetachedCommentInfo, DiagnosticCollection,
+    EmitBinaryExpression, EmitFileNames, EmitHint, EmitHost, EmitHostWriteFileCallback,
+    EmitResolver, EmitResult, EmitTextWriter, EmitTransformers, ExportedModulesFromDeclarationEmit,
+    Extension, JsxEmit, ListFormat, ModuleSpecifierResolutionHostAndGetCommonSourceDirectory, Node,
+    NodeArray, NodeId, NodeInterface, NonEmpty, ParenthesizerRules, ParsedCommandLine,
+    PrintHandlers, Printer, PrinterOptions, RelativeToBuildInfo, ScriptReferenceHost,
+    SourceMapEmitResult, SourceMapGenerator, SourceMapSource, StringOrNumber, Symbol,
+    SymbolAccessibilityResult, SymbolVisibilityResult, SyntaxKind, TextRange,
+    TransformNodesTransformationResult, TransformationResult, TransformerFactory,
+    TypeReferenceSerializationKind,
 };
 
 lazy_static! {
@@ -114,12 +115,10 @@ pub fn try_for_each_emitted_file_returns<TReturn>(
     {
         let prepends = host.get_prepend_nodes();
         if !source_files.is_empty() || !prepends.is_empty() {
-            let bundle: Gc<Node> = get_factory()
-                .create_bundle(
-                    source_files.into_iter().map(Option::Some).collect(),
-                    Some(prepends),
-                )
-                ;
+            let bundle: Gc<Node> = get_factory().create_bundle(
+                source_files.into_iter().map(Option::Some).collect(),
+                Some(prepends),
+            );
             let result = action(
                 &get_output_paths_for(&bundle, host, force_dts_emit),
                 Some(&*bundle),
@@ -999,16 +998,14 @@ fn emit_declaration_file_or_bundle(
         })
     };
     let input_list_or_bundle = if out_file(&compiler_options).is_non_empty() {
-        vec![get_factory()
-            .create_bundle(
-                files_for_emit.iter().cloned().map(Option::Some).collect(),
-                if !is_source_file(source_file_or_bundle) {
-                    Some(source_file_or_bundle.as_bundle().prepends.clone())
-                } else {
-                    None
-                },
-            )
-            ]
+        vec![get_factory().create_bundle(
+            files_for_emit.iter().cloned().map(Option::Some).collect(),
+            if !is_source_file(source_file_or_bundle) {
+                Some(source_file_or_bundle.as_bundle().prepends.clone())
+            } else {
+                None
+            },
+        )]
     } else {
         files_for_emit.clone()
     };

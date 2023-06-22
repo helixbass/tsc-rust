@@ -1,11 +1,12 @@
-use gc::Gc;
-use std::borrow::{Borrow, Cow};
-use std::collections::{HashMap, HashSet};
+use std::{
+    borrow::{Borrow, Cow},
+    collections::{HashMap, HashSet},
+    io, ptr,
+};
 
-use std::{io, ptr};
+use gc::Gc;
 
 use super::{get_node_id, UnusedKind};
-use crate::try_for_each;
 use crate::{
     cast_present, create_diagnostic_for_node, create_file_diagnostic, first, for_each,
     get_class_extends_heritage_element, get_effective_jsdoc_host, get_effective_return_type_node,
@@ -19,11 +20,11 @@ use crate::{
     is_parameter, is_parameter_property_declaration, is_private_identifier,
     is_private_identifier_class_element_declaration, is_type_only_import_or_export_declaration,
     is_variable_declaration, last, node_is_missing, node_is_present, parameter_is_this_keyword,
-    range_of_node, range_of_type_parameters, symbol_name, try_add_to_set, try_cast, CharacterCodes,
-    Debug_, Diagnostic, Diagnostics, FunctionFlags, JSDocTagInterface, ModifierFlags,
-    NamedDeclarationInterface, Node, NodeFlags, NodeInterface, OptionTry, ScriptTarget,
-    SignatureDeclarationInterface, SymbolFlags, SymbolInterface, SyntaxKind, TextRange,
-    TypeChecker,
+    range_of_node, range_of_type_parameters, symbol_name, try_add_to_set, try_cast, try_for_each,
+    CharacterCodes, Debug_, Diagnostic, Diagnostics, FunctionFlags, JSDocTagInterface,
+    ModifierFlags, NamedDeclarationInterface, Node, NodeFlags, NodeInterface, OptionTry,
+    ScriptTarget, SignatureDeclarationInterface, SymbolFlags, SymbolInterface, SyntaxKind,
+    TextRange, TypeChecker,
 };
 
 impl TypeChecker {

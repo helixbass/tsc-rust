@@ -1,14 +1,15 @@
-use gc::Gc;
-use std::borrow::{Borrow, Cow};
+use std::{
+    borrow::{Borrow, Cow},
+    io, ptr,
+};
 
-use std::{io, ptr};
+use gc::Gc;
 
 use super::{
     CheckTypeContainingMessageChain, CheckTypeErrorOutputContainer, MappedTypeModifiers, TypeFacts,
 };
 use crate::{
-    are_gc_slices_equal, are_option_gcs_equal,
-    contains_gc, get_effective_return_type_node,
+    are_gc_slices_equal, are_option_gcs_equal, contains_gc, get_effective_return_type_node,
     get_object_flags, has_context_sensitive_parameters, is_function_declaration,
     is_function_expression_or_arrow_function, is_in_js_file, is_jsx_opening_element,
     is_object_literal_method, is_part_of_type_node, map, try_every, try_for_each_child_bool,

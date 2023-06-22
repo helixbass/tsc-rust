@@ -1,18 +1,19 @@
-use gc::{Gc, GcCell};
-use std::borrow::Borrow;
-use std::cell::{Cell, RefCell, RefMut};
-use std::collections::HashMap;
-use std::io;
+use std::{
+    borrow::Borrow,
+    cell::{Cell, RefCell, RefMut},
+    collections::HashMap,
+    io,
+};
 
+use gc::{Gc, GcCell};
 
 use super::TypeFacts;
 use crate::{
-    contains_gc, get_assignment_target_kind, get_declared_expando_initializer,
-    get_object_flags, is_in_js_file, is_parameter_or_catch_clause_variable, is_var_const,
-    is_variable_declaration, maybe_every, push_if_unique_gc, skip_parentheses,
-    AssignmentKind, FlowFlags, FlowNode, FlowNodeBase, FlowType, Node, NodeInterface, ObjectFlags,
-    Symbol, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface, TypePredicateKind,
-    UnionReduction,
+    contains_gc, get_assignment_target_kind, get_declared_expando_initializer, get_object_flags,
+    is_in_js_file, is_parameter_or_catch_clause_variable, is_var_const, is_variable_declaration,
+    maybe_every, push_if_unique_gc, skip_parentheses, AssignmentKind, FlowFlags, FlowNode,
+    FlowNodeBase, FlowType, Node, NodeInterface, ObjectFlags, Symbol, SyntaxKind, Type,
+    TypeChecker, TypeFlags, TypeInterface, TypePredicateKind, UnionReduction,
 };
 
 impl TypeChecker {

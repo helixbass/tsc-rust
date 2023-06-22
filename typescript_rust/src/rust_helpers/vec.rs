@@ -1,5 +1,6 @@
-use gc::{Finalize, Gc, Trace};
 use std::ops::Deref;
+
+use gc::{Finalize, Gc, Trace};
 
 use crate::add_range;
 

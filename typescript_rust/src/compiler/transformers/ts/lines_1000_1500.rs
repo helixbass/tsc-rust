@@ -240,7 +240,6 @@ impl TransformTypeScript {
             statements.push(
                 self.factory
                     .create_expression_statement(expression)
-                    
                     .set_original_node(Some(node.node_wrapper())),
             );
         }
@@ -283,11 +282,9 @@ impl TransformTypeScript {
                         |class_alias| {
                             self.factory
                                 .create_assignment(class_alias, decorate.clone())
-                                
                         },
                     ),
                 )
-                
                 .set_emit_flags(EmitFlags::NoComments)
                 .set_source_map_range(Some((&move_range_past_decorators(node)).into())),
         ))
@@ -382,71 +379,56 @@ impl TransformTypeScript {
                 Default::default();
             if self.should_add_type_metadata(node) {
                 properties.get_or_insert_with(|| Default::default()).push(
-                    self.factory
-                        .create_property_assignment(
-                            "type",
-                            self.factory
-                                .create_arrow_function(
-                                    Option::<Gc<NodeArray>>::None,
-                                    Option::<Gc<NodeArray>>::None,
-                                    vec![],
-                                    None,
-                                    Some(
-                                        self.factory
-                                            .create_token(SyntaxKind::EqualsGreaterThanToken)
-                                            ,
-                                    ),
-                                    self.serialize_type_of_node(node)?,
-                                )
-                                ,
-                        )
-                        ,
+                    self.factory.create_property_assignment(
+                        "type",
+                        self.factory.create_arrow_function(
+                            Option::<Gc<NodeArray>>::None,
+                            Option::<Gc<NodeArray>>::None,
+                            vec![],
+                            None,
+                            Some(
+                                self.factory
+                                    .create_token(SyntaxKind::EqualsGreaterThanToken),
+                            ),
+                            self.serialize_type_of_node(node)?,
+                        ),
+                    ),
                 );
             }
             if self.should_add_param_types_metadata(node) {
                 properties.get_or_insert_with(|| Default::default()).push(
-                    self.factory
-                        .create_property_assignment(
-                            "paramTypes",
-                            self.factory
-                                .create_arrow_function(
-                                    Option::<Gc<NodeArray>>::None,
-                                    Option::<Gc<NodeArray>>::None,
-                                    vec![],
-                                    None,
-                                    Some(
-                                        self.factory
-                                            .create_token(SyntaxKind::EqualsGreaterThanToken)
-                                            ,
-                                    ),
-                                    self.serialize_parameter_types_of_node(node, container)?,
-                                )
-                                ,
-                        )
-                        ,
+                    self.factory.create_property_assignment(
+                        "paramTypes",
+                        self.factory.create_arrow_function(
+                            Option::<Gc<NodeArray>>::None,
+                            Option::<Gc<NodeArray>>::None,
+                            vec![],
+                            None,
+                            Some(
+                                self.factory
+                                    .create_token(SyntaxKind::EqualsGreaterThanToken),
+                            ),
+                            self.serialize_parameter_types_of_node(node, container)?,
+                        ),
+                    ),
                 );
             }
             if self.should_add_return_type_metadata(node) {
                 properties.get_or_insert_with(|| Default::default()).push(
-                    self.factory
-                        .create_property_assignment(
-                            "returnType",
-                            self.factory
-                                .create_arrow_function(
-                                    Option::<Gc<NodeArray>>::None,
-                                    Option::<Gc<NodeArray>>::None,
-                                    vec![],
-                                    None,
-                                    Some(
-                                        self.factory
-                                            .create_token(SyntaxKind::EqualsGreaterThanToken)
-                                            ,
-                                    ),
-                                    self.serialize_return_type_of_node(node)?,
-                                )
-                                ,
-                        )
-                        ,
+                    self.factory.create_property_assignment(
+                        "returnType",
+                        self.factory.create_arrow_function(
+                            Option::<Gc<NodeArray>>::None,
+                            Option::<Gc<NodeArray>>::None,
+                            vec![],
+                            None,
+                            Some(
+                                self.factory
+                                    .create_token(SyntaxKind::EqualsGreaterThanToken),
+                            ),
+                            self.serialize_return_type_of_node(node)?,
+                        ),
+                    ),
                 );
             }
             if let Some(properties) = properties {
@@ -454,8 +436,7 @@ impl TransformTypeScript {
                     self.emit_helpers().create_metadata_helper(
                         "design:typeinfo",
                         self.factory
-                            .create_object_literal_expression(Some(properties), Some(true))
-                            ,
+                            .create_object_literal_expression(Some(properties), Some(true)),
                     ),
                 );
             }
@@ -576,8 +557,7 @@ impl TransformTypeScript {
 
         Ok(self
             .factory
-            .create_array_literal_expression(Some(expressions), None)
-            )
+            .create_array_literal_expression(Some(expressions), None))
     }
 
     pub(super) fn get_parameters_of_decorated_declaration(

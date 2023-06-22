@@ -1,5 +1,6 @@
-use gc::Gc;
 use std::collections::HashSet;
+
+use gc::Gc;
 
 use super::{ParserType, SignatureFlags, Tristate};
 use crate::{

@@ -1,10 +1,14 @@
+use std::{
+    cell::{Cell, RefCell},
+    collections::HashMap,
+    fmt, io,
+    rc::Rc,
+};
+
 use bitflags::bitflags;
 use derive_builder::Builder;
 use gc::{Finalize, Gc, GcCell, GcCellRef, GcCellRefMut, Trace};
-use std::cell::{Cell, RefCell};
-use std::collections::HashMap;
-use std::rc::Rc;
-use std::{fmt, io};
+use local_macros::{enum_unwrapped, symbol_type};
 
 use super::{
     BaseType, CancellationTokenDebuggable, CompilerOptions, DiagnosticCollection,
@@ -20,7 +24,6 @@ use crate::{
     PatternAmbientModule, ResolvedTypeReferenceDirective, ReverseMappedSymbol, StringOrNumber,
     TypeId, TypeSystemEntity, TypeSystemPropertyName, VarianceFlags,
 };
-use local_macros::{enum_unwrapped, symbol_type};
 
 pub type RedirectTargetsMap = MultiMap<Path, String>;
 
@@ -1344,9 +1347,10 @@ pub trait TransientSymbolInterface: SymbolInterface {
 }
 
 mod _TransientSymbolTraceDeriveScope {
-    use super::{BaseTransientSymbol, Gc, MappedSymbol, ReverseMappedSymbol, Type};
     use gc::Finalize;
     use local_macros::{symbol_type, Trace};
+
+    use super::{BaseTransientSymbol, Gc, MappedSymbol, ReverseMappedSymbol, Type};
 
     #[derive(Debug, Finalize, Trace)]
     #[symbol_type(interfaces = "TransientSymbolInterface")]

@@ -1,7 +1,10 @@
+use std::{
+    borrow::{Borrow, Cow},
+    convert::{TryFrom, TryInto},
+    io, ptr,
+};
+
 use gc::Gc;
-use std::borrow::{Borrow, Cow};
-use std::convert::{TryFrom, TryInto};
-use std::{io, ptr};
 
 use super::{anon, get_symbol_id, intrinsic_type_kinds};
 use crate::{

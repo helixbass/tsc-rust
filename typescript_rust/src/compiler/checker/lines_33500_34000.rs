@@ -1,8 +1,6 @@
-use gc::Gc;
-use std::collections::HashMap;
-use std::ptr;
+use std::{borrow::Borrow, collections::HashMap, io, ptr};
 
-use std::{borrow::Borrow, io};
+use gc::Gc;
 
 use super::{get_node_id, CheckMode};
 use crate::{

@@ -1,5 +1,6 @@
-use gc::{Finalize, Gc, Trace};
 use std::marker::PhantomData;
+
+use gc::{Finalize, Gc, Trace};
 
 use crate::{
     cast, get_starts_on_new_line, is_array_binding_pattern, is_array_literal_expression,
@@ -60,24 +61,21 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>
         if node_as_function_declaration.maybe_body().is_none() {
             Debug_.fail(Some("Cannot convert a FunctionDeclaration without a body"));
         }
-        let updated = self
-            .factory
-            .create_function_expression(
-                node_as_function_declaration
-                    .maybe_modifiers()
-                    .as_ref()
-                    .map(Clone::clone),
-                node_as_function_declaration.maybe_asterisk_token(),
-                node_as_function_declaration.maybe_name(),
-                node_as_function_declaration
-                    .maybe_type_parameters()
-                    .as_ref()
-                    .map(Clone::clone),
-                Some(node_as_function_declaration.parameters().clone()),
-                node_as_function_declaration.maybe_type(),
-                node_as_function_declaration.maybe_body().unwrap(),
-            )
-            ;
+        let updated = self.factory.create_function_expression(
+            node_as_function_declaration
+                .maybe_modifiers()
+                .as_ref()
+                .map(Clone::clone),
+            node_as_function_declaration.maybe_asterisk_token(),
+            node_as_function_declaration.maybe_name(),
+            node_as_function_declaration
+                .maybe_type_parameters()
+                .as_ref()
+                .map(Clone::clone),
+            Some(node_as_function_declaration.parameters().clone()),
+            node_as_function_declaration.maybe_type(),
+            node_as_function_declaration.maybe_body().unwrap(),
+        );
         set_original_node(updated.clone(), Some(node.node_wrapper()));
         let updated = set_text_range(&*updated, Some(node)).node_wrapper();
         if get_starts_on_new_line(node) == Some(true) {
@@ -147,10 +145,9 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>
                 let ret = self.factory.create_property_assignment_raw(
                     element_property_name.clone(),
                     match element_as_binding_element.maybe_initializer() {
-                        Some(initializer) => self
-                            .factory
-                            .create_assignment(expression, initializer)
-                            ,
+                        Some(initializer) => {
+                            self.factory.create_assignment(expression, initializer)
+                        }
                         None => expression,
                     },
                 );

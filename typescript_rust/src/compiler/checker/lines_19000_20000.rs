@@ -1,25 +1,28 @@
+use std::{
+    borrow::{Borrow, Cow},
+    cmp,
+    collections::HashSet,
+    io, ptr,
+    rc::Rc,
+};
+
 use gc::Gc;
 use itertools::{Either, Itertools};
-use std::borrow::{Borrow, Cow};
-use std::collections::HashSet;
-use std::ptr;
-use std::rc::Rc;
-use std::{cmp, io};
 
 use super::{
-    anon, CheckTypeRelatedTo, ErrorCalculationState,
-    IntersectionState, RecursionFlags, ReportUnmeasurableMarkers, ReportUnreliableMarkers,
-    SignatureCheckMode, TypeComparerIsRelatedToWorker, TypeFacts,
+    anon, CheckTypeRelatedTo, ErrorCalculationState, IntersectionState, RecursionFlags,
+    ReportUnmeasurableMarkers, ReportUnreliableMarkers, SignatureCheckMode,
+    TypeComparerIsRelatedToWorker, TypeFacts,
 };
 use crate::{
-    are_option_gcs_equal, cartesian_product, create_diagnostic_for_node,
-    factory, get_declaration_modifier_flags_from_symbol, get_symbol_name_for_private_identifier,
-    is_named_declaration, is_private_identifier, length, push_if_unique_gc,
-    reduce_left, some, CheckFlags, DiagnosticMessage, DiagnosticMessageChain, Diagnostics,
-    ElementFlags, IndexInfo, ModifierFlags, Node, NodeInterface, ObjectFlags, Signature,
-    SignatureFlags, SignatureKind, Symbol, SymbolFlags, SymbolInterface, SyntaxKind, Ternary, Type,
-    TypeFlags, TypeFormatFlags, TypeInterface, VarianceFlags, __String, get_check_flags,
-    get_object_flags, return_ok_default_if_none,
+    are_option_gcs_equal, cartesian_product, create_diagnostic_for_node, factory,
+    get_declaration_modifier_flags_from_symbol, get_symbol_name_for_private_identifier,
+    is_named_declaration, is_private_identifier, length, push_if_unique_gc, reduce_left, some,
+    CheckFlags, DiagnosticMessage, DiagnosticMessageChain, Diagnostics, ElementFlags, IndexInfo,
+    ModifierFlags, Node, NodeInterface, ObjectFlags, Signature, SignatureFlags, SignatureKind,
+    Symbol, SymbolFlags, SymbolInterface, SyntaxKind, Ternary, Type, TypeFlags, TypeFormatFlags,
+    TypeInterface, VarianceFlags, __String, get_check_flags, get_object_flags,
+    return_ok_default_if_none,
 };
 
 impl CheckTypeRelatedTo {

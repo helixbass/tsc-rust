@@ -903,53 +903,46 @@ impl TransformClassFields {
         let function_name = self.get_hoisted_function_name(node);
         if let Some(function_name) = function_name {
             self.get_pending_expressions().push(
-                self.factory
-                    .create_assignment(
-                        function_name.clone(),
-                        self.factory
-                            .create_function_expression(
-                                maybe_filter(
-                                    node.maybe_modifiers().as_double_deref(),
-                                    |m: &Gc<Node>| !is_static_modifier(m),
-                                ),
-                                node_as_function_like_declaration.maybe_asterisk_token(),
-                                Some(function_name),
-                                Option::<Gc<NodeArray>>::None,
-                                visit_parameter_list(
-                                    Some(&node_as_function_like_declaration.parameters()),
-                                    |node: &Node| self.class_element_visitor(node),
-                                    &**self.context,
-                                    Option::<
-                                        fn(
-                                            Option<&NodeArray>,
-                                            Option<&mut dyn FnMut(&Node) -> VisitResult>,
-                                            Option<&dyn Fn(&Node) -> bool>,
-                                            Option<usize>,
-                                            Option<usize>,
-                                        )
-                                            -> Option<Gc<NodeArray>>,
-                                    >::None,
-                                ),
-                                None,
-                                visit_function_body(
-                                    Some(&node_as_function_like_declaration.maybe_body().unwrap()),
-                                    |node: &Node| self.class_element_visitor(node),
-                                    &**self.context,
-                                    Option::<
-                                        fn(
-                                            Option<&Node>,
-                                            Option<&mut dyn FnMut(&Node) -> VisitResult>,
-                                            Option<&dyn Fn(&Node) -> bool>,
-                                            Option<&dyn Fn(&[Gc<Node>]) -> Gc<Node>>,
-                                        )
-                                            -> Option<Gc<Node>>,
-                                    >::None,
-                                )
-                                .unwrap(),
-                            )
-                            ,
-                    )
-                    ,
+                self.factory.create_assignment(
+                    function_name.clone(),
+                    self.factory.create_function_expression(
+                        maybe_filter(node.maybe_modifiers().as_double_deref(), |m: &Gc<Node>| {
+                            !is_static_modifier(m)
+                        }),
+                        node_as_function_like_declaration.maybe_asterisk_token(),
+                        Some(function_name),
+                        Option::<Gc<NodeArray>>::None,
+                        visit_parameter_list(
+                            Some(&node_as_function_like_declaration.parameters()),
+                            |node: &Node| self.class_element_visitor(node),
+                            &**self.context,
+                            Option::<
+                                fn(
+                                    Option<&NodeArray>,
+                                    Option<&mut dyn FnMut(&Node) -> VisitResult>,
+                                    Option<&dyn Fn(&Node) -> bool>,
+                                    Option<usize>,
+                                    Option<usize>,
+                                ) -> Option<Gc<NodeArray>>,
+                            >::None,
+                        ),
+                        None,
+                        visit_function_body(
+                            Some(&node_as_function_like_declaration.maybe_body().unwrap()),
+                            |node: &Node| self.class_element_visitor(node),
+                            &**self.context,
+                            Option::<
+                                fn(
+                                    Option<&Node>,
+                                    Option<&mut dyn FnMut(&Node) -> VisitResult>,
+                                    Option<&dyn Fn(&Node) -> bool>,
+                                    Option<&dyn Fn(&[Gc<Node>]) -> Gc<Node>>,
+                                ) -> Option<Gc<Node>>,
+                            >::None,
+                        )
+                        .unwrap(),
+                    ),
+                ),
             );
         }
 
@@ -1156,11 +1149,9 @@ impl TransformClassFields {
                             self.factory
                                 .create_reflect_get_call(
                                     super_class_reference.clone(),
-                                    self.factory
-                                        .create_string_literal_from_node(
-                                            &node_as_property_access_expression.name(),
-                                        )
-                                        ,
+                                    self.factory.create_string_literal_from_node(
+                                        &node_as_property_access_expression.name(),
+                                    ),
                                     Some(class_constructor.clone()),
                                 )
                                 .set_original_node(Some(
@@ -1387,8 +1378,7 @@ impl TransformClassFieldsOnSubstituteNodeOverrider {
                         .factory
                         .create_parenthesized_expression(
                             self.transform_class_fields.factory.create_void_zero(),
-                        )
-                        ;
+                        );
                 }
                 if let Some(class_constructor) = class_constructor {
                     return self

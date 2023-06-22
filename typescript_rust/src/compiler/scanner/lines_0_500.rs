@@ -1,9 +1,6 @@
+use std::{cell::Ref, cmp, collections::HashMap, convert::TryInto, iter::FromIterator};
+
 use regex::Regex;
-use std::cell::Ref;
-use std::cmp;
-use std::collections::HashMap;
-use std::convert::TryInto;
-use std::iter::FromIterator;
 
 use crate::{
     arrays_equal, binary_search_copy_key, compare_values, maybe_text_char_at_index,

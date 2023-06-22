@@ -1,25 +1,24 @@
+use std::{borrow::Borrow, collections::HashMap, io, ptr};
+
 use gc::{Gc, GcCell};
 use itertools::Itertools;
-use std::collections::HashMap;
-use std::ptr;
-use std::{borrow::Borrow, io};
 
 use super::{get_node_id, MembersOrExportsResolutionKind};
 use crate::{
     SyntaxKind, TransientSymbolInterface, Type, TypeChecker, TypeFlags, TypeInterface,
     UnderscoreEscapedMap, __String, add_range, chain_diagnostic_messages,
-    create_diagnostic_for_node, create_symbol_table, first,
-    get_declaration_of_kind, get_es_module_interop, get_namespace_declaration_node,
-    get_object_flags, get_source_file_of_node, get_text_of_node, get_types_package_name,
-    is_access_expression, is_ambient_module, is_binary_expression, is_class_expression,
-    is_entity_name_expression, is_exports_identifier, is_external_module,
-    is_external_module_name_relative, is_import_call, is_import_declaration,
-    is_module_exports_access_expression, is_object_literal_expression, is_type_literal_node,
-    is_variable_declaration, length, mangle_scoped_package_name, node_is_synthesized,
-    push_if_unique_gc, return_ok_default_if_none, return_ok_none_if_none, try_for_each_entry,
-    try_map_defined, unescape_leading_underscores, Diagnostics, HasInitializerInterface,
-    HasTypeInterface, InternalSymbolName, ModuleKind, Node, NodeInterface, ObjectFlags, OptionTry,
-    ResolvedModuleFull, SignatureKind, Symbol, SymbolFlags, SymbolInterface, SymbolTable,
+    create_diagnostic_for_node, create_symbol_table, first, get_declaration_of_kind,
+    get_es_module_interop, get_namespace_declaration_node, get_object_flags,
+    get_source_file_of_node, get_text_of_node, get_types_package_name, is_access_expression,
+    is_ambient_module, is_binary_expression, is_class_expression, is_entity_name_expression,
+    is_exports_identifier, is_external_module, is_external_module_name_relative, is_import_call,
+    is_import_declaration, is_module_exports_access_expression, is_object_literal_expression,
+    is_type_literal_node, is_variable_declaration, length, mangle_scoped_package_name,
+    node_is_synthesized, push_if_unique_gc, return_ok_default_if_none, return_ok_none_if_none,
+    try_for_each_entry, try_map_defined, unescape_leading_underscores, Diagnostics,
+    HasInitializerInterface, HasTypeInterface, InternalSymbolName, ModuleKind, Node, NodeInterface,
+    ObjectFlags, OptionTry, ResolvedModuleFull, SignatureKind, Symbol, SymbolFlags,
+    SymbolInterface, SymbolTable,
 };
 
 impl TypeChecker {

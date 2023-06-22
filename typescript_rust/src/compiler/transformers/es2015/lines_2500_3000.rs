@@ -55,16 +55,12 @@ impl TransformES2015 {
             .emit_helpers()
             .create_values_helper(expression.clone())
             .set_text_range(Some(&*node_as_for_of_statement.expression));
-        let next = self
-            .factory
-            .create_call_expression(
-                self.factory
-                    .create_property_access_expression(iterator.clone(), "next")
-                    ,
-                Option::<Gc<NodeArray>>::None,
-                Some(vec![]),
-            )
-            ;
+        let next = self.factory.create_call_expression(
+            self.factory
+                .create_property_access_expression(iterator.clone(), "next"),
+            Option::<Gc<NodeArray>>::None,
+            Some(vec![]),
+        );
 
         self.context.hoist_variable_declaration(&error_record);
         self.context.hoist_variable_declaration(&return_method);
@@ -75,8 +71,7 @@ impl TransformES2015 {
         {
             self.factory.inline_expressions(&[
                 self.factory
-                    .create_assignment(error_record.clone(), self.factory.create_void_zero())
-                    ,
+                    .create_assignment(error_record.clone(), self.factory.create_void_zero()),
                 values.clone(),
             ])
         } else {
@@ -97,179 +92,136 @@ impl TransformES2015 {
                                         None,
                                         Some(initializer),
                                     )
-                                    
                                     .set_text_range(Some(&*node_as_for_of_statement.expression)),
-                                self.factory
-                                    .create_variable_declaration(
-                                        Some(result.clone()),
-                                        None,
-                                        None,
-                                        Some(next.clone()),
-                                    )
-                                    ,
+                                self.factory.create_variable_declaration(
+                                    Some(result.clone()),
+                                    None,
+                                    None,
+                                    Some(next.clone()),
+                                ),
                             ],
                             None,
                         )
-                        
                         .set_text_range(Some(&*node_as_for_of_statement.expression))
                         .set_emit_flags(EmitFlags::NoHoisting),
                 ),
                 Some(
-                    self.factory
-                        .create_logical_not(
-                            self.factory
-                                .create_property_access_expression(result.clone(), "done")
-                                ,
-                        )
-                        ,
+                    self.factory.create_logical_not(
+                        self.factory
+                            .create_property_access_expression(result.clone(), "done"),
+                    ),
                 ),
                 Some(self.factory.create_assignment(result.clone(), next)),
                 self.convert_for_of_statement_head(
                     node,
                     &self
                         .factory
-                        .create_property_access_expression(result.clone(), "value")
-                        ,
+                        .create_property_access_expression(result.clone(), "value"),
                     converted_loop_body_statements,
                 )?,
             )
-            
             .set_text_range(Some(node))
             .set_emit_flags(EmitFlags::NoTokenTrailingSourceMaps);
 
-        Ok(self
-            .factory
-            .create_try_statement(
-                self.factory
-                    .create_block(
-                        vec![self.factory.restore_enclosing_label(
-                            &for_statement,
-                            outermost_labeled_statement,
-                            self.maybe_converted_loop_state().map(|_| {
-                                |node: &Node| {
-                                    self.reset_label(node);
-                                }
-                            }),
-                        )],
+        Ok(self.factory.create_try_statement(
+            self.factory.create_block(
+                vec![self.factory.restore_enclosing_label(
+                    &for_statement,
+                    outermost_labeled_statement,
+                    self.maybe_converted_loop_state().map(|_| {
+                        |node: &Node| {
+                            self.reset_label(node);
+                        }
+                    }),
+                )],
+                None,
+            ),
+            Some(
+                self.factory.create_catch_clause(
+                    Some(self.factory.create_variable_declaration(
+                        Some(catch_variable.clone()),
                         None,
-                    )
-                    ,
-                Some(
+                        None,
+                        None,
+                    )),
                     self.factory
-                        .create_catch_clause(
-                            Some(
-                                self.factory
-                                    .create_variable_declaration(
-                                        Some(catch_variable.clone()),
+                        .create_block(
+                            vec![self.factory.create_expression_statement(
+                                self.factory.create_assignment(
+                                    error_record.clone(),
+                                    self.factory.create_object_literal_expression(
+                                        Some(vec![self
+                                            .factory
+                                            .create_property_assignment("error", catch_variable)]),
                                         None,
-                                        None,
-                                        None,
-                                    )
-                                    ,
-                            ),
+                                    ),
+                                ),
+                            )],
+                            None,
+                        )
+                        .set_emit_flags(EmitFlags::SingleLine),
+                ),
+            ),
+            Some(self.factory.create_block(
+                vec![self.factory.create_try_statement(
+                        self.factory.create_block(
+                            vec![self
+                                .factory
+                                .create_if_statement(
+                                    self.factory.create_logical_and(
+                                        self.factory.create_logical_and(
+                                            result.clone(),
+                                            self.factory.create_logical_not(
+                                                self.factory.create_property_access_expression(
+                                                    result, "done",
+                                                ),
+                                            ),
+                                        ),
+                                        self.factory.create_assignment(
+                                            return_method.clone(),
+                                            self.factory.create_property_access_expression(
+                                                iterator.clone(),
+                                                "return",
+                                            ),
+                                        ),
+                                    ),
+                                    self.factory.create_expression_statement(
+                                        self.factory.create_function_call_call(
+                                            return_method,
+                                            iterator,
+                                            vec![],
+                                        ),
+                                    ),
+                                    None,
+                                )
+                                .set_emit_flags(EmitFlags::SingleLine)],
+                            None,
+                        ),
+                        None,
+                        Some(
                             self.factory
                                 .create_block(
                                     vec![self
                                         .factory
-                                        .create_expression_statement(
-                                            self.factory
-                                                .create_assignment(
-                                                    error_record.clone(),
-                                                    self.factory
-                                                        .create_object_literal_expression(
-                                                            Some(vec![self
-                                                                .factory
-                                                                .create_property_assignment(
-                                                                    "error",
-                                                                    catch_variable,
-                                                                )
-                                                                ]),
-                                                            None,
-                                                        )
-                                                        ,
-                                                )
-                                                ,
-                                        )
-                                        ],
-                                    None,
-                                )
-                                
-                                .set_emit_flags(EmitFlags::SingleLine),
-                        )
-                        ,
-                ),
-                Some(
-                    self.factory
-                        .create_block(
-                            vec![self
-                                .factory
-                                .create_try_statement(
-                                    self.factory
-                                        .create_block(
-                                            vec![
-                                                self.factory.create_if_statement(
-                                                    self.factory.create_logical_and(
-                                                        self.factory.create_logical_and(
-                                                            result.clone(),
-                                                            self.factory.create_logical_not(
-                                                                self.factory.create_property_access_expression(
-                                                                    result,
-                                                                    "done"
-                                                                )
-                                                            )
-                                                        ),
-                                                        self.factory.create_assignment(
-                                                            return_method.clone(),
-                                                            self.factory.create_property_access_expression(
-                                                                iterator.clone(),
-                                                                "return"
-                                                            )
-                                                        )
-                                                    ),
-                                                    self.factory.create_expression_statement(
-                                                        self.factory.create_function_call_call(
-                                                            return_method,
-                                                            iterator,
-                                                            vec![]
-                                                        )
-                                                    ),
-                                                    None,
-                                                )
-                                                    .set_emit_flags(EmitFlags::SingleLine)
-                                            ],
+                                        .create_if_statement(
+                                            error_record.clone(),
+                                            self.factory.create_throw_statement(
+                                                self.factory.create_property_access_expression(
+                                                    error_record,
+                                                    "error",
+                                                ),
+                                            ),
                                             None,
                                         )
-                                        ,
+                                        .set_emit_flags(EmitFlags::SingleLine)],
                                     None,
-                                    Some(
-                                        self.factory
-                                            .create_block(
-                                                vec![
-                                                    self.factory.create_if_statement(
-                                                        error_record.clone(),
-                                                        self.factory.create_throw_statement(
-                                                            self.factory.create_property_access_expression(
-                                                                error_record,
-                                                                "error"
-                                                            )
-                                                        ),
-                                                        None,
-                                                    )
-                                                        .set_emit_flags(EmitFlags::SingleLine)
-                                                ],
-                                                None,
-                                            )
-                                            
-                                            .set_emit_flags(EmitFlags::SingleLine),
-                                    ),
                                 )
-                                ],
-                            None,
-                        )
-                        ,
-                ),
-            )
-            )
+                                .set_emit_flags(EmitFlags::SingleLine),
+                        ),
+                    )],
+                None,
+            )),
+        ))
     }
 
     pub(super) fn visit_object_literal_expression(
@@ -315,29 +267,25 @@ impl TransformES2015 {
         );
 
         let mut expressions: Vec<Gc<Node /*Expression*/>> = _d();
-        let assignment = self
-            .factory
-            .create_assignment(
-                temp.clone(),
-                self.factory
-                    .create_object_literal_expression(
-                        try_maybe_visit_nodes(
-                            Some(properties),
-                            Some(|node: &Node| self.visitor(node)),
-                            Some(is_object_literal_element_like),
-                            Some(0),
-                            Some(num_initial_properties),
-                        )?,
-                        node_as_object_literal_expression.multi_line,
-                    )
-                    
-                    .set_emit_flags(if has_computed {
-                        EmitFlags::Indented
-                    } else {
-                        EmitFlags::None
-                    }),
-            )
-            ;
+        let assignment = self.factory.create_assignment(
+            temp.clone(),
+            self.factory
+                .create_object_literal_expression(
+                    try_maybe_visit_nodes(
+                        Some(properties),
+                        Some(|node: &Node| self.visitor(node)),
+                        Some(is_object_literal_element_like),
+                        Some(0),
+                        Some(num_initial_properties),
+                    )?,
+                    node_as_object_literal_expression.multi_line,
+                )
+                .set_emit_flags(if has_computed {
+                    EmitFlags::Indented
+                } else {
+                    EmitFlags::None
+                }),
+        );
 
         if node_as_object_literal_expression.multi_line == Some(true) {
             start_on_new_line(&*assignment);
@@ -612,8 +560,7 @@ impl TransformES2015 {
                     initializer_function.as_ref(),
                     &self
                         .factory
-                        .create_block(body_function.part.clone(), Some(true))
-                        ,
+                        .create_block(body_function.part.clone(), Some(true)),
                 )?;
                 loop_ = self.factory.restore_enclosing_label(
                     &clone,
@@ -894,16 +841,12 @@ impl TransformES2015 {
             } else {
                 extra_variable_declarations
                     .get_or_insert_with(|| _d())
-                    .push(
-                        self.factory
-                            .create_variable_declaration(
-                                Some(state_arguments_name.clone()),
-                                None,
-                                None,
-                                Some(self.factory.create_identifier("arguments")),
-                            )
-                            ,
-                    );
+                    .push(self.factory.create_variable_declaration(
+                        Some(state_arguments_name.clone()),
+                        None,
+                        None,
+                        Some(self.factory.create_identifier("arguments")),
+                    ));
             }
         }
 
@@ -913,16 +856,12 @@ impl TransformES2015 {
             } else {
                 extra_variable_declarations
                     .get_or_insert_with(|| _d())
-                    .push(
-                        self.factory
-                            .create_variable_declaration(
-                                Some(state_this_name.clone()),
-                                None,
-                                None,
-                                Some(self.factory.create_identifier("this")),
-                            )
-                            ,
-                    );
+                    .push(self.factory.create_variable_declaration(
+                        Some(state_this_name.clone()),
+                        None,
+                        None,
+                        Some(self.factory.create_identifier("this")),
+                    ));
             }
         }
 
@@ -934,11 +873,12 @@ impl TransformES2015 {
                 let extra_variable_declarations =
                     extra_variable_declarations.get_or_insert_with(|| _d());
                 for identifier in state_hoisted_local_variables {
-                    extra_variable_declarations.push(
-                        self.factory
-                            .create_variable_declaration(Some(identifier.clone()), None, None, None)
-                            ,
-                    );
+                    extra_variable_declarations.push(self.factory.create_variable_declaration(
+                        Some(identifier.clone()),
+                        None,
+                        None,
+                        None,
+                    ));
                 }
             }
         }
@@ -947,44 +887,33 @@ impl TransformES2015 {
             let extra_variable_declarations =
                 extra_variable_declarations.get_or_insert_with(|| _d());
             for out_param in &state.loop_out_parameters {
-                extra_variable_declarations.push(
-                    self.factory
-                        .create_variable_declaration(
-                            Some(out_param.out_param_name.clone()),
-                            None,
-                            None,
-                            None,
-                        )
-                        ,
-                );
+                extra_variable_declarations.push(self.factory.create_variable_declaration(
+                    Some(out_param.out_param_name.clone()),
+                    None,
+                    None,
+                    None,
+                ));
             }
         }
 
         if let Some(state_condition_variable) = state.condition_variable.as_ref() {
             extra_variable_declarations
                 .get_or_insert_with(|| _d())
-                .push(
-                    self.factory
-                        .create_variable_declaration(
-                            Some(state_condition_variable.clone()),
-                            None,
-                            None,
-                            Some(self.factory.create_false()),
-                        )
-                        ,
-                );
+                .push(self.factory.create_variable_declaration(
+                    Some(state_condition_variable.clone()),
+                    None,
+                    None,
+                    Some(self.factory.create_false()),
+                ));
         }
 
         if let Some(extra_variable_declarations) = extra_variable_declarations {
             statements.push(
-                self.factory
-                    .create_variable_statement(
-                        Option::<Gc<NodeArray>>::None,
-                        self.factory
-                            .create_variable_declaration_list(extra_variable_declarations, None)
-                            ,
-                    )
-                    ,
+                self.factory.create_variable_statement(
+                    Option::<Gc<NodeArray>>::None,
+                    self.factory
+                        .create_variable_declaration_list(extra_variable_declarations, None),
+                ),
             );
         }
     }

@@ -78,11 +78,7 @@ impl TransformGenerators {
             &mut statements,
             self.context.end_lexical_environment().as_deref(),
         );
-        statements.push(
-            self.factory
-                .create_return_statement(Some(build_result))
-                ,
-        );
+        statements.push(self.factory.create_return_statement(Some(build_result)));
 
         self.set_in_generator_function_body(saved_in_generator_function_body);
         self.set_in_statement_containing_yield(saved_in_statement_containing_yield);
@@ -100,7 +96,6 @@ impl TransformGenerators {
 
         self.factory
             .create_block(statements, body_as_block.multi_line)
-            
             .set_text_range(Some(body))
     }
 
@@ -144,7 +139,6 @@ impl TransformGenerators {
                                 self.transform_initialized_variable(variable)
                             })),
                     )
-                    
                     .set_source_map_range(Some(node.into())),
             )
         }
@@ -231,10 +225,8 @@ impl TransformGenerators {
                                     Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
                                 ),
                             )
-                            
                             .set_text_range(Some(node)),
                     )
-                    
                     .set_text_range(Some(node));
             } else {
                 return self.factory.update_binary_expression(
@@ -324,7 +316,6 @@ impl TransformGenerators {
                             .create_expression_statement(
                                 self.factory.inline_expressions(&pending_expressions),
                             )
-                            
                             .into(),
                     ),
                     Option::<&Node>::None,
@@ -361,7 +352,6 @@ impl TransformGenerators {
                                 .create_expression_statement(
                                     self.factory.inline_expressions(&pending_expressions),
                                 )
-                                
                                 .into(),
                         ),
                         Option::<&Node>::None,
@@ -548,18 +538,16 @@ impl TransformGenerators {
             );
             self.emit_assignment(
                 temp.clone().unwrap(),
-                self.factory
-                    .create_array_literal_expression(
-                        Some(if let Some(leading_element) = leading_element.as_ref() {
-                            vec![leading_element.clone()]
-                                .and_extend(initial_elements.to_vec())
-                                .into()
-                        } else {
-                            initial_elements.into_a::<NodeArrayOrVec>()
-                        }),
-                        None,
-                    )
-                    ,
+                self.factory.create_array_literal_expression(
+                    Some(if let Some(leading_element) = leading_element.as_ref() {
+                        vec![leading_element.clone()]
+                            .and_extend(initial_elements.to_vec())
+                            .into()
+                    } else {
+                        initial_elements.into_a::<NodeArrayOrVec>()
+                    }),
+                    None,
+                ),
                 Option::<&Node>::None,
             );
             leading_element = None;
@@ -585,8 +573,7 @@ impl TransformGenerators {
                 temp,
                 vec![self
                     .factory
-                    .create_array_literal_expression(Some(expressions), multi_line)
-                    ],
+                    .create_array_literal_expression(Some(expressions), multi_line)],
             )
         } else {
             self.factory
@@ -598,7 +585,6 @@ impl TransformGenerators {
                     }),
                     multi_line,
                 )
-                
                 .set_text_range(location)
         }
     }

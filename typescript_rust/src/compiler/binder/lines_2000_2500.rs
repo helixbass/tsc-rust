@@ -1,7 +1,6 @@
+use std::{borrow::Borrow, collections::HashMap, convert::TryInto};
+
 use gc::{Gc, GcCell};
-use std::borrow::Borrow;
-use std::collections::HashMap;
-use std::convert::TryInto;
 
 use super::{
     get_module_instance_state, init_flow_node, is_exports_or_module_exports_or_alias, BinderType,

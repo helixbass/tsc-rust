@@ -1,8 +1,7 @@
+use std::{fmt, hash, ops};
+
 use gc::{unsafe_empty_trace, Finalize, Trace};
 use serde::Serialize;
-use std::fmt;
-use std::hash;
-use std::ops;
 
 #[derive(Clone, Copy, Debug, PartialOrd, Serialize, Finalize)]
 pub struct Number(f64);

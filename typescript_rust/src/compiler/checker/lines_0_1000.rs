@@ -1,13 +1,16 @@
+use std::{
+    borrow::Borrow,
+    cell::{Cell, Ref, RefMut},
+    collections::HashMap,
+    fmt, io,
+    iter::FromIterator,
+    ptr,
+};
+
 use bitflags::bitflags;
 use gc::{Finalize, Gc, GcCell, GcCellRef, GcCellRefMut, Trace};
 use indexmap::IndexMap;
 use regex::Regex;
-use std::borrow::Borrow;
-use std::cell::{Cell, Ref, RefMut};
-use std::collections::HashMap;
-use std::iter::FromIterator;
-use std::ptr;
-use std::{fmt, io};
 
 use super::{is_not_accessor, is_not_overload};
 use crate::{

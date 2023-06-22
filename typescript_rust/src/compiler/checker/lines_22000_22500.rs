@@ -1,22 +1,16 @@
+use std::{cmp, io, iter::once, ptr};
+
 use gc::Gc;
 use itertools::Either;
 use peekmore::PeekMore;
-use std::cmp;
-use std::io;
-use std::iter::once;
-use std::ptr;
 
 use super::InferTypes;
-use crate::try_some;
-use crate::OptionTry;
-use crate::PeekMoreExt;
-use crate::PeekableExt;
-use crate::VecExt;
 use crate::{
-    every, find, flat_map, get_object_flags, DiagnosticMessage, Diagnostics, ElementFlags,
-    InferenceContext, InferenceFlags, InferenceInfo, InferencePriority, Node, NodeInterface,
-    ObjectFlags, Signature, SignatureKind, Symbol, SymbolFlags, SymbolInterface, SyntaxKind,
-    Ternary, Type, TypeChecker, TypeFlags, TypeInterface, UnionReduction,
+    every, find, flat_map, get_object_flags, try_some, DiagnosticMessage, Diagnostics,
+    ElementFlags, InferenceContext, InferenceFlags, InferenceInfo, InferencePriority, Node,
+    NodeInterface, ObjectFlags, OptionTry, PeekMoreExt, PeekableExt, Signature, SignatureKind,
+    Symbol, SymbolFlags, SymbolInterface, SyntaxKind, Ternary, Type, TypeChecker, TypeFlags,
+    TypeInterface, UnionReduction, VecExt,
 };
 
 impl InferTypes {

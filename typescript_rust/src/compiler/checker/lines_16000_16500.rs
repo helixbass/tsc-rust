@@ -1,26 +1,24 @@
-use gc::{Finalize, Gc, Trace};
-use std::collections::HashMap;
-use std::ptr;
+use std::{borrow::Borrow, collections::HashMap, io, ptr};
 
-use std::{borrow::Borrow, io};
+use gc::{Finalize, Gc, Trace};
+use local_macros::enum_unwrapped;
 
 use crate::{
-    find_index, is_constructor_declaration, is_function_expression, is_node_descendant_of,
+    find_index, get_assignment_declaration_kind, get_check_flags, get_host_signature_from_jsdoc,
+    get_symbol_id, get_this_container, is_binary_expression, is_class_like,
+    is_constructor_declaration, is_function_expression, is_node_descendant_of,
     is_object_literal_expression, is_private_identifier_class_element_declaration, is_static,
-    is_valid_es_symbol_declaration, map, maybe_add_range, pseudo_big_int_to_string,
-    some, AssignmentDeclarationKind, BaseLiteralType, BigIntLiteralType, CheckFlags, Diagnostics,
+    is_valid_es_symbol_declaration, map, maybe_add_range, maybe_is_class_like,
+    pseudo_big_int_to_string, return_ok_none_if_none, some, try_map, try_maybe_filter, try_some,
+    AssignmentDeclarationKind, BaseLiteralType, BigIntLiteralType, CheckFlags, Diagnostics,
     FunctionLikeDeclarationInterface, IndexInfo, InferenceContext, InferenceInfo,
     InterfaceTypeInterface, IntrinsicType, LiteralTypeInterface, Node, NodeFlags, NodeInterface,
     Number, NumberLiteralType, ObjectFlags, ObjectFlagsTypeInterface, ObjectTypeInterface,
-    PseudoBigInt, Signature, SignatureFlags, StringLiteralType, StringOrNumber, Symbol,
+    OptionTry, PseudoBigInt, Signature, SignatureFlags, StringLiteralType, StringOrNumber, Symbol,
     SymbolFlags, SymbolInterface, SyntaxKind, TransientSymbolInterface, Type, TypeChecker,
     TypeFlags, TypeInterface, TypeMapper, TypeMapperCallback, TypePredicate,
-    TypeReferenceInterface, UniqueESSymbolType, get_assignment_declaration_kind,
-    get_check_flags, get_host_signature_from_jsdoc, get_symbol_id, get_this_container,
-    is_binary_expression, is_class_like, maybe_is_class_like, return_ok_none_if_none, try_map,
-    try_maybe_filter, try_some, OptionTry,
+    TypeReferenceInterface, UniqueESSymbolType,
 };
-use local_macros::enum_unwrapped;
 
 impl TypeChecker {
     pub(super) fn is_spreadable_property(&self, prop: &Symbol) -> bool {

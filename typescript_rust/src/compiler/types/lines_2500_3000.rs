@@ -1,5 +1,7 @@
-use gc::{Finalize, Gc, GcCell, GcCellRefMut, Trace};
 use std::cell::{Cell, Ref, RefCell};
+
+use gc::{Finalize, Gc, GcCell, GcCellRefMut, Trace};
+use local_macros::ast_type;
 
 use super::{
     BaseBindingLikeDeclaration, BaseNamedDeclaration, BaseNode, BaseVariableLikeDeclaration,
@@ -9,7 +11,6 @@ use super::{
     NamedDeclarationInterface, Node, NodeArray, NodeInterface, SyntaxKind,
     VariableLikeDeclarationInterface,
 };
-use local_macros::ast_type;
 
 #[derive(Debug, Trace, Finalize)]
 #[ast_type]

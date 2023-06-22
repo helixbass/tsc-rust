@@ -1,6 +1,6 @@
+use std::{borrow::Borrow, collections::HashMap};
+
 use gc::{Gc, GcCell};
-use std::borrow::Borrow;
-use std::collections::HashMap;
 
 use super::{is_exports_or_module_exports_or_alias, lookup_symbol_for_name, BinderType};
 use crate::{

@@ -165,20 +165,15 @@ impl TransformModule {
                     Option::<&Node>::None,
                     None,
                 ))
-                
         } else {
             self.factory
-                .create_expression_statement(
-                    self.factory
-                        .create_call_expression(
-                            self.factory
-                                .create_property_access_expression(
-                                    self.factory.create_identifier("Object"),
-                                    "defineProperty",
-                                )
-                                ,
-                            Option::<Gc<NodeArray>>::None,
-                            Some(vec![
+                .create_expression_statement(self.factory.create_call_expression(
+                    self.factory.create_property_access_expression(
+                        self.factory.create_identifier("Object"),
+                        "defineProperty",
+                    ),
+                    Option::<Gc<NodeArray>>::None,
+                    Some(vec![
                                 self.factory.create_identifier("exports"),
                                 self.factory
                                     .create_string_literal("__esModule".to_owned(), None, None)
@@ -196,10 +191,7 @@ impl TransformModule {
                                     )
                                     ,
                             ]),
-                        )
-                        ,
-                )
-                
+                ))
         }
         .set_emit_flags(EmitFlags::CustomPrologue)
     }
@@ -220,7 +212,6 @@ impl TransformModule {
                 Option::<&Node>::None,
                 live_binding,
             ))
-            
             .set_text_range(location)
             .start_on_new_line();
         if allow_comments != Some(true) {
@@ -238,72 +229,51 @@ impl TransformModule {
         live_binding: Option<bool>,
     ) -> Gc<Node> {
         if live_binding == Some(true) && self.language_version != ScriptTarget::ES3 {
-            self.factory
-                .create_call_expression(
-                    self.factory
-                        .create_property_access_expression(
-                            self.factory.create_identifier("Object"),
-                            "defineProperty",
-                        )
-                        ,
-                    Option::<Gc<NodeArray>>::None,
-                    Some(vec![
-                        self.factory.create_identifier("exports"),
-                        self.factory.create_string_literal_from_node(name),
-                        self.factory
-                            .create_object_literal_expression(
-                                Some(vec![
-                                    self.factory
-                                        .create_property_assignment(
-                                            "enumerable",
-                                            self.factory.create_true(),
-                                        )
-                                        ,
-                                    self.factory
-                                        .create_property_assignment(
-                                            "get",
-                                            self.factory
-                                                .create_function_expression(
-                                                    Option::<Gc<NodeArray>>::None,
-                                                    None,
-                                                    Option::<Gc<Node>>::None,
-                                                    Option::<Gc<NodeArray>>::None,
-                                                    Some(vec![]),
-                                                    None,
-                                                    self.factory
-                                                        .create_block(
-                                                            vec![self
-                                                                .factory
-                                                                .create_return_statement(Some(
-                                                                    value.node_wrapper(),
-                                                                ))
-                                                                ],
-                                                            None,
-                                                        )
-                                                        ,
-                                                )
-                                                ,
-                                        )
-                                        ,
-                                ]),
-                                None,
-                            )
-                            ,
-                    ]),
-                )
-                
+            self.factory.create_call_expression(
+                self.factory.create_property_access_expression(
+                    self.factory.create_identifier("Object"),
+                    "defineProperty",
+                ),
+                Option::<Gc<NodeArray>>::None,
+                Some(vec![
+                    self.factory.create_identifier("exports"),
+                    self.factory.create_string_literal_from_node(name),
+                    self.factory.create_object_literal_expression(
+                        Some(vec![
+                            self.factory.create_property_assignment(
+                                "enumerable",
+                                self.factory.create_true(),
+                            ),
+                            self.factory.create_property_assignment(
+                                "get",
+                                self.factory.create_function_expression(
+                                    Option::<Gc<NodeArray>>::None,
+                                    None,
+                                    Option::<Gc<Node>>::None,
+                                    Option::<Gc<NodeArray>>::None,
+                                    Some(vec![]),
+                                    None,
+                                    self.factory.create_block(
+                                        vec![self
+                                            .factory
+                                            .create_return_statement(Some(value.node_wrapper()))],
+                                        None,
+                                    ),
+                                ),
+                            ),
+                        ]),
+                        None,
+                    ),
+                ]),
+            )
         } else {
-            self.factory
-                .create_assignment(
-                    self.factory
-                        .create_property_access_expression(
-                            self.factory.create_identifier("exports"),
-                            self.factory.clone_node(name),
-                        )
-                        ,
-                    value.node_wrapper(),
-                )
-                
+            self.factory.create_assignment(
+                self.factory.create_property_access_expression(
+                    self.factory.create_identifier("exports"),
+                    self.factory.clone_node(name),
+                ),
+                value.node_wrapper(),
+            )
         }
         .set_text_range(location)
     }

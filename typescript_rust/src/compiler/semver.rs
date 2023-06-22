@@ -1,6 +1,6 @@
+use std::{ptr, rc::Rc};
+
 use regex::Regex;
-use std::ptr;
-use std::rc::Rc;
 
 use crate::{compare_values, trim_string, Comparison, Debug_};
 

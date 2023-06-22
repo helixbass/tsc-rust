@@ -1,9 +1,12 @@
+use std::{
+    borrow::Cow,
+    cell::{Cell, RefCell, RefMut},
+    collections::HashMap,
+    io, ptr,
+    rc::Rc,
+};
+
 use gc::{Finalize, Gc, GcCell, GcCellRefMut, Trace};
-use std::borrow::Cow;
-use std::cell::{Cell, RefCell, RefMut};
-use std::collections::HashMap;
-use std::rc::Rc;
-use std::{io, ptr};
 
 use super::{
     CheckTypeContainingMessageChain, CheckTypeErrorOutputContainer, ExpandingFlags,
@@ -15,12 +18,11 @@ use crate::{
     create_diagnostic_for_node_from_message_chain, find_ancestor, first_or_undefined,
     get_emit_script_target, get_object_flags, is_identifier, is_identifier_text, is_import_call,
     is_jsx_attribute, is_jsx_attributes, is_jsx_opening_like_element,
-    is_object_literal_element_like, maybe_get_source_file_of_node, some,
-    try_reduce_left, Debug_, Diagnostic, DiagnosticMessage, DiagnosticMessageChain,
-    DiagnosticRelatedInformation, Diagnostics, Node, NodeInterface, ObjectFlags,
-    ObjectFlagsTypeInterface, OptionTry, RelationComparisonResult, SignatureKind, Symbol,
-    SymbolInterface, Ternary, Type, TypeChecker, TypeFlags, TypeInterface,
-    UnionOrIntersectionTypeInterface,
+    is_object_literal_element_like, maybe_get_source_file_of_node, some, try_reduce_left, Debug_,
+    Diagnostic, DiagnosticMessage, DiagnosticMessageChain, DiagnosticRelatedInformation,
+    Diagnostics, Node, NodeInterface, ObjectFlags, ObjectFlagsTypeInterface, OptionTry,
+    RelationComparisonResult, SignatureKind, Symbol, SymbolInterface, Ternary, Type, TypeChecker,
+    TypeFlags, TypeInterface, UnionOrIntersectionTypeInterface,
 };
 
 #[derive(Trace, Finalize)]

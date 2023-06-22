@@ -1,5 +1,6 @@
-use gc::{Gc, GcCell};
 use std::borrow::Borrow;
+
+use gc::{Gc, GcCell};
 
 use super::{init_flow_node, BinderType, ContainerFlags};
 use crate::{

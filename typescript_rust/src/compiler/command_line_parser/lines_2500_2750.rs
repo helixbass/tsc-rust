@@ -1,8 +1,6 @@
+use std::{borrow::Borrow, cell::RefCell, collections::HashMap, io, rc::Rc};
+
 use gc::{Gc, GcCell};
-use std::cell::RefCell;
-use std::collections::HashMap;
-use std::rc::Rc;
-use std::{borrow::Borrow, io};
 
 use super::{
     can_json_report_no_input_files, create_compiler_diagnostic_only_if_json,

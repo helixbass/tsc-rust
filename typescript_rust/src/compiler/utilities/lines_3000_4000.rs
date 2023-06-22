@@ -1,14 +1,17 @@
+use std::{
+    borrow::{Borrow, Cow},
+    cell::Cell,
+    cmp::Ordering,
+    collections::HashMap,
+    convert::TryFrom,
+    iter::FromIterator,
+    ops::Deref,
+    ptr,
+};
+
 use bitflags::bitflags;
 use gc::Gc;
 use regex::{Captures, Regex};
-use std::borrow::{Borrow, Cow};
-use std::cell::Cell;
-use std::cmp::Ordering;
-use std::collections::HashMap;
-use std::convert::TryFrom;
-use std::iter::FromIterator;
-use std::ops::Deref;
-use std::ptr;
 
 use super::is_quote_or_backtick;
 use crate::{

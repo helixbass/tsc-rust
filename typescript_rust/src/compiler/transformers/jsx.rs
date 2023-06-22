@@ -103,31 +103,24 @@ impl TransformJsx {
                 .as_variable_declaration()
                 .name();
         }
-        let declaration = self
-            .factory
-            .create_variable_declaration(
-                Some(self.factory.create_unique_name(
-                    "_jsxFileName",
-                    Some(
-                        GeneratedIdentifierFlags::Optimistic | GeneratedIdentifierFlags::FileLevel,
-                    ),
-                )),
-                None,
-                None,
-                Some(
-                    self.factory
-                        .create_string_literal(
-                            self.current_source_file()
-                                .as_source_file()
-                                .file_name()
-                                .clone(),
-                            None,
-                            None,
-                        )
-                        ,
+        let declaration = self.factory.create_variable_declaration(
+            Some(self.factory.create_unique_name(
+                "_jsxFileName",
+                Some(GeneratedIdentifierFlags::Optimistic | GeneratedIdentifierFlags::FileLevel),
+            )),
+            None,
+            None,
+            Some(
+                self.factory.create_string_literal(
+                    self.current_source_file()
+                        .as_source_file()
+                        .file_name()
+                        .clone(),
+                    None,
+                    None,
                 ),
-            )
-            ;
+            ),
+        );
         self.current_file_state_mut().filename_declaration = Some(declaration.clone());
         declaration.as_variable_declaration().name()
     }
@@ -192,14 +185,11 @@ impl TransformJsx {
                     | GeneratedIdentifierFlags::AllowNameSubstitution,
             ),
         );
-        let specifier = self
-            .factory
-            .create_import_specifier(
-                false,
-                Some(self.factory.create_identifier(name)),
-                generated_name.clone(),
-            )
-            ;
+        let specifier = self.factory.create_import_specifier(
+            false,
+            Some(self.factory.create_identifier(name)),
+            generated_name.clone(),
+        );
         generated_name
             .as_identifier()
             .set_generated_import_reference(Some(specifier.clone()));
@@ -232,19 +222,13 @@ impl TransformJsx {
             let mut statements_as_vec: Vec<Gc<Node>> = (&statements).into();
             insert_statement_after_custom_prologue(
                 &mut statements_as_vec,
-                Some(
-                    self.factory
-                        .create_variable_statement(
-                            Option::<Gc<NodeArray>>::None,
-                            self.factory
-                                .create_variable_declaration_list(
-                                    vec![current_file_state_filename_declaration],
-                                    Some(NodeFlags::Const),
-                                )
-                                ,
-                        )
-                        ,
-                ),
+                Some(self.factory.create_variable_statement(
+                    Option::<Gc<NodeArray>>::None,
+                    self.factory.create_variable_declaration_list(
+                        vec![current_file_state_filename_declaration],
+                        Some(NodeFlags::Const),
+                    ),
+                )),
             );
             statements = statements_as_vec.into();
         }
@@ -262,30 +246,17 @@ impl TransformJsx {
                         .create_import_declaration(
                             Option::<Gc<NodeArray>>::None,
                             Option::<Gc<NodeArray>>::None,
-                            Some(
-                                self.factory
-                                    .create_import_clause(
-                                        false,
-                                        None,
-                                        Some(
-                                            self.factory
-                                                .create_named_imports(
-                                                    import_specifiers_map
-                                                        .values()
-                                                        .cloned()
-                                                        .collect_vec(),
-                                                )
-                                                ,
-                                        ),
-                                    )
-                                    ,
-                            ),
+                            Some(self.factory.create_import_clause(
+                                false,
+                                None,
+                                Some(self.factory.create_named_imports(
+                                    import_specifiers_map.values().cloned().collect_vec(),
+                                )),
+                            )),
                             self.factory
-                                .create_string_literal(import_source.clone(), None, None)
-                                ,
+                                .create_string_literal(import_source.clone(), None, None),
                             None,
                         )
-                        
                         .set_parent_recursive(false);
                     let mut statements_as_vec: Vec<Gc<Node>> = (&statements).into();
                     insert_statement_after_custom_prologue(
@@ -298,61 +269,40 @@ impl TransformJsx {
                         .factory
                         .create_variable_statement(
                             Option::<Gc<NodeArray>>::None,
-                            self.factory
-                                .create_variable_declaration_list(
-                                    vec![self
-                                        .factory
-                                        .create_variable_declaration(
-                                            Some(
-                                                self.factory
-                                                    .create_object_binding_pattern(
-                                                        import_specifiers_map
-                                                            .values()
-                                                            .map(|s| {
-                                                                let s_as_import_specifier =
-                                                                    s.as_import_specifier();
-                                                                self.factory
-                                                                    .create_binding_element(
-                                                                        None,
-                                                                        s_as_import_specifier
-                                                                            .property_name
-                                                                            .clone(),
-                                                                        s_as_import_specifier
-                                                                            .name
-                                                                            .clone(),
-                                                                        None,
-                                                                    )
-                                                                    
-                                                            })
-                                                            .collect_vec(),
+                            self.factory.create_variable_declaration_list(
+                                vec![self.factory.create_variable_declaration(
+                                    Some(
+                                        self.factory.create_object_binding_pattern(
+                                            import_specifiers_map
+                                                .values()
+                                                .map(|s| {
+                                                    let s_as_import_specifier =
+                                                        s.as_import_specifier();
+                                                    self.factory.create_binding_element(
+                                                        None,
+                                                        s_as_import_specifier.property_name.clone(),
+                                                        s_as_import_specifier.name.clone(),
+                                                        None,
                                                     )
-                                                    ,
-                                            ),
+                                                })
+                                                .collect_vec(),
+                                        ),
+                                    ),
+                                    None,
+                                    None,
+                                    Some(self.factory.create_call_expression(
+                                        self.factory.create_identifier("require"),
+                                        Option::<Gc<NodeArray>>::None,
+                                        Some(vec![self.factory.create_string_literal(
+                                            import_source.clone(),
                                             None,
                                             None,
-                                            Some(
-                                                self.factory
-                                                    .create_call_expression(
-                                                        self.factory.create_identifier("require"),
-                                                        Option::<Gc<NodeArray>>::None,
-                                                        Some(vec![self
-                                                            .factory
-                                                            .create_string_literal(
-                                                                import_source.clone(),
-                                                                None,
-                                                                None,
-                                                            )
-                                                            ]),
-                                                    )
-                                                    ,
-                                            ),
-                                        )
-                                        ],
-                                    Some(NodeFlags::Const),
-                                )
-                                ,
+                                        )]),
+                                    )),
+                                )],
+                                Some(NodeFlags::Const),
+                            ),
                         )
-                        
                         .set_parent_recursive(false);
                     let mut statements_as_vec: Vec<Gc<Node>> = (&statements).into();
                     insert_statement_after_custom_prologue(
@@ -509,7 +459,6 @@ impl TransformJsx {
         prop.map(|prop| {
             self.factory
                 .create_object_literal_expression(Some(vec![prop]), None)
-                
         })
     }
 
@@ -525,24 +474,18 @@ impl TransformJsx {
                 .is_none()
         {
             let result = self.transform_jsx_child_to_expression(&non_whitespace_children[0]);
-            return result.map(|result| {
-                self.factory
-                    .create_property_assignment("children", result)
-                    
-            });
+            return result
+                .map(|result| self.factory.create_property_assignment("children", result));
         }
         let result = map_defined(Some(children), |child: &Gc<Node>, _| {
             self.transform_jsx_child_to_expression(child)
         });
         (!result.is_empty()).then(|| {
-            self.factory
-                .create_property_assignment(
-                    "children",
-                    self.factory
-                        .create_array_literal_expression(Some(result), None)
-                        ,
-                )
-                
+            self.factory.create_property_assignment(
+                "children",
+                self.factory
+                    .create_array_literal_expression(Some(result), None),
+            )
         })
     }
 
@@ -592,12 +535,10 @@ impl TransformJsx {
         let object_properties = if !attrs.is_empty() {
             self.transform_jsx_attributes_to_object_props(&attrs, children_prop)
         } else {
-            self.factory
-                .create_object_literal_expression(
-                    Some(children_prop.map_or_default(|children_prop| vec![children_prop])),
-                    None,
-                )
-                
+            self.factory.create_object_literal_expression(
+                Some(children_prop.map_or_default(|children_prop| vec![children_prop])),
+                None,
+            )
         };
         Some(self.visit_jsx_opening_like_element_or_fragment_jsx(
             &tag_name,
@@ -653,43 +594,29 @@ impl TransformJsx {
                     original_file.as_source_file(),
                     usize::try_from(location.pos()).unwrap(),
                 );
-                args.push(
-                    self.factory
-                        .create_object_literal_expression(
-                            Some(vec![
-                                self.factory
-                                    .create_property_assignment(
-                                        "fileName",
-                                        self.get_current_file_name_expression(),
-                                    )
-                                    ,
-                                self.factory
-                                    .create_property_assignment(
-                                        "lineNumber",
-                                        self.factory
-                                            .create_numeric_literal(
-                                                Number::new((line_col.line + 1) as f64),
-                                                None,
-                                            )
-                                            ,
-                                    )
-                                    ,
-                                self.factory
-                                    .create_property_assignment(
-                                        "columnNumber",
-                                        self.factory
-                                            .create_numeric_literal(
-                                                Number::new((line_col.character + 1) as f64),
-                                                None,
-                                            )
-                                            ,
-                                    )
-                                    ,
-                            ]),
-                            None,
-                        )
-                        ,
-                );
+                args.push(self.factory.create_object_literal_expression(
+                    Some(vec![
+                        self.factory.create_property_assignment(
+                            "fileName",
+                            self.get_current_file_name_expression(),
+                        ),
+                        self.factory.create_property_assignment(
+                            "lineNumber",
+                            self.factory.create_numeric_literal(
+                                Number::new((line_col.line + 1) as f64),
+                                None,
+                            ),
+                        ),
+                        self.factory.create_property_assignment(
+                            "columnNumber",
+                            self.factory.create_numeric_literal(
+                                Number::new((line_col.character + 1) as f64),
+                                None,
+                            ),
+                        ),
+                    ]),
+                    None,
+                ));
                 args.push(self.factory.create_this());
             }
         }
@@ -700,7 +627,6 @@ impl TransformJsx {
                 Option::<Gc<NodeArray>>::None,
                 Some(args),
             )
-            
             .set_text_range(Some(location));
 
         if is_child {
@@ -782,7 +708,6 @@ impl TransformJsx {
             &children_props.unwrap_or_else(|| {
                 self.factory
                     .create_object_literal_expression(Some(vec![]), None)
-                    
             }),
             Option::<&Node>::None,
             children,
@@ -826,14 +751,12 @@ impl TransformJsx {
         node: &Node, /*JsxSpreadAttribute*/
     ) -> Gc<Node> {
         let node_as_jsx_spread_attribute = node.as_jsx_spread_attribute();
-        self.factory
-            .create_spread_assignment(visit_node(
-                &node_as_jsx_spread_attribute.expression,
-                Some(|node: &Node| self.visitor(node)),
-                Some(is_expression),
-                Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
-            ))
-            
+        self.factory.create_spread_assignment(visit_node(
+            &node_as_jsx_spread_attribute.expression,
+            Some(|node: &Node| self.visitor(node)),
+            Some(is_expression),
+            Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+        ))
     }
 
     fn transform_jsx_attributes_to_object_props(
@@ -845,12 +768,10 @@ impl TransformJsx {
         if
         /*target &&*/
         target >= ScriptTarget::ES2018 {
-            self.factory
-                .create_object_literal_expression(
-                    Some(self.transform_jsx_attributes_to_props(attrs, children)),
-                    None,
-                )
-                
+            self.factory.create_object_literal_expression(
+                Some(self.transform_jsx_attributes_to_props(attrs, children)),
+                None,
+            )
         } else {
             self.transform_jsx_attributes_to_expression(attrs, children)
         }
@@ -895,15 +816,12 @@ impl TransformJsx {
                         self.transform_jsx_spread_attribute_to_expression(attr)
                     })
                 } else {
-                    vec![self
-                        .factory
-                        .create_object_literal_expression(
-                            Some(map(attrs, |attr: &Gc<Node>, _| {
-                                self.transform_jsx_attribute_to_object_literal_element(attr)
-                            })),
-                            None,
-                        )
-                        ]
+                    vec![self.factory.create_object_literal_expression(
+                        Some(map(attrs, |attr: &Gc<Node>, _| {
+                            self.transform_jsx_attribute_to_object_literal_element(attr)
+                        })),
+                        None,
+                    )]
                 }
             },
         ));
@@ -912,8 +830,7 @@ impl TransformJsx {
             expressions.insert(
                 0,
                 self.factory
-                    .create_object_literal_expression(Option::<Gc<NodeArray>>::None, None)
-                    ,
+                    .create_object_literal_expression(Option::<Gc<NodeArray>>::None, None),
             );
         }
 
@@ -921,8 +838,7 @@ impl TransformJsx {
             let children = children.borrow();
             expressions.push(
                 self.factory
-                    .create_object_literal_expression(Some(vec![children.node_wrapper()]), None)
-                    ,
+                    .create_object_literal_expression(Some(vec![children.node_wrapper()]), None),
             );
         }
 
@@ -952,9 +868,7 @@ impl TransformJsx {
         let name = self.get_attribute_name(node);
         let expression =
             self.transform_jsx_attribute_initializer(node_as_jsx_attribute.initializer.as_deref());
-        self.factory
-            .create_property_assignment(name, expression)
-            
+        self.factory.create_property_assignment(name, expression)
     }
 
     fn transform_jsx_attribute_initializer(
@@ -979,7 +893,6 @@ impl TransformJsx {
                     Some(single_quote),
                     None,
                 )
-                
                 .set_text_range(Some(node))
         } else if node.kind() == SyntaxKind::JsxExpression {
             let node_as_jsx_expression = node.as_jsx_expression();
@@ -1097,7 +1010,6 @@ impl TransformJsx {
             if is_identifier(name) && is_intrinsic_jsx_name(&name.as_identifier().escaped_text) {
                 self.factory
                     .create_string_literal(id_text(name).to_owned(), None, None)
-                    
             } else {
                 create_expression_from_entity_name(&self.factory, name)
             }
@@ -1116,7 +1028,6 @@ impl TransformJsx {
         } else {
             self.factory
                 .create_string_literal(text.to_owned(), None, None)
-                
         }
     }
 
@@ -1129,11 +1040,7 @@ impl TransformJsx {
             Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
         );
         if node_as_jsx_expression.dot_dot_dot_token.is_some() {
-            Some(
-                self.factory
-                    .create_spread_element(expression.unwrap())
-                    ,
-            )
+            Some(self.factory.create_spread_element(expression.unwrap()))
         } else {
             expression
         }

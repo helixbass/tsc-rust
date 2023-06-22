@@ -32,11 +32,7 @@ impl TransformES2015 {
             .intersects(HierarchyFacts::CapturedLexicalThis)
             && node.kind() != SyntaxKind::ArrowFunction
         {
-            self.insert_capture_this_for_node(
-                statements,
-                node,
-                Some(self.factory.create_this()),
-            );
+            self.insert_capture_this_for_node(statements, node, Some(self.factory.create_this()));
             return true;
         }
         false
@@ -54,28 +50,22 @@ impl TransformES2015 {
             .factory
             .create_variable_statement(
                 Option::<Gc<NodeArray>>::None,
-                self.factory
-                    .create_variable_declaration_list(
-                        vec![self
-                            .factory
-                            .create_variable_declaration(
-                                Some(self.factory.create_unique_name(
-                                    "this",
-                                    Some(
-                                        GeneratedIdentifierFlags::Optimistic
-                                            | GeneratedIdentifierFlags::FileLevel,
-                                    ),
-                                )),
-                                None,
-                                None,
-                                initializer,
-                            )
-                            ],
+                self.factory.create_variable_declaration_list(
+                    vec![self.factory.create_variable_declaration(
+                        Some(self.factory.create_unique_name(
+                            "this",
+                            Some(
+                                GeneratedIdentifierFlags::Optimistic
+                                    | GeneratedIdentifierFlags::FileLevel,
+                            ),
+                        )),
                         None,
-                    )
-                    ,
+                        None,
+                        initializer,
+                    )],
+                    None,
+                ),
             )
-            
             .set_emit_flags(EmitFlags::NoComments | EmitFlags::CustomPrologue)
             .set_source_map_range(Some(node.into()));
         insert_statement_after_custom_prologue(statements, Some(capture_this_statement));
@@ -103,53 +93,37 @@ impl TransformES2015 {
                     new_target = self.factory.create_void_zero();
                 }
                 SyntaxKind::Constructor => {
-                    new_target = self
-                        .factory
-                        .create_property_access_expression(
-                            self.factory
-                                .create_this()
-                                
-                                .set_emit_flags(EmitFlags::NoSubstitution),
-                            "constructor",
-                        )
-                        ;
+                    new_target = self.factory.create_property_access_expression(
+                        self.factory
+                            .create_this()
+                            .set_emit_flags(EmitFlags::NoSubstitution),
+                        "constructor",
+                    );
                 }
                 SyntaxKind::FunctionDeclaration | SyntaxKind::FunctionExpression => {
-                    new_target = self
-                        .factory
-                        .create_conditional_expression(
+                    new_target = self.factory.create_conditional_expression(
+                        self.factory.create_logical_and(
                             self.factory
-                                .create_logical_and(
-                                    self.factory
-                                        .create_this()
-                                        
-                                        .set_emit_flags(EmitFlags::NoSubstitution),
-                                    self.factory
-                                        .create_binary_expression(
-                                            self.factory
-                                                .create_this()
-                                                
-                                                .set_emit_flags(EmitFlags::NoSubstitution),
-                                            SyntaxKind::InstanceOfKeyword,
-                                            self.factory.get_local_name(node, None, None),
-                                        )
-                                        ,
-                                )
-                                ,
-                            None,
+                                .create_this()
+                                .set_emit_flags(EmitFlags::NoSubstitution),
+                            self.factory.create_binary_expression(
+                                self.factory
+                                    .create_this()
+                                    .set_emit_flags(EmitFlags::NoSubstitution),
+                                SyntaxKind::InstanceOfKeyword,
+                                self.factory.get_local_name(node, None, None),
+                            ),
+                        ),
+                        None,
+                        self.factory.create_property_access_expression(
                             self.factory
-                                .create_property_access_expression(
-                                    self.factory
-                                        .create_this()
-                                        
-                                        .set_emit_flags(EmitFlags::NoSubstitution),
-                                    "constructor",
-                                )
-                                ,
-                            None,
-                            self.factory.create_void_zero(),
-                        )
-                        ;
+                                .create_this()
+                                .set_emit_flags(EmitFlags::NoSubstitution),
+                            "constructor",
+                        ),
+                        None,
+                        self.factory.create_void_zero(),
+                    );
                 }
                 _ => Debug_.fail_bad_syntax_kind(node, None),
             }
@@ -158,28 +132,22 @@ impl TransformES2015 {
                 .factory
                 .create_variable_statement(
                     Option::<Gc<NodeArray>>::None,
-                    self.factory
-                        .create_variable_declaration_list(
-                            vec![self
-                                .factory
-                                .create_variable_declaration(
-                                    Some(self.factory.create_unique_name(
-                                        "_newTarget",
-                                        Some(
-                                            GeneratedIdentifierFlags::Optimistic
-                                                | GeneratedIdentifierFlags::FileLevel,
-                                        ),
-                                    )),
-                                    None,
-                                    None,
-                                    Some(new_target),
-                                )
-                                ],
+                    self.factory.create_variable_declaration_list(
+                        vec![self.factory.create_variable_declaration(
+                            Some(self.factory.create_unique_name(
+                                "_newTarget",
+                                Some(
+                                    GeneratedIdentifierFlags::Optimistic
+                                        | GeneratedIdentifierFlags::FileLevel,
+                                ),
+                            )),
                             None,
-                        )
-                        ,
+                            None,
+                            Some(new_target),
+                        )],
+                        None,
+                    ),
                 )
-                
                 .set_emit_flags(EmitFlags::NoComments | EmitFlags::CustomPrologue);
 
             if copy_on_write {
@@ -248,7 +216,6 @@ impl TransformES2015 {
     ) -> Gc<Node> {
         self.factory
             .create_empty_statement()
-            
             .set_text_range(Some(member))
     }
 
@@ -280,14 +247,12 @@ impl TransformES2015 {
             let name = if is_computed_property_name(property_name) {
                 property_name.as_computed_property_name().expression.clone()
             } else if is_identifier(property_name) {
-                self.factory
-                    .create_string_literal(
-                        unescape_leading_underscores(&property_name.as_identifier().escaped_text)
-                            .to_owned(),
-                        None,
-                        None,
-                    )
-                    
+                self.factory.create_string_literal(
+                    unescape_leading_underscores(&property_name.as_identifier().escaped_text)
+                        .to_owned(),
+                    None,
+                    None,
+                )
             } else {
                 property_name.clone()
             };
@@ -314,15 +279,13 @@ impl TransformES2015 {
             );
             e = self
                 .factory
-                .create_assignment(member_name, member_function.clone())
-                ;
+                .create_assignment(member_name, member_function.clone());
         }
         set_emit_flags(&*member_function, EmitFlags::NoComments);
         set_source_map_range(&*member_function, Some(source_map_range));
         Ok(self
             .factory
             .create_expression_statement(e)
-            
             .set_text_range(Some(member))
             .set_original_node(Some(member.node_wrapper()))
             .set_comment_range(&comment_range)
@@ -340,7 +303,6 @@ impl TransformES2015 {
             .create_expression_statement(
                 self.transform_accessors_to_expression(receiver, accessors, container, false)?,
             )
-            
             .set_emit_flags(EmitFlags::NoComments)
             .set_source_map_range(Some(get_source_map_range(&accessors.first_accessor))))
     }
@@ -406,7 +368,6 @@ impl TransformES2015 {
             let getter = self
                 .factory
                 .create_property_assignment("get", getter_function)
-                
                 .set_comment_range(&ReadonlyTextRangeConcrete::from(get_comment_range(
                     get_accessor,
                 )));
@@ -426,50 +387,38 @@ impl TransformES2015 {
             let setter = self
                 .factory
                 .create_property_assignment("set", setter_function)
-                
                 .set_comment_range(&ReadonlyTextRangeConcrete::from(get_comment_range(
                     set_accessor,
                 )));
             properties.push(setter);
         }
 
+        properties.push(self.factory.create_property_assignment(
+            "enumerable",
+            if get_accessor.is_some() || set_accessor.is_some() {
+                self.factory.create_false()
+            } else {
+                self.factory.create_true()
+            },
+        ));
         properties.push(
             self.factory
-                .create_property_assignment(
-                    "enumerable",
-                    if get_accessor.is_some() || set_accessor.is_some() {
-                        self.factory.create_false()
-                    } else {
-                        self.factory.create_true()
-                    },
-                )
-                ,
-        );
-        properties.push(
-            self.factory
-                .create_property_assignment("configurable", self.factory.create_true())
-                ,
+                .create_property_assignment("configurable", self.factory.create_true()),
         );
 
-        let call = self
-            .factory
-            .create_call_expression(
+        let call = self.factory.create_call_expression(
+            self.factory.create_property_access_expression(
+                self.factory.create_identifier("Object"),
+                "defineProperty",
+            ),
+            Option::<Gc<NodeArray>>::None,
+            Some(vec![
+                target,
+                property_name,
                 self.factory
-                    .create_property_access_expression(
-                        self.factory.create_identifier("Object"),
-                        "defineProperty",
-                    )
-                    ,
-                Option::<Gc<NodeArray>>::None,
-                Some(vec![
-                    target,
-                    property_name,
-                    self.factory
-                        .create_object_literal_expression(Some(properties), Some(true))
-                        ,
-                ]),
-            )
-            ;
+                    .create_object_literal_expression(Some(properties), Some(true)),
+            ]),
+        );
         if starts_on_new_line {
             start_on_new_line(&*call);
         }
@@ -517,7 +466,6 @@ impl TransformES2015 {
                 Option::<Gc<Node>>::None,
                 self.transform_function_body(node)?,
             )
-            
             .set_text_range(Some(node))
             .set_original_node(Some(node.node_wrapper()))
             .set_emit_flags(EmitFlags::CapturesThis);
@@ -700,7 +648,6 @@ impl TransformES2015 {
                 None,
                 body,
             )
-            
             .set_text_range(location)
             .set_original_node(Some(node.node_wrapper())))
     }
@@ -803,7 +750,6 @@ impl TransformES2015 {
             let return_statement = self
                 .factory
                 .create_return_statement(Some(expression))
-                
                 .set_text_range(Some(&**body))
                 .move_synthetic_comments(body)
                 .set_emit_flags(
@@ -840,7 +786,6 @@ impl TransformES2015 {
                     .set_text_range(statements_location.as_ref()),
                 Some(multi_line),
             )
-            
             .set_text_range(node_as_function_like_declaration.maybe_body().as_deref());
         if !multi_line && single_line {
             set_emit_flags(&*block, EmitFlags::SingleLine);

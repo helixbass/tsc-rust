@@ -1,13 +1,14 @@
+use std::cell::{Cell, Ref, RefCell};
+
 use bitflags::bitflags;
 use gc::{Finalize, Gc, GcCell, Trace};
-use std::cell::{Cell, Ref, RefCell};
+use local_macros::ast_type;
 
 use super::{
     BaseFunctionLikeDeclaration, BaseNode, HasConditionInterface, HasElementsInterface,
     HasQuestionTokenInterface, HasTypeArgumentsInterface, HasTypeInterface,
     NamedDeclarationInterface, Node, NodeArray, SyntaxKind,
 };
-use local_macros::ast_type;
 
 #[derive(Debug, Trace, Finalize)]
 #[ast_type]

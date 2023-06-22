@@ -1,9 +1,10 @@
-use either_n::Either3;
-use peekmore::PeekMoreIterator;
 use std::{
     iter::Peekable,
     path::{Path, PathBuf},
 };
+
+use either_n::Either3;
+use peekmore::PeekMoreIterator;
 
 pub trait IteratorExt {
     type Item;

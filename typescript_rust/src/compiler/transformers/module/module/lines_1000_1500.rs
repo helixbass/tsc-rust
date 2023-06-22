@@ -40,7 +40,6 @@ impl TransformModule {
                             Option::<&Node>::None,
                             None,
                         ))
-                        
                         .set_text_range(Some(node))
                         .set_original_node(Some(node.node_wrapper())),
                 );
@@ -49,28 +48,23 @@ impl TransformModule {
                     self.factory
                         .create_variable_statement(
                             Option::<Gc<NodeArray>>::None,
-                            self.factory
-                                .create_variable_declaration_list(
-                                    vec![self
-                                        .factory
-                                        .create_variable_declaration(
-                                            Some(self.factory.clone_node(
-                                                &node_as_import_equals_declaration.name(),
-                                            )),
-                                            None,
-                                            None,
-                                            Some(self.create_require_call(node)),
-                                        )
-                                        ],
+                            self.factory.create_variable_declaration_list(
+                                vec![self.factory.create_variable_declaration(
                                     Some(
-                                        (self.language_version >= ScriptTarget::ES2015)
-                                            .then_some(NodeFlags::Const)
-                                            .unwrap_or_default(),
+                                        self.factory
+                                            .clone_node(&node_as_import_equals_declaration.name()),
                                     ),
-                                )
-                                ,
+                                    None,
+                                    None,
+                                    Some(self.create_require_call(node)),
+                                )],
+                                Some(
+                                    (self.language_version >= ScriptTarget::ES2015)
+                                        .then_some(NodeFlags::Const)
+                                        .unwrap_or_default(),
+                                ),
+                            ),
                         )
-                        
                         .set_text_range(Some(node))
                         .set_original_node(Some(node.node_wrapper())),
                 );
@@ -85,7 +79,6 @@ impl TransformModule {
                             Option::<&Node>::None,
                             None,
                         ))
-                        
                         .set_text_range(Some(node))
                         .set_original_node(Some(node.node_wrapper())),
                 );
@@ -127,22 +120,16 @@ impl TransformModule {
                     self.factory
                         .create_variable_statement(
                             Option::<Gc<NodeArray>>::None,
-                            self.factory
-                                .create_variable_declaration_list(
-                                    vec![self
-                                        .factory
-                                        .create_variable_declaration(
-                                            Some(generated_name.clone()),
-                                            None,
-                                            None,
-                                            Some(self.create_require_call(node)),
-                                        )
-                                        ],
+                            self.factory.create_variable_declaration_list(
+                                vec![self.factory.create_variable_declaration(
+                                    Some(generated_name.clone()),
                                     None,
-                                )
-                                ,
+                                    None,
+                                    Some(self.create_require_call(node)),
+                                )],
+                                None,
+                            ),
                         )
-                        
                         .set_text_range(Some(node))
                         .set_original_node(Some(node.node_wrapper())),
                 );
@@ -155,26 +142,21 @@ impl TransformModule {
                             .create_expression_statement(
                                 self.emit_helpers().create_create_binding_helper(
                                     generated_name.clone(),
-                                    self.factory
-                                        .create_string_literal_from_node(
-                                            specifier_as_export_specifier
-                                                .property_name
-                                                .as_deref()
-                                                .unwrap_or(&specifier_as_export_specifier.name),
-                                        )
-                                        ,
+                                    self.factory.create_string_literal_from_node(
+                                        specifier_as_export_specifier
+                                            .property_name
+                                            .as_deref()
+                                            .unwrap_or(&specifier_as_export_specifier.name),
+                                    ),
                                     specifier_as_export_specifier.property_name.as_ref().map(
                                         |_| {
-                                            self.factory
-                                                .create_string_literal_from_node(
-                                                    &specifier_as_export_specifier.name,
-                                                )
-                                                
+                                            self.factory.create_string_literal_from_node(
+                                                &specifier_as_export_specifier.name,
+                                            )
                                         },
                                     ),
                                 ),
                             )
-                            
                             .set_text_range(Some(&**specifier))
                             .set_original_node(Some(specifier.clone())),
                     );
@@ -188,21 +170,18 @@ impl TransformModule {
                                 .as_deref()
                                 .unwrap_or(&specifier_as_export_specifier.name),
                         ) == "default";
-                    let exported_value = self
-                        .factory
-                        .create_property_access_expression(
-                            if export_needs_import_default {
-                                self.emit_helpers()
-                                    .create_import_default_helper(generated_name.clone())
-                            } else {
-                                generated_name.clone()
-                            },
-                            specifier_as_export_specifier
-                                .property_name
-                                .clone()
-                                .unwrap_or_else(|| specifier_as_export_specifier.name.clone()),
-                        )
-                        ;
+                    let exported_value = self.factory.create_property_access_expression(
+                        if export_needs_import_default {
+                            self.emit_helpers()
+                                .create_import_default_helper(generated_name.clone())
+                        } else {
+                            generated_name.clone()
+                        },
+                        specifier_as_export_specifier
+                            .property_name
+                            .clone()
+                            .unwrap_or_else(|| specifier_as_export_specifier.name.clone()),
+                    );
                     statements.push(
                         self.factory
                             .create_expression_statement(self.create_export_expression(
@@ -211,7 +190,6 @@ impl TransformModule {
                                 Option::<&Node>::None,
                                 Some(true),
                             ))
-                            
                             .set_text_range(Some(&**specifier))
                             .set_original_node(Some(specifier.clone())),
                     );
@@ -245,7 +223,6 @@ impl TransformModule {
                             None,
                         ),
                     )
-                    
                     .set_text_range(Some(node))
                     .set_original_node(Some(node.node_wrapper())),
             );
@@ -262,7 +239,6 @@ impl TransformModule {
                         },
                         None,
                     ))
-                    
                     .set_text_range(Some(node))
                     .set_original_node(Some(node.node_wrapper()))
                     .into(),
@@ -356,7 +332,6 @@ impl TransformModule {
                             &**self.context,
                         )?,
                     )
-                    
                     .set_text_range(Some(node))
                     .set_original_node(Some(node.node_wrapper())),
             );
@@ -423,7 +398,6 @@ impl TransformModule {
                             None,
                         )?,
                     )
-                    
                     .set_text_range(Some(node))
                     .set_original_node(Some(node.node_wrapper())),
             );
@@ -490,38 +464,29 @@ impl TransformModule {
                             || is_function_expression(variable_initializer)
                             || is_class_expression(variable_initializer))
                     {
-                        let expression = self
-                            .factory
-                            .create_assignment(
-                                self.factory
-                                    .create_property_access_expression(
-                                        self.factory.create_identifier("exports"),
-                                        variable_as_variable_declaration.name(),
-                                    )
-                                    
-                                    .set_text_range(Some(
-                                        &*variable_as_variable_declaration.name(),
-                                    )),
-                                self.factory
-                                    .create_identifier(&get_text_of_identifier_or_literal(
-                                        &variable_as_variable_declaration.name(),
-                                    )),
-                            )
-                            ;
-                        let updated_variable = self
-                            .factory
-                            .create_variable_declaration(
-                                Some(variable_as_variable_declaration.name()),
-                                variable_as_variable_declaration.exclamation_token.clone(),
-                                variable_as_variable_declaration.maybe_type(),
-                                Some(try_visit_node(
-                                    variable_initializer,
-                                    Some(|node: &Node| self.visitor(node)),
-                                    Option::<fn(&Node) -> bool>::None,
-                                    Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
-                                )?),
-                            )
-                            ;
+                        let expression = self.factory.create_assignment(
+                            self.factory
+                                .create_property_access_expression(
+                                    self.factory.create_identifier("exports"),
+                                    variable_as_variable_declaration.name(),
+                                )
+                                .set_text_range(Some(&*variable_as_variable_declaration.name())),
+                            self.factory
+                                .create_identifier(&get_text_of_identifier_or_literal(
+                                    &variable_as_variable_declaration.name(),
+                                )),
+                        );
+                        let updated_variable = self.factory.create_variable_declaration(
+                            Some(variable_as_variable_declaration.name()),
+                            variable_as_variable_declaration.exclamation_token.clone(),
+                            variable_as_variable_declaration.maybe_type(),
+                            Some(try_visit_node(
+                                variable_initializer,
+                                Some(|node: &Node| self.visitor(node)),
+                                Option::<fn(&Node) -> bool>::None,
+                                Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                            )?),
+                        );
 
                         variables.get_or_insert_with(|| _d()).push(updated_variable);
                         expressions.get_or_insert_with(|| _d()).push(expression);
@@ -551,7 +516,6 @@ impl TransformModule {
                 let statement = self
                     .factory
                     .create_expression_statement(self.factory.inline_expressions(&expressions))
-                    
                     .set_text_range(Some(node))
                     .set_original_node(Some(node.node_wrapper()));
                 if remove_comments_on_expressions {
@@ -606,10 +570,7 @@ impl TransformModule {
 
             return Ok(expression);
         }
-        Ok(self
-            .factory
-            .create_assignment(name.node_wrapper(), value)
-            )
+        Ok(self.factory.create_assignment(name.node_wrapper(), value))
     }
 
     pub(super) fn transform_initialized_variable(
@@ -637,30 +598,27 @@ impl TransformModule {
                     ),
                 )?
             } else {
-                self.factory
-                    .create_assignment(
-                        self.factory
-                            .create_property_access_expression(
-                                self.factory.create_identifier("exports"),
-                                node_as_variable_declaration.name(),
-                            )
-                            
-                            .set_text_range(Some(&*node_as_variable_declaration.name())),
-                        node_as_variable_declaration
-                            .maybe_initializer()
-                            .try_map_or_else(
-                                || Ok(self.factory.create_void_zero()),
-                                |ref node_initializer| {
-                                    try_visit_node(
-                                        node_initializer,
-                                        Some(|node: &Node| self.visitor(node)),
-                                        Option::<fn(&Node) -> bool>::None,
-                                        Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
-                                    )
-                                },
-                            )?,
-                    )
-                    
+                self.factory.create_assignment(
+                    self.factory
+                        .create_property_access_expression(
+                            self.factory.create_identifier("exports"),
+                            node_as_variable_declaration.name(),
+                        )
+                        .set_text_range(Some(&*node_as_variable_declaration.name())),
+                    node_as_variable_declaration
+                        .maybe_initializer()
+                        .try_map_or_else(
+                            || Ok(self.factory.create_void_zero()),
+                            |ref node_initializer| {
+                                try_visit_node(
+                                    node_initializer,
+                                    Some(|node: &Node| self.visitor(node)),
+                                    Option::<fn(&Node) -> bool>::None,
+                                    Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                                )
+                            },
+                        )?,
+                )
             },
         )
     }

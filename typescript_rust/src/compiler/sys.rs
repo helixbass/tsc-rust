@@ -1,12 +1,16 @@
+use std::{
+    borrow::Cow,
+    env,
+    fs::{self, File},
+    io::{self, Write},
+    mem,
+    path::Path,
+    process,
+    rc::Rc,
+    time::{SystemTime, UNIX_EPOCH},
+};
+
 use gc::{Finalize, Gc, GcCell, Trace};
-use std::borrow::Cow;
-use std::fs::{self, File};
-use std::io::{self, Write};
-use std::path::Path;
-use std::process;
-use std::rc::Rc;
-use std::time::{SystemTime, UNIX_EPOCH};
-use std::{env, mem};
 
 use crate::{
     combine_paths, empty_file_system_entries, fs_readdir_sync_with_file_types, fs_stat_sync,

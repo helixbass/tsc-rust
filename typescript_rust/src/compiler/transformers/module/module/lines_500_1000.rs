@@ -319,7 +319,6 @@ impl TransformModule {
                         expression = self
                             .factory
                             .create_assignment(temp.clone().unwrap(), expression)
-                            
                             .set_text_range(Some(node));
                     }
                 }
@@ -343,7 +342,6 @@ impl TransformModule {
                     expression = self
                         .factory
                         .create_comma(expression, temp)
-                        
                         .set_text_range(Some(node));
                 }
                 return Ok(Some(expression.into()));
@@ -416,15 +414,13 @@ impl TransformModule {
                     .set_text_range(Some(&*arg))
                     .set_emit_flags(EmitFlags::NoComments)
             };
-            self.factory
-                .create_conditional_expression(
-                    self.factory.create_identifier("__syncRequire"),
-                    None,
-                    self.create_import_call_expression_common_js(Some(arg), contains_lexical_this),
-                    None,
-                    self.create_import_call_expression_amd(Some(arg_clone), contains_lexical_this),
-                )
-                
+            self.factory.create_conditional_expression(
+                self.factory.create_identifier("__syncRequire"),
+                None,
+                self.create_import_call_expression_common_js(Some(arg), contains_lexical_this),
+                None,
+                self.create_import_call_expression_amd(Some(arg_clone), contains_lexical_this),
+            )
         } else {
             let temp = self.factory.create_temp_variable(
                 Some(|node: &Node| {
@@ -432,26 +428,19 @@ impl TransformModule {
                 }),
                 None,
             );
-            self.factory
-                .create_comma(
-                    self.factory.create_assignment(temp.clone(), arg),
-                    self.factory
-                        .create_conditional_expression(
-                            self.factory.create_identifier("__syncRequire"),
-                            None,
-                            self.create_import_call_expression_common_js(
-                                Some(temp.clone()),
-                                contains_lexical_this,
-                            ),
-                            None,
-                            self.create_import_call_expression_amd(
-                                Some(temp),
-                                contains_lexical_this,
-                            ),
-                        )
-                        ,
-                )
-                
+            self.factory.create_comma(
+                self.factory.create_assignment(temp.clone(), arg),
+                self.factory.create_conditional_expression(
+                    self.factory.create_identifier("__syncRequire"),
+                    None,
+                    self.create_import_call_expression_common_js(
+                        Some(temp.clone()),
+                        contains_lexical_this,
+                    ),
+                    None,
+                    self.create_import_call_expression_amd(Some(temp), contains_lexical_this),
+                ),
+            )
         }
     }
 
@@ -463,115 +452,87 @@ impl TransformModule {
         let resolve = self.factory.create_unique_name("resolve", None);
         let reject = self.factory.create_unique_name("reject", None);
         let parameters = vec![
-            self.factory
-                .create_parameter_declaration(
-                    Option::<Gc<NodeArray>>::None,
-                    Option::<Gc<NodeArray>>::None,
-                    None,
-                    Some(resolve.clone()),
-                    None,
-                    None,
-                    None,
-                )
-                ,
-            self.factory
-                .create_parameter_declaration(
-                    Option::<Gc<NodeArray>>::None,
-                    Option::<Gc<NodeArray>>::None,
-                    None,
-                    Some(reject.clone()),
-                    None,
-                    None,
-                    None,
-                )
-                ,
-        ];
-        let body = self
-            .factory
-            .create_block(
-                vec![self
-                    .factory
-                    .create_expression_statement(
-                        self.factory
-                            .create_call_expression(
-                                self.factory.create_identifier("require"),
-                                Option::<Gc<NodeArray>>::None,
-                                Some(vec![
-                                    self.factory
-                                        .create_array_literal_expression(
-                                            Some(vec![arg.unwrap_or_else(|| {
-                                                self.factory.create_omitted_expression()
-                                            })]),
-                                            None,
-                                        )
-                                        ,
-                                    resolve,
-                                    reject,
-                                ]),
-                            )
-                            ,
-                    )
-                    ],
+            self.factory.create_parameter_declaration(
+                Option::<Gc<NodeArray>>::None,
+                Option::<Gc<NodeArray>>::None,
                 None,
-            )
-            ;
+                Some(resolve.clone()),
+                None,
+                None,
+                None,
+            ),
+            self.factory.create_parameter_declaration(
+                Option::<Gc<NodeArray>>::None,
+                Option::<Gc<NodeArray>>::None,
+                None,
+                Some(reject.clone()),
+                None,
+                None,
+                None,
+            ),
+        ];
+        let body = self.factory.create_block(
+            vec![self
+                .factory
+                .create_expression_statement(self.factory.create_call_expression(
+                    self.factory.create_identifier("require"),
+                    Option::<Gc<NodeArray>>::None,
+                    Some(vec![
+                        self.factory.create_array_literal_expression(
+                            Some(vec![
+                                arg.unwrap_or_else(|| self.factory.create_omitted_expression()),
+                            ]),
+                            None,
+                        ),
+                        resolve,
+                        reject,
+                    ]),
+                ))],
+            None,
+        );
 
         let func: Gc<Node /*FunctionExpression | ArrowFunction*/>;
         if self.language_version >= ScriptTarget::ES2015 {
-            func = self
-                .factory
-                .create_arrow_function(
-                    Option::<Gc<NodeArray>>::None,
-                    Option::<Gc<NodeArray>>::None,
-                    parameters,
-                    None,
-                    None,
-                    body,
-                )
-                
+            func = self.factory.create_arrow_function(
+                Option::<Gc<NodeArray>>::None,
+                Option::<Gc<NodeArray>>::None,
+                parameters,
+                None,
+                None,
+                body,
+            )
         } else {
-            func = self
-                .factory
-                .create_function_expression(
-                    Option::<Gc<NodeArray>>::None,
-                    None,
-                    Option::<Gc<Node>>::None,
-                    Option::<Gc<NodeArray>>::None,
-                    Some(parameters),
-                    None,
-                    body,
-                )
-                ;
+            func = self.factory.create_function_expression(
+                Option::<Gc<NodeArray>>::None,
+                None,
+                Option::<Gc<Node>>::None,
+                Option::<Gc<NodeArray>>::None,
+                Some(parameters),
+                None,
+                body,
+            );
 
             if contains_lexical_this {
                 set_emit_flags(&*func, EmitFlags::CapturesThis);
             }
         }
 
-        let promise = self
-            .factory
-            .create_new_expression(
-                self.factory.create_identifier("Promise"),
-                Option::<Gc<NodeArray>>::None,
-                Some(vec![func]),
-            )
-            ;
+        let promise = self.factory.create_new_expression(
+            self.factory.create_identifier("Promise"),
+            Option::<Gc<NodeArray>>::None,
+            Some(vec![func]),
+        );
         if get_es_module_interop(&self.compiler_options) == Some(true) {
-            return self
-                .factory
-                .create_call_expression(
-                    self.factory
-                        .create_property_access_expression(
-                            promise,
-                            self.factory.create_identifier("then"),
-                        )
-                        ,
-                    Option::<Gc<NodeArray>>::None,
-                    Some(vec![self
-                        .emit_helpers()
-                        .create_import_star_callback_helper()]),
-                )
-                ;
+            return self.factory.create_call_expression(
+                self.factory.create_property_access_expression(
+                    promise,
+                    self.factory.create_identifier("then"),
+                ),
+                Option::<Gc<NodeArray>>::None,
+                Some(vec![self
+                    .emit_helpers()
+                    .create_import_star_callback_helper()]),
+            );
         }
         promise
     }
@@ -581,19 +542,14 @@ impl TransformModule {
         arg: Option<Gc<Node /*Expression*/>>,
         contains_lexical_this: bool,
     ) -> Gc<Node /*Expression*/> {
-        let promise_resolve_call = self
-            .factory
-            .create_call_expression(
-                self.factory
-                    .create_property_access_expression(
-                        self.factory.create_identifier("Promise"),
-                        "resolve",
-                    )
-                    ,
-                Option::<Gc<NodeArray>>::None,
-                Some(vec![]),
-            )
-            ;
+        let promise_resolve_call = self.factory.create_call_expression(
+            self.factory.create_property_access_expression(
+                self.factory.create_identifier("Promise"),
+                "resolve",
+            ),
+            Option::<Gc<NodeArray>>::None,
+            Some(vec![]),
+        );
         let mut require_call/*: Expression*/ = self.factory.create_call_expression(
             self.factory.create_identifier("require"),
             Option::<Gc<NodeArray>>::None,
@@ -605,53 +561,39 @@ impl TransformModule {
 
         let func: Gc<Node /*FunctionExpression | ArrowFunction*/>;
         if self.language_version >= ScriptTarget::ES2015 {
-            func = self
-                .factory
-                .create_arrow_function(
-                    Option::<Gc<NodeArray>>::None,
-                    Option::<Gc<NodeArray>>::None,
-                    vec![],
-                    None,
-                    None,
-                    require_call,
-                )
-                ;
+            func = self.factory.create_arrow_function(
+                Option::<Gc<NodeArray>>::None,
+                Option::<Gc<NodeArray>>::None,
+                vec![],
+                None,
+                None,
+                require_call,
+            );
         } else {
-            func = self
-                .factory
-                .create_function_expression(
-                    Option::<Gc<NodeArray>>::None,
+            func = self.factory.create_function_expression(
+                Option::<Gc<NodeArray>>::None,
+                None,
+                Option::<Gc<Node>>::None,
+                Option::<Gc<NodeArray>>::None,
+                Some(vec![]),
+                None,
+                self.factory.create_block(
+                    vec![self.factory.create_return_statement(Some(require_call))],
                     None,
-                    Option::<Gc<Node>>::None,
-                    Option::<Gc<NodeArray>>::None,
-                    Some(vec![]),
-                    None,
-                    self.factory
-                        .create_block(
-                            vec![self
-                                .factory
-                                .create_return_statement(Some(require_call))
-                                ],
-                            None,
-                        )
-                        ,
-                )
-                ;
+                ),
+            );
 
             if contains_lexical_this {
                 set_emit_flags(&*func, EmitFlags::CapturesThis);
             }
         }
 
-        self.factory
-            .create_call_expression(
-                self.factory
-                    .create_property_access_expression(promise_resolve_call, "then")
-                    ,
-                Option::<Gc<NodeArray>>::None,
-                Some(vec![func]),
-            )
-            
+        self.factory.create_call_expression(
+            self.factory
+                .create_property_access_expression(promise_resolve_call, "then"),
+            Option::<Gc<NodeArray>>::None,
+            Some(vec![func]),
+        )
     }
 
     pub(super) fn get_helper_expression_for_export(
@@ -701,7 +643,6 @@ impl TransformModule {
                 return Some(
                     self.factory
                         .create_expression_statement(self.create_require_call(node))
-                        
                         .set_text_range(Some(node))
                         .set_original_node(Some(node.node_wrapper()))
                         .into(),
@@ -713,53 +654,45 @@ impl TransformModule {
                     .filter(|_| !is_default_import(node))
                 {
                     variables.push(
-                        self.factory
-                            .create_variable_declaration(
-                                Some(self.factory.clone_node(
+                        self.factory.create_variable_declaration(
+                            Some(
+                                self.factory.clone_node(
                                     &namespace_declaration.as_named_declaration().name(),
-                                )),
-                                None,
-                                None,
-                                Some(self.get_helper_expression_for_import(
-                                    node,
-                                    self.create_require_call(node),
-                                )),
-                            )
-                            ,
+                                ),
+                            ),
+                            None,
+                            None,
+                            Some(self.get_helper_expression_for_import(
+                                node,
+                                self.create_require_call(node),
+                            )),
+                        ),
                     );
                 } else {
-                    variables.push(
-                        self.factory
-                            .create_variable_declaration(
-                                Some(self.factory.get_generated_name_for_node(Some(node), None)),
-                                None,
-                                None,
-                                Some(self.get_helper_expression_for_import(
-                                    node,
-                                    self.create_require_call(node),
-                                )),
-                            )
-                            ,
-                    );
+                    variables.push(self.factory.create_variable_declaration(
+                        Some(self.factory.get_generated_name_for_node(Some(node), None)),
+                        None,
+                        None,
+                        Some(self.get_helper_expression_for_import(
+                            node,
+                            self.create_require_call(node),
+                        )),
+                    ));
 
                     if let Some(namespace_declaration) = namespace_declaration
                         .as_ref()
                         .filter(|_| is_default_import(node))
                     {
-                        variables.push(
-                            self.factory
-                                .create_variable_declaration(
-                                    Some(self.factory.clone_node(
-                                        &namespace_declaration.as_named_declaration().name(),
-                                    )),
-                                    None,
-                                    None,
-                                    Some(
-                                        self.factory.get_generated_name_for_node(Some(node), None),
-                                    ),
-                                )
-                                ,
-                        );
+                        variables.push(self.factory.create_variable_declaration(
+                            Some(
+                                self.factory.clone_node(
+                                    &namespace_declaration.as_named_declaration().name(),
+                                ),
+                            ),
+                            None,
+                            None,
+                            Some(self.factory.get_generated_name_for_node(Some(node), None)),
+                        ));
                     }
                 }
 
@@ -767,18 +700,15 @@ impl TransformModule {
                     self.factory
                         .create_variable_statement(
                             Option::<Gc<NodeArray>>::None,
-                            self.factory
-                                .create_variable_declaration_list(
-                                    variables,
-                                    Some(
-                                        (self.language_version >= ScriptTarget::ES2015)
-                                            .then_some(NodeFlags::Const)
-                                            .unwrap_or_default(),
-                                    ),
-                                )
-                                ,
+                            self.factory.create_variable_declaration_list(
+                                variables,
+                                Some(
+                                    (self.language_version >= ScriptTarget::ES2015)
+                                        .then_some(NodeFlags::Const)
+                                        .unwrap_or_default(),
+                                ),
+                            ),
                         )
-                        
                         .set_text_range(Some(node))
                         .set_original_node(Some(node.node_wrapper())),
                 );
@@ -788,34 +718,26 @@ impl TransformModule {
             .filter(|_| is_default_import(node))
         {
             statements.get_or_insert_with(|| _d()).push(
-                self.factory
-                    .create_variable_statement(
-                        Option::<Gc<NodeArray>>::None,
-                        self.factory
-                            .create_variable_declaration_list(
-                                vec![self
-                                    .factory
-                                    .create_variable_declaration(
-                                        Some(self.factory.clone_node(
-                                            &namespace_declaration.as_named_declaration().name(),
-                                        )),
-                                        None,
-                                        None,
-                                        Some(
-                                            self.factory
-                                                .get_generated_name_for_node(Some(node), None),
-                                        ),
-                                    )
-                                    ],
-                                Some(
-                                    (self.language_version >= ScriptTarget::ES2015)
-                                        .then_some(NodeFlags::Const)
-                                        .unwrap_or_default(),
+                self.factory.create_variable_statement(
+                    Option::<Gc<NodeArray>>::None,
+                    self.factory.create_variable_declaration_list(
+                        vec![self.factory.create_variable_declaration(
+                            Some(
+                                self.factory.clone_node(
+                                    &namespace_declaration.as_named_declaration().name(),
                                 ),
-                            )
-                            ,
-                    )
-                    ,
+                            ),
+                            None,
+                            None,
+                            Some(self.factory.get_generated_name_for_node(Some(node), None)),
+                        )],
+                        Some(
+                            (self.language_version >= ScriptTarget::ES2015)
+                                .then_some(NodeFlags::Const)
+                                .unwrap_or_default(),
+                        ),
+                    ),
+                ),
             );
         }
 
@@ -850,12 +772,10 @@ impl TransformModule {
             args.push(module_name);
         }
 
-        self.factory
-            .create_call_expression(
-                self.factory.create_identifier("require"),
-                Option::<Gc<NodeArray>>::None,
-                Some(args),
-            )
-            
+        self.factory.create_call_expression(
+            self.factory.create_identifier("require"),
+            Option::<Gc<NodeArray>>::None,
+            Some(args),
+        )
     }
 }

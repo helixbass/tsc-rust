@@ -1,6 +1,6 @@
+use std::{borrow::Borrow, ptr};
+
 use gc::{Gc, GcCell};
-use std::borrow::Borrow;
-use std::ptr;
 
 use super::{get_module_instance_state, BinderType, ModuleInstanceState};
 use crate::{
