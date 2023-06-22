@@ -972,7 +972,7 @@ impl Printer {
             .question_dot_token
             .clone()
             .unwrap_or_else(|| {
-                let token: Gc<Node> = get_factory().create_token(SyntaxKind::DotToken).wrap();
+                let token: Gc<Node> = get_factory().create_token(SyntaxKind::DotToken);
                 set_text_range_pos_end(
                     &*token,
                     node_as_property_access_expression.expression.end(),

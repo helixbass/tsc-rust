@@ -847,9 +847,9 @@ impl CoreTransformationContext<BaseNodeFactorySynthetic> for TransformNodesTrans
                                 lexical_environment_variable_declarations.clone(),
                                 None,
                             )
-                            .wrap(),
+                            ,
                     )
-                    .wrap();
+                    ;
 
                 let statement = set_emit_flags(statement, EmitFlags::CustomPrologue);
 
@@ -927,7 +927,7 @@ impl CoreTransformationContext<BaseNodeFactorySynthetic> for TransformNodesTrans
         let decl = set_emit_flags(
             self.factory()
                 .create_variable_declaration(Some(name.node_wrapper()), None, None, None)
-                .wrap(),
+                ,
             EmitFlags::NoNestedSourceMaps,
         );
         let mut lexical_environment_variable_declarations =
@@ -997,14 +997,14 @@ impl CoreTransformationContext<BaseNodeFactorySynthetic> for TransformNodesTrans
                                             None,
                                             None,
                                         )
-                                        .wrap()
+                                        
                                 })
                                 .collect::<Vec<_>>(),
                             Some(NodeFlags::Let),
                         )
-                        .wrap(),
+                        ,
                 )
-                .wrap()])
+                ])
         } else {
             None
         };

@@ -81,7 +81,7 @@ impl TransformGenerators {
         statements.push(
             self.factory
                 .create_return_statement(Some(build_result))
-                .wrap(),
+                ,
         );
 
         self.set_in_generator_function_body(saved_in_generator_function_body);
@@ -100,7 +100,7 @@ impl TransformGenerators {
 
         self.factory
             .create_block(statements, body_as_block.multi_line)
-            .wrap()
+            
             .set_text_range(Some(body))
     }
 
@@ -144,7 +144,7 @@ impl TransformGenerators {
                                 self.transform_initialized_variable(variable)
                             })),
                     )
-                    .wrap()
+                    
                     .set_source_map_range(Some(node.into())),
             )
         }
@@ -231,10 +231,10 @@ impl TransformGenerators {
                                     Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
                                 ),
                             )
-                            .wrap()
+                            
                             .set_text_range(Some(node)),
                     )
-                    .wrap()
+                    
                     .set_text_range(Some(node));
             } else {
                 return self.factory.update_binary_expression(
@@ -324,7 +324,7 @@ impl TransformGenerators {
                             .create_expression_statement(
                                 self.factory.inline_expressions(&pending_expressions),
                             )
-                            .wrap()
+                            
                             .into(),
                     ),
                     Option::<&Node>::None,
@@ -361,7 +361,7 @@ impl TransformGenerators {
                                 .create_expression_statement(
                                     self.factory.inline_expressions(&pending_expressions),
                                 )
-                                .wrap()
+                                
                                 .into(),
                         ),
                         Option::<&Node>::None,
@@ -559,7 +559,7 @@ impl TransformGenerators {
                         }),
                         None,
                     )
-                    .wrap(),
+                    ,
                 Option::<&Node>::None,
             );
             leading_element = None;
@@ -586,7 +586,7 @@ impl TransformGenerators {
                 vec![self
                     .factory
                     .create_array_literal_expression(Some(expressions), multi_line)
-                    .wrap()],
+                    ],
             )
         } else {
             self.factory
@@ -598,7 +598,7 @@ impl TransformGenerators {
                     }),
                     multi_line,
                 )
-                .wrap()
+                
                 .set_text_range(location)
         }
     }

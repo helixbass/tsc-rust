@@ -142,7 +142,6 @@ impl TransformClassFields {
                         expression = self
                             .factory
                             .create_comma(expression, temp)
-                            .wrap()
                             .set_text_range(Some(node));
                     }
                     return Some(expression.into());
@@ -184,13 +183,10 @@ impl TransformClassFields {
                                     node_operand.as_property_access_expression();
                                 if is_identifier(&node_operand_as_property_access_expression.name())
                                 {
-                                    setter_name = Some(
-                                        self.factory
-                                            .create_string_literal_from_node(
-                                                &node_operand_as_property_access_expression.name(),
-                                            )
-                                            .wrap(),
-                                    );
+                                    setter_name =
+                                        Some(self.factory.create_string_literal_from_node(
+                                            &node_operand_as_property_access_expression.name(),
+                                        ));
                                     getter_name = setter_name.clone();
                                 }
                             } else {
@@ -213,18 +209,16 @@ impl TransformClassFields {
                                         None,
                                     ));
                                     setter_name = Some(
-                                        self.factory
-                                            .create_assignment(
-                                                getter_name.clone().unwrap(),
-                                                visit_node(
-                                                    &node_operand_as_element_access_expression
-                                                        .argument_expression,
-                                                    Some(|node: &Node| self.visitor(node)),
-                                                    Some(is_expression),
-                                                    Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
-                                                ),
-                                            )
-                                            .wrap(),
+                                        self.factory.create_assignment(
+                                            getter_name.clone().unwrap(),
+                                            visit_node(
+                                                &node_operand_as_element_access_expression
+                                                    .argument_expression,
+                                                Some(|node: &Node| self.visitor(node)),
+                                                Some(is_expression),
+                                                Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                                            ),
+                                        ),
                                     );
                                 }
                             }
@@ -272,7 +266,6 @@ impl TransformClassFields {
                                     expression = self
                                         .factory
                                         .create_comma(expression, temp)
-                                        .wrap()
                                         .set_text_range(Some(node));
                                 }
                                 return Some(expression.into());
@@ -362,8 +355,7 @@ impl TransformClassFields {
         );
         let initialize_expression = self
             .factory
-            .create_assignment(read_expression.clone(), clone)
-            .wrap();
+            .create_assignment(read_expression.clone(), clone);
         CopiableReceiverExpr {
             read_expression,
             initialize_expression: Some(initialize_expression),
@@ -388,18 +380,16 @@ impl TransformClassFields {
                     self.factory
                         .update_call_chain(
                             node,
-                            self.factory
-                                .create_property_access_chain(
-                                    visit_node(
-                                        &target,
-                                        Some(|node: &Node| self.visitor(node)),
-                                        Option::<fn(&Node) -> bool>::None,
-                                        Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
-                                    ),
-                                    node_as_call_expression.question_dot_token.clone(),
-                                    "call",
-                                )
-                                .wrap(),
+                            self.factory.create_property_access_chain(
+                                visit_node(
+                                    &target,
+                                    Some(|node: &Node| self.visitor(node)),
+                                    Option::<fn(&Node) -> bool>::None,
+                                    Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                                ),
+                                node_as_call_expression.question_dot_token.clone(),
+                                "call",
+                            ),
                             None,
                             Option::<Gc<NodeArray>>::None,
                             vec![visit_node(
@@ -426,17 +416,15 @@ impl TransformClassFields {
                 self.factory
                     .update_call_expression(
                         node,
-                        self.factory
-                            .create_property_access_expression(
-                                visit_node(
-                                    &target,
-                                    Some(|node: &Node| self.visitor(node)),
-                                    Option::<fn(&Node) -> bool>::None,
-                                    Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
-                                ),
-                                "call",
-                            )
-                            .wrap(),
+                        self.factory.create_property_access_expression(
+                            visit_node(
+                                &target,
+                                Some(|node: &Node| self.visitor(node)),
+                                Option::<fn(&Node) -> bool>::None,
+                                Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                            ),
+                            "call",
+                        ),
                         Option::<Gc<NodeArray>>::None,
                         vec![visit_node(
                             &this_arg,
@@ -524,28 +512,24 @@ impl TransformClassFields {
                 self.factory
                     .update_tagged_template_expression(
                         node,
-                        self.factory
-                            .create_call_expression(
-                                self.factory
-                                    .create_property_access_expression(
-                                        visit_node(
-                                            &target,
-                                            Some(|node: &Node| self.visitor(node)),
-                                            Option::<fn(&Node) -> bool>::None,
-                                            Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
-                                        ),
-                                        "bind",
-                                    )
-                                    .wrap(),
-                                Option::<Gc<NodeArray>>::None,
-                                Some(vec![visit_node(
-                                    &this_arg,
+                        self.factory.create_call_expression(
+                            self.factory.create_property_access_expression(
+                                visit_node(
+                                    &target,
                                     Some(|node: &Node| self.visitor(node)),
-                                    Some(is_expression),
+                                    Option::<fn(&Node) -> bool>::None,
                                     Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
-                                )]),
-                            )
-                            .wrap(),
+                                ),
+                                "bind",
+                            ),
+                            Option::<Gc<NodeArray>>::None,
+                            Some(vec![visit_node(
+                                &this_arg,
+                                Some(|node: &Node| self.visitor(node)),
+                                Some(is_expression),
+                                Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                            )]),
+                        ),
                         Option::<Gc<NodeArray>>::None,
                         visit_node(
                             &node_as_tagged_template_expression.template,
@@ -777,14 +761,12 @@ impl TransformClassFields {
                                         .name,
                                 ) {
                                     Some(
-                                        self.factory
-                                            .create_string_literal_from_node(
-                                                &node_as_binary_expression
-                                                    .left
-                                                    .as_property_access_expression()
-                                                    .name,
-                                            )
-                                            .wrap(),
+                                        self.factory.create_string_literal_from_node(
+                                            &node_as_binary_expression
+                                                .left
+                                                .as_property_access_expression()
+                                                .name,
+                                        ),
                                     )
                                 } else {
                                     None
@@ -809,8 +791,7 @@ impl TransformClassFields {
                                         );
                                         setter_name = self
                                             .factory
-                                            .create_assignment(getter_name.clone(), setter_name)
-                                            .wrap();
+                                            .create_assignment(getter_name.clone(), setter_name);
                                     }
                                     let super_property_get = self
                                         .factory
@@ -833,7 +814,6 @@ impl TransformClassFields {
                                             ),
                                             expression,
                                         )
-                                        .wrap()
                                         .set_text_range(Some(node));
                                 }
 
@@ -846,10 +826,8 @@ impl TransformClassFields {
                                     )
                                 });
                                 if let Some(temp) = temp.as_ref() {
-                                    expression = self
-                                        .factory
-                                        .create_assignment(temp.clone(), expression)
-                                        .wrap();
+                                    expression =
+                                        self.factory.create_assignment(temp.clone(), expression);
                                     set_text_range(&**temp, Some(node));
                                 }
 
@@ -868,7 +846,6 @@ impl TransformClassFields {
                                     expression = self
                                         .factory
                                         .create_comma(expression, temp)
-                                        .wrap()
                                         .set_text_range(Some(node));
                                 }
 
@@ -915,14 +892,11 @@ impl TransformClassFields {
             receiver = initialize_expression
                 .clone()
                 .unwrap_or_else(|| read_expression.clone());
-            right = self
-                .factory
-                .create_binary_expression(
-                    self.create_private_identifier_access_helper(info, &read_expression),
-                    get_non_assignment_operator_for_compound_assignment(operator),
-                    right,
-                )
-                .wrap();
+            right = self.factory.create_binary_expression(
+                self.create_private_identifier_access_helper(info, &read_expression),
+                get_non_assignment_operator_for_compound_assignment(operator),
+                right,
+            );
         }
 
         set_comment_range(
@@ -1114,17 +1088,15 @@ impl TransformClassFields {
                 self.factory
                     .update_expression_with_type_arguments(
                         node,
-                        self.factory
-                            .create_assignment(
-                                temp,
-                                visit_node(
-                                    &node_as_expression_with_type_arguments.expression,
-                                    Some(|node: &Node| self.visitor(node)),
-                                    Some(is_expression),
-                                    Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
-                                ),
-                            )
-                            .wrap(),
+                        self.factory.create_assignment(
+                            temp,
+                            visit_node(
+                                &node_as_expression_with_type_arguments.expression,
+                                Some(|node: &Node| self.visitor(node)),
+                                Some(is_expression),
+                                Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                            ),
+                        ),
                         Option::<Gc<NodeArray>>::None,
                     )
                     .into(),

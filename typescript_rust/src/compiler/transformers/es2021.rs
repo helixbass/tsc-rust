@@ -109,7 +109,7 @@ impl TransformES2021 {
             } else {
                 self.factory
                     .create_assignment(property_access_target.clone(), left_expression.clone())
-                    .wrap()
+                    
             };
 
             if is_property_access_expression(&left) {
@@ -120,14 +120,14 @@ impl TransformES2021 {
                         property_access_target,
                         left_as_property_access_expression.name.clone(),
                     )
-                    .wrap();
+                    ;
                 left = self
                     .factory
                     .create_property_access_expression(
                         property_access_target_assignment,
                         left_as_property_access_expression.name.clone(),
                     )
-                    .wrap();
+                    ;
             } else {
                 let left_as_element_access_expression = left.as_element_access_expression();
                 let element_access_argument_simple_copiable = is_simple_copiable_expression(
@@ -152,7 +152,7 @@ impl TransformES2021 {
                         property_access_target,
                         element_access_argument.clone(),
                     )
-                    .wrap();
+                    ;
                 left = self
                     .factory
                     .create_element_access_expression(
@@ -169,10 +169,10 @@ impl TransformES2021 {
                                         .argument_expression
                                         .clone(),
                                 )
-                                .wrap()
+                                
                         },
                     )
-                    .wrap();
+                    ;
             }
         }
 
@@ -185,11 +185,11 @@ impl TransformES2021 {
                         .create_parenthesized_expression(
                             self.factory
                                 .create_assignment(assignment_target, right)
-                                .wrap(),
+                                ,
                         )
-                        .wrap(),
+                        ,
                 )
-                .wrap()
+                
                 .into(),
         )
     }

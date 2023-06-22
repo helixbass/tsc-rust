@@ -74,7 +74,7 @@ impl TransformES2019 {
                             None,
                             None,
                         )
-                        .wrap(),
+                        ,
                 ),
                 visit_node(
                     &node_as_catch_clause.block,

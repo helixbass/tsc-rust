@@ -651,10 +651,10 @@ impl TypeChecker {
                                 factory_.create_identifier("module"),
                                 factory_.create_identifier("exports"),
                             )
-                            .wrap(),
+                            ,
                         access_name,
                     )
-                    .wrap()
+                    
             })
         } else {
             factory.with(|factory_| {
@@ -663,7 +663,7 @@ impl TypeChecker {
                         factory_.create_identifier("exports"),
                         access_name,
                     )
-                    .wrap()
+                    
             })
         };
         if are_all_module_exports {
@@ -699,7 +699,7 @@ impl TypeChecker {
             factory.with(|factory_| {
                 factory_
                     .create_private_identifier((&*symbol.escaped_name()).split("@").nth(1).unwrap())
-                    .wrap()
+                    
                     .into()
             })
         } else {
@@ -709,10 +709,10 @@ impl TypeChecker {
             let reference = factory.with(|factory_| {
                 factory_
                     .create_property_access_expression(
-                        factory_.create_this().wrap(),
+                        factory_.create_this(),
                         access_name.clone(),
                     )
-                    .wrap()
+                    
             });
             set_parent(
                 &reference.as_property_access_expression().expression,
@@ -755,7 +755,7 @@ impl TypeChecker {
             factory.with(|factory_| {
                 factory_
                     .create_private_identifier((&*symbol.escaped_name()).split("@").nth(1).unwrap())
-                    .wrap()
+                    
                     .into()
             })
         } else {
@@ -763,8 +763,8 @@ impl TypeChecker {
         };
         let reference = factory.with(|factory_| {
             factory_
-                .create_property_access_expression(factory_.create_this().wrap(), access_name)
-                .wrap()
+                .create_property_access_expression(factory_.create_this(), access_name)
+                
         });
         set_parent(
             &reference.as_property_access_expression().expression,

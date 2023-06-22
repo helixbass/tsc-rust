@@ -40,7 +40,7 @@ impl TransformModule {
                             Option::<&Node>::None,
                             None,
                         ))
-                        .wrap()
+                        
                         .set_text_range(Some(node))
                         .set_original_node(Some(node.node_wrapper())),
                 );
@@ -61,16 +61,16 @@ impl TransformModule {
                                             None,
                                             Some(self.create_require_call(node)),
                                         )
-                                        .wrap()],
+                                        ],
                                     Some(
                                         (self.language_version >= ScriptTarget::ES2015)
                                             .then_some(NodeFlags::Const)
                                             .unwrap_or_default(),
                                     ),
                                 )
-                                .wrap(),
+                                ,
                         )
-                        .wrap()
+                        
                         .set_text_range(Some(node))
                         .set_original_node(Some(node.node_wrapper())),
                 );
@@ -85,7 +85,7 @@ impl TransformModule {
                             Option::<&Node>::None,
                             None,
                         ))
-                        .wrap()
+                        
                         .set_text_range(Some(node))
                         .set_original_node(Some(node.node_wrapper())),
                 );
@@ -137,12 +137,12 @@ impl TransformModule {
                                             None,
                                             Some(self.create_require_call(node)),
                                         )
-                                        .wrap()],
+                                        ],
                                     None,
                                 )
-                                .wrap(),
+                                ,
                         )
-                        .wrap()
+                        
                         .set_text_range(Some(node))
                         .set_original_node(Some(node.node_wrapper())),
                 );
@@ -162,19 +162,19 @@ impl TransformModule {
                                                 .as_deref()
                                                 .unwrap_or(&specifier_as_export_specifier.name),
                                         )
-                                        .wrap(),
+                                        ,
                                     specifier_as_export_specifier.property_name.as_ref().map(
                                         |_| {
                                             self.factory
                                                 .create_string_literal_from_node(
                                                     &specifier_as_export_specifier.name,
                                                 )
-                                                .wrap()
+                                                
                                         },
                                     ),
                                 ),
                             )
-                            .wrap()
+                            
                             .set_text_range(Some(&**specifier))
                             .set_original_node(Some(specifier.clone())),
                     );
@@ -202,7 +202,7 @@ impl TransformModule {
                                 .clone()
                                 .unwrap_or_else(|| specifier_as_export_specifier.name.clone()),
                         )
-                        .wrap();
+                        ;
                     statements.push(
                         self.factory
                             .create_expression_statement(self.create_export_expression(
@@ -211,7 +211,7 @@ impl TransformModule {
                                 Option::<&Node>::None,
                                 Some(true),
                             ))
-                            .wrap()
+                            
                             .set_text_range(Some(&**specifier))
                             .set_original_node(Some(specifier.clone())),
                     );
@@ -245,7 +245,7 @@ impl TransformModule {
                             None,
                         ),
                     )
-                    .wrap()
+                    
                     .set_text_range(Some(node))
                     .set_original_node(Some(node.node_wrapper())),
             );
@@ -262,7 +262,7 @@ impl TransformModule {
                         },
                         None,
                     ))
-                    .wrap()
+                    
                     .set_text_range(Some(node))
                     .set_original_node(Some(node.node_wrapper()))
                     .into(),
@@ -356,7 +356,7 @@ impl TransformModule {
                             &**self.context,
                         )?,
                     )
-                    .wrap()
+                    
                     .set_text_range(Some(node))
                     .set_original_node(Some(node.node_wrapper())),
             );
@@ -423,7 +423,7 @@ impl TransformModule {
                             None,
                         )?,
                     )
-                    .wrap()
+                    
                     .set_text_range(Some(node))
                     .set_original_node(Some(node.node_wrapper())),
             );
@@ -498,7 +498,7 @@ impl TransformModule {
                                         self.factory.create_identifier("exports"),
                                         variable_as_variable_declaration.name(),
                                     )
-                                    .wrap()
+                                    
                                     .set_text_range(Some(
                                         &*variable_as_variable_declaration.name(),
                                     )),
@@ -507,7 +507,7 @@ impl TransformModule {
                                         &variable_as_variable_declaration.name(),
                                     )),
                             )
-                            .wrap();
+                            ;
                         let updated_variable = self
                             .factory
                             .create_variable_declaration(
@@ -521,7 +521,7 @@ impl TransformModule {
                                     Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
                                 )?),
                             )
-                            .wrap();
+                            ;
 
                         variables.get_or_insert_with(|| _d()).push(updated_variable);
                         expressions.get_or_insert_with(|| _d()).push(expression);
@@ -551,7 +551,7 @@ impl TransformModule {
                 let statement = self
                     .factory
                     .create_expression_statement(self.factory.inline_expressions(&expressions))
-                    .wrap()
+                    
                     .set_text_range(Some(node))
                     .set_original_node(Some(node.node_wrapper()));
                 if remove_comments_on_expressions {
@@ -596,7 +596,7 @@ impl TransformModule {
                 self.factory.create_assignment(
                     name.node_wrapper(),
                     value,
-                ).wrap()
+                )
             };
             for export_name in exported_names {
                 set_emit_flags(&*expression, EmitFlags::NoSubstitution);
@@ -609,7 +609,7 @@ impl TransformModule {
         Ok(self
             .factory
             .create_assignment(name.node_wrapper(), value)
-            .wrap())
+            )
     }
 
     pub(super) fn transform_initialized_variable(
@@ -644,7 +644,7 @@ impl TransformModule {
                                 self.factory.create_identifier("exports"),
                                 node_as_variable_declaration.name(),
                             )
-                            .wrap()
+                            
                             .set_text_range(Some(&*node_as_variable_declaration.name())),
                         node_as_variable_declaration
                             .maybe_initializer()
@@ -660,7 +660,7 @@ impl TransformModule {
                                 },
                             )?,
                     )
-                    .wrap()
+                    
             },
         )
     }

@@ -1,4 +1,5 @@
 use gc::{Finalize, Gc, Trace};
+use local_macros::generate_node_factory_method_wrapper;
 
 use super::{
     get_cooked_text, propagate_child_flags, propagate_children_flags,
@@ -30,7 +31,8 @@ use crate::{
 };
 
 impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory<TBaseNodeFactory> {
-    pub fn create_infer_type_node(
+    #[generate_node_factory_method_wrapper]
+    pub fn create_infer_type_node_raw(
         &self,
         type_parameter: Gc<Node /*TypeParameterDeclaration*/>,
     ) -> InferTypeNode {
@@ -47,13 +49,14 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     ) -> Gc<Node> {
         let node_as_infer_type_node = node.as_infer_type_node();
         if !Gc::ptr_eq(&node_as_infer_type_node.type_parameter, &type_parameter) {
-            self.update(self.create_infer_type_node(type_parameter).wrap(), node)
+            self.update(self.create_infer_type_node(type_parameter), node)
         } else {
             node.node_wrapper()
         }
     }
 
-    pub fn create_template_literal_type(
+    #[generate_node_factory_method_wrapper]
+    pub fn create_template_literal_type_raw(
         &self,
         head: Gc<Node /*TemplateHead*/>,
         template_spans: impl Into<NodeArrayOrVec>, /*<TemplateLiteralTypeSpan>*/
@@ -83,8 +86,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
             )
         {
             self.update(
-                self.create_template_literal_type(head, template_spans)
-                    .wrap(),
+                self.create_template_literal_type(head, template_spans),
                 node,
             )
         } else {
@@ -92,7 +94,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         }
     }
 
-    pub fn create_import_type_node<TTypeArguments: Into<NodeArrayOrVec>>(
+    #[generate_node_factory_method_wrapper]
+    pub fn create_import_type_node_raw<TTypeArguments: Into<NodeArrayOrVec>>(
         &self,
         argument: Gc<Node /*TypeNode*/>,
         qualifier: Option<Gc<Node /*EntityName*/>>,
@@ -138,8 +141,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
             || node_as_import_type_node.is_type_of() != is_type_of
         {
             self.update(
-                self.create_import_type_node(argument, qualifier, type_arguments, Some(is_type_of))
-                    .wrap(),
+                self.create_import_type_node(argument, qualifier, type_arguments, Some(is_type_of)),
                 node,
             )
         } else {
@@ -147,7 +149,11 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         }
     }
 
-    pub fn create_parenthesized_type(&self, type_: Gc<Node /*TypeNode*/>) -> ParenthesizedTypeNode {
+    #[generate_node_factory_method_wrapper]
+    pub fn create_parenthesized_type_raw(
+        &self,
+        type_: Gc<Node /*TypeNode*/>,
+    ) -> ParenthesizedTypeNode {
         let node = self.create_base_node(SyntaxKind::ParenthesizedType);
         let node = ParenthesizedTypeNode::new(node, type_);
         node.add_transform_flags(TransformFlags::ContainsTypeScript);
@@ -161,20 +167,22 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     ) -> Gc<Node> {
         let node_as_parenthesized_type_node = node.as_parenthesized_type_node();
         if !Gc::ptr_eq(&node_as_parenthesized_type_node.type_, &type_) {
-            self.update(self.create_parenthesized_type(type_).wrap(), node)
+            self.update(self.create_parenthesized_type(type_), node)
         } else {
             node.node_wrapper()
         }
     }
 
-    pub fn create_this_type_node(&self) -> ThisTypeNode {
+    #[generate_node_factory_method_wrapper]
+    pub fn create_this_type_node_raw(&self) -> ThisTypeNode {
         let node = self.create_base_node(SyntaxKind::ThisType);
         let node = ThisTypeNode::new(node);
         node.add_transform_flags(TransformFlags::ContainsTypeScript);
         node
     }
 
-    pub fn create_type_operator_node(
+    #[generate_node_factory_method_wrapper]
+    pub fn create_type_operator_node_raw(
         &self,
         operator: SyntaxKind,
         type_: Gc<Node /*TypeNode*/>,
@@ -198,8 +206,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         let node_as_type_operator_node = node.as_type_operator_node();
         if !Gc::ptr_eq(&node_as_type_operator_node.type_, &type_) {
             self.update(
-                self.create_type_operator_node(node_as_type_operator_node.operator, type_)
-                    .wrap(),
+                self.create_type_operator_node(node_as_type_operator_node.operator, type_),
                 node,
             )
         } else {
@@ -207,7 +214,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         }
     }
 
-    pub fn create_indexed_access_type_node(
+    #[generate_node_factory_method_wrapper]
+    pub fn create_indexed_access_type_node_raw(
         &self,
         object_type: Gc<Node /*TypeNode*/>,
         index_type: Gc<Node /*TypeNode*/>,
@@ -234,8 +242,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
             || !Gc::ptr_eq(&node_as_indexed_access_type_node.index_type, &index_type)
         {
             self.update(
-                self.create_indexed_access_type_node(object_type, index_type)
-                    .wrap(),
+                self.create_indexed_access_type_node(object_type, index_type),
                 node,
             )
         } else {
@@ -243,7 +250,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         }
     }
 
-    pub fn create_mapped_type_node(
+    #[generate_node_factory_method_wrapper]
+    pub fn create_mapped_type_node_raw(
         &self,
         readonly_token: Option<Gc<Node /*ReadonlyKeyword | PlusToken | MinusToken*/>>,
         type_parameter: Gc<Node /*TypeParameterDeclaration*/>,
@@ -300,8 +308,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
                     question_token,
                     type_,
                     members,
-                )
-                .wrap(),
+                ),
                 node,
             )
         } else {
@@ -309,7 +316,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         }
     }
 
-    pub fn create_literal_type_node(
+    #[generate_node_factory_method_wrapper]
+    pub fn create_literal_type_node_raw(
         &self,
         literal: Gc<Node /*LiteralTypeNode["literal"]*/>,
     ) -> LiteralTypeNode {
@@ -326,13 +334,14 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     ) -> Gc<Node> {
         let node_as_literal_type_node = node.as_literal_type_node();
         if !Gc::ptr_eq(&node_as_literal_type_node.literal, &literal) {
-            self.update(self.create_literal_type_node(literal).wrap(), node)
+            self.update(self.create_literal_type_node(literal), node)
         } else {
             node.node_wrapper()
         }
     }
 
-    pub fn create_object_binding_pattern(
+    #[generate_node_factory_method_wrapper]
+    pub fn create_object_binding_pattern_raw(
         &self,
         elements: impl Into<NodeArrayOrVec /*<BindingElement>*/>,
     ) -> ObjectBindingPattern {
@@ -362,13 +371,14 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         let node_as_object_binding_pattern = node.as_object_binding_pattern();
         let elements = elements.into();
         if has_node_array_changed(&node_as_object_binding_pattern.elements, &elements) {
-            self.update(self.create_object_binding_pattern(elements).wrap(), node)
+            self.update(self.create_object_binding_pattern(elements), node)
         } else {
             node.node_wrapper()
         }
     }
 
-    pub fn create_array_binding_pattern(
+    #[generate_node_factory_method_wrapper]
+    pub fn create_array_binding_pattern_raw(
         &self,
         elements: impl Into<NodeArrayOrVec /*<BindingElement>*/>,
     ) -> ArrayBindingPattern {
@@ -390,13 +400,14 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         let node_as_array_binding_pattern = node.as_array_binding_pattern();
         let elements = elements.into();
         if has_node_array_changed(&node_as_array_binding_pattern.elements, &elements) {
-            self.update(self.create_array_binding_pattern(elements).wrap(), node)
+            self.update(self.create_array_binding_pattern(elements), node)
         } else {
             node.node_wrapper()
         }
     }
 
-    pub fn create_binding_element<'property_name, 'name>(
+    #[generate_node_factory_method_wrapper]
+    pub fn create_binding_element_raw<'property_name, 'name>(
         &self,
         dot_dot_dot_token: Option<Gc<Node /*DotDotDotToken*/>>,
         property_name: Option<impl Into<StrOrRcNode<'property_name> /*PropertyName*/>>,
@@ -453,8 +464,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
             )
         {
             self.update(
-                self.create_binding_element(dot_dot_dot_token, property_name, name, initializer)
-                    .wrap(),
+                self.create_binding_element(dot_dot_dot_token, property_name, name, initializer),
                 node,
             )
         } else {
@@ -467,7 +477,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         node
     }
 
-    pub fn create_array_literal_expression(
+    #[generate_node_factory_method_wrapper]
+    pub fn create_array_literal_expression_raw(
         &self,
         elements: Option<impl Into<NodeArrayOrVec>>, /*Expression*/
         multi_line: Option<bool>,
@@ -513,8 +524,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
                 self.create_array_literal_expression(
                     Some(elements),
                     node_as_array_literal_expression.multi_line,
-                )
-                .wrap(),
+                ),
                 node,
             )
         } else {
@@ -522,7 +532,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         }
     }
 
-    pub fn create_object_literal_expression(
+    #[generate_node_factory_method_wrapper]
+    pub fn create_object_literal_expression_raw(
         &self,
         properties: Option<impl Into<NodeArrayOrVec> /*ObjectLiteralElementLike*/>,
         multi_line: Option<bool>,
@@ -549,8 +560,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
                 self.create_object_literal_expression(
                     Some(properties),
                     node_as_object_literal_expression.multi_line,
-                )
-                .wrap(),
+                ),
                 node,
             )
         } else {
@@ -558,7 +568,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         }
     }
 
-    pub fn create_property_access_expression<'name>(
+    #[generate_node_factory_method_wrapper]
+    pub fn create_property_access_expression_raw<'name>(
         &self,
         expression: Gc<Node /*Expression*/>,
         name: impl Into<StrOrRcNode<'name>>,
@@ -608,8 +619,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
             || !Gc::ptr_eq(&node_as_property_access_expression.name, &name)
         {
             self.update(
-                self.create_property_access_expression(expression, name)
-                    .wrap(),
+                self.create_property_access_expression(expression, name),
                 node,
             )
         } else {
@@ -617,7 +627,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         }
     }
 
-    pub fn create_property_access_chain<'name>(
+    #[generate_node_factory_method_wrapper]
+    pub fn create_property_access_chain_raw<'name>(
         &self,
         expression: Gc<Node /*Expression*/>,
         question_dot_token: Option<Gc<Node /*QuestionDotToken*/>>,
@@ -667,8 +678,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
             || !Gc::ptr_eq(&node_as_property_access_expression.expression, &expression)
         {
             self.update(
-                self.create_property_access_chain(expression, question_dot_token, name)
-                    .wrap(),
+                self.create_property_access_chain(expression, question_dot_token, name),
                 node,
             )
         } else {
@@ -676,7 +686,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         }
     }
 
-    pub fn create_element_access_expression(
+    #[generate_node_factory_method_wrapper]
+    pub fn create_element_access_expression_raw(
         &self,
         expression: Gc<Node /*Expression*/>,
         index: impl Into<StringOrNumberOrBoolOrRcNode>,
@@ -723,8 +734,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
             )
         {
             self.update(
-                self.create_element_access_expression(expression, argument_expression)
-                    .wrap(),
+                self.create_element_access_expression(expression, argument_expression),
                 node,
             )
         } else {
@@ -732,7 +742,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         }
     }
 
-    pub fn create_element_access_chain(
+    #[generate_node_factory_method_wrapper]
+    pub fn create_element_access_chain_raw(
         &self,
         expression: Gc<Node /*Expression*/>,
         question_dot_token: Option<Gc<Node /*QuestionDotToken*/>>,
@@ -785,8 +796,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
                     expression,
                     question_dot_token,
                     argument_expression,
-                )
-                .wrap(),
+                ),
                 node,
             )
         } else {
@@ -794,7 +804,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         }
     }
 
-    pub fn create_call_expression(
+    #[generate_node_factory_method_wrapper]
+    pub fn create_call_expression_raw(
         &self,
         expression: Gc<Node /*Expression*/>,
         type_arguments: Option<impl Into<NodeArrayOrVec /*<TypeNode>*/>>,
@@ -855,8 +866,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
             || has_node_array_changed(&node_as_call_expression.arguments, &arguments_array)
         {
             self.update(
-                self.create_call_expression(expression, type_arguments, Some(arguments_array))
-                    .wrap(),
+                self.create_call_expression(expression, type_arguments, Some(arguments_array)),
                 node,
             )
         } else {
@@ -864,7 +874,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         }
     }
 
-    pub fn create_call_chain(
+    #[generate_node_factory_method_wrapper]
+    pub fn create_call_chain_raw(
         &self,
         expression: Gc<Node /*Expression*/>,
         question_dot_token: Option<Gc<Node /*QuestionDotToken*/>>,
@@ -942,8 +953,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
                     question_dot_token,
                     type_arguments,
                     Some(arguments_array),
-                )
-                .wrap(),
+                ),
                 node,
             )
         } else {
@@ -951,7 +961,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         }
     }
 
-    pub fn create_new_expression(
+    #[generate_node_factory_method_wrapper]
+    pub fn create_new_expression_raw(
         &self,
         expression: Gc<Node /*Expression*/>,
         type_arguments: Option<
@@ -1013,8 +1024,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
             )
         {
             self.update(
-                self.create_new_expression(expression, type_arguments, arguments_array)
-                    .wrap(),
+                self.create_new_expression(expression, type_arguments, arguments_array),
                 node,
             )
         } else {
@@ -1022,7 +1032,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         }
     }
 
-    pub fn create_tagged_template_expression(
+    #[generate_node_factory_method_wrapper]
+    pub fn create_tagged_template_expression_raw(
         &self,
         tag: Gc<Node /*Expression*/>,
         type_arguments: Option<impl Into<NodeArrayOrVec> /*<TypeNode>*/>,
@@ -1071,8 +1082,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
             || !Gc::ptr_eq(&node_as_tagged_template_expression.template, &template)
         {
             self.update(
-                self.create_tagged_template_expression(tag, type_arguments, template)
-                    .wrap(),
+                self.create_tagged_template_expression(tag, type_arguments, template),
                 node,
             )
         } else {
@@ -1080,7 +1090,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         }
     }
 
-    pub fn create_type_assertion(
+    #[generate_node_factory_method_wrapper]
+    pub fn create_type_assertion_raw(
         &self,
         type_: Gc<Node /*TypeNode*/>,
         expression: Gc<Node /*Expression*/>,
@@ -1110,13 +1121,14 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         if !Gc::ptr_eq(&node_as_type_assertion.type_, &type_)
             || !Gc::ptr_eq(&node_as_type_assertion.expression, &expression)
         {
-            self.update(self.create_type_assertion(type_, expression).wrap(), node)
+            self.update(self.create_type_assertion(type_, expression), node)
         } else {
             node.node_wrapper()
         }
     }
 
-    pub fn create_parenthesized_expression(
+    #[generate_node_factory_method_wrapper]
+    pub fn create_parenthesized_expression_raw(
         &self,
         expression: Gc<Node /*Expression*/>,
     ) -> ParenthesizedExpression {
@@ -1133,16 +1145,14 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     ) -> Gc<Node> {
         let node_as_parenthesized_expression = node.as_parenthesized_expression();
         if !Gc::ptr_eq(&node_as_parenthesized_expression.expression, &expression) {
-            self.update(
-                self.create_parenthesized_expression(expression).wrap(),
-                node,
-            )
+            self.update(self.create_parenthesized_expression(expression), node)
         } else {
             node.node_wrapper()
         }
     }
 
-    pub fn create_function_expression<'name>(
+    #[generate_node_factory_method_wrapper]
+    pub fn create_function_expression_raw<'name>(
         &self,
         modifiers: Option<impl Into<NodeArrayOrVec>>,
         asterisk_token: Option<Gc<Node>>,
@@ -1227,8 +1237,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
                     Some(parameters),
                     type_,
                     body,
-                )
-                .wrap(),
+                ),
                 node,
             )
         } else {
@@ -1236,7 +1245,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         }
     }
 
-    pub fn create_arrow_function(
+    #[generate_node_factory_method_wrapper]
+    pub fn create_arrow_function_raw(
         &self,
         modifiers: Option<impl Into<NodeArrayOrVec>>,
         type_parameters: Option<impl Into<NodeArrayOrVec>>,
@@ -1261,7 +1271,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         let node = ArrowFunction::new(
             node,
             equals_greater_than_token
-                .unwrap_or_else(|| self.create_token(SyntaxKind::EqualsGreaterThanToken).wrap()),
+                .unwrap_or_else(|| self.create_token(SyntaxKind::EqualsGreaterThanToken)),
         );
         node.add_transform_flags(
             propagate_child_flags(Some(&*node.equals_greater_than_token))
@@ -1312,8 +1322,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
                     type_,
                     Some(equals_greater_than_token),
                     body,
-                )
-                .wrap(),
+                ),
                 node,
             )
         } else {
@@ -1321,7 +1330,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         }
     }
 
-    pub fn create_delete_expression(
+    #[generate_node_factory_method_wrapper]
+    pub fn create_delete_expression_raw(
         &self,
         expression: Gc<Node /*Expression*/>,
     ) -> DeleteExpression {
@@ -1342,13 +1352,14 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     ) -> Gc<Node> {
         let node_as_delete_expression = node.as_delete_expression();
         if !Gc::ptr_eq(&node_as_delete_expression.expression, &expression) {
-            self.update(self.create_delete_expression(expression).wrap(), node)
+            self.update(self.create_delete_expression(expression), node)
         } else {
             node.node_wrapper()
         }
     }
 
-    pub fn create_type_of_expression(
+    #[generate_node_factory_method_wrapper]
+    pub fn create_type_of_expression_raw(
         &self,
         expression: Gc<Node /*Expression*/>,
     ) -> TypeOfExpression {
@@ -1369,13 +1380,17 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     ) -> Gc<Node> {
         let node_as_type_of_expression = node.as_type_of_expression();
         if !Gc::ptr_eq(&node_as_type_of_expression.expression, &expression) {
-            self.update(self.create_type_of_expression(expression).wrap(), node)
+            self.update(self.create_type_of_expression(expression), node)
         } else {
             node.node_wrapper()
         }
     }
 
-    pub fn create_void_expression(&self, expression: Gc<Node /*Expression*/>) -> VoidExpression {
+    #[generate_node_factory_method_wrapper]
+    pub fn create_void_expression_raw(
+        &self,
+        expression: Gc<Node /*Expression*/>,
+    ) -> VoidExpression {
         let node = self.create_base_expression(SyntaxKind::VoidExpression);
         let node = VoidExpression::new(
             node,
@@ -1393,13 +1408,17 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     ) -> Gc<Node> {
         let node_as_void_expression = node.as_void_expression();
         if !Gc::ptr_eq(&node_as_void_expression.expression, &expression) {
-            self.update(self.create_void_expression(expression).wrap(), node)
+            self.update(self.create_void_expression(expression), node)
         } else {
             node.node_wrapper()
         }
     }
 
-    pub fn create_await_expression(&self, expression: Gc<Node /*Expression*/>) -> AwaitExpression {
+    #[generate_node_factory_method_wrapper]
+    pub fn create_await_expression_raw(
+        &self,
+        expression: Gc<Node /*Expression*/>,
+    ) -> AwaitExpression {
         let node = self.create_base_expression(SyntaxKind::AwaitExpression);
         let node = AwaitExpression::new(
             node,
@@ -1422,13 +1441,14 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     ) -> Gc<Node> {
         let node_as_await_expression = node.as_await_expression();
         if !Gc::ptr_eq(&node_as_await_expression.expression, &expression) {
-            self.update(self.create_await_expression(expression).wrap(), node)
+            self.update(self.create_await_expression(expression), node)
         } else {
             node.node_wrapper()
         }
     }
 
-    pub fn create_prefix_unary_expression(
+    #[generate_node_factory_method_wrapper]
+    pub fn create_prefix_unary_expression_raw(
         &self,
         operator: SyntaxKind, /*PrefixUnaryOperator*/
         operand: Gc<Node /*Expression*/>,
@@ -1464,8 +1484,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
                 self.create_prefix_unary_expression(
                     node_as_prefix_unary_expression.operator,
                     operand,
-                )
-                .wrap(),
+                ),
                 node,
             )
         } else {
@@ -1473,7 +1492,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         }
     }
 
-    pub fn create_postfix_unary_expression(
+    #[generate_node_factory_method_wrapper]
+    pub fn create_postfix_unary_expression_raw(
         &self,
         operand: Gc<Node /*Expression*/>,
         operator: SyntaxKind,
@@ -1506,8 +1526,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
                 self.create_postfix_unary_expression(
                     operand,
                     node_as_postfix_unary_expression.operator,
-                )
-                .wrap(),
+                ),
                 node,
             )
         } else {
@@ -1515,7 +1534,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         }
     }
 
-    pub fn create_binary_expression(
+    #[generate_node_factory_method_wrapper]
+    pub fn create_binary_expression_raw(
         &self,
         left: Gc<Node /*Expression*/>,
         operator: impl Into<SyntaxKindOrRcNode>,
@@ -1577,10 +1597,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
             || !Gc::ptr_eq(&node_as_binary_expression.operator_token, &operator)
             || !Gc::ptr_eq(&node_as_binary_expression.right, &right)
         {
-            self.update(
-                self.create_binary_expression(left, operator, right).wrap(),
-                node,
-            )
+            self.update(self.create_binary_expression(left, operator, right), node)
         } else {
             node.node_wrapper()
         }
@@ -1624,7 +1641,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         TransformFlags::None
     }
 
-    pub fn create_conditional_expression(
+    #[generate_node_factory_method_wrapper]
+    pub fn create_conditional_expression_raw(
         &self,
         condition: Gc<Node /*Expression*/>,
         question_token: Option<Gc<Node /*QuestionToken*/>>,
@@ -1637,10 +1655,10 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
             node,
             self.parenthesizer_rules()
                 .parenthesize_condition_of_conditional_expression(&condition),
-            question_token.unwrap_or_else(|| self.create_token(SyntaxKind::QuestionToken).wrap()),
+            question_token.unwrap_or_else(|| self.create_token(SyntaxKind::QuestionToken)),
             self.parenthesizer_rules()
                 .parenthesize_branch_of_conditional_expression(&when_true),
-            colon_token.unwrap_or_else(|| self.create_token(SyntaxKind::ColonToken).wrap()),
+            colon_token.unwrap_or_else(|| self.create_token(SyntaxKind::ColonToken)),
             self.parenthesizer_rules()
                 .parenthesize_branch_of_conditional_expression(&when_false),
         );
@@ -1680,8 +1698,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
                     when_true,
                     Some(colon_token),
                     when_false,
-                )
-                .wrap(),
+                ),
                 node,
             )
         } else {
@@ -1689,7 +1706,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         }
     }
 
-    pub fn create_template_expression(
+    #[generate_node_factory_method_wrapper]
+    pub fn create_template_expression_raw(
         &self,
         head: Gc<Node /*TemplateHead*/>,
         template_spans: impl Into<NodeArrayOrVec>, /*<TemplateSpan>*/
@@ -1719,10 +1737,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         if !Gc::ptr_eq(&node_as_template_expression.head, &head)
             || has_node_array_changed(&node_as_template_expression.template_spans, &template_spans)
         {
-            self.update(
-                self.create_template_expression(head, template_spans).wrap(),
-                node,
-            )
+            self.update(self.create_template_expression(head, template_spans), node)
         } else {
             node.node_wrapper()
         }
@@ -1771,10 +1786,16 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
                 }
             }
         }
-        self.create_template_literal_like_node(kind, text.unwrap(), raw_text, Some(template_flags))
+        self.create_template_literal_like_node_raw(
+            kind,
+            text.unwrap(),
+            raw_text,
+            Some(template_flags),
+        )
     }
 
-    pub fn create_template_literal_like_node(
+    #[generate_node_factory_method_wrapper]
+    pub fn create_template_literal_like_node_raw(
         &self,
         kind: SyntaxKind,
         text: String,
@@ -1797,7 +1818,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         node
     }
 
-    pub fn create_template_head(
+    #[generate_node_factory_method_wrapper]
+    pub fn create_template_head_raw(
         &self,
         text: Option<String>,
         raw_text: Option<String>,
@@ -1811,7 +1833,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         )
     }
 
-    pub fn create_template_middle(
+    #[generate_node_factory_method_wrapper]
+    pub fn create_template_middle_raw(
         &self,
         text: Option<String>,
         raw_text: Option<String>,
@@ -1825,7 +1848,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         )
     }
 
-    pub fn create_template_tail(
+    #[generate_node_factory_method_wrapper]
+    pub fn create_template_tail_raw(
         &self,
         text: Option<String>,
         raw_text: Option<String>,
@@ -1839,7 +1863,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         )
     }
 
-    pub fn create_no_substitution_template_literal(
+    #[generate_node_factory_method_wrapper]
+    pub fn create_no_substitution_template_literal_raw(
         &self,
         text: Option<String>,
         raw_text: Option<String>,
@@ -1853,7 +1878,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         )
     }
 
-    pub fn create_yield_expression(
+    #[generate_node_factory_method_wrapper]
+    pub fn create_yield_expression_raw(
         &self,
         asterisk_token: Option<Gc<Node /*AsteriskToken*/>>,
         expression: Option<Gc<Node /*Expression*/>>,
@@ -1892,8 +1918,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
             asterisk_token.as_ref(),
         ) {
             self.update(
-                self.create_yield_expression(asterisk_token, expression)
-                    .wrap(),
+                self.create_yield_expression(asterisk_token, expression),
                 node,
             )
         } else {
@@ -1901,7 +1926,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         }
     }
 
-    pub fn create_spread_element(&self, expression: Gc<Node /*Expression*/>) -> SpreadElement {
+    #[generate_node_factory_method_wrapper]
+    pub fn create_spread_element_raw(&self, expression: Gc<Node /*Expression*/>) -> SpreadElement {
         let node = self.create_base_expression(SyntaxKind::SpreadElement);
         let node = SpreadElement::new(
             node,
@@ -1923,13 +1949,14 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     ) -> Gc<Node> {
         let node_as_spread_element = node.as_spread_element();
         if !Gc::ptr_eq(&node_as_spread_element.expression, &expression) {
-            self.update(self.create_spread_element(expression).wrap(), node)
+            self.update(self.create_spread_element(expression), node)
         } else {
             node.node_wrapper()
         }
     }
 
-    pub fn create_class_expression<'name>(
+    #[generate_node_factory_method_wrapper]
+    pub fn create_class_expression_raw<'name>(
         &self,
         decorators: Option<impl Into<NodeArrayOrVec>>,
         modifiers: Option<impl Into<NodeArrayOrVec>>,
@@ -2009,8 +2036,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
                     type_parameters,
                     heritage_clauses,
                     members,
-                )
-                .wrap(),
+                ),
                 node,
             )
         } else {

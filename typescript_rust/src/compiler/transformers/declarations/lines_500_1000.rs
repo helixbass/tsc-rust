@@ -65,16 +65,14 @@ impl TransformDeclarations {
             } else {
                 Some(
                     self.factory
-                        .create_keyword_type_node(SyntaxKind::AnyKeyword)
-                        .wrap(),
+                        .create_keyword_type_node(SyntaxKind::AnyKeyword),
                 )
             });
         }
         if node.kind() == SyntaxKind::SetAccessor {
             return Ok(Some(
                 self.factory
-                    .create_keyword_type_node(SyntaxKind::AnyKeyword)
-                    .wrap(),
+                    .create_keyword_type_node(SyntaxKind::AnyKeyword),
             ));
         }
         self.set_error_name_node(node.as_named_declaration().maybe_name());
@@ -163,7 +161,6 @@ impl TransformDeclarations {
             .unwrap_or_else(|| {
                 self.factory
                     .create_keyword_type_node(SyntaxKind::AnyKeyword)
-                    .wrap()
             })
     }
 
@@ -294,19 +291,15 @@ impl TransformDeclarations {
                 }
             }
             if new_value_parameter.is_none() {
-                new_value_parameter = Some(
-                    self.factory
-                        .create_parameter_declaration(
-                            Option::<Gc<NodeArray>>::None,
-                            Option::<Gc<NodeArray>>::None,
-                            None,
-                            Some("value"),
-                            None,
-                            None,
-                            None,
-                        )
-                        .wrap(),
-                );
+                new_value_parameter = Some(self.factory.create_parameter_declaration(
+                    Option::<Gc<NodeArray>>::None,
+                    Option::<Gc<NodeArray>>::None,
+                    None,
+                    Some("value"),
+                    None,
+                    None,
+                    None,
+                ));
             }
             let new_value_parameter = new_value_parameter.unwrap();
             new_params.push(new_value_parameter);
@@ -395,9 +388,7 @@ impl TransformDeclarations {
                 )?;
                 if let Some(new_name) = new_name.non_empty() {
                     return Ok(Some(
-                        self.factory
-                            .create_string_literal(new_name, None, None)
-                            .wrap(),
+                        self.factory.create_string_literal(new_name, None, None),
                     ));
                 }
             } else {
@@ -879,19 +870,16 @@ impl TransformDeclarations {
                 }
                 SyntaxKind::Constructor => {
                     let input_as_constructor_declaration = input.as_constructor_declaration();
-                    let ctor = self
-                        .factory
-                        .create_constructor_declaration(
-                            Option::<Gc<NodeArray>>::None,
-                            self.ensure_modifiers(input),
-                            self.update_params_list(
-                                input,
-                                Some(&input_as_constructor_declaration.parameters()),
-                                Some(ModifierFlags::None),
-                            )?,
-                            None,
-                        )
-                        .wrap();
+                    let ctor = self.factory.create_constructor_declaration(
+                        Option::<Gc<NodeArray>>::None,
+                        self.ensure_modifiers(input),
+                        self.update_params_list(
+                            input,
+                            Some(&input_as_constructor_declaration.parameters()),
+                            Some(ModifierFlags::None),
+                        )?,
+                        None,
+                    );
                     self.visit_declaration_subtree_cleanup(
                         input,
                         can_produce_diagnostic,
@@ -915,34 +903,31 @@ impl TransformDeclarations {
                             None,
                         );
                     }
-                    let sig = self
-                        .factory
-                        .create_method_declaration(
-                            Option::<Gc<NodeArray>>::None,
-                            self.ensure_modifiers(input),
+                    let sig = self.factory.create_method_declaration(
+                        Option::<Gc<NodeArray>>::None,
+                        self.ensure_modifiers(input),
+                        None,
+                        input_as_method_declaration.name(),
+                        input_as_method_declaration.maybe_question_token(),
+                        self.ensure_type_params(
+                            input,
+                            input_as_method_declaration
+                                .maybe_type_parameters()
+                                .as_deref(),
+                        )?,
+                        self.update_params_list(
+                            input,
+                            Some(&input_as_method_declaration.parameters()),
                             None,
-                            input_as_method_declaration.name(),
-                            input_as_method_declaration.maybe_question_token(),
-                            self.ensure_type_params(
-                                input,
-                                input_as_method_declaration
-                                    .maybe_type_parameters()
-                                    .as_deref(),
-                            )?,
-                            self.update_params_list(
-                                input,
-                                Some(&input_as_method_declaration.parameters()),
-                                None,
-                            )?
-                            .unwrap(),
-                            self.ensure_type(
-                                input,
-                                input_as_method_declaration.maybe_type().as_deref(),
-                                None,
-                            )?,
+                        )?
+                        .unwrap(),
+                        self.ensure_type(
+                            input,
+                            input_as_method_declaration.maybe_type().as_deref(),
                             None,
-                        )
-                        .wrap();
+                        )?,
+                        None,
+                    );
                     self.visit_declaration_subtree_cleanup(
                         input,
                         can_produce_diagnostic,
@@ -1200,7 +1185,6 @@ impl TransformDeclarations {
                                 .unwrap_or_else(|| {
                                     self.factory
                                         .create_keyword_type_node(SyntaxKind::AnyKeyword)
-                                        .wrap()
                                 }),
                             ),
                         ),

@@ -89,7 +89,7 @@ impl TransformDeclarations {
                         self.ensure_type(e, None, None)?,
                         None,
                     )
-                    .wrap()])
+                    ])
             })
         })
     }

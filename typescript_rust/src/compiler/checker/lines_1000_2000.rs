@@ -152,7 +152,7 @@ impl TypeChecker {
                                 .create_identifier(&unescape_leading_underscores(&_jsx_namespace)),
                             "createElement",
                         )
-                        .wrap(),
+                        ,
                 )
             });
         }

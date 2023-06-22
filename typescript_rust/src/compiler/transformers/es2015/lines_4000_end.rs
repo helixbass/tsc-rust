@@ -78,7 +78,7 @@ impl TransformES2015 {
                 )?),
                 Some(multi_line),
             )
-            .wrap();
+            ;
 
         Ok(create_spread_segment(SpreadSegmentKind::None, expression))
     }
@@ -105,7 +105,7 @@ impl TransformES2015 {
     ) -> Gc<Node /*LeftHandSideExpression*/> {
         self.factory
             .create_string_literal(node.as_literal_like_node().text().clone(), None, None)
-            .wrap()
+            
             .set_text_range(Some(node))
     }
 
@@ -115,7 +115,7 @@ impl TransformES2015 {
             return Some(
                 self.factory
                     .create_string_literal(node_as_string_literal.text().clone(), None, None)
-                    .wrap()
+                    
                     .set_text_range(Some(node))
                     .into(),
             );
@@ -132,7 +132,7 @@ impl TransformES2015 {
             return Some(
                 self.factory
                     .create_numeric_literal(node_as_numeric_literal.text().clone(), None)
-                    .wrap()
+                    
                     .set_text_range(Some(node))
                     .into(),
             );
@@ -173,7 +173,7 @@ impl TransformES2015 {
                 None,
                 None,
             )
-            .wrap();
+            ;
         for span in &node_as_template_expression.template_spans {
             let span_as_template_span = span.as_template_span();
             let mut args = vec![try_visit_node(
@@ -200,7 +200,7 @@ impl TransformES2015 {
                             None,
                             None,
                         )
-                        .wrap(),
+                        ,
                 );
             }
 
@@ -209,11 +209,11 @@ impl TransformES2015 {
                 .create_call_expression(
                     self.factory
                         .create_property_access_expression(expression, "concat")
-                        .wrap(),
+                        ,
                     Option::<Gc<NodeArray>>::None,
                     Some(args),
                 )
-                .wrap();
+                ;
         }
 
         Ok(expression.set_text_range(Some(node)))
@@ -240,7 +240,7 @@ impl TransformES2015 {
                     ),
                     "prototype",
                 )
-                .wrap()
+                
         } else {
             self.factory.create_unique_name(
                 "super",
@@ -327,7 +327,7 @@ impl TransformES2015 {
                     self.factory.get_internal_name(node, None, None),
                     "prototype",
                 )
-                .wrap()
+                
         }
     }
 

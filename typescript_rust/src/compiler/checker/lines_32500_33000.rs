@@ -1,9 +1,6 @@
+use std::{borrow::Borrow, cell::RefCell, convert::TryInto, io, ptr, rc::Rc};
+
 use gc::{Finalize, Gc, Trace};
-use std::cell::RefCell;
-use std::convert::TryInto;
-use std::ptr;
-use std::rc::Rc;
-use std::{borrow::Borrow, io};
 
 use super::{CheckMode, IterationUse, TypeFacts};
 use crate::{

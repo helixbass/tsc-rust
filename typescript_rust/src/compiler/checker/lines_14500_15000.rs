@@ -1,8 +1,11 @@
+use std::{
+    borrow::{Borrow, Cow},
+    convert::TryInto,
+    io, ptr,
+};
+
 use gc::Gc;
 use indexmap::IndexMap;
-use std::borrow::{Borrow, Cow};
-use std::convert::TryInto;
-use std::{io, ptr};
 
 use crate::{
     contains_gc, every, filter, find_index, get_declaration_modifier_flags_from_symbol,

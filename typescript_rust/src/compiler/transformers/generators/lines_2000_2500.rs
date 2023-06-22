@@ -7,8 +7,7 @@ use super::{
 };
 use crate::{
     Debug_, Node, ReadonlyTextRange, _d, get_original_node_id, id_text, is_generated_identifier,
-    last_or_undefined, NamedDeclarationInterface, NodeArray, NodeExt, NodeInterface, NonEmpty,
-    Number, SyntaxKind,
+    last_or_undefined, NamedDeclarationInterface, NodeArray, NodeExt, NonEmpty, Number, SyntaxKind,
 };
 
 impl TransformGenerators {
@@ -159,15 +158,12 @@ impl TransformGenerators {
 
         self.emit_assignment(
             name,
-            self.factory
-                .create_call_expression(
-                    self.factory
-                        .create_property_access_expression(self.state(), "sent")
-                        .wrap(),
-                    Option::<Gc<NodeArray>>::None,
-                    Some(vec![]),
-                )
-                .wrap(),
+            self.factory.create_call_expression(
+                self.factory
+                    .create_property_access_expression(self.state(), "sent"),
+                Option::<Gc<NodeArray>>::None,
+                Some(vec![]),
+            ),
             Option::<&Node>::None,
         );
         self.emit_nop();
@@ -394,10 +390,7 @@ impl TransformGenerators {
             let mut label_expressions = self.maybe_label_expressions_mut();
             let label_expressions = label_expressions.get_or_insert_with(|| _d());
 
-            let expression = self
-                .factory
-                .create_numeric_literal(Number::new(-1.0), None)
-                .wrap();
+            let expression = self.factory.create_numeric_literal(Number::new(-1.0), None);
             label_expressions
                 .entry(label)
                 .or_insert_with(|| _d())
@@ -406,7 +399,7 @@ impl TransformGenerators {
             return expression;
         }
 
-        self.factory.create_omitted_expression().wrap()
+        self.factory.create_omitted_expression()
     }
 
     pub(super) fn create_instruction(
@@ -415,7 +408,6 @@ impl TransformGenerators {
     ) -> Gc<Node /*NumericLiteral*/> {
         self.factory
             .create_numeric_literal(Number::new(instruction as u8 as f64), None)
-            .wrap()
             .add_synthetic_trailing_comment(
                 SyntaxKind::MultiLineCommentTrivia,
                 get_instruction_name(instruction).unwrap(),
@@ -430,18 +422,13 @@ impl TransformGenerators {
     ) -> Gc<Node /*ReturnStatement*/> {
         Debug_.assert_less_than(0, label, Some("Invalid label"));
         self.factory
-            .create_return_statement(Some(
-                self.factory
-                    .create_array_literal_expression(
-                        Some(vec![
-                            self.create_instruction(Instruction::Break),
-                            self.create_label(Some(label)),
-                        ]),
-                        None,
-                    )
-                    .wrap(),
-            ))
-            .wrap()
+            .create_return_statement(Some(self.factory.create_array_literal_expression(
+                Some(vec![
+                    self.create_instruction(Instruction::Break),
+                    self.create_label(Some(label)),
+                ]),
+                None,
+            )))
             .set_text_range(location)
     }
 
@@ -451,19 +438,14 @@ impl TransformGenerators {
         location: Option<&impl ReadonlyTextRange>,
     ) -> Gc<Node /*ReturnStatement*/> {
         self.factory
-            .create_return_statement(Some(
-                self.factory
-                    .create_array_literal_expression(
-                        Some(if let Some(expression) = expression {
-                            vec![self.create_instruction(Instruction::Return), expression]
-                        } else {
-                            vec![self.create_instruction(Instruction::Return)]
-                        }),
-                        None,
-                    )
-                    .wrap(),
-            ))
-            .wrap()
+            .create_return_statement(Some(self.factory.create_array_literal_expression(
+                Some(if let Some(expression) = expression {
+                    vec![self.create_instruction(Instruction::Return), expression]
+                } else {
+                    vec![self.create_instruction(Instruction::Return)]
+                }),
+                None,
+            )))
             .set_text_range(location)
     }
 
@@ -474,12 +456,10 @@ impl TransformGenerators {
         self.factory
             .create_call_expression(
                 self.factory
-                    .create_property_access_expression(self.state(), "sent")
-                    .wrap(),
+                    .create_property_access_expression(self.state(), "sent"),
                 Option::<Gc<NodeArray>>::None,
                 Some(vec![]),
             )
-            .wrap()
             .set_text_range(location)
     }
 }

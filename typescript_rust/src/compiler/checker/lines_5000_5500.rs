@@ -64,7 +64,7 @@ impl NodeBuilder {
                 true_type_node,
                 false_type_node,
             )
-            .wrap())
+            )
     }
 
     pub(super) fn type_to_type_node_or_circularity_elision(
@@ -107,11 +107,11 @@ impl NodeBuilder {
         let readonly_token: Option<Gc<Node>> = type_declaration_as_mapped_type_node
             .readonly_token
             .as_ref()
-            .map(|readonly_token| get_factory().create_token(readonly_token.kind()).wrap());
+            .map(|readonly_token| get_factory().create_token(readonly_token.kind()));
         let question_token: Option<Gc<Node>> = type_declaration_as_mapped_type_node
             .question_token
             .as_ref()
-            .map(|question_token| get_factory().create_token(question_token.kind()).wrap());
+            .map(|question_token| get_factory().create_token(question_token.kind()));
         let appropriate_constraint_type_node: Gc<Node /*TypeNode*/>;
         if self
             .type_checker
@@ -129,7 +129,7 @@ impl NodeBuilder {
                     )?
                     .unwrap(),
                 )
-                .wrap();
+                ;
         } else {
             appropriate_constraint_type_node = self
                 .type_to_type_node_helper(
@@ -179,7 +179,7 @@ impl NodeBuilder {
                 template_type_node,
                 Option::<Gc<NodeArray>>::None,
             )
-            .wrap();
+            ;
         context.increment_approximate_length_by(10);
         Ok(set_emit_flags(mapped_type_node, EmitFlags::SingleLine))
     }
@@ -470,7 +470,7 @@ impl NodeBuilder {
                     factory.with(|factory_| {
                         factory_
                             .create_type_literal_node(Option::<Gc<NodeArray>>::None)
-                            .wrap()
+                            
                     }),
                     EmitFlags::SingleLine,
                 ));
@@ -553,7 +553,7 @@ impl NodeBuilder {
         let members = self.create_type_nodes_from_resolved_type(context, &resolved)?;
         context.set_flags(saved_flags);
         let type_literal_node =
-            factory.with(|factory_| factory_.create_type_literal_node(members).wrap());
+            factory.with(|factory_| factory_.create_type_literal_node(members));
         context.increment_approximate_length_by(2);
         set_emit_flags(
             type_literal_node.clone(),
@@ -602,20 +602,20 @@ impl NodeBuilder {
                                 },
                                 Some(vec![type_argument_node]),
                             )
-                            .wrap(),
+                            ,
                     ));
                 }
                 let element_type = self
                     .type_to_type_node_helper(Some(&*type_arguments[0]), context)?
                     .unwrap();
-                let array_type = get_factory().create_array_type_node(element_type).wrap();
+                let array_type = get_factory().create_array_type_node(element_type);
                 Some(
                     if Gc::ptr_eq(&type_target, &self.type_checker.global_array_type()) {
                         array_type
                     } else {
                         get_factory()
                             .create_type_operator_node(SyntaxKind::ReadonlyKeyword, array_type)
-                            .wrap()
+                            
                     },
                 )
             } else if type_target
@@ -650,7 +650,7 @@ impl NodeBuilder {
                                             Some(
                                                 get_factory()
                                                     .create_token(SyntaxKind::DotDotDotToken)
-                                                    .wrap(),
+                                                    ,
                                             )
                                         } else {
                                             None
@@ -666,7 +666,7 @@ impl NodeBuilder {
                                             Some(
                                                 get_factory()
                                                     .create_token(SyntaxKind::QuestionToken)
-                                                    .wrap(),
+                                                    ,
                                             )
                                         } else {
                                             None
@@ -674,12 +674,12 @@ impl NodeBuilder {
                                         if flags.intersects(ElementFlags::Rest) {
                                             get_factory()
                                                 .create_array_type_node(tuple_constituent_node)
-                                                .wrap()
+                                                
                                         } else {
                                             tuple_constituent_node
                                         },
                                     )
-                                    .wrap();
+                                    ;
                             }
                         } else {
                             for i in 0..cmp::min(arity, tuple_constituent_nodes.len()) {
@@ -693,16 +693,16 @@ impl NodeBuilder {
                                             if flags.intersects(ElementFlags::Rest) {
                                                 get_factory()
                                                     .create_array_type_node(tuple_constituent_node)
-                                                    .wrap()
+                                                    
                                             } else {
                                                 tuple_constituent_node
                                             },
                                         )
-                                        .wrap()
+                                        
                                 } else if flags.intersects(ElementFlags::Optional) {
                                     get_factory()
                                         .create_optional_type_node(tuple_constituent_node)
-                                        .wrap()
+                                        
                                 } else {
                                     tuple_constituent_node
                                 };
@@ -711,7 +711,7 @@ impl NodeBuilder {
                         let tuple_type_node = set_emit_flags(
                             get_factory()
                                 .create_tuple_type_node(Some(tuple_constituent_nodes))
-                                .wrap(),
+                                ,
                             EmitFlags::SingleLine,
                         );
                         return Ok(Some(if type_target_as_tuple_type.readonly {
@@ -720,7 +720,7 @@ impl NodeBuilder {
                                     SyntaxKind::ReadonlyKeyword,
                                     tuple_type_node,
                                 )
-                                .wrap()
+                                
                         } else {
                             tuple_type_node
                         }));
@@ -732,13 +732,13 @@ impl NodeBuilder {
                         .intersects(NodeBuilderFlags::AllowEmptyTuple)
                 {
                     let tuple_type_node = set_emit_flags(
-                        get_factory().create_tuple_type_node(Some(vec![])).wrap(),
+                        get_factory().create_tuple_type_node(Some(vec![])),
                         EmitFlags::SingleLine,
                     );
                     return Ok(Some(if type_target_as_tuple_type.readonly {
                         get_factory()
                             .create_type_operator_node(SyntaxKind::ReadonlyKeyword, tuple_type_node)
-                            .wrap()
+                            
                     } else {
                         tuple_type_node
                     }));
@@ -871,7 +871,7 @@ impl NodeBuilder {
             let ids = self.get_access_stack(ref_);
             for id in ids {
                 qualifier = Some(if let Some(qualifier) = qualifier {
-                    factory.with(|factory_| factory_.create_qualified_name(qualifier, id).wrap())
+                    factory.with(|factory_| factory_.create_qualified_name(qualifier, id))
                 } else {
                     id
                 });
@@ -913,7 +913,7 @@ impl NodeBuilder {
             let ids = self.get_access_stack(ref_);
             for id in ids {
                 type_name =
-                    factory.with(|factory_| factory_.create_qualified_name(type_name, id).wrap());
+                    factory.with(|factory_| factory_.create_qualified_name(type_name, id));
             }
             factory.with(|factory_| {
                 factory_.update_type_reference_node(root, type_name, type_arguments.cloned())
@@ -945,7 +945,7 @@ impl NodeBuilder {
             return Ok(Some(vec![factory.with(|factory_| {
                 factory_
                     .create_property_signature(Option::<Gc<NodeArray>>::None, "...", None, None)
-                    .wrap()
+                    
             })]));
         }
         let mut type_elements: Vec<Gc<Node>> = vec![];
@@ -1021,7 +1021,7 @@ impl NodeBuilder {
                             None,
                             None,
                         )
-                        .wrap()
+                        
                 }));
                 self.add_property_to_element_list(
                     &properties[properties.len() - 1],
@@ -1051,11 +1051,11 @@ impl NodeBuilder {
                         factory_.create_identifier("..."),
                         Option::<Gc<NodeArray>>::None,
                     )
-                    .wrap()
+                    
             });
         }
         factory.with(|factory_| {
-            Into::<KeywordTypeNode>::into(factory_.create_keyword_type_node(SyntaxKind::AnyKeyword))
+            Into::<KeywordTypeNode>::into(factory_.create_keyword_type_node_raw(SyntaxKind::AnyKeyword))
                 .wrap()
         })
     }
@@ -1163,7 +1163,7 @@ impl NodeBuilder {
         context.increment_approximate_length_by(symbol_name(property_symbol).len() + 1);
         let optional_token: Option<Gc<Node>> =
             if property_symbol.flags().intersects(SymbolFlags::Optional) {
-                Some(get_factory().create_token(SyntaxKind::QuestionToken).wrap())
+                Some(get_factory().create_token(SyntaxKind::QuestionToken))
             } else {
                 None
             };
@@ -1224,7 +1224,7 @@ impl NodeBuilder {
                 } else {
                     get_factory()
                         .create_keyword_type_node(SyntaxKind::AnyKeyword)
-                        .wrap()
+                        
                 };
                 if property_is_reverse_mapped {
                     context
@@ -1239,7 +1239,7 @@ impl NodeBuilder {
             let modifiers: Option<Vec<Gc<Node>>> =
                 if self.type_checker.is_readonly_symbol(property_symbol)? {
                     Some(vec![factory.with(|factory_| {
-                        factory_.create_token(SyntaxKind::ReadonlyKeyword).wrap()
+                        factory_.create_token(SyntaxKind::ReadonlyKeyword)
                     })])
                 } else {
                     None
@@ -1254,7 +1254,7 @@ impl NodeBuilder {
                     optional_token,
                     Some(property_type_node),
                 )
-                .wrap();
+                ;
 
             type_elements.push(self.preserve_comments_on(property_symbol, property_signature));
         }

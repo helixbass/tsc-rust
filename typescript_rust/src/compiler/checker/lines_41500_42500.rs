@@ -423,7 +423,7 @@ impl TypeChecker {
         );
         if declaration.is_none() {
             return Ok(Some(
-                get_factory().create_token(SyntaxKind::AnyKeyword).wrap(),
+                get_factory().create_token(SyntaxKind::AnyKeyword),
             ));
         }
         let declaration = declaration.as_ref().unwrap();
@@ -466,7 +466,7 @@ impl TypeChecker {
         );
         if signature_declaration.is_none() {
             return Ok(Some(
-                get_factory().create_token(SyntaxKind::AnyKeyword).wrap(),
+                get_factory().create_token(SyntaxKind::AnyKeyword),
             ));
         }
         let signature_declaration = signature_declaration.as_ref().unwrap();
@@ -489,7 +489,7 @@ impl TypeChecker {
         let expr = get_parse_tree_node(Some(expr_in), Some(|node: &Node| is_expression(node)));
         if expr.is_none() {
             return Ok(Some(
-                get_factory().create_token(SyntaxKind::AnyKeyword).wrap(),
+                get_factory().create_token(SyntaxKind::AnyKeyword),
             ));
         }
         let expr = expr.as_ref().unwrap();
@@ -595,9 +595,9 @@ impl TypeChecker {
                 Some(tracker),
             )?
         } else if ptr::eq(type_, &*self.true_type()) {
-            Some(get_factory().create_true().wrap())
+            Some(get_factory().create_true())
         } else if ptr::eq(type_, &*self.false_type()) {
-            Some(get_factory().create_false().wrap())
+            Some(get_factory().create_false())
         } else {
             None
         };
@@ -607,13 +607,13 @@ impl TypeChecker {
         Ok(match type_ {
             Type::LiteralType(LiteralType::BigIntLiteralType(type_)) => get_factory()
                 .create_big_int_literal(type_.value.clone())
-                .wrap(),
+                ,
             Type::LiteralType(LiteralType::NumberLiteralType(type_)) => get_factory()
                 .create_numeric_literal(type_.value.clone(), None)
-                .wrap(),
+                ,
             Type::LiteralType(LiteralType::StringLiteralType(type_)) => get_factory()
                 .create_string_literal(type_.value.clone(), None, None)
-                .wrap(),
+                ,
             _ => unreachable!(),
         })
     }

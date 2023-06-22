@@ -329,18 +329,18 @@ impl TypeChecker {
                             .type_to_type_node(result, Some(node), None, None)?,
                         None,
                     )
-                    .wrap()],
+                    ],
                 Some(if let Some(return_node) = return_node {
                     get_factory()
                         .create_type_reference_node(return_node, Option::<Gc<NodeArray>>::None)
-                        .wrap()
+                        
                 } else {
                     get_factory()
                         .create_keyword_type_node(SyntaxKind::AnyKeyword)
-                        .wrap()
+                        
                 }),
             )
-            .wrap();
+            ;
         let parameter_symbol: Gc<Symbol> = self
             .create_symbol(
                 SymbolFlags::FunctionScopedVariable,

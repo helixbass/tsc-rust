@@ -59,9 +59,9 @@ impl TransformES2015 {
                                 tagged_template_string_declarations.clone(),
                                 None,
                             )
-                            .wrap(),
+                            ,
                     )
-                    .wrap(),
+                    ,
             );
         }
         prologue = self
@@ -130,7 +130,7 @@ impl TransformES2015 {
                 "_this",
                 Some(GeneratedIdentifierFlags::Optimistic | GeneratedIdentifierFlags::FileLevel),
             )))
-            .wrap()
+            
             .set_original_node(Some(node.node_wrapper()))
     }
 
@@ -172,12 +172,12 @@ impl TransformES2015 {
                                             },
                                         )?,
                                 )
-                                .wrap()]),
+                                ]),
                             None,
                         )
-                        .wrap(),
+                        ,
                 ))
-                .wrap());
+                );
         } else if self.is_return_void_statement_in_constructor_with_captured_super(&node) {
             return Ok(self.return_captured_this(&node));
         }
@@ -317,7 +317,7 @@ impl TransformES2015 {
                 let mut return_expression = self
                     .factory
                     .create_string_literal(label_marker, None, None)
-                    .wrap();
+                    ;
                 if !(*self.converted_loop_state())
                     .borrow()
                     .loop_out_parameters
@@ -340,7 +340,7 @@ impl TransformES2015 {
                                         SyntaxKind::CommaToken,
                                         copy_expr,
                                     )
-                                    .wrap(),
+                                    ,
                             );
                         }
                     }
@@ -351,12 +351,12 @@ impl TransformES2015 {
                             SyntaxKind::CommaToken,
                             return_expression,
                         )
-                        .wrap();
+                        ;
                 }
                 return Ok(self
                     .factory
                     .create_return_statement(Some(return_expression))
-                    .wrap());
+                    );
             }
         }
         try_visit_each_child(node, |node: &Node| self.visitor(node), &**self.context)
@@ -374,7 +374,7 @@ impl TransformES2015 {
                 None,
                 Some(self.transform_class_like_declaration_to_expression(node)?),
             )
-            .wrap()
+            
             .set_original_node(Some(node.node_wrapper()));
 
         let mut statements: Vec<Gc<Node /*Statement*/>> = Default::default();
@@ -384,9 +384,9 @@ impl TransformES2015 {
                 Option::<Gc<NodeArray>>::None,
                 self.factory
                     .create_variable_declaration_list(vec![variable], None)
-                    .wrap(),
+                    ,
             )
-            .wrap()
+            
             .set_original_node(Some(node.node_wrapper()))
             .set_text_range(Some(node))
             .start_on_new_line();
@@ -461,12 +461,12 @@ impl TransformES2015 {
                             None,
                             None,
                         )
-                        .wrap()]
+                        ]
                 })),
                 None,
                 self.transform_class_body(node, extends_clause_element.as_deref())?,
             )
-            .wrap()
+            
             .set_emit_flags(
                 (get_emit_flags(node) & EmitFlags::Indented) | EmitFlags::ReuseTempVariableScope,
             );
@@ -474,14 +474,14 @@ impl TransformES2015 {
         let inner = self
             .factory
             .create_partially_emitted_expression(class_function, None)
-            .wrap()
+            
             .set_text_range_end(node.end())
             .set_emit_flags(EmitFlags::NoComments);
 
         let outer = self
             .factory
             .create_partially_emitted_expression(inner, None)
-            .wrap()
+            
             .set_text_range_end(skip_trivia(
                 &self.current_text(),
                 node.pos(),
@@ -511,9 +511,9 @@ impl TransformES2015 {
                             },
                         )?),
                     )
-                    .wrap(),
+                    ,
             )
-            .wrap()
+            
             .add_synthetic_leading_comment(SyntaxKind::MultiLineCommentTrivia, "* @class ", None))
     }
 
@@ -555,14 +555,14 @@ impl TransformES2015 {
         let outer = self
             .factory
             .create_partially_emitted_expression(constructor_like_name, None)
-            .wrap()
+            
             .set_text_range_end(closing_brace_location.end())
             .set_emit_flags(EmitFlags::NoComments);
 
         let statement = self
             .factory
             .create_return_statement(Some(outer))
-            .wrap()
+            
             .set_text_range_pos(closing_brace_location.pos())
             .set_emit_flags(EmitFlags::NoComments | EmitFlags::NoTokenSourceMaps);
         statements.push(statement);
@@ -580,7 +580,7 @@ impl TransformES2015 {
                     .set_text_range(Some(&*node_as_class_like_declaration.members())),
                 Some(true),
             )
-            .wrap()
+            
             .set_emit_flags(EmitFlags::NoComments))
     }
 
@@ -599,7 +599,7 @@ impl TransformES2015 {
                             self.factory.get_internal_name(node, None, None),
                         ),
                     )
-                    .wrap()
+                    
                     .set_text_range(Some(extends_clause_element)),
             );
         }
@@ -644,7 +644,7 @@ impl TransformES2015 {
                     has_synthesized_super,
                 )?),
             )
-            .wrap()
+            
             .set_text_range(Some(constructor.as_deref().unwrap_or(node)));
         if extends_clause_element.is_some() {
             set_emit_flags(&*constructor_function, EmitFlags::CapturesThis);
@@ -697,7 +697,7 @@ impl TransformES2015 {
             statements.push(
                 self.factory
                     .create_return_statement(Some(self.create_default_super_call_or_this()))
-                    .wrap(),
+                    ,
             );
         }
 
@@ -708,7 +708,7 @@ impl TransformES2015 {
 
         self.factory
             .create_block(statements_array, Some(true))
-            .wrap()
+            
             .set_text_range(Some(node))
             .set_emit_flags(EmitFlags::NoComments)
     }
@@ -830,7 +830,7 @@ impl TransformES2015 {
                 let return_statement = self
                     .factory
                     .create_return_statement(Some(super_call_expression.clone()))
-                    .wrap()
+                    
                     .set_comment_range(&ReadonlyTextRangeConcrete::from(get_comment_range(
                         super_call,
                     )));
@@ -853,7 +853,7 @@ impl TransformES2015 {
                                         | GeneratedIdentifierFlags::FileLevel,
                                 ),
                             )))
-                            .wrap(),
+                            ,
                     );
                 }
             }
@@ -869,7 +869,7 @@ impl TransformES2015 {
                     .set_text_range(Some(&*constructor_body_as_block.statements)),
                 Some(true),
             )
-            .wrap()
+            
             .set_text_range(Some(&*constructor_body)))
     }
 }

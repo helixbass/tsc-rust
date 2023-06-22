@@ -124,40 +124,31 @@ impl TransformDeclarations {
                         VisitDeclarationStatementsGetSymbolAccessibilityDiagnostic::new(input),
                     );
                     self.set_error_fallback_node(Some(input.node_wrapper()));
-                    let var_decl = self
-                        .factory
-                        .create_variable_declaration(
-                            Some(new_id.clone()),
-                            None,
-                            self.resolver.create_type_of_expression(
-                                &input_as_export_assignment.expression,
-                                input,
-                                declaration_emit_node_builder_flags(),
-                                self.symbol_tracker(),
-                            )?,
-                            None,
-                        )
-                        .wrap();
+                    let var_decl = self.factory.create_variable_declaration(
+                        Some(new_id.clone()),
+                        None,
+                        self.resolver.create_type_of_expression(
+                            &input_as_export_assignment.expression,
+                            input,
+                            declaration_emit_node_builder_flags(),
+                            self.symbol_tracker(),
+                        )?,
+                        None,
+                    );
                     self.set_error_fallback_node(None);
-                    let statement = self
-                        .factory
-                        .create_variable_statement(
-                            if self.needs_declare() {
-                                Some(vec![self
-                                    .factory
-                                    .create_modifier(SyntaxKind::DeclareKeyword)
-                                    .wrap()])
-                            } else {
-                                Some(vec![])
-                            },
-                            self.factory
-                                .create_variable_declaration_list(
-                                    vec![var_decl],
-                                    Some(NodeFlags::Const),
-                                )
-                                .wrap(),
-                        )
-                        .wrap();
+                    let statement = self.factory.create_variable_statement(
+                        if self.needs_declare() {
+                            Some(vec![self
+                                .factory
+                                .create_modifier(SyntaxKind::DeclareKeyword)])
+                        } else {
+                            Some(vec![])
+                        },
+                        self.factory.create_variable_declaration_list(
+                            vec![var_decl],
+                            Some(NodeFlags::Const),
+                        ),
+                    );
                     return Ok(Some(
                         vec![
                             statement,
@@ -359,17 +350,15 @@ impl TransformDeclarations {
                     let ref clean = clean.as_single_node();
                     let clean_as_function_declaration = clean.as_function_declaration();
                     let props = self.resolver.get_properties_of_container_function(input)?;
-                    let fakespace = get_parse_node_factory()
-                        .create_module_declaration(
-                            Option::<Gc<NodeArray>>::None,
-                            Option::<Gc<NodeArray>>::None,
-                            clean_as_function_declaration
-                                .maybe_name()
-                                .unwrap_or_else(|| self.factory.create_identifier("_default")),
-                            Some(self.factory.create_module_block(Some(vec![])).wrap()),
-                            Some(NodeFlags::Namespace),
-                        )
-                        .wrap();
+                    let fakespace = get_parse_node_factory().create_module_declaration(
+                        Option::<Gc<NodeArray>>::None,
+                        Option::<Gc<NodeArray>>::None,
+                        clean_as_function_declaration
+                            .maybe_name()
+                            .unwrap_or_else(|| self.factory.create_identifier("_default")),
+                        Some(self.factory.create_module_block(Some(vec![]))),
+                        Some(NodeFlags::Namespace),
+                    );
                     set_parent(&fakespace, self.maybe_enclosing_declaration());
                     fakespace.set_locals(Some(Gc::new(GcCell::new(create_symbol_table(Some(
                         &props,
@@ -410,26 +399,24 @@ impl TransformDeclarations {
                             if is_non_contextual_keyword_name {
                                 export_mappings.push((name.clone(), name_str.to_owned()));
                             }
-                            let var_decl = self
-                                .factory
-                                .create_variable_declaration(Some(name), None, type_, None)
-                                .wrap();
+                            let var_decl = self.factory.create_variable_declaration(
+                                Some(name),
+                                None,
+                                type_,
+                                None,
+                            );
                             Ok(Some(
-                                self.factory
-                                    .create_variable_statement(
-                                        if is_non_contextual_keyword_name {
-                                            None
-                                        } else {
-                                            Some(vec![self
-                                                .factory
-                                                .create_token(SyntaxKind::ExportKeyword)
-                                                .wrap()])
-                                        },
-                                        self.factory
-                                            .create_variable_declaration_list(vec![var_decl], None)
-                                            .wrap(),
-                                    )
-                                    .wrap(),
+                                self.factory.create_variable_statement(
+                                    if is_non_contextual_keyword_name {
+                                        None
+                                    } else {
+                                        Some(vec![self
+                                            .factory
+                                            .create_token(SyntaxKind::ExportKeyword)])
+                                    },
+                                    self.factory
+                                        .create_variable_declaration_list(vec![var_decl], None),
+                                ),
                             ))
                         },
                     )?;
@@ -442,44 +429,28 @@ impl TransformDeclarations {
                                 )
                             });
                     } else {
-                        declarations.push(
-                            self.factory
-                                .create_export_declaration(
-                                    Option::<Gc<NodeArray>>::None,
-                                    Option::<Gc<NodeArray>>::None,
-                                    false,
-                                    Some(
-                                        self.factory
-                                            .create_named_exports(map(
-                                                export_mappings,
-                                                |(gen, exp), _| {
-                                                    self.factory
-                                                        .create_export_specifier(
-                                                            false,
-                                                            Some(gen),
-                                                            &*exp,
-                                                        )
-                                                        .wrap()
-                                                },
-                                            ))
-                                            .wrap(),
-                                    ),
-                                    None,
-                                    None,
-                                )
-                                .wrap(),
-                        );
-                    }
-                    let namespace_decl = self
-                        .factory
-                        .create_module_declaration(
+                        declarations.push(self.factory.create_export_declaration(
                             Option::<Gc<NodeArray>>::None,
-                            self.ensure_modifiers(input),
-                            input_as_function_declaration.name(),
-                            Some(self.factory.create_module_block(Some(declarations)).wrap()),
-                            Some(NodeFlags::Namespace),
-                        )
-                        .wrap();
+                            Option::<Gc<NodeArray>>::None,
+                            false,
+                            Some(self.factory.create_named_exports(map(
+                                export_mappings,
+                                |(gen, exp), _| {
+                                    self.factory
+                                        .create_export_specifier(false, Some(gen), &*exp)
+                                },
+                            ))),
+                            None,
+                            None,
+                        ));
+                    }
+                    let namespace_decl = self.factory.create_module_declaration(
+                        Option::<Gc<NodeArray>>::None,
+                        self.ensure_modifiers(input),
+                        input_as_function_declaration.name(),
+                        Some(self.factory.create_module_block(Some(declarations))),
+                        Some(NodeFlags::Namespace),
+                    );
                     if !has_effective_modifier(clean, ModifierFlags::Default) {
                         return Ok(Some(vec![clean.clone(), namespace_decl].into()));
                     }
@@ -510,15 +481,12 @@ impl TransformDeclarations {
                         namespace_decl_as_module_declaration.body.clone(),
                     );
 
-                    let export_default_declaration = self
-                        .factory
-                        .create_export_assignment(
-                            Option::<Gc<NodeArray>>::None,
-                            Option::<Gc<NodeArray>>::None,
-                            Some(false),
-                            namespace_decl_as_module_declaration.name(),
-                        )
-                        .wrap();
+                    let export_default_declaration = self.factory.create_export_assignment(
+                        Option::<Gc<NodeArray>>::None,
+                        Option::<Gc<NodeArray>>::None,
+                        Some(false),
+                        namespace_decl_as_module_declaration.name(),
+                    );
 
                     if is_source_file(&input.parent()) {
                         self.set_result_has_external_module_indicator(true);
@@ -719,7 +687,7 @@ impl TransformDeclarations {
                     Some(vec![self.factory.create_property_declaration(
                         Option::<Gc<NodeArray>>::None,
                         Option::<Gc<NodeArray>>::None,
-                        self.factory.create_private_identifier("#private").wrap(),
+                        self.factory.create_private_identifier("#private"),
                         None,
                         None,
                         None,
@@ -767,41 +735,32 @@ impl TransformDeclarations {
                             input,
                         ),
                     );
-                    let var_decl = self
-                        .factory
-                        .create_variable_declaration(
-                            Some(new_id.clone()),
-                            None,
-                            self.resolver.create_type_of_expression(
-                                &extends_clause
-                                    .as_expression_with_type_arguments()
-                                    .expression,
-                                input,
-                                declaration_emit_node_builder_flags(),
-                                self.symbol_tracker(),
-                            )?,
-                            None,
-                        )
-                        .wrap();
-                    let statement = self
-                        .factory
-                        .create_variable_statement(
-                            if self.needs_declare() {
-                                Some(vec![self
-                                    .factory
-                                    .create_modifier(SyntaxKind::DeclareKeyword)
-                                    .wrap()])
-                            } else {
-                                Some(vec![])
-                            },
-                            self.factory
-                                .create_variable_declaration_list(
-                                    vec![var_decl],
-                                    Some(NodeFlags::Const),
-                                )
-                                .wrap(),
-                        )
-                        .wrap();
+                    let var_decl = self.factory.create_variable_declaration(
+                        Some(new_id.clone()),
+                        None,
+                        self.resolver.create_type_of_expression(
+                            &extends_clause
+                                .as_expression_with_type_arguments()
+                                .expression,
+                            input,
+                            declaration_emit_node_builder_flags(),
+                            self.symbol_tracker(),
+                        )?,
+                        None,
+                    );
+                    let statement = self.factory.create_variable_statement(
+                        if self.needs_declare() {
+                            Some(vec![self
+                                .factory
+                                .create_modifier(SyntaxKind::DeclareKeyword)])
+                        } else {
+                            Some(vec![])
+                        },
+                        self.factory.create_variable_declaration_list(
+                            vec![var_decl],
+                            Some(NodeFlags::Const),
+                        ),
+                    );
                     let heritage_clauses = self.factory.create_node_array(
                         try_maybe_map(
                             input_as_class_declaration
@@ -963,23 +922,19 @@ impl TransformDeclarations {
                                             &self.factory.update_enum_member(
                                                 m,
                                                 m.as_enum_member().name(),
-                                                const_value.map(|const_value| {
-                                                    match const_value {
-                                                        StringOrNumber::String(const_value) => self
-                                                            .factory
-                                                            .create_string_literal(
-                                                                const_value,
-                                                                None,
-                                                                None,
-                                                            )
-                                                            .wrap(),
-                                                        StringOrNumber::Number(const_value) => self
-                                                            .factory
-                                                            .create_numeric_literal(
-                                                                const_value,
-                                                                None,
-                                                            )
-                                                            .wrap(),
+                                                const_value.map(|const_value| match const_value {
+                                                    StringOrNumber::String(const_value) => {
+                                                        self.factory.create_string_literal(
+                                                            const_value,
+                                                            None,
+                                                            None,
+                                                        )
+                                                    }
+                                                    StringOrNumber::Number(const_value) => {
+                                                        self.factory.create_numeric_literal(
+                                                            const_value,
+                                                            None,
+                                                        )
                                                     }
                                                 }),
                                             ),

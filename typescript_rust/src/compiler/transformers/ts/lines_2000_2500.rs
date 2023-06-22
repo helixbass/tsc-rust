@@ -108,7 +108,7 @@ impl TransformTypeScript {
                     |node: &Node| self.visitor(node),
                     &**self.context,
                 )?
-                .unwrap_or_else(|| self.factory.create_block(vec![], None).wrap()),
+                .unwrap_or_else(|| self.factory.create_block(vec![], None)),
             ),
         );
         if !ptr::eq(&*updated, node) {
@@ -152,7 +152,7 @@ impl TransformTypeScript {
                     |node: &Node| self.visitor(node),
                     &**self.context,
                 )?
-                .unwrap_or_else(|| self.factory.create_block(vec![], None).wrap()),
+                .unwrap_or_else(|| self.factory.create_block(vec![], None)),
             ),
         );
         if !ptr::eq(&*updated, node) {
@@ -203,7 +203,7 @@ impl TransformTypeScript {
                     |node: &Node| self.visitor(node),
                     &**self.context,
                 )?
-                .unwrap_or_else(|| self.factory.create_block(vec![], None).wrap()),
+                .unwrap_or_else(|| self.factory.create_block(vec![], None)),
             ),
         );
         if self.is_export_of_namespace(node) {
@@ -220,7 +220,7 @@ impl TransformTypeScript {
     ) -> io::Result<Gc<Node /*Expression*/>> {
         let node_as_function_expression = node.as_function_expression();
         if !self.should_emit_function_like_declaration(node) {
-            return Ok(self.factory.create_omitted_expression().wrap());
+            return Ok(self.factory.create_omitted_expression());
         }
         let updated = self.factory.update_function_expression(
             node,
@@ -246,7 +246,7 @@ impl TransformTypeScript {
                 |node: &Node| self.visitor(node),
                 &**self.context,
             )?
-            .unwrap_or_else(|| self.factory.create_block(vec![], None).wrap()),
+            .unwrap_or_else(|| self.factory.create_block(vec![], None)),
         );
         Ok(updated)
     }
@@ -350,7 +350,7 @@ impl TransformTypeScript {
                                 self.transform_initialized_variable(variable)
                             })?),
                     )
-                    .wrap()
+                    
                     .set_text_range(Some(node)),
             )
         } else {
@@ -398,7 +398,7 @@ impl TransformTypeScript {
                         Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
                     )?,
                 )
-                .wrap()
+                
                 .set_text_range(Some(node))
         })
     }
@@ -458,7 +458,7 @@ impl TransformTypeScript {
             return Ok(self
                 .factory
                 .create_partially_emitted_expression(expression, Some(node.node_wrapper()))
-                .wrap());
+                );
         }
 
         try_visit_each_child(node, |node: &Node| self.visitor(node), &**self.context)
@@ -477,7 +477,7 @@ impl TransformTypeScript {
         Ok(self
             .factory
             .create_partially_emitted_expression(expression, Some(node.node_wrapper()))
-            .wrap())
+            )
     }
 
     pub(super) fn visit_non_null_expression(
@@ -493,7 +493,7 @@ impl TransformTypeScript {
         Ok(self
             .factory
             .create_partially_emitted_expression(expression, Some(node.node_wrapper()))
-            .wrap())
+            )
     }
 
     pub(super) fn visit_call_expression(
@@ -692,11 +692,11 @@ impl TransformTypeScript {
                         export_name,
                         self.factory
                             .create_object_literal_expression(Option::<Gc<NodeArray>>::None, None)
-                            .wrap(),
+                            ,
                     )
-                    .wrap(),
+                    ,
             )
-            .wrap();
+            ;
 
         if self.has_namespace_qualified_export_name(node) {
             let local_name = self.factory.get_local_name(node, Some(false), Some(true));
@@ -704,7 +704,7 @@ impl TransformTypeScript {
             module_arg = self
                 .factory
                 .create_assignment(local_name, module_arg)
-                .wrap();
+                ;
         }
 
         let enum_statement = self
@@ -729,17 +729,17 @@ impl TransformTypeScript {
                                         None,
                                         None,
                                     )
-                                    .wrap()]),
+                                    ]),
                                 None,
                                 self.transform_enum_body(node, &container_name)?,
                             )
-                            .wrap(),
+                            ,
                         Option::<Gc<NodeArray>>::None,
                         Some(vec![module_arg]),
                     )
-                    .wrap(),
+                    ,
             )
-            .wrap()
+            
             .set_original_node(Some(node.node_wrapper()));
         if var_added {
             set_synthetic_leading_comments(&enum_statement, None);
@@ -785,7 +785,7 @@ impl TransformTypeScript {
                     .set_text_range(Some(&*node_as_enum_declaration.members)),
                 Some(true),
             )
-            .wrap())
+            )
     }
 
     pub(super) fn transform_enum_member(
@@ -802,10 +802,10 @@ impl TransformTypeScript {
                         self.current_namespace_container_name(),
                         name.clone(),
                     )
-                    .wrap(),
+                    ,
                 value_expression.clone(),
             )
-            .wrap();
+            ;
         let outer_assignment = if value_expression.kind() == SyntaxKind::StringLiteral {
             inner_assignment
         } else {
@@ -816,15 +816,15 @@ impl TransformTypeScript {
                             self.current_namespace_container_name(),
                             inner_assignment,
                         )
-                        .wrap(),
+                        ,
                     name,
                 )
-                .wrap()
+                
         };
         Ok(self
             .factory
             .create_expression_statement(set_text_range_rc_node(outer_assignment, Some(member)))
-            .wrap()
+            
             .set_text_range(Some(member)))
     }
 
@@ -836,10 +836,10 @@ impl TransformTypeScript {
         Ok(if let Some(value) = value {
             match value {
                 StringOrNumber::String(value) => {
-                    self.factory.create_string_literal(value, None, None).wrap()
+                    self.factory.create_string_literal(value, None, None)
                 }
                 StringOrNumber::Number(value) => {
-                    self.factory.create_numeric_literal(value, None).wrap()
+                    self.factory.create_numeric_literal(value, None)
                 }
             }
         } else {

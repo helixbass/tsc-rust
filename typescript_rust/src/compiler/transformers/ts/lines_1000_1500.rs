@@ -209,7 +209,7 @@ impl TransformTypeScript {
             if member.kind() == SyntaxKind::PropertyDeclaration {
                 Some(self.factory.create_void_zero())
             } else {
-                Some(self.factory.create_null().wrap())
+                Some(self.factory.create_null())
             }
         } else {
             None
@@ -240,7 +240,7 @@ impl TransformTypeScript {
             statements.push(
                 self.factory
                     .create_expression_statement(expression)
-                    .wrap()
+                    
                     .set_original_node(Some(node.node_wrapper())),
             );
         }
@@ -283,11 +283,11 @@ impl TransformTypeScript {
                         |class_alias| {
                             self.factory
                                 .create_assignment(class_alias, decorate.clone())
-                                .wrap()
+                                
                         },
                     ),
                 )
-                .wrap()
+                
                 .set_emit_flags(EmitFlags::NoComments)
                 .set_source_map_range(Some((&move_range_past_decorators(node)).into())),
         ))
@@ -394,13 +394,13 @@ impl TransformTypeScript {
                                     Some(
                                         self.factory
                                             .create_token(SyntaxKind::EqualsGreaterThanToken)
-                                            .wrap(),
+                                            ,
                                     ),
                                     self.serialize_type_of_node(node)?,
                                 )
-                                .wrap(),
+                                ,
                         )
-                        .wrap(),
+                        ,
                 );
             }
             if self.should_add_param_types_metadata(node) {
@@ -417,13 +417,13 @@ impl TransformTypeScript {
                                     Some(
                                         self.factory
                                             .create_token(SyntaxKind::EqualsGreaterThanToken)
-                                            .wrap(),
+                                            ,
                                     ),
                                     self.serialize_parameter_types_of_node(node, container)?,
                                 )
-                                .wrap(),
+                                ,
                         )
-                        .wrap(),
+                        ,
                 );
             }
             if self.should_add_return_type_metadata(node) {
@@ -440,13 +440,13 @@ impl TransformTypeScript {
                                     Some(
                                         self.factory
                                             .create_token(SyntaxKind::EqualsGreaterThanToken)
-                                            .wrap(),
+                                            ,
                                     ),
                                     self.serialize_return_type_of_node(node)?,
                                 )
-                                .wrap(),
+                                ,
                         )
-                        .wrap(),
+                        ,
                 );
             }
             if let Some(properties) = properties {
@@ -455,7 +455,7 @@ impl TransformTypeScript {
                         "design:typeinfo",
                         self.factory
                             .create_object_literal_expression(Some(properties), Some(true))
-                            .wrap(),
+                            ,
                     ),
                 );
             }
@@ -577,7 +577,7 @@ impl TransformTypeScript {
         Ok(self
             .factory
             .create_array_literal_expression(Some(expressions), None)
-            .wrap())
+            )
     }
 
     pub(super) fn get_parameters_of_decorated_declaration(

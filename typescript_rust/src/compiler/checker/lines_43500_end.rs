@@ -1,6 +1,7 @@
+use std::{collections::HashMap, convert::TryInto, io};
+
 use gc::{Finalize, Gc, Trace};
 use itertools::Itertools;
-use std::{collections::HashMap, convert::TryInto, io};
 
 use super::{ambient_module_symbol_regex, IterationTypeKind};
 use crate::{

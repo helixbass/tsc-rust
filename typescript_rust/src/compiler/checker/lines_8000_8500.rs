@@ -76,7 +76,7 @@ impl TypeChecker {
                     Some(
                         get_factory()
                             .create_token(SyntaxKind::AssertsKeyword)
-                            .wrap(),
+                            ,
                     )
                 } else {
                     None
@@ -87,7 +87,7 @@ impl TypeChecker {
                 ) {
                     get_factory().create_identifier(type_predicate.parameter_name.as_ref().unwrap())
                 } else {
-                    get_factory().create_this_type_node().wrap()
+                    get_factory().create_this_type_node()
                 },
                 type_predicate.type_.as_ref().try_and_then(|type_| {
                     self.node_builder().type_to_type_node(
@@ -102,7 +102,7 @@ impl TypeChecker {
                     )
                 })?,
             )
-            .wrap();
+            ;
         let printer = create_printer(
             PrinterOptionsBuilder::default()
                 .remove_comments(Some(true))
@@ -901,7 +901,7 @@ impl TypeChecker {
                 let literal = parse_node_factory.with(|parse_node_factory_| {
                     parse_node_factory_
                         .create_string_literal(prop_name, None, None)
-                        .wrap()
+                        
                 });
                 set_text_range(&*literal, Some(node));
                 let lhs_expr = if is_left_hand_side_expression(&parent_access) {
@@ -910,13 +910,13 @@ impl TypeChecker {
                     parse_node_factory.with(|parse_node_factory_| {
                         parse_node_factory_
                             .create_parenthesized_expression(parent_access.clone())
-                            .wrap()
+                            
                     })
                 };
                 let result = parse_node_factory.with(|parse_node_factory_| {
                     parse_node_factory_
                         .create_element_access_expression(lhs_expr.clone(), literal.clone())
-                        .wrap()
+                        
                 });
                 set_text_range(&*result, Some(node));
                 set_parent(&literal, Some(&*result));

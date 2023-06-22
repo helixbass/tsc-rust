@@ -177,7 +177,7 @@ impl TransformES2020 {
                 expression = self
                     .factory
                     .create_assignment(this_arg.clone().unwrap(), expression)
-                    .wrap();
+                    ;
             } else {
                 this_arg = Some(expression.clone());
             }
@@ -318,7 +318,7 @@ impl TransformES2020 {
             left_expression = self
                 .factory
                 .create_assignment(captured_left.clone(), left_expression.clone())
-                .wrap();
+                ;
         }
         let mut right_expression = captured_left.clone();
         let mut this_arg: Option<Gc<Node /*Expression*/>> = Default::default();
@@ -336,7 +336,7 @@ impl TransformES2020 {
                             right_expression = self
                                 .factory
                                 .create_assignment(this_arg.clone().unwrap(), right_expression)
-                                .wrap();
+                                ;
                         } else {
                             this_arg = Some(right_expression.clone());
                         }
@@ -352,7 +352,7 @@ impl TransformES2020 {
                                     Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
                                 ),
                             )
-                            .wrap()
+                            
                     } else {
                         self.factory
                             .create_element_access_expression(
@@ -364,7 +364,7 @@ impl TransformES2020 {
                                     Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
                                 ),
                             )
-                            .wrap()
+                            
                     };
                 }
                 SyntaxKind::CallExpression => {
@@ -373,7 +373,7 @@ impl TransformES2020 {
                         right_expression = self.factory.create_function_call_call(
                             right_expression,
                             if left_this_arg.kind() == SyntaxKind::SuperKeyword {
-                                self.factory.create_this().wrap()
+                                self.factory.create_this()
                             } else {
                                 left_this_arg.clone()
                             },
@@ -399,7 +399,7 @@ impl TransformES2020 {
                                     None,
                                 )),
                             )
-                            .wrap();
+                            ;
                     }
                 }
                 _ => (),
@@ -412,13 +412,13 @@ impl TransformES2020 {
                 .create_conditional_expression(
                     self.create_not_null_condition(left_expression, captured_left, Some(true)),
                     None,
-                    self.factory.create_true().wrap(),
+                    self.factory.create_true(),
                     None,
                     self.factory
                         .create_delete_expression(right_expression)
-                        .wrap(),
+                        ,
                 )
-                .wrap()
+                
         } else {
             self.factory
                 .create_conditional_expression(
@@ -428,7 +428,7 @@ impl TransformES2020 {
                     None,
                     right_expression,
                 )
-                .wrap()
+                
         }
         .set_text_range(Some(node));
         if let Some(this_arg) = this_arg {
@@ -456,17 +456,17 @@ impl TransformES2020 {
                             } else {
                                 SyntaxKind::ExclamationEqualsEqualsToken
                             })
-                            .wrap(),
-                        self.factory.create_null().wrap(),
+                            ,
+                        self.factory.create_null(),
                     )
-                    .wrap(),
+                    ,
                 self.factory
                     .create_token(if invert == Some(true) {
                         SyntaxKind::BarBarToken
                     } else {
                         SyntaxKind::AmpersandAmpersandToken
                     })
-                    .wrap(),
+                    ,
                 self.factory
                     .create_binary_expression(
                         right,
@@ -476,12 +476,12 @@ impl TransformES2020 {
                             } else {
                                 SyntaxKind::ExclamationEqualsEqualsToken
                             })
-                            .wrap(),
+                            ,
                         self.factory.create_void_zero(),
                     )
-                    .wrap(),
+                    ,
             )
-            .wrap()
+            
     }
 
     fn transform_nullish_coalescing_expression(
@@ -503,7 +503,7 @@ impl TransformES2020 {
                 }),
                 None,
             );
-            left = self.factory.create_assignment(right.clone(), left).wrap();
+            left = self.factory.create_assignment(right.clone(), left);
         }
         Some(
             self.factory
@@ -519,7 +519,7 @@ impl TransformES2020 {
                         Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
                     ),
                 )
-                .wrap()
+                
                 .set_text_range(Some(node))
                 .into(),
         )

@@ -102,7 +102,7 @@ impl TransformTypeScript {
                         self.factory.create_type_check(
                             self.factory
                                 .create_assignment(temp.clone(), serialized)
-                                .wrap(),
+                                ,
                             "function",
                         ),
                         None,
@@ -110,7 +110,7 @@ impl TransformTypeScript {
                         None,
                         self.factory.create_identifier("Object"),
                     )
-                    .wrap()
+                    
             }
             TypeReferenceSerializationKind::TypeWithConstructSignatureAndValue => {
                 self.serialize_entity_name_as_expression(&node_as_type_reference_node.type_name)
@@ -159,15 +159,15 @@ impl TransformTypeScript {
             .create_logical_and(
                 self.factory
                     .create_strict_inequality(
-                        self.factory.create_type_of_expression(left).wrap(),
+                        self.factory.create_type_of_expression(left),
                         self.factory
                             .create_string_literal("undefined".to_owned(), None, None)
-                            .wrap(),
+                            ,
                     )
-                    .wrap(),
+                    ,
                 right,
             )
-            .wrap()
+            
     }
 
     pub(super) fn serialize_entity_name_as_expression_fallback(
@@ -202,17 +202,17 @@ impl TransformTypeScript {
                                         temp.clone(),
                                         left.as_binary_expression().right.clone(),
                                     )
-                                    .wrap(),
+                                    ,
                                 self.factory.create_void_zero(),
                             )
-                            .wrap(),
+                            ,
                     )
-                    .wrap(),
+                    ,
                 self.factory
                     .create_property_access_expression(temp, node_as_qualified_name.right.clone())
-                    .wrap(),
+                    ,
             )
-            .wrap()
+            
     }
 
     pub(super) fn serialize_entity_name_as_expression(
@@ -244,7 +244,7 @@ impl TransformTypeScript {
                 self.serialize_entity_name_as_expression(&node_as_qualified_name.left),
                 node_as_qualified_name.right.clone(),
             )
-            .wrap()
+            
     }
 
     pub(super) fn get_global_symbol_name_with_fallback(
@@ -259,7 +259,7 @@ impl TransformTypeScript {
                 None,
                 self.factory.create_identifier("Object"),
             )
-            .wrap()
+            
     }
 
     pub(super) fn get_global_big_int_name_with_fallback(&self) -> Gc<Node /*SerializedTypeNode*/> {
@@ -273,7 +273,7 @@ impl TransformTypeScript {
                     None,
                     self.factory.create_identifier("Object"),
                 )
-                .wrap()
+                
         } else {
             self.factory.create_identifier("BigInt")
         }
@@ -299,7 +299,7 @@ impl TransformTypeScript {
         } else if is_identifier(&name) {
             self.factory
                 .create_string_literal(id_text(&name).to_owned(), None, None)
-                .wrap()
+                
         } else {
             self.factory.clone_node(&name)
         }
@@ -332,7 +332,7 @@ impl TransformTypeScript {
                     name,
                     self.factory
                         .create_assignment(generated_name, expression)
-                        .wrap(),
+                        ,
                 ));
             }
         }
@@ -533,7 +533,7 @@ impl TransformTypeScript {
                     .set_text_range(Some(&*body_as_block.statements)),
                 Some(true),
             )
-            .wrap()
+            
             .set_text_range(Some(body))
             .set_original_node(Some(body.node_wrapper())))
     }
@@ -568,18 +568,18 @@ impl TransformTypeScript {
                         .create_assignment(
                             self.factory
                                 .create_property_access_expression(
-                                    self.factory.create_this().wrap(),
+                                    self.factory.create_this(),
                                     property_name,
                                 )
-                                .wrap()
+                                
                                 .set_text_range(
                                     node.as_named_declaration().maybe_name().as_deref(),
                                 ),
                             local_name,
                         )
-                        .wrap(),
+                        ,
                 )
-                .wrap()
+                
                 .set_original_node(Some(node.node_wrapper()))
                 .set_text_range(Some(&move_range_pos(node, -1).into_readonly_text_range()))
                 .remove_all_comments()

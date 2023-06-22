@@ -1,6 +1,7 @@
 use std::{borrow::Borrow, cell::RefCell, io, rc::Rc};
 
 use gc::{Finalize, Gc, Trace};
+use local_macros::generate_node_factory_method_wrapper;
 
 use super::{propagate_child_flags, propagate_children_flags};
 use crate::{
@@ -18,7 +19,8 @@ use crate::{
 };
 
 impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory<TBaseNodeFactory> {
-    pub fn create_property_assignment<'name>(
+    #[generate_node_factory_method_wrapper]
+    pub fn create_property_assignment_raw<'name>(
         &self,
         name: impl Into<StrOrRcNode<'name> /*PropertyName*/>,
         initializer: Gc<Node /*Expression*/>,
@@ -80,7 +82,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
             )
         {
             self.finish_update_property_assignment(
-                self.create_property_assignment(name, initializer),
+                self.create_property_assignment_raw(name, initializer),
                 node,
             )
         } else {
@@ -88,7 +90,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         }
     }
 
-    pub fn create_shorthand_property_assignment<'name>(
+    #[generate_node_factory_method_wrapper]
+    pub fn create_shorthand_property_assignment_raw<'name>(
         &self,
         name: impl Into<StrOrRcNode<'name>>, /*Identifier*/
         object_assignment_initializer: Option<Gc<Node /*Expression*/>>,
@@ -162,7 +165,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
             )
         {
             self.finish_update_shorthand_property_assignment(
-                self.create_shorthand_property_assignment(name, object_assignment_initializer),
+                self.create_shorthand_property_assignment_raw(name, object_assignment_initializer),
                 node,
             )
         } else {
@@ -170,7 +173,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         }
     }
 
-    pub fn create_spread_assignment(
+    #[generate_node_factory_method_wrapper]
+    pub fn create_spread_assignment_raw(
         &self,
         expression: Gc<Node /*Expression*/>,
     ) -> SpreadAssignment {
@@ -195,13 +199,14 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     ) -> Gc<Node> {
         let node_as_spread_assignment = node.as_spread_assignment();
         if !Gc::ptr_eq(&node_as_spread_assignment.expression, &expression) {
-            self.update(self.create_spread_assignment(expression).wrap(), node)
+            self.update(self.create_spread_assignment(expression), node)
         } else {
             node.node_wrapper()
         }
     }
 
-    pub fn create_enum_member<'name>(
+    #[generate_node_factory_method_wrapper]
+    pub fn create_enum_member_raw<'name>(
         &self,
         name: impl Into<StrOrRcNode<'name>>, /*Identifier*/
         initializer: Option<Gc<Node /*Expression*/>>,
@@ -236,13 +241,14 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
                 initializer.as_ref(),
             )
         {
-            self.update(self.create_enum_member(name, initializer).wrap(), node)
+            self.update(self.create_enum_member(name, initializer), node)
         } else {
             node.node_wrapper()
         }
     }
 
-    pub fn create_source_file(
+    #[generate_node_factory_method_wrapper]
+    pub fn create_source_file_raw(
         &self,
         statements: impl Into<NodeArrayOrVec>,
         end_of_file_token: Gc<Node /*EndOfFileToken*/>,
@@ -368,7 +374,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         }
     }
 
-    pub fn create_bundle(
+    #[generate_node_factory_method_wrapper]
+    pub fn create_bundle_raw(
         &self,
         source_files: Vec<Option<Gc<Node /*<SourceFile>*/>>>,
         prepends: Option<Vec<Gc<Node /*<UnparsedSource | InputFiles>*/>>>,
@@ -378,7 +385,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         Bundle::new(node, prepends, source_files)
     }
 
-    pub fn create_unparsed_source(
+    #[generate_node_factory_method_wrapper]
+    pub fn create_unparsed_source_raw(
         &self,
         prologues: Vec<Gc<Node /*<UnparsedPrologue>*/>>,
         synthetic_references: Option<Vec<Gc<Node /*<UnparsedSyntheticReference*/>>>,
@@ -406,12 +414,14 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         BaseUnparsedNode::new(node, data)
     }
 
-    pub fn create_unparsed_prologue(&self, data: Option<String>) -> UnparsedPrologue {
+    #[generate_node_factory_method_wrapper]
+    pub fn create_unparsed_prologue_raw(&self, data: Option<String>) -> UnparsedPrologue {
         let node = self.create_base_unparsed_node(SyntaxKind::UnparsedPrologue, data);
         UnparsedPrologue::new(node)
     }
 
-    pub fn create_unparsed_prepend(
+    #[generate_node_factory_method_wrapper]
+    pub fn create_unparsed_prepend_raw(
         &self,
         data: Option<String>,
         texts: Vec<Gc<Node /*UnparsedTextLike*/>>,
@@ -420,7 +430,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         UnparsedPrepend::new(node, texts)
     }
 
-    pub fn create_unparsed_text_like(
+    #[generate_node_factory_method_wrapper]
+    pub fn create_unparsed_text_like_raw(
         &self,
         data: Option<String>,
         internal: bool,
@@ -436,12 +447,14 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         UnparsedTextLike::new(node)
     }
 
-    pub fn create_input_files(&self) -> InputFiles {
+    #[generate_node_factory_method_wrapper]
+    pub fn create_input_files_raw(&self) -> InputFiles {
         let node = self.create_base_node(SyntaxKind::InputFiles);
         InputFiles::new(node, "".to_owned(), "".to_owned())
     }
 
-    pub fn create_synthetic_expression(
+    #[generate_node_factory_method_wrapper]
+    pub fn create_synthetic_expression_raw(
         &self,
         type_: Gc<Type>,
         is_spread: Option<bool>,
@@ -457,7 +470,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         unimplemented!()
     }
 
-    pub fn create_partially_emitted_expression(
+    #[generate_node_factory_method_wrapper]
+    pub fn create_partially_emitted_expression_raw(
         &self,
         _expression: Gc<Node /*Expression*/>,
         _original: Option<Gc<Node>>,
@@ -479,8 +493,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
                 self.create_partially_emitted_expression(
                     expression,
                     node_as_partially_emitted_expression.maybe_original(),
-                )
-                .wrap(),
+                ),
                 node,
             )
         } else {
@@ -515,7 +528,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         node.node_wrapper().into()
     }
 
-    pub fn create_comma_list_expression(
+    #[generate_node_factory_method_wrapper]
+    pub fn create_comma_list_expression_raw(
         &self,
         elements: impl Into<NodeArrayOrVec /*<Expression>*/>,
     ) -> CommaListExpression {
@@ -544,7 +558,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         let node_as_comma_list_expression = node.as_comma_list_expression();
         let elements = elements.into();
         if has_node_array_changed(&node_as_comma_list_expression.elements, &elements) {
-            self.update(self.create_comma_list_expression(elements).wrap(), node)
+            self.update(self.create_comma_list_expression(elements), node)
         } else {
             node.node_wrapper()
         }
@@ -875,7 +889,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         );
         single_or_undefined(Some(nodes))
             .cloned()
-            .unwrap_or_else(|| self.create_block(nodes.to_owned(), None).wrap())
+            .unwrap_or_else(|| self.create_block(nodes.to_owned(), None))
     }
 
     pub fn merge_lexical_environment(

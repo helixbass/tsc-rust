@@ -25,7 +25,7 @@ impl TransformES2015 {
                 None,
                 Some(p.out_param_name.clone()),
             )
-            .wrap()
+            
     }
 
     pub(super) fn create_function_for_initializer_of_for_statement(
@@ -58,7 +58,7 @@ impl TransformES2015 {
         statements.push(
             self.factory
                 .create_variable_statement(Option::<Gc<NodeArray>>::None, node_initializer.clone())
-                .wrap(),
+                ,
         );
         self.copy_out_parameters(
             &current_state.loop_out_parameters,
@@ -86,7 +86,7 @@ impl TransformES2015 {
                                             contains_yield.then(|| {
                                                 self.factory
                                                     .create_token(SyntaxKind::AsteriskToken)
-                                                    .wrap()
+                                                    
                                             }),
                                             Option::<Gc<Node>>::None,
                                             Option::<Gc<NodeArray>>::None,
@@ -96,23 +96,23 @@ impl TransformES2015 {
                                                 &self
                                                     .factory
                                                     .create_block(statements, Some(true))
-                                                    .wrap(),
+                                                    ,
                                                 Some(|node: &Node| self.visitor(node)),
                                                 Some(is_block),
                                                 Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
                                             )?,
                                         )
-                                        .wrap()
+                                        
                                         .set_emit_flags(emit_flags),
                                 ),
                             )
-                            .wrap()],
+                            ],
                         None,
                     )
-                    .wrap()
+                    
                     .set_emit_flags(EmitFlags::NoHoisting),
             )
-            .wrap();
+            ;
 
         let part = self
             .factory
@@ -125,7 +125,7 @@ impl TransformES2015 {
                 ),
                 None,
             )
-            .wrap();
+            ;
 
         Ok(IterationStatementPartFunction {
             function_name,
@@ -174,7 +174,7 @@ impl TransformES2015 {
                                     Some(is_expression),
                                     Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
                                 )?)
-                                .wrap(),
+                                ,
                             Some(
                                 self.factory
                                     .create_expression_statement(
@@ -185,14 +185,14 @@ impl TransformES2015 {
                                                     .condition_variable
                                                     .clone()
                                                     .unwrap(),
-                                                self.factory.create_true().wrap(),
+                                                self.factory.create_true(),
                                             )
-                                            .wrap(),
+                                            ,
                                     )
-                                    .wrap(),
+                                    ,
                             ),
                         )
-                        .wrap(),
+                        ,
                 );
             } else {
                 statements.push(
@@ -206,7 +206,7 @@ impl TransformES2015 {
                                         .clone()
                                         .unwrap(),
                                 )
-                                .wrap(),
+                                ,
                             self.factory
                                 .create_expression_statement(
                                     self.factory
@@ -216,14 +216,14 @@ impl TransformES2015 {
                                                 .condition_variable
                                                 .clone()
                                                 .unwrap(),
-                                            self.factory.create_true().wrap(),
+                                            self.factory.create_true(),
                                         )
-                                        .wrap(),
+                                        ,
                                 )
-                                .wrap(),
+                                ,
                             None,
                         )
-                        .wrap(),
+                        ,
                 );
             }
 
@@ -241,19 +241,19 @@ impl TransformES2015 {
                                         Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
                                     )?,
                                 )
-                                .wrap(),
+                                ,
                             try_visit_node(
                                 &self
                                     .factory
                                     .create_break_statement(Option::<Gc<Node>>::None)
-                                    .wrap(),
+                                    ,
                                 Some(|node: &Node| self.visitor(node)),
                                 Some(is_statement),
                                 Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
                             )?,
                             None,
                         )
-                        .wrap(),
+                        ,
                 );
             }
         }
@@ -277,7 +277,7 @@ impl TransformES2015 {
         );
         insert_statements_after_standard_prologue(&mut statements, lexical_environment.as_deref());
 
-        let loop_body = self.factory.create_block(statements, Some(true)).wrap();
+        let loop_body = self.factory.create_block(statements, Some(true));
         if is_block(&statement) {
             set_original_node(&*loop_body, Some(statement.clone()));
         }
@@ -320,7 +320,7 @@ impl TransformES2015 {
                                             contains_yield.then(|| {
                                                 self.factory
                                                     .create_token(SyntaxKind::AsteriskToken)
-                                                    .wrap()
+                                                    
                                             }),
                                             Option::<Gc<Node>>::None,
                                             Option::<Gc<NodeArray>>::None,
@@ -328,17 +328,17 @@ impl TransformES2015 {
                                             None,
                                             loop_body,
                                         )
-                                        .wrap()
+                                        
                                         .set_emit_flags(emit_flags),
                                 ),
                             )
-                            .wrap()],
+                            ],
                         None,
                     )
-                    .wrap()
+                    
                     .set_emit_flags(EmitFlags::NoHoisting),
             )
-            .wrap();
+            ;
 
         let part = self.generate_call_to_converted_loop(
             &function_name,
@@ -372,7 +372,7 @@ impl TransformES2015 {
         };
         self.factory
             .create_binary_expression(target, SyntaxKind::EqualsToken, source)
-            .wrap()
+            
     }
 
     pub(super) fn copy_out_parameters(
@@ -389,7 +389,7 @@ impl TransformES2015 {
                         .create_expression_statement(
                             self.copy_out_parameter(out_param, copy_direction),
                         )
-                        .wrap(),
+                        ,
                 );
             }
         }
@@ -407,18 +407,18 @@ impl TransformES2015 {
                 Option::<Gc<NodeArray>>::None,
                 Some(vec![]),
             )
-            .wrap();
+            ;
         let call_result = if contains_yield {
             self.factory
                 .create_yield_expression(
-                    Some(self.factory.create_token(SyntaxKind::AsteriskToken).wrap()),
+                    Some(self.factory.create_token(SyntaxKind::AsteriskToken)),
                     Some(set_emit_flags(call, EmitFlags::Iterator)),
                 )
-                .wrap()
+                
         } else {
             call
         };
-        self.factory.create_expression_statement(call_result).wrap()
+        self.factory.create_expression_statement(call_result)
     }
 
     pub(super) fn generate_call_to_converted_loop(
@@ -446,14 +446,14 @@ impl TransformES2015 {
                     p.as_parameter_declaration().name()
                 })),
             )
-            .wrap();
+            ;
         let call_result = if contains_yield {
             self.factory
                 .create_yield_expression(
-                    Some(self.factory.create_token(SyntaxKind::AsteriskToken).wrap()),
+                    Some(self.factory.create_token(SyntaxKind::AsteriskToken)),
                     Some(set_emit_flags(call, EmitFlags::Iterator)),
                 )
-                .wrap()
+                
         } else {
             call
         };
@@ -461,7 +461,7 @@ impl TransformES2015 {
             statements.push(
                 self.factory
                     .create_expression_statement(call_result.clone())
-                    .wrap(),
+                    ,
             );
             self.copy_out_parameters(
                 &state.loop_out_parameters,
@@ -485,12 +485,12 @@ impl TransformES2015 {
                                     None,
                                     Some(call_result),
                                 )
-                                .wrap()],
+                                ],
                             None,
                         )
-                        .wrap(),
+                        ,
                 )
-                .wrap();
+                ;
             statements.push(state_variable);
             self.copy_out_parameters(
                 &state.loop_out_parameters,
@@ -513,7 +513,7 @@ impl TransformES2015 {
                     return_statement = self
                         .factory
                         .create_return_statement(Some(loop_result_name.clone()))
-                        .wrap();
+                        ;
                 } else {
                     return_statement = self
                         .factory
@@ -523,9 +523,9 @@ impl TransformES2015 {
                                     loop_result_name.clone(),
                                     "value",
                                 )
-                                .wrap(),
+                                ,
                         ))
-                        .wrap();
+                        ;
                 }
                 statements.push(
                     self.factory
@@ -535,7 +535,7 @@ impl TransformES2015 {
                             return_statement,
                             None,
                         )
-                        .wrap(),
+                        ,
                 );
             }
 
@@ -552,15 +552,15 @@ impl TransformES2015 {
                                     loop_result_name.clone(),
                                     self.factory
                                         .create_string_literal("break".to_owned(), None, None)
-                                        .wrap(),
+                                        ,
                                 )
-                                .wrap(),
+                                ,
                             self.factory
                                 .create_break_statement(Option::<Gc<Node>>::None)
-                                .wrap(),
+                                ,
                             None,
                         )
-                        .wrap(),
+                        ,
                 );
             }
 
@@ -586,9 +586,9 @@ impl TransformES2015 {
                     self.factory
                         .create_switch_statement(
                             loop_result_name,
-                            self.factory.create_case_block(case_clauses).wrap(),
+                            self.factory.create_case_block(case_clauses),
                         )
-                        .wrap(),
+                        ,
                 );
             }
         }
@@ -640,9 +640,9 @@ impl TransformES2015 {
             } {
                 let label = self.factory.create_identifier(label_text);
                 statements.push(if is_break {
-                    self.factory.create_break_statement(Some(label)).wrap()
+                    self.factory.create_break_statement(Some(label))
                 } else {
-                    self.factory.create_continue_statement(Some(label)).wrap()
+                    self.factory.create_continue_statement(Some(label))
                 });
             } else {
                 self.set_labeled_jump(
@@ -654,7 +654,7 @@ impl TransformES2015 {
                 statements.push(
                     self.factory
                         .create_return_statement(Some(loop_result_name.node_wrapper()))
-                        .wrap(),
+                        ,
                 );
             }
             case_clauses.push(
@@ -662,10 +662,10 @@ impl TransformES2015 {
                     .create_case_clause(
                         self.factory
                             .create_string_literal(label_marker.clone(), None, None)
-                            .wrap(),
+                            ,
                         statements,
                     )
-                    .wrap(),
+                    ,
             );
         }
     }
@@ -703,7 +703,7 @@ impl TransformES2015 {
                         None,
                         None,
                     )
-                    .wrap(),
+                    ,
             );
             let check_flags = self.resolver.get_node_check_flags(decl);
             if check_flags.intersects(NodeCheckFlags::NeedsLoopOutParameter)
@@ -823,7 +823,7 @@ impl TransformES2015 {
                     Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
                 )?,
             )
-            .wrap()
+            
             .set_text_range(Some(property));
         if starts_on_new_line == Some(true) {
             start_on_new_line(&*expression);
@@ -855,7 +855,7 @@ impl TransformES2015 {
                 self.factory
                     .clone_node(&property_as_shorthand_property_assignment.name()),
             )
-            .wrap()
+            
             .set_text_range(Some(property));
         if starts_on_new_line == Some(true) {
             start_on_new_line(&*expression);

@@ -468,7 +468,7 @@ pub fn try_visit_iteration_body(
             return Ok(context.factory().update_block(&updated, declarations));
         }
         declarations.push(updated);
-        return Ok(context.factory().create_block(declarations, None).wrap());
+        return Ok(context.factory().create_block(declarations, None));
     }
     Ok(updated)
 }

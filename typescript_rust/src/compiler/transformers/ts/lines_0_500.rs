@@ -303,7 +303,7 @@ impl TransformTypeScript {
                     },
                 )),
             )
-            .wrap())
+            )
     }
 
     pub(super) fn transform_source_file(
@@ -750,19 +750,19 @@ impl TransformTypeScriptOnSubstituteNodeOverrider {
                             exported_name,
                             node_object_assignment_initializer.clone(),
                         )
-                        .wrap();
+                        ;
                     return Ok(self
                         .transform_type_script
                         .factory
                         .create_property_assignment(name, initializer)
-                        .wrap()
+                        
                         .set_text_range(Some(node)));
                 }
                 return Ok(self
                     .transform_type_script
                     .factory
                     .create_property_assignment(name, exported_name)
-                    .wrap()
+                    
                     .set_text_range(Some(node)));
             }
         }
@@ -871,7 +871,7 @@ impl TransformTypeScriptOnSubstituteNodeOverrider {
                                     .get_generated_name_for_node(Some(container), None),
                                 node.node_wrapper(),
                             )
-                            .wrap()
+                            
                             .set_text_range(Some(node)),
                     ));
                 }
@@ -909,12 +909,12 @@ impl TransformTypeScriptOnSubstituteNodeOverrider {
                     .transform_type_script
                     .factory
                     .create_string_literal(constant_value, None, None)
-                    .wrap(),
+                    ,
                 StringOrNumber::Number(constant_value) => self
                     .transform_type_script
                     .factory
                     .create_numeric_literal(constant_value, None)
-                    .wrap(),
+                    ,
             };
             if self.transform_type_script.compiler_options.remove_comments != Some(true) {
                 let ref original_node = maybe_get_original_node_full(

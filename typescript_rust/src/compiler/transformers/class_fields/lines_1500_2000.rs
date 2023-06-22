@@ -7,7 +7,7 @@ use super::{
     PrivateIdentifierStaticFieldInfo, TransformClassFields,
 };
 use crate::{
-    NamedDeclarationInterface, Node, NodeInterface, _d, continue_if_none,
+    NamedDeclarationInterface, Node, _d, continue_if_none,
     get_initializer_of_binding_or_assignment_element, get_target_of_binding_or_assignment_element,
     get_text_of_property_name, has_static_modifier, is_accessor, is_assignment_expression,
     is_computed_property_name, is_element_access_expression, is_expression,
@@ -74,11 +74,7 @@ impl TransformClassFields {
                 } else {
                     self.context.hoist_variable_declaration(&generated_name);
                 }
-                return Some(
-                    self.factory
-                        .create_assignment(generated_name, expression)
-                        .wrap(),
-                );
+                return Some(self.factory.create_assignment(generated_name, expression));
             }
             return (!(inlinable || is_identifier(inner_expression))).then_some(expression);
         }
@@ -246,20 +242,14 @@ impl TransformClassFields {
                 PrivateIdentifierInstanceFieldInfo::new(weak_map_name.clone(), is_valid).into(),
             );
 
-            assignment_expressions.push(
-                self.factory
-                    .create_assignment(
-                        weak_map_name,
-                        self.factory
-                            .create_new_expression(
-                                self.factory.create_identifier("WeakMap"),
-                                Option::<Gc<NodeArray>>::None,
-                                Some(vec![]),
-                            )
-                            .wrap(),
-                    )
-                    .wrap(),
-            );
+            assignment_expressions.push(self.factory.create_assignment(
+                weak_map_name,
+                self.factory.create_new_expression(
+                    self.factory.create_identifier("WeakMap"),
+                    Option::<Gc<NodeArray>>::None,
+                    Some(vec![]),
+                ),
+            ));
         } else if is_method_declaration(node) {
             Debug_.assert(
                 weak_set_name.is_some(),
@@ -458,20 +448,17 @@ impl TransformClassFields {
                 }),
                 Some(true),
             );
-            self.get_pending_expressions().push(
-                self.factory
-                    .create_binary_expression(
-                        receiver.clone(),
-                        SyntaxKind::EqualsToken,
-                        visit_node(
-                            &node_as_property_access_expression.expression,
-                            Some(|node: &Node| self.visitor(node)),
-                            Some(is_expression),
-                            Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
-                        ),
-                    )
-                    .wrap(),
-            );
+            self.get_pending_expressions()
+                .push(self.factory.create_binary_expression(
+                    receiver.clone(),
+                    SyntaxKind::EqualsToken,
+                    visit_node(
+                        &node_as_property_access_expression.expression,
+                        Some(|node: &Node| self.visitor(node)),
+                        Some(is_expression),
+                        Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                    ),
+                ));
         }
         let ret = self.factory.create_assignment_target_wrapper(
             parameter.clone(),
@@ -524,13 +511,9 @@ impl TransformClassFields {
                                 Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
                             ))
                         } else if is_identifier(&target.as_property_access_expression().name()) {
-                            Some(
-                                self.factory
-                                    .create_string_literal_from_node(
-                                        &target.as_property_access_expression().name(),
-                                    )
-                                    .wrap(),
-                            )
+                            Some(self.factory.create_string_literal_from_node(
+                                &target.as_property_access_expression().name(),
+                            ))
                         } else {
                             None
                         };
@@ -628,13 +611,9 @@ impl TransformClassFields {
                                 ))
                             } else if is_identifier(&target.as_property_access_expression().name())
                             {
-                                Some(
-                                    self.factory
-                                        .create_string_literal_from_node(
-                                            &target.as_property_access_expression().name(),
-                                        )
-                                        .wrap(),
-                                )
+                                Some(self.factory.create_string_literal_from_node(
+                                    &target.as_property_access_expression().name(),
+                                ))
                             } else {
                                 None
                             };
@@ -671,17 +650,15 @@ impl TransformClassFields {
                             ),
                             if let Some(wrapped) = wrapped {
                                 if let Some(initializer) = initializer {
-                                    self.factory
-                                        .create_assignment(
-                                            wrapped,
-                                            visit_node(
-                                                &initializer,
-                                                Some(|node: &Node| self.visitor(node)),
-                                                Option::<fn(&Node) -> bool>::None,
-                                                Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
-                                            ),
-                                        )
-                                        .wrap()
+                                    self.factory.create_assignment(
+                                        wrapped,
+                                        visit_node(
+                                            &initializer,
+                                            Some(|node: &Node| self.visitor(node)),
+                                            Option::<fn(&Node) -> bool>::None,
+                                            Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                                        ),
+                                    )
                                 } else {
                                     wrapped
                                 }

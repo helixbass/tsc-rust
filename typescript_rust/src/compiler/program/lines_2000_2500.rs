@@ -891,7 +891,7 @@ impl Program {
     pub fn create_synthetic_import(&self, text: &str, file: &Node /*SourceFile*/) -> Gc<Node> {
         let external_helpers_module_reference = get_factory()
             .create_string_literal(text.to_owned(), None, None)
-            .wrap();
+            ;
         let import_decl = get_factory()
             .create_import_declaration(
                 Option::<Gc<NodeArray>>::None,
@@ -900,7 +900,7 @@ impl Program {
                 external_helpers_module_reference.clone(),
                 None,
             )
-            .wrap();
+            ;
         add_emit_flags(import_decl.clone(), EmitFlags::NeverApplyImportHelper);
         set_parent(&external_helpers_module_reference, Some(&*import_decl));
         set_parent(&import_decl, Some(file));

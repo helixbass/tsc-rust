@@ -103,7 +103,7 @@ impl TransformES2016 {
                                     expression_temp.clone(),
                                     left_as_element_access_expression.expression.clone(),
                                 )
-                                .wrap(),
+                                ,
                             Some(&*left_as_element_access_expression.expression),
                         ),
                         set_text_range_rc_node(
@@ -114,17 +114,17 @@ impl TransformES2016 {
                                         .argument_expression
                                         .clone(),
                                 )
-                                .wrap(),
+                                ,
                             Some(&*left_as_element_access_expression.argument_expression),
                         ),
                     )
-                    .wrap(),
+                    ,
                 Some(&**left),
             );
             value = set_text_range_rc_node(
                 self.factory
                     .create_element_access_expression(expression_temp, argument_expression_temp)
-                    .wrap(),
+                    ,
                 Some(&**left),
             );
         } else if is_property_access_expression(left) {
@@ -142,12 +142,12 @@ impl TransformES2016 {
                                     expression_temp.clone(),
                                     left_as_property_access_expression.expression.clone(),
                                 )
-                                .wrap(),
+                                ,
                             Some(&*left_as_property_access_expression.expression),
                         ),
                         left_as_property_access_expression.name.clone(),
                     )
-                    .wrap(),
+                    ,
                 Some(&**left),
             );
             value = set_text_range_rc_node(
@@ -156,7 +156,7 @@ impl TransformES2016 {
                         expression_temp,
                         left_as_property_access_expression.name.clone(),
                     )
-                    .wrap(),
+                    ,
                 Some(&**left),
             );
         } else {
@@ -176,7 +176,7 @@ impl TransformES2016 {
                         Some(node),
                     ),
                 )
-                .wrap(),
+                ,
             Some(node),
         )
     }

@@ -42,7 +42,7 @@ impl TransformES2015 {
     pub(super) fn create_actual_this(&self) -> Gc<Node> {
         self.factory
             .create_this()
-            .wrap()
+            
             .set_emit_flags(EmitFlags::NoSubstitution)
     }
 
@@ -60,9 +60,9 @@ impl TransformES2015 {
                                             | GeneratedIdentifierFlags::FileLevel,
                                     ),
                                 ),
-                                self.factory.create_null().wrap(),
+                                self.factory.create_null(),
                             )
-                            .wrap(),
+                            ,
                         self.factory.create_function_apply_call(
                             self.factory.create_unique_name(
                                 "_super",
@@ -75,10 +75,10 @@ impl TransformES2015 {
                             self.factory.create_identifier("arguments"),
                         ),
                     )
-                    .wrap(),
+                    ,
                 self.create_actual_this(),
             )
-            .wrap()
+            
     }
 
     pub(super) fn visit_parameter(
@@ -100,7 +100,7 @@ impl TransformES2015 {
                         None,
                         None,
                     )
-                    .wrap()
+                    
                     .set_text_range(Some(node))
                     .set_original_node(Some(node.node_wrapper())),
             )
@@ -116,7 +116,7 @@ impl TransformES2015 {
                         None,
                         None,
                     )
-                    .wrap()
+                    
                     .set_text_range(Some(node))
                     .set_original_node(Some(node.node_wrapper())),
             )
@@ -211,9 +211,9 @@ impl TransformES2015 {
                                     )?,
                                     None,
                                 )
-                                .wrap(),
+                                ,
                         )
-                        .wrap()
+                        
                         .set_emit_flags(EmitFlags::CustomPrologue),
                 ),
             );
@@ -236,9 +236,9 @@ impl TransformES2015 {
                                         Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
                                     )?,
                                 )
-                                .wrap(),
+                                ,
                         )
-                        .wrap()
+                        
                         .set_emit_flags(EmitFlags::CustomPrologue),
                 ),
             );
@@ -283,14 +283,14 @@ impl TransformES2015 {
                                                 | EmitFlags::NoComments,
                                         ),
                                     )
-                                    .wrap()
+                                    
                                     .set_text_range(Some(parameter))
                                     .set_emit_flags(EmitFlags::NoComments),
                             )
-                            .wrap()],
+                            ],
                         None,
                     )
-                    .wrap()
+                    
                     .set_text_range(Some(parameter))
                     .set_emit_flags(
                         EmitFlags::SingleLine
@@ -300,7 +300,7 @@ impl TransformES2015 {
                     ),
                 None,
             )
-            .wrap()
+            
             .start_on_new_line()
             .set_text_range(Some(parameter))
             .set_emit_flags(
@@ -377,15 +377,15 @@ impl TransformES2015 {
                                     Some(
                                         self.factory
                                             .create_array_literal_expression(Some(vec![]), None)
-                                            .wrap(),
+                                            ,
                                     ),
                                 )
-                                .wrap()],
+                                ],
                             None,
                         )
-                        .wrap(),
+                        ,
                 )
-                .wrap()
+                
                 .set_text_range(Some(&*parameter))
                 .set_emit_flags(EmitFlags::CustomPrologue),
         );
@@ -408,13 +408,13 @@ impl TransformES2015 {
                                                 Number::new(rest_index as f64),
                                                 None,
                                             )
-                                            .wrap(),
+                                            ,
                                     ),
                                 )
-                                .wrap()],
+                                ],
                             None,
                         )
-                        .wrap()
+                        
                         .set_text_range(Some(&*parameter)),
                 ),
                 Some(
@@ -426,15 +426,15 @@ impl TransformES2015 {
                                     self.factory.create_identifier("arguments"),
                                     "length",
                                 )
-                                .wrap(),
+                                ,
                         )
-                        .wrap()
+                        
                         .set_text_range(Some(&*parameter)),
                 ),
                 Some(
                     self.factory
                         .create_postfix_increment(temp.clone())
-                        .wrap()
+                        
                         .set_text_range(Some(&*parameter)),
                 ),
                 self.factory
@@ -458,29 +458,29 @@ impl TransformES2015 {
                                                                     Number::new(rest_index as f64),
                                                                     None,
                                                                 )
-                                                                .wrap(),
+                                                                ,
                                                         )
-                                                        .wrap()
+                                                        
                                                 },
                                             )
-                                            .wrap(),
+                                            ,
                                         self.factory
                                             .create_element_access_expression(
                                                 self.factory.create_identifier("arguments"),
                                                 temp.clone(),
                                             )
-                                            .wrap(),
+                                            ,
                                     )
-                                    .wrap(),
+                                    ,
                             )
-                            .wrap()
+                            
                             .set_text_range(Some(&*parameter))
                             .start_on_new_line()],
                         None,
                     )
-                    .wrap(),
+                    ,
             )
-            .wrap()
+            
             .set_emit_flags(EmitFlags::CustomPrologue)
             .start_on_new_line();
 
@@ -504,9 +504,9 @@ impl TransformES2015 {
                                 )?,
                                 None,
                             )
-                            .wrap(),
+                            ,
                     )
-                    .wrap()
+                    
                     .set_text_range(Some(&*parameter))
                     .set_emit_flags(EmitFlags::CustomPrologue),
             );

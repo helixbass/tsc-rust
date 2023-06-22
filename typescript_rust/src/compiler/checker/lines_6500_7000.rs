@@ -330,13 +330,13 @@ impl SymbolTableToDeclarationStatements {
                                                                     false,
                                                                     Option::<Gc<Node>>::None,
                                                                     id,
-                                                                ).wrap()
+                                                                )
                                                             }
                                                         )
-                                                    ).wrap()),
+                                                    )),
                                                     None,
                                                     None,
-                                                ).wrap()
+                                                )
                                             );
                                             arg
                                         }),
@@ -434,12 +434,12 @@ impl SymbolTableToDeclarationStatements {
                                             .to_vec()
                                         },
                                     ))
-                                    .wrap(),
+                                    ,
                             ),
                             None,
                             None,
                         )
-                        .wrap(),
+                        ,
                 );
                 statements
             };
@@ -515,12 +515,12 @@ impl SymbolTableToDeclarationStatements {
                                                         .to_vec()
                                                     },
                                                 ))
-                                                .wrap(),
+                                                ,
                                         ),
                                         group[0].as_export_declaration().module_specifier.clone(),
                                         None,
                                     )
-                                    .wrap(),
+                                    ,
                             );
                             statements
                         }
@@ -913,11 +913,11 @@ impl SymbolTableToDeclarationStatements {
                                             false,
                                             alias,
                                             &*local_name,
-                                        ).wrap()
+                                        )
                                     ]
-                                ).wrap()),
+                                )),
                                 None, None,
-                            ).wrap(),
+                            ),
                             ModifierFlags::None
                         );
                         self.context().tracker().track_symbol(
@@ -943,11 +943,11 @@ impl SymbolTableToDeclarationStatements {
                                                     self.bundled,
                                                 )?),
                                                 None,
-                                            ).wrap()
+                                            )
                                         ],
                                         flags,
-                                    ).wrap()
-                            ).wrap(),
+                                    )
+                            ),
                             text_range.as_deref(),
                         );
                         self.add_result(
@@ -970,11 +970,11 @@ impl SymbolTableToDeclarationStatements {
                                                     false,
                                                     Some(&*name),
                                                     &*local_name,
-                                                ).wrap()
+                                                )
                                             ]
-                                        ).wrap()),
+                                        )),
                                         None, None,
-                                    ).wrap(),
+                                    ),
                                 ModifierFlags::None,
                             );
                             needs_export_declaration = false;
@@ -1062,11 +1062,11 @@ impl SymbolTableToDeclarationStatements {
                                             None,
                                             None,
                                         )
-                                        .wrap(),
+                                        ,
                                 ),
                                 None,
                             )
-                            .wrap(),
+                            ,
                         ModifierFlags::None,
                     );
                 }
@@ -1082,7 +1082,7 @@ impl SymbolTableToDeclarationStatements {
                         get_factory()
                             .create_identifier(&self.get_internal_symbol_name(symbol, symbol_name)),
                     )
-                    .wrap(),
+                    ,
                 ModifierFlags::None,
             );
         } else if needs_export_declaration {
@@ -1100,13 +1100,13 @@ impl SymbolTableToDeclarationStatements {
                                         Some(&*self.get_internal_symbol_name(symbol, symbol_name)),
                                         symbol_name,
                                     )
-                                    .wrap()])
-                                .wrap(),
+                                    ])
+                                ,
                         ),
                         None,
                         None,
                     )
-                    .wrap(),
+                    ,
                 ModifierFlags::None,
             );
         }
@@ -1361,6 +1361,6 @@ impl MakeSerializePropertySymbolCreateProperty
     ) -> Gc<Node> {
         get_factory()
             .create_property_signature(mods, name, question, type_)
-            .wrap()
+            
     }
 }

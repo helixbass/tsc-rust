@@ -36,7 +36,7 @@ impl ParserType {
         };
         self.finish_node(
             self.factory()
-                .create_type_predicate_node(
+                .create_type_predicate_node_raw(
                     Some(asserts_modifier.wrap()),
                     parameter_name.wrap(),
                     type_,
@@ -74,7 +74,7 @@ impl ParserType {
             let false_type = self.parse_type_worker(None);
             return self
                 .finish_node(
-                    self.factory().create_conditional_type_node(
+                    self.factory().create_conditional_type_node_raw(
                         type_,
                         extends_type,
                         true_type,
@@ -270,7 +270,7 @@ impl ParserType {
             && (self.token() == SyntaxKind::AsteriskToken || self.is_start_of_expression())
         {
             self.finish_node(
-                self.factory().create_yield_expression(
+                self.factory().create_yield_expression_raw(
                     self.parse_optional_token(SyntaxKind::AsteriskToken)
                         .map(|asterisk_token| asterisk_token.wrap()),
                     Some(self.parse_assignment_expression_or_higher()),
@@ -280,7 +280,7 @@ impl ParserType {
             )
         } else {
             self.finish_node(
-                self.factory().create_yield_expression(None, None),
+                self.factory().create_yield_expression_raw(None, None),
                 pos,
                 None,
             )
@@ -298,7 +298,7 @@ impl ParserType {
             Some("parseSimpleArrowFunctionExpression should only have been called if we had a =>"),
         );
         let identifier_pos = identifier.pos();
-        let parameter = self.factory().create_parameter_declaration(
+        let parameter = self.factory().create_parameter_declaration_raw(
             Option::<Gc<NodeArray>>::None,
             Option::<Gc<NodeArray>>::None,
             None,
@@ -320,7 +320,7 @@ impl ParserType {
         let equals_greater_than_token =
             self.parse_expected_token(SyntaxKind::EqualsGreaterThanToken, None, None);
         let body = self.parse_arrow_function_expression_body(async_modifier.is_some());
-        let node = self.factory().create_arrow_function(
+        let node = self.factory().create_arrow_function_raw(
             async_modifier,
             Option::<Gc<NodeArray>>::None,
             parameters,
@@ -601,7 +601,7 @@ impl ParserType {
             self.parse_identifier(None, None).wrap()
         };
 
-        let node = self.factory().create_arrow_function(
+        let node = self.factory().create_arrow_function_raw(
             modifiers,
             type_parameters,
             parameters,
@@ -673,7 +673,7 @@ impl ParserType {
         let is_colon_token_present = node_is_present(Some(&colon_token));
         return self
             .finish_node(
-                self.factory().create_conditional_expression(
+                self.factory().create_conditional_expression_raw(
                     left_operand,
                     Some(question_token.wrap()),
                     when_true,
@@ -776,7 +776,7 @@ impl ParserType {
     ) -> BinaryExpression {
         self.finish_node(
             self.factory()
-                .create_binary_expression(left, operator_token, right),
+                .create_binary_expression_raw(left, operator_token, right),
             pos,
             None,
         )
@@ -785,7 +785,7 @@ impl ParserType {
     pub(super) fn make_as_expression(&self, left: Gc<Node>, right: Gc<Node>) -> AsExpression {
         let left_pos = left.pos();
         self.finish_node(
-            self.factory().create_as_expression(left, right),
+            self.factory().create_as_expression_raw(left, right),
             left_pos,
             None,
         )
@@ -794,7 +794,7 @@ impl ParserType {
     pub(super) fn parse_prefix_unary_expression(&self) -> PrefixUnaryExpression {
         let pos = self.get_node_pos();
         self.finish_node(
-            self.factory().create_prefix_unary_expression(
+            self.factory().create_prefix_unary_expression_raw(
                 self.token(),
                 self.next_token_and(|| self.parse_simple_unary_expression()),
             ),
@@ -806,7 +806,7 @@ impl ParserType {
     pub(super) fn parse_delete_expression(&self) -> DeleteExpression {
         let pos = self.get_node_pos();
         self.finish_node(
-            self.factory().create_delete_expression(
+            self.factory().create_delete_expression_raw(
                 self.next_token_and(|| self.parse_simple_unary_expression()),
             ),
             pos,
@@ -817,7 +817,7 @@ impl ParserType {
     pub(super) fn parse_type_of_expression(&self) -> TypeOfExpression {
         let pos = self.get_node_pos();
         self.finish_node(
-            self.factory().create_type_of_expression(
+            self.factory().create_type_of_expression_raw(
                 self.next_token_and(|| self.parse_simple_unary_expression()),
             ),
             pos,
@@ -828,7 +828,7 @@ impl ParserType {
     pub(super) fn parse_void_expression(&self) -> VoidExpression {
         let pos = self.get_node_pos();
         self.finish_node(
-            self.factory().create_void_expression(
+            self.factory().create_void_expression_raw(
                 self.next_token_and(|| self.parse_simple_unary_expression()),
             ),
             pos,
@@ -853,7 +853,7 @@ impl ParserType {
     pub(super) fn parse_await_expression(&self) -> AwaitExpression {
         let pos = self.get_node_pos();
         self.finish_node(
-            self.factory().create_await_expression(
+            self.factory().create_await_expression_raw(
                 self.next_token_and(|| self.parse_simple_unary_expression()),
             ),
             pos,
@@ -947,7 +947,7 @@ impl ParserType {
             let pos = self.get_node_pos();
             return self
                 .finish_node(
-                    self.factory().create_prefix_unary_expression(
+                    self.factory().create_prefix_unary_expression_raw(
                         self.token(),
                         self.next_token_and(|| self.parse_left_hand_side_expression_or_higher()),
                     ),
@@ -978,7 +978,7 @@ impl ParserType {
             return self
                 .finish_node(
                     self.factory()
-                        .create_postfix_unary_expression(expression, operator),
+                        .create_postfix_unary_expression_raw(expression, operator),
                     expression_pos,
                     None,
                 )
@@ -1004,7 +1004,7 @@ impl ParserType {
                 self.next_token();
                 expression = self
                     .finish_node(
-                        self.factory().create_meta_property(
+                        self.factory().create_meta_property_raw(
                             SyntaxKind::ImportKeyword,
                             self.parse_identifier_name(None).wrap(),
                         ),

@@ -1,7 +1,7 @@
 use gc::Gc;
 
 use super::{Instruction, Label, TransformGenerators};
-use crate::{EmitFlags, Node, NodeExt, NodeInterface, ReadonlyTextRange};
+use crate::{EmitFlags, Node, NodeExt, ReadonlyTextRange};
 
 impl TransformGenerators {
     pub(super) fn write_throw(
@@ -14,7 +14,6 @@ impl TransformGenerators {
         self.write_statement(
             self.factory
                 .create_throw_statement(expression)
-                .wrap()
                 .set_text_range(operation_location),
         );
     }
@@ -28,19 +27,14 @@ impl TransformGenerators {
         self.set_last_operation_was_completion(true);
         self.write_statement(
             self.factory
-                .create_return_statement(Some(
-                    self.factory
-                        .create_array_literal_expression(
-                            Some(if let Some(expression) = expression {
-                                vec![self.create_instruction(Instruction::Return), expression]
-                            } else {
-                                vec![self.create_instruction(Instruction::Return)]
-                            }),
-                            None,
-                        )
-                        .wrap(),
-                ))
-                .wrap()
+                .create_return_statement(Some(self.factory.create_array_literal_expression(
+                    Some(if let Some(expression) = expression {
+                        vec![self.create_instruction(Instruction::Return), expression]
+                    } else {
+                        vec![self.create_instruction(Instruction::Return)]
+                    }),
+                    None,
+                )))
                 .set_text_range(operation_location)
                 .set_emit_flags(EmitFlags::NoTokenSourceMaps),
         );
@@ -54,18 +48,13 @@ impl TransformGenerators {
         self.set_last_operation_was_abrupt(true);
         self.write_statement(
             self.factory
-                .create_return_statement(Some(
-                    self.factory
-                        .create_array_literal_expression(
-                            Some(vec![
-                                self.create_instruction(Instruction::Break),
-                                self.create_label(Some(label)),
-                            ]),
-                            None,
-                        )
-                        .wrap(),
-                ))
-                .wrap()
+                .create_return_statement(Some(self.factory.create_array_literal_expression(
+                    Some(vec![
+                        self.create_instruction(Instruction::Break),
+                        self.create_label(Some(label)),
+                    ]),
+                    None,
+                )))
                 .set_text_range(operation_location)
                 .set_emit_flags(EmitFlags::NoTokenSourceMaps),
         );
@@ -83,22 +72,18 @@ impl TransformGenerators {
                     condition,
                     self.factory
                         .create_return_statement(Some(
-                            self.factory
-                                .create_array_literal_expression(
-                                    Some(vec![
-                                        self.create_instruction(Instruction::Break),
-                                        self.create_label(Some(label)),
-                                    ]),
-                                    None,
-                                )
-                                .wrap(),
+                            self.factory.create_array_literal_expression(
+                                Some(vec![
+                                    self.create_instruction(Instruction::Break),
+                                    self.create_label(Some(label)),
+                                ]),
+                                None,
+                            ),
                         ))
-                        .wrap()
                         .set_text_range(operation_location)
                         .set_emit_flags(EmitFlags::NoTokenSourceMaps),
                     None,
                 )
-                .wrap()
                 .set_emit_flags(EmitFlags::SingleLine),
         );
     }
@@ -112,25 +97,21 @@ impl TransformGenerators {
         self.write_statement(
             self.factory
                 .create_if_statement(
-                    self.factory.create_logical_not(condition).wrap(),
+                    self.factory.create_logical_not(condition),
                     self.factory
                         .create_return_statement(Some(
-                            self.factory
-                                .create_array_literal_expression(
-                                    Some(vec![
-                                        self.create_instruction(Instruction::Break),
-                                        self.create_label(Some(label)),
-                                    ]),
-                                    None,
-                                )
-                                .wrap(),
+                            self.factory.create_array_literal_expression(
+                                Some(vec![
+                                    self.create_instruction(Instruction::Break),
+                                    self.create_label(Some(label)),
+                                ]),
+                                None,
+                            ),
                         ))
-                        .wrap()
                         .set_text_range(operation_location)
                         .set_emit_flags(EmitFlags::NoTokenSourceMaps),
                     None,
                 )
-                .wrap()
                 .set_emit_flags(EmitFlags::SingleLine),
         );
     }
@@ -143,20 +124,15 @@ impl TransformGenerators {
         self.set_last_operation_was_abrupt(true);
         self.write_statement(
             self.factory
-                .create_return_statement(Some(
-                    self.factory
-                        .create_array_literal_expression(
-                            // expression ?
-                            Some(vec![
-                                self.create_instruction(Instruction::Yield),
-                                expression,
-                            ]),
-                            // : [createInstruction(Instruction.Yield)]
-                            None,
-                        )
-                        .wrap(),
-                ))
-                .wrap()
+                .create_return_statement(Some(self.factory.create_array_literal_expression(
+                    // expression ?
+                    Some(vec![
+                        self.create_instruction(Instruction::Yield),
+                        expression,
+                    ]),
+                    // : [createInstruction(Instruction.Yield)]
+                    None,
+                )))
                 .set_text_range(operation_location)
                 .set_emit_flags(EmitFlags::NoTokenSourceMaps),
         );
@@ -170,18 +146,13 @@ impl TransformGenerators {
         self.set_last_operation_was_abrupt(true);
         self.write_statement(
             self.factory
-                .create_return_statement(Some(
-                    self.factory
-                        .create_array_literal_expression(
-                            Some(vec![
-                                self.create_instruction(Instruction::YieldStar),
-                                expression,
-                            ]),
-                            None,
-                        )
-                        .wrap(),
-                ))
-                .wrap()
+                .create_return_statement(Some(self.factory.create_array_literal_expression(
+                    Some(vec![
+                        self.create_instruction(Instruction::YieldStar),
+                        expression,
+                    ]),
+                    None,
+                )))
                 .set_text_range(operation_location)
                 .set_emit_flags(EmitFlags::NoTokenSourceMaps),
         );
@@ -189,17 +160,11 @@ impl TransformGenerators {
 
     pub(super) fn write_end_finally(&self) {
         self.set_last_operation_was_abrupt(true);
-        self.write_statement(
-            self.factory
-                .create_return_statement(Some(
-                    self.factory
-                        .create_array_literal_expression(
-                            Some(vec![self.create_instruction(Instruction::Endfinally)]),
-                            None,
-                        )
-                        .wrap(),
-                ))
-                .wrap(),
-        );
+        self.write_statement(self.factory.create_return_statement(Some(
+            self.factory.create_array_literal_expression(
+                Some(vec![self.create_instruction(Instruction::Endfinally)]),
+                None,
+            ),
+        )));
     }
 }

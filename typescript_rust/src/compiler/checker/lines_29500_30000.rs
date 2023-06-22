@@ -1,12 +1,16 @@
+use std::{
+    borrow::Borrow,
+    cell::{Cell, RefCell},
+    cmp,
+    collections::HashMap,
+    io,
+    rc::Rc,
+};
+
 use gc::{Finalize, Gc, Trace};
-use std::borrow::Borrow;
-use std::cell::{Cell, RefCell};
-use std::collections::HashMap;
-use std::rc::Rc;
-use std::{cmp, io};
+use local_macros::enum_unwrapped;
 
 use super::{CheckMode, CheckTypeContainingMessageChain, CheckTypeErrorOutputContainer};
-use crate::try_maybe_for_each;
 use crate::{
     add_related_info, are_option_gcs_equal, chain_diagnostic_messages,
     chain_diagnostic_messages_multiple, create_diagnostic_for_node,
@@ -16,17 +20,16 @@ use crate::{
     is_access_expression, is_binding_pattern, is_call_expression,
     is_function_expression_or_arrow_function, is_function_like_declaration, is_identifier,
     is_in_js_file, is_jsx_opening_element, is_jsx_opening_like_element, is_new_expression,
-    is_parameter, is_property_access_expression, is_rest_parameter, last, length, map, node_is_present, parse_node_factory,
-    return_ok_default_if_none, set_parent, set_text_range, set_text_range_pos_end,
-    skip_outer_expressions, some, try_some, BaseDiagnostic, BaseDiagnosticRelatedInformation,
-    Debug_, Diagnostic, DiagnosticInterface, DiagnosticMessage, DiagnosticMessageChain,
-    DiagnosticMessageText, DiagnosticRelatedInformation, DiagnosticRelatedInformationInterface,
-    Diagnostics, ElementFlags, InferenceContext, InferenceFlags, Node, NodeArray, NodeInterface,
-    ReadonlyTextRange, RelationComparisonResult, ScriptTarget, Signature, SignatureFlags,
-    SymbolFlags, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeInterface,
-    UsizeOrNegativeInfinity,
+    is_parameter, is_property_access_expression, is_rest_parameter, last, length, map,
+    node_is_present, parse_node_factory, return_ok_default_if_none, set_parent, set_text_range,
+    set_text_range_pos_end, skip_outer_expressions, some, try_maybe_for_each, try_some,
+    BaseDiagnostic, BaseDiagnosticRelatedInformation, Debug_, Diagnostic, DiagnosticInterface,
+    DiagnosticMessage, DiagnosticMessageChain, DiagnosticMessageText, DiagnosticRelatedInformation,
+    DiagnosticRelatedInformationInterface, Diagnostics, ElementFlags, InferenceContext,
+    InferenceFlags, Node, NodeArray, NodeInterface, ReadonlyTextRange, RelationComparisonResult,
+    ScriptTarget, Signature, SignatureFlags, SymbolFlags, SymbolInterface, SyntaxKind, Type,
+    TypeChecker, TypeInterface, UsizeOrNegativeInfinity,
 };
-use local_macros::enum_unwrapped;
 
 impl TypeChecker {
     pub(super) fn maybe_add_missing_await_info(
@@ -105,14 +108,12 @@ impl TypeChecker {
         >,
     ) -> Gc<Node> {
         let result = parse_node_factory.with(|parse_node_factory_| {
-            parse_node_factory_
-                .create_synthetic_expression(
-                    type_.type_wrapper(),
-                    is_spread,
-                    tuple_name_source
-                        .map(|tuple_name_source| tuple_name_source.borrow().node_wrapper()),
-                )
-                .wrap()
+            parse_node_factory_.create_synthetic_expression(
+                type_.type_wrapper(),
+                is_spread,
+                tuple_name_source
+                    .map(|tuple_name_source| tuple_name_source.borrow().node_wrapper()),
+            )
         });
         set_text_range(&*result, Some(parent));
         set_parent(&result, Some(parent));

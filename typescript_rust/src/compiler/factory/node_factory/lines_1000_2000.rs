@@ -1,4 +1,5 @@
 use gc::{Finalize, Gc, Trace};
+use local_macros::generate_node_factory_method_wrapper;
 
 use super::{propagate_child_flags, propagate_identifier_name_flags};
 use crate::{
@@ -20,28 +21,34 @@ use crate::{
 };
 
 impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory<TBaseNodeFactory> {
-    pub fn create_super(&self) -> BaseNode {
-        self.create_token(SyntaxKind::SuperKeyword)
+    #[generate_node_factory_method_wrapper]
+    pub fn create_super_raw(&self) -> BaseNode {
+        self.create_token_raw(SyntaxKind::SuperKeyword)
     }
 
-    pub fn create_this(&self) -> BaseNode {
-        self.create_token(SyntaxKind::ThisKeyword)
+    #[generate_node_factory_method_wrapper]
+    pub fn create_this_raw(&self) -> BaseNode {
+        self.create_token_raw(SyntaxKind::ThisKeyword)
     }
 
-    pub fn create_null(&self) -> BaseNode {
-        self.create_token(SyntaxKind::NullKeyword)
+    #[generate_node_factory_method_wrapper]
+    pub fn create_null_raw(&self) -> BaseNode {
+        self.create_token_raw(SyntaxKind::NullKeyword)
     }
 
-    pub fn create_true(&self) -> BaseNode {
-        self.create_token(SyntaxKind::TrueKeyword)
+    #[generate_node_factory_method_wrapper]
+    pub fn create_true_raw(&self) -> BaseNode {
+        self.create_token_raw(SyntaxKind::TrueKeyword)
     }
 
-    pub fn create_false(&self) -> BaseNode {
-        self.create_token(SyntaxKind::FalseKeyword)
+    #[generate_node_factory_method_wrapper]
+    pub fn create_false_raw(&self) -> BaseNode {
+        self.create_token_raw(SyntaxKind::FalseKeyword)
     }
 
-    pub fn create_modifier(&self, kind: SyntaxKind) -> BaseNode {
-        self.create_token(kind)
+    #[generate_node_factory_method_wrapper]
+    pub fn create_modifier_raw(&self, kind: SyntaxKind) -> BaseNode {
+        self.create_token_raw(kind)
     }
 
     pub fn create_modifiers_from_modifier_flags(
@@ -50,45 +57,46 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     ) -> Vec<Gc<Node /*Modifier*/>> {
         let mut result = vec![];
         if flags.intersects(ModifierFlags::Export) {
-            result.push(self.create_modifier(SyntaxKind::ExportKeyword).wrap());
+            result.push(self.create_modifier(SyntaxKind::ExportKeyword));
         }
         if flags.intersects(ModifierFlags::Ambient) {
-            result.push(self.create_modifier(SyntaxKind::DeclareKeyword).wrap());
+            result.push(self.create_modifier(SyntaxKind::DeclareKeyword));
         }
         if flags.intersects(ModifierFlags::Default) {
-            result.push(self.create_modifier(SyntaxKind::DefaultKeyword).wrap());
+            result.push(self.create_modifier(SyntaxKind::DefaultKeyword));
         }
         if flags.intersects(ModifierFlags::Const) {
-            result.push(self.create_modifier(SyntaxKind::ConstKeyword).wrap());
+            result.push(self.create_modifier(SyntaxKind::ConstKeyword));
         }
         if flags.intersects(ModifierFlags::Public) {
-            result.push(self.create_modifier(SyntaxKind::PublicKeyword).wrap());
+            result.push(self.create_modifier(SyntaxKind::PublicKeyword));
         }
         if flags.intersects(ModifierFlags::Private) {
-            result.push(self.create_modifier(SyntaxKind::PrivateKeyword).wrap());
+            result.push(self.create_modifier(SyntaxKind::PrivateKeyword));
         }
         if flags.intersects(ModifierFlags::Protected) {
-            result.push(self.create_modifier(SyntaxKind::ProtectedKeyword).wrap());
+            result.push(self.create_modifier(SyntaxKind::ProtectedKeyword));
         }
         if flags.intersects(ModifierFlags::Abstract) {
-            result.push(self.create_modifier(SyntaxKind::AbstractKeyword).wrap());
+            result.push(self.create_modifier(SyntaxKind::AbstractKeyword));
         }
         if flags.intersects(ModifierFlags::Static) {
-            result.push(self.create_modifier(SyntaxKind::StaticKeyword).wrap());
+            result.push(self.create_modifier(SyntaxKind::StaticKeyword));
         }
         if flags.intersects(ModifierFlags::Override) {
-            result.push(self.create_modifier(SyntaxKind::OverrideKeyword).wrap());
+            result.push(self.create_modifier(SyntaxKind::OverrideKeyword));
         }
         if flags.intersects(ModifierFlags::Readonly) {
-            result.push(self.create_modifier(SyntaxKind::ReadonlyKeyword).wrap());
+            result.push(self.create_modifier(SyntaxKind::ReadonlyKeyword));
         }
         if flags.intersects(ModifierFlags::Async) {
-            result.push(self.create_modifier(SyntaxKind::AsyncKeyword).wrap());
+            result.push(self.create_modifier(SyntaxKind::AsyncKeyword));
         }
         result
     }
 
-    pub fn create_qualified_name<'right>(
+    #[generate_node_factory_method_wrapper]
+    pub fn create_qualified_name_raw<'right>(
         &self,
         left: Gc<Node /*EntityName*/>,
         right: impl Into<StrOrRcNode<'right>>,
@@ -111,13 +119,14 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         if !Gc::ptr_eq(&node_as_qualified_name.left, &left)
             || !Gc::ptr_eq(&node_as_qualified_name.right, &right)
         {
-            self.update(self.create_qualified_name(left, right).wrap(), node)
+            self.update(self.create_qualified_name(left, right), node)
         } else {
             node.node_wrapper()
         }
     }
 
-    pub fn create_computed_property_name(
+    #[generate_node_factory_method_wrapper]
+    pub fn create_computed_property_name_raw(
         &self,
         expression: Gc<Node /*Expression*/>,
     ) -> ComputedPropertyName {
@@ -142,13 +151,14 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     ) -> Gc<Node> {
         let node_as_computed_property_name = node.as_computed_property_name();
         if !Gc::ptr_eq(&node_as_computed_property_name.expression, &expression) {
-            self.update(self.create_computed_property_name(expression).wrap(), node)
+            self.update(self.create_computed_property_name(expression), node)
         } else {
             node.node_wrapper()
         }
     }
 
-    pub fn create_type_parameter_declaration<'name>(
+    #[generate_node_factory_method_wrapper]
+    pub fn create_type_parameter_declaration_raw<'name>(
         &self,
         name: impl Into<StrOrRcNode<'name>>,
         constraint: Option<Gc<Node /*TypeNode*/>>,
@@ -184,8 +194,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
             )
         {
             self.update(
-                self.create_type_parameter_declaration(name, constraint, default_type)
-                    .wrap(),
+                self.create_type_parameter_declaration(name, constraint, default_type),
                 node,
             )
         } else {
@@ -193,7 +202,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         }
     }
 
-    pub fn create_parameter_declaration<'name>(
+    #[generate_node_factory_method_wrapper]
+    pub fn create_parameter_declaration_raw<'name>(
         &self,
         decorators: Option<impl Into<NodeArrayOrVec>>,
         modifiers: Option<impl Into<NodeArrayOrVec>>,
@@ -285,8 +295,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
                     question_token,
                     type_,
                     initializer,
-                )
-                .wrap(),
+                ),
                 node,
             )
         } else {
@@ -294,7 +303,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         }
     }
 
-    pub fn create_decorator(&self, expression: Gc<Node /*Expression*/>) -> Decorator {
+    #[generate_node_factory_method_wrapper]
+    pub fn create_decorator_raw(&self, expression: Gc<Node /*Expression*/>) -> Decorator {
         let node = self.create_base_node(SyntaxKind::Decorator);
         let node = Decorator::new(
             node,
@@ -316,13 +326,14 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     ) -> Gc<Node> {
         let node_as_decorator = node.as_decorator();
         if !Gc::ptr_eq(&node_as_decorator.expression, &expression) {
-            self.update(self.create_decorator(expression).wrap(), node)
+            self.update(self.create_decorator(expression), node)
         } else {
             node.node_wrapper()
         }
     }
 
-    pub fn create_property_signature<'name>(
+    #[generate_node_factory_method_wrapper]
+    pub fn create_property_signature_raw<'name>(
         &self,
         modifiers: Option<impl Into<NodeArrayOrVec>>,
         name: impl Into<StrOrRcNode<'name>>,
@@ -362,8 +373,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
             )
         {
             self.update(
-                self.create_property_signature(modifiers, name, question_token, type_)
-                    .wrap(),
+                self.create_property_signature(modifiers, name, question_token, type_),
                 node,
             )
         } else {
@@ -486,7 +496,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         }
     }
 
-    pub(crate) fn create_method_signature<'name>(
+    #[generate_node_factory_method_wrapper]
+    pub(crate) fn create_method_signature_raw<'name>(
         &self,
         modifiers: Option<impl Into<NodeArrayOrVec>>,
         name: Option<impl Into<StrOrRcNode<'name>>>,
@@ -545,8 +556,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
                     type_parameters,
                     Some(parameters),
                     type_,
-                )
-                .wrap(),
+                ),
                 node,
             )
         } else {
@@ -554,7 +564,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         }
     }
 
-    pub fn create_method_declaration<'name>(
+    #[generate_node_factory_method_wrapper]
+    pub fn create_method_declaration_raw<'name>(
         &self,
         decorators: Option<impl Into<NodeArrayOrVec>>,
         modifiers: Option<impl Into<NodeArrayOrVec>>,
@@ -659,8 +670,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
                     parameters,
                     type_,
                     body,
-                )
-                .wrap(),
+                ),
                 node,
             )
         } else {
@@ -668,7 +678,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         }
     }
 
-    pub fn create_class_static_block_declaration(
+    #[generate_node_factory_method_wrapper]
+    pub fn create_class_static_block_declaration_raw(
         &self,
         decorators: Option<impl Into<NodeArrayOrVec>>,
         modifiers: Option<impl Into<NodeArrayOrVec>>,
@@ -703,8 +714,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
             || !Gc::ptr_eq(&node_as_class_static_block_declaration.body, &body)
         {
             self.update(
-                self.create_class_static_block_declaration(decorators, modifiers, body)
-                    .wrap(),
+                self.create_class_static_block_declaration(decorators, modifiers, body),
                 node,
             )
         } else {
@@ -712,7 +722,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         }
     }
 
-    pub fn create_constructor_declaration(
+    #[generate_node_factory_method_wrapper]
+    pub fn create_constructor_declaration_raw(
         &self,
         decorators: Option<impl Into<NodeArrayOrVec>>,
         modifiers: Option<impl Into<NodeArrayOrVec>>,
@@ -755,8 +766,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
             )
         {
             self.update_base_function_like_declaration(
-                self.create_constructor_declaration(decorators, modifiers, Some(parameters), body)
-                    .wrap(),
+                self.create_constructor_declaration(decorators, modifiers, Some(parameters), body),
                 node,
             )
         } else {
@@ -764,7 +774,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         }
     }
 
-    pub fn create_get_accessor_declaration<'name>(
+    #[generate_node_factory_method_wrapper]
+    pub fn create_get_accessor_declaration_raw<'name>(
         &self,
         decorators: Option<impl Into<NodeArrayOrVec>>,
         modifiers: Option<impl Into<NodeArrayOrVec>>,
@@ -816,8 +827,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
             self.update_base_function_like_declaration(
                 self.create_get_accessor_declaration(
                     decorators, modifiers, name, parameters, type_, body,
-                )
-                .wrap(),
+                ),
                 node,
             )
         } else {
@@ -825,7 +835,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         }
     }
 
-    pub fn create_set_accessor_declaration<'name>(
+    #[generate_node_factory_method_wrapper]
+    pub fn create_set_accessor_declaration_raw<'name>(
         &self,
         decorators: Option<impl Into<NodeArrayOrVec>>,
         modifiers: Option<impl Into<NodeArrayOrVec>>,
@@ -869,8 +880,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
             )
         {
             self.update_base_function_like_declaration(
-                self.create_set_accessor_declaration(decorators, modifiers, name, parameters, body)
-                    .wrap(),
+                self.create_set_accessor_declaration(decorators, modifiers, name, parameters, body),
                 node,
             )
         } else {
@@ -878,7 +888,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         }
     }
 
-    pub fn create_call_signature(
+    #[generate_node_factory_method_wrapper]
+    pub fn create_call_signature_raw(
         &self,
         type_parameters: Option<impl Into<NodeArrayOrVec>>,
         parameters: impl Into<NodeArrayOrVec>,
@@ -919,8 +930,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
             type_.as_ref(),
         ) {
             self.update_base_signature_declaration(
-                self.create_call_signature(type_parameters, parameters, type_)
-                    .wrap(),
+                self.create_call_signature(type_parameters, parameters, type_),
                 node,
             )
         } else {
@@ -928,7 +938,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         }
     }
 
-    pub fn create_construct_signature(
+    #[generate_node_factory_method_wrapper]
+    pub fn create_construct_signature_raw(
         &self,
         type_parameters: Option<impl Into<NodeArrayOrVec>>,
         parameters: impl Into<NodeArrayOrVec>,
@@ -971,8 +982,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
             type_.as_ref(),
         ) {
             self.update_base_signature_declaration(
-                self.create_construct_signature(type_parameters, parameters, type_)
-                    .wrap(),
+                self.create_construct_signature(type_parameters, parameters, type_),
                 node,
             )
         } else {
@@ -980,7 +990,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         }
     }
 
-    pub fn create_index_signature(
+    #[generate_node_factory_method_wrapper]
+    pub fn create_index_signature_raw(
         &self,
         decorators: Option<impl Into<NodeArrayOrVec>>,
         modifiers: Option<impl Into<NodeArrayOrVec>>,
@@ -1030,8 +1041,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
             modifiers.as_ref(),
         ) {
             self.update_base_signature_declaration(
-                self.create_index_signature(decorators, modifiers, parameters, Some(type_))
-                    .wrap(),
+                self.create_index_signature(decorators, modifiers, parameters, Some(type_)),
                 node,
             )
         } else {
@@ -1039,7 +1049,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         }
     }
 
-    pub fn create_template_literal_type_span(
+    #[generate_node_factory_method_wrapper]
+    pub fn create_template_literal_type_span_raw(
         &self,
         type_: Gc<Node /*TypeNode*/>,
         literal: Gc<Node /*TemplateMiddle | TemplateTail*/>,
@@ -1060,21 +1071,19 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         if !Gc::ptr_eq(&node_as_template_literal_type_span.type_, &type_)
             || !Gc::ptr_eq(&node_as_template_literal_type_span.literal, &literal)
         {
-            self.update(
-                self.create_template_literal_type_span(type_, literal)
-                    .wrap(),
-                node,
-            )
+            self.update(self.create_template_literal_type_span(type_, literal), node)
         } else {
             node.node_wrapper()
         }
     }
 
-    pub fn create_keyword_type_node(&self, kind: SyntaxKind) -> BaseNode {
-        self.create_token(kind)
+    #[generate_node_factory_method_wrapper]
+    pub fn create_keyword_type_node_raw(&self, kind: SyntaxKind) -> BaseNode {
+        self.create_token_raw(kind)
     }
 
-    pub fn create_type_predicate_node<'parameter_name>(
+    #[generate_node_factory_method_wrapper]
+    pub fn create_type_predicate_node_raw<'parameter_name>(
         &self,
         asserts_modifier: Option<Gc<Node /*AssertsKeyword*/>>,
         parameter_name: impl Into<StrOrRcNode<'parameter_name>>,
@@ -1106,8 +1115,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
             || !are_option_gcs_equal(node_as_type_predicate_node.type_.as_ref(), type_.as_ref())
         {
             self.update(
-                self.create_type_predicate_node(asserts_modifier, parameter_name, type_)
-                    .wrap(),
+                self.create_type_predicate_node(asserts_modifier, parameter_name, type_),
                 node,
             )
         } else {
@@ -1115,7 +1123,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         }
     }
 
-    pub fn create_type_reference_node<'type_name>(
+    #[generate_node_factory_method_wrapper]
+    pub fn create_type_reference_node_raw<'type_name>(
         &self,
         type_name: impl Into<StrOrRcNode<'type_name>>,
         type_arguments: Option<impl Into<NodeArrayOrVec>>,
@@ -1150,8 +1159,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
             )
         {
             self.update(
-                self.create_type_reference_node(type_name, type_arguments)
-                    .wrap(),
+                self.create_type_reference_node(type_name, type_arguments),
                 node,
             )
         } else {
@@ -1159,7 +1167,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         }
     }
 
-    pub fn create_function_type_node(
+    #[generate_node_factory_method_wrapper]
+    pub fn create_function_type_node_raw(
         &self,
         type_parameters: Option<impl Into<NodeArrayOrVec>>,
         parameters: impl Into<NodeArrayOrVec>,
@@ -1197,8 +1206,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
             )
         {
             self.update_base_signature_declaration(
-                self.create_function_type_node(type_parameters, parameters, type_)
-                    .wrap(),
+                self.create_function_type_node(type_parameters, parameters, type_),
                 node,
             )
         } else {
@@ -1206,7 +1214,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         }
     }
 
-    pub fn create_constructor_type_node(
+    #[generate_node_factory_method_wrapper]
+    pub fn create_constructor_type_node_raw(
         &self,
         modifiers: Option<impl Into<NodeArrayOrVec>>,
         type_parameters: Option<impl Into<NodeArrayOrVec>>,
@@ -1251,8 +1260,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
             )
         {
             self.update_base_signature_declaration(
-                self.create_constructor_type_node(modifiers, type_parameters, parameters, type_)
-                    .wrap(),
+                self.create_constructor_type_node(modifiers, type_parameters, parameters, type_),
                 node,
             )
         } else {
@@ -1260,7 +1268,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         }
     }
 
-    pub fn create_type_query_node(&self, expr_name: Gc<Node /*EntityName*/>) -> TypeQueryNode {
+    #[generate_node_factory_method_wrapper]
+    pub fn create_type_query_node_raw(&self, expr_name: Gc<Node /*EntityName*/>) -> TypeQueryNode {
         let node = self.create_base_node(SyntaxKind::TypeQuery);
         let node = TypeQueryNode::new(node, expr_name);
         node.add_transform_flags(TransformFlags::ContainsTypeScript);
@@ -1274,13 +1283,14 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     ) -> Gc<Node> {
         let node_as_type_query_node = node.as_type_query_node();
         if !Gc::ptr_eq(&node_as_type_query_node.expr_name, &expr_name) {
-            self.update(self.create_type_query_node(expr_name).wrap(), node)
+            self.update(self.create_type_query_node(expr_name), node)
         } else {
             node.node_wrapper()
         }
     }
 
-    pub fn create_type_literal_node(
+    #[generate_node_factory_method_wrapper]
+    pub fn create_type_literal_node_raw(
         &self,
         members: Option<impl Into<NodeArrayOrVec>>,
     ) -> TypeLiteralNode {
@@ -1297,13 +1307,14 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     ) -> Gc<Node> {
         let node_as_type_literal_node = node.as_type_literal_node();
         if !Gc::ptr_eq(&node_as_type_literal_node.members, &members) {
-            self.update(self.create_type_literal_node(Some(members)).wrap(), node)
+            self.update(self.create_type_literal_node(Some(members)), node)
         } else {
             node.node_wrapper()
         }
     }
 
-    pub fn create_array_type_node(&self, element_type: Gc<Node /*TypeNode*/>) -> ArrayTypeNode {
+    #[generate_node_factory_method_wrapper]
+    pub fn create_array_type_node_raw(&self, element_type: Gc<Node /*TypeNode*/>) -> ArrayTypeNode {
         let node = self.create_base_node(SyntaxKind::ArrayType);
         let node = ArrayTypeNode::new(
             node,
@@ -1321,13 +1332,14 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     ) -> Gc<Node> {
         let node_as_array_type_node = node.as_array_type_node();
         if !Gc::ptr_eq(&node_as_array_type_node.element_type, &element_type) {
-            self.update(self.create_array_type_node(element_type).wrap(), node)
+            self.update(self.create_array_type_node(element_type), node)
         } else {
             node.node_wrapper()
         }
     }
 
-    pub fn create_tuple_type_node(
+    #[generate_node_factory_method_wrapper]
+    pub fn create_tuple_type_node_raw(
         &self,
         elements: Option<impl Into<NodeArrayOrVec>>,
     ) -> TupleTypeNode {
@@ -1345,13 +1357,14 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         let node_as_tuple_type_node = node.as_tuple_type_node();
         let elements = elements.into();
         if has_node_array_changed(&node_as_tuple_type_node.elements, &elements) {
-            self.update(self.create_tuple_type_node(Some(elements)).wrap(), node)
+            self.update(self.create_tuple_type_node(Some(elements)), node)
         } else {
             node.node_wrapper()
         }
     }
 
-    pub fn create_named_tuple_member(
+    #[generate_node_factory_method_wrapper]
+    pub fn create_named_tuple_member_raw(
         &self,
         dot_dot_dot_token: Option<Gc<Node /*DotDotDotToken*/>>,
         name: Gc<Node /*Identifier*/>,
@@ -1384,8 +1397,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
             || !Gc::ptr_eq(&node_as_named_tuple_member.type_, &type_)
         {
             self.update(
-                self.create_named_tuple_member(dot_dot_dot_token, name, question_token, type_)
-                    .wrap(),
+                self.create_named_tuple_member(dot_dot_dot_token, name, question_token, type_),
                 node,
             )
         } else {
@@ -1393,7 +1405,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         }
     }
 
-    pub fn create_optional_type_node(&self, type_: Gc<Node /*TypeNode*/>) -> OptionalTypeNode {
+    #[generate_node_factory_method_wrapper]
+    pub fn create_optional_type_node_raw(&self, type_: Gc<Node /*TypeNode*/>) -> OptionalTypeNode {
         let node = self.create_base_node(SyntaxKind::OptionalType);
         let node = OptionalTypeNode::new(
             node,
@@ -1411,13 +1424,14 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     ) -> Gc<Node> {
         let node_as_optional_type_node = node.as_optional_type_node();
         if !Gc::ptr_eq(&node_as_optional_type_node.type_, &type_) {
-            self.update(self.create_optional_type_node(type_).wrap(), node)
+            self.update(self.create_optional_type_node(type_), node)
         } else {
             node.node_wrapper()
         }
     }
 
-    pub fn create_rest_type_node(&self, type_: Gc<Node /*TypeNode*/>) -> RestTypeNode {
+    #[generate_node_factory_method_wrapper]
+    pub fn create_rest_type_node_raw(&self, type_: Gc<Node /*TypeNode*/>) -> RestTypeNode {
         let node = self.create_base_node(SyntaxKind::RestType);
         let node = RestTypeNode::new(node, type_);
         node.add_transform_flags(TransformFlags::ContainsTypeScript);
@@ -1431,13 +1445,14 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     ) -> Gc<Node> {
         let node_as_rest_type_node = node.as_rest_type_node();
         if !Gc::ptr_eq(&node_as_rest_type_node.type_, &type_) {
-            self.update(self.create_rest_type_node(type_).wrap(), node)
+            self.update(self.create_rest_type_node(type_), node)
         } else {
             node.node_wrapper()
         }
     }
 
-    pub fn create_union_or_intersection_type_node(
+    #[generate_node_factory_method_wrapper]
+    pub fn create_union_or_intersection_type_node_raw(
         &self,
         kind: SyntaxKind, /*SyntaxKind.UnionType | SyntaxKind.IntersectionType*/
         types: impl Into<NodeArrayOrVec>, /*<TypeNode>*/
@@ -1463,8 +1478,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         let node_as_union_or_intersection_type = node.as_union_or_intersection_type_node();
         if !Gc::ptr_eq(&node_as_union_or_intersection_type.types(), &types) {
             self.update(
-                self.create_union_or_intersection_type_node(node.kind(), types)
-                    .wrap(),
+                self.create_union_or_intersection_type_node(node.kind(), types),
                 node,
             )
         } else {
@@ -1472,11 +1486,12 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         }
     }
 
-    pub fn create_union_type_node(
+    #[generate_node_factory_method_wrapper]
+    pub fn create_union_type_node_raw(
         &self,
         types: impl Into<NodeArrayOrVec>, /*<TypeNode>*/
     ) -> Node {
-        self.create_union_or_intersection_type_node(SyntaxKind::UnionType, types)
+        self.create_union_or_intersection_type_node_raw(SyntaxKind::UnionType, types)
     }
 
     pub fn update_union_type_node(
@@ -1487,11 +1502,12 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         self.update_union_or_intersection_type_node(node, types)
     }
 
-    pub fn create_intersection_type_node(
+    #[generate_node_factory_method_wrapper]
+    pub fn create_intersection_type_node_raw(
         &self,
         types: impl Into<NodeArrayOrVec>, /*<TypeNode>*/
     ) -> Node {
-        self.create_union_or_intersection_type_node(SyntaxKind::IntersectionType, types)
+        self.create_union_or_intersection_type_node_raw(SyntaxKind::IntersectionType, types)
     }
 
     pub fn update_intersection_type_node(
@@ -1502,7 +1518,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         self.update_union_or_intersection_type_node(node, types)
     }
 
-    pub fn create_conditional_type_node(
+    #[generate_node_factory_method_wrapper]
+    pub fn create_conditional_type_node_raw(
         &self,
         check_type: Gc<Node /*TypeNode*/>,
         extends_type: Gc<Node /*TypeNode*/>,
@@ -1538,8 +1555,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
             || !Gc::ptr_eq(&node_as_conditional_type_node.false_type, &false_type)
         {
             self.update(
-                self.create_conditional_type_node(check_type, extends_type, true_type, false_type)
-                    .wrap(),
+                self.create_conditional_type_node(check_type, extends_type, true_type, false_type),
                 node,
             )
         } else {

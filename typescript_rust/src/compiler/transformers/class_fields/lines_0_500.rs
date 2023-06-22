@@ -947,9 +947,9 @@ impl TransformClassFields {
                                 )
                                 .unwrap(),
                             )
-                            .wrap(),
+                            ,
                     )
-                    .wrap(),
+                    ,
             );
         }
 
@@ -1160,7 +1160,7 @@ impl TransformClassFields {
                                         .create_string_literal_from_node(
                                             &node_as_property_access_expression.name(),
                                         )
-                                        .wrap(),
+                                        ,
                                     Some(class_constructor.clone()),
                                 )
                                 .set_original_node(Some(
@@ -1388,7 +1388,7 @@ impl TransformClassFieldsOnSubstituteNodeOverrider {
                         .create_parenthesized_expression(
                             self.transform_class_fields.factory.create_void_zero(),
                         )
-                        .wrap();
+                        ;
                 }
                 if let Some(class_constructor) = class_constructor {
                     return self

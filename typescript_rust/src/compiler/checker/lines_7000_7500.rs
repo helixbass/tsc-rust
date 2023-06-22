@@ -214,7 +214,7 @@ impl SymbolTableToDeclarationStatements {
                         type_param_decls,
                         type_node,
                     )
-                    .wrap(),
+                    ,
                 Some(match comment_text {
                     None => vec![],
                     Some(comment_text) => vec![Rc::new(SynthesizedComment {
@@ -297,7 +297,7 @@ impl SymbolTableToDeclarationStatements {
                         self.try_serialize_as_type_reference(b, SymbolFlags::Value)
                     })?,
                 )
-                .wrap()])
+                ])
         };
         self.add_result(
             &get_factory()
@@ -317,7 +317,7 @@ impl SymbolTableToDeclarationStatements {
                         .into_iter(),
                     ),
                 )
-                .wrap(),
+                ,
             modifier_flags,
         );
 
@@ -475,17 +475,17 @@ impl SymbolTableToDeclarationStatements {
                                                     },
                                                     name,
                                                 )
-                                                .wrap(),
+                                                ,
                                         ))
                                     },
                                 )?)
-                                .wrap(),
+                                ,
                         ),
                         None,
                         None,
                     )
-                    .wrap()]))
-                .wrap();
+                    ]))
+                ;
             self.add_result(
                 &get_factory()
                     .create_module_declaration(
@@ -495,7 +495,7 @@ impl SymbolTableToDeclarationStatements {
                         Some(ns_body),
                         Some(NodeFlags::Namespace),
                     )
-                    .wrap(),
+                    ,
                 ModifierFlags::None,
             );
         }
@@ -549,7 +549,7 @@ impl SymbolTableToDeclarationStatements {
                                                             None,
                                                             None,
                                                         )
-                                                        .wrap()
+                                                        
                                                 }
                                                 StringOrNumber::Number(initialized_value) => {
                                                     get_factory()
@@ -557,17 +557,17 @@ impl SymbolTableToDeclarationStatements {
                                                             initialized_value,
                                                             None,
                                                         )
-                                                        .wrap()
+                                                        
                                                 }
                                             }
                                         }),
                                     )
-                                    .wrap())
+                                    )
                             })
                             .collect::<Result<Vec<_>, _>>()?,
                     ),
                 )
-                .wrap(),
+                ,
             modifier_flags,
         );
 
@@ -698,10 +698,10 @@ impl SymbolTableToDeclarationStatements {
                     Option::<Gc<NodeArray>>::None,
                     Option::<Gc<NodeArray>>::None,
                     get_factory().create_identifier(local_name),
-                    Some(get_factory().create_module_block(Some(vec![])).wrap()),
+                    Some(get_factory().create_module_block(Some(vec![]))),
                     Some(NodeFlags::Namespace),
                 )
-                .wrap();
+                ;
             set_parent(&fakespace, Some(&*self.enclosing_declaration));
             fakespace.set_locals(Some(Gc::new(GcCell::new(create_symbol_table(Some(props))))));
             if let Some(props_0_parent) = props[0].maybe_parent() {
@@ -746,13 +746,13 @@ impl SymbolTableToDeclarationStatements {
                                             get_factory()
                                                 .create_identifier(InternalSymbolName::Default),
                                         )
-                                        .wrap()])
-                                    .wrap(),
+                                        ])
+                                    ,
                             ),
                             None,
                             None,
                         )
-                        .wrap()
+                        
                 } else {
                     d.clone()
                 }
@@ -775,7 +775,7 @@ impl SymbolTableToDeclarationStatements {
                 Some(
                     get_factory()
                         .create_module_block(Some(export_modifier_stripped))
-                        .wrap(),
+                        ,
                 ),
             );
             self.add_result(&fakespace, modifier_flags);
@@ -859,7 +859,7 @@ impl SymbolTableToDeclarationStatements {
                             )
                             .transpose()?,
                         )
-                        .wrap(),
+                        ,
                 ),
             ))
         })?;
@@ -944,7 +944,7 @@ impl SymbolTableToDeclarationStatements {
                                 self.serialize_base_type(b, static_base_type, local_name)
                             })?,
                         )
-                        .wrap(),
+                        ,
                 );
             }
             if !implements_expressions.is_empty() {
@@ -954,7 +954,7 @@ impl SymbolTableToDeclarationStatements {
                             SyntaxKind::ImplementsKeyword,
                             implements_expressions,
                         )
-                        .wrap(),
+                        ,
                 );
             }
             heritage_clauses
@@ -986,7 +986,7 @@ impl SymbolTableToDeclarationStatements {
             vec![get_factory().create_property_declaration(
                 Option::<Gc<NodeArray>>::None,
                 Option::<Gc<NodeArray>>::None,
-                get_factory().create_private_identifier("#private").wrap(),
+                get_factory().create_private_identifier("#private"),
                 None,
                 None,
                 None,
@@ -1044,7 +1044,7 @@ impl SymbolTableToDeclarationStatements {
                     Some(vec![]),
                     None,
                 )
-                .wrap()]
+                ]
         } else {
             self.serialize_signatures(
                 SignatureKind::Construct,
@@ -1076,7 +1076,7 @@ impl SymbolTableToDeclarationStatements {
                             .into_iter(),
                         ),
                     )
-                    .wrap(),
+                    ,
                 symbol
                     .maybe_declarations()
                     .as_ref()
@@ -1199,18 +1199,18 @@ impl SymbolTableToDeclarationStatements {
                                                             get_factory()
                                                                 .create_identifier(local_name),
                                                         )
-                                                        .wrap()])
-                                                    .wrap(),
+                                                        ])
+                                                    ,
                                             ),
                                         )
-                                        .wrap(),
+                                        ,
                                 ),
                                 get_factory()
                                     .create_string_literal(specifier, None, None)
-                                    .wrap(),
+                                    ,
                                 None,
                             )
-                            .wrap(),
+                            ,
                         ModifierFlags::None,
                     );
                     break 'case;
@@ -1259,11 +1259,11 @@ impl SymbolTableToDeclarationStatements {
                                     .create_external_module_reference(
                                         get_factory()
                                             .create_string_literal(specifier, None, None)
-                                            .wrap(),
+                                            ,
                                     )
-                                    .wrap(),
+                                    ,
                             )
-                            .wrap(),
+                            ,
                         ModifierFlags::None,
                     );
                     self.add_result(
@@ -1278,9 +1278,9 @@ impl SymbolTableToDeclarationStatements {
                                         unique_name,
                                         initializer.as_property_access_expression().name.clone(),
                                     )
-                                    .wrap(),
+                                    ,
                             )
-                            .wrap(),
+                            ,
                         modifier_flags,
                     );
                 }
@@ -1322,12 +1322,12 @@ impl SymbolTableToDeclarationStatements {
                                                 None,
                                                 None,
                                             )
-                                            .wrap(),
+                                            ,
                                     )
-                                    .wrap()
+                                    
                             },
                         )
-                        .wrap(),
+                        ,
                     if is_local_import {
                         modifier_flags
                     } else {
@@ -1373,12 +1373,12 @@ impl SymbolTableToDeclarationStatements {
                                                 None,
                                                 None,
                                             )
-                                            .wrap(),
+                                            ,
                                     )
-                                    .wrap()
+                                    
                             },
                         )
-                        .wrap(),
+                        ,
                     if is_local_import {
                         modifier_flags
                     } else {
@@ -1392,7 +1392,7 @@ impl SymbolTableToDeclarationStatements {
                         .create_namespace_export_declaration(id_text(
                             &node.as_namespace_export_declaration().name(),
                         ))
-                        .wrap(),
+                        ,
                     ModifierFlags::None,
                 );
             }
@@ -1409,7 +1409,7 @@ impl SymbolTableToDeclarationStatements {
                                         Some(get_factory().create_identifier(local_name)),
                                         None,
                                     )
-                                    .wrap(),
+                                    ,
                             ),
                             get_factory()
                                 .create_string_literal(
@@ -1420,10 +1420,10 @@ impl SymbolTableToDeclarationStatements {
                                     None,
                                     None,
                                 )
-                                .wrap(),
+                                ,
                             None,
                         )
-                        .wrap(),
+                        ,
                     ModifierFlags::None,
                 );
             }
@@ -1443,10 +1443,10 @@ impl SymbolTableToDeclarationStatements {
                                                 .create_namespace_import(
                                                     get_factory().create_identifier(local_name),
                                                 )
-                                                .wrap(),
+                                                ,
                                         ),
                                     )
-                                    .wrap(),
+                                    ,
                             ),
                             get_factory()
                                 .create_string_literal(
@@ -1455,10 +1455,10 @@ impl SymbolTableToDeclarationStatements {
                                     None,
                                     None,
                                 )
-                                .wrap(),
+                                ,
                             None,
                         )
-                        .wrap(),
+                        ,
                     ModifierFlags::None,
                 );
             }
@@ -1474,7 +1474,7 @@ impl SymbolTableToDeclarationStatements {
                                     .create_namespace_export(
                                         get_factory().create_identifier(local_name),
                                     )
-                                    .wrap(),
+                                    ,
                             ),
                             Some(
                                 get_factory()
@@ -1486,11 +1486,11 @@ impl SymbolTableToDeclarationStatements {
                                         None,
                                         None,
                                     )
-                                    .wrap(),
+                                    ,
                             ),
                             None,
                         )
-                        .wrap(),
+                        ,
                     ModifierFlags::None,
                 );
             }
@@ -1519,11 +1519,11 @@ impl SymbolTableToDeclarationStatements {
                                                         ),
                                                         get_factory().create_identifier(local_name),
                                                     )
-                                                    .wrap()])
-                                                .wrap(),
+                                                    ])
+                                                ,
                                         ),
                                     )
-                                    .wrap(),
+                                    ,
                             ),
                             get_factory()
                                 .create_string_literal(
@@ -1534,10 +1534,10 @@ impl SymbolTableToDeclarationStatements {
                                     None,
                                     None,
                                 )
-                                .wrap(),
+                                ,
                             None,
                         )
-                        .wrap(),
+                        ,
                     ModifierFlags::None,
                 );
             }
@@ -1564,7 +1564,7 @@ impl SymbolTableToDeclarationStatements {
                                     None,
                                     None,
                                 )
-                                .wrap()
+                                
                         }),
                 );
             }

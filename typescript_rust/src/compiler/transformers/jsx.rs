@@ -124,10 +124,10 @@ impl TransformJsx {
                             None,
                             None,
                         )
-                        .wrap(),
+                        ,
                 ),
             )
-            .wrap();
+            ;
         self.current_file_state_mut().filename_declaration = Some(declaration.clone());
         declaration.as_variable_declaration().name()
     }
@@ -199,7 +199,7 @@ impl TransformJsx {
                 Some(self.factory.create_identifier(name)),
                 generated_name.clone(),
             )
-            .wrap();
+            ;
         generated_name
             .as_identifier()
             .set_generated_import_reference(Some(specifier.clone()));
@@ -241,9 +241,9 @@ impl TransformJsx {
                                     vec![current_file_state_filename_declaration],
                                     Some(NodeFlags::Const),
                                 )
-                                .wrap(),
+                                ,
                         )
-                        .wrap(),
+                        ,
                 ),
             );
             statements = statements_as_vec.into();
@@ -275,17 +275,17 @@ impl TransformJsx {
                                                         .cloned()
                                                         .collect_vec(),
                                                 )
-                                                .wrap(),
+                                                ,
                                         ),
                                     )
-                                    .wrap(),
+                                    ,
                             ),
                             self.factory
                                 .create_string_literal(import_source.clone(), None, None)
-                                .wrap(),
+                                ,
                             None,
                         )
-                        .wrap()
+                        
                         .set_parent_recursive(false);
                     let mut statements_as_vec: Vec<Gc<Node>> = (&statements).into();
                     insert_statement_after_custom_prologue(
@@ -322,11 +322,11 @@ impl TransformJsx {
                                                                             .clone(),
                                                                         None,
                                                                     )
-                                                                    .wrap()
+                                                                    
                                                             })
                                                             .collect_vec(),
                                                     )
-                                                    .wrap(),
+                                                    ,
                                             ),
                                             None,
                                             None,
@@ -342,17 +342,17 @@ impl TransformJsx {
                                                                 None,
                                                                 None,
                                                             )
-                                                            .wrap()]),
+                                                            ]),
                                                     )
-                                                    .wrap(),
+                                                    ,
                                             ),
                                         )
-                                        .wrap()],
+                                        ],
                                     Some(NodeFlags::Const),
                                 )
-                                .wrap(),
+                                ,
                         )
-                        .wrap()
+                        
                         .set_parent_recursive(false);
                     let mut statements_as_vec: Vec<Gc<Node>> = (&statements).into();
                     insert_statement_after_custom_prologue(
@@ -509,7 +509,7 @@ impl TransformJsx {
         prop.map(|prop| {
             self.factory
                 .create_object_literal_expression(Some(vec![prop]), None)
-                .wrap()
+                
         })
     }
 
@@ -528,7 +528,7 @@ impl TransformJsx {
             return result.map(|result| {
                 self.factory
                     .create_property_assignment("children", result)
-                    .wrap()
+                    
             });
         }
         let result = map_defined(Some(children), |child: &Gc<Node>, _| {
@@ -540,9 +540,9 @@ impl TransformJsx {
                     "children",
                     self.factory
                         .create_array_literal_expression(Some(result), None)
-                        .wrap(),
+                        ,
                 )
-                .wrap()
+                
         })
     }
 
@@ -597,7 +597,7 @@ impl TransformJsx {
                     Some(children_prop.map_or_default(|children_prop| vec![children_prop])),
                     None,
                 )
-                .wrap()
+                
         };
         Some(self.visit_jsx_opening_like_element_or_fragment_jsx(
             &tag_name,
@@ -645,9 +645,9 @@ impl TransformJsx {
                 original_file.filter(|original_file| is_source_file(original_file))
             {
                 args.push(if is_static_children {
-                    self.factory.create_true().wrap()
+                    self.factory.create_true()
                 } else {
-                    self.factory.create_false().wrap()
+                    self.factory.create_false()
                 });
                 let line_col = get_line_and_character_of_position(
                     original_file.as_source_file(),
@@ -662,7 +662,7 @@ impl TransformJsx {
                                         "fileName",
                                         self.get_current_file_name_expression(),
                                     )
-                                    .wrap(),
+                                    ,
                                 self.factory
                                     .create_property_assignment(
                                         "lineNumber",
@@ -671,9 +671,9 @@ impl TransformJsx {
                                                 Number::new((line_col.line + 1) as f64),
                                                 None,
                                             )
-                                            .wrap(),
+                                            ,
                                     )
-                                    .wrap(),
+                                    ,
                                 self.factory
                                     .create_property_assignment(
                                         "columnNumber",
@@ -682,15 +682,15 @@ impl TransformJsx {
                                                 Number::new((line_col.character + 1) as f64),
                                                 None,
                                             )
-                                            .wrap(),
+                                            ,
                                     )
-                                    .wrap(),
+                                    ,
                             ]),
                             None,
                         )
-                        .wrap(),
+                        ,
                 );
-                args.push(self.factory.create_this().wrap());
+                args.push(self.factory.create_this());
             }
         }
         let element = self
@@ -700,7 +700,7 @@ impl TransformJsx {
                 Option::<Gc<NodeArray>>::None,
                 Some(args),
             )
-            .wrap()
+            
             .set_text_range(Some(location));
 
         if is_child {
@@ -727,7 +727,7 @@ impl TransformJsx {
         let object_properties = if !attrs.is_empty() {
             self.transform_jsx_attributes_to_object_props(&attrs, Option::<&Node>::None)
         } else {
-            self.factory.create_null().wrap()
+            self.factory.create_null()
         };
 
         let ref callee = if self.current_file_state().import_specifier.is_none() {
@@ -782,7 +782,7 @@ impl TransformJsx {
             &children_props.unwrap_or_else(|| {
                 self.factory
                     .create_object_literal_expression(Some(vec![]), None)
-                    .wrap()
+                    
             }),
             Option::<&Node>::None,
             children,
@@ -833,7 +833,7 @@ impl TransformJsx {
                 Some(is_expression),
                 Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
             ))
-            .wrap()
+            
     }
 
     fn transform_jsx_attributes_to_object_props(
@@ -850,7 +850,7 @@ impl TransformJsx {
                     Some(self.transform_jsx_attributes_to_props(attrs, children)),
                     None,
                 )
-                .wrap()
+                
         } else {
             self.transform_jsx_attributes_to_expression(attrs, children)
         }
@@ -903,7 +903,7 @@ impl TransformJsx {
                             })),
                             None,
                         )
-                        .wrap()]
+                        ]
                 }
             },
         ));
@@ -913,7 +913,7 @@ impl TransformJsx {
                 0,
                 self.factory
                     .create_object_literal_expression(Option::<Gc<NodeArray>>::None, None)
-                    .wrap(),
+                    ,
             );
         }
 
@@ -922,7 +922,7 @@ impl TransformJsx {
             expressions.push(
                 self.factory
                     .create_object_literal_expression(Some(vec![children.node_wrapper()]), None)
-                    .wrap(),
+                    ,
             );
         }
 
@@ -954,7 +954,7 @@ impl TransformJsx {
             self.transform_jsx_attribute_initializer(node_as_jsx_attribute.initializer.as_deref());
         self.factory
             .create_property_assignment(name, expression)
-            .wrap()
+            
     }
 
     fn transform_jsx_attribute_initializer(
@@ -962,7 +962,7 @@ impl TransformJsx {
         node: Option<impl Borrow<Node /*StringLiteral | JsxExpression*/>>,
     ) -> Gc<Node /*Expression*/> {
         if node.is_none() {
-            return self.factory.create_true().wrap();
+            return self.factory.create_true();
         }
         let node = node.unwrap();
         let node: &Node = node.borrow();
@@ -979,12 +979,12 @@ impl TransformJsx {
                     Some(single_quote),
                     None,
                 )
-                .wrap()
+                
                 .set_text_range(Some(node))
         } else if node.kind() == SyntaxKind::JsxExpression {
             let node_as_jsx_expression = node.as_jsx_expression();
             if node_as_jsx_expression.expression.is_none() {
-                return self.factory.create_true().wrap();
+                return self.factory.create_true();
             }
             visit_node(
                 node_as_jsx_expression.expression.as_ref().unwrap(),
@@ -1000,7 +1000,7 @@ impl TransformJsx {
     fn visit_jsx_text(&self, node: &Node /*JsxText*/) -> Option<Gc<Node /*StringLiteral*/>> {
         let node_as_jsx_text = node.as_jsx_text();
         let fixed = self.fixup_whitespace_and_decode_entities(&node_as_jsx_text.text());
-        fixed.map(|fixed| self.factory.create_string_literal(fixed, None, None).wrap())
+        fixed.map(|fixed| self.factory.create_string_literal(fixed, None, None))
     }
 
     fn fixup_whitespace_and_decode_entities(&self, text: &str) -> Option<String> {
@@ -1097,7 +1097,7 @@ impl TransformJsx {
             if is_identifier(name) && is_intrinsic_jsx_name(&name.as_identifier().escaped_text) {
                 self.factory
                     .create_string_literal(id_text(name).to_owned(), None, None)
-                    .wrap()
+                    
             } else {
                 create_expression_from_entity_name(&self.factory, name)
             }
@@ -1116,7 +1116,7 @@ impl TransformJsx {
         } else {
             self.factory
                 .create_string_literal(text.to_owned(), None, None)
-                .wrap()
+                
         }
     }
 
@@ -1132,7 +1132,7 @@ impl TransformJsx {
             Some(
                 self.factory
                     .create_spread_element(expression.unwrap())
-                    .wrap(),
+                    ,
             )
         } else {
             expression

@@ -33,20 +33,17 @@ impl TransformGenerators {
                         temp.clone().unwrap(),
                         vec![self
                             .factory
-                            .create_array_literal_expression(Some(expressions), multi_line)
-                            .wrap()],
+                            .create_array_literal_expression(Some(expressions), multi_line)],
                     )
                 } else {
-                    self.factory
-                        .create_array_literal_expression(
-                            Some(if let Some(leading_element) = leading_element.as_ref() {
-                                vec![leading_element.clone()].and_extend(expressions)
-                            } else {
-                                expressions
-                            }),
-                            multi_line,
-                        )
-                        .wrap()
+                    self.factory.create_array_literal_expression(
+                        Some(if let Some(leading_element) = leading_element.as_ref() {
+                            vec![leading_element.clone()].and_extend(expressions)
+                        } else {
+                            expressions
+                        }),
+                        multi_line,
+                    )
                 },
                 Option::<&Node>::None,
             );
@@ -81,18 +78,16 @@ impl TransformGenerators {
         let temp = self.declare_local(None);
         self.emit_assignment(
             temp.clone(),
-            self.factory
-                .create_object_literal_expression(
-                    Some(visit_nodes(
-                        properties,
-                        Some(|node: &Node| self.visitor(node)),
-                        Some(is_object_literal_element_like),
-                        Some(0),
-                        Some(num_initial_properties),
-                    )),
-                    multi_line,
-                )
-                .wrap(),
+            self.factory.create_object_literal_expression(
+                Some(visit_nodes(
+                    properties,
+                    Some(|node: &Node| self.visitor(node)),
+                    Some(is_object_literal_element_like),
+                    Some(0),
+                    Some(num_initial_properties),
+                )),
+                multi_line,
+            ),
             Option::<&Node>::None,
         );
 
@@ -128,8 +123,7 @@ impl TransformGenerators {
         if self.contains_yield(Some(property)) && !expressions.is_empty() {
             self.emit_statement(
                 self.factory
-                    .create_expression_statement(self.factory.inline_expressions(&expressions))
-                    .wrap(),
+                    .create_expression_statement(self.factory.inline_expressions(&expressions)),
             );
             expressions = _d();
         }
@@ -232,13 +226,10 @@ impl TransformGenerators {
             |argument: &Gc<Node>, _| self.contains_yield(Some(&**argument)),
         ) {
             let CallBinding { target, this_arg } = self.factory.create_call_binding(
-                &self
-                    .factory
-                    .create_property_access_expression(
-                        node_as_new_expression.expression.clone(),
-                        "bind",
-                    )
-                    .wrap(),
+                &self.factory.create_property_access_expression(
+                    node_as_new_expression.expression.clone(),
+                    "bind",
+                ),
                 |node: &Node| {
                     self.context.hoist_variable_declaration(node);
                 },
@@ -266,7 +257,6 @@ impl TransformGenerators {
                         Option::<Gc<NodeArray>>::None,
                         Some(vec![]),
                     )
-                    .wrap()
                     .set_text_range(Some(node))
                     .set_original_node(Some(node.node_wrapper()))
                     .into(),
@@ -392,13 +382,9 @@ impl TransformGenerators {
             }
 
             if !pending_expressions.is_empty() {
-                self.emit_statement(
-                    self.factory
-                        .create_expression_statement(
-                            self.factory.inline_expressions(&pending_expressions),
-                        )
-                        .wrap(),
-                );
+                self.emit_statement(self.factory.create_expression_statement(
+                    self.factory.inline_expressions(&pending_expressions),
+                ));
                 variables_written += pending_expressions.len();
                 pending_expressions = _d();
             }
@@ -424,7 +410,6 @@ impl TransformGenerators {
                     Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
                 ),
             )
-            .wrap()
             .set_source_map_range(Some(node.into()))
     }
 
@@ -579,7 +564,6 @@ impl TransformGenerators {
                                 Some(is_expression),
                                 Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
                             ))
-                            .wrap()
                             .set_text_range(Some(&**initializer)),
                     );
                 }
@@ -611,7 +595,6 @@ impl TransformGenerators {
                             Some(is_expression),
                             Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
                         ))
-                        .wrap()
                         .set_text_range(Some(&**node_incrementor)),
                 );
             }

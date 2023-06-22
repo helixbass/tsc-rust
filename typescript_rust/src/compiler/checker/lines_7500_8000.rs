@@ -45,13 +45,13 @@ impl SymbolTableToDeclarationStatements {
                                     (local_name != target_name).then_some(target_name),
                                     local_name,
                                 )
-                                .wrap()])
-                            .wrap(),
+                                ])
+                            ,
                     ),
                     specifier.node_wrappered(),
                     None,
                 )
-                .wrap(),
+                ,
             ModifierFlags::None,
         );
     }
@@ -125,7 +125,7 @@ impl SymbolTableToDeclarationStatements {
                                     Some(SymbolFlags::All),
                                 )?,
                             )
-                            .wrap(),
+                            ,
                     );
                 } else {
                     if let Some(first) = first.as_ref().filter(|first| {
@@ -161,7 +161,7 @@ impl SymbolTableToDeclarationStatements {
                                         false,
                                     )?,
                                 )
-                                .wrap(),
+                                ,
                             ModifierFlags::None,
                         );
                         self.serialize_export_specifier(name, &var_name, Option::<&Node>::None);
@@ -213,12 +213,12 @@ impl SymbolTableToDeclarationStatements {
                                             ),
                                             None,
                                         )
-                                        .wrap()],
+                                        ],
                                     Some(NodeFlags::Const),
                                 )
-                                .wrap(),
+                                ,
                         )
-                        .wrap();
+                        ;
                     self.add_result(
                         &statement,
                         if matches!(
@@ -243,7 +243,7 @@ impl SymbolTableToDeclarationStatements {
                                 Some(is_export_equals),
                                 get_factory().create_identifier(&var_name),
                             )
-                            .wrap(),
+                            ,
                     );
                     return Ok(true);
                 } else if name != var_name {
@@ -422,7 +422,7 @@ impl SymbolTableToDeclarationStatements {
                             Some(vec![]),
                             None,
                         )
-                        .wrap(),
+                        ,
                     signatures[0].declaration.as_deref(),
                 )]);
             }
@@ -500,19 +500,19 @@ impl SymbolTableToDeclarationStatements {
                                     .type_to_type_node_helper(Some(static_type), &self.context())?,
                                 None,
                             )
-                            .wrap()],
+                            ],
                         Some(NodeFlags::Const),
                     )
-                    .wrap(),
+                    ,
             )
-            .wrap();
+            ;
         self.add_result(&statement, ModifierFlags::None);
         Ok(get_factory()
             .create_expression_with_type_arguments(
                 get_factory().create_identifier(&temp_name),
                 Option::<Gc<NodeArray>>::None,
             )
-            .wrap())
+            )
     }
 
     pub(super) fn try_serialize_as_type_reference(
@@ -567,7 +567,7 @@ impl SymbolTableToDeclarationStatements {
         Ok(reference.map(|reference| {
             get_factory()
                 .create_expression_with_type_arguments(reference, type_args)
-                .wrap()
+                
         }))
     }
 
@@ -588,7 +588,7 @@ impl SymbolTableToDeclarationStatements {
                         )?,
                         Option::<Gc<NodeArray>>::None,
                     )
-                    .wrap())
+                    )
             })
     }
 
@@ -829,10 +829,10 @@ impl MakeSerializePropertySymbol {
                                     },
                                     None,
                                 )
-                                .wrap()],
+                                ],
                             None,
                         )
-                        .wrap(),
+                        ,
                     p.maybe_declarations()
                         .as_ref()
                         .and_then(|p_declarations| {
@@ -877,7 +877,7 @@ impl MakeSerializePropertySymbol {
                             },
                             None,
                         )
-                        .wrap(),
+                        ,
                     p.maybe_declarations()
                         .as_ref()
                         .and_then(|p_declarations| {
@@ -912,7 +912,7 @@ impl MakeSerializePropertySymbol {
                     name.clone().into(),
                     p.flags()
                         .intersects(SymbolFlags::Optional)
-                        .then(|| get_factory().create_token(SyntaxKind::QuestionToken).wrap()),
+                        .then(|| get_factory().create_token(SyntaxKind::QuestionToken)),
                     if !is_private {
                         Some(
                             self.node_builder.serialize_type_for_declaration(
@@ -976,7 +976,7 @@ impl MakeSerializePropertySymbol {
                         name.clone().into(),
                         p.flags()
                             .intersects(SymbolFlags::Optional)
-                            .then(|| get_factory().create_token(SyntaxKind::QuestionToken).wrap()),
+                            .then(|| get_factory().create_token(SyntaxKind::QuestionToken)),
                         None,
                         None,
                     ),
@@ -1013,7 +1013,7 @@ impl MakeSerializePropertySymbol {
                         Some(SignatureToSignatureDeclarationOptions {
                             name: Some(name.clone()),
                             question_token: p.flags().intersects(SymbolFlags::Optional).then(
-                                || get_factory().create_token(SyntaxKind::QuestionToken).wrap(),
+                                || get_factory().create_token(SyntaxKind::QuestionToken),
                             ),
                             modifiers: (flag != ModifierFlags::None)
                                 .then(|| get_factory().create_modifiers_from_modifier_flags(flag)),

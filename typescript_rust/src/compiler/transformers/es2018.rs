@@ -271,7 +271,7 @@ impl TransformES2018 {
             .push(
                 self.factory
                     .create_variable_declaration(Some(temp.node_wrapper()), None, None, None)
-                    .wrap(),
+                    ,
             );
     }
 
@@ -503,7 +503,7 @@ impl TransformES2018 {
                             Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
                         ))),
                     )
-                    .wrap()
+                    
                     .set_text_range(Some(node)),
                 Some(node.node_wrapper()),
             );
@@ -555,7 +555,7 @@ impl TransformES2018 {
                                     ),
                                 )),
                             )
-                            .wrap()
+                            
                             .set_text_range(Some(node)),
                         Some(node.node_wrapper()),
                     )
@@ -583,7 +583,7 @@ impl TransformES2018 {
                             ),
                         )),
                     )
-                    .wrap()
+                    
                     .set_text_range(Some(node)),
                 Some(node.node_wrapper()),
             )
@@ -685,7 +685,7 @@ impl TransformES2018 {
                     objects.push(
                         self.factory
                             .create_object_literal_expression(Some(chunk_object), None)
-                            .wrap(),
+                            ,
                     );
                 }
                 let target = &e.as_spread_assignment().expression;
@@ -709,7 +709,7 @@ impl TransformES2018 {
                                     Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
                                 ),
                             )
-                            .wrap()
+                            
                     } else {
                         visit_node(
                             e,
@@ -725,7 +725,7 @@ impl TransformES2018 {
             objects.push(
                 self.factory
                     .create_object_literal_expression(Some(chunk_object), None)
-                    .wrap(),
+                    ,
             );
         }
 
@@ -748,7 +748,7 @@ impl TransformES2018 {
                     0,
                     self.factory
                         .create_object_literal_expression(Option::<Gc<NodeArray>>::None, None)
-                        .wrap(),
+                        ,
                 );
             }
             let mut expression = objects.get(0).cloned();
@@ -826,9 +826,9 @@ impl TransformES2018 {
                                                 tagged_template_string_declarations.clone(),
                                                 None,
                                             )
-                                            .wrap(),
+                                            ,
                                     )
-                                    .wrap(),
+                                    ,
                             )
                             .into()
                     } else {
@@ -1011,7 +1011,7 @@ impl TransformES2018 {
                     vec![self
                         .factory
                         .create_variable_statement(Option::<Gc<NodeArray>>::None, visited_bindings)
-                        .wrap()]
+                        ]
                     .and_extend(block.as_block().statements.iter().cloned()),
                 );
             }
@@ -1229,11 +1229,11 @@ impl TransformES2018 {
                         vec![self
                             .factory
                             .create_variable_declaration(Some(temp), None, None, None)
-                            .wrap()
+                            
                             .set_text_range(Some(&*node_as_for_of_statement.initializer))],
                         Some(NodeFlags::Let),
                     )
-                    .wrap()
+                    
                     .set_text_range(Some(&*node_as_for_of_statement.initializer)),
                 node_as_for_of_statement.expression.clone(),
                 self.factory
@@ -1243,7 +1243,7 @@ impl TransformES2018 {
                             .set_text_range(statements_location.as_ref()),
                         Some(true),
                     )
-                    .wrap()
+                    
                     .set_text_range(body_location.as_deref()),
             );
         }
@@ -1296,7 +1296,7 @@ impl TransformES2018 {
                     .set_text_range(statements_location.as_deref()),
                 Some(true),
             )
-            .wrap()
+            
             .set_text_range(body_location.as_deref())
             .set_emit_flags(EmitFlags::NoSourceMap | EmitFlags::NoTokenSourceMaps)
     }
@@ -1316,11 +1316,11 @@ impl TransformES2018 {
                             .create_await_helper(expression.node_wrapper()),
                     ),
                 )
-                .wrap()
+                
         } else {
             self.factory
                 .create_await_expression(expression.node_wrapper())
-                .wrap()
+                
         }
     }
 
@@ -1367,19 +1367,19 @@ impl TransformES2018 {
             .create_call_expression(
                 self.factory
                     .create_property_access_expression(iterator.clone(), "next")
-                    .wrap(),
+                    ,
                 Option::<Gc<NodeArray>>::None,
                 Some(vec![]),
             )
-            .wrap();
+            ;
         let get_done = self
             .factory
             .create_property_access_expression(result.clone(), "done")
-            .wrap();
+            ;
         let get_value = self
             .factory
             .create_property_access_expression(result.clone(), "value")
-            .wrap();
+            ;
         let call_return =
             self.factory
                 .create_function_call_call(return_method.clone(), iterator.clone(), vec![]);
@@ -1391,7 +1391,7 @@ impl TransformES2018 {
             self.factory.inline_expressions(&[
                 self.factory
                     .create_assignment(error_record.clone(), self.factory.create_void_zero())
-                    .wrap(),
+                    ,
                 call_values,
             ])
         } else {
@@ -1412,7 +1412,7 @@ impl TransformES2018 {
                                         None,
                                         Some(initializer),
                                     )
-                                    .wrap()
+                                    
                                     .set_text_range(Some(&*node_as_for_of_statement.expression)),
                                 self.factory
                                     .create_variable_declaration(
@@ -1421,11 +1421,11 @@ impl TransformES2018 {
                                         None,
                                         None,
                                     )
-                                    .wrap(),
+                                    ,
                             ],
                             None,
                         )
-                        .wrap()
+                        
                         .set_text_range(Some(&*node_as_for_of_statement.expression))
                         .set_emit_flags(EmitFlags::NoHoisting),
                 ),
@@ -1437,15 +1437,15 @@ impl TransformES2018 {
                                     result.clone(),
                                     self.create_downlevel_await(&call_next),
                                 )
-                                .wrap(),
-                            self.factory.create_logical_not(get_done.clone()).wrap(),
+                                ,
+                            self.factory.create_logical_not(get_done.clone()),
                         )
-                        .wrap(),
+                        ,
                 ),
                 None,
                 self.convert_for_of_statement_head(node, &get_value),
             )
-            .wrap()
+            
             .set_text_range(Some(node))
             .set_emit_flags(EmitFlags::NoTokenTrailingSourceMaps);
 
@@ -1459,7 +1459,7 @@ impl TransformES2018 {
                     ),
                 ],
                 None,
-            ).wrap(),
+            ),
             Some(
                 self.factory.create_catch_clause(
                     Some(
@@ -1467,7 +1467,7 @@ impl TransformES2018 {
                                 Some(catch_variable.clone()),
                                 None,
                                 None, None,
-                            ).wrap()
+                            )
                     ),
                         self.factory.create_block(
                             vec![
@@ -1479,17 +1479,17 @@ impl TransformES2018 {
                                                 self.factory.create_property_assignment(
                                                     "error",
                                                     catch_variable,
-                                                ).wrap()
+                                                )
                                             ]),
                                             None
-                                        ).wrap(),
-                                    ).wrap()
-                                ).wrap()
+                                        ),
+                                    )
+                                )
                             ],
                             None,
-                        ).wrap()
+                        )
                     .set_emit_flags(EmitFlags::SingleLine)
-                ).wrap()
+                )
             ),
             Some(
                 self.factory.create_block(
@@ -1501,25 +1501,25 @@ impl TransformES2018 {
                                             self.factory.create_logical_and(
                                                 self.factory.create_logical_and(
                                                     result,
-                                                    self.factory.create_logical_not(get_done).wrap()
-                                                ).wrap(),
+                                                    self.factory.create_logical_not(get_done)
+                                                ),
                                                 self.factory.create_assignment(
                                                     return_method,
                                                     self.factory.create_property_access_expression(
                                                         iterator,
                                                         "return"
-                                                    ).wrap()
-                                                ).wrap()
-                                            ).wrap(),
+                                                    )
+                                                )
+                                            ),
                                             self.factory.create_expression_statement(
                                                 self.create_downlevel_await(&call_return)
-                                            ).wrap(),
+                                            ),
                                             None,
-                                        ).wrap()
+                                        )
                                     .set_emit_flags(EmitFlags::SingleLine)
                                 ],
                                 None,
-                            ).wrap(),
+                            ),
                             None,
                             Some(
                                     self.factory.create_block(
@@ -1530,21 +1530,21 @@ impl TransformES2018 {
                                                         self.factory.create_property_access_expression(
                                                             error_record,
                                                             "error"
-                                                        ).wrap()
-                                                    ).wrap(),
+                                                        )
+                                                    ),
                                                     None,
-                                                ).wrap()
+                                                )
                                             .set_emit_flags(EmitFlags::SingleLine)
                                         ],
                                         None
-                                    ).wrap().set_emit_flags(EmitFlags::SingleLine)
+                                    ).set_emit_flags(EmitFlags::SingleLine)
                             )
-                        ).wrap()
+                        )
                     ],
                     None,
-                ).wrap()
+                )
             ),
-        ).wrap().into())
+        ).into())
     }
 
     fn visit_parameter(
@@ -1974,7 +1974,7 @@ impl TransformES2018 {
                     self.factory
                         .create_function_expression(
                             Option::<Gc<NodeArray>>::None,
-                            Some(self.factory.create_token(SyntaxKind::AsteriskToken).wrap()),
+                            Some(self.factory.create_token(SyntaxKind::AsteriskToken)),
                             node_as_function_like_declaration
                                 .maybe_name()
                                 .map(|node_name| {
@@ -2009,12 +2009,12 @@ impl TransformES2018 {
                                 ),
                             ),
                         )
-                        .wrap(),
+                        ,
                     self.hierarchy_facts()
                         .intersects(HierarchyFacts::HasLexicalThis),
                 ),
             ))
-            .wrap();
+            ;
 
         let emit_super_helpers = self.language_version >= ScriptTarget::ES2015
             && self.resolver.get_node_check_flags(node).intersects(
@@ -2081,7 +2081,7 @@ impl TransformES2018 {
             Some(is_concise_body),
             Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
         )
-        .unwrap_or_else(|| self.factory.create_block(vec![], None).wrap());
+        .unwrap_or_else(|| self.factory.create_block(vec![], None));
         if is_block(&body) {
             statement_offset = self.factory.copy_prologue(
                 &body.as_block().statements,
@@ -2157,9 +2157,9 @@ impl TransformES2018 {
                             Option::<Gc<NodeArray>>::None,
                             self.factory
                                 .create_variable_declaration_list(declarations, None)
-                                .wrap(),
+                                ,
                         )
-                        .wrap();
+                        ;
                     set_emit_flags(&*statement, EmitFlags::CustomPrologue);
                     statements
                         .get_or_insert_with(|| Default::default())
@@ -2342,7 +2342,7 @@ impl TransformES2018OnSubstituteNodeOverrider {
                     ),
                     node_as_property_access_expression.name.clone(),
                 )
-                .wrap()
+                
                 .set_text_range(Some(node));
         }
         node.node_wrapper()
@@ -2378,14 +2378,14 @@ impl TransformES2018OnSubstituteNodeOverrider {
                     self.transform_es2018
                         .factory
                         .create_property_access_expression(argument_expression, "call")
-                        .wrap(),
+                        ,
                     Option::<Gc<NodeArray>>::None,
                     Some(
-                        vec![self.transform_es2018.factory.create_this().wrap()]
+                        vec![self.transform_es2018.factory.create_this()]
                             .and_extend(node_as_call_expression.arguments.iter().cloned()),
                     ),
                 )
-                .wrap();
+                ;
         }
         node.node_wrapper()
     }
@@ -2412,10 +2412,10 @@ impl TransformES2018OnSubstituteNodeOverrider {
                             Option::<Gc<NodeArray>>::None,
                             Some(vec![argument_expression.node_wrapper()]),
                         )
-                        .wrap(),
+                        ,
                     "value",
                 )
-                .wrap()
+                
                 .set_text_range(Some(location))
         } else {
             self.transform_es2018
@@ -2427,7 +2427,7 @@ impl TransformES2018OnSubstituteNodeOverrider {
                     Option::<Gc<NodeArray>>::None,
                     Some(vec![argument_expression.node_wrapper()]),
                 )
-                .wrap()
+                
                 .set_text_range(Some(location))
         }
     }

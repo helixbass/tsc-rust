@@ -23,11 +23,11 @@ pub fn create_empty_exports<TBaseNodeFactory: 'static + BaseNodeFactory + Trace 
             Option::<Gc<NodeArray>>::None,
             Option::<Gc<NodeArray>>::None,
             false,
-            Some(factory.create_named_exports(vec![]).wrap()),
+            Some(factory.create_named_exports(vec![])),
             None,
             None,
         )
-        .wrap()
+        
 }
 
 pub fn create_member_access_for_property_name<

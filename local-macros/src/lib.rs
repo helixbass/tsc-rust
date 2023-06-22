@@ -2,13 +2,14 @@ use std::collections::HashMap;
 
 use darling::FromMeta;
 use proc_macro::TokenStream;
-use proc_macro2::{Ident, TokenStream as TokenStream2};
+use proc_macro2::{Ident, Span, TokenStream as TokenStream2};
 use quote::quote;
 use syn::{
     parse::{Parse, ParseStream, Result},
-    parse_macro_input, AttributeArgs,
+    parse_macro_input, AttributeArgs, Block,
     Data::{Enum, Struct},
-    DataEnum, DeriveInput, Error, Expr, ExprArray, Fields, FieldsNamed, Token,
+    DataEnum, DeriveInput, Error, Expr, ExprArray, Fields, FieldsNamed, FnArg, ItemFn, Pat,
+    ReturnType, Token,
 };
 
 #[derive(Debug, FromMeta)]
@@ -3863,4 +3864,55 @@ fn derive_trace(mut s: Structure<'_>) -> proc_macro2::TokenStream {
     quote! {
         #trace_impl
     }
+}
+
+#[proc_macro_attribute]
+pub fn generate_node_factory_method_wrapper(_attr: TokenStream, item: TokenStream) -> TokenStream {
+    let item_for_parsing = item.clone();
+    let parsed_fn_item = parse_macro_input!(item_for_parsing as ItemFn);
+
+    let raw_method_name_ident = &parsed_fn_item.sig.ident;
+    let raw_method_name = raw_method_name_ident.to_string();
+    assert!(raw_method_name.ends_with("_raw"));
+    let wrapper_method_name = &raw_method_name[..raw_method_name.len() - 4];
+
+    let mut wrapper_fn_item = parsed_fn_item.clone();
+    wrapper_fn_item.sig.ident = Ident::new(wrapper_method_name, Span::call_site());
+
+    let gc_node_token_stream: TokenStream = quote!(-> Gc<Node>).into();
+    let gc_node_return_type = parse_macro_input!(gc_node_token_stream as ReturnType);
+    wrapper_fn_item.sig.output = gc_node_return_type;
+
+    let forwarded_arguments = parsed_fn_item
+        .sig
+        .inputs
+        .iter()
+        .skip(1)
+        .map(|param| match param {
+            FnArg::Typed(pat_type) => match &*pat_type.pat {
+                Pat::Ident(pat_ident) => pat_ident.ident.clone(),
+                _ => panic!("expected Pat::Ident"),
+            },
+            _ => panic!("expected FnArg::Typed"),
+        })
+        .collect::<Vec<_>>();
+
+    let forwarded_arguments = quote!(#(#forwarded_arguments),*);
+    let wrapper_fn_body_token_stream: TokenStream = quote! {
+        {
+            self.#raw_method_name_ident(#forwarded_arguments).wrap()
+        }
+    }
+    .into();
+    let wrapper_fn_body_block = parse_macro_input!(wrapper_fn_body_token_stream as Block);
+    wrapper_fn_item.block = Box::new(wrapper_fn_body_block);
+
+    let item_as_proc_macro2_token_stream = proc_macro2::TokenStream::from(item);
+
+    quote! {
+        #item_as_proc_macro2_token_stream
+
+        #wrapper_fn_item
+    }
+    .into()
 }

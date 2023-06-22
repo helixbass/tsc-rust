@@ -60,11 +60,11 @@ impl TransformES2015 {
             .create_call_expression(
                 self.factory
                     .create_property_access_expression(iterator.clone(), "next")
-                    .wrap(),
+                    ,
                 Option::<Gc<NodeArray>>::None,
                 Some(vec![]),
             )
-            .wrap();
+            ;
 
         self.context.hoist_variable_declaration(&error_record);
         self.context.hoist_variable_declaration(&return_method);
@@ -76,7 +76,7 @@ impl TransformES2015 {
             self.factory.inline_expressions(&[
                 self.factory
                     .create_assignment(error_record.clone(), self.factory.create_void_zero())
-                    .wrap(),
+                    ,
                 values.clone(),
             ])
         } else {
@@ -97,7 +97,7 @@ impl TransformES2015 {
                                         None,
                                         Some(initializer),
                                     )
-                                    .wrap()
+                                    
                                     .set_text_range(Some(&*node_as_for_of_statement.expression)),
                                 self.factory
                                     .create_variable_declaration(
@@ -106,11 +106,11 @@ impl TransformES2015 {
                                         None,
                                         Some(next.clone()),
                                     )
-                                    .wrap(),
+                                    ,
                             ],
                             None,
                         )
-                        .wrap()
+                        
                         .set_text_range(Some(&*node_as_for_of_statement.expression))
                         .set_emit_flags(EmitFlags::NoHoisting),
                 ),
@@ -119,21 +119,21 @@ impl TransformES2015 {
                         .create_logical_not(
                             self.factory
                                 .create_property_access_expression(result.clone(), "done")
-                                .wrap(),
+                                ,
                         )
-                        .wrap(),
+                        ,
                 ),
-                Some(self.factory.create_assignment(result.clone(), next).wrap()),
+                Some(self.factory.create_assignment(result.clone(), next)),
                 self.convert_for_of_statement_head(
                     node,
                     &self
                         .factory
                         .create_property_access_expression(result.clone(), "value")
-                        .wrap(),
+                        ,
                     converted_loop_body_statements,
                 )?,
             )
-            .wrap()
+            
             .set_text_range(Some(node))
             .set_emit_flags(EmitFlags::NoTokenTrailingSourceMaps);
 
@@ -153,7 +153,7 @@ impl TransformES2015 {
                         )],
                         None,
                     )
-                    .wrap(),
+                    ,
                 Some(
                     self.factory
                         .create_catch_clause(
@@ -165,7 +165,7 @@ impl TransformES2015 {
                                         None,
                                         None,
                                     )
-                                    .wrap(),
+                                    ,
                             ),
                             self.factory
                                 .create_block(
@@ -183,20 +183,20 @@ impl TransformES2015 {
                                                                     "error",
                                                                     catch_variable,
                                                                 )
-                                                                .wrap()]),
+                                                                ]),
                                                             None,
                                                         )
-                                                        .wrap(),
+                                                        ,
                                                 )
-                                                .wrap(),
+                                                ,
                                         )
-                                        .wrap()],
+                                        ],
                                     None,
                                 )
-                                .wrap()
+                                
                                 .set_emit_flags(EmitFlags::SingleLine),
                         )
-                        .wrap(),
+                        ,
                 ),
                 Some(
                     self.factory
@@ -215,31 +215,31 @@ impl TransformES2015 {
                                                                 self.factory.create_property_access_expression(
                                                                     result,
                                                                     "done"
-                                                                ).wrap()
-                                                            ).wrap()
-                                                        ).wrap(),
+                                                                )
+                                                            )
+                                                        ),
                                                         self.factory.create_assignment(
                                                             return_method.clone(),
                                                             self.factory.create_property_access_expression(
                                                                 iterator.clone(),
                                                                 "return"
-                                                            ).wrap()
-                                                        ).wrap()
-                                                    ).wrap(),
+                                                            )
+                                                        )
+                                                    ),
                                                     self.factory.create_expression_statement(
                                                         self.factory.create_function_call_call(
                                                             return_method,
                                                             iterator,
                                                             vec![]
                                                         )
-                                                    ).wrap(),
+                                                    ),
                                                     None,
-                                                ).wrap()
+                                                )
                                                     .set_emit_flags(EmitFlags::SingleLine)
                                             ],
                                             None,
                                         )
-                                        .wrap(),
+                                        ,
                                     None,
                                     Some(
                                         self.factory
@@ -251,25 +251,25 @@ impl TransformES2015 {
                                                             self.factory.create_property_access_expression(
                                                                 error_record,
                                                                 "error"
-                                                            ).wrap()
-                                                        ).wrap(),
+                                                            )
+                                                        ),
                                                         None,
-                                                    ).wrap()
+                                                    )
                                                         .set_emit_flags(EmitFlags::SingleLine)
                                                 ],
                                                 None,
                                             )
-                                            .wrap()
+                                            
                                             .set_emit_flags(EmitFlags::SingleLine),
                                     ),
                                 )
-                                .wrap()],
+                                ],
                             None,
                         )
-                        .wrap(),
+                        ,
                 ),
             )
-            .wrap())
+            )
     }
 
     pub(super) fn visit_object_literal_expression(
@@ -330,14 +330,14 @@ impl TransformES2015 {
                         )?,
                         node_as_object_literal_expression.multi_line,
                     )
-                    .wrap()
+                    
                     .set_emit_flags(if has_computed {
                         EmitFlags::Indented
                     } else {
                         EmitFlags::None
                     }),
             )
-            .wrap();
+            ;
 
         if node_as_object_literal_expression.multi_line == Some(true) {
             start_on_new_line(&*assignment);
@@ -613,7 +613,7 @@ impl TransformES2015 {
                     &self
                         .factory
                         .create_block(body_function.part.clone(), Some(true))
-                        .wrap(),
+                        ,
                 )?;
                 loop_ = self.factory.restore_enclosing_label(
                     &clone,
@@ -902,7 +902,7 @@ impl TransformES2015 {
                                 None,
                                 Some(self.factory.create_identifier("arguments")),
                             )
-                            .wrap(),
+                            ,
                     );
             }
         }
@@ -921,7 +921,7 @@ impl TransformES2015 {
                                 None,
                                 Some(self.factory.create_identifier("this")),
                             )
-                            .wrap(),
+                            ,
                     );
             }
         }
@@ -937,7 +937,7 @@ impl TransformES2015 {
                     extra_variable_declarations.push(
                         self.factory
                             .create_variable_declaration(Some(identifier.clone()), None, None, None)
-                            .wrap(),
+                            ,
                     );
                 }
             }
@@ -955,7 +955,7 @@ impl TransformES2015 {
                             None,
                             None,
                         )
-                        .wrap(),
+                        ,
                 );
             }
         }
@@ -969,9 +969,9 @@ impl TransformES2015 {
                             Some(state_condition_variable.clone()),
                             None,
                             None,
-                            Some(self.factory.create_false().wrap()),
+                            Some(self.factory.create_false()),
                         )
-                        .wrap(),
+                        ,
                 );
         }
 
@@ -982,9 +982,9 @@ impl TransformES2015 {
                         Option::<Gc<NodeArray>>::None,
                         self.factory
                             .create_variable_declaration_list(extra_variable_declarations, None)
-                            .wrap(),
+                            ,
                     )
-                    .wrap(),
+                    ,
             );
         }
     }

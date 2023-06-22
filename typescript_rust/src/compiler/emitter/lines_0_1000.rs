@@ -119,7 +119,7 @@ pub fn try_for_each_emitted_file_returns<TReturn>(
                     source_files.into_iter().map(Option::Some).collect(),
                     Some(prepends),
                 )
-                .wrap();
+                ;
             let result = action(
                 &get_output_paths_for(&bundle, host, force_dts_emit),
                 Some(&*bundle),
@@ -1008,7 +1008,7 @@ fn emit_declaration_file_or_bundle(
                     None
                 },
             )
-            .wrap()]
+            ]
     } else {
         files_for_emit.clone()
     };

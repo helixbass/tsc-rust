@@ -43,11 +43,11 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>
         }
         let return_statement = self
             .factory
-            .create_return_statement(Some(node.node_wrapper()));
+            .create_return_statement_raw(Some(node.node_wrapper()));
         let return_statement = set_text_range(&*return_statement.wrap(), Some(node)).node_wrapper();
         let body = self
             .factory
-            .create_block(vec![return_statement], multi_line);
+            .create_block_raw(vec![return_statement], multi_line);
         let body = set_text_range(&*body.wrap(), Some(node)).node_wrapper();
         body
     }
@@ -77,7 +77,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>
                 node_as_function_declaration.maybe_type(),
                 node_as_function_declaration.maybe_body().unwrap(),
             )
-            .wrap();
+            ;
         set_original_node(updated.clone(), Some(node.node_wrapper()));
         let updated = set_text_range(&*updated, Some(node)).node_wrapper();
         if get_starts_on_new_line(node) == Some(true) {
@@ -100,7 +100,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>
                 );
                 let ret = self
                     .factory
-                    .create_spread_element(element_as_binding_element.name());
+                    .create_spread_element_raw(element_as_binding_element.name());
                 let ret = set_text_range(&*ret.wrap(), Some(element)).node_wrapper();
                 set_original_node(ret.clone(), Some(element.node_wrapper()));
                 return ret;
@@ -111,7 +111,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>
                 Some(element_initializer) => {
                     let ret = self
                         .factory
-                        .create_assignment(expression, element_initializer);
+                        .create_assignment_raw(expression, element_initializer);
                     let ret = set_text_range(&*ret.wrap(), Some(element)).node_wrapper();
                     set_original_node(ret.clone(), Some(element.node_wrapper()));
                     return ret;
@@ -136,7 +136,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>
                 );
                 let ret = self
                     .factory
-                    .create_spread_assignment(element_as_binding_element.name());
+                    .create_spread_assignment_raw(element_as_binding_element.name());
                 let ret = set_text_range(&*ret.wrap(), Some(element)).node_wrapper();
                 set_original_node(ret.clone(), Some(element.node_wrapper()));
                 return ret;
@@ -144,13 +144,13 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>
             if let Some(element_property_name) = element_as_binding_element.property_name.as_ref() {
                 let expression =
                     self.convert_to_assignment_element_target(&element_as_binding_element.name());
-                let ret = self.factory.create_property_assignment(
+                let ret = self.factory.create_property_assignment_raw(
                     element_property_name.clone(),
                     match element_as_binding_element.maybe_initializer() {
                         Some(initializer) => self
                             .factory
                             .create_assignment(expression, initializer)
-                            .wrap(),
+                            ,
                         None => expression,
                     },
                 );
@@ -163,7 +163,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>
                 Some(is_identifier),
                 None,
             );
-            let ret = self.factory.create_shorthand_property_assignment(
+            let ret = self.factory.create_shorthand_property_assignment_raw(
                 element_as_binding_element.name(),
                 element_as_binding_element.maybe_initializer(),
             );
@@ -198,7 +198,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>
     ) -> Gc<Node /*ObjectLiteralExpression*/> {
         if is_object_binding_pattern(node) {
             let node_as_object_binding_pattern = node.as_object_binding_pattern();
-            let ret = self.factory.create_object_literal_expression(
+            let ret = self.factory.create_object_literal_expression_raw(
                 Some(map(
                     &node_as_object_binding_pattern.elements,
                     |element, _| self.convert_to_object_assignment_element(element),
@@ -218,7 +218,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>
     ) -> Gc<Node /*ArrayLiteralExpression*/> {
         if is_array_binding_pattern(node) {
             let node_as_array_binding_pattern = node.as_array_binding_pattern();
-            let ret = self.factory.create_array_literal_expression(
+            let ret = self.factory.create_array_literal_expression_raw(
                 Some(map(
                     &node_as_array_binding_pattern.elements,
                     |element, _| self.convert_to_array_assignment_element(element),

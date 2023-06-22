@@ -575,7 +575,7 @@ impl TransformDeclarations {
             self.set_libs(Some(HashMap::new()));
             let mut has_no_default_lib = false;
             let mut bundle = 
-                self.factory.create_bundle(
+                self.factory.create_bundle_raw(
                     try_map(
                         &node_as_bundle.source_files,
                         |source_file: &Option<Gc<Node>>, _| -> io::Result<Option<Gc<Node>>> {
@@ -636,7 +636,7 @@ impl TransformDeclarations {
                                                 Some(vec![
                                                     self.factory.create_modifier(
                                                         SyntaxKind::DeclareKeyword,
-                                                    ).wrap()
+                                                    )
                                                 ]),
                                                 self.factory.create_string_literal(
                                                     get_resolved_external_module_name(
@@ -646,7 +646,7 @@ impl TransformDeclarations {
                                                     ),
                                                     None,
                                                     None,
-                                                ).wrap(),
+                                                ),
                                                 Some(
                                                     self.factory.create_module_block(
                                                         Some(
@@ -660,10 +660,10 @@ impl TransformDeclarations {
                                                                 Some(&*source_file_as_source_file.statements()),
                                                             )
                                                         )
-                                                    ).wrap()
+                                                    )
                                                 ),
                                                 None,
-                                            ).wrap()
+                                            )
                                         ],
                                         Some(true),
                                         Some(Default::default()),
@@ -1154,7 +1154,7 @@ impl TransformDeclarations {
                             .unwrap_or_else(|| {
                                 self.factory
                                     .create_token(SyntaxKind::QuestionToken)
-                                    .wrap()
+                                    
                             }),
                     )
                 } else {

@@ -94,28 +94,22 @@ impl TransformTypeScript {
                     None,
                     None,
                 ),
-                self.factory
-                    .create_variable_declaration_list(
-                        vec![self
-                            .factory
-                            .create_variable_declaration(
-                                Some(self.factory.get_local_name(node, Some(false), Some(true))),
-                                None,
-                                None,
-                                None,
-                            )
-                            .wrap()],
-                        Some(
-                            if self.current_lexical_scope().kind() == SyntaxKind::SourceFile {
-                                NodeFlags::None
-                            } else {
-                                NodeFlags::Let
-                            },
-                        ),
-                    )
-                    .wrap(),
+                self.factory.create_variable_declaration_list(
+                    vec![self.factory.create_variable_declaration(
+                        Some(self.factory.get_local_name(node, Some(false), Some(true))),
+                        None,
+                        None,
+                        None,
+                    )],
+                    Some(
+                        if self.current_lexical_scope().kind() == SyntaxKind::SourceFile {
+                            NodeFlags::None
+                        } else {
+                            NodeFlags::Let
+                        },
+                    ),
+                ),
             )
-            .wrap()
             .set_original_node(Some(node.node_wrapper()));
 
         self.record_emitted_declaration_in_scope(node);
@@ -197,63 +191,44 @@ impl TransformTypeScript {
             self.factory.get_local_name(node, Some(false), Some(true))
         };
 
-        let mut module_arg = self
-            .factory
-            .create_logical_or(
-                export_name.clone(),
+        let mut module_arg = self.factory.create_logical_or(
+            export_name.clone(),
+            self.factory.create_assignment(
+                export_name,
                 self.factory
-                    .create_assignment(
-                        export_name,
-                        self.factory
-                            .create_object_literal_expression(Option::<Gc<NodeArray>>::None, None)
-                            .wrap(),
-                    )
-                    .wrap(),
-            )
-            .wrap();
+                    .create_object_literal_expression(Option::<Gc<NodeArray>>::None, None),
+            ),
+        );
 
         if self.has_namespace_qualified_export_name(node) {
             let local_name = self.factory.get_local_name(node, Some(false), Some(true));
 
-            module_arg = self
-                .factory
-                .create_assignment(local_name, module_arg)
-                .wrap();
+            module_arg = self.factory.create_assignment(local_name, module_arg);
         }
 
         let module_statement = self
             .factory
-            .create_expression_statement(
-                self.factory
-                    .create_call_expression(
-                        self.factory
-                            .create_function_expression(
-                                Option::<Gc<NodeArray>>::None,
-                                None,
-                                Option::<Gc<Node>>::None,
-                                Option::<Gc<NodeArray>>::None,
-                                Some(vec![self
-                                    .factory
-                                    .create_parameter_declaration(
-                                        Option::<Gc<NodeArray>>::None,
-                                        Option::<Gc<NodeArray>>::None,
-                                        None,
-                                        Some(parameter_name),
-                                        None,
-                                        None,
-                                        None,
-                                    )
-                                    .wrap()]),
-                                None,
-                                self.transform_module_body(node, &container_name)?,
-                            )
-                            .wrap(),
+            .create_expression_statement(self.factory.create_call_expression(
+                self.factory.create_function_expression(
+                    Option::<Gc<NodeArray>>::None,
+                    None,
+                    Option::<Gc<Node>>::None,
+                    Option::<Gc<NodeArray>>::None,
+                    Some(vec![self.factory.create_parameter_declaration(
                         Option::<Gc<NodeArray>>::None,
-                        Some(vec![module_arg]),
-                    )
-                    .wrap(),
-            )
-            .wrap()
+                        Option::<Gc<NodeArray>>::None,
+                        None,
+                        Some(parameter_name),
+                        None,
+                        None,
+                        None,
+                    )]),
+                    None,
+                    self.transform_module_body(node, &container_name)?,
+                ),
+                Option::<Gc<NodeArray>>::None,
+                Some(vec![module_arg]),
+            ))
             .set_original_node(Some(node.node_wrapper()));
 
         if var_added {
@@ -355,7 +330,6 @@ impl TransformTypeScript {
                 ),
                 Some(true),
             )
-            .wrap()
             .set_text_range(block_location.as_deref());
 
         if match node_as_module_declaration.body.as_ref() {
@@ -655,7 +629,6 @@ impl TransformTypeScript {
                                 .clone(),
                             None,
                         )
-                        .wrap()
                         .set_text_range(Some(node))
                         .set_original_node(Some(node.node_wrapper()))
                         .into(),
@@ -691,23 +664,19 @@ impl TransformTypeScript {
                             None,
                             None,
                         ),
-                        self.factory
-                            .create_variable_declaration_list(
-                                vec![self
-                                    .factory
-                                    .create_variable_declaration(
-                                        node_as_import_equals_declaration.maybe_name(),
-                                        None,
-                                        None,
-                                        Some(module_reference),
-                                    )
-                                    .wrap()
-                                    .set_original_node(Some(node.node_wrapper()))],
-                                None,
-                            )
-                            .wrap(),
+                        self.factory.create_variable_declaration_list(
+                            vec![self
+                                .factory
+                                .create_variable_declaration(
+                                    node_as_import_equals_declaration.maybe_name(),
+                                    None,
+                                    None,
+                                    Some(module_reference),
+                                )
+                                .set_original_node(Some(node.node_wrapper()))],
+                            None,
+                        ),
                     )
-                    .wrap()
                     .set_text_range(Some(node))
                     .set_original_node(Some(node.node_wrapper()))
                     .into()

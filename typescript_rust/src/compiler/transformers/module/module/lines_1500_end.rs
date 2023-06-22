@@ -161,11 +161,11 @@ impl TransformModule {
             self.factory
                 .create_expression_statement(self.create_export_expression(
                     &self.factory.create_identifier("__esModule"),
-                    &self.factory.create_true().wrap(),
+                    &self.factory.create_true(),
                     Option::<&Node>::None,
                     None,
                 ))
-                .wrap()
+                
         } else {
             self.factory
                 .create_expression_statement(
@@ -176,30 +176,30 @@ impl TransformModule {
                                     self.factory.create_identifier("Object"),
                                     "defineProperty",
                                 )
-                                .wrap(),
+                                ,
                             Option::<Gc<NodeArray>>::None,
                             Some(vec![
                                 self.factory.create_identifier("exports"),
                                 self.factory
                                     .create_string_literal("__esModule".to_owned(), None, None)
-                                    .wrap(),
+                                    ,
                                 self.factory
                                     .create_object_literal_expression(
                                         Some(vec![self
                                             .factory
                                             .create_property_assignment(
                                                 "value",
-                                                self.factory.create_true().wrap(),
+                                                self.factory.create_true(),
                                             )
-                                            .wrap()]),
+                                            ]),
                                         None,
                                     )
-                                    .wrap(),
+                                    ,
                             ]),
                         )
-                        .wrap(),
+                        ,
                 )
-                .wrap()
+                
         }
         .set_emit_flags(EmitFlags::CustomPrologue)
     }
@@ -220,7 +220,7 @@ impl TransformModule {
                 Option::<&Node>::None,
                 live_binding,
             ))
-            .wrap()
+            
             .set_text_range(location)
             .start_on_new_line();
         if allow_comments != Some(true) {
@@ -245,20 +245,20 @@ impl TransformModule {
                             self.factory.create_identifier("Object"),
                             "defineProperty",
                         )
-                        .wrap(),
+                        ,
                     Option::<Gc<NodeArray>>::None,
                     Some(vec![
                         self.factory.create_identifier("exports"),
-                        self.factory.create_string_literal_from_node(name).wrap(),
+                        self.factory.create_string_literal_from_node(name),
                         self.factory
                             .create_object_literal_expression(
                                 Some(vec![
                                     self.factory
                                         .create_property_assignment(
                                             "enumerable",
-                                            self.factory.create_true().wrap(),
+                                            self.factory.create_true(),
                                         )
-                                        .wrap(),
+                                        ,
                                     self.factory
                                         .create_property_assignment(
                                             "get",
@@ -277,21 +277,21 @@ impl TransformModule {
                                                                 .create_return_statement(Some(
                                                                     value.node_wrapper(),
                                                                 ))
-                                                                .wrap()],
+                                                                ],
                                                             None,
                                                         )
-                                                        .wrap(),
+                                                        ,
                                                 )
-                                                .wrap(),
+                                                ,
                                         )
-                                        .wrap(),
+                                        ,
                                 ]),
                                 None,
                             )
-                            .wrap(),
+                            ,
                     ]),
                 )
-                .wrap()
+                
         } else {
             self.factory
                 .create_assignment(
@@ -300,10 +300,10 @@ impl TransformModule {
                             self.factory.create_identifier("exports"),
                             self.factory.clone_node(name),
                         )
-                        .wrap(),
+                        ,
                     value.node_wrapper(),
                 )
-                .wrap()
+                
         }
         .set_text_range(location)
     }

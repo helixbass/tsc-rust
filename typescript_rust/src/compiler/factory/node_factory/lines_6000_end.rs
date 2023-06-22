@@ -305,16 +305,16 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     ) -> Option<Gc<Node>> {
         value.map(|value| match value.into() {
             StringOrNumberOrBoolOrRcNode::String(value) => {
-                self.create_string_literal(value, None, None).wrap()
+                self.create_string_literal(value, None, None)
             }
             StringOrNumberOrBoolOrRcNode::Number(value) => {
-                self.create_numeric_literal(value, None).wrap()
+                self.create_numeric_literal(value, None)
             }
             StringOrNumberOrBoolOrRcNode::Bool(value) => {
                 if value {
-                    self.create_true().wrap()
+                    self.create_true()
                 } else {
-                    self.create_false().wrap()
+                    self.create_false()
                 }
             }
             StringOrNumberOrBoolOrRcNode::RcNode(value) => value,
@@ -323,7 +323,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub(super) fn as_token(&self, value: SyntaxKindOrRcNode) -> Gc<Node> {
         match value {
-            SyntaxKindOrRcNode::SyntaxKind(value) => self.create_token(value).wrap(),
+            SyntaxKindOrRcNode::SyntaxKind(value) => self.create_token(value),
             SyntaxKindOrRcNode::RcNode(value) => value,
         }
     }
@@ -728,7 +728,7 @@ pub fn create_input_files(
     old_file_of_current_emit: Option<bool>,
 ) -> Gc<Node /*InputFiles*/> {
     let mut node: InputFiles = parse_node_factory
-        .with(|parse_node_factory_| parse_node_factory_.create_input_files().into());
+        .with(|parse_node_factory_| parse_node_factory_.create_input_files_raw().into());
     match javascript_text_or_read_file_text.into() {
         StringOrReadFileCallback::ReadFileCallback(javascript_text_or_read_file_text) => {
             node.initialize_with_read_file_callback(

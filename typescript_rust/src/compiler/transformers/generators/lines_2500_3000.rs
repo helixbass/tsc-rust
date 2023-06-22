@@ -1,7 +1,7 @@
 use gc::Gc;
 
 use super::{BlockAction, CodeBlockKind, Label, OpCode, OperationArguments, TransformGenerators};
-use crate::{EmitFlags, Node, NodeArray, NodeExt, NodeInterface, Number, ReadonlyTextRange, _d};
+use crate::{EmitFlags, Node, NodeArray, NodeExt, Number, ReadonlyTextRange, _d};
 
 impl TransformGenerators {
     pub(super) fn emit_nop(&self) {
@@ -135,24 +135,19 @@ impl TransformGenerators {
                     None,
                     Option::<Gc<Node>>::None,
                     Option::<Gc<NodeArray>>::None,
-                    Some(vec![self
-                        .factory
-                        .create_parameter_declaration(
-                            Option::<Gc<NodeArray>>::None,
-                            Option::<Gc<NodeArray>>::None,
-                            None,
-                            self.maybe_state(),
-                            None,
-                            None,
-                            None,
-                        )
-                        .wrap()]),
+                    Some(vec![self.factory.create_parameter_declaration(
+                        Option::<Gc<NodeArray>>::None,
+                        Option::<Gc<NodeArray>>::None,
+                        None,
+                        self.maybe_state(),
+                        None,
+                        None,
+                        None,
+                    )]),
                     None,
                     self.factory
-                        .create_block(build_result, Some(!build_result_is_empty))
-                        .wrap(),
+                        .create_block(build_result, Some(!build_result_is_empty)),
                 )
-                .wrap()
                 .set_emit_flags(EmitFlags::ReuseTempVariableScope),
         )
     }
@@ -171,15 +166,11 @@ impl TransformGenerators {
         if let Some(clauses) = self.maybe_clauses().as_ref() {
             let label_expression = self
                 .factory
-                .create_property_access_expression(self.state(), "label")
-                .wrap();
-            let switch_statement = self
-                .factory
-                .create_switch_statement(
-                    label_expression,
-                    self.factory.create_case_block(clauses.clone()).wrap(),
-                )
-                .wrap();
+                .create_property_access_expression(self.state(), "label");
+            let switch_statement = self.factory.create_switch_statement(
+                label_expression,
+                self.factory.create_case_block(clauses.clone()),
+            );
             return vec![switch_statement.start_on_new_line()];
         }
 
@@ -243,13 +234,10 @@ impl TransformGenerators {
         if let Some(statements) = self.maybe_statements_mut().as_mut() {
             if let Some(with_block_stack) = self.maybe_with_block_stack().as_ref() {
                 for with_block in with_block_stack.into_iter().rev() {
-                    *statements = vec![self
-                        .factory
-                        .create_with_statement(
-                            (**with_block).borrow().as_with_block().expression.clone(),
-                            self.factory.create_block(statements.clone(), None).wrap(),
-                        )
-                        .wrap()];
+                    *statements = vec![self.factory.create_with_statement(
+                        (**with_block).borrow().as_with_block().expression.clone(),
+                        self.factory.create_block(statements.clone(), None),
+                    )];
                 }
             }
 
@@ -263,38 +251,25 @@ impl TransformGenerators {
                 let end_label = current_exception_block_as_exception_block.end_label;
                 statements.insert(
                     0,
-                    self.factory
-                        .create_expression_statement(
-                            self.factory
-                                .create_call_expression(
-                                    self.factory
-                                        .create_property_access_expression(
-                                            self.factory
-                                                .create_property_access_expression(
-                                                    self.state(),
-                                                    "trys",
-                                                )
-                                                .wrap(),
-                                            "push",
-                                        )
-                                        .wrap(),
-                                    Option::<Gc<NodeArray>>::None,
-                                    Some(vec![self
-                                        .factory
-                                        .create_array_literal_expression(
-                                            Some(vec![
-                                                self.create_label(Some(start_label)),
-                                                self.create_label(catch_label),
-                                                self.create_label(finally_label),
-                                                self.create_label(Some(end_label)),
-                                            ]),
-                                            None,
-                                        )
-                                        .wrap()]),
-                                )
-                                .wrap(),
-                        )
-                        .wrap(),
+                    self.factory.create_expression_statement(
+                        self.factory.create_call_expression(
+                            self.factory.create_property_access_expression(
+                                self.factory
+                                    .create_property_access_expression(self.state(), "trys"),
+                                "push",
+                            ),
+                            Option::<Gc<NodeArray>>::None,
+                            Some(vec![self.factory.create_array_literal_expression(
+                                Some(vec![
+                                    self.create_label(Some(start_label)),
+                                    self.create_label(catch_label),
+                                    self.create_label(finally_label),
+                                    self.create_label(Some(end_label)),
+                                ]),
+                                None,
+                            )]),
+                        ),
+                    ),
                 );
 
                 self.set_current_exception_block(None);
@@ -302,36 +277,26 @@ impl TransformGenerators {
 
             if mark_label_end {
                 statements.push(
-                    self.factory
-                        .create_expression_statement(
+                    self.factory.create_expression_statement(
+                        self.factory.create_assignment(
                             self.factory
-                                .create_assignment(
-                                    self.factory
-                                        .create_property_access_expression(self.state(), "label")
-                                        .wrap(),
-                                    self.factory
-                                        .create_numeric_literal(
-                                            Number::new((self.label_number() + 1) as f64),
-                                            None,
-                                        )
-                                        .wrap(),
-                                )
-                                .wrap(),
-                        )
-                        .wrap(),
+                                .create_property_access_expression(self.state(), "label"),
+                            self.factory.create_numeric_literal(
+                                Number::new((self.label_number() + 1) as f64),
+                                None,
+                            ),
+                        ),
+                    ),
                 );
             }
         }
 
         clauses.push(
-            self.factory
-                .create_case_clause(
-                    self.factory
-                        .create_numeric_literal(Number::new(self.label_number() as f64), None)
-                        .wrap(),
-                    self.maybe_statements().clone().unwrap_or_default(),
-                )
-                .wrap(),
+            self.factory.create_case_clause(
+                self.factory
+                    .create_numeric_literal(Number::new(self.label_number() as f64), None),
+                self.maybe_statements().clone().unwrap_or_default(),
+            ),
         );
 
         self.set_statements(None);
@@ -475,8 +440,7 @@ impl TransformGenerators {
     ) {
         self.write_statement(
             self.factory
-                .create_expression_statement(self.factory.create_assignment(left, right).wrap())
-                .wrap()
+                .create_expression_statement(self.factory.create_assignment(left, right))
                 .set_text_range(operation_location),
         );
     }

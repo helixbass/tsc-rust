@@ -3,7 +3,7 @@ use gc::Gc;
 use super::TransformClassFields;
 use crate::{
     get_factory, is_array_literal_expression, is_expression, is_object_literal_element_like,
-    visit_nodes, Node, NodeArray, NodeInterface, VisitResult,
+    visit_nodes, Node, NodeArray, VisitResult,
 };
 
 impl TransformClassFields {
@@ -51,22 +51,16 @@ pub(super) fn create_private_static_field_initializer(
     variable_name: Gc<Node /*Identifier*/>,
     initializer: Option<Gc<Node /*Expression*/>>,
 ) -> Gc<Node> {
-    get_factory()
-        .create_assignment(
-            variable_name,
-            get_factory()
-                .create_object_literal_expression(
-                    Some(vec![get_factory()
-                        .create_property_assignment(
-                            "value",
-                            initializer.unwrap_or_else(|| get_factory().create_void_zero()),
-                        )
-                        .wrap()]),
-                    None,
-                )
-                .wrap(),
-        )
-        .wrap()
+    get_factory().create_assignment(
+        variable_name,
+        get_factory().create_object_literal_expression(
+            Some(vec![get_factory().create_property_assignment(
+                "value",
+                initializer.unwrap_or_else(|| get_factory().create_void_zero()),
+            )]),
+            None,
+        ),
+    )
 }
 
 pub(super) fn create_private_instance_field_initializer(
@@ -74,33 +68,25 @@ pub(super) fn create_private_instance_field_initializer(
     initializer: Option<Gc<Node /*Expression*/>>,
     weak_map_name: Gc<Node /*Identifier*/>,
 ) -> Gc<Node> {
-    get_factory()
-        .create_call_expression(
-            get_factory()
-                .create_property_access_expression(weak_map_name, "set")
-                .wrap(),
-            Option::<Gc<NodeArray>>::None,
-            Some(vec![
-                receiver,
-                initializer.unwrap_or_else(|| get_factory().create_void_zero()),
-            ]),
-        )
-        .wrap()
+    get_factory().create_call_expression(
+        get_factory().create_property_access_expression(weak_map_name, "set"),
+        Option::<Gc<NodeArray>>::None,
+        Some(vec![
+            receiver,
+            initializer.unwrap_or_else(|| get_factory().create_void_zero()),
+        ]),
+    )
 }
 
 pub(super) fn create_private_instance_method_initializer(
     receiver: Gc<Node /*LeftHandSideExpression*/>,
     weak_set_name: Gc<Node /*Identifier*/>,
 ) -> Gc<Node> {
-    get_factory()
-        .create_call_expression(
-            get_factory()
-                .create_property_access_expression(weak_set_name, "add")
-                .wrap(),
-            Option::<Gc<NodeArray>>::None,
-            Some(vec![receiver]),
-        )
-        .wrap()
+    get_factory().create_call_expression(
+        get_factory().create_property_access_expression(weak_set_name, "add"),
+        Option::<Gc<NodeArray>>::None,
+        Some(vec![receiver]),
+    )
 }
 
 pub(super) fn is_reserved_private_name(node: &Node /*PrivateIdentifier*/) -> bool {

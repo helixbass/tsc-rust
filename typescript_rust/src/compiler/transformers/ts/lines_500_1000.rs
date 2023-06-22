@@ -186,14 +186,14 @@ impl TransformTypeScript {
             let outer = self
                 .factory
                 .create_partially_emitted_expression(local_name, None)
-                .wrap()
+                
                 .set_text_range_end(closing_brace_location.end())
                 .set_emit_flags(EmitFlags::NoComments);
 
             let statement = self
                 .factory
                 .create_return_statement(Some(outer))
-                .wrap()
+                
                 .set_text_range_pos(closing_brace_location.pos())
                 .set_emit_flags(EmitFlags::NoComments | EmitFlags::NoTokenSourceMaps);
             statements.push(statement);
@@ -226,12 +226,12 @@ impl TransformTypeScript {
                                     None,
                                     Some(iife),
                                 )
-                                .wrap()],
+                                ],
                             None,
                         )
-                        .wrap(),
+                        ,
                 )
-                .wrap()
+                
                 .set_original_node(Some(node.node_wrapper()))
                 .set_comment_range(node)
                 .set_source_map_range(Some((&move_range_past_decorators(node)).into()))
@@ -314,7 +314,7 @@ impl TransformTypeScript {
                 )?,
                 self.transform_class_members(node)?,
             )
-            .wrap();
+            ;
 
         let mut emit_flags = get_emit_flags(node);
         if facts.intersects(ClassFacts::HasStaticInitializedProperties) {
@@ -363,7 +363,7 @@ impl TransformTypeScript {
                 heritage_clauses,
                 members,
             )
-            .wrap()
+            
             .set_original_node(Some(node.node_wrapper()))
             .set_text_range(Some(&location.to_readonly_text_range()));
 
@@ -382,17 +382,17 @@ impl TransformTypeScript {
                                 Some(if let Some(class_alias) = class_alias {
                                     self.factory
                                         .create_assignment(class_alias, class_expression)
-                                        .wrap()
+                                        
                                 } else {
                                     class_expression
                                 }),
                             )
-                            .wrap()],
+                            ],
                         Some(NodeFlags::Let),
                     )
-                    .wrap(),
+                    ,
             )
-            .wrap()
+            
             .set_original_node(Some(node.node_wrapper()))
             .set_text_range(Some(&location.to_readonly_text_range()))
             .set_comment_range(node))
@@ -423,7 +423,7 @@ impl TransformTypeScript {
                 )?,
                 self.transform_class_members(node)?,
             )
-            .wrap()
+            
             .set_original_node(Some(node.node_wrapper()))
             .set_text_range(Some(node)))
     }

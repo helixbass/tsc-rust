@@ -468,7 +468,7 @@ impl TypeChecker {
                                 None,
                                 None,
                             )
-                            .wrap(),
+                            ,
                     );
                     set_parent(
                         children_prop_symbol

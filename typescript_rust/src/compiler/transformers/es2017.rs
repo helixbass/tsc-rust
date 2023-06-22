@@ -467,7 +467,7 @@ impl TransformES2017 {
                 false,
             )?;
             return Ok(expression
-                .map(|expression| self.factory.create_expression_statement(expression).wrap()));
+                .map(|expression| self.factory.create_expression_statement(expression)));
         }
         try_maybe_visit_each_child(
             Some(node),
@@ -616,7 +616,7 @@ impl TransformES2017 {
                             Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
                         )?,
                     )
-                    .wrap(),
+                    ,
                 Some(node),
             ),
             Some(node.node_wrapper()),
@@ -873,7 +873,7 @@ impl TransformES2017 {
                         .convert_to_assignment_element_target(&node_as_variable_declaration.name()),
                     node_as_variable_declaration.maybe_initializer().unwrap(),
                 )
-                .wrap(),
+                ,
             Some(node.into()),
         );
         Ok(try_visit_node(
@@ -964,7 +964,7 @@ impl TransformES2017 {
                                 )?,
                             ),
                     ))
-                    .wrap(),
+                    ,
             );
 
             insert_statements_after_standard_prologue(
@@ -996,7 +996,7 @@ impl TransformES2017 {
                 }
             }
 
-            let block = self.factory.create_block(statements, Some(true)).wrap();
+            let block = self.factory.create_block(statements, Some(true));
             set_text_range(
                 &*block,
                 node_as_function_like_declaration.maybe_body().as_deref(),
@@ -1184,7 +1184,7 @@ impl TransformES2017 {
                         ),
                         node_as_property_access_expression.name.clone(),
                     )
-                    .wrap(),
+                    ,
                 Some(node),
             );
         }
@@ -1219,17 +1219,17 @@ impl TransformES2017 {
                 .create_call_expression(
                     self.factory
                         .create_property_access_expression(argument_expression, "call")
-                        .wrap(),
+                        ,
                     Option::<Gc<NodeArray>>::None,
                     Some(
                         [
-                            vec![self.factory.create_this().wrap()],
+                            vec![self.factory.create_this()],
                             node_as_call_expression.arguments.to_vec(),
                         ]
                         .concat(),
                     ),
                 )
-                .wrap();
+                ;
         }
         node.node_wrapper()
     }
@@ -1270,10 +1270,10 @@ impl TransformES2017 {
                                 Option::<Gc<NodeArray>>::None,
                                 Some(vec![argument_expression.node_wrapper()]),
                             )
-                            .wrap(),
+                            ,
                         "value",
                     )
-                    .wrap(),
+                    ,
                 Some(location),
             )
         } else {
@@ -1290,7 +1290,7 @@ impl TransformES2017 {
                         Option::<Gc<NodeArray>>::None,
                         Some(vec![argument_expression.node_wrapper()]),
                     )
-                    .wrap(),
+                    ,
                 Some(location),
             )
         }
@@ -1457,18 +1457,18 @@ pub fn create_super_access_variable_statement(
                                 factory
                                     .create_property_access_expression(
                                         set_emit_flags(
-                                            factory.create_super().wrap(),
+                                            factory.create_super(),
                                             EmitFlags::NoSubstitution,
                                         ),
                                         name,
                                     )
-                                    .wrap(),
+                                    ,
                                 EmitFlags::NoSubstitution,
                             ),
                         )
-                        .wrap(),
+                        ,
                 )
-                .wrap(),
+                ,
         );
         if has_binding {
             getter_and_setter.push(
@@ -1489,7 +1489,7 @@ pub fn create_super_access_variable_statement(
                                         None,
                                         None,
                                     )
-                                    .wrap()],
+                                    ],
                                 None,
                                 None,
                                 factory
@@ -1498,21 +1498,21 @@ pub fn create_super_access_variable_statement(
                                             factory
                                                 .create_property_access_expression(
                                                     set_emit_flags(
-                                                        factory.create_super().wrap(),
+                                                        factory.create_super(),
                                                         EmitFlags::NoSubstitution,
                                                     ),
                                                     name,
                                                 )
-                                                .wrap(),
+                                                ,
                                             EmitFlags::NoSubstitution,
                                         ),
                                         factory.create_identifier("v"),
                                     )
-                                    .wrap(),
+                                    ,
                             )
-                            .wrap(),
+                            ,
                     )
-                    .wrap(),
+                    ,
             );
         }
         accessors.push(
@@ -1521,9 +1521,9 @@ pub fn create_super_access_variable_statement(
                     name,
                     factory
                         .create_object_literal_expression(Some(getter_and_setter), None)
-                        .wrap(),
+                        ,
                 )
-                .wrap(),
+                ,
         );
     });
     factory
@@ -1550,25 +1550,25 @@ pub fn create_super_access_variable_statement(
                                                 factory.create_identifier("Object"),
                                                 "create",
                                             )
-                                            .wrap(),
+                                            ,
                                         Option::<Gc<NodeArray>>::None,
                                         Some(vec![
-                                            factory.create_null().wrap(),
+                                            factory.create_null(),
                                             factory
                                                 .create_object_literal_expression(
                                                     Some(accessors),
                                                     Some(true),
                                                 )
-                                                .wrap(),
+                                                ,
                                         ]),
                                     )
-                                    .wrap(),
+                                    ,
                             ),
                         )
-                        .wrap()],
+                        ],
                     Some(NodeFlags::Const),
                 )
-                .wrap(),
+                ,
         )
-        .wrap()
+        
 }

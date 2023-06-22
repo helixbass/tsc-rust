@@ -326,7 +326,7 @@ impl TransformES2015 {
             .push(
                 self.factory
                     .create_variable_declaration(Some(temp.node_wrapper()), None, None, None)
-                    .wrap(),
+                    ,
             );
     }
 

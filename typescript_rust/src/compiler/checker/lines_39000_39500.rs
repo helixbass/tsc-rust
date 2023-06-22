@@ -94,10 +94,10 @@ impl TypeChecker {
                 let reference: Gc<Node> = factory.with(|factory_| {
                     factory_
                         .create_property_access_expression(
-                            factory_.create_this().wrap(),
+                            factory_.create_this(),
                             prop_name.node_wrapper(),
                         )
-                        .wrap()
+                        
                 });
                 set_parent(
                     &reference.as_property_access_expression().expression,
@@ -132,10 +132,10 @@ impl TypeChecker {
     ) -> io::Result<bool> {
         let reference = get_factory()
             .create_property_access_expression(
-                get_factory().create_this().wrap(),
+                get_factory().create_this(),
                 prop_name.node_wrapper(),
             )
-            .wrap();
+            ;
         set_parent(
             &reference.as_property_access_expression().expression,
             Some(&*reference),

@@ -125,33 +125,19 @@ impl NodeBuilder {
                     stopper,
                 )?;
                 if is_indexed_access_type_node(lhs) {
-                    return Ok(get_factory()
-                        .create_indexed_access_type_node(
-                            lhs.clone(),
-                            get_factory()
-                                .create_literal_type_node(
-                                    get_factory()
-                                        .create_string_literal(symbol_name, None, None)
-                                        .wrap(),
-                                )
-                                .wrap(),
-                        )
-                        .wrap());
+                    return Ok(get_factory().create_indexed_access_type_node(
+                        lhs.clone(),
+                        get_factory().create_literal_type_node(
+                            get_factory().create_string_literal(symbol_name, None, None),
+                        ),
+                    ));
                 } else {
-                    return Ok(get_factory()
-                        .create_indexed_access_type_node(
-                            get_factory()
-                                .create_type_reference_node(lhs.clone(), type_parameter_nodes)
-                                .wrap(),
-                            get_factory()
-                                .create_literal_type_node(
-                                    get_factory()
-                                        .create_string_literal(symbol_name, None, None)
-                                        .wrap(),
-                                )
-                                .wrap(),
-                        )
-                        .wrap());
+                    return Ok(get_factory().create_indexed_access_type_node(
+                        get_factory().create_type_reference_node(lhs.clone(), type_parameter_nodes),
+                        get_factory().create_literal_type_node(
+                            get_factory().create_string_literal(symbol_name, None, None),
+                        ),
+                    ));
                 }
             }
         }
@@ -175,9 +161,7 @@ impl NodeBuilder {
                     "Impossible construct - an export of an indexed access cannot be reachable",
                 ));
             }
-            return Ok(get_factory()
-                .create_qualified_name(lhs.clone(), identifier)
-                .wrap());
+            return Ok(get_factory().create_qualified_name(lhs.clone(), identifier));
         }
         Ok(identifier)
     }
@@ -335,12 +319,10 @@ impl NodeBuilder {
         identifier.set_symbol(symbol.clone());
 
         Ok(if index > 0 {
-            get_factory()
-                .create_qualified_name(
-                    self.create_entity_name_from_symbol_chain(context, chain, index - 1)?,
-                    identifier,
-                )
-                .wrap()
+            get_factory().create_qualified_name(
+                self.create_entity_name_from_symbol_chain(context, chain, index - 1)?,
+                identifier,
+            )
         } else {
             identifier
         })
@@ -387,13 +369,11 @@ impl NodeBuilder {
                 }),
             )
         {
-            return Ok(get_factory()
-                .create_string_literal(
-                    self.get_specifier_for_module_symbol(symbol, context)?,
-                    None,
-                    None,
-                )
-                .wrap());
+            return Ok(get_factory().create_string_literal(
+                self.get_specifier_for_module_symbol(symbol, context)?,
+                None,
+                None,
+            ));
         }
         let can_use_property_access = if first_char == CharacterCodes::hash {
             symbol_name.len() > 1
@@ -413,12 +393,10 @@ impl NodeBuilder {
             identifier.set_symbol(symbol.symbol_wrapper());
 
             if index > 0 {
-                get_factory()
-                    .create_property_access_expression(
-                        self.create_expression_from_symbol_chain(context, chain, index - 1)?,
-                        identifier,
-                    )
-                    .wrap()
+                get_factory().create_property_access_expression(
+                    self.create_expression_from_symbol_chain(context, chain, index - 1)?,
+                    identifier,
+                )
             } else {
                 identifier
             }
@@ -429,37 +407,27 @@ impl NodeBuilder {
             }
             let mut expression: Option<Gc<Node /*Expression*/>> = None;
             if is_single_or_double_quote(first_char) {
-                expression = Some(
-                    get_factory()
-                        .create_string_literal(
-                            {
-                                lazy_static! {
-                                    static ref escaped_char_regex: Regex =
-                                        Regex::new(r"\\(.)").unwrap();
-                                }
-                                escaped_char_regex
-                                    .replace_all(
-                                        &symbol_name[1..symbol_name.len() - 1],
-                                        |captures: &Captures| {
-                                            captures.get(1).unwrap().as_str().to_owned()
-                                        },
-                                    )
-                                    .into_owned()
-                            },
-                            Some(first_char == CharacterCodes::single_quote),
-                            None,
-                        )
-                        .wrap(),
-                );
+                expression = Some(get_factory().create_string_literal(
+                    {
+                        lazy_static! {
+                            static ref escaped_char_regex: Regex = Regex::new(r"\\(.)").unwrap();
+                        }
+                        escaped_char_regex
+                            .replace_all(
+                                &symbol_name[1..symbol_name.len() - 1],
+                                |captures: &Captures| captures.get(1).unwrap().as_str().to_owned(),
+                            )
+                            .into_owned()
+                    },
+                    Some(first_char == CharacterCodes::single_quote),
+                    None,
+                ));
             } else if matches!(
                 symbol_name.parse::<f64>(),
                 Ok(symbol_name_parsed) if symbol_name_parsed.to_string() == symbol_name
             ) {
-                expression = Some(
-                    get_factory()
-                        .create_numeric_literal(Number::from(&*symbol_name), None)
-                        .wrap(),
-                );
+                expression =
+                    Some(get_factory().create_numeric_literal(Number::from(&*symbol_name), None));
             }
             if expression.is_none() {
                 expression = Some(set_emit_flags(
@@ -469,12 +437,10 @@ impl NodeBuilder {
                 expression.as_ref().unwrap().set_symbol(symbol.clone());
             }
             let expression = expression.unwrap();
-            get_factory()
-                .create_element_access_expression(
-                    self.create_expression_from_symbol_chain(context, chain, index - 1)?,
-                    expression,
-                )
-                .wrap()
+            get_factory().create_element_access_expression(
+                self.create_expression_from_symbol_chain(context, chain, index - 1)?,
+                expression,
+            )
         })
     }
 
@@ -567,37 +533,25 @@ impl NodeBuilder {
                 None,
             ) && !self.type_checker.is_numeric_literal_name(&name)
             {
-                return Ok(Some(
-                    get_factory()
-                        .create_string_literal(name, Some(single_quote == Some(true)), None)
-                        .wrap(),
-                ));
+                return Ok(Some(get_factory().create_string_literal(
+                    name,
+                    Some(single_quote == Some(true)),
+                    None,
+                )));
             }
             if self.type_checker.is_numeric_literal_name(&name) && starts_with(&name, "-") {
-                return Ok(Some(
-                    get_factory()
-                        .create_computed_property_name(
-                            get_factory()
-                                .create_numeric_literal(Number::from(&*name), None)
-                                .wrap(),
-                        )
-                        .wrap(),
-                ));
+                return Ok(Some(get_factory().create_computed_property_name(
+                    get_factory().create_numeric_literal(Number::from(&*name), None),
+                )));
             }
             return Ok(Some(
                 self.create_property_name_node_for_identifier_or_literal(name, None, None),
             ));
         }
         if name_type.flags().intersects(TypeFlags::UniqueESSymbol) {
-            return Ok(Some(
-                get_factory()
-                    .create_computed_property_name(self.symbol_to_expression_(
-                        &name_type.symbol(),
-                        context,
-                        Some(SymbolFlags::Value),
-                    )?)
-                    .wrap(),
-            ));
+            return Ok(Some(get_factory().create_computed_property_name(
+                self.symbol_to_expression_(&name_type.symbol(), context, Some(SymbolFlags::Value))?,
+            )));
         }
         Ok(None)
     }
@@ -618,13 +572,9 @@ impl NodeBuilder {
             && self.type_checker.is_numeric_literal_name(&name)
             && name.parse::<f64>().unwrap() >= 0.0
         {
-            get_factory()
-                .create_numeric_literal(Number::from(&*name), None)
-                .wrap()
+            get_factory().create_numeric_literal(Number::from(&*name), None)
         } else {
-            get_factory()
-                .create_string_literal(name, Some(single_quote == Some(true)), None)
-                .wrap()
+            get_factory().create_string_literal(name, Some(single_quote == Some(true)), None)
         }
     }
 
@@ -977,7 +927,6 @@ impl NodeBuilder {
             return Ok(Some(
                 get_factory()
                     .create_keyword_type_node(SyntaxKind::AnyKeyword)
-                    .wrap()
                     .into(),
             ));
         }
@@ -985,7 +934,6 @@ impl NodeBuilder {
             return Ok(Some(
                 get_factory()
                     .create_keyword_type_node(SyntaxKind::UnknownKeyword)
-                    .wrap()
                     .into(),
             ));
         }
@@ -1007,11 +955,8 @@ impl NodeBuilder {
                             Option::<fn(&Node) -> bool>::None,
                             Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
                         )?,
-                        get_factory()
-                            .create_literal_type_node(get_factory().create_null().wrap())
-                            .wrap(),
+                        get_factory().create_literal_type_node(get_factory().create_null()),
                     ])
-                    .wrap()
                     .into(),
             ));
         }
@@ -1033,11 +978,8 @@ impl NodeBuilder {
                             Option::<fn(&Node) -> bool>::None,
                             Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
                         )?,
-                        get_factory()
-                            .create_keyword_type_node(SyntaxKind::UndefinedKeyword)
-                            .wrap(),
+                        get_factory().create_keyword_type_node(SyntaxKind::UndefinedKeyword),
                     ])
-                    .wrap()
                     .into(),
             ));
         }
@@ -1077,7 +1019,6 @@ impl NodeBuilder {
                         Option::<fn(&Node) -> bool>::None,
                         Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
                     )?)
-                    .wrap()
                     .into(),
             ));
         }
@@ -1126,7 +1067,7 @@ impl NodeBuilder {
                                     ) {
                                     Some(get_factory().create_token(
                                         SyntaxKind::QuestionToken,
-                                    ).wrap())
+                                    ))
                                 } else {
                                     None
                                 },
@@ -1142,12 +1083,12 @@ impl NodeBuilder {
                                 })?.unwrap_or_else(|| {
                                     get_factory().create_keyword_type_node(
                                         SyntaxKind::AnyKeyword
-                                    ).wrap()
+                                    )
                                 }))
-                            ).wrap())
+                            ))
                         }
                     ).transpose()?
-                ).wrap()
+                )
                     .into()
             ));
         }
@@ -1162,9 +1103,7 @@ impl NodeBuilder {
         {
             return Ok(Some(
                 set_original_node(
-                    get_factory()
-                        .create_keyword_type_node(SyntaxKind::AnyKeyword)
-                        .wrap(),
+                    get_factory().create_keyword_type_node(SyntaxKind::AnyKeyword),
                     Some(node.node_wrapper()),
                 )
                 .into(),
@@ -1175,45 +1114,21 @@ impl NodeBuilder {
         {
             return Ok(Some(
                 get_factory()
-                    .create_type_literal_node(Some(vec![get_factory()
-                        .create_index_signature(
+                    .create_type_literal_node(Some(vec![get_factory().create_index_signature(
+                        Option::<Gc<NodeArray>>::None,
+                        Option::<Gc<NodeArray>>::None,
+                        vec![get_factory().create_parameter_declaration(
                             Option::<Gc<NodeArray>>::None,
                             Option::<Gc<NodeArray>>::None,
-                            vec![get_factory()
-                                .create_parameter_declaration(
-                                    Option::<Gc<NodeArray>>::None,
-                                    Option::<Gc<NodeArray>>::None,
-                                    None,
-                                    Some("x"),
-                                    None,
-                                    try_maybe_visit_node(
-                                        node.as_has_type_arguments()
-                                            .maybe_type_arguments()
-                                            .as_ref()
-                                            .unwrap()
-                                            .get(0)
-                                            .cloned(),
-                                        Some(|node: &Node| {
-                                            self.visit_existing_node_tree_symbols(
-                                                context,
-                                                had_error,
-                                                include_private_symbol,
-                                                file,
-                                                node,
-                                            )
-                                        }),
-                                        Option::<fn(&Node) -> bool>::None,
-                                        Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
-                                    )?,
-                                    None,
-                                )
-                                .wrap()],
+                            None,
+                            Some("x"),
+                            None,
                             try_maybe_visit_node(
                                 node.as_has_type_arguments()
                                     .maybe_type_arguments()
                                     .as_ref()
                                     .unwrap()
-                                    .get(1)
+                                    .get(0)
                                     .cloned(),
                                 Some(|node: &Node| {
                                     self.visit_existing_node_tree_symbols(
@@ -1227,9 +1142,28 @@ impl NodeBuilder {
                                 Option::<fn(&Node) -> bool>::None,
                                 Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
                             )?,
-                        )
-                        .wrap()]))
-                    .wrap()
+                            None,
+                        )],
+                        try_maybe_visit_node(
+                            node.as_has_type_arguments()
+                                .maybe_type_arguments()
+                                .as_ref()
+                                .unwrap()
+                                .get(1)
+                                .cloned(),
+                            Some(|node: &Node| {
+                                self.visit_existing_node_tree_symbols(
+                                    context,
+                                    had_error,
+                                    include_private_symbol,
+                                    file,
+                                    node,
+                                )
+                            }),
+                            Option::<fn(&Node) -> bool>::None,
+                            Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                        )?,
+                    )]))
                     .into(),
             ));
         }
@@ -1271,7 +1205,7 @@ impl NodeBuilder {
                                                 Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
                                             )?,
                                             None,
-                                        ).wrap()
+                                        )
                                     )
                                 })
                             }
@@ -1285,10 +1219,10 @@ impl NodeBuilder {
                             )?.unwrap_or_else(|| {
                                 get_factory().create_keyword_type_node(
                                     SyntaxKind::AnyKeyword
-                                ).wrap()
+                                )
                             }),
                         ),
-                    ).wrap().into()
+                    ).into()
                 ));
             } else {
                 return Ok(Some(
@@ -1315,30 +1249,28 @@ impl NodeBuilder {
                                 &node_as_jsdoc_function_type.parameters(),
                                 |p: &Gc<Node>, i| -> io::Result<Gc<Node>> {
                                     let p_as_parameter_declaration = p.as_parameter_declaration();
-                                    Ok(get_factory()
-                                        .create_parameter_declaration(
-                                            Option::<Gc<NodeArray>>::None,
-                                            Option::<Gc<NodeArray>>::None,
-                                            self.get_effective_dot_dot_dot_for_parameter(p),
-                                            self.get_name_for_jsdoc_function_parameter(p, i),
-                                            p_as_parameter_declaration.question_token.clone(),
-                                            try_maybe_visit_node(
-                                                node_as_jsdoc_function_type.maybe_type(),
-                                                Some(|node: &Node| {
-                                                    self.visit_existing_node_tree_symbols(
-                                                        context,
-                                                        had_error,
-                                                        include_private_symbol,
-                                                        file,
-                                                        node,
-                                                    )
-                                                }),
-                                                Option::<fn(&Node) -> bool>::None,
-                                                Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
-                                            )?,
-                                            None,
-                                        )
-                                        .wrap())
+                                    Ok(get_factory().create_parameter_declaration(
+                                        Option::<Gc<NodeArray>>::None,
+                                        Option::<Gc<NodeArray>>::None,
+                                        self.get_effective_dot_dot_dot_for_parameter(p),
+                                        self.get_name_for_jsdoc_function_parameter(p, i),
+                                        p_as_parameter_declaration.question_token.clone(),
+                                        try_maybe_visit_node(
+                                            node_as_jsdoc_function_type.maybe_type(),
+                                            Some(|node: &Node| {
+                                                self.visit_existing_node_tree_symbols(
+                                                    context,
+                                                    had_error,
+                                                    include_private_symbol,
+                                                    file,
+                                                    node,
+                                                )
+                                            }),
+                                            Option::<fn(&Node) -> bool>::None,
+                                            Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                                        )?,
+                                        None,
+                                    ))
                                 },
                             )?,
                             Some(
@@ -1357,13 +1289,10 @@ impl NodeBuilder {
                                     Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
                                 )?
                                 .unwrap_or_else(|| {
-                                    get_factory()
-                                        .create_keyword_type_node(SyntaxKind::AnyKeyword)
-                                        .wrap()
+                                    get_factory().create_keyword_type_node(SyntaxKind::AnyKeyword)
                                 }),
                             ),
                         )
-                        .wrap()
                         .into(),
                 ));
             }

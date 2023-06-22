@@ -1,7 +1,11 @@
+use std::{
+    cell::{Cell, Ref, RefCell, RefMut},
+    collections::{HashMap, HashSet},
+    io,
+    rc::Rc,
+};
+
 use gc::{Finalize, Gc, GcCell, GcCellRef, GcCellRefMut, Trace};
-use std::cell::{Cell, Ref, RefCell, RefMut};
-use std::collections::{HashMap, HashSet};
-use std::rc::Rc;
 
 use super::{Parser, ParsingContext};
 use crate::{
@@ -14,7 +18,6 @@ use crate::{
     ReadonlyPragmaMap, Scanner, ScriptKind, ScriptTarget, SourceTextAsChars, SyntaxKind,
     TextChangeRange,
 };
-use std::io;
 
 pub enum ForEachChildRecursivelyCallbackReturn<TValue> {
     Skip,
@@ -836,14 +839,14 @@ impl ParserType {
                 Some(expressions) if expressions.len() > 1 => self
                     .finish_node(
                         self.factory()
-                            .create_array_literal_expression(Some(expressions), None),
+                            .create_array_literal_expression_raw(Some(expressions), None),
                         pos,
                         None,
                     )
                     .wrap(),
                 _ => Debug_.check_defined(expressions, None)[0].clone(),
             };
-            let statement = self.factory().create_expression_statement(expression);
+            let statement = self.factory().create_expression_statement_raw(expression);
             let statement = self.finish_node(statement, pos, None);
             statements = self.create_node_array(vec![statement.wrap()], pos, None, None);
             end_of_file_token = self

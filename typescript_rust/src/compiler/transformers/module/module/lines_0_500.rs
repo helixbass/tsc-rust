@@ -252,16 +252,16 @@ impl TransformModule {
                                                 self.factory.create_identifier("exports"),
                                                 self.factory.create_identifier(id_text(next_id)),
                                             )
-                                            .wrap(),
+                                            ,
                                         prev,
                                     )
-                                    .wrap()
+                                    
                             },
                             self.factory.create_void_zero(),
                             None,
                             None,
                         ))
-                        .wrap(),
+                        ,
                 );
                 i += chunk_size;
             }
@@ -362,21 +362,21 @@ impl TransformModule {
                                                                     None,
                                                                     None,
                                                                 )
-                                                                .wrap(),
+                                                                ,
                                                             self.factory
                                                                 .create_string_literal(
                                                                     "exports".to_owned(),
                                                                     None,
                                                                     None,
                                                                 )
-                                                                .wrap(),
+                                                                ,
                                                         ]
                                                         .and_extend(aliased_module_names)
                                                         .and_extend(unaliased_module_names)
                                                     }),
                                                     None,
                                                 )
-                                                .wrap(),
+                                                ,
                                             if let Some(json_source_file) = json_source_file {
                                                 json_source_file
                                                     .as_source_file()
@@ -386,7 +386,7 @@ impl TransformModule {
                                                         || self.factory.create_object_literal_expression(
                                                             Option::<Gc<NodeArray>>::None,
                                                             None,
-                                                        ).wrap(),
+                                                        ),
                                                         |json_source_file_statements| json_source_file_statements[0].as_expression_statement().expression.clone(),
                                                     )
                                             } else {
@@ -402,27 +402,27 @@ impl TransformModule {
                                                             None,
                                                             Some("require"),
                                                             None, None, None,
-                                                        ).wrap(),
+                                                        ),
                                                         self.factory.create_parameter_declaration(
                                                             Option::<Gc<NodeArray>>::None,
                                                             Option::<Gc<NodeArray>>::None,
                                                             None,
                                                             Some("exports"),
                                                             None, None, None,
-                                                        ).wrap(),
+                                                        ),
                                                     ].and_extend(import_alias_names)),
                                                     None,
                                                     self.transform_asynchronous_module_body(
                                                         node,
                                                     )?
-                                                ).wrap()
+                                                )
                                             },
                                         ]),
                                     ),
                                 )
-                                .wrap(),
+                                ,
                         )
-                        .wrap()]),
+                        ]),
                     None,
                 )
                 .set_text_range(Some(&*node_as_source_file.statements())),
@@ -468,7 +468,7 @@ impl TransformModule {
                         None,
                         None,
                     )
-                    .wrap()]),
+                    ]),
                 None,
                 self.factory
                     .create_block(
@@ -487,11 +487,11 @@ impl TransformModule {
                                                     self.factory.create_identifier("module"),
                                                     "exports",
                                                 )
-                                                .wrap(),
+                                                ,
                                             "object",
                                         ),
                                     )
-                                    .wrap(),
+                                    ,
                                 self.factory
                                     .create_block(
                                         vec![
@@ -508,31 +508,31 @@ impl TransformModule {
                                                     self.factory.create_identifier("require"),
                                                     self.factory.create_identifier("exports"),
                                                 ])
-                                            ).wrap())
-                                        ).wrap()
+                                            ))
+                                        )
                                     ]
-                                ).wrap(),
+                                ),
                                 self.factory.create_if_statement(
                                     self.factory.create_strict_inequality(
                                         self.factory.create_identifier("v"),
                                         self.factory.create_identifier("undefined"),
-                                    ).wrap(),
+                                    ),
                                     self.factory.create_expression_statement(
                                         self.factory.create_assignment(
                                             self.factory.create_property_access_expression(
                                                 self.factory.create_identifier("module"),
                                                 "exports"
-                                            ).wrap(),
+                                            ),
                                             self.factory.create_identifier("v")
-                                        ).wrap()
-                                    ).wrap(),
+                                        )
+                                    ),
                                     None,
-                                ).wrap()
+                                )
                                     .set_emit_flags(EmitFlags::SingleLine)
                             ],
                                         None,
                                     )
-                                    .wrap(),
+                                    ,
                                 Some(
                                     self.factory
                                         .create_if_statement(
@@ -548,9 +548,9 @@ impl TransformModule {
                                                                 .create_identifier("define"),
                                                             "amd",
                                                         )
-                                                        .wrap(),
+                                                        ,
                                                 )
-                                                .wrap(),
+                                                ,
                                             self.factory
                                                 .create_block(
                                                     vec![
@@ -574,40 +574,40 @@ impl TransformModule {
                                                                     None,
                                                                     None,
                                                                 )
-                                                                .wrap(),
+                                                                ,
                                                             self.factory
                                                                 .create_string_literal(
                                                                     "exports".to_owned(),
                                                                     None,
                                                                     None,
                                                                 )
-                                                                .wrap(),
+                                                                ,
                                                         ]
                                                         .and_extend(aliased_module_names)
                                                         .and_extend(unaliased_module_names)
                                                     ),
                                                     None,
-                                                ).wrap(),
+                                                ),
                                                 self.factory.create_identifier("factory")
                                             ]))
-                                        ).wrap()
-                                    ).wrap()
+                                        )
+                                    )
                                 ],
                                                     None,
                                                 )
-                                                .wrap(),
+                                                ,
                                             None,
                                         )
-                                        .wrap(),
+                                        ,
                                 ),
                             )
-                            .wrap()],
+                            ],
                         Some(true),
                     )
-                    .wrap()
+                    
                     .set_text_range(Option::<&Node>::None),
             )
-            .wrap();
+            ;
 
         Ok(self
             .factory
@@ -641,7 +641,7 @@ impl TransformModule {
                                                                 None,
                                                                 None,
                                                             )
-                                                            .wrap(),
+                                                            ,
                                                         self.factory
                                                             .create_parameter_declaration(
                                                                 Option::<Gc<NodeArray>>::None,
@@ -652,18 +652,18 @@ impl TransformModule {
                                                                 None,
                                                                 None,
                                                             )
-                                                            .wrap(),
+                                                            ,
                                                     ]
                                                     .and_extend(import_alias_names),
                                                 ),
                                                 None,
                                                 self.transform_asynchronous_module_body(node)?,
                                             )
-                                            .wrap()]),
+                                            ]),
                                     )
-                                    .wrap(),
+                                    ,
                             )
-                            .wrap()]),
+                            ]),
                         None,
                     )
                     .set_text_range(Some(&*node_as_source_file.statements())),
@@ -693,7 +693,7 @@ impl TransformModule {
                 aliased_module_names.push(
                     self.factory
                         .create_string_literal(amd_dependency.path.clone(), None, None)
-                        .wrap(),
+                        ,
                 );
                 import_alias_names.push(
                     self.factory
@@ -706,13 +706,13 @@ impl TransformModule {
                             None,
                             None,
                         )
-                        .wrap(),
+                        ,
                 );
             } else {
                 unaliased_module_names.push(
                     self.factory
                         .create_string_literal(amd_dependency.path.clone(), None, None)
-                        .wrap(),
+                        ,
                 );
             }
         }
@@ -749,7 +749,7 @@ impl TransformModule {
                                 None,
                                 None,
                             )
-                            .wrap(),
+                            ,
                     );
                 } else {
                     unaliased_module_names.push(external_module_name);
@@ -791,8 +791,8 @@ impl TransformModule {
         }
         Some(
             self.factory
-                .create_expression_statement(self.factory.create_assignment(name, expr).wrap())
-                .wrap(),
+                .create_expression_statement(self.factory.create_assignment(name, expr))
+                ,
         )
     }
 
@@ -832,16 +832,16 @@ impl TransformModule {
                                             self.factory.create_identifier("exports"),
                                             self.factory.create_identifier(id_text(next_id)),
                                         )
-                                        .wrap(),
+                                        ,
                                     prev,
                                 )
-                                .wrap()
+                                
                         },
                         self.factory.create_void_zero(),
                         None,
                         None,
                     ))
-                    .wrap(),
+                    ,
             );
         }
 
@@ -889,7 +889,7 @@ impl TransformModule {
             self.context.end_lexical_environment().as_deref(),
         );
 
-        let body = self.factory.create_block(statements, Some(true)).wrap();
+        let body = self.factory.create_block(statements, Some(true));
         if self.need_umd_dynamic_import_helper() {
             add_emit_helper(&body, dynamic_import_umd_helper());
         }
@@ -919,7 +919,7 @@ impl TransformModule {
                     let statement = self
                         .factory
                         .create_return_statement(Some(expression_result))
-                        .wrap()
+                        
                         .set_text_range(Some(&**current_module_info_export_equals))
                         .set_emit_flags(EmitFlags::NoTokenSourceMaps | EmitFlags::NoComments);
                     statements.push(statement);
@@ -934,12 +934,12 @@ impl TransformModule {
                                             self.factory.create_identifier("module"),
                                             "exports",
                                         )
-                                        .wrap(),
+                                        ,
                                     expression_result,
                                 )
-                                .wrap(),
+                                ,
                         )
-                        .wrap()
+                        
                         .set_text_range(Some(&**current_module_info_export_equals))
                         .set_emit_flags(EmitFlags::NoComments);
                     statements.push(statement);
@@ -1041,19 +1041,19 @@ impl TransformModuleOnSubstituteNodeOverrider {
                         exported_or_imported_name,
                         node_object_assignment_initializer.clone(),
                     )
-                    .wrap();
+                    ;
                 return Ok(self
                     .transform_module
                     .factory
                     .create_property_assignment(name, initializer)
-                    .wrap()
+                    
                     .set_text_range(Some(node)));
             }
             return Ok(self
                 .transform_module
                 .factory
                 .create_property_assignment(name, exported_or_imported_name)
-                .wrap()
+                
                 .set_text_range(Some(node)));
         }
         Ok(node.node_wrapper())
@@ -1141,7 +1141,7 @@ impl TransformModuleOnSubstituteNodeOverrider {
                         external_helpers_module_name,
                         node.node_wrapper(),
                     )
-                    .wrap());
+                    );
             }
             return Ok(node.node_wrapper());
         } else if !(is_generated_identifier(node)
@@ -1167,7 +1167,7 @@ impl TransformModuleOnSubstituteNodeOverrider {
                         self.transform_module.factory.create_identifier("exports"),
                         self.transform_module.factory.clone_node(node),
                     )
-                    .wrap()
+                    
                     .set_text_range(Some(node)));
             }
             let import_declaration = self
@@ -1186,7 +1186,7 @@ impl TransformModuleOnSubstituteNodeOverrider {
                             ),
                             self.transform_module.factory.create_identifier("default"),
                         )
-                        .wrap()
+                        
                         .set_text_range(Some(node)));
                 } else if is_import_specifier(&import_declaration) {
                     let import_declaration_as_import_specifier =
@@ -1215,7 +1215,7 @@ impl TransformModuleOnSubstituteNodeOverrider {
                             ),
                             self.transform_module.factory.clone_node(&name),
                         )
-                        .wrap()
+                        
                         .set_text_range(Some(node)));
                 }
             }

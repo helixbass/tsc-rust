@@ -32,7 +32,7 @@ impl TransformTypeScript {
     }
 
     pub(super) fn expression_to_statement(&self, expression: Gc<Node /*Expression*/>) -> Gc<Node> {
-        self.factory.create_expression_statement(expression).wrap()
+        self.factory.create_expression_statement(expression)
     }
 
     pub(super) fn add_export_member_assignment(
@@ -51,7 +51,7 @@ impl TransformTypeScript {
                 ),
                 self.factory.get_local_name(node, None, None),
             )
-            .wrap()
+            
             .set_source_map_range(Some(
                 (&create_range(
                     node.as_named_declaration()
@@ -65,7 +65,7 @@ impl TransformTypeScript {
         let statement = self
             .factory
             .create_expression_statement(expression)
-            .wrap()
+            
             .set_source_map_range(Some((&create_range(-1, Some(node.end()))).into()));
         statements.push(statement);
     }
@@ -88,9 +88,9 @@ impl TransformTypeScript {
                         ),
                         export_value.node_wrapper(),
                     )
-                    .wrap(),
+                    ,
             )
-            .wrap()
+            
             .set_text_range(location)
     }
 
@@ -105,7 +105,7 @@ impl TransformTypeScript {
                 self.get_namespace_member_name_with_source_maps_and_without_comments(export_name),
                 export_value.node_wrapper(),
             )
-            .wrap()
+            
             .set_text_range(location)
     }
 
@@ -176,7 +176,7 @@ impl TransformTypeScript {
                 self.factory.get_declaration_name(Some(node), None, None),
                 "prototype",
             )
-            .wrap()
+            
     }
 
     pub(super) fn get_class_member_prefix(

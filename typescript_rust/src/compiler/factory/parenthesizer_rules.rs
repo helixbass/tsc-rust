@@ -176,7 +176,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>
         ) {
             self.factory
                 .create_parenthesized_expression(operand.node_wrapper())
-                .wrap()
+                
         } else {
             operand.node_wrapper()
         }
@@ -196,7 +196,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>
         {
             self.factory
                 .create_parenthesized_type(node.node_wrapper())
-                .wrap()
+                
         } else {
             node.node_wrapper()
         }
@@ -227,7 +227,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>
         if is_comma_sequence(expression) {
             self.factory
                 .create_parenthesized_expression(expression.node_wrapper())
-                .wrap()
+                
         } else {
             expression.node_wrapper()
         }
@@ -247,7 +247,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>
             return self
                 .factory
                 .create_parenthesized_expression(condition.node_wrapper())
-                .wrap();
+                ;
         }
         condition.node_wrapper()
     }
@@ -257,7 +257,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>
         if is_comma_sequence(&emitted_expression) {
             self.factory
                 .create_parenthesized_expression(branch.node_wrapper())
-                .wrap()
+                
         } else {
             branch.node_wrapper()
         }
@@ -277,7 +277,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>
         if needs_parens {
             self.factory
                 .create_parenthesized_expression(expression.node_wrapper())
-                .wrap()
+                
         } else {
             expression.node_wrapper()
         }
@@ -290,14 +290,14 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>
                 return self
                     .factory
                     .create_parenthesized_expression(expression.node_wrapper())
-                    .wrap();
+                    ;
             }
 
             SyntaxKind::NewExpression => {
                 return if leftmost_expr.as_new_expression().arguments.is_none() {
                     self.factory
                         .create_parenthesized_expression(expression.node_wrapper())
-                        .wrap()
+                        
                 } else {
                     expression.node_wrapper()
                 };
@@ -321,7 +321,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>
             &*self
                 .factory
                 .create_parenthesized_expression(expression.node_wrapper())
-                .wrap(),
+                ,
             Some(expression),
         )
         .node_wrapper()
@@ -335,7 +335,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>
                 &*self
                     .factory
                     .create_parenthesized_expression(operand.node_wrapper())
-                    .wrap(),
+                    ,
                 Some(operand),
             )
             .node_wrapper()
@@ -350,7 +350,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>
                 &*self
                     .factory
                     .create_parenthesized_expression(operand.node_wrapper())
-                    .wrap(),
+                    ,
                 Some(operand),
             )
             .node_wrapper()
@@ -399,7 +399,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>
                 &*self
                     .factory
                     .create_parenthesized_expression(expression.node_wrapper())
-                    .wrap(),
+                    ,
                 Some(expression),
             )
             .node_wrapper()
@@ -421,7 +421,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>
                     set_text_range_rc_node(
                         self.factory
                             .create_parenthesized_expression(callee.node_wrapper())
-                            .wrap(),
+                            ,
                         Some(&**callee),
                     ),
                     emitted_expression_as_call_expression.maybe_type_arguments(),
@@ -444,7 +444,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>
                 &*self
                     .factory
                     .create_parenthesized_expression(expression.node_wrapper())
-                    .wrap(),
+                    ,
                 Some(expression),
             )
             .node_wrapper();
@@ -463,7 +463,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>
                 &*self
                     .factory
                     .create_parenthesized_expression(body.node_wrapper())
-                    .wrap(),
+                    ,
                 Some(body),
             )
             .node_wrapper();
@@ -476,7 +476,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>
         if member.kind() == SyntaxKind::ConditionalType {
             self.factory
                 .create_parenthesized_type(member.node_wrapper())
-                .wrap()
+                
         } else {
             member.node_wrapper()
         }
@@ -490,7 +490,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>
             | SyntaxKind::ConstructorType => self
                 .factory
                 .create_parenthesized_type(member.node_wrapper())
-                .wrap(),
+                ,
             _ => self.parenthesize_member_of_conditional_type(member),
         }
     }
@@ -500,7 +500,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>
             SyntaxKind::TypeQuery | SyntaxKind::TypeOperator | SyntaxKind::InferType => self
                 .factory
                 .create_parenthesized_type(member.node_wrapper())
-                .wrap(),
+                ,
             _ => self.parenthesize_member_of_element_type(member),
         }
     }

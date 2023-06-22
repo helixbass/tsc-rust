@@ -23,7 +23,7 @@ impl TransformGenerators {
                 keys_array.clone(),
                 self.factory
                     .create_array_literal_expression(Option::<Gc<NodeArray>>::None, None)
-                    .wrap(),
+                    ,
                 Option::<&Node>::None,
             );
 
@@ -46,22 +46,22 @@ impl TransformGenerators {
                                                 keys_array.clone(),
                                                 "push",
                                             )
-                                            .wrap(),
+                                            ,
                                         Option::<Gc<NodeArray>>::None,
                                         Some(vec![key.clone()]),
                                     )
-                                    .wrap(),
+                                    ,
                             )
-                            .wrap(),
+                            ,
                     )
-                    .wrap(),
+                    ,
             );
 
             self.emit_assignment(
                 keys_index.clone(),
                 self.factory
                     .create_numeric_literal(Number::new(0.0), None)
-                    .wrap(),
+                    ,
                 Option::<&Node>::None,
             );
 
@@ -77,9 +77,9 @@ impl TransformGenerators {
                         keys_index.clone(),
                         self.factory
                             .create_property_access_expression(keys_array.clone(), "length")
-                            .wrap(),
+                            ,
                     )
-                    .wrap(),
+                    ,
                 Option::<&Node>::None,
             );
 
@@ -110,7 +110,7 @@ impl TransformGenerators {
                 variable,
                 self.factory
                     .create_element_access_expression(keys_array, keys_index.clone())
-                    .wrap(),
+                    ,
                 Option::<&Node>::None,
             );
             self.transform_and_emit_embedded_statement(&node_as_for_in_statement.statement);
@@ -119,9 +119,9 @@ impl TransformGenerators {
             self.emit_statement(
                 self.factory
                     .create_expression_statement(
-                        self.factory.create_postfix_increment(keys_index).wrap(),
+                        self.factory.create_postfix_increment(keys_index),
                     )
-                    .wrap(),
+                    ,
             );
 
             self.emit_break(condition_label, Option::<&Node>::None);
@@ -371,7 +371,7 @@ impl TransformGenerators {
                                         Some(&*clause_as_case_clause.expression),
                                     )],
                                 )
-                                .wrap(),
+                                ,
                         );
                     } else {
                         default_clauses_skipped += 1;
@@ -384,9 +384,9 @@ impl TransformGenerators {
                         self.factory
                             .create_switch_statement(
                                 expression.clone(),
-                                self.factory.create_case_block(pending_clauses).wrap(),
+                                self.factory.create_case_block(pending_clauses),
                             )
-                            .wrap(),
+                            ,
                     );
                     clauses_written += pending_clauses_len;
                     pending_clauses = _d();

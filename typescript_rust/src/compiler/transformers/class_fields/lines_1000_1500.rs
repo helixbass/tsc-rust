@@ -57,7 +57,7 @@ impl TransformClassFields {
             pending_class_reference_assignment = Some(
                 self.factory
                     .create_assignment(temp, self.factory.get_internal_name(node, None, None))
-                    .wrap(),
+                    ,
             );
         }
 
@@ -103,7 +103,7 @@ impl TransformClassFields {
                     .create_expression_statement(
                         self.factory.inline_expressions(pending_expressions),
                     )
-                    .wrap(),
+                    ,
             );
         }
 
@@ -207,7 +207,7 @@ impl TransformClassFields {
                             .create_expression_statement(
                                 self.factory.inline_expressions(pending_expressions),
                             )
-                            .wrap(),
+                            ,
                     );
                 }
 
@@ -224,7 +224,7 @@ impl TransformClassFields {
                     return self.factory.inline_expressions(&[
                         self.factory
                             .create_assignment(temp.clone(), class_expression)
-                            .wrap(),
+                            ,
                         temp,
                     ]);
                 }
@@ -254,7 +254,7 @@ impl TransformClassFields {
                 expressions.push(
                     self.factory
                         .create_assignment(temp.clone(), class_expression)
-                        .wrap()
+                        
                         .start_on_new_line(),
                 );
                 add_range(
@@ -387,9 +387,9 @@ impl TransformClassFields {
                             Option::<Gc<NodeArray>>::None,
                             Some(vec![]),
                         )
-                        .wrap(),
+                        ,
                 )
-                .wrap(),
+                ,
         );
     }
 
@@ -457,7 +457,7 @@ impl TransformClassFields {
                     Some(parameters.map_or_else(|| vec![].into(), NodeArrayOrVec::from)),
                     Some(body),
                 )
-                .wrap()
+                
                 .set_text_range(Some(constructor.as_deref().unwrap_or(node)))
                 .set_original_node(constructor)
                 .start_on_new_line(),
@@ -513,18 +513,18 @@ impl TransformClassFields {
                     .create_expression_statement(
                         self.factory
                             .create_call_expression(
-                                self.factory.create_super().wrap(),
+                                self.factory.create_super(),
                                 Option::<Gc<NodeArray>>::None,
                                 Some(vec![self
                                     .factory
                                     .create_spread_element(
                                         self.factory.create_identifier("arguments"),
                                     )
-                                    .wrap()]),
+                                    ]),
                             )
-                            .wrap(),
+                            ,
                     )
-                    .wrap(),
+                    ,
             );
         }
 
@@ -568,7 +568,7 @@ impl TransformClassFields {
                 }
             }
         }
-        let ref receiver = self.factory.create_this().wrap();
+        let ref receiver = self.factory.create_this();
         self.add_method_statements(&mut statements, &private_methods_and_accessors, receiver);
         self.add_property_or_class_static_block_statements(&mut statements, &properties, receiver);
 
@@ -619,7 +619,7 @@ impl TransformClassFields {
                         ))),
                     Some(true),
                 )
-                .wrap()
+                
                 .set_text_range(
                     constructor
                         .as_ref()
@@ -646,7 +646,7 @@ impl TransformClassFields {
             let statement = self
                 .factory
                 .create_expression_statement(expression)
-                .wrap()
+                
                 .set_source_map_range(Some((&move_range_past_modifiers(property)).into()))
                 .set_comment_range(&**property)
                 .set_original_node(Some(property.clone()));
@@ -822,7 +822,7 @@ impl TransformClassFields {
             );
             self.factory
                 .create_assignment(member_access, initializer)
-                .wrap()
+                
         } else {
             let name = if is_computed_property_name(property_name) {
                 property_name.as_computed_property_name().expression.clone()
@@ -834,7 +834,7 @@ impl TransformClassFields {
                         None,
                         None,
                     )
-                    .wrap()
+                    
             } else {
                 property_name.clone()
             };
@@ -931,7 +931,7 @@ impl TransformClassFields {
                     receiver.node_wrapper(),
                     weak_set_name.clone(),
                 ))
-                .wrap(),
+                ,
         );
     }
 }
