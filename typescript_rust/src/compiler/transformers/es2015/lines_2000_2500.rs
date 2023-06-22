@@ -472,13 +472,12 @@ impl TransformES2015 {
         &self,
         node: &Node, /*LabeledStatement*/
     ) -> io::Result<VisitResult> /*<Statement>*/ {
-        self.maybe_converted_loop_state()
-            .map(|converted_loop_state| {
-                converted_loop_state
-                    .borrow_mut()
-                    .labels
-                    .get_or_insert_default_();
-            });
+        if let Some(converted_loop_state) = self.maybe_converted_loop_state() {
+            converted_loop_state
+                .borrow_mut()
+                .labels
+                .get_or_insert_default_();
+        }
         let ref statement = unwrap_innermost_statement_of_label(
             node,
             self.maybe_converted_loop_state().map(|_| {

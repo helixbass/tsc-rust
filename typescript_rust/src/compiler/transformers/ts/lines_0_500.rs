@@ -503,6 +503,7 @@ impl TransformTypeScript {
     }
 
     pub(super) fn modifier_visitor(&self, node: &Node) -> VisitResult /*<Node>*/ {
+        #[allow(clippy::if_same_then_else)]
         if modifier_to_flag(node.kind()).intersects(ModifierFlags::TypeScriptModifier) {
             return None;
         } else if self.maybe_current_namespace().is_some()

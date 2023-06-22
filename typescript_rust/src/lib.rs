@@ -2,7 +2,12 @@
     non_upper_case_globals,
     non_snake_case,
     clippy::collapsible_else_if,
-    clippy::collapsible_if
+    clippy::collapsible_if,
+    clippy::type_complexity,
+    clippy::too_many_arguments,
+    clippy::enum_variant_names,
+    clippy::into_iter_on_ref,
+    clippy::toplevel_ref_arg
 )]
 #[macro_use]
 extern crate lazy_static;

@@ -451,6 +451,7 @@ impl TransformTypeScript {
         }
 
         let mut statements: Vec<Gc<Node /*Statement*/>> = Default::default();
+        #[allow(clippy::needless_late_init)]
         let index_of_first_statement: usize/* = 0*/;
 
         self.context.resume_lexical_environment();

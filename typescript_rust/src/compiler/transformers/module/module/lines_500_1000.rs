@@ -377,8 +377,8 @@ impl TransformModule {
                 None => true,
                 Some(first_argument) => {
                     !is_string_literal(first_argument)
-                        || &*first_argument.as_string_literal().text()
-                            != &*external_module_name.as_string_literal().text()
+                        || *first_argument.as_string_literal().text()
+                            != *external_module_name.as_string_literal().text()
                 }
             })
             .or(first_argument);

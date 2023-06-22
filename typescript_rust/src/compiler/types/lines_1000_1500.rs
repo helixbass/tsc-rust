@@ -81,10 +81,6 @@ mod _NodeArrayDeriveTraceScope {
             self.rc_wrapper().into()
         }
 
-        pub fn len(&self) -> usize {
-            self._nodes.len()
-        }
-
         pub fn to_vec(&self) -> Vec<Gc<Node>> {
             self._nodes.clone()
         }

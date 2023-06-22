@@ -315,7 +315,7 @@ impl TransformGenerators {
                 self.maybe_label_numbers_mut()
                     .get_or_insert_default_()
                     .entry(self.label_number())
-                    .or_insert_with(|| _d())
+                    .or_default()
                     .push(label);
             }
         }

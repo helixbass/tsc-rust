@@ -22,7 +22,7 @@ impl TransformGenerators {
         let saved_in_statement_containing_yield = self.maybe_in_statement_containing_yield();
         self.set_in_generator_function_body(Some(false));
         self.set_in_statement_containing_yield(Some(false));
-        let node = visit_each_child(&node, |node: &Node| self.visitor(node), &**self.context);
+        let node = visit_each_child(node, |node: &Node| self.visitor(node), &**self.context);
         self.set_in_generator_function_body(saved_in_generator_function_body);
         self.set_in_statement_containing_yield(saved_in_statement_containing_yield);
         Some(node.into())
@@ -43,7 +43,7 @@ impl TransformGenerators {
         let saved_operations = self.maybe_operations().clone();
         let saved_operation_arguments = self.maybe_operation_arguments().clone();
         let saved_operation_locations = self.maybe_operation_locations().clone();
-        let saved_state = self.maybe_state().clone();
+        let saved_state = self.maybe_state();
 
         self.set_in_generator_function_body(Some(true));
         self.set_in_statement_containing_yield(Some(false));
@@ -165,11 +165,10 @@ impl TransformGenerators {
         let left = &node_as_binary_expression.left;
         let right = &node_as_binary_expression.right;
         if self.contains_yield(Some(&**right)) {
-            let target: Gc<Node /*Expression*/>;
-            match left.kind() {
+            let target: Gc<Node /*Expression*/> = match left.kind() {
                 SyntaxKind::PropertyAccessExpression => {
                     let left_as_property_access_expression = left.as_property_access_expression();
-                    target = self.factory.update_property_access_expression(
+                    self.factory.update_property_access_expression(
                         left,
                         self.cache_expression(&visit_node(
                             &left_as_property_access_expression.expression,
@@ -178,11 +177,11 @@ impl TransformGenerators {
                             Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
                         )),
                         left_as_property_access_expression.name.clone(),
-                    );
+                    )
                 }
                 SyntaxKind::ElementAccessExpression => {
                     let left_as_element_access_expression = left.as_element_access_expression();
-                    target = self.factory.update_element_access_expression(
+                    self.factory.update_element_access_expression(
                         left,
                         self.cache_expression(&visit_node(
                             &left_as_element_access_expression.expression,
@@ -196,17 +195,15 @@ impl TransformGenerators {
                             Some(is_expression),
                             Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
                         )),
-                    );
+                    )
                 }
-                _ => {
-                    target = visit_node(
-                        left,
-                        Some(|node: &Node| self.visitor(node)),
-                        Some(is_expression),
-                        Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
-                    );
-                }
-            }
+                _ => visit_node(
+                    left,
+                    Some(|node: &Node| self.visitor(node)),
+                    Some(is_expression),
+                    Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                ),
+            };
 
             let operator = node_as_binary_expression.operator_token.kind();
             if is_compound_assignment(operator) {
@@ -243,7 +240,7 @@ impl TransformGenerators {
             }
         }
 
-        visit_each_child(&node, |node: &Node| self.visitor(node), &**self.context)
+        visit_each_child(node, |node: &Node| self.visitor(node), &**self.context)
     }
 
     pub(super) fn visit_left_associative_binary_expression(
@@ -276,7 +273,7 @@ impl TransformGenerators {
             );
         }
 
-        visit_each_child(&node, |node: &Node| self.visitor(node), &**self.context)
+        visit_each_child(node, |node: &Node| self.visitor(node), &**self.context)
     }
 
     pub(super) fn visit_comma_expression(&self, node: &Node /*BinaryExpression*/) -> Gc<Node> {
@@ -314,7 +311,7 @@ impl TransformGenerators {
                     Some(
                         self.factory
                             .create_expression_statement(
-                                self.factory.inline_expressions(&pending_expressions),
+                                self.factory.inline_expressions(pending_expressions),
                             )
                             .into(),
                     ),
@@ -462,7 +459,7 @@ impl TransformGenerators {
             return result_local;
         }
 
-        visit_each_child(&node, |node: &Node| self.visitor(node), &**self.context)
+        visit_each_child(node, |node: &Node| self.visitor(node), &**self.context)
     }
 
     pub(super) fn visit_yield_expression(

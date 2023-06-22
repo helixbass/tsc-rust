@@ -41,9 +41,9 @@ impl TransformTypeScript {
             current_scope_first_declarations_of_name.get_or_insert_default_();
 
         let name = self.declared_name_in_scope(node);
-        if !current_scope_first_declarations_of_name.contains_key(&name) {
-            current_scope_first_declarations_of_name.insert(name, node.node_wrapper());
-        }
+        current_scope_first_declarations_of_name
+            .entry(name)
+            .or_insert_with(|| node.node_wrapper());
     }
 
     pub(super) fn is_first_emitted_declaration_in_scope(
@@ -342,6 +342,7 @@ impl TransformTypeScript {
         Ok(block)
     }
 
+    #[allow(clippy::only_used_in_recursion)]
     pub(super) fn get_inner_most_module_declaration_from_dotted_module(
         &self,
         module_declaration: &Node, /*ModuleDeclaration*/

@@ -176,7 +176,7 @@ impl TransformJsx {
             .utilized_implicit_runtime_imports
             .get_or_insert_default_()
             .entry(import_source)
-            .or_insert_with(|| _d());
+            .or_default();
         let generated_name = self.factory.create_unique_name(
             &format!("_{name}"),
             Some(
@@ -979,13 +979,13 @@ impl TransformJsx {
             let hex = captures.get(5);
             let word = captures.get(6);
             if let Some(decimal) = decimal {
-                utf16_encode_as_string(u32::from_str_radix(decimal.as_str(), 10).unwrap())
+                utf16_encode_as_string(decimal.as_str().parse().unwrap())
             } else if let Some(hex) = hex {
                 utf16_encode_as_string(u32::from_str_radix(hex.as_str(), 16).unwrap())
             } else {
                 let word = word.unwrap();
                 let ch = entities.get(&word.as_str()).copied();
-                ch.map_or_else(|| match_.to_owned(), |ch| utf16_encode_as_string(ch))
+                ch.map_or_else(|| match_.to_owned(), utf16_encode_as_string)
             }
         })
     }

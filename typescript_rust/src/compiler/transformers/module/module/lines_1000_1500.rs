@@ -104,9 +104,7 @@ impl TransformModule {
         node: &Node, /*ExportDeclaration*/
     ) -> VisitResult /*<Statement>*/ {
         let node_as_export_declaration = node.as_export_declaration();
-        if node_as_export_declaration.module_specifier.is_none() {
-            return None;
-        }
+        node_as_export_declaration.module_specifier.as_ref()?;
 
         let generated_name = self.factory.get_generated_name_for_node(Some(node), None);
 

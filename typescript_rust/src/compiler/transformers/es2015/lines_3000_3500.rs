@@ -394,10 +394,7 @@ impl TransformES2015 {
             call
         };
         if is_simple_loop {
-            statements.push(
-                self.factory
-                    .create_expression_statement(call_result.clone()),
-            );
+            statements.push(self.factory.create_expression_statement(call_result));
             self.copy_out_parameters(
                 &state.loop_out_parameters,
                 LoopOutParameterFlags::Body,
@@ -490,7 +487,7 @@ impl TransformES2015 {
                     state.labeled_non_local_continues.as_ref(),
                     false,
                     &loop_result_name,
-                    outer_state.clone(),
+                    outer_state,
                     &mut case_clauses,
                 );
                 statements.push(self.factory.create_switch_statement(

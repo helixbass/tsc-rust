@@ -40,6 +40,7 @@ use crate::{
     unescape_leading_underscores, BaseTransientSymbol, CheckFlags, Debug_, Diagnostic,
     DiagnosticMessage, Node, NodeInterface, NodeLinks, Symbol, SymbolFlags, SymbolInterface,
     SymbolLinks, SymbolTable, SyntaxKind, TransientSymbol, TransientSymbolInterface, TypeChecker,
+    _d,
 };
 
 impl TypeChecker {
@@ -989,7 +990,7 @@ impl TypeChecker {
         if let Some(symbol_links) = symbol_links_table.get(&id) {
             return symbol_links.clone();
         }
-        let symbol_links = Gc::new(GcCell::new(SymbolLinks::new()));
+        let symbol_links: Gc<GcCell<SymbolLinks>> = _d();
         symbol_links_table.insert(id, symbol_links.clone());
         symbol_links
     }

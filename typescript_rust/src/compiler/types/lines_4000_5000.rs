@@ -1258,8 +1258,8 @@ pub struct SymbolLinks {
     pub accessible_chain_cache: Option<HashMap<String, Option<Vec<Gc<Symbol>>>>>,
 }
 
-impl SymbolLinks {
-    pub fn new() -> Self {
+impl Default for SymbolLinks {
+    fn default() -> Self {
         Self {
             immediate_target: None,
             target: None,
@@ -1387,6 +1387,8 @@ mod _TransientSymbolTraceDeriveScope {
 }
 pub use _TransientSymbolTraceDeriveScope::TransientSymbol;
 
+use crate::_d;
+
 #[derive(Debug, Finalize, Trace)]
 #[symbol_type(ancestors = "TransientSymbol")]
 pub struct BaseTransientSymbol {
@@ -1400,7 +1402,7 @@ impl BaseTransientSymbol {
     pub fn new(base_symbol: BaseSymbol, check_flags: CheckFlags) -> Self {
         Self {
             _symbol: base_symbol,
-            _symbol_links: Gc::new(GcCell::new(SymbolLinks::new())),
+            _symbol_links: _d(),
             check_flags: Cell::new(check_flags),
         }
     }

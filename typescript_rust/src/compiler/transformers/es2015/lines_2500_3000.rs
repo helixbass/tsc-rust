@@ -72,10 +72,10 @@ impl TransformES2015 {
             self.factory.inline_expressions(&[
                 self.factory
                     .create_assignment(error_record.clone(), self.factory.create_void_zero()),
-                values.clone(),
+                values,
             ])
         } else {
-            values.clone()
+            values
         };
 
         let for_statement = self
@@ -388,6 +388,7 @@ impl TransformES2015 {
         );
     }
 
+    #[allow(clippy::only_used_in_recursion)]
     pub(super) fn hoist_variable_declaration_declared_in_converted_loop_visit(
         &self,
         state: &mut ConvertedLoopState,
@@ -533,7 +534,7 @@ impl TransformES2015 {
         self.add_extra_declarations_for_converted_loop(
             &mut statements,
             &(*current_state).borrow(),
-            outer_converted_loop_state.clone(),
+            outer_converted_loop_state,
         );
 
         if let Some(initializer_function) = initializer_function.as_ref() {

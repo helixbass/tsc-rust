@@ -177,16 +177,14 @@ pub(super) fn get_module_instance_state_worker(
                 |n| {
                     let child_state = get_module_instance_state_cached(n, Some(visited.clone()));
                     match child_state {
-                        ModuleInstanceState::NonInstantiated => {
-                            return None;
-                        }
+                        ModuleInstanceState::NonInstantiated => None,
                         ModuleInstanceState::ConstEnumOnly => {
                             state = ModuleInstanceState::ConstEnumOnly;
-                            return None;
+                            None
                         }
                         ModuleInstanceState::Instantiated => {
                             state = ModuleInstanceState::Instantiated;
-                            return Some(());
+                            Some(())
                         } // _ => Debug_.assert_never(child_state)
                     }
                 },
@@ -217,8 +215,7 @@ pub(super) fn get_module_instance_state_for_alias_target(
     let specifier_as_export_specifier = specifier.as_export_specifier();
     let name: Gc<Node> = specifier_as_export_specifier
         .property_name
-        .as_ref()
-        .map(|property_name| property_name.clone())
+        .clone()
         .unwrap_or_else(|| specifier_as_export_specifier.name.clone());
     let mut p: Option<Gc<Node>> = specifier.maybe_parent();
     while let Some(p_present) = p {
@@ -662,11 +659,7 @@ impl BinderType {
     }
 
     pub(super) fn classifiable_names(&self) -> Rc<RefCell<HashSet<__String>>> {
-        self.classifiable_names
-            .borrow()
-            .as_ref()
-            .map(|rc| rc.clone())
-            .unwrap()
+        self.classifiable_names.borrow().clone().unwrap()
     }
 
     pub(super) fn set_classifiable_names(
@@ -927,7 +920,7 @@ impl BinderType {
                     &node.node_wrapper(),
                     |a, b| Gc::ptr_eq(a, b),
                 );
-                return Some(format!("arg{}", index).into());
+                Some(format!("arg{}", index).into())
             }
             _ => None,
         }

@@ -843,43 +843,43 @@ impl TransformModule {
         statements: &mut Vec<Gc<Node /*Statement*/>>,
         emit_as_return: bool,
     ) -> io::Result<()> {
-        Ok(
-            if let Some(current_module_info_export_equals) =
-                self.current_module_info().export_equals.as_ref()
-            {
-                let expression_result = try_visit_node(
-                    &current_module_info_export_equals
-                        .as_export_assignment()
-                        .expression,
-                    Some(|node: &Node| self.visitor(node)),
-                    Option::<fn(&Node) -> bool>::None,
-                    Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
-                )?;
-                // if (expressionResult) {
-                if emit_as_return {
-                    let statement = self
-                        .factory
-                        .create_return_statement(Some(expression_result))
-                        .set_text_range(Some(&**current_module_info_export_equals))
-                        .set_emit_flags(EmitFlags::NoTokenSourceMaps | EmitFlags::NoComments);
-                    statements.push(statement);
-                } else {
-                    let statement = self
-                        .factory
-                        .create_expression_statement(self.factory.create_assignment(
-                            self.factory.create_property_access_expression(
-                                self.factory.create_identifier("module"),
-                                "exports",
-                            ),
-                            expression_result,
-                        ))
-                        .set_text_range(Some(&**current_module_info_export_equals))
-                        .set_emit_flags(EmitFlags::NoComments);
-                    statements.push(statement);
-                }
-                // }
-            },
-        )
+        if let Some(current_module_info_export_equals) =
+            self.current_module_info().export_equals.as_ref()
+        {
+            let expression_result = try_visit_node(
+                &current_module_info_export_equals
+                    .as_export_assignment()
+                    .expression,
+                Some(|node: &Node| self.visitor(node)),
+                Option::<fn(&Node) -> bool>::None,
+                Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+            )?;
+            // if (expressionResult) {
+            if emit_as_return {
+                let statement = self
+                    .factory
+                    .create_return_statement(Some(expression_result))
+                    .set_text_range(Some(&**current_module_info_export_equals))
+                    .set_emit_flags(EmitFlags::NoTokenSourceMaps | EmitFlags::NoComments);
+                statements.push(statement);
+            } else {
+                let statement = self
+                    .factory
+                    .create_expression_statement(self.factory.create_assignment(
+                        self.factory.create_property_access_expression(
+                            self.factory.create_identifier("module"),
+                            "exports",
+                        ),
+                        expression_result,
+                    ))
+                    .set_text_range(Some(&**current_module_info_export_equals))
+                    .set_emit_flags(EmitFlags::NoComments);
+                statements.push(statement);
+            }
+            // }
+        }
+
+        Ok(())
     }
 }
 
@@ -914,7 +914,7 @@ impl TransformationContextOnEmitNodeOverrider for TransformModuleOnEmitNodeOverr
         node: &Node,
         emit_callback: &dyn Fn(EmitHint, &Node) -> io::Result<()>,
     ) -> io::Result<()> {
-        Ok(if node.kind() == SyntaxKind::SourceFile {
+        if node.kind() == SyntaxKind::SourceFile {
             self.transform_module
                 .set_current_source_file(Some(node.node_wrapper()));
             self.transform_module.set_current_module_info(
@@ -934,7 +934,9 @@ impl TransformationContextOnEmitNodeOverrider for TransformModuleOnEmitNodeOverr
         } else {
             self.previous_on_emit_node
                 .on_emit_node(hint, node, emit_callback)?;
-        })
+        }
+
+        Ok(())
     }
 }
 
@@ -1057,6 +1059,7 @@ impl TransformModuleOnSubstituteNodeOverrider {
         node: &Node, /*Identifier*/
     ) -> io::Result<Gc<Node /*Expression*/>> {
         let node_as_identifier = node.as_identifier();
+        #[allow(clippy::nonminimal_bool)]
         if get_emit_flags(node).intersects(EmitFlags::HelperName) {
             let external_helpers_module_name =
                 get_external_helpers_module_name(&self.transform_module.current_source_file());
@@ -1137,7 +1140,7 @@ impl TransformModuleOnSubstituteNodeOverrider {
                                 ),
                                 None,
                             ),
-                            self.transform_module.factory.clone_node(&name),
+                            self.transform_module.factory.clone_node(name),
                         )
                         .set_text_range(Some(node)));
                 }

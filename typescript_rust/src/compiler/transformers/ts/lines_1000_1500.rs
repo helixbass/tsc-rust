@@ -36,13 +36,7 @@ impl TransformTypeScript {
         node: &Node,     /*ClassExpression | ClassDeclaration*/
         accessor: &Node, /*AccessorDeclaration*/
     ) -> Option<AllDecorators> {
-        if accessor
-            .as_function_like_declaration()
-            .maybe_body()
-            .is_none()
-        {
-            return None;
-        }
+        accessor.as_function_like_declaration().maybe_body()?;
 
         let AllAccessorDeclarations {
             first_accessor,
@@ -51,12 +45,12 @@ impl TransformTypeScript {
             ..
         } = get_all_accessor_declarations(&node.as_class_like_declaration().members(), accessor);
         let first_accessor_with_decorators = if first_accessor.maybe_decorators().is_some() {
-            Some(first_accessor.clone())
+            Some(first_accessor)
         } else if second_accessor
             .as_ref()
             .matches(|second_accessor| second_accessor.maybe_decorators().is_some())
         {
-            second_accessor.clone()
+            second_accessor
         } else {
             None
         };
@@ -82,9 +76,7 @@ impl TransformTypeScript {
         method: &Node, /*MethodDeclaration*/
     ) -> Option<AllDecorators> {
         let method_as_method_declaration = method.as_method_declaration();
-        if method_as_method_declaration.maybe_body().is_none() {
-            return None;
-        }
+        method_as_method_declaration.maybe_body()?;
 
         let decorators = method.maybe_decorators();
         let parameters = self.get_decorators_of_parameters(Some(method));
@@ -102,13 +94,10 @@ impl TransformTypeScript {
         &self,
         property: &Node, /*PropertyDeclaration*/
     ) -> Option<AllDecorators> {
-        let decorators = property.maybe_decorators();
-        if decorators.is_none() {
-            return None;
-        }
+        let decorators = property.maybe_decorators()?;
 
         Some(AllDecorators {
-            decorators: decorators.map(Into::into),
+            decorators: Some(decorators.into()),
             parameters: None,
         })
     }

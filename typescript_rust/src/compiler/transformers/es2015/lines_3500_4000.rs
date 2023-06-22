@@ -65,6 +65,7 @@ impl TransformES2015 {
             HierarchyFacts::BlockScopeExcludes,
             HierarchyFacts::BlockScopeIncludes,
         );
+        #[allow(clippy::needless_late_init)]
         let updated: Gc<Node /*CatchClause*/>;
         Debug_.assert(
             node_as_catch_clause.variable_declaration.is_some(),
@@ -688,7 +689,7 @@ impl TransformES2015 {
         let segments = flatten(&try_span_map(
             elements,
             |node: &Gc<Node>, _| -> Rc<dyn PartitionSpread> {
-                if is_spread_element(&node) {
+                if is_spread_element(node) {
                     Rc::new(PartitionSpreadVisitSpanOfSpreads::new(self.rc_wrapper()))
                 } else {
                     Rc::new(PartitionSpreadVisitSpanOfNonSpreads::new(self.rc_wrapper()))

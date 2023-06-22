@@ -55,7 +55,7 @@ impl NodeBuilder {
             context.set_flags(context.flags() | NodeBuilderFlags::InInitialEntityName);
             symbol_name = Some(
                 self.type_checker
-                    .get_name_of_symbol_as_written(&symbol, Some(context))
+                    .get_name_of_symbol_as_written(symbol, Some(context))
                     .into_owned(),
             );
             context.increment_approximate_length_by(
@@ -91,7 +91,7 @@ impl NodeBuilder {
         if symbol_name.is_none() {
             symbol_name = Some(
                 self.type_checker
-                    .get_name_of_symbol_as_written(&symbol, Some(context))
+                    .get_name_of_symbol_as_written(symbol, Some(context))
                     .into_owned(),
             );
         }
@@ -113,7 +113,7 @@ impl NodeBuilder {
                     )?.is_some()
                 ))
             })? {
-                let ref lhs = self.create_access_from_symbol_chain(
+                let lhs = &self.create_access_from_symbol_chain(
                     context,
                     override_type_arguments,
                     chain,
@@ -223,7 +223,7 @@ impl NodeBuilder {
             .flags()
             .intersects(NodeBuilderFlags::GenerateNamesForShadowedTypeParams)
         {
-            let rawtext = (&*result.as_identifier().escaped_text).to_owned();
+            let rawtext = result.as_identifier().escaped_text.clone();
             let mut i = (*context.type_parameter_names_by_text_next_name_count)
                 .borrow()
                 .as_ref()
@@ -245,7 +245,7 @@ impl NodeBuilder {
             if text != rawtext {
                 result = get_factory().create_identifier_full(
                     &text,
-                    result.as_identifier().maybe_type_arguments().clone(),
+                    result.as_identifier().maybe_type_arguments(),
                     None,
                 );
             }
@@ -263,7 +263,7 @@ impl NodeBuilder {
                 .type_parameter_names_by_text
                 .borrow_mut()
                 .get_or_insert_default_()
-                .insert(rawtext.clone());
+                .insert(rawtext);
         }
         Ok(result)
     }
@@ -374,7 +374,7 @@ impl NodeBuilder {
         let can_use_property_access = if first_char == CharacterCodes::hash {
             symbol_name.len() > 1
                 && is_identifier_start(
-                    symbol_name.chars().skip(1).next().unwrap(),
+                    symbol_name.chars().nth(1).unwrap(),
                     Some(self.type_checker.language_version),
                 )
         } else {
@@ -606,8 +606,7 @@ impl NodeBuilder {
                     Some(initial_type_parameter_symbol_list.as_ref().unwrap().clone());
             }
         }
-        let initial_tracker =
-            wrap_symbol_tracker_to_report_for_context(context.clone(), initial.tracker());
+        let initial_tracker = wrap_symbol_tracker_to_report_for_context(context, initial.tracker());
         initial.set_tracker(Gc::new(Box::new(initial_tracker)));
         initial
     }
@@ -1169,7 +1168,7 @@ impl NodeBuilder {
                 let mut new_type_node: Option<Gc<Node>> = None;
                 return Ok(Some(
                     get_factory().create_constructor_type_node(
-                        node_as_jsdoc_function_type.maybe_modifiers().clone(),
+                        node_as_jsdoc_function_type.maybe_modifiers(),
                         try_maybe_visit_nodes(
                             node_as_jsdoc_function_type.maybe_type_parameters().as_deref(),
                             Some(|node: &Node| self.visit_existing_node_tree_symbols(context, had_error, include_private_symbol, file, node)),
@@ -1208,7 +1207,7 @@ impl NodeBuilder {
                         )?,
                         Some(
                             try_maybe_visit_node(
-                                new_type_node.clone().or_else(|| node_as_jsdoc_function_type.maybe_type()),
+                                new_type_node.or_else(|| node_as_jsdoc_function_type.maybe_type()),
                                 Some(|node: &Node| self.visit_existing_node_tree_symbols(context, had_error, include_private_symbol, file, node)),
                                 Option::<fn(&Node) -> bool>::None,
                                 Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
@@ -1323,6 +1322,7 @@ impl NodeBuilder {
                 .resolved_symbol
                 .clone();
             let node_as_import_type_node = node.as_import_type_node();
+            #[allow(clippy::nonminimal_bool)]
             if is_in_jsdoc(Some(node))
                 && matches!(
                     node_symbol.as_ref(),

@@ -1975,7 +1975,7 @@ impl NodeInterface for BaseNode {
     }
 
     fn maybe_local_symbol(&self) -> Option<Gc<Symbol>> {
-        self.local_symbol.borrow().as_ref().map(|rc| rc.clone())
+        self.local_symbol.borrow().clone()
     }
 
     fn set_local_symbol(&self, local_symbol: Option<Gc<Symbol>>) {
@@ -2069,7 +2069,7 @@ impl Clone for BaseNode {
             _node_wrapper: Default::default(),
             _id_override: self._id_override.clone(),
             _symbol_override: self._symbol_override.clone(),
-            kind: self.kind.clone(),
+            kind: self.kind,
             flags: self.flags.clone(),
             modifier_flags_cache: self.modifier_flags_cache.clone(),
             transform_flags: self.transform_flags.clone(),

@@ -132,6 +132,7 @@ impl TransformTypeScript {
         node: &Node, /*ClassDeclaration*/
     ) -> io::Result<VisitResult> /*<Statement>*/ {
         let node_as_class_declaration = node.as_class_declaration();
+        #[allow(clippy::nonminimal_bool)]
         if !self.is_class_like_declaration_with_type_script_syntax(node)
             && !(self.maybe_current_namespace().is_some()
                 && has_syntactic_modifier(node, ModifierFlags::Export))

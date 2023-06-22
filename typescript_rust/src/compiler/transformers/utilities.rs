@@ -102,6 +102,7 @@ pub fn get_non_assignment_operator_for_compound_assignment(
     unimplemented!()
 }
 
+#[allow(clippy::ptr_arg)]
 pub fn add_prologue_directives_and_initial_super_call(
     _factory: &NodeFactory<impl 'static + BaseNodeFactory + Trace + Finalize>,
     _ctor: &Node, /*ConstructorDeclaration*/
@@ -111,6 +112,7 @@ pub fn add_prologue_directives_and_initial_super_call(
     unimplemented!()
 }
 
+#[allow(clippy::ptr_arg)]
 pub fn try_add_prologue_directives_and_initial_super_call(
     _factory: &NodeFactory<impl 'static + BaseNodeFactory + Trace + Finalize>,
     _ctor: &Node, /*ConstructorDeclaration*/

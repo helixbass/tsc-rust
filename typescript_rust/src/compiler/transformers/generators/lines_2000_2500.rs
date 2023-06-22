@@ -319,6 +319,7 @@ impl TransformGenerators {
                 loop {
                     let block = block_stack[i].clone();
                     let block = (*block).borrow();
+                    #[allow(clippy::if_same_then_else)]
                     if self.supports_labeled_break_or_continue(&block)
                         && block.as_labeled_block().label_text == label_text
                     {
@@ -394,7 +395,7 @@ impl TransformGenerators {
             let expression = self.factory.create_numeric_literal(Number::new(-1.0), None);
             label_expressions
                 .entry(label)
-                .or_insert_with(|| _d())
+                .or_default()
                 .push(expression.clone());
 
             return expression;

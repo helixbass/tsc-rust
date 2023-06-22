@@ -85,7 +85,7 @@ pub fn text_len(text: &SourceTextAsChars) -> usize {
 }
 
 pub fn maybe_text_char_at_index(text: &SourceTextAsChars, index: usize) -> Option<char> {
-    text.get(index).map(|ch| *ch)
+    text.get(index).copied()
 }
 
 pub fn text_char_at_index(text: &SourceTextAsChars, index: usize) -> char {
@@ -1124,7 +1124,7 @@ impl InputFilesInitializedWithReadFileCallback {
         let mut cache = self.cache_mut();
         let mut value = cache.get(path).cloned();
         if value.is_none() {
-            value = self.read_file_callback.call(path).map(|value| Some(value));
+            value = self.read_file_callback.call(path).map(Some);
             cache.insert(
                 path.to_owned(),
                 match value.clone() {

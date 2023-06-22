@@ -40,7 +40,7 @@ impl TransformGenerators {
                             self.factory
                                 .create_property_access_expression(keys_array.clone(), "push"),
                             Option::<Gc<NodeArray>>::None,
-                            Some(vec![key.clone()]),
+                            Some(vec![key]),
                         ),
                     ),
                 ),
@@ -67,8 +67,7 @@ impl TransformGenerators {
                 Option::<&Node>::None,
             );
 
-            let variable: Gc<Node /*Expression*/>;
-            if is_variable_declaration_list(initializer) {
+            let variable: Gc<Node /*Expression*/> = if is_variable_declaration_list(initializer) {
                 let initializer_as_variable_declaration_list =
                     initializer.as_variable_declaration_list();
                 for variable in &initializer_as_variable_declaration_list.declarations {
@@ -76,19 +75,19 @@ impl TransformGenerators {
                         .hoist_variable_declaration(&variable.as_variable_declaration().name());
                 }
 
-                variable = self.factory.clone_node(
+                self.factory.clone_node(
                     &initializer_as_variable_declaration_list.declarations[0]
                         .as_variable_declaration()
                         .name(),
-                );
+                )
             } else {
-                variable = visit_node(
+                visit_node(
                     initializer,
                     Some(|node: &Node| self.visitor(node)),
                     Some(is_expression),
                     Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
-                );
-            }
+                )
+            };
 
             self.emit_assignment(
                 variable,
@@ -198,7 +197,7 @@ impl TransformGenerators {
             }
         }
 
-        visit_each_child(&node, |node: &Node| self.visitor(node), &**self.context)
+        visit_each_child(node, |node: &Node| self.visitor(node), &**self.context)
     }
 
     pub(super) fn transform_and_emit_break_statement(&self, node: &Node /*BreakStatement*/) {
@@ -233,7 +232,7 @@ impl TransformGenerators {
             }
         }
 
-        visit_each_child(&node, |node: &Node| self.visitor(node), &**self.context)
+        visit_each_child(node, |node: &Node| self.visitor(node), &**self.context)
     }
 
     pub(super) fn transform_and_emit_return_statement(&self, node: &Node /*ReturnStatement*/) {
@@ -375,8 +374,8 @@ impl TransformGenerators {
                 self.emit_break(end_label, Option::<&Node>::None);
             }
 
-            for i in 0..num_clauses {
-                self.mark_label(clause_labels[i]);
+            for (i, &clause_label) in clause_labels.iter().enumerate().take(num_clauses) {
+                self.mark_label(clause_label);
                 self.transform_and_emit_statements(
                     &case_block_as_case_block.clauses[i]
                         .as_has_statements()
