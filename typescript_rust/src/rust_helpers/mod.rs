@@ -64,6 +64,7 @@ pub fn index_of<TItem, TComparer: FnMut(&TItem, &TItem) -> bool>(
     mut comparer: TComparer,
 ) -> isize {
     let mut index: isize = 0;
+    #[allow(clippy::int_plus_one)]
     while index <= isize::try_from(slice.len()).unwrap() - 1 {
         if comparer(&slice[usize::try_from(index).unwrap()], item) {
             return index;

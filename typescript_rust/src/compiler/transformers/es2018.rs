@@ -1191,6 +1191,7 @@ impl TransformES2018 {
                     &initializer_without_parens,
                     &temp,
                 )];
+            #[allow(clippy::suspicious_else_formatting)]
             if is_block(&node_as_for_of_statement.statement) {
                 let node_statement_as_block = node_as_for_of_statement.statement.as_block();
                 add_range(

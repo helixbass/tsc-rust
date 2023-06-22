@@ -459,6 +459,7 @@ pub fn get_effective_type_roots(
     }
 
     let current_directory: Option<String>;
+    #[allow(clippy::suspicious_else_formatting)]
     if let Some(options_config_file_path) = options.config_file_path.as_ref() {
         current_directory = Some(get_directory_path(options_config_file_path));
     } else

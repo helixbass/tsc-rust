@@ -43,7 +43,7 @@ lazy_static! {
     pub(super) static ref ambient_module_symbol_regex: Regex = Regex::new(r#"^".+"$"#).unwrap();
 }
 
-pub(super) const anon: &'static str/*__String*/ = "(anonymous)";
+pub(super) const anon: &str/*__String*/ = "(anonymous)";
 
 thread_local! {
     pub(super) static next_symbol_id: Cell<SymbolId> = Cell::new(1);

@@ -225,6 +225,7 @@ impl TypeChecker {
         ) {
             self.get_type_from_this_type_node(parameter_name)?;
         } else {
+            #[allow(clippy::suspicious_else_formatting)]
             if let Some(type_predicate_parameter_index) = type_predicate.parameter_index {
                 if signature_has_rest_parameter(&signature)
                     && type_predicate_parameter_index == signature.parameters().len() - 1

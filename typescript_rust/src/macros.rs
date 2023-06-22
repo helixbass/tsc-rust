@@ -71,7 +71,7 @@ macro_rules! debug_fail_if_none {
     ($expr:expr $(,)?) => {
         match $expr {
             None => {
-                crate::Debug_.fail(None);
+                $crate::Debug_.fail(None);
             }
             Some(expr) => expr,
         }
@@ -79,7 +79,7 @@ macro_rules! debug_fail_if_none {
     ($expr:expr , $message:expr $(,)?) => {
         match $expr {
             None => {
-                crate::Debug_.fail(Some($message));
+                $crate::Debug_.fail(Some($message));
             }
             Some(expr) => expr,
         }

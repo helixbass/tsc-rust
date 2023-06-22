@@ -177,7 +177,7 @@ pub trait FileWatcher {
     fn close(&self);
 }
 
-const byte_order_mark_indicator: &'static str = "\u{FEFF}";
+const byte_order_mark_indicator: &str = "\u{FEFF}";
 
 #[derive(Trace, Finalize)]
 pub struct SystemConcrete {
@@ -533,6 +533,6 @@ fn is_file_system_case_sensitive() -> bool {
 }
 
 #[cfg(windows)]
-const LINE_ENDING: &'static str = "\r\n";
+const LINE_ENDING: &str = "\r\n";
 #[cfg(not(windows))]
-const LINE_ENDING: &'static str = "\n";
+const LINE_ENDING: &str = "\n";

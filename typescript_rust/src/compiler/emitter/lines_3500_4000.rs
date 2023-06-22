@@ -172,6 +172,7 @@ impl Printer {
         } else {
             Some(vec![])
         };
+        #[allow(clippy::unused_unit)]
         for_each_trailing_comment_range(
             current_source_file
                 .as_ref()
@@ -197,6 +198,7 @@ impl Printer {
         } else {
             Some(vec![])
         };
+        #[allow(clippy::unused_unit)]
         for_each_leading_comment_range(
             current_source_file
                 .as_ref()

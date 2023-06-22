@@ -1581,15 +1581,15 @@ pub(super) fn is_declaration_name_or_import_property_name(name: &Node) -> bool {
 }
 
 pub(super) mod JsxNames {
-    pub const JSX: &'static str /*__String*/ = "JSX";
-    pub const IntrinsicElements: &'static str /*__String*/ = "IntrinsicElements";
-    pub const ElementClass: &'static str /*__String*/ = "ElementClass";
-    pub const ElementAttributesPropertyNameContainer: &'static str /*__String*/ = "ElementAttributesProperty";
-    pub const ElementChildrenAttributeNameContainer: &'static str /*__String*/ = "ElementChildrenAttribute";
-    pub const Element: &'static str /*__String*/ = "Element";
-    pub const IntrinsicAttributes: &'static str /*__String*/ = "IntrinsicAttributes";
-    pub const IntrinsicClassAttributes: &'static str /*__String*/ = "IntrinsicClassAttributes";
-    pub const LibraryManagedAttributes: &'static str /*__String*/ = "LibraryManagedAttributes";
+    pub const JSX: &str /*__String*/ = "JSX";
+    pub const IntrinsicElements: &str /*__String*/ = "IntrinsicElements";
+    pub const ElementClass: &str /*__String*/ = "ElementClass";
+    pub const ElementAttributesPropertyNameContainer: &str /*__String*/ = "ElementAttributesProperty";
+    pub const ElementChildrenAttributeNameContainer: &str /*__String*/ = "ElementChildrenAttribute";
+    pub const Element: &str /*__String*/ = "Element";
+    pub const IntrinsicAttributes: &str /*__String*/ = "IntrinsicAttributes";
+    pub const IntrinsicClassAttributes: &str /*__String*/ = "IntrinsicClassAttributes";
+    pub const LibraryManagedAttributes: &str /*__String*/ = "LibraryManagedAttributes";
 }
 
 pub(super) fn get_iteration_types_key_from_iteration_type_kind(

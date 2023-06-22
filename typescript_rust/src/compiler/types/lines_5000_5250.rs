@@ -76,23 +76,23 @@ impl ReverseMappedSymbol {
 
 #[allow(non_snake_case)]
 pub mod InternalSymbolName {
-    pub const Call: &'static str/*__String*/ = "__call";
-    pub const Constructor: &'static str/*__String*/ = "__constructor";
-    pub const New: &'static str/*__String*/ = "__new";
-    pub const Index: &'static str/*__String*/ = "__index";
-    pub const ExportStar: &'static str/*__String*/ = "__export";
-    pub const Global: &'static str/*__String*/ = "__global";
-    pub const Missing: &'static str/*__String*/ = "__missing";
-    pub const Type: &'static str/*__String*/ = "__type";
-    pub const Object: &'static str/*__String*/ = "__object";
-    pub const JSXAttributes: &'static str/*__String*/ = "__jsxAttributes";
-    pub const Class: &'static str/*__String*/ = "__class";
-    pub const Function: &'static str/*__String*/ = "__function";
-    pub const Computed: &'static str/*__String*/ = "__computed";
-    pub const Resolving: &'static str/*__String*/ = "__resolving__";
-    pub const ExportEquals: &'static str/*__String*/ = "export=";
-    pub const Default: &'static str/*__String*/ = "default";
-    pub const This: &'static str/*__String*/ = "this";
+    pub const Call: &str/*__String*/ = "__call";
+    pub const Constructor: &str/*__String*/ = "__constructor";
+    pub const New: &str/*__String*/ = "__new";
+    pub const Index: &str/*__String*/ = "__index";
+    pub const ExportStar: &str/*__String*/ = "__export";
+    pub const Global: &str/*__String*/ = "__global";
+    pub const Missing: &str/*__String*/ = "__missing";
+    pub const Type: &str/*__String*/ = "__type";
+    pub const Object: &str/*__String*/ = "__object";
+    pub const JSXAttributes: &str/*__String*/ = "__jsxAttributes";
+    pub const Class: &str/*__String*/ = "__class";
+    pub const Function: &str/*__String*/ = "__function";
+    pub const Computed: &str/*__String*/ = "__computed";
+    pub const Resolving: &str/*__String*/ = "__resolving__";
+    pub const ExportEquals: &str/*__String*/ = "export=";
+    pub const Default: &str/*__String*/ = "default";
+    pub const This: &str/*__String*/ = "this";
 }
 
 pub type __String = String;
