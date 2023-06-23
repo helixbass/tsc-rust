@@ -254,6 +254,14 @@ pub fn get_emit_helpers(node: &Node) -> Option<Vec<Gc<EmitHelper>>> {
         .and_then(|node_emit_node| (*node_emit_node).borrow().helpers.clone())
 }
 
+pub fn move_emit_helpers(
+    _source: &Node,
+    _target: &Node,
+    _predicate: impl FnMut(&EmitHelper) -> bool,
+) {
+    unimplemented!()
+}
+
 pub(crate) fn get_snippet_element(node: &Node) -> Option<SnippetElement> {
     node.maybe_emit_node()
         .and_then(|node_emit_node| (*node_emit_node).borrow().snippet_element)

@@ -193,7 +193,7 @@ pub use compiler::{
             add_emit_flags, add_emit_helper, add_emit_helpers, add_synthetic_leading_comment,
             add_synthetic_trailing_comment, dispose_emit_nodes, get_comment_range,
             get_constant_value, get_emit_helpers, get_source_map_range,
-            get_synthetic_leading_comments, get_synthetic_trailing_comments,
+            get_synthetic_leading_comments, get_synthetic_trailing_comments, move_emit_helpers,
             move_synthetic_comments, remove_all_comments, set_comment_range, set_comment_range_rc,
             set_constant_value, set_emit_flags, set_source_map_range,
             set_synthetic_leading_comments, set_synthetic_leading_comments_rc,
