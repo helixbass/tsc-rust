@@ -4,13 +4,16 @@ use gc::{Finalize, Gc, GcCell, GcCellRef, GcCellRefMut, Trace};
 
 use crate::{
     chain_bundle, BaseNodeFactorySynthetic, CompilerOptions, EmitHelperBase, EmitHint, EmitHost,
-    EmitResolver, ExternalModuleInfo, HasStatementsInterface, Node, NodeArrayExt, NodeExt,
-    NodeFactory, NodeId, NodeInterface, NonEmpty, SyntaxKind, TransformationContext,
-    TransformationContextOnEmitNodeOverrider, TransformationContextOnSubstituteNodeOverrider,
-    Transformer, TransformerFactory, TransformerFactoryInterface, TransformerInterface, _d,
-    collect_external_module_info, gc_cell_ref_mut_unwrapped, get_original_node_id,
-    is_effective_external_module, map, move_emit_helpers, out_file, try_get_module_name_from_file,
-    EmitFlags, EmitHelper, NodeArray, TransformFlags,
+    EmitResolver, ExternalModuleInfo, HasStatementsInterface, LiteralLikeNodeInterface, Node,
+    NodeArrayExt, NodeExt, NodeFactory, NodeId, NodeInterface, NonEmpty, SyntaxKind,
+    TransformationContext, TransformationContextOnEmitNodeOverrider,
+    TransformationContextOnSubstituteNodeOverrider, Transformer, TransformerFactory,
+    TransformerFactoryInterface, TransformerInterface, _d, add_range, collect_external_module_info,
+    gc_cell_ref_mut_unwrapped, get_external_module_name_literal, get_original_node_id,
+    get_strict_option_value, insert_statements_after_standard_prologue,
+    is_effective_external_module, is_external_module, is_statement, map, maybe_visit_node,
+    move_emit_helpers, out_file, try_get_module_name_from_file, visit_nodes, EmitFlags, EmitHelper,
+    ModifierFlags, NamedDeclarationInterface, NodeArray, TransformFlags,
 };
 
 pub(super) struct DependencyGroup {
@@ -179,10 +182,20 @@ impl TransformSystemModule {
         self.current_source_file.borrow().clone()
     }
 
+    pub(super) fn current_source_file(&self) -> Gc<Node /*SourceFile*/> {
+        self.current_source_file.borrow().clone().unwrap()
+    }
+
     pub(super) fn maybe_current_source_file_mut(
         &self,
     ) -> GcCellRefMut<Option<Gc<Node /*SourceFile*/>>> {
         self.current_source_file.borrow_mut()
+    }
+
+    pub(super) fn current_source_file_mut(
+        &self,
+    ) -> GcCellRefMut<Option<Gc<Node /*SourceFile*/>>, Gc<Node /*SourceFile*/>> {
+        gc_cell_ref_mut_unwrapped(&self.current_source_file)
     }
 
     pub(super) fn set_current_source_file(
@@ -242,8 +255,18 @@ impl TransformSystemModule {
         self.context_object.borrow().clone()
     }
 
+    pub(super) fn context_object(&self) -> Gc<Node /*Identifier*/> {
+        self.context_object.borrow().clone().unwrap()
+    }
+
     pub(super) fn maybe_context_object_mut(&self) -> GcCellRefMut<Option<Gc<Node /*Identifier*/>>> {
         self.context_object.borrow_mut()
+    }
+
+    pub(super) fn context_object_mut(
+        &self,
+    ) -> GcCellRefMut<Option<Gc<Node /*Identifier*/>>, Gc<Node /*Identifier*/>> {
+        gc_cell_ref_mut_unwrapped(&self.context_object)
     }
 
     pub(super) fn set_context_object(&self, context_object: Option<Gc<Node /*Identifier*/>>) {
@@ -432,16 +455,325 @@ impl TransformSystemModule {
 
     pub(super) fn collect_dependency_groups(
         &self,
-        _external_imports: &[Gc<
+        external_imports: &[Gc<
             Node, /*ImportDeclaration | ImportEqualsDeclaration | ExportDeclaration*/
         >],
     ) -> Vec<DependencyGroup> {
-        unimplemented!()
+        let mut group_indices: HashMap<String, usize> = _d();
+        let mut dependency_groups: Vec<DependencyGroup> = _d();
+        for external_import in external_imports {
+            let external_module_name = get_external_module_name_literal(
+                &self.factory,
+                external_import,
+                &self.current_source_file(),
+                &**self.host,
+                &**self.resolver,
+                &self.compiler_options,
+            );
+            if let Some(external_module_name) = external_module_name {
+                let text = external_module_name.as_string_literal().text();
+                let group_index = group_indices.get(&*text).copied();
+                if let Some(group_index) = group_index {
+                    dependency_groups[group_index]
+                        .external_imports
+                        .push(external_import.clone());
+                } else {
+                    group_indices.insert(text.clone(), dependency_groups.len());
+                    dependency_groups.push(DependencyGroup {
+                        name: external_module_name.clone(),
+                        external_imports: vec![external_import.clone()],
+                    });
+                }
+            }
+        }
+
+        dependency_groups
     }
 
     pub(super) fn create_system_module_body(
         &self,
-        _node: &Node, /*SourceFile*/
+        node: &Node, /*SourceFile*/
+        dependency_groups: &[DependencyGroup],
+    ) -> Gc<Node> {
+        let node_as_source_file = node.as_source_file();
+        let mut statements: Vec<Gc<Node /*Statement*/>> = _d();
+
+        self.context.start_lexical_environment();
+
+        let ensure_use_strict = get_strict_option_value(&self.compiler_options, "alwaysStrict")
+            || self.compiler_options.no_implicit_use_strict != Some(true)
+                && is_external_module(&self.current_source_file());
+        let statement_offset = self.factory.copy_prologue(
+            &node_as_source_file.statements(),
+            &mut statements,
+            Some(ensure_use_strict),
+            Some(|node: &Node| self.top_level_visitor(node)),
+        );
+
+        statements.push(self.factory.create_variable_statement(
+            Option::<Gc<NodeArray>>::None,
+            self.factory.create_variable_declaration_list(
+                vec![self.factory.create_variable_declaration(
+                        Some("__moduleName"),
+                        None,
+                        None,
+                        Some(
+                            self.factory.create_logical_and(
+                                self.context_object(),
+                                self.factory
+                                    .create_property_access_expression(self.context_object(), "id"),
+                            ),
+                        ),
+                    )],
+                None,
+            ),
+        ));
+
+        maybe_visit_node(
+            self.module_info()
+                .external_helpers_import_declaration
+                .as_deref(),
+            Some(|node: &Node| self.top_level_visitor(node)),
+            Some(is_statement),
+            Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+        );
+
+        let execute_statements = visit_nodes(
+            &node_as_source_file.statements(),
+            Some(|node: &Node| self.top_level_visitor(node)),
+            Some(is_statement),
+            Some(statement_offset),
+            None,
+        );
+
+        add_range(
+            &mut statements,
+            self.maybe_hoisted_statements().as_deref(),
+            None,
+            None,
+        );
+
+        insert_statements_after_standard_prologue(
+            &mut statements,
+            self.context.end_lexical_environment().as_deref(),
+        );
+
+        let export_star_function = self.add_export_star_if_needed(&mut statements).unwrap();
+        let modifiers = node
+            .transform_flags()
+            .intersects(TransformFlags::ContainsAwait)
+            .then(|| {
+                self.factory
+                    .create_modifiers_from_modifier_flags(ModifierFlags::Async)
+            });
+        let module_object = self.factory.create_object_literal_expression(
+            Some(vec![
+                self.factory.create_property_assignment(
+                    "setters",
+                    self.create_setters_array(export_star_function, dependency_groups),
+                ),
+                self.factory.create_property_assignment(
+                    "execute",
+                    self.factory.create_function_expression(
+                        modifiers,
+                        None,
+                        Option::<Gc<Node>>::None,
+                        Option::<Gc<NodeArray>>::None,
+                        Some(vec![]),
+                        None,
+                        self.factory.create_block(execute_statements, Some(true)),
+                    ),
+                ),
+            ]),
+            Some(true),
+        );
+
+        statements.push(self.factory.create_return_statement(Some(module_object)));
+        self.factory.create_block(statements, Some(true))
+    }
+
+    pub(super) fn add_export_star_if_needed(
+        &self,
+        statements: &mut Vec<Gc<Node /*Statement*/>>,
+    ) -> Option<Gc<Node>> {
+        if !self.module_info().has_export_stars_to_export_values {
+            return None;
+        }
+
+        if self.module_info().exported_names.is_none()
+            && self.module_info().export_specifiers.is_empty()
+        {
+            let mut has_export_declaration_with_export_clause = false;
+            for external_import in &self.module_info().external_imports {
+                if external_import.kind() == SyntaxKind::ExportDeclaration
+                    && external_import
+                        .as_export_declaration()
+                        .export_clause
+                        .is_some()
+                {
+                    has_export_declaration_with_export_clause = true;
+                    break;
+                }
+            }
+
+            if !has_export_declaration_with_export_clause {
+                let export_star_function = self.create_export_star_function(None);
+                statements.push(export_star_function.clone());
+                return export_star_function.as_function_declaration().maybe_name();
+            }
+        }
+
+        let mut exported_names: Vec<Gc<Node /*ObjectLiteralElementLike*/>> = _d();
+        if let Some(module_info_exported_names) = self.module_info().exported_names.as_ref() {
+            for exported_local_name in module_info_exported_names {
+                if exported_local_name.as_identifier().escaped_text == "default" {
+                    continue;
+                }
+
+                exported_names.push(
+                    self.factory.create_property_assignment(
+                        self.factory
+                            .create_string_literal_from_node(exported_local_name),
+                        self.factory.create_true(),
+                    ),
+                );
+            }
+        }
+
+        let exported_names_storage_ref = self.factory.create_unique_name("exportedNames", None);
+        statements.push(self.factory.create_variable_statement(
+            Option::<Gc<NodeArray>>::None,
+            self.factory.create_variable_declaration_list(
+                vec![
+                    self.factory.create_variable_declaration(
+                        Some(exported_names_storage_ref.clone()),
+                        None,
+                        None,
+                        Some(self.factory.create_object_literal_expression(
+                            Some(exported_names),
+                            Some(true)
+                        ))
+                    )
+                ],
+                None,
+            ),
+        ));
+
+        let export_star_function =
+            self.create_export_star_function(Some(exported_names_storage_ref));
+        statements.push(export_star_function.clone());
+        export_star_function.as_function_declaration().maybe_name()
+    }
+
+    pub(super) fn create_export_star_function(
+        &self,
+        local_names: Option<Gc<Node /*Identifier*/>>,
+    ) -> Gc<Node> {
+        let export_star_function = self.factory.create_unique_name("exportStar", None);
+        let m = self.factory.create_identifier("m");
+        let n = self.factory.create_identifier("n");
+        let exports = self.factory.create_identifier("exports");
+        let mut condition/*: Expression*/ = self.factory.create_strict_inequality(
+            n.clone(),
+            self.factory.create_string_literal("default".to_owned(), None, None, ),
+        );
+        if let Some(local_names) = local_names {
+            condition = self.factory.create_logical_and(
+                condition,
+                self.factory.create_logical_not(
+                    self.factory.create_call_expression(
+                        self.factory
+                            .create_property_access_expression(local_names, "hasOwnProperty"),
+                        Option::<Gc<NodeArray>>::None,
+                        Some(vec![n.clone()]),
+                    ),
+                ),
+            );
+        }
+
+        self.factory.create_function_declaration(
+            Option::<Gc<NodeArray>>::None,
+            Option::<Gc<NodeArray>>::None,
+            None,
+            Some(export_star_function),
+            Option::<Gc<NodeArray>>::None,
+            vec![self.factory.create_parameter_declaration(
+                Option::<Gc<NodeArray>>::None,
+                Option::<Gc<NodeArray>>::None,
+                None,
+                Some(m.clone()),
+                None,
+                None,
+                None,
+            )],
+            None,
+            Some(self.factory.create_block(
+                vec![
+                self.factory.create_variable_statement(
+                    Option::<Gc<NodeArray>>::None,
+                    self.factory.create_variable_declaration_list(
+                        vec![
+                            self.factory.create_variable_declaration(
+                                Some(exports.clone()),
+                                None, None,
+                                Some(self.factory.create_object_literal_expression(
+                                    Some(vec![]),
+                                    None,
+                                ))
+                            ),
+                        ],
+                        None,
+                    ),
+                ),
+                self.factory.create_for_in_statement(
+                    self.factory.create_variable_declaration_list(
+                        vec![
+                            self.factory.create_variable_declaration(
+                                Some(n.clone()),
+                                None, None, None,
+                            ),
+                        ],
+                        None,
+                    ),
+                    m.clone(),
+                    self.factory.create_block(
+                        vec![
+                            self.factory.create_if_statement(
+                                condition,
+                                self.factory.create_expression_statement(
+                                    self.factory.create_assignment(
+                                        self.factory.create_element_access_expression(
+                                            exports.clone(),
+                                            n.clone()
+                                        ),
+                                        self.factory.create_element_access_expression(
+                                            m.clone(),
+                                            n.clone()
+                                        ),
+
+                                    ),
+                                ),
+                                None,
+                            ).set_emit_flags(EmitFlags::SingleLine),
+                        ],
+                        None,
+                    ),
+                ),
+                self.factory.create_expression_statement(
+                    self.factory.create_call_expression(
+                        self.export_function(),
+                        Option::<Gc<NodeArray>>::None,
+                        Some(vec![exports]))
+                ),
+            ],
+                Some(true),
+            )),
+        )
+    }
+
+    pub(super) fn create_setters_array(
+        &self,
+        _export_star_function: Gc<Node /*Identifier*/>,
         _dependency_groups: &[DependencyGroup],
     ) -> Gc<Node> {
         unimplemented!()
