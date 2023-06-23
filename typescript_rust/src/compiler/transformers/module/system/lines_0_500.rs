@@ -9,11 +9,12 @@ use crate::{
     TransformationContext, TransformationContextOnEmitNodeOverrider,
     TransformationContextOnSubstituteNodeOverrider, Transformer, TransformerFactory,
     TransformerFactoryInterface, TransformerInterface, _d, add_range, collect_external_module_info,
-    gc_cell_ref_mut_unwrapped, get_external_module_name_literal, get_original_node_id,
-    get_strict_option_value, insert_statements_after_standard_prologue,
-    is_effective_external_module, is_external_module, is_statement, map, maybe_visit_node,
-    move_emit_helpers, out_file, try_get_module_name_from_file, visit_nodes, EmitFlags, EmitHelper,
-    ModifierFlags, NamedDeclarationInterface, NodeArray, TransformFlags,
+    for_each, gc_cell_ref_mut_unwrapped, get_external_module_name_literal,
+    get_local_name_for_external_import, get_original_node_id, get_strict_option_value, id_text,
+    insert_statements_after_standard_prologue, is_effective_external_module, is_external_module,
+    is_named_exports, is_statement, map, maybe_visit_node, move_emit_helpers, out_file,
+    try_get_module_name_from_file, visit_nodes, Debug_, EmitFlags, EmitHelper, ModifierFlags,
+    NamedDeclarationInterface, NodeArray, TransformFlags,
 };
 
 pub(super) struct DependencyGroup {
@@ -773,10 +774,147 @@ impl TransformSystemModule {
 
     pub(super) fn create_setters_array(
         &self,
-        _export_star_function: Gc<Node /*Identifier*/>,
-        _dependency_groups: &[DependencyGroup],
+        export_star_function: Gc<Node /*Identifier*/>,
+        dependency_groups: &[DependencyGroup],
     ) -> Gc<Node> {
-        unimplemented!()
+        let mut setters: Vec<Gc<Node /*Expression*/>> = _d();
+        for group in dependency_groups {
+            let local_name = for_each(&group.external_imports, |i: &Gc<Node>, _| {
+                get_local_name_for_external_import(&self.factory, i, &self.current_source_file())
+            });
+            let parameter_name = local_name.map_or_else(
+                || self.factory.create_unique_name("", None),
+                |local_name| {
+                    self.factory
+                        .get_generated_name_for_node(Some(local_name), None)
+                },
+            );
+            let mut statements: Vec<Gc<Node /*Statement*/>> = _d();
+            for entry in &group.external_imports {
+                let import_variable_name = get_local_name_for_external_import(
+                    &self.factory,
+                    entry,
+                    &self.current_source_file(),
+                );
+                match entry.kind() {
+                    SyntaxKind::ImportDeclaration | SyntaxKind::ImportEqualsDeclaration => 'case: {
+                        if entry.kind() == SyntaxKind::ImportDeclaration
+                            && entry.as_import_declaration().import_clause.is_none()
+                        {
+                            break 'case;
+                        }
+
+                        Debug_.assert(import_variable_name.is_some(), None);
+                        let import_variable_name = import_variable_name.unwrap();
+                        statements.push(
+                            self.factory.create_expression_statement(
+                                self.factory.create_assignment(
+                                    import_variable_name,
+                                    parameter_name.clone(),
+                                ),
+                            ),
+                        );
+                    }
+                    SyntaxKind::ExportDeclaration => {
+                        Debug_.assert(import_variable_name.is_some(), None);
+                        if let Some(entry_export_clause) =
+                            entry.as_export_declaration().export_clause.as_ref()
+                        {
+                            if is_named_exports(entry_export_clause) {
+                                let mut properties: Vec<Gc<Node /*PropertyAssignment*/>> = _d();
+                                for e in &entry_export_clause.as_named_exports().elements {
+                                    let e_as_export_specifier = e.as_export_specifier();
+                                    properties.push(
+                                        self.factory.create_property_assignment(
+                                            self.factory.create_string_literal(
+                                                id_text(&e_as_export_specifier.name).to_owned(),
+                                                None,
+                                                None,
+                                            ),
+                                            self.factory.create_element_access_expression(
+                                                parameter_name.clone(),
+                                                self.factory.create_string_literal(
+                                                    id_text(
+                                                        e_as_export_specifier
+                                                            .property_name
+                                                            .as_ref()
+                                                            .unwrap_or(&e_as_export_specifier.name),
+                                                    )
+                                                    .to_owned(),
+                                                    None,
+                                                    None,
+                                                ),
+                                            ),
+                                        ),
+                                    );
+                                }
+
+                                statements.push(self.factory.create_expression_statement(
+                                    self.factory.create_call_expression(
+                                        self.export_function(),
+                                        Option::<Gc<NodeArray>>::None,
+                                        Some(vec![self.factory.create_object_literal_expression(
+                                            Some(properties),
+                                            Some(true),
+                                        )]),
+                                    ),
+                                ));
+                            } else {
+                                statements.push(self.factory.create_expression_statement(
+                                    self.factory.create_call_expression(
+                                        self.export_function(),
+                                        Option::<Gc<NodeArray>>::None,
+                                        Some(vec![
+                                                self.factory.create_string_literal(
+                                                    id_text(
+                                                        &entry_export_clause
+                                                            .as_namespace_export()
+                                                            .name,
+                                                    )
+                                                    .to_owned(),
+                                                    None,
+                                                    None,
+                                                ),
+                                                parameter_name.clone(),
+                                            ]),
+                                    ),
+                                ));
+                            }
+                        } else {
+                            statements.push(self.factory.create_expression_statement(
+                                self.factory.create_call_expression(
+                                    export_star_function.clone(),
+                                    Option::<Gc<NodeArray>>::None,
+                                    Some(vec![parameter_name.clone()]),
+                                ),
+                            ));
+                        }
+                    }
+                    _ => (),
+                }
+            }
+
+            setters.push(self.factory.create_function_expression(
+                Option::<Gc<NodeArray>>::None,
+                None,
+                Option::<Gc<Node>>::None,
+                Option::<Gc<NodeArray>>::None,
+                Some(vec![self.factory.create_parameter_declaration(
+                    Option::<Gc<NodeArray>>::None,
+                    Option::<Gc<NodeArray>>::None,
+                    None,
+                    Some(parameter_name),
+                    None,
+                    None,
+                    None,
+                )]),
+                None,
+                self.factory.create_block(statements, Some(true)),
+            ));
+        }
+
+        self.factory
+            .create_array_literal_expression(Some(setters), Some(true))
     }
 }
 
