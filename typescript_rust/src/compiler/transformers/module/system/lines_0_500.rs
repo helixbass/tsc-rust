@@ -34,7 +34,7 @@ pub(super) struct TransformSystemModule {
     pub(super) module_info_map: GcCell<HashMap<NodeId, Gc<ExternalModuleInfo>>>,
     pub(super) deferred_exports: GcCell<HashMap<NodeId, Option<Vec<Gc<Node /*Statement*/>>>>>,
     pub(super) export_functions_map: GcCell<HashMap<NodeId, Gc<Node /*Identifier*/>>>,
-    pub(super) no_substitution_map: GcCell<HashMap<NodeId, Vec<bool>>>,
+    pub(super) no_substitution_map: GcCell<HashMap<NodeId, HashMap<NodeId, bool>>>,
     pub(super) context_object_map: GcCell<HashMap<NodeId, Gc<Node /*Identifier*/>>>,
     pub(super) current_source_file: GcCell<Option<Gc<Node /*SourceFile*/>>>,
     pub(super) module_info: GcCell<Option<Gc<ExternalModuleInfo>>>,
@@ -42,7 +42,7 @@ pub(super) struct TransformSystemModule {
     pub(super) context_object: GcCell<Option<Gc<Node /*Identifier*/>>>,
     pub(super) hoisted_statements: GcCell<Option<Vec<Gc<Node /*Statement*/>>>>,
     pub(super) enclosing_block_scoped_container: GcCell<Option<Gc<Node>>>,
-    pub(super) no_substitution: GcCell<Option<Vec<bool>>>,
+    pub(super) no_substitution: GcCell<Option<HashMap<NodeId, bool>>>,
 }
 
 impl TransformSystemModule {
@@ -150,15 +150,20 @@ impl TransformSystemModule {
         *self.export_functions_map.borrow_mut() = export_functions_map;
     }
 
-    pub(super) fn no_substitution_map(&self) -> GcCellRef<HashMap<NodeId, Vec<bool>>> {
+    pub(super) fn no_substitution_map(&self) -> GcCellRef<HashMap<NodeId, HashMap<NodeId, bool>>> {
         self.no_substitution_map.borrow()
     }
 
-    pub(super) fn no_substitution_map_mut(&self) -> GcCellRefMut<HashMap<NodeId, Vec<bool>>> {
+    pub(super) fn no_substitution_map_mut(
+        &self,
+    ) -> GcCellRefMut<HashMap<NodeId, HashMap<NodeId, bool>>> {
         self.no_substitution_map.borrow_mut()
     }
 
-    pub(super) fn set_no_substitution_map(&self, no_substitution_map: HashMap<NodeId, Vec<bool>>) {
+    pub(super) fn set_no_substitution_map(
+        &self,
+        no_substitution_map: HashMap<NodeId, HashMap<NodeId, bool>>,
+    ) {
         *self.no_substitution_map.borrow_mut() = no_substitution_map;
     }
 
@@ -297,10 +302,23 @@ impl TransformSystemModule {
         self.enclosing_block_scoped_container.borrow().clone()
     }
 
+    pub(super) fn enclosing_block_scoped_container(&self) -> Gc<Node> {
+        self.enclosing_block_scoped_container
+            .borrow()
+            .clone()
+            .unwrap()
+    }
+
     pub(super) fn maybe_enclosing_block_scoped_container_mut(
         &self,
     ) -> GcCellRefMut<Option<Gc<Node>>> {
         self.enclosing_block_scoped_container.borrow_mut()
+    }
+
+    pub(super) fn enclosing_block_scoped_container_mut(
+        &self,
+    ) -> GcCellRefMut<Option<Gc<Node>>, Gc<Node>> {
+        gc_cell_ref_mut_unwrapped(&self.enclosing_block_scoped_container)
     }
 
     pub(super) fn set_enclosing_block_scoped_container(
@@ -310,15 +328,15 @@ impl TransformSystemModule {
         *self.enclosing_block_scoped_container.borrow_mut() = enclosing_block_scoped_container;
     }
 
-    pub(super) fn maybe_no_substitution(&self) -> GcCellRef<Option<Vec<bool>>> {
+    pub(super) fn maybe_no_substitution(&self) -> GcCellRef<Option<HashMap<NodeId, bool>>> {
         self.no_substitution.borrow()
     }
 
-    pub(super) fn maybe_no_substitution_mut(&self) -> GcCellRefMut<Option<Vec<bool>>> {
+    pub(super) fn maybe_no_substitution_mut(&self) -> GcCellRefMut<Option<HashMap<NodeId, bool>>> {
         self.no_substitution.borrow_mut()
     }
 
-    pub(super) fn set_no_substitution(&self, no_substitution: Option<Vec<bool>>) {
+    pub(super) fn set_no_substitution(&self, no_substitution: Option<HashMap<NodeId, bool>>) {
         *self.no_substitution.borrow_mut() = no_substitution;
     }
 
