@@ -9,13 +9,14 @@ use crate::{
     TransformationContext, TransformationContextOnEmitNodeOverrider,
     TransformationContextOnSubstituteNodeOverrider, Transformer, TransformerFactory,
     TransformerFactoryInterface, TransformerInterface, _d, add_range, collect_external_module_info,
-    for_each, gc_cell_ref_mut_unwrapped, get_external_module_name_literal,
+    for_each, get_emit_flags, get_external_helpers_module_name, get_external_module_name_literal,
     get_local_name_for_external_import, get_original_node_id, get_strict_option_value, id_text,
-    insert_statements_after_standard_prologue, is_effective_external_module, is_external_module,
-    is_generated_identifier, is_import_clause, is_import_specifier, is_local_name,
-    is_named_exports, is_statement, map, move_emit_helpers, out_file,
+    insert_statements_after_standard_prologue, is_assignment_operator,
+    is_declaration_name_of_enum_or_namespace, is_effective_external_module, is_external_module,
+    is_generated_identifier, is_identifier, is_import_clause, is_import_meta, is_import_specifier,
+    is_local_name, is_named_exports, is_statement, map, move_emit_helpers, out_file,
     try_get_module_name_from_file, try_maybe_visit_node, try_visit_nodes, Debug_, EmitFlags,
-    EmitHelper, ModifierFlags, NamedDeclarationInterface, NodeArray, TransformFlags,
+    EmitHelper, Matches, ModifierFlags, NamedDeclarationInterface, NodeArray, TransformFlags,
 };
 
 pub(super) struct DependencyGroup {
@@ -106,13 +107,6 @@ impl TransformSystemModule {
         self.module_info_map.borrow_mut()
     }
 
-    pub(super) fn set_module_info_map(
-        &self,
-        module_info_map: HashMap<NodeId, Gc<ExternalModuleInfo>>,
-    ) {
-        *self.module_info_map.borrow_mut() = module_info_map;
-    }
-
     pub(super) fn deferred_exports(
         &self,
     ) -> GcCellRef<HashMap<NodeId, Option<Vec<Gc<Node /*Statement*/>>>>> {
@@ -123,13 +117,6 @@ impl TransformSystemModule {
         &self,
     ) -> GcCellRefMut<HashMap<NodeId, Option<Vec<Gc<Node /*Statement*/>>>>> {
         self.deferred_exports.borrow_mut()
-    }
-
-    pub(super) fn set_deferred_exports(
-        &self,
-        deferred_exports: HashMap<NodeId, Option<Vec<Gc<Node /*Statement*/>>>>,
-    ) {
-        *self.deferred_exports.borrow_mut() = deferred_exports;
     }
 
     pub(super) fn export_functions_map(
@@ -144,13 +131,6 @@ impl TransformSystemModule {
         self.export_functions_map.borrow_mut()
     }
 
-    pub(super) fn set_export_functions_map(
-        &self,
-        export_functions_map: HashMap<NodeId, Gc<Node /*Identifier*/>>,
-    ) {
-        *self.export_functions_map.borrow_mut() = export_functions_map;
-    }
-
     pub(super) fn no_substitution_map(&self) -> GcCellRef<HashMap<NodeId, HashMap<NodeId, bool>>> {
         self.no_substitution_map.borrow()
     }
@@ -159,13 +139,6 @@ impl TransformSystemModule {
         &self,
     ) -> GcCellRefMut<HashMap<NodeId, HashMap<NodeId, bool>>> {
         self.no_substitution_map.borrow_mut()
-    }
-
-    pub(super) fn set_no_substitution_map(
-        &self,
-        no_substitution_map: HashMap<NodeId, HashMap<NodeId, bool>>,
-    ) {
-        *self.no_substitution_map.borrow_mut() = no_substitution_map;
     }
 
     pub(super) fn context_object_map(&self) -> GcCellRef<HashMap<NodeId, Gc<Node /*Identifier*/>>> {
@@ -178,31 +151,8 @@ impl TransformSystemModule {
         self.context_object_map.borrow_mut()
     }
 
-    pub(super) fn set_context_object_map(
-        &self,
-        context_object_map: HashMap<NodeId, Gc<Node /*Identifier*/>>,
-    ) {
-        *self.context_object_map.borrow_mut() = context_object_map;
-    }
-
-    pub(super) fn maybe_current_source_file(&self) -> Option<Gc<Node /*SourceFile*/>> {
-        self.current_source_file.borrow().clone()
-    }
-
     pub(super) fn current_source_file(&self) -> Gc<Node /*SourceFile*/> {
         self.current_source_file.borrow().clone().unwrap()
-    }
-
-    pub(super) fn maybe_current_source_file_mut(
-        &self,
-    ) -> GcCellRefMut<Option<Gc<Node /*SourceFile*/>>> {
-        self.current_source_file.borrow_mut()
-    }
-
-    pub(super) fn current_source_file_mut(
-        &self,
-    ) -> GcCellRefMut<Option<Gc<Node /*SourceFile*/>>, Gc<Node /*SourceFile*/>> {
-        gc_cell_ref_mut_unwrapped(&self.current_source_file)
     }
 
     pub(super) fn set_current_source_file(
@@ -220,16 +170,6 @@ impl TransformSystemModule {
         self.module_info.borrow().clone().unwrap()
     }
 
-    pub(super) fn maybe_module_info_mut(&self) -> GcCellRefMut<Option<Gc<ExternalModuleInfo>>> {
-        self.module_info.borrow_mut()
-    }
-
-    pub(super) fn module_info_mut(
-        &self,
-    ) -> GcCellRefMut<Option<Gc<ExternalModuleInfo>>, Gc<ExternalModuleInfo>> {
-        gc_cell_ref_mut_unwrapped(&self.module_info)
-    }
-
     pub(super) fn set_module_info(&self, module_info: Option<Gc<ExternalModuleInfo>>) {
         *self.module_info.borrow_mut() = module_info;
     }
@@ -242,18 +182,6 @@ impl TransformSystemModule {
         self.export_function.borrow().clone().unwrap()
     }
 
-    pub(super) fn maybe_export_function_mut(
-        &self,
-    ) -> GcCellRefMut<Option<Gc<Node /*Identifier*/>>> {
-        self.export_function.borrow_mut()
-    }
-
-    pub(super) fn export_function_mut(
-        &self,
-    ) -> GcCellRefMut<Option<Gc<Node /*Identifier*/>>, Gc<Node /*Identifier*/>> {
-        gc_cell_ref_mut_unwrapped(&self.export_function)
-    }
-
     pub(super) fn set_export_function(&self, export_function: Option<Gc<Node /*Identifier*/>>) {
         *self.export_function.borrow_mut() = export_function;
     }
@@ -264,16 +192,6 @@ impl TransformSystemModule {
 
     pub(super) fn context_object(&self) -> Gc<Node /*Identifier*/> {
         self.context_object.borrow().clone().unwrap()
-    }
-
-    pub(super) fn maybe_context_object_mut(&self) -> GcCellRefMut<Option<Gc<Node /*Identifier*/>>> {
-        self.context_object.borrow_mut()
-    }
-
-    pub(super) fn context_object_mut(
-        &self,
-    ) -> GcCellRefMut<Option<Gc<Node /*Identifier*/>>, Gc<Node /*Identifier*/>> {
-        gc_cell_ref_mut_unwrapped(&self.context_object)
     }
 
     pub(super) fn set_context_object(&self, context_object: Option<Gc<Node /*Identifier*/>>) {
@@ -308,18 +226,6 @@ impl TransformSystemModule {
             .borrow()
             .clone()
             .unwrap()
-    }
-
-    pub(super) fn maybe_enclosing_block_scoped_container_mut(
-        &self,
-    ) -> GcCellRefMut<Option<Gc<Node>>> {
-        self.enclosing_block_scoped_container.borrow_mut()
-    }
-
-    pub(super) fn enclosing_block_scoped_container_mut(
-        &self,
-    ) -> GcCellRefMut<Option<Gc<Node>>, Gc<Node>> {
-        gc_cell_ref_mut_unwrapped(&self.enclosing_block_scoped_container)
     }
 
     pub(super) fn set_enclosing_block_scoped_container(
@@ -1131,35 +1037,150 @@ impl TransformSystemModuleOnSubstituteNodeOverrider {
         Ok(node.node_wrapper())
     }
 
-    fn substitute_expression(&self, node: &Node /*Expression*/) -> Gc<Node> {
-        match node.kind() {
-            SyntaxKind::Identifier => self.substitute_expression_identifier(node),
-            SyntaxKind::BinaryExpression => self.substitute_binary_expression(node),
+    fn substitute_expression(&self, node: &Node /*Expression*/) -> io::Result<Gc<Node>> {
+        Ok(match node.kind() {
+            SyntaxKind::Identifier => self.substitute_expression_identifier(node)?,
+            SyntaxKind::BinaryExpression => self.substitute_binary_expression(node)?,
             SyntaxKind::MetaProperty => self.substitute_meta_property(node),
             _ => node.node_wrapper(),
-        }
+        })
     }
 
     fn substitute_expression_identifier(
         &self,
-        _node: &Node, /*Identifier*/
-    ) -> Gc<Node /*Expression*/> {
-        unimplemented!()
+        node: &Node, /*Identifier*/
+    ) -> io::Result<Gc<Node /*Expression*/>> {
+        if get_emit_flags(node).intersects(EmitFlags::HelperName) {
+            let external_helpers_module_name = get_external_helpers_module_name(
+                &self.transform_system_module.current_source_file(),
+            );
+            if let Some(external_helpers_module_name) = external_helpers_module_name {
+                return Ok(self
+                    .transform_system_module
+                    .factory
+                    .create_property_access_expression(
+                        external_helpers_module_name,
+                        node.node_wrapper(),
+                    ));
+            }
+
+            return Ok(node.node_wrapper());
+        }
+
+        if !is_generated_identifier(node) && !is_local_name(node) {
+            let import_declaration = self
+                .transform_system_module
+                .resolver
+                .get_referenced_import_declaration(node)?;
+            if let Some(ref import_declaration) = import_declaration {
+                if is_import_clause(import_declaration) {
+                    return Ok(self
+                        .transform_system_module
+                        .factory
+                        .create_property_access_expression(
+                            self.transform_system_module
+                                .factory
+                                .get_generated_name_for_node(
+                                    import_declaration.maybe_parent(),
+                                    None,
+                                ),
+                            self.transform_system_module
+                                .factory
+                                .create_identifier("default"),
+                        )
+                        .set_text_range(Some(node)));
+                } else if is_import_specifier(import_declaration) {
+                    let import_declaration_as_import_specifier =
+                        import_declaration.as_import_specifier();
+                    return Ok(self
+                        .transform_system_module
+                        .factory
+                        .create_property_access_expression(
+                            self.transform_system_module
+                                .factory
+                                .get_generated_name_for_node(
+                                    Some(
+                                        import_declaration
+                                            .maybe_parent()
+                                            .and_then(|import_declaration_parent| {
+                                                import_declaration_parent.maybe_parent()
+                                            })
+                                            .and_then(|import_declaration_parent_parent| {
+                                                import_declaration_parent_parent.maybe_parent()
+                                            })
+                                            .unwrap_or_else(|| import_declaration.clone()),
+                                    ),
+                                    None,
+                                ),
+                            self.transform_system_module.factory.clone_node(
+                                import_declaration_as_import_specifier
+                                    .property_name
+                                    .as_ref()
+                                    .unwrap_or(&import_declaration_as_import_specifier.name),
+                            ),
+                        )
+                        .set_text_range(Some(node)));
+                }
+            }
+        }
+
+        Ok(node.node_wrapper())
     }
 
     fn substitute_binary_expression(
         &self,
-        _node: &Node, /*BinaryExpression*/
-    ) -> Gc<Node /*Expression*/> {
-        unimplemented!()
+        node: &Node, /*BinaryExpression*/
+    ) -> io::Result<Gc<Node /*Expression*/>> {
+        let node_as_binary_expression = node.as_binary_expression();
+        let node_left = &node_as_binary_expression.left;
+        if is_assignment_operator(node_as_binary_expression.operator_token.kind())
+            && is_identifier(node_left)
+            && !is_generated_identifier(node_left)
+            && !is_local_name(node_left)
+            && !is_declaration_name_of_enum_or_namespace(node_left)
+        {
+            let exported_names = self.transform_system_module.get_exports(node_left)?;
+            if let Some(exported_names) = exported_names {
+                let mut expression/*: Expression*/ = node.node_wrapper();
+                for export_name in &exported_names {
+                    expression = self.transform_system_module.create_export_expression(
+                        export_name,
+                        &self
+                            .transform_system_module
+                            .prevent_substitution(expression),
+                    );
+                }
+
+                return Ok(expression);
+            }
+        }
+
+        Ok(node.node_wrapper())
     }
 
-    fn substitute_meta_property(&self, _node: &Node /*MetaProperty*/) -> Gc<Node> {
-        unimplemented!()
+    fn substitute_meta_property(&self, node: &Node /*MetaProperty*/) -> Gc<Node> {
+        if is_import_meta(node) {
+            return self
+                .transform_system_module
+                .factory
+                .create_property_access_expression(
+                    self.transform_system_module.context_object(),
+                    self.transform_system_module
+                        .factory
+                        .create_identifier("meta"),
+                );
+        }
+        node.node_wrapper()
     }
 
-    fn is_substitution_prevented(&self, _node: &Node) -> bool {
-        unimplemented!()
+    fn is_substitution_prevented(&self, node: &Node) -> bool {
+        self.transform_system_module
+            .maybe_no_substitution()
+            .as_ref()
+            .matches(|no_substitution| {
+                node.maybe_id()
+                    .matches(|node_id| no_substitution.get(&node_id).copied() == Some(true))
+            })
     }
 }
 
@@ -1175,7 +1196,7 @@ impl TransformationContextOnSubstituteNodeOverrider
         }
 
         Ok(match hint {
-            EmitHint::Expression => self.substitute_expression(&node),
+            EmitHint::Expression => self.substitute_expression(&node)?,
             EmitHint::Unspecified => self.substitute_unspecified(&node)?,
             _ => node,
         })

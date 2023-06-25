@@ -11,8 +11,8 @@ use crate::{
     try_flatten_destructuring_assignment, try_maybe_visit_node, try_some, try_visit_each_child,
     try_visit_node, FlattenLevel, GetOrInsertDefault, HasInitializerInterface,
     LiteralLikeNodeInterface, MapOrDefault, Matches, NamedDeclarationInterface, Node, NodeArray,
-    NodeExt, NodeInterface, ReadonlyTextRange, SyntaxKind, VisitResult, _d,
-    is_prefix_unary_expression,
+    NodeExt, NodeInterface, ReadonlyTextRange, SyntaxKind, VisitResult, _d, get_original_node_id,
+    is_prefix_unary_expression, NonEmpty, OptionTry,
 };
 
 impl TransformSystemModule {
@@ -219,7 +219,7 @@ impl TransformSystemModule {
             && !is_local_name(node_operand)
             && !is_declaration_name_of_enum_or_namespace(node_operand)
         {
-            let exported_names = self.get_exports(node_operand);
+            let exported_names = self.get_exports(node_operand)?;
             if let Some(exported_names) = exported_names {
                 let mut temp: Option<Gc<Node /*Identifier*/>> = _d();
                 let mut expression/*: Expression*/ = try_visit_node(
@@ -285,8 +285,48 @@ impl TransformSystemModule {
         Some(node.node_wrapper().into())
     }
 
-    pub(super) fn get_exports(&self, _name: &Node /*Identifier*/) -> Option<Vec<Gc<Node>>> {
-        unimplemented!()
+    pub(super) fn get_exports(
+        &self,
+        name: &Node, /*Identifier*/
+    ) -> io::Result<Option<Vec<Gc<Node>>>> {
+        let mut exported_names: Option<Vec<Gc<Node /*Identifier*/>>> = _d();
+        if !is_generated_identifier(name) {
+            let value_declaration = self
+                .resolver
+                .get_referenced_import_declaration(name)?
+                .try_or_else(|| self.resolver.get_referenced_value_declaration(name))?;
+
+            if let Some(value_declaration) = value_declaration {
+                let export_container = self
+                    .resolver
+                    .get_referenced_export_container(name, Some(false))?;
+                if export_container
+                    .matches(|export_container| export_container.kind() == SyntaxKind::SourceFile)
+                {
+                    exported_names.get_or_insert_default_().push(
+                        self.factory
+                            .get_declaration_name(Some(&*value_declaration), None, None),
+                    );
+                }
+
+                if let Some(value) = self
+                    .maybe_module_info()
+                    .as_ref()
+                    .and_then(|module_info| {
+                        module_info
+                            .exported_bindings
+                            .get(&get_original_node_id(&value_declaration))
+                    })
+                    .non_empty()
+                {
+                    exported_names
+                        .get_or_insert_default_()
+                        .extend(value.into_iter().cloned());
+                }
+            }
+        }
+
+        Ok(exported_names)
     }
 
     pub(super) fn prevent_substitution(&self, node: Gc<Node>) -> Gc<Node> {
