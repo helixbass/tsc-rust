@@ -6,9 +6,9 @@ use crate::{
     get_emit_flags, get_local_name_for_external_import, get_original_node, get_original_node_id,
     has_syntactic_modifier, is_binding_pattern, is_block, is_class_element, is_decorator,
     is_expression, is_external_module_import_equals_declaration, is_heritage_clause, is_modifier,
-    is_omitted_expression, is_parameter_declaration, is_statement, maybe_visit_node,
-    maybe_visit_nodes, single_or_many_node, visit_each_child, visit_node, visit_nodes,
-    ClassLikeDeclarationInterface, Debug_, EmitFlags, FlattenLevel,
+    is_module_or_enum_declaration, is_omitted_expression, is_parameter_declaration, is_statement,
+    maybe_visit_node, maybe_visit_nodes, return_if_none, single_or_many_node, visit_each_child,
+    visit_node, visit_nodes, ClassLikeDeclarationInterface, Debug_, EmitFlags, FlattenLevel,
     FunctionLikeDeclarationInterface, GetOrInsertDefault, HasInitializerInterface,
     InterfaceOrClassLikeDeclarationInterface, ModifierFlags, NamedDeclarationInterface, NodeArray,
     NodeExt, NodeFlags, ReadonlyTextRange, SignatureDeclarationInterface,
@@ -438,34 +438,123 @@ impl TransformSystemModule {
         }
     }
 
-    pub(super) fn has_associated_end_of_declaration_marker(&self, _node: &Node) -> bool {
-        unimplemented!()
+    pub(super) fn visit_merge_declaration_marker(
+        &self,
+        node: &Node, /*MergeDeclarationMarker*/
+    ) -> VisitResult /*<Statement>*/ {
+        if self.has_associated_end_of_declaration_marker(node)
+            && node.maybe_original().unwrap().kind() == SyntaxKind::VariableStatement
+        {
+            let id = get_original_node_id(node);
+            let is_exported_declaration =
+                has_syntactic_modifier(&node.maybe_original().unwrap(), ModifierFlags::Export);
+            self.append_exports_of_variable_statement(
+                self.deferred_exports_mut().entry(id).or_default(),
+                &node.maybe_original().unwrap(),
+                is_exported_declaration,
+            );
+        }
+
+        Some(node.node_wrapper().into())
+    }
+
+    pub(super) fn has_associated_end_of_declaration_marker(&self, node: &Node) -> bool {
+        get_emit_flags(node).intersects(EmitFlags::HasEndOfDeclarationMarker)
+    }
+
+    pub(super) fn visit_end_of_declaration_marker(
+        &self,
+        node: &Node, /*EndOfDeclarationMarker*/
+    ) -> VisitResult /*<Statement>*/ {
+        let id = get_original_node_id(node);
+        let mut statements = self.deferred_exports().get(&id).cloned().flatten();
+        if let Some(mut statements) = statements {
+            self.deferred_exports_mut().remove(&id);
+            statements.push(node.node_wrapper());
+            return Some(statements.into());
+        } else {
+            let original = &get_original_node(node);
+            if is_module_or_enum_declaration(original) {
+                self.append_exports_of_declaration(&mut statements, original, None);
+                statements
+                    .get_or_insert_default_()
+                    .push(node.node_wrapper());
+                return statements.map(Into::into);
+            }
+        }
+
+        Some(node.node_wrapper().into())
     }
 
     pub(super) fn append_exports_of_import_declaration(
         &self,
-        _statements: &mut Option<Vec<Gc<Node /*Statement*/>>>,
-        _decl: &Node, /*ImportDeclaration*/
+        statements: &mut Option<Vec<Gc<Node /*Statement*/>>>,
+        decl: &Node, /*ImportDeclaration*/
     ) {
-        unimplemented!()
+        let decl_as_import_declaration = decl.as_import_declaration();
+        if self.module_info().export_equals.is_some() {
+            return /*statements*/;
+        }
+
+        let import_clause = return_if_none!(decl_as_import_declaration.import_clause.as_ref());
+        let import_clause_as_import_clause = import_clause.as_import_clause();
+        if import_clause_as_import_clause.name.is_some() {
+            self.append_exports_of_declaration(statements, import_clause, None);
+        }
+
+        let named_bindings = import_clause_as_import_clause.named_bindings.as_ref();
+        if let Some(named_bindings) = named_bindings {
+            match named_bindings.kind() {
+                SyntaxKind::NamespaceImport => {
+                    self.append_exports_of_declaration(statements, named_bindings, None);
+                }
+                SyntaxKind::NamedImports => {
+                    for import_binding in &named_bindings.as_named_imports().elements {
+                        self.append_exports_of_declaration(statements, import_binding, None);
+                    }
+                }
+                _ => (),
+            }
+        }
+
+        // return statements;
     }
 
     pub(super) fn append_exports_of_import_equals_declaration(
         &self,
-        _statements: &mut Option<Vec<Gc<Node /*Statement*/>>>,
-        _decl: &Node, /*ImportEqualsDeclaration*/
+        statements: &mut Option<Vec<Gc<Node /*Statement*/>>>,
+        decl: &Node, /*ImportEqualsDeclaration*/
     ) /*: Statement[] | undefined*/
     {
-        unimplemented!()
+        if self.module_info().export_equals.is_some() {
+            return /*statements*/;
+        }
+
+        self.append_exports_of_declaration(statements, decl, None);
     }
 
     pub(super) fn append_exports_of_variable_statement(
         &self,
-        _statements: &mut Option<Vec<Gc<Node /*Statement*/>>>,
-        _node: &Node, /*VariableStatement*/
-        _export_self: bool,
+        statements: &mut Option<Vec<Gc<Node /*Statement*/>>>,
+        node: &Node, /*VariableStatement*/
+        export_self: bool,
     ) /*: Statement[] | undefined*/
     {
-        unimplemented!()
+        let node_as_variable_statement = node.as_variable_statement();
+        if self.module_info().export_equals.is_some() {
+            return /*statements*/;
+        }
+
+        for decl in &node_as_variable_statement
+            .declaration_list
+            .as_variable_declaration_list()
+            .declarations
+        {
+            if decl.as_variable_declaration().maybe_initializer().is_some() || export_self {
+                self.append_exports_of_binding_element(statements, decl, export_self);
+            }
+        }
+
+        // return statements;
     }
 }
