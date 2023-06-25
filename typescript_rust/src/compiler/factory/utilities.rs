@@ -10,7 +10,7 @@ use crate::{
     is_spread_element, is_string_literal, is_this_type_node, is_type_node,
     is_type_parameter_declaration, maybe_get_original_node_full, push_or_replace,
     set_starts_on_new_line, AssertionLevel, BaseNodeFactory, CompilerOptions, Debug_, EmitFlags,
-    EmitHost, EmitResolver, HasInitializerInterface, LiteralLikeNodeInterface,
+    EmitHelperFactory, EmitHost, EmitResolver, HasInitializerInterface, LiteralLikeNodeInterface,
     NamedDeclarationInterface, Node, NodeArray, NodeFactory, NodeInterface, OuterExpressionKinds,
     ReadonlyTextRange, SyntaxKind,
 };
@@ -252,6 +252,20 @@ pub fn has_recorded_external_helpers(source_file: &Node /*SourceFile*/) -> bool 
                 emit_node.external_helpers == Some(true)
         }
     )
+}
+
+pub fn create_external_helpers_import_declaration_if_needed<
+    TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize,
+>(
+    _node_factory: &NodeFactory<TBaseNodeFactory>,
+    _helper_factory: &EmitHelperFactory,
+    _source_file: &Node, /*SourceFile*/
+    _compiler_options: &CompilerOptions,
+    _has_export_stars_to_export_values: Option<bool>,
+    _has_import_star: Option<bool>,
+    _has_import_default: Option<bool>,
+) -> Option<Gc<Node>> {
+    unimplemented!()
 }
 
 pub fn get_local_name_for_external_import<

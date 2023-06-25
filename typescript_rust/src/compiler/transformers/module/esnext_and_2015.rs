@@ -5,9 +5,13 @@ use gc::{Finalize, Gc, GcCell, GcCellRef, GcCellRefMut, Trace};
 use crate::{
     BaseNodeFactorySynthetic, CompilerOptions, EmitResolver, Node, NodeFactory, ScriptTarget,
     TransformationContext, Transformer, TransformerFactory, TransformerFactoryInterface,
-    TransformerInterface, _d, chain_bundle, get_emit_script_target, EmitHelperFactory, EmitHint,
-    SyntaxKind, TransformationContextOnEmitNodeOverrider,
-    TransformationContextOnSubstituteNodeOverrider,
+    TransformerInterface, _d, chain_bundle, create_empty_exports,
+    create_external_helpers_import_declaration_if_needed, get_emit_script_target,
+    insert_statements_after_custom_prologue, is_external_module, is_external_module_indicator,
+    is_statement, visit_each_child, visit_nodes, BoolExt, EmitHelperFactory, EmitHint,
+    HasStatementsInterface, NodeArrayExt, NodeInterface, SyntaxKind,
+    TransformationContextOnEmitNodeOverrider, TransformationContextOnSubstituteNodeOverrider,
+    VecExt, VisitResult,
 };
 
 #[derive(Trace, Finalize)]
@@ -133,7 +137,155 @@ impl TransformEcmascriptModule {
         *self.import_require_statements.borrow_mut() = import_require_statements;
     }
 
-    fn transform_source_file(&self, _node: &Node /*SourceFile*/) -> Gc<Node> {
+    fn transform_source_file(&self, node: &Node /*SourceFile*/) -> Gc<Node> {
+        let node_as_source_file = node.as_source_file();
+        if node_as_source_file.is_declaration_file() {
+            return node.node_wrapper();
+        }
+
+        if is_external_module(node) || self.compiler_options.isolated_modules == Some(true) {
+            self.set_current_source_file(Some(node.node_wrapper()));
+            self.set_import_require_statements(None);
+            let mut result = self.update_external_module(node);
+            self.set_current_source_file(None);
+            if let Some(import_require_statements) = self.maybe_import_require_statements() {
+                result = self.factory.update_source_file(
+                    &result,
+                    self.factory
+                        .create_node_array(
+                            {
+                                let mut statements = result.as_source_file().statements().to_vec();
+                                insert_statements_after_custom_prologue(
+                                    &mut statements,
+                                    Some(&[
+                                        import_require_statements.0.clone(),
+                                        import_require_statements.1.clone(),
+                                    ]),
+                                );
+                                Some(statements)
+                            },
+                            None,
+                        )
+                        .set_text_range(Some(&*result.as_source_file().statements())),
+                    None,
+                    None,
+                    None,
+                    None,
+                    None,
+                );
+            }
+            if !is_external_module(node)
+                || result
+                    .as_source_file()
+                    .statements()
+                    .iter()
+                    .any(|statement| is_external_module_indicator(statement))
+            {
+                return result;
+            }
+            return self.factory.update_source_file(
+                &result,
+                self.factory
+                    .create_node_array(
+                        Some(
+                            result
+                                .as_source_file()
+                                .statements()
+                                .to_vec()
+                                .and_push(create_empty_exports(&self.factory)),
+                        ),
+                        None,
+                    )
+                    .set_text_range(Some(&*result.as_source_file().statements())),
+                None,
+                None,
+                None,
+                None,
+                None,
+            );
+        }
+
+        node.node_wrapper()
+    }
+
+    fn update_external_module(&self, node: &Node /*SourceFile*/) -> Gc<Node> {
+        let node_as_source_file = node.as_source_file();
+        let external_helpers_import_declaration =
+            create_external_helpers_import_declaration_if_needed(
+                &self.factory,
+                &self.emit_helpers(),
+                node,
+                &self.compiler_options,
+                None,
+                None,
+                None,
+            );
+        match external_helpers_import_declaration {
+            Some(external_helpers_import_declaration) => {
+                let mut statements: Vec<Gc<Node /*Statement*/>> = _d();
+                let statement_offset = self.factory.copy_prologue(
+                    &node_as_source_file.statements(),
+                    &mut statements,
+                    None,
+                    Option::<fn(&Node) -> VisitResult>::None,
+                );
+                statements.push(external_helpers_import_declaration);
+                statements.extend(
+                    visit_nodes(
+                        &node_as_source_file.statements(),
+                        Some(|node: &Node| self.visitor(node)),
+                        Some(is_statement),
+                        Some(statement_offset),
+                        None,
+                    )
+                    .owned_iter(),
+                );
+                self.factory.update_source_file(
+                    node,
+                    self.factory
+                        .create_node_array(Some(statements), None)
+                        .set_text_range(Some(&*node_as_source_file.statements())),
+                    None,
+                    None,
+                    None,
+                    None,
+                    None,
+                )
+            }
+            None => visit_each_child(node, |node: &Node| self.visitor(node), &**self.context),
+        }
+    }
+
+    fn visitor(&self, node: &Node) -> VisitResult /*<Node>*/ {
+        match node.kind() {
+            SyntaxKind::ImportEqualsDeclaration => (get_emit_script_target(&self.compiler_options)
+                // TODO: this definitely looks like an upstream bug of using ModuleKind instead
+                // of ScriptTarget - technically should say ScriptTarget::ES2019 here to be using
+                // the same exact enum int value but let's see if this causes any problems
+                >= ScriptTarget::ES2020)
+                .then_and(|| self.visit_import_equals_declaration(node)),
+            SyntaxKind::ExportAssignment => self.visit_export_assignment(node),
+            SyntaxKind::ExportDeclaration => {
+                let export_decl = node;
+                self.visit_export_declaration(export_decl)
+            }
+            _ => Some(node.node_wrapper().into()),
+        }
+    }
+
+    fn visit_import_equals_declaration(
+        &self,
+        _node: &Node, /*ImportEqualsDeclaration*/
+    ) -> VisitResult /*<Statement>*/ {
+        unimplemented!()
+    }
+
+    fn visit_export_assignment(&self, _node: &Node /*ExportAssignment*/) -> VisitResult /*<ExportAssignment>*/
+    {
+        unimplemented!()
+    }
+
+    fn visit_export_declaration(&self, _node: &Node /*ExportDeclaration*/) -> VisitResult {
         unimplemented!()
     }
 }
