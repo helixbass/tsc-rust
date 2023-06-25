@@ -6,12 +6,15 @@ use crate::{
     BaseNodeFactorySynthetic, CompilerOptions, EmitResolver, Node, NodeFactory, ScriptTarget,
     TransformationContext, Transformer, TransformerFactory, TransformerFactoryInterface,
     TransformerInterface, _d, chain_bundle, create_empty_exports,
-    create_external_helpers_import_declaration_if_needed, get_emit_script_target,
-    insert_statements_after_custom_prologue, is_external_module, is_external_module_indicator,
-    is_statement, visit_each_child, visit_nodes, BoolExt, EmitHelperFactory, EmitHint,
-    HasStatementsInterface, NodeArrayExt, NodeInterface, SyntaxKind,
-    TransformationContextOnEmitNodeOverrider, TransformationContextOnSubstituteNodeOverrider,
-    VecExt, VisitResult,
+    create_external_helpers_import_declaration_if_needed, gc_cell_ref_mut_unwrapped,
+    get_emit_script_target, get_external_module_name_literal, has_syntactic_modifier, id_text,
+    insert_statements_after_custom_prologue, is_external_module,
+    is_external_module_import_equals_declaration, is_external_module_indicator, is_identifier,
+    is_statement, single_or_many_node, visit_each_child, visit_nodes, BoolExt, Debug_,
+    EmitHelperFactory, EmitHint, EmitHost, GeneratedIdentifierFlags, GetOrInsertDefault,
+    HasStatementsInterface, ModifierFlags, NamedDeclarationInterface, NodeArray, NodeArrayExt,
+    NodeExt, NodeFlags, NodeInterface, SyntaxKind, TransformationContextOnEmitNodeOverrider,
+    TransformationContextOnSubstituteNodeOverrider, VecExt, VisitResult,
 };
 
 #[derive(Trace, Finalize)]
@@ -19,6 +22,7 @@ struct TransformEcmascriptModule {
     _transformer_wrapper: GcCell<Option<Transformer>>,
     context: Gc<Box<dyn TransformationContext>>,
     factory: Gc<NodeFactory<BaseNodeFactorySynthetic>>,
+    host: Gc<Box<dyn EmitHost>>,
     resolver: Gc<Box<dyn EmitResolver>>,
     compiler_options: Gc<CompilerOptions>,
     #[unsafe_ignore_trace]
@@ -39,6 +43,7 @@ impl TransformEcmascriptModule {
         let transformer_wrapper: Transformer = Gc::new(Box::new(Self {
             _transformer_wrapper: _d(),
             factory: context.factory(),
+            host: context.get_emit_host(),
             resolver: context.get_emit_resolver(),
             language_version: get_emit_script_target(&compiler_options),
             compiler_options,
@@ -116,6 +121,15 @@ impl TransformEcmascriptModule {
         self.import_require_statements.borrow().clone()
     }
 
+    pub(super) fn import_require_statements(
+        &self,
+    ) -> (
+        Gc<Node /*ImportDeclaration*/>,
+        Gc<Node /*VariableStatement*/>,
+    ) {
+        self.import_require_statements.borrow().clone().unwrap()
+    }
+
     fn maybe_import_require_statements_mut(
         &self,
     ) -> GcCellRefMut<
@@ -125,6 +139,21 @@ impl TransformEcmascriptModule {
         )>,
     > {
         self.import_require_statements.borrow_mut()
+    }
+
+    pub(super) fn import_require_statements_mut(
+        &self,
+    ) -> GcCellRefMut<
+        Option<(
+            Gc<Node /*ImportDeclaration*/>,
+            Gc<Node /*VariableStatement*/>,
+        )>,
+        (
+            Gc<Node /*ImportDeclaration*/>,
+            Gc<Node /*VariableStatement*/>,
+        ),
+    > {
+        gc_cell_ref_mut_unwrapped(&self.import_require_statements)
     }
 
     fn set_import_require_statements(
@@ -273,11 +302,162 @@ impl TransformEcmascriptModule {
         }
     }
 
+    fn create_require_call(
+        &self,
+        import_node: &Node, /*ImportDeclaration | ImportEqualsDeclaration | ExportDeclaration*/
+    ) -> Gc<Node> {
+        let module_name = get_external_module_name_literal(
+            &self.factory,
+            import_node,
+            &*Debug_.check_defined(self.maybe_current_source_file(), None),
+            &**self.host,
+            &**self.resolver,
+            &self.compiler_options,
+        );
+        let mut args: Vec<Gc<Node /*Expression*/>> = _d();
+        if let Some(module_name) = module_name {
+            args.push(module_name);
+        }
+
+        if self.maybe_import_require_statements().is_none() {
+            let create_require_name = self.factory.create_unique_name(
+                "_createRequire",
+                Some(GeneratedIdentifierFlags::Optimistic | GeneratedIdentifierFlags::FileLevel),
+            );
+            let import_statement = self.factory.create_import_declaration(
+                Option::<Gc<NodeArray>>::None,
+                Option::<Gc<NodeArray>>::None,
+                Some(self.factory.create_import_clause(
+                    false,
+                    None,
+                    Some(self.factory.create_named_imports(vec![
+                        self.factory.create_import_specifier(
+                            false,
+                            Some(self.factory.create_identifier("createRequire")),
+                            create_require_name.clone(),
+                        ),
+                    ])),
+                )),
+                self.factory
+                    .create_string_literal("module".to_owned(), None, None),
+                None,
+            );
+            let require_helper_name = self.factory.create_unique_name(
+                "__require",
+                Some(GeneratedIdentifierFlags::Optimistic | GeneratedIdentifierFlags::FileLevel),
+            );
+            let require_statement = self.factory.create_variable_statement(
+                Option::<Gc<NodeArray>>::None,
+                self.factory.create_variable_declaration_list(
+                    vec![self.factory.create_variable_declaration(
+                        Some(require_helper_name),
+                        None,
+                        None,
+                        Some(self.factory.create_call_expression(
+                            self.factory.clone_node(&create_require_name),
+                            Option::<Gc<NodeArray>>::None,
+                            Some(vec![self.factory.create_property_access_expression(
+                                self.factory.create_meta_property(
+                                    SyntaxKind::ImportKeyword,
+                                    self.factory.create_identifier("meta"),
+                                ),
+                                self.factory.create_identifier("url"),
+                            )]),
+                        )),
+                    )],
+                    Some(
+                        (self.language_version >= ScriptTarget::ES2015)
+                            .then_some(NodeFlags::Const)
+                            .unwrap_or_default(),
+                    ),
+                ),
+            );
+            self.set_import_require_statements(Some((import_statement, require_statement)));
+        }
+
+        let name = self
+            .import_require_statements()
+            .1
+            .as_variable_statement()
+            .declaration_list
+            .as_variable_declaration_list()
+            .declarations[0]
+            .as_variable_declaration()
+            .name();
+        Debug_.assert_node(Some(&*name), Some(is_identifier), None);
+        self.factory.create_call_expression(
+            self.factory.clone_node(&name),
+            Option::<Gc<NodeArray>>::None,
+            Some(args),
+        )
+    }
+
     fn visit_import_equals_declaration(
         &self,
-        _node: &Node, /*ImportEqualsDeclaration*/
+        node: &Node, /*ImportEqualsDeclaration*/
     ) -> VisitResult /*<Statement>*/ {
-        unimplemented!()
+        let node_as_import_equals_declaration = node.as_import_equals_declaration();
+        Debug_.assert(
+            is_external_module_import_equals_declaration(node),
+            Some("import= for internal module references should be handled in an earlier transformer.")
+        );
+
+        let mut statements: Option<Vec<Gc<Node /*Statement*/>>> = _d();
+        statements.get_or_insert_default_().push(
+            self.factory
+                .create_variable_statement(
+                    Option::<Gc<NodeArray>>::None,
+                    self.factory.create_variable_declaration_list(
+                        vec![self.factory.create_variable_declaration(
+                            Some(
+                                self.factory
+                                    .clone_node(&node_as_import_equals_declaration.name()),
+                            ),
+                            None,
+                            None,
+                            Some(self.create_require_call(node)),
+                        )],
+                        Some(
+                            (self.language_version >= ScriptTarget::ES2015)
+                                .then_some(NodeFlags::Const)
+                                .unwrap_or_default(),
+                        ),
+                    ),
+                )
+                .set_text_range(Some(node))
+                .set_original_node(Some(node.node_wrapper())),
+        );
+
+        self.append_exports_of_import_equals_declaration(&mut statements, node);
+
+        statements.map(single_or_many_node)
+    }
+
+    fn append_exports_of_import_equals_declaration(
+        &self,
+        statements: &mut Option<Vec<Gc<Node /*Statement*/>>>,
+        node: &Node, /*ImportEqualsDeclaration*/
+    ) {
+        let node_as_import_equals_declaration = node.as_import_equals_declaration();
+        if has_syntactic_modifier(node, ModifierFlags::Export) {
+            statements
+                .get_or_insert_default_()
+                .push(self.factory.create_export_declaration(
+                    Option::<Gc<NodeArray>>::None,
+                    Option::<Gc<NodeArray>>::None,
+                    node_as_import_equals_declaration.is_type_only,
+                    Some(self.factory.create_named_exports(vec![
+                        self.factory.create_export_specifier(
+                            false,
+                            Option::<Gc<Node>>::None,
+                            id_text(&node_as_import_equals_declaration.name()),
+                        ),
+                    ])),
+                    None,
+                    None,
+                ));
+        }
+        // return statements;
     }
 
     fn visit_export_assignment(&self, _node: &Node /*ExportAssignment*/) -> VisitResult /*<ExportAssignment>*/
