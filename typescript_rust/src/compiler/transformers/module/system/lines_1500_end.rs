@@ -5,12 +5,14 @@ use gc::Gc;
 use super::TransformSystemModule;
 use crate::{
     first_or_undefined, get_external_module_name_literal, get_node_id, is_array_literal_expression,
-    is_assignment_expression, is_expression, is_identifier, is_object_literal_expression,
+    is_assignment_expression, is_declaration_name_of_enum_or_namespace, is_expression,
+    is_generated_identifier, is_identifier, is_local_name, is_object_literal_expression,
     is_property_assignment, is_shorthand_property_assignment, is_spread_element, is_string_literal,
     try_flatten_destructuring_assignment, try_maybe_visit_node, try_some, try_visit_each_child,
     try_visit_node, FlattenLevel, GetOrInsertDefault, HasInitializerInterface,
     LiteralLikeNodeInterface, MapOrDefault, Matches, NamedDeclarationInterface, Node, NodeArray,
-    NodeInterface, ReadonlyTextRange, SyntaxKind, VisitResult,
+    NodeExt, NodeInterface, ReadonlyTextRange, SyntaxKind, VisitResult, _d,
+    is_prefix_unary_expression,
 };
 
 impl TransformSystemModule {
@@ -204,16 +206,86 @@ impl TransformSystemModule {
 
     pub(super) fn visit_prefix_or_postfix_unary_expression(
         &self,
-        _node: &Node, /*PrefixUnaryExpression | PostfixUnaryExpression*/
-        _value_is_discarded: bool,
-    ) -> VisitResult {
-        unimplemented!()
+        node: &Node, /*PrefixUnaryExpression | PostfixUnaryExpression*/
+        value_is_discarded: bool,
+    ) -> io::Result<VisitResult> {
+        let node_as_unary_expression = node.as_unary_expression();
+        let node_operand = &node_as_unary_expression.operand();
+        if matches!(
+            node_as_unary_expression.operator(),
+            SyntaxKind::PlusPlusToken | SyntaxKind::MinusMinusToken
+        ) && is_identifier(node_operand)
+            && !is_generated_identifier(node_operand)
+            && !is_local_name(node_operand)
+            && !is_declaration_name_of_enum_or_namespace(node_operand)
+        {
+            let exported_names = self.get_exports(node_operand);
+            if let Some(exported_names) = exported_names {
+                let mut temp: Option<Gc<Node /*Identifier*/>> = _d();
+                let mut expression/*: Expression*/ = try_visit_node(
+                    &node_operand,
+                    Some(|node: &Node| self.visitor(node)),
+                    Some(is_expression),
+                    Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                )?;
+                if is_prefix_unary_expression(node) {
+                    expression = self
+                        .factory
+                        .update_prefix_unary_expression(node, expression);
+                } else {
+                    expression = self
+                        .factory
+                        .update_postfix_unary_expression(node, expression);
+                    if !value_is_discarded {
+                        temp = Some(self.factory.create_temp_variable(
+                            Some(|node: &Node| {
+                                self.context.hoist_variable_declaration(node);
+                            }),
+                            None,
+                        ));
+                        expression = self
+                            .factory
+                            .create_assignment(temp.clone().unwrap(), expression)
+                            .set_text_range(Some(node));
+                    }
+                    expression = self
+                        .factory
+                        .create_comma(expression, self.factory.clone_node(node_operand))
+                        .set_text_range(Some(node));
+                }
+
+                for export_name in &exported_names {
+                    expression = self.create_export_expression(
+                        export_name,
+                        &self.prevent_substitution(expression),
+                    );
+                }
+
+                if let Some(temp) = temp {
+                    expression = self
+                        .factory
+                        .create_comma(expression, temp)
+                        .set_text_range(Some(node));
+                }
+
+                return Ok(Some(expression.into()));
+            }
+        }
+        Ok(Some(
+            try_visit_each_child(node, |node: &Node| self.visitor(node), &**self.context)?.into(),
+        ))
     }
 
-    pub(super) fn modifier_visitor(
-        &self,
-        _node: &Node, /*FunctionDeclaration*/
-    ) -> VisitResult /*<Node>*/ {
+    pub(super) fn modifier_visitor(&self, node: &Node /*FunctionDeclaration*/) -> VisitResult /*<Node>*/
+    {
+        match node.kind() {
+            SyntaxKind::ExportKeyword | SyntaxKind::DefaultKeyword => return None,
+            _ => (),
+        }
+        Some(node.node_wrapper().into())
+    }
+
+    pub(super) fn get_exports(&self, _name: &Node /*Identifier*/) -> Option<Vec<Gc<Node>>> {
         unimplemented!()
     }
 

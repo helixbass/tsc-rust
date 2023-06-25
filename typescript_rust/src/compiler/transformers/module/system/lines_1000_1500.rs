@@ -614,7 +614,7 @@ impl TransformSystemModule {
                 }
             }
             SyntaxKind::PrefixUnaryExpression | SyntaxKind::PostfixUnaryExpression => {
-                return Ok(self.visit_prefix_or_postfix_unary_expression(node, value_is_discarded))
+                return self.visit_prefix_or_postfix_unary_expression(node, value_is_discarded)
             }
             _ => (),
         }
