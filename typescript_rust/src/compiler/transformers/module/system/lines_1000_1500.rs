@@ -3,9 +3,12 @@ use gc::Gc;
 use super::TransformSystemModule;
 use crate::{
     get_emit_flags, get_text_of_identifier_or_literal, has_syntactic_modifier, id_text,
-    is_binding_pattern, is_generated_identifier, is_identifier, is_omitted_expression,
-    set_emit_flags, EmitFlags, GetOrInsertDefault, ModifierFlags, Node, NodeArray, NodeExt,
-    NodeInterface, SyntaxKind, VisitResult,
+    is_binding_pattern, is_expression, is_for_initializer, is_generated_identifier, is_identifier,
+    is_omitted_expression, is_variable_declaration_list, maybe_visit_node, set_emit_flags,
+    visit_iteration_body, visit_node, EmitFlags, GetOrInsertDefault, HasInitializerInterface,
+    ModifierFlags, Node, NodeArray, NodeExt, NodeInterface, SyntaxKind, VisitResult, _d, is_block,
+    is_case_block, is_case_or_default_clause, is_destructuring_assignment, is_import_call,
+    is_statement, visit_each_child, visit_nodes, TransformFlags,
 };
 
 impl TransformSystemModule {
@@ -193,87 +196,410 @@ impl TransformSystemModule {
 
     pub(super) fn visit_for_statement(
         &self,
-        _node: &Node, /*ForStatement*/
-        _is_top_level: bool,
+        node: &Node, /*ForStatement*/
+        is_top_level: bool,
     ) -> VisitResult /*<Statement>*/ {
-        unimplemented!()
+        let node_as_for_statement = node.as_for_statement();
+        let saved_enclosing_block_scoped_container = self.maybe_enclosing_block_scoped_container();
+        self.set_enclosing_block_scoped_container(Some(node.node_wrapper()));
+
+        let node = self.factory.update_for_statement(
+            node,
+            maybe_visit_node(
+                node_as_for_statement.initializer.as_deref(),
+                Some(|node: &Node| {
+                    if is_top_level {
+                        Some(self.visit_for_initializer(node).into())
+                    } else {
+                        self.discarded_value_visitor(node)
+                    }
+                }),
+                Some(is_for_initializer),
+                Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+            ),
+            maybe_visit_node(
+                node_as_for_statement.condition.as_deref(),
+                Some(|node: &Node| self.visitor(node)),
+                Some(is_expression),
+                Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+            ),
+            maybe_visit_node(
+                node_as_for_statement.incrementor.as_deref(),
+                Some(|node: &Node| self.discarded_value_visitor(node)),
+                Some(is_expression),
+                Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+            ),
+            visit_iteration_body(
+                &node_as_for_statement.statement,
+                |node: &Node| {
+                    if is_top_level {
+                        self.top_level_nested_visitor(node)
+                    } else {
+                        self.visitor(node)
+                    }
+                },
+                &**self.context,
+            ),
+        );
+
+        self.set_enclosing_block_scoped_container(saved_enclosing_block_scoped_container);
+        Some(node.into())
     }
 
     pub(super) fn visit_for_in_statement(
         &self,
-        _node: &Node, /*ForInStatement*/
+        node: &Node, /*ForInStatement*/
     ) -> VisitResult /*<Statement>*/ {
-        unimplemented!()
+        let node_as_for_in_statement = node.as_for_in_statement();
+        let saved_enclosing_block_scoped_container = self.maybe_enclosing_block_scoped_container();
+        self.set_enclosing_block_scoped_container(Some(node.node_wrapper()));
+
+        let node = self.factory.update_for_in_statement(
+            node,
+            self.visit_for_initializer(&node_as_for_in_statement.initializer),
+            visit_node(
+                &node_as_for_in_statement.expression,
+                Some(|node: &Node| self.visitor(node)),
+                Some(is_expression),
+                Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+            ),
+            visit_iteration_body(
+                &node_as_for_in_statement.statement,
+                |node: &Node| self.top_level_nested_visitor(node),
+                &**self.context,
+            ),
+        );
+
+        self.set_enclosing_block_scoped_container(saved_enclosing_block_scoped_container);
+        Some(node.into())
     }
 
     pub(super) fn visit_for_of_statement(
         &self,
-        _node: &Node, /*ForOfStatement*/
+        node: &Node, /*ForOfStatement*/
     ) -> VisitResult /*<Statement>*/ {
-        unimplemented!()
+        let node_as_for_of_statement = node.as_for_of_statement();
+        let saved_enclosing_block_scoped_container = self.maybe_enclosing_block_scoped_container();
+        self.set_enclosing_block_scoped_container(Some(node.node_wrapper()));
+
+        let node = self.factory.update_for_of_statement(
+            node,
+            node_as_for_of_statement.await_modifier.clone(),
+            self.visit_for_initializer(&node_as_for_of_statement.initializer),
+            visit_node(
+                &node_as_for_of_statement.expression,
+                Some(|node: &Node| self.visitor(node)),
+                Some(is_expression),
+                Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+            ),
+            visit_iteration_body(
+                &node_as_for_of_statement.statement,
+                |node: &Node| self.top_level_nested_visitor(node),
+                &**self.context,
+            ),
+        );
+
+        self.set_enclosing_block_scoped_container(saved_enclosing_block_scoped_container);
+        Some(node.into())
     }
 
-    pub(super) fn visit_do_statement(&self, _node: &Node /*DoStatement*/) -> VisitResult /*<Statement>*/
-    {
-        unimplemented!()
+    pub(super) fn should_hoist_for_initializer(&self, node: &Node /*ForInitializer*/) -> bool {
+        is_variable_declaration_list(node) && self.should_hoist_variable_declaration_list(node)
     }
 
-    pub(super) fn visit_while_statement(
+    pub(super) fn visit_for_initializer(
         &self,
-        _node: &Node, /*WhileStatement*/
-    ) -> VisitResult /*<Statement>*/ {
-        unimplemented!()
+        node: &Node, /*ForInitializer*/
+    ) -> Gc<Node /*ForInitializer*/> {
+        if self.should_hoist_for_initializer(node) {
+            let mut expressions: Option<Vec<Gc<Node /*Expression*/>>> = _d();
+            for variable in &node.as_variable_declaration_list().declarations {
+                expressions
+                    .get_or_insert_default_()
+                    .push(self.transform_initialized_variable(variable, false));
+                if variable
+                    .as_variable_declaration()
+                    .maybe_initializer()
+                    .is_none()
+                {
+                    self.hoist_binding_element(variable);
+                }
+            }
+
+            expressions.map_or_else(
+                || self.factory.create_omitted_expression(),
+                |expressions| self.factory.inline_expressions(&expressions),
+            )
+        } else {
+            visit_node(
+                node,
+                Some(|node: &Node| self.discarded_value_visitor(node)),
+                Some(is_expression),
+                Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+            )
+        }
+    }
+
+    pub(super) fn visit_do_statement(&self, node: &Node /*DoStatement*/) -> VisitResult /*<Statement>*/
+    {
+        let node_as_do_statement = node.as_do_statement();
+        Some(
+            self.factory
+                .update_do_statement(
+                    node,
+                    visit_iteration_body(
+                        &node_as_do_statement.statement,
+                        |node: &Node| self.top_level_nested_visitor(node),
+                        &**self.context,
+                    ),
+                    visit_node(
+                        &node_as_do_statement.expression,
+                        Some(|node: &Node| self.visitor(node)),
+                        Some(is_expression),
+                        Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                    ),
+                )
+                .into(),
+        )
+    }
+
+    pub(super) fn visit_while_statement(&self, node: &Node /*WhileStatement*/) -> VisitResult /*<Statement>*/
+    {
+        let node_as_while_statement = node.as_while_statement();
+        Some(
+            self.factory
+                .update_while_statement(
+                    node,
+                    visit_node(
+                        &node_as_while_statement.expression,
+                        Some(|node: &Node| self.visitor(node)),
+                        Some(is_expression),
+                        Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                    ),
+                    visit_iteration_body(
+                        &node_as_while_statement.statement,
+                        |node: &Node| self.top_level_nested_visitor(node),
+                        &**self.context,
+                    ),
+                )
+                .into(),
+        )
     }
 
     pub(super) fn visit_labeled_statement(
         &self,
-        _node: &Node, /*LabeledStatement*/
+        node: &Node, /*LabeledStatement*/
     ) -> VisitResult /*<Statement>*/ {
-        unimplemented!()
+        let node_as_labeled_statement = node.as_labeled_statement();
+        Some(
+            self.factory
+                .update_labeled_statement(
+                    node,
+                    node_as_labeled_statement.label.clone(),
+                    visit_node(
+                        &node_as_labeled_statement.statement,
+                        Some(|node: &Node| self.top_level_nested_visitor(node)),
+                        Some(is_statement),
+                        Some(|nodes: &[Gc<Node>]| self.factory.lift_to_block(nodes)),
+                    ),
+                )
+                .into(),
+        )
     }
 
-    pub(super) fn visit_with_statement(&self, _node: &Node /*WithStatement*/) -> VisitResult /*<Statement>*/
+    pub(super) fn visit_with_statement(&self, node: &Node /*WithStatement*/) -> VisitResult /*<Statement>*/
     {
-        unimplemented!()
+        let node_as_with_statement = node.as_with_statement();
+        Some(
+            self.factory
+                .update_with_statement(
+                    node,
+                    visit_node(
+                        &node_as_with_statement.expression,
+                        Some(|node: &Node| self.visitor(node)),
+                        Some(is_expression),
+                        Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                    ),
+                    visit_node(
+                        &node_as_with_statement.statement,
+                        Some(|node: &Node| self.top_level_nested_visitor(node)),
+                        Some(is_statement),
+                        Some(|nodes: &[Gc<Node>]| self.factory.lift_to_block(nodes)),
+                    ),
+                )
+                .into(),
+        )
     }
 
     pub(super) fn visit_switch_statement(
         &self,
-        _node: &Node, /*SwitchStatement*/
+        node: &Node, /*SwitchStatement*/
     ) -> VisitResult /*<Statement>*/ {
-        unimplemented!()
+        let node_as_switch_statement = node.as_switch_statement();
+        Some(
+            self.factory
+                .update_switch_statement(
+                    node,
+                    visit_node(
+                        &node_as_switch_statement.expression,
+                        Some(|node: &Node| self.visitor(node)),
+                        Some(is_expression),
+                        Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                    ),
+                    visit_node(
+                        &node_as_switch_statement.case_block,
+                        Some(|node: &Node| self.top_level_nested_visitor(node)),
+                        Some(is_case_block),
+                        Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                    ),
+                )
+                .into(),
+        )
     }
 
     pub(super) fn visit_case_block(
         &self,
-        _node: &Node, /*CaseBlock*/
+        node: &Node, /*CaseBlock*/
     ) -> Gc<Node /*CaseBlock*/> {
-        unimplemented!()
+        let node_as_case_block = node.as_case_block();
+        let saved_enclosing_block_scoped_container = self.maybe_enclosing_block_scoped_container();
+        self.set_enclosing_block_scoped_container(Some(node.node_wrapper()));
+
+        let node = self.factory.update_case_block(
+            node,
+            visit_nodes(
+                &node_as_case_block.clauses,
+                Some(|node: &Node| self.top_level_nested_visitor(node)),
+                Some(is_case_or_default_clause),
+                None,
+                None,
+            ),
+        );
+
+        self.set_enclosing_block_scoped_container(saved_enclosing_block_scoped_container);
+        node
     }
 
-    pub(super) fn visit_case_clause(&self, _node: &Node /*CaseClause*/) -> VisitResult /*<CaseOrDefaultClause>*/
+    pub(super) fn visit_case_clause(&self, node: &Node /*CaseClause*/) -> VisitResult /*<CaseOrDefaultClause>*/
     {
-        unimplemented!()
+        let node_as_case_clause = node.as_case_clause();
+        Some(
+            self.factory
+                .update_case_clause(
+                    node,
+                    visit_node(
+                        &node_as_case_clause.expression,
+                        Some(|node: &Node| self.visitor(node)),
+                        Some(is_expression),
+                        Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                    ),
+                    visit_nodes(
+                        &node_as_case_clause.statements,
+                        Some(|node: &Node| self.top_level_nested_visitor(node)),
+                        Some(is_statement),
+                        None,
+                        None,
+                    ),
+                )
+                .into(),
+        )
     }
 
-    pub(super) fn visit_default_clause(&self, _node: &Node /*DefaultClause*/) -> VisitResult /*<CaseOrDefaultClause>*/
+    pub(super) fn visit_default_clause(&self, node: &Node /*DefaultClause*/) -> VisitResult /*<CaseOrDefaultClause>*/
     {
-        unimplemented!()
+        Some(
+            visit_each_child(
+                node,
+                |node: &Node| self.top_level_nested_visitor(node),
+                &**self.context,
+            )
+            .into(),
+        )
     }
 
-    pub(super) fn visit_try_statement(&self, _node: &Node /*TryStatement*/) -> VisitResult /*<Statement>*/
+    pub(super) fn visit_try_statement(&self, node: &Node /*TryStatement*/) -> VisitResult /*<Statement>*/
     {
-        unimplemented!()
+        Some(
+            visit_each_child(
+                node,
+                |node: &Node| self.top_level_nested_visitor(node),
+                &**self.context,
+            )
+            .into(),
+        )
     }
 
     pub(super) fn visit_catch_clause(
         &self,
-        _node: &Node, /*CatchClause*/
+        node: &Node, /*CatchClause*/
     ) -> Gc<Node /*CatchClause*/> {
-        unimplemented!()
+        let node_as_catch_clause = node.as_catch_clause();
+        let saved_enclosing_block_scoped_container = self.maybe_enclosing_block_scoped_container();
+        self.set_enclosing_block_scoped_container(Some(node.node_wrapper()));
+
+        let node = self.factory.update_catch_clause(
+            node,
+            node_as_catch_clause.variable_declaration.clone(),
+            visit_node(
+                &node_as_catch_clause.block,
+                Some(|node: &Node| self.top_level_nested_visitor(node)),
+                Some(is_block),
+                Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+            ),
+        );
+
+        self.set_enclosing_block_scoped_container(saved_enclosing_block_scoped_container);
+        node
     }
 
-    pub(super) fn visit_block(&self, _node: &Node /*Block*/) -> Gc<Node /*Block*/> {
-        unimplemented!()
+    pub(super) fn visit_block(&self, node: &Node /*Block*/) -> Gc<Node /*Block*/> {
+        let node_as_block = node.as_block();
+        let saved_enclosing_block_scoped_container = self.maybe_enclosing_block_scoped_container();
+        self.set_enclosing_block_scoped_container(Some(node.node_wrapper()));
+
+        let node = visit_each_child(
+            node,
+            |node: &Node| self.top_level_nested_visitor(node),
+            &**self.context,
+        );
+
+        self.set_enclosing_block_scoped_container(saved_enclosing_block_scoped_container);
+        node
+    }
+
+    pub(super) fn visitor_worker(&self, node: &Node, value_is_discarded: bool) -> VisitResult /*<Node>*/
+    {
+        if !node.transform_flags().intersects(
+            TransformFlags::ContainsDestructuringAssignment
+                | TransformFlags::ContainsDynamicImport
+                | TransformFlags::ContainsUpdateExpressionForIdentifier,
+        ) {
+            return Some(node.node_wrapper().into());
+        }
+        match node.kind() {
+            SyntaxKind::ForStatement => return self.visit_for_statement(node, false),
+            SyntaxKind::ExpressionStatement => return self.visit_expression_statement(node),
+            SyntaxKind::ParenthesizedExpression => {
+                return self.visit_parenthesized_expression(node, value_is_discarded)
+            }
+            SyntaxKind::PartiallyEmittedExpression => {
+                return self.visit_partially_emitted_expression(node, value_is_discarded)
+            }
+            SyntaxKind::BinaryExpression => {
+                if is_destructuring_assignment(node) {
+                    return self.visit_destructuring_assignment(node, value_is_discarded);
+                }
+            }
+            SyntaxKind::CallExpression => {
+                if is_import_call(node) {
+                    return Some(self.visit_import_call_expression(node).into());
+                }
+            }
+            SyntaxKind::PrefixUnaryExpression | SyntaxKind::PostfixUnaryExpression => {
+                return self.visit_prefix_or_postfix_unary_expression(node, value_is_discarded)
+            }
+            _ => (),
+        }
+        Some(visit_each_child(node, |node: &Node| self.visitor(node), &**self.context).into())
     }
 }
