@@ -12,9 +12,9 @@ use crate::{
     for_each, gc_cell_ref_mut_unwrapped, get_external_module_name_literal,
     get_local_name_for_external_import, get_original_node_id, get_strict_option_value, id_text,
     insert_statements_after_standard_prologue, is_effective_external_module, is_external_module,
-    is_named_exports, is_statement, map, maybe_visit_node, move_emit_helpers, out_file,
-    try_get_module_name_from_file, visit_nodes, Debug_, EmitFlags, EmitHelper, ModifierFlags,
-    NamedDeclarationInterface, NodeArray, TransformFlags,
+    is_named_exports, is_statement, map, move_emit_helpers, out_file,
+    try_get_module_name_from_file, try_maybe_visit_node, try_visit_nodes, Debug_, EmitFlags,
+    EmitHelper, ModifierFlags, NamedDeclarationInterface, NodeArray, TransformFlags,
 };
 
 pub(super) struct DependencyGroup {
@@ -340,7 +340,10 @@ impl TransformSystemModule {
         *self.no_substitution.borrow_mut() = no_substitution;
     }
 
-    pub(super) fn transform_source_file(&self, node: &Node /*SourceFile*/) -> Gc<Node> {
+    pub(super) fn transform_source_file(
+        &self,
+        node: &Node, /*SourceFile*/
+    ) -> io::Result<Gc<Node>> {
         let node_as_source_file = node.as_source_file();
         if node_as_source_file.is_declaration_file()
             || !(is_effective_external_module(node, &self.compiler_options)
@@ -348,7 +351,7 @@ impl TransformSystemModule {
                     .transform_flags()
                     .intersects(TransformFlags::ContainsDynamicImport))
         {
-            return node.node_wrapper();
+            return Ok(node.node_wrapper());
         }
 
         let id = get_original_node_id(node);
@@ -373,7 +376,7 @@ impl TransformSystemModule {
 
         let dependency_groups =
             self.collect_dependency_groups(&self.module_info().external_imports);
-        let module_body_block = self.create_system_module_body(node, &dependency_groups);
+        let module_body_block = self.create_system_module_body(node, &dependency_groups)?;
         let module_body_function = self.factory.create_function_expression(
             Option::<Gc<NodeArray>>::None,
             None,
@@ -469,7 +472,7 @@ impl TransformSystemModule {
         self.set_context_object(None);
         self.set_hoisted_statements(None);
         self.set_enclosing_block_scoped_container(None);
-        updated
+        Ok(updated)
     }
 
     pub(super) fn collect_dependency_groups(
@@ -513,7 +516,7 @@ impl TransformSystemModule {
         &self,
         node: &Node, /*SourceFile*/
         dependency_groups: &[DependencyGroup],
-    ) -> Gc<Node> {
+    ) -> io::Result<Gc<Node>> {
         let node_as_source_file = node.as_source_file();
         let mut statements: Vec<Gc<Node /*Statement*/>> = _d();
 
@@ -522,12 +525,12 @@ impl TransformSystemModule {
         let ensure_use_strict = get_strict_option_value(&self.compiler_options, "alwaysStrict")
             || self.compiler_options.no_implicit_use_strict != Some(true)
                 && is_external_module(&self.current_source_file());
-        let statement_offset = self.factory.copy_prologue(
+        let statement_offset = self.factory.try_copy_prologue(
             &node_as_source_file.statements(),
             &mut statements,
             Some(ensure_use_strict),
             Some(|node: &Node| self.top_level_visitor(node)),
-        );
+        )?;
 
         statements.push(self.factory.create_variable_statement(
             Option::<Gc<NodeArray>>::None,
@@ -548,22 +551,22 @@ impl TransformSystemModule {
             ),
         ));
 
-        maybe_visit_node(
+        try_maybe_visit_node(
             self.module_info()
                 .external_helpers_import_declaration
                 .as_deref(),
             Some(|node: &Node| self.top_level_visitor(node)),
             Some(is_statement),
             Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
-        );
+        )?;
 
-        let execute_statements = visit_nodes(
+        let execute_statements = try_visit_nodes(
             &node_as_source_file.statements(),
             Some(|node: &Node| self.top_level_visitor(node)),
             Some(is_statement),
             Some(statement_offset),
             None,
-        );
+        )?;
 
         add_range(
             &mut statements,
@@ -608,7 +611,7 @@ impl TransformSystemModule {
         );
 
         statements.push(self.factory.create_return_statement(Some(module_object)));
-        self.factory.create_block(statements, Some(true))
+        Ok(self.factory.create_block(statements, Some(true)))
     }
 
     pub(super) fn add_export_star_if_needed(
@@ -938,7 +941,7 @@ impl TransformSystemModule {
 
 impl TransformerInterface for TransformSystemModule {
     fn call(&self, node: &Node) -> io::Result<Gc<Node>> {
-        Ok(self.transform_source_file(node))
+        self.transform_source_file(node)
     }
 }
 

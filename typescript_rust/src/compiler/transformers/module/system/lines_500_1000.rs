@@ -1,28 +1,31 @@
+use std::io;
+
 use gc::Gc;
 
 use super::TransformSystemModule;
 use crate::{
-    Node, NodeInterface, SyntaxKind, VisitResult, _d, flatten_destructuring_assignment,
-    get_emit_flags, get_local_name_for_external_import, get_original_node, get_original_node_id,
+    Node, NodeInterface, SyntaxKind, VisitResult, _d, get_emit_flags,
+    get_local_name_for_external_import, get_original_node, get_original_node_id,
     has_syntactic_modifier, is_binding_pattern, is_block, is_class_element, is_decorator,
     is_expression, is_external_module_import_equals_declaration, is_heritage_clause, is_modifier,
     is_module_or_enum_declaration, is_omitted_expression, is_parameter_declaration, is_statement,
-    maybe_visit_node, maybe_visit_nodes, return_if_none, single_or_many_node, visit_each_child,
-    visit_node, visit_nodes, ClassLikeDeclarationInterface, Debug_, EmitFlags, FlattenLevel,
+    maybe_visit_nodes, return_if_none, single_or_many_node, try_flatten_destructuring_assignment,
+    try_maybe_visit_node, try_maybe_visit_nodes, try_visit_each_child, try_visit_node,
+    try_visit_nodes, ClassLikeDeclarationInterface, Debug_, EmitFlags, FlattenLevel,
     FunctionLikeDeclarationInterface, GetOrInsertDefault, HasInitializerInterface,
     InterfaceOrClassLikeDeclarationInterface, ModifierFlags, NamedDeclarationInterface, NodeArray,
     NodeExt, NodeFlags, ReadonlyTextRange, SignatureDeclarationInterface,
 };
 
 impl TransformSystemModule {
-    pub(super) fn top_level_visitor(&self, node: &Node) -> VisitResult /*<Node>*/ {
-        match node.kind() {
+    pub(super) fn top_level_visitor(&self, node: &Node) -> io::Result<VisitResult> /*<Node>*/ {
+        Ok(match node.kind() {
             SyntaxKind::ImportDeclaration => self.visit_import_declaration(node),
             SyntaxKind::ImportEqualsDeclaration => self.visit_import_equals_declaration(node),
             SyntaxKind::ExportDeclaration => self.visit_export_declaration(node),
-            SyntaxKind::ExportAssignment => self.visit_export_assignment(node),
-            _ => self.top_level_nested_visitor(node),
-        }
+            SyntaxKind::ExportAssignment => self.visit_export_assignment(node)?,
+            _ => self.top_level_nested_visitor(node)?,
+        })
     }
 
     pub(super) fn visit_import_declaration(
@@ -94,20 +97,20 @@ impl TransformSystemModule {
     pub(super) fn visit_export_assignment(
         &self,
         node: &Node, /*ExportAssignment*/
-    ) -> VisitResult /*<Statement>*/ {
+    ) -> io::Result<VisitResult> /*<Statement>*/ {
         let node_as_export_assignment = node.as_export_assignment();
         if node_as_export_assignment.is_export_equals == Some(true) {
-            return None;
+            return Ok(None);
         }
 
-        let expression = visit_node(
+        let expression = try_visit_node(
             &node_as_export_assignment.expression,
             Some(|node: &Node| self.visitor(node)),
             Some(is_expression),
             Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
-        );
+        )?;
         let original = node.maybe_original();
-        match original {
+        Ok(match original {
             Some(ref original) if self.has_associated_end_of_declaration_marker(original) => {
                 let id = get_original_node_id(node);
                 self.append_export_statement(
@@ -126,13 +129,13 @@ impl TransformSystemModule {
                 )
                 .into(),
             ),
-        }
+        })
     }
 
     pub(super) fn visit_function_declaration(
         &self,
         node: &Node, /*FunctionDeclaration*/
-    ) -> VisitResult /*<Statement>*/ {
+    ) -> io::Result<VisitResult> /*<Statement>*/ {
         let node_as_function_declaration = node.as_function_declaration();
         if has_syntactic_modifier(node, ModifierFlags::Export) {
             self.maybe_hoisted_statements_mut()
@@ -154,30 +157,30 @@ impl TransformSystemModule {
                                 .get_declaration_name(Some(node), Some(true), Some(true)),
                         ),
                         Option::<Gc<NodeArray>>::None,
-                        visit_nodes(
+                        try_visit_nodes(
                             &node_as_function_declaration.parameters(),
                             Some(|node: &Node| self.visitor(node)),
                             Some(is_parameter_declaration),
                             None,
                             None,
-                        ),
+                        )?,
                         None,
-                        maybe_visit_node(
+                        try_maybe_visit_node(
                             node_as_function_declaration.maybe_body(),
                             Some(|node: &Node| self.visitor(node)),
                             Some(is_block),
                             Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
-                        ),
+                        )?,
                     ),
                 );
         } else {
             self.maybe_hoisted_statements_mut()
                 .get_or_insert_default_()
-                .push(visit_each_child(
+                .push(try_visit_each_child(
                     node,
                     |node: &Node| self.visitor(node),
                     &**self.context,
-                ));
+                )?);
         }
 
         if self.has_associated_end_of_declaration_marker(node) {
@@ -193,13 +196,13 @@ impl TransformSystemModule {
             );
         }
 
-        None
+        Ok(None)
     }
 
     pub(super) fn visit_class_declaration(
         &self,
         node: &Node, /*ClassDeclaration*/
-    ) -> VisitResult /*<Statement>*/ {
+    ) -> io::Result<VisitResult> /*<Statement>*/ {
         let node_as_class_declaration = node.as_class_declaration();
         let mut statements: Option<Vec<Gc<Node /*Statement*/>>> = _d();
 
@@ -213,17 +216,17 @@ impl TransformSystemModule {
                         name,
                         self.factory
                             .create_class_expression(
-                                maybe_visit_nodes(
+                                try_maybe_visit_nodes(
                                     node.maybe_decorators().as_deref(),
                                     Some(|node: &Node| self.visitor(node)),
                                     Some(is_decorator),
                                     None,
                                     None,
-                                ),
+                                )?,
                                 Option::<Gc<NodeArray>>::None,
                                 node_as_class_declaration.maybe_name(),
                                 Option::<Gc<NodeArray>>::None,
-                                maybe_visit_nodes(
+                                try_maybe_visit_nodes(
                                     node_as_class_declaration
                                         .maybe_heritage_clauses()
                                         .as_deref(),
@@ -231,14 +234,14 @@ impl TransformSystemModule {
                                     Some(is_heritage_clause),
                                     None,
                                     None,
-                                ),
-                                visit_nodes(
+                                )?,
+                                try_visit_nodes(
                                     &node_as_class_declaration.members(),
                                     Some(|node: &Node| self.visitor(node)),
                                     Some(is_class_element),
                                     None,
                                     None,
-                                ),
+                                )?,
                             )
                             .set_text_range(Some(node)),
                     ),
@@ -256,26 +259,26 @@ impl TransformSystemModule {
             self.append_exports_of_hoisted_declaration(&mut statements, node);
         }
 
-        statements.map(single_or_many_node)
+        Ok(statements.map(single_or_many_node))
     }
 
     pub(super) fn visit_variable_statement(
         &self,
         node: &Node, /*VariableStatement*/
-    ) -> VisitResult /*<Statement>*/ {
+    ) -> io::Result<VisitResult> /*<Statement>*/ {
         let node_as_variable_statement = node.as_variable_statement();
         if !self
             .should_hoist_variable_declaration_list(&node_as_variable_statement.declaration_list)
         {
-            return Some(
-                visit_node(
+            return Ok(Some(
+                try_visit_node(
                     node,
                     Some(|node: &Node| self.visitor(node)),
                     Some(is_statement),
                     Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
-                )
+                )?
                 .into(),
-            );
+            ));
         }
 
         let mut expressions: Option<Vec<Gc<Node /*Expression*/>>> = _d();
@@ -296,7 +299,7 @@ impl TransformSystemModule {
                     .push(self.transform_initialized_variable(
                         variable,
                         is_exported_declaration && !is_marked_declaration,
-                    ));
+                    )?);
             } else {
                 self.hoist_binding_element(variable);
             }
@@ -322,7 +325,7 @@ impl TransformSystemModule {
             self.append_exports_of_variable_statement(&mut statements, node, false);
         }
 
-        statements.map(single_or_many_node)
+        Ok(statements.map(single_or_many_node))
     }
 
     pub(super) fn hoist_binding_element(
@@ -358,39 +361,42 @@ impl TransformSystemModule {
         &self,
         node: &Node, /*VariableDeclaration*/
         is_exported_declaration: bool,
-    ) -> Gc<Node /*Expression*/> {
+    ) -> io::Result<Gc<Node /*Expression*/>> {
         let node_as_variable_declaration = node.as_variable_declaration();
         let create_assignment =
             |name: &Node, value: &Node, location: Option<&dyn ReadonlyTextRange>| {
-                if is_exported_declaration {
+                Ok(if is_exported_declaration {
                     self.create_exported_variable_assignment(name, value, location)
                 } else {
                     self.create_non_exported_variable_assignment(name, value, location)
-                }
+                })
             };
-        if is_binding_pattern(node_as_variable_declaration.maybe_name()) {
-            flatten_destructuring_assignment(
-                node,
-                Some(|node: &Node| self.visitor(node)),
-                &**self.context,
-                FlattenLevel::All,
-                Some(false),
-                Some(create_assignment),
-            )
-        } else if let Some(node_initializer) = node_as_variable_declaration.maybe_initializer() {
-            create_assignment(
-                &node_as_variable_declaration.name(),
-                &visit_node(
-                    &node_initializer,
+        Ok(
+            if is_binding_pattern(node_as_variable_declaration.maybe_name()) {
+                try_flatten_destructuring_assignment(
+                    node,
                     Some(|node: &Node| self.visitor(node)),
-                    Some(is_expression),
-                    Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
-                ),
-                None,
-            )
-        } else {
-            node_as_variable_declaration.name()
-        }
+                    &**self.context,
+                    FlattenLevel::All,
+                    Some(false),
+                    Some(create_assignment),
+                )?
+            } else if let Some(node_initializer) = node_as_variable_declaration.maybe_initializer()
+            {
+                create_assignment(
+                    &node_as_variable_declaration.name(),
+                    &*try_visit_node(
+                        &node_initializer,
+                        Some(|node: &Node| self.visitor(node)),
+                        Some(is_expression),
+                        Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                    )?,
+                    None,
+                )?
+            } else {
+                node_as_variable_declaration.name()
+            },
+        )
     }
 
     pub(super) fn create_exported_variable_assignment(

@@ -1,14 +1,17 @@
+use std::io;
+
 use gc::Gc;
 
 use super::TransformSystemModule;
 use crate::{
     get_emit_flags, get_text_of_identifier_or_literal, has_syntactic_modifier, id_text,
     is_binding_pattern, is_expression, is_for_initializer, is_generated_identifier, is_identifier,
-    is_omitted_expression, is_variable_declaration_list, maybe_visit_node, set_emit_flags,
-    visit_iteration_body, visit_node, EmitFlags, GetOrInsertDefault, HasInitializerInterface,
-    ModifierFlags, Node, NodeArray, NodeExt, NodeInterface, SyntaxKind, VisitResult, _d, is_block,
-    is_case_block, is_case_or_default_clause, is_destructuring_assignment, is_import_call,
-    is_statement, visit_each_child, visit_nodes, TransformFlags,
+    is_omitted_expression, is_variable_declaration_list, set_emit_flags, EmitFlags,
+    GetOrInsertDefault, HasInitializerInterface, ModifierFlags, Node, NodeArray, NodeExt,
+    NodeInterface, SyntaxKind, VisitResult, _d, is_block, is_case_block, is_case_or_default_clause,
+    is_destructuring_assignment, is_import_call, is_statement, try_maybe_visit_node,
+    try_visit_each_child, try_visit_iteration_body, try_visit_node, try_visit_nodes,
+    TransformFlags,
 };
 
 impl TransformSystemModule {
@@ -169,67 +172,68 @@ impl TransformSystemModule {
             .set_comment_range(value)
     }
 
-    pub(super) fn top_level_nested_visitor(&self, node: &Node) -> VisitResult /*<Node>*/ {
-        match node.kind() {
-            SyntaxKind::VariableStatement => self.visit_variable_statement(node),
-            SyntaxKind::FunctionDeclaration => self.visit_function_declaration(node),
-            SyntaxKind::ClassDeclaration => self.visit_class_declaration(node),
-            SyntaxKind::ForStatement => self.visit_for_statement(node, true),
-            SyntaxKind::ForInStatement => self.visit_for_in_statement(node),
-            SyntaxKind::ForOfStatement => self.visit_for_of_statement(node),
-            SyntaxKind::DoStatement => self.visit_do_statement(node),
-            SyntaxKind::WhileStatement => self.visit_while_statement(node),
-            SyntaxKind::LabeledStatement => self.visit_labeled_statement(node),
-            SyntaxKind::WithStatement => self.visit_with_statement(node),
-            SyntaxKind::SwitchStatement => self.visit_switch_statement(node),
-            SyntaxKind::CaseBlock => Some(self.visit_case_block(node).into()),
-            SyntaxKind::CaseClause => self.visit_case_clause(node),
-            SyntaxKind::DefaultClause => self.visit_default_clause(node),
-            SyntaxKind::TryStatement => self.visit_try_statement(node),
-            SyntaxKind::CatchClause => Some(self.visit_catch_clause(node).into()),
-            SyntaxKind::Block => Some(self.visit_block(node).into()),
+    pub(super) fn top_level_nested_visitor(&self, node: &Node) -> io::Result<VisitResult> /*<Node>*/
+    {
+        Ok(match node.kind() {
+            SyntaxKind::VariableStatement => self.visit_variable_statement(node)?,
+            SyntaxKind::FunctionDeclaration => self.visit_function_declaration(node)?,
+            SyntaxKind::ClassDeclaration => self.visit_class_declaration(node)?,
+            SyntaxKind::ForStatement => self.visit_for_statement(node, true)?,
+            SyntaxKind::ForInStatement => self.visit_for_in_statement(node)?,
+            SyntaxKind::ForOfStatement => self.visit_for_of_statement(node)?,
+            SyntaxKind::DoStatement => self.visit_do_statement(node)?,
+            SyntaxKind::WhileStatement => self.visit_while_statement(node)?,
+            SyntaxKind::LabeledStatement => self.visit_labeled_statement(node)?,
+            SyntaxKind::WithStatement => self.visit_with_statement(node)?,
+            SyntaxKind::SwitchStatement => self.visit_switch_statement(node)?,
+            SyntaxKind::CaseBlock => Some(self.visit_case_block(node)?.into()),
+            SyntaxKind::CaseClause => self.visit_case_clause(node)?,
+            SyntaxKind::DefaultClause => self.visit_default_clause(node)?,
+            SyntaxKind::TryStatement => self.visit_try_statement(node)?,
+            SyntaxKind::CatchClause => Some(self.visit_catch_clause(node)?.into()),
+            SyntaxKind::Block => Some(self.visit_block(node)?.into()),
             SyntaxKind::MergeDeclarationMarker => self.visit_merge_declaration_marker(node),
             SyntaxKind::EndOfDeclarationMarker => self.visit_end_of_declaration_marker(node),
-            _ => self.visitor(node),
-        }
+            _ => self.visitor(node)?,
+        })
     }
 
     pub(super) fn visit_for_statement(
         &self,
         node: &Node, /*ForStatement*/
         is_top_level: bool,
-    ) -> VisitResult /*<Statement>*/ {
+    ) -> io::Result<VisitResult> /*<Statement>*/ {
         let node_as_for_statement = node.as_for_statement();
         let saved_enclosing_block_scoped_container = self.maybe_enclosing_block_scoped_container();
         self.set_enclosing_block_scoped_container(Some(node.node_wrapper()));
 
         let node = self.factory.update_for_statement(
             node,
-            maybe_visit_node(
+            try_maybe_visit_node(
                 node_as_for_statement.initializer.as_deref(),
                 Some(|node: &Node| {
-                    if is_top_level {
-                        Some(self.visit_for_initializer(node).into())
+                    Ok(if is_top_level {
+                        Some(self.visit_for_initializer(node)?.into())
                     } else {
-                        self.discarded_value_visitor(node)
-                    }
+                        self.discarded_value_visitor(node)?
+                    })
                 }),
                 Some(is_for_initializer),
                 Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
-            ),
-            maybe_visit_node(
+            )?,
+            try_maybe_visit_node(
                 node_as_for_statement.condition.as_deref(),
                 Some(|node: &Node| self.visitor(node)),
                 Some(is_expression),
                 Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
-            ),
-            maybe_visit_node(
+            )?,
+            try_maybe_visit_node(
                 node_as_for_statement.incrementor.as_deref(),
                 Some(|node: &Node| self.discarded_value_visitor(node)),
                 Some(is_expression),
                 Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
-            ),
-            visit_iteration_body(
+            )?,
+            try_visit_iteration_body(
                 &node_as_for_statement.statement,
                 |node: &Node| {
                     if is_top_level {
@@ -239,45 +243,45 @@ impl TransformSystemModule {
                     }
                 },
                 &**self.context,
-            ),
+            )?,
         );
 
         self.set_enclosing_block_scoped_container(saved_enclosing_block_scoped_container);
-        Some(node.into())
+        Ok(Some(node.into()))
     }
 
     pub(super) fn visit_for_in_statement(
         &self,
         node: &Node, /*ForInStatement*/
-    ) -> VisitResult /*<Statement>*/ {
+    ) -> io::Result<VisitResult> /*<Statement>*/ {
         let node_as_for_in_statement = node.as_for_in_statement();
         let saved_enclosing_block_scoped_container = self.maybe_enclosing_block_scoped_container();
         self.set_enclosing_block_scoped_container(Some(node.node_wrapper()));
 
         let node = self.factory.update_for_in_statement(
             node,
-            self.visit_for_initializer(&node_as_for_in_statement.initializer),
-            visit_node(
+            self.visit_for_initializer(&node_as_for_in_statement.initializer)?,
+            try_visit_node(
                 &node_as_for_in_statement.expression,
                 Some(|node: &Node| self.visitor(node)),
                 Some(is_expression),
                 Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
-            ),
-            visit_iteration_body(
+            )?,
+            try_visit_iteration_body(
                 &node_as_for_in_statement.statement,
                 |node: &Node| self.top_level_nested_visitor(node),
                 &**self.context,
-            ),
+            )?,
         );
 
         self.set_enclosing_block_scoped_container(saved_enclosing_block_scoped_container);
-        Some(node.into())
+        Ok(Some(node.into()))
     }
 
     pub(super) fn visit_for_of_statement(
         &self,
         node: &Node, /*ForOfStatement*/
-    ) -> VisitResult /*<Statement>*/ {
+    ) -> io::Result<VisitResult> /*<Statement>*/ {
         let node_as_for_of_statement = node.as_for_of_statement();
         let saved_enclosing_block_scoped_container = self.maybe_enclosing_block_scoped_container();
         self.set_enclosing_block_scoped_container(Some(node.node_wrapper()));
@@ -285,22 +289,22 @@ impl TransformSystemModule {
         let node = self.factory.update_for_of_statement(
             node,
             node_as_for_of_statement.await_modifier.clone(),
-            self.visit_for_initializer(&node_as_for_of_statement.initializer),
-            visit_node(
+            self.visit_for_initializer(&node_as_for_of_statement.initializer)?,
+            try_visit_node(
                 &node_as_for_of_statement.expression,
                 Some(|node: &Node| self.visitor(node)),
                 Some(is_expression),
                 Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
-            ),
-            visit_iteration_body(
+            )?,
+            try_visit_iteration_body(
                 &node_as_for_of_statement.statement,
                 |node: &Node| self.top_level_nested_visitor(node),
                 &**self.context,
-            ),
+            )?,
         );
 
         self.set_enclosing_block_scoped_container(saved_enclosing_block_scoped_container);
-        Some(node.into())
+        Ok(Some(node.into()))
     }
 
     pub(super) fn should_hoist_for_initializer(&self, node: &Node /*ForInitializer*/) -> bool {
@@ -310,13 +314,13 @@ impl TransformSystemModule {
     pub(super) fn visit_for_initializer(
         &self,
         node: &Node, /*ForInitializer*/
-    ) -> Gc<Node /*ForInitializer*/> {
-        if self.should_hoist_for_initializer(node) {
+    ) -> io::Result<Gc<Node /*ForInitializer*/>> {
+        Ok(if self.should_hoist_for_initializer(node) {
             let mut expressions: Option<Vec<Gc<Node /*Expression*/>>> = _d();
             for variable in &node.as_variable_declaration_list().declarations {
                 expressions
                     .get_or_insert_default_()
-                    .push(self.transform_initialized_variable(variable, false));
+                    .push(self.transform_initialized_variable(variable, false)?);
                 if variable
                     .as_variable_declaration()
                     .maybe_initializer()
@@ -331,208 +335,220 @@ impl TransformSystemModule {
                 |expressions| self.factory.inline_expressions(&expressions),
             )
         } else {
-            visit_node(
+            try_visit_node(
                 node,
                 Some(|node: &Node| self.discarded_value_visitor(node)),
                 Some(is_expression),
                 Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
-            )
-        }
+            )?
+        })
     }
 
-    pub(super) fn visit_do_statement(&self, node: &Node /*DoStatement*/) -> VisitResult /*<Statement>*/
-    {
+    pub(super) fn visit_do_statement(
+        &self,
+        node: &Node, /*DoStatement*/
+    ) -> io::Result<VisitResult> /*<Statement>*/ {
         let node_as_do_statement = node.as_do_statement();
-        Some(
+        Ok(Some(
             self.factory
                 .update_do_statement(
                     node,
-                    visit_iteration_body(
+                    try_visit_iteration_body(
                         &node_as_do_statement.statement,
                         |node: &Node| self.top_level_nested_visitor(node),
                         &**self.context,
-                    ),
-                    visit_node(
+                    )?,
+                    try_visit_node(
                         &node_as_do_statement.expression,
                         Some(|node: &Node| self.visitor(node)),
                         Some(is_expression),
                         Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
-                    ),
+                    )?,
                 )
                 .into(),
-        )
+        ))
     }
 
-    pub(super) fn visit_while_statement(&self, node: &Node /*WhileStatement*/) -> VisitResult /*<Statement>*/
-    {
+    pub(super) fn visit_while_statement(
+        &self,
+        node: &Node, /*WhileStatement*/
+    ) -> io::Result<VisitResult> /*<Statement>*/ {
         let node_as_while_statement = node.as_while_statement();
-        Some(
+        Ok(Some(
             self.factory
                 .update_while_statement(
                     node,
-                    visit_node(
+                    try_visit_node(
                         &node_as_while_statement.expression,
                         Some(|node: &Node| self.visitor(node)),
                         Some(is_expression),
                         Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
-                    ),
-                    visit_iteration_body(
+                    )?,
+                    try_visit_iteration_body(
                         &node_as_while_statement.statement,
                         |node: &Node| self.top_level_nested_visitor(node),
                         &**self.context,
-                    ),
+                    )?,
                 )
                 .into(),
-        )
+        ))
     }
 
     pub(super) fn visit_labeled_statement(
         &self,
         node: &Node, /*LabeledStatement*/
-    ) -> VisitResult /*<Statement>*/ {
+    ) -> io::Result<VisitResult> /*<Statement>*/ {
         let node_as_labeled_statement = node.as_labeled_statement();
-        Some(
+        Ok(Some(
             self.factory
                 .update_labeled_statement(
                     node,
                     node_as_labeled_statement.label.clone(),
-                    visit_node(
+                    try_visit_node(
                         &node_as_labeled_statement.statement,
                         Some(|node: &Node| self.top_level_nested_visitor(node)),
                         Some(is_statement),
                         Some(|nodes: &[Gc<Node>]| self.factory.lift_to_block(nodes)),
-                    ),
+                    )?,
                 )
                 .into(),
-        )
+        ))
     }
 
-    pub(super) fn visit_with_statement(&self, node: &Node /*WithStatement*/) -> VisitResult /*<Statement>*/
-    {
+    pub(super) fn visit_with_statement(
+        &self,
+        node: &Node, /*WithStatement*/
+    ) -> io::Result<VisitResult> /*<Statement>*/ {
         let node_as_with_statement = node.as_with_statement();
-        Some(
+        Ok(Some(
             self.factory
                 .update_with_statement(
                     node,
-                    visit_node(
+                    try_visit_node(
                         &node_as_with_statement.expression,
                         Some(|node: &Node| self.visitor(node)),
                         Some(is_expression),
                         Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
-                    ),
-                    visit_node(
+                    )?,
+                    try_visit_node(
                         &node_as_with_statement.statement,
                         Some(|node: &Node| self.top_level_nested_visitor(node)),
                         Some(is_statement),
                         Some(|nodes: &[Gc<Node>]| self.factory.lift_to_block(nodes)),
-                    ),
+                    )?,
                 )
                 .into(),
-        )
+        ))
     }
 
     pub(super) fn visit_switch_statement(
         &self,
         node: &Node, /*SwitchStatement*/
-    ) -> VisitResult /*<Statement>*/ {
+    ) -> io::Result<VisitResult> /*<Statement>*/ {
         let node_as_switch_statement = node.as_switch_statement();
-        Some(
+        Ok(Some(
             self.factory
                 .update_switch_statement(
                     node,
-                    visit_node(
+                    try_visit_node(
                         &node_as_switch_statement.expression,
                         Some(|node: &Node| self.visitor(node)),
                         Some(is_expression),
                         Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
-                    ),
-                    visit_node(
+                    )?,
+                    try_visit_node(
                         &node_as_switch_statement.case_block,
                         Some(|node: &Node| self.top_level_nested_visitor(node)),
                         Some(is_case_block),
                         Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
-                    ),
+                    )?,
                 )
                 .into(),
-        )
+        ))
     }
 
     pub(super) fn visit_case_block(
         &self,
         node: &Node, /*CaseBlock*/
-    ) -> Gc<Node /*CaseBlock*/> {
+    ) -> io::Result<Gc<Node /*CaseBlock*/>> {
         let node_as_case_block = node.as_case_block();
         let saved_enclosing_block_scoped_container = self.maybe_enclosing_block_scoped_container();
         self.set_enclosing_block_scoped_container(Some(node.node_wrapper()));
 
         let node = self.factory.update_case_block(
             node,
-            visit_nodes(
+            try_visit_nodes(
                 &node_as_case_block.clauses,
                 Some(|node: &Node| self.top_level_nested_visitor(node)),
                 Some(is_case_or_default_clause),
                 None,
                 None,
-            ),
+            )?,
         );
 
         self.set_enclosing_block_scoped_container(saved_enclosing_block_scoped_container);
-        node
+        Ok(node)
     }
 
-    pub(super) fn visit_case_clause(&self, node: &Node /*CaseClause*/) -> VisitResult /*<CaseOrDefaultClause>*/
-    {
+    pub(super) fn visit_case_clause(
+        &self,
+        node: &Node, /*CaseClause*/
+    ) -> io::Result<VisitResult> /*<CaseOrDefaultClause>*/ {
         let node_as_case_clause = node.as_case_clause();
-        Some(
+        Ok(Some(
             self.factory
                 .update_case_clause(
                     node,
-                    visit_node(
+                    try_visit_node(
                         &node_as_case_clause.expression,
                         Some(|node: &Node| self.visitor(node)),
                         Some(is_expression),
                         Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
-                    ),
-                    visit_nodes(
+                    )?,
+                    try_visit_nodes(
                         &node_as_case_clause.statements,
                         Some(|node: &Node| self.top_level_nested_visitor(node)),
                         Some(is_statement),
                         None,
                         None,
-                    ),
+                    )?,
                 )
                 .into(),
-        )
+        ))
     }
 
-    pub(super) fn visit_default_clause(&self, node: &Node /*DefaultClause*/) -> VisitResult /*<CaseOrDefaultClause>*/
-    {
-        Some(
-            visit_each_child(
+    pub(super) fn visit_default_clause(
+        &self,
+        node: &Node, /*DefaultClause*/
+    ) -> io::Result<VisitResult> /*<CaseOrDefaultClause>*/ {
+        Ok(Some(
+            try_visit_each_child(
                 node,
                 |node: &Node| self.top_level_nested_visitor(node),
                 &**self.context,
-            )
+            )?
             .into(),
-        )
+        ))
     }
 
-    pub(super) fn visit_try_statement(&self, node: &Node /*TryStatement*/) -> VisitResult /*<Statement>*/
-    {
-        Some(
-            visit_each_child(
+    pub(super) fn visit_try_statement(
+        &self,
+        node: &Node, /*TryStatement*/
+    ) -> io::Result<VisitResult> /*<Statement>*/ {
+        Ok(Some(
+            try_visit_each_child(
                 node,
                 |node: &Node| self.top_level_nested_visitor(node),
                 &**self.context,
-            )
+            )?
             .into(),
-        )
+        ))
     }
 
     pub(super) fn visit_catch_clause(
         &self,
         node: &Node, /*CatchClause*/
-    ) -> Gc<Node /*CatchClause*/> {
+    ) -> io::Result<Gc<Node /*CatchClause*/>> {
         let node_as_catch_clause = node.as_catch_clause();
         let saved_enclosing_block_scoped_container = self.maybe_enclosing_block_scoped_container();
         self.set_enclosing_block_scoped_container(Some(node.node_wrapper()));
@@ -540,41 +556,43 @@ impl TransformSystemModule {
         let node = self.factory.update_catch_clause(
             node,
             node_as_catch_clause.variable_declaration.clone(),
-            visit_node(
+            try_visit_node(
                 &node_as_catch_clause.block,
                 Some(|node: &Node| self.top_level_nested_visitor(node)),
                 Some(is_block),
                 Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
-            ),
+            )?,
         );
 
         self.set_enclosing_block_scoped_container(saved_enclosing_block_scoped_container);
-        node
+        Ok(node)
     }
 
-    pub(super) fn visit_block(&self, node: &Node /*Block*/) -> Gc<Node /*Block*/> {
-        let node_as_block = node.as_block();
+    pub(super) fn visit_block(&self, node: &Node /*Block*/) -> io::Result<Gc<Node /*Block*/>> {
         let saved_enclosing_block_scoped_container = self.maybe_enclosing_block_scoped_container();
         self.set_enclosing_block_scoped_container(Some(node.node_wrapper()));
 
-        let node = visit_each_child(
+        let node = try_visit_each_child(
             node,
             |node: &Node| self.top_level_nested_visitor(node),
             &**self.context,
-        );
+        )?;
 
         self.set_enclosing_block_scoped_container(saved_enclosing_block_scoped_container);
-        node
+        Ok(node)
     }
 
-    pub(super) fn visitor_worker(&self, node: &Node, value_is_discarded: bool) -> VisitResult /*<Node>*/
-    {
+    pub(super) fn visitor_worker(
+        &self,
+        node: &Node,
+        value_is_discarded: bool,
+    ) -> io::Result<VisitResult> /*<Node>*/ {
         if !node.transform_flags().intersects(
             TransformFlags::ContainsDestructuringAssignment
                 | TransformFlags::ContainsDynamicImport
                 | TransformFlags::ContainsUpdateExpressionForIdentifier,
         ) {
-            return Some(node.node_wrapper().into());
+            return Ok(Some(node.node_wrapper().into()));
         }
         match node.kind() {
             SyntaxKind::ForStatement => return self.visit_for_statement(node, false),
@@ -592,14 +610,16 @@ impl TransformSystemModule {
             }
             SyntaxKind::CallExpression => {
                 if is_import_call(node) {
-                    return Some(self.visit_import_call_expression(node).into());
+                    return Ok(Some(self.visit_import_call_expression(node)?.into()));
                 }
             }
             SyntaxKind::PrefixUnaryExpression | SyntaxKind::PostfixUnaryExpression => {
-                return self.visit_prefix_or_postfix_unary_expression(node, value_is_discarded)
+                return Ok(self.visit_prefix_or_postfix_unary_expression(node, value_is_discarded))
             }
             _ => (),
         }
-        Some(visit_each_child(node, |node: &Node| self.visitor(node), &**self.context).into())
+        Ok(Some(
+            try_visit_each_child(node, |node: &Node| self.visitor(node), &**self.context)?.into(),
+        ))
     }
 }
