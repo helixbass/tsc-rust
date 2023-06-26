@@ -4,9 +4,9 @@ use gc::{Gc, GcCell};
 
 use crate::{
     get_parse_tree_node, is_parse_tree_node, maybe_get_source_file_of_node, push_if_unique_gc,
-    BaseTextRange, Debug_, EmitFlags, EmitHelper, EmitNode, GetOrInsertDefault, Node,
-    NodeInterface, NonEmpty, ReadonlyTextRange, SnippetElement, SourceMapRange, StringOrNumber,
-    SyntaxKind, SynthesizedComment,
+    return_if_none, BaseTextRange, Debug_, EmitFlags, EmitHelper, EmitNode, GetOrInsertDefault,
+    Node, NodeInterface, NonEmpty, ReadonlyTextRange, SnippetElement, SourceMapRange,
+    StringOrNumber, SyntaxKind, SynthesizedComment,
 };
 
 pub(crate) fn get_or_create_emit_node(node: &Node) -> Gc<GcCell<EmitNode>> {
@@ -76,8 +76,13 @@ pub fn dispose_emit_nodes(source_file: Option<impl Borrow<Node> /*SourceFile*/>)
     }
 }
 
-pub fn remove_all_comments<TNode: Borrow<Node>>(_node: TNode) -> TNode {
-    unimplemented!()
+pub fn remove_all_comments<TNode: Borrow<Node>>(node: TNode) -> TNode {
+    let emit_node = get_or_create_emit_node(node.borrow());
+    let mut emit_node = emit_node.borrow_mut();
+    emit_node.flags = Some(emit_node.flags.unwrap_or_default() | EmitFlags::NoComments);
+    emit_node.leading_comments = None;
+    emit_node.trailing_comments = None;
+    node
 }
 
 pub fn set_emit_flags<TNode: Borrow<Node>>(node: TNode, emit_flags: EmitFlags) -> TNode {
@@ -109,11 +114,17 @@ pub fn set_source_map_range<TNode: Borrow<Node>>(
 }
 
 pub fn set_token_source_map_range<TNode: Borrow<Node>>(
-    _node: TNode,
-    _token: SyntaxKind,
-    _range: Option<Gc<SourceMapRange>>,
+    node: TNode,
+    token: SyntaxKind,
+    range: Option<Gc<SourceMapRange>>,
 ) -> TNode {
-    unimplemented!()
+    let emit_node = get_or_create_emit_node(node.borrow());
+    emit_node
+        .borrow_mut()
+        .token_source_map_ranges
+        .get_or_insert_default_()
+        .insert(token, range);
+    node
 }
 
 pub(crate) fn get_starts_on_new_line(node: &Node) -> Option<bool> {
@@ -226,8 +237,15 @@ pub fn add_synthetic_trailing_comment(
     set_synthetic_trailing_comments(node, synthetic_trailing_comments);
 }
 
-pub fn move_synthetic_comments<TNode: Borrow<Node>>(_node: TNode, _original: &Node) -> TNode {
-    unimplemented!()
+pub fn move_synthetic_comments<TNode: Borrow<Node>>(node: TNode, original: &Node) -> TNode {
+    let node_ref = node.borrow();
+    set_synthetic_leading_comments(node_ref, get_synthetic_leading_comments(original));
+    set_synthetic_trailing_comments(node_ref, get_synthetic_trailing_comments(original));
+    let emit = get_or_create_emit_node(original);
+    let mut emit = emit.borrow_mut();
+    emit.leading_comments = None;
+    emit.trailing_comments = None;
+    node
 }
 
 pub fn get_constant_value(node: &Node /*AccessExpression*/) -> Option<StringOrNumber> {
@@ -236,14 +254,22 @@ pub fn get_constant_value(node: &Node /*AccessExpression*/) -> Option<StringOrNu
 }
 
 pub fn set_constant_value(
-    _node: &Node, /*AccessExpression*/
-    _value: StringOrNumber,
+    node: &Node, /*AccessExpression*/
+    value: StringOrNumber,
 ) -> Gc<Node /*AccessExpression*/> {
-    unimplemented!()
+    let emit_node = get_or_create_emit_node(node);
+    emit_node.borrow_mut().constant_value = Some(value);
+    node.node_wrapper()
 }
 
-pub fn add_emit_helper(_node: &Node, _helper: Gc<EmitHelper>) -> Gc<Node> {
-    unimplemented!()
+pub fn add_emit_helper(node: &Node, helper: Gc<EmitHelper>) -> Gc<Node> {
+    let emit_node = get_or_create_emit_node(node);
+    emit_node
+        .borrow_mut()
+        .helpers
+        .get_or_insert_default_()
+        .push(helper);
+    node.node_wrapper()
 }
 
 pub fn add_emit_helpers(node: &Node, helpers: Option<&[Gc<EmitHelper>]>) -> Gc<Node> {
@@ -263,11 +289,39 @@ pub fn get_emit_helpers(node: &Node) -> Option<Vec<Gc<EmitHelper>>> {
 }
 
 pub fn move_emit_helpers(
-    _source: &Node,
-    _target: &Node,
-    _predicate: impl FnMut(&EmitHelper) -> bool,
+    source: &Node,
+    target: &Node,
+    mut predicate: impl FnMut(&EmitHelper) -> bool,
 ) {
-    unimplemented!()
+    let source_emit_node = return_if_none!(source.maybe_emit_node());
+    let mut source_emit_node = source_emit_node.borrow_mut();
+    if source_emit_node.helpers.is_none() {
+        return;
+    }
+    let source_emit_helpers = source_emit_node.helpers.as_mut().unwrap();
+    if source_emit_helpers.is_empty() {
+        return;
+    }
+
+    let target_emit_node = get_or_create_emit_node(target);
+    let mut target_emit_node = target_emit_node.borrow_mut();
+    let mut helpers_removed = 0;
+    for i in 0..source_emit_helpers.len() {
+        let helper = source_emit_helpers[i].clone();
+        if predicate(&helper) {
+            helpers_removed += 1;
+            target_emit_node
+                .helpers
+                .get_or_insert_default_()
+                .push(helper);
+        } else if helpers_removed > 0 {
+            source_emit_helpers[i - helpers_removed] = helper;
+        }
+    }
+
+    if helpers_removed > 0 {
+        source_emit_helpers.truncate(source_emit_helpers.len() - helpers_removed);
+    }
 }
 
 pub(crate) fn get_snippet_element(node: &Node) -> Option<SnippetElement> {
