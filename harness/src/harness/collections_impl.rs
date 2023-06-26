@@ -1,11 +1,14 @@
 pub mod collections {
-    use gc::{Finalize, Gc, GcCell, Trace};
-    use std::borrow::Cow;
-    use std::cell::Cell;
-    use std::cmp::Ordering;
-    use std::collections::HashMap;
-    use std::convert::{TryFrom, TryInto};
+    use std::{
+        borrow::Cow,
+        cell::Cell,
+        cmp::Ordering,
+        collections::HashMap,
+        convert::{TryFrom, TryInto},
+        io,
+    };
 
+    use gc::{Finalize, Gc, GcCell, Trace};
     use typescript_rust::{binary_search, Comparison};
 
     pub trait SortOptionsComparer<TKey>: Trace + Finalize {
@@ -61,6 +64,14 @@ pub mod collections {
                 }
             }
             ret
+        }
+
+        pub fn len(&self) -> usize {
+            self._keys.len()
+        }
+
+        pub fn is_empty(&self) -> bool {
+            self._keys.is_empty()
         }
 
         fn _copy_on_write(&self) -> bool {
@@ -137,6 +148,53 @@ pub mod collections {
                 self.write_post_script();
             }
             self
+        }
+
+        pub fn for_each(
+            &self,
+            mut callback: impl FnMut(&TValue, &TKey, &Self), /*, thisArg?: any*/
+        ) {
+            self.try_for_each(|value: &TValue, key: &TKey, self_: &Self| {
+                Ok(callback(value, key, self_))
+            })
+            .unwrap()
+        }
+
+        pub fn try_for_each(
+            &self,
+            mut callback: impl FnMut(&TValue, &TKey, &Self) -> io::Result<()>, /*, thisArg?: any*/
+        ) -> io::Result<()> {
+            let keys = &self._keys;
+            let values = &self._values;
+            let indices = self.get_iteration_order();
+            let version = self._version;
+            self.set_copy_on_write(true);
+            // try {
+            let finally = || {
+                if version == self._version {
+                    self.set_copy_on_write(false);
+                }
+            };
+            if let Some(indices) = indices {
+                for i in indices {
+                    callback(&values[i], &keys[i], self).map_err(|err| {
+                        finally();
+                        err
+                    })?;
+                }
+            } else {
+                for (i, key) in keys.into_iter().enumerate() {
+                    callback(&values[i], key, self).map_err(|err| {
+                        finally();
+                        err
+                    })?;
+                }
+            }
+            // }
+            // finally {
+            finally();
+            Ok(())
+            // }
         }
 
         pub fn keys(&self) -> Keys<'_, TKey, TValue> {

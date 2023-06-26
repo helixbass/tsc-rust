@@ -1,6 +1,8 @@
 pub mod documents {
-    use gc::{Finalize, Trace};
     use std::collections::HashMap;
+
+    use gc::{Finalize, Gc, GcCell, Trace};
+    use typescript_rust::_d;
 
     use crate::Compiler;
 
@@ -11,7 +13,7 @@ pub mod documents {
         pub text: String,
 
         _line_starts: Option<Vec<usize>>,
-        _test_file: Option<Compiler::TestFile>,
+        _test_file: GcCell<Option<Gc<Compiler::TestFile>>>,
     }
 
     impl TextDocument {
@@ -20,8 +22,8 @@ pub mod documents {
                 file,
                 text,
                 meta: meta.unwrap_or_default(),
-                _line_starts: None,
-                _test_file: None,
+                _line_starts: _d(),
+                _test_file: _d(),
             }
         }
 
@@ -31,6 +33,19 @@ pub mod documents {
                 file.content.clone(),
                 file.file_options.clone(),
             )
+        }
+
+        pub fn as_test_file(&self) -> Gc<Compiler::TestFile> {
+            self._test_file
+                .borrow_mut()
+                .get_or_insert_with(|| {
+                    Gc::new(Compiler::TestFile {
+                        unit_name: self.file.clone(),
+                        content: self.text.clone(),
+                        file_options: Some(self.meta.clone()),
+                    })
+                })
+                .clone()
         }
     }
 }

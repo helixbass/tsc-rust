@@ -8,8 +8,8 @@ pub mod vpath {
         ensure_trailing_directory_separator, file_extension_is_one_of, get_any_extension_from_path,
         get_base_file_name, get_directory_path, get_path_components, get_path_from_path_components,
         get_relative_path_from_directory, has_js_file_extension, has_trailing_directory_separator,
-        is_disk_path_root, normalize_slashes, reduce_path_components, resolve_path, Comparison,
-        Extension,
+        has_ts_file_extension, is_disk_path_root, normalize_slashes, reduce_path_components,
+        resolve_path, Comparison, Extension,
     };
 
     pub const sep: char = directory_separator;
@@ -91,6 +91,10 @@ pub mod vpath {
         ignore_case: Option<bool>,
     ) -> String {
         change_any_extension(path, ext, extensions, ignore_case)
+    }
+
+    pub fn is_type_script(file_name: &str) -> bool {
+        has_ts_file_extension(file_name)
     }
 
     pub fn is_java_script(file_name: &str) -> bool {
@@ -246,5 +250,9 @@ pub mod vpath {
 
     pub fn is_source_map(path: &str) -> bool {
         !extname(path, Some(&[".map"]), Some(false)).is_empty()
+    }
+
+    pub fn is_json(path: &str) -> bool {
+        !extname(path, Some(&[".json"]), Some(false)).is_empty()
     }
 }

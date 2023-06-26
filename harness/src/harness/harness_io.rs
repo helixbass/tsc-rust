@@ -1,12 +1,14 @@
+use std::{
+    cell::{Cell, RefCell},
+    collections::HashMap,
+    io,
+    iter::FromIterator,
+    mem,
+    path::{Path as StdPath, PathBuf},
+};
+
 use gc::{Finalize, Gc, GcCell, Trace};
 use regex::Regex;
-use std::cell::{Cell, RefCell};
-use std::collections::HashMap;
-use std::io;
-use std::iter::FromIterator;
-use std::mem;
-use std::path::{Path as StdPath, PathBuf};
-
 use typescript_rust::{
     compare_strings_case_insensitive, compare_strings_case_sensitive, comparison_to_ordering,
     ends_with, equate_strings_case_insensitive, find, find_index, for_each, fs_exists_sync,
@@ -259,28 +261,27 @@ pub fn set_light_mode(flag: bool) {
 }
 
 pub mod Compiler {
+    use std::{cmp, collections::HashMap, convert::TryInto, io};
+
     use gc::{Finalize, Gc, GcCell, Trace};
     use regex::Regex;
-    use std::collections::HashMap;
-    use std::convert::TryInto;
-    use std::{cmp, io};
-
     use typescript_rust::{
-        compare_diagnostics, compare_paths, compute_line_starts, count_where,
-        create_get_canonical_file_name, diagnostic_category_name, file_extension_is,
-        flatten_diagnostic_message_text, format_diagnostics,
-        format_diagnostics_with_color_and_context, format_location, get_emit_script_target,
+        NonEmpty, _d, combine_paths, compare_diagnostics, compare_paths, compute_line_starts,
+        count_where, create_get_canonical_file_name, create_source_file, diagnostic_category_name,
+        file_extension_is, flatten_diagnostic_message_text, for_each, format_diagnostics,
+        format_diagnostics_with_color_and_context, format_location, get_allow_js_compiler_option,
+        get_base_file_name, get_declaration_emit_extension_for_path, get_emit_script_target,
         get_error_count_for_summary, get_error_summary_text, get_normalized_absolute_path, map,
         normalize_slashes, option_declarations, parse_custom_type_option, parse_list_type_option,
-        regex, sort, starts_with, text_span_end, to_path, CommandLineOption,
-        CommandLineOptionBaseBuilder, CommandLineOptionInterface, CommandLineOptionType,
-        Comparison, CompilerOptions, CompilerOptionsBuilder, CompilerOptionsValue, Diagnostic,
-        DiagnosticInterface, DiagnosticRelatedInformationInterface, Extension,
-        FormatDiagnosticsHost, NewLineKind, StringOrDiagnosticMessage, TextSpan,
+        regex, remove_file_extension, return_ok_default_if_none, sort, starts_with, text_span_end,
+        to_path, CommandLineOption, CommandLineOptionBaseBuilder, CommandLineOptionInterface,
+        CommandLineOptionType, Comparison, CompilerOptions, CompilerOptionsBuilder,
+        CompilerOptionsValue, Diagnostic, DiagnosticInterface,
+        DiagnosticRelatedInformationInterface, Extension, FormatDiagnosticsHost, NewLineKind,
+        ScriptKind, ScriptReferenceHost, StringOrDiagnosticMessage, TextSpan,
     };
 
     use super::{is_built_file, is_default_library_file, Baseline, TestCaseParser};
-
     use crate::{compiler, documents, fakes, get_io, vfs, vpath, with_io, Utils, IO};
 
     pub fn get_canonical_file_name(file_name: &str) -> String {
@@ -634,6 +635,189 @@ pub mod Compiler {
     struct CompilerOptionsAndHarnessOptions {
         compiler_options: CompilerOptions,
         harness_options: HarnessOptions,
+    }
+
+    pub struct DeclarationCompilationContext {
+        pub decl_input_files: Vec<Gc<TestFile>>,
+        pub decl_other_files: Vec<Gc<TestFile>>,
+        pub harness_settings: Option<TestCaseParser::CompilerSettings /*& HarnessOptions*/>,
+        pub options: Gc<CompilerOptions>,
+        pub current_directory: String,
+    }
+
+    pub fn prepare_declaration_compilation_context(
+        input_files: &[Gc<TestFile>],
+        other_files: &[Gc<TestFile>],
+        result: &compiler::CompilationResult,
+        harness_settings: &TestCaseParser::CompilerSettings, /*& HarnessOptions*/
+        options: Gc<CompilerOptions>,
+        current_directory: Option<&str>,
+    ) -> io::Result<Option<DeclarationCompilationContext>> {
+        if options.declaration == Some(true) && result.diagnostics.is_empty() {
+            if options.emit_declaration_only == Some(true) {
+                if !result.js.is_empty() || result.dts.is_empty() {
+                    panic!(
+                        "Only declaration files should be generated when emitDeclarationOnly:true"
+                    );
+                }
+            } else if result.dts.len() != result.get_number_of_js_files(false) {
+                panic!("There were no errors and declFiles generated did not match number of js files generated");
+            }
+        }
+
+        let mut decl_input_files: Vec<Gc<TestFile>> = _d();
+        let mut decl_other_files: Vec<Gc<TestFile>> = _d();
+
+        if options.declaration == Some(true)
+            && result.diagnostics.is_empty()
+            && !result.dts.is_empty()
+        {
+            for file in input_files {
+                add_dts_file(
+                    &options,
+                    result,
+                    &decl_input_files.clone(),
+                    &decl_other_files,
+                    file.clone(),
+                    &mut decl_input_files,
+                )?;
+            }
+            for file in other_files {
+                add_dts_file(
+                    &options,
+                    result,
+                    &decl_input_files,
+                    &decl_other_files.clone(),
+                    file.clone(),
+                    &mut decl_other_files,
+                )?;
+            }
+            return Ok(Some(DeclarationCompilationContext {
+                decl_input_files,
+                decl_other_files,
+                harness_settings: Some(harness_settings.clone()),
+                options,
+                current_directory: current_directory.non_empty().map_or_else(
+                    || harness_settings.get("currentDirectory").cloned().unwrap(),
+                    |current_directory| current_directory.to_owned(),
+                ),
+            }));
+        }
+
+        Ok(None)
+    }
+
+    fn add_dts_file(
+        options: &CompilerOptions,
+        result: &compiler::CompilationResult,
+        decl_input_files: &[Gc<TestFile>],
+        decl_other_files: &[Gc<TestFile>],
+        file: Gc<TestFile>,
+        dts_files: &mut Vec<Gc<TestFile>>,
+    ) -> io::Result<()> {
+        if vpath::is_declaration(&file.unit_name) || vpath::is_json(&file.unit_name) {
+            dts_files.push(file);
+        } else if vpath::is_type_script(&file.unit_name)
+            || vpath::is_java_script(&file.unit_name) && get_allow_js_compiler_option(options)
+        {
+            let decl_file = find_result_code_file(result, options, &file.unit_name)?;
+            if let Some(decl_file) = decl_file.filter(|decl_file| {
+                find_unit(&decl_file.file, decl_input_files).is_none()
+                    && find_unit(&decl_file.file, decl_other_files).is_none()
+            }) {
+                dts_files.push(Gc::new(TestFile {
+                    unit_name: decl_file.file.clone(),
+                    content: Utils::remove_byte_order_mark(decl_file.text.clone()),
+                    file_options: None,
+                }));
+            }
+        }
+
+        Ok(())
+    }
+
+    fn find_result_code_file(
+        result: &compiler::CompilationResult,
+        options: &CompilerOptions,
+        file_name: &str,
+    ) -> io::Result<Option<Gc<documents::TextDocument>>> {
+        let source_file = result.program.as_ref().unwrap().get_source_file(file_name);
+        assert!(
+            source_file.is_some(),
+            "Program has no source file with name '{file_name}'",
+        );
+        let source_file = source_file.unwrap();
+        let source_file_as_source_file = source_file.as_source_file();
+        let out_file = options
+            .out_file
+            .as_ref()
+            .non_empty()
+            .or_else(|| options.out.as_ref());
+        let source_file_name = match out_file {
+            None => match options.out_dir.as_ref().non_empty() {
+                Some(options_out_dir) => {
+                    let mut source_file_path = get_normalized_absolute_path(
+                        &source_file_as_source_file.file_name(),
+                        Some(&*result.vfs().cwd()?),
+                    );
+                    source_file_path = source_file_path.replace(
+                        &result
+                            .program
+                            .as_ref()
+                            .unwrap()
+                            .get_common_source_directory(),
+                        "",
+                    );
+                    combine_paths(options_out_dir, &[Some(&source_file_path)])
+                }
+                None => source_file_as_source_file.file_name().clone(),
+            },
+            Some(out_file) => out_file.clone(),
+        };
+
+        let d_ts_file_name = format!(
+            "{}{}",
+            remove_file_extension(&source_file_name),
+            get_declaration_emit_extension_for_path(&source_file_name)
+        );
+        Ok(result.dts.get(&d_ts_file_name).cloned())
+    }
+
+    fn find_unit(file_name: &str, units: &[Gc<TestFile>]) -> Option<Gc<TestFile>> {
+        for_each(units, |unit: &Gc<TestFile>, _| {
+            (unit.unit_name == file_name).then(|| unit.clone())
+        })
+    }
+
+    pub struct CompileDeclarationFilesReturn {
+        pub decl_input_files: Vec<Gc<TestFile>>,
+        pub decl_other_files: Vec<Gc<TestFile>>,
+        pub decl_result: compiler::CompilationResult,
+    }
+
+    pub fn compile_declaration_files(
+        context: Option<&DeclarationCompilationContext>,
+        symlinks: Option<&vfs::FileSet>,
+    ) -> io::Result<Option<CompileDeclarationFilesReturn>> {
+        let context = return_ok_default_if_none!(context);
+        let decl_input_files = &context.decl_input_files;
+        let decl_other_files = &context.decl_other_files;
+        let harness_settings = context.harness_settings.as_ref();
+        let options = &context.options;
+        let current_directory = &context.current_directory;
+        let output = compile_files(
+            decl_input_files,
+            decl_other_files,
+            harness_settings,
+            Some(options),
+            Some(current_directory),
+            symlinks,
+        )?;
+        Ok(Some(CompileDeclarationFilesReturn {
+            decl_input_files: decl_input_files.to_owned(),
+            decl_other_files: decl_other_files.to_owned(),
+            decl_result: output,
+        }))
     }
 
     pub fn minimal_diagnostics_to_string(
@@ -1060,6 +1244,145 @@ pub mod Compiler {
         Ok(())
     }
 
+    pub fn do_js_emit_baseline(
+        baseline_path: &str,
+        header: &str,
+        options: Gc<CompilerOptions>,
+        result: &compiler::CompilationResult,
+        ts_config_files: &[Gc<TestFile>],
+        to_be_compiled: &[Gc<TestFile>],
+        other_files: &[Gc<TestFile>],
+        harness_settings: &TestCaseParser::CompilerSettings,
+    ) -> io::Result<()> {
+        if options.no_emit != Some(true)
+            && options.emit_declaration_only != Some(true)
+            && result.js.is_empty()
+            && result.diagnostics.is_empty()
+        {
+            panic!(
+                "Expected at least one js file to be emitted or at least one error to be created."
+            );
+        }
+
+        let mut ts_code = "".to_owned();
+        let ts_sources = [other_files, to_be_compiled].concat();
+        if ts_sources.len() > 1 {
+            ts_code.push_str(&format!("//// [{}] ////\r\n\r\n", header));
+        }
+        for (i, ts_source) in ts_sources.iter().enumerate() {
+            ts_code.push_str(&format!(
+                "//// [{}]\r\n",
+                get_base_file_name(&ts_source.unit_name, None, None)
+            ));
+            ts_code.push_str(&format!(
+                "{}{}",
+                ts_source.content,
+                if i < ts_sources.len() - 1 { "\r\n" } else { "" }
+            ));
+        }
+
+        let mut js_code = "".to_owned();
+        result.js.try_for_each(|file, _, _| {
+            if !js_code.is_empty() && !js_code.ends_with("\n") {
+                js_code.push_str("\r\n");
+            }
+            if result.diagnostics.is_empty() && !file.file.ends_with(Extension::Json.to_str()) {
+                let file_parse_result = create_source_file(
+                    &file.file,
+                    file.text.clone(),
+                    get_emit_script_target(&options),
+                    Some(false),
+                    Some(if file.file.ends_with("x") {
+                        ScriptKind::JSX
+                    } else {
+                        ScriptKind::JS
+                    }),
+                )?;
+                let file_parse_result_parse_diagnostics =
+                    file_parse_result.as_source_file().parse_diagnostics();
+                let file_parse_result_parse_diagnostics =
+                    (*file_parse_result_parse_diagnostics).borrow();
+                if !file_parse_result_parse_diagnostics.is_empty() {
+                    js_code.push_str(&get_error_baseline(
+                        &[file.as_test_file()],
+                        &file_parse_result_parse_diagnostics,
+                        None,
+                    )?);
+                    return Ok(());
+                }
+            }
+            js_code.push_str(&file_output(file, harness_settings));
+
+            Ok(())
+        })?;
+
+        if !result.dts.is_empty() {
+            js_code.push_str("\r\n\r\n");
+            result.dts.for_each(|decl_file, _, _| {
+                js_code.push_str(&file_output(decl_file, harness_settings));
+            });
+        }
+
+        let decl_file_context = prepare_declaration_compilation_context(
+            to_be_compiled,
+            other_files,
+            result,
+            harness_settings,
+            options.clone(),
+            None,
+        )?;
+        let decl_file_compilation_result =
+            compile_declaration_files(decl_file_context.as_ref(), result.symlinks.as_ref())?;
+
+        if let Some(decl_file_compilation_result) =
+            decl_file_compilation_result.filter(|decl_file_compilation_result| {
+                !decl_file_compilation_result
+                    .decl_result
+                    .diagnostics
+                    .is_empty()
+            })
+        {
+            js_code.push_str("\r\n\r\n//// [DtsFileErrors]\r\n");
+            js_code.push_str("\r\n\r\n");
+            js_code.push_str(&get_error_baseline(
+                &[
+                    ts_config_files,
+                    &decl_file_compilation_result.decl_input_files,
+                    &decl_file_compilation_result.decl_other_files,
+                ]
+                .concat(),
+                &decl_file_compilation_result.decl_result.diagnostics,
+                None,
+            )?);
+        }
+
+        Baseline::run_baseline(
+            &regex!(r#"\.tsx?"#).replace(baseline_path, Extension::Js.to_str()),
+            (!js_code.is_empty())
+                .then(|| format!("{}\r\n\r\n{}", ts_code, js_code))
+                .as_deref(),
+            None,
+        );
+
+        Ok(())
+    }
+
+    fn file_output(
+        file: &documents::TextDocument,
+        harness_settings: &TestCaseParser::CompilerSettings,
+    ) -> String {
+        let file_name = if harness_settings.get("fullEmitPaths").non_empty().is_some() {
+            Utils::remove_test_path_prefixes(&file.file, None).into_owned()
+        } else {
+            get_base_file_name(&file.file, None, None)
+        };
+        format!(
+            "//// [{}]\r\n{}",
+            file_name,
+            Utils::remove_test_path_prefixes(&file.text, None,)
+        )
+    }
+
     fn check_duplicated_file_name(
         result_name: &str,
         dupe_case: &mut HashMap<String, usize>,
@@ -1352,11 +1675,10 @@ pub fn get_file_based_test_configuration_description(
 }
 
 pub mod TestCaseParser {
+    use std::{collections::HashMap, io};
+
     use gc::Gc;
     use regex::Regex;
-    use std::collections::HashMap;
-    use std::io;
-
     use typescript_rust::{
         for_each, get_base_file_name, get_directory_path, get_normalized_absolute_path,
         normalize_path, ordered_remove_item_at, parse_json_source_file_config_file_content,
@@ -1610,9 +1932,9 @@ pub mod TestCaseParser {
 }
 
 pub mod Baseline {
+    use std::{cell::RefCell, collections::HashMap};
+
     use pretty_assertions::StrComparison;
-    use std::cell::RefCell;
-    use std::collections::HashMap;
 
     use super::{user_specified_root, with_io, IO};
     use crate::Utils;

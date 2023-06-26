@@ -1,8 +1,7 @@
 pub mod compiler {
-    use gc::{Finalize, Gc, Trace};
-    use std::{cell::Ref, collections::HashMap};
-    use std::{io, ptr};
+    use std::{cell::Ref, collections::HashMap, io, ptr};
 
+    use gc::{Finalize, Gc, Trace};
     use typescript_rust::{
         add_related_info, compare_diagnostics, create_compiler_diagnostic, create_program,
         file_extension_is, filter, get_declaration_emit_extension_for_path, get_output_extension,
@@ -311,6 +310,20 @@ pub mod compiler {
                 Option::<&[&str]>::None,
                 None,
             ))
+        }
+
+        pub fn get_number_of_js_files(&self, include_json: bool) -> usize {
+            if include_json {
+                self.js.len()
+            } else {
+                let mut count = self.js.len();
+                self.js.for_each(|document, _, _| {
+                    if file_extension_is(&document.file, Extension::Json.to_str()) {
+                        count -= 1;
+                    }
+                });
+                count
+            }
         }
     }
 

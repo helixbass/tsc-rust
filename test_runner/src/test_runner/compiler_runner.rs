@@ -1,17 +1,15 @@
-use gc::{Finalize, Gc, Trace};
-use itertools::Itertools;
-use jsonxf::Formatter;
-use regex::Regex;
-use std::collections::HashMap;
-use std::path::Path as StdPath;
+use std::{collections::HashMap, io, path::Path as StdPath};
 
+use gc::{Finalize, Gc, Trace};
 use harness::{
     compiler, describe, get_file_based_test_configuration_description,
     get_file_based_test_configurations, it, vpath, with_io, Baseline, Compiler,
     EnumerateFilesOptions, FileBasedTest, FileBasedTestConfiguration, RunnerBase, RunnerBaseSub,
     StringOrFileBasedTest, TestCaseParser, TestRunnerKind, Utils, IO,
 };
-use std::io;
+use itertools::Itertools;
+use jsonxf::Formatter;
+use regex::Regex;
 use typescript_rust::{
     combine_paths, file_extension_is, get_directory_path, get_normalized_absolute_path,
     is_rooted_disk_path, regex, some, to_path, CompilerOptions, Extension,
@@ -197,6 +195,43 @@ impl CompilerBaselineRunner {
                 }
             },
         );
+        it(&format!("Correct JS output for {}", file_name), {
+            let configuration = configuration.cloned();
+            let test = test.cloned();
+            let file_name = file_name.to_owned();
+            let emit = self.emit;
+            move || {
+                if emit {
+                    let mut payload: Option<TestCaseParser::TestCaseContent> = None;
+                    if let Some(test) = test.as_ref().filter(|test| {
+                        matches!(
+                            test.content.as_ref(),
+                            Some(test_content) if !test_content.is_empty()
+                        )
+                    }) {
+                        let root_dir = if !test.file.contains("conformance") {
+                            // "tests/cases/compiler/".to_owned()
+                            "../typescript_rust/typescript_src/tests/cases/compiler/".to_owned()
+                        } else {
+                            format!("{}/", get_directory_path(&test.file))
+                        }
+                        .replace("../typescript_rust/typescript_src/", "");
+                        payload = Some(
+                            TestCaseParser::make_units_from_test(
+                                test.content.as_ref().unwrap(),
+                                &test.file,
+                                Some(&root_dir),
+                                None,
+                            )
+                            .unwrap(),
+                        );
+                    }
+                    let compiler_test =
+                        CompilerTest::new(file_name, payload, configuration).unwrap();
+                    compiler_test.verify_java_script_output().unwrap();
+                }
+            }
+        });
         // after({
         //     let compiler_test = compiler_test.clone();
         //     move || {
@@ -536,6 +571,23 @@ impl CompilerTest {
                 None,
             );
         }
+    }
+
+    pub fn verify_java_script_output(&self) -> io::Result<()> {
+        if self.has_non_dts_files {
+            Compiler::do_js_emit_baseline(
+                &self.configured_name,
+                &self.file_name,
+                self.options.clone(),
+                &self.result,
+                &self.ts_config_files,
+                &self.to_be_compiled,
+                &self.other_files,
+                &self.harness_settings,
+            )?;
+        }
+
+        Ok(())
     }
 
     pub fn make_unit_name(name: &str, root: &str) -> String {
