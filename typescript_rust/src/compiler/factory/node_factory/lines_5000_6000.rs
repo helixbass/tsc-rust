@@ -12,12 +12,13 @@ use crate::{
     set_original_node, single_or_undefined, BaseNodeFactory, BaseUnparsedNode, Bundle, CallBinding,
     CommaListExpression, Debug_, EnumMember, FileReference, HasInitializerInterface,
     HasStatementsInterface, InputFiles, LanguageVariant, LiteralLikeNodeInterface, ModifierFlags,
-    NamedDeclarationInterface, Node, NodeArray, NodeArrayExt, NodeArrayOrVec, NodeFactory,
+    NamedDeclarationInterface, Node, NodeArray, NodeArrayExt, NodeArrayOrVec, NodeExt, NodeFactory,
     NodeFlags, NodeInterface, NonEmpty, OuterExpressionKinds, PartiallyEmittedExpression,
     PropertyAssignment, PropertyDescriptorAttributes, ReadonlyTextRange, ScriptKind, ScriptTarget,
     ShorthandPropertyAssignment, SingleOrVec, SourceFile, SpreadAssignment, StrOrRcNode,
     SyntaxKind, SyntheticExpression, TransformFlags, Type, UnparsedPrepend, UnparsedPrologue,
-    UnparsedSource, UnparsedTextLike, VisitResult, _d,
+    UnparsedSource, UnparsedTextLike, VisitResult, _d, get_emit_flags, is_statement,
+    is_string_literal, return_ok_default_if_none, try_visit_node, EmitFlags, OptionTry,
 };
 
 impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory<TBaseNodeFactory> {
@@ -838,21 +839,66 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn try_copy_prologue(
         &self,
-        _source: &[Gc<Node /*Statement*/>],
-        _target: &mut Vec<Gc<Node /*Statement*/>>,
-        _ensure_use_strict: Option<bool>,
-        _visitor: Option<impl FnMut(&Node) -> io::Result<VisitResult /*<Node>*/>>,
+        source: &[Gc<Node /*Statement*/>],
+        target: &mut Vec<Gc<Node /*Statement*/>>,
+        ensure_use_strict: Option<bool>,
+        visitor: Option<impl FnMut(&Node) -> io::Result<VisitResult /*<Node>*/>>,
     ) -> io::Result<usize> {
-        unimplemented!()
+        let offset = self.copy_standard_prologue(source, target, ensure_use_strict);
+        Ok(self
+            .try_copy_custom_prologue(
+                source,
+                target,
+                Some(offset),
+                visitor,
+                Option::<fn(&Node) -> bool>::None,
+            )?
+            .unwrap())
+    }
+
+    pub fn is_use_strict_prologue(&self, node: &Node /*ExpressionStatement*/) -> bool {
+        let node_as_expression_statement = node.as_expression_statement();
+        is_string_literal(&node_as_expression_statement.expression)
+            && *node_as_expression_statement
+                .expression
+                .as_string_literal()
+                .text()
+                == "use strict"
+    }
+
+    pub fn create_use_strict_prologue(&self) -> Gc<Node> {
+        self.create_expression_statement(self.create_string_literal(
+            "use strict".to_owned(),
+            None,
+            None,
+        ))
+        .start_on_new_line()
     }
 
     pub fn copy_standard_prologue(
         &self,
-        _source: &[Gc<Node /*Statement*/>],
-        _target: &mut Vec<Gc<Node /*Statement*/>>,
-        _ensure_use_strict: Option<bool>,
+        source: &[Gc<Node /*Statement*/>],
+        target: &mut Vec<Gc<Node /*Statement*/>>,
+        ensure_use_strict: Option<bool>,
     ) -> usize {
-        unimplemented!()
+        Debug_.assert(target.is_empty(), Some("Prologue directives should be at the first statement in the target statements array"));
+        let mut found_use_strict = false;
+        let mut statement_offset = 0;
+        for (index, statement) in source.into_iter().enumerate() {
+            statement_offset = index;
+            if is_prologue_directive(statement) {
+                if self.is_use_strict_prologue(statement) {
+                    found_use_strict = true;
+                }
+                target.push(statement.clone());
+            } else {
+                break;
+            }
+        }
+        if ensure_use_strict == Some(true) && !found_use_strict {
+            target.push(self.create_use_strict_prologue());
+        }
+        statement_offset
     }
 
     pub fn copy_custom_prologue(
@@ -875,13 +921,41 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn try_copy_custom_prologue(
         &self,
-        _source: &[Gc<Node /*Statement*/>],
-        _target: &mut Vec<Gc<Node /*Statement*/>>,
-        _statement_offset: Option<usize>,
-        _visitor: Option<impl FnMut(&Node) -> io::Result<VisitResult /*<Node>*/>>,
-        _filter: Option<impl FnMut(&Node) -> bool>,
+        source: &[Gc<Node /*Statement*/>],
+        target: &mut Vec<Gc<Node /*Statement*/>>,
+        statement_offset: Option<usize>,
+        mut visitor: Option<impl FnMut(&Node) -> io::Result<VisitResult /*<Node>*/>>,
+        mut filter: Option<impl FnMut(&Node) -> bool>,
     ) -> io::Result<Option<usize>> {
-        unimplemented!()
+        let mut filter_or_default = |node: &Node| {
+            if let Some(filter) = filter.as_mut() {
+                filter(node)
+            } else {
+                true
+            }
+        };
+        let mut statement_offset = return_ok_default_if_none!(statement_offset);
+        for (index, statement) in source.iter().enumerate().skip(statement_offset) {
+            statement_offset = index;
+            if get_emit_flags(statement).intersects(EmitFlags::CustomPrologue)
+                && filter_or_default(statement)
+            {
+                target.push(visitor.as_mut().try_map_or_else(
+                    || Ok(statement.clone()),
+                    |visitor| {
+                        try_visit_node(
+                            statement,
+                            Some(|node: &Node| visitor(node)),
+                            Some(is_statement),
+                            Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                        )
+                    },
+                )?);
+            } else {
+                break;
+            }
+        }
+        Ok(Some(statement_offset))
     }
 
     pub fn ensure_use_strict(

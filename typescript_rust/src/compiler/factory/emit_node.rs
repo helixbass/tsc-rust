@@ -3,9 +3,10 @@ use std::{borrow::Borrow, rc::Rc};
 use gc::{Gc, GcCell};
 
 use crate::{
-    get_parse_tree_node, is_parse_tree_node, maybe_get_source_file_of_node, BaseTextRange, Debug_,
-    EmitFlags, EmitHelper, EmitNode, Node, NodeInterface, ReadonlyTextRange, SnippetElement,
-    SourceMapRange, StringOrNumber, SyntaxKind, SynthesizedComment,
+    get_parse_tree_node, is_parse_tree_node, maybe_get_source_file_of_node, push_if_unique_gc,
+    BaseTextRange, Debug_, EmitFlags, EmitHelper, EmitNode, GetOrInsertDefault, Node,
+    NodeInterface, NonEmpty, ReadonlyTextRange, SnippetElement, SourceMapRange, StringOrNumber,
+    SyntaxKind, SynthesizedComment,
 };
 
 pub(crate) fn get_or_create_emit_node(node: &Node) -> Gc<GcCell<EmitNode>> {
@@ -245,8 +246,15 @@ pub fn add_emit_helper(_node: &Node, _helper: Gc<EmitHelper>) -> Gc<Node> {
     unimplemented!()
 }
 
-pub fn add_emit_helpers(_node: &Node, _helpers: Option<&[Gc<EmitHelper>]>) -> Gc<Node> {
-    unimplemented!()
+pub fn add_emit_helpers(node: &Node, helpers: Option<&[Gc<EmitHelper>]>) -> Gc<Node> {
+    if let Some(helpers) = helpers.non_empty() {
+        let emit_node = get_or_create_emit_node(node);
+        let mut emit_node = emit_node.borrow_mut();
+        for helper in helpers {
+            push_if_unique_gc(emit_node.helpers.get_or_insert_default_(), helper);
+        }
+    }
+    node.node_wrapper()
 }
 
 pub fn get_emit_helpers(node: &Node) -> Option<Vec<Gc<EmitHelper>>> {
