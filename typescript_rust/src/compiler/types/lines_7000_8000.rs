@@ -250,6 +250,9 @@ pub trait TransformationContext: CoreTransformationContext<BaseNodeFactorySynthe
         )
             -> Gc<Box<dyn TransformationContextOnSubstituteNodeOverrider>>,
     );
+    fn pop_overridden_on_substitute_node(
+        &self,
+    ) -> Gc<Box<dyn TransformationContextOnSubstituteNodeOverrider>>;
 
     fn enable_emit_notification(&self, kind: SyntaxKind);
 
@@ -267,6 +270,7 @@ pub trait TransformationContext: CoreTransformationContext<BaseNodeFactorySynthe
             Gc<Box<dyn TransformationContextOnEmitNodeOverrider>>,
         ) -> Gc<Box<dyn TransformationContextOnEmitNodeOverrider>>,
     );
+    fn pop_overridden_on_emit_node(&self) -> Gc<Box<dyn TransformationContextOnEmitNodeOverrider>>;
 
     fn add_diagnostic(&self, diag: Gc<Diagnostic /*DiagnosticWithLocation*/>);
 }

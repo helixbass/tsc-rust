@@ -24,7 +24,7 @@ use crate::{
     ScriptTarget, SyntaxKind, TransformationContext, TransformationContextOnEmitNodeOverrider,
     TransformationContextOnSubstituteNodeOverrider, TransformationResult, Transformer,
     TransformerFactory, TransformerFactoryInterface, TransformerFactoryOrCustomTransformerFactory,
-    TransformerInterface,
+    TransformerInterface, _d,
 };
 
 fn get_module_transformer(module_kind: ModuleKind) -> TransformerFactory {
@@ -348,8 +348,12 @@ pub struct TransformNodesTransformationResult {
     _dyn_transformation_context_wrapper: GcCell<Option<Gc<Box<dyn TransformationContext>>>>,
     on_emit_node_outermost_override_or_original_method:
         GcCell<Gc<Box<dyn TransformationContextOnEmitNodeOverrider>>>,
+    on_emit_node_previous_override_or_original_method:
+        GcCell<Option<Gc<Box<dyn TransformationContextOnEmitNodeOverrider>>>>,
     on_substitute_node_outermost_override_or_original_method:
         GcCell<Gc<Box<dyn TransformationContextOnSubstituteNodeOverrider>>>,
+    on_substitute_node_previous_override_or_original_method:
+        GcCell<Option<Gc<Box<dyn TransformationContextOnSubstituteNodeOverrider>>>>,
     transformed: GcCell<Vec<Gc<Node>>>,
     #[unsafe_ignore_trace]
     state: Cell<TransformationState>,
@@ -417,9 +421,11 @@ impl TransformNodesTransformationResult {
                 on_emit_node_outermost_override_or_original_method: GcCell::new(Gc::new(Box::new(
                     NoEmitNotificationTransformationContextOnEmitNodeOverrider,
                 ))),
+                on_emit_node_previous_override_or_original_method: _d(),
                 on_substitute_node_outermost_override_or_original_method: GcCell::new(Gc::new(
                     Box::new(NoEmitNotificationTransformationContextOnSubstituteNodeOverrider),
                 )),
+                on_substitute_node_previous_override_or_original_method: _d(),
                 transformed: GcCell::new(transformed),
                 state: Cell::new(state),
                 nodes,
@@ -1144,7 +1150,24 @@ impl TransformationContext for TransformNodesTransformationResult {
         let previous_on_substitute_node =
             on_substitute_node_outermost_override_or_original_method.clone();
         *on_substitute_node_outermost_override_or_original_method =
-            overrider(previous_on_substitute_node);
+            overrider(previous_on_substitute_node.clone());
+        *self
+            .on_substitute_node_previous_override_or_original_method
+            .borrow_mut() = Some(previous_on_substitute_node);
+    }
+
+    fn pop_overridden_on_substitute_node(
+        &self,
+    ) -> Gc<Box<dyn TransformationContextOnSubstituteNodeOverrider>> {
+        let previous = self.on_substitute_node_previous_override_or_original_method.borrow().clone().expect("Should only call .pop_overridden_on_substitute_node() when there's currently an override");
+        let current = self
+            .on_substitute_node_outermost_override_or_original_method
+            .borrow()
+            .clone();
+        *self
+            .on_substitute_node_outermost_override_or_original_method
+            .borrow_mut() = previous;
+        current
     }
 
     fn enable_emit_notification(&self, kind: SyntaxKind) {
@@ -1185,7 +1208,23 @@ impl TransformationContext for TransformNodesTransformationResult {
             .on_emit_node_outermost_override_or_original_method
             .borrow_mut();
         let previous_on_emit_node = on_emit_node_outermost_override_or_original_method.clone();
-        *on_emit_node_outermost_override_or_original_method = overrider(previous_on_emit_node);
+        *on_emit_node_outermost_override_or_original_method =
+            overrider(previous_on_emit_node.clone());
+        *self
+            .on_emit_node_previous_override_or_original_method
+            .borrow_mut() = Some(previous_on_emit_node);
+    }
+
+    fn pop_overridden_on_emit_node(&self) -> Gc<Box<dyn TransformationContextOnEmitNodeOverrider>> {
+        let previous = self.on_emit_node_previous_override_or_original_method.borrow().clone().expect("Should only call .pop_overridden_on_emit_node() when there's currently an override");
+        let current = self
+            .on_emit_node_outermost_override_or_original_method
+            .borrow()
+            .clone();
+        *self
+            .on_emit_node_outermost_override_or_original_method
+            .borrow_mut() = previous;
+        current
     }
 
     fn add_diagnostic(&self, diag: Gc<Diagnostic /*DiagnosticWithLocation*/>) {
@@ -1388,6 +1427,12 @@ impl TransformationContext for TransformationContextNull {
         unreachable!("maybe?")
     }
 
+    fn pop_overridden_on_substitute_node(
+        &self,
+    ) -> Gc<Box<dyn TransformationContextOnSubstituteNodeOverrider>> {
+        unreachable!("maybe?")
+    }
+
     fn enable_emit_notification(&self, _kind: SyntaxKind) {}
 
     fn is_emit_notification_enabled(&self, _node: &Node) -> bool {
@@ -1410,6 +1455,10 @@ impl TransformationContext for TransformationContextNull {
         )
             -> Gc<Box<dyn TransformationContextOnEmitNodeOverrider>>,
     ) {
+        unreachable!("maybe?")
+    }
+
+    fn pop_overridden_on_emit_node(&self) -> Gc<Box<dyn TransformationContextOnEmitNodeOverrider>> {
         unreachable!("maybe?")
     }
 
