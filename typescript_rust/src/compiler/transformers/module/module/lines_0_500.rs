@@ -188,7 +188,7 @@ impl TransformModule {
             node,
             &**self.resolver,
             &self.compiler_options,
-        ))));
+        )?)));
         self.module_info_map_mut()
             .insert(get_original_node_id(node), self.current_module_info());
 

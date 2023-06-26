@@ -269,7 +269,7 @@ impl TransformSystemModule {
             node,
             &**self.resolver,
             &self.compiler_options,
-        ));
+        )?);
         self.module_info_map_mut().insert(id, module_info.clone());
         self.set_module_info(Some(module_info));
 
