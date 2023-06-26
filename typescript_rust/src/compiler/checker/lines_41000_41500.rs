@@ -710,10 +710,7 @@ impl TypeChecker {
                         }
                     }
                 }
-                return Ok((*links)
-                    .borrow()
-                    .is_declaration_with_colliding_name
-                    .unwrap());
+                return Ok((*links).borrow().is_declaration_with_colliding_name == Some(true));
             }
         }
         Ok(false)
