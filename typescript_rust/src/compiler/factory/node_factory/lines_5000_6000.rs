@@ -1,4 +1,4 @@
-use std::{borrow::Borrow, cell::RefCell, io, rc::Rc};
+use std::{borrow::Borrow, cell::RefCell, collections::HashMap, io, rc::Rc};
 
 use gc::{Finalize, Gc, Trace};
 use local_macros::generate_node_factory_method_wrapper;
@@ -6,16 +6,18 @@ use local_macros::generate_node_factory_method_wrapper;
 use super::{propagate_child_flags, propagate_children_flags};
 use crate::{
     are_option_gcs_equal, are_option_rcs_equal, every, has_node_array_changed,
-    is_binary_expression, is_comma_list_expression, is_comma_token, is_outer_expression,
-    is_parse_tree_node, is_statement_or_block, node_is_synthesized, same_flat_map_rc_node,
+    is_binary_expression, is_comma_list_expression, is_comma_token, is_custom_prologue,
+    is_hoisted_function, is_hoisted_variable_statement, is_outer_expression, is_parse_tree_node,
+    is_prologue_directive, is_statement_or_block, node_is_synthesized, same_flat_map_rc_node,
     set_original_node, single_or_undefined, BaseNodeFactory, BaseUnparsedNode, Bundle, CallBinding,
     CommaListExpression, Debug_, EnumMember, FileReference, HasInitializerInterface,
-    HasStatementsInterface, InputFiles, LanguageVariant, ModifierFlags, NamedDeclarationInterface,
-    Node, NodeArray, NodeArrayOrVec, NodeFactory, NodeFlags, NodeInterface, OuterExpressionKinds,
-    PartiallyEmittedExpression, PropertyAssignment, PropertyDescriptorAttributes,
-    ReadonlyTextRange, ScriptKind, ScriptTarget, ShorthandPropertyAssignment, SingleOrVec,
-    SourceFile, SpreadAssignment, StrOrRcNode, SyntaxKind, SyntheticExpression, TransformFlags,
-    Type, UnparsedPrepend, UnparsedPrologue, UnparsedSource, UnparsedTextLike, VisitResult,
+    HasStatementsInterface, InputFiles, LanguageVariant, LiteralLikeNodeInterface, ModifierFlags,
+    NamedDeclarationInterface, Node, NodeArray, NodeArrayExt, NodeArrayOrVec, NodeFactory,
+    NodeFlags, NodeInterface, NonEmpty, OuterExpressionKinds, PartiallyEmittedExpression,
+    PropertyAssignment, PropertyDescriptorAttributes, ReadonlyTextRange, ScriptKind, ScriptTarget,
+    ShorthandPropertyAssignment, SingleOrVec, SourceFile, SpreadAssignment, StrOrRcNode,
+    SyntaxKind, SyntheticExpression, TransformFlags, Type, UnparsedPrepend, UnparsedPrologue,
+    UnparsedSource, UnparsedTextLike, VisitResult, _d,
 };
 
 impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory<TBaseNodeFactory> {
@@ -899,11 +901,141 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
             .unwrap_or_else(|| self.create_block(nodes.to_owned(), None))
     }
 
+    pub(super) fn find_span_end<TItem>(
+        &self,
+        array: &[TItem],
+        mut test: impl FnMut(&TItem) -> bool,
+        start: usize,
+    ) -> usize {
+        let mut i = start;
+        while i < array.len() && test(&array[i]) {
+            i += 1;
+        }
+        i
+    }
+
     pub fn merge_lexical_environment(
         &self,
-        _statements: impl Into<NodeArrayOrVec>,
-        _declarations: Option<&[Gc<Node /*Statement*/>]>,
+        statements: impl Into<NodeArrayOrVec>,
+        declarations: Option<&[Gc<Node /*Statement*/>]>,
     ) -> NodeArrayOrVec {
-        unimplemented!()
+        let statements = statements.into();
+        if !declarations.is_non_empty() {
+            return statements;
+        }
+        let declarations = declarations.unwrap();
+
+        let left_standard_prologue_end = self.find_span_end(
+            &*statements,
+            |node: &Gc<Node>| is_prologue_directive(node),
+            0,
+        );
+        let left_hoisted_functions_end = self.find_span_end(
+            &*statements,
+            |node: &Gc<Node>| is_hoisted_function(node),
+            left_standard_prologue_end,
+        );
+        let left_hoisted_variables_end = self.find_span_end(
+            &*statements,
+            |node: &Gc<Node>| is_hoisted_variable_statement(node),
+            left_hoisted_functions_end,
+        );
+
+        let right_standard_prologue_end = self.find_span_end(
+            declarations,
+            |node: &Gc<Node>| is_prologue_directive(node),
+            0,
+        );
+        let right_hoisted_functions_end = self.find_span_end(
+            declarations,
+            |node: &Gc<Node>| is_hoisted_function(node),
+            right_standard_prologue_end,
+        );
+        let right_hoisted_variables_end = self.find_span_end(
+            declarations,
+            |node: &Gc<Node>| is_hoisted_variable_statement(node),
+            right_hoisted_functions_end,
+        );
+        let right_custom_prologue_end = self.find_span_end(
+            declarations,
+            |node: &Gc<Node>| is_custom_prologue(node),
+            right_hoisted_variables_end,
+        );
+        Debug_.assert(
+            right_custom_prologue_end == declarations.len(),
+            Some("Expected declarations to be a valid standard or custom prologues"),
+        );
+
+        let mut left = (*statements).to_owned();
+
+        if right_custom_prologue_end > right_hoisted_variables_end {
+            left.splice(
+                left_hoisted_variables_end..=left_hoisted_variables_end,
+                declarations[right_hoisted_variables_end..right_custom_prologue_end]
+                    .into_iter()
+                    .cloned(),
+            );
+        }
+
+        if right_hoisted_variables_end > right_hoisted_functions_end {
+            left.splice(
+                left_hoisted_functions_end..=left_hoisted_functions_end,
+                declarations[right_hoisted_functions_end..right_hoisted_variables_end]
+                    .into_iter()
+                    .cloned(),
+            );
+        }
+
+        if right_hoisted_functions_end > right_standard_prologue_end {
+            left.splice(
+                left_standard_prologue_end..=left_standard_prologue_end,
+                declarations[right_standard_prologue_end..right_hoisted_functions_end]
+                    .into_iter()
+                    .cloned(),
+            );
+        }
+
+        if right_standard_prologue_end > 0 {
+            if left_standard_prologue_end == 0 {
+                left.splice(
+                    0..=0,
+                    declarations[0..right_standard_prologue_end]
+                        .into_iter()
+                        .cloned(),
+                );
+            } else {
+                let mut left_prologues: HashMap<String, bool> = _d();
+                for left_prologue in statements.iter().take(left_standard_prologue_end) {
+                    left_prologues.insert(
+                        left_prologue
+                            .as_expression_statement()
+                            .expression
+                            .as_string_literal()
+                            .text()
+                            .clone(),
+                        true,
+                    );
+                }
+                for right_prologue in declarations.iter().take(right_standard_prologue_end).rev() {
+                    if !left_prologues.contains_key(
+                        &*right_prologue
+                            .as_expression_statement()
+                            .expression
+                            .as_string_literal()
+                            .text(),
+                    ) {
+                        left.insert(0, right_prologue.clone());
+                    }
+                }
+            }
+        }
+
+        match statements {
+            NodeArrayOrVec::NodeArray(statements) => self
+                .create_node_array(Some(left), Some(statements.has_trailing_comma))
+                .set_text_range(Some(&*statements))
+                .into(),
+            NodeArrayOrVec::Vec(statements) => statements.into(),
+        }
     }
 }
