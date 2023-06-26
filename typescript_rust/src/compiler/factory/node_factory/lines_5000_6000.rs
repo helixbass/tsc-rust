@@ -882,6 +882,13 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         unimplemented!()
     }
 
+    pub fn ensure_use_strict(
+        &self,
+        _statements: &NodeArray, /*<Statement>*/
+    ) -> Gc<NodeArray /*<Statement>*/> {
+        unimplemented!()
+    }
+
     pub fn lift_to_block(&self, nodes: &[Gc<Node>]) -> Gc<Node /*Statement*/> {
         Debug_.assert(
             every(nodes, |node: &Gc<Node>, _| is_statement_or_block(node)),

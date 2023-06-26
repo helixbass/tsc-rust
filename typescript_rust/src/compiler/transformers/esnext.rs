@@ -34,6 +34,7 @@ impl TransformESNext {
         {
             return Some(node.node_wrapper().into());
         }
+        #[allow(clippy::match_single_binding)]
         match node.kind() {
             _ => Some(
                 visit_each_child(node, |node: &Node| self.visitor(node), &**self.context).into(),

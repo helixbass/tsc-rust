@@ -1954,7 +1954,7 @@ impl TransformES2018 {
                                 .statements,
                             |node: &Node| self.visitor(node),
                             &**self.context,
-                            Some(statement_offset.try_into().unwrap()),
+                            Some(statement_offset),
                             None,
                             Option::<
                                 fn(

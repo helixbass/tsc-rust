@@ -13,7 +13,7 @@ mod visit_each_child;
 pub use try_visit_each_child::*;
 pub use visit_each_child::*;
 
-use crate::return_ok_default_if_none;
+use crate::{get_factory, return_ok_default_if_none};
 
 pub fn visit_node(
     node: &Node,
@@ -272,12 +272,12 @@ pub fn try_maybe_visit_nodes(
 }
 
 pub fn visit_lexical_environment(
-    _statements: &NodeArray, /*<Statement>*/
-    _visitor: impl FnMut(&Node) -> VisitResult,
-    _context: &(impl TransformationContext + ?Sized),
-    _start: Option<isize>,
-    _ensure_use_strict: Option<bool>,
-    _nodes_visitor: Option<
+    statements: &NodeArray, /*<Statement>*/
+    mut visitor: impl FnMut(&Node) -> VisitResult,
+    context: &(impl TransformationContext + ?Sized),
+    start: Option<usize>,
+    ensure_use_strict: Option<bool>,
+    mut nodes_visitor: Option<
         impl FnMut(
             Option<&NodeArray>,
             Option<&mut dyn FnMut(&Node) -> VisitResult>,
@@ -287,7 +287,64 @@ pub fn visit_lexical_environment(
         ) -> Option<Gc<NodeArray>>,
     >,
 ) -> Gc<NodeArray> {
-    unimplemented!()
+    // try_visit_lexical_environment_full(
+    //     statements,
+    //     |node: &Node| Ok(visitor(node)),
+    //     context,
+    //     start,
+    //     ensure_use_strict,
+    //     nodes_visitor.map(|mut nodes_visitor| {
+    //         move |nodes: Option<&NodeArray>,
+    //               visitor: Option<&mut dyn FnMut(&Node) -> io::Result<VisitResult>>,
+    //               test: Option<&dyn Fn(&Node) -> bool>,
+    //               start: Option<usize>,
+    //               count: Option<usize>| {
+    //             let mut visitor = visitor.map(|visitor| {
+    //                 Box::new(move |node: &Node| visitor(node).unwrap())
+    //                     as Box<dyn FnMut(&Node) -> VisitResult>
+    //             });
+    //             let ret = {
+    //                 let visitor = visitor.as_deref_mut();
+    //                 nodes_visitor(nodes, visitor, test, start, count).clone()
+    //             };
+    //             Ok(ret)
+    //         }
+    //     }),
+    // )
+    // .unwrap()
+    context.start_lexical_environment();
+    let mut nodes_visitor_or_default = |nodes: Option<&NodeArray>,
+                                        visitor: Option<&mut dyn FnMut(&Node) -> VisitResult>,
+                                        test: Option<&dyn Fn(&Node) -> bool>,
+                                        start: Option<usize>,
+                                        count: Option<usize>|
+     -> Option<Gc<NodeArray>> {
+        if let Some(nodes_visitor) = nodes_visitor.as_mut() {
+            nodes_visitor(nodes, visitor, test, start, count)
+        } else {
+            maybe_visit_nodes(
+                nodes,
+                visitor.map(|visitor| |node: &Node| visitor(node)),
+                test.map(|test| |node: &Node| test(node)),
+                start,
+                count,
+            )
+        }
+    };
+    let mut statements = nodes_visitor_or_default(
+        Some(statements),
+        Some(&mut |node: &Node| visitor(node)),
+        Some(&|node: &Node| is_statement(node)),
+        start,
+        None,
+    )
+    .unwrap();
+    if ensure_use_strict == Some(true) {
+        statements = context.factory().ensure_use_strict(&statements);
+    }
+    get_factory()
+        .merge_lexical_environment(statements, context.end_lexical_environment().as_deref())
+        .as_node_array()
 }
 
 pub fn try_visit_lexical_environment(
@@ -314,12 +371,12 @@ pub fn try_visit_lexical_environment(
 }
 
 pub fn try_visit_lexical_environment_full(
-    _statements: &NodeArray, /*<Statement>*/
-    _visitor: impl FnMut(&Node) -> io::Result<VisitResult>,
-    _context: &(impl TransformationContext + ?Sized),
-    _start: Option<isize>,
-    _ensure_use_strict: Option<bool>,
-    _nodes_visitor: Option<
+    statements: &NodeArray, /*<Statement>*/
+    mut visitor: impl FnMut(&Node) -> io::Result<VisitResult>,
+    context: &(impl TransformationContext + ?Sized),
+    start: Option<usize>,
+    ensure_use_strict: Option<bool>,
+    mut nodes_visitor: Option<
         impl FnMut(
             Option<&NodeArray>,
             Option<&mut dyn FnMut(&Node) -> io::Result<VisitResult>>,
@@ -329,7 +386,40 @@ pub fn try_visit_lexical_environment_full(
         ) -> io::Result<Option<Gc<NodeArray>>>,
     >,
 ) -> io::Result<Gc<NodeArray>> {
-    unimplemented!()
+    context.start_lexical_environment();
+    let mut nodes_visitor_or_default =
+        |nodes: Option<&NodeArray>,
+         visitor: Option<&mut dyn FnMut(&Node) -> io::Result<VisitResult>>,
+         test: Option<&dyn Fn(&Node) -> bool>,
+         start: Option<usize>,
+         count: Option<usize>|
+         -> io::Result<Option<Gc<NodeArray>>> {
+            if let Some(nodes_visitor) = nodes_visitor.as_mut() {
+                nodes_visitor(nodes, visitor, test, start, count)
+            } else {
+                try_maybe_visit_nodes(
+                    nodes,
+                    visitor.map(|visitor| |node: &Node| visitor(node)),
+                    test.map(|test| |node: &Node| test(node)),
+                    start,
+                    count,
+                )
+            }
+        };
+    let mut statements = nodes_visitor_or_default(
+        Some(statements),
+        Some(&mut |node: &Node| visitor(node)),
+        Some(&|node: &Node| is_statement(node)),
+        start,
+        None,
+    )?
+    .unwrap();
+    if ensure_use_strict == Some(true) {
+        statements = context.factory().ensure_use_strict(&statements);
+    }
+    Ok(get_factory()
+        .merge_lexical_environment(statements, context.end_lexical_environment().as_deref())
+        .as_node_array())
 }
 
 pub fn visit_parameter_list(
