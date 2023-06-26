@@ -1,4 +1,4 @@
-use std::{collections::HashMap, io, mem, rc::Rc};
+use std::{collections::HashMap, io, mem};
 
 use gc::{Finalize, Gc, GcCell, GcCellRef, GcCellRefMut, Trace};
 
@@ -79,7 +79,7 @@ impl TransformEcmascriptModule {
         self._transformer_wrapper.borrow().clone().unwrap()
     }
 
-    fn emit_helpers(&self) -> Rc<EmitHelperFactory> {
+    fn emit_helpers(&self) -> Gc<EmitHelperFactory> {
         self.context.get_emit_helper_factory()
     }
 

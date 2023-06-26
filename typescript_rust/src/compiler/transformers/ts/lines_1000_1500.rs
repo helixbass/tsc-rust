@@ -206,9 +206,9 @@ impl TransformTypeScript {
         Ok(Some(
             self.emit_helpers()
                 .create_decorate_helper(
-                    &decorator_expressions,
-                    &prefix,
-                    Some(&*member_name),
+                    decorator_expressions,
+                    prefix,
+                    Some(member_name),
                     descriptor,
                 )
                 .set_text_range(Some(
@@ -256,10 +256,10 @@ impl TransformTypeScript {
             self.factory.get_local_name(node, Some(false), Some(true))
         };
         let decorate = self.emit_helpers().create_decorate_helper(
-            &decorator_expressions,
-            &local_name,
-            Option::<&Node>::None,
-            Option::<&Node>::None,
+            decorator_expressions,
+            local_name.clone(),
+            None,
+            None,
         );
         Ok(Some(
             self.factory

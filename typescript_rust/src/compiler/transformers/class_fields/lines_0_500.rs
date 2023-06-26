@@ -1,4 +1,4 @@
-use std::{cell::Cell, collections::HashMap, io, mem};
+use std::{borrow::Borrow, cell::Cell, collections::HashMap, io, mem};
 
 use bitflags::bitflags;
 use gc::{Finalize, Gc, GcCell, GcCellRef, GcCellRefMut, Trace};
@@ -34,6 +34,16 @@ pub enum PrivateIdentifierKind {
     Field,    /*= "f"*/
     Method,   /*= "m"*/
     Accessor, /*= "a"*/
+}
+
+impl Borrow<str> for PrivateIdentifierKind {
+    fn borrow(&self) -> &str {
+        match self {
+            Self::Field => "f",
+            Self::Method => "m",
+            Self::Accessor => "a",
+        }
+    }
 }
 
 pub(super) trait PrivateIdentifierInfoInterface {

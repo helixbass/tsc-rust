@@ -1,4 +1,4 @@
-use std::{cell::Cell, collections::HashMap, io, mem, ptr, rc::Rc};
+use std::{cell::Cell, collections::HashMap, io, mem, ptr};
 
 use bitflags::bitflags;
 use derive_builder::Builder;
@@ -316,7 +316,7 @@ impl TransformES2015 {
             tagged_template_string_declarations;
     }
 
-    pub(super) fn emit_helpers(&self) -> Rc<EmitHelperFactory> {
+    pub(super) fn emit_helpers(&self) -> Gc<EmitHelperFactory> {
         self.context.get_emit_helper_factory()
     }
 

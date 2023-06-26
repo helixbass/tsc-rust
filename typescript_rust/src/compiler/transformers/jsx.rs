@@ -2,7 +2,6 @@ use std::{
     borrow::{Borrow, Cow},
     collections::HashMap,
     io,
-    rc::Rc,
 };
 
 use derive_builder::Builder;
@@ -91,7 +90,7 @@ impl TransformJsx {
         *self.current_file_state.borrow_mut() = current_file_state;
     }
 
-    fn emit_helpers(&self) -> Rc<EmitHelperFactory> {
+    fn emit_helpers(&self) -> Gc<EmitHelperFactory> {
         self.context.get_emit_helper_factory()
     }
 
@@ -844,7 +843,7 @@ impl TransformJsx {
 
         single_or_undefined(Some(&expressions))
             .cloned()
-            .unwrap_or_else(|| self.emit_helpers().create_assign_helper(&expressions))
+            .unwrap_or_else(|| self.emit_helpers().create_assign_helper(expressions))
     }
 
     fn transform_jsx_spread_attribute_to_expression(

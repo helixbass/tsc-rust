@@ -2,7 +2,6 @@ use std::{
     cell::{Cell, Ref, RefCell, RefMut},
     collections::HashMap,
     io, mem,
-    rc::Rc,
 };
 
 use gc::{Finalize, Gc, GcCell, GcCellRef, GcCellRefMut, Trace};
@@ -859,7 +858,7 @@ impl TransformGenerators {
         *self.with_block_stack.borrow_mut() = with_block_stack;
     }
 
-    pub(super) fn emit_helpers(&self) -> Rc<EmitHelperFactory> {
+    pub(super) fn emit_helpers(&self) -> Gc<EmitHelperFactory> {
         self.context.get_emit_helper_factory()
     }
 

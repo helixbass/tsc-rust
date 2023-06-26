@@ -995,6 +995,7 @@ impl EmitHelperBase for EmitHelper {
 }
 
 bitflags! {
+    #[derive(Default)]
     pub struct EmitFlags: u32 {
         const None = 0;
         const SingleLine = 1 << 0;

@@ -3,7 +3,6 @@ use std::{
     cell::Cell,
     collections::{HashMap, HashSet},
     io, mem,
-    rc::Rc,
 };
 
 use bitflags::bitflags;
@@ -236,7 +235,7 @@ impl TransformES2018 {
         self.substituted_super_accessors.borrow_mut()
     }
 
-    fn emit_helpers(&self) -> Rc<EmitHelperFactory> {
+    fn emit_helpers(&self) -> Gc<EmitHelperFactory> {
         self.context.get_emit_helper_factory()
     }
 
@@ -749,12 +748,12 @@ impl TransformES2018 {
                 for i in 1..objects.len() {
                     expression = Some(
                         self.emit_helpers()
-                            .create_assign_helper(&[expression.unwrap(), objects[i].clone()]),
+                            .create_assign_helper(vec![expression.unwrap(), objects[i].clone()]),
                     );
                 }
                 return expression.unwrap();
             } else {
-                return self.emit_helpers().create_assign_helper(&objects);
+                return self.emit_helpers().create_assign_helper(objects);
             }
         }
         visit_each_child(node, |node: &Node| self.visitor(node), &**self.context)

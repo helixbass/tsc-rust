@@ -1,4 +1,4 @@
-use std::{cell::Cell, collections::HashMap, io, mem, rc::Rc};
+use std::{cell::Cell, collections::HashMap, io, mem};
 
 use gc::{Finalize, Gc, GcCell, GcCellRef, GcCellRefMut, Trace};
 
@@ -96,7 +96,7 @@ impl TransformModule {
         self._transformer_wrapper.borrow().clone().unwrap()
     }
 
-    pub(super) fn emit_helpers(&self) -> Rc<EmitHelperFactory> {
+    pub(super) fn emit_helpers(&self) -> Gc<EmitHelperFactory> {
         self.context.get_emit_helper_factory()
     }
 

@@ -1,4 +1,4 @@
-use std::{cell::Cell, collections::HashMap, io, mem, ptr, rc::Rc};
+use std::{cell::Cell, collections::HashMap, io, mem, ptr};
 
 use bitflags::bitflags;
 use gc::{Finalize, Gc, GcCell, GcCellRef, GcCellRefMut, Trace};
@@ -261,7 +261,7 @@ impl TransformTypeScript {
         self.applicable_substitutions.set(applicable_substitutions);
     }
 
-    pub(super) fn emit_helpers(&self) -> Rc<EmitHelperFactory> {
+    pub(super) fn emit_helpers(&self) -> Gc<EmitHelperFactory> {
         self.context.get_emit_helper_factory()
     }
 

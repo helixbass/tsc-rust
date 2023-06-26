@@ -1,4 +1,4 @@
-use std::{io, ptr, rc::Rc};
+use std::{io, ptr};
 
 use bitflags::bitflags;
 use derive_builder::Builder;
@@ -232,7 +232,7 @@ pub trait CoreTransformationContext<TBaseNodeFactory: BaseNodeFactory + Trace + 
 pub trait TransformationContext: CoreTransformationContext<BaseNodeFactorySynthetic> {
     fn get_emit_resolver(&self) -> Gc<Box<dyn EmitResolver>>;
     fn get_emit_host(&self) -> Gc<Box<dyn EmitHost>>;
-    fn get_emit_helper_factory(&self) -> Rc<EmitHelperFactory>;
+    fn get_emit_helper_factory(&self) -> Gc<EmitHelperFactory>;
 
     fn request_emit_helper(&self, helper: Gc<EmitHelper>);
 

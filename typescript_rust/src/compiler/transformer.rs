@@ -2,7 +2,6 @@ use std::{
     cell::{Cell, RefCell, RefMut},
     collections::HashMap,
     io, mem,
-    rc::Rc,
 };
 
 use bitflags::bitflags;
@@ -386,8 +385,7 @@ pub struct TransformNodesTransformationResult {
     options: Gc<CompilerOptions>,
     resolver: Option<Gc<Box<dyn EmitResolver>>>,
     host: Option<Gc<Box<dyn EmitHost>>>,
-    #[unsafe_ignore_trace]
-    created_emit_helper_factory: RefCell<Option<Rc<EmitHelperFactory>>>,
+    created_emit_helper_factory: GcCell<Option<Gc<EmitHelperFactory>>>,
     factory: Gc<NodeFactory<BaseNodeFactorySynthetic>>,
     base_factory: Gc<BaseNodeFactorySynthetic>,
 }
@@ -658,7 +656,7 @@ impl TransformNodesTransformationResult {
         self.block_scope_stack_offset.set(block_scope_stack_offset)
     }
 
-    fn created_emit_helper_factory(&self) -> RefMut<Option<Rc<EmitHelperFactory>>> {
+    fn created_emit_helper_factory(&self) -> GcCellRefMut<Option<Gc<EmitHelperFactory>>> {
         self.created_emit_helper_factory.borrow_mut()
     }
 
@@ -1058,18 +1056,15 @@ impl TransformationContext for TransformNodesTransformationResult {
         self.host.clone().unwrap()
     }
 
-    fn get_emit_helper_factory(&self) -> Rc<EmitHelperFactory> {
+    fn get_emit_helper_factory(&self) -> Gc<EmitHelperFactory> {
         /*memoize(*/
         let mut created_emit_helper_factory = self.created_emit_helper_factory();
         if created_emit_helper_factory.is_none() {
-            *created_emit_helper_factory = Some(Rc::new(create_emit_helper_factory(
+            *created_emit_helper_factory = Some(Gc::new(create_emit_helper_factory(
                 self.as_dyn_transformation_context(),
             )));
         }
-        created_emit_helper_factory
-            .as_ref()
-            .map(Clone::clone)
-            .unwrap()
+        created_emit_helper_factory.clone().unwrap()
     }
 
     fn request_emit_helper(&self, helper: Gc<EmitHelper>) {
@@ -1394,7 +1389,7 @@ impl TransformationContext for TransformationContextNull {
         not_implemented()
     }
 
-    fn get_emit_helper_factory(&self) -> Rc<EmitHelperFactory> {
+    fn get_emit_helper_factory(&self) -> Gc<EmitHelperFactory> {
         not_implemented()
     }
 
