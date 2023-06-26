@@ -77,9 +77,6 @@ fn get_script_transformers(
     custom_transformers: Option<&CustomTransformers>,
     emit_only_dts_files: Option<bool>,
 ) -> Vec<TransformerFactory> {
-    if true {
-        return vec![];
-    }
     let emit_only_dts_files = emit_only_dts_files.unwrap_or(false);
     if emit_only_dts_files {
         return vec![];
