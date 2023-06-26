@@ -18,7 +18,8 @@ use crate::{
     ShorthandPropertyAssignment, SingleOrVec, SourceFile, SpreadAssignment, StrOrRcNode,
     SyntaxKind, SyntheticExpression, TransformFlags, Type, UnparsedPrepend, UnparsedPrologue,
     UnparsedSource, UnparsedTextLike, VisitResult, _d, get_emit_flags, is_statement,
-    is_string_literal, return_ok_default_if_none, try_visit_node, EmitFlags, OptionTry,
+    is_string_literal, return_ok_default_if_none, set_text_range, try_visit_node, EmitFlags,
+    OptionTry,
 };
 
 impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory<TBaseNodeFactory> {
@@ -469,8 +470,13 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         node
     }
 
-    pub fn create_not_emitted_statement(&self, _original: Gc<Node>) -> Gc<Node> {
-        unimplemented!()
+    pub fn create_not_emitted_statement(&self, original: Gc<Node>) -> Gc<Node> {
+        let node = self
+            .create_base_node(SyntaxKind::NotEmittedStatement)
+            .wrap();
+        node.set_original(Some(original.clone()));
+        set_text_range(&*node, Some(&*original));
+        node
     }
 
     #[generate_node_factory_method_wrapper]

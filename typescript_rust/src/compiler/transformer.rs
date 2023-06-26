@@ -19,11 +19,11 @@ use crate::{
     transform_type_script, BaseNodeFactorySynthetic, CompilerOptions, CoreTransformationContext,
     CustomTransformer, CustomTransformers, Debug_, Diagnostic, EmitFlags, EmitHelper,
     EmitHelperBase, EmitHelperFactory, EmitHint, EmitHost, EmitResolver, EmitTransformers,
-    LexicalEnvironmentFlags, ModuleKind, Node, NodeArray, NodeFactory, NodeFlags, NodeInterface,
-    ScriptTarget, SyntaxKind, TransformationContext, TransformationContextOnEmitNodeOverrider,
-    TransformationContextOnSubstituteNodeOverrider, TransformationResult, Transformer,
-    TransformerFactory, TransformerFactoryInterface, TransformerFactoryOrCustomTransformerFactory,
-    TransformerInterface, _d,
+    GetOrInsertDefault, LexicalEnvironmentFlags, ModuleKind, Node, NodeArray, NodeFactory,
+    NodeFlags, NodeInterface, ScriptTarget, SyntaxKind, TransformationContext,
+    TransformationContextOnEmitNodeOverrider, TransformationContextOnSubstituteNodeOverrider,
+    TransformationResult, Transformer, TransformerFactory, TransformerFactoryInterface,
+    TransformerFactoryOrCustomTransformerFactory, TransformerInterface, _d,
 };
 
 fn get_module_transformer(module_kind: ModuleKind) -> TransformerFactory {
@@ -583,7 +583,15 @@ impl TransformNodesTransformationResult {
             block_scoped_variable_declarations_stack;
     }
 
-    fn block_scoped_variable_declarations(&self) -> GcCellRefMut<Option<Vec<Gc<Node>>>> {
+    fn maybe_block_scoped_variable_declarations(&self) -> GcCellRef<Option<Vec<Gc<Node>>>> {
+        self.block_scoped_variable_declarations.borrow()
+    }
+
+    fn block_scoped_variable_declarations(&self) -> GcCellRef<Vec<Gc<Node>>> {
+        gc_cell_ref_unwrapped(&self.block_scoped_variable_declarations)
+    }
+
+    fn maybe_block_scoped_variable_declarations_mut(&self) -> GcCellRefMut<Option<Vec<Gc<Node>>>> {
         self.block_scoped_variable_declarations.borrow_mut()
     }
 
@@ -957,7 +965,7 @@ impl CoreTransformationContext<BaseNodeFactorySynthetic> for TransformNodesTrans
         let mut block_scoped_variable_declarations_stack =
             self.block_scoped_variable_declarations_stack();
         block_scoped_variable_declarations_stack
-            .push(self.block_scoped_variable_declarations().take());
+            .push(self.maybe_block_scoped_variable_declarations_mut().take());
         self.set_block_scope_stack_offset(self.block_scope_stack_offset() + 1);
         // blockScopedVariableDeclarations = undefined!;
     }
@@ -971,17 +979,14 @@ impl CoreTransformationContext<BaseNodeFactorySynthetic> for TransformNodesTrans
             self.state() < TransformationState::Completed,
             Some("Cannot end a block scope after transformation has completed."),
         );
-        let block_scoped_variable_declarations = self.block_scoped_variable_declarations();
         let statements: Option<Vec<Gc<Node>>> = if some(
-            block_scoped_variable_declarations.as_deref(),
+            self.maybe_block_scoped_variable_declarations().as_deref(),
             Option::<fn(&Gc<Node>) -> bool>::None,
         ) {
             Some(vec![self.factory().create_variable_statement(
                 Option::<Gc<NodeArray>>::None,
                 self.factory().create_variable_declaration_list(
-                    block_scoped_variable_declarations
-                        .as_ref()
-                        .unwrap()
+                    self.block_scoped_variable_declarations()
                         .iter()
                         .map(|identifier| {
                             self.factory().create_variable_declaration(
@@ -1015,13 +1020,8 @@ impl CoreTransformationContext<BaseNodeFactorySynthetic> for TransformNodesTrans
             self.block_scope_stack_offset() > 0,
             Some("Cannot add a block scoped variable outside of an iteration body."),
         );
-        let mut block_scoped_variable_declarations = self.block_scoped_variable_declarations();
-        if block_scoped_variable_declarations.is_none() {
-            *block_scoped_variable_declarations = Some(vec![]);
-        }
-        block_scoped_variable_declarations
-            .as_mut()
-            .unwrap()
+        self.maybe_block_scoped_variable_declarations_mut()
+            .get_or_insert_default_()
             .push(name.node_wrapper());
     }
 
