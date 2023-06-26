@@ -7,8 +7,14 @@ use crate::{
     EmitResolver, GetOrInsertDefault, HasStatementsInterface, NamedDeclarationInterface, Node,
     NodeFactory, NodeId, NodeInterface, OptionTry, SyntaxKind, TransformationContext, Transformer,
     VisitResult, WrapCustomTransformerFactoryHandleDefault, _d, cast,
-    create_external_helpers_import_declaration_if_needed, create_multi_map, has_syntactic_modifier,
-    id_text, is_binding_pattern, is_generated_identifier, is_named_exports, is_omitted_expression,
+    create_external_helpers_import_declaration_if_needed, create_multi_map,
+    get_namespace_declaration_node, has_static_modifier, has_syntactic_modifier, id_text,
+    is_binding_pattern, is_class_static_block_declaration, is_default_import,
+    is_expression_statement, is_generated_identifier, is_identifier, is_keyword,
+    is_method_or_accessor, is_named_exports, is_named_imports, is_omitted_expression,
+    is_private_identifier, is_property_declaration, is_statement, is_static,
+    is_string_literal_like, is_super_call, return_default_if_none, try_visit_node,
+    FunctionLikeDeclarationInterface, HasInitializerInterface, InternalSymbolName, Matches,
     ModifierFlags, MultiMap,
 };
 
@@ -60,6 +66,28 @@ impl WrapCustomTransformerFactoryHandleDefault for ChainBundle {
     }
 }
 
+fn contains_default_reference(node: Option<impl Borrow<Node /*NamedImportBindings*/>>) -> bool {
+    let node = return_default_if_none!(node);
+    let node = node.borrow();
+    if !is_named_imports(node) {
+        return false;
+    }
+    node.as_named_imports()
+        .elements
+        .iter()
+        .any(|element| is_named_default_reference(element))
+}
+
+fn is_named_default_reference(e: &Node /*ImportSpecifier*/) -> bool {
+    let e_as_import_specifier = e.as_import_specifier();
+    e_as_import_specifier
+        .property_name
+        .as_ref()
+        .matches(|e_property_name| {
+            e_property_name.as_identifier().escaped_text == InternalSymbolName::Default
+        })
+}
+
 pub fn chain_bundle() -> Gc<Box<dyn WrapCustomTransformerFactoryHandleDefault>> {
     thread_local! {
         static CHAIN_BUNDLE: Gc<Box<dyn WrapCustomTransformerFactoryHandleDefault>> = Gc::new(Box::new(ChainBundle));
@@ -67,16 +95,51 @@ pub fn chain_bundle() -> Gc<Box<dyn WrapCustomTransformerFactoryHandleDefault>> 
     CHAIN_BUNDLE.with(|chain_bundle| chain_bundle.clone())
 }
 
-pub fn get_export_needs_import_star_helper(_node: &Node /*ExportDeclaration*/) -> bool {
-    unimplemented!()
+pub fn get_export_needs_import_star_helper(node: &Node /*ExportDeclaration*/) -> bool {
+    get_namespace_declaration_node(node).is_some()
 }
 
-pub fn get_import_needs_import_star_helper(_node: &Node /*ImportDeclaration*/) -> bool {
-    unimplemented!()
+pub fn get_import_needs_import_star_helper(node: &Node /*ImportDeclaration*/) -> bool {
+    let node_as_import_declaration = node.as_import_declaration();
+    if get_namespace_declaration_node(node).is_some() {
+        return true;
+    }
+    let bindings =
+        return_default_if_none!(node_as_import_declaration.import_clause.as_ref().and_then(
+            |node_import_clause| node_import_clause.as_import_clause().named_bindings.clone()
+        ));
+    if !is_named_imports(&bindings) {
+        return false;
+    }
+    let bindings_as_named_imports = bindings.as_named_imports();
+    let mut default_ref_count = 0;
+    for binding in &bindings_as_named_imports.elements {
+        if is_named_default_reference(binding) {
+            default_ref_count += 1;
+        }
+    }
+
+    default_ref_count > 0 && default_ref_count != bindings_as_named_imports.elements.len()
+        || (bindings_as_named_imports.elements.len() - default_ref_count) != 0
+            && is_default_import(node)
 }
 
-pub fn get_import_needs_import_default_helper(_node: &Node /*ImportDeclaration*/) -> bool {
-    unimplemented!()
+pub fn get_import_needs_import_default_helper(node: &Node /*ImportDeclaration*/) -> bool {
+    let node_as_import_declaration = node.as_import_declaration();
+    !get_import_needs_import_star_helper(node)
+        && (is_default_import(node)
+            || node_as_import_declaration
+                .import_clause
+                .as_ref()
+                .matches(|node_import_clause| {
+                    let node_import_clause_named_bindings = node_import_clause
+                        .as_import_clause()
+                        .named_bindings
+                        .as_ref()
+                        .unwrap();
+                    is_named_imports(node_import_clause_named_bindings)
+                        && contains_default_reference(Some(&**node_import_clause_named_bindings))
+                }))
 }
 
 pub fn collect_external_module_info(
@@ -347,64 +410,159 @@ fn collect_exported_variable_info(
     // return exportedNames;
 }
 
-pub fn is_simple_copiable_expression(_expression: &Node /*Expression*/) -> bool {
-    unimplemented!()
+pub fn is_simple_copiable_expression(expression: &Node /*Expression*/) -> bool {
+    is_string_literal_like(expression)
+        || expression.kind() == SyntaxKind::NumericLiteral
+        || is_keyword(expression.kind())
+        || is_identifier(expression)
 }
 
-pub fn is_simple_inlineable_expression(_expression: &Node /*Expression*/) -> bool {
-    unimplemented!()
+pub fn is_simple_inlineable_expression(expression: &Node /*Expression*/) -> bool {
+    !is_identifier(expression) && is_simple_copiable_expression(expression)
 }
 
-pub fn is_compound_assignment(_kind: SyntaxKind) -> bool {
-    unimplemented!()
+pub fn is_compound_assignment(kind: SyntaxKind) -> bool {
+    kind >= SyntaxKind::FirstCompoundAssignment && kind <= SyntaxKind::LastCompoundAssignment
 }
 
 pub fn get_non_assignment_operator_for_compound_assignment(
-    _kind: SyntaxKind, /*CompoundAssignmentOperator*/
+    kind: SyntaxKind, /*CompoundAssignmentOperator*/
 ) -> SyntaxKind /*LogicalOperatorOrHigher | SyntaxKind.QuestionQuestionToken*/ {
-    unimplemented!()
+    match kind {
+        SyntaxKind::PlusEqualsToken => SyntaxKind::PlusToken,
+        SyntaxKind::MinusEqualsToken => SyntaxKind::MinusToken,
+        SyntaxKind::AsteriskEqualsToken => SyntaxKind::AsteriskToken,
+        SyntaxKind::AsteriskAsteriskEqualsToken => SyntaxKind::AsteriskAsteriskToken,
+        SyntaxKind::SlashEqualsToken => SyntaxKind::SlashToken,
+        SyntaxKind::PercentEqualsToken => SyntaxKind::PercentToken,
+        SyntaxKind::LessThanLessThanEqualsToken => SyntaxKind::LessThanLessThanToken,
+        SyntaxKind::GreaterThanGreaterThanEqualsToken => SyntaxKind::GreaterThanGreaterThanToken,
+        SyntaxKind::GreaterThanGreaterThanGreaterThanEqualsToken => {
+            SyntaxKind::GreaterThanGreaterThanGreaterThanToken
+        }
+        SyntaxKind::AmpersandEqualsToken => SyntaxKind::AmpersandToken,
+        SyntaxKind::BarEqualsToken => SyntaxKind::BarToken,
+        SyntaxKind::CaretEqualsToken => SyntaxKind::CaretToken,
+        SyntaxKind::BarBarEqualsToken => SyntaxKind::BarBarToken,
+        SyntaxKind::AmpersandAmpersandEqualsToken => SyntaxKind::AmpersandAmpersandToken,
+        SyntaxKind::QuestionQuestionEqualsToken => SyntaxKind::QuestionQuestionToken,
+        _ => unreachable!(),
+    }
 }
 
-#[allow(clippy::ptr_arg)]
 pub fn add_prologue_directives_and_initial_super_call(
-    _factory: &NodeFactory<impl 'static + BaseNodeFactory + Trace + Finalize>,
-    _ctor: &Node, /*ConstructorDeclaration*/
-    _result: &mut Vec<Gc<Node /*Statement*/>>,
-    _visitor: impl FnMut(&Node) -> VisitResult,
+    factory: &NodeFactory<impl 'static + BaseNodeFactory + Trace + Finalize>,
+    ctor: &Node, /*ConstructorDeclaration*/
+    result: &mut Vec<Gc<Node /*Statement*/>>,
+    mut visitor: impl FnMut(&Node) -> VisitResult,
 ) -> usize {
-    unimplemented!()
+    try_add_prologue_directives_and_initial_super_call(factory, ctor, result, |node: &Node| {
+        Ok(visitor(node))
+    })
+    .unwrap()
 }
 
-#[allow(clippy::ptr_arg)]
 pub fn try_add_prologue_directives_and_initial_super_call(
-    _factory: &NodeFactory<impl 'static + BaseNodeFactory + Trace + Finalize>,
-    _ctor: &Node, /*ConstructorDeclaration*/
-    _result: &mut Vec<Gc<Node /*Statement*/>>,
-    _visitor: impl FnMut(&Node) -> io::Result<VisitResult>,
+    factory: &NodeFactory<impl 'static + BaseNodeFactory + Trace + Finalize>,
+    ctor: &Node, /*ConstructorDeclaration*/
+    result: &mut Vec<Gc<Node /*Statement*/>>,
+    mut visitor: impl FnMut(&Node) -> io::Result<VisitResult>,
 ) -> io::Result<usize> {
-    unimplemented!()
+    let ctor_as_constructor_declaration = ctor.as_constructor_declaration();
+    if let Some(ctor_body) = ctor_as_constructor_declaration.maybe_body() {
+        let statements = &ctor_body.as_block().statements;
+        let index = factory.try_copy_prologue(
+            statements,
+            result,
+            Some(false),
+            Some(|node: &Node| visitor(node)),
+        )?;
+        if index == statements.len() {
+            return Ok(index);
+        }
+
+        let super_index = statements
+            .iter()
+            .skip(index)
+            .position(|s| {
+                is_expression_statement(s) && is_super_call(&s.as_expression_statement().expression)
+            })
+            .map(|found| found + index);
+        if let Some(super_index) = super_index {
+            for statement in statements.iter().skip(index).take(super_index - index + 1) {
+                result.push(try_visit_node(
+                    statement,
+                    Some(|node: &Node| visitor(node)),
+                    Some(is_statement),
+                    Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                )?);
+            }
+            return Ok(super_index + 1);
+        }
+
+        return Ok(index);
+    }
+
+    Ok(0)
 }
 
 pub fn get_properties(
-    _node: &Node, /*ClassExpression | ClassDeclaration*/
-    _require_initializer: bool,
-    _is_static: bool,
+    node: &Node, /*ClassExpression | ClassDeclaration*/
+    require_initializer: bool,
+    is_static: bool,
 ) -> Vec<Gc<Node /*PropertyDeclaration*/>> {
-    unimplemented!()
+    node.as_class_like_declaration()
+        .members()
+        .iter()
+        .filter(|m| is_initialized_or_static_property(m, require_initializer, is_static))
+        .cloned()
+        .collect()
+}
+
+pub fn is_static_property_declaration_or_class_static_block_declaration(
+    element: &Node, /*ClassElement*/
+) -> bool {
+    is_static_property_declaration(element) || is_class_static_block_declaration(element)
 }
 
 pub fn get_static_properties_and_class_static_block(
-    _node: &Node, /*ClassExpression | ClassDeclaration*/
+    node: &Node, /*ClassExpression | ClassDeclaration*/
 ) -> Vec<Gc<Node /*PropertyDeclaration | ClassStaticBlockDeclaration*/>> {
-    unimplemented!()
+    node.as_class_like_declaration()
+        .members()
+        .iter()
+        .filter(|member| is_static_property_declaration_or_class_static_block_declaration(member))
+        .cloned()
+        .collect()
 }
 
-pub fn is_initialized_property(_member: &Node /*ClassElement*/) -> bool {
-    unimplemented!()
-}
-
-pub fn is_non_static_method_or_accessor_with_private_name(
-    _member: &Node, /*ClassElement*/
+fn is_initialized_or_static_property(
+    member: &Node, /*ClassElement*/
+    require_initializer: bool,
+    is_static: bool,
 ) -> bool {
-    unimplemented!()
+    is_property_declaration(member)
+        && member
+            .as_property_declaration()
+            .maybe_initializer()
+            .is_some()
+        || !require_initializer && has_static_modifier(member) == is_static
+}
+
+pub fn is_static_property_declaration(member: &Node /*ClassElement*/) -> bool {
+    is_property_declaration(member) && has_static_modifier(member)
+}
+
+pub fn is_initialized_property(member: &Node /*ClassElement*/) -> bool {
+    member.kind() == SyntaxKind::PropertyDeclaration
+        && member
+            .as_property_declaration()
+            .maybe_initializer()
+            .is_some()
+}
+
+pub fn is_non_static_method_or_accessor_with_private_name(member: &Node, /*ClassElement*/) -> bool {
+    !is_static(member)
+        && is_method_or_accessor(member)
+        && is_private_identifier(&member.as_named_declaration().name())
 }
