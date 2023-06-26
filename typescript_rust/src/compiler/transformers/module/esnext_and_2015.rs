@@ -7,13 +7,15 @@ use crate::{
     TransformationContext, Transformer, TransformerFactory, TransformerFactoryInterface,
     TransformerInterface, _d, chain_bundle, create_empty_exports,
     create_external_helpers_import_declaration_if_needed, gc_cell_ref_mut_unwrapped,
-    get_emit_script_target, get_external_module_name_literal, has_syntactic_modifier, id_text,
-    insert_statements_after_custom_prologue, is_external_module,
-    is_external_module_import_equals_declaration, is_external_module_indicator, is_identifier,
-    is_statement, single_or_many_node, visit_each_child, visit_nodes, BoolExt, Debug_,
-    EmitHelperFactory, EmitHint, EmitHost, GeneratedIdentifierFlags, GetOrInsertDefault,
-    HasStatementsInterface, ModifierFlags, NamedDeclarationInterface, NodeArray, NodeArrayExt,
-    NodeExt, NodeFlags, NodeInterface, SyntaxKind, TransformationContextOnEmitNodeOverrider,
+    gc_cell_ref_unwrapped, get_emit_flags, get_emit_script_target,
+    get_external_module_name_literal, has_syntactic_modifier, id_text,
+    insert_statements_after_custom_prologue, is_export_namespace_as_default_declaration,
+    is_external_module, is_external_module_import_equals_declaration, is_external_module_indicator,
+    is_identifier, is_namespace_export, is_source_file, is_statement, single_or_many_node,
+    visit_each_child, visit_nodes, BoolExt, Debug_, EmitFlags, EmitHelperFactory, EmitHint,
+    EmitHost, GeneratedIdentifierFlags, GetOrInsertDefault, HasStatementsInterface, Matches,
+    ModifierFlags, ModuleKind, NamedDeclarationInterface, NodeArray, NodeArrayExt, NodeExt,
+    NodeFlags, NodeInterface, SyntaxKind, TransformationContextOnEmitNodeOverrider,
     TransformationContextOnSubstituteNodeOverrider, VecExt, VisitResult,
 };
 
@@ -87,10 +89,19 @@ impl TransformEcmascriptModule {
         self.helper_name_substitutions.borrow()
     }
 
-    fn maybe_helper_name_substitutions_mut(
+    pub(super) fn helper_name_substitutions(
         &self,
-    ) -> GcCellRefMut<Option<HashMap<String, Gc<Node /*Identifier*/>>>> {
-        self.helper_name_substitutions.borrow_mut()
+    ) -> GcCellRef<HashMap<String, Gc<Node /*Identifier*/>>> {
+        gc_cell_ref_unwrapped(&self.helper_name_substitutions)
+    }
+
+    pub(super) fn helper_name_substitutions_mut(
+        &self,
+    ) -> GcCellRefMut<
+        Option<HashMap<String, Gc<Node /*Identifier*/>>>,
+        HashMap<String, Gc<Node /*Identifier*/>>,
+    > {
+        gc_cell_ref_mut_unwrapped(&self.helper_name_substitutions)
     }
 
     fn set_helper_name_substitutions(
@@ -102,10 +113,6 @@ impl TransformEcmascriptModule {
 
     fn maybe_current_source_file(&self) -> Option<Gc<Node /*SourceFile*/>> {
         self.current_source_file.borrow().clone()
-    }
-
-    fn maybe_current_source_file_mut(&self) -> GcCellRefMut<Option<Gc<Node /*SourceFile*/>>> {
-        self.current_source_file.borrow_mut()
     }
 
     fn set_current_source_file(&self, current_source_file: Option<Gc<Node /*SourceFile*/>>) {
@@ -128,32 +135,6 @@ impl TransformEcmascriptModule {
         Gc<Node /*VariableStatement*/>,
     ) {
         self.import_require_statements.borrow().clone().unwrap()
-    }
-
-    fn maybe_import_require_statements_mut(
-        &self,
-    ) -> GcCellRefMut<
-        Option<(
-            Gc<Node /*ImportDeclaration*/>,
-            Gc<Node /*VariableStatement*/>,
-        )>,
-    > {
-        self.import_require_statements.borrow_mut()
-    }
-
-    pub(super) fn import_require_statements_mut(
-        &self,
-    ) -> GcCellRefMut<
-        Option<(
-            Gc<Node /*ImportDeclaration*/>,
-            Gc<Node /*VariableStatement*/>,
-        )>,
-        (
-            Gc<Node /*ImportDeclaration*/>,
-            Gc<Node /*VariableStatement*/>,
-        ),
-    > {
-        gc_cell_ref_mut_unwrapped(&self.import_require_statements)
     }
 
     fn set_import_require_statements(
@@ -460,13 +441,74 @@ impl TransformEcmascriptModule {
         // return statements;
     }
 
-    fn visit_export_assignment(&self, _node: &Node /*ExportAssignment*/) -> VisitResult /*<ExportAssignment>*/
+    fn visit_export_assignment(&self, node: &Node /*ExportAssignment*/) -> VisitResult /*<ExportAssignment>*/
     {
-        unimplemented!()
+        let node_as_export_assignment = node.as_export_assignment();
+        (node_as_export_assignment.is_export_equals != Some(true))
+            .then(|| node.node_wrapper().into())
     }
 
-    fn visit_export_declaration(&self, _node: &Node /*ExportDeclaration*/) -> VisitResult {
-        unimplemented!()
+    fn visit_export_declaration(&self, node: &Node /*ExportDeclaration*/) -> VisitResult {
+        let node_as_export_declaration = node.as_export_declaration();
+        if self
+            .compiler_options
+            .module
+            .matches(|compiler_options_module| compiler_options_module > ModuleKind::ES2015)
+        {
+            return Some(node.node_wrapper().into());
+        }
+
+        let node_export_clause = node_as_export_declaration.export_clause.as_ref();
+        let node_module_specifier = node_as_export_declaration.module_specifier.as_ref();
+        if !node_export_clause.matches(|node_export_clause| is_namespace_export(node_export_clause))
+            || node_module_specifier.is_none()
+        {
+            return Some(node.node_wrapper().into());
+        }
+        let node_export_clause = node_export_clause.unwrap();
+        let node_export_clause_as_namespace_export = node_export_clause.as_namespace_export();
+        let node_module_specifier = node_module_specifier.unwrap();
+
+        let old_identifier = &node_export_clause_as_namespace_export.name;
+        let synth_name = self
+            .factory
+            .get_generated_name_for_node(Some(&**old_identifier), None);
+        let import_decl = self
+            .factory
+            .create_import_declaration(
+                Option::<Gc<NodeArray>>::None,
+                Option::<Gc<NodeArray>>::None,
+                Some(self.factory.create_import_clause(
+                    false,
+                    None,
+                    Some(self.factory.create_namespace_import(synth_name.clone())),
+                )),
+                node_module_specifier.clone(),
+                node_as_export_declaration.assert_clause.clone(),
+            )
+            .set_original_node(Some(node_export_clause.clone()));
+
+        let export_decl = if is_export_namespace_as_default_declaration(node) {
+            self.factory.create_export_default(synth_name)
+        } else {
+            self.factory.create_export_declaration(
+                Option::<Gc<NodeArray>>::None,
+                Option::<Gc<NodeArray>>::None,
+                false,
+                Some(self.factory.create_named_exports(vec![
+                    self.factory.create_export_specifier(
+                        false,
+                        Some(synth_name),
+                        old_identifier.clone(),
+                    ),
+                ])),
+                None,
+                None,
+            )
+        }
+        .set_original_node(Some(node.node_wrapper()));
+
+        Some(vec![import_decl, export_decl].into())
     }
 }
 
@@ -497,11 +539,36 @@ impl TransformEcmascriptModuleOnEmitNodeOverrider {
 impl TransformationContextOnEmitNodeOverrider for TransformEcmascriptModuleOnEmitNodeOverrider {
     fn on_emit_node(
         &self,
-        _hint: EmitHint,
-        _node: &Node,
-        _emit_callback: &dyn Fn(EmitHint, &Node) -> io::Result<()>,
+        hint: EmitHint,
+        node: &Node,
+        emit_callback: &dyn Fn(EmitHint, &Node) -> io::Result<()>,
     ) -> io::Result<()> {
-        unimplemented!()
+        if is_source_file(node) {
+            if (is_external_module(node)
+                || self
+                    .transform_ecmascript_module
+                    .compiler_options
+                    .isolated_modules
+                    == Some(true))
+                && self
+                    .transform_ecmascript_module
+                    .compiler_options
+                    .import_helpers
+                    == Some(true)
+            {
+                self.transform_ecmascript_module
+                    .set_helper_name_substitutions(Some(_d()));
+            }
+            self.previous_on_emit_node
+                .on_emit_node(hint, node, emit_callback)?;
+            self.transform_ecmascript_module
+                .set_helper_name_substitutions(None);
+        } else {
+            self.previous_on_emit_node
+                .on_emit_node(hint, node, emit_callback)?;
+        }
+
+        Ok(())
     }
 }
 
@@ -521,13 +588,45 @@ impl TransformEcmascriptModuleOnSubstituteNodeOverrider {
             previous_on_substitute_node,
         }
     }
+
+    fn substitute_helper_name(&self, node: &Node /*Identifier*/) -> Gc<Node /*Expression*/> {
+        let name = id_text(node);
+        let mut substitution = self
+            .transform_ecmascript_module
+            .helper_name_substitutions()
+            .get(name)
+            .cloned();
+        if substitution.is_none() {
+            substitution = Some(self.transform_ecmascript_module.factory.create_unique_name(
+                name,
+                Some(GeneratedIdentifierFlags::Optimistic | GeneratedIdentifierFlags::FileLevel),
+            ));
+            self.transform_ecmascript_module
+                .helper_name_substitutions_mut()
+                .insert(name.to_owned(), substitution.clone().unwrap());
+        }
+        substitution.unwrap()
+    }
 }
 
 impl TransformationContextOnSubstituteNodeOverrider
     for TransformEcmascriptModuleOnSubstituteNodeOverrider
 {
-    fn on_substitute_node(&self, _hint: EmitHint, _node: &Node) -> io::Result<Gc<Node>> {
-        unimplemented!()
+    fn on_substitute_node(&self, hint: EmitHint, node: &Node) -> io::Result<Gc<Node>> {
+        let node = self
+            .previous_on_substitute_node
+            .on_substitute_node(hint, node)?;
+        if self
+            .transform_ecmascript_module
+            .maybe_helper_name_substitutions()
+            .is_some()
+            && is_identifier(&node)
+            && get_emit_flags(&node).intersects(EmitFlags::HelperName)
+        {
+            return Ok(self.substitute_helper_name(&node));
+        }
+
+        Ok(node)
     }
 }
 
