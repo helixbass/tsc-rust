@@ -919,7 +919,7 @@ impl EmitHelperBase for UnscopedEmitHelper {
     }
 
     fn priority(&self) -> Option<usize> {
-        self.priority.clone()
+        self.priority
     }
 
     fn dependencies(&self) -> Option<&[Gc<EmitHelper>]> {
