@@ -17,15 +17,15 @@ use crate::{
     PropertyAssignment, PropertyDescriptorAttributes, ReadonlyTextRange, ScriptKind, ScriptTarget,
     ShorthandPropertyAssignment, SingleOrVec, SourceFile, SpreadAssignment, StrOrRcNode,
     SyntaxKind, SyntheticExpression, TransformFlags, Type, UnparsedPrepend, UnparsedPrologue,
-    UnparsedSource, UnparsedTextLike, VisitResult, _d, get_comment_range, get_emit_flags,
-    get_name_of_declaration, get_source_map_range, get_synthetic_leading_comments,
-    get_synthetic_trailing_comments, is_call_chain, is_element_access_expression,
-    is_generated_identifier, is_identifier, is_labeled_statement, is_parenthesized_expression,
-    is_property_access_expression, is_statement, is_string_literal, is_super_keyword,
-    is_super_property, reduce_left_no_initial_value, return_ok_default_if_none, set_emit_flags,
-    set_text_range, skip_outer_expressions, skip_parentheses, try_visit_node, EmitFlags,
-    MapOrDefault, Matches, NodeWrappered, NumberOrRcNode, OptionTry, ReadonlyTextRangeConcrete,
-    SyntheticReferenceExpression, VecExt,
+    UnparsedSource, UnparsedTextLike, VisitResult, _d, find_use_strict_prologue, get_comment_range,
+    get_emit_flags, get_name_of_declaration, get_source_map_range, get_synthetic_leading_comments,
+    get_synthetic_trailing_comments, has_syntactic_modifier, is_call_chain,
+    is_element_access_expression, is_generated_identifier, is_identifier, is_labeled_statement,
+    is_parenthesized_expression, is_property_access_expression, is_statement, is_string_literal,
+    is_super_keyword, is_super_property, reduce_left_no_initial_value, return_ok_default_if_none,
+    set_emit_flags, set_text_range, skip_outer_expressions, skip_parentheses, try_visit_node,
+    EmitFlags, MapOrDefault, Matches, NodeWrappered, NumberOrRcNode, OptionTry,
+    ReadonlyTextRangeConcrete, SyntheticReferenceExpression, VecExt,
 };
 
 impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory<TBaseNodeFactory> {
@@ -1201,22 +1201,51 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn get_namespace_member_name(
         &self,
-        _ns: &Node,   /*Identifier*/
-        _name: &Node, /*Identifier*/
-        _allow_comments: Option<bool>,
-        _allow_source_maps: Option<bool>,
+        ns: &Node,   /*Identifier*/
+        name: &Node, /*Identifier*/
+        allow_comments: Option<bool>,
+        allow_source_maps: Option<bool>,
     ) -> Gc<Node /*PropertyAccessExpression*/> {
-        unimplemented!()
+        let qualified_name = self
+            .create_property_access_expression(
+                ns.node_wrapper(),
+                if node_is_synthesized(name) {
+                    name.node_wrapper()
+                } else {
+                    self.clone_node(name)
+                },
+            )
+            .set_text_range(Some(name));
+        let mut emit_flags: EmitFlags = _d();
+        if allow_source_maps != Some(true) {
+            emit_flags |= EmitFlags::NoSourceMap;
+        }
+        if allow_comments != Some(true) {
+            emit_flags |= EmitFlags::NoComments;
+        }
+        if emit_flags != EmitFlags::None {
+            set_emit_flags(&*qualified_name, emit_flags);
+        }
+        qualified_name
     }
 
     pub fn get_external_module_or_namespace_export_name(
         &self,
-        _ns: Option<impl Borrow<Node> /*Identifier*/>,
-        _node: &Node, /*Declaration*/
-        _allow_comments: Option<bool>,
-        _allow_source_maps: Option<bool>,
+        ns: Option<impl Borrow<Node> /*Identifier*/>,
+        node: &Node, /*Declaration*/
+        allow_comments: Option<bool>,
+        allow_source_maps: Option<bool>,
     ) -> Gc<Node /*Identifier | PropertyAccessExpression*/> {
-        unimplemented!()
+        if let Some(ns) = ns.filter(|_| has_syntactic_modifier(node, ModifierFlags::Export)) {
+            let ns = ns.borrow();
+            return self.get_namespace_member_name(
+                ns,
+                &self.get_name(Some(node), None, None, None),
+                allow_comments,
+                allow_source_maps,
+            );
+        }
+        self.get_export_name(node, allow_comments, allow_source_maps)
     }
 
     pub fn copy_prologue(
@@ -1358,9 +1387,23 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn ensure_use_strict(
         &self,
-        _statements: &NodeArray, /*<Statement>*/
+        statements: &NodeArray, /*<Statement>*/
     ) -> Gc<NodeArray /*<Statement>*/> {
-        unimplemented!()
+        let found_use_strict = find_use_strict_prologue(statements);
+
+        if found_use_strict.is_none() {
+            return self
+                .create_node_array(
+                    Some(
+                        vec![self.create_use_strict_prologue()]
+                            .and_extend(statements.iter().cloned()),
+                    ),
+                    None,
+                )
+                .set_text_range(Some(statements));
+        }
+
+        statements.rc_wrapper()
     }
 
     pub fn lift_to_block(&self, nodes: &[Gc<Node>]) -> Gc<Node /*Statement*/> {
