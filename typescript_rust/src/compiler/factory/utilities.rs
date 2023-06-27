@@ -378,6 +378,12 @@ pub fn get_property_name_of_binding_or_assignment_element(
     unimplemented!()
 }
 
+pub fn try_get_property_name_of_binding_or_assignment_element(
+    _binding_element: &Node, /*BindingOrAssignmentElement*/
+) -> Option<Gc<Node /*Exclude<PropertyName, PrivateIdentifier>*/>> {
+    unimplemented!()
+}
+
 pub(crate) fn get_jsdoc_type_alias_name(
     full_name: Option<impl Borrow<Node> /*JSDocNamespaceBody*/>,
 ) -> Option<Gc<Node /*Identifier*/>> {

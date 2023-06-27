@@ -295,7 +295,8 @@ pub use compiler::{
             is_local_name, is_module_name, is_outer_expression, is_question_or_exclamation_token,
             is_question_or_plus_or_minus_token, is_readonly_keyword_or_plus_or_minus_token,
             is_type_node_or_type_parameter_declaration, skip_outer_expressions, start_on_new_line,
-            starts_with_use_strict, try_get_module_name_from_file, BinaryExpressionStateMachine,
+            starts_with_use_strict, try_get_module_name_from_file,
+            try_get_property_name_of_binding_or_assignment_element, BinaryExpressionStateMachine,
             BinaryExpressionTrampoline, LeftOrRight,
         },
         utilities_public::{set_text_range, set_text_range_node_array, set_text_range_rc_node},
@@ -381,8 +382,7 @@ pub use compiler::{
         },
         destructuring::{
             flatten_destructuring_assignment, flatten_destructuring_binding,
-            try_flatten_destructuring_assignment, try_flatten_destructuring_binding,
-            CreateAssignmentCallback, FlattenLevel, TryCreateAssignmentCallback,
+            try_flatten_destructuring_assignment, try_flatten_destructuring_binding, FlattenLevel,
         },
         is_internal_declaration,
         tagged_template::{

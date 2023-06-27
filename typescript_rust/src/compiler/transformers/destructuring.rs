@@ -4,9 +4,14 @@ use gc::{Finalize, Gc, GcCell, Trace};
 
 use crate::{
     GetOrInsertDefault, Node, NodeExt, NodeInterface, NodeWrappered, NonEmpty, ReadonlyTextRange,
-    TransformationContext, VisitResult, _d, is_destructuring_assignment, is_empty_array_literal,
-    is_empty_object_literal, is_expression, is_identifier, node_is_synthesized, try_visit_node,
-    BaseNodeFactory, Debug_, NodeFactory, OptionTry, ReadonlyTextRangeConcrete,
+    TransformationContext, VisitResult, _d, get_elements_of_binding_or_assignment_pattern,
+    get_initializer_of_binding_or_assignment_element, get_target_of_binding_or_assignment_element,
+    is_binding_name, is_binding_or_assigment_pattern, is_computed_property_name,
+    is_destructuring_assignment, is_empty_array_literal, is_empty_object_literal, is_expression,
+    is_identifier, is_literal_expression, is_variable_declaration, node_is_synthesized,
+    set_text_range, try_get_property_name_of_binding_or_assignment_element, try_visit_node,
+    BaseNodeFactory, Debug_, Matches, NamedDeclarationInterface, NodeFactory, OptionTry,
+    ReadonlyTextRangeConcrete, VecExt,
 };
 
 trait FlattenContext {
@@ -47,31 +52,6 @@ pub enum FlattenLevel {
     All,
     ObjectRest,
 }
-
-pub trait CreateAssignmentCallback: Trace + Finalize {
-    fn call(
-        &self,
-        name: &Node,  /*Identifier*/
-        value: &Node, /*Expression*/
-        location: Option<&dyn ReadonlyTextRange>,
-    ) -> Gc<Node /*Expression*/>;
-}
-
-pub trait TryCreateAssignmentCallback: Trace + Finalize {
-    fn call(
-        &self,
-        name: &Node,  /*Identifier*/
-        value: &Node, /*Expression*/
-        location: Option<&dyn ReadonlyTextRange>,
-    ) -> io::Result<Gc<Node /*Expression*/>>;
-}
-
-// pub trait Visitor: Trace + Finalize {
-//     fn call(
-//         &self,
-//         node: &Node
-//     ) -> VisitResult;
-// }
 
 pub fn flatten_destructuring_assignment<'visitor, 'create_assignment_callback>(
     node: &Node, /*VariableDeclaration | DestructuringAssignment*/
@@ -385,22 +365,60 @@ pub fn try_flatten_destructuring_assignment<'visitor, 'create_assignment_callbac
 }
 
 fn binding_or_assignment_element_assigns_to_name(
-    _element: &Node,     /*BindingOrAssignmentElement*/
-    _escaped_name: &str, /*__String*/
+    element: &Node,     /*BindingOrAssignmentElement*/
+    escaped_name: &str, /*__String*/
 ) -> bool {
-    unimplemented!()
+    let target = &get_target_of_binding_or_assignment_element(element).unwrap();
+    if is_binding_or_assigment_pattern(target) {
+        return binding_or_assignment_pattern_assigns_to_name(target, escaped_name);
+    } else if is_identifier(target) {
+        return target.as_identifier().escaped_text == escaped_name;
+    }
+    false
+}
+
+fn binding_or_assignment_pattern_assigns_to_name(
+    pattern: &Node,     /*BindingOrAssignmentPattern*/
+    escaped_name: &str, /*__String*/
+) -> bool {
+    let elements = get_elements_of_binding_or_assignment_pattern(pattern);
+    for ref element in elements {
+        if binding_or_assignment_element_assigns_to_name(element, escaped_name) {
+            return true;
+        }
+    }
+    false
 }
 
 fn binding_or_assignment_element_contains_non_literal_computed_name(
-    _element: &Node, /*BindingOrAssignmentElement*/
+    element: &Node, /*BindingOrAssignmentElement*/
 ) -> bool {
-    unimplemented!()
+    let property_name = try_get_property_name_of_binding_or_assignment_element(element);
+    if property_name.matches(|ref property_name| {
+        is_computed_property_name(property_name)
+            && !is_literal_expression(&property_name.as_computed_property_name().expression)
+    }) {
+        return true;
+    }
+    let target = get_target_of_binding_or_assignment_element(element);
+    target.as_ref().matches(|target| {
+        is_binding_or_assigment_pattern(target)
+            && binding_or_assignment_pattern_contains_non_literal_computed_name(target)
+    })
+}
+
+fn binding_or_assignment_pattern_contains_non_literal_computed_name(
+    pattern: &Node, /*BindingOrAssignmentPattern*/
+) -> bool {
+    get_elements_of_binding_or_assignment_pattern(pattern).any(|ref element| {
+        binding_or_assignment_element_contains_non_literal_computed_name(element)
+    })
 }
 
 pub fn flatten_destructuring_binding(
     node: &Node, /*VariableDeclaration | ParameterDeclaration*/
     mut visitor: impl FnMut(&Node) -> VisitResult,
-    context: &(impl TransformationContext + ?Sized),
+    context: Gc<Box<dyn TransformationContext>>,
     level: FlattenLevel,
     rval: Option<impl Borrow<Node /*Expression*/>>,
     hoist_temp_variables: Option<bool>,
@@ -418,17 +436,276 @@ pub fn flatten_destructuring_binding(
     .unwrap()
 }
 
-pub fn try_flatten_destructuring_binding(
-    _node: &Node, /*VariableDeclaration | ParameterDeclaration*/
-    _visitor: impl FnMut(&Node) -> io::Result<VisitResult>,
-    _context: &(impl TransformationContext + ?Sized),
-    _level: FlattenLevel,
-    _rval: Option<impl Borrow<Node /*Expression*/>>,
+#[derive(Trace, Finalize)]
+struct PendingDeclaration {
+    pending_expressions: Option<Vec<Gc<Node /*Expression*/>>>,
+    name: Gc<Node /*BindingName*/>,
+    value: Gc<Node /*Expression*/>,
+    #[unsafe_ignore_trace]
+    location: Option<ReadonlyTextRangeConcrete>,
+    original: Option<Gc<Node>>,
+}
+
+pub fn try_flatten_destructuring_binding<'visitor>(
+    node: &Node, /*VariableDeclaration | ParameterDeclaration*/
+    visitor: impl FnMut(&Node) -> io::Result<VisitResult> + 'visitor,
+    context: Gc<Box<dyn TransformationContext>>,
+    level: FlattenLevel,
+    rval: Option<impl Borrow<Node /*Expression*/>>,
     hoist_temp_variables: Option<bool>,
-    _skip_initializer: Option<bool>,
+    skip_initializer: Option<bool>,
 ) -> io::Result<Vec<Gc<Node /*VariableDeclaration*/>>> {
-    let _hoist_temp_variables = hoist_temp_variables.unwrap_or(false);
-    unimplemented!()
+    let hoist_temp_variables = hoist_temp_variables.unwrap_or(false);
+    let pending_expressions: Gc<GcCell<Option<Vec<Gc<Node /*Expression*/>>>>> = _d();
+    let pending_declarations: Gc<GcCell<Vec<PendingDeclaration>>> = _d();
+    let mut declarations: Vec<Gc<Node /*VariableDeclaration*/>> = _d();
+    let visitor: Rc<RefCell<dyn FnMut(&Node) -> io::Result<VisitResult> + 'visitor>> =
+        Rc::new(RefCell::new(visitor));
+    // as Rc<RefCell<dyn FnMut(&Node) -> io::Result<VisitResult> + 'visitor>>
+    let flatten_context = FlattenDestructuringBindingFlattenContext::new(
+        context.clone(),
+        level,
+        context.get_compiler_options().downlevel_iteration == Some(true),
+        hoist_temp_variables,
+        pending_expressions.clone(),
+        pending_declarations.clone(),
+        visitor.clone(),
+    );
+
+    let mut node = node.node_wrapper();
+    if is_variable_declaration(&node) {
+        let initializer = get_initializer_of_binding_or_assignment_element(&node);
+        if let Some(mut initializer) = initializer.filter(|initializer| {
+            is_identifier(initializer)
+                && binding_or_assignment_element_assigns_to_name(
+                    &node,
+                    &initializer.as_identifier().escaped_text,
+                )
+                || binding_or_assignment_element_contains_non_literal_computed_name(&node)
+        }) {
+            initializer = ensure_identifier(
+                &flatten_context,
+                &*try_visit_node(
+                    &initializer,
+                    Some(|node: &Node| (flatten_context.visitor.borrow_mut())(node)),
+                    Option::<fn(&Node) -> bool>::None,
+                    Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                )?,
+                false,
+                &*initializer,
+            );
+            node = context.factory().update_variable_declaration(
+                &node,
+                node.as_variable_declaration().maybe_name(),
+                None,
+                None,
+                Some(initializer),
+            );
+        }
+    }
+
+    flatten_binding_or_assignment_element(&flatten_context, &node, rval, &*node, skip_initializer);
+    if (*pending_expressions).borrow().is_some() {
+        let temp = context
+            .factory()
+            .create_temp_variable(Option::<fn(&Node)>::None, None);
+        if hoist_temp_variables {
+            let value = context
+                .factory()
+                .inline_expressions((*pending_expressions).borrow().as_ref().unwrap());
+            *pending_expressions.borrow_mut() = None;
+            emit_binding_or_assignment(
+                &mut pending_expressions.borrow_mut(),
+                &**context,
+                &mut pending_declarations.borrow_mut(),
+                &temp,
+                &value,
+                Option::<&Node>::None,
+                Option::<&Node>::None,
+            );
+        } else {
+            context.hoist_variable_declaration(&temp);
+            let mut pending_declarations = pending_declarations.borrow_mut();
+            let pending_declarations_len = pending_declarations.len();
+            let pending_declaration = &mut pending_declarations[pending_declarations_len - 1];
+            pending_declaration
+                .pending_expressions
+                .get_or_insert_default_()
+                .push(
+                    context
+                        .factory()
+                        .create_assignment(temp.clone(), pending_declaration.value.clone()),
+                );
+            pending_declaration
+                .pending_expressions
+                .as_mut()
+                .unwrap()
+                .extend(
+                    (*pending_expressions)
+                        .borrow()
+                        .as_ref()
+                        .unwrap()
+                        .iter()
+                        .cloned(),
+                );
+            pending_declaration.value = temp;
+        }
+    }
+    for PendingDeclaration {
+        pending_expressions,
+        name,
+        value,
+        location,
+        original,
+    } in (*pending_declarations).borrow().iter()
+    {
+        let variable = context.factory().create_variable_declaration(
+            Some(name.clone()),
+            None,
+            None,
+            Some(pending_expressions.as_ref().map_or_else(
+                || value.clone(),
+                |pending_expressions| {
+                    context
+                        .factory()
+                        .inline_expressions(&pending_expressions.clone().and_push(value.clone()))
+                },
+            )),
+        );
+        variable.set_original(original.clone());
+        set_text_range(&*variable, location.as_ref());
+        declarations.push(variable);
+    }
+    Ok(declarations)
+}
+
+fn emit_binding_or_assignment(
+    pending_expressions: &mut Option<Vec<Gc<Node /*Expression*/>>>,
+    context: &dyn TransformationContext,
+    pending_declarations: &mut Vec<PendingDeclaration>,
+    target: &Node, /*BindingOrAssignmentElementTarget*/
+    value: &Node,  /*Expression*/
+    location: Option<&(impl ReadonlyTextRange + ?Sized)>,
+    original: Option<impl Borrow<Node>>,
+) {
+    Debug_.assert_node(Some(target), Some(is_binding_name), None);
+    let mut value = value.node_wrapper();
+    if pending_expressions.is_some() {
+        pending_expressions.as_mut().unwrap().push(value.clone());
+        value = context
+            .factory()
+            .inline_expressions(pending_expressions.as_ref().unwrap());
+        *pending_expressions = None;
+    }
+    pending_declarations.push(PendingDeclaration {
+        pending_expressions: pending_expressions.clone(),
+        name: target.node_wrapper(),
+        value,
+        location: location.map(Into::into),
+        original: original.node_wrappered(),
+    });
+}
+
+struct FlattenDestructuringBindingFlattenContext<'visitor> {
+    context: Gc<Box<dyn TransformationContext>>,
+    level: FlattenLevel,
+    downlevel_iteration: bool,
+    hoist_temp_variables: bool,
+    pending_expressions: Gc<GcCell<Option<Vec<Gc<Node /*Expression*/>>>>>,
+    pending_declarations: Gc<GcCell<Vec<PendingDeclaration>>>,
+    visitor: Rc<RefCell<dyn FnMut(&Node) -> io::Result<VisitResult> + 'visitor>>,
+}
+
+impl<'visitor> FlattenDestructuringBindingFlattenContext<'visitor> {
+    pub fn new(
+        context: Gc<Box<dyn TransformationContext>>,
+        level: FlattenLevel,
+        downlevel_iteration: bool,
+        hoist_temp_variables: bool,
+        pending_expressions: Gc<GcCell<Option<Vec<Gc<Node /*Expression*/>>>>>,
+        pending_declarations: Gc<GcCell<Vec<PendingDeclaration>>>,
+        visitor: Rc<RefCell<dyn FnMut(&Node) -> io::Result<VisitResult> + 'visitor>>,
+    ) -> Self {
+        Self {
+            context,
+            level,
+            downlevel_iteration,
+            hoist_temp_variables,
+            pending_expressions,
+            pending_declarations,
+            visitor,
+        }
+    }
+}
+
+impl FlattenContext for FlattenDestructuringBindingFlattenContext<'_> {
+    fn context(&self) -> Gc<Box<dyn TransformationContext>> {
+        self.context.clone()
+    }
+
+    fn level(&self) -> FlattenLevel {
+        self.level
+    }
+
+    fn downlevel_iteration(&self) -> bool {
+        self.downlevel_iteration
+    }
+
+    fn hoist_temp_variables(&self) -> bool {
+        self.hoist_temp_variables
+    }
+
+    fn emit_expression(&self, value: &Node /*Expression*/) {
+        self.pending_expressions
+            .borrow_mut()
+            .get_or_insert_default_()
+            .push(value.node_wrapper());
+    }
+
+    fn emit_binding_or_assignment(
+        &self,
+        target: &Node, /*BindingOrAssignmentElementTarget*/
+        value: &Node,  /*Expression*/
+        location: &(impl ReadonlyTextRange + ?Sized),
+        original: Option<impl Borrow<Node>>,
+    ) -> io::Result<()> {
+        emit_binding_or_assignment(
+            &mut self.pending_expressions.borrow_mut(),
+            &**self.context,
+            &mut self.pending_declarations.borrow_mut(),
+            target,
+            value,
+            Some(location),
+            original,
+        );
+
+        Ok(())
+    }
+
+    fn create_array_binding_or_assignment_pattern(
+        &self,
+        elements: &[Gc<Node /*BindingOrAssignmentElement*/>],
+    ) -> Gc<Node /*ArrayBindingOrAssignmentPattern*/> {
+        make_array_binding_pattern(&self.context.factory(), elements)
+    }
+
+    fn create_object_binding_or_assignment_pattern(
+        &self,
+        elements: &[Gc<Node /*BindingOrAssignmentElement*/>],
+    ) -> Gc<Node /*ObjectBindingOrAssignmentPattern*/> {
+        make_object_binding_pattern(&self.context.factory(), elements)
+    }
+
+    fn create_array_binding_or_assignment_element(
+        &self,
+        name: &Node, /*Identifier*/
+    ) -> Gc<Node /*BindingOrAssignmentElement*/> {
+        make_binding_element(&self.context.factory(), name)
+    }
+
+    fn visitor(&self, node: &Node) -> Option<io::Result<VisitResult /*<Node>*/>> {
+        Some((self.visitor.borrow_mut())(node))
+    }
 }
 
 fn flatten_binding_or_assignment_element(
@@ -450,7 +727,21 @@ fn ensure_identifier(
     unimplemented!()
 }
 
+fn make_array_binding_pattern<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>(
+    _factory: &NodeFactory<TBaseNodeFactory>,
+    _elements: &[Gc<Node /*BindingOrAssignmentElement*/>],
+) -> Gc<Node> {
+    unimplemented!()
+}
+
 fn make_array_assignment_pattern<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>(
+    _factory: &NodeFactory<TBaseNodeFactory>,
+    _elements: &[Gc<Node /*BindingOrAssignmentElement*/>],
+) -> Gc<Node> {
+    unimplemented!()
+}
+
+fn make_object_binding_pattern<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>(
     _factory: &NodeFactory<TBaseNodeFactory>,
     _elements: &[Gc<Node /*BindingOrAssignmentElement*/>],
 ) -> Gc<Node> {
@@ -462,6 +753,13 @@ fn make_object_assignment_pattern<
 >(
     _factory: &NodeFactory<TBaseNodeFactory>,
     _elements: &[Gc<Node /*BindingOrAssignmentElement*/>],
+) -> Gc<Node> {
+    unimplemented!()
+}
+
+fn make_binding_element<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>(
+    _factory: &NodeFactory<TBaseNodeFactory>,
+    _name: &Node, /*Identifier*/
 ) -> Gc<Node> {
     unimplemented!()
 }

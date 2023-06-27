@@ -190,7 +190,7 @@ impl TransformES2015 {
                                 try_flatten_destructuring_binding(
                                     parameter,
                                     |node: &Node| self.visitor(node),
-                                    &**self.context,
+                                    self.context.clone(),
                                     FlattenLevel::All,
                                     Some(
                                         self.factory
@@ -439,7 +439,7 @@ impl TransformES2015 {
                             try_flatten_destructuring_binding(
                                 &parameter,
                                 |node: &Node| self.visitor(node),
-                                &**self.context,
+                                self.context.clone(),
                                 FlattenLevel::All,
                                 Some(expression_name.clone()),
                                 None,

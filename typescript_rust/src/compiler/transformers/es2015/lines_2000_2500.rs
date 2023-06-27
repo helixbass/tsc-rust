@@ -427,7 +427,7 @@ impl TransformES2015 {
                 try_flatten_destructuring_binding(
                     node,
                     |node: &Node| self.visitor(node),
-                    &**self.context,
+                    self.context.clone(),
                     FlattenLevel::All,
                     Option::<&Node>::None,
                     Some(
@@ -740,7 +740,7 @@ impl TransformES2015 {
                 let declarations = try_flatten_destructuring_binding(
                     first_original_declaration,
                     |node: &Node| self.visitor(node),
-                    &**self.context,
+                    self.context.clone(),
                     FlattenLevel::All,
                     Some(bound_value),
                     None,

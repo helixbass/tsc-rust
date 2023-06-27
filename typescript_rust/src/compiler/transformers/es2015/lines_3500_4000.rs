@@ -87,7 +87,7 @@ impl TransformES2015 {
             let vars = try_flatten_destructuring_binding(
                 node_variable_declaration,
                 |node: &Node| self.visitor(node),
-                &**self.context,
+                self.context.clone(),
                 FlattenLevel::All,
                 Some(&*temp),
                 None,

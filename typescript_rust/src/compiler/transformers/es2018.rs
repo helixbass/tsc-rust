@@ -979,7 +979,7 @@ impl TransformES2018 {
             let visited_bindings = flatten_destructuring_binding(
                 &updated_decl,
                 |node: &Node| self.visitor(node),
-                &**self.context,
+                self.context.clone(),
                 FlattenLevel::ObjectRest,
                 Option::<&Node>::None,
                 None,
@@ -1070,7 +1070,7 @@ impl TransformES2018 {
                 flatten_destructuring_binding(
                     node,
                     |node: &Node| self.visitor(node),
-                    &**self.context,
+                    self.context.clone(),
                     FlattenLevel::ObjectRest,
                     Option::<&Node>::None,
                     Some(exported_variable_statement),
@@ -2100,7 +2100,7 @@ impl TransformES2018 {
                 let declarations = flatten_destructuring_binding(
                     parameter,
                     |node: &Node| self.visitor(node),
-                    &**self.context,
+                    self.context.clone(),
                     FlattenLevel::ObjectRest,
                     Some(temp),
                     Some(false),
