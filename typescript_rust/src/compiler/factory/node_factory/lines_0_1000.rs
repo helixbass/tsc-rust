@@ -16,15 +16,15 @@ use crate::{
     BaseBindingLikeDeclaration, BaseFunctionLikeDeclaration, BaseGenericNamedDeclaration,
     BaseInterfaceOrClassLikeDeclaration, BaseJSDocTag, BaseJSDocTypeLikeTag, BaseJSDocUnaryType,
     BaseLiteralLikeNode, BaseNamedDeclaration, BaseNode, BaseNodeFactory, BaseSignatureDeclaration,
-    BaseVariableLikeDeclaration, BigIntLiteral, BinaryExpression, ClassLikeDeclarationBase,
-    ClassLikeDeclarationInterface, Debug_, FunctionLikeDeclarationInterface,
-    GeneratedIdentifierFlags, HasInitializerInterface, HasTypeArgumentsInterface, HasTypeInterface,
-    HasTypeParametersInterface, Identifier, InterfaceOrClassLikeDeclarationInterface,
-    LiteralLikeNodeInterface, Node, NodeArray, NodeArrayOrVec, NodeConverters, NodeFactory,
-    NodeInterface, Number, NumericLiteral, ParenthesizerRules, PostfixUnaryExpression,
-    PrefixUnaryExpression, PrivateIdentifier, ReadonlyTextRange, RegularExpressionLiteral,
-    SignatureDeclarationInterface, StringLiteral, StringOrNodeArray, SyntaxKind, TokenFlags,
-    TransformFlags,
+    BaseVariableLikeDeclaration, BigIntLiteral, BinaryExpression, BoolOrRcNode,
+    ClassLikeDeclarationBase, ClassLikeDeclarationInterface, Debug_,
+    FunctionLikeDeclarationInterface, GeneratedIdentifierFlags, HasInitializerInterface,
+    HasTypeArgumentsInterface, HasTypeInterface, HasTypeParametersInterface, Identifier,
+    InterfaceOrClassLikeDeclarationInterface, LiteralLikeNodeInterface, Node, NodeArray,
+    NodeArrayOrVec, NodeConverters, NodeFactory, NodeInterface, Number, NumericLiteral,
+    ParenthesizerRules, PostfixUnaryExpression, PrefixUnaryExpression, PrivateIdentifier,
+    ReadonlyTextRange, RegularExpressionLiteral, SignatureDeclarationInterface, StringLiteral,
+    StringOrNodeArray, SyntaxKind, TokenFlags, TransformFlags,
 };
 
 thread_local! {
@@ -1398,6 +1398,15 @@ impl<'str> From<StrOrRcNode<'str>> for StringOrNumberOrBoolOrRcNode {
         match value {
             StrOrRcNode::Str(value) => Self::String(value.to_owned()),
             StrOrRcNode::RcNode(value) => Self::RcNode(value),
+        }
+    }
+}
+
+impl From<BoolOrRcNode> for StringOrNumberOrBoolOrRcNode {
+    fn from(value: BoolOrRcNode) -> Self {
+        match value {
+            BoolOrRcNode::Bool(value) => Self::Bool(value),
+            BoolOrRcNode::RcNode(value) => Self::RcNode(value),
         }
     }
 }

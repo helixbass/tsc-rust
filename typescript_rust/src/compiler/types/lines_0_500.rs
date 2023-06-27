@@ -56,6 +56,10 @@ impl ReadonlyTextRangeConcrete {
     pub fn new(pos: isize, end: isize) -> Self {
         Self { pos, end }
     }
+
+    pub fn from_text_range(text_range: &impl TextRange) -> Self {
+        Self::new(text_range.pos(), text_range.end())
+    }
 }
 
 impl ReadonlyTextRange for ReadonlyTextRangeConcrete {

@@ -17,9 +17,15 @@ use crate::{
     PropertyAssignment, PropertyDescriptorAttributes, ReadonlyTextRange, ScriptKind, ScriptTarget,
     ShorthandPropertyAssignment, SingleOrVec, SourceFile, SpreadAssignment, StrOrRcNode,
     SyntaxKind, SyntheticExpression, TransformFlags, Type, UnparsedPrepend, UnparsedPrologue,
-    UnparsedSource, UnparsedTextLike, VisitResult, _d, get_emit_flags, is_call_chain, is_statement,
-    is_string_literal, return_ok_default_if_none, set_text_range, try_visit_node, EmitFlags,
-    MapOrDefault, NumberOrRcNode, OptionTry, SyntheticReferenceExpression, VecExt,
+    UnparsedSource, UnparsedTextLike, VisitResult, _d, get_comment_range, get_emit_flags,
+    get_name_of_declaration, get_source_map_range, get_synthetic_leading_comments,
+    get_synthetic_trailing_comments, is_call_chain, is_element_access_expression,
+    is_generated_identifier, is_identifier, is_labeled_statement, is_parenthesized_expression,
+    is_property_access_expression, is_statement, is_string_literal, is_super_keyword,
+    is_super_property, reduce_left_no_initial_value, return_ok_default_if_none, set_emit_flags,
+    set_text_range, skip_outer_expressions, skip_parentheses, try_visit_node, EmitFlags,
+    MapOrDefault, Matches, NodeWrappered, NumberOrRcNode, OptionTry, ReadonlyTextRangeConcrete,
+    SyntheticReferenceExpression, VecExt,
 };
 
 impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory<TBaseNodeFactory> {
@@ -835,16 +841,64 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         )
     }
 
-    pub fn create_property_descriptor(
+    pub(super) fn try_add_property_assignment(
         &self,
-        _attributes: PropertyDescriptorAttributes,
-        _single_line: Option<bool>,
-    ) -> Gc<Node> {
-        unimplemented!()
+        properties: &mut Vec<Gc<Node /*PropertyAssignment*/>>,
+        property_name: &str,
+        expression: Option<Gc<Node>>,
+    ) -> bool {
+        if let Some(expression) = expression {
+            properties.push(self.create_property_assignment(property_name, expression));
+            return true;
+        }
+        false
     }
 
-    fn is_ignorable_paren(&self, _node: &Node /*Expression*/) -> bool {
-        unimplemented!()
+    pub fn create_property_descriptor(
+        &self,
+        attributes: PropertyDescriptorAttributes,
+        single_line: Option<bool>,
+    ) -> Gc<Node> {
+        let mut properties: Vec<Gc<Node /*PropertyAssignment*/>> = _d();
+        self.try_add_property_assignment(
+            &mut properties,
+            "enumerable",
+            self.maybe_as_expression(attributes.enumerable.clone()),
+        );
+        self.try_add_property_assignment(
+            &mut properties,
+            "configurable",
+            self.maybe_as_expression(attributes.configurable.clone()),
+        );
+
+        let mut is_data = self.try_add_property_assignment(
+            &mut properties,
+            "writable",
+            self.maybe_as_expression(attributes.writable.clone()),
+        );
+        is_data =
+            self.try_add_property_assignment(&mut properties, "value", attributes.value.clone())
+                || is_data;
+
+        let mut is_accessor =
+            self.try_add_property_assignment(&mut properties, "get", attributes.get.clone());
+        is_accessor =
+            self.try_add_property_assignment(&mut properties, "set", attributes.set.clone())
+                || is_accessor;
+
+        Debug_.assert(!(is_data && is_accessor), Some("A PropertyDescriptor may not be both an accessor descriptor and a data descriptor."));
+        self.create_object_literal_expression(Some(properties), Some(single_line != Some(true)))
+    }
+
+    fn is_ignorable_paren(&self, node: &Node /*Expression*/) -> bool {
+        is_parenthesized_expression(node)
+            && node_is_synthesized(node)
+            && node_is_synthesized(&ReadonlyTextRangeConcrete::from_text_range(
+                &*get_source_map_range(node),
+            ))
+            && node_is_synthesized(&ReadonlyTextRangeConcrete::from(get_comment_range(node)))
+            && !get_synthetic_leading_comments(node).is_non_empty()
+            && !get_synthetic_trailing_comments(node).is_non_empty()
     }
 
     pub fn restore_outer_expressions(
@@ -866,70 +920,283 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn restore_enclosing_label(
         &self,
-        _node: &Node, /*Statement*/
-        _outermost_labeled_statement: Option<impl Borrow<Node /*LabeledStatement*/>>,
-        _after_restore_label_callback: Option<impl FnMut(&Node /*LabeledStatement*/)>,
+        node: &Node, /*Statement*/
+        outermost_labeled_statement: Option<impl Borrow<Node /*LabeledStatement*/>>,
+        after_restore_label_callback: Option<impl FnMut(&Node /*LabeledStatement*/)>,
     ) -> Gc<Node /*Statement*/> {
-        unimplemented!()
+        if outermost_labeled_statement.is_none() {
+            return node.node_wrapper();
+        }
+        let outermost_labeled_statement = outermost_labeled_statement.unwrap();
+        let outermost_labeled_statement: &Node = outermost_labeled_statement.borrow();
+        let outermost_labeled_statement_as_labeled_statement =
+            outermost_labeled_statement.as_labeled_statement();
+        let updated = self.update_labeled_statement(
+            outermost_labeled_statement,
+            outermost_labeled_statement_as_labeled_statement
+                .label
+                .clone(),
+            if is_labeled_statement(&outermost_labeled_statement_as_labeled_statement.statement) {
+                self.restore_enclosing_label(
+                    node,
+                    Some(&*outermost_labeled_statement_as_labeled_statement.statement),
+                    Option::<fn(&Node)>::None,
+                )
+            } else {
+                node.node_wrapper()
+            },
+        );
+        if let Some(mut after_restore_label_callback) = after_restore_label_callback {
+            after_restore_label_callback(outermost_labeled_statement);
+        }
+        updated
+    }
+
+    pub(super) fn should_be_captured_in_temp_variable(
+        &self,
+        node: &Node, /*Expression*/
+        cache_identifiers: bool,
+    ) -> bool {
+        let target = skip_parentheses(node, None);
+        match target.kind() {
+            SyntaxKind::Identifier => cache_identifiers,
+            SyntaxKind::ThisKeyword
+            | SyntaxKind::NumericLiteral
+            | SyntaxKind::BigIntLiteral
+            | SyntaxKind::StringLiteral => false,
+            SyntaxKind::ArrayLiteralExpression => {
+                let elements = &target.as_array_literal_expression().elements;
+                if elements.is_empty() {
+                    return false;
+                }
+                true
+            }
+            SyntaxKind::ObjectLiteralExpression => {
+                !target.as_object_literal_expression().properties.is_empty()
+            }
+            _ => true,
+        }
     }
 
     pub fn create_call_binding(
         &self,
-        _expression: &Node, /*Expression*/
-        _record_temp_variable: impl FnMut(&Node /*Identifier*/),
-        _language_version: Option<ScriptTarget>,
+        expression: &Node, /*Expression*/
+        mut record_temp_variable: impl FnMut(&Node /*Identifier*/),
+        language_version: Option<ScriptTarget>,
         cache_identifiers: Option<bool>,
     ) -> CallBinding {
-        let _cache_identifiers = cache_identifiers.unwrap_or_default();
-        unimplemented!()
+        let cache_identifiers = cache_identifiers.unwrap_or_default();
+        let callee = &skip_outer_expressions(expression, Some(OuterExpressionKinds::All));
+        let this_arg: Gc<Node /*Expression*/>;
+        let target: Gc<Node /*LeftHandSideExpression*/>;
+        if is_super_property(callee) {
+            this_arg = self.create_this();
+            target = callee.clone();
+        } else if is_super_keyword(callee) {
+            this_arg = self.create_this();
+            target = if language_version
+                .matches(|language_version| language_version < ScriptTarget::ES2015)
+            {
+                self.create_identifier("_super")
+                    .set_text_range(Some(&**callee))
+            } else {
+                callee.clone()
+            };
+        } else if get_emit_flags(callee).intersects(EmitFlags::HelperName) {
+            this_arg = self.create_void_zero();
+            target = self
+                .parenthesizer_rules()
+                .parenthesize_left_side_of_access(callee);
+        } else if is_property_access_expression(callee) {
+            let callee_as_property_access_expression = callee.as_property_access_expression();
+            if self.should_be_captured_in_temp_variable(
+                &callee_as_property_access_expression.expression,
+                cache_identifiers,
+            ) {
+                this_arg = self.create_temp_variable(
+                    Some(|node: &Node| {
+                        record_temp_variable(node);
+                    }),
+                    None,
+                );
+                target = self
+                    .create_property_access_expression(
+                        self.create_assignment(
+                            this_arg.clone(),
+                            callee_as_property_access_expression.expression.clone(),
+                        )
+                        .set_text_range(Some(&*callee_as_property_access_expression.expression)),
+                        callee_as_property_access_expression.name.clone(),
+                    )
+                    .set_text_range(Some(&**callee));
+            } else {
+                this_arg = callee_as_property_access_expression.expression.clone();
+                target = callee.clone();
+            }
+        } else if is_element_access_expression(callee) {
+            let callee_as_element_access_expression = callee.as_element_access_expression();
+            if self.should_be_captured_in_temp_variable(
+                &callee_as_element_access_expression.expression,
+                cache_identifiers,
+            ) {
+                this_arg = self.create_temp_variable(
+                    Some(|node: &Node| {
+                        record_temp_variable(node);
+                    }),
+                    None,
+                );
+                target = self
+                    .create_element_access_expression(
+                        self.create_assignment(
+                            this_arg.clone(),
+                            callee_as_element_access_expression.expression.clone(),
+                        )
+                        .set_text_range(Some(&*callee_as_element_access_expression.expression)),
+                        callee_as_element_access_expression
+                            .argument_expression
+                            .clone(),
+                    )
+                    .set_text_range(Some(&**callee));
+            } else {
+                this_arg = callee_as_element_access_expression.expression.clone();
+                target = callee.clone();
+            }
+        } else {
+            this_arg = self.create_void_zero();
+            target = self
+                .parenthesizer_rules()
+                .parenthesize_left_side_of_access(expression);
+        }
+
+        CallBinding { target, this_arg }
     }
 
     pub fn create_assignment_target_wrapper(
         &self,
-        _param_name: Gc<Node /*Identifier*/>,
-        _expression: Gc<Node /*Expression*/>,
+        param_name: Gc<Node /*Identifier*/>,
+        expression: Gc<Node /*Expression*/>,
     ) -> Gc<Node /*LeftHandSideExpression*/> {
-        unimplemented!()
+        self.create_property_access_expression(
+            self.create_parenthesized_expression(self.create_object_literal_expression(
+                Some(vec![self.create_set_accessor_declaration(
+                    Option::<Gc<NodeArray>>::None,
+                    Option::<Gc<NodeArray>>::None,
+                    "value",
+                    vec![self.create_parameter_declaration(
+                        Option::<Gc<NodeArray>>::None,
+                        Option::<Gc<NodeArray>>::None,
+                        None,
+                        Some(param_name),
+                        None,
+                        None,
+                        None,
+                    )],
+                    Some(
+                        self.create_block(vec![self.create_expression_statement(expression)], None),
+                    ),
+                )]),
+                None,
+            )),
+            "value",
+        )
     }
 
-    pub fn inline_expressions(&self, _expressions: &[Gc<Node /*Expression*/>]) -> Gc<Node> {
-        unimplemented!()
+    pub fn inline_expressions(&self, expressions: &[Gc<Node /*Expression*/>]) -> Gc<Node> {
+        if expressions.len() > 10 {
+            self.create_comma_list_expression(expressions.to_owned())
+        } else {
+            reduce_left_no_initial_value(
+                expressions,
+                |accumulator: Gc<Node>, next: &Gc<Node>, _| {
+                    self.create_comma(accumulator, next.clone())
+                },
+                None,
+                None,
+            )
+        }
+    }
+
+    pub(super) fn get_name(
+        &self,
+        node: Option<impl Borrow<Node /*Declaration*/>>,
+        allow_comments: Option<bool>,
+        allow_source_maps: Option<bool>,
+        emit_flags: Option<EmitFlags>,
+    ) -> Gc<Node> {
+        let mut emit_flags = emit_flags.unwrap_or_default();
+        let node = node.node_wrappered();
+        let node_name = get_name_of_declaration(node.as_deref());
+        if let Some(ref node_name) = node_name
+            .filter(|node_name| is_identifier(node_name) && !is_generated_identifier(node_name))
+        {
+            let name = self
+                .clone_node(node_name)
+                .set_text_range(Some(&**node_name))
+                .and_set_parent(node_name.maybe_parent());
+            emit_flags |= get_emit_flags(node_name);
+            if allow_source_maps != Some(true) {
+                emit_flags |= EmitFlags::NoSourceMap;
+            }
+            if allow_comments != Some(true) {
+                emit_flags |= EmitFlags::NoComments;
+            }
+            if emit_flags != EmitFlags::None {
+                set_emit_flags(&*name, emit_flags);
+            }
+            return name;
+        }
+        self.get_generated_name_for_node(node, None)
     }
 
     pub fn get_internal_name(
         &self,
-        _node: &Node, /*Declaration*/
-        _allow_comments: Option<bool>,
-        _allow_source_maps: Option<bool>,
+        node: &Node, /*Declaration*/
+        allow_comments: Option<bool>,
+        allow_source_maps: Option<bool>,
     ) -> Gc<Node> {
-        unimplemented!()
+        self.get_name(
+            Some(node),
+            allow_comments,
+            allow_source_maps,
+            Some(EmitFlags::LocalName | EmitFlags::InternalName),
+        )
     }
 
     pub fn get_local_name(
         &self,
-        _node: &Node, /*Declaration*/
-        _allow_comments: Option<bool>,
-        _allow_source_maps: Option<bool>,
+        node: &Node, /*Declaration*/
+        allow_comments: Option<bool>,
+        allow_source_maps: Option<bool>,
     ) -> Gc<Node> {
-        unimplemented!()
+        self.get_name(
+            Some(node),
+            allow_comments,
+            allow_source_maps,
+            Some(EmitFlags::LocalName),
+        )
     }
 
     pub fn get_export_name(
         &self,
-        _node: &Node, /*Declaration*/
-        _allow_comments: Option<bool>,
-        _allow_source_maps: Option<bool>,
+        node: &Node, /*Declaration*/
+        allow_comments: Option<bool>,
+        allow_source_maps: Option<bool>,
     ) -> Gc<Node /*Identifier*/> {
-        unimplemented!()
+        self.get_name(
+            Some(node),
+            allow_comments,
+            allow_source_maps,
+            Some(EmitFlags::ExportName),
+        )
     }
 
     pub fn get_declaration_name(
         &self,
-        _node: Option<impl Borrow<Node> /*Declaration*/>,
-        _allow_comments: Option<bool>,
-        _allow_source_maps: Option<bool>,
+        node: Option<impl Borrow<Node> /*Declaration*/>,
+        allow_comments: Option<bool>,
+        allow_source_maps: Option<bool>,
     ) -> Gc<Node /*Identifier*/> {
-        unimplemented!()
+        self.get_name(node, allow_comments, allow_source_maps, None)
     }
 
     pub fn get_namespace_member_name(
