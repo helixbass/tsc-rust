@@ -381,7 +381,8 @@ pub use compiler::{
         },
         destructuring::{
             flatten_destructuring_assignment, flatten_destructuring_binding,
-            try_flatten_destructuring_assignment, try_flatten_destructuring_binding, FlattenLevel,
+            try_flatten_destructuring_assignment, try_flatten_destructuring_binding,
+            CreateAssignmentCallback, FlattenLevel, TryCreateAssignmentCallback,
         },
         is_internal_declaration,
         tagged_template::{

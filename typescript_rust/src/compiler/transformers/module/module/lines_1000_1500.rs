@@ -587,7 +587,7 @@ impl TransformModule {
                         Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
                     )?,
                     Option::<fn(&Node) -> io::Result<VisitResult>>::None,
-                    &**self.context,
+                    self.context.clone(),
                     FlattenLevel::All,
                     Some(false),
                     Some(

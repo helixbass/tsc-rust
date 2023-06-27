@@ -76,7 +76,7 @@ impl ReadonlyTextRange for ReadonlyTextRangeConcrete {
     }
 }
 
-impl<TReadonlyTextRange: ReadonlyTextRange> From<&TReadonlyTextRange>
+impl<TReadonlyTextRange: ReadonlyTextRange + ?Sized> From<&TReadonlyTextRange>
     for ReadonlyTextRangeConcrete
 {
     fn from(value: &TReadonlyTextRange) -> Self {

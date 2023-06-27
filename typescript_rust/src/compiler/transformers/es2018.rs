@@ -871,7 +871,7 @@ impl TransformES2018 {
             return flatten_destructuring_assignment(
                 node,
                 Some(|node: &Node| self.visitor(node)),
-                &**self.context,
+                self.context.clone(),
                 FlattenLevel::ObjectRest,
                 Some(!expression_result_is_unused),
                 Option::<fn(&Node, &Node, Option<&dyn ReadonlyTextRange>) -> Gc<Node>>::None,

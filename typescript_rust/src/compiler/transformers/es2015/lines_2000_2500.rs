@@ -82,10 +82,12 @@ impl TransformES2015 {
             return try_flatten_destructuring_assignment(
                 node,
                 Some(|node: &Node| self.visitor(node)),
-                &**self.context,
+                self.context.clone(),
                 FlattenLevel::All,
                 Some(!expression_result_is_unused),
-                Option::<fn(&Node, &Node, Option<&dyn ReadonlyTextRange>) -> io::Result<Gc<Node>>>::None,
+                Option::<
+                    fn(&Node, &Node, Option<&dyn ReadonlyTextRange>) -> io::Result<Gc<Node>>,
+                >::None,
             );
         }
         if node_as_binary_expression.operator_token.kind() == SyntaxKind::CommaToken {
@@ -218,7 +220,7 @@ impl TransformES2015 {
                         assignment = try_flatten_destructuring_assignment(
                             decl,
                             Some(|node: &Node| self.visitor(node)),
-                            &**self.context,
+                            self.context.clone(),
                             FlattenLevel::All,
                             None,
                             Option::<

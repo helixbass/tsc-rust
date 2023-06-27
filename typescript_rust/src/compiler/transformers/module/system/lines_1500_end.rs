@@ -148,7 +148,7 @@ impl TransformSystemModule {
                 try_flatten_destructuring_assignment(
                     node,
                     Some(|node: &Node| self.visitor(node)),
-                    &**self.context,
+                    self.context.clone(),
                     FlattenLevel::All,
                     Some(!value_is_discarded),
                     Option::<
