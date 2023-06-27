@@ -17,9 +17,9 @@ use crate::{
     PropertyAssignment, PropertyDescriptorAttributes, ReadonlyTextRange, ScriptKind, ScriptTarget,
     ShorthandPropertyAssignment, SingleOrVec, SourceFile, SpreadAssignment, StrOrRcNode,
     SyntaxKind, SyntheticExpression, TransformFlags, Type, UnparsedPrepend, UnparsedPrologue,
-    UnparsedSource, UnparsedTextLike, VisitResult, _d, get_emit_flags, is_statement,
+    UnparsedSource, UnparsedTextLike, VisitResult, _d, get_emit_flags, is_call_chain, is_statement,
     is_string_literal, return_ok_default_if_none, set_text_range, try_visit_node, EmitFlags,
-    NumberOrRcNode, OptionTry,
+    MapOrDefault, NumberOrRcNode, OptionTry, SyntheticReferenceExpression, VecExt,
 };
 
 impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory<TBaseNodeFactory> {
@@ -482,10 +482,19 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_partially_emitted_expression_raw(
         &self,
-        _expression: Gc<Node /*Expression*/>,
-        _original: Option<Gc<Node>>,
+        expression: Gc<Node /*Expression*/>,
+        original: Option<Gc<Node>>,
     ) -> PartiallyEmittedExpression {
-        unimplemented!()
+        let node = self.create_base_node(SyntaxKind::PartiallyEmittedExpression);
+        let node = PartiallyEmittedExpression::new(node, expression);
+        node.set_original(original.clone());
+        node.set_transform_flags(
+            node.transform_flags()
+                | propagate_child_flags(Some(&*node.expression))
+                | TransformFlags::ContainsTypeScript,
+        );
+        set_text_range(&node, original.as_deref());
+        node
     }
 
     pub fn update_partially_emitted_expression(
@@ -573,20 +582,37 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         }
     }
 
-    pub fn create_end_of_declaration_marker(&self, _original: Gc<Node>) -> Gc<Node> {
-        unimplemented!()
+    pub fn create_end_of_declaration_marker(&self, original: Gc<Node>) -> Gc<Node> {
+        let node = self
+            .create_base_node(SyntaxKind::EndOfDeclarationMarker)
+            .wrap();
+        node.set_emit_node(Some(_d()));
+        node.set_original(Some(original));
+        node
     }
 
-    pub fn create_merge_declaration_marker(&self, _original: Gc<Node>) -> Gc<Node> {
-        unimplemented!()
+    pub fn create_merge_declaration_marker(&self, original: Gc<Node>) -> Gc<Node> {
+        let node = self
+            .create_base_node(SyntaxKind::MergeDeclarationMarker)
+            .wrap();
+        node.set_emit_node(Some(_d()));
+        node.set_original(Some(original));
+        node
     }
 
     pub fn create_synthetic_reference_expression(
         &self,
-        _expression: Gc<Node>, /*Expression*/
-        _this_arg: Gc<Node>,   /*Expression*/
+        expression: Gc<Node>, /*Expression*/
+        this_arg: Gc<Node>,   /*Expression*/
     ) -> Gc<Node> {
-        unimplemented!()
+        let node = self.create_base_node(SyntaxKind::SyntheticReferenceExpression);
+        let node = SyntheticReferenceExpression::new(node, expression, this_arg);
+        node.set_transform_flags(
+            node.transform_flags()
+                | propagate_child_flags(Some(&*node.expression))
+                | propagate_child_flags(Some(&*node.this_arg)),
+        );
+        node.wrap()
     }
 
     pub fn clone_node(&self, node: &Node) -> Gc<Node> {
@@ -611,111 +637,202 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn create_immediately_invoked_arrow_function(
         &self,
-        _statements: impl Into<NodeArrayOrVec>,
-        _param: Option<Gc<Node /*ParameterDeclaration*/>>,
-        _param_value: Option<Gc<Node /*Expression*/>>,
+        statements: impl Into<NodeArrayOrVec>,
+        param: Option<Gc<Node /*ParameterDeclaration*/>>,
+        param_value: Option<Gc<Node /*Expression*/>>,
     ) -> Gc<Node> {
-        unimplemented!()
+        self.create_call_expression(
+            self.create_arrow_function(
+                Option::<Gc<NodeArray>>::None,
+                Option::<Gc<NodeArray>>::None,
+                param.map_or_default(|param| vec![param]),
+                None,
+                None,
+                self.create_block(statements, Some(true)),
+            ),
+            Option::<Gc<NodeArray>>::None,
+            Some(param_value.map_or_default(|param_value| vec![param_value])),
+        )
     }
 
     pub fn create_void_zero(&self) -> Gc<Node> {
-        unimplemented!()
+        self.create_void_expression(self.create_numeric_literal("0".to_owned(), None))
     }
 
-    pub fn create_export_default(&self, _expression: Gc<Node /*Expression*/>) -> Gc<Node> {
-        unimplemented!()
+    pub fn create_export_default(&self, expression: Gc<Node /*Expression*/>) -> Gc<Node> {
+        self.create_export_assignment(
+            Option::<Gc<NodeArray>>::None,
+            Option::<Gc<NodeArray>>::None,
+            Some(false),
+            expression,
+        )
     }
 
-    pub fn create_external_module_export(&self, _export_name: Gc<Node /*Identifier*/>) -> Gc<Node> {
-        unimplemented!()
+    pub fn create_external_module_export(&self, export_name: Gc<Node /*Identifier*/>) -> Gc<Node> {
+        self.create_export_declaration(
+            Option::<Gc<NodeArray>>::None,
+            Option::<Gc<NodeArray>>::None,
+            false,
+            Some(self.create_named_exports(vec![self.create_export_specifier(
+                false,
+                Option::<Gc<Node>>::None,
+                export_name,
+            )])),
+            None,
+            None,
+        )
     }
 
     pub fn create_type_check(
         &self,
-        _value: Gc<Node /*Expression*/>,
-        _tag: &str, /*TypeOfTag*/
+        value: Gc<Node /*Expression*/>,
+        tag: &str, /*TypeOfTag*/
     ) -> Gc<Node> {
-        unimplemented!()
+        if tag == "undefined" {
+            self.create_strict_equality(value, self.create_void_zero())
+        } else {
+            self.create_strict_equality(
+                self.create_type_of_expression(value),
+                self.create_string_literal(tag.to_owned(), None, None),
+            )
+        }
+    }
+
+    pub(super) fn create_method_call<'method_name>(
+        &self,
+        object: Gc<Node /*Expression*/>,
+        method_name: impl Into<StrOrRcNode<'method_name>>,
+        arguments_list: impl Into<NodeArrayOrVec /*Expression*/>,
+    ) -> Gc<Node> {
+        if is_call_chain(&object) {
+            return self.create_call_chain(
+                self.create_property_access_chain(object, None, method_name),
+                None,
+                Option::<Gc<NodeArray>>::None,
+                Some(arguments_list),
+            );
+        }
+        self.create_call_expression(
+            self.create_property_access_expression(object, method_name),
+            Option::<Gc<NodeArray>>::None,
+            Some(arguments_list),
+        )
     }
 
     pub fn create_function_bind_call(
         &self,
-        _target: Gc<Node /*Expression*/>,
-        _this_arg: Gc<Node /*Expression*/>,
-        _arguments_list: impl Into<NodeArrayOrVec /*Expression*/>,
+        target: Gc<Node /*Expression*/>,
+        this_arg: Gc<Node /*Expression*/>,
+        arguments_list: impl Into<NodeArrayOrVec /*Expression*/>,
     ) -> Gc<Node> {
-        unimplemented!()
+        let arguments_list = arguments_list.into();
+        self.create_method_call(target, "bind", vec![this_arg].and_extend(arguments_list))
     }
 
     pub fn create_function_call_call(
         &self,
-        _target: Gc<Node /*Expression*/>,
-        _this_arg: Gc<Node /*Expression*/>,
-        _arguments_list: impl Into<NodeArrayOrVec /*Expression*/>,
+        target: Gc<Node /*Expression*/>,
+        this_arg: Gc<Node /*Expression*/>,
+        arguments_list: impl Into<NodeArrayOrVec /*Expression*/>,
     ) -> Gc<Node> {
-        unimplemented!()
+        let arguments_list = arguments_list.into();
+        self.create_method_call(target, "call", vec![this_arg].and_extend(arguments_list))
     }
 
     pub fn create_function_apply_call(
         &self,
-        _target: Gc<Node /*Expression*/>,
-        _this_arg: Gc<Node /*Expression*/>,
-        _arguments_expression: Gc<Node /*Expression*/>,
+        target: Gc<Node /*Expression*/>,
+        this_arg: Gc<Node /*Expression*/>,
+        arguments_expression: Gc<Node /*Expression*/>,
     ) -> Gc<Node> {
-        unimplemented!()
+        self.create_method_call(target, "apply", vec![this_arg, arguments_expression])
     }
 
     pub fn create_global_method_call(
         &self,
-        _global_object_name: String,
-        _method_name: String,
-        _arguments_list: Vec<Gc<Node /*Expression*/>>,
+        global_object_name: &str,
+        method_name: &str,
+        arguments_list: impl Into<NodeArrayOrVec /*Expression*/>,
     ) -> Gc<Node> {
-        unimplemented!()
+        self.create_method_call(
+            self.create_identifier(global_object_name),
+            method_name,
+            arguments_list,
+        )
     }
 
     pub fn create_array_slice_call(
         &self,
-        _array: Gc<Node /*Expression*/>,
-        _start: Option<impl Into<NumberOrRcNode>>,
+        array: Gc<Node /*Expression*/>,
+        start: Option<impl Into<NumberOrRcNode>>,
     ) -> Gc<Node> {
-        unimplemented!()
+        self.create_method_call(
+            array,
+            "slice",
+            start.map_or_default(|start| vec![self.as_expression(start.into())]),
+        )
     }
 
     pub fn create_array_concat_call(
         &self,
-        _array: Gc<Node /*Expression*/>,
-        _arguments_list: Vec<Gc<Node /*Expression*/>>,
+        array: Gc<Node /*Expression*/>,
+        arguments_list: Vec<Gc<Node /*Expression*/>>,
     ) -> Gc<Node> {
-        unimplemented!()
+        self.create_method_call(array, "concat", arguments_list)
     }
 
     pub fn create_object_define_property_call<'property_name>(
         &self,
-        _target: Gc<Node /*Expression*/>,
-        _property_name: impl Into<StrOrRcNode<'property_name>>,
-        _attributes: Gc<Node /*Expression*/>,
+        target: Gc<Node /*Expression*/>,
+        property_name: impl Into<StrOrRcNode<'property_name>>,
+        attributes: Gc<Node /*Expression*/>,
     ) -> Gc<Node> {
-        unimplemented!()
+        let property_name = property_name.into();
+        self.create_global_method_call(
+            "Object",
+            "defineProperty",
+            vec![target, self.as_expression(property_name), attributes],
+        )
     }
 
     pub fn create_reflect_get_call(
         &self,
-        _target: Gc<Node /*Expression*/>,
-        _property_key: Gc<Node /*Expression*/>,
-        _receiver: Option<Gc<Node /*Expression*/>>,
+        target: Gc<Node /*Expression*/>,
+        property_key: Gc<Node /*Expression*/>,
+        receiver: Option<Gc<Node /*Expression*/>>,
     ) -> Gc<Node /*CallExpression*/> {
-        unimplemented!()
+        self.create_global_method_call(
+            "Reflect",
+            "get",
+            receiver.map_or_else(
+                || vec![target.clone(), property_key.clone()],
+                |receiver| vec![target.clone(), property_key.clone(), receiver],
+            ),
+        )
     }
 
     pub fn create_reflect_set_call(
         &self,
-        _target: Gc<Node /*Expression*/>,
-        _property_key: Gc<Node /*Expression*/>,
-        _value: Gc<Node /*Expression*/>,
-        _receiver: Option<Gc<Node /*Expression*/>>,
+        target: Gc<Node /*Expression*/>,
+        property_key: Gc<Node /*Expression*/>,
+        value: Gc<Node /*Expression*/>,
+        receiver: Option<Gc<Node /*Expression*/>>,
     ) -> Gc<Node /*CallExpression*/> {
-        unimplemented!()
+        self.create_global_method_call(
+            "Reflect",
+            "set",
+            receiver.map_or_else(
+                || vec![target.clone(), property_key.clone(), value.clone()],
+                |receiver| {
+                    vec![
+                        target.clone(),
+                        property_key.clone(),
+                        value.clone(),
+                        receiver,
+                    ]
+                },
+            ),
+        )
     }
 
     pub fn create_property_descriptor(

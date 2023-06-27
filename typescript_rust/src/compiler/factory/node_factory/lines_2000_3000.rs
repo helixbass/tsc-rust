@@ -698,7 +698,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
             self.parenthesizer_rules()
                 .parenthesize_left_side_of_access(&expression),
             None,
-            self.as_expression(Some(index)).unwrap(),
+            self.as_expression(index),
         );
         node.add_transform_flags(
             propagate_child_flags(Some(&*node.expression))
@@ -756,7 +756,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
             self.parenthesizer_rules()
                 .parenthesize_left_side_of_access(&expression),
             question_dot_token,
-            self.as_expression(Some(index)).unwrap(),
+            self.as_expression(index),
         );
         node.add_transform_flags(
             propagate_child_flags(Some(&*node.expression))

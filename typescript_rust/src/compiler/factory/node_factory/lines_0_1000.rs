@@ -1111,17 +1111,29 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn create_temp_variable(
         &self,
-        _record_temp_variable: Option<impl FnMut(&Node /*Identifier*/)>,
-        _reserved_in_nested_scopes: Option<bool>,
+        record_temp_variable: Option<impl FnMut(&Node /*Identifier*/)>,
+        reserved_in_nested_scopes: Option<bool>,
     ) -> Gc<Node /*GeneratedIdentifier*/> {
-        unimplemented!()
+        let mut flags = GeneratedIdentifierFlags::Auto;
+        if reserved_in_nested_scopes == Some(true) {
+            flags |= GeneratedIdentifierFlags::ReservedInNestedScopes;
+        }
+        let name = self.create_base_generated_identifier("", flags).wrap();
+        if let Some(mut record_temp_variable) = record_temp_variable {
+            record_temp_variable(&name);
+        }
+        name
     }
 
     pub fn create_loop_variable(
         &self,
-        _reserved_in_nested_scopes: Option<bool>,
+        reserved_in_nested_scopes: Option<bool>,
     ) -> Gc<Node /*Identifier*/> {
-        unimplemented!()
+        let mut flags = GeneratedIdentifierFlags::Loop;
+        if reserved_in_nested_scopes == Some(true) {
+            flags |= GeneratedIdentifierFlags::ReservedInNestedScopes;
+        }
+        self.create_base_generated_identifier("", flags).wrap()
     }
 
     pub fn create_unique_name(
@@ -1369,6 +1381,24 @@ impl From<Number> for StringOrNumberOrBoolOrRcNode {
 impl From<bool> for StringOrNumberOrBoolOrRcNode {
     fn from(value: bool) -> Self {
         Self::Bool(value)
+    }
+}
+
+impl From<NumberOrRcNode> for StringOrNumberOrBoolOrRcNode {
+    fn from(value: NumberOrRcNode) -> Self {
+        match value {
+            NumberOrRcNode::Number(value) => Self::Number(value),
+            NumberOrRcNode::RcNode(value) => Self::RcNode(value),
+        }
+    }
+}
+
+impl<'str> From<StrOrRcNode<'str>> for StringOrNumberOrBoolOrRcNode {
+    fn from(value: StrOrRcNode<'str>) -> Self {
+        match value {
+            StrOrRcNode::Str(value) => Self::String(value.to_owned()),
+            StrOrRcNode::RcNode(value) => Self::RcNode(value),
+        }
     }
 }
 

@@ -299,11 +299,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         })
     }
 
-    pub(super) fn as_expression<TValue: Into<StringOrNumberOrBoolOrRcNode>>(
-        &self,
-        value: Option<TValue>,
-    ) -> Option<Gc<Node>> {
-        value.map(|value| match value.into() {
+    pub(super) fn as_expression(&self, value: impl Into<StringOrNumberOrBoolOrRcNode>) -> Gc<Node> {
+        match value.into() {
             StringOrNumberOrBoolOrRcNode::String(value) => {
                 self.create_string_literal(value, None, None)
             }
@@ -316,7 +313,15 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
                 }
             }
             StringOrNumberOrBoolOrRcNode::RcNode(value) => value,
-        })
+        }
+    }
+
+    #[allow(dead_code)]
+    pub(super) fn maybe_as_expression(
+        &self,
+        value: Option<impl Into<StringOrNumberOrBoolOrRcNode>>,
+    ) -> Option<Gc<Node>> {
+        value.map(|value| self.as_expression(value))
     }
 
     pub(super) fn as_token(&self, value: SyntaxKindOrRcNode) -> Gc<Node> {

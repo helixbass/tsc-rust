@@ -155,8 +155,8 @@ impl TransformES2016 {
                 target,
                 set_text_range_rc_node(
                     self.factory.create_global_method_call(
-                        "Math".to_owned(),
-                        "pow".to_owned(),
+                        "Math",
+                        "pow",
                         vec![value, right.clone()],
                     ),
                     Some(node),
@@ -181,11 +181,8 @@ impl TransformES2016 {
             Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
         );
         set_text_range_rc_node(
-            self.factory.create_global_method_call(
-                "Math".to_owned(),
-                "pow".to_owned(),
-                vec![left, right],
-            ),
+            self.factory
+                .create_global_method_call("Math", "pow", vec![left, right]),
             Some(node),
         )
     }

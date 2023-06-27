@@ -264,6 +264,18 @@ impl From<&NodeArrayOrVec> for Vec<Gc<Node>> {
     }
 }
 
+impl IntoIterator for NodeArrayOrVec {
+    type Item = Gc<Node>;
+    type IntoIter = <Vec<Gc<Node>> as IntoIterator>::IntoIter;
+
+    fn into_iter(self) -> Self::IntoIter {
+        match self {
+            Self::NodeArray(value) => value.to_vec().into_iter(),
+            Self::Vec(value) => value.into_iter(),
+        }
+    }
+}
+
 #[derive(Clone, Debug)]
 pub enum RcNodeOrNodeArrayOrVec {
     RcNode(Gc<Node>),
