@@ -19,7 +19,7 @@ use crate::{
     SyntaxKind, SyntheticExpression, TransformFlags, Type, UnparsedPrepend, UnparsedPrologue,
     UnparsedSource, UnparsedTextLike, VisitResult, _d, get_emit_flags, is_statement,
     is_string_literal, return_ok_default_if_none, set_text_range, try_visit_node, EmitFlags,
-    OptionTry,
+    NumberOrRcNode, OptionTry,
 };
 
 impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory<TBaseNodeFactory> {
@@ -670,6 +670,14 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         _global_object_name: String,
         _method_name: String,
         _arguments_list: Vec<Gc<Node /*Expression*/>>,
+    ) -> Gc<Node> {
+        unimplemented!()
+    }
+
+    pub fn create_array_slice_call(
+        &self,
+        _array: Gc<Node /*Expression*/>,
+        _start: Option<impl Into<NumberOrRcNode>>,
     ) -> Gc<Node> {
         unimplemented!()
     }

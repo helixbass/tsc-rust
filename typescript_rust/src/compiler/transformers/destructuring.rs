@@ -1,17 +1,29 @@
-use std::{borrow::Borrow, cell::RefCell, io, rc::Rc};
+use std::{
+    borrow::Borrow,
+    cell::{Cell, RefCell},
+    io,
+    rc::Rc,
+};
 
 use gc::{Finalize, Gc, GcCell, Trace};
+use itertools::Itertools;
 
 use crate::{
     GetOrInsertDefault, Node, NodeExt, NodeInterface, NodeWrappered, NonEmpty, ReadonlyTextRange,
     TransformationContext, VisitResult, _d, get_elements_of_binding_or_assignment_pattern,
-    get_initializer_of_binding_or_assignment_element, get_target_of_binding_or_assignment_element,
-    is_binding_name, is_binding_or_assigment_pattern, is_computed_property_name,
+    get_factory, get_initializer_of_binding_or_assignment_element,
+    get_property_name_of_binding_or_assignment_element,
+    get_rest_indicator_of_binding_or_assignment_element,
+    get_target_of_binding_or_assignment_element, id_text, is_array_binding_element,
+    is_array_binding_or_assigment_pattern, is_binding_element, is_binding_name,
+    is_binding_or_assigment_pattern, is_computed_property_name, is_declaration_binding_element,
     is_destructuring_assignment, is_empty_array_literal, is_empty_object_literal, is_expression,
-    is_identifier, is_literal_expression, is_variable_declaration, node_is_synthesized,
-    set_text_range, try_get_property_name_of_binding_or_assignment_element, try_visit_node,
-    BaseNodeFactory, Debug_, Matches, NamedDeclarationInterface, NodeFactory, OptionTry,
-    ReadonlyTextRangeConcrete, VecExt,
+    is_identifier, is_literal_expression, is_object_binding_or_assigment_pattern,
+    is_omitted_expression, is_property_name_literal, is_simple_inlineable_expression,
+    is_string_or_numeric_literal_like, is_variable_declaration, node_is_synthesized,
+    set_text_range, try_get_property_name_of_binding_or_assignment_element, try_maybe_visit_node,
+    try_visit_node, BaseNodeFactory, Debug_, Matches, NamedDeclarationInterface, NodeFactory,
+    Number, OptionTry, ReadonlyTextRangeConcrete, TransformFlags, VecExt,
 };
 
 trait FlattenContext {
@@ -19,9 +31,8 @@ trait FlattenContext {
     fn level(&self) -> FlattenLevel;
     fn downlevel_iteration(&self) -> bool;
     fn hoist_temp_variables(&self) -> bool;
-    fn has_transformed_prior_element(&self) -> Option<bool> {
-        None
-    }
+    fn has_transformed_prior_element(&self) -> Option<bool>;
+    fn set_has_transformed_prior_element(&self, has_transformed_prior_element: Option<bool>);
     fn emit_expression(&self, value: &Node /*Expression*/);
     fn emit_binding_or_assignment(
         &self,
@@ -42,12 +53,13 @@ trait FlattenContext {
         &self,
         node: &Node, /*Identifier*/
     ) -> Gc<Node /*BindingOrAssignmentElement*/>;
+    fn is_visitor_supported(&self) -> bool;
     fn visitor(&self, _node: &Node) -> Option<io::Result<VisitResult /*<Node>*/>> {
         None
     }
 }
 
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
 pub enum FlattenLevel {
     All,
     ObjectRest,
@@ -104,6 +116,7 @@ struct FlattenDestructuringAssignmentFlattenContext<'visitor, 'create_assignment
         >,
     >,
     visitor: Option<Rc<RefCell<dyn FnMut(&Node) -> io::Result<VisitResult> + 'visitor>>>,
+    has_transformed_prior_element: Cell<Option<bool>>,
 }
 
 impl<'visitor, 'create_assignment_callback>
@@ -131,6 +144,7 @@ impl<'visitor, 'create_assignment_callback>
             expressions,
             create_assignment_callback,
             visitor,
+            has_transformed_prior_element: _d(),
         }
     }
 }
@@ -233,6 +247,19 @@ impl FlattenContext for FlattenDestructuringAssignmentFlattenContext<'_, '_> {
             .as_ref()
             .map(|visitor| (visitor.borrow_mut())(node))
     }
+
+    fn is_visitor_supported(&self) -> bool {
+        self.visitor.is_some()
+    }
+
+    fn has_transformed_prior_element(&self) -> Option<bool> {
+        self.has_transformed_prior_element.get()
+    }
+
+    fn set_has_transformed_prior_element(&self, has_transformed_prior_element: Option<bool>) {
+        self.has_transformed_prior_element
+            .set(has_transformed_prior_element);
+    }
 }
 
 pub fn try_flatten_destructuring_assignment<'visitor, 'create_assignment_callback>(
@@ -329,14 +356,14 @@ pub fn try_flatten_destructuring_assignment<'visitor, 'create_assignment_callbac
                 value.as_ref().unwrap(),
                 false,
                 &*location,
-            ));
+            )?);
         } else if needs_value == Some(true) {
             value = Some(ensure_identifier(
                 &flatten_context,
                 value.as_ref().unwrap(),
                 true,
                 &*location,
-            ));
+            )?);
         } else if node_is_synthesized(&*node) {
             location = value.clone().unwrap();
         }
@@ -348,7 +375,7 @@ pub fn try_flatten_destructuring_assignment<'visitor, 'create_assignment_callbac
         value.as_deref(),
         &*location,
         Some(is_destructuring_assignment(&node)),
-    );
+    )?;
 
     if let Some(value) = value.filter(|_| needs_value == Some(true)) {
         if !(*expressions).borrow().as_ref().is_non_empty() {
@@ -493,7 +520,7 @@ pub fn try_flatten_destructuring_binding<'visitor>(
                 )?,
                 false,
                 &*initializer,
-            );
+            )?;
             node = context.factory().update_variable_declaration(
                 &node,
                 node.as_variable_declaration().maybe_name(),
@@ -504,7 +531,7 @@ pub fn try_flatten_destructuring_binding<'visitor>(
         }
     }
 
-    flatten_binding_or_assignment_element(&flatten_context, &node, rval, &*node, skip_initializer);
+    flatten_binding_or_assignment_element(&flatten_context, &node, rval, &*node, skip_initializer)?;
     if (*pending_expressions).borrow().is_some() {
         let temp = context
             .factory()
@@ -614,6 +641,7 @@ struct FlattenDestructuringBindingFlattenContext<'visitor> {
     pending_expressions: Gc<GcCell<Option<Vec<Gc<Node /*Expression*/>>>>>,
     pending_declarations: Gc<GcCell<Vec<PendingDeclaration>>>,
     visitor: Rc<RefCell<dyn FnMut(&Node) -> io::Result<VisitResult> + 'visitor>>,
+    has_transformed_prior_element: Cell<Option<bool>>,
 }
 
 impl<'visitor> FlattenDestructuringBindingFlattenContext<'visitor> {
@@ -634,6 +662,7 @@ impl<'visitor> FlattenDestructuringBindingFlattenContext<'visitor> {
             pending_expressions,
             pending_declarations,
             visitor,
+            has_transformed_prior_element: _d(),
         }
     }
 }
@@ -706,62 +735,526 @@ impl FlattenContext for FlattenDestructuringBindingFlattenContext<'_> {
     fn visitor(&self, node: &Node) -> Option<io::Result<VisitResult /*<Node>*/>> {
         Some((self.visitor.borrow_mut())(node))
     }
+
+    fn is_visitor_supported(&self) -> bool {
+        true
+    }
+
+    fn has_transformed_prior_element(&self) -> Option<bool> {
+        self.has_transformed_prior_element.get()
+    }
+
+    fn set_has_transformed_prior_element(&self, has_transformed_prior_element: Option<bool>) {
+        self.has_transformed_prior_element
+            .set(has_transformed_prior_element);
+    }
 }
 
 fn flatten_binding_or_assignment_element(
-    _flatten_context: &impl FlattenContext,
-    _element: &Node, /*BindingOrAssignmentElement*/
-    _value: Option<impl Borrow<Node /*Expression*/>>,
-    _location: &impl ReadonlyTextRange,
-    _skip_initializer: Option<bool>,
-) {
-    unimplemented!()
+    flatten_context: &impl FlattenContext,
+    element: &Node, /*BindingOrAssignmentElement*/
+    value: Option<impl Borrow<Node /*Expression*/>>,
+    location: &impl ReadonlyTextRange,
+    skip_initializer: Option<bool>,
+) -> io::Result<()> {
+    let binding_target = get_target_of_binding_or_assignment_element(element).unwrap();
+    let mut value = value.node_wrappered();
+    if skip_initializer != Some(true) {
+        let initializer = try_maybe_visit_node(
+            get_initializer_of_binding_or_assignment_element(element),
+            flatten_context
+                .is_visitor_supported()
+                .then(|| |node: &Node| flatten_context.visitor(node).unwrap()),
+            Some(is_expression),
+            Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+        )?;
+        if let Some(initializer) = initializer {
+            if value.is_some() {
+                value = Some(create_default_value_check(
+                    flatten_context,
+                    value.as_ref().unwrap(),
+                    &initializer,
+                    location,
+                )?);
+                if !is_simple_inlineable_expression(&initializer)
+                    && is_binding_or_assigment_pattern(&binding_target)
+                {
+                    value = Some(ensure_identifier(
+                        flatten_context,
+                        value.as_ref().unwrap(),
+                        true,
+                        location,
+                    )?);
+                }
+            } else {
+                value = Some(initializer);
+            }
+        } else if value.is_none() {
+            value = Some(flatten_context.context().factory().create_void_zero());
+        }
+    }
+    if is_object_binding_or_assigment_pattern(&binding_target) {
+        flatten_object_binding_or_assignment_pattern(
+            flatten_context,
+            element,
+            &binding_target,
+            value.as_ref().unwrap(),
+            location,
+        )?;
+    } else if is_array_binding_or_assigment_pattern(&binding_target) {
+        flatten_array_binding_or_assignment_pattern(
+            flatten_context,
+            element,
+            &binding_target,
+            value.as_ref().unwrap(),
+            location,
+        )?;
+    } else {
+        flatten_context.emit_binding_or_assignment(
+            &binding_target,
+            value.as_ref().unwrap(),
+            location,
+            Some(element),
+        )?;
+    }
+
+    Ok(())
+}
+
+fn flatten_object_binding_or_assignment_pattern(
+    flatten_context: &impl FlattenContext,
+    parent: &Node,  /*BindingOrAssignmentElement*/
+    pattern: &Node, /*ObjectBindingOrAssignmentPattern*/
+    value: &Node,   /*Expression*/
+    location: &impl ReadonlyTextRange,
+) -> io::Result<()> {
+    let elements = get_elements_of_binding_or_assignment_pattern(pattern).collect_vec();
+    let num_elements = elements.len();
+    let mut value = value.node_wrapper();
+    if num_elements != 1 {
+        let reuse_identifier_expressions =
+            !is_declaration_binding_element(parent) || num_elements != 0;
+        value = ensure_identifier(
+            flatten_context,
+            &value,
+            reuse_identifier_expressions,
+            location,
+        )?;
+    }
+    let mut binding_elements: Option<Vec<Gc<Node /*BindingOrAssignmentElement*/>>> = _d();
+    let mut computed_temp_variables: Option<Vec<Gc<Node /*Expression*/>>> = _d();
+    for (i, element) in elements.iter().enumerate() {
+        if get_rest_indicator_of_binding_or_assignment_element(element).is_none() {
+            let property_name =
+                &get_property_name_of_binding_or_assignment_element(element).unwrap();
+            if flatten_context.level() >= FlattenLevel::ObjectRest
+                && !element.transform_flags().intersects(
+                    TransformFlags::ContainsRestOrSpread
+                        | TransformFlags::ContainsObjectRestOrSpread,
+                )
+                && !get_target_of_binding_or_assignment_element(element)
+                    .unwrap()
+                    .transform_flags()
+                    .intersects(
+                        TransformFlags::ContainsRestOrSpread
+                            | TransformFlags::ContainsObjectRestOrSpread,
+                    )
+                && !is_computed_property_name(property_name)
+            {
+                binding_elements
+                    .get_or_insert_default_()
+                    .push(try_visit_node(
+                        element,
+                        flatten_context
+                            .is_visitor_supported()
+                            .then(|| |node: &Node| flatten_context.visitor(node).unwrap()),
+                        Option::<fn(&Node) -> bool>::None,
+                        Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                    )?);
+            } else {
+                if binding_elements.is_some() {
+                    flatten_context.emit_binding_or_assignment(
+                        &flatten_context.create_object_binding_or_assignment_pattern(
+                            binding_elements.as_ref().unwrap(),
+                        ),
+                        &value,
+                        location,
+                        Some(pattern),
+                    )?;
+                    binding_elements = None;
+                }
+                let rhs_value =
+                    create_destructuring_property_access(flatten_context, &value, property_name)?;
+                if is_computed_property_name(property_name) {
+                    computed_temp_variables.get_or_insert_default_().push(
+                        rhs_value
+                            .as_element_access_expression()
+                            .argument_expression
+                            .clone(),
+                    );
+                }
+                flatten_binding_or_assignment_element(
+                    flatten_context,
+                    element,
+                    Some(&*rhs_value),
+                    &**element,
+                    None,
+                )?;
+            }
+        } else if i == num_elements - 1 {
+            if binding_elements.is_some() {
+                flatten_context.emit_binding_or_assignment(
+                    &flatten_context.create_object_binding_or_assignment_pattern(
+                        binding_elements.as_ref().unwrap(),
+                    ),
+                    &value,
+                    location,
+                    Some(pattern),
+                )?;
+                binding_elements = None;
+            }
+            let rhs_value = flatten_context
+                .context()
+                .get_emit_helper_factory()
+                .create_rest_helper(
+                    value.clone(),
+                    &elements,
+                    computed_temp_variables.as_deref(),
+                    pattern,
+                );
+            flatten_binding_or_assignment_element(
+                flatten_context,
+                element,
+                Some(rhs_value),
+                &**element,
+                None,
+            )?;
+        }
+    }
+    if let Some(binding_elements) = binding_elements {
+        flatten_context.emit_binding_or_assignment(
+            &flatten_context.create_object_binding_or_assignment_pattern(&binding_elements),
+            &value,
+            location,
+            Some(pattern),
+        )?;
+    }
+
+    Ok(())
+}
+
+fn flatten_array_binding_or_assignment_pattern(
+    flatten_context: &impl FlattenContext,
+    parent: &Node,  /*BindingOrAssignmentElement*/
+    pattern: &Node, /*ArrayBindingOrAssignmentPattern*/
+    value: &Node,   /*Expression*/
+    location: &impl ReadonlyTextRange,
+) -> io::Result<()> {
+    let elements = get_elements_of_binding_or_assignment_pattern(pattern).collect_vec();
+    let num_elements = elements.len();
+    let mut value = value.node_wrapper();
+    if flatten_context.level() < FlattenLevel::ObjectRest && flatten_context.downlevel_iteration() {
+        value = ensure_identifier(
+            flatten_context,
+            &flatten_context
+                .context()
+                .get_emit_helper_factory()
+                .create_read_helper(
+                    value,
+                    (!(num_elements > 0
+                        && get_rest_indicator_of_binding_or_assignment_element(
+                            &elements[num_elements - 1],
+                        )
+                        .is_some()))
+                    .then_some(num_elements),
+                )
+                .set_text_range(Some(location)),
+            false,
+            location,
+        )?;
+    } else if num_elements != 1
+        && (flatten_context.level() < FlattenLevel::ObjectRest || num_elements == 0)
+        || elements
+            .iter()
+            .all(|element| is_omitted_expression(element))
+    {
+        let reuse_identifier_expressions =
+            !is_declaration_binding_element(parent) || num_elements != 0;
+        value = ensure_identifier(
+            flatten_context,
+            &value,
+            reuse_identifier_expressions,
+            location,
+        )?;
+    }
+    let mut binding_elements: Option<Vec<Gc<Node /*BindingOrAssignmentElement*/>>> = _d();
+    let mut rest_containing_elements: Option<
+        Vec<(
+            Gc<Node /*Identifier*/>,
+            Gc<Node /*BindingOrAssignmentElement*/>,
+        )>,
+    > = _d();
+    for (i, element) in elements.iter().enumerate() {
+        if flatten_context.level() >= FlattenLevel::ObjectRest {
+            if element
+                .transform_flags()
+                .intersects(TransformFlags::ContainsObjectRestOrSpread)
+                || flatten_context.has_transformed_prior_element() == Some(true)
+                    && !is_simple_binding_or_assignment_element(element)
+            {
+                flatten_context.set_has_transformed_prior_element(Some(true));
+                let temp = flatten_context
+                    .context()
+                    .factory()
+                    .create_temp_variable(Option::<fn(&Node)>::None, None);
+                if flatten_context.hoist_temp_variables() {
+                    flatten_context.context().hoist_variable_declaration(&temp);
+                }
+
+                rest_containing_elements
+                    .get_or_insert_default_()
+                    .push((temp.clone(), element.clone()));
+                binding_elements
+                    .get_or_insert_default_()
+                    .push(flatten_context.create_array_binding_or_assignment_element(&temp));
+            } else {
+                binding_elements
+                    .get_or_insert_default_()
+                    .push(element.clone());
+            }
+        } else if is_omitted_expression(element) {
+            continue;
+        } else if get_rest_indicator_of_binding_or_assignment_element(element).is_none() {
+            let rhs_value = flatten_context
+                .context()
+                .factory()
+                .create_element_access_expression(value.clone(), Number::new(i as f64));
+            flatten_binding_or_assignment_element(
+                flatten_context,
+                element,
+                Some(rhs_value),
+                &**element,
+                None,
+            )?;
+        } else if i == num_elements - 1 {
+            let rhs_value = flatten_context
+                .context()
+                .factory()
+                .create_array_slice_call(value.clone(), Some(Number::new(i as f64)));
+            flatten_binding_or_assignment_element(
+                flatten_context,
+                element,
+                Some(rhs_value),
+                &**element,
+                None,
+            )?;
+        }
+    }
+    if let Some(binding_elements) = binding_elements {
+        flatten_context.emit_binding_or_assignment(
+            &flatten_context.create_array_binding_or_assignment_pattern(&binding_elements),
+            &value,
+            location,
+            Some(pattern),
+        )?;
+    }
+    if let Some(rest_containing_elements) = rest_containing_elements {
+        for (id, element) in rest_containing_elements {
+            flatten_binding_or_assignment_element(
+                flatten_context,
+                &element,
+                Some(id),
+                &*element,
+                None,
+            )?;
+        }
+    }
+
+    Ok(())
+}
+
+fn is_simple_binding_or_assignment_element(element: &Node, /*BindingOrAssignmentElement*/) -> bool {
+    let target = get_target_of_binding_or_assignment_element(element);
+    if target.is_none() {
+        return true;
+    }
+    let target = &target.unwrap();
+    if is_omitted_expression(target) {
+        return true;
+    }
+    let property_name = try_get_property_name_of_binding_or_assignment_element(element);
+    if property_name.matches(|ref property_name| !is_property_name_literal(property_name)) {
+        return false;
+    }
+    let initializer = get_initializer_of_binding_or_assignment_element(element);
+    if initializer.matches(|ref initializer| !is_simple_inlineable_expression(initializer)) {
+        return false;
+    }
+    if is_binding_or_assigment_pattern(target) {
+        return get_elements_of_binding_or_assignment_pattern(target)
+            .all(|ref element| is_simple_binding_or_assignment_element(element));
+    }
+    is_identifier(target)
+}
+
+fn create_default_value_check(
+    flatten_context: &impl FlattenContext,
+    value: &Node,         /*Expression*/
+    default_value: &Node, /*Expression*/
+    location: &impl ReadonlyTextRange,
+) -> io::Result<Gc<Node /*Expression*/>> {
+    let value = ensure_identifier(flatten_context, value, true, location)?;
+    Ok(flatten_context
+        .context()
+        .factory()
+        .create_conditional_expression(
+            flatten_context
+                .context()
+                .factory()
+                .create_type_check(value.clone(), "undefined"),
+            None,
+            default_value.node_wrapper(),
+            None,
+            value,
+        ))
+}
+
+fn create_destructuring_property_access(
+    flatten_context: &impl FlattenContext,
+    value: &Node,         /*Expression*/
+    property_name: &Node, /*PropertyName*/
+) -> io::Result<Gc<Node /*LeftHandSideExpression*/>> {
+    Ok(if is_computed_property_name(property_name) {
+        let argument_expression = ensure_identifier(
+            flatten_context,
+            &*try_visit_node(
+                &property_name.as_computed_property_name().expression,
+                flatten_context
+                    .is_visitor_supported()
+                    .then(|| |node: &Node| flatten_context.visitor(node).unwrap()),
+                Option::<fn(&Node) -> bool>::None,
+                Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+            )?,
+            false,
+            property_name,
+        )?;
+        flatten_context
+            .context()
+            .factory()
+            .create_element_access_expression(value.node_wrapper(), argument_expression)
+    } else if is_string_or_numeric_literal_like(property_name) {
+        let argument_expression = get_factory().clone_node(property_name);
+        flatten_context
+            .context()
+            .factory()
+            .create_element_access_expression(value.node_wrapper(), argument_expression)
+    } else {
+        let name = flatten_context
+            .context()
+            .factory()
+            .create_identifier(id_text(property_name));
+        flatten_context
+            .context()
+            .factory()
+            .create_property_access_expression(value.node_wrapper(), name)
+    })
 }
 
 fn ensure_identifier(
-    _flatten_context: &impl FlattenContext,
-    _value: &Node, /*Expression*/
-    _reuse_identifier_expressions: bool,
-    _location: &impl ReadonlyTextRange,
-) -> Gc<Node> {
-    unimplemented!()
+    flatten_context: &impl FlattenContext,
+    value: &Node, /*Expression*/
+    reuse_identifier_expressions: bool,
+    location: &impl ReadonlyTextRange,
+) -> io::Result<Gc<Node>> {
+    Ok(if is_identifier(value) && reuse_identifier_expressions {
+        value.node_wrapper()
+    } else {
+        let temp = flatten_context
+            .context()
+            .factory()
+            .create_temp_variable(Option::<fn(&Node)>::None, None);
+        if flatten_context.hoist_temp_variables() {
+            flatten_context.context().hoist_variable_declaration(&temp);
+            flatten_context.emit_expression(
+                &flatten_context
+                    .context()
+                    .factory()
+                    .create_assignment(temp.clone(), value.node_wrapper())
+                    .set_text_range(Some(location)),
+            );
+        } else {
+            flatten_context.emit_binding_or_assignment(
+                &temp,
+                value,
+                location,
+                Option::<&Node>::None,
+            )?;
+        }
+        temp
+    })
 }
 
 fn make_array_binding_pattern<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>(
-    _factory: &NodeFactory<TBaseNodeFactory>,
-    _elements: &[Gc<Node /*BindingOrAssignmentElement*/>],
+    factory: &NodeFactory<TBaseNodeFactory>,
+    elements: &[Gc<Node /*BindingOrAssignmentElement*/>],
 ) -> Gc<Node> {
-    unimplemented!()
+    Debug_.assert_each_node(elements, is_array_binding_element, None);
+    factory.create_array_binding_pattern(elements.to_owned())
 }
 
 fn make_array_assignment_pattern<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>(
-    _factory: &NodeFactory<TBaseNodeFactory>,
-    _elements: &[Gc<Node /*BindingOrAssignmentElement*/>],
+    factory: &NodeFactory<TBaseNodeFactory>,
+    elements: &[Gc<Node /*BindingOrAssignmentElement*/>],
 ) -> Gc<Node> {
-    unimplemented!()
+    factory.create_array_literal_expression(
+        Some(
+            elements
+                .into_iter()
+                .map(|element| {
+                    factory
+                        .converters()
+                        .convert_to_array_assignment_element(element)
+                })
+                .collect_vec(),
+        ),
+        None,
+    )
 }
 
 fn make_object_binding_pattern<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>(
-    _factory: &NodeFactory<TBaseNodeFactory>,
-    _elements: &[Gc<Node /*BindingOrAssignmentElement*/>],
+    factory: &NodeFactory<TBaseNodeFactory>,
+    elements: &[Gc<Node /*BindingOrAssignmentElement*/>],
 ) -> Gc<Node> {
-    unimplemented!()
+    Debug_.assert_each_node(elements, is_binding_element, None);
+    factory.create_object_binding_pattern(elements.to_owned())
 }
 
 fn make_object_assignment_pattern<
     TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize,
 >(
-    _factory: &NodeFactory<TBaseNodeFactory>,
-    _elements: &[Gc<Node /*BindingOrAssignmentElement*/>],
+    factory: &NodeFactory<TBaseNodeFactory>,
+    elements: &[Gc<Node /*BindingOrAssignmentElement*/>],
 ) -> Gc<Node> {
-    unimplemented!()
+    factory.create_object_literal_expression(
+        Some(
+            elements
+                .into_iter()
+                .map(|element| {
+                    factory
+                        .converters()
+                        .convert_to_object_assignment_element(element)
+                })
+                .collect_vec(),
+        ),
+        None,
+    )
 }
 
 fn make_binding_element<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>(
-    _factory: &NodeFactory<TBaseNodeFactory>,
-    _name: &Node, /*Identifier*/
+    factory: &NodeFactory<TBaseNodeFactory>,
+    name: &Node, /*Identifier*/
 ) -> Gc<Node> {
-    unimplemented!()
+    factory.create_binding_element(None, Option::<Gc<Node>>::None, name.node_wrapper(), None)
 }
 
 fn make_assignment_element(name: &Node /*Identifier*/) -> Gc<Node> {

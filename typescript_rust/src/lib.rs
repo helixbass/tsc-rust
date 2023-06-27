@@ -206,8 +206,8 @@ pub use compiler::{
             has_option_node_array_changed, has_option_str_or_node_changed, set_original_node,
             synthetic_factory, with_factory, with_synthetic_factory,
             with_synthetic_factory_and_factory, BaseNodeFactorySynthetic, NodeFactoryFlags,
-            ReadFileCallback, StrOrRcNode, StringOrNumber, StringOrNumberOrBoolOrRcNode,
-            StringOrRcNode, SyntaxKindOrRcNode,
+            NumberOrRcNode, ReadFileCallback, StrOrRcNode, StringOrNumber,
+            StringOrNumberOrBoolOrRcNode, StringOrRcNode, SyntaxKindOrRcNode,
         },
         node_tests::{
             is_abstract_modifier, is_array_binding_pattern, is_array_literal_expression,
@@ -289,6 +289,7 @@ pub use compiler::{
             get_external_module_name_literal, get_initializer_of_binding_or_assignment_element,
             get_jsdoc_type_assertion_type, get_local_name_for_external_import,
             get_property_name_of_binding_or_assignment_element,
+            get_rest_indicator_of_binding_or_assignment_element,
             get_target_of_binding_or_assignment_element, has_recorded_external_helpers,
             is_binary_operator_token, is_comma_sequence, is_export_name,
             is_identifier_or_this_type_node, is_internal_name, is_jsdoc_type_assertion,

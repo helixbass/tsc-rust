@@ -372,6 +372,12 @@ pub fn get_elements_of_binding_or_assignment_pattern(
     }
 }
 
+pub fn get_rest_indicator_of_binding_or_assignment_element(
+    _binding_element: &Node, /*BindingOrAssignmentElement*/
+) -> Option<Gc<Node /*BindingOrAssignmentElementRestIndicator*/>> {
+    unimplemented!()
+}
+
 pub fn get_property_name_of_binding_or_assignment_element(
     _binding_element: &Node, /*BindingOrAssignmentElement*/
 ) -> Option<Gc<Node /*Exclude<PropertyName, PrivateIdentifier>*/>> {

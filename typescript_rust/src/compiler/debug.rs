@@ -27,6 +27,7 @@ pub trait LoggingHost {
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 enum AssertionKeys {
+    AssertEachNode,
     AssertNode,
     AssertNotNode,
 }
@@ -186,6 +187,20 @@ impl DebugType {
     pub fn assert_never<TValue>(&self, _value: TValue, message: Option<&str>) -> ! {
         let message = message.unwrap_or("Illegal value:");
         self.fail(Some(message));
+    }
+
+    pub fn assert_each_node(
+        &self,
+        nodes: &[Gc<Node>],
+        mut test: impl FnMut(&Node) -> bool,
+        message: Option<&str>,
+    ) {
+        if self.should_assert_function(AssertionLevel::Normal, AssertionKeys::AssertEachNode) {
+            self.assert(
+                /*test === undefined ||*/ nodes.into_iter().all(|node| test(node)),
+                Some(message.unwrap_or("Unexpected node.")),
+            );
+        }
     }
 
     pub fn assert_node(

@@ -1371,3 +1371,20 @@ impl From<bool> for StringOrNumberOrBoolOrRcNode {
         Self::Bool(value)
     }
 }
+
+pub enum NumberOrRcNode {
+    Number(Number),
+    RcNode(Gc<Node>),
+}
+
+impl From<Number> for NumberOrRcNode {
+    fn from(value: Number) -> Self {
+        Self::Number(value)
+    }
+}
+
+impl From<Gc<Node>> for NumberOrRcNode {
+    fn from(value: Gc<Node>) -> Self {
+        Self::RcNode(value)
+    }
+}
