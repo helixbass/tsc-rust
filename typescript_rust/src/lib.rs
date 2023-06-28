@@ -41,7 +41,10 @@ use compiler::{
     },
     factory::{
         emit_helpers::compare_emit_helpers,
-        emit_node::{get_snippet_element, get_starts_on_new_line, set_starts_on_new_line},
+        emit_node::{
+            get_or_create_emit_node, get_snippet_element, get_starts_on_new_line,
+            set_starts_on_new_line,
+        },
         utilities::get_jsdoc_type_alias_name,
     },
     module_name_resolver::{

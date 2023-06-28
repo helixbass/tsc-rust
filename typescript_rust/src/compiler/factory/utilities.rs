@@ -4,15 +4,17 @@ use gc::{Finalize, Gc, Trace};
 
 use crate::{
     first_or_undefined, get_emit_flags, get_jsdoc_type, get_jsdoc_type_tag,
-    is_assignment_expression, is_declaration_binding_element, is_exclamation_token, is_identifier,
-    is_in_js_file, is_minus_token, is_object_literal_element_like, is_parenthesized_expression,
-    is_plus_token, is_prologue_directive, is_question_token, is_readonly_keyword, is_source_file,
-    is_spread_element, is_string_literal, is_this_type_node, is_type_node,
+    get_or_create_emit_node, get_parse_node_factory, get_parse_tree_node, id_text,
+    is_assignment_expression, is_computed_property_name, is_declaration_binding_element,
+    is_exclamation_token, is_identifier, is_in_js_file, is_member_name, is_minus_token,
+    is_object_literal_element_like, is_parenthesized_expression, is_plus_token,
+    is_prologue_directive, is_qualified_name, is_question_token, is_readonly_keyword,
+    is_source_file, is_spread_element, is_string_literal, is_this_type_node, is_type_node,
     is_type_parameter_declaration, maybe_get_original_node_full, push_or_replace,
     set_starts_on_new_line, AssertionLevel, BaseNodeFactory, CompilerOptions, Debug_, EmitFlags,
     EmitHelperFactory, EmitHost, EmitResolver, HasInitializerInterface, LiteralLikeNodeInterface,
-    NamedDeclarationInterface, Node, NodeArray, NodeFactory, NodeInterface, OuterExpressionKinds,
-    ReadonlyTextRange, SyntaxKind,
+    NamedDeclarationInterface, Node, NodeArray, NodeExt, NodeFactory, NodeInterface, NonEmpty,
+    OuterExpressionKinds, ReadonlyTextRange, SyntaxKind,
 };
 
 pub fn create_empty_exports<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>(
@@ -31,23 +33,89 @@ pub fn create_empty_exports<TBaseNodeFactory: 'static + BaseNodeFactory + Trace 
 pub fn create_member_access_for_property_name<
     TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize,
 >(
-    _factory: &NodeFactory<TBaseNodeFactory>,
-    _target: &Node,      /*Expression*/
-    _member_name: &Node, /*PropertyName*/
-    _location: Option<&impl ReadonlyTextRange>,
+    factory: &NodeFactory<TBaseNodeFactory>,
+    target: &Node,      /*Expression*/
+    member_name: &Node, /*PropertyName*/
+    location: Option<&impl ReadonlyTextRange>,
 ) -> Gc<Node /*MemberExpression*/> {
-    unimplemented!()
+    if is_computed_property_name(member_name) {
+        factory
+            .create_element_access_expression(
+                target.node_wrapper(),
+                member_name.as_computed_property_name().expression.clone(),
+            )
+            .set_text_range(location)
+    } else {
+        let expression = if is_member_name(member_name) {
+            factory.create_property_access_expression(
+                target.node_wrapper(),
+                member_name.node_wrapper(),
+            )
+        } else {
+            factory
+                .create_element_access_expression(target.node_wrapper(), member_name.node_wrapper())
+        }
+        .set_text_range(Some(member_name));
+        let emit_node = get_or_create_emit_node(&expression);
+        let mut emit_node = emit_node.borrow_mut();
+        emit_node.flags = Some(emit_node.flags.unwrap_or_default() | EmitFlags::NoNestedSourceMaps);
+        expression
+    }
+}
+
+fn create_react_namespace(
+    react_namespace: &str,
+    parent: &Node, /*JsxOpeningLikeElement | JsxOpeningFragment*/
+) -> Gc<Node> {
+    get_parse_node_factory()
+        .create_identifier(react_namespace.non_empty().unwrap_or("React"))
+        .and_set_parent(get_parse_tree_node(
+            Some(parent),
+            Option::<fn(&Node) -> bool>::None,
+        ))
+}
+
+fn create_jsx_factory_expression_from_entity_name<
+    TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize,
+>(
+    factory: &NodeFactory<TBaseNodeFactory>,
+    jsx_factory: &Node, /*EntityName*/
+    parent: &Node,      /*JsxOpeningLikeElement | JsxOpeningFragment*/
+) -> Gc<Node /*Expression*/> {
+    if is_qualified_name(jsx_factory) {
+        let jsx_factory_as_qualified_name = jsx_factory.as_qualified_name();
+        let left = create_jsx_factory_expression_from_entity_name(
+            factory,
+            &jsx_factory_as_qualified_name.left,
+            parent,
+        );
+        let right = factory.create_identifier(id_text(&jsx_factory_as_qualified_name.right));
+        factory.create_property_access_expression(left, right)
+    } else {
+        create_react_namespace(id_text(jsx_factory), parent)
+    }
 }
 
 pub fn create_jsx_factory_expression<
     TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize,
 >(
-    _factory: &NodeFactory<TBaseNodeFactory>,
-    _jsx_factory_entity: Option<impl Borrow<Node /*EntityName*/>>,
-    _react_namespace: &str,
-    _parent: &Node, /*JsxOpeningLikeElement | JsxOpeningFragment*/
-) -> Gc<Node /*Statement*/> {
-    unimplemented!()
+    factory: &NodeFactory<TBaseNodeFactory>,
+    jsx_factory_entity: Option<impl Borrow<Node /*EntityName*/>>,
+    react_namespace: &str,
+    parent: &Node, /*JsxOpeningLikeElement | JsxOpeningFragment*/
+) -> Gc<Node /*Expression*/> {
+    jsx_factory_entity.map_or_else(
+        || {
+            factory.create_property_access_expression(
+                create_react_namespace(react_namespace, parent),
+                "createElement",
+            )
+        },
+        |jsx_factory_entity| {
+            let jsx_factory_entity = jsx_factory_entity.borrow();
+            create_jsx_factory_expression_from_entity_name(factory, jsx_factory_entity, parent)
+        },
+    )
 }
 
 pub fn create_expression_for_jsx_element<
