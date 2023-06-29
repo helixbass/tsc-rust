@@ -12,11 +12,15 @@ use crate::{
 };
 
 #[derive(Default, Builder, Clone)]
-#[builder(default, setter(strip_option, into))]
+#[builder(default, setter(into))]
 pub struct PropertyDescriptorAttributes {
+    #[builder(setter(strip_option))]
     pub enumerable: Option<BoolOrRcNode /*Expression*/>,
+    #[builder(setter(strip_option))]
     pub configurable: Option<BoolOrRcNode /*Expression*/>,
+    #[builder(setter(strip_option))]
     pub writable: Option<BoolOrRcNode /*Expression*/>,
+    #[builder(setter(strip_option))]
     pub value: Option<Gc<Node /*Expression*/>>,
     pub get: Option<Gc<Node /*Expression*/>>,
     pub set: Option<Gc<Node /*Expression*/>>,

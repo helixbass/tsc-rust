@@ -3,18 +3,21 @@ use std::{borrow::Borrow, cell::RefCell, io, ptr, rc::Rc};
 use gc::{Finalize, Gc, Trace};
 
 use crate::{
-    first_or_undefined, get_emit_flags, get_jsdoc_type, get_jsdoc_type_tag,
-    get_or_create_emit_node, get_parse_node_factory, get_parse_tree_node, id_text,
-    is_assignment_expression, is_computed_property_name, is_declaration_binding_element,
+    first, first_or_undefined, get_all_accessor_declarations, get_emit_flags, get_jsdoc_type,
+    get_jsdoc_type_tag, get_or_create_emit_node, get_parse_node_factory, get_parse_tree_node,
+    id_text, is_assignment_expression, is_computed_property_name, is_declaration_binding_element,
     is_exclamation_token, is_identifier, is_in_js_file, is_member_name, is_minus_token,
     is_object_literal_element_like, is_parenthesized_expression, is_plus_token,
-    is_prologue_directive, is_qualified_name, is_question_token, is_readonly_keyword,
-    is_source_file, is_spread_element, is_string_literal, is_this_type_node, is_type_node,
-    is_type_parameter_declaration, maybe_get_original_node_full, push_or_replace,
-    set_starts_on_new_line, AssertionLevel, BaseNodeFactory, CompilerOptions, Debug_, EmitFlags,
-    EmitHelperFactory, EmitHost, EmitResolver, HasInitializerInterface, LiteralLikeNodeInterface,
-    NamedDeclarationInterface, Node, NodeArray, NodeExt, NodeFactory, NodeInterface, NonEmpty,
-    OuterExpressionKinds, ReadonlyTextRange, SyntaxKind,
+    is_private_identifier, is_prologue_directive, is_qualified_name, is_question_token,
+    is_readonly_keyword, is_source_file, is_spread_element, is_string_literal, is_this_type_node,
+    is_type_node, is_type_parameter_declaration, is_variable_declaration_list,
+    maybe_get_original_node_full, push_or_replace, set_starts_on_new_line, AllAccessorDeclarations,
+    AssertionLevel, BaseNodeFactory, CompilerOptions, Debug_, EmitFlags, EmitHelperFactory,
+    EmitHost, EmitResolver, FunctionLikeDeclarationInterface, HasInitializerInterface,
+    LiteralLikeNodeInterface, Matches, NamedDeclarationInterface, Node, NodeArray, NodeExt,
+    NodeFactory, NodeInterface, NonEmpty, OuterExpressionKinds,
+    PropertyDescriptorAttributesBuilder, ReadonlyTextRange, SignatureDeclarationInterface,
+    SyntaxKind,
 };
 
 pub fn create_empty_exports<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>(
@@ -118,70 +121,346 @@ pub fn create_jsx_factory_expression<
     )
 }
 
+pub fn create_jsx_fragment_factory_expression<
+    TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize,
+>(
+    factory: &NodeFactory<TBaseNodeFactory>,
+    jsx_fragment_factory_entity: Option<impl Borrow<Node /*EntityName*/>>,
+    react_namespace: &str,
+    parent: &Node, /*JsxOpeningLikeElement | JsxOpeningFragment*/
+) -> Gc<Node /*Expression*/> {
+    jsx_fragment_factory_entity.map_or_else(
+        || {
+            factory.create_property_access_expression(
+                create_react_namespace(react_namespace, parent),
+                "Fragment",
+            )
+        },
+        |jsx_fragment_factory_entity| {
+            let jsx_fragment_factory_entity = jsx_fragment_factory_entity.borrow();
+            create_jsx_factory_expression_from_entity_name(
+                factory,
+                jsx_fragment_factory_entity,
+                parent,
+            )
+        },
+    )
+}
+
 pub fn create_expression_for_jsx_element<
     TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize,
 >(
-    _factory: &NodeFactory<TBaseNodeFactory>,
-    _callee: &Node,   /*Expression*/
-    _tag_name: &Node, /*Expression*/
-    _props: Option<impl Borrow<Node /*Expression*/>>,
-    _children: Option<&[Gc<Node /*Expression*/>]>,
-    _location: &impl ReadonlyTextRange,
+    factory: &NodeFactory<TBaseNodeFactory>,
+    callee: &Node,   /*Expression*/
+    tag_name: &Node, /*Expression*/
+    props: Option<impl Borrow<Node /*Expression*/>>,
+    children: Option<&[Gc<Node /*Expression*/>]>,
+    location: &impl ReadonlyTextRange,
 ) -> Gc<Node /*LeftHandSideExpression*/> {
-    unimplemented!()
+    let mut arguments_list = vec![tag_name.node_wrapper()];
+    if let Some(props) = props.as_ref() {
+        let props = props.borrow();
+        arguments_list.push(props.node_wrapper());
+    }
+
+    if let Some(children) = children.non_empty() {
+        if props.is_none() {
+            arguments_list.push(factory.create_null());
+        }
+
+        if children.len() > 1 {
+            for child in children {
+                start_on_new_line(&**child);
+                arguments_list.push(child.clone());
+            }
+        } else {
+            arguments_list.push(children[0].clone());
+        }
+    }
+
+    factory
+        .create_call_expression(
+            callee.node_wrapper(),
+            Option::<Gc<NodeArray>>::None,
+            Some(arguments_list),
+        )
+        .set_text_range(Some(location))
 }
 
 pub fn create_expression_for_jsx_fragment<
     TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize,
 >(
-    _factory: &NodeFactory<TBaseNodeFactory>,
-    _jsx_factory_entity: Option<impl Borrow<Node /*EntityName*/>>,
-    _jsx_fragment_factory_entity: Option<impl Borrow<Node /*EntityName*/>>,
-    _react_namespace: &str,
-    _children: &[Gc<Node /*Expression*/>],
-    _parent_element: &Node, /*JsxOpeningFragment*/
-    _location: &impl ReadonlyTextRange,
+    factory: &NodeFactory<TBaseNodeFactory>,
+    jsx_factory_entity: Option<impl Borrow<Node /*EntityName*/>>,
+    jsx_fragment_factory_entity: Option<impl Borrow<Node /*EntityName*/>>,
+    react_namespace: &str,
+    children: &[Gc<Node /*Expression*/>],
+    parent_element: &Node, /*JsxOpeningFragment*/
+    location: &impl ReadonlyTextRange,
 ) -> Gc<Node /*LeftHandSideExpression*/> {
-    unimplemented!()
+    let tag_name = create_jsx_fragment_factory_expression(
+        factory,
+        jsx_fragment_factory_entity,
+        react_namespace,
+        parent_element,
+    );
+    let mut arguments_list = vec![tag_name, factory.create_null()];
+
+    if
+    /*children &&*/
+    !children.is_empty() {
+        if children.len() > 1 {
+            for child in children {
+                start_on_new_line(&**child);
+                arguments_list.push(child.clone());
+            }
+        } else {
+            arguments_list.push(children[0].clone());
+        }
+    }
+
+    factory
+        .create_call_expression(
+            create_jsx_factory_expression(
+                factory,
+                jsx_factory_entity,
+                react_namespace,
+                parent_element,
+            ),
+            Option::<Gc<NodeArray>>::None,
+            Some(arguments_list),
+        )
+        .set_text_range(Some(location))
 }
 
 pub fn create_for_of_binding_statement<
     TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize,
 >(
-    _factory: &NodeFactory<TBaseNodeFactory>,
-    _node: &Node,        /*ForInitializer*/
-    _bound_value: &Node, /*Expression*/
+    factory: &NodeFactory<TBaseNodeFactory>,
+    node: &Node,        /*ForInitializer*/
+    bound_value: &Node, /*Expression*/
 ) -> Gc<Node /*Statement*/> {
-    unimplemented!()
+    if is_variable_declaration_list(node) {
+        let first_declaration = first(&node.as_variable_declaration_list().declarations);
+        let updated_declaration = factory.update_variable_declaration(
+            first_declaration,
+            first_declaration.as_variable_declaration().maybe_name(),
+            None,
+            None,
+            Some(bound_value.node_wrapper()),
+        );
+        factory
+            .create_variable_statement(
+                Option::<Gc<NodeArray>>::None,
+                factory.update_variable_declaration_list(node, vec![updated_declaration]),
+            )
+            .set_text_range(Some(node))
+    } else {
+        let updated_expression = factory
+            .create_assignment(node.node_wrapper(), bound_value.node_wrapper())
+            .set_text_range(Some(node));
+        factory
+            .create_expression_statement(updated_expression)
+            .set_text_range(Some(node))
+    }
 }
 
 pub fn create_expression_from_entity_name<
     TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize,
 >(
-    _factory: &NodeFactory<TBaseNodeFactory>,
-    _node: &Node, /*EntityName | Expression*/
+    factory: &NodeFactory<TBaseNodeFactory>,
+    node: &Node, /*EntityName | Expression*/
 ) -> Gc<Node /*Expression*/> {
-    unimplemented!()
+    if is_qualified_name(node) {
+        let node_as_qualified_name = node.as_qualified_name();
+        let left = create_expression_from_entity_name(factory, &node_as_qualified_name.left);
+        let right = factory
+            .clone_node(&node_as_qualified_name.right)
+            .set_text_range(Some(&*node_as_qualified_name.right))
+            .and_set_parent(node_as_qualified_name.right.maybe_parent());
+        factory
+            .create_property_access_expression(left, right)
+            .set_text_range(Some(node))
+    } else {
+        factory
+            .clone_node(node)
+            .set_text_range(Some(node))
+            .and_set_parent(node.maybe_parent())
+    }
 }
 
 pub fn create_expression_for_property_name<
     TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize,
 >(
-    _factory: &NodeFactory<TBaseNodeFactory>,
-    _member_name: &Node, /*Exclude<PropertyName, PrivateIdentifier>*/
+    factory: &NodeFactory<TBaseNodeFactory>,
+    member_name: &Node, /*Exclude<PropertyName, PrivateIdentifier>*/
 ) -> Gc<Node /*Expression*/> {
+    if is_identifier(member_name) {
+        factory.create_string_literal_from_node(member_name)
+    } else if is_computed_property_name(member_name) {
+        let member_name_as_computed_property_name = member_name.as_computed_property_name();
+        factory
+            .clone_node(&member_name_as_computed_property_name.expression)
+            .set_text_range(Some(&*member_name_as_computed_property_name.expression))
+            .and_set_parent(
+                member_name_as_computed_property_name
+                    .expression
+                    .maybe_parent(),
+            )
+    } else {
+        factory
+            .clone_node(member_name)
+            .set_text_range(Some(member_name))
+            .and_set_parent(member_name.maybe_parent())
+    }
+}
+
+fn create_expression_for_accessor_declaration<
+    TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize,
+>(
+    factory: &NodeFactory<TBaseNodeFactory>,
+    properties: &NodeArray, /*<Declaration>*/
+    property: &Node, /*AccessorDeclaration & { readonly name: Exclude<PropertyName, PrivateIdentifier> }*/
+    receiver: &Node, /*Expression*/
+    multi_line: bool,
+) -> Option<Gc<Node>> {
+    let AllAccessorDeclarations {
+        first_accessor,
+        get_accessor,
+        set_accessor,
+        ..
+    } = get_all_accessor_declarations(properties, property);
+    if ptr::eq(property, &*first_accessor) {
+        return Some(
+            factory
+                .create_object_define_property_call(
+                    receiver.node_wrapper(),
+                    create_expression_for_property_name(
+                        factory,
+                        &property.as_named_declaration().name(),
+                    ),
+                    factory.create_property_descriptor(
+                        PropertyDescriptorAttributesBuilder::default()
+                            .enumerable(factory.create_false())
+                            .configurable(true)
+                            .get(get_accessor.map(|get_accessor| {
+                                let get_accessor_as_get_accessor_declaration =
+                                    get_accessor.as_get_accessor_declaration();
+                                factory
+                                    .create_function_expression(
+                                        get_accessor.maybe_modifiers(),
+                                        None,
+                                        Option::<Gc<Node>>::None,
+                                        Option::<Gc<NodeArray>>::None,
+                                        Some(get_accessor_as_get_accessor_declaration.parameters()),
+                                        None,
+                                        get_accessor_as_get_accessor_declaration
+                                            .maybe_body()
+                                            .unwrap(),
+                                    )
+                                    .set_original_node(Some(get_accessor.clone()))
+                                    .set_text_range(Some(&*get_accessor))
+                            }))
+                            .set(set_accessor.map(|set_accessor| {
+                                let set_accessor_as_set_accessor_declaration =
+                                    set_accessor.as_set_accessor_declaration();
+                                factory
+                                    .create_function_expression(
+                                        set_accessor.maybe_modifiers(),
+                                        None,
+                                        Option::<Gc<Node>>::None,
+                                        Option::<Gc<NodeArray>>::None,
+                                        Some(set_accessor_as_set_accessor_declaration.parameters()),
+                                        None,
+                                        set_accessor_as_set_accessor_declaration
+                                            .maybe_body()
+                                            .unwrap(),
+                                    )
+                                    .set_original_node(Some(set_accessor.clone()))
+                                    .set_text_range(Some(&*set_accessor))
+                            }))
+                            .build()
+                            .unwrap(),
+                        Some(!multi_line),
+                    ),
+                )
+                .set_text_range(Some(&*first_accessor)),
+        );
+    }
+
+    None
+}
+
+fn create_expression_for_property_assignment<
+    TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize,
+>(
+    _factory: &NodeFactory<TBaseNodeFactory>,
+    _property: &Node, /*PropertyAssignment*/
+    _receiver: &Node, /*Expression*/
+) -> Gc<Node> {
+    unimplemented!()
+}
+
+fn create_expression_for_shorthand_property_assignment<
+    TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize,
+>(
+    _factory: &NodeFactory<TBaseNodeFactory>,
+    _property: &Node, /*ShorthandPropertyAssignment*/
+    _receiver: &Node, /*Expression*/
+) -> Gc<Node> {
+    unimplemented!()
+}
+
+fn create_expression_for_method_declaration<
+    TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize,
+>(
+    _factory: &NodeFactory<TBaseNodeFactory>,
+    _property: &Node, /*MethodDeclaration*/
+    _receiver: &Node, /*Expression*/
+) -> Gc<Node> {
     unimplemented!()
 }
 
 pub fn create_expression_for_object_literal_element_like<
     TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize,
 >(
-    _factory: &NodeFactory<TBaseNodeFactory>,
-    _node: &Node,     /*ObjectLiteralExpression*/
-    _property: &Node, /*ObjectLiteralElementLike*/
-    _receiver: &Node, /*Expression*/
+    factory: &NodeFactory<TBaseNodeFactory>,
+    node: &Node,     /*ObjectLiteralExpression*/
+    property: &Node, /*ObjectLiteralElementLike*/
+    receiver: &Node, /*Expression*/
 ) -> Option<Gc<Node /*Expression*/>> {
-    unimplemented!()
+    let node_as_object_literal_expression = node.as_object_literal_expression();
+    if property
+        .as_named_declaration()
+        .maybe_name()
+        .matches(|ref property_name| is_private_identifier(property_name))
+    {
+        Debug_.fail_bad_syntax_kind(
+            &property.as_named_declaration().name(),
+            Some("Private identifiers are not allowed in object literals."),
+        );
+    }
+    match property.kind() {
+        SyntaxKind::GetAccessor | SyntaxKind::SetAccessor => {
+            create_expression_for_accessor_declaration(
+                factory,
+                &node_as_object_literal_expression.properties,
+                property,
+                receiver,
+                node_as_object_literal_expression.multi_line == Some(true),
+            )
+        }
+        SyntaxKind::PropertyAssignment => Some(create_expression_for_property_assignment(
+            factory, property, receiver,
+        )),
+        SyntaxKind::ShorthandPropertyAssignment => Some(
+            create_expression_for_shorthand_property_assignment(factory, property, receiver),
+        ),
+        SyntaxKind::MethodDeclaration => Some(create_expression_for_method_declaration(
+            factory, property, receiver,
+        )),
+        _ => unreachable!(),
+    }
 }
 
 pub fn expand_pre_or_postfix_increment_or_decrement_expression<
