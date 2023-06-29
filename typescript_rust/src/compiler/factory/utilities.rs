@@ -6,18 +6,24 @@ use crate::{
     first, first_or_undefined, get_all_accessor_declarations, get_emit_flags, get_jsdoc_type,
     get_jsdoc_type_tag, get_or_create_emit_node, get_parse_node_factory, get_parse_tree_node,
     id_text, is_assignment_expression, is_computed_property_name, is_declaration_binding_element,
-    is_exclamation_token, is_identifier, is_in_js_file, is_member_name, is_minus_token,
-    is_object_literal_element_like, is_parenthesized_expression, is_plus_token,
-    is_private_identifier, is_prologue_directive, is_qualified_name, is_question_token,
-    is_readonly_keyword, is_source_file, is_spread_element, is_string_literal, is_this_type_node,
-    is_type_node, is_type_parameter_declaration, is_variable_declaration_list,
-    maybe_get_original_node_full, push_or_replace, set_starts_on_new_line, AllAccessorDeclarations,
-    AssertionLevel, BaseNodeFactory, CompilerOptions, Debug_, EmitFlags, EmitHelperFactory,
+    is_effective_external_module, is_exclamation_token, is_identifier, is_in_js_file,
+    is_member_name, is_minus_token, is_object_literal_element_like, is_parenthesized_expression,
+    is_plus_token, is_postfix_unary_expression, is_prefix_unary_expression, is_private_identifier,
+    is_prologue_directive, is_qualified_name, is_question_token, is_readonly_keyword,
+    is_source_file, is_spread_element, is_string_literal, is_this_type_node, is_type_node,
+    is_type_parameter_declaration, is_variable_declaration_list, maybe_get_original_node_full,
+    push_or_replace, set_starts_on_new_line, AllAccessorDeclarations, AssertionLevel,
+    BaseNodeFactory, CompilerOptions, Debug_, EmitFlags, EmitHelperBase, EmitHelperFactory,
     EmitHost, EmitResolver, FunctionLikeDeclarationInterface, HasInitializerInterface,
     LiteralLikeNodeInterface, Matches, NamedDeclarationInterface, Node, NodeArray, NodeExt,
     NodeFactory, NodeInterface, NonEmpty, OuterExpressionKinds,
     PropertyDescriptorAttributesBuilder, ReadonlyTextRange, SignatureDeclarationInterface,
-    SyntaxKind,
+    SyntaxKind, _d, compare_strings_case_sensitive, comparison_to_ordering,
+    external_helpers_module_name_text, get_emit_helpers, get_emit_module_kind,
+    get_es_module_interop, get_external_module_name, get_external_module_name_from_path,
+    get_namespace_declaration_node, get_source_text_of_node_from_source_file, is_default_import,
+    is_export_namespace_as_default_declaration, is_file_level_unique_name, is_generated_identifier,
+    map, out_file, push_if_unique_eq, ModuleKind,
 };
 
 pub fn create_empty_exports<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>(
@@ -394,31 +400,78 @@ fn create_expression_for_accessor_declaration<
 fn create_expression_for_property_assignment<
     TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize,
 >(
-    _factory: &NodeFactory<TBaseNodeFactory>,
-    _property: &Node, /*PropertyAssignment*/
-    _receiver: &Node, /*Expression*/
+    factory: &NodeFactory<TBaseNodeFactory>,
+    property: &Node, /*PropertyAssignment*/
+    receiver: &Node, /*Expression*/
 ) -> Gc<Node> {
-    unimplemented!()
+    let property_as_property_assignment = property.as_property_assignment();
+    factory
+        .create_assignment(
+            create_member_access_for_property_name(
+                factory,
+                receiver,
+                &property_as_property_assignment.name(),
+                Some(&*property_as_property_assignment.name()),
+            ),
+            property_as_property_assignment.initializer.clone(),
+        )
+        .set_text_range(Some(property))
+        .set_original_node(Some(property.node_wrapper()))
 }
 
 fn create_expression_for_shorthand_property_assignment<
     TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize,
 >(
-    _factory: &NodeFactory<TBaseNodeFactory>,
-    _property: &Node, /*ShorthandPropertyAssignment*/
-    _receiver: &Node, /*Expression*/
+    factory: &NodeFactory<TBaseNodeFactory>,
+    property: &Node, /*ShorthandPropertyAssignment*/
+    receiver: &Node, /*Expression*/
 ) -> Gc<Node> {
-    unimplemented!()
+    let property_as_shorthand_property_assignment = property.as_shorthand_property_assignment();
+    factory
+        .create_assignment(
+            create_member_access_for_property_name(
+                factory,
+                receiver,
+                &property_as_shorthand_property_assignment.name(),
+                Some(&*property_as_shorthand_property_assignment.name()),
+            ),
+            factory.clone_node(&property_as_shorthand_property_assignment.name()),
+        )
+        .set_text_range(Some(property))
+        .set_original_node(Some(property.node_wrapper()))
 }
 
 fn create_expression_for_method_declaration<
     TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize,
 >(
-    _factory: &NodeFactory<TBaseNodeFactory>,
-    _property: &Node, /*MethodDeclaration*/
-    _receiver: &Node, /*Expression*/
+    factory: &NodeFactory<TBaseNodeFactory>,
+    method: &Node,   /*MethodDeclaration*/
+    receiver: &Node, /*Expression*/
 ) -> Gc<Node> {
-    unimplemented!()
+    let method_as_method_declaration = method.as_method_declaration();
+    factory
+        .create_assignment(
+            create_member_access_for_property_name(
+                factory,
+                receiver,
+                &method_as_method_declaration.name(),
+                Some(&*method_as_method_declaration.name()),
+            ),
+            factory
+                .create_function_expression(
+                    method.maybe_modifiers(),
+                    method_as_method_declaration.maybe_asterisk_token(),
+                    Option::<Gc<Node>>::None,
+                    Option::<Gc<NodeArray>>::None,
+                    Some(method_as_method_declaration.parameters()),
+                    None,
+                    method_as_method_declaration.maybe_body().unwrap(),
+                )
+                .set_text_range(Some(method))
+                .set_original_node(Some(method.node_wrapper())),
+        )
+        .set_text_range(Some(method))
+        .set_original_node(Some(method.node_wrapper()))
 }
 
 pub fn create_expression_for_object_literal_element_like<
@@ -466,13 +519,49 @@ pub fn create_expression_for_object_literal_element_like<
 pub fn expand_pre_or_postfix_increment_or_decrement_expression<
     TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize,
 >(
-    _factory: &NodeFactory<TBaseNodeFactory>,
-    _node: &Node,       /*PrefixUnaryExpression | PostfixUnaryExpression*/
-    _expression: &Node, /*Expression*/
-    _record_temp_variable: impl FnMut(&Node /*Expression*/),
-    _result_variable: Option<impl Borrow<Node /*Identifier*/>>,
+    factory: &NodeFactory<TBaseNodeFactory>,
+    node: &Node,       /*PrefixUnaryExpression | PostfixUnaryExpression*/
+    expression: &Node, /*Expression*/
+    record_temp_variable: impl FnMut(&Node /*Expression*/),
+    result_variable: Option<impl Borrow<Node /*Identifier*/>>,
 ) -> Gc<Node /*Expression*/> {
-    unimplemented!()
+    let node_as_unary_expression = node.as_unary_expression();
+    let operator = node_as_unary_expression.operator();
+    Debug_.assert(
+        matches!(
+            operator,
+            SyntaxKind::PlusPlusToken | SyntaxKind::MinusMinusToken
+        ),
+        Some("Expected 'node' to be a pre- or post-increment or pre- or post-decrement expression"),
+    );
+
+    let temp = factory.create_temp_variable(Some(record_temp_variable), None);
+    let mut expression = factory
+        .create_assignment(temp.clone(), expression.node_wrapper())
+        .set_text_range(Some(&*node_as_unary_expression.operand()));
+
+    let mut operation/*: Expression*/ = if is_prefix_unary_expression(node) {
+        factory.create_prefix_unary_expression(operator, temp.clone())
+    } else {
+        factory.create_postfix_unary_expression(temp.clone(), operator)
+    }.set_text_range(Some(node));
+
+    if let Some(result_variable) = result_variable {
+        let result_variable = result_variable.borrow();
+        operation = factory
+            .create_assignment(result_variable.node_wrapper(), operation)
+            .set_text_range(Some(node));
+    }
+
+    expression = factory.create_comma(expression, operation);
+
+    if is_postfix_unary_expression(node) {
+        expression = factory
+            .create_comma(expression, temp)
+            .set_text_range(Some(node));
+    }
+
+    expression
 }
 
 pub fn is_internal_name(node: &Node /*Identifier*/) -> bool {
@@ -604,49 +693,282 @@ pub fn has_recorded_external_helpers(source_file: &Node /*SourceFile*/) -> bool 
 pub fn create_external_helpers_import_declaration_if_needed<
     TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize,
 >(
-    _node_factory: &NodeFactory<TBaseNodeFactory>,
-    _helper_factory: &EmitHelperFactory,
-    _source_file: &Node, /*SourceFile*/
-    _compiler_options: &CompilerOptions,
-    _has_export_stars_to_export_values: Option<bool>,
-    _has_import_star: Option<bool>,
-    _has_import_default: Option<bool>,
+    node_factory: &NodeFactory<TBaseNodeFactory>,
+    helper_factory: &EmitHelperFactory,
+    source_file: &Node, /*SourceFile*/
+    compiler_options: &CompilerOptions,
+    has_export_stars_to_export_values: Option<bool>,
+    has_import_star: Option<bool>,
+    has_import_default: Option<bool>,
 ) -> Option<Gc<Node>> {
-    unimplemented!()
+    let source_file_as_source_file = source_file.as_source_file();
+    if compiler_options.import_helpers == Some(true)
+        && is_effective_external_module(source_file, compiler_options)
+    {
+        let mut named_bindings: Option<Gc<Node /*NamedImportBindings*/>> = _d();
+        let module_kind = get_emit_module_kind(compiler_options);
+        if module_kind >= ModuleKind::ES2015 && module_kind <= ModuleKind::ESNext
+            || source_file_as_source_file.maybe_implied_node_format() == Some(ModuleKind::ESNext)
+        {
+            let helpers = get_emit_helpers(source_file);
+            if let Some(helpers) = helpers {
+                let mut helper_names: Vec<String> = _d();
+                for helper in helpers {
+                    if !helper.scoped() {
+                        let import_name = helper.as_unscoped_emit_helper().import_name.as_ref();
+                        if let Some(import_name) = import_name.non_empty() {
+                            push_if_unique_eq(&mut helper_names, import_name);
+                        }
+                    }
+                }
+                if !helper_names.is_empty() {
+                    helper_names.sort_by(|a, b| {
+                        comparison_to_ordering(compare_strings_case_sensitive(a, b))
+                    });
+                    named_bindings = Some(node_factory.create_named_imports(map(
+                        helper_names,
+                        |ref name: String, _| {
+                            if is_file_level_unique_name(
+                                source_file,
+                                name,
+                                Option::<fn(&str) -> bool>::None,
+                            ) {
+                                node_factory.create_import_specifier(
+                                    false,
+                                    None,
+                                    node_factory.create_identifier(name),
+                                )
+                            } else {
+                                node_factory.create_import_specifier(
+                                    false,
+                                    Some(node_factory.create_identifier(name)),
+                                    helper_factory.get_unscoped_helper_name(name),
+                                )
+                            }
+                        },
+                    )));
+                    let parse_node = maybe_get_original_node_full(
+                        Some(source_file),
+                        Some(|node: Option<Gc<Node>>| is_source_file(&node.unwrap())),
+                    )
+                    .unwrap();
+                    let emit_node = get_or_create_emit_node(&parse_node);
+                    emit_node.borrow_mut().external_helpers = Some(true);
+                }
+            }
+        } else {
+            let external_helpers_module_name = get_or_create_external_helpers_module_name_if_needed(
+                node_factory,
+                source_file,
+                compiler_options,
+                has_export_stars_to_export_values,
+                Some(has_import_star == Some(true) || has_import_default == Some(true)),
+            );
+            if let Some(external_helpers_module_name) = external_helpers_module_name {
+                named_bindings =
+                    Some(node_factory.create_namespace_import(external_helpers_module_name));
+            }
+        }
+        if let Some(named_bindings) = named_bindings {
+            return Some(
+                node_factory
+                    .create_import_declaration(
+                        Option::<Gc<NodeArray>>::None,
+                        Option::<Gc<NodeArray>>::None,
+                        Some(node_factory.create_import_clause(false, None, Some(named_bindings))),
+                        node_factory.create_string_literal(
+                            external_helpers_module_name_text.to_owned(),
+                            None,
+                            None,
+                        ),
+                        None,
+                    )
+                    .add_emit_flags(EmitFlags::NeverApplyImportHelper),
+            );
+        }
+    }
+    None
+}
+
+pub fn get_or_create_external_helpers_module_name_if_needed<
+    TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize,
+>(
+    factory: &NodeFactory<TBaseNodeFactory>,
+    node: &Node, /*SourceFile*/
+    compiler_options: &CompilerOptions,
+    has_export_stars_to_export_values: Option<bool>,
+    has_import_star_or_import_default: Option<bool>,
+) -> Option<Gc<Node>> {
+    let node_as_source_file = node.as_source_file();
+    if compiler_options.import_helpers == Some(true)
+        && is_effective_external_module(node, compiler_options)
+    {
+        let external_helpers_module_name = get_external_helpers_module_name(node);
+        if external_helpers_module_name.is_some() {
+            return external_helpers_module_name;
+        }
+
+        let module_kind = get_emit_module_kind(compiler_options);
+        let mut create = (has_export_stars_to_export_values == Some(true)
+            || get_es_module_interop(compiler_options) == Some(true)
+                && has_import_star_or_import_default == Some(true))
+            && module_kind != ModuleKind::System
+            && (module_kind < ModuleKind::ES2015
+                || node_as_source_file.maybe_implied_node_format() == Some(ModuleKind::CommonJS));
+        if !create {
+            let helpers = get_emit_helpers(node);
+            if let Some(helpers) = helpers {
+                for helper in helpers {
+                    if !helper.scoped() {
+                        create = true;
+                        break;
+                    }
+                }
+            }
+        }
+
+        if create {
+            let parse_node = maybe_get_original_node_full(
+                Some(node),
+                Some(|node: Option<Gc<Node>>| is_source_file(&node.unwrap())),
+            )
+            .unwrap();
+            let emit_node = get_or_create_emit_node(&parse_node);
+            return Some(
+                emit_node
+                    .borrow_mut()
+                    .external_helpers_module_name
+                    .get_or_insert_with(|| {
+                        factory.create_unique_name(external_helpers_module_name_text, None)
+                    })
+                    .clone(),
+            );
+        }
+    }
+    None
 }
 
 pub fn get_local_name_for_external_import<
     TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize,
 >(
-    _factory: &NodeFactory<TBaseNodeFactory>,
-    _node: &Node, /*ImportDeclaration | ExportDeclaration | ImportEqualsDeclaration*/
-    _source_file: &Node, /*SourceFile*/
+    factory: &NodeFactory<TBaseNodeFactory>,
+    node: &Node, /*ImportDeclaration | ExportDeclaration | ImportEqualsDeclaration*/
+    source_file: &Node, /*SourceFile*/
 ) -> Option<Gc<Node /*Identifier*/>> {
-    unimplemented!()
+    let namespace_declaration = get_namespace_declaration_node(node);
+    if let Some(namespace_declaration) = namespace_declaration
+        .filter(|_| !is_default_import(node) && !is_export_namespace_as_default_declaration(node))
+    {
+        let name = namespace_declaration.as_named_declaration().name();
+        return Some(if is_generated_identifier(&name) {
+            name
+        } else {
+            factory.create_identifier(
+                (&*get_source_text_of_node_from_source_file(source_file, &name, None))
+                    .non_empty()
+                    .unwrap_or_else(|| id_text(&name)),
+            )
+        });
+    }
+    if node.kind() == SyntaxKind::ImportDeclaration
+        && node.as_import_declaration().import_clause.is_some()
+    {
+        return Some(factory.get_generated_name_for_node(Some(node), None));
+    }
+    if node.kind() == SyntaxKind::ExportDeclaration
+        && node.as_export_declaration().module_specifier.is_some()
+    {
+        return Some(factory.get_generated_name_for_node(Some(node), None));
+    }
+    None
 }
 
 pub fn get_external_module_name_literal<
     TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize,
 >(
-    _factory: &NodeFactory<TBaseNodeFactory>,
-    _import_node: &Node, /*ImportDeclaration | ExportDeclaration | ImportEqualsDeclaration | ImportCall*/
-    _source_file: &Node, /*SourceFile*/
-    _host: &dyn EmitHost,
-    _resolver: &dyn EmitResolver,
-    _compiler_options: &CompilerOptions,
+    factory: &NodeFactory<TBaseNodeFactory>,
+    import_node: &Node, /*ImportDeclaration | ExportDeclaration | ImportEqualsDeclaration | ImportCall*/
+    source_file: &Node, /*SourceFile*/
+    host: &dyn EmitHost,
+    resolver: &dyn EmitResolver,
+    compiler_options: &CompilerOptions,
+) -> io::Result<Option<Gc<Node>>> {
+    let module_name = get_external_module_name(import_node);
+    if let Some(module_name) = module_name.filter(|module_name| is_string_literal(module_name)) {
+        return Ok(Some(
+            try_get_module_name_from_declaration(
+                import_node,
+                host,
+                factory,
+                resolver,
+                compiler_options,
+            )?
+            .or_else(|| try_rename_external_module(factory, &module_name, source_file))
+            .unwrap_or_else(|| factory.clone_node(&module_name)),
+        ));
+    }
+
+    Ok(None)
+}
+
+fn try_rename_external_module<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>(
+    factory: &NodeFactory<TBaseNodeFactory>,
+    module_name: &Node, /*LiteralExpression*/
+    source_file: &Node, /*SourceFile*/
 ) -> Option<Gc<Node>> {
-    unimplemented!()
+    let rename = source_file
+        .as_source_file()
+        .maybe_renamed_dependencies()
+        .as_ref()
+        .and_then(|source_file_renamed_dependencies| {
+            source_file_renamed_dependencies
+                .get(&*module_name.as_literal_like_node().text())
+                .cloned()
+        });
+    rename
+        .non_empty()
+        .map(|rename| factory.create_string_literal(rename, None, None))
 }
 
 pub fn try_get_module_name_from_file<
     TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize,
 >(
-    _factory: &NodeFactory<TBaseNodeFactory>,
-    _file: Option<impl Borrow<Node /*SourceFile*/>>,
-    _host: &dyn EmitHost,
-    _options: &CompilerOptions,
+    factory: &NodeFactory<TBaseNodeFactory>,
+    file: Option<impl Borrow<Node /*SourceFile*/>>,
+    host: &dyn EmitHost,
+    options: &CompilerOptions,
 ) -> Option<Gc<Node /*StringLiteral*/>> {
-    unimplemented!()
+    let file = file?;
+    let file: &Node = file.borrow();
+    let file_as_source_file = file.as_source_file();
+    if let Some(file_module_name) = file_as_source_file.maybe_module_name().clone().non_empty() {
+        return Some(factory.create_string_literal(file_module_name, None, None));
+    }
+    if !file_as_source_file.is_declaration_file() && out_file(options).is_non_empty() {
+        return Some(factory.create_string_literal(
+            get_external_module_name_from_path(host, &file_as_source_file.file_name(), None),
+            None,
+            None,
+        ));
+    }
+    None
+}
+
+fn try_get_module_name_from_declaration<
+    TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize,
+>(
+    declaration: &Node, /*ImportEqualsDeclaration | ImportDeclaration | ExportDeclaration | ImportCall*/
+    host: &dyn EmitHost,
+    factory: &NodeFactory<TBaseNodeFactory>,
+    resolver: &dyn EmitResolver,
+    compiler_options: &CompilerOptions,
+) -> io::Result<Option<Gc<Node>>> {
+    Ok(try_get_module_name_from_file(
+        factory,
+        resolver.get_external_module_file_from_declaration(declaration)?,
+        host,
+        compiler_options,
+    ))
 }
 
 pub fn get_initializer_of_binding_or_assignment_element(

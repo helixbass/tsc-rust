@@ -1074,6 +1074,15 @@ pub fn push_if_unique_gc<TItem: Trace + Finalize>(
     }
 }
 
+pub fn push_if_unique_eq<TItem: PartialEq + Clone>(array: &mut Vec<TItem>, to_add: &TItem) -> bool {
+    if array.iter().any(|item| item == to_add) {
+        false
+    } else {
+        array.push(to_add.clone());
+        true
+    }
+}
+
 pub fn append_if_unique_rc<TItem>(array: &mut Vec<Rc<TItem>>, to_add: &Rc<TItem>) {
     push_if_unique_rc(array, to_add);
 }

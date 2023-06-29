@@ -12,7 +12,7 @@ use crate::{
     insert_statements_after_custom_prologue, is_export_namespace_as_default_declaration,
     is_external_module, is_external_module_import_equals_declaration, is_external_module_indicator,
     is_identifier, is_namespace_export, is_source_file, is_statement, single_or_many_node,
-    visit_each_child, visit_nodes, BoolExt, Debug_, EmitFlags, EmitHelperFactory, EmitHint,
+    try_visit_each_child, try_visit_nodes, BoolExt, Debug_, EmitFlags, EmitHelperFactory, EmitHint,
     EmitHost, GeneratedIdentifierFlags, GetOrInsertDefault, HasStatementsInterface, Matches,
     ModifierFlags, ModuleKind, NamedDeclarationInterface, NodeArray, NodeArrayExt, NodeExt,
     NodeFlags, NodeInterface, SyntaxKind, TransformationContextOnEmitNodeOverrider,
@@ -147,16 +147,16 @@ impl TransformEcmascriptModule {
         *self.import_require_statements.borrow_mut() = import_require_statements;
     }
 
-    fn transform_source_file(&self, node: &Node /*SourceFile*/) -> Gc<Node> {
+    fn transform_source_file(&self, node: &Node /*SourceFile*/) -> io::Result<Gc<Node>> {
         let node_as_source_file = node.as_source_file();
         if node_as_source_file.is_declaration_file() {
-            return node.node_wrapper();
+            return Ok(node.node_wrapper());
         }
 
         if is_external_module(node) || self.compiler_options.isolated_modules == Some(true) {
             self.set_current_source_file(Some(node.node_wrapper()));
             self.set_import_require_statements(None);
-            let mut result = self.update_external_module(node);
+            let mut result = self.update_external_module(node)?;
             self.set_current_source_file(None);
             if let Some(import_require_statements) = self.maybe_import_require_statements() {
                 result = self.factory.update_source_file(
@@ -191,9 +191,9 @@ impl TransformEcmascriptModule {
                     .iter()
                     .any(|statement| is_external_module_indicator(statement))
             {
-                return result;
+                return Ok(result);
             }
-            return self.factory.update_source_file(
+            return Ok(self.factory.update_source_file(
                 &result,
                 self.factory
                     .create_node_array(
@@ -212,13 +212,13 @@ impl TransformEcmascriptModule {
                 None,
                 None,
                 None,
-            );
+            ));
         }
 
-        node.node_wrapper()
+        Ok(node.node_wrapper())
     }
 
-    fn update_external_module(&self, node: &Node /*SourceFile*/) -> Gc<Node> {
+    fn update_external_module(&self, node: &Node /*SourceFile*/) -> io::Result<Gc<Node>> {
         let node_as_source_file = node.as_source_file();
         let external_helpers_import_declaration =
             create_external_helpers_import_declaration_if_needed(
@@ -230,7 +230,7 @@ impl TransformEcmascriptModule {
                 None,
                 None,
             );
-        match external_helpers_import_declaration {
+        Ok(match external_helpers_import_declaration {
             Some(external_helpers_import_declaration) => {
                 let mut statements: Vec<Gc<Node /*Statement*/>> = _d();
                 let statement_offset = self.factory.copy_prologue(
@@ -241,13 +241,13 @@ impl TransformEcmascriptModule {
                 );
                 statements.push(external_helpers_import_declaration);
                 statements.extend(
-                    visit_nodes(
+                    try_visit_nodes(
                         &node_as_source_file.statements(),
                         Some(|node: &Node| self.visitor(node)),
                         Some(is_statement),
                         Some(statement_offset),
                         None,
-                    )
+                    )?
                     .owned_iter(),
                 );
                 self.factory.update_source_file(
@@ -262,31 +262,31 @@ impl TransformEcmascriptModule {
                     None,
                 )
             }
-            None => visit_each_child(node, |node: &Node| self.visitor(node), &**self.context),
-        }
+            None => try_visit_each_child(node, |node: &Node| self.visitor(node), &**self.context)?,
+        })
     }
 
-    fn visitor(&self, node: &Node) -> VisitResult /*<Node>*/ {
-        match node.kind() {
+    fn visitor(&self, node: &Node) -> io::Result<VisitResult> /*<Node>*/ {
+        Ok(match node.kind() {
             SyntaxKind::ImportEqualsDeclaration => (get_emit_script_target(&self.compiler_options)
                 // TODO: this definitely looks like an upstream bug of using ModuleKind instead
                 // of ScriptTarget - technically should say ScriptTarget::ES2019 here to be using
                 // the same exact enum int value but let's see if this causes any problems
                 >= ScriptTarget::ES2020)
-                .then_and(|| self.visit_import_equals_declaration(node)),
+                .try_then_and(|| self.visit_import_equals_declaration(node))?,
             SyntaxKind::ExportAssignment => self.visit_export_assignment(node),
             SyntaxKind::ExportDeclaration => {
                 let export_decl = node;
                 self.visit_export_declaration(export_decl)
             }
             _ => Some(node.node_wrapper().into()),
-        }
+        })
     }
 
     fn create_require_call(
         &self,
         import_node: &Node, /*ImportDeclaration | ImportEqualsDeclaration | ExportDeclaration*/
-    ) -> Gc<Node> {
+    ) -> io::Result<Gc<Node>> {
         let module_name = get_external_module_name_literal(
             &self.factory,
             import_node,
@@ -294,7 +294,7 @@ impl TransformEcmascriptModule {
             &**self.host,
             &**self.resolver,
             &self.compiler_options,
-        );
+        )?;
         let mut args: Vec<Gc<Node /*Expression*/>> = _d();
         if let Some(module_name) = module_name {
             args.push(module_name);
@@ -366,17 +366,17 @@ impl TransformEcmascriptModule {
             .as_variable_declaration()
             .name();
         Debug_.assert_node(Some(&*name), Some(is_identifier), None);
-        self.factory.create_call_expression(
+        Ok(self.factory.create_call_expression(
             self.factory.clone_node(&name),
             Option::<Gc<NodeArray>>::None,
             Some(args),
-        )
+        ))
     }
 
     fn visit_import_equals_declaration(
         &self,
         node: &Node, /*ImportEqualsDeclaration*/
-    ) -> VisitResult /*<Statement>*/ {
+    ) -> io::Result<VisitResult> /*<Statement>*/ {
         let node_as_import_equals_declaration = node.as_import_equals_declaration();
         Debug_.assert(
             is_external_module_import_equals_declaration(node),
@@ -396,7 +396,7 @@ impl TransformEcmascriptModule {
                             ),
                             None,
                             None,
-                            Some(self.create_require_call(node)),
+                            Some(self.create_require_call(node)?),
                         )],
                         Some(
                             (self.language_version >= ScriptTarget::ES2015)
@@ -411,7 +411,7 @@ impl TransformEcmascriptModule {
 
         self.append_exports_of_import_equals_declaration(&mut statements, node);
 
-        statements.map(single_or_many_node)
+        Ok(statements.map(single_or_many_node))
     }
 
     fn append_exports_of_import_equals_declaration(
@@ -514,7 +514,7 @@ impl TransformEcmascriptModule {
 
 impl TransformerInterface for TransformEcmascriptModule {
     fn call(&self, node: &Node) -> io::Result<Gc<Node>> {
-        Ok(self.transform_source_file(node))
+        self.transform_source_file(node)
     }
 }
 

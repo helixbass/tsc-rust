@@ -111,7 +111,7 @@ impl TransformSystemModule {
             &**self.host,
             &**self.resolver,
             &self.compiler_options,
-        );
+        )?;
         let first_argument = try_maybe_visit_node(
             first_or_undefined(&node_as_call_expression.arguments).cloned(),
             Some(|node: &Node| self.visitor(node)),

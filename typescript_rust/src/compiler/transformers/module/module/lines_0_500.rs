@@ -14,8 +14,8 @@ use crate::{
     is_assignment_operator, is_declaration_name_of_enum_or_namespace, is_effective_external_module,
     is_export_declaration, is_export_name, is_external_module, is_generated_identifier,
     is_identifier, is_import_clause, is_import_equals_declaration, is_import_specifier,
-    is_json_source_file, is_local_name, is_shorthand_property_assignment, is_statement,
-    map_defined, out_file, reduce_left, set_emit_flags, try_get_module_name_from_file,
+    is_json_source_file, is_local_name, is_shorthand_property_assignment, is_statement, out_file,
+    reduce_left, set_emit_flags, try_get_module_name_from_file, try_map_defined,
     try_maybe_visit_node, try_visit_node, try_visit_nodes, EmitFlags, EmitHelperFactory, EmitHint,
     EmitHost, GeneratedIdentifierFlags, HasStatementsInterface, Matches, NamedDeclarationInterface,
     NodeArray, NodeArrayExt, NodeExt, NodeInterface, NonEmpty, SyntaxKind, TransformFlags,
@@ -322,7 +322,7 @@ impl TransformModule {
             aliased_module_names,
             unaliased_module_names,
             import_alias_names,
-        } = self.collect_asynchronous_dependencies(node, true);
+        } = self.collect_asynchronous_dependencies(node, true)?;
 
         Ok(self
             .factory
@@ -440,7 +440,7 @@ impl TransformModule {
             aliased_module_names,
             unaliased_module_names,
             import_alias_names,
-        } = self.collect_asynchronous_dependencies(node, false);
+        } = self.collect_asynchronous_dependencies(node, false)?;
         let module_name = try_get_module_name_from_file(
             &self.factory,
             Some(node),
@@ -638,7 +638,7 @@ impl TransformModule {
         &self,
         node: &Node, /*SourceFile*/
         include_non_amd_dependencies: bool,
-    ) -> AsynchronousDependencies {
+    ) -> io::Result<AsynchronousDependencies> {
         let node_as_source_file = node.as_source_file();
         let mut aliased_module_names: Vec<Gc<Node /*Expression*/>> = _d();
 
@@ -679,7 +679,7 @@ impl TransformModule {
                 &**self.host,
                 &**self.resolver,
                 &self.compiler_options,
-            );
+            )?;
 
             let import_alias_name = get_local_name_for_external_import(
                 &self.factory,
@@ -707,17 +707,17 @@ impl TransformModule {
             }
         }
 
-        AsynchronousDependencies {
+        Ok(AsynchronousDependencies {
             aliased_module_names,
             unaliased_module_names,
             import_alias_names,
-        }
+        })
     }
 
     pub(super) fn get_amd_import_expression_for_import(
         &self,
         node: &Node, /*ImportDeclaration | ExportDeclaration | ImportEqualsDeclaration*/
-    ) -> Option<Gc<Node>> {
+    ) -> io::Result<Option<Gc<Node>>> {
         if is_import_equals_declaration(node)
             || is_export_declaration(node)
             || get_external_module_name_literal(
@@ -727,22 +727,21 @@ impl TransformModule {
                 &**self.host,
                 &**self.resolver,
                 &self.compiler_options,
-            )
+            )?
             .is_none()
         {
-            return None;
+            return Ok(None);
         }
         let name =
             get_local_name_for_external_import(&self.factory, node, &self.current_source_file())
                 .unwrap();
         let expr = self.get_helper_expression_for_import(node, name.clone());
         if Gc::ptr_eq(&expr, &name) {
-            return None;
+            return Ok(None);
         }
-        Some(
-            self.factory
-                .create_expression_statement(self.factory.create_assignment(name, expr)),
-        )
+        Ok(Some(self.factory.create_expression_statement(
+            self.factory.create_assignment(name, expr),
+        )))
     }
 
     pub(super) fn transform_asynchronous_module_body(
@@ -800,12 +799,12 @@ impl TransformModule {
         if self.module_kind == ModuleKind::AMD {
             add_range(
                 &mut statements,
-                Some(&map_defined(
+                Some(&try_map_defined(
                     Some(&self.current_module_info().external_imports),
                     |external_import: &Gc<Node>, _| {
                         self.get_amd_import_expression_for_import(external_import)
                     },
-                )),
+                )?),
                 None,
                 None,
             );

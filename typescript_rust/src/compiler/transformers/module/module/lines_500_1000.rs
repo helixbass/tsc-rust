@@ -22,9 +22,9 @@ use crate::{
 impl TransformModule {
     pub(super) fn top_level_visitor(&self, node: &Node) -> io::Result<VisitResult> /*<Node>*/ {
         Ok(match node.kind() {
-            SyntaxKind::ImportDeclaration => self.visit_import_declaration(node),
-            SyntaxKind::ImportEqualsDeclaration => self.visit_import_equals_declaration(node),
-            SyntaxKind::ExportDeclaration => self.visit_export_declaration(node),
+            SyntaxKind::ImportDeclaration => self.visit_import_declaration(node)?,
+            SyntaxKind::ImportEqualsDeclaration => self.visit_import_equals_declaration(node)?,
+            SyntaxKind::ExportDeclaration => self.visit_export_declaration(node)?,
             SyntaxKind::ExportAssignment => self.visit_export_assignment(node)?,
             SyntaxKind::VariableStatement => self.visit_variable_statement(node)?,
             SyntaxKind::FunctionDeclaration => self.visit_function_declaration(node)?,
@@ -365,7 +365,7 @@ impl TransformModule {
             &**self.host,
             &**self.resolver,
             &self.compiler_options,
-        );
+        )?;
         let first_argument = try_maybe_visit_node(
             first_or_undefined(&node_as_call_expression.arguments).cloned(),
             Some(|node: &Node| self.visitor(node)),
@@ -634,19 +634,19 @@ impl TransformModule {
     pub(super) fn visit_import_declaration(
         &self,
         node: &Node, /*ImportDeclaration*/
-    ) -> VisitResult /*<Statement>*/ {
+    ) -> io::Result<VisitResult> /*<Statement>*/ {
         let node_as_import_declaration = node.as_import_declaration();
         let mut statements: Option<Vec<Gc<Node /*Statement*/>>> = _d();
         let namespace_declaration = get_namespace_declaration_node(node);
         if self.module_kind != ModuleKind::AMD {
             if node_as_import_declaration.import_clause.is_none() {
-                return Some(
+                return Ok(Some(
                     self.factory
-                        .create_expression_statement(self.create_require_call(node))
+                        .create_expression_statement(self.create_require_call(node)?)
                         .set_text_range(Some(node))
                         .set_original_node(Some(node.node_wrapper()))
                         .into(),
-                );
+                ));
             } else {
                 let mut variables: Vec<Gc<Node /*VariableDeclaration*/>> = _d();
                 if let Some(namespace_declaration) = namespace_declaration
@@ -664,7 +664,7 @@ impl TransformModule {
                             None,
                             Some(self.get_helper_expression_for_import(
                                 node,
-                                self.create_require_call(node),
+                                self.create_require_call(node)?,
                             )),
                         ),
                     );
@@ -675,7 +675,7 @@ impl TransformModule {
                         None,
                         Some(self.get_helper_expression_for_import(
                             node,
-                            self.create_require_call(node),
+                            self.create_require_call(node)?,
                         )),
                     ));
 
@@ -752,13 +752,13 @@ impl TransformModule {
             self.append_exports_of_import_declaration(&mut statements, node);
         }
 
-        statements.map(single_or_many_node)
+        Ok(statements.map(single_or_many_node))
     }
 
     pub(super) fn create_require_call(
         &self,
         import_node: &Node, /*ImportDeclaration | ImportEqualsDeclaration | ExportDeclaration*/
-    ) -> Gc<Node> {
+    ) -> io::Result<Gc<Node>> {
         let module_name = get_external_module_name_literal(
             &self.factory,
             import_node,
@@ -766,16 +766,16 @@ impl TransformModule {
             &**self.host,
             &**self.resolver,
             &self.compiler_options,
-        );
+        )?;
         let mut args: Vec<Gc<Node /*Expression*/>> = _d();
         if let Some(module_name) = module_name {
             args.push(module_name);
         }
 
-        self.factory.create_call_expression(
+        Ok(self.factory.create_call_expression(
             self.factory.create_identifier("require"),
             Option::<Gc<NodeArray>>::None,
             Some(args),
-        )
+        ))
     }
 }

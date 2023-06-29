@@ -282,7 +282,7 @@ impl TransformSystemModule {
         self.set_context_object(Some(context_object));
 
         let dependency_groups =
-            self.collect_dependency_groups(&self.module_info().external_imports);
+            self.collect_dependency_groups(&self.module_info().external_imports)?;
         let module_body_block = self.create_system_module_body(node, &dependency_groups)?;
         let module_body_function = self.factory.create_function_expression(
             Option::<Gc<NodeArray>>::None,
@@ -387,7 +387,7 @@ impl TransformSystemModule {
         external_imports: &[Gc<
             Node, /*ImportDeclaration | ImportEqualsDeclaration | ExportDeclaration*/
         >],
-    ) -> Vec<DependencyGroup> {
+    ) -> io::Result<Vec<DependencyGroup>> {
         let mut group_indices: HashMap<String, usize> = _d();
         let mut dependency_groups: Vec<DependencyGroup> = _d();
         for external_import in external_imports {
@@ -398,7 +398,7 @@ impl TransformSystemModule {
                 &**self.host,
                 &**self.resolver,
                 &self.compiler_options,
-            );
+            )?;
             if let Some(external_module_name) = external_module_name {
                 let text = external_module_name.as_string_literal().text();
                 let group_index = group_indices.get(&*text).copied();
@@ -416,7 +416,7 @@ impl TransformSystemModule {
             }
         }
 
-        dependency_groups
+        Ok(dependency_groups)
     }
 
     pub(super) fn create_system_module_body(

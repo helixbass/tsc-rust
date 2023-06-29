@@ -8,6 +8,7 @@ use std::{
 use bitflags::bitflags;
 use derive_builder::Builder;
 use gc::{Finalize, Gc, GcCellRef, Trace};
+use local_macros::enum_unwrapped;
 
 use super::{
     BaseTextRange, CompilerOptions, FileReference, Node, RedirectTargetsMap,
@@ -931,6 +932,12 @@ impl EmitHelperBase for UnscopedEmitHelper {
 pub enum EmitHelper {
     ScopedEmitHelper(ScopedEmitHelper),
     UnscopedEmitHelper(UnscopedEmitHelper),
+}
+
+impl EmitHelper {
+    pub fn as_unscoped_emit_helper(&self) -> &UnscopedEmitHelper {
+        enum_unwrapped!(self, [EmitHelper, UnscopedEmitHelper])
+    }
 }
 
 impl From<ScopedEmitHelper> for EmitHelper {

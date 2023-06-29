@@ -171,6 +171,8 @@ pub struct SourceFileContents {
     #[unsafe_ignore_trace]
     is_declaration_file: Cell<bool>,
 
+    renamed_dependencies: GcCell<Option<HashMap<String, String>>>,
+
     #[unsafe_ignore_trace]
     has_no_default_lib: Cell<bool>,
 
@@ -293,6 +295,7 @@ impl SourceFile {
                 js_global_augmentations: Default::default(),
                 is_declaration_file: Cell::new(is_declaration_file),
                 has_no_default_lib: Cell::new(has_no_default_lib),
+                renamed_dependencies: Default::default(),
                 comment_directives: Default::default(),
                 resolved_modules: Default::default(),
                 resolved_type_reference_directive_names: Default::default(),
@@ -381,6 +384,10 @@ impl SourceFile {
 
     pub fn maybe_redirect_info_mut(&self) -> GcCellRefMut<Option<RedirectInfo>> {
         self.contents.redirect_info.borrow_mut()
+    }
+
+    pub fn maybe_renamed_dependencies(&self) -> GcCellRef<Option<HashMap<String, String>>> {
+        self.contents.renamed_dependencies.borrow()
     }
 
     pub fn has_no_default_lib(&self) -> bool {
