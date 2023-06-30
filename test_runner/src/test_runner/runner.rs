@@ -1,11 +1,13 @@
-use clap::Parser;
+use std::{cell::Cell, collections::HashMap};
+
+use clap::{Parser, ValueEnum};
 use gc::GcCell;
+use harness::{mocha, vpath, MochaArgs, RunnerBase, StringOrFileBasedTest};
+use once_cell::unsync::OnceCell;
 use regex::Regex;
-use std::cell::Cell;
-use std::collections::HashMap;
+use typescript_rust::_d;
 
 use crate::{CompilerBaselineRunner, CompilerTestType};
-use harness::{mocha, vpath, MochaArgs, RunnerBase, StringOrFileBasedTest};
 
 thread_local! {
     static runners_: GcCell<Vec<RunnerBase>> = Default::default();
@@ -124,14 +126,43 @@ fn start_test_environment() {
     begin_tests()
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq, ValueEnum)]
+pub enum TestCategory {
+    VerifyDiagnostics,
+    VerifyModuleResolution,
+    VerifyJavaScriptOutput,
+}
+
+thread_local! {
+    static TEST_CATEGORY: OnceCell<Option<TestCategory>> = _d();
+}
+fn initialize_test_category(category: Option<TestCategory>) {
+    TEST_CATEGORY.with(|test_category| {
+        test_category.set(category).unwrap();
+    })
+}
+pub(crate) fn should_run_category(category: TestCategory) -> bool {
+    TEST_CATEGORY.with(|test_category| {
+        test_category
+            .get()
+            .unwrap()
+            .filter(|test_category| *test_category != category)
+            .is_none()
+    })
+}
+
 #[derive(Parser)]
 pub struct Args {
     #[clap(flatten)]
     pub mocha_args: MochaArgs,
+
+    #[arg(long, value_enum)]
+    pub category: Option<TestCategory>,
 }
 
 pub fn run(args: &Args) {
     mocha::register_config(&args.mocha_args);
+    initialize_test_category(args.category);
     start_test_environment();
     mocha::print_results();
 }

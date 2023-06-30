@@ -15,6 +15,8 @@ use typescript_rust::{
     is_rooted_disk_path, regex, some, to_path, CompilerOptions, Extension,
 };
 
+use super::runner::{should_run_category, TestCategory};
+
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum CompilerTestType {
     Conformance,
@@ -125,42 +127,8 @@ impl CompilerBaselineRunner {
         //             Some(CompilerTest::new(file_name, payload, configuration));
         //     }
         // });
-        it(&format!("Correct errors for {}", file_name), {
-            let configuration = configuration.cloned();
-            let test = test.cloned();
-            let file_name = file_name.to_owned();
-            move || {
-                let mut payload: Option<TestCaseParser::TestCaseContent> = None;
-                if let Some(test) = test.as_ref().filter(|test| {
-                    matches!(
-                        test.content.as_ref(),
-                        Some(test_content) if !test_content.is_empty()
-                    )
-                }) {
-                    let root_dir = if !test.file.contains("conformance") {
-                        // "tests/cases/compiler/".to_owned()
-                        "../typescript_rust/typescript_src/tests/cases/compiler/".to_owned()
-                    } else {
-                        format!("{}/", get_directory_path(&test.file))
-                    }
-                    .replace("../typescript_rust/typescript_src/", "");
-                    payload = Some(
-                        TestCaseParser::make_units_from_test(
-                            test.content.as_ref().unwrap(),
-                            &test.file,
-                            Some(&root_dir),
-                            None,
-                        )
-                        .unwrap(),
-                    );
-                }
-                let compiler_test = CompilerTest::new(file_name, payload, configuration).unwrap();
-                compiler_test.verify_diagnostics().unwrap();
-            }
-        });
-        it(
-            &format!("Correct module resolution tracing for {}", file_name),
-            {
+        if should_run_category(TestCategory::VerifyDiagnostics) {
+            it(&format!("Correct errors for {}", file_name), {
                 let configuration = configuration.cloned();
                 let test = test.cloned();
                 let file_name = file_name.to_owned();
@@ -191,47 +159,88 @@ impl CompilerBaselineRunner {
                     }
                     let compiler_test =
                         CompilerTest::new(file_name, payload, configuration).unwrap();
-                    compiler_test.verify_module_resolution();
+                    compiler_test.verify_diagnostics().unwrap();
                 }
-            },
-        );
-        it(&format!("Correct JS output for {}", file_name), {
-            let configuration = configuration.cloned();
-            let test = test.cloned();
-            let file_name = file_name.to_owned();
-            let emit = self.emit;
-            move || {
-                if emit {
-                    let mut payload: Option<TestCaseParser::TestCaseContent> = None;
-                    if let Some(test) = test.as_ref().filter(|test| {
-                        matches!(
-                            test.content.as_ref(),
-                            Some(test_content) if !test_content.is_empty()
-                        )
-                    }) {
-                        let root_dir = if !test.file.contains("conformance") {
-                            // "tests/cases/compiler/".to_owned()
-                            "../typescript_rust/typescript_src/tests/cases/compiler/".to_owned()
-                        } else {
-                            format!("{}/", get_directory_path(&test.file))
-                        }
-                        .replace("../typescript_rust/typescript_src/", "");
-                        payload = Some(
-                            TestCaseParser::make_units_from_test(
-                                test.content.as_ref().unwrap(),
-                                &test.file,
-                                Some(&root_dir),
-                                None,
+            });
+        }
+        if should_run_category(TestCategory::VerifyModuleResolution) {
+            it(
+                &format!("Correct module resolution tracing for {}", file_name),
+                {
+                    let configuration = configuration.cloned();
+                    let test = test.cloned();
+                    let file_name = file_name.to_owned();
+                    move || {
+                        let mut payload: Option<TestCaseParser::TestCaseContent> = None;
+                        if let Some(test) = test.as_ref().filter(|test| {
+                            matches!(
+                                test.content.as_ref(),
+                                Some(test_content) if !test_content.is_empty()
                             )
-                            .unwrap(),
-                        );
+                        }) {
+                            let root_dir = if !test.file.contains("conformance") {
+                                // "tests/cases/compiler/".to_owned()
+                                "../typescript_rust/typescript_src/tests/cases/compiler/".to_owned()
+                            } else {
+                                format!("{}/", get_directory_path(&test.file))
+                            }
+                            .replace("../typescript_rust/typescript_src/", "");
+                            payload = Some(
+                                TestCaseParser::make_units_from_test(
+                                    test.content.as_ref().unwrap(),
+                                    &test.file,
+                                    Some(&root_dir),
+                                    None,
+                                )
+                                .unwrap(),
+                            );
+                        }
+                        let compiler_test =
+                            CompilerTest::new(file_name, payload, configuration).unwrap();
+                        compiler_test.verify_module_resolution();
                     }
-                    let compiler_test =
-                        CompilerTest::new(file_name, payload, configuration).unwrap();
-                    compiler_test.verify_java_script_output().unwrap();
+                },
+            );
+        }
+        if should_run_category(TestCategory::VerifyJavaScriptOutput) {
+            it(&format!("Correct JS output for {}", file_name), {
+                let configuration = configuration.cloned();
+                let test = test.cloned();
+                let file_name = file_name.to_owned();
+                let emit = self.emit;
+                move || {
+                    if emit {
+                        let mut payload: Option<TestCaseParser::TestCaseContent> = None;
+                        if let Some(test) = test.as_ref().filter(|test| {
+                            matches!(
+                                test.content.as_ref(),
+                                Some(test_content) if !test_content.is_empty()
+                            )
+                        }) {
+                            let root_dir = if !test.file.contains("conformance") {
+                                // "tests/cases/compiler/".to_owned()
+                                "../typescript_rust/typescript_src/tests/cases/compiler/".to_owned()
+                            } else {
+                                format!("{}/", get_directory_path(&test.file))
+                            }
+                            .replace("../typescript_rust/typescript_src/", "");
+                            payload = Some(
+                                TestCaseParser::make_units_from_test(
+                                    test.content.as_ref().unwrap(),
+                                    &test.file,
+                                    Some(&root_dir),
+                                    None,
+                                )
+                                .unwrap(),
+                            );
+                        }
+                        let compiler_test =
+                            CompilerTest::new(file_name, payload, configuration).unwrap();
+                        compiler_test.verify_java_script_output().unwrap();
+                    }
                 }
-            }
-        });
+            });
+        }
         // after({
         //     let compiler_test = compiler_test.clone();
         //     move || {

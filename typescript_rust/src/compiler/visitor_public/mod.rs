@@ -61,7 +61,10 @@ pub fn try_maybe_visit_node(
 ) -> io::Result<Option<Gc<Node>>> {
     let node = return_ok_default_if_none!(node);
     let node = node.borrow();
-    let mut visitor = return_ok_default_if_none!(visitor);
+    if visitor.is_none() {
+        return Ok(Some(node.node_wrapper()));
+    }
+    let mut visitor = visitor.unwrap();
 
     let visited = visitor(node)?;
     if visited.ptr_eq_node(node) {

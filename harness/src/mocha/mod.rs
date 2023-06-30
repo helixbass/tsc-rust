@@ -1,14 +1,19 @@
+use std::{
+    any::Any,
+    cell::{Cell, RefCell},
+    io::{self, Write},
+    panic::{self, UnwindSafe},
+    sync::{
+        atomic::{AtomicUsize, Ordering},
+        mpsc::{channel, Receiver, Sender},
+        Arc, Mutex,
+    },
+    thread,
+};
+
 use clap::Parser;
 use once_cell::sync::{Lazy, OnceCell};
 use regex::Regex;
-use std::any::Any;
-use std::cell::{Cell, RefCell};
-use std::io::{self, Write};
-use std::panic::{self, UnwindSafe};
-use std::sync::atomic::{AtomicUsize, Ordering};
-use std::sync::mpsc::{channel, Receiver, Sender};
-use std::sync::{Arc, Mutex};
-use std::thread;
 use threadpool::ThreadPool;
 
 #[derive(Clone, Debug, Parser)]
