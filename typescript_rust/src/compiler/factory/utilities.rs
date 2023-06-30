@@ -21,9 +21,11 @@ use crate::{
     SyntaxKind, _d, compare_strings_case_sensitive, comparison_to_ordering,
     external_helpers_module_name_text, get_emit_helpers, get_emit_module_kind,
     get_es_module_interop, get_external_module_name, get_external_module_name_from_path,
-    get_namespace_declaration_node, get_source_text_of_node_from_source_file, is_default_import,
-    is_export_namespace_as_default_declaration, is_file_level_unique_name, is_generated_identifier,
-    map, out_file, push_if_unique_eq, ModuleKind,
+    get_namespace_declaration_node, get_source_text_of_node_from_source_file,
+    is_assignment_operator, is_default_import, is_export_namespace_as_default_declaration,
+    is_file_level_unique_name, is_generated_identifier, is_property_assignment, is_property_name,
+    is_shorthand_property_assignment, is_spread_assignment, map, out_file, push_if_unique_eq,
+    ModuleKind,
 };
 
 pub fn create_empty_exports<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>(
@@ -972,9 +974,35 @@ fn try_get_module_name_from_declaration<
 }
 
 pub fn get_initializer_of_binding_or_assignment_element(
-    _binding_element: &Node, /*BindingOrAssignmentElement*/
+    binding_element: &Node, /*BindingOrAssignmentElement*/
 ) -> Option<Gc<Node /*Expression*/>> {
-    unimplemented!()
+    if is_declaration_binding_element(binding_element) {
+        return binding_element.as_has_initializer().maybe_initializer();
+    }
+
+    if is_property_assignment(binding_element) {
+        let initializer = &binding_element.as_property_assignment().initializer;
+        return is_assignment_expression(initializer, Some(true))
+            .then(|| initializer.as_binary_expression().right.clone());
+    }
+
+    if is_shorthand_property_assignment(binding_element) {
+        return binding_element
+            .as_shorthand_property_assignment()
+            .object_assignment_initializer
+            .clone();
+    }
+
+    if is_assignment_expression(binding_element, Some(true)) {
+        return Some(binding_element.as_binary_expression().right.clone());
+    }
+
+    if is_spread_element(binding_element) {
+        return get_initializer_of_binding_or_assignment_element(
+            &binding_element.as_spread_element().expression,
+        );
+    }
+    None
 }
 
 pub fn get_target_of_binding_or_assignment_element(
@@ -1042,21 +1070,99 @@ pub fn get_elements_of_binding_or_assignment_pattern(
 }
 
 pub fn get_rest_indicator_of_binding_or_assignment_element(
-    _binding_element: &Node, /*BindingOrAssignmentElement*/
+    binding_element: &Node, /*BindingOrAssignmentElement*/
 ) -> Option<Gc<Node /*BindingOrAssignmentElementRestIndicator*/>> {
-    unimplemented!()
+    match binding_element.kind() {
+        SyntaxKind::Parameter | SyntaxKind::BindingElement => binding_element
+            .as_has_dot_dot_dot_token()
+            .maybe_dot_dot_dot_token(),
+        SyntaxKind::SpreadElement | SyntaxKind::SpreadAssignment => {
+            Some(binding_element.node_wrapper())
+        }
+        _ => None,
+    }
 }
 
 pub fn get_property_name_of_binding_or_assignment_element(
-    _binding_element: &Node, /*BindingOrAssignmentElement*/
+    binding_element: &Node, /*BindingOrAssignmentElement*/
 ) -> Option<Gc<Node /*Exclude<PropertyName, PrivateIdentifier>*/>> {
-    unimplemented!()
+    let property_name = try_get_property_name_of_binding_or_assignment_element(binding_element);
+    Debug_.assert(
+        property_name.is_some() || is_spread_assignment(binding_element),
+        Some("Invalid property name for binding element."),
+    );
+    property_name
 }
 
 pub fn try_get_property_name_of_binding_or_assignment_element(
-    _binding_element: &Node, /*BindingOrAssignmentElement*/
+    binding_element: &Node, /*BindingOrAssignmentElement*/
 ) -> Option<Gc<Node /*Exclude<PropertyName, PrivateIdentifier>*/>> {
-    unimplemented!()
+    match binding_element.kind() {
+        SyntaxKind::BindingElement => {
+            if let Some(binding_element_property_name) =
+                binding_element.as_binding_element().property_name.as_ref()
+            {
+                let property_name = binding_element_property_name;
+                if is_private_identifier(property_name) {
+                    Debug_.fail_bad_syntax_kind(property_name, None);
+                }
+                return Some(
+                    if is_computed_property_name(property_name)
+                        && is_string_or_numeric_literal(
+                            &property_name.as_computed_property_name().expression,
+                        )
+                    {
+                        property_name.as_computed_property_name().expression.clone()
+                    } else {
+                        property_name.clone()
+                    },
+                );
+            }
+        }
+        SyntaxKind::PropertyAssignment => {
+            if let Some(binding_element_name) =
+                binding_element.as_property_assignment().maybe_name()
+            {
+                let property_name = &binding_element_name;
+                if is_private_identifier(property_name) {
+                    Debug_.fail_bad_syntax_kind(property_name, None);
+                }
+                return Some(
+                    if is_computed_property_name(property_name)
+                        && is_string_or_numeric_literal(
+                            &property_name.as_computed_property_name().expression,
+                        )
+                    {
+                        property_name.as_computed_property_name().expression.clone()
+                    } else {
+                        property_name.clone()
+                    },
+                );
+            }
+        }
+        SyntaxKind::SpreadAssignment => {
+            let binding_element_as_spread_assignment = binding_element.as_spread_assignment();
+            if let Some(ref binding_element_name) = binding_element_as_spread_assignment
+                .maybe_name()
+                .filter(|binding_element_name| is_private_identifier(binding_element_name))
+            {
+                Debug_.fail_bad_syntax_kind(binding_element_name, None);
+            }
+            return binding_element_as_spread_assignment.maybe_name();
+        }
+        _ => (),
+    }
+
+    let target = get_target_of_binding_or_assignment_element(binding_element);
+    if target.as_ref().matches(|target| is_property_name(target)) {
+        return target;
+    }
+    None
+}
+
+fn is_string_or_numeric_literal(node: &Node) -> bool {
+    let kind = node.kind();
+    matches!(kind, SyntaxKind::StringLiteral | SyntaxKind::NumericLiteral)
 }
 
 pub(crate) fn get_jsdoc_type_alias_name(
@@ -1132,8 +1238,106 @@ pub fn is_module_name(node: &Node) -> bool {
     is_identifier(node) || is_string_literal(node)
 }
 
-pub fn is_binary_operator_token(_node: &Node) -> bool {
-    unimplemented!()
+fn is_exponentiation_operator(kind: SyntaxKind) -> bool {
+    kind == SyntaxKind::AsteriskAsteriskToken
+}
+
+fn is_multiplicative_operator(kind: SyntaxKind) -> bool {
+    matches!(
+        kind,
+        SyntaxKind::AsteriskToken | SyntaxKind::SlashToken | SyntaxKind::PercentToken
+    )
+}
+
+fn is_multiplicative_operator_or_higher(kind: SyntaxKind) -> bool {
+    is_exponentiation_operator(kind) || is_multiplicative_operator(kind)
+}
+
+fn is_additive_operator(kind: SyntaxKind) -> bool {
+    matches!(kind, SyntaxKind::PlusToken | SyntaxKind::MinusToken)
+}
+
+fn is_additive_operator_or_higher(kind: SyntaxKind) -> bool {
+    is_additive_operator(kind) || is_multiplicative_operator_or_higher(kind)
+}
+
+fn is_shift_operator(kind: SyntaxKind) -> bool {
+    matches!(
+        kind,
+        SyntaxKind::LessThanLessThanToken
+            | SyntaxKind::GreaterThanGreaterThanToken
+            | SyntaxKind::GreaterThanGreaterThanGreaterThanToken
+    )
+}
+
+fn is_shift_operator_or_higher(kind: SyntaxKind) -> bool {
+    is_shift_operator(kind) || is_additive_operator_or_higher(kind)
+}
+
+fn is_relational_operator(kind: SyntaxKind) -> bool {
+    matches!(
+        kind,
+        SyntaxKind::LessThanToken
+            | SyntaxKind::LessThanEqualsToken
+            | SyntaxKind::GreaterThanToken
+            | SyntaxKind::GreaterThanEqualsToken
+            | SyntaxKind::InstanceOfKeyword
+            | SyntaxKind::InKeyword
+    )
+}
+
+fn is_relational_operator_or_higher(kind: SyntaxKind) -> bool {
+    is_relational_operator(kind) || is_shift_operator_or_higher(kind)
+}
+
+fn is_equality_operator(kind: SyntaxKind) -> bool {
+    matches!(
+        kind,
+        SyntaxKind::EqualsEqualsToken
+            | SyntaxKind::EqualsEqualsEqualsToken
+            | SyntaxKind::ExclamationEqualsToken
+            | SyntaxKind::ExclamationEqualsEqualsToken
+    )
+}
+
+fn is_equality_operator_or_higher(kind: SyntaxKind) -> bool {
+    is_equality_operator(kind) || is_relational_operator_or_higher(kind)
+}
+
+fn is_bitwise_operator(kind: SyntaxKind) -> bool {
+    matches!(
+        kind,
+        SyntaxKind::AmpersandToken | SyntaxKind::BarToken | SyntaxKind::CaretToken
+    )
+}
+
+fn is_bitwise_operator_or_higher(kind: SyntaxKind) -> bool {
+    is_bitwise_operator(kind) || is_equality_operator_or_higher(kind)
+}
+
+fn is_logical_operator(kind: SyntaxKind) -> bool {
+    matches!(
+        kind,
+        SyntaxKind::AmpersandAmpersandToken | SyntaxKind::BarBarToken
+    )
+}
+
+fn is_logical_operator_or_higher(kind: SyntaxKind) -> bool {
+    is_logical_operator(kind) || is_bitwise_operator_or_higher(kind)
+}
+
+fn is_assignment_operator_or_higher(kind: SyntaxKind) -> bool {
+    kind == SyntaxKind::QuestionQuestionToken
+        || is_logical_operator_or_higher(kind)
+        || is_assignment_operator(kind)
+}
+
+fn is_binary_operator(kind: SyntaxKind) -> bool {
+    is_assignment_operator_or_higher(kind) || kind == SyntaxKind::CommaToken
+}
+
+pub fn is_binary_operator_token(node: &Node) -> bool {
+    is_binary_operator(node.kind())
 }
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
