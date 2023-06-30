@@ -13,7 +13,7 @@ use super::supported_ts_extensions_for_extract_extension;
 use crate::{
     TransformFlags, TransientSymbolInterface, Type, TypeChecker, TypeFlags, TypeInterface,
     __String, entity_name_to_string, file_extension_is, filter, find, get_combined_modifier_flags,
-    get_element_or_property_access_name, get_lines_between_positions,
+    get_element_or_property_access_name, get_lines_between_positions, get_parse_tree_node,
     get_property_name_for_property_name_node, get_sys, has_syntactic_modifier,
     is_assignment_operator, is_bindable_static_access_expression, is_class_like,
     is_element_access_expression, is_entity_name_expression, is_identifier, is_jsdoc_member_name,
@@ -406,8 +406,20 @@ pub fn get_lines_between_position_and_next_non_whitespace_character(
     unimplemented!()
 }
 
-pub fn is_declaration_name_of_enum_or_namespace(_node: &Node /*Identifier*/) -> bool {
-    unimplemented!()
+pub fn is_declaration_name_of_enum_or_namespace(node: &Node /*Identifier*/) -> bool {
+    let parse_node = get_parse_tree_node(Some(node), Option::<fn(&Node) -> bool>::None);
+    if let Some(parse_node) = parse_node {
+        match parse_node.parent().kind() {
+            SyntaxKind::EnumDeclaration | SyntaxKind::ModuleDeclaration => {
+                return Gc::ptr_eq(
+                    &parse_node,
+                    &parse_node.parent().as_named_declaration().name(),
+                );
+            }
+            _ => (),
+        }
+    }
+    false
 }
 
 pub fn get_initialized_variables(node: &Node /*VariableDeclarationList*/) -> Vec<Gc<Node>> {
