@@ -2,9 +2,7 @@ use std::borrow::Borrow;
 
 use gc::Gc;
 
-use super::{
-    visit_function_body, visit_iteration_body, visit_lexical_environment, visit_parameter_list,
-};
+use super::{visit_iteration_body, visit_lexical_environment};
 use crate::{
     is_array_binding_element, is_assert_clause, is_assert_entry, is_assertion_key,
     is_asserts_keyword, is_asterisk_token, is_await_keyword, is_binary_operator_token,
@@ -25,12 +23,13 @@ use crate::{
     is_template_literal_type_span, is_template_middle_or_template_tail, is_template_span, is_token,
     is_type_element, is_type_node, is_type_node_or_type_parameter_declaration,
     is_type_parameter_declaration, is_variable_declaration, is_variable_declaration_list,
-    maybe_visit_node, maybe_visit_nodes, ClassLikeDeclarationInterface,
-    FunctionLikeDeclarationInterface, HasInitializerInterface, HasMembersInterface,
-    HasQuestionTokenInterface, HasStatementsInterface, HasTypeArgumentsInterface, HasTypeInterface,
-    HasTypeParametersInterface, InterfaceOrClassLikeDeclarationInterface,
-    NamedDeclarationInterface, Node, NodeArray, NodeFlags, NodeInterface,
-    SignatureDeclarationInterface, SyntaxKind, TransformationContext, VisitResult,
+    maybe_visit_node, maybe_visit_nodes, visit_function_body_full, visit_parameter_list_full,
+    ClassLikeDeclarationInterface, FunctionLikeDeclarationInterface, HasInitializerInterface,
+    HasMembersInterface, HasQuestionTokenInterface, HasStatementsInterface,
+    HasTypeArgumentsInterface, HasTypeInterface, HasTypeParametersInterface,
+    InterfaceOrClassLikeDeclarationInterface, NamedDeclarationInterface, Node, NodeArray,
+    NodeFlags, NodeInterface, SignatureDeclarationInterface, SyntaxKind, TransformationContext,
+    VisitResult,
 };
 
 pub fn visit_each_child(
@@ -493,7 +492,7 @@ pub fn maybe_visit_each_child_full(
                         None,
                         None,
                     ),
-                    visit_parameter_list(
+                    visit_parameter_list_full(
                         Some(&node_as_method_declaration.parameters()),
                         |node: &Node| visitor(node),
                         context,
@@ -515,7 +514,7 @@ pub fn maybe_visit_each_child_full(
                         Some(&is_type_node),
                         None,
                     ),
-                    visit_function_body(
+                    visit_function_body_full(
                         node_as_method_declaration.maybe_body().as_deref(),
                         |node: &Node| visitor(node),
                         context,
@@ -551,7 +550,7 @@ pub fn maybe_visit_each_child_full(
                         None,
                         None,
                     ),
-                    visit_parameter_list(
+                    visit_parameter_list_full(
                         Some(&node_as_constructor_declaration.parameters()),
                         |node: &Node| visitor(node),
                         context,
@@ -566,7 +565,7 @@ pub fn maybe_visit_each_child_full(
                         ),
                     )
                     .unwrap(),
-                    visit_function_body(
+                    visit_function_body_full(
                         node_as_constructor_declaration.maybe_body().as_deref(),
                         |node: &Node| visitor(node),
                         context,
@@ -608,7 +607,7 @@ pub fn maybe_visit_each_child_full(
                         None,
                     )
                     .unwrap(),
-                    visit_parameter_list(
+                    visit_parameter_list_full(
                         Some(&node_as_get_accessor_declaration.parameters()),
                         |node: &Node| visitor(node),
                         context,
@@ -629,7 +628,7 @@ pub fn maybe_visit_each_child_full(
                         Some(&is_type_node),
                         None,
                     ),
-                    visit_function_body(
+                    visit_function_body_full(
                         node_as_get_accessor_declaration.maybe_body().as_deref(),
                         |node: &Node| visitor(node),
                         context,
@@ -671,7 +670,7 @@ pub fn maybe_visit_each_child_full(
                         None,
                     )
                     .unwrap(),
-                    visit_parameter_list(
+                    visit_parameter_list_full(
                         Some(&node_as_set_accessor_declaration.parameters()),
                         |node: &Node| visitor(node),
                         context,
@@ -686,7 +685,7 @@ pub fn maybe_visit_each_child_full(
                         ),
                     )
                     .unwrap(),
-                    visit_function_body(
+                    visit_function_body_full(
                         node_as_set_accessor_declaration.maybe_body().as_deref(),
                         |node: &Node| visitor(node),
                         context,
@@ -723,7 +722,7 @@ pub fn maybe_visit_each_child_full(
                         None,
                         None,
                     ),
-                    visit_function_body(
+                    visit_function_body_full(
                         Some(&node_as_class_static_block_declaration.body),
                         |node: &Node| visitor(node),
                         context,
@@ -1784,7 +1783,7 @@ pub fn maybe_visit_each_child_full(
                         None,
                         None,
                     ),
-                    visit_parameter_list(
+                    visit_parameter_list_full(
                         Some(&node_as_function_expression.parameters()),
                         |node: &Node| visitor(node),
                         context,
@@ -1805,7 +1804,7 @@ pub fn maybe_visit_each_child_full(
                         Some(&is_type_node),
                         None,
                     ),
-                    visit_function_body(
+                    visit_function_body_full(
                         Some(&node_as_function_expression.maybe_body().unwrap()),
                         |node: &Node| visitor(node),
                         context,
@@ -1840,7 +1839,7 @@ pub fn maybe_visit_each_child_full(
                         None,
                         None,
                     ),
-                    visit_parameter_list(
+                    visit_parameter_list_full(
                         Some(&node_as_arrow_function.parameters()),
                         |node: &Node| visitor(node),
                         context,
@@ -1874,7 +1873,7 @@ pub fn maybe_visit_each_child_full(
                         None,
                     )
                     .unwrap(),
-                    visit_function_body(
+                    visit_function_body_full(
                         Some(&node_as_arrow_function.maybe_body().unwrap()),
                         |node: &Node| visitor(node),
                         context,
@@ -2750,7 +2749,7 @@ pub fn maybe_visit_each_child_full(
                         None,
                         None,
                     ),
-                    visit_parameter_list(
+                    visit_parameter_list_full(
                         Some(&node_as_function_declaration.parameters()),
                         |node: &Node| visitor(node),
                         context,
@@ -2771,7 +2770,7 @@ pub fn maybe_visit_each_child_full(
                         Some(&is_type_node),
                         None,
                     ),
-                    visit_function_body(
+                    visit_function_body_full(
                         node_as_function_declaration.maybe_body().as_deref(),
                         |node: &Node| visitor(node),
                         context,

@@ -424,15 +424,6 @@ impl TransformClassFields {
                 .as_deref(),
             |node: &Node| self.visitor(node),
             &**self.context,
-            Option::<
-                fn(
-                    Option<&NodeArray>,
-                    Option<&mut dyn FnMut(&Node) -> VisitResult>,
-                    Option<&dyn Fn(&Node) -> bool>,
-                    Option<usize>,
-                    Option<usize>,
-                ) -> Option<Gc<NodeArray>>,
-            >::None,
         );
         let body =
             self.transform_constructor_body(node, constructor.as_deref(), is_derived_class)?;
@@ -473,19 +464,7 @@ impl TransformClassFields {
             !properties.is_empty() || !private_methods_and_accessors.is_empty();
 
         if constructor.is_none() && !needs_constructor_body {
-            return visit_function_body(
-                None,
-                |node: &Node| self.visitor(node),
-                &**self.context,
-                Option::<
-                    fn(
-                        Option<&Node>,
-                        Option<&mut dyn FnMut(&Node) -> VisitResult>,
-                        Option<&dyn Fn(&Node) -> bool>,
-                        Option<&dyn Fn(&[Gc<Node>]) -> Gc<Node>>,
-                    ) -> Option<Gc<Node>>,
-                >::None,
-            );
+            return visit_function_body(None, |node: &Node| self.visitor(node), &**self.context);
         }
 
         self.context.resume_lexical_environment();

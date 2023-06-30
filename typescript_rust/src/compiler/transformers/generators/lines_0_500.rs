@@ -997,15 +997,6 @@ impl TransformGenerators {
                         Some(&node.as_function_declaration().parameters()),
                         |node: &Node| self.visitor(node),
                         &**self.context,
-                        Option::<
-                            fn(
-                                Option<&NodeArray>,
-                                Option<&mut dyn FnMut(&Node) -> VisitResult>,
-                                Option<&dyn Fn(&Node) -> bool>,
-                                Option<usize>,
-                                Option<usize>,
-                            ) -> Option<Gc<NodeArray>>,
-                        >::None,
                     )
                     .unwrap(),
                     None,
@@ -1054,15 +1045,6 @@ impl TransformGenerators {
                         Some(&node.as_function_expression().parameters()),
                         |node: &Node| self.visitor(node),
                         &**self.context,
-                        Option::<
-                            fn(
-                                Option<&NodeArray>,
-                                Option<&mut dyn FnMut(&Node) -> VisitResult>,
-                                Option<&dyn Fn(&Node) -> bool>,
-                                Option<usize>,
-                                Option<usize>,
-                            ) -> Option<Gc<NodeArray>>,
-                        >::None,
                     ),
                     None,
                     self.transform_generator_function_body(

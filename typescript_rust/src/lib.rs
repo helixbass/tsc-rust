@@ -799,8 +799,8 @@ pub use compiler::{
         try_visit_each_child, try_visit_function_body, try_visit_iteration_body,
         try_visit_lexical_environment, try_visit_lexical_environment_full, try_visit_node,
         try_visit_nodes, try_visit_parameter_list, visit_each_child, visit_function_body,
-        visit_iteration_body, visit_lexical_environment, visit_node, visit_nodes,
-        visit_parameter_list,
+        visit_function_body_full, visit_iteration_body, visit_lexical_environment, visit_node,
+        visit_nodes, visit_parameter_list, visit_parameter_list_full,
     },
     watch::{
         create_diagnostic_reporter, create_watch_compiler_host_of_config_file,

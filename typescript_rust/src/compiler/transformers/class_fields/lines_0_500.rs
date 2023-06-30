@@ -926,29 +926,12 @@ impl TransformClassFields {
                             Some(&node_as_function_like_declaration.parameters()),
                             |node: &Node| self.class_element_visitor(node),
                             &**self.context,
-                            Option::<
-                                fn(
-                                    Option<&NodeArray>,
-                                    Option<&mut dyn FnMut(&Node) -> VisitResult>,
-                                    Option<&dyn Fn(&Node) -> bool>,
-                                    Option<usize>,
-                                    Option<usize>,
-                                ) -> Option<Gc<NodeArray>>,
-                            >::None,
                         ),
                         None,
                         visit_function_body(
                             Some(&node_as_function_like_declaration.maybe_body().unwrap()),
                             |node: &Node| self.class_element_visitor(node),
                             &**self.context,
-                            Option::<
-                                fn(
-                                    Option<&Node>,
-                                    Option<&mut dyn FnMut(&Node) -> VisitResult>,
-                                    Option<&dyn Fn(&Node) -> bool>,
-                                    Option<&dyn Fn(&[Gc<Node>]) -> Gc<Node>>,
-                                ) -> Option<Gc<Node>>,
-                            >::None,
                         )
                         .unwrap(),
                     ),
