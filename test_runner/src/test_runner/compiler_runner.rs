@@ -577,7 +577,9 @@ impl CompilerTest {
         if self.has_non_dts_files {
             Compiler::do_js_emit_baseline(
                 &self.configured_name,
-                &self.file_name,
+                &self
+                    .file_name
+                    .replace("../typescript_rust/typescript_src/", ""),
                 self.options.clone(),
                 &self.result,
                 &self.ts_config_files,

@@ -5,7 +5,8 @@ use gc::{Finalize, Gc, Trace};
 
 use crate::{
     create_node_factory, maybe_text_char_at_index, object_allocator, BaseNode, BaseNodeFactory,
-    CharacterCodes, Node, NodeArray, NodeFactory, NodeFactoryFlags, SourceTextAsChars, SyntaxKind,
+    CharacterCodes, Node, NodeArray, NodeFactory, NodeFactoryFlags, OptionTry, SourceTextAsChars,
+    SyntaxKind,
 };
 
 bitflags! {
@@ -125,13 +126,21 @@ pub fn with_parse_base_node_factory_and_factory<TReturn>(
     })
 }
 
-pub(super) fn visit_node<TNodeRef: Borrow<Node>, TNodeCallback: FnMut(&Node)>(
-    cb_node: &mut TNodeCallback,
-    node: Option<TNodeRef>,
-) {
+pub(super) fn visit_node(cb_node: &mut impl FnMut(&Node), node: Option<impl Borrow<Node>>) {
     if let Some(node) = node {
         cb_node(node.borrow());
     }
+}
+
+pub(super) fn try_visit_node<TError>(
+    cb_node: &mut impl FnMut(&Node) -> Result<(), TError>,
+    node: Option<impl Borrow<Node>>,
+) -> Result<(), TError> {
+    if let Some(node) = node {
+        cb_node(node.borrow())?;
+    }
+
+    Ok(())
 }
 
 pub(super) fn visit_node_returns<
@@ -145,9 +154,21 @@ pub(super) fn visit_node_returns<
     node.and_then(|node| cb_node(node.borrow()))
 }
 
-pub(super) fn visit_nodes<TNodeCallback: FnMut(&Node), TNodesCallback: FnMut(&NodeArray)>(
+pub(super) fn try_visit_node_returns<
+    TNodeRef: Borrow<Node>,
+    TReturn,
+    TError,
+    TNodeCallback: FnMut(&Node) -> Result<Option<TReturn>, TError>,
+>(
     cb_node: &mut TNodeCallback,
-    cb_nodes: Option<&mut TNodesCallback>,
+    node: Option<TNodeRef>,
+) -> Result<Option<TReturn>, TError> {
+    node.try_and_then(|node| cb_node(node.borrow()))
+}
+
+pub(super) fn visit_nodes(
+    cb_node: &mut impl FnMut(&Node),
+    cb_nodes: Option<&mut impl FnMut(&NodeArray)>,
     nodes: Option<&NodeArray>,
 ) {
     if let Some(nodes) = nodes {
@@ -162,6 +183,27 @@ pub(super) fn visit_nodes<TNodeCallback: FnMut(&Node), TNodesCallback: FnMut(&No
             }
         }
     }
+}
+
+pub(super) fn try_visit_nodes<TError>(
+    cb_node: &mut impl FnMut(&Node) -> Result<(), TError>,
+    cb_nodes: Option<&mut impl FnMut(&NodeArray) -> Result<(), TError>>,
+    nodes: Option<&NodeArray>,
+) -> Result<(), TError> {
+    if let Some(nodes) = nodes {
+        match cb_nodes {
+            Some(cb_nodes) => {
+                cb_nodes(nodes)?;
+            }
+            None => {
+                for node in nodes.iter() {
+                    cb_node(node)?;
+                }
+            }
+        }
+    }
+
+    Ok(())
 }
 
 pub(super) fn visit_nodes_returns<
@@ -189,6 +231,34 @@ pub(super) fn visit_nodes_returns<
         }
     }
     None
+}
+
+pub(super) fn try_visit_nodes_returns<
+    TReturn,
+    TError,
+    TNodeCallback: FnMut(&Node) -> Result<Option<TReturn>, TError>,
+    TNodesCallback: FnMut(&NodeArray) -> Result<Option<TReturn>, TError>,
+>(
+    cb_node: &mut TNodeCallback,
+    cb_nodes: Option<&mut TNodesCallback>,
+    nodes: Option<&NodeArray>,
+) -> Result<Option<TReturn>, TError> {
+    if let Some(nodes) = nodes {
+        match cb_nodes {
+            Some(cb_nodes) => {
+                return cb_nodes(nodes);
+            }
+            None => {
+                for node in nodes.iter() {
+                    let result = cb_node(node)?;
+                    if result.is_some() {
+                        return Ok(result);
+                    }
+                }
+            }
+        }
+    }
+    Ok(None)
 }
 
 pub(crate) fn is_jsdoc_like_text(text: &SourceTextAsChars, start: usize) -> bool {
