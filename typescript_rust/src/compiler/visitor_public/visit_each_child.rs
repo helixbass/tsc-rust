@@ -232,7 +232,15 @@ pub fn maybe_visit_each_child_full(
                             if let Some(token_visitor) = token_visitor.as_ref() {
                                 token_visitor(node)
                             } else {
-                                None
+                                // TODO: this is bad this is just mimicking the behavior
+                                // of visit_node() (in the case that this `visitor` arg isn't
+                                // provided) (and hopefully any manually-provided `node_visitor`
+                                // arguments also)
+                                // Really ths argument to node_visitor should be None if
+                                // `token_visitor` is None but running into a lot of lifetime pain
+                                // (this applies to all uses of `token_visitor` in this function
+                                // and similarly in try_maybe_visit_each_child_full())
+                                Some(node.node_wrapper().into())
                             }
                         }),
                         Some(&is_dot_dot_dot_token),
@@ -252,7 +260,7 @@ pub fn maybe_visit_each_child_full(
                             if let Some(token_visitor) = token_visitor.as_ref() {
                                 token_visitor(node)
                             } else {
-                                None
+                                Some(node.node_wrapper().into())
                             }
                         }),
                         Some(&is_question_token),
@@ -313,7 +321,7 @@ pub fn maybe_visit_each_child_full(
                             if let Some(token_visitor) = token_visitor.as_ref() {
                                 token_visitor(node)
                             } else {
-                                None
+                                Some(node.node_wrapper().into())
                             }
                         }),
                         Some(&is_token),
@@ -403,7 +411,7 @@ pub fn maybe_visit_each_child_full(
                             if let Some(token_visitor) = token_visitor.as_ref() {
                                 token_visitor(node)
                             } else {
-                                None
+                                Some(node.node_wrapper().into())
                             }
                         }),
                         Some(&is_question_token),
@@ -458,7 +466,7 @@ pub fn maybe_visit_each_child_full(
                             if let Some(token_visitor) = token_visitor.as_ref() {
                                 token_visitor(node)
                             } else {
-                                None
+                                Some(node.node_wrapper().into())
                             }
                         }),
                         Some(&is_asterisk_token),
@@ -477,7 +485,7 @@ pub fn maybe_visit_each_child_full(
                             if let Some(token_visitor) = token_visitor.as_ref() {
                                 token_visitor(node)
                             } else {
-                                None
+                                Some(node.node_wrapper().into())
                             }
                         }),
                         Some(&is_question_token),
@@ -1260,7 +1268,7 @@ pub fn maybe_visit_each_child_full(
                             if let Some(token_visitor) = token_visitor.as_ref() {
                                 token_visitor(node)
                             } else {
-                                None
+                                Some(node.node_wrapper().into())
                             }
                         }),
                         Some(&is_readonly_keyword_or_plus_or_minus_token),
@@ -1404,7 +1412,7 @@ pub fn maybe_visit_each_child_full(
                             if let Some(token_visitor) = token_visitor.as_ref() {
                                 token_visitor(node)
                             } else {
-                                None
+                                Some(node.node_wrapper().into())
                             }
                         }),
                         Some(&is_dot_dot_dot_token),
@@ -1485,7 +1493,7 @@ pub fn maybe_visit_each_child_full(
                                 if let Some(token_visitor) = token_visitor.as_ref() {
                                     token_visitor(node)
                                 } else {
-                                    None
+                                    Some(node.node_wrapper().into())
                                 }
                             }),
                             Some(&is_question_dot_token),
@@ -1542,7 +1550,7 @@ pub fn maybe_visit_each_child_full(
                                 if let Some(token_visitor) = token_visitor.as_ref() {
                                     token_visitor(node)
                                 } else {
-                                    None
+                                    Some(node.node_wrapper().into())
                                 }
                             }),
                             Some(&is_question_dot_token),
@@ -1597,7 +1605,7 @@ pub fn maybe_visit_each_child_full(
                                 if let Some(token_visitor) = token_visitor.as_ref() {
                                     token_visitor(node)
                                 } else {
-                                    None
+                                    Some(node.node_wrapper().into())
                                 }
                             }),
                             Some(&is_question_dot_token),
@@ -1764,7 +1772,7 @@ pub fn maybe_visit_each_child_full(
                             if let Some(token_visitor) = token_visitor.as_ref() {
                                 token_visitor(node)
                             } else {
-                                None
+                                Some(node.node_wrapper().into())
                             }
                         }),
                         Some(&is_asterisk_token),
@@ -1866,7 +1874,7 @@ pub fn maybe_visit_each_child_full(
                             if let Some(token_visitor) = token_visitor.as_ref() {
                                 token_visitor(node)
                             } else {
-                                None
+                                Some(node.node_wrapper().into())
                             }
                         }),
                         Some(&is_equals_greater_than_token),
@@ -1997,7 +2005,7 @@ pub fn maybe_visit_each_child_full(
                             if let Some(token_visitor) = token_visitor.as_ref() {
                                 token_visitor(node)
                             } else {
-                                None
+                                Some(node.node_wrapper().into())
                             }
                         }),
                         Some(&is_binary_operator_token),
@@ -2032,7 +2040,7 @@ pub fn maybe_visit_each_child_full(
                             if let Some(token_visitor) = token_visitor.as_ref() {
                                 token_visitor(node)
                             } else {
-                                None
+                                Some(node.node_wrapper().into())
                             }
                         }),
                         Some(&is_question_token),
@@ -2052,7 +2060,7 @@ pub fn maybe_visit_each_child_full(
                             if let Some(token_visitor) = token_visitor.as_ref() {
                                 token_visitor(node)
                             } else {
-                                None
+                                Some(node.node_wrapper().into())
                             }
                         }),
                         Some(&is_colon_token),
@@ -2102,7 +2110,7 @@ pub fn maybe_visit_each_child_full(
                         if let Some(token_visitor) = token_visitor.as_ref() {
                             token_visitor(node)
                         } else {
-                            None
+                            Some(node.node_wrapper().into())
                         }
                     }),
                     Some(&is_asterisk_token),
@@ -2481,7 +2489,7 @@ pub fn maybe_visit_each_child_full(
                             if let Some(token_visitor) = token_visitor.as_ref() {
                                 token_visitor(node)
                             } else {
-                                None
+                                Some(node.node_wrapper().into())
                             }
                         }),
                         Some(&is_await_keyword),
@@ -2669,7 +2677,7 @@ pub fn maybe_visit_each_child_full(
                         if let Some(token_visitor) = token_visitor.as_ref() {
                             token_visitor(node)
                         } else {
-                            None
+                            Some(node.node_wrapper().into())
                         }
                     }),
                     Some(&is_exclamation_token),
@@ -2730,7 +2738,7 @@ pub fn maybe_visit_each_child_full(
                             if let Some(token_visitor) = token_visitor.as_ref() {
                                 token_visitor(node)
                             } else {
-                                None
+                                Some(node.node_wrapper().into())
                             }
                         }),
                         Some(&is_asterisk_token),
