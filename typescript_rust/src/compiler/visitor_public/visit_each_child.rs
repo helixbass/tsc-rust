@@ -32,6 +32,7 @@ use crate::{
     VisitResult,
 };
 
+#[inline(always)]
 pub fn visit_each_child(
     node: &Node,
     visitor: impl FnMut(&Node) -> VisitResult,
@@ -40,6 +41,7 @@ pub fn visit_each_child(
     maybe_visit_each_child(Some(node), visitor, context).unwrap()
 }
 
+#[inline(always)]
 pub fn maybe_visit_each_child(
     node: Option<impl Borrow<Node>>,
     visitor: impl FnMut(&Node) -> VisitResult,

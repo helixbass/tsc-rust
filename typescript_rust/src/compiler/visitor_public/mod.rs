@@ -20,6 +20,7 @@ use crate::{
     ScriptTarget,
 };
 
+#[inline(always)]
 pub fn visit_node(
     node: &Node,
     visitor: Option<impl FnMut(&Node) -> VisitResult>,
@@ -29,6 +30,7 @@ pub fn visit_node(
     maybe_visit_node(Some(node), visitor, test, lift).unwrap()
 }
 
+#[inline(always)]
 pub fn maybe_visit_node(
     node: Option<impl Borrow<Node>>,
     visitor: Option<impl FnMut(&Node) -> VisitResult>,
@@ -44,6 +46,7 @@ pub fn maybe_visit_node(
     .unwrap()
 }
 
+#[inline(always)]
 pub fn try_visit_node(
     node: &Node,
     visitor: Option<impl FnMut(&Node) -> io::Result<VisitResult>>,
@@ -86,6 +89,7 @@ pub fn try_maybe_visit_node(
     Ok(visited_node)
 }
 
+#[inline(always)]
 pub fn visit_nodes(
     nodes: &NodeArray,
     visitor: Option<impl FnMut(&Node) -> VisitResult>,
@@ -181,6 +185,7 @@ pub fn maybe_visit_nodes(
     Some(nodes.rc_wrapper())
 }
 
+#[inline(always)]
 pub fn try_visit_nodes(
     nodes: &NodeArray,
     visitor: Option<impl FnMut(&Node) -> io::Result<VisitResult>>,

@@ -71,7 +71,13 @@ fn config() -> &'static MochaArgs {
         .expect("Tried to get Mocha config before it was set")
 }
 
-static THREAD_POOL: Lazy<Arc<Mutex<ThreadPool>>> = Lazy::new(|| Default::default());
+static THREAD_POOL: Lazy<Arc<Mutex<ThreadPool>>> = Lazy::new(|| {
+    Arc::new(Mutex::new(
+        threadpool::Builder::new()
+            .thread_stack_size(8_000_000)
+            .build(),
+    ))
+});
 fn get_thread_pool() -> ThreadPool {
     THREAD_POOL.lock().unwrap().clone()
 }
