@@ -180,9 +180,9 @@ impl Printer {
                 .as_deref()
                 .unwrap_or_else(|| default_text.as_ref().unwrap()),
             (pos + 1).try_into().unwrap(),
-            |_, _, _, _, _| -> () {
+            |_, _, _, _, _| -> Option<()> {
                 result = true;
-                ()
+                None
             },
             &(),
         );
@@ -206,9 +206,9 @@ impl Printer {
                 .as_deref()
                 .unwrap_or_else(|| default_text.as_ref().unwrap()),
             (pos + 1).try_into().unwrap(),
-            |_, _, _, _, _| -> () {
+            |_, _, _, _, _| -> Option<()> {
                 result = true;
-                ()
+                None
             },
             &(),
         );

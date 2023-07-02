@@ -309,7 +309,7 @@ pub(crate) fn scan_shebang_trivia(text: &SourceTextAsChars, _pos: usize) -> usiz
 pub(super) fn iterate_comment_ranges<
     TState,
     TMemo,
-    TCallback: FnMut(usize, usize, CommentKind, bool, &TState, Option<TMemo>) -> TMemo,
+    TCallback: FnMut(usize, usize, CommentKind, bool, &TState, Option<TMemo>) -> Option<TMemo>,
 >(
     reduce: bool,
     text: &SourceTextAsChars,
@@ -420,14 +420,14 @@ pub(super) fn iterate_comment_ranges<
 
                     if collecting {
                         if has_pending_comment_range {
-                            accumulator = Some(cb(
+                            accumulator = cb(
                                 pending_pos.unwrap(),
                                 pending_end.unwrap(),
                                 pending_kind.unwrap(),
                                 pending_has_trailing_new_line.unwrap(),
                                 state,
                                 accumulator,
-                            ));
+                            );
                             if !reduce && accumulator.is_some() {
                                 return accumulator;
                             }
@@ -459,14 +459,14 @@ pub(super) fn iterate_comment_ranges<
     }
 
     if has_pending_comment_range {
-        accumulator = Some(cb(
+        accumulator = cb(
             pending_pos.unwrap(),
             pending_end.unwrap(),
             pending_kind.unwrap(),
             pending_has_trailing_new_line.unwrap(),
             state,
             accumulator,
-        ));
+        );
     }
 
     accumulator
@@ -475,7 +475,7 @@ pub(super) fn iterate_comment_ranges<
 pub fn for_each_leading_comment_range<
     TState,
     TMemo,
-    TCallback: FnMut(usize, usize, CommentKind, bool, &TState) -> TMemo,
+    TCallback: FnMut(usize, usize, CommentKind, bool, &TState) -> Option<TMemo>,
 >(
     text: &SourceTextAsChars,
     pos: isize,
@@ -498,7 +498,7 @@ pub fn for_each_leading_comment_range<
 pub fn for_each_trailing_comment_range<
     TState,
     TMemo,
-    TCallback: FnMut(usize, usize, CommentKind, bool, &TState) -> TMemo,
+    TCallback: FnMut(usize, usize, CommentKind, bool, &TState) -> Option<TMemo>,
 >(
     text: &SourceTextAsChars,
     pos: isize,
@@ -521,51 +521,49 @@ pub fn for_each_trailing_comment_range<
 pub fn reduce_each_leading_comment_range<
     TState,
     TMemo,
-    TCallback: FnMut(usize, usize, CommentKind, bool, &TState, TMemo) -> TMemo,
+    TCallback: FnMut(usize, usize, CommentKind, bool, &TState, Option<TMemo>) -> Option<TMemo>,
 >(
     text: &SourceTextAsChars,
     pos: isize,
     mut cb: TCallback,
     state: &TState,
-    initial: TMemo,
-) -> TMemo {
+    initial: Option<TMemo>,
+) -> Option<TMemo> {
     iterate_comment_ranges(
         true,
         text,
         pos,
         false,
         |pos, end, kind, has_trailing_new_line, state, memo| {
-            cb(pos, end, kind, has_trailing_new_line, state, memo.unwrap())
+            cb(pos, end, kind, has_trailing_new_line, state, memo)
         },
         state,
-        Some(initial),
+        initial,
     )
-    .unwrap()
 }
 
 pub fn reduce_each_trailing_comment_range<
     TState,
     TMemo,
-    TCallback: FnMut(usize, usize, CommentKind, bool, &TState, TMemo) -> TMemo,
+    TCallback: FnMut(usize, usize, CommentKind, bool, &TState, Option<TMemo>) -> Option<TMemo>,
 >(
     text: &SourceTextAsChars,
     pos: isize,
     mut cb: TCallback,
     state: &TState,
-    initial: TMemo,
-) -> TMemo {
+    initial: Option<TMemo>,
+) -> Option<TMemo> {
     iterate_comment_ranges(
         true,
         text,
         pos,
         true,
         |pos, end, kind, has_trailing_new_line, state, memo| {
-            cb(pos, end, kind, has_trailing_new_line, state, memo.unwrap())
+            cb(pos, end, kind, has_trailing_new_line, state, memo)
         },
         state,
-        Some(initial),
+        initial,
     )
-    .unwrap()
 }
 
 pub(super) fn append_comment_range(
