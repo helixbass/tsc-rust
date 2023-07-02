@@ -1311,8 +1311,9 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         Debug_.assert(target.is_empty(), Some("Prologue directives should be at the first statement in the target statements array"));
         let mut found_use_strict = false;
         let mut statement_offset = 0;
-        for (index, statement) in source.into_iter().enumerate() {
-            statement_offset = index;
+        let num_statements = source.len();
+        while statement_offset < num_statements {
+            let statement = &source[statement_offset];
             if is_prologue_directive(statement) {
                 if self.is_use_strict_prologue(statement) {
                     found_use_strict = true;
@@ -1321,6 +1322,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
             } else {
                 break;
             }
+            statement_offset += 1;
         }
         if ensure_use_strict == Some(true) && !found_use_strict {
             target.push(self.create_use_strict_prologue());
