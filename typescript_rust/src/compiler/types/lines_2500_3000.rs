@@ -11,6 +11,7 @@ use super::{
     NamedDeclarationInterface, Node, NodeArray, NodeInterface, SyntaxKind,
     VariableLikeDeclarationInterface,
 };
+use crate::HasDotDotDotTokenInterface;
 
 #[derive(Debug, Trace, Finalize)]
 #[ast_type]
@@ -1153,6 +1154,12 @@ impl BindingElement {
 impl HasPropertyNameInterface for BindingElement {
     fn maybe_property_name(&self) -> Option<Gc<Node>> {
         self.property_name.clone()
+    }
+}
+
+impl HasDotDotDotTokenInterface for BindingElement {
+    fn maybe_dot_dot_dot_token(&self) -> Option<Gc<Node>> {
+        self.dot_dot_dot_token.clone()
     }
 }
 

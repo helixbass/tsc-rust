@@ -954,6 +954,7 @@ impl Node {
         match self {
             Node::ParameterDeclaration(node) => node,
             Node::NamedTupleMember(node) => node,
+            Node::BindingElement(node) => node,
             _ => panic!("Expected has dot dot dot token"),
         }
     }
