@@ -108,7 +108,11 @@ impl Printer {
         for &line_text in &lines {
             let line =
                 if let Some(indentation) = indentation.filter(|indentation| *indentation != 0) {
-                    &line_text[indentation..]
+                    if indentation < line_text.len() {
+                        &line_text[indentation..]
+                    } else {
+                        line_text
+                    }
                 } else {
                     line_text
                 };
