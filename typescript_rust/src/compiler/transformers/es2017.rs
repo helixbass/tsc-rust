@@ -771,7 +771,12 @@ impl TransformES2017 {
         ))
     }
 
-    fn record_declaration_name(&self, name: &Node, names: &mut HashSet<__String>) {
+    fn record_declaration_name(
+        &self,
+        node: &Node, /*ParameterDeclaration | VariableDeclaration | BindingElement*/
+        names: &mut HashSet<__String>,
+    ) {
+        let name = &node.as_named_declaration().name();
         if is_identifier(name) {
             names.insert(name.as_identifier().escaped_text.clone());
         } else {
