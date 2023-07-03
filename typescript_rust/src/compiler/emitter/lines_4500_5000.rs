@@ -792,7 +792,10 @@ impl Printer {
 
     pub(super) fn generate_name(&self, name: &Node /*GeneratedIdentifier*/) -> String {
         let name_as_identifier = name.as_identifier();
-        if name_as_identifier.auto_generate_flags() & GeneratedIdentifierFlags::KindMask
+        if name_as_identifier
+            .maybe_auto_generate_flags()
+            .unwrap_or_default()
+            & GeneratedIdentifierFlags::KindMask
             == GeneratedIdentifierFlags::Node
         {
             self.generate_name_cached(

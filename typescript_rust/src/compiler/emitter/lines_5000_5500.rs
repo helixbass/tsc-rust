@@ -318,7 +318,8 @@ impl Printer {
             if is_identifier(&node) && {
                 let node_as_identifier = node.as_identifier();
                 node_as_identifier
-                    .auto_generate_flags()
+                    .maybe_auto_generate_flags()
+                    .unwrap_or_default()
                     .intersects(GeneratedIdentifierFlags::Node)
                     && node_as_identifier.auto_generate_id != auto_generate_id
             } {

@@ -775,8 +775,7 @@ pub fn rest_helper() -> Gc<EmitHelper> {
 }
 
 pub fn awaiter_helper() -> Gc<EmitHelper> {
-    lazy_emit_helper!(
-        UnscopedEmitHelperBuilder::default()
+    lazy_emit_helper!(UnscopedEmitHelperBuilder::default()
             .name("typescript:awaiter")
             .import_name("__awaiter")
             .priority(5_usize)
@@ -790,8 +789,7 @@ pub fn awaiter_helper() -> Gc<EmitHelper> {
                         step((generator = generator.apply(thisArg, _arguments || [])).next());
                     });
                 };"#)
-            .build().unwrap().into()
-    )
+            .build().unwrap().into())
 }
 
 pub fn extends_helper() -> Gc<EmitHelper> {
