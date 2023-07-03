@@ -75,7 +75,7 @@ pub fn create_member_access_for_property_name<
 }
 
 fn create_react_namespace(
-    react_namespace: &str,
+    react_namespace: Option<&str>,
     parent: &Node, /*JsxOpeningLikeElement | JsxOpeningFragment*/
 ) -> Gc<Node> {
     get_parse_node_factory()
@@ -103,7 +103,7 @@ fn create_jsx_factory_expression_from_entity_name<
         let right = factory.create_identifier(id_text(&jsx_factory_as_qualified_name.right));
         factory.create_property_access_expression(left, right)
     } else {
-        create_react_namespace(id_text(jsx_factory), parent)
+        create_react_namespace(Some(id_text(jsx_factory)), parent)
     }
 }
 
@@ -112,7 +112,7 @@ pub fn create_jsx_factory_expression<
 >(
     factory: &NodeFactory<TBaseNodeFactory>,
     jsx_factory_entity: Option<impl Borrow<Node /*EntityName*/>>,
-    react_namespace: &str,
+    react_namespace: Option<&str>,
     parent: &Node, /*JsxOpeningLikeElement | JsxOpeningFragment*/
 ) -> Gc<Node /*Expression*/> {
     jsx_factory_entity.map_or_else(
@@ -140,7 +140,7 @@ pub fn create_jsx_fragment_factory_expression<
     jsx_fragment_factory_entity.map_or_else(
         || {
             factory.create_property_access_expression(
-                create_react_namespace(react_namespace, parent),
+                create_react_namespace(Some(react_namespace), parent),
                 "Fragment",
             )
         },
@@ -232,7 +232,7 @@ pub fn create_expression_for_jsx_fragment<
             create_jsx_factory_expression(
                 factory,
                 jsx_factory_entity,
-                react_namespace,
+                Some(react_namespace),
                 parent_element,
             ),
             Option::<Gc<NodeArray>>::None,

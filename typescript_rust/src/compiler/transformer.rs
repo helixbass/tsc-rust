@@ -1175,8 +1175,10 @@ impl TransformationContext for TransformNodesTransformationResult {
     }
 
     fn is_emit_notification_enabled(&self, node: &Node) -> bool {
-        matches!(self.enabled_syntax_kind_features().get(&node.kind()), Some(syntax_kind_feature_flags) if syntax_kind_feature_flags.intersects(SyntaxKindFeatureFlags::EmitNotifications))
-            && !get_emit_flags(node).intersects(EmitFlags::AdviseOnEmitNode)
+        matches!(
+            self.enabled_syntax_kind_features().get(&node.kind()),
+            Some(syntax_kind_feature_flags) if syntax_kind_feature_flags.intersects(SyntaxKindFeatureFlags::EmitNotifications)
+        ) || get_emit_flags(node).intersects(EmitFlags::AdviseOnEmitNode)
     }
 
     fn on_emit_node(

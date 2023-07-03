@@ -661,7 +661,7 @@ impl TransformJsx {
                 self.context
                     .get_emit_resolver()
                     .get_jsx_factory_entity(self.maybe_current_source_file().as_deref()),
-                self.compiler_options.react_namespace.as_deref().unwrap(),
+                self.compiler_options.react_namespace.as_deref(),
                 node,
             )
         } else {
