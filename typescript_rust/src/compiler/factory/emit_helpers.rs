@@ -619,8 +619,19 @@ impl EmitHelperTextCallback for HelperString {
     }
 }
 
+macro_rules! lazy_emit_helper {
+    ($initializer:expr $(,)?) => {{
+        use once_cell::unsync::Lazy;
+
+        thread_local! {
+            static LAZY_HELPER: Lazy<Gc<EmitHelper>> = Lazy::new(|| $initializer);
+        }
+        LAZY_HELPER.with(|lazy_helper| (**lazy_helper).clone())
+    }};
+}
+
 pub fn decorate_helper() -> Gc<EmitHelper> {
-    UnscopedEmitHelperBuilder::default()
+    lazy_emit_helper!(UnscopedEmitHelperBuilder::default()
         .name("typescript:decorate")
         .import_name("__decorate")
         .priority(2_usize)
@@ -631,11 +642,11 @@ pub fn decorate_helper() -> Gc<EmitHelper> {
                 else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
                 return c > 3 && r && Object.defineProperty(target, key, r), r;
             };"#)
-        .build().unwrap().into()
+        .build().unwrap().into())
 }
 
 pub fn metadata_helper() -> Gc<EmitHelper> {
-    UnscopedEmitHelperBuilder::default()
+    lazy_emit_helper!(UnscopedEmitHelperBuilder::default()
         .name("typescript:metadata")
         .import_name("__metadata")
         .priority(3_usize)
@@ -643,11 +654,11 @@ pub fn metadata_helper() -> Gc<EmitHelper> {
             var __metadata = (this && this.__metadata) || function (k, v) {
                 if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
             };"#)
-        .build().unwrap().into()
+        .build().unwrap().into())
 }
 
 pub fn param_helper() -> Gc<EmitHelper> {
-    UnscopedEmitHelperBuilder::default()
+    lazy_emit_helper!(UnscopedEmitHelperBuilder::default()
         .name("typescript:param")
         .import_name("__param")
         .priority(4_usize)
@@ -659,11 +670,11 @@ pub fn param_helper() -> Gc<EmitHelper> {
         )
         .build()
         .unwrap()
-        .into()
+        .into())
 }
 
 pub fn assign_helper() -> Gc<EmitHelper> {
-    UnscopedEmitHelperBuilder::default()
+    lazy_emit_helper!(UnscopedEmitHelperBuilder::default()
         .name("typescript:assign")
         .import_name("__assign")
         .priority(1_usize)
@@ -683,20 +694,20 @@ pub fn assign_helper() -> Gc<EmitHelper> {
         )
         .build()
         .unwrap()
-        .into()
+        .into())
 }
 
 pub fn await_helper() -> Gc<EmitHelper> {
-    UnscopedEmitHelperBuilder::default()
+    lazy_emit_helper!(UnscopedEmitHelperBuilder::default()
         .name("typescript:await")
         .import_name("__await")
         .text(r#"
             var __await = (this && this.__await) || function (v) { return this instanceof __await ? (this.v = v, this) : new __await(v); }"#)
-        .build().unwrap().into()
+        .build().unwrap().into())
 }
 
 pub fn async_generator_helper() -> Gc<EmitHelper> {
-    UnscopedEmitHelperBuilder::default()
+    lazy_emit_helper!(UnscopedEmitHelperBuilder::default()
         .name("typescript:asyncGenerator")
         .import_name("__asyncGenerator")
         .dependencies([await_helper()])
@@ -712,11 +723,11 @@ pub fn async_generator_helper() -> Gc<EmitHelper> {
                 function reject(value) { resume("throw", value); }
                 function settle(f, v) { if (f(v), q.shift(), q.length) resume(q[0][0], q[0][1]); }
             };"#)
-        .build().unwrap().into()
+        .build().unwrap().into())
 }
 
 pub fn async_delegator() -> Gc<EmitHelper> {
-    UnscopedEmitHelperBuilder::default()
+    lazy_emit_helper!(UnscopedEmitHelperBuilder::default()
         .name("typescript:asyncDelegator")
         .import_name("__asyncDelegator")
         .dependencies([await_helper()])
@@ -726,11 +737,11 @@ pub fn async_delegator() -> Gc<EmitHelper> {
                 return i = {}, verb("next"), verb("throw", function (e) { throw e; }), verb("return"), i[Symbol.iterator] = function () { return this; }, i;
                 function verb(n, f) { i[n] = o[n] ? function (v) { return (p = !p) ? { value: __await(o[n](v)), done: n === "return" } : f ? f(v) : v; } : f; }
             };"#)
-        .build().unwrap().into()
+        .build().unwrap().into())
 }
 
 pub fn async_values() -> Gc<EmitHelper> {
-    UnscopedEmitHelperBuilder::default()
+    lazy_emit_helper!(UnscopedEmitHelperBuilder::default()
         .name("typescript:asyncValues")
         .import_name("__asyncValues")
         .text(r#"
@@ -741,11 +752,11 @@ pub fn async_values() -> Gc<EmitHelper> {
                 function verb(n) { i[n] = o[n] && function (v) { return new Promise(function (resolve, reject) { v = o[n](v), settle(resolve, reject, v.done, v.value); }); }; }
                 function settle(resolve, reject, d, v) { Promise.resolve(v).then(function(v) { resolve({ value: v, done: d }); }, reject); }
             };"#)
-        .build().unwrap().into()
+        .build().unwrap().into())
 }
 
 pub fn rest_helper() -> Gc<EmitHelper> {
-    UnscopedEmitHelperBuilder::default()
+    lazy_emit_helper!(UnscopedEmitHelperBuilder::default()
         .name("typescript:rest")
         .import_name("__rest")
         .text(r#"
@@ -760,29 +771,31 @@ pub fn rest_helper() -> Gc<EmitHelper> {
                     }
                 return t;
             };"#)
-        .build().unwrap().into()
+        .build().unwrap().into())
 }
 
 pub fn awaiter_helper() -> Gc<EmitHelper> {
-    UnscopedEmitHelperBuilder::default()
-        .name("typescript:awaiter")
-        .import_name("__awaiter")
-        .priority(5_usize)
-        .text(r#"
-            var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
-                function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
-                return new (P || (P = Promise))(function (resolve, reject) {
-                    function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-                    function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-                    function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
-                    step((generator = generator.apply(thisArg, _arguments || [])).next());
-                });
-            };"#)
-        .build().unwrap().into()
+    lazy_emit_helper!(
+        UnscopedEmitHelperBuilder::default()
+            .name("typescript:awaiter")
+            .import_name("__awaiter")
+            .priority(5_usize)
+            .text(r#"
+                var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
+                    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
+                    return new (P || (P = Promise))(function (resolve, reject) {
+                        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+                        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+                        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
+                        step((generator = generator.apply(thisArg, _arguments || [])).next());
+                    });
+                };"#)
+            .build().unwrap().into()
+    )
 }
 
 pub fn extends_helper() -> Gc<EmitHelper> {
-    UnscopedEmitHelperBuilder::default()
+    lazy_emit_helper!(UnscopedEmitHelperBuilder::default()
         .name("typescript:extends")
         .import_name("__extends")
         .priority(0_usize)
@@ -803,11 +816,11 @@ pub fn extends_helper() -> Gc<EmitHelper> {
                     d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
                 };
             })();"#)
-        .build().unwrap().into()
+        .build().unwrap().into())
 }
 
 pub fn template_object_helper() -> Gc<EmitHelper> {
-    UnscopedEmitHelperBuilder::default()
+    lazy_emit_helper!(UnscopedEmitHelperBuilder::default()
         .name("typescript:makeTemplateObject")
         .import_name("__makeTemplateObject")
         .priority(0_usize)
@@ -816,11 +829,11 @@ pub fn template_object_helper() -> Gc<EmitHelper> {
                 if (Object.defineProperty) { Object.defineProperty(cooked, "raw", { value: raw }); } else { cooked.raw = raw; }
                 return cooked;
             };"#)
-        .build().unwrap().into()
+        .build().unwrap().into())
 }
 
 pub fn read_helper() -> Gc<EmitHelper> {
-    UnscopedEmitHelperBuilder::default()
+    lazy_emit_helper!(UnscopedEmitHelperBuilder::default()
         .name("typescript:read")
         .import_name("__read")
         .text(
@@ -844,11 +857,11 @@ pub fn read_helper() -> Gc<EmitHelper> {
         )
         .build()
         .unwrap()
-        .into()
+        .into())
 }
 
 pub fn spread_array_helper() -> Gc<EmitHelper> {
-    UnscopedEmitHelperBuilder::default()
+    lazy_emit_helper!(UnscopedEmitHelperBuilder::default()
         .name("typescript:spreadArray")
         .import_name("__spreadArray")
         .text(r#"
@@ -861,11 +874,11 @@ pub fn spread_array_helper() -> Gc<EmitHelper> {
                 }
                 return to.concat(ar || Array.prototype.slice.call(from));
             };"#)
-        .build().unwrap().into()
+        .build().unwrap().into())
 }
 
 pub fn values_helper() -> Gc<EmitHelper> {
-    UnscopedEmitHelperBuilder::default()
+    lazy_emit_helper!(UnscopedEmitHelperBuilder::default()
         .name("typescript:values")
         .import_name("__values")
         .text(r#"
@@ -880,11 +893,11 @@ pub fn values_helper() -> Gc<EmitHelper> {
                 };
                 throw new TypeError(s ? "Object is not iterable." : "Symbol.iterator is not defined.");
             };"#)
-        .build().unwrap().into()
+        .build().unwrap().into())
 }
 
 pub fn generator_helper() -> Gc<EmitHelper> {
-    UnscopedEmitHelperBuilder::default()
+    lazy_emit_helper!(UnscopedEmitHelperBuilder::default()
         .name("typescript:generator")
         .import_name("__generator")
         .priority(6_usize)
@@ -916,11 +929,11 @@ pub fn generator_helper() -> Gc<EmitHelper> {
                     if (op[0] & 5) throw op[1]; return { value: op[0] ? op[1] : void 0, done: true };
                 }
             };"#)
-        .build().unwrap().into()
+        .build().unwrap().into())
 }
 
 pub fn create_binding_helper() -> Gc<EmitHelper> {
-    UnscopedEmitHelperBuilder::default()
+    lazy_emit_helper!(UnscopedEmitHelperBuilder::default()
         .name("typescript:commonjscreatebinding")
         .import_name("__createBinding")
         .priority(1_usize)
@@ -932,11 +945,11 @@ pub fn create_binding_helper() -> Gc<EmitHelper> {
                 if (k2 === undefined) k2 = k;
                 o[k2] = m[k];
             }));"#)
-        .build().unwrap().into()
+        .build().unwrap().into())
 }
 
 pub fn set_module_default_helper() -> Gc<EmitHelper> {
-    UnscopedEmitHelperBuilder::default()
+    lazy_emit_helper!(UnscopedEmitHelperBuilder::default()
         .name("typescript:commonjscreatevalue")
         .import_name("__setModuleDefault")
         .priority(1_usize)
@@ -946,11 +959,11 @@ pub fn set_module_default_helper() -> Gc<EmitHelper> {
             }) : function(o, v) {
                 o["default"] = v;
             });"#)
-        .build().unwrap().into()
+        .build().unwrap().into())
 }
 
 pub fn import_star_helper() -> Gc<EmitHelper> {
-    UnscopedEmitHelperBuilder::default()
+    lazy_emit_helper!(UnscopedEmitHelperBuilder::default()
         .name("typescript:commonjsimportstar")
         .import_name("__importStar")
         .priority(2_usize)
@@ -963,11 +976,11 @@ pub fn import_star_helper() -> Gc<EmitHelper> {
                 __setModuleDefault(result, mod);
                 return result;
             };"#)
-        .build().unwrap().into()
+        .build().unwrap().into())
 }
 
 pub fn import_default_helper() -> Gc<EmitHelper> {
-    UnscopedEmitHelperBuilder::default()
+    lazy_emit_helper!(UnscopedEmitHelperBuilder::default()
         .name("typescript:commonjsimportdefault")
         .import_name("__importDefault")
         .text(
@@ -978,11 +991,11 @@ pub fn import_default_helper() -> Gc<EmitHelper> {
         )
         .build()
         .unwrap()
-        .into()
+        .into())
 }
 
 pub fn export_star_helper() -> Gc<EmitHelper> {
-    UnscopedEmitHelperBuilder::default()
+    lazy_emit_helper!(UnscopedEmitHelperBuilder::default()
         .name("typescript:export-star")
         .import_name("__exportStar")
         .priority(2_usize)
@@ -991,11 +1004,11 @@ pub fn export_star_helper() -> Gc<EmitHelper> {
             var __exportStar = (this && this.__exportStar) || function(m, exports) {
                 for (var p in m) if (p !== "default" && !Object.prototype.hasOwnProperty.call(exports, p)) __createBinding(exports, m, p);
             };"#)
-        .build().unwrap().into()
+        .build().unwrap().into())
 }
 
 pub fn class_private_field_get_helper() -> Gc<EmitHelper> {
-    UnscopedEmitHelperBuilder::default()
+    lazy_emit_helper!(UnscopedEmitHelperBuilder::default()
         .name("typescript:classPrivateFieldGet")
         .import_name("__classPrivateFieldGet")
         .text(r#"
@@ -1004,11 +1017,11 @@ pub fn class_private_field_get_helper() -> Gc<EmitHelper> {
                 if (typeof state === "function" ? receiver !== state || !f : !state.has(receiver)) throw new TypeError("Cannot read private member from an object whose class did not declare it");
                 return kind === "m" ? f : kind === "a" ? f.call(receiver) : f ? f.value : state.get(receiver);
             };"#)
-        .build().unwrap().into()
+        .build().unwrap().into())
 }
 
 pub fn class_private_field_set_helper() -> Gc<EmitHelper> {
-    UnscopedEmitHelperBuilder::default()
+    lazy_emit_helper!(UnscopedEmitHelperBuilder::default()
         .name("typescript:classPrivateFieldSet")
         .import_name("__classPrivateFieldSet")
         .text(r#"
@@ -1018,11 +1031,11 @@ pub fn class_private_field_set_helper() -> Gc<EmitHelper> {
                 if (typeof state === "function" ? receiver !== state || !f : !state.has(receiver)) throw new TypeError("Cannot write private member to an object whose class did not declare it");
                 return (kind === "a" ? f.call(receiver, value) : f ? f.value = value : state.set(receiver, value)), value;
             };"#)
-        .build().unwrap().into()
+        .build().unwrap().into())
 }
 
 pub fn class_private_field_in_helper() -> Gc<EmitHelper> {
-    UnscopedEmitHelperBuilder::default()
+    lazy_emit_helper!(UnscopedEmitHelperBuilder::default()
         .name("typescript:classPrivateFieldIn")
         .import_name("__classPrivateFieldIn")
         .text(r#"
@@ -1030,11 +1043,11 @@ pub fn class_private_field_in_helper() -> Gc<EmitHelper> {
                 if (receiver === null || (typeof receiver !== "object" && typeof receiver !== "function")) throw new TypeError("Cannot use 'in' operator on non-object");
                 return typeof state === "function" ? receiver === state : state.has(receiver);
             };"#)
-        .build().unwrap().into()
+        .build().unwrap().into())
 }
 
 pub fn async_super_helper() -> Gc<EmitHelper> {
-    ScopedEmitHelperBuilder::default()
+    lazy_emit_helper!(ScopedEmitHelperBuilder::default()
         .name("typescript:async-super")
         .text(helper_string(
             &[
@@ -1046,11 +1059,11 @@ pub fn async_super_helper() -> Gc<EmitHelper> {
         ))
         .build()
         .unwrap()
-        .into()
+        .into())
 }
 
 pub fn advanced_async_super_helper() -> Gc<EmitHelper> {
-    ScopedEmitHelperBuilder::default()
+    lazy_emit_helper!(ScopedEmitHelperBuilder::default()
         .name("typescript:advanced-async-super")
         .text(helper_string(
             &[
@@ -1065,7 +1078,7 @@ pub fn advanced_async_super_helper() -> Gc<EmitHelper> {
         ))
         .build()
         .unwrap()
-        .into()
+        .into())
 }
 
 pub fn is_call_to_helper(
