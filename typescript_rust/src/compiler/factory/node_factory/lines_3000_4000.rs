@@ -1528,10 +1528,16 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn update_case_block(
         &self,
-        _node: &Node,                        /*CaseBlock*/
-        _clauses: impl Into<NodeArrayOrVec>, /*<CaseOrDefaultClause>*/
+        node: &Node,                        /*CaseBlock*/
+        clauses: impl Into<NodeArrayOrVec>, /*<CaseOrDefaultClause>*/
     ) -> Gc<Node> {
-        unimplemented!()
+        let node_as_case_block = node.as_case_block();
+        let clauses = clauses.into();
+        if has_node_array_changed(&node_as_case_block.clauses, &clauses) {
+            self.update(self.create_case_block(clauses), node)
+        } else {
+            node.node_wrapper()
+        }
     }
 
     #[generate_node_factory_method_wrapper]

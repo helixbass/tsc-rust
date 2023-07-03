@@ -17,7 +17,7 @@ use crate::{
     is_string_literal, is_type_alias_declaration, is_variable_like, is_variable_statement, last,
     last_or_undefined, maybe_filter, skip_outer_expressions, try_cast, try_for_each_bool,
     AsDoubleDeref, AssignmentDeclarationKind, Debug_, HasQuestionTokenInterface, HasTypeInterface,
-    NamedDeclarationInterface, Node, NodeInterface, OuterExpressionKinds,
+    NamedDeclarationInterface, Node, NodeInterface, NodeWrappered, OuterExpressionKinds,
     SignatureDeclarationInterface, Symbol, SyntaxKind,
 };
 
@@ -824,16 +824,20 @@ pub fn is_delete_target(node: &Node) -> bool {
     matches!(node, Some(node) if node.kind() == SyntaxKind::DeleteExpression)
 }
 
-pub fn is_node_descendant_of<TAncestor: Borrow<Node>>(
-    node: &Node,
-    ancestor: Option<TAncestor>,
+pub fn is_node_descendant_of(node: &Node, ancestor: Option<impl Borrow<Node>>) -> bool {
+    maybe_is_node_descendant_of(Some(node), ancestor)
+}
+
+pub fn maybe_is_node_descendant_of(
+    node: Option<impl Borrow<Node>>,
+    ancestor: Option<impl Borrow<Node>>,
 ) -> bool {
     if ancestor.is_none() {
         return false;
     }
     let ancestor = ancestor.unwrap();
     let ancestor = ancestor.borrow();
-    let mut node = Some(node.node_wrapper());
+    let mut node = node.node_wrappered();
     while let Some(node_present) = node.as_ref() {
         if ptr::eq(&**node_present, ancestor) {
             return true;

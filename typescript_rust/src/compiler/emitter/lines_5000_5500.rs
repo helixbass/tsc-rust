@@ -8,9 +8,9 @@ use crate::{
     escape_leading_underscores, get_comment_range, get_containing_node_array, get_emit_flags,
     get_external_module_name, get_node_id, get_original_node, get_synthetic_leading_comments,
     get_synthetic_trailing_comments, id_text, is_file_level_unique_name, is_identifier,
-    is_jsdoc_like_text, is_node_descendant_of, is_pinned_comment, is_string_literal,
-    make_identifier_from_module_name, maybe_for_each, write_comment_range, Debug_, EmitFlags,
-    EmitHint, GeneratedIdentifierFlags, LiteralLikeNodeInterface, Node, NodeInterface, Printer,
+    is_jsdoc_like_text, is_pinned_comment, is_string_literal, make_identifier_from_module_name,
+    maybe_for_each, maybe_is_node_descendant_of, write_comment_range, Debug_, EmitFlags, EmitHint,
+    GeneratedIdentifierFlags, LiteralLikeNodeInterface, Node, NodeInterface, Printer,
     ReadonlyTextRange, SourceFileLike, SourceTextAsChars, SymbolFlags, SymbolInterface, SyntaxKind,
     SynthesizedComment, TextRange,
 };
@@ -50,9 +50,10 @@ impl Printer {
     }
 
     pub(super) fn is_unique_local_name(&self, name: &str, container: &Node) -> bool {
-        let mut node = container.node_wrapper();
-        while is_node_descendant_of(&node, Some(container)) {
-            if let Some(node_locals) = node.maybe_locals().as_ref() {
+        let mut node = Some(container.node_wrapper());
+        while maybe_is_node_descendant_of(node.as_deref(), Some(container)) {
+            let node_present = node.as_ref().unwrap();
+            if let Some(node_locals) = node_present.maybe_locals().as_ref() {
                 let local = (**node_locals)
                     .borrow()
                     .get(&*escape_leading_underscores(name))
@@ -66,7 +67,7 @@ impl Printer {
                     return false;
                 }
             }
-            node = node.maybe_next_container().unwrap();
+            node = node_present.maybe_next_container();
         }
         true
     }

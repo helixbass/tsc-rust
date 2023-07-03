@@ -890,6 +890,35 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         self.create_object_literal_expression(Some(properties), Some(single_line != Some(true)))
     }
 
+    pub(super) fn update_outer_expression(
+        &self,
+        outer_expression: &Node, /*OuterExpression*/
+        expression: Gc<Node /*Expression*/>,
+    ) -> Gc<Node> {
+        match outer_expression.kind() {
+            SyntaxKind::ParenthesizedExpression => {
+                self.update_parenthesized_expression(outer_expression, expression)
+            }
+            SyntaxKind::TypeAssertionExpression => self.update_type_assertion(
+                outer_expression,
+                outer_expression.as_type_assertion().type_.clone(),
+                expression,
+            ),
+            SyntaxKind::AsExpression => self.update_as_expression(
+                outer_expression,
+                expression,
+                outer_expression.as_as_expression().type_.clone(),
+            ),
+            SyntaxKind::NonNullExpression => {
+                self.update_non_null_expression(outer_expression, expression)
+            }
+            SyntaxKind::PartiallyEmittedExpression => {
+                self.update_partially_emitted_expression(outer_expression, expression)
+            }
+            _ => unreachable!(),
+        }
+    }
+
     fn is_ignorable_paren(&self, node: &Node /*Expression*/) -> bool {
         is_parenthesized_expression(node)
             && node_is_synthesized(node)
@@ -908,12 +937,20 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         kinds: Option<OuterExpressionKinds>,
     ) -> Gc<Node /*Expression*/> {
         let kinds = kinds.unwrap_or(OuterExpressionKinds::All);
-        if let Some(_outer_expression) = outer_expression.filter(|outer_expression| {
+        if let Some(outer_expression) = outer_expression.filter(|outer_expression| {
             let outer_expression = outer_expression.borrow();
             is_outer_expression(outer_expression, Some(kinds))
                 && !self.is_ignorable_paren(outer_expression)
         }) {
-            unimplemented!()
+            let outer_expression = outer_expression.borrow();
+            return self.update_outer_expression(
+                outer_expression,
+                self.restore_outer_expressions(
+                    Some(outer_expression.as_has_expression().expression()),
+                    inner_expression,
+                    None,
+                ),
+            );
         }
         inner_expression.node_wrapper()
     }
@@ -1487,7 +1524,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
         if right_custom_prologue_end > right_hoisted_variables_end {
             left.splice(
-                left_hoisted_variables_end..=left_hoisted_variables_end,
+                left_hoisted_variables_end..left_hoisted_variables_end,
                 declarations[right_hoisted_variables_end..right_custom_prologue_end]
                     .into_iter()
                     .cloned(),
@@ -1496,7 +1533,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
         if right_hoisted_variables_end > right_hoisted_functions_end {
             left.splice(
-                left_hoisted_functions_end..=left_hoisted_functions_end,
+                left_hoisted_functions_end..left_hoisted_functions_end,
                 declarations[right_hoisted_functions_end..right_hoisted_variables_end]
                     .into_iter()
                     .cloned(),
@@ -1505,7 +1542,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
         if right_hoisted_functions_end > right_standard_prologue_end {
             left.splice(
-                left_standard_prologue_end..=left_standard_prologue_end,
+                left_standard_prologue_end..left_standard_prologue_end,
                 declarations[right_standard_prologue_end..right_hoisted_functions_end]
                     .into_iter()
                     .cloned(),
@@ -1515,7 +1552,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         if right_standard_prologue_end > 0 {
             if left_standard_prologue_end == 0 {
                 left.splice(
-                    0..=0,
+                    0..0,
                     declarations[0..right_standard_prologue_end]
                         .into_iter()
                         .cloned(),

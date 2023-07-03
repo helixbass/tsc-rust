@@ -1,4 +1,4 @@
-use std::{cell::Cell, collections::HashMap, io, mem};
+use std::{cell::Cell, cmp, collections::HashMap, io, mem};
 
 use gc::{Finalize, Gc, GcCell, GcCellRef, GcCellRefMut, Trace};
 
@@ -241,7 +241,8 @@ impl TransformModule {
             let mut i = 0;
             while i < current_module_info_exported_names.len() {
                 statements.push(self.factory.create_expression_statement(reduce_left(
-                    &current_module_info_exported_names[i..i + chunk_size],
+                    &current_module_info_exported_names
+                        [i..cmp::min(i + chunk_size, current_module_info_exported_names.len())],
                     |prev: Gc<Node>, next_id: &Gc<Node>, _| {
                         self.factory.create_assignment(
                             self.factory.create_property_access_expression(
