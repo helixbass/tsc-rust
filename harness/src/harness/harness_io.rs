@@ -642,7 +642,7 @@ pub mod Compiler {
         pub decl_other_files: Vec<Gc<TestFile>>,
         pub harness_settings: Option<TestCaseParser::CompilerSettings /*& HarnessOptions*/>,
         pub options: Gc<CompilerOptions>,
-        pub current_directory: String,
+        pub current_directory: Option<String>,
     }
 
     pub fn prepare_declaration_compilation_context(
@@ -697,10 +697,10 @@ pub mod Compiler {
                 decl_other_files,
                 harness_settings: Some(harness_settings.clone()),
                 options,
-                current_directory: current_directory.non_empty().map_or_else(
-                    || harness_settings.get("currentDirectory").cloned().unwrap(),
-                    |current_directory| current_directory.to_owned(),
-                ),
+                current_directory: current_directory
+                    .non_empty()
+                    .map(|current_directory| current_directory.to_owned())
+                    .or_else(|| harness_settings.get("currentDirectory").cloned()),
             }));
         }
 
@@ -804,13 +804,13 @@ pub mod Compiler {
         let decl_other_files = &context.decl_other_files;
         let harness_settings = context.harness_settings.as_ref();
         let options = &context.options;
-        let current_directory = &context.current_directory;
+        let current_directory = context.current_directory.as_deref();
         let output = compile_files(
             decl_input_files,
             decl_other_files,
             harness_settings,
             Some(options),
-            Some(current_directory),
+            current_directory,
             symlinks,
         )?;
         Ok(Some(CompileDeclarationFilesReturn {
