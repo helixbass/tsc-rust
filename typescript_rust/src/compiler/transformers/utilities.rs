@@ -542,11 +542,12 @@ fn is_initialized_or_static_property(
     is_static: bool,
 ) -> bool {
     is_property_declaration(member)
-        && member
+        && (member
             .as_property_declaration()
             .maybe_initializer()
             .is_some()
-        || !require_initializer && has_static_modifier(member) == is_static
+            || !require_initializer)
+        && has_static_modifier(member) == is_static
 }
 
 pub fn is_static_property_declaration(member: &Node /*ClassElement*/) -> bool {
