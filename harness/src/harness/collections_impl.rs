@@ -203,6 +203,12 @@ pub mod collections {
             Keys::new(&self._keys, indices, self._version, self)
         }
 
+        pub fn values(&self) -> Values<'_, TKey, TValue> {
+            let indices = self.get_iteration_order();
+            self.set_copy_on_write(true);
+            Values::new(&self._values, indices, self._version, self)
+        }
+
         pub fn entries(&self) -> Entries<'_, TKey, TValue> {
             let indices = self.get_iteration_order();
             self.set_copy_on_write(true);
@@ -311,6 +317,75 @@ pub mod collections {
             TKey: 'sorted_map + Trace + Finalize,
             TValue: 'sorted_map + Trace + Finalize,
         > Drop for Keys<'sorted_map, TKey, TValue>
+    {
+        fn drop(&mut self) {
+            if self.version == self.sorted_map._version {
+                self.sorted_map.set_copy_on_write(false);
+            }
+        }
+    }
+
+    pub struct Values<
+        'sorted_map,
+        TKey: Trace + Finalize + 'static,
+        TValue: 'sorted_map + Trace + Finalize,
+    > {
+        _values: &'sorted_map Vec<TValue>,
+        indices: Option<Vec<usize>>,
+        version: usize,
+        sorted_map: &'sorted_map SortedMap<TKey, TValue>,
+        current_index: usize,
+    }
+
+    impl<
+            'sorted_map,
+            TKey: 'sorted_map + Trace + Finalize,
+            TValue: 'sorted_map + Trace + Finalize,
+        > Values<'sorted_map, TKey, TValue>
+    {
+        pub fn new(
+            _values: &'sorted_map Vec<TValue>,
+            indices: Option<Vec<usize>>,
+            version: usize,
+            sorted_map: &'sorted_map SortedMap<TKey, TValue>,
+        ) -> Self {
+            Self {
+                _values,
+                indices,
+                version,
+                sorted_map,
+                current_index: 0,
+            }
+        }
+    }
+
+    impl<
+            'sorted_map,
+            TKey: 'sorted_map + Trace + Finalize,
+            TValue: 'sorted_map + Trace + Finalize,
+        > Iterator for Values<'sorted_map, TKey, TValue>
+    {
+        type Item = &'sorted_map TValue;
+
+        fn next(&mut self) -> Option<Self::Item> {
+            if self.current_index >= self._values.len() {
+                return None;
+            }
+            let ret = if let Some(indices) = self.indices.as_ref() {
+                &self._values[indices[self.current_index]]
+            } else {
+                &self._values[self.current_index]
+            };
+            self.current_index += 1;
+            Some(ret)
+        }
+    }
+
+    impl<
+            'sorted_map,
+            TKey: 'sorted_map + Trace + Finalize,
+            TValue: 'sorted_map + Trace + Finalize,
+        > Drop for Values<'sorted_map, TKey, TValue>
     {
         fn drop(&mut self) {
             if self.version == self.sorted_map._version {

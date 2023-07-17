@@ -1,8 +1,9 @@
+use std::borrow::Cow;
+
 use gc::{Finalize, Gc, Trace};
 use itertools::Itertools;
 use once_cell::unsync::Lazy;
 use regex::{Captures, Regex, SubCaptureMatches};
-use std::borrow::Cow;
 use typescript_rust::{
     format_string_from_args, reg_exp_escape, regex, DiagnosticMessage, Diagnostics, Owned,
 };
@@ -15,7 +16,6 @@ pub fn remove_test_path_prefixes(
     text: &str,
     retain_trailing_directory_separator: Option<bool>,
 ) -> Cow<'_, str> {
-    // text !== undefined ?
     test_path_prefix_reg_exp().replace_all(text, |captures: &Captures| {
         captures
             .get(1)
@@ -32,7 +32,13 @@ pub fn remove_test_path_prefixes(
                 |capture| capture.as_str().to_owned(),
             )
     })
-    // : undefined!
+}
+
+pub fn maybe_remove_test_path_prefixes(
+    text: Option<&str>,
+    retain_trailing_directory_separator: Option<bool>,
+) -> Option<Cow<'_, str>> {
+    text.map(|text| remove_test_path_prefixes(text, retain_trailing_directory_separator))
 }
 
 fn create_diagnostic_message_replacer(

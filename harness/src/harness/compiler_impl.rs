@@ -14,7 +14,7 @@ pub mod compiler {
     use crate::{
         collections, documents, fakes,
         vfs::{self, SortOptionsComparerFromStringComparer},
-        vpath,
+        vpath, SourceMapRecorder,
     };
 
     #[derive(Trace, Finalize)]
@@ -134,6 +134,7 @@ pub mod compiler {
                         let input = Gc::new(documents::TextDocument::new(
                             source_file_as_source_file.file_name().clone(),
                             source_file_as_source_file.text().clone(),
+                            source_file_as_source_file.text_as_chars().clone(),
                             None,
                         ));
                         ret._inputs.push(input.clone());
@@ -182,6 +183,7 @@ pub mod compiler {
                         let input = Gc::new(documents::TextDocument::new(
                             source_file_as_source_file.file_name().clone(),
                             source_file_as_source_file.text().clone(),
+                            source_file_as_source_file.text_as_chars().clone(),
                             None,
                         ));
                         ret._inputs.push(input.clone());
@@ -259,6 +261,23 @@ pub mod compiler {
                 vpath::combine(&self.vfs().cwd()?, &[Some(&common)])
             } else {
                 common
+            })
+        }
+
+        pub fn get_source_map_record(&self) -> Option<String> {
+            let maps = self.result.as_ref().unwrap().source_maps.as_ref();
+            maps.non_empty().map(|maps| {
+                SourceMapRecorder::get_source_map_record(
+                    maps,
+                    self.program.as_ref().unwrap(),
+                    &self
+                        .js
+                        .values()
+                        .filter(|d| !file_extension_is(&d.file, Extension::Json.to_str()))
+                        .cloned()
+                        .collect::<Vec<_>>(),
+                    &self.dts.values().cloned().collect::<Vec<_>>(),
+                )
             })
         }
 

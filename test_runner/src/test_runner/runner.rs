@@ -131,6 +131,7 @@ pub enum TestCategory {
     VerifyDiagnostics,
     VerifyModuleResolution,
     VerifyJavaScriptOutput,
+    VerifySourceMapRecord,
 }
 
 thread_local! {

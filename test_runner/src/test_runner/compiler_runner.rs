@@ -1,4 +1,4 @@
-use std::{collections::HashMap, io, path::Path as StdPath};
+use std::{borrow::Cow, collections::HashMap, io, path::Path as StdPath};
 
 use gc::{Finalize, Gc, Trace};
 use harness::{
@@ -12,7 +12,7 @@ use jsonxf::Formatter;
 use regex::Regex;
 use typescript_rust::{
     combine_paths, file_extension_is, get_directory_path, get_normalized_absolute_path,
-    is_rooted_disk_path, regex, some, to_path, CompilerOptions, Extension,
+    is_rooted_disk_path, regex, some, to_path, BoolExt, CompilerOptions, Extension,
 };
 
 use super::runner::{should_run_category, TestCategory};
@@ -237,6 +237,45 @@ impl CompilerBaselineRunner {
                         let compiler_test =
                             CompilerTest::new(file_name, payload, configuration).unwrap();
                         compiler_test.verify_java_script_output().unwrap();
+                    }
+                }
+            });
+        }
+        if should_run_category(TestCategory::VerifySourceMapRecord) {
+            it(&format!("Correct sourcemap content for {}", file_name), {
+                let configuration = configuration.cloned();
+                let test = test.cloned();
+                let file_name = file_name.to_owned();
+                let emit = self.emit;
+                move || {
+                    if emit {
+                        let mut payload: Option<TestCaseParser::TestCaseContent> = None;
+                        if let Some(test) = test.as_ref().filter(|test| {
+                            matches!(
+                                test.content.as_ref(),
+                                Some(test_content) if !test_content.is_empty()
+                            )
+                        }) {
+                            let root_dir = if !test.file.contains("conformance") {
+                                // "tests/cases/compiler/".to_owned()
+                                "../typescript_rust/typescript_src/tests/cases/compiler/".to_owned()
+                            } else {
+                                format!("{}/", get_directory_path(&test.file))
+                            }
+                            .replace("../typescript_rust/typescript_src/", "");
+                            payload = Some(
+                                TestCaseParser::make_units_from_test(
+                                    test.content.as_ref().unwrap(),
+                                    &test.file,
+                                    Some(&root_dir),
+                                    None,
+                                )
+                                .unwrap(),
+                            );
+                        }
+                        let compiler_test =
+                            CompilerTest::new(file_name, payload, configuration).unwrap();
+                        compiler_test.verify_source_map_record().unwrap();
                     }
                 }
             });
@@ -580,6 +619,31 @@ impl CompilerTest {
                 None,
             );
         }
+    }
+
+    pub fn verify_source_map_record(&self) -> io::Result<()> {
+        if self.options.source_map == Some(true)
+            || self.options.inline_source_map == Some(true)
+            || self.options.declaration_map == Some(true)
+        {
+            let record = Utils::maybe_remove_test_path_prefixes(
+                self.result.get_source_map_record().as_deref(),
+                None,
+            )
+            .map(Cow::into_owned);
+            let baseline = record.and_then(|record| {
+                (!(self.options.no_emit_on_error == Some(true)
+                    && !self.result.diagnostics.is_empty()))
+                .then_some(record)
+            });
+            Baseline::run_baseline(
+                &regex!(r#"\.tsx?"#).replace(&self.configured_name, ".sourcemap.txt"),
+                baseline.as_deref(),
+                None,
+            );
+        }
+
+        Ok(())
     }
 
     pub fn verify_java_script_output(&self) -> io::Result<()> {

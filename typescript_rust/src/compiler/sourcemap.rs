@@ -8,7 +8,7 @@ use gc::{Finalize, Gc, Trace};
 use crate::{
     combine_paths, get_directory_path, get_relative_path_to_directory_or_url, CharacterCodes,
     Debug_, EmitHost, GetOrInsertDefault, LineAndCharacter, NonEmpty, RawSourceMap,
-    ScriptReferenceHost, SourceMapGenerator, SourceMapOptions,
+    ScriptReferenceHost, SourceMapGenerator, SourceMapOptions, SourceTextAsChars,
 };
 
 pub struct SourceMapGeneratorOptions {
@@ -736,11 +736,47 @@ impl SourceMapGenerator for SourceMapGeneratorConcrete {
     }
 }
 
+pub trait LineInfo {
+    fn get_line_count(&self) -> usize;
+    fn get_line_text(&self, line: usize) -> String;
+}
+
+pub fn get_line_info(text: SourceTextAsChars, line_starts: Vec<usize>) -> LineInfoConcrete {
+    LineInfoConcrete { text, line_starts }
+}
+
+pub struct LineInfoConcrete {
+    text: SourceTextAsChars,
+    line_starts: Vec<usize>,
+}
+
+impl LineInfo for LineInfoConcrete {
+    fn get_line_count(&self) -> usize {
+        self.line_starts.len()
+    }
+
+    fn get_line_text(&self, line: usize) -> String {
+        if line == self.line_starts.len() - 1 {
+            self.text[self.line_starts[line]..].into_iter().collect()
+        } else {
+            self.text[self.line_starts[line]..self.line_starts[line + 1]]
+                .into_iter()
+                .collect()
+        }
+    }
+}
+
+pub fn try_get_source_mapping_url(_line_info: &impl LineInfo) -> Option<String> {
+    unimplemented!()
+}
+
 pub fn try_parse_raw_source_map(_text: &str) -> Option<RawSourceMap> {
     unimplemented!()
 }
 
-pub struct MappingsDecoder;
+pub struct MappingsDecoder {
+    pub pos: usize,
+}
 
 impl Iterator for MappingsDecoder {
     type Item = Mapping;
@@ -761,6 +797,10 @@ pub struct Mapping {
 }
 
 pub fn decode_mappings(_mappings: &str) -> MappingsDecoder {
+    unimplemented!()
+}
+
+pub fn is_source_mapping(_mapping: &Mapping) -> bool {
     unimplemented!()
 }
 

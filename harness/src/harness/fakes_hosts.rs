@@ -1,13 +1,14 @@
 pub mod fakes {
-    use gc::{Finalize, Gc, GcCell, GcCellRef, Trace};
-    use std::borrow::Cow;
-    use std::cell::{Cell, Ref, RefCell};
-    use std::collections::HashMap;
-    use std::io;
-    use std::mem;
-    use std::rc::Rc;
-    use std::time::SystemTime;
+    use std::{
+        borrow::Cow,
+        cell::{Cell, Ref, RefCell},
+        collections::HashMap,
+        io, mem,
+        rc::Rc,
+        time::SystemTime,
+    };
 
+    use gc::{Finalize, Gc, GcCell, GcCellRef, Trace};
     use typescript_rust::{
         continue_if_err, create_source_file, generate_djb2_hash, get_default_lib_file_name,
         get_new_line_character, match_files, millis_since_epoch_to_system_time, not_implemented,
@@ -18,8 +19,10 @@ pub mod fakes {
     };
     use typescript_services_rust::{get_default_compiler_options, NodeServicesInterface};
 
-    use crate::vfs::SortOptionsComparerFromStringComparer;
-    use crate::{collections, documents, get_light_mode, vfs, vpath, Utils};
+    use crate::{
+        collections, documents, get_light_mode, vfs, vfs::SortOptionsComparerFromStringComparer,
+        vpath, Utils,
+    };
 
     // const processExitSentinel = new Error("System exit");
 
@@ -637,7 +640,9 @@ pub mod fakes {
             // TODO: is this correct to ignore here?
             let _ = self.sys.write_file(file_name, &content, None);
 
-            let mut document = documents::TextDocument::new(file_name.to_owned(), content, None);
+            let content_as_chars = content.chars().collect();
+            let mut document =
+                documents::TextDocument::new(file_name.to_owned(), content, content_as_chars, None);
             document
                 .meta
                 .insert("fileName".to_owned(), file_name.to_owned());

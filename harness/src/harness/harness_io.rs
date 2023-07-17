@@ -277,12 +277,40 @@ pub mod Compiler {
         to_path, CommandLineOption, CommandLineOptionBaseBuilder, CommandLineOptionInterface,
         CommandLineOptionType, Comparison, CompilerOptions, CompilerOptionsBuilder,
         CompilerOptionsValue, Diagnostic, DiagnosticInterface,
-        DiagnosticRelatedInformationInterface, Extension, FormatDiagnosticsHost, NewLineKind,
-        ScriptKind, ScriptReferenceHost, StringOrDiagnosticMessage, TextSpan,
+        DiagnosticRelatedInformationInterface, Extension, FormatDiagnosticsHost,
+        GetOrInsertDefault, NewLineKind, ScriptKind, ScriptReferenceHost,
+        StringOrDiagnosticMessage, TextSpan,
     };
 
     use super::{is_built_file, is_default_library_file, Baseline, TestCaseParser};
     use crate::{compiler, documents, fakes, get_io, vfs, vpath, with_io, Utils, IO};
+
+    #[derive(Default)]
+    pub struct WriterAggregator {
+        pub lines: Vec<String>,
+        pub current_line: Option<String>,
+    }
+
+    impl WriterAggregator {
+        pub fn write(&mut self, str_: &str) {
+            self.current_line.get_or_insert_default_().push_str(str_);
+        }
+
+        pub fn write_line(&mut self, str_: &str) {
+            self.current_line.get_or_insert_default_().push_str(str_);
+            self.lines.push(self.current_line.take().unwrap());
+        }
+
+        pub fn close(&mut self) {
+            if self.current_line.is_some() {
+                self.lines.push(self.current_line.take().unwrap());
+            }
+        }
+
+        pub fn reset(&mut self) {
+            *self = Default::default();
+        }
+    }
 
     pub fn get_canonical_file_name(file_name: &str) -> String {
         file_name.to_owned()

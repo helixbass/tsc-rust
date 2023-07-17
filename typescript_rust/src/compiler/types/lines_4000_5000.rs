@@ -109,7 +109,7 @@ impl EmitTransformers {
 }
 
 #[allow(dead_code)]
-pub(crate) struct SourceMapEmitResult {
+pub struct SourceMapEmitResult {
     pub input_source_file_names: Vec<String>,
     pub source_map: RawSourceMap,
 }
@@ -137,7 +137,7 @@ pub struct EmitResult {
     pub emit_skipped: bool,
     pub diagnostics: Vec<Gc<Diagnostic>>,
     pub emitted_files: Option<Vec<String>>,
-    pub(crate) source_maps: Option<Vec<SourceMapEmitResult>>,
+    pub source_maps: Option<Vec<SourceMapEmitResult>>,
     pub(crate) exported_modules_from_declaration_emit: Option<ExportedModulesFromDeclarationEmit>,
 }
 
