@@ -27,6 +27,7 @@ uri_encode = "1.0.1"
 base64 = "0.21.0"
 peekmore = { version = "1.2.1", features = ["smallvec"] }
 either_n = "0.2.0"
+id-arena = "2.2.1"
 
 [dev-dependencies]
 rstest = "0.15.0"

@@ -5,11 +5,12 @@ use proc_macro::TokenStream;
 use proc_macro2::{Ident, Span, TokenStream as TokenStream2};
 use quote::quote;
 use syn::{
-    parse::{Parse, ParseStream, Result},
+    parse::{Parse, ParseStream, Result, Parser},
     parse_macro_input, AttributeArgs, Block,
     Data::{Enum, Struct},
     DataEnum, DeriveInput, Error, Expr, ExprArray, Fields, FieldsNamed, FnArg, ItemFn, Pat,
     ReturnType, Token,
+    punctuated::Punctuated
 };
 
 #[derive(Debug, FromMeta)]
@@ -3879,9 +3880,17 @@ pub fn generate_node_factory_method_wrapper(_attr: TokenStream, item: TokenStrea
     let mut wrapper_fn_item = parsed_fn_item.clone();
     wrapper_fn_item.sig.ident = Ident::new(wrapper_method_name, Span::call_site());
 
-    let gc_node_token_stream: TokenStream = quote!(-> Gc<Node>).into();
-    let gc_node_return_type = parse_macro_input!(gc_node_token_stream as ReturnType);
-    wrapper_fn_item.sig.output = gc_node_return_type;
+    let id_node_token_stream: TokenStream = quote!(-> id_arena::Id<crate::Node>).into();
+    let id_node_return_type = parse_macro_input!(id_node_token_stream as ReturnType);
+    wrapper_fn_item.sig.output = id_node_return_type;
+
+    let self_param = &wrapper_fn_item.sig.inputs[0];
+    let other_params = wrapper_fn_item.sig.inputs.iter().skip(1).cloned().collect::<Vec<_>>();
+    let wrapper_fn_item_params = quote! {
+        #self_param, arena: id_arena::Arena<crate::Node>, #(#other_params),*
+    };
+    let params_parser = Punctuated::<FnArg, Token![,]>::parse_terminated;
+    wrapper_fn_item.sig.inputs = params_parser.parse2(wrapper_fn_item_params).unwrap();
 
     let forwarded_arguments = parsed_fn_item
         .sig
@@ -3900,7 +3909,7 @@ pub fn generate_node_factory_method_wrapper(_attr: TokenStream, item: TokenStrea
     let forwarded_arguments = quote!(#(#forwarded_arguments),*);
     let wrapper_fn_body_token_stream: TokenStream = quote! {
         {
-            self.#raw_method_name_ident(#forwarded_arguments).wrap()
+            arena.alloc_with_id(|id| self.#raw_method_name_ident(#forwarded_arguments))
         }
     }
     .into();

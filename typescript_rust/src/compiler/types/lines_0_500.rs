@@ -41,9 +41,9 @@ impl From<String> for Path {
 
 pub trait ReadonlyTextRange {
     fn pos(&self) -> isize;
-    fn set_pos(&self, pos: isize);
+    fn set_pos(&mut self, pos: isize);
     fn end(&self) -> isize;
-    fn set_end(&self, end: isize);
+    fn set_end(&mut self, end: isize);
 }
 
 #[derive(Copy, Clone)]

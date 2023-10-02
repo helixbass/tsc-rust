@@ -2,6 +2,7 @@ use std::{cell::Cell, ops::Deref};
 
 use bitflags::bitflags;
 use gc::{Finalize, Gc, GcCell, GcCellRefMut, Trace};
+use id_arena::Id;
 use local_macros::{ast_type, enum_unwrapped};
 
 use super::{
@@ -15,23 +16,17 @@ use crate::set_text_range_node_array;
 mod _NodeArrayDeriveTraceScope {
     use std::slice;
 
-    use local_macros::Trace;
-
     use super::*;
 
-    #[derive(Clone, Trace, Finalize)]
+    #[derive(Clone)]
     pub struct NodeArray {
-        _rc_wrapper: GcCell<Option<Gc<NodeArray>>>,
-        _nodes: Vec<Gc<Node>>,
-        #[unsafe_ignore_trace]
-        pos: Cell<isize>,
-        #[unsafe_ignore_trace]
-        end: Cell<isize>,
+        id: Id<Self>,
+        _nodes: Vec<Id<Node>>,
+        pos: isize,
+        end: isize,
         pub has_trailing_comma: bool,
-        #[unsafe_ignore_trace]
-        transform_flags: Cell<Option<TransformFlags>>,
-        #[unsafe_ignore_trace]
-        is_missing_list: Cell<bool>,
+        transform_flags: Option<TransformFlags>,
+        is_missing_list: bool,
     }
 
     impl std::fmt::Debug for NodeArray {
@@ -50,27 +45,22 @@ mod _NodeArrayDeriveTraceScope {
 
     impl NodeArray {
         pub fn new(
-            nodes: Vec<Gc<Node>>,
+            arena: Arena<Self>,
+            nodes: Vec<Id<Node>>,
             pos: isize,
             end: isize,
             has_trailing_comma: bool,
             transform_flags: Option<TransformFlags>,
         ) -> Gc<Self> {
-            let ret = Gc::new(NodeArray {
+            arena.alloc_with_id(|id| Self {
                 _nodes: nodes,
-                _rc_wrapper: Default::default(),
-                pos: Cell::new(pos),
-                end: Cell::new(end),
+                id,
+                pos,
+                end,
                 has_trailing_comma,
-                transform_flags: Cell::new(transform_flags),
-                is_missing_list: Cell::new(false),
-            });
-            *ret._rc_wrapper.borrow_mut() = Some(ret.clone());
-            ret
-        }
-
-        pub fn rc_wrapper(&self) -> Gc<Self> {
-            self._rc_wrapper.borrow().clone().unwrap()
+                transform_flags,
+                is_missing_list: Default::default(),
+            })
         }
 
         pub fn iter(&self) -> NodeArrayIter {
@@ -86,37 +76,37 @@ mod _NodeArrayDeriveTraceScope {
         }
 
         pub fn maybe_transform_flags(&self) -> Option<TransformFlags> {
-            self.transform_flags.get()
+            self.transform_flags
         }
 
-        pub fn set_transform_flags(&self, transform_flags: Option<TransformFlags>) {
-            self.transform_flags.set(transform_flags);
+        pub fn set_transform_flags(&mut self, transform_flags: Option<TransformFlags>) {
+            self.transform_flags = transform_flags;
         }
 
         pub fn is_missing_list(&self) -> bool {
-            self.is_missing_list.get()
+            self.is_missing_list
         }
 
-        pub fn set_is_missing_list(&self, is_missing_list: bool) {
-            self.is_missing_list.set(is_missing_list);
+        pub fn set_is_missing_list(&mut self, is_missing_list: bool) {
+            self.is_missing_list = is_missing_list;
         }
     }
 
     impl ReadonlyTextRange for NodeArray {
         fn pos(&self) -> isize {
-            self.pos.get()
+            self.pos
         }
 
-        fn set_pos(&self, pos: isize) {
-            self.pos.set(pos);
+        fn set_pos(&mut self, pos: isize) {
+            self.pos = pos;
         }
 
         fn end(&self) -> isize {
-            self.end.get()
+            self.end
         }
 
-        fn set_end(&self, end: isize) {
-            self.end.set(end);
+        fn set_end(&mut self, end: isize) {
+            self.end = end;
         }
     }
 
@@ -412,7 +402,7 @@ impl HasTypeArgumentsInterface for Identifier {
     }
 }
 
-pub type ModifiersArray = Gc<NodeArray>; /*<Modifier>*/
+pub type ModifiersArray = Id<NodeArray>; /*<Modifier>*/
 
 #[derive(Debug, Trace, Finalize)]
 #[ast_type]

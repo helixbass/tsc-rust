@@ -7,6 +7,7 @@ use std::{
 };
 
 use gc::{Finalize, Gc, GcCell, GcCellRef, GcCellRefMut, Trace};
+use id_arena::Id;
 
 use super::{
     wrap_symbol_tracker_to_report_for_context, MakeSerializePropertySymbol,
@@ -907,25 +908,25 @@ impl SymbolTableToDeclarationStatements {
                     } else {
                         let statement = set_text_range_rc_node(
                             get_factory().create_variable_statement(
-                                Option::<Gc<NodeArray>>::None,
-                                    get_factory().create_variable_declaration_list(
-                                        vec![
-                                            get_factory().create_variable_declaration(
-                                                Some(&*name),
-                                                None,
-                                                Some(self.node_builder.serialize_type_for_declaration(
-                                                    &self.context(),
-                                                    type_,
-                                                    symbol,
-                                                    Some(&*self.enclosing_declaration),
-                                                    Some(&|symbol: &Symbol| self.include_private_symbol(symbol)),
-                                                    self.bundled,
-                                                )?),
-                                                None,
-                                            )
-                                        ],
-                                        flags,
-                                    )
+                                Option::<Id<NodeArray>>::None,
+                                get_factory().create_variable_declaration_list(
+                                    vec![
+                                        get_factory().create_variable_declaration(
+                                            Some(&*name),
+                                            None,
+                                            Some(self.node_builder.serialize_type_for_declaration(
+                                                &self.context(),
+                                                type_,
+                                                symbol,
+                                                Some(&*self.enclosing_declaration),
+                                                Some(&|symbol: &Symbol| self.include_private_symbol(symbol)),
+                                                self.bundled,
+                                            )?),
+                                            None,
+                                        )
+                                    ],
+                                    flags,
+                                )
                             ),
                             text_range.as_deref(),
                         );

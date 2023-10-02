@@ -1,15 +1,11 @@
 #![allow(non_upper_case_globals, non_snake_case)]
-use gc::Gc;
+use std::{cell::RefCell, collections::HashMap, fs, path::Path};
+
 use itertools::Itertools;
 use lazy_static::lazy_static;
 use pretty_assertions::assert_str_eq;
 use regex::{Captures, Regex};
 use rstest::rstest;
-use std::cell::RefCell;
-use std::collections::HashMap;
-use std::fs;
-use std::path::Path;
-
 use typescript_rust::{
     create_compiler_host_worker, create_program, format_diagnostics,
     format_diagnostics_with_color_and_context, get_emit_script_target, get_pre_emit_diagnostics,

@@ -1,7 +1,8 @@
-use std::{cell::Cell, fmt};
+use std::{cell::Cell, fmt, rc::Rc};
 
 use bitflags::bitflags;
 use gc::{Finalize, Gc, GcCell, GcCellRef, GcCellRefMut, Trace};
+use id_arena::Id;
 use local_macros::{ast_type, enum_unwrapped};
 
 use super::{
@@ -1703,41 +1704,32 @@ impl Node {
     }
 }
 
-#[derive(Finalize, Trace)]
 pub struct BaseNode {
-    _node_wrapper: GcCell<Option<Gc<Node>>>,
-    _id_override: GcCell<Option<Gc<Box<dyn NodeIdOverride>>>>,
-    _symbol_override: GcCell<Option<Gc<Box<dyn NodeSymbolOverride>>>>,
-    #[unsafe_ignore_trace]
+    _node_wrapper: Id<Node>,
+    _id_override: Option<Rc<NodeIdOverride>>,
+    _symbol_override: Option<Rc<NodeSymbolOverride>>,
     pub kind: SyntaxKind,
-    #[unsafe_ignore_trace]
-    flags: Cell<NodeFlags>,
-    #[unsafe_ignore_trace]
-    modifier_flags_cache: Cell<ModifierFlags>,
-    #[unsafe_ignore_trace]
-    transform_flags: Cell<TransformFlags>,
-    pub decorators: GcCell<Option<Gc<NodeArray> /*<Decorator>*/>>,
-    pub modifiers: GcCell<Option<ModifiersArray>>,
-    #[unsafe_ignore_trace]
-    pub id: Cell<Option<NodeId>>,
-    pub parent: GcCell<Option<Gc<Node>>>,
-    pub original: GcCell<Option<Gc<Node>>>,
-    #[unsafe_ignore_trace]
-    pub pos: Cell<isize>,
-    #[unsafe_ignore_trace]
-    pub end: Cell<isize>,
-    pub symbol: GcCell<Option<Gc<Symbol>>>,
-    pub locals: Gc<GcCell<Option<Gc<GcCell<SymbolTable>>>>>,
-    next_container: GcCell<Option<Gc<Node>>>,
-    local_symbol: GcCell<Option<Gc<Symbol>>>,
-    emit_node: GcCell<Option<Gc<GcCell<EmitNode>>>>,
-    contextual_type: GcCell<Option<Gc<Type>>>,
-    inference_context: GcCell<Option<Gc<InferenceContext>>>,
-    flow_node: GcCell<Option<Gc<FlowNode>>>,
-    js_doc: GcCell<Option<Vec<Gc<Node>>>>,
-    js_doc_cache: GcCell<Option<GcVec<Gc<Node>>>>,
-    #[unsafe_ignore_trace]
-    intersects_change: Cell<Option<bool>>,
+    flags: NodeFlags,
+    modifier_flags_cache: ModifierFlags,
+    transform_flags: TransformFlags,
+    pub decorators: Option<Id<NodeArray> /*<Decorator>*/>,
+    pub modifiers: Option<ModifiersArray>,
+    pub id: Option<NodeId>,
+    pub parent: Option<Id<Node>>,
+    pub original: Option<Id<Node>>,
+    pub pos: isize,
+    pub end: isize,
+    pub symbol: Option<Id<Symbol>>,
+    pub locals: Option<Id<SymbolTable>>,
+    next_container: Option<Id<Node>>,
+    local_symbol: Option<Id<Symbol>>,
+    emit_node: Option<Id<EmitNode>>,
+    contextual_type: Option<Id<Type>>,
+    inference_context: Option<Id<InferenceContext>>,
+    flow_node: Option<Id<FlowNode>>,
+    js_doc: Option<Vec<Id<Node>>>,
+    js_doc_cache: Option<Vec<Id<Node>>>,
+    intersects_change: Option<bool>,
 }
 
 impl fmt::Debug for BaseNode {
@@ -2045,16 +2037,16 @@ impl ReadonlyTextRange for BaseNode {
         self.pos.get()
     }
 
-    fn set_pos(&self, pos: isize) {
-        self.pos.set(pos);
+    fn set_pos(&mut self, pos: isize) {
+        self.pos = pos;
     }
 
     fn end(&self) -> isize {
-        self.end.get()
+        self.end
     }
 
-    fn set_end(&self, end: isize) {
-        self.end.set(end);
+    fn set_end(&mut self, end: isize) {
+        self.end = end;
     }
 }
 

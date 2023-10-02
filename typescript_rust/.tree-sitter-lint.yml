@@ -1,0 +1,20 @@
+plugins:
+  rustfmt:
+    path: ../../tree-sitter-lint-plugin-rustfmt
+  rust-known-imports:
+    path: ../../tree-sitter-lint-plugin-rust-known-imports
+rules:
+  rustfmt/rustfmt:
+    level: error
+  rust-known-imports/known-imports:
+    level: error
+    options:
+      known_imports:
+        Id:
+          module: id_arena
+          kind: type
+        RefCell:
+          module: std::cell
+          kind: type
+tree-sitter-lint-dependency:
+  path: ../../tree-sitter-lint

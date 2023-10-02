@@ -6,10 +6,4 @@ members = [
     "harness",
     "test_runner",
 ]
-
-[profile.test]
-# opt-level = 3
-# codegen-units = 16
-
-[profile.release]
 # debug = true
