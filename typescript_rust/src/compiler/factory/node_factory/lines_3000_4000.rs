@@ -301,7 +301,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         let node = self.create_base_declaration(
             id,
             SyntaxKind::VariableStatement,
-            Option::<Gc<NodeArray>>::None,
+            Option::<Id<NodeArray>>::None,
             modifiers,
         );
         let node = VariableStatement::new(

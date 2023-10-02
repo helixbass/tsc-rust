@@ -1,191 +1,188 @@
-use std::{cell::Cell, ops::Deref};
+use std::{
+    cell::{Cell, RefCell},
+    ops::Deref,
+    slice,
+};
 
 use bitflags::bitflags;
 use gc::{Finalize, Gc, GcCell, GcCellRefMut, Trace};
-use id_arena::Id;
+use id_arena::{Arena, Id};
 use local_macros::{ast_type, enum_unwrapped};
 
 use super::{
     BaseGenericNamedDeclaration, BaseNode, FlowNode, HasExpressionInterface,
     HasInitializerInterface, HasLeftAndRightInterface, HasQuestionTokenInterface,
     HasTypeArgumentsInterface, HasTypeInterface, HasTypeParametersInterface, Node, NodeInterface,
-    ReadonlyTextRange, SyntaxKind, TransformFlags, __String,
+    ReadonlyTextRange, SyntaxKind, TransformFlags, __String, *,
 };
 use crate::set_text_range_node_array;
 
-mod _NodeArrayDeriveTraceScope {
-    use std::slice;
+#[derive(Clone)]
+pub struct NodeArray {
+    id: Id<Self>,
+    _nodes: Vec<Id<Node>>,
+    pos: isize,
+    end: isize,
+    pub has_trailing_comma: bool,
+    transform_flags: Option<TransformFlags>,
+    is_missing_list: bool,
+}
 
-    use super::*;
+impl std::fmt::Debug for NodeArray {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("NodeArray")
+            // .field("_rc_wrapper", &self._rc_wrapper)
+            .field("_nodes", &self._nodes)
+            .field("pos", &self.pos)
+            .field("end", &self.end)
+            .field("has_trailing_comma", &self.has_trailing_comma)
+            .field("transform_flags", &self.transform_flags)
+            .field("is_missing_list", &self.is_missing_list)
+            .finish()
+    }
+}
 
-    #[derive(Clone)]
-    pub struct NodeArray {
-        id: Id<Self>,
-        _nodes: Vec<Id<Node>>,
+impl NodeArray {
+    pub fn new(
+        arena: &RefCell<Arena<Self>>,
+        nodes: Vec<Id<Node>>,
         pos: isize,
         end: isize,
-        pub has_trailing_comma: bool,
+        has_trailing_comma: bool,
         transform_flags: Option<TransformFlags>,
-        is_missing_list: bool,
+    ) -> Id<Self> {
+        arena.borrow_mut().alloc_with_id(|id| Self {
+            _nodes: nodes,
+            id,
+            pos,
+            end,
+            has_trailing_comma,
+            transform_flags,
+            is_missing_list: Default::default(),
+        })
     }
 
-    impl std::fmt::Debug for NodeArray {
-        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-            f.debug_struct("NodeArray")
-                // .field("_rc_wrapper", &self._rc_wrapper)
-                .field("_nodes", &self._nodes)
-                .field("pos", &self.pos)
-                .field("end", &self.end)
-                .field("has_trailing_comma", &self.has_trailing_comma)
-                .field("transform_flags", &self.transform_flags)
-                .field("is_missing_list", &self.is_missing_list)
-                .finish()
-        }
+    pub fn iter(&self) -> NodeArrayIter {
+        NodeArrayIter(self._nodes.iter())
     }
 
-    impl NodeArray {
-        pub fn new(
-            arena: Arena<Self>,
-            nodes: Vec<Id<Node>>,
-            pos: isize,
-            end: isize,
-            has_trailing_comma: bool,
-            transform_flags: Option<TransformFlags>,
-        ) -> Gc<Self> {
-            arena.alloc_with_id(|id| Self {
-                _nodes: nodes,
-                id,
-                pos,
-                end,
-                has_trailing_comma,
-                transform_flags,
-                is_missing_list: Default::default(),
-            })
-        }
-
-        pub fn iter(&self) -> NodeArrayIter {
-            NodeArrayIter(self._nodes.iter())
-        }
-
-        pub fn owned_iter(&self) -> NodeArrayOwnedIter {
-            self.rc_wrapper().into()
-        }
-
-        pub fn to_vec(&self) -> Vec<Gc<Node>> {
-            self._nodes.clone()
-        }
-
-        pub fn maybe_transform_flags(&self) -> Option<TransformFlags> {
-            self.transform_flags
-        }
-
-        pub fn set_transform_flags(&mut self, transform_flags: Option<TransformFlags>) {
-            self.transform_flags = transform_flags;
-        }
-
-        pub fn is_missing_list(&self) -> bool {
-            self.is_missing_list
-        }
-
-        pub fn set_is_missing_list(&mut self, is_missing_list: bool) {
-            self.is_missing_list = is_missing_list;
-        }
+    pub fn owned_iter(&self) -> NodeArrayOwnedIter {
+        self.rc_wrapper().into()
     }
 
-    impl ReadonlyTextRange for NodeArray {
-        fn pos(&self) -> isize {
-            self.pos
-        }
-
-        fn set_pos(&mut self, pos: isize) {
-            self.pos = pos;
-        }
-
-        fn end(&self) -> isize {
-            self.end
-        }
-
-        fn set_end(&mut self, end: isize) {
-            self.end = end;
-        }
+    pub fn to_vec(&self) -> Vec<Gc<Node>> {
+        self._nodes.clone()
     }
 
-    // impl Default for NodeArray {
-    //     fn default() -> Self {
-    //         Self::new(vec![])
-    //     }
-    // }
-
-    impl From<&NodeArray> for Vec<Gc<Node>> {
-        fn from(node_array: &NodeArray) -> Self {
-            node_array._nodes.clone()
-        }
+    pub fn maybe_transform_flags(&self) -> Option<TransformFlags> {
+        self.transform_flags
     }
 
-    impl<'node_array> From<&'node_array NodeArray> for &'node_array [Gc<Node>] {
-        fn from(node_array: &'node_array NodeArray) -> Self {
-            &node_array._nodes
-        }
+    pub fn set_transform_flags(&mut self, transform_flags: Option<TransformFlags>) {
+        self.transform_flags = transform_flags;
     }
 
-    #[derive(Clone)]
-    pub struct NodeArrayIter<'node_array>(slice::Iter<'node_array, Gc<Node>>);
-
-    impl<'node_array> Iterator for NodeArrayIter<'node_array> {
-        type Item = &'node_array Gc<Node>;
-
-        fn next(&mut self) -> Option<Self::Item> {
-            self.0.next()
-        }
+    pub fn is_missing_list(&self) -> bool {
+        self.is_missing_list
     }
 
-    impl<'node_array> IntoIterator for &'node_array NodeArray {
-        type Item = &'node_array Gc<Node>;
-        type IntoIter = NodeArrayIter<'node_array>;
+    pub fn set_is_missing_list(&mut self, is_missing_list: bool) {
+        self.is_missing_list = is_missing_list;
+    }
+}
 
-        fn into_iter(self) -> Self::IntoIter {
-            self.iter()
-        }
+impl ReadonlyTextRange for NodeArray {
+    fn pos(&self) -> isize {
+        self.pos
     }
 
-    #[derive(Clone, Trace, Finalize)]
-    pub struct NodeArrayOwnedIter {
-        node_array: Gc<NodeArray>,
-        index: usize,
+    fn set_pos(&mut self, pos: isize) {
+        self.pos = pos;
     }
 
-    impl From<Gc<NodeArray>> for NodeArrayOwnedIter {
-        fn from(value: Gc<NodeArray>) -> Self {
-            Self {
-                node_array: value,
-                index: 0,
-            }
-        }
+    fn end(&self) -> isize {
+        self.end
     }
 
-    impl Iterator for NodeArrayOwnedIter {
-        type Item = Gc<Node>;
-
-        fn next(&mut self) -> Option<Self::Item> {
-            if self.index >= self.node_array.len() {
-                None
-            } else {
-                let ret = self.node_array[self.index].clone();
-                self.index += 1;
-                Some(ret)
-            }
-        }
+    fn set_end(&mut self, end: isize) {
+        self.end = end;
     }
+}
 
-    impl Deref for NodeArray {
-        type Target = [Gc<Node>];
+// impl Default for NodeArray {
+//     fn default() -> Self {
+//         Self::new(vec![])
+//     }
+// }
 
-        fn deref(&self) -> &Self::Target {
-            &self._nodes
+impl From<&NodeArray> for Vec<Gc<Node>> {
+    fn from(node_array: &NodeArray) -> Self {
+        node_array._nodes.clone()
+    }
+}
+
+impl<'node_array> From<&'node_array NodeArray> for &'node_array [Gc<Node>] {
+    fn from(node_array: &'node_array NodeArray) -> Self {
+        &node_array._nodes
+    }
+}
+
+#[derive(Clone)]
+pub struct NodeArrayIter<'node_array>(slice::Iter<'node_array, Gc<Node>>);
+
+impl<'node_array> Iterator for NodeArrayIter<'node_array> {
+    type Item = &'node_array Gc<Node>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.0.next()
+    }
+}
+
+impl<'node_array> IntoIterator for &'node_array NodeArray {
+    type Item = &'node_array Gc<Node>;
+    type IntoIter = NodeArrayIter<'node_array>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter()
+    }
+}
+
+#[derive(Clone, Trace, Finalize)]
+pub struct NodeArrayOwnedIter {
+    node_array: Gc<NodeArray>,
+    index: usize,
+}
+
+impl From<Gc<NodeArray>> for NodeArrayOwnedIter {
+    fn from(value: Gc<NodeArray>) -> Self {
+        Self {
+            node_array: value,
+            index: 0,
         }
     }
 }
-pub use _NodeArrayDeriveTraceScope::NodeArray;
+
+impl Iterator for NodeArrayOwnedIter {
+    type Item = Gc<Node>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.index >= self.node_array.len() {
+            None
+        } else {
+            let ret = self.node_array[self.index].clone();
+            self.index += 1;
+            Some(ret)
+        }
+    }
+}
+
+impl Deref for NodeArray {
+    type Target = [Gc<Node>];
+
+    fn deref(&self) -> &Self::Target {
+        &self._nodes
+    }
+}
 
 pub trait NodeArrayExt {
     fn set_text_range(self, location: Option<&impl ReadonlyTextRange>) -> Self;
@@ -197,39 +194,32 @@ impl NodeArrayExt for Gc<NodeArray> {
     }
 }
 
-mod _NodeArrayOrVecDeriveTraceScope {
-    use local_macros::Trace;
+#[derive(Clone, Debug)]
+pub enum NodeArrayOrVec {
+    NodeArray(Id<NodeArray>),
+    Vec(Vec<Id<Node>>),
+}
 
-    use super::*;
-
-    #[derive(Clone, Debug, Trace, Finalize)]
-    pub enum NodeArrayOrVec {
-        NodeArray(Gc<NodeArray>),
-        Vec(Vec<Gc<Node>>),
+impl NodeArrayOrVec {
+    pub fn as_vec_owned(self) -> Vec<Id<Node>> {
+        enum_unwrapped!(self, [NodeArrayOrVec, Vec])
     }
 
-    impl NodeArrayOrVec {
-        pub fn as_vec_owned(self) -> Vec<Gc<Node>> {
-            enum_unwrapped!(self, [NodeArrayOrVec, Vec])
-        }
-
-        pub fn as_node_array(self) -> Gc<NodeArray> {
-            enum_unwrapped!(self, [NodeArrayOrVec, NodeArray])
-        }
+    pub fn as_node_array(self) -> Id<NodeArray> {
+        enum_unwrapped!(self, [NodeArrayOrVec, NodeArray])
     }
 }
 
-pub use _NodeArrayOrVecDeriveTraceScope::NodeArrayOrVec;
 use gc::GcCellRef;
 
-impl From<Gc<NodeArray>> for NodeArrayOrVec {
-    fn from(node_array: Gc<NodeArray>) -> Self {
+impl From<Id<NodeArray>> for NodeArrayOrVec {
+    fn from(node_array: Id<NodeArray>) -> Self {
         NodeArrayOrVec::NodeArray(node_array)
     }
 }
 
-impl From<Vec<Gc<Node>>> for NodeArrayOrVec {
-    fn from(vec: Vec<Gc<Node>>) -> Self {
+impl From<Vec<Id<Node>>> for NodeArrayOrVec {
+    fn from(vec: Vec<Id<Node>>) -> Self {
         NodeArrayOrVec::Vec(vec)
     }
 }

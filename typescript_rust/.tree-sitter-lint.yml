@@ -13,6 +13,9 @@ rules:
         Id:
           module: id_arena
           kind: type
+        Arena:
+          module: id_arena
+          kind: type
         RefCell:
           module: std::cell
           kind: type

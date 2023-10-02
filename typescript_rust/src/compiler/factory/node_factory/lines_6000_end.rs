@@ -1,6 +1,7 @@
 use std::{borrow::Borrow, cell::RefCell, collections::HashMap, fmt, ptr};
 
 use gc::{Finalize, Gc, Trace};
+use id_arena::{Arena, Id};
 
 use super::{create_node_factory, NodeFactoryFlags};
 use crate::{
@@ -284,9 +285,10 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub(super) fn as_node_array(
         &self,
+        arena: &mut Arena<NodeArray>,
         array: Option<impl Into<NodeArrayOrVec>>,
-    ) -> Option<Gc<NodeArray>> {
-        array.map(|array| self.create_node_array(Some(array), None))
+    ) -> Option<Id<NodeArray>> {
+        array.map(|array| self.create_node_array(arena, Some(array), None))
     }
 
     pub(super) fn as_name<'name, TName: Into<StrOrRcNode<'name>>>(

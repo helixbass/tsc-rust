@@ -2,6 +2,7 @@ use std::{borrow::Borrow, cell::RefCell, ptr};
 
 use bitflags::bitflags;
 use gc::{Finalize, Gc, GcCellRef, Trace};
+use id_arena::{Arena, Id};
 use local_macros::generate_node_factory_method_wrapper;
 
 use super::{
@@ -582,9 +583,10 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn create_node_array(
         &self,
+        arena: &RefCell<Arena<NodeArray>>,
         elements: Option<impl Into<NodeArrayOrVec>>,
         has_trailing_comma: Option<bool>,
-    ) -> Gc<NodeArray> {
+    ) -> Id<NodeArray> {
         let elements = match elements {
             None => NodeArrayOrVec::Vec(vec![]),
             Some(elements) => elements.into(),
@@ -603,20 +605,21 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
                 }
 
                 let mut array = NodeArray::new(
+                    arena,
                     elements.to_vec(),
                     elements.pos(),
                     elements.end(),
                     has_trailing_comma.unwrap(),
                     elements.maybe_transform_flags(),
                 );
-                Debug_.attach_node_array_debug_info(&mut array);
+                Debug_.attach_node_array_debug_info(&array);
                 array
             }
             NodeArrayOrVec::Vec(elements) => {
                 // let length = elements.len();
                 let array = /*length >= 1 && length <= 4 ? elements.slice() :*/ elements;
                 let array =
-                    NodeArray::new(array, -1, -1, has_trailing_comma.unwrap_or(false), None);
+                    NodeArray::new(arena, array, -1, -1, has_trailing_comma.unwrap_or(false), None);
                 aggregate_children_flags(&array);
                 Debug_.attach_node_array_debug_info(&array);
                 array
@@ -628,16 +631,14 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         self.base_factory.create_base_node(kind)
     }
 
-    pub(crate) fn create_base_declaration<
-        TDecorators: Into<NodeArrayOrVec>,
-        TModifiers: Into<NodeArrayOrVec>,
-    >(
+    pub(crate) fn create_base_declaration(
         &self,
+        id: Id<Node>,
         kind: SyntaxKind,
-        decorators: Option<TDecorators>,
-        modifiers: Option<TModifiers>,
+        decorators: Option<impl Into<NodeArrayOrVec>>,
+        modifiers: Option<impl Into<NodeArrayOrVec>>,
     ) -> BaseNode {
-        let node = self.create_base_node(kind);
+        let mut node = self.create_base_node(kind);
         node.set_decorators(self.as_node_array(decorators));
         node.set_modifiers(self.as_node_array(modifiers));
         let flags = propagate_children_flags(node.maybe_decorators().as_deref())
