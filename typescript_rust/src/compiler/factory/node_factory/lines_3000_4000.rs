@@ -1,4 +1,5 @@
 use gc::{Finalize, Gc, Trace};
+use id_arena::Id;
 use local_macros::generate_node_factory_method_wrapper;
 
 use super::{propagate_child_flags, propagate_children_flags};
@@ -293,10 +294,12 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_variable_statement_raw(
         &self,
+        id: Id<Node>,
         modifiers: Option<impl Into<NodeArrayOrVec>>,
         declaration_list: impl Into<RcNodeOrNodeArrayOrVec>,
     ) -> VariableStatement {
         let node = self.create_base_declaration(
+            id,
             SyntaxKind::VariableStatement,
             Option::<Gc<NodeArray>>::None,
             modifiers,
