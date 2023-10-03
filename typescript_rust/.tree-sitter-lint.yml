@@ -10,6 +10,9 @@ rules:
     level: error
     options:
       known_imports:
+        Node:
+          module: crate
+          kind: type
         Id:
           module: id_arena
           kind: type

@@ -595,9 +595,11 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
             NodeArrayOrVec::NodeArray(elements) => {
                 if match has_trailing_comma {
                     None => true,
-                    Some(has_trailing_comma) => elements.has_trailing_comma == has_trailing_comma,
+                    Some(has_trailing_comma) => {
+                        arena.borrow()[elements].has_trailing_comma == has_trailing_comma
+                    }
                 } {
-                    if elements.maybe_transform_flags().is_none() {
+                    if arena.borrow()[elements].maybe_transform_flags().is_none() {
                         aggregate_children_flags(&elements);
                     }
                     Debug_.attach_node_array_debug_info(&elements);
@@ -618,8 +620,14 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
             NodeArrayOrVec::Vec(elements) => {
                 // let length = elements.len();
                 let array = /*length >= 1 && length <= 4 ? elements.slice() :*/ elements;
-                let array =
-                    NodeArray::new(arena, array, -1, -1, has_trailing_comma.unwrap_or(false), None);
+                let array = NodeArray::new(
+                    arena,
+                    array,
+                    -1,
+                    -1,
+                    has_trailing_comma.unwrap_or(false),
+                    None,
+                );
                 aggregate_children_flags(&array);
                 Debug_.attach_node_array_debug_info(&array);
                 array
@@ -627,8 +635,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         }
     }
 
-    pub(crate) fn create_base_node(&self, kind: SyntaxKind) -> BaseNode {
-        self.base_factory.create_base_node(kind)
+    pub(crate) fn create_base_node(&self, id: Id<Node>, kind: SyntaxKind) -> BaseNode {
+        self.base_factory.create_base_node(id, kind)
     }
 
     pub(crate) fn create_base_declaration(

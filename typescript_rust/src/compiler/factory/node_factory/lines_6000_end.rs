@@ -497,8 +497,11 @@ pub(super) fn get_cooked_text(
     })
 }
 
-pub(super) fn propagate_identifier_name_flags(node: &Node /*Identifier*/) -> TransformFlags {
-    propagate_child_flags(Some(node)) & !TransformFlags::ContainsPossibleTopLevelAwait
+pub(super) fn propagate_identifier_name_flags(
+    arena: &RefCell<Arena<Node>>,
+    node: &Node, /*Identifier*/
+) -> TransformFlags {
+    propagate_child_flags(arena, Some(node)) & !TransformFlags::ContainsPossibleTopLevelAwait
 }
 
 pub(super) fn propagate_property_name_flags_of_child(
@@ -508,16 +511,19 @@ pub(super) fn propagate_property_name_flags_of_child(
     transform_flags | (node.transform_flags() & TransformFlags::PropertyNamePropagatingFlags)
 }
 
-pub(super) fn propagate_child_flags(child: Option<impl Borrow<Node>>) -> TransformFlags {
-    if child.is_none() {
+pub(super) fn propagate_child_flags(
+    arena: &RefCell<Arena<Node>>,
+    child: Option<&Node>,
+) -> TransformFlags {
+    let Some(child) = child else {
         return TransformFlags::None;
-    }
-    let child = child.unwrap();
-    let child = child.borrow();
+    };
     let child_flags =
         child.transform_flags() & !get_transform_flags_subtree_exclusions(child.kind());
-    if is_named_declaration(child) && is_property_name(&*child.as_named_declaration().name()) {
-        propagate_property_name_flags_of_child(&child.as_named_declaration().name(), child_flags)
+    if is_named_declaration(child)
+        && is_property_name(&arena.borrow()[child.as_named_declaration().name()])
+    {
+        propagate_property_name_flags_of_child(&arena.borrow()[child.as_named_declaration().name()], child_flags)
     } else {
         child_flags
     }

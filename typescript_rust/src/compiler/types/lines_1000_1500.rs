@@ -70,7 +70,7 @@ impl NodeArray {
         self.rc_wrapper().into()
     }
 
-    pub fn to_vec(&self) -> Vec<Gc<Node>> {
+    pub fn to_vec(&self) -> Vec<Id<Node>> {
         self._nodes.clone()
     }
 
@@ -115,69 +115,40 @@ impl ReadonlyTextRange for NodeArray {
 //     }
 // }
 
-impl From<&NodeArray> for Vec<Gc<Node>> {
+impl From<&NodeArray> for Vec<Id<Node>> {
     fn from(node_array: &NodeArray) -> Self {
         node_array._nodes.clone()
     }
 }
 
-impl<'node_array> From<&'node_array NodeArray> for &'node_array [Gc<Node>] {
-    fn from(node_array: &'node_array NodeArray) -> Self {
+impl<'a> From<&'a NodeArray> for &'a [Id<Node>] {
+    fn from(node_array: &'a NodeArray) -> Self {
         &node_array._nodes
     }
 }
 
 #[derive(Clone)]
-pub struct NodeArrayIter<'node_array>(slice::Iter<'node_array, Gc<Node>>);
+pub struct NodeArrayIter<'a>(slice::Iter<'a, Id<Node>>);
 
-impl<'node_array> Iterator for NodeArrayIter<'node_array> {
-    type Item = &'node_array Gc<Node>;
+impl<'a> Iterator for NodeArrayIter<'a> {
+    type Item = Id<Node>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        self.0.next()
+        self.0.next().copied()
     }
 }
 
-impl<'node_array> IntoIterator for &'node_array NodeArray {
-    type Item = &'node_array Gc<Node>;
-    type IntoIter = NodeArrayIter<'node_array>;
+impl<'a> IntoIterator for &'a NodeArray {
+    type Item = Id<Node>;
+    type IntoIter = NodeArrayIter<'a>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.iter()
     }
 }
 
-#[derive(Clone, Trace, Finalize)]
-pub struct NodeArrayOwnedIter {
-    node_array: Gc<NodeArray>,
-    index: usize,
-}
-
-impl From<Gc<NodeArray>> for NodeArrayOwnedIter {
-    fn from(value: Gc<NodeArray>) -> Self {
-        Self {
-            node_array: value,
-            index: 0,
-        }
-    }
-}
-
-impl Iterator for NodeArrayOwnedIter {
-    type Item = Gc<Node>;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        if self.index >= self.node_array.len() {
-            None
-        } else {
-            let ret = self.node_array[self.index].clone();
-            self.index += 1;
-            Some(ret)
-        }
-    }
-}
-
 impl Deref for NodeArray {
-    type Target = [Gc<Node>];
+    type Target = [Id<Node>];
 
     fn deref(&self) -> &Self::Target {
         &self._nodes
@@ -440,9 +411,9 @@ pub trait MemberNameInterface: NodeInterface {
 }
 
 pub trait NamedDeclarationInterface: NodeInterface {
-    fn maybe_name(&self) -> Option<Gc<Node>>;
-    fn name(&self) -> Gc<Node>;
-    fn set_name(&mut self, name: Gc<Node>);
+    fn maybe_name(&self) -> Option<Id<Node>>;
+    fn name(&self) -> Id<Node>;
+    fn set_name(&mut self, name: Id<Node>);
 }
 
 #[derive(Debug, Trace, Finalize)]

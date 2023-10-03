@@ -1,4 +1,7 @@
+use std::cell::RefCell;
+
 use gc::{Finalize, Gc, Trace};
+use id_arena::{Arena, Id};
 use local_macros::generate_node_factory_method_wrapper;
 
 use super::{
@@ -34,22 +37,25 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_infer_type_node_raw(
         &self,
+        arena: &RefCell<Arena<Node>>,
+        id: Id<Node>,
         type_parameter: Gc<Node /*TypeParameterDeclaration*/>,
     ) -> InferTypeNode {
-        let node = self.create_base_node(SyntaxKind::InferType);
-        let node = InferTypeNode::new(node, type_parameter);
+        let node = self.create_base_node(id, SyntaxKind::InferType);
+        let mut node = InferTypeNode::new(node, type_parameter);
         node.add_transform_flags(TransformFlags::ContainsTypeScript);
         node
     }
 
     pub fn update_infer_type_node(
         &self,
+        arena: &RefCell<Arena<Node>>,
         node: &Node, /*InferTypeNode*/
         type_parameter: Gc<Node /*TypeParameterDeclaration*/>,
     ) -> Gc<Node> {
         let node_as_infer_type_node = node.as_infer_type_node();
         if !Gc::ptr_eq(&node_as_infer_type_node.type_parameter, &type_parameter) {
-            self.update(self.create_infer_type_node(type_parameter), node)
+            self.update(self.create_infer_type_node(arena, type_parameter), node)
         } else {
             node.node_wrapper()
         }
@@ -58,14 +64,16 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_template_literal_type_raw(
         &self,
+        arena: &RefCell<Arena<Node>>,
+        id: Id<Node>,
         head: Gc<Node /*TemplateHead*/>,
         template_spans: impl Into<NodeArrayOrVec>, /*<TemplateLiteralTypeSpan>*/
     ) -> TemplateLiteralTypeNode {
-        let node = self.create_base_node(SyntaxKind::TemplateLiteralType);
+        let node = self.create_base_node(id, SyntaxKind::TemplateLiteralType);
         let node = TemplateLiteralTypeNode::new(
             node,
             head,
-            self.create_node_array(Some(template_spans), None),
+            self.create_node_array(arena, Some(template_spans), None),
         );
         node.add_transform_flags(TransformFlags::ContainsTypeScript);
         node
@@ -95,11 +103,13 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     }
 
     #[generate_node_factory_method_wrapper]
-    pub fn create_import_type_node_raw<TTypeArguments: Into<NodeArrayOrVec>>(
+    pub fn create_import_type_node_raw(
         &self,
+        arena: &RefCell<Arena<Node>>,
+        id: Id<Node>,
         argument: Gc<Node /*TypeNode*/>,
         qualifier: Option<Gc<Node /*EntityName*/>>,
-        type_arguments: Option<TTypeArguments /*<TypeNode>*/>,
+        type_arguments: Option<impl Into<NodeArrayOrVec> /*<TypeNode>*/>,
         is_type_of: Option<bool>,
     ) -> ImportTypeNode {
         let is_type_of = is_type_of.unwrap_or(false);
@@ -152,6 +162,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_parenthesized_type_raw(
         &self,
+        arena: &RefCell<Arena<Node>>,
+        id: Id<Node>,
         type_: Gc<Node /*TypeNode*/>,
     ) -> ParenthesizedTypeNode {
         let node = self.create_base_node(SyntaxKind::ParenthesizedType);
@@ -174,7 +186,11 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     }
 
     #[generate_node_factory_method_wrapper]
-    pub fn create_this_type_node_raw(&self) -> ThisTypeNode {
+    pub fn create_this_type_node_raw(
+        &self,
+        arena: &RefCell<Arena<Node>>,
+        id: Id<Node>,
+    ) -> ThisTypeNode {
         let node = self.create_base_node(SyntaxKind::ThisType);
         let node = ThisTypeNode::new(node);
         node.add_transform_flags(TransformFlags::ContainsTypeScript);
@@ -184,6 +200,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_type_operator_node_raw(
         &self,
+        arena: &RefCell<Arena<Node>>,
+        id: Id<Node>,
         operator: SyntaxKind,
         type_: Gc<Node /*TypeNode*/>,
     ) -> TypeOperatorNode {
@@ -217,6 +235,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_indexed_access_type_node_raw(
         &self,
+        arena: &RefCell<Arena<Node>>,
+        id: Id<Node>,
         object_type: Gc<Node /*TypeNode*/>,
         index_type: Gc<Node /*TypeNode*/>,
     ) -> IndexedAccessTypeNode {
@@ -253,6 +273,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_mapped_type_node_raw(
         &self,
+        arena: &RefCell<Arena<Node>>,
+        id: Id<Node>,
         readonly_token: Option<Gc<Node /*ReadonlyKeyword | PlusToken | MinusToken*/>>,
         type_parameter: Gc<Node /*TypeParameterDeclaration*/>,
         name_type: Option<Gc<Node /*TypeNode*/>>,
@@ -319,6 +341,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_literal_type_node_raw(
         &self,
+        arena: &RefCell<Arena<Node>>,
+        id: Id<Node>,
         literal: Gc<Node /*LiteralTypeNode["literal"]*/>,
     ) -> LiteralTypeNode {
         let node = self.create_base_node(SyntaxKind::LiteralType);
@@ -343,6 +367,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_object_binding_pattern_raw(
         &self,
+        arena: &RefCell<Arena<Node>>,
+        id: Id<Node>,
         elements: impl Into<NodeArrayOrVec /*<BindingElement>*/>,
     ) -> ObjectBindingPattern {
         let node = self.create_base_node(SyntaxKind::ObjectBindingPattern);
@@ -380,6 +406,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_array_binding_pattern_raw(
         &self,
+        arena: &RefCell<Arena<Node>>,
+        id: Id<Node>,
         elements: impl Into<NodeArrayOrVec /*<BindingElement>*/>,
     ) -> ArrayBindingPattern {
         let node = self.create_base_node(SyntaxKind::ArrayBindingPattern);
@@ -409,6 +437,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_binding_element_raw<'property_name, 'name>(
         &self,
+        arena: &RefCell<Arena<Node>>,
+        id: Id<Node>,
         dot_dot_dot_token: Option<Gc<Node /*DotDotDotToken*/>>,
         property_name: Option<impl Into<StrOrRcNode<'property_name> /*PropertyName*/>>,
         name: impl Into<StrOrRcNode<'name>>, /*BindingName*/
@@ -480,6 +510,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_array_literal_expression_raw(
         &self,
+        arena: &RefCell<Arena<Node>>,
+        id: Id<Node>,
         elements: Option<impl Into<NodeArrayOrVec>>, /*Expression*/
         multi_line: Option<bool>,
     ) -> ArrayLiteralExpression {
@@ -535,6 +567,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_object_literal_expression_raw(
         &self,
+        arena: &RefCell<Arena<Node>>,
+        id: Id<Node>,
         properties: Option<impl Into<NodeArrayOrVec> /*ObjectLiteralElementLike*/>,
         multi_line: Option<bool>,
     ) -> ObjectLiteralExpression {
@@ -571,6 +605,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_property_access_expression_raw<'name>(
         &self,
+        arena: &RefCell<Arena<Node>>,
+        id: Id<Node>,
         expression: Gc<Node /*Expression*/>,
         name: impl Into<StrOrRcNode<'name>>,
     ) -> PropertyAccessExpression {
@@ -630,6 +666,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_property_access_chain_raw<'name>(
         &self,
+        arena: &RefCell<Arena<Node>>,
+        id: Id<Node>,
         expression: Gc<Node /*Expression*/>,
         question_dot_token: Option<Gc<Node /*QuestionDotToken*/>>,
         name: impl Into<StrOrRcNode<'name>>,
@@ -689,6 +727,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_element_access_expression_raw(
         &self,
+        arena: &RefCell<Arena<Node>>,
+        id: Id<Node>,
         expression: Gc<Node /*Expression*/>,
         index: impl Into<StringOrNumberOrBoolOrRcNode>,
     ) -> ElementAccessExpression {
@@ -745,6 +785,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_element_access_chain_raw(
         &self,
+        arena: &RefCell<Arena<Node>>,
+        id: Id<Node>,
         expression: Gc<Node /*Expression*/>,
         question_dot_token: Option<Gc<Node /*QuestionDotToken*/>>,
         index: impl Into<StringOrNumberOrBoolOrRcNode>,
@@ -807,6 +849,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_call_expression_raw(
         &self,
+        arena: &RefCell<Arena<Node>>,
+        id: Id<Node>,
         expression: Gc<Node /*Expression*/>,
         type_arguments: Option<impl Into<NodeArrayOrVec /*<TypeNode>*/>>,
         arguments_array: Option<impl Into<NodeArrayOrVec /*<Expression>*/>>,
@@ -877,6 +921,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_call_chain_raw(
         &self,
+        arena: &RefCell<Arena<Node>>,
+        id: Id<Node>,
         expression: Gc<Node /*Expression*/>,
         question_dot_token: Option<Gc<Node /*QuestionDotToken*/>>,
         type_arguments: Option<
@@ -964,6 +1010,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_new_expression_raw(
         &self,
+        arena: &RefCell<Arena<Node>>,
+        id: Id<Node>,
         expression: Gc<Node /*Expression*/>,
         type_arguments: Option<
             impl Into<NodeArrayOrVec>,
@@ -1035,6 +1083,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_tagged_template_expression_raw(
         &self,
+        arena: &RefCell<Arena<Node>>,
+        id: Id<Node>,
         tag: Gc<Node /*Expression*/>,
         type_arguments: Option<impl Into<NodeArrayOrVec> /*<TypeNode>*/>,
         template: Gc<Node /*TemplateLiteral*/>,
@@ -1093,6 +1143,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_type_assertion_raw(
         &self,
+        arena: &RefCell<Arena<Node>>,
+        id: Id<Node>,
         type_: Gc<Node /*TypeNode*/>,
         expression: Gc<Node /*Expression*/>,
     ) -> TypeAssertion {
@@ -1130,6 +1182,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_parenthesized_expression_raw(
         &self,
+        arena: &RefCell<Arena<Node>>,
+        id: Id<Node>,
         expression: Gc<Node /*Expression*/>,
     ) -> ParenthesizedExpression {
         let node = self.create_base_expression(SyntaxKind::ParenthesizedExpression);
@@ -1154,6 +1208,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_function_expression_raw<'name>(
         &self,
+        arena: &RefCell<Arena<Node>>,
+        id: Id<Node>,
         modifiers: Option<impl Into<NodeArrayOrVec>>,
         asterisk_token: Option<Gc<Node>>,
         name: Option<impl Into<StrOrRcNode<'name>>>,
@@ -1248,6 +1304,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_arrow_function_raw(
         &self,
+        arena: &RefCell<Arena<Node>>,
+        id: Id<Node>,
         modifiers: Option<impl Into<NodeArrayOrVec>>,
         type_parameters: Option<impl Into<NodeArrayOrVec>>,
         parameters: impl Into<NodeArrayOrVec>,
@@ -1333,6 +1391,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_delete_expression_raw(
         &self,
+        arena: &RefCell<Arena<Node>>,
+        id: Id<Node>,
         expression: Gc<Node /*Expression*/>,
     ) -> DeleteExpression {
         let node = self.create_base_expression(SyntaxKind::DeleteExpression);
@@ -1361,6 +1421,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_type_of_expression_raw(
         &self,
+        arena: &RefCell<Arena<Node>>,
+        id: Id<Node>,
         expression: Gc<Node /*Expression*/>,
     ) -> TypeOfExpression {
         let node = self.create_base_expression(SyntaxKind::TypeOfExpression);
@@ -1389,6 +1451,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_void_expression_raw(
         &self,
+        arena: &RefCell<Arena<Node>>,
+        id: Id<Node>,
         expression: Gc<Node /*Expression*/>,
     ) -> VoidExpression {
         let node = self.create_base_expression(SyntaxKind::VoidExpression);
@@ -1417,6 +1481,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_await_expression_raw(
         &self,
+        arena: &RefCell<Arena<Node>>,
+        id: Id<Node>,
         expression: Gc<Node /*Expression*/>,
     ) -> AwaitExpression {
         let node = self.create_base_expression(SyntaxKind::AwaitExpression);
@@ -1450,6 +1516,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_prefix_unary_expression_raw(
         &self,
+        arena: &RefCell<Arena<Node>>,
+        id: Id<Node>,
         operator: SyntaxKind, /*PrefixUnaryOperator*/
         operand: Gc<Node /*Expression*/>,
     ) -> PrefixUnaryExpression {
@@ -1495,6 +1563,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_postfix_unary_expression_raw(
         &self,
+        arena: &RefCell<Arena<Node>>,
+        id: Id<Node>,
         operand: Gc<Node /*Expression*/>,
         operator: SyntaxKind,
     ) -> PostfixUnaryExpression {
@@ -1537,6 +1607,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_binary_expression_raw(
         &self,
+        arena: &RefCell<Arena<Node>>,
+        id: Id<Node>,
         left: Gc<Node /*Expression*/>,
         operator: impl Into<SyntaxKindOrRcNode>,
         right: Gc<Node /*Expression*/>,
@@ -1644,6 +1716,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_conditional_expression_raw(
         &self,
+        arena: &RefCell<Arena<Node>>,
+        id: Id<Node>,
         condition: Gc<Node /*Expression*/>,
         question_token: Option<Gc<Node /*QuestionToken*/>>,
         when_true: Gc<Node /*Expression*/>,
@@ -1709,6 +1783,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_template_expression_raw(
         &self,
+        arena: &RefCell<Arena<Node>>,
+        id: Id<Node>,
         head: Gc<Node /*TemplateHead*/>,
         template_spans: impl Into<NodeArrayOrVec>, /*<TemplateSpan>*/
     ) -> TemplateExpression {
@@ -1797,6 +1873,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_template_literal_like_node_raw(
         &self,
+        arena: &RefCell<Arena<Node>>,
+        id: Id<Node>,
         kind: SyntaxKind,
         text: String,
         raw_text: Option<String>,
@@ -1821,6 +1899,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_template_head_raw(
         &self,
+        arena: &RefCell<Arena<Node>>,
+        id: Id<Node>,
         text: Option<String>,
         raw_text: Option<String>,
         template_flags: Option<TokenFlags>,
@@ -1836,6 +1916,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_template_middle_raw(
         &self,
+        arena: &RefCell<Arena<Node>>,
+        id: Id<Node>,
         text: Option<String>,
         raw_text: Option<String>,
         template_flags: Option<TokenFlags>,
@@ -1851,6 +1933,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_template_tail_raw(
         &self,
+        arena: &RefCell<Arena<Node>>,
+        id: Id<Node>,
         text: Option<String>,
         raw_text: Option<String>,
         template_flags: Option<TokenFlags>,
@@ -1866,6 +1950,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_no_substitution_template_literal_raw(
         &self,
+        arena: &RefCell<Arena<Node>>,
+        id: Id<Node>,
         text: Option<String>,
         raw_text: Option<String>,
         template_flags: Option<TokenFlags>,
@@ -1881,6 +1967,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_yield_expression_raw(
         &self,
+        arena: &RefCell<Arena<Node>>,
+        id: Id<Node>,
         asterisk_token: Option<Gc<Node /*AsteriskToken*/>>,
         expression: Option<Gc<Node /*Expression*/>>,
     ) -> YieldExpression {
@@ -1927,7 +2015,12 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     }
 
     #[generate_node_factory_method_wrapper]
-    pub fn create_spread_element_raw(&self, expression: Gc<Node /*Expression*/>) -> SpreadElement {
+    pub fn create_spread_element_raw(
+        &self,
+        arena: &RefCell<Arena<Node>>,
+        id: Id<Node>,
+        expression: Gc<Node /*Expression*/>,
+    ) -> SpreadElement {
         let node = self.create_base_expression(SyntaxKind::SpreadElement);
         let node = SpreadElement::new(
             node,
@@ -1958,6 +2051,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_class_expression_raw<'name>(
         &self,
+        arena: &RefCell<Arena<Node>>,
+        id: Id<Node>,
         decorators: Option<impl Into<NodeArrayOrVec>>,
         modifiers: Option<impl Into<NodeArrayOrVec>>,
         name: Option<
