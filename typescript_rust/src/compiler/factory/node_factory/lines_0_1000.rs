@@ -993,11 +993,11 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         original: Id<Node>,
     ) -> Id<Node> {
         let updated_as_function_like_declaration = updated.as_function_like_declaration();
-        if let Some(original_exclamation_token) = arena[original]
+        if let Some(original_exclamation_token) = arena.borrow()[original]
             .as_function_like_declaration()
             .maybe_exclamation_token()
         {
-            arena[updated]
+            arena.borrow()[updated]
                 .as_function_like_declaration_mut()
                 .set_exclamation_token(Some(original_exclamation_token));
         }
@@ -1326,55 +1326,64 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn update_identifier(
         &self,
-        node: &Node, /*Identifier*/
+        arena: &RefCell<Arena<Node>>,
+        node: Id<Node>, /*Identifier*/
         type_arguments: Option<
             impl Into<NodeArrayOrVec>, /*<TypeNode | TypeParameterDeclaration>*/
         >,
-    ) -> Gc<Node> {
+    ) -> Id<Node> {
         let type_arguments = type_arguments.map(Into::into);
-        let node_type_arguments = node.as_identifier().maybe_type_arguments();
+        let node_type_arguments = arena.borrow()[node].as_identifier().maybe_type_arguments();
         if has_option_node_array_changed(node_type_arguments.as_deref(), type_arguments.as_ref()) {
             self.update(
-                self.create_identifier_full(id_text(node), type_arguments, None),
+                arena,
+                self.create_identifier_full(arena, id_text(node), type_arguments, None),
                 node,
             )
         } else {
-            node.node_wrapper()
+            node
         }
     }
 
     pub fn create_temp_variable(
         &self,
+        arena: &RefCell<Arena<Node>>,
         record_temp_variable: Option<impl FnMut(&Node /*Identifier*/)>,
         reserved_in_nested_scopes: Option<bool>,
-    ) -> Gc<Node /*GeneratedIdentifier*/> {
+    ) -> Id<Node /*GeneratedIdentifier*/> {
         let mut flags = GeneratedIdentifierFlags::Auto;
         if reserved_in_nested_scopes == Some(true) {
             flags |= GeneratedIdentifierFlags::ReservedInNestedScopes;
         }
-        let name = self.create_base_generated_identifier("", flags).wrap();
+        let name = arena
+            .borrow_mut()
+            .alloc_with_id(|id| self.create_base_generated_identifier(id, "", flags));
         if let Some(mut record_temp_variable) = record_temp_variable {
-            record_temp_variable(&name);
+            record_temp_variable(&arena.borrow()[name]);
         }
         name
     }
 
     pub fn create_loop_variable(
         &self,
+        arena: &RefCell<Arena<Node>>,
         reserved_in_nested_scopes: Option<bool>,
-    ) -> Gc<Node /*Identifier*/> {
+    ) -> Id<Node /*Identifier*/> {
         let mut flags = GeneratedIdentifierFlags::Loop;
         if reserved_in_nested_scopes == Some(true) {
             flags |= GeneratedIdentifierFlags::ReservedInNestedScopes;
         }
-        self.create_base_generated_identifier("", flags).wrap()
+        arena
+            .borrow_mut()
+            .alloc_with_id(|id| self.create_base_generated_identifier(id, "", flags))
     }
 
     pub fn create_unique_name(
         &self,
+        arena: &RefCell<Arena<Node>>,
         text: &str,
         flags: Option<GeneratedIdentifierFlags>,
-    ) -> Gc<Node /*Identifier*/> {
+    ) -> Id<Node /*Identifier*/> {
         let flags = flags.unwrap_or_default();
         Debug_.assert(
             !flags.intersects(GeneratedIdentifierFlags::KindMask),
@@ -1384,37 +1393,45 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
             (flags & (GeneratedIdentifierFlags::Optimistic | GeneratedIdentifierFlags::FileLevel)) != GeneratedIdentifierFlags::FileLevel,
             Some("GeneratedIdentifierFlags.FileLevel cannot be set without also setting GeneratedIdentifierFlags.Optimistic")
         );
-        self.create_base_generated_identifier(text, GeneratedIdentifierFlags::Unique | flags)
-            .wrap()
+        arena.borrow_mut().alloc_with_id(|id| {
+            self.create_base_generated_identifier(
+                id,
+                text,
+                GeneratedIdentifierFlags::Unique | flags,
+            )
+        })
     }
 
     pub fn get_generated_name_for_node(
         &self,
-        node: Option<impl Borrow<Node>>,
+        arena: &RefCell<Arena<Node>>,
+        node: Option<Id<Node>>,
         flags: Option<GeneratedIdentifierFlags>,
-    ) -> Gc<Node /*Identifier*/> {
+    ) -> Id<Node /*Identifier*/> {
         let flags = flags.unwrap_or_default();
         Debug_.assert(
             !flags.intersects(GeneratedIdentifierFlags::KindMask),
             Some("Argument out of range: flags"),
         );
-        let node = node.map(|node| node.borrow().node_wrapper());
-        let name = self
-            .create_base_generated_identifier(
-                if let Some(node) = node.as_ref().filter(|node| is_identifier(node)) {
-                    id_text(node)
-                } else {
-                    ""
-                },
-                GeneratedIdentifierFlags::Node | flags,
-            )
-            .wrap();
-        name.set_original(node);
+        let text = if let Some(node) = node.filter(|node| is_identifier(&arena.borrow()[node])) {
+            id_text(node)
+        } else {
+            ""
+        };
+        let name = arena.borrow_mut().alloc_with_id(|id| {
+            self.create_base_generated_identifier(id, text, GeneratedIdentifierFlags::Node | flags)
+        });
+        arena.borrow_mut()[name].set_original(node);
         name
     }
 
     #[generate_node_factory_method_wrapper]
-    pub fn create_private_identifier_raw(&self, text: &str) -> PrivateIdentifier {
+    pub fn create_private_identifier_raw(
+        &self,
+        arena: &RefCell<Arena<Node>>,
+        id: Id<Node>,
+        text: &str,
+    ) -> PrivateIdentifier {
         if !starts_with(text, "#") {
             Debug_.fail(Some(&format!(
                 "First character of private identifier must be #: {}",
@@ -1423,8 +1440,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         }
         let node = self
             .base_factory
-            .create_base_private_identifier_node(SyntaxKind::PrivateIdentifier);
-        let node = PrivateIdentifier::new(node, escape_leading_underscores(text).into_owned());
+            .create_base_private_identifier_node(id, SyntaxKind::PrivateIdentifier);
+        let mut node = PrivateIdentifier::new(node, escape_leading_underscores(text).into_owned());
         node.add_transform_flags(TransformFlags::ContainsClassFields);
         node
     }
@@ -1434,7 +1451,12 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     }
 
     #[generate_node_factory_method_wrapper]
-    pub fn create_token_raw(&self, token: SyntaxKind) -> BaseNode {
+    pub fn create_token_raw(
+        &self,
+        arena: &RefCell<Arena<Node>>,
+        id: Id<Node>,
+        token: SyntaxKind,
+    ) -> BaseNode {
         Debug_.assert(
             token >= SyntaxKind::FirstToken && token <= SyntaxKind::LastToken,
             Some("Invalid token"),
@@ -1451,7 +1473,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
             token != SyntaxKind::Identifier,
             Some("Invalid token. Use 'createIdentifier' to create identifiers"),
         );
-        let node = self.create_base_token(token);
+        let mut node = self.create_base_token(id, token);
         let mut transform_flags = TransformFlags::None;
         match token {
             SyntaxKind::AsyncKeyword => {
