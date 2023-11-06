@@ -253,6 +253,7 @@ impl RegularExpressionLiteral {
 }
 
 bitflags! {
+    #[derive(Default)]
     pub struct TokenFlags: u32 {
         const None = 0;
         const PrecedingLineBreak = 1 << 0;

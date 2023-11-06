@@ -726,6 +726,7 @@ pub trait FunctionLikeDeclarationInterface:
     fn maybe_body(&self) -> Option<Id<Node>>;
     fn maybe_asterisk_token(&self) -> Option<Id<Node>>;
     fn maybe_exclamation_token(&self) -> Option<Id<Node>>;
+    fn set_exclamation_token(&mut self, exclamation_token: Option<Id<Node>>);
     fn maybe_end_flow_node(&self) -> Option<Id<FlowNode>>;
     fn set_end_flow_node(&mut self, end_flow_node: Option<Id<FlowNode>>);
     fn maybe_return_flow_node(&self) -> Option<Id<FlowNode>>;
@@ -772,6 +773,10 @@ impl FunctionLikeDeclarationInterface for BaseFunctionLikeDeclaration {
 
     fn maybe_exclamation_token(&self) -> Option<Id<Node>> {
         self.exclamation_token
+    }
+
+    fn set_exclamation_token(&mut self, exclamation_token: Option<Id<Node>>) {
+        self.exclamation_token = exclamation_token;
     }
 
     fn maybe_end_flow_node(&self) -> Option<Id<FlowNode>> {

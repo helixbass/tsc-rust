@@ -996,10 +996,10 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         if let Some(original_exclamation_token) = arena[original]
             .as_function_like_declaration()
             .maybe_exclamation_token()
-            .clone()
         {
-            *updated_as_function_like_declaration.maybe_exclamation_token() =
-                Some(original_exclamation_token);
+            arena[updated]
+                .as_function_like_declaration_mut()
+                .set_exclamation_token(Some(original_exclamation_token));
         }
         // TODO: haven't added maybe_type_arguments() on SignatureDeclarationInterface yet
         // if let Some(original_type_arguments) = original_as_function_like_declaration.maybe_type_arguments().clone() {
@@ -1007,23 +1007,18 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         self.update_base_signature_declaration(arena, updated, original)
     }
 
-    pub(crate) fn create_base_interface_or_class_like_declaration<
-        'name,
-        TDecorators: Into<NodeArrayOrVec>,
-        TModifiers: Into<NodeArrayOrVec>,
-        TName: Into<StrOrRcNode<'name>>,
-        TTypeParameters: Into<NodeArrayOrVec>,
-        THeritageClauses: Into<NodeArrayOrVec>,
-    >(
+    pub(crate) fn create_base_interface_or_class_like_declaration<'name>(
         &self,
+        id: Id<Node>,
         kind: SyntaxKind,
-        decorators: Option<TDecorators>,
-        modifiers: Option<TModifiers>,
-        name: Option<TName>,
-        type_parameters: Option<TTypeParameters>,
-        heritage_clauses: Option<THeritageClauses>,
+        decorators: Option<impl Into<NodeArrayOrVec>>,
+        modifiers: Option<impl Into<NodeArrayOrVec>>,
+        name: Option<impl Into<StrOrRcNode<'name>>>,
+        type_parameters: Option<impl Into<NodeArrayOrVec>>,
+        heritage_clauses: Option<impl Into<NodeArrayOrVec>>,
     ) -> BaseInterfaceOrClassLikeDeclaration {
         let node = self.create_base_generic_named_declaration(
+            id,
             kind,
             decorators,
             modifiers,
@@ -1038,25 +1033,19 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         node
     }
 
-    pub(crate) fn create_base_class_like_declaration<
-        'name,
-        TDecorators: Into<NodeArrayOrVec>,
-        TModifiers: Into<NodeArrayOrVec>,
-        TName: Into<StrOrRcNode<'name>>,
-        TTypeParameters: Into<NodeArrayOrVec>,
-        THeritageClauses: Into<NodeArrayOrVec>,
-        TMembers: Into<NodeArrayOrVec>,
-    >(
+    pub(crate) fn create_base_class_like_declaration<'name>(
         &self,
+        id: Id<Node>,
         kind: SyntaxKind,
-        decorators: Option<TDecorators>,
-        modifiers: Option<TModifiers>,
-        name: Option<TName>,
-        type_parameters: Option<TTypeParameters>,
-        heritage_clauses: Option<THeritageClauses>,
-        members: TMembers,
+        decorators: Option<impl Into<NodeArrayOrVec>>,
+        modifiers: Option<impl Into<NodeArrayOrVec>>,
+        name: Option<impl Into<StrOrRcNode<'name>>>,
+        type_parameters: Option<impl Into<NodeArrayOrVec>>,
+        heritage_clauses: Option<impl Into<NodeArrayOrVec>>,
+        members: impl Into<NodeArrayOrVec>,
     ) -> ClassLikeDeclarationBase {
         let node = self.create_base_interface_or_class_like_declaration(
+            id,
             kind,
             decorators,
             modifiers,
@@ -1071,20 +1060,24 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub(crate) fn create_base_binding_like_declaration<'name>(
         &self,
+        arena: &RefCell<Arena<Node>>,
+        id: Id<Node>,
         kind: SyntaxKind,
         decorators: Option<impl Into<NodeArrayOrVec>>,
         modifiers: Option<impl Into<NodeArrayOrVec>>,
         name: Option<impl Into<StrOrRcNode<'name>>>,
         initializer: Option<Gc<Node>>,
     ) -> BaseBindingLikeDeclaration {
-        let node = self.create_base_named_declaration(kind, decorators, modifiers, name);
+        let node = self.create_base_named_declaration(arena, id, kind, decorators, modifiers, name);
         let node = BaseBindingLikeDeclaration::new(node, initializer);
-        node.add_transform_flags(propagate_child_flags(node.maybe_initializer()));
+        node.add_transform_flags(propagate_child_flags(arena, node.maybe_initializer()));
         node
     }
 
     pub(crate) fn create_base_variable_like_declaration<'name>(
         &self,
+        arena: &RefCell<Arena<Node>>,
+        id: Id<Node>,
         kind: SyntaxKind,
         decorators: Option<impl Into<NodeArrayOrVec>>,
         modifiers: Option<impl Into<NodeArrayOrVec>>,
@@ -1093,6 +1086,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         initializer: Option<Gc<Node>>,
     ) -> BaseVariableLikeDeclaration {
         let node = self.create_base_binding_like_declaration(
+            arena,
+            id,
             kind,
             decorators,
             modifiers,
@@ -1101,7 +1096,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         );
         let type_is_some = type_.is_some();
         let node = BaseVariableLikeDeclaration::new(node, type_);
-        node.add_transform_flags(propagate_child_flags(node.maybe_type()));
+        node.add_transform_flags(propagate_child_flags(arena, node.maybe_type()));
         if type_is_some {
             node.add_transform_flags(TransformFlags::ContainsTypeScript);
         }
@@ -1110,29 +1105,33 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub(crate) fn create_base_literal(
         &self,
+        id: Id<Node>,
         kind: SyntaxKind,
         text: String,
     ) -> BaseLiteralLikeNode {
-        let node = self.create_base_token(kind);
+        let node = self.create_base_token(id, kind);
         BaseLiteralLikeNode::new(node, text)
     }
 
     #[generate_node_factory_method_wrapper]
     pub fn create_numeric_literal_raw(
         &self,
+        arena: &RefCell<Arena<Node>>,
+        id: Id<Node>,
         value: impl Into<StringOrNumber>,
         numeric_literal_flags: Option<TokenFlags>,
     ) -> NumericLiteral {
-        let numeric_literal_flags = numeric_literal_flags.unwrap_or(TokenFlags::None);
+        let numeric_literal_flags = numeric_literal_flags.unwrap_or_default();
         let value = value.into();
         let node = self.create_base_literal(
+            id,
             SyntaxKind::NumericLiteral,
             match value {
                 StringOrNumber::String(value) => value,
                 StringOrNumber::Number(value) => value.to_string(),
             },
         );
-        let node = NumericLiteral::new(node, numeric_literal_flags);
+        let mut node = NumericLiteral::new(node, numeric_literal_flags);
         if numeric_literal_flags.intersects(TokenFlags::BinaryOrOctalSpecifier) {
             node.add_transform_flags(TransformFlags::ContainsES2015);
         }
@@ -1140,12 +1139,15 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     }
 
     #[generate_node_factory_method_wrapper]
-    pub fn create_big_int_literal_raw<TPseudoBigIntOrString: Into<PseudoBigIntOrString>>(
+    pub fn create_big_int_literal_raw(
         &self,
-        value: TPseudoBigIntOrString,
+        arena: &RefCell<Arena<Node>>,
+        id: Id<Node>,
+        value: impl Into<PseudoBigIntOrString>,
     ) -> BigIntLiteral {
         let value = value.into();
         let node = self.create_base_literal(
+            id,
             SyntaxKind::BigIntLiteral,
             match value {
                 PseudoBigIntOrString::String(value) => value,
@@ -1161,21 +1163,25 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn create_base_string_literal(
         &self,
+        arena: &RefCell<Arena<Node>>,
+        id: Id<Node>,
         text: String,
         is_single_quote: Option<bool>,
     ) -> StringLiteral {
-        let node = self.create_base_literal(SyntaxKind::StringLiteral, text);
+        let node = self.create_base_literal(id, SyntaxKind::StringLiteral, text);
         StringLiteral::new(node, is_single_quote)
     }
 
     #[generate_node_factory_method_wrapper]
     pub fn create_string_literal_raw(
         &self,
+        arena: &RefCell<Arena<Node>>,
+        id: Id<Node>,
         text: String,
         is_single_quote: Option<bool>,
         has_extended_unicode_escape: Option<bool>,
     ) -> StringLiteral {
-        let node = self.create_base_string_literal(text, is_single_quote);
+        let node = self.create_base_string_literal(arena, id, text, is_single_quote);
         node.set_has_extended_unicode_escape(has_extended_unicode_escape);
         if matches!(has_extended_unicode_escape, Some(true)) {
             node.add_transform_flags(TransformFlags::ContainsES2015);
@@ -1186,41 +1192,65 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_string_literal_from_node_raw(
         &self,
-        source_node: &Node, /*PropertyNameLiteral*/
+        arena: &RefCell<Arena<Node>>,
+        id: Id<Node>,
+        source_node: Id<Node>, /*PropertyNameLiteral*/
     ) -> StringLiteral {
         let mut node = self.create_base_string_literal(
-            get_text_of_identifier_or_literal(source_node).into_owned(),
+            arena,
+            id,
+            get_text_of_identifier_or_literal(&arena.borrow()[source_node]).into_owned(),
             None,
         );
-        node.text_source_node = Some(source_node.node_wrapper());
+        node.text_source_node = Some(source_node);
         node
     }
 
     #[generate_node_factory_method_wrapper]
-    pub fn create_regular_expression_literal_raw(&self, text: String) -> RegularExpressionLiteral {
-        let node = self.create_base_literal(SyntaxKind::RegularExpressionLiteral, text);
+    pub fn create_regular_expression_literal_raw(
+        &self,
+        arena: &RefCell<Arena<Node>>,
+        id: Id<Node>,
+        text: String,
+    ) -> RegularExpressionLiteral {
+        let node = self.create_base_literal(id, SyntaxKind::RegularExpressionLiteral, text);
         RegularExpressionLiteral::new(node)
     }
 
     #[generate_node_factory_method_wrapper]
     pub fn create_literal_like_node_raw(
         &self,
+        arena: &RefCell<Arena<Node>>,
+        id: Id<Node>,
         kind: SyntaxKind, /*LiteralToken["kind"] | SyntaxKind.JsxTextAllWhiteSpaces*/
         text: String,
     ) -> Node {
         match kind {
             SyntaxKind::NumericLiteral => self
-                .create_numeric_literal_raw(text, Some(TokenFlags::None))
+                .create_numeric_literal_raw(arena, id, text, Some(TokenFlags::None))
                 .into(),
-            SyntaxKind::BigIntLiteral => self.create_big_int_literal_raw(text).into(),
-            SyntaxKind::StringLiteral => self.create_string_literal_raw(text, None, None).into(),
-            SyntaxKind::JsxText => self.create_jsx_text_raw(text, Some(false)).into(),
-            SyntaxKind::JsxTextAllWhiteSpaces => self.create_jsx_text_raw(text, Some(true)).into(),
-            SyntaxKind::RegularExpressionLiteral => {
-                self.create_regular_expression_literal_raw(text).into()
+            SyntaxKind::BigIntLiteral => self.create_big_int_literal_raw(arena, id, text).into(),
+            SyntaxKind::StringLiteral => self
+                .create_string_literal_raw(arena, id, text, None, None)
+                .into(),
+            SyntaxKind::JsxText => self
+                .create_jsx_text_raw(arena, id, text, Some(false))
+                .into(),
+            SyntaxKind::JsxTextAllWhiteSpaces => {
+                self.create_jsx_text_raw(arena, id, text, Some(true)).into()
             }
+            SyntaxKind::RegularExpressionLiteral => self
+                .create_regular_expression_literal_raw(arena, id, text)
+                .into(),
             SyntaxKind::NoSubstitutionTemplateLiteral => self
-                .create_template_literal_like_node_raw(kind, text, None, Some(TokenFlags::None))
+                .create_template_literal_like_node_raw(
+                    arena,
+                    id,
+                    kind,
+                    text,
+                    None,
+                    Some(TokenFlags::None),
+                )
                 .into(),
             _ => panic!("Unexpected kind"),
         }
@@ -1248,10 +1278,11 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn create_base_generated_identifier(
         &self,
+        id: Id<Node>,
         text: &str,
         auto_generate_flags: GeneratedIdentifierFlags,
     ) -> Identifier {
-        let mut node = self.create_base_identifier(text, None);
+        let mut node = self.create_base_identifier(id, text, None);
         node.set_auto_generate_flags(Some(auto_generate_flags));
         node.auto_generate_id = Some(get_next_auto_generate_id());
         increment_next_auto_generate_id();
@@ -1398,8 +1429,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         node
     }
 
-    pub fn create_base_token(&self, kind: SyntaxKind) -> BaseNode {
-        self.base_factory.create_base_token_node(kind)
+    pub fn create_base_token(&self, id: Id<Node>, kind: SyntaxKind) -> BaseNode {
+        self.base_factory.create_base_token_node(id, kind)
     }
 
     #[generate_node_factory_method_wrapper]

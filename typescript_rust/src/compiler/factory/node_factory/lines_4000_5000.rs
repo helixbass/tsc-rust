@@ -1053,11 +1053,13 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_jsx_text_raw(
         &self,
+        arena: &RefCell<Arena<Node>>,
+        id: Id<Node>,
         text: String,
         contains_only_trivia_white_spaces: Option<bool>,
     ) -> JsxText {
-        let node = self.create_base_node(SyntaxKind::JsxText);
-        let node = JsxText::new(
+        let node = self.create_base_node(id, SyntaxKind::JsxText);
+        let mut node = JsxText::new(
             node,
             text,
             contains_only_trivia_white_spaces.unwrap_or(false),

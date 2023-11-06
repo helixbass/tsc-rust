@@ -1,6 +1,7 @@
 use std::cell::Cell;
 
 use gc::{Finalize, Gc, GcCell, Trace};
+use id_arena::Id;
 use local_macros::ast_type;
 
 use super::{
@@ -808,7 +809,7 @@ impl LiteralTypeNode {
 pub struct StringLiteral {
     _literal_like_node: BaseLiteralLikeNode,
     pub(crate) text_source_node:
-        Option<Gc<Node /*Identifier | StringLiteralLike | NumericLiteral*/>>,
+        Option<Id<Node /*Identifier | StringLiteralLike | NumericLiteral*/>>,
     pub(crate) single_quote: Option<bool>,
 }
 
