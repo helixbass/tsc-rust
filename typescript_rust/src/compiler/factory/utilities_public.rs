@@ -1,4 +1,7 @@
+use std::cell::RefCell;
+
 use gc::Gc;
+use id_arena::{Arena, Id};
 
 use crate::{set_text_range_pos_end, Node, NodeArray, ReadonlyTextRange};
 
@@ -9,6 +12,22 @@ pub fn set_text_range<'a, TRange: ReadonlyTextRange + ?Sized>(
     match location {
         Some(location) => {
             set_text_range_pos_end(range, location.pos(), location.end());
+            range
+        }
+        None => range,
+    }
+}
+
+pub fn set_text_range_node(
+    arena: &RefCell<Arena<Node>>,
+    range: Id<Node>,
+    location: Option<Id<Node>>,
+) -> Id<Node> {
+    match location {
+        Some(location) => {
+            let pos = arena[location].pos();
+            let end = arena[location].end();
+            set_text_range_pos_end(&mut arena.borrow_mut()[range], pos, end);
             range
         }
         None => range,

@@ -86,11 +86,16 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         factory_
     }
 
-    pub(crate) fn update(&self, updated: Gc<Node>, original: &Node) -> Gc<Node> {
+    pub(crate) fn update(
+        &self,
+        arena: &RefCell<Arena<Node>>,
+        updated: Id<Node>,
+        original: Id<Node>,
+    ) -> Id<Node> {
         if self.flags.intersects(NodeFactoryFlags::NoOriginalNode) {
-            update_without_original(updated, original)
+            update_without_original(arena, updated, original)
         } else {
-            update_with_original(updated, original)
+            update_with_original(arena, updated, original)
         }
     }
 
@@ -121,66 +126,86 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     }
 
     #[generate_node_factory_method_wrapper]
-    pub fn create_jsdoc_all_type_raw(&self) -> BaseNode {
-        self.create_jsdoc_primary_type_worker(SyntaxKind::JSDocAllType)
+    pub fn create_jsdoc_all_type_raw(
+        &self,
+        arena: &RefCell<Arena<Node>>,
+        id: Id<Node>,
+    ) -> BaseNode {
+        self.create_jsdoc_primary_type_worker(id, SyntaxKind::JSDocAllType)
     }
 
     #[generate_node_factory_method_wrapper]
     pub fn create_jsdoc_unknown_type_raw(
         &self,
-        type_: Option<Gc<Node /*TypeNode*/>>,
+        arena: &RefCell<Arena<Node>>,
+        id: Id<Node>,
+        type_: Option<Id<Node /*TypeNode*/>>,
     ) -> BaseJSDocUnaryType {
-        self.create_jsdoc_unary_type_worker(SyntaxKind::JSDocUnknownType, type_)
+        self.create_jsdoc_unary_type_worker(id, SyntaxKind::JSDocUnknownType, type_)
     }
 
     #[generate_node_factory_method_wrapper]
     pub fn create_jsdoc_non_nullable_type_raw(
         &self,
-        type_: Option<Gc<Node /*TypeNode*/>>,
+        arena: &RefCell<Arena<Node>>,
+        id: Id<Node>,
+        type_: Option<Id<Node /*TypeNode*/>>,
     ) -> BaseJSDocUnaryType {
-        self.create_jsdoc_unary_type_worker(SyntaxKind::JSDocNonNullableType, type_)
+        self.create_jsdoc_unary_type_worker(id, SyntaxKind::JSDocNonNullableType, type_)
     }
 
     #[generate_node_factory_method_wrapper]
     pub fn create_jsdoc_nullable_type_raw(
         &self,
-        type_: Option<Gc<Node /*TypeNode*/>>,
+        arena: &RefCell<Arena<Node>>,
+        id: Id<Node>,
+        type_: Option<Id<Node /*TypeNode*/>>,
     ) -> BaseJSDocUnaryType {
-        self.create_jsdoc_unary_type_worker(SyntaxKind::JSDocNullableType, type_)
+        self.create_jsdoc_unary_type_worker(id, SyntaxKind::JSDocNullableType, type_)
     }
 
     #[generate_node_factory_method_wrapper]
     pub fn create_jsdoc_optional_type_raw(
         &self,
-        type_: Option<Gc<Node /*TypeNode*/>>,
+        arena: &RefCell<Arena<Node>>,
+        id: Id<Node>,
+        type_: Option<Id<Node /*TypeNode*/>>,
     ) -> BaseJSDocUnaryType {
-        self.create_jsdoc_unary_type_worker(SyntaxKind::JSDocOptionalType, type_)
+        self.create_jsdoc_unary_type_worker(id, SyntaxKind::JSDocOptionalType, type_)
     }
 
     #[generate_node_factory_method_wrapper]
     pub fn create_jsdoc_variadic_type_raw(
         &self,
-        type_: Option<Gc<Node /*TypeNode*/>>,
+        arena: &RefCell<Arena<Node>>,
+        id: Id<Node>,
+        type_: Option<Id<Node /*TypeNode*/>>,
     ) -> BaseJSDocUnaryType {
-        self.create_jsdoc_unary_type_worker(SyntaxKind::JSDocVariadicType, type_)
+        self.create_jsdoc_unary_type_worker(id, SyntaxKind::JSDocVariadicType, type_)
     }
 
     #[generate_node_factory_method_wrapper]
     pub fn create_jsdoc_namepath_type_raw(
         &self,
-        type_: Option<Gc<Node /*TypeNode*/>>,
+        arena: &RefCell<Arena<Node>>,
+        id: Id<Node>,
+        type_: Option<Id<Node /*TypeNode*/>>,
     ) -> BaseJSDocUnaryType {
-        self.create_jsdoc_unary_type_worker(SyntaxKind::JSDocNamepathType, type_)
+        self.create_jsdoc_unary_type_worker(id, SyntaxKind::JSDocNamepathType, type_)
     }
 
     #[generate_node_factory_method_wrapper]
-    pub fn create_jsdoc_type_tag_raw<TComment: Into<StringOrNodeArray>>(
+    pub fn create_jsdoc_type_tag_raw(
         &self,
-        tag_name: Option<Gc<Node /*Identifier*/>>,
-        type_expression: Option<Gc<Node /*JSDocTypeExpression*/>>,
-        comment: Option<TComment /*<JSDocComment>*/>,
+        arena: &RefCell<Arena<Node>>,
+        id: Id<Node>,
+        tag_name: Option<Id<Node /*Identifier*/>>,
+        type_expression: Option<Id<Node /*JSDocTypeExpression*/>>,
+        comment: Option<impl Into<StringOrNodeArray> /*<JSDocComment>*/>,
     ) -> BaseJSDocTypeLikeTag {
         self.create_jsdoc_type_like_tag_worker(
+            arena,
+            id,
             SyntaxKind::JSDocTypeTag,
             tag_name,
             type_expression,
@@ -189,13 +214,17 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     }
 
     #[generate_node_factory_method_wrapper]
-    pub fn create_jsdoc_return_tag_raw<TComment: Into<StringOrNodeArray>>(
+    pub fn create_jsdoc_return_tag_raw(
         &self,
-        tag_name: Option<Gc<Node /*Identifier*/>>,
-        type_expression: Option<Gc<Node /*JSDocTypeExpression*/>>,
-        comment: Option<TComment /*<JSDocComment>*/>,
+        arena: &RefCell<Arena<Node>>,
+        id: Id<Node>,
+        tag_name: Option<Id<Node /*Identifier*/>>,
+        type_expression: Option<Id<Node /*JSDocTypeExpression*/>>,
+        comment: Option<impl Into<StringOrNodeArray> /*<JSDocComment>*/>,
     ) -> BaseJSDocTypeLikeTag {
         self.create_jsdoc_type_like_tag_worker(
+            arena,
+            id,
             SyntaxKind::JSDocReturnTag,
             tag_name,
             type_expression,
@@ -204,13 +233,17 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     }
 
     #[generate_node_factory_method_wrapper]
-    pub fn create_jsdoc_this_tag_raw<TComment: Into<StringOrNodeArray>>(
+    pub fn create_jsdoc_this_tag_raw(
         &self,
-        tag_name: Option<Gc<Node /*Identifier*/>>,
-        type_expression: Option<Gc<Node /*JSDocTypeExpression*/>>,
-        comment: Option<TComment /*<JSDocComment>*/>,
+        arena: &RefCell<Arena<Node>>,
+        id: Id<Node>,
+        tag_name: Option<Id<Node /*Identifier*/>>,
+        type_expression: Option<Id<Node /*JSDocTypeExpression*/>>,
+        comment: Option<impl Into<StringOrNodeArray> /*<JSDocComment>*/>,
     ) -> BaseJSDocTypeLikeTag {
         self.create_jsdoc_type_like_tag_worker(
+            arena,
+            id,
             SyntaxKind::JSDocThisTag,
             tag_name,
             type_expression,
@@ -219,13 +252,17 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     }
 
     #[generate_node_factory_method_wrapper]
-    pub fn create_jsdoc_enum_tag_raw<TComment: Into<StringOrNodeArray>>(
+    pub fn create_jsdoc_enum_tag_raw(
         &self,
-        tag_name: Option<Gc<Node /*Identifier*/>>,
-        type_expression: Option<Gc<Node /*JSDocTypeExpression*/>>,
-        comment: Option<TComment /*<JSDocComment>*/>,
+        arena: &RefCell<Arena<Node>>,
+        id: Id<Node>,
+        tag_name: Option<Id<Node /*Identifier*/>>,
+        type_expression: Option<Id<Node /*JSDocTypeExpression*/>>,
+        comment: Option<impl Into<StringOrNodeArray> /*<JSDocComment>*/>,
     ) -> BaseJSDocTypeLikeTag {
         self.create_jsdoc_type_like_tag_worker(
+            arena,
+            id,
             SyntaxKind::JSDocEnumTag,
             tag_name,
             type_expression,
@@ -234,237 +271,369 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     }
 
     #[generate_node_factory_method_wrapper]
-    pub fn create_jsdoc_author_tag_raw<TComment: Into<StringOrNodeArray>>(
+    pub fn create_jsdoc_author_tag_raw(
         &self,
-        tag_name: Option<Gc<Node /*Identifier*/>>,
-        comment: Option<TComment /*<JSDocComment>*/>,
+        arena: &RefCell<Arena<Node>>,
+        id: Id<Node>,
+        tag_name: Option<Id<Node /*Identifier*/>>,
+        comment: Option<impl Into<StringOrNodeArray> /*<JSDocComment>*/>,
     ) -> BaseJSDocTag {
-        self.create_jsdoc_simple_tag_worker(SyntaxKind::JSDocAuthorTag, tag_name, comment)
+        self.create_jsdoc_simple_tag_worker(
+            arena,
+            id,
+            SyntaxKind::JSDocAuthorTag,
+            tag_name,
+            comment,
+        )
     }
 
     #[generate_node_factory_method_wrapper]
-    pub fn create_jsdoc_class_tag_raw<TComment: Into<StringOrNodeArray>>(
+    pub fn create_jsdoc_class_tag_raw(
         &self,
-        tag_name: Option<Gc<Node /*Identifier*/>>,
-        comment: Option<TComment /*<JSDocComment>*/>,
+        arena: &RefCell<Arena<Node>>,
+        id: Id<Node>,
+        tag_name: Option<Id<Node /*Identifier*/>>,
+        comment: Option<impl Into<StringOrNodeArray> /*<JSDocComment>*/>,
     ) -> BaseJSDocTag {
-        self.create_jsdoc_simple_tag_worker(SyntaxKind::JSDocClassTag, tag_name, comment)
+        self.create_jsdoc_simple_tag_worker(arena, id, SyntaxKind::JSDocClassTag, tag_name, comment)
     }
 
     #[generate_node_factory_method_wrapper]
-    pub fn create_jsdoc_public_tag_raw<TComment: Into<StringOrNodeArray>>(
+    pub fn create_jsdoc_public_tag_raw(
         &self,
-        tag_name: Option<Gc<Node /*Identifier*/>>,
-        comment: Option<TComment /*<JSDocComment>*/>,
+        arena: &RefCell<Arena<Node>>,
+        id: Id<Node>,
+        tag_name: Option<Id<Node /*Identifier*/>>,
+        comment: Option<impl Into<StringOrNodeArray> /*<JSDocComment>*/>,
     ) -> BaseJSDocTag {
-        self.create_jsdoc_simple_tag_worker(SyntaxKind::JSDocPublicTag, tag_name, comment)
+        self.create_jsdoc_simple_tag_worker(
+            arena,
+            id,
+            SyntaxKind::JSDocPublicTag,
+            tag_name,
+            comment,
+        )
     }
 
     #[generate_node_factory_method_wrapper]
-    pub fn create_jsdoc_private_tag_raw<TComment: Into<StringOrNodeArray>>(
+    pub fn create_jsdoc_private_tag_raw(
         &self,
-        tag_name: Option<Gc<Node /*Identifier*/>>,
-        comment: Option<TComment /*<JSDocComment>*/>,
+        arena: &RefCell<Arena<Node>>,
+        id: Id<Node>,
+        tag_name: Option<Id<Node /*Identifier*/>>,
+        comment: Option<impl Into<StringOrNodeArray> /*<JSDocComment>*/>,
     ) -> BaseJSDocTag {
-        self.create_jsdoc_simple_tag_worker(SyntaxKind::JSDocPrivateTag, tag_name, comment)
+        self.create_jsdoc_simple_tag_worker(
+            arena,
+            id,
+            SyntaxKind::JSDocPrivateTag,
+            tag_name,
+            comment,
+        )
     }
 
     #[generate_node_factory_method_wrapper]
-    pub fn create_jsdoc_protected_tag_raw<TComment: Into<StringOrNodeArray>>(
+    pub fn create_jsdoc_protected_tag_raw(
         &self,
-        tag_name: Option<Gc<Node /*Identifier*/>>,
-        comment: Option<TComment /*<JSDocComment>*/>,
+        arena: &RefCell<Arena<Node>>,
+        id: Id<Node>,
+        tag_name: Option<Id<Node /*Identifier*/>>,
+        comment: Option<impl Into<StringOrNodeArray> /*<JSDocComment>*/>,
     ) -> BaseJSDocTag {
-        self.create_jsdoc_simple_tag_worker(SyntaxKind::JSDocProtectedTag, tag_name, comment)
+        self.create_jsdoc_simple_tag_worker(
+            arena,
+            id,
+            SyntaxKind::JSDocProtectedTag,
+            tag_name,
+            comment,
+        )
     }
 
     #[generate_node_factory_method_wrapper]
-    pub fn create_jsdoc_readonly_tag_raw<TComment: Into<StringOrNodeArray>>(
+    pub fn create_jsdoc_readonly_tag_raw(
         &self,
-        tag_name: Option<Gc<Node /*Identifier*/>>,
-        comment: Option<TComment /*<JSDocComment>*/>,
+        arena: &RefCell<Arena<Node>>,
+        id: Id<Node>,
+        tag_name: Option<Id<Node /*Identifier*/>>,
+        comment: Option<impl Into<StringOrNodeArray> /*<JSDocComment>*/>,
     ) -> BaseJSDocTag {
-        self.create_jsdoc_simple_tag_worker(SyntaxKind::JSDocReadonlyTag, tag_name, comment)
+        self.create_jsdoc_simple_tag_worker(
+            arena,
+            id,
+            SyntaxKind::JSDocReadonlyTag,
+            tag_name,
+            comment,
+        )
     }
 
     #[generate_node_factory_method_wrapper]
-    pub fn create_jsdoc_override_tag_raw<TComment: Into<StringOrNodeArray>>(
+    pub fn create_jsdoc_override_tag_raw(
         &self,
-        tag_name: Option<Gc<Node /*Identifier*/>>,
-        comment: Option<TComment /*<JSDocComment>*/>,
+        arena: &RefCell<Arena<Node>>,
+        id: Id<Node>,
+        tag_name: Option<Id<Node /*Identifier*/>>,
+        comment: Option<impl Into<StringOrNodeArray> /*<JSDocComment>*/>,
     ) -> BaseJSDocTag {
-        self.create_jsdoc_simple_tag_worker(SyntaxKind::JSDocOverrideTag, tag_name, comment)
+        self.create_jsdoc_simple_tag_worker(
+            arena,
+            id,
+            SyntaxKind::JSDocOverrideTag,
+            tag_name,
+            comment,
+        )
     }
 
     #[generate_node_factory_method_wrapper]
-    pub fn create_jsdoc_deprecated_tag_raw<TComment: Into<StringOrNodeArray>>(
+    pub fn create_jsdoc_deprecated_tag_raw(
         &self,
-        tag_name: Option<Gc<Node /*Identifier*/>>,
-        comment: Option<TComment /*<JSDocComment>*/>,
+        arena: &RefCell<Arena<Node>>,
+        id: Id<Node>,
+        tag_name: Option<Id<Node /*Identifier*/>>,
+        comment: Option<impl Into<StringOrNodeArray> /*<JSDocComment>*/>,
     ) -> BaseJSDocTag {
-        self.create_jsdoc_simple_tag_worker(SyntaxKind::JSDocDeprecatedTag, tag_name, comment)
+        self.create_jsdoc_simple_tag_worker(
+            arena,
+            id,
+            SyntaxKind::JSDocDeprecatedTag,
+            tag_name,
+            comment,
+        )
     }
 
     #[generate_node_factory_method_wrapper]
     pub fn create_comma_raw(
         &self,
-        left: Gc<Node /*Expression*/>,
-        right: Gc<Node /*Expression*/>,
+        arena: &RefCell<Arena<Node>>,
+        id: Id<Node>,
+        left: Id<Node /*Expression*/>,
+        right: Id<Node /*Expression*/>,
     ) -> BinaryExpression {
-        self.create_binary_expression_raw(left, SyntaxKind::CommaToken, right)
+        self.create_binary_expression_raw(arena, id, left, SyntaxKind::CommaToken, right)
     }
 
     #[generate_node_factory_method_wrapper]
     pub fn create_assignment_raw(
         &self,
-        left: Gc<Node /*Expression*/>,
-        right: Gc<Node /*Expression*/>,
+        arena: &RefCell<Arena<Node>>,
+        id: Id<Node>,
+        left: Id<Node /*Expression*/>,
+        right: Id<Node /*Expression*/>,
     ) -> BinaryExpression {
-        self.create_binary_expression_raw(left, SyntaxKind::EqualsToken, right)
+        self.create_binary_expression_raw(arena, id, left, SyntaxKind::EqualsToken, right)
     }
 
     #[generate_node_factory_method_wrapper]
     pub fn create_logical_or_raw(
         &self,
-        left: Gc<Node /*Expression*/>,
-        right: Gc<Node /*Expression*/>,
+        arena: &RefCell<Arena<Node>>,
+        id: Id<Node>,
+        left: Id<Node /*Expression*/>,
+        right: Id<Node /*Expression*/>,
     ) -> BinaryExpression {
-        self.create_binary_expression_raw(left, SyntaxKind::BarBarToken, right)
+        self.create_binary_expression_raw(arena, id, left, SyntaxKind::BarBarToken, right)
     }
 
     #[generate_node_factory_method_wrapper]
     pub fn create_logical_and_raw(
         &self,
-        left: Gc<Node /*Expression*/>,
-        right: Gc<Node /*Expression*/>,
+        arena: &RefCell<Arena<Node>>,
+        id: Id<Node>,
+        left: Id<Node /*Expression*/>,
+        right: Id<Node /*Expression*/>,
     ) -> BinaryExpression {
-        self.create_binary_expression_raw(left, SyntaxKind::AmpersandAmpersandToken, right)
+        self.create_binary_expression_raw(
+            arena,
+            id,
+            left,
+            SyntaxKind::AmpersandAmpersandToken,
+            right,
+        )
     }
 
     #[generate_node_factory_method_wrapper]
     pub fn create_bitwise_or_raw(
         &self,
-        left: Gc<Node /*Expression*/>,
-        right: Gc<Node /*Expression*/>,
+        arena: &RefCell<Arena<Node>>,
+        id: Id<Node>,
+        left: Id<Node /*Expression*/>,
+        right: Id<Node /*Expression*/>,
     ) -> BinaryExpression {
-        self.create_binary_expression_raw(left, SyntaxKind::BarToken, right)
+        self.create_binary_expression_raw(arena, id, left, SyntaxKind::BarToken, right)
     }
 
     #[generate_node_factory_method_wrapper]
     pub fn create_bitwise_xor_raw(
         &self,
-        left: Gc<Node /*Expression*/>,
-        right: Gc<Node /*Expression*/>,
+        arena: &RefCell<Arena<Node>>,
+        id: Id<Node>,
+        left: Id<Node /*Expression*/>,
+        right: Id<Node /*Expression*/>,
     ) -> BinaryExpression {
-        self.create_binary_expression_raw(left, SyntaxKind::CaretToken, right)
+        self.create_binary_expression_raw(arena, id, left, SyntaxKind::CaretToken, right)
     }
 
     #[generate_node_factory_method_wrapper]
     pub fn create_bitwise_and_raw(
         &self,
-        left: Gc<Node /*Expression*/>,
-        right: Gc<Node /*Expression*/>,
+        arena: &RefCell<Arena<Node>>,
+        id: Id<Node>,
+        left: Id<Node /*Expression*/>,
+        right: Id<Node /*Expression*/>,
     ) -> BinaryExpression {
-        self.create_binary_expression_raw(left, SyntaxKind::AmpersandToken, right)
+        self.create_binary_expression_raw(arena, id, left, SyntaxKind::AmpersandToken, right)
     }
 
     #[generate_node_factory_method_wrapper]
     pub fn create_strict_equality_raw(
         &self,
-        left: Gc<Node /*Expression*/>,
-        right: Gc<Node /*Expression*/>,
+        arena: &RefCell<Arena<Node>>,
+        id: Id<Node>,
+        left: Id<Node /*Expression*/>,
+        right: Id<Node /*Expression*/>,
     ) -> BinaryExpression {
-        self.create_binary_expression_raw(left, SyntaxKind::EqualsEqualsEqualsToken, right)
+        self.create_binary_expression_raw(
+            arena,
+            id,
+            left,
+            SyntaxKind::EqualsEqualsEqualsToken,
+            right,
+        )
     }
 
     #[generate_node_factory_method_wrapper]
     pub fn create_strict_inequality_raw(
         &self,
-        left: Gc<Node /*Expression*/>,
-        right: Gc<Node /*Expression*/>,
+        arena: &RefCell<Arena<Node>>,
+        id: Id<Node>,
+        left: Id<Node /*Expression*/>,
+        right: Id<Node /*Expression*/>,
     ) -> BinaryExpression {
-        self.create_binary_expression_raw(left, SyntaxKind::ExclamationEqualsEqualsToken, right)
+        self.create_binary_expression_raw(
+            arena,
+            id,
+            left,
+            SyntaxKind::ExclamationEqualsEqualsToken,
+            right,
+        )
     }
 
     #[generate_node_factory_method_wrapper]
     pub fn create_equality_raw(
         &self,
-        left: Gc<Node /*Expression*/>,
-        right: Gc<Node /*Expression*/>,
+        arena: &RefCell<Arena<Node>>,
+        id: Id<Node>,
+        left: Id<Node /*Expression*/>,
+        right: Id<Node /*Expression*/>,
     ) -> BinaryExpression {
-        self.create_binary_expression_raw(left, SyntaxKind::EqualsEqualsToken, right)
+        self.create_binary_expression_raw(arena, id, left, SyntaxKind::EqualsEqualsToken, right)
     }
 
     #[generate_node_factory_method_wrapper]
     pub fn create_inequality_raw(
         &self,
-        left: Gc<Node /*Expression*/>,
-        right: Gc<Node /*Expression*/>,
+        arena: &RefCell<Arena<Node>>,
+        id: Id<Node>,
+        left: Id<Node /*Expression*/>,
+        right: Id<Node /*Expression*/>,
     ) -> BinaryExpression {
-        self.create_binary_expression_raw(left, SyntaxKind::ExclamationEqualsToken, right)
+        self.create_binary_expression_raw(
+            arena,
+            id,
+            left,
+            SyntaxKind::ExclamationEqualsToken,
+            right,
+        )
     }
 
     #[generate_node_factory_method_wrapper]
     pub fn create_less_than_raw(
         &self,
-        left: Gc<Node /*Expression*/>,
-        right: Gc<Node /*Expression*/>,
+        arena: &RefCell<Arena<Node>>,
+        id: Id<Node>,
+        left: Id<Node /*Expression*/>,
+        right: Id<Node /*Expression*/>,
     ) -> BinaryExpression {
-        self.create_binary_expression_raw(left, SyntaxKind::LessThanToken, right)
+        self.create_binary_expression_raw(arena, id, left, SyntaxKind::LessThanToken, right)
     }
 
     #[generate_node_factory_method_wrapper]
     pub fn create_less_than_equals_raw(
         &self,
-        left: Gc<Node /*Expression*/>,
-        right: Gc<Node /*Expression*/>,
+        arena: &RefCell<Arena<Node>>,
+        id: Id<Node>,
+        left: Id<Node /*Expression*/>,
+        right: Id<Node /*Expression*/>,
     ) -> BinaryExpression {
-        self.create_binary_expression_raw(left, SyntaxKind::LessThanEqualsToken, right)
+        self.create_binary_expression_raw(arena, id, left, SyntaxKind::LessThanEqualsToken, right)
     }
 
     #[generate_node_factory_method_wrapper]
     pub fn create_greater_than_raw(
         &self,
-        left: Gc<Node /*Expression*/>,
-        right: Gc<Node /*Expression*/>,
+        arena: &RefCell<Arena<Node>>,
+        id: Id<Node>,
+        left: Id<Node /*Expression*/>,
+        right: Id<Node /*Expression*/>,
     ) -> BinaryExpression {
-        self.create_binary_expression_raw(left, SyntaxKind::GreaterThanToken, right)
+        self.create_binary_expression_raw(arena, id, left, SyntaxKind::GreaterThanToken, right)
     }
 
     #[generate_node_factory_method_wrapper]
     pub fn create_greater_than_equals_raw(
         &self,
-        left: Gc<Node /*Expression*/>,
-        right: Gc<Node /*Expression*/>,
+        arena: &RefCell<Arena<Node>>,
+        id: Id<Node>,
+        left: Id<Node /*Expression*/>,
+        right: Id<Node /*Expression*/>,
     ) -> BinaryExpression {
-        self.create_binary_expression_raw(left, SyntaxKind::GreaterThanEqualsToken, right)
+        self.create_binary_expression_raw(
+            arena,
+            id,
+            left,
+            SyntaxKind::GreaterThanEqualsToken,
+            right,
+        )
     }
 
     #[generate_node_factory_method_wrapper]
     pub fn create_left_shift_raw(
         &self,
-        left: Gc<Node /*Expression*/>,
-        right: Gc<Node /*Expression*/>,
+        arena: &RefCell<Arena<Node>>,
+        id: Id<Node>,
+        left: Id<Node /*Expression*/>,
+        right: Id<Node /*Expression*/>,
     ) -> BinaryExpression {
-        self.create_binary_expression_raw(left, SyntaxKind::LessThanLessThanToken, right)
+        self.create_binary_expression_raw(arena, id, left, SyntaxKind::LessThanLessThanToken, right)
     }
 
     #[generate_node_factory_method_wrapper]
     pub fn create_right_shift_raw(
         &self,
-        left: Gc<Node /*Expression*/>,
-        right: Gc<Node /*Expression*/>,
+        arena: &RefCell<Arena<Node>>,
+        id: Id<Node>,
+        left: Id<Node /*Expression*/>,
+        right: Id<Node /*Expression*/>,
     ) -> BinaryExpression {
-        self.create_binary_expression_raw(left, SyntaxKind::GreaterThanGreaterThanToken, right)
+        self.create_binary_expression_raw(
+            arena,
+            id,
+            left,
+            SyntaxKind::GreaterThanGreaterThanToken,
+            right,
+        )
     }
 
     #[generate_node_factory_method_wrapper]
     pub fn create_unsigned_right_shift_raw(
         &self,
-        left: Gc<Node /*Expression*/>,
-        right: Gc<Node /*Expression*/>,
+        arena: &RefCell<Arena<Node>>,
+        id: Id<Node>,
+        left: Id<Node /*Expression*/>,
+        right: Id<Node /*Expression*/>,
     ) -> BinaryExpression {
         self.create_binary_expression_raw(
+            arena,
+            id,
             left,
             SyntaxKind::GreaterThanGreaterThanGreaterThanToken,
             right,
@@ -474,111 +643,137 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_add_raw(
         &self,
-        left: Gc<Node /*Expression*/>,
-        right: Gc<Node /*Expression*/>,
+        arena: &RefCell<Arena<Node>>,
+        id: Id<Node>,
+        left: Id<Node /*Expression*/>,
+        right: Id<Node /*Expression*/>,
     ) -> BinaryExpression {
-        self.create_binary_expression_raw(left, SyntaxKind::PlusToken, right)
+        self.create_binary_expression_raw(arena, id, left, SyntaxKind::PlusToken, right)
     }
 
     #[generate_node_factory_method_wrapper]
     pub fn create_subtract_raw(
         &self,
-        left: Gc<Node /*Expression*/>,
-        right: Gc<Node /*Expression*/>,
+        arena: &RefCell<Arena<Node>>,
+        id: Id<Node>,
+        left: Id<Node /*Expression*/>,
+        right: Id<Node /*Expression*/>,
     ) -> BinaryExpression {
-        self.create_binary_expression_raw(left, SyntaxKind::MinusToken, right)
+        self.create_binary_expression_raw(arena, id, left, SyntaxKind::MinusToken, right)
     }
 
     #[generate_node_factory_method_wrapper]
     pub fn create_multiply_raw(
         &self,
-        left: Gc<Node /*Expression*/>,
-        right: Gc<Node /*Expression*/>,
+        arena: &RefCell<Arena<Node>>,
+        id: Id<Node>,
+        left: Id<Node /*Expression*/>,
+        right: Id<Node /*Expression*/>,
     ) -> BinaryExpression {
-        self.create_binary_expression_raw(left, SyntaxKind::AsteriskToken, right)
+        self.create_binary_expression_raw(arena, id, left, SyntaxKind::AsteriskToken, right)
     }
 
     #[generate_node_factory_method_wrapper]
     pub fn create_divide_raw(
         &self,
-        left: Gc<Node /*Expression*/>,
-        right: Gc<Node /*Expression*/>,
+        arena: &RefCell<Arena<Node>>,
+        id: Id<Node>,
+        left: Id<Node /*Expression*/>,
+        right: Id<Node /*Expression*/>,
     ) -> BinaryExpression {
-        self.create_binary_expression_raw(left, SyntaxKind::SlashToken, right)
+        self.create_binary_expression_raw(arena, id, left, SyntaxKind::SlashToken, right)
     }
 
     #[generate_node_factory_method_wrapper]
     pub fn create_modulo_raw(
         &self,
-        left: Gc<Node /*Expression*/>,
-        right: Gc<Node /*Expression*/>,
+        arena: &RefCell<Arena<Node>>,
+        id: Id<Node>,
+        left: Id<Node /*Expression*/>,
+        right: Id<Node /*Expression*/>,
     ) -> BinaryExpression {
-        self.create_binary_expression_raw(left, SyntaxKind::PercentToken, right)
+        self.create_binary_expression_raw(arena, id, left, SyntaxKind::PercentToken, right)
     }
 
     #[generate_node_factory_method_wrapper]
     pub fn create_exponent_raw(
         &self,
-        left: Gc<Node /*Expression*/>,
-        right: Gc<Node /*Expression*/>,
+        arena: &RefCell<Arena<Node>>,
+        id: Id<Node>,
+        left: Id<Node /*Expression*/>,
+        right: Id<Node /*Expression*/>,
     ) -> BinaryExpression {
-        self.create_binary_expression_raw(left, SyntaxKind::AsteriskAsteriskToken, right)
+        self.create_binary_expression_raw(arena, id, left, SyntaxKind::AsteriskAsteriskToken, right)
     }
 
     #[generate_node_factory_method_wrapper]
     pub fn create_prefix_plus_raw(
         &self,
-        operand: Gc<Node /*Expression*/>,
+        arena: &RefCell<Arena<Node>>,
+        id: Id<Node>,
+        operand: Id<Node /*Expression*/>,
     ) -> PrefixUnaryExpression {
-        self.create_prefix_unary_expression_raw(SyntaxKind::MinusToken, operand)
+        self.create_prefix_unary_expression_raw(arena, id, SyntaxKind::MinusToken, operand)
     }
 
     #[generate_node_factory_method_wrapper]
     pub fn create_prefix_increment_raw(
         &self,
-        operand: Gc<Node /*Expression*/>,
+        arena: &RefCell<Arena<Node>>,
+        id: Id<Node>,
+        operand: Id<Node /*Expression*/>,
     ) -> PrefixUnaryExpression {
-        self.create_prefix_unary_expression_raw(SyntaxKind::PlusPlusToken, operand)
+        self.create_prefix_unary_expression_raw(arena, id, SyntaxKind::PlusPlusToken, operand)
     }
 
     #[generate_node_factory_method_wrapper]
     pub fn create_prefix_decrement_raw(
         &self,
-        operand: Gc<Node /*Expression*/>,
+        arena: &RefCell<Arena<Node>>,
+        id: Id<Node>,
+        operand: Id<Node /*Expression*/>,
     ) -> PrefixUnaryExpression {
-        self.create_prefix_unary_expression_raw(SyntaxKind::MinusMinusToken, operand)
+        self.create_prefix_unary_expression_raw(arena, id, SyntaxKind::MinusMinusToken, operand)
     }
 
     #[generate_node_factory_method_wrapper]
     pub fn create_bitwise_not_raw(
         &self,
-        operand: Gc<Node /*Expression*/>,
+        arena: &RefCell<Arena<Node>>,
+        id: Id<Node>,
+        operand: Id<Node /*Expression*/>,
     ) -> PrefixUnaryExpression {
-        self.create_prefix_unary_expression_raw(SyntaxKind::TildeToken, operand)
+        self.create_prefix_unary_expression_raw(arena, id, SyntaxKind::TildeToken, operand)
     }
 
     #[generate_node_factory_method_wrapper]
     pub fn create_logical_not_raw(
         &self,
-        operand: Gc<Node /*Expression*/>,
+        arena: &RefCell<Arena<Node>>,
+        id: Id<Node>,
+        operand: Id<Node /*Expression*/>,
     ) -> PrefixUnaryExpression {
-        self.create_prefix_unary_expression_raw(SyntaxKind::ExclamationToken, operand)
+        self.create_prefix_unary_expression_raw(arena, id, SyntaxKind::ExclamationToken, operand)
     }
 
     #[generate_node_factory_method_wrapper]
     pub fn create_postfix_increment_raw(
         &self,
-        operand: Gc<Node /*Expression*/>,
+        arena: &RefCell<Arena<Node>>,
+        id: Id<Node>,
+        operand: Id<Node /*Expression*/>,
     ) -> PostfixUnaryExpression {
-        self.create_postfix_unary_expression_raw(operand, SyntaxKind::PlusPlusToken)
+        self.create_postfix_unary_expression_raw(arena, id, operand, SyntaxKind::PlusPlusToken)
     }
 
     #[generate_node_factory_method_wrapper]
     pub fn create_postfix_decrement_raw(
         &self,
-        operand: Gc<Node /*Expression*/>,
+        arena: &RefCell<Arena<Node>>,
+        id: Id<Node>,
+        operand: Id<Node /*Expression*/>,
     ) -> PostfixUnaryExpression {
-        self.create_postfix_unary_expression_raw(operand, SyntaxKind::MinusMinusToken)
+        self.create_postfix_unary_expression_raw(arena, id, operand, SyntaxKind::MinusMinusToken)
     }
 
     pub fn create_node_array(
@@ -646,7 +841,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         decorators: Option<impl Into<NodeArrayOrVec>>,
         modifiers: Option<impl Into<NodeArrayOrVec>>,
     ) -> BaseNode {
-        let mut node = self.create_base_node(kind);
+        let mut node = self.create_base_node(id, kind);
         node.set_decorators(self.as_node_array(decorators));
         node.set_modifiers(self.as_node_array(modifiers));
         let flags = propagate_children_flags(node.maybe_decorators().as_deref())
@@ -659,19 +854,16 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         node
     }
 
-    pub(crate) fn create_base_named_declaration<
-        'name,
-        TDecorators: Into<NodeArrayOrVec>,
-        TModifiers: Into<NodeArrayOrVec>,
-        TName: Into<StrOrRcNode<'name>>,
-    >(
+    pub(crate) fn create_base_named_declaration<'name>(
         &self,
+        arena: &RefCell<Arena<Node>>,
+        id: Id<Node>,
         kind: SyntaxKind,
-        decorators: Option<TDecorators>,
-        modifiers: Option<TModifiers>,
-        name: Option<TName>,
+        decorators: Option<impl Into<NodeArrayOrVec>>,
+        modifiers: Option<impl Into<NodeArrayOrVec>>,
+        name: Option<impl Into<StrOrRcNode<'name>>>,
     ) -> BaseNamedDeclaration {
-        let node = self.create_base_declaration(kind, decorators, modifiers);
+        let node = self.create_base_declaration(id, kind, decorators, modifiers);
         let name = self.as_name(name);
         let node = BaseNamedDeclaration::new(node, name.clone());
 
@@ -687,28 +879,23 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
                     }
                 }
                 _ => {
-                    node.add_transform_flags(propagate_child_flags(Some(&*name)));
+                    node.add_transform_flags(propagate_child_flags(arena, Some(&*name)));
                 }
             }
         }
         node
     }
 
-    pub(crate) fn create_base_generic_named_declaration<
-        'name,
-        TDecorators: Into<NodeArrayOrVec>,
-        TModifiers: Into<NodeArrayOrVec>,
-        TName: Into<StrOrRcNode<'name>>,
-        TTypeParameters: Into<NodeArrayOrVec>,
-    >(
+    pub(crate) fn create_base_generic_named_declaration<'name>(
         &self,
+        id: Id<Node>,
         kind: SyntaxKind,
-        decorators: Option<TDecorators>,
-        modifiers: Option<TModifiers>,
-        name: Option<TName>,
-        type_parameters: Option<TTypeParameters>,
+        decorators: Option<impl Into<NodeArrayOrVec>>,
+        modifiers: Option<impl Into<NodeArrayOrVec>>,
+        name: Option<impl Into<StrOrRcNode<'name>>>,
+        type_parameters: Option<impl Into<NodeArrayOrVec>>,
     ) -> BaseGenericNamedDeclaration {
-        let node = self.create_base_named_declaration(kind, decorators, modifiers, name);
+        let node = self.create_base_named_declaration(id, kind, decorators, modifiers, name);
         let node = BaseGenericNamedDeclaration::new(node, self.as_node_array(type_parameters));
         let flags = propagate_children_flags(node.maybe_type_parameters().as_deref());
         node.add_transform_flags(flags);
@@ -718,24 +905,20 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         node
     }
 
-    pub(crate) fn create_base_signature_declaration<
-        'name,
-        TDecorators: Into<NodeArrayOrVec>,
-        TModifiers: Into<NodeArrayOrVec>,
-        TName: Into<StrOrRcNode<'name>>,
-        TTypeParameters: Into<NodeArrayOrVec>,
-        TParameters: Into<NodeArrayOrVec>,
-    >(
+    pub(crate) fn create_base_signature_declaration<'name>(
         &self,
+        arena: &RefCell<Arena<Node>>,
+        id: Id<Node>,
         kind: SyntaxKind,
-        decorators: Option<TDecorators>,
-        modifiers: Option<TModifiers>,
-        name: Option<TName>,
-        type_parameters: Option<TTypeParameters>,
-        parameters: Option<TParameters>,
-        type_: Option<Gc<Node>>,
+        decorators: Option<impl Into<NodeArrayOrVec>>,
+        modifiers: Option<impl Into<NodeArrayOrVec>>,
+        name: Option<impl Into<StrOrRcNode<'name>>>,
+        type_parameters: Option<impl Into<NodeArrayOrVec>>,
+        parameters: Option<impl Into<NodeArrayOrVec>>,
+        type_: Option<Id<Node>>,
     ) -> BaseSignatureDeclaration {
         let node = self.create_base_generic_named_declaration(
+            id,
             kind,
             decorators,
             modifiers,
@@ -746,7 +929,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
             BaseSignatureDeclaration::new(node, self.create_node_array(parameters, None), type_);
         node.add_transform_flags(
             propagate_children_flags(Some(&node.parameters()))
-                | propagate_child_flags(node.maybe_type()),
+                | propagate_child_flags(arena, node.maybe_type()),
         );
         if node.maybe_type().is_some() {
             node.add_transform_flags(TransformFlags::ContainsTypeScript);
@@ -756,28 +939,33 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub(crate) fn update_base_signature_declaration(
         &self,
-        updated: Gc<Node>,
-        original: &Node,
-    ) -> Gc<Node> {
+        arena: &RefCell<Arena<Node>>,
+        updated: Id<Node>,
+        original: Id<Node>,
+    ) -> Id<Node> {
         // TODO: haven't added maybe_type_arguments() on SignatureDeclarationInterface yet (looks
         // like this logic is duplicated on updateBaseFunctionLikeDeclaration())
         // if let Some(original_type_arguments) = original_as_function_like_declaration.maybe_type_arguments().clone() {
         // }
-        self.update(updated, original)
+        self.update(arena, updated, original)
     }
 
     pub(crate) fn create_base_function_like_declaration<'name>(
         &self,
+        arena: &RefCell<Arena<Node>>,
+        id: Id<Node>,
         kind: SyntaxKind,
         decorators: Option<impl Into<NodeArrayOrVec>>,
         modifiers: Option<impl Into<NodeArrayOrVec>>,
         name: Option<impl Into<StrOrRcNode<'name>>>,
         type_parameters: Option<impl Into<NodeArrayOrVec>>,
         parameters: Option<impl Into<NodeArrayOrVec>>,
-        type_: Option<Gc<Node>>,
-        body: Option<Gc<Node>>,
+        type_: Option<Id<Node>>,
+        body: Option<Id<Node>>,
     ) -> BaseFunctionLikeDeclaration {
         let node = self.create_base_signature_declaration(
+            arena,
+            id,
             kind,
             decorators,
             modifiers,
@@ -789,7 +977,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         let body_is_none = body.is_none();
         let node = BaseFunctionLikeDeclaration::new(node, body);
         node.add_transform_flags(
-            propagate_child_flags(node.maybe_body())
+            propagate_child_flags(arena, node.maybe_body())
                 & !TransformFlags::ContainsPossibleTopLevelAwait,
         );
         if body_is_none {
@@ -800,12 +988,13 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub(crate) fn update_base_function_like_declaration(
         &self,
-        updated: Gc<Node>,
-        original: &Node,
-    ) -> Gc<Node> {
+        arena: &RefCell<Arena<Node>>,
+        updated: Id<Node>,
+        original: Id<Node>,
+    ) -> Id<Node> {
         let updated_as_function_like_declaration = updated.as_function_like_declaration();
-        let original_as_function_like_declaration = original.as_function_like_declaration();
-        if let Some(original_exclamation_token) = original_as_function_like_declaration
+        if let Some(original_exclamation_token) = arena[original]
+            .as_function_like_declaration()
             .maybe_exclamation_token()
             .clone()
         {
@@ -815,7 +1004,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         // TODO: haven't added maybe_type_arguments() on SignatureDeclarationInterface yet
         // if let Some(original_type_arguments) = original_as_function_like_declaration.maybe_type_arguments().clone() {
         // }
-        self.update_base_signature_declaration(updated, original)
+        self.update_base_signature_declaration(arena, updated, original)
     }
 
     pub(crate) fn create_base_interface_or_class_like_declaration<
@@ -1039,6 +1228,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub(crate) fn create_base_identifier(
         &self,
+        id: Id<Node>,
         text: &str,
         mut original_keyword_kind: Option<SyntaxKind>,
     ) -> Identifier {
@@ -1050,7 +1240,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         }
         let node = self
             .base_factory
-            .create_base_identifier_node(SyntaxKind::Identifier);
+            .create_base_identifier_node(id, SyntaxKind::Identifier);
         let mut node = Identifier::new(node, escape_leading_underscores(text).into_owned());
         node.original_keyword_kind = original_keyword_kind;
         node
@@ -1070,11 +1260,13 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn create_identifier_raw(
         &self,
+        arena: &RefCell<Arena<Node>>,
+        id: Id<Node>,
         text: &str,
         type_arguments: Option<impl Into<NodeArrayOrVec>>,
         original_keyword_kind: Option<SyntaxKind>,
     ) -> Identifier {
-        let node = self.create_base_identifier(text, original_keyword_kind);
+        let node = self.create_base_identifier(id, text, original_keyword_kind);
         if let Some(type_arguments) = type_arguments {
             *node.maybe_type_arguments_mut() =
                 Some(self.create_node_array(Some(type_arguments), None));
@@ -1087,16 +1279,18 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn create_identifier_full(
         &self,
+        arena: &RefCell<Arena<Node>>,
         text: &str,
         type_arguments: Option<impl Into<NodeArrayOrVec>>,
         original_keyword_kind: Option<SyntaxKind>,
-    ) -> Gc<Node> {
-        self.create_identifier_raw(text, type_arguments, original_keyword_kind)
-            .wrap()
+    ) -> Id<Node> {
+        arena.alloc_with_id(|id| {
+            self.create_identifier_raw(arena, id, text, type_arguments, original_keyword_kind)
+        })
     }
 
-    pub fn create_identifier(&self, text: &str) -> Gc<Node> {
-        self.create_identifier_full(text, Option::<Gc<NodeArray>>::None, None)
+    pub fn create_identifier(&self, arena: &RefCell<Arena<Node>>, text: &str) -> Id<Node> {
+        self.create_identifier_full(arena, text, Option::<Gc<NodeArray>>::None, None)
     }
 
     pub fn update_identifier(

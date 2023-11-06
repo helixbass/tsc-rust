@@ -15,7 +15,7 @@ use super::{
     HasTypeArgumentsInterface, HasTypeInterface, HasTypeParametersInterface, Node, NodeInterface,
     ReadonlyTextRange, SyntaxKind, TransformFlags, __String, *,
 };
-use crate::set_text_range_node_array;
+use crate::{_d, set_text_range_node_array};
 
 #[derive(Clone)]
 pub struct NodeArray {
@@ -363,7 +363,7 @@ impl HasTypeArgumentsInterface for Identifier {
     }
 }
 
-pub type ModifiersArray = Id<NodeArray>; /*<Modifier>*/
+pub type ModifiersArray = Id<NodeArray>;/*<Modifier>*/
 
 #[derive(Debug, Trace, Finalize)]
 #[ast_type]
@@ -723,13 +723,13 @@ pub enum FunctionLikeDeclarationBase {
 pub trait FunctionLikeDeclarationInterface:
     SignatureDeclarationInterface + HasQuestionTokenInterface
 {
-    fn maybe_body(&self) -> Option<Gc<Node>>;
-    fn maybe_asterisk_token(&self) -> Option<Gc<Node>>;
-    fn maybe_exclamation_token(&self) -> GcCellRefMut<Option<Gc<Node>>>;
-    fn maybe_end_flow_node(&self) -> Option<Gc<FlowNode>>;
-    fn set_end_flow_node(&self, end_flow_node: Option<Gc<FlowNode>>);
-    fn maybe_return_flow_node(&self) -> Option<Gc<FlowNode>>;
-    fn set_return_flow_node(&self, return_flow_node: Option<Gc<FlowNode>>);
+    fn maybe_body(&self) -> Option<Id<Node>>;
+    fn maybe_asterisk_token(&self) -> Option<Id<Node>>;
+    fn maybe_exclamation_token(&self) -> Option<Id<Node>>;
+    fn maybe_end_flow_node(&self) -> Option<Id<FlowNode>>;
+    fn set_end_flow_node(&mut self, end_flow_node: Option<Id<FlowNode>>);
+    fn maybe_return_flow_node(&self) -> Option<Id<FlowNode>>;
+    fn set_return_flow_node(&mut self, return_flow_node: Option<Id<FlowNode>>);
 }
 
 #[derive(Debug, Trace, Finalize)]
@@ -739,55 +739,55 @@ pub trait FunctionLikeDeclarationInterface:
 )]
 pub struct BaseFunctionLikeDeclaration {
     _signature_declaration: BaseSignatureDeclaration,
-    pub asterisk_token: Option<Gc<Node /*AsteriskToken*/>>,
-    pub question_token: Option<Gc<Node /*QuestionToken*/>>,
-    pub exclamation_token: GcCell<Option<Gc<Node /*ExclamationToken*/>>>,
-    body: Option<Gc<Node /*Block | Expression*/>>,
-    end_flow_node: GcCell<Option<Gc<FlowNode>>>,
-    return_flow_node: GcCell<Option<Gc<FlowNode>>>,
+    pub asterisk_token: Option<Id<Node /*AsteriskToken*/>>,
+    pub question_token: Option<Id<Node /*QuestionToken*/>>,
+    pub exclamation_token: Option<Id<Node /*ExclamationToken*/>>,
+    body: Option<Id<Node /*Block | Expression*/>>,
+    end_flow_node: Option<Id<FlowNode>>,
+    return_flow_node: Option<Id<FlowNode>>,
 }
 
 impl BaseFunctionLikeDeclaration {
-    pub fn new(signature_declaration: BaseSignatureDeclaration, body: Option<Gc<Node>>) -> Self {
+    pub fn new(signature_declaration: BaseSignatureDeclaration, body: Option<Id<Node>>) -> Self {
         Self {
             _signature_declaration: signature_declaration,
             body,
-            asterisk_token: None,
-            question_token: None,
-            exclamation_token: GcCell::new(None),
-            end_flow_node: GcCell::new(None),
-            return_flow_node: GcCell::new(None),
+            asterisk_token: _d(),
+            question_token: _d(),
+            exclamation_token: _d(),
+            end_flow_node: _d(),
+            return_flow_node: _d(),
         }
     }
 }
 
 impl FunctionLikeDeclarationInterface for BaseFunctionLikeDeclaration {
-    fn maybe_body(&self) -> Option<Gc<Node>> {
-        self.body.clone()
+    fn maybe_body(&self) -> Option<Id<Node>> {
+        self.body
     }
 
-    fn maybe_asterisk_token(&self) -> Option<Gc<Node>> {
-        self.asterisk_token.clone()
+    fn maybe_asterisk_token(&self) -> Option<Id<Node>> {
+        self.asterisk_token
     }
 
-    fn maybe_exclamation_token(&self) -> GcCellRefMut<Option<Gc<Node>>> {
-        self.exclamation_token.borrow_mut()
+    fn maybe_exclamation_token(&self) -> Option<Id<Node>> {
+        self.exclamation_token
     }
 
-    fn maybe_end_flow_node(&self) -> Option<Gc<FlowNode>> {
-        self.end_flow_node.borrow().clone()
+    fn maybe_end_flow_node(&self) -> Option<Id<FlowNode>> {
+        self.end_flow_node
     }
 
-    fn set_end_flow_node(&self, end_flow_node: Option<Gc<FlowNode>>) {
-        *self.end_flow_node.borrow_mut() = end_flow_node;
+    fn set_end_flow_node(&mut self, end_flow_node: Option<Id<FlowNode>>) {
+        self.end_flow_node = end_flow_node;
     }
 
-    fn maybe_return_flow_node(&self) -> Option<Gc<FlowNode>> {
-        self.return_flow_node.borrow().clone()
+    fn maybe_return_flow_node(&self) -> Option<Id<FlowNode>> {
+        self.return_flow_node
     }
 
-    fn set_return_flow_node(&self, return_flow_node: Option<Gc<FlowNode>>) {
-        *self.return_flow_node.borrow_mut() = return_flow_node;
+    fn set_return_flow_node(&mut self, return_flow_node: Option<Id<FlowNode>>) {
+        self.return_flow_node = return_flow_node;
     }
 }
 

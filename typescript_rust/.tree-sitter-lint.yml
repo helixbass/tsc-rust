@@ -13,6 +13,15 @@ rules:
         Node:
           module: crate
           kind: type
+        ReadonlyTextRangeConcrete:
+          module: crate
+          kind: type
+        set_text_range_node:
+          module: crate
+          kind: function
+        _d:
+          module: crate
+          kind: function
         Id:
           module: id_arena
           kind: type
@@ -20,6 +29,9 @@ rules:
           module: id_arena
           kind: type
         RefCell:
+          module: std::cell
+          kind: type
+        Cell:
           module: std::cell
           kind: type
 tree-sitter-lint-dependency:

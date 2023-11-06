@@ -3812,7 +3812,8 @@ pub fn generate_node_factory_method_wrapper(_attr: TokenStream, item: TokenStrea
     let forwarded_arguments = quote!(#(#forwarded_arguments),*);
     let wrapper_fn_body_token_stream: TokenStream = quote! {
         {
-            arena.borrow_mut().alloc_with_id(|id| self.#raw_method_name_ident(#forwarded_arguments))
+            let mut arena = arena.borrow_mut();
+            arena.alloc_with_id(|id| self.#raw_method_name_ident(#forwarded_arguments))
         }
     }
     .into();

@@ -98,13 +98,13 @@ impl TypeChecker {
         None
     }
 
-    pub(super) fn create_synthetic_expression<TTupleNameSource: Borrow<Node>>(
+    pub(super) fn create_synthetic_expression(
         &self,
         parent: &Node,
         type_: &Type,
         is_spread: Option<bool>,
         tuple_name_source: Option<
-            TTupleNameSource, /*ParameterDeclaration | NamedTupleMember*/
+            impl Borrow<Node>, /*ParameterDeclaration | NamedTupleMember*/
         >,
     ) -> Gc<Node> {
         let result = parse_node_factory.with(|parse_node_factory_| {

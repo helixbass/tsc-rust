@@ -1,7 +1,7 @@
 use std::{cell::Cell, fmt, rc::Rc};
 
 use bitflags::bitflags;
-use gc::{Finalize, Gc, GcCell, GcCellRef, GcCellRefMut, Trace};
+use gc::{Finalize, Gc, Trace};
 use id_arena::Id;
 use local_macros::{ast_type, enum_unwrapped};
 
@@ -227,15 +227,17 @@ pub trait NodeInterface: ReadonlyTextRange {
     // hasBeenIncrementallyParsed: boolean;
 }
 
-pub trait NodeIdOverride: fmt::Debug + Trace + Finalize {
-    fn maybe_id(&self) -> Option<NodeId>;
-    fn set_id(&self, id: NodeId);
-}
+// pub trait NodeIdOverride: fmt::Debug + Trace + Finalize {
+//     fn maybe_id(&self) -> Option<NodeId>;
+//     fn set_id(&self, id: NodeId);
+// }
+pub type NodeIdOverride = ();
 
-pub trait NodeSymbolOverride: fmt::Debug + Trace + Finalize {
-    fn maybe_symbol(&self) -> Option<Gc<Symbol>>;
-    fn set_symbol(&self, symbol: Gc<Symbol>);
-}
+// pub trait NodeSymbolOverride: fmt::Debug + Trace + Finalize {
+//     fn maybe_symbol(&self) -> Option<Gc<Symbol>>;
+//     fn set_symbol(&self, symbol: Gc<Symbol>);
+// }
+pub type NodeSymbolOverride = ();
 
 #[derive(Debug, Finalize, Trace)]
 #[ast_type]
@@ -1768,7 +1770,7 @@ impl BaseNode {
         end: isize,
     ) -> Self {
         Self {
-            id,
+            arena_id: id,
             _id_override: Default::default(),
             _symbol_override: Default::default(),
             kind,

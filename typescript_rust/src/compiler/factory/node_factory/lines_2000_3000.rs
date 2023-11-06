@@ -81,6 +81,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn update_template_literal_type(
         &self,
+        arena: &RefCell<Arena<Node>>,
         node: &Node, /*TemplateLiteralTypeSpan*/
         head: Gc<Node /*TemplateHead*/>,
         template_spans: impl Into<NodeArrayOrVec>, /*<TemplateLiteralTypeSpan>*/
@@ -94,7 +95,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
             )
         {
             self.update(
-                self.create_template_literal_type(head, template_spans),
+                self.create_template_literal_type(arena, head, template_spans),
                 node,
             )
         } else {
@@ -113,7 +114,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         is_type_of: Option<bool>,
     ) -> ImportTypeNode {
         let is_type_of = is_type_of.unwrap_or(false);
-        let node = self.create_base_node(SyntaxKind::ImportType);
+        let node = self.create_base_node(id, SyntaxKind::ImportType);
         let node = ImportTypeNode::new(
             node,
             argument,
@@ -130,6 +131,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn update_import_type_node(
         &self,
+        arena: &RefCell<Arena<Node>>,
         node: &Node, /*ImportTypeNode*/
         argument: Gc<Node /*TypeNode*/>,
         qualifier: Option<Gc<Node /*EntityName*/>>,
@@ -151,7 +153,13 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
             || node_as_import_type_node.is_type_of() != is_type_of
         {
             self.update(
-                self.create_import_type_node(argument, qualifier, type_arguments, Some(is_type_of)),
+                self.create_import_type_node(
+                    arena,
+                    argument,
+                    qualifier,
+                    type_arguments,
+                    Some(is_type_of),
+                ),
                 node,
             )
         } else {
@@ -166,20 +174,21 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         id: Id<Node>,
         type_: Gc<Node /*TypeNode*/>,
     ) -> ParenthesizedTypeNode {
-        let node = self.create_base_node(SyntaxKind::ParenthesizedType);
-        let node = ParenthesizedTypeNode::new(node, type_);
+        let node = self.create_base_node(id, SyntaxKind::ParenthesizedType);
+        let mut node = ParenthesizedTypeNode::new(node, type_);
         node.add_transform_flags(TransformFlags::ContainsTypeScript);
         node
     }
 
     pub fn update_parenthesized_type(
         &self,
+        arena: &RefCell<Arena<Node>>,
         node: &Node, /*ParenthesizedTypeNode*/
         type_: Gc<Node /*TypeNode*/>,
     ) -> Gc<Node> {
         let node_as_parenthesized_type_node = node.as_parenthesized_type_node();
         if !Gc::ptr_eq(&node_as_parenthesized_type_node.type_, &type_) {
-            self.update(self.create_parenthesized_type(type_), node)
+            self.update(self.create_parenthesized_type(arena, type_), node)
         } else {
             node.node_wrapper()
         }
@@ -191,8 +200,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         arena: &RefCell<Arena<Node>>,
         id: Id<Node>,
     ) -> ThisTypeNode {
-        let node = self.create_base_node(SyntaxKind::ThisType);
-        let node = ThisTypeNode::new(node);
+        let node = self.create_base_node(id, SyntaxKind::ThisType);
+        let mut node = ThisTypeNode::new(node);
         node.add_transform_flags(TransformFlags::ContainsTypeScript);
         node
     }
@@ -205,7 +214,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         operator: SyntaxKind,
         type_: Gc<Node /*TypeNode*/>,
     ) -> TypeOperatorNode {
-        let node = self.create_base_node(SyntaxKind::TypeOperator);
+        let node = self.create_base_node(id, SyntaxKind::TypeOperator);
         let node = TypeOperatorNode::new(
             node,
             operator,
@@ -218,13 +227,14 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn update_type_operator_node(
         &self,
+        arena: &RefCell<Arena<Node>>,
         node: &Node, /*TypeOperatorNode*/
         type_: Gc<Node /*TypeNode*/>,
     ) -> Gc<Node> {
         let node_as_type_operator_node = node.as_type_operator_node();
         if !Gc::ptr_eq(&node_as_type_operator_node.type_, &type_) {
             self.update(
-                self.create_type_operator_node(node_as_type_operator_node.operator, type_),
+                self.create_type_operator_node(arena, node_as_type_operator_node.operator, type_),
                 node,
             )
         } else {
@@ -240,7 +250,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         object_type: Gc<Node /*TypeNode*/>,
         index_type: Gc<Node /*TypeNode*/>,
     ) -> IndexedAccessTypeNode {
-        let node = self.create_base_node(SyntaxKind::IndexedAccessType);
+        let node = self.create_base_node(id, SyntaxKind::IndexedAccessType);
         let node = IndexedAccessTypeNode::new(
             node,
             self.parenthesizer_rules()
@@ -253,6 +263,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn update_indexed_access_type_node(
         &self,
+        arena: &RefCell<Arena<Node>>,
         node: &Node, /*IndexedAccessTypeNode*/
         object_type: Gc<Node /*TypeNode*/>,
         index_type: Gc<Node /*TypeNode*/>,
@@ -262,7 +273,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
             || !Gc::ptr_eq(&node_as_indexed_access_type_node.index_type, &index_type)
         {
             self.update(
-                self.create_indexed_access_type_node(object_type, index_type),
+                self.create_indexed_access_type_node(arena, object_type, index_type),
                 node,
             )
         } else {
@@ -282,7 +293,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         type_: Option<Gc<Node /*TypeNode*/>>,
         members: Option<impl Into<NodeArrayOrVec> /*<TypeElement>*/>,
     ) -> MappedTypeNode {
-        let node = self.create_base_node(SyntaxKind::MappedType);
+        let node = self.create_base_node(id, SyntaxKind::MappedType);
         let node = MappedTypeNode::new(
             node,
             readonly_token,
@@ -290,7 +301,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
             name_type,
             question_token,
             type_,
-            members.map(|members| self.create_node_array(Some(members), None)),
+            members.map(|members| self.create_node_array(arena, Some(members), None)),
         );
         node.add_transform_flags(TransformFlags::ContainsTypeScript);
         node
@@ -502,8 +513,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         }
     }
 
-    pub(crate) fn create_base_expression(&self, kind: SyntaxKind) -> BaseNode {
-        let node = self.create_base_node(kind);
+    pub(crate) fn create_base_expression(&self, id: Id<Node>, kind: SyntaxKind) -> BaseNode {
+        let node = self.create_base_node(id, kind);
         node
     }
 
@@ -1521,7 +1532,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         operator: SyntaxKind, /*PrefixUnaryOperator*/
         operand: Gc<Node /*Expression*/>,
     ) -> PrefixUnaryExpression {
-        let node = self.create_base_expression(SyntaxKind::PrefixUnaryExpression);
+        let node = self.create_base_expression(id, SyntaxKind::PrefixUnaryExpression);
         let node = PrefixUnaryExpression::new(
             node,
             operator,
@@ -1609,9 +1620,9 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         &self,
         arena: &RefCell<Arena<Node>>,
         id: Id<Node>,
-        left: Gc<Node /*Expression*/>,
+        left: Id<Node /*Expression*/>,
         operator: impl Into<SyntaxKindOrRcNode>,
-        right: Gc<Node /*Expression*/>,
+        right: Id<Node /*Expression*/>,
     ) -> BinaryExpression {
         let node = self.create_base_expression(SyntaxKind::BinaryExpression);
         let operator_token = self.as_token(operator.into());

@@ -1,4 +1,7 @@
+use std::cell::RefCell;
+
 use gc::{Finalize, Gc, Trace};
+use id_arena::{Arena, Id};
 use local_macros::generate_node_factory_method_wrapper;
 
 use super::{get_default_tag_name_for_kind, propagate_child_flags, propagate_children_flags};
@@ -439,16 +442,21 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         }
     }
 
-    pub(crate) fn create_jsdoc_primary_type_worker(&self, kind: SyntaxKind) -> BaseNode {
-        self.create_base_node(kind)
+    pub(crate) fn create_jsdoc_primary_type_worker(
+        &self,
+        id: Id<Node>,
+        kind: SyntaxKind,
+    ) -> BaseNode {
+        self.create_base_node(id, kind)
     }
 
     pub(crate) fn create_jsdoc_unary_type_worker(
         &self,
+        id: Id<Node>,
         kind: SyntaxKind,
         type_: Option<Gc<Node /*TypeNode*/>>,
     ) -> BaseJSDocUnaryType {
-        let node = self.create_base_node(kind);
+        let node = self.create_base_node(id, kind);
         let node = BaseJSDocUnaryType::new(node, type_);
         node
     }
@@ -523,13 +531,14 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         }
     }
 
-    pub(crate) fn create_base_jsdoc_tag<TComment: Into<StringOrNodeArray>>(
+    pub(crate) fn create_base_jsdoc_tag(
         &self,
+        id: Id<Node>,
         kind: SyntaxKind,
         tag_name: Gc<Node /*Identifier*/>,
-        comment: Option<TComment>,
+        comment: Option<impl Into<StringOrNodeArray>>,
     ) -> BaseJSDocTag {
-        let node = self.create_base_node(kind);
+        let node = self.create_base_node(id, kind);
         BaseJSDocTag::new(node, tag_name, comment.map(Into::into))
     }
 
@@ -744,70 +753,88 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         JSDocLinkPlain::new(node, name, text)
     }
 
-    pub(crate) fn create_jsdoc_simple_tag_worker<TComment: Into<StringOrNodeArray>>(
+    pub(crate) fn create_jsdoc_simple_tag_worker(
         &self,
+        arena: &RefCell<Arena<Node>>,
+        id: Id<Node>,
         kind: SyntaxKind,
         tag_name: Option<Gc<Node /*Identifier*/>>,
-        comment: Option<TComment>,
+        comment: Option<impl Into<StringOrNodeArray>>,
     ) -> BaseJSDocTag {
         self.create_base_jsdoc_tag(
+            id,
             kind,
-            tag_name.unwrap_or_else(|| self.create_identifier(get_default_tag_name_for_kind(kind))),
+            tag_name.unwrap_or_else(|| {
+                self.create_identifier(arena, get_default_tag_name_for_kind(kind))
+            }),
             comment,
         )
     }
 
-    pub(crate) fn create_jsdoc_type_like_tag_worker<TComment: Into<StringOrNodeArray>>(
+    pub(crate) fn create_jsdoc_type_like_tag_worker(
         &self,
+        arena: &RefCell<Arena<Node>>,
+        id: Id<Node>,
         kind: SyntaxKind,
         tag_name: Option<Gc<Node /*Identifier*/>>,
         type_expression: Option<Gc<Node /*JSDocTypeExpression*/>>,
-        comment: Option<TComment>,
+        comment: Option<impl Into<StringOrNodeArray>>,
     ) -> BaseJSDocTypeLikeTag {
         let node = self.create_base_jsdoc_tag(
+            id,
             kind,
-            tag_name.unwrap_or_else(|| self.create_identifier(get_default_tag_name_for_kind(kind))),
+            tag_name.unwrap_or_else(|| {
+                self.create_identifier(arena, get_default_tag_name_for_kind(kind))
+            }),
             comment,
         );
         BaseJSDocTypeLikeTag::new(node, type_expression)
     }
 
     #[generate_node_factory_method_wrapper]
-    pub fn create_jsdoc_unknown_tag_raw<TComment: Into<StringOrNodeArray>>(
+    pub fn create_jsdoc_unknown_tag_raw(
         &self,
+        arena: &RefCell<Arena<Node>>,
+        id: Id<Node>,
         tag_name: Gc<Node /*Identifier*/>,
-        comment: Option<TComment>,
+        comment: Option<impl Into<StringOrNodeArray>>,
     ) -> BaseJSDocTag {
-        self.create_base_jsdoc_tag(SyntaxKind::JSDocTag, tag_name, comment)
+        self.create_base_jsdoc_tag(id, SyntaxKind::JSDocTag, tag_name, comment)
     }
 
     #[generate_node_factory_method_wrapper]
-    pub fn create_jsdoc_text_raw(&self, text: String) -> JSDocText {
-        let node = self.create_base_node(SyntaxKind::JSDocText);
+    pub fn create_jsdoc_text_raw(
+        &self,
+        arena: &RefCell<Arena<Node>>,
+        id: Id<Node>,
+        text: String,
+    ) -> JSDocText {
+        let node = self.create_base_node(id, SyntaxKind::JSDocText);
         JSDocText::new(node, text)
     }
 
     #[generate_node_factory_method_wrapper]
-    pub fn create_jsdoc_comment_raw<
-        TComment: Into<StringOrNodeArray>,
-        TTags: Into<NodeArrayOrVec>,
-    >(
+    pub fn create_jsdoc_comment_raw(
         &self,
-        comment: Option<TComment>,
-        tags: Option<TTags>,
+        arena: &RefCell<Arena<Node>>,
+        id: Id<Node>,
+        comment: Option<impl Into<StringOrNodeArray>>,
+        tags: Option<impl Into<NodeArrayOrVec>>,
     ) -> JSDoc {
-        let node = self.create_base_node(SyntaxKind::JSDocComment);
+        let node = self.create_base_node(id, SyntaxKind::JSDocComment);
         JSDoc::new(node, comment.map(Into::into), self.as_node_array(tags))
     }
 
     #[generate_node_factory_method_wrapper]
     pub fn create_jsx_element_raw(
         &self,
+        arena: &RefCell<Arena<Node>>,
+        id: Id<Node>,
         opening_element: Gc<Node /*JsxOpeningElement*/>,
         children: impl Into<NodeArrayOrVec>,
         closing_element: Gc<Node /*JsxClosingElement*/>,
     ) -> JsxElement {
-        let node = self.create_base_node(SyntaxKind::JsxElement);
+        let node = self.create_base_node(id, SyntaxKind::JsxElement);
         let node = JsxElement::new(
             node,
             opening_element,
@@ -815,9 +842,9 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
             closing_element,
         );
         node.add_transform_flags(
-            propagate_child_flags(Some(&*node.opening_element))
+            propagate_child_flags(arena, Some(&*node.opening_element))
                 | propagate_children_flags(Some(&node.children))
-                | propagate_child_flags(Some(&*node.closing_element))
+                | propagate_child_flags(arena, Some(&*node.closing_element))
                 | TransformFlags::ContainsJsx,
         );
         node
@@ -825,7 +852,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn update_jsx_element(
         &self,
-        node: &Node, /*JsxElement*/
+        arena: &RefCell<Arena<Node>>,
+        node: Id<Node>, /*JsxElement*/
         opening_element: Gc<Node /*JsxOpeningElement*/>,
         children: impl Into<NodeArrayOrVec>,
         closing_element: Gc<Node /*JsxClosingElement*/>,

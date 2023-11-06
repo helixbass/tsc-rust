@@ -13,8 +13,8 @@ use crate::{
     is_method_signature, is_module_declaration, is_named_declaration, is_parameter,
     is_property_declaration, is_property_name, is_property_signature, is_set_accessor_declaration,
     is_type_alias_declaration, is_variable_statement, maybe_append_if_unique_gc,
-    parse_node_factory, set_text_range, BaseNode, BaseNodeFactory, BaseNodeFactoryConcrete,
-    BuildInfo, ClassLikeDeclarationInterface, Debug_, EmitFlags, EmitNode,
+    parse_node_factory, set_text_range, set_text_range_node, BaseNode, BaseNodeFactory,
+    BaseNodeFactoryConcrete, BuildInfo, ClassLikeDeclarationInterface, Debug_, EmitFlags, EmitNode,
     FunctionLikeDeclarationInterface, GetOrInsertDefault, HasInitializerInterface,
     HasMembersInterface, HasQuestionTokenInterface, HasTypeInterface, HasTypeParametersInterface,
     InputFiles, InterfaceOrClassLikeDeclarationInterface, LanguageVariant, ModifierFlags,
@@ -376,17 +376,26 @@ impl From<Gc<Node>> for SyntaxKindOrRcNode {
     }
 }
 
-pub(super) fn update_without_original(updated: Gc<Node>, original: &Node) -> Gc<Node> {
-    if !ptr::eq(&*updated, original) {
-        set_text_range(&*updated, Some(original));
+pub(super) fn update_without_original(
+    arena: &RefCell<Arena<Node>>,
+    updated: Id<Node>,
+    original: Id<Node>,
+) -> Id<Node> {
+    if updated != original {
+        set_text_range_node(arena, updated, Some(original));
     }
     updated
 }
 
-pub(super) fn update_with_original(updated: Gc<Node>, original: &Node) -> Gc<Node> {
-    if !ptr::eq(&*updated, original) {
-        set_original_node(updated.clone(), Some(original.node_wrapper()));
-        set_text_range(&*updated, Some(original));
+pub(super) fn update_with_original(
+    arena: &RefCell<Arena<Node>>,
+    emit_node_arena: &RefCell<Arena<EmitNode>>,
+    updated: Id<Node>,
+    original: Id<Node>,
+) -> Id<Node> {
+    if updated != original {
+        set_original_node(arena, emit_node_arena, updated.clone(), Some(original));
+        set_text_range_node(arena, updated, Some(original));
     }
     updated
 }
@@ -523,7 +532,10 @@ pub(super) fn propagate_child_flags(
     if is_named_declaration(child)
         && is_property_name(&arena.borrow()[child.as_named_declaration().name()])
     {
-        propagate_property_name_flags_of_child(&arena.borrow()[child.as_named_declaration().name()], child_flags)
+        propagate_property_name_flags_of_child(
+            &arena.borrow()[child.as_named_declaration().name()],
+            child_flags,
+        )
     } else {
         child_flags
     }
@@ -791,23 +803,28 @@ impl From<Gc<Box<dyn ReadFileCallback>>> for StringOrReadFileCallback {
     }
 }
 
-pub fn set_original_node<TNode: Borrow<Node>>(node: TNode, original: Option<Gc<Node>>) -> TNode {
-    let node_as_node = node.borrow();
-    node_as_node.set_original(original.clone());
+pub fn set_original_node(
+    arena: &RefCell<Arena<Node>>,
+    emit_node_arena: &RefCell<Arena<EmitNode>>,
+    node: Id<Node>,
+    original: Option<Id<Node>>,
+) -> Id<Node> {
+    arena.borrow_mut()[node].set_original(original);
     if let Some(original) = original {
-        let emit_node = original.maybe_emit_node();
-        if let Some(emit_node) = emit_node.as_ref() {
-            let node_emit_node = node_as_node
-                .maybe_emit_node_mut()
-                .get_or_insert_default_()
-                .clone();
-            // looks like node and original can share the same Gc<GcCell<EmitNode>> (eg from
+        let emit_node = arena.borrow()[original].maybe_emit_node();
+        if let Some(emit_node) = emit_node {
+            let mut node_emit_node = arena.borrow()[node].maybe_emit_node();
+            if node_emit_node.is_none() {
+                node_emit_node = Some(emit_node_arena.borrow_mut().alloc(_d()));
+            }
+            let node_emit_node = node_emit_node.unwrap();
+            // looks like node and original can share the same Id<EmitNode> (eg from
             // clone_node(), which I believe is correctly mimicking the Typescript version in
-            // cloning that field by reference) so we'd have a GcCell borrow error if we try
-            // and immutably + mutably borrow them "separately". So assume that we can skip
-            // merge_emit_node() if they're the same already?
-            if !Gc::ptr_eq(&node_emit_node, emit_node) {
-                merge_emit_node(&(**emit_node).borrow(), &mut node_emit_node.borrow_mut());
+            // cloning that field by reference) so we'd have an arena RefCell borrow error if
+            // we try and immutably + mutably borrow them "separately". So assume that we can
+            // skip merge_emit_node() if they're the same already?
+            if node_emit_node != emit_node {
+                merge_emit_node(emit_node_arena, emit_node, node_emit_node);
             }
             // node.set_emit_node(node_emit_node);
         }
@@ -816,8 +833,9 @@ pub fn set_original_node<TNode: Borrow<Node>>(node: TNode, original: Option<Gc<N
 }
 
 pub(super) fn merge_emit_node(
-    source_emit_node: &EmitNode,
-    dest_emit_node: /*Option<*/ &mut EmitNode, /*>*/
+    emit_node_arena: &RefCell<Arena<EmitNode>>,
+    source_emit_node: Id<EmitNode>,
+    dest_emit_node: /*Option<*/ Id<EmitNode>, /*>*/
 ) /*-> EmitNode*/
 {
     let flags = source_emit_node.flags.as_ref();
