@@ -1,12 +1,8 @@
-use std::{
-    cell::{Cell, RefCell},
-    ops::Deref,
-    slice,
-};
+use std::{cell::Cell, ops::Deref, slice};
 
 use bitflags::bitflags;
 use gc::{Finalize, Gc, GcCell, GcCellRefMut, Trace};
-use id_arena::{Arena, Id};
+use id_arena::Id;
 use local_macros::{ast_type, enum_unwrapped};
 
 use super::{
@@ -44,14 +40,14 @@ impl std::fmt::Debug for NodeArray {
 
 impl NodeArray {
     pub fn new(
-        arena: &RefCell<Arena<Self>>,
+        arena: &AllArenas,
         nodes: Vec<Id<Node>>,
         pos: isize,
         end: isize,
         has_trailing_comma: bool,
         transform_flags: Option<TransformFlags>,
     ) -> Id<Self> {
-        arena.borrow_mut().alloc_with_id(|id| Self {
+        arena.node_arrays.borrow_mut().alloc_with_id(|id| Self {
             _nodes: nodes,
             id,
             pos,
@@ -182,6 +178,8 @@ impl NodeArrayOrVec {
 }
 
 use gc::GcCellRef;
+
+use crate::AllArenas;
 
 impl From<Id<NodeArray>> for NodeArrayOrVec {
     fn from(node_array: Id<NodeArray>) -> Self {

@@ -13,7 +13,7 @@ use crate::{
     is_method_signature, is_module_declaration, is_named_declaration, is_parameter,
     is_property_declaration, is_property_name, is_property_signature, is_set_accessor_declaration,
     is_type_alias_declaration, is_variable_statement, maybe_append_if_unique_gc,
-    parse_node_factory, set_text_range, set_text_range_node, BaseNode, BaseNodeFactory,
+    parse_node_factory, set_text_range, set_text_range_node, AllArenas, BaseNode, BaseNodeFactory,
     BaseNodeFactoryConcrete, BuildInfo, ClassLikeDeclarationInterface, Debug_, EmitFlags, EmitNode,
     FunctionLikeDeclarationInterface, GetOrInsertDefault, HasInitializerInterface,
     HasMembersInterface, HasQuestionTokenInterface, HasTypeInterface, HasTypeParametersInterface,
@@ -21,7 +21,7 @@ use crate::{
     NamedDeclarationInterface, Node, NodeArray, NodeArrayOrVec, NodeFactory, NodeFlags,
     NodeInterface, PseudoBigInt, Scanner, ScriptTarget, SignatureDeclarationInterface,
     SourceMapRange, StrOrRcNode, StringOrBool, StringOrNumberOrBoolOrRcNode, StringOrRcNode,
-    SyntaxKind, TransformFlags,
+    SyntaxKind, TransformFlags, _d,
 };
 
 impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory<TBaseNodeFactory> {
@@ -377,7 +377,7 @@ impl From<Gc<Node>> for SyntaxKindOrRcNode {
 }
 
 pub(super) fn update_without_original(
-    arena: &RefCell<Arena<Node>>,
+    arena: &AllArenas,
     updated: Id<Node>,
     original: Id<Node>,
 ) -> Id<Node> {
@@ -388,13 +388,12 @@ pub(super) fn update_without_original(
 }
 
 pub(super) fn update_with_original(
-    arena: &RefCell<Arena<Node>>,
-    emit_node_arena: &RefCell<Arena<EmitNode>>,
+    arena: &AllArenas,
     updated: Id<Node>,
     original: Id<Node>,
 ) -> Id<Node> {
     if updated != original {
-        set_original_node(arena, emit_node_arena, updated.clone(), Some(original));
+        set_original_node(arena, updated.clone(), Some(original));
         set_text_range_node(arena, updated, Some(original));
     }
     updated
@@ -507,7 +506,7 @@ pub(super) fn get_cooked_text(
 }
 
 pub(super) fn propagate_identifier_name_flags(
-    arena: &RefCell<Arena<Node>>,
+    arena: &AllArenas,
     node: &Node, /*Identifier*/
 ) -> TransformFlags {
     propagate_child_flags(arena, Some(node)) & !TransformFlags::ContainsPossibleTopLevelAwait
@@ -521,7 +520,7 @@ pub(super) fn propagate_property_name_flags_of_child(
 }
 
 pub(super) fn propagate_child_flags(
-    arena: &RefCell<Arena<Node>>,
+    arena: &AllArenas,
     child: Option<&Node>,
 ) -> TransformFlags {
     let Some(child) = child else {
@@ -530,10 +529,10 @@ pub(super) fn propagate_child_flags(
     let child_flags =
         child.transform_flags() & !get_transform_flags_subtree_exclusions(child.kind());
     if is_named_declaration(child)
-        && is_property_name(&arena.borrow()[child.as_named_declaration().name()])
+        && is_property_name(&arena.nodes.borrow()[child.as_named_declaration().name()])
     {
         propagate_property_name_flags_of_child(
-            &arena.borrow()[child.as_named_declaration().name()],
+            &arena.nodes.borrow()[child.as_named_declaration().name()],
             child_flags,
         )
     } else {
@@ -804,18 +803,17 @@ impl From<Gc<Box<dyn ReadFileCallback>>> for StringOrReadFileCallback {
 }
 
 pub fn set_original_node(
-    arena: &RefCell<Arena<Node>>,
-    emit_node_arena: &RefCell<Arena<EmitNode>>,
+    arena: &AllArenas,
     node: Id<Node>,
     original: Option<Id<Node>>,
 ) -> Id<Node> {
-    arena.borrow_mut()[node].set_original(original);
+    arena.nodes.borrow_mut()[node].set_original(original);
     if let Some(original) = original {
-        let emit_node = arena.borrow()[original].maybe_emit_node();
+        let emit_node = arena.nodes.borrow()[original].maybe_emit_node();
         if let Some(emit_node) = emit_node {
-            let mut node_emit_node = arena.borrow()[node].maybe_emit_node();
+            let mut node_emit_node = arena.nodes.borrow()[node].maybe_emit_node();
             if node_emit_node.is_none() {
-                node_emit_node = Some(emit_node_arena.borrow_mut().alloc(_d()));
+                node_emit_node = Some(arena.emit_nodes.borrow_mut().alloc(_d()));
             }
             let node_emit_node = node_emit_node.unwrap();
             // looks like node and original can share the same Id<EmitNode> (eg from
@@ -824,7 +822,7 @@ pub fn set_original_node(
             // we try and immutably + mutably borrow them "separately". So assume that we can
             // skip merge_emit_node() if they're the same already?
             if node_emit_node != emit_node {
-                merge_emit_node(emit_node_arena, emit_node, node_emit_node);
+                merge_emit_node(arena, emit_node, node_emit_node);
             }
             // node.set_emit_node(node_emit_node);
         }
@@ -833,7 +831,7 @@ pub fn set_original_node(
 }
 
 pub(super) fn merge_emit_node(
-    emit_node_arena: &RefCell<Arena<EmitNode>>,
+    arena: &AllArenas,
     source_emit_node: Id<EmitNode>,
     dest_emit_node: /*Option<*/ Id<EmitNode>, /*>*/
 ) /*-> EmitNode*/

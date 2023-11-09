@@ -10,10 +10,25 @@ rules:
     level: error
     options:
       known_imports:
+        AllArenas:
+          module: crate
+          kind: type
+        EmitNode:
+          module: crate
+          kind: type
         Node:
           module: crate
           kind: type
+        NodeArray:
+          module: crate
+          kind: type
         ReadonlyTextRangeConcrete:
+          module: crate
+          kind: type
+        Symbol:
+          module: crate
+          kind: type
+        SymbolTable:
           module: crate
           kind: type
         set_text_range_node:

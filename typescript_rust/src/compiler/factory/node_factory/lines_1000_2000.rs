@@ -1,12 +1,13 @@
 use gc::{Finalize, Gc, Trace};
+use id_arena::Id;
 use local_macros::generate_node_factory_method_wrapper;
 
 use super::{propagate_child_flags, propagate_identifier_name_flags};
 use crate::{
     are_option_gcs_equal, has_node_array_changed, has_option_node_array_changed,
     has_option_str_or_node_changed, has_static_modifier, is_computed_property_name,
-    is_exclamation_token, is_question_token, is_this_identifier, modifiers_to_flags, ArrayTypeNode,
-    AsDoubleDeref, BaseNode, BaseNodeFactory, CallSignatureDeclaration,
+    is_exclamation_token, is_question_token, is_this_identifier, modifiers_to_flags, AllArenas,
+    ArrayTypeNode, AsDoubleDeref, BaseNode, BaseNodeFactory, CallSignatureDeclaration,
     ClassStaticBlockDeclaration, ComputedPropertyName, ConditionalTypeNode,
     ConstructSignatureDeclaration, ConstructorDeclaration, ConstructorTypeNode, Decorator,
     FunctionLikeDeclarationInterface, FunctionTypeNode, GetAccessorDeclaration,
@@ -22,75 +23,81 @@ use crate::{
 
 impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory<TBaseNodeFactory> {
     #[generate_node_factory_method_wrapper]
-    pub fn create_super_raw(&self) -> BaseNode {
-        self.create_token_raw(SyntaxKind::SuperKeyword)
+    pub fn create_super_raw(&self, arena: &AllArenas, id: Id<Node>) -> BaseNode {
+        self.create_token_raw(arena, id, SyntaxKind::SuperKeyword)
     }
 
     #[generate_node_factory_method_wrapper]
-    pub fn create_this_raw(&self) -> BaseNode {
-        self.create_token_raw(SyntaxKind::ThisKeyword)
+    pub fn create_this_raw(&self, arena: &AllArenas, id: Id<Node>) -> BaseNode {
+        self.create_token_raw(arena, id, SyntaxKind::ThisKeyword)
     }
 
     #[generate_node_factory_method_wrapper]
-    pub fn create_null_raw(&self) -> BaseNode {
-        self.create_token_raw(SyntaxKind::NullKeyword)
+    pub fn create_null_raw(&self, arena: &AllArenas, id: Id<Node>) -> BaseNode {
+        self.create_token_raw(arena, id, SyntaxKind::NullKeyword)
     }
 
     #[generate_node_factory_method_wrapper]
-    pub fn create_true_raw(&self) -> BaseNode {
-        self.create_token_raw(SyntaxKind::TrueKeyword)
+    pub fn create_true_raw(&self, arena: &AllArenas, id: Id<Node>) -> BaseNode {
+        self.create_token_raw(arena, id, SyntaxKind::TrueKeyword)
     }
 
     #[generate_node_factory_method_wrapper]
-    pub fn create_false_raw(&self) -> BaseNode {
-        self.create_token_raw(SyntaxKind::FalseKeyword)
+    pub fn create_false_raw(&self, arena: &AllArenas, id: Id<Node>) -> BaseNode {
+        self.create_token_raw(arena, id, SyntaxKind::FalseKeyword)
     }
 
     #[generate_node_factory_method_wrapper]
-    pub fn create_modifier_raw(&self, kind: SyntaxKind) -> BaseNode {
-        self.create_token_raw(kind)
+    pub fn create_modifier_raw(
+        &self,
+        arena: &AllArenas,
+        id: Id<Node>,
+        kind: SyntaxKind,
+    ) -> BaseNode {
+        self.create_token_raw(arena, id, kind)
     }
 
     pub fn create_modifiers_from_modifier_flags(
         &self,
+        arena: &AllArenas,
         flags: ModifierFlags,
-    ) -> Vec<Gc<Node /*Modifier*/>> {
+    ) -> Vec<Id<Node /*Modifier*/>> {
         let mut result = vec![];
         if flags.intersects(ModifierFlags::Export) {
-            result.push(self.create_modifier(SyntaxKind::ExportKeyword));
+            result.push(self.create_modifier(arena, SyntaxKind::ExportKeyword));
         }
         if flags.intersects(ModifierFlags::Ambient) {
-            result.push(self.create_modifier(SyntaxKind::DeclareKeyword));
+            result.push(self.create_modifier(arena, SyntaxKind::DeclareKeyword));
         }
         if flags.intersects(ModifierFlags::Default) {
-            result.push(self.create_modifier(SyntaxKind::DefaultKeyword));
+            result.push(self.create_modifier(arena, SyntaxKind::DefaultKeyword));
         }
         if flags.intersects(ModifierFlags::Const) {
-            result.push(self.create_modifier(SyntaxKind::ConstKeyword));
+            result.push(self.create_modifier(arena, SyntaxKind::ConstKeyword));
         }
         if flags.intersects(ModifierFlags::Public) {
-            result.push(self.create_modifier(SyntaxKind::PublicKeyword));
+            result.push(self.create_modifier(arena, SyntaxKind::PublicKeyword));
         }
         if flags.intersects(ModifierFlags::Private) {
-            result.push(self.create_modifier(SyntaxKind::PrivateKeyword));
+            result.push(self.create_modifier(arena, SyntaxKind::PrivateKeyword));
         }
         if flags.intersects(ModifierFlags::Protected) {
-            result.push(self.create_modifier(SyntaxKind::ProtectedKeyword));
+            result.push(self.create_modifier(arena, SyntaxKind::ProtectedKeyword));
         }
         if flags.intersects(ModifierFlags::Abstract) {
-            result.push(self.create_modifier(SyntaxKind::AbstractKeyword));
+            result.push(self.create_modifier(arena, SyntaxKind::AbstractKeyword));
         }
         if flags.intersects(ModifierFlags::Static) {
-            result.push(self.create_modifier(SyntaxKind::StaticKeyword));
+            result.push(self.create_modifier(arena, SyntaxKind::StaticKeyword));
         }
         if flags.intersects(ModifierFlags::Override) {
-            result.push(self.create_modifier(SyntaxKind::OverrideKeyword));
+            result.push(self.create_modifier(arena, SyntaxKind::OverrideKeyword));
         }
         if flags.intersects(ModifierFlags::Readonly) {
-            result.push(self.create_modifier(SyntaxKind::ReadonlyKeyword));
+            result.push(self.create_modifier(arena, SyntaxKind::ReadonlyKeyword));
         }
         if flags.intersects(ModifierFlags::Async) {
-            result.push(self.create_modifier(SyntaxKind::AsyncKeyword));
+            result.push(self.create_modifier(arena, SyntaxKind::AsyncKeyword));
         }
         result
     }
@@ -98,46 +105,53 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_qualified_name_raw<'right>(
         &self,
-        left: Gc<Node /*EntityName*/>,
+        arena: &AllArenas,
+        id: Id<Node>,
+        left: Id<Node /*EntityName*/>,
         right: impl Into<StrOrRcNode<'right>>,
     ) -> QualifiedName {
-        let node = self.create_base_node(SyntaxKind::QualifiedName);
+        let node = self.create_base_node(id, SyntaxKind::QualifiedName);
         let node = QualifiedName::new(node, left, self.as_name(Some(right)).unwrap());
         node.add_transform_flags(
-            propagate_child_flags(Some(&*node.left)) | propagate_identifier_name_flags(&node.right),
+            propagate_child_flags(arena, Some(&*node.left))
+                | propagate_identifier_name_flags(arena, &node.right),
         );
         node
     }
 
     pub fn update_qualified_name(
         &self,
-        node: &Node, /*QualifiedName*/
-        left: Gc<Node /*EntityName*/>,
-        right: Gc<Node /*Identifier*/>,
-    ) -> Gc<Node> {
-        let node_as_qualified_name = node.as_qualified_name();
-        if !Gc::ptr_eq(&node_as_qualified_name.left, &left)
-            || !Gc::ptr_eq(&node_as_qualified_name.right, &right)
-        {
-            self.update(self.create_qualified_name(left, right), node)
+        arena: &AllArenas,
+        node: Id<Node>, /*QualifiedName*/
+        left: Id<Node /*EntityName*/>,
+        right: Id<Node /*Identifier*/>,
+    ) -> Id<Node> {
+        if {
+            let node = &arena.nodes[node];
+            let node_as_qualified_name = node.as_qualified_name();
+            node_as_qualified_name.left != left || node_as_qualified_name.right != right
+        } {
+            self.update(arena, self.create_qualified_name(left, right), node)
         } else {
-            node.node_wrapper()
+            node
         }
     }
 
     #[generate_node_factory_method_wrapper]
     pub fn create_computed_property_name_raw(
         &self,
+        arena: &AllArenas,
+        id: Id<Node>,
         expression: Gc<Node /*Expression*/>,
     ) -> ComputedPropertyName {
-        let node = self.create_base_node(SyntaxKind::ComputedPropertyName);
-        let node = ComputedPropertyName::new(
+        let node = self.create_base_node(id, SyntaxKind::ComputedPropertyName);
+        let mut node = ComputedPropertyName::new(
             node,
             self.parenthesizer_rules()
                 .parenthesize_expression_of_computed_property_name(&expression),
         );
         node.add_transform_flags(
-            propagate_child_flags(Some(&*node.expression))
+            propagate_child_flags(arena, Some(&*node.expression))
                 | TransformFlags::ContainsES2015
                 | TransformFlags::ContainsComputedPropertyName,
         );
@@ -146,59 +160,65 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn update_computed_property_name(
         &self,
-        node: &Node, /*ComputedPropertyName*/
-        expression: Gc<Node /*Expression*/>,
-    ) -> Gc<Node> {
-        let node_as_computed_property_name = node.as_computed_property_name();
-        if !Gc::ptr_eq(&node_as_computed_property_name.expression, &expression) {
-            self.update(self.create_computed_property_name(expression), node)
+        arena: &AllArenas,
+        node: Id<Node>, /*ComputedPropertyName*/
+        expression: Id<Node /*Expression*/>,
+    ) -> Id<Node> {
+        if { arena.node(node).as_computed_property_name().expression != expression } {
+            self.update(
+                arena,
+                self.create_computed_property_name(arena, expression),
+                node,
+            )
         } else {
-            node.node_wrapper()
+            node
         }
     }
 
     #[generate_node_factory_method_wrapper]
     pub fn create_type_parameter_declaration_raw<'name>(
         &self,
+        arena: &AllArenas,
+        id: Id<Node>,
         name: impl Into<StrOrRcNode<'name>>,
-        constraint: Option<Gc<Node /*TypeNode*/>>,
-        default_type: Option<Gc<Node /*TypeNode*/>>,
+        constraint: Option<Id<Node /*TypeNode*/>>,
+        default_type: Option<Id<Node /*TypeNode*/>>,
     ) -> TypeParameterDeclaration {
         let node = self.create_base_named_declaration(
+            arena,
+            id,
             SyntaxKind::TypeParameter,
             Option::<Gc<NodeArray>>::None,
             Option::<Gc<NodeArray>>::None,
             Some(name),
         );
-        let node = TypeParameterDeclaration::new(node, constraint, default_type);
+        let mut node = TypeParameterDeclaration::new(node, constraint, default_type);
         node.add_transform_flags(TransformFlags::ContainsTypeScript);
         node
     }
 
     pub fn update_type_parameter_declaration(
         &self,
-        node: &Node, /*TypeParameterDeclaration*/
-        name: Gc<Node>,
-        constraint: Option<Gc<Node /*TypeNode*/>>,
-        default_type: Option<Gc<Node /*TypeNode*/>>,
-    ) -> Gc<Node> {
-        let node_as_type_parameter_declaration = node.as_type_parameter_declaration();
-        if !Gc::ptr_eq(&node_as_type_parameter_declaration.name(), &name)
-            || !are_option_gcs_equal(
-                node_as_type_parameter_declaration.constraint.as_ref(),
-                constraint.as_ref(),
-            )
-            || !are_option_gcs_equal(
-                node_as_type_parameter_declaration.default.as_ref(),
-                default_type.as_ref(),
-            )
-        {
+        arena: &AllArenas,
+        node: Id<Node>, /*TypeParameterDeclaration*/
+        name: Id<Node>,
+        constraint: Option<Id<Node /*TypeNode*/>>,
+        default_type: Option<Id<Node /*TypeNode*/>>,
+    ) -> Id<Node> {
+        if {
+            let node = arena.node(node);
+            let node_as_type_parameter_declaration = node.as_type_parameter_declaration();
+            node_as_type_parameter_declaration.name() != name
+                || node_as_type_parameter_declaration.constraint != constraint
+                || node_as_type_parameter_declaration.default != default_type
+        } {
             self.update(
-                self.create_type_parameter_declaration(name, constraint, default_type),
+                arena,
+                self.create_type_parameter_declaration(arena, name, constraint, default_type),
                 node,
             )
         } else {
-            node.node_wrapper()
+            node
         }
     }
 

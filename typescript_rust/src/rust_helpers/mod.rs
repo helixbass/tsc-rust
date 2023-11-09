@@ -6,6 +6,7 @@ use std::{
 
 use gc::{Finalize, Gc, Trace};
 
+pub mod arena;
 pub mod cell;
 pub mod combinators;
 pub mod debugging;

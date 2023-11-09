@@ -13,7 +13,7 @@ use super::{
 use crate::{
     create_node_converters, create_parenthesizer_rules, escape_leading_underscores,
     get_text_of_identifier_or_literal, id_text, is_identifier, null_node_converters,
-    null_parenthesizer_rules, pseudo_big_int_to_string, starts_with, string_to_token,
+    null_parenthesizer_rules, pseudo_big_int_to_string, starts_with, string_to_token, AllArenas,
     BaseBindingLikeDeclaration, BaseFunctionLikeDeclaration, BaseGenericNamedDeclaration,
     BaseInterfaceOrClassLikeDeclaration, BaseJSDocTag, BaseJSDocTypeLikeTag, BaseJSDocUnaryType,
     BaseLiteralLikeNode, BaseNamedDeclaration, BaseNode, BaseNodeFactory, BaseSignatureDeclaration,
@@ -88,7 +88,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub(crate) fn update(
         &self,
-        arena: &RefCell<Arena<Node>>,
+        arena: &AllArenas,
         updated: Id<Node>,
         original: Id<Node>,
     ) -> Id<Node> {
@@ -126,18 +126,14 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     }
 
     #[generate_node_factory_method_wrapper]
-    pub fn create_jsdoc_all_type_raw(
-        &self,
-        arena: &RefCell<Arena<Node>>,
-        id: Id<Node>,
-    ) -> BaseNode {
+    pub fn create_jsdoc_all_type_raw(&self, arena: &AllArenas, id: Id<Node>) -> BaseNode {
         self.create_jsdoc_primary_type_worker(id, SyntaxKind::JSDocAllType)
     }
 
     #[generate_node_factory_method_wrapper]
     pub fn create_jsdoc_unknown_type_raw(
         &self,
-        arena: &RefCell<Arena<Node>>,
+        arena: &AllArenas,
         id: Id<Node>,
         type_: Option<Id<Node /*TypeNode*/>>,
     ) -> BaseJSDocUnaryType {
@@ -147,7 +143,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_jsdoc_non_nullable_type_raw(
         &self,
-        arena: &RefCell<Arena<Node>>,
+        arena: &AllArenas,
         id: Id<Node>,
         type_: Option<Id<Node /*TypeNode*/>>,
     ) -> BaseJSDocUnaryType {
@@ -157,7 +153,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_jsdoc_nullable_type_raw(
         &self,
-        arena: &RefCell<Arena<Node>>,
+        arena: &AllArenas,
         id: Id<Node>,
         type_: Option<Id<Node /*TypeNode*/>>,
     ) -> BaseJSDocUnaryType {
@@ -167,7 +163,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_jsdoc_optional_type_raw(
         &self,
-        arena: &RefCell<Arena<Node>>,
+        arena: &AllArenas,
         id: Id<Node>,
         type_: Option<Id<Node /*TypeNode*/>>,
     ) -> BaseJSDocUnaryType {
@@ -177,7 +173,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_jsdoc_variadic_type_raw(
         &self,
-        arena: &RefCell<Arena<Node>>,
+        arena: &AllArenas,
         id: Id<Node>,
         type_: Option<Id<Node /*TypeNode*/>>,
     ) -> BaseJSDocUnaryType {
@@ -187,7 +183,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_jsdoc_namepath_type_raw(
         &self,
-        arena: &RefCell<Arena<Node>>,
+        arena: &AllArenas,
         id: Id<Node>,
         type_: Option<Id<Node /*TypeNode*/>>,
     ) -> BaseJSDocUnaryType {
@@ -197,7 +193,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_jsdoc_type_tag_raw(
         &self,
-        arena: &RefCell<Arena<Node>>,
+        arena: &AllArenas,
         id: Id<Node>,
         tag_name: Option<Id<Node /*Identifier*/>>,
         type_expression: Option<Id<Node /*JSDocTypeExpression*/>>,
@@ -216,7 +212,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_jsdoc_return_tag_raw(
         &self,
-        arena: &RefCell<Arena<Node>>,
+        arena: &AllArenas,
         id: Id<Node>,
         tag_name: Option<Id<Node /*Identifier*/>>,
         type_expression: Option<Id<Node /*JSDocTypeExpression*/>>,
@@ -235,7 +231,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_jsdoc_this_tag_raw(
         &self,
-        arena: &RefCell<Arena<Node>>,
+        arena: &AllArenas,
         id: Id<Node>,
         tag_name: Option<Id<Node /*Identifier*/>>,
         type_expression: Option<Id<Node /*JSDocTypeExpression*/>>,
@@ -254,7 +250,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_jsdoc_enum_tag_raw(
         &self,
-        arena: &RefCell<Arena<Node>>,
+        arena: &AllArenas,
         id: Id<Node>,
         tag_name: Option<Id<Node /*Identifier*/>>,
         type_expression: Option<Id<Node /*JSDocTypeExpression*/>>,
@@ -273,7 +269,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_jsdoc_author_tag_raw(
         &self,
-        arena: &RefCell<Arena<Node>>,
+        arena: &AllArenas,
         id: Id<Node>,
         tag_name: Option<Id<Node /*Identifier*/>>,
         comment: Option<impl Into<StringOrNodeArray> /*<JSDocComment>*/>,
@@ -290,7 +286,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_jsdoc_class_tag_raw(
         &self,
-        arena: &RefCell<Arena<Node>>,
+        arena: &AllArenas,
         id: Id<Node>,
         tag_name: Option<Id<Node /*Identifier*/>>,
         comment: Option<impl Into<StringOrNodeArray> /*<JSDocComment>*/>,
@@ -301,7 +297,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_jsdoc_public_tag_raw(
         &self,
-        arena: &RefCell<Arena<Node>>,
+        arena: &AllArenas,
         id: Id<Node>,
         tag_name: Option<Id<Node /*Identifier*/>>,
         comment: Option<impl Into<StringOrNodeArray> /*<JSDocComment>*/>,
@@ -318,7 +314,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_jsdoc_private_tag_raw(
         &self,
-        arena: &RefCell<Arena<Node>>,
+        arena: &AllArenas,
         id: Id<Node>,
         tag_name: Option<Id<Node /*Identifier*/>>,
         comment: Option<impl Into<StringOrNodeArray> /*<JSDocComment>*/>,
@@ -335,7 +331,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_jsdoc_protected_tag_raw(
         &self,
-        arena: &RefCell<Arena<Node>>,
+        arena: &AllArenas,
         id: Id<Node>,
         tag_name: Option<Id<Node /*Identifier*/>>,
         comment: Option<impl Into<StringOrNodeArray> /*<JSDocComment>*/>,
@@ -352,7 +348,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_jsdoc_readonly_tag_raw(
         &self,
-        arena: &RefCell<Arena<Node>>,
+        arena: &AllArenas,
         id: Id<Node>,
         tag_name: Option<Id<Node /*Identifier*/>>,
         comment: Option<impl Into<StringOrNodeArray> /*<JSDocComment>*/>,
@@ -369,7 +365,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_jsdoc_override_tag_raw(
         &self,
-        arena: &RefCell<Arena<Node>>,
+        arena: &AllArenas,
         id: Id<Node>,
         tag_name: Option<Id<Node /*Identifier*/>>,
         comment: Option<impl Into<StringOrNodeArray> /*<JSDocComment>*/>,
@@ -386,7 +382,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_jsdoc_deprecated_tag_raw(
         &self,
-        arena: &RefCell<Arena<Node>>,
+        arena: &AllArenas,
         id: Id<Node>,
         tag_name: Option<Id<Node /*Identifier*/>>,
         comment: Option<impl Into<StringOrNodeArray> /*<JSDocComment>*/>,
@@ -403,7 +399,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_comma_raw(
         &self,
-        arena: &RefCell<Arena<Node>>,
+        arena: &AllArenas,
         id: Id<Node>,
         left: Id<Node /*Expression*/>,
         right: Id<Node /*Expression*/>,
@@ -414,7 +410,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_assignment_raw(
         &self,
-        arena: &RefCell<Arena<Node>>,
+        arena: &AllArenas,
         id: Id<Node>,
         left: Id<Node /*Expression*/>,
         right: Id<Node /*Expression*/>,
@@ -425,7 +421,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_logical_or_raw(
         &self,
-        arena: &RefCell<Arena<Node>>,
+        arena: &AllArenas,
         id: Id<Node>,
         left: Id<Node /*Expression*/>,
         right: Id<Node /*Expression*/>,
@@ -436,7 +432,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_logical_and_raw(
         &self,
-        arena: &RefCell<Arena<Node>>,
+        arena: &AllArenas,
         id: Id<Node>,
         left: Id<Node /*Expression*/>,
         right: Id<Node /*Expression*/>,
@@ -453,7 +449,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_bitwise_or_raw(
         &self,
-        arena: &RefCell<Arena<Node>>,
+        arena: &AllArenas,
         id: Id<Node>,
         left: Id<Node /*Expression*/>,
         right: Id<Node /*Expression*/>,
@@ -464,7 +460,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_bitwise_xor_raw(
         &self,
-        arena: &RefCell<Arena<Node>>,
+        arena: &AllArenas,
         id: Id<Node>,
         left: Id<Node /*Expression*/>,
         right: Id<Node /*Expression*/>,
@@ -475,7 +471,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_bitwise_and_raw(
         &self,
-        arena: &RefCell<Arena<Node>>,
+        arena: &AllArenas,
         id: Id<Node>,
         left: Id<Node /*Expression*/>,
         right: Id<Node /*Expression*/>,
@@ -486,7 +482,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_strict_equality_raw(
         &self,
-        arena: &RefCell<Arena<Node>>,
+        arena: &AllArenas,
         id: Id<Node>,
         left: Id<Node /*Expression*/>,
         right: Id<Node /*Expression*/>,
@@ -503,7 +499,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_strict_inequality_raw(
         &self,
-        arena: &RefCell<Arena<Node>>,
+        arena: &AllArenas,
         id: Id<Node>,
         left: Id<Node /*Expression*/>,
         right: Id<Node /*Expression*/>,
@@ -520,7 +516,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_equality_raw(
         &self,
-        arena: &RefCell<Arena<Node>>,
+        arena: &AllArenas,
         id: Id<Node>,
         left: Id<Node /*Expression*/>,
         right: Id<Node /*Expression*/>,
@@ -531,7 +527,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_inequality_raw(
         &self,
-        arena: &RefCell<Arena<Node>>,
+        arena: &AllArenas,
         id: Id<Node>,
         left: Id<Node /*Expression*/>,
         right: Id<Node /*Expression*/>,
@@ -548,7 +544,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_less_than_raw(
         &self,
-        arena: &RefCell<Arena<Node>>,
+        arena: &AllArenas,
         id: Id<Node>,
         left: Id<Node /*Expression*/>,
         right: Id<Node /*Expression*/>,
@@ -559,7 +555,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_less_than_equals_raw(
         &self,
-        arena: &RefCell<Arena<Node>>,
+        arena: &AllArenas,
         id: Id<Node>,
         left: Id<Node /*Expression*/>,
         right: Id<Node /*Expression*/>,
@@ -570,7 +566,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_greater_than_raw(
         &self,
-        arena: &RefCell<Arena<Node>>,
+        arena: &AllArenas,
         id: Id<Node>,
         left: Id<Node /*Expression*/>,
         right: Id<Node /*Expression*/>,
@@ -581,7 +577,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_greater_than_equals_raw(
         &self,
-        arena: &RefCell<Arena<Node>>,
+        arena: &AllArenas,
         id: Id<Node>,
         left: Id<Node /*Expression*/>,
         right: Id<Node /*Expression*/>,
@@ -598,7 +594,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_left_shift_raw(
         &self,
-        arena: &RefCell<Arena<Node>>,
+        arena: &AllArenas,
         id: Id<Node>,
         left: Id<Node /*Expression*/>,
         right: Id<Node /*Expression*/>,
@@ -609,7 +605,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_right_shift_raw(
         &self,
-        arena: &RefCell<Arena<Node>>,
+        arena: &AllArenas,
         id: Id<Node>,
         left: Id<Node /*Expression*/>,
         right: Id<Node /*Expression*/>,
@@ -626,7 +622,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_unsigned_right_shift_raw(
         &self,
-        arena: &RefCell<Arena<Node>>,
+        arena: &AllArenas,
         id: Id<Node>,
         left: Id<Node /*Expression*/>,
         right: Id<Node /*Expression*/>,
@@ -643,7 +639,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_add_raw(
         &self,
-        arena: &RefCell<Arena<Node>>,
+        arena: &AllArenas,
         id: Id<Node>,
         left: Id<Node /*Expression*/>,
         right: Id<Node /*Expression*/>,
@@ -654,7 +650,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_subtract_raw(
         &self,
-        arena: &RefCell<Arena<Node>>,
+        arena: &AllArenas,
         id: Id<Node>,
         left: Id<Node /*Expression*/>,
         right: Id<Node /*Expression*/>,
@@ -665,7 +661,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_multiply_raw(
         &self,
-        arena: &RefCell<Arena<Node>>,
+        arena: &AllArenas,
         id: Id<Node>,
         left: Id<Node /*Expression*/>,
         right: Id<Node /*Expression*/>,
@@ -676,7 +672,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_divide_raw(
         &self,
-        arena: &RefCell<Arena<Node>>,
+        arena: &AllArenas,
         id: Id<Node>,
         left: Id<Node /*Expression*/>,
         right: Id<Node /*Expression*/>,
@@ -687,7 +683,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_modulo_raw(
         &self,
-        arena: &RefCell<Arena<Node>>,
+        arena: &AllArenas,
         id: Id<Node>,
         left: Id<Node /*Expression*/>,
         right: Id<Node /*Expression*/>,
@@ -698,7 +694,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_exponent_raw(
         &self,
-        arena: &RefCell<Arena<Node>>,
+        arena: &AllArenas,
         id: Id<Node>,
         left: Id<Node /*Expression*/>,
         right: Id<Node /*Expression*/>,
@@ -709,7 +705,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_prefix_plus_raw(
         &self,
-        arena: &RefCell<Arena<Node>>,
+        arena: &AllArenas,
         id: Id<Node>,
         operand: Id<Node /*Expression*/>,
     ) -> PrefixUnaryExpression {
@@ -719,7 +715,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_prefix_increment_raw(
         &self,
-        arena: &RefCell<Arena<Node>>,
+        arena: &AllArenas,
         id: Id<Node>,
         operand: Id<Node /*Expression*/>,
     ) -> PrefixUnaryExpression {
@@ -729,7 +725,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_prefix_decrement_raw(
         &self,
-        arena: &RefCell<Arena<Node>>,
+        arena: &AllArenas,
         id: Id<Node>,
         operand: Id<Node /*Expression*/>,
     ) -> PrefixUnaryExpression {
@@ -739,7 +735,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_bitwise_not_raw(
         &self,
-        arena: &RefCell<Arena<Node>>,
+        arena: &AllArenas,
         id: Id<Node>,
         operand: Id<Node /*Expression*/>,
     ) -> PrefixUnaryExpression {
@@ -749,7 +745,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_logical_not_raw(
         &self,
-        arena: &RefCell<Arena<Node>>,
+        arena: &AllArenas,
         id: Id<Node>,
         operand: Id<Node /*Expression*/>,
     ) -> PrefixUnaryExpression {
@@ -759,7 +755,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_postfix_increment_raw(
         &self,
-        arena: &RefCell<Arena<Node>>,
+        arena: &AllArenas,
         id: Id<Node>,
         operand: Id<Node /*Expression*/>,
     ) -> PostfixUnaryExpression {
@@ -769,7 +765,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_postfix_decrement_raw(
         &self,
-        arena: &RefCell<Arena<Node>>,
+        arena: &AllArenas,
         id: Id<Node>,
         operand: Id<Node /*Expression*/>,
     ) -> PostfixUnaryExpression {
@@ -778,7 +774,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn create_node_array(
         &self,
-        arena: &RefCell<Arena<NodeArray>>,
+        arena: &AllArenas,
         elements: Option<impl Into<NodeArrayOrVec>>,
         has_trailing_comma: Option<bool>,
     ) -> Id<NodeArray> {
@@ -856,7 +852,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub(crate) fn create_base_named_declaration<'name>(
         &self,
-        arena: &RefCell<Arena<Node>>,
+        arena: &AllArenas,
         id: Id<Node>,
         kind: SyntaxKind,
         decorators: Option<impl Into<NodeArrayOrVec>>,
@@ -907,7 +903,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub(crate) fn create_base_signature_declaration<'name>(
         &self,
-        arena: &RefCell<Arena<Node>>,
+        arena: &AllArenas,
         id: Id<Node>,
         kind: SyntaxKind,
         decorators: Option<impl Into<NodeArrayOrVec>>,
@@ -939,7 +935,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub(crate) fn update_base_signature_declaration(
         &self,
-        arena: &RefCell<Arena<Node>>,
+        arena: &AllArenas,
         updated: Id<Node>,
         original: Id<Node>,
     ) -> Id<Node> {
@@ -952,7 +948,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub(crate) fn create_base_function_like_declaration<'name>(
         &self,
-        arena: &RefCell<Arena<Node>>,
+        arena: &AllArenas,
         id: Id<Node>,
         kind: SyntaxKind,
         decorators: Option<impl Into<NodeArrayOrVec>>,
@@ -988,7 +984,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub(crate) fn update_base_function_like_declaration(
         &self,
-        arena: &RefCell<Arena<Node>>,
+        arena: &AllArenas,
         updated: Id<Node>,
         original: Id<Node>,
     ) -> Id<Node> {
@@ -1060,7 +1056,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub(crate) fn create_base_binding_like_declaration<'name>(
         &self,
-        arena: &RefCell<Arena<Node>>,
+        arena: &AllArenas,
         id: Id<Node>,
         kind: SyntaxKind,
         decorators: Option<impl Into<NodeArrayOrVec>>,
@@ -1076,7 +1072,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub(crate) fn create_base_variable_like_declaration<'name>(
         &self,
-        arena: &RefCell<Arena<Node>>,
+        arena: &AllArenas,
         id: Id<Node>,
         kind: SyntaxKind,
         decorators: Option<impl Into<NodeArrayOrVec>>,
@@ -1116,7 +1112,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_numeric_literal_raw(
         &self,
-        arena: &RefCell<Arena<Node>>,
+        arena: &AllArenas,
         id: Id<Node>,
         value: impl Into<StringOrNumber>,
         numeric_literal_flags: Option<TokenFlags>,
@@ -1141,7 +1137,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_big_int_literal_raw(
         &self,
-        arena: &RefCell<Arena<Node>>,
+        arena: &AllArenas,
         id: Id<Node>,
         value: impl Into<PseudoBigIntOrString>,
     ) -> BigIntLiteral {
@@ -1163,7 +1159,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn create_base_string_literal(
         &self,
-        arena: &RefCell<Arena<Node>>,
+        arena: &AllArenas,
         id: Id<Node>,
         text: String,
         is_single_quote: Option<bool>,
@@ -1175,7 +1171,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_string_literal_raw(
         &self,
-        arena: &RefCell<Arena<Node>>,
+        arena: &AllArenas,
         id: Id<Node>,
         text: String,
         is_single_quote: Option<bool>,
@@ -1192,7 +1188,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_string_literal_from_node_raw(
         &self,
-        arena: &RefCell<Arena<Node>>,
+        arena: &AllArenas,
         id: Id<Node>,
         source_node: Id<Node>, /*PropertyNameLiteral*/
     ) -> StringLiteral {
@@ -1209,7 +1205,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_regular_expression_literal_raw(
         &self,
-        arena: &RefCell<Arena<Node>>,
+        arena: &AllArenas,
         id: Id<Node>,
         text: String,
     ) -> RegularExpressionLiteral {
@@ -1220,7 +1216,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_literal_like_node_raw(
         &self,
-        arena: &RefCell<Arena<Node>>,
+        arena: &AllArenas,
         id: Id<Node>,
         kind: SyntaxKind, /*LiteralToken["kind"] | SyntaxKind.JsxTextAllWhiteSpaces*/
         text: String,
@@ -1291,7 +1287,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn create_identifier_raw(
         &self,
-        arena: &RefCell<Arena<Node>>,
+        arena: &AllArenas,
         id: Id<Node>,
         text: &str,
         type_arguments: Option<impl Into<NodeArrayOrVec>>,
@@ -1310,7 +1306,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn create_identifier_full(
         &self,
-        arena: &RefCell<Arena<Node>>,
+        arena: &AllArenas,
         text: &str,
         type_arguments: Option<impl Into<NodeArrayOrVec>>,
         original_keyword_kind: Option<SyntaxKind>,
@@ -1320,13 +1316,13 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         })
     }
 
-    pub fn create_identifier(&self, arena: &RefCell<Arena<Node>>, text: &str) -> Id<Node> {
+    pub fn create_identifier(&self, arena: &AllArenas, text: &str) -> Id<Node> {
         self.create_identifier_full(arena, text, Option::<Gc<NodeArray>>::None, None)
     }
 
     pub fn update_identifier(
         &self,
-        arena: &RefCell<Arena<Node>>,
+        arena: &AllArenas,
         node: Id<Node>, /*Identifier*/
         type_arguments: Option<
             impl Into<NodeArrayOrVec>, /*<TypeNode | TypeParameterDeclaration>*/
@@ -1347,7 +1343,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn create_temp_variable(
         &self,
-        arena: &RefCell<Arena<Node>>,
+        arena: &AllArenas,
         record_temp_variable: Option<impl FnMut(&Node /*Identifier*/)>,
         reserved_in_nested_scopes: Option<bool>,
     ) -> Id<Node /*GeneratedIdentifier*/> {
@@ -1366,7 +1362,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn create_loop_variable(
         &self,
-        arena: &RefCell<Arena<Node>>,
+        arena: &AllArenas,
         reserved_in_nested_scopes: Option<bool>,
     ) -> Id<Node /*Identifier*/> {
         let mut flags = GeneratedIdentifierFlags::Loop;
@@ -1380,7 +1376,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn create_unique_name(
         &self,
-        arena: &RefCell<Arena<Node>>,
+        arena: &AllArenas,
         text: &str,
         flags: Option<GeneratedIdentifierFlags>,
     ) -> Id<Node /*Identifier*/> {
@@ -1393,7 +1389,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
             (flags & (GeneratedIdentifierFlags::Optimistic | GeneratedIdentifierFlags::FileLevel)) != GeneratedIdentifierFlags::FileLevel,
             Some("GeneratedIdentifierFlags.FileLevel cannot be set without also setting GeneratedIdentifierFlags.Optimistic")
         );
-        arena.borrow_mut().alloc_with_id(|id| {
+        arena.nodes.borrow_mut().alloc_with_id(|id| {
             self.create_base_generated_identifier(
                 id,
                 text,
@@ -1404,7 +1400,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn get_generated_name_for_node(
         &self,
-        arena: &RefCell<Arena<Node>>,
+        arena: &AllArenas,
         node: Option<Id<Node>>,
         flags: Option<GeneratedIdentifierFlags>,
     ) -> Id<Node /*Identifier*/> {
@@ -1418,7 +1414,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         } else {
             ""
         };
-        let name = arena.borrow_mut().alloc_with_id(|id| {
+        let name = arena.nodes.borrow_mut().alloc_with_id(|id| {
             self.create_base_generated_identifier(id, text, GeneratedIdentifierFlags::Node | flags)
         });
         arena.borrow_mut()[name].set_original(node);
@@ -1428,7 +1424,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_private_identifier_raw(
         &self,
-        arena: &RefCell<Arena<Node>>,
+        arena: &AllArenas,
         id: Id<Node>,
         text: &str,
     ) -> PrivateIdentifier {
@@ -1453,7 +1449,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_token_raw(
         &self,
-        arena: &RefCell<Arena<Node>>,
+        arena: &AllArenas,
         id: Id<Node>,
         token: SyntaxKind,
     ) -> BaseNode {

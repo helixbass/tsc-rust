@@ -1,17 +1,15 @@
-use std::cell::RefCell;
-
 use gc::{Finalize, Gc, Trace};
-use id_arena::{Arena, Id};
+use id_arena::Id;
 use local_macros::generate_node_factory_method_wrapper;
 
 use super::{get_default_tag_name_for_kind, propagate_child_flags, propagate_children_flags};
 use crate::{
     are_option_gcs_equal, escape_leading_underscores, get_jsdoc_type_alias_name,
-    has_node_array_changed, has_option_node_array_changed, is_variable_declaration, AssertClause,
-    AssertEntry, BaseJSDocTag, BaseJSDocTypeLikeTag, BaseJSDocUnaryType, BaseNode, BaseNodeFactory,
-    CaseClause, CatchClause, Debug_, DefaultClause, ExportAssignment, ExportDeclaration,
-    ExportSpecifier, ExternalModuleReference, HasTypeArgumentsInterface, HeritageClause,
-    ImportSpecifier, JSDoc, JSDocAugmentsTag, JSDocCallbackTag, JSDocFunctionType,
+    has_node_array_changed, has_option_node_array_changed, is_variable_declaration, AllArenas,
+    AssertClause, AssertEntry, BaseJSDocTag, BaseJSDocTypeLikeTag, BaseJSDocUnaryType, BaseNode,
+    BaseNodeFactory, CaseClause, CatchClause, Debug_, DefaultClause, ExportAssignment,
+    ExportDeclaration, ExportSpecifier, ExternalModuleReference, HasTypeArgumentsInterface,
+    HeritageClause, ImportSpecifier, JSDoc, JSDocAugmentsTag, JSDocCallbackTag, JSDocFunctionType,
     JSDocImplementsTag, JSDocLink, JSDocLinkCode, JSDocLinkPlain, JSDocMemberName,
     JSDocNameReference, JSDocPropertyLikeTag, JSDocSeeTag, JSDocSignature, JSDocTemplateTag,
     JSDocText, JSDocTypeExpression, JSDocTypeLiteral, JSDocTypedefTag, JsxAttribute, JsxAttributes,
@@ -755,7 +753,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub(crate) fn create_jsdoc_simple_tag_worker(
         &self,
-        arena: &RefCell<Arena<Node>>,
+        arena: &AllArenas,
         id: Id<Node>,
         kind: SyntaxKind,
         tag_name: Option<Gc<Node /*Identifier*/>>,
@@ -773,7 +771,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub(crate) fn create_jsdoc_type_like_tag_worker(
         &self,
-        arena: &RefCell<Arena<Node>>,
+        arena: &AllArenas,
         id: Id<Node>,
         kind: SyntaxKind,
         tag_name: Option<Gc<Node /*Identifier*/>>,
@@ -794,7 +792,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_jsdoc_unknown_tag_raw(
         &self,
-        arena: &RefCell<Arena<Node>>,
+        arena: &AllArenas,
         id: Id<Node>,
         tag_name: Gc<Node /*Identifier*/>,
         comment: Option<impl Into<StringOrNodeArray>>,
@@ -805,7 +803,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_jsdoc_text_raw(
         &self,
-        arena: &RefCell<Arena<Node>>,
+        arena: &AllArenas,
         id: Id<Node>,
         text: String,
     ) -> JSDocText {
@@ -816,7 +814,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_jsdoc_comment_raw(
         &self,
-        arena: &RefCell<Arena<Node>>,
+        arena: &AllArenas,
         id: Id<Node>,
         comment: Option<impl Into<StringOrNodeArray>>,
         tags: Option<impl Into<NodeArrayOrVec>>,
@@ -828,7 +826,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_jsx_element_raw(
         &self,
-        arena: &RefCell<Arena<Node>>,
+        arena: &AllArenas,
         id: Id<Node>,
         opening_element: Gc<Node /*JsxOpeningElement*/>,
         children: impl Into<NodeArrayOrVec>,
@@ -852,7 +850,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn update_jsx_element(
         &self,
-        arena: &RefCell<Arena<Node>>,
+        arena: &AllArenas,
         node: Id<Node>, /*JsxElement*/
         opening_element: Gc<Node /*JsxOpeningElement*/>,
         children: impl Into<NodeArrayOrVec>,
@@ -1053,7 +1051,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_jsx_text_raw(
         &self,
-        arena: &RefCell<Arena<Node>>,
+        arena: &AllArenas,
         id: Id<Node>,
         text: String,
         contains_only_trivia_white_spaces: Option<bool>,

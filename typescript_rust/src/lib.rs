@@ -302,7 +302,9 @@ pub use compiler::{
             try_get_property_name_of_binding_or_assignment_element, BinaryExpressionStateMachine,
             BinaryExpressionTrampoline, LeftOrRight,
         },
-        utilities_public::{set_text_range, set_text_range_node, set_text_range_node_array, set_text_range_rc_node},
+        utilities_public::{
+            set_text_range, set_text_range_node, set_text_range_node_array, set_text_range_rc_node,
+        },
     },
     module_name_resolver::{
         create_module_resolution_cache, create_type_reference_directive_resolution_cache,
@@ -823,6 +825,7 @@ pub use compiler::{
 };
 pub use execute_command_line::execute_command_line::execute_command_line;
 pub use rust_helpers::{
+    arena::AllArenas,
     are_gc_slices_equal, are_option_gcs_equal, are_option_rcs_equal, are_rc_slices_equal,
     capitalize,
     cell::{gc_cell_ref_mut_unwrapped, gc_cell_ref_unwrapped, ref_mut_unwrapped, ref_unwrapped},

@@ -1,9 +1,7 @@
-use std::cell::RefCell;
-
 use gc::Gc;
-use id_arena::{Arena, Id};
+use id_arena::Id;
 
-use crate::{set_text_range_pos_end, Node, NodeArray, ReadonlyTextRange};
+use crate::{set_text_range_pos_end, AllArenas, Node, NodeArray, ReadonlyTextRange};
 
 pub fn set_text_range<'a, TRange: ReadonlyTextRange + ?Sized>(
     range: &'a TRange,
@@ -19,7 +17,7 @@ pub fn set_text_range<'a, TRange: ReadonlyTextRange + ?Sized>(
 }
 
 pub fn set_text_range_node(
-    arena: &RefCell<Arena<Node>>,
+    arena: &AllArenas,
     range: Id<Node>,
     location: Option<Id<Node>>,
 ) -> Id<Node> {
