@@ -225,16 +225,20 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_parameter_declaration_raw<'name>(
         &self,
+        arena: &AllArenas,
+        id: Id<Node>,
         decorators: Option<impl Into<NodeArrayOrVec>>,
         modifiers: Option<impl Into<NodeArrayOrVec>>,
-        dot_dot_dot_token: Option<Gc<Node /*DotDotDotToken*/>>,
+        dot_dot_dot_token: Option<Id<Node /*DotDotDotToken*/>>,
         name: Option<impl Into<StrOrRcNode<'name>>>,
-        question_token: Option<Gc<Node /*QuestionToken*/>>,
-        type_: Option<Gc<Node /*TypeNode*/>>,
-        initializer: Option<Gc<Node /*Expression*/>>,
+        question_token: Option<Id<Node /*QuestionToken*/>>,
+        type_: Option<Id<Node /*TypeNode*/>>,
+        initializer: Option<Id<Node /*Expression*/>>,
     ) -> ParameterDeclaration {
         let initializer_is_some = initializer.is_some();
         let node = self.create_base_variable_like_declaration(
+            arena,
+            id,
             SyntaxKind::Parameter,
             decorators,
             modifiers,
@@ -247,13 +251,13 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         );
         let question_token_is_some = question_token.is_some();
         let dot_dot_dot_token_is_some = dot_dot_dot_token.is_some();
-        let node = ParameterDeclaration::new(node, dot_dot_dot_token, question_token);
+        let mut node = ParameterDeclaration::new(node, dot_dot_dot_token, question_token);
         if is_this_identifier(node.maybe_name()) {
             node.add_transform_flags(TransformFlags::ContainsTypeScript);
         } else {
             node.add_transform_flags(
-                propagate_child_flags(node.dot_dot_dot_token.clone())
-                    | propagate_child_flags(node.question_token.clone()),
+                propagate_child_flags(arena, node.dot_dot_dot_token.clone())
+                    | propagate_child_flags(arena, node.question_token.clone()),
             );
             if question_token_is_some {
                 node.add_transform_flags(TransformFlags::ContainsTypeScript);
@@ -272,42 +276,50 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn update_parameter_declaration<'name>(
         &self,
-        node: &Node, /*ParameterDeclaration*/
+        arena: &AllArenas,
+        node: Id<Node>, /*ParameterDeclaration*/
         decorators: Option<impl Into<NodeArrayOrVec>>,
         modifiers: Option<impl Into<NodeArrayOrVec>>,
-        dot_dot_dot_token: Option<Gc<Node /*DotDotDotToken*/>>,
+        dot_dot_dot_token: Option<Id<Node /*DotDotDotToken*/>>,
         name: Option<impl Into<StrOrRcNode<'name>>>,
-        question_token: Option<Gc<Node /*QuestionToken*/>>,
-        type_: Option<Gc<Node /*TypeNode*/>>,
-        initializer: Option<Gc<Node /*Expression*/>>,
-    ) -> Gc<Node> {
-        let node_as_parameter_declaration = node.as_parameter_declaration();
-        let decorators = decorators.map(Into::into);
-        let modifiers = modifiers.map(Into::into);
-        let name = name.map(Into::into);
-        if has_option_node_array_changed(node.maybe_decorators().as_deref(), decorators.as_ref())
-            || has_option_node_array_changed(node.maybe_modifiers().as_deref(), modifiers.as_ref())
-            || has_option_str_or_node_changed(
-                node_as_parameter_declaration.maybe_name().as_ref(),
-                name.as_ref(),
-            )
-            || !are_option_gcs_equal(
-                node_as_parameter_declaration
-                    .maybe_question_token()
-                    .as_ref(),
-                question_token.as_ref(),
-            )
-            || !are_option_gcs_equal(
-                node_as_parameter_declaration.maybe_type().as_ref(),
-                type_.as_ref(),
-            )
-            || !are_option_gcs_equal(
-                node_as_parameter_declaration.maybe_initializer().as_ref(),
-                initializer.as_ref(),
-            )
-        {
+        question_token: Option<Id<Node /*QuestionToken*/>>,
+        type_: Option<Id<Node /*TypeNode*/>>,
+        initializer: Option<Id<Node /*Expression*/>>,
+    ) -> Id<Node> {
+        if {
+            let node = arena.node(node);
+            let node_as_parameter_declaration = node.as_parameter_declaration();
+            let decorators = decorators.map(Into::into);
+            let modifiers = modifiers.map(Into::into);
+            let name = name.map(Into::into);
+            has_option_node_array_changed(node.maybe_decorators().as_deref(), decorators.as_ref())
+                || has_option_node_array_changed(
+                    node.maybe_modifiers().as_deref(),
+                    modifiers.as_ref(),
+                )
+                || has_option_str_or_node_changed(
+                    node_as_parameter_declaration.maybe_name().as_ref(),
+                    name.as_ref(),
+                )
+                || !are_option_gcs_equal(
+                    node_as_parameter_declaration
+                        .maybe_question_token()
+                        .as_ref(),
+                    question_token.as_ref(),
+                )
+                || !are_option_gcs_equal(
+                    node_as_parameter_declaration.maybe_type().as_ref(),
+                    type_.as_ref(),
+                )
+                || !are_option_gcs_equal(
+                    node_as_parameter_declaration.maybe_initializer().as_ref(),
+                    initializer.as_ref(),
+                )
+        } {
             self.update(
+                arena,
                 self.create_parameter_declaration(
+                    arena,
                     decorators,
                     modifiers,
                     dot_dot_dot_token,
@@ -319,14 +331,19 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
                 node,
             )
         } else {
-            node.node_wrapper()
+            node
         }
     }
 
     #[generate_node_factory_method_wrapper]
-    pub fn create_decorator_raw(&self, expression: Gc<Node /*Expression*/>) -> Decorator {
-        let node = self.create_base_node(SyntaxKind::Decorator);
-        let node = Decorator::new(
+    pub fn create_decorator_raw(
+        &self,
+        arena: &AllArenas,
+        id: Id<Node>,
+        expression: Id<Node /*Expression*/>,
+    ) -> Decorator {
+        let node = self.create_base_node(id, SyntaxKind::Decorator);
+        let mut node = Decorator::new(
             node,
             self.parenthesizer_rules()
                 .parenthesize_left_side_of_access(&expression),
@@ -341,167 +358,192 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn update_decorator(
         &self,
-        node: &Node, /*Decorator*/
-        expression: Gc<Node /*Expression*/>,
-    ) -> Gc<Node> {
-        let node_as_decorator = node.as_decorator();
-        if !Gc::ptr_eq(&node_as_decorator.expression, &expression) {
-            self.update(self.create_decorator(expression), node)
+        arena: &AllArenas,
+        node: Id<Node>, /*Decorator*/
+        expression: Id<Node /*Expression*/>,
+    ) -> Id<Node> {
+        if {
+            let node = arena.node(node);
+            let node_as_decorator = node.as_decorator();
+            node_as_decorator.expression != expression
+        } {
+            self.update(arena, self.create_decorator(arena, expression), node)
         } else {
-            node.node_wrapper()
+            node
         }
     }
 
     #[generate_node_factory_method_wrapper]
     pub fn create_property_signature_raw<'name>(
         &self,
+        arena: &AllArenas,
+        id: Id<Node>,
         modifiers: Option<impl Into<NodeArrayOrVec>>,
         name: impl Into<StrOrRcNode<'name>>,
-        question_token: Option<Gc<Node>>,
-        type_: Option<Gc<Node>>,
+        question_token: Option<Id<Node>>,
+        type_: Option<Id<Node>>,
     ) -> PropertySignature {
         let node = self.create_base_named_declaration(
+            arena,
+            id,
             SyntaxKind::PropertySignature,
             Option::<Gc<NodeArray>>::None,
             modifiers,
             Some(name),
         );
-        let node = PropertySignature::new(node, question_token, type_);
+        let mut node = PropertySignature::new(node, question_token, type_);
         node.add_transform_flags(TransformFlags::ContainsTypeScript);
         node
     }
 
     pub fn update_property_signature(
         &self,
-        node: &Node, /*PropertySignature*/
+        arena: &AllArenas,
+        node: Id<Node>, /*PropertySignature*/
         modifiers: Option<impl Into<NodeArrayOrVec>>,
-        name: Gc<Node>,
-        question_token: Option<Gc<Node>>,
-        type_: Option<Gc<Node>>,
-    ) -> Gc<Node> {
-        let node_as_property_signature = node.as_property_signature();
-        let modifiers = modifiers.map(Into::into);
-        if has_option_node_array_changed(node.maybe_modifiers().as_deref(), modifiers.as_ref())
-            || !Gc::ptr_eq(&node_as_property_signature.name(), &name)
-            || !are_option_gcs_equal(
-                node_as_property_signature.question_token.as_ref(),
-                question_token.as_ref(),
-            )
-            || !are_option_gcs_equal(
-                node_as_property_signature.maybe_type().as_ref(),
-                type_.as_ref(),
-            )
-        {
+        name: Id<Node>,
+        question_token: Option<Id<Node>>,
+        type_: Option<Id<Node>>,
+    ) -> Id<Node> {
+        if {
+            let node = arena.node(node);
+            let node_as_property_signature = node.as_property_signature();
+            let modifiers = modifiers.map(Into::into);
+            has_option_node_array_changed(node.maybe_modifiers().as_deref(), modifiers.as_ref())
+                || node_as_property_signature.name() != name
+                || node_as_property_signature.question_token != question_token
+                || node_as_property_signature.maybe_type() != type_
+        } {
             self.update(
-                self.create_property_signature(modifiers, name, question_token, type_),
+                arena,
+                self.create_property_signature(arena, modifiers, name, question_token, type_),
                 node,
             )
         } else {
-            node.node_wrapper()
+            node
         }
     }
 
     pub fn create_property_declaration<'name>(
         &self,
+        arena: &AllArenas,
         decorators: Option<impl Into<NodeArrayOrVec>>,
         modifiers: Option<impl Into<NodeArrayOrVec>>,
         name: impl Into<StrOrRcNode<'name>>,
-        question_or_exclamation_token: Option<Gc<Node /*QuestionToken | ExclamationToken*/>>,
-        type_: Option<Gc<Node /*TypeNode*/>>,
-        initializer: Option<Gc<Node /*Expression*/>>,
-    ) -> Gc<Node> /*PropertyDeclaration*/ {
-        let node = self.create_base_variable_like_declaration(
-            SyntaxKind::PropertyDeclaration,
-            decorators,
-            modifiers,
-            Some(name),
-            type_,
-            initializer,
-        );
-        let question_or_exclamation_token_is_some = question_or_exclamation_token.is_some();
-        let node = PropertyDeclaration::new(
-            node,
-            question_or_exclamation_token
-                .clone()
-                .filter(|question_or_exclamation_token| {
-                    is_question_token(question_or_exclamation_token)
+        question_or_exclamation_token: Option<Id<Node /*QuestionToken | ExclamationToken*/>>,
+        type_: Option<Id<Node /*TypeNode*/>>,
+        initializer: Option<Id<Node /*Expression*/>>,
+    ) -> Id<Node> /*PropertyDeclaration*/ {
+        let node = arena.nodes.borrow_mut().alloc_with_id(|id| {
+            let node = self.create_base_variable_like_declaration(
+                arena,
+                id,
+                SyntaxKind::PropertyDeclaration,
+                decorators,
+                modifiers,
+                Some(name),
+                type_,
+                initializer,
+            );
+            let question_or_exclamation_token_is_some = question_or_exclamation_token.is_some();
+            let mut node = PropertyDeclaration::new(
+                node,
+                question_or_exclamation_token
+                    .clone()
+                    .filter(|question_or_exclamation_token| {
+                        is_question_token(question_or_exclamation_token)
+                    }),
+                question_or_exclamation_token.filter(|question_or_exclamation_token| {
+                    is_exclamation_token(question_or_exclamation_token)
                 }),
-            question_or_exclamation_token.filter(|question_or_exclamation_token| {
-                is_exclamation_token(question_or_exclamation_token)
-            }),
-        );
-        node.add_transform_flags(
-            propagate_child_flags(node.question_token.clone())
-                | propagate_child_flags(node.exclamation_token.clone())
-                | TransformFlags::ContainsClassFields,
-        );
-        let node = node.wrap();
-        let node_as_property_declaration = node.as_property_declaration();
-        if is_computed_property_name(&node_as_property_declaration.name())
-            || has_static_modifier(&node)
-                && node_as_property_declaration.maybe_initializer().is_some()
-        {
-            node.add_transform_flags(TransformFlags::ContainsTypeScriptClassSyntax);
+            );
+            node.add_transform_flags(
+                propagate_child_flags(arena, node.question_token.clone())
+                    | propagate_child_flags(arena, node.exclamation_token.clone())
+                    | TransformFlags::ContainsClassFields,
+            );
+            node
+        });
+        if {
+            let node = arena.node(node);
+            let node_as_property_declaration = node.as_property_declaration();
+            is_computed_property_name(&node_as_property_declaration.name())
+                || has_static_modifier(&node)
+                    && node_as_property_declaration.maybe_initializer().is_some()
+        } {
+            arena
+                .node_mut(node)
+                .add_transform_flags(TransformFlags::ContainsTypeScriptClassSyntax);
         }
         if question_or_exclamation_token_is_some
             || modifiers_to_flags(node.maybe_modifiers().as_double_deref())
                 .intersects(ModifierFlags::Ambient)
         {
-            node.add_transform_flags(TransformFlags::ContainsTypeScript);
+            arena
+                .node_mut(node)
+                .add_transform_flags(TransformFlags::ContainsTypeScript);
         }
         node
     }
 
     pub fn update_property_declaration<'name>(
         &self,
-        node: &Node, /*PropertyDeclaration*/
+        arena: &AllArenas,
+        node: Id<Node>, /*PropertyDeclaration*/
         decorators: Option<impl Into<NodeArrayOrVec>>,
         modifiers: Option<impl Into<NodeArrayOrVec>>,
         name: impl Into<StrOrRcNode<'name>>,
         question_or_exclamation_token: Option<Gc<Node /*QuestionToken | ExclamationToken*/>>,
-        type_: Option<Gc<Node /*TypeNode*/>>,
-        initializer: Option<Gc<Node /*Expression*/>>,
-    ) -> Gc<Node> /*PropertyDeclaration*/ {
-        let node_as_property_declaration = node.as_property_declaration();
-        let decorators = decorators.map(Into::into);
-        let modifiers = modifiers.map(Into::into);
-        let name = name.into();
-        if has_option_node_array_changed(node.maybe_decorators().as_deref(), decorators.as_ref())
-            || has_option_node_array_changed(node.maybe_modifiers().as_deref(), modifiers.as_ref())
-            || !matches!(
-                &name,
-                StrOrRcNode::RcNode(name) if Gc::ptr_eq(
-                    &node_as_property_declaration.name(),
-                    name,
+        type_: Option<Id<Node /*TypeNode*/>>,
+        initializer: Option<Id<Node /*Expression*/>>,
+    ) -> Id<Node> /*PropertyDeclaration*/ {
+        if {
+            let node = arena.node(node);
+            let node_as_property_declaration = node.as_property_declaration();
+            let decorators = decorators.map(Into::into);
+            let modifiers = modifiers.map(Into::into);
+            let name = name.into();
+            has_option_node_array_changed(node.maybe_decorators().as_deref(), decorators.as_ref())
+                || has_option_node_array_changed(
+                    node.maybe_modifiers().as_deref(),
+                    modifiers.as_ref(),
                 )
-            )
-            || !are_option_gcs_equal(
-                node_as_property_declaration.maybe_question_token().as_ref(),
-                question_or_exclamation_token
-                    .as_ref()
-                    .filter(|question_or_exclamation_token| {
-                        is_question_token(question_or_exclamation_token)
-                    }),
-            )
-            || !are_option_gcs_equal(
-                node_as_property_declaration.exclamation_token.as_ref(),
-                question_or_exclamation_token
-                    .as_ref()
-                    .filter(|question_or_exclamation_token| {
-                        is_exclamation_token(question_or_exclamation_token)
-                    }),
-            )
-            || !are_option_gcs_equal(
-                node_as_property_declaration.maybe_type().as_ref(),
-                type_.as_ref(),
-            )
-            || !are_option_gcs_equal(
-                node_as_property_declaration.maybe_initializer().as_ref(),
-                initializer.as_ref(),
-            )
-        {
+                || !matches!(
+                    &name,
+                    StrOrRcNode::RcNode(name) if Gc::ptr_eq(
+                        &node_as_property_declaration.name(),
+                        name,
+                    )
+                )
+                || !are_option_gcs_equal(
+                    node_as_property_declaration.maybe_question_token().as_ref(),
+                    question_or_exclamation_token.as_ref().filter(
+                        |question_or_exclamation_token| {
+                            is_question_token(question_or_exclamation_token)
+                        },
+                    ),
+                )
+                || !are_option_gcs_equal(
+                    node_as_property_declaration.exclamation_token.as_ref(),
+                    question_or_exclamation_token.as_ref().filter(
+                        |question_or_exclamation_token| {
+                            is_exclamation_token(question_or_exclamation_token)
+                        },
+                    ),
+                )
+                || !are_option_gcs_equal(
+                    node_as_property_declaration.maybe_type().as_ref(),
+                    type_.as_ref(),
+                )
+                || !are_option_gcs_equal(
+                    node_as_property_declaration.maybe_initializer().as_ref(),
+                    initializer.as_ref(),
+                )
+        } {
             self.update(
+                arena,
                 self.create_property_declaration(
+                    arena,
                     decorators,
                     modifiers,
                     name,
@@ -512,21 +554,25 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
                 node,
             )
         } else {
-            node.node_wrapper()
+            node
         }
     }
 
     #[generate_node_factory_method_wrapper]
     pub(crate) fn create_method_signature_raw<'name>(
         &self,
+        arena: &AllArenas,
+        id: Id<Node>,
         modifiers: Option<impl Into<NodeArrayOrVec>>,
         name: Option<impl Into<StrOrRcNode<'name>>>,
-        question_token: Option<Gc<Node /*QuestionToken*/>>,
+        question_token: Option<Id<Node /*QuestionToken*/>>,
         type_parameters: Option<impl Into<NodeArrayOrVec>>,
         parameters: Option<impl Into<NodeArrayOrVec>>,
-        type_: Option<Gc<Node>>,
+        type_: Option<Id<Node>>,
     ) -> MethodSignature {
         let node = self.create_base_signature_declaration(
+            arena,
+            id,
             SyntaxKind::MethodSignature,
             Option::<Gc<NodeArray>>::None,
             modifiers,
@@ -535,41 +581,46 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
             parameters,
             type_,
         );
-        let node = MethodSignature::new(node, question_token);
+        let mut node = MethodSignature::new(node, question_token);
         node.add_transform_flags(TransformFlags::ContainsTypeScript);
         node
     }
 
     pub(crate) fn update_method_signature(
         &self,
-        node: &Node, /*MethodSignature*/
+        arena: &AllArenas,
+        node: Id<Node>, /*MethodSignature*/
         modifiers: Option<impl Into<NodeArrayOrVec>>,
-        name: Gc<Node /*PropertyName*/>,
-        question_token: Option<Gc<Node /*QuestionToken*/>>,
+        name: Id<Node /*PropertyName*/>,
+        question_token: Option<Id<Node /*QuestionToken*/>>,
         type_parameters: Option<Gc<NodeArray /*<TypeParameterDeclaration>*/>>,
         parameters: Gc<NodeArray /*<ParameterDeclaration>*/>,
-        type_: Option<Gc<Node>>,
-    ) -> Gc<Node> {
-        let node_as_method_signature = node.as_method_signature();
-        let modifiers = modifiers.map(Into::into);
-        if has_option_node_array_changed(node.maybe_modifiers().as_deref(), modifiers.as_ref())
-            || !Gc::ptr_eq(&node_as_method_signature.name(), &name)
-            || !are_option_gcs_equal(
-                node_as_method_signature.maybe_question_token().as_ref(),
-                question_token.as_ref(),
-            )
-            || !are_option_gcs_equal(
-                node_as_method_signature.maybe_type_parameters().as_ref(),
-                type_parameters.as_ref(),
-            )
-            || !Gc::ptr_eq(&node_as_method_signature.parameters(), &parameters)
-            || !are_option_gcs_equal(
-                node_as_method_signature.maybe_type().as_ref(),
-                type_.as_ref(),
-            )
-        {
+        type_: Option<Id<Node>>,
+    ) -> Id<Node> {
+        if {
+            let node = arena.node(node);
+            let node_as_method_signature = node.as_method_signature();
+            let modifiers = modifiers.map(Into::into);
+            has_option_node_array_changed(node.maybe_modifiers().as_deref(), modifiers.as_ref())
+                || !Gc::ptr_eq(&node_as_method_signature.name(), &name)
+                || !are_option_gcs_equal(
+                    node_as_method_signature.maybe_question_token().as_ref(),
+                    question_token.as_ref(),
+                )
+                || !are_option_gcs_equal(
+                    node_as_method_signature.maybe_type_parameters().as_ref(),
+                    type_parameters.as_ref(),
+                )
+                || !Gc::ptr_eq(&node_as_method_signature.parameters(), &parameters)
+                || !are_option_gcs_equal(
+                    node_as_method_signature.maybe_type().as_ref(),
+                    type_.as_ref(),
+                )
+        } {
             self.update_base_signature_declaration(
+                arena,
                 self.create_method_signature(
+                    arena,
                     modifiers,
                     Some(name),
                     question_token,
@@ -580,24 +631,28 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
                 node,
             )
         } else {
-            node.node_wrapper()
+            node
         }
     }
 
     #[generate_node_factory_method_wrapper]
     pub fn create_method_declaration_raw<'name>(
         &self,
+        arena: &AllArenas,
+        id: Id<Node>,
         decorators: Option<impl Into<NodeArrayOrVec>>,
         modifiers: Option<impl Into<NodeArrayOrVec>>,
-        asterisk_token: Option<Gc<Node /*AsteriskToken*/>>,
+        asterisk_token: Option<Id<Node /*AsteriskToken*/>>,
         name: impl Into<StrOrRcNode<'name>>,
-        question_token: Option<Gc<Node /*QuestionToken*/>>,
+        question_token: Option<Id<Node /*QuestionToken*/>>,
         type_parameters: Option<impl Into<NodeArrayOrVec>>,
         parameters: impl Into<NodeArrayOrVec>,
-        type_: Option<Gc<Node /*TypeNode*/>>,
-        body: Option<Gc<Node /*Block*/>>,
+        type_: Option<Id<Node /*TypeNode*/>>,
+        body: Option<Id<Node /*Block*/>>,
     ) -> MethodDeclaration {
         let mut node = self.create_base_function_like_declaration(
+            arena,
+            id,
             SyntaxKind::MethodDeclaration,
             decorators,
             modifiers,
@@ -611,10 +666,10 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         let question_token_is_some = question_token.is_some();
         node.asterisk_token = asterisk_token;
         node.question_token = question_token;
-        let node = MethodDeclaration::new(node);
+        let mut node = MethodDeclaration::new(node);
         node.add_transform_flags(
-            propagate_child_flags(node.maybe_asterisk_token())
-                | propagate_child_flags(node.maybe_question_token())
+            propagate_child_flags(arena, node.maybe_asterisk_token())
+                | propagate_child_flags(arena, node.maybe_question_token())
                 | TransformFlags::ContainsES2015,
         );
         if question_token_is_some {
@@ -636,51 +691,59 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn update_method_declaration(
         &self,
-        node: &Node, /*MethodDeclaration*/
+        arena: &AllArenas,
+        node: Id<Node>, /*MethodDeclaration*/
         decorators: Option<impl Into<NodeArrayOrVec>>,
         modifiers: Option<impl Into<NodeArrayOrVec>>,
-        asterisk_token: Option<Gc<Node /*AsteriskToken*/>>,
-        name: Gc<Node /*PropertyName*/>,
-        question_token: Option<Gc<Node /*QuestionToken*/>>,
+        asterisk_token: Option<Id<Node /*AsteriskToken*/>>,
+        name: Id<Node /*PropertyName*/>,
+        question_token: Option<Id<Node /*QuestionToken*/>>,
         type_parameters: Option<impl Into<NodeArrayOrVec>>,
         parameters: impl Into<NodeArrayOrVec>,
-        type_: Option<Gc<Node /*TypeNode*/>>,
-        body: Option<Gc<Node /*Block*/>>,
-    ) -> Gc<Node> {
-        let node_as_method_declaration = node.as_method_declaration();
-        let decorators = decorators.map(Into::into);
-        let modifiers = modifiers.map(Into::into);
-        let type_parameters = type_parameters.map(Into::into);
-        let parameters = parameters.into();
-        if has_option_node_array_changed(node.maybe_decorators().as_deref(), decorators.as_ref())
-            || has_option_node_array_changed(node.maybe_modifiers().as_deref(), modifiers.as_ref())
-            || !are_option_gcs_equal(
-                node_as_method_declaration.maybe_asterisk_token().as_ref(),
-                asterisk_token.as_ref(),
-            )
-            || !Gc::ptr_eq(&node_as_method_declaration.name(), &name)
-            || !are_option_gcs_equal(
-                node_as_method_declaration.maybe_question_token().as_ref(),
-                question_token.as_ref(),
-            )
-            || has_option_node_array_changed(
-                node_as_method_declaration
-                    .maybe_type_parameters()
-                    .as_deref(),
-                type_parameters.as_ref(),
-            )
-            || has_node_array_changed(&node_as_method_declaration.parameters(), &parameters)
-            || !are_option_gcs_equal(
-                node_as_method_declaration.maybe_type().as_ref(),
-                type_.as_ref(),
-            )
-            || !are_option_gcs_equal(
-                node_as_method_declaration.maybe_body().as_ref(),
-                body.as_ref(),
-            )
-        {
+        type_: Option<Id<Node /*TypeNode*/>>,
+        body: Option<Id<Node /*Block*/>>,
+    ) -> Id<Node> {
+        if {
+            let node = arena.node(node);
+            let node_as_method_declaration = node.as_method_declaration();
+            let decorators = decorators.map(Into::into);
+            let modifiers = modifiers.map(Into::into);
+            let type_parameters = type_parameters.map(Into::into);
+            let parameters = parameters.into();
+            has_option_node_array_changed(node.maybe_decorators().as_deref(), decorators.as_ref())
+                || has_option_node_array_changed(
+                    node.maybe_modifiers().as_deref(),
+                    modifiers.as_ref(),
+                )
+                || !are_option_gcs_equal(
+                    node_as_method_declaration.maybe_asterisk_token().as_ref(),
+                    asterisk_token.as_ref(),
+                )
+                || !Gc::ptr_eq(&node_as_method_declaration.name(), &name)
+                || !are_option_gcs_equal(
+                    node_as_method_declaration.maybe_question_token().as_ref(),
+                    question_token.as_ref(),
+                )
+                || has_option_node_array_changed(
+                    node_as_method_declaration
+                        .maybe_type_parameters()
+                        .as_deref(),
+                    type_parameters.as_ref(),
+                )
+                || has_node_array_changed(&node_as_method_declaration.parameters(), &parameters)
+                || !are_option_gcs_equal(
+                    node_as_method_declaration.maybe_type().as_ref(),
+                    type_.as_ref(),
+                )
+                || !are_option_gcs_equal(
+                    node_as_method_declaration.maybe_body().as_ref(),
+                    body.as_ref(),
+                )
+        } {
             self.update_base_function_like_declaration(
+                arena,
                 self.create_method_declaration(
+                    arena,
                     decorators,
                     modifiers,
                     asterisk_token,
@@ -694,63 +757,77 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
                 node,
             )
         } else {
-            node.node_wrapper()
+            node
         }
     }
 
     #[generate_node_factory_method_wrapper]
     pub fn create_class_static_block_declaration_raw(
         &self,
+        arena: &AllArenas,
+        id: Id<Node>,
         decorators: Option<impl Into<NodeArrayOrVec>>,
         modifiers: Option<impl Into<NodeArrayOrVec>>,
-        body: Gc<Node /*Block*/>,
+        body: Id<Node /*Block*/>,
     ) -> ClassStaticBlockDeclaration {
         let node = self.create_base_generic_named_declaration(
+            id,
             SyntaxKind::ClassStaticBlockDeclaration,
             decorators,
             modifiers,
             Option::<Gc<Node>>::None,
             Option::<Gc<NodeArray>>::None,
         );
-        let node = ClassStaticBlockDeclaration::new(node, body.clone());
+        let mut node = ClassStaticBlockDeclaration::new(node, body.clone());
         node.add_transform_flags(
-            propagate_child_flags(Some(&*body)) | TransformFlags::ContainsClassFields,
+            propagate_child_flags(arena, Some(&*body)) | TransformFlags::ContainsClassFields,
         );
         node
     }
 
     pub fn update_class_static_block_declaration(
         &self,
-        node: &Node, /*ClassStaticBlockDeclaration*/
+        arena: &AllArenas,
+        node: Id<Node>, /*ClassStaticBlockDeclaration*/
         decorators: Option<impl Into<NodeArrayOrVec>>,
         modifiers: Option<impl Into<NodeArrayOrVec>>,
-        body: Gc<Node /*Block*/>,
-    ) -> Gc<Node> {
-        let node_as_class_static_block_declaration = node.as_class_static_block_declaration();
-        let decorators = decorators.map(Into::into);
-        let modifiers = modifiers.map(Into::into);
-        if has_option_node_array_changed(node.maybe_decorators().as_deref(), decorators.as_ref())
-            || has_option_node_array_changed(node.maybe_modifiers().as_deref(), modifiers.as_ref())
-            || !Gc::ptr_eq(&node_as_class_static_block_declaration.body, &body)
-        {
+        body: Id<Node /*Block*/>,
+    ) -> Id<Node> {
+        if {
+            let node = arena.node(node);
+            let node_as_class_static_block_declaration = node.as_class_static_block_declaration();
+            let decorators = decorators.map(Into::into);
+            let modifiers = modifiers.map(Into::into);
+            has_option_node_array_changed(node.maybe_decorators().as_deref(), decorators.as_ref())
+                || has_option_node_array_changed(
+                    node.maybe_modifiers().as_deref(),
+                    modifiers.as_ref(),
+                )
+                || !Gc::ptr_eq(&node_as_class_static_block_declaration.body, &body)
+        } {
             self.update(
-                self.create_class_static_block_declaration(decorators, modifiers, body),
+                arena,
+                self.create_class_static_block_declaration(arena, decorators, modifiers, body),
                 node,
             )
         } else {
-            node.node_wrapper()
+            node
         }
     }
 
     #[generate_node_factory_method_wrapper]
     pub fn create_constructor_declaration_raw(
         &self,
+        arena: &AllArenas,
+        id: Id<Node>,
         decorators: Option<impl Into<NodeArrayOrVec>>,
         modifiers: Option<impl Into<NodeArrayOrVec>>,
         parameters: Option<impl Into<NodeArrayOrVec>>,
-        body: Option<Gc<Node /*Block*/>>,
+        body: Option<Id<Node /*Block*/>>,
     ) -> ConstructorDeclaration {
         let node = self.create_base_function_like_declaration(
+            arena,
+            id,
             SyntaxKind::Constructor,
             decorators,
             modifiers,
@@ -760,51 +837,71 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
             None,
             body,
         );
-        let node = ConstructorDeclaration::new(node);
+        let mut node = ConstructorDeclaration::new(node);
         node.add_transform_flags(TransformFlags::ContainsES2015);
         node
     }
 
     pub fn update_constructor_declaration(
         &self,
-        node: &Node, /*ConstructorDeclaration*/
+        arena: &AllArenas,
+        node: Id<Node>, /*ConstructorDeclaration*/
         decorators: Option<impl Into<NodeArrayOrVec>>,
         modifiers: Option<impl Into<NodeArrayOrVec>>,
         parameters: impl Into<NodeArrayOrVec>,
-        body: Option<Gc<Node /*Block*/>>,
-    ) -> Gc<Node> {
-        let node_as_constructor_declaration = node.as_constructor_declaration();
-        let decorators = decorators.map(Into::into);
-        let modifiers = modifiers.map(Into::into);
-        let parameters = parameters.into();
-        if has_option_node_array_changed(node.maybe_decorators().as_deref(), decorators.as_ref())
-            || has_option_node_array_changed(node.maybe_modifiers().as_deref(), modifiers.as_ref())
-            || has_node_array_changed(&node_as_constructor_declaration.parameters(), &parameters)
-            || !are_option_gcs_equal(
-                node_as_constructor_declaration.maybe_body().as_ref(),
-                body.as_ref(),
-            )
-        {
+        body: Option<Id<Node /*Block*/>>,
+    ) -> Id<Node> {
+        if {
+            let node = arena.node(node);
+            let node_as_constructor_declaration = node.as_constructor_declaration();
+            let decorators = decorators.map(Into::into);
+            let modifiers = modifiers.map(Into::into);
+            let parameters = parameters.into();
+            has_option_node_array_changed(node.maybe_decorators().as_deref(), decorators.as_ref())
+                || has_option_node_array_changed(
+                    node.maybe_modifiers().as_deref(),
+                    modifiers.as_ref(),
+                )
+                || has_node_array_changed(
+                    &node_as_constructor_declaration.parameters(),
+                    &parameters,
+                )
+                || !are_option_gcs_equal(
+                    node_as_constructor_declaration.maybe_body().as_ref(),
+                    body.as_ref(),
+                )
+        } {
             self.update_base_function_like_declaration(
-                self.create_constructor_declaration(decorators, modifiers, Some(parameters), body),
+                arena,
+                self.create_constructor_declaration(
+                    arena,
+                    decorators,
+                    modifiers,
+                    Some(parameters),
+                    body,
+                ),
                 node,
             )
         } else {
-            node.node_wrapper()
+            node
         }
     }
 
     #[generate_node_factory_method_wrapper]
     pub fn create_get_accessor_declaration_raw<'name>(
         &self,
+        arena: &AllArenas,
+        id: Id<Node>,
         decorators: Option<impl Into<NodeArrayOrVec>>,
         modifiers: Option<impl Into<NodeArrayOrVec>>,
         name: impl Into<StrOrRcNode<'name>>,
         parameters: impl Into<NodeArrayOrVec>,
-        type_: Option<Gc<Node /*TypeNode*/>>,
-        body: Option<Gc<Node /*Block*/>>,
+        type_: Option<Id<Node /*TypeNode*/>>,
+        body: Option<Id<Node /*Block*/>>,
     ) -> GetAccessorDeclaration {
         let node = self.create_base_function_like_declaration(
+            arena,
+            id,
             SyntaxKind::GetAccessor,
             decorators,
             modifiers,
@@ -819,52 +916,66 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn update_get_accessor_declaration(
         &self,
-        node: &Node, /*GetAccessorDeclaration*/
+        arena: &AllArenas,
+        node: Id<Node>, /*GetAccessorDeclaration*/
         decorators: Option<impl Into<NodeArrayOrVec>>,
         modifiers: Option<impl Into<NodeArrayOrVec>>,
-        name: Gc<Node /*PropertyName*/>,
+        name: Id<Node /*PropertyName*/>,
         parameters: impl Into<NodeArrayOrVec>,
-        type_: Option<Gc<Node /*TypeNode*/>>,
-        body: Option<Gc<Node /*Block*/>>,
-    ) -> Gc<Node> {
-        let node_as_get_accessor_declaration = node.as_get_accessor_declaration();
-        let decorators = decorators.map(Into::into);
-        let modifiers = modifiers.map(Into::into);
-        let parameters = parameters.into();
-        if has_option_node_array_changed(node.maybe_decorators().as_deref(), decorators.as_ref())
-            || has_option_node_array_changed(node.maybe_modifiers().as_deref(), modifiers.as_ref())
-            || !Gc::ptr_eq(&node_as_get_accessor_declaration.name(), &name)
-            || has_node_array_changed(&node_as_get_accessor_declaration.parameters(), &parameters)
-            || !are_option_gcs_equal(
-                node_as_get_accessor_declaration.maybe_type().as_ref(),
-                type_.as_ref(),
-            )
-            || !are_option_gcs_equal(
-                node_as_get_accessor_declaration.maybe_body().as_ref(),
-                body.as_ref(),
-            )
-        {
+        type_: Option<Id<Node /*TypeNode*/>>,
+        body: Option<Id<Node /*Block*/>>,
+    ) -> Id<Node> {
+        if {
+            let node = arena.node(node);
+            let node_as_get_accessor_declaration = node.as_get_accessor_declaration();
+            let decorators = decorators.map(Into::into);
+            let modifiers = modifiers.map(Into::into);
+            let parameters = parameters.into();
+            has_option_node_array_changed(node.maybe_decorators().as_deref(), decorators.as_ref())
+                || has_option_node_array_changed(
+                    node.maybe_modifiers().as_deref(),
+                    modifiers.as_ref(),
+                )
+                || !Gc::ptr_eq(&node_as_get_accessor_declaration.name(), &name)
+                || has_node_array_changed(
+                    &node_as_get_accessor_declaration.parameters(),
+                    &parameters,
+                )
+                || !are_option_gcs_equal(
+                    node_as_get_accessor_declaration.maybe_type().as_ref(),
+                    type_.as_ref(),
+                )
+                || !are_option_gcs_equal(
+                    node_as_get_accessor_declaration.maybe_body().as_ref(),
+                    body.as_ref(),
+                )
+        } {
             self.update_base_function_like_declaration(
+                arena,
                 self.create_get_accessor_declaration(
-                    decorators, modifiers, name, parameters, type_, body,
+                    arena, decorators, modifiers, name, parameters, type_, body,
                 ),
                 node,
             )
         } else {
-            node.node_wrapper()
+            node
         }
     }
 
     #[generate_node_factory_method_wrapper]
     pub fn create_set_accessor_declaration_raw<'name>(
         &self,
+        arena: &AllArenas,
+        id: Id<Node>,
         decorators: Option<impl Into<NodeArrayOrVec>>,
         modifiers: Option<impl Into<NodeArrayOrVec>>,
         name: impl Into<StrOrRcNode<'name>>,
         parameters: impl Into<NodeArrayOrVec>,
-        body: Option<Gc<Node /*Block*/>>,
+        body: Option<Id<Node /*Block*/>>,
     ) -> SetAccessorDeclaration {
         let node = self.create_base_function_like_declaration(
+            arena,
+            id,
             SyntaxKind::SetAccessor,
             decorators,
             modifiers,
@@ -879,43 +990,57 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn update_set_accessor_declaration(
         &self,
-        node: &Node, /*SetAccessorDeclaration*/
+        arena: &AllArenas,
+        node: Id<Node>, /*SetAccessorDeclaration*/
         decorators: Option<impl Into<NodeArrayOrVec>>,
         modifiers: Option<impl Into<NodeArrayOrVec>>,
-        name: Gc<Node /*PropertyName*/>,
+        name: Id<Node /*PropertyName*/>,
         parameters: impl Into<NodeArrayOrVec>,
-        body: Option<Gc<Node /*Block*/>>,
-    ) -> Gc<Node> {
-        let node_as_set_accessor_declaration = node.as_set_accessor_declaration();
-        let decorators = decorators.map(Into::into);
-        let modifiers = modifiers.map(Into::into);
-        let parameters = parameters.into();
-        if has_option_node_array_changed(node.maybe_decorators().as_deref(), decorators.as_ref())
-            || has_option_node_array_changed(node.maybe_modifiers().as_deref(), modifiers.as_ref())
-            || !Gc::ptr_eq(&node_as_set_accessor_declaration.name(), &name)
-            || has_node_array_changed(&node_as_set_accessor_declaration.parameters(), &parameters)
-            || !are_option_gcs_equal(
-                node_as_set_accessor_declaration.maybe_body().as_ref(),
-                body.as_ref(),
-            )
-        {
+        body: Option<Id<Node /*Block*/>>,
+    ) -> Id<Node> {
+        if {
+            let node = arena.node(node);
+            let node_as_set_accessor_declaration = node.as_set_accessor_declaration();
+            let decorators = decorators.map(Into::into);
+            let modifiers = modifiers.map(Into::into);
+            let parameters = parameters.into();
+            has_option_node_array_changed(node.maybe_decorators().as_deref(), decorators.as_ref())
+                || has_option_node_array_changed(
+                    node.maybe_modifiers().as_deref(),
+                    modifiers.as_ref(),
+                )
+                || !Gc::ptr_eq(&node_as_set_accessor_declaration.name(), &name)
+                || has_node_array_changed(
+                    &node_as_set_accessor_declaration.parameters(),
+                    &parameters,
+                )
+                || !are_option_gcs_equal(
+                    node_as_set_accessor_declaration.maybe_body().as_ref(),
+                    body.as_ref(),
+                )
+        } {
             self.update_base_function_like_declaration(
-                self.create_set_accessor_declaration(decorators, modifiers, name, parameters, body),
+                arena,
+                self.create_set_accessor_declaration(arena, decorators, modifiers, name, parameters, body),
                 node,
             )
         } else {
-            node.node_wrapper()
+            node
         }
     }
 
     #[generate_node_factory_method_wrapper]
     pub fn create_call_signature_raw(
         &self,
+        arena: &AllArenas,
+        id: Id<Node>,
         type_parameters: Option<impl Into<NodeArrayOrVec>>,
         parameters: impl Into<NodeArrayOrVec>,
-        type_: Option<Gc<Node /*TypeNode*/>>,
+        type_: Option<Id<Node /*TypeNode*/>>,
     ) -> CallSignatureDeclaration {
         let node = self.create_base_signature_declaration(
+            arena,
+            id,
             SyntaxKind::CallSignature,
             Option::<Gc<NodeArray>>::None,
             Option::<Gc<NodeArray>>::None,
@@ -924,7 +1049,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
             Some(parameters),
             type_,
         );
-        let node = CallSignatureDeclaration::new(node);
+        let mut node = CallSignatureDeclaration::new(node);
         node.add_transform_flags(TransformFlags::ContainsTypeScript);
         node
     }

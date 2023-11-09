@@ -16,4 +16,8 @@ impl AllArenas {
     pub fn node(&self, node: Id<Node>) -> &Node {
         &self.nodes.borrow()[node]
     }
+
+    pub fn node_mut(&self, node: Id<Node>) -> &mut Node {
+        &mut self.nodes.borrow_mut()[node]
+    }
 }
