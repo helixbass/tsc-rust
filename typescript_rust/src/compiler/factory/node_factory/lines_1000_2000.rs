@@ -1021,7 +1021,9 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         } {
             self.update_base_function_like_declaration(
                 arena,
-                self.create_set_accessor_declaration(arena, decorators, modifiers, name, parameters, body),
+                self.create_set_accessor_declaration(
+                    arena, decorators, modifiers, name, parameters, body,
+                ),
                 node,
             )
         } else {
@@ -1056,41 +1058,50 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn update_call_signature(
         &self,
-        node: &Node, /*CallSignatureDeclaration*/
+        arena: &AllArenas,
+        node: Id<Node>, /*CallSignatureDeclaration*/
         type_parameters: Option<Gc<NodeArray /*<TypeParameterDeclaration>*/>>,
         parameters: Gc<NodeArray /*<ParameterDeclaration>*/>,
-        type_: Option<Gc<Node /*TypeNode*/>>,
-    ) -> Gc<Node> {
-        let node_as_call_signature_declaration = node.as_call_signature_declaration();
-        if !are_option_gcs_equal(
-            node_as_call_signature_declaration
-                .maybe_type_parameters()
-                .as_ref(),
-            type_parameters.as_ref(),
-        ) || !Gc::ptr_eq(
-            &node_as_call_signature_declaration.parameters(),
-            &parameters,
-        ) || !are_option_gcs_equal(
-            node_as_call_signature_declaration.maybe_type().as_ref(),
-            type_.as_ref(),
-        ) {
+        type_: Option<Id<Node /*TypeNode*/>>,
+    ) -> Id<Node> {
+        if {
+            let node = arena.node(node);
+            let node_as_call_signature_declaration = node.as_call_signature_declaration();
+            !are_option_gcs_equal(
+                node_as_call_signature_declaration
+                    .maybe_type_parameters()
+                    .as_ref(),
+                type_parameters.as_ref(),
+            ) || !Gc::ptr_eq(
+                &node_as_call_signature_declaration.parameters(),
+                &parameters,
+            ) || !are_option_gcs_equal(
+                node_as_call_signature_declaration.maybe_type().as_ref(),
+                type_.as_ref(),
+            )
+        } {
             self.update_base_signature_declaration(
-                self.create_call_signature(type_parameters, parameters, type_),
+                arena,
+                self.create_call_signature(arena, type_parameters, parameters, type_),
                 node,
             )
         } else {
-            node.node_wrapper()
+            node
         }
     }
 
     #[generate_node_factory_method_wrapper]
     pub fn create_construct_signature_raw(
         &self,
+        arena: &AllArenas,
+        id: Id<Node>,
         type_parameters: Option<impl Into<NodeArrayOrVec>>,
         parameters: impl Into<NodeArrayOrVec>,
-        type_: Option<Gc<Node /*TypeNode*/>>,
+        type_: Option<Id<Node /*TypeNode*/>>,
     ) -> ConstructSignatureDeclaration {
         let node = self.create_base_signature_declaration(
+            arena,
+            id,
             SyntaxKind::ConstructSignature,
             Option::<Gc<NodeArray>>::None,
             Option::<Gc<NodeArray>>::None,
@@ -1099,51 +1110,60 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
             Some(parameters),
             type_,
         );
-        let node = ConstructSignatureDeclaration::new(node);
+        let mut node = ConstructSignatureDeclaration::new(node);
         node.add_transform_flags(TransformFlags::ContainsTypeScript);
         node
     }
 
     pub fn update_construct_signature(
         &self,
-        node: &Node, /*ConstructSignatureDeclaration*/
+        arena: &AllArenas,
+        node: Id<Node>, /*ConstructSignatureDeclaration*/
         type_parameters: Option<Gc<NodeArray /*<TypeParameterDeclaration>*/>>,
         parameters: Gc<NodeArray /*<ParameterDeclaration>*/>,
-        type_: Option<Gc<Node /*TypeNode*/>>,
-    ) -> Gc<Node> {
-        let node_as_construct_signature_declaration = node.as_construct_signature_declaration();
-        if !are_option_gcs_equal(
-            node_as_construct_signature_declaration
-                .maybe_type_parameters()
-                .as_ref(),
-            type_parameters.as_ref(),
-        ) || !Gc::ptr_eq(
-            &node_as_construct_signature_declaration.parameters(),
-            &parameters,
-        ) || !are_option_gcs_equal(
-            node_as_construct_signature_declaration
-                .maybe_type()
-                .as_ref(),
-            type_.as_ref(),
-        ) {
+        type_: Option<Id<Node /*TypeNode*/>>,
+    ) -> Id<Node> {
+        if {
+            let node = arena.node(node);
+            let node_as_construct_signature_declaration = node.as_construct_signature_declaration();
+            !are_option_gcs_equal(
+                node_as_construct_signature_declaration
+                    .maybe_type_parameters()
+                    .as_ref(),
+                type_parameters.as_ref(),
+            ) || !Gc::ptr_eq(
+                &node_as_construct_signature_declaration.parameters(),
+                &parameters,
+            ) || !are_option_gcs_equal(
+                node_as_construct_signature_declaration
+                    .maybe_type()
+                    .as_ref(),
+                type_.as_ref(),
+            )
+        } {
             self.update_base_signature_declaration(
-                self.create_construct_signature(type_parameters, parameters, type_),
+                arena,
+                self.create_construct_signature(arena, type_parameters, parameters, type_),
                 node,
             )
         } else {
-            node.node_wrapper()
+            node
         }
     }
 
     #[generate_node_factory_method_wrapper]
     pub fn create_index_signature_raw(
         &self,
+        arena: &AllArenas,
+        id: Id<Node>,
         decorators: Option<impl Into<NodeArrayOrVec>>,
         modifiers: Option<impl Into<NodeArrayOrVec>>,
         parameters: impl Into<NodeArrayOrVec>,
-        type_: Option<Gc<Node /*TypeNode*/>>,
+        type_: Option<Id<Node /*TypeNode*/>>,
     ) -> IndexSignatureDeclaration {
         let node = self.create_base_signature_declaration(
+            arena,
+            id,
             SyntaxKind::IndexSignature,
             decorators,
             modifiers,
@@ -1152,90 +1172,111 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
             Some(parameters),
             type_,
         );
-        let node = IndexSignatureDeclaration::new(node);
+        let mut node = IndexSignatureDeclaration::new(node);
         node.add_transform_flags(TransformFlags::ContainsTypeScript);
         node
     }
 
     pub fn update_index_signature(
         &self,
-        node: &Node, /*IndexSignatureDeclaration*/
+        arena: &AllArenas,
+        node: Id<Node>, /*IndexSignatureDeclaration*/
         decorators: Option<impl Into<NodeArrayOrVec>>,
         modifiers: Option<impl Into<NodeArrayOrVec>>,
         parameters: impl Into<NodeArrayOrVec>,
-        type_: Gc<Node /*TypeNode*/>,
-    ) -> Gc<Node> {
-        let node_as_index_signature_declaration = node.as_index_signature_declaration();
-        let decorators = decorators.map(Into::into);
-        let modifiers = modifiers.map(Into::into);
-        let parameters = parameters.into();
-        if !has_node_array_changed(
-            &node_as_index_signature_declaration.parameters(),
-            &parameters,
-        ) || !matches!(
-            node_as_index_signature_declaration.maybe_type().as_ref(),
-            Some(node_type) if Gc::ptr_eq(
-                &type_,
-                node_type
+        type_: Id<Node /*TypeNode*/>,
+    ) -> Id<Node> {
+        if {
+            let node = arena.node(node);
+            let node_as_index_signature_declaration = node.as_index_signature_declaration();
+            let decorators = decorators.map(Into::into);
+            let modifiers = modifiers.map(Into::into);
+            let parameters = parameters.into();
+            !has_node_array_changed(
+                &node_as_index_signature_declaration.parameters(),
+                &parameters,
+            ) || !matches!(
+                node_as_index_signature_declaration.maybe_type().as_ref(),
+                Some(node_type) if Gc::ptr_eq(
+                    &type_,
+                    node_type
+                )
+            ) || !has_option_node_array_changed(
+                node.maybe_decorators().as_deref(),
+                decorators.as_ref(),
+            ) || !has_option_node_array_changed(
+                node.maybe_modifiers().as_deref(),
+                modifiers.as_ref(),
             )
-        ) || !has_option_node_array_changed(
-            node.maybe_decorators().as_deref(),
-            decorators.as_ref(),
-        ) || !has_option_node_array_changed(
-            node.maybe_modifiers().as_deref(),
-            modifiers.as_ref(),
-        ) {
+        } {
             self.update_base_signature_declaration(
-                self.create_index_signature(decorators, modifiers, parameters, Some(type_)),
+                arena,
+                self.create_index_signature(arena, decorators, modifiers, parameters, Some(type_)),
                 node,
             )
         } else {
-            node.node_wrapper()
+            node
         }
     }
 
     #[generate_node_factory_method_wrapper]
     pub fn create_template_literal_type_span_raw(
         &self,
-        type_: Gc<Node /*TypeNode*/>,
-        literal: Gc<Node /*TemplateMiddle | TemplateTail*/>,
+        arena: &AllArenas,
+        id: Id<Node>,
+        type_: Id<Node /*TypeNode*/>,
+        literal: Id<Node /*TemplateMiddle | TemplateTail*/>,
     ) -> TemplateLiteralTypeSpan {
-        let node = self.create_base_node(SyntaxKind::TemplateLiteralTypeSpan);
-        let node = TemplateLiteralTypeSpan::new(node, type_, literal);
+        let node = self.create_base_node(id, SyntaxKind::TemplateLiteralTypeSpan);
+        let mut node = TemplateLiteralTypeSpan::new(node, type_, literal);
         node.add_transform_flags(TransformFlags::ContainsTypeScript);
         node
     }
 
     pub fn update_template_literal_type_span(
         &self,
-        node: &Node, /*TemplateLiteralTypeSpan*/
-        type_: Gc<Node /*TypeNode*/>,
-        literal: Gc<Node /*TemplateMiddle | TemplateTail*/>,
-    ) -> Gc<Node> {
-        let node_as_template_literal_type_span = node.as_template_literal_type_span();
-        if !Gc::ptr_eq(&node_as_template_literal_type_span.type_, &type_)
-            || !Gc::ptr_eq(&node_as_template_literal_type_span.literal, &literal)
-        {
-            self.update(self.create_template_literal_type_span(type_, literal), node)
+        arena: &AllArenas,
+        node: Id<Node>, /*TemplateLiteralTypeSpan*/
+        type_: Id<Node /*TypeNode*/>,
+        literal: Id<Node /*TemplateMiddle | TemplateTail*/>,
+    ) -> Id<Node> {
+        if {
+            let node = arena.node(node);
+            let node_as_template_literal_type_span = node.as_template_literal_type_span();
+            !Gc::ptr_eq(&node_as_template_literal_type_span.type_, &type_)
+                || !Gc::ptr_eq(&node_as_template_literal_type_span.literal, &literal)
+        } {
+            self.update(
+                arena,
+                self.create_template_literal_type_span(arena, type_, literal),
+                node,
+            )
         } else {
-            node.node_wrapper()
+            node
         }
     }
 
     #[generate_node_factory_method_wrapper]
-    pub fn create_keyword_type_node_raw(&self, kind: SyntaxKind) -> BaseNode {
-        self.create_token_raw(kind)
+    pub fn create_keyword_type_node_raw(
+        &self,
+        arena: &AllArenas,
+        id: Id<Node>,
+        kind: SyntaxKind,
+    ) -> BaseNode {
+        self.create_token_raw(arena, id, kind)
     }
 
     #[generate_node_factory_method_wrapper]
     pub fn create_type_predicate_node_raw<'parameter_name>(
         &self,
-        asserts_modifier: Option<Gc<Node /*AssertsKeyword*/>>,
+        arena: &AllArenas,
+        id: Id<Node>,
+        asserts_modifier: Option<Id<Node /*AssertsKeyword*/>>,
         parameter_name: impl Into<StrOrRcNode<'parameter_name>>,
-        type_: Option<Gc<Node /*TypeNode*/>>,
+        type_: Option<Id<Node /*TypeNode*/>>,
     ) -> TypePredicateNode {
-        let node = self.create_base_node(SyntaxKind::TypePredicate);
-        let node = TypePredicateNode::new(
+        let node = self.create_base_node(id, SyntaxKind::TypePredicate);
+        let mut node = TypePredicateNode::new(
             node,
             asserts_modifier,
             self.as_name(Some(parameter_name)).unwrap(),
@@ -1247,35 +1288,41 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn update_type_predicate_node(
         &self,
-        node: &Node, /*TypePredicateNode*/
-        asserts_modifier: Option<Gc<Node /*AssertsKeyword*/>>,
-        parameter_name: Gc<Node>,
-        type_: Option<Gc<Node /*TypeNode*/>>,
-    ) -> Gc<Node> {
-        let node_as_type_predicate_node = node.as_type_predicate_node();
-        if !are_option_gcs_equal(
-            node_as_type_predicate_node.asserts_modifier.as_ref(),
-            asserts_modifier.as_ref(),
-        ) || !Gc::ptr_eq(&node_as_type_predicate_node.parameter_name, &parameter_name)
-            || !are_option_gcs_equal(node_as_type_predicate_node.type_.as_ref(), type_.as_ref())
-        {
+        arena: &AllArenas,
+        node: Id<Node>, /*TypePredicateNode*/
+        asserts_modifier: Option<Id<Node /*AssertsKeyword*/>>,
+        parameter_name: Id<Node>,
+        type_: Option<Id<Node /*TypeNode*/>>,
+    ) -> Id<Node> {
+        if {
+            let node = arena.node(node);
+            let node_as_type_predicate_node = node.as_type_predicate_node();
+            !are_option_gcs_equal(
+                node_as_type_predicate_node.asserts_modifier.as_ref(),
+                asserts_modifier.as_ref(),
+            ) || !Gc::ptr_eq(&node_as_type_predicate_node.parameter_name, &parameter_name)
+                || !are_option_gcs_equal(node_as_type_predicate_node.type_.as_ref(), type_.as_ref())
+        } {
             self.update(
-                self.create_type_predicate_node(asserts_modifier, parameter_name, type_),
+                arena,
+                self.create_type_predicate_node(arena, asserts_modifier, parameter_name, type_),
                 node,
             )
         } else {
-            node.node_wrapper()
+            node
         }
     }
 
     #[generate_node_factory_method_wrapper]
     pub fn create_type_reference_node_raw<'type_name>(
         &self,
+        arena: &AllArenas,
+        id: Id<Node>,
         type_name: impl Into<StrOrRcNode<'type_name>>,
         type_arguments: Option<impl Into<NodeArrayOrVec>>,
     ) -> TypeReferenceNode {
-        let node = self.create_base_node(SyntaxKind::TypeReference);
-        let node = TypeReferenceNode::new(
+        let node = self.create_base_node(id, SyntaxKind::TypeReference);
+        let mut node = TypeReferenceNode::new(
             node,
             self.as_name(Some(type_name)).unwrap(),
             type_arguments.and_then(|type_arguments| {
@@ -1290,36 +1337,44 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn update_type_reference_node(
         &self,
-        node: &Node, /*TypeReferenceNode*/
-        type_name: Gc<Node /*EntityName*/>,
+        arena: &AllArenas,
+        node: Id<Node>, /*TypeReferenceNode*/
+        type_name: Id<Node /*EntityName*/>,
         type_arguments: Option<impl Into<NodeArrayOrVec> /*<TypeNode>*/>,
-    ) -> Gc<Node> {
+    ) -> Id<Node> {
         let type_arguments = type_arguments.map(Into::into);
-        let node_as_type_reference_node = node.as_type_reference_node();
-        let node_type_arguments = node_as_type_reference_node.maybe_type_arguments();
-        if !Gc::ptr_eq(&node_as_type_reference_node.type_name, &type_name)
-            || has_option_node_array_changed(
-                node_type_arguments.as_deref(),
-                type_arguments.as_ref(),
-            )
-        {
+        if {
+            let node = arena.node(node);
+            let node_as_type_reference_node = node.as_type_reference_node();
+            let node_type_arguments = node_as_type_reference_node.maybe_type_arguments();
+            !Gc::ptr_eq(&node_as_type_reference_node.type_name, &type_name)
+                || has_option_node_array_changed(
+                    node_type_arguments.as_deref(),
+                    type_arguments.as_ref(),
+                )
+        } {
             self.update(
-                self.create_type_reference_node(type_name, type_arguments),
+                arena,
+                self.create_type_reference_node(arena, type_name, type_arguments),
                 node,
             )
         } else {
-            node.node_wrapper()
+            node
         }
     }
 
     #[generate_node_factory_method_wrapper]
     pub fn create_function_type_node_raw(
         &self,
+        arena: &AllArenas,
+        id: Id<Node>,
         type_parameters: Option<impl Into<NodeArrayOrVec>>,
         parameters: impl Into<NodeArrayOrVec>,
-        type_: Option<Gc<Node /*TypeNode*/>>,
+        type_: Option<Id<Node /*TypeNode*/>>,
     ) -> FunctionTypeNode {
         let node = self.create_base_signature_declaration(
+            arena,
+            id,
             SyntaxKind::FunctionType,
             Option::<Gc<NodeArray>>::None,
             Option::<Gc<NodeArray>>::None,
@@ -1328,46 +1383,54 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
             Some(parameters),
             type_,
         );
-        let node = FunctionTypeNode::new(node);
+        let mut node = FunctionTypeNode::new(node);
         node.add_transform_flags(TransformFlags::ContainsTypeScript);
         node
     }
 
     pub fn update_function_type_node(
         &self,
-        node: &Node, /*FunctionTypeNode*/
+        arena: &AllArenas,
+        node: Id<Node>, /*FunctionTypeNode*/
         type_parameters: Option<Gc<NodeArray /*<TypeParameterDeclaration>*/>>,
         parameters: Gc<NodeArray /*<ParameterDeclaration>*/>,
-        type_: Option<Gc<Node /*TypeNode*/>>,
-    ) -> Gc<Node> {
-        let node_as_function_type_node = node.as_function_type_node();
-        if !are_option_gcs_equal(
-            node_as_function_type_node.maybe_type_parameters().as_ref(),
-            type_parameters.as_ref(),
-        ) || !Gc::ptr_eq(&node_as_function_type_node.parameters(), &parameters)
-            || !are_option_gcs_equal(
-                node_as_function_type_node.maybe_type().as_ref(),
-                type_.as_ref(),
-            )
-        {
+        type_: Option<Id<Node /*TypeNode*/>>,
+    ) -> Id<Node> {
+        if {
+            let node = arena.node(node);
+            let node_as_function_type_node = node.as_function_type_node();
+            !are_option_gcs_equal(
+                node_as_function_type_node.maybe_type_parameters().as_ref(),
+                type_parameters.as_ref(),
+            ) || !Gc::ptr_eq(&node_as_function_type_node.parameters(), &parameters)
+                || !are_option_gcs_equal(
+                    node_as_function_type_node.maybe_type().as_ref(),
+                    type_.as_ref(),
+                )
+        } {
             self.update_base_signature_declaration(
-                self.create_function_type_node(type_parameters, parameters, type_),
+                arena,
+                self.create_function_type_node(arena, type_parameters, parameters, type_),
                 node,
             )
         } else {
-            node.node_wrapper()
+            node
         }
     }
 
     #[generate_node_factory_method_wrapper]
     pub fn create_constructor_type_node_raw(
         &self,
+        arena: &AllArenas,
+        id: Id<Node>,
         modifiers: Option<impl Into<NodeArrayOrVec>>,
         type_parameters: Option<impl Into<NodeArrayOrVec>>,
         parameters: impl Into<NodeArrayOrVec>,
-        type_: Option<Gc<Node /*TypeNode*/>>,
+        type_: Option<Id<Node /*TypeNode*/>>,
     ) -> ConstructorTypeNode {
         let node = self.create_base_signature_declaration(
+            arena,
+            id,
             SyntaxKind::ConstructorType,
             Option::<Gc<NodeArray>>::None,
             modifiers,
@@ -1376,92 +1439,126 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
             Some(parameters),
             type_,
         );
-        let node = ConstructorTypeNode::new(node);
+        let mut node = ConstructorTypeNode::new(node);
         node.add_transform_flags(TransformFlags::ContainsTypeScript);
         node
     }
 
     pub fn update_constructor_type_node(
         &self,
-        node: &Node, /*ConstructorTypeNode*/
+        arena: &AllArenas,
+        node: Id<Node>, /*ConstructorTypeNode*/
         modifiers: Option<impl Into<NodeArrayOrVec>>,
         type_parameters: Option<Gc<NodeArray /*<TypeParameterDeclaration>*/>>,
         parameters: Gc<NodeArray /*<ParameterDeclaration>*/>,
-        type_: Option<Gc<Node /*TypeNode*/>>,
-    ) -> Gc<Node> {
-        let node_as_constructor_type_node = node.as_constructor_type_node();
-        let modifiers = modifiers.map(Into::into);
-        if has_option_node_array_changed(node.maybe_modifiers().as_deref(), modifiers.as_ref())
-            || !are_option_gcs_equal(
-                node_as_constructor_type_node
-                    .maybe_type_parameters()
-                    .as_ref(),
-                type_parameters.as_ref(),
-            )
-            || !Gc::ptr_eq(&node_as_constructor_type_node.parameters(), &parameters)
-            || !are_option_gcs_equal(
-                node_as_constructor_type_node.maybe_type().as_ref(),
-                type_.as_ref(),
-            )
-        {
+        type_: Option<Id<Node /*TypeNode*/>>,
+    ) -> Id<Node> {
+        if {
+            let node = arena.node(node);
+            let node_as_constructor_type_node = node.as_constructor_type_node();
+            let modifiers = modifiers.map(Into::into);
+            has_option_node_array_changed(node.maybe_modifiers().as_deref(), modifiers.as_ref())
+                || !are_option_gcs_equal(
+                    node_as_constructor_type_node
+                        .maybe_type_parameters()
+                        .as_ref(),
+                    type_parameters.as_ref(),
+                )
+                || !Gc::ptr_eq(&node_as_constructor_type_node.parameters(), &parameters)
+                || !are_option_gcs_equal(
+                    node_as_constructor_type_node.maybe_type().as_ref(),
+                    type_.as_ref(),
+                )
+        } {
             self.update_base_signature_declaration(
-                self.create_constructor_type_node(modifiers, type_parameters, parameters, type_),
+                arena,
+                self.create_constructor_type_node(
+                    arena,
+                    modifiers,
+                    type_parameters,
+                    parameters,
+                    type_,
+                ),
                 node,
             )
         } else {
-            node.node_wrapper()
+            node
         }
     }
 
     #[generate_node_factory_method_wrapper]
-    pub fn create_type_query_node_raw(&self, expr_name: Gc<Node /*EntityName*/>) -> TypeQueryNode {
-        let node = self.create_base_node(SyntaxKind::TypeQuery);
-        let node = TypeQueryNode::new(node, expr_name);
+    pub fn create_type_query_node_raw(
+        &self,
+        arena: &AllArenas,
+        id: Id<Node>,
+        expr_name: Gc<Node /*EntityName*/>,
+    ) -> TypeQueryNode {
+        let node = self.create_base_node(id, SyntaxKind::TypeQuery);
+        let mut node = TypeQueryNode::new(node, expr_name);
         node.add_transform_flags(TransformFlags::ContainsTypeScript);
         node
     }
 
     pub fn update_type_query_node(
         &self,
-        node: &Node, /*TypeQueryNode*/
-        expr_name: Gc<Node /*EntityName*/>,
-    ) -> Gc<Node> {
-        let node_as_type_query_node = node.as_type_query_node();
-        if !Gc::ptr_eq(&node_as_type_query_node.expr_name, &expr_name) {
-            self.update(self.create_type_query_node(expr_name), node)
+        arena: &AllArenas,
+        node: Id<Node>, /*TypeQueryNode*/
+        expr_name: Id<Node /*EntityName*/>,
+    ) -> Id<Node> {
+        if {
+            let node = arena.node(node);
+            let node_as_type_query_node = node.as_type_query_node();
+            node_as_type_query_node.expr_name != expr_name
+        } {
+            self.update(arena, self.create_type_query_node(arena, expr_name), node)
         } else {
-            node.node_wrapper()
+            node
         }
     }
 
     #[generate_node_factory_method_wrapper]
     pub fn create_type_literal_node_raw(
         &self,
+        arena: &AllArenas,
+        id: Id<Node>,
         members: Option<impl Into<NodeArrayOrVec>>,
     ) -> TypeLiteralNode {
-        let node = self.create_base_node(SyntaxKind::TypeLiteral);
-        let node = TypeLiteralNode::new(node, self.create_node_array(members, None));
+        let node = self.create_base_node(id, SyntaxKind::TypeLiteral);
+        let mut node = TypeLiteralNode::new(node, self.create_node_array(members, None));
         node.add_transform_flags(TransformFlags::ContainsTypeScript);
         node
     }
 
     pub fn update_type_literal_node(
         &self,
-        node: &Node, /*TypeLiteralNode*/
+        arena: &AllArenas,
+        node: Id<Node>, /*TypeLiteralNode*/
         members: Gc<NodeArray>,
-    ) -> Gc<Node> {
-        let node_as_type_literal_node = node.as_type_literal_node();
-        if !Gc::ptr_eq(&node_as_type_literal_node.members, &members) {
-            self.update(self.create_type_literal_node(Some(members)), node)
+    ) -> Id<Node> {
+        if {
+            let node = arena.node(node);
+            let node_as_type_literal_node = node.as_type_literal_node();
+            !Gc::ptr_eq(&node_as_type_literal_node.members, &members)
+        } {
+            self.update(
+                arena,
+                self.create_type_literal_node(arena, Some(members)),
+                node,
+            )
         } else {
-            node.node_wrapper()
+            node
         }
     }
 
     #[generate_node_factory_method_wrapper]
-    pub fn create_array_type_node_raw(&self, element_type: Gc<Node /*TypeNode*/>) -> ArrayTypeNode {
-        let node = self.create_base_node(SyntaxKind::ArrayType);
-        let node = ArrayTypeNode::new(
+    pub fn create_array_type_node_raw(
+        &self,
+        arena: &AllArenas,
+        id: Id<Node>,
+        element_type: Gc<Node /*TypeNode*/>,
+    ) -> ArrayTypeNode {
+        let node = self.create_base_node(id, SyntaxKind::ArrayType);
+        let mut node = ArrayTypeNode::new(
             node,
             self.parenthesizer_rules()
                 .parenthesize_element_type_of_array_type(&element_type),
@@ -1472,88 +1569,123 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn update_array_type_node(
         &self,
-        node: &Node, /*ArrayTypeNode*/
-        element_type: Gc<Node /*TypeNode*/>,
-    ) -> Gc<Node> {
-        let node_as_array_type_node = node.as_array_type_node();
-        if !Gc::ptr_eq(&node_as_array_type_node.element_type, &element_type) {
-            self.update(self.create_array_type_node(element_type), node)
+        arena: &AllArenas,
+        node: Id<Node>, /*ArrayTypeNode*/
+        element_type: Id<Node /*TypeNode*/>,
+    ) -> Id<Node> {
+        if {
+            let node = arena.node(node);
+            let node_as_array_type_node = node.as_array_type_node();
+            !Gc::ptr_eq(&node_as_array_type_node.element_type, &element_type)
+        } {
+            self.update(
+                arena,
+                self.create_array_type_node(arena, element_type),
+                node,
+            )
         } else {
-            node.node_wrapper()
+            node
         }
     }
 
     #[generate_node_factory_method_wrapper]
     pub fn create_tuple_type_node_raw(
         &self,
+        arena: &AllArenas,
+        id: Id<Node>,
         elements: Option<impl Into<NodeArrayOrVec>>,
     ) -> TupleTypeNode {
-        let node = self.create_base_node(SyntaxKind::TupleType);
-        let node = TupleTypeNode::new(node, self.create_node_array(elements, None));
+        let node = self.create_base_node(id, SyntaxKind::TupleType);
+        let mut node = TupleTypeNode::new(node, self.create_node_array(elements, None));
         node.add_transform_flags(TransformFlags::ContainsTypeScript);
         node
     }
 
     pub fn update_tuple_type_node(
         &self,
-        node: &Node, /*TupleTypeNode*/
+        arena: &AllArenas,
+        node: Id<Node>, /*TupleTypeNode*/
         elements: impl Into<NodeArrayOrVec>,
-    ) -> Gc<Node> {
-        let node_as_tuple_type_node = node.as_tuple_type_node();
-        let elements = elements.into();
-        if has_node_array_changed(&node_as_tuple_type_node.elements, &elements) {
-            self.update(self.create_tuple_type_node(Some(elements)), node)
+    ) -> Id<Node> {
+        if {
+            let node = arena.node(node);
+            let node_as_tuple_type_node = node.as_tuple_type_node();
+            let elements = elements.into();
+            has_node_array_changed(&node_as_tuple_type_node.elements, &elements)
+        } {
+            self.update(
+                arena,
+                self.create_tuple_type_node(arena, Some(elements)),
+                node,
+            )
         } else {
-            node.node_wrapper()
+            node
         }
     }
 
     #[generate_node_factory_method_wrapper]
     pub fn create_named_tuple_member_raw(
         &self,
-        dot_dot_dot_token: Option<Gc<Node /*DotDotDotToken*/>>,
-        name: Gc<Node /*Identifier*/>,
-        question_token: Option<Gc<Node /*QuestionToken*/>>,
-        type_: Gc<Node /*TypeNode*/>,
+        arena: &AllArenas,
+        id: Id<Node>,
+        dot_dot_dot_token: Option<Id<Node /*DotDotDotToken*/>>,
+        name: Id<Node /*Identifier*/>,
+        question_token: Option<Id<Node /*QuestionToken*/>>,
+        type_: Id<Node /*TypeNode*/>,
     ) -> NamedTupleMember {
-        let node = self.create_base_node(SyntaxKind::NamedTupleMember);
-        let node = NamedTupleMember::new(node, dot_dot_dot_token, name, question_token, type_);
+        let node = self.create_base_node(id, SyntaxKind::NamedTupleMember);
+        let mut node = NamedTupleMember::new(node, dot_dot_dot_token, name, question_token, type_);
         node.add_transform_flags(TransformFlags::ContainsTypeScript);
         node
     }
 
     pub fn update_named_tuple_member(
         &self,
-        node: &Node, /*NamedTupleMember*/
-        dot_dot_dot_token: Option<Gc<Node /*DotDotDotToken*/>>,
-        name: Gc<Node /*Identifier*/>,
-        question_token: Option<Gc<Node /*QuestionToken*/>>,
-        type_: Gc<Node /*TypeNode*/>,
-    ) -> Gc<Node> {
-        let node_as_named_tuple_member = node.as_named_tuple_member();
-        if !are_option_gcs_equal(
-            node_as_named_tuple_member.dot_dot_dot_token.as_ref(),
-            dot_dot_dot_token.as_ref(),
-        ) || !Gc::ptr_eq(&node_as_named_tuple_member.name, &name)
-            || !are_option_gcs_equal(
-                node_as_named_tuple_member.question_token.as_ref(),
-                question_token.as_ref(),
-            )
-            || !Gc::ptr_eq(&node_as_named_tuple_member.type_, &type_)
-        {
+        arena: &AllArenas,
+        node: Id<Node>, /*NamedTupleMember*/
+        dot_dot_dot_token: Option<Id<Node /*DotDotDotToken*/>>,
+        name: Id<Node /*Identifier*/>,
+        question_token: Option<Id<Node /*QuestionToken*/>>,
+        type_: Id<Node /*TypeNode*/>,
+    ) -> Id<Node> {
+        if {
+            let node = arena.node(node);
+            let node_as_named_tuple_member = node.as_named_tuple_member();
+            !are_option_gcs_equal(
+                node_as_named_tuple_member.dot_dot_dot_token.as_ref(),
+                dot_dot_dot_token.as_ref(),
+            ) || !Gc::ptr_eq(&node_as_named_tuple_member.name, &name)
+                || !are_option_gcs_equal(
+                    node_as_named_tuple_member.question_token.as_ref(),
+                    question_token.as_ref(),
+                )
+                || !Gc::ptr_eq(&node_as_named_tuple_member.type_, &type_)
+        } {
             self.update(
-                self.create_named_tuple_member(dot_dot_dot_token, name, question_token, type_),
+                arena,
+                self.create_named_tuple_member(
+                    arena,
+                    dot_dot_dot_token,
+                    name,
+                    question_token,
+                    type_,
+                ),
                 node,
             )
         } else {
-            node.node_wrapper()
+            node
         }
     }
 
     #[generate_node_factory_method_wrapper]
-    pub fn create_optional_type_node_raw(&self, type_: Gc<Node /*TypeNode*/>) -> OptionalTypeNode {
-        let node = self.create_base_node(SyntaxKind::OptionalType);
-        let node = OptionalTypeNode::new(
+    pub fn create_optional_type_node_raw(
+        &self,
+        arena: &AllArenas,
+        id: Id<Node>,
+        type_: Id<Node /*TypeNode*/>,
+    ) -> OptionalTypeNode {
+        let node = self.create_base_node(id, SyntaxKind::OptionalType);
+        let mut node = OptionalTypeNode::new(
             node,
             self.parenthesizer_rules()
                 .parenthesize_element_type_of_array_type(&type_),
@@ -1564,49 +1696,64 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn update_optional_type_node(
         &self,
-        node: &Node, /*OptionalTypeNode*/
-        type_: Gc<Node /*TypeNode*/>,
-    ) -> Gc<Node> {
-        let node_as_optional_type_node = node.as_optional_type_node();
-        if !Gc::ptr_eq(&node_as_optional_type_node.type_, &type_) {
-            self.update(self.create_optional_type_node(type_), node)
+        arena: &AllArenas,
+        node: Id<Node>, /*OptionalTypeNode*/
+        type_: Id<Node /*TypeNode*/>,
+    ) -> Id<Node> {
+        if {
+            let node = arena.node(node);
+            let node_as_optional_type_node = node.as_optional_type_node();
+            node_as_optional_type_node.type_ != type_
+        } {
+            self.update(arena, self.create_optional_type_node(arena, type_), node)
         } else {
-            node.node_wrapper()
+            node
         }
     }
 
     #[generate_node_factory_method_wrapper]
-    pub fn create_rest_type_node_raw(&self, type_: Gc<Node /*TypeNode*/>) -> RestTypeNode {
-        let node = self.create_base_node(SyntaxKind::RestType);
-        let node = RestTypeNode::new(node, type_);
+    pub fn create_rest_type_node_raw(
+        &self,
+        arena: &AllArenas,
+        id: Id<Node>,
+        type_: Id<Node /*TypeNode*/>,
+    ) -> RestTypeNode {
+        let node = self.create_base_node(id, SyntaxKind::RestType);
+        let mut node = RestTypeNode::new(node, type_);
         node.add_transform_flags(TransformFlags::ContainsTypeScript);
         node
     }
 
     pub fn update_rest_type_node(
         &self,
-        node: &Node, /*RestTypeNode*/
-        type_: Gc<Node /*TypeNode*/>,
-    ) -> Gc<Node> {
-        let node_as_rest_type_node = node.as_rest_type_node();
-        if !Gc::ptr_eq(&node_as_rest_type_node.type_, &type_) {
-            self.update(self.create_rest_type_node(type_), node)
+        arena: &AllArenas,
+        node: Id<Node>, /*RestTypeNode*/
+        type_: Id<Node /*TypeNode*/>,
+    ) -> Id<Node> {
+        if {
+            let node = arena.node(node);
+            let node_as_rest_type_node = node.as_rest_type_node();
+            node_as_rest_type_node.type_ != type_
+        } {
+            self.update(arena, self.create_rest_type_node(arena, type_), node)
         } else {
-            node.node_wrapper()
+            node
         }
     }
 
     #[generate_node_factory_method_wrapper]
     pub fn create_union_or_intersection_type_node_raw(
         &self,
+        arena: &AllArenas,
+        id: Id<Node>,
         kind: SyntaxKind, /*SyntaxKind.UnionType | SyntaxKind.IntersectionType*/
         types: impl Into<NodeArrayOrVec>, /*<TypeNode>*/
     ) -> Node {
-        let node = self.create_base_node(kind);
+        let node = self.create_base_node(id, kind);
         let types = self
             .parenthesizer_rules()
             .parenthesize_constituent_types_of_union_or_intersection_type(types.into());
-        let node: Node = match kind {
+        let mut node: Node = match kind {
             SyntaxKind::UnionType => UnionTypeNode::new(node, types).into(),
             SyntaxKind::IntersectionType => IntersectionTypeNode::new(node, types).into(),
             _ => panic!("Expected UnionType or IntersectionType"),
@@ -1617,62 +1764,80 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn update_union_or_intersection_type_node(
         &self,
-        node: &Node, /*UnionOrIntersectionTypeNode*/
+        arena: &AllArenas,
+        node: Id<Node>, /*UnionOrIntersectionTypeNode*/
         types: Gc<NodeArray /*<TypeNode>*/>,
-    ) -> Gc<Node> {
-        let node_as_union_or_intersection_type = node.as_union_or_intersection_type_node();
-        if !Gc::ptr_eq(&node_as_union_or_intersection_type.types(), &types) {
+    ) -> Id<Node> {
+        if {
+            let node = arena.node(node);
+            let node_as_union_or_intersection_type = node.as_union_or_intersection_type_node();
+            !Gc::ptr_eq(&node_as_union_or_intersection_type.types(), &types)
+        } {
             self.update(
-                self.create_union_or_intersection_type_node(node.kind(), types),
+                arena,
+                self.create_union_or_intersection_type_node(arena, node.kind(), types),
                 node,
             )
         } else {
-            node.node_wrapper()
+            node
         }
     }
 
     #[generate_node_factory_method_wrapper]
     pub fn create_union_type_node_raw(
         &self,
+        arena: &AllArenas,
+        id: Id<Node>,
         types: impl Into<NodeArrayOrVec>, /*<TypeNode>*/
     ) -> Node {
-        self.create_union_or_intersection_type_node_raw(SyntaxKind::UnionType, types)
+        self.create_union_or_intersection_type_node_raw(arena, id, SyntaxKind::UnionType, types)
     }
 
     pub fn update_union_type_node(
         &self,
-        node: &Node, /*UnionTypeNode*/
+        arena: &AllArenas,
+        node: Id<Node>, /*UnionTypeNode*/
         types: Gc<NodeArray /*<TypeNode>*/>,
-    ) -> Gc<Node> {
-        self.update_union_or_intersection_type_node(node, types)
+    ) -> Id<Node> {
+        self.update_union_or_intersection_type_node(arena, node, types)
     }
 
     #[generate_node_factory_method_wrapper]
     pub fn create_intersection_type_node_raw(
         &self,
+        arena: &AllArenas,
+        id: Id<Node>,
         types: impl Into<NodeArrayOrVec>, /*<TypeNode>*/
     ) -> Node {
-        self.create_union_or_intersection_type_node_raw(SyntaxKind::IntersectionType, types)
+        self.create_union_or_intersection_type_node_raw(
+            arena,
+            id,
+            SyntaxKind::IntersectionType,
+            types,
+        )
     }
 
     pub fn update_intersection_type_node(
         &self,
-        node: &Node, /*IntersectionTypeNode*/
+        arena: &AllArenas,
+        node: Id<Node>, /*IntersectionTypeNode*/
         types: Gc<NodeArray /*<TypeNode>*/>,
-    ) -> Gc<Node> {
-        self.update_union_or_intersection_type_node(node, types)
+    ) -> Id<Node> {
+        self.update_union_or_intersection_type_node(arena, node, types)
     }
 
     #[generate_node_factory_method_wrapper]
     pub fn create_conditional_type_node_raw(
         &self,
-        check_type: Gc<Node /*TypeNode*/>,
-        extends_type: Gc<Node /*TypeNode*/>,
-        true_type: Gc<Node /*TypeNode*/>,
-        false_type: Gc<Node /*TypeNode*/>,
+        arena: &AllArenas,
+        id: Id<Node>,
+        check_type: Id<Node /*TypeNode*/>,
+        extends_type: Id<Node /*TypeNode*/>,
+        true_type: Id<Node /*TypeNode*/>,
+        false_type: Id<Node /*TypeNode*/>,
     ) -> ConditionalTypeNode {
-        let node = self.create_base_node(SyntaxKind::ConditionalType);
-        let node = ConditionalTypeNode::new(
+        let node = self.create_base_node(id, SyntaxKind::ConditionalType);
+        let mut node = ConditionalTypeNode::new(
             node,
             self.parenthesizer_rules()
                 .parenthesize_member_of_conditional_type(&check_type),
@@ -1687,24 +1852,34 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn update_conditional_type_node(
         &self,
-        node: &Node, /*ConditionalTypeNode*/
-        check_type: Gc<Node /*TypeNode*/>,
-        extends_type: Gc<Node /*TypeNode*/>,
-        true_type: Gc<Node /*TypeNode*/>,
-        false_type: Gc<Node /*TypeNode*/>,
-    ) -> Gc<Node> {
-        let node_as_conditional_type_node = node.as_conditional_type_node();
-        if !Gc::ptr_eq(&node_as_conditional_type_node.check_type, &check_type)
-            || !Gc::ptr_eq(&node_as_conditional_type_node.extends_type, &extends_type)
-            || !Gc::ptr_eq(&node_as_conditional_type_node.true_type, &true_type)
-            || !Gc::ptr_eq(&node_as_conditional_type_node.false_type, &false_type)
-        {
+        arena: &AllArenas,
+        node: Id<Node>, /*ConditionalTypeNode*/
+        check_type: Id<Node /*TypeNode*/>,
+        extends_type: Id<Node /*TypeNode*/>,
+        true_type: Id<Node /*TypeNode*/>,
+        false_type: Id<Node /*TypeNode*/>,
+    ) -> Id<Node> {
+        if {
+            let node = arena.node(node);
+            let node_as_conditional_type_node = node.as_conditional_type_node();
+            node_as_conditional_type_node.check_type != check_type
+                || node_as_conditional_type_node.extends_type != extends_type
+                || node_as_conditional_type_node.true_type != true_type
+                || node_as_conditional_type_node.false_type != false_type
+        } {
             self.update(
-                self.create_conditional_type_node(check_type, extends_type, true_type, false_type),
+                arena,
+                self.create_conditional_type_node(
+                    arena,
+                    check_type,
+                    extends_type,
+                    true_type,
+                    false_type,
+                ),
                 node,
             )
         } else {
-            node.node_wrapper()
+            node
         }
     }
 }
