@@ -2568,14 +2568,6 @@ pub fn type_type(attr: TokenStream, item: TokenStream) -> TokenStream {
 
         quote! {
             #into_implementations
-
-            impl ::std::convert::From<#type_type_name> for ::gc::Gc<crate::Type> {
-                fn from(concrete: #type_type_name) -> Self {
-                    let rc = ::gc::Gc::new(#construct_variant);
-                    crate::TypeInterface::set_type_wrapper(&*rc, rc.clone());
-                    rc
-                }
-            }
         }
     } else {
         quote! {}

@@ -6,6 +6,7 @@ use std::{
 };
 
 use gc::{Finalize, Gc, GcCell, GcCellRef, GcCellRefMut, Trace};
+use id_arena::Id;
 use local_macros::{ast_type, enum_unwrapped};
 
 use super::{
@@ -28,7 +29,7 @@ use crate::{
 
 #[derive(Clone, Debug, Trace, Finalize)]
 pub enum FlowType {
-    Type(Gc<Type>),
+    Type(Id<Type>),
     IncompleteType(IncompleteType),
 }
 
@@ -44,13 +45,13 @@ impl FlowType {
         enum_unwrapped!(self, [FlowType, IncompleteType])
     }
 
-    pub fn as_type(&self) -> &Gc<Type> {
-        enum_unwrapped!(self, [FlowType, Type])
+    pub fn as_type(&self) -> Id<Type> {
+        *enum_unwrapped!(self, [FlowType, Type])
     }
 }
 
-impl From<Gc<Type>> for FlowType {
-    fn from(value: Gc<Type>) -> Self {
+impl From<Id<Type>> for FlowType {
+    fn from(value: Id<Type>) -> Self {
         Self::Type(value)
     }
 }
@@ -65,11 +66,11 @@ impl From<IncompleteType> for FlowType {
 pub struct IncompleteType {
     #[unsafe_ignore_trace]
     pub flags: TypeFlags,
-    pub type_: Gc<Type>,
+    pub type_: Id<Type>,
 }
 
 impl IncompleteType {
-    pub fn new(flags: TypeFlags, type_: Gc<Type>) -> Self {
+    pub fn new(flags: TypeFlags, type_: Id<Type>) -> Self {
         Self { flags, type_ }
     }
 }

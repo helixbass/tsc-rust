@@ -876,14 +876,6 @@ impl From<BaseType> for Type {
     }
 }
 
-impl From<BaseType> for Gc<Type> {
-    fn from(value: BaseType) -> Gc<Type> {
-        let rc = Gc::new(Type::BaseType(value));
-        rc.set_type_wrapper(rc.clone());
-        rc
-    }
-}
-
 pub trait IntrinsicTypeInterface: TypeInterface {
     fn intrinsic_name(&self) -> &str;
 }

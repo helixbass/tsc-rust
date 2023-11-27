@@ -1,6 +1,7 @@
 use std::cell::Cell;
 
 use gc::{Finalize, Gc, GcCell, Trace};
+use id_arena::Id;
 use local_macros::ast_type;
 
 use super::{
@@ -1089,7 +1090,7 @@ impl HasExpressionInterface for YieldExpression {
 pub struct SyntheticExpression {
     _node: BaseNode,
     pub is_spread: bool,
-    pub type_: Gc<Type>,
+    pub type_: Id<Type>,
     pub tuple_name_source: Option<Gc<Node /*ParameterDeclaration | NamedTupleMember*/>>,
 }
 
@@ -1097,7 +1098,7 @@ impl SyntheticExpression {
     pub fn new(
         base_node: BaseNode,
         is_spread: bool,
-        type_: Gc<Type>,
+        type_: Id<Type>,
         tuple_name_source: Option<Gc<Node>>,
     ) -> Self {
         Self {

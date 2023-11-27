@@ -8,6 +8,7 @@ use std::{
 use bitflags::bitflags;
 use derive_builder::Builder;
 use gc::{Finalize, Gc, GcCell, GcCellRef, GcCellRefMut, Trace};
+use id_arena::Id;
 use local_macros::{enum_unwrapped, symbol_type};
 
 use super::{
@@ -22,7 +23,7 @@ use crate::{
     CheckBinaryExpression, Diagnostic, DuplicateInfoForFiles, FlowNode, FlowType, IndexInfo,
     IterationTypes, IterationTypesResolver, MappedSymbol, MultiMap, NodeBuilder, Number,
     PatternAmbientModule, ResolvedTypeReferenceDirective, ReverseMappedSymbol, StringOrNumber,
-    TypeId, TypeSystemEntity, TypeSystemPropertyName, VarianceFlags,
+    TypeId, TypeSystemEntity, TypeSystemPropertyName, VarianceFlags, _d,
 };
 
 pub type RedirectTargetsMap = MultiMap<Path, String>;
@@ -615,7 +616,7 @@ pub struct TypePredicate {
     pub kind: TypePredicateKind,
     pub parameter_name: Option<String>,
     pub parameter_index: Option<usize>,
-    pub type_: Option<Gc<Type>>,
+    pub type_: Option<Id<Type>>,
 }
 
 pub struct SymbolVisibilityResult {
@@ -1213,18 +1214,18 @@ impl From<BaseSymbol> for Symbol {
 pub struct SymbolLinks {
     pub immediate_target: Option<Gc<Symbol>>,
     pub target: Option<Gc<Symbol>>,
-    pub type_: Option<Gc<Type>>,
-    pub write_type: Option<Gc<Type>>,
-    pub name_type: Option<Gc<Type>>,
-    pub unique_es_symbol_type: Option<Gc<Type>>,
-    pub declared_type: Option<Gc<Type>>,
-    pub type_parameters: Option<Vec<Gc<Type /*TypeParameter*/>>>,
-    pub instantiations: Option<HashMap<String, Gc<Type>>>,
+    pub type_: Option<Id<Type>>,
+    pub write_type: Option<Id<Type>>,
+    pub name_type: Option<Id<Type>>,
+    pub unique_es_symbol_type: Option<Id<Type>>,
+    pub declared_type: Option<Id<Type>>,
+    pub type_parameters: Option<Vec<Id<Type /*TypeParameter*/>>>,
+    pub instantiations: Option<HashMap<String, Id<Type>>>,
     pub inferred_class_symbol: Option<HashMap<SymbolId, Gc<Symbol /*TransientSymbol*/>>>,
     pub mapper: Option<Gc<TypeMapper>>,
     pub referenced: Option<bool>,
     pub const_enum_referenced: Option<bool>,
-    pub containing_type: Option<Gc<Type>>,
+    pub containing_type: Option<Id<Type>>,
     pub left_spread: Option<Gc<Symbol>>,
     pub right_spread: Option<Gc<Symbol>>,
     pub synthetic_origin: Option<Gc<Symbol>>,
@@ -1246,8 +1247,8 @@ pub struct SymbolLinks {
     pub extended_containers_by_file: Option<HashMap<NodeId, Vec<Gc<Symbol>>>>,
     #[unsafe_ignore_trace]
     pub variances: Rc<RefCell<Option<Vec<VarianceFlags>>>>,
-    pub deferral_constituents: Option<Vec<Gc<Type>>>,
-    pub deferral_parent: Option<Gc<Type>>,
+    pub deferral_constituents: Option<Vec<Id<Type>>>,
+    pub deferral_parent: Option<Id<Type>>,
     pub cjs_export_merged: Option<Gc<Symbol>>,
     pub type_only_declaration: Option<Option<Gc<Node /*TypeOnlyAliasDeclaration | false*/>>>,
     pub is_constructor_declared_property: Option<bool>,
@@ -1347,7 +1348,7 @@ mod _TransientSymbolTraceDeriveScope {
     use gc::Finalize;
     use local_macros::{symbol_type, Trace};
 
-    use super::{BaseTransientSymbol, Gc, MappedSymbol, ReverseMappedSymbol, Type};
+    use super::{BaseTransientSymbol, Id, MappedSymbol, ReverseMappedSymbol, Type};
 
     #[derive(Debug, Finalize, Trace)]
     #[symbol_type(interfaces = "TransientSymbolInterface")]
@@ -1360,9 +1361,9 @@ mod _TransientSymbolTraceDeriveScope {
     impl TransientSymbol {
         pub fn into_reverse_mapped_symbol(
             self,
-            property_type: Gc<Type>,
-            mapped_type: Gc<Type>,
-            constraint_type: Gc<Type>,
+            property_type: Id<Type>,
+            mapped_type: Id<Type>,
+            constraint_type: Id<Type>,
         ) -> Self {
             match self {
                 Self::BaseTransientSymbol(symbol) => Self::ReverseMappedSymbol(
@@ -1372,7 +1373,7 @@ mod _TransientSymbolTraceDeriveScope {
             }
         }
 
-        pub fn into_mapped_symbol(self, mapped_type: Gc<Type>, key_type: Gc<Type>) -> Self {
+        pub fn into_mapped_symbol(self, mapped_type: Id<Type>, key_type: Id<Type>) -> Self {
             match self {
                 Self::BaseTransientSymbol(symbol) => {
                     Self::MappedSymbol(MappedSymbol::new(symbol, mapped_type, key_type))
@@ -1383,9 +1384,6 @@ mod _TransientSymbolTraceDeriveScope {
     }
 }
 pub use _TransientSymbolTraceDeriveScope::TransientSymbol;
-use id_arena::Id;
-
-use crate::_d;
 
 #[derive(Debug, Finalize, Trace)]
 #[symbol_type(ancestors = "TransientSymbol")]
