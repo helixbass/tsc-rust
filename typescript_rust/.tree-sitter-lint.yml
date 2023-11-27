@@ -4,6 +4,8 @@ plugins:
   rust-known-imports:
     path: ../../tree-sitter-lint-plugin-rust-known-imports
 rules:
+  rewrite-gc-type-to-id-type:
+    level: error
   rustfmt/rustfmt:
     level: error
   rust-known-imports/known-imports:

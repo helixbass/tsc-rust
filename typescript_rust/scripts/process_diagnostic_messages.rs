@@ -8,12 +8,14 @@
 //! regex = "1.5.4"
 //! ```
 
+use std::{
+    collections::{HashMap, HashSet},
+    env, fs,
+    path::{Path, PathBuf},
+};
+
 use regex::Regex;
 use serde::Deserialize;
-use std::collections::{HashMap, HashSet};
-use std::env;
-use std::fs;
-use std::path::{Path, PathBuf};
 
 #[derive(Clone, Copy, Debug, Deserialize)]
 enum DiagnosticCategory {
