@@ -1,6 +1,7 @@
 use std::{borrow::Borrow, convert::TryInto, io, ptr};
 
 use gc::Gc;
+use id_arena::Id;
 
 use super::{signature_has_rest_parameter, CheckMode, IterationTypeKind, IterationUse};
 use crate::{
@@ -82,7 +83,7 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn get_this_type_argument(&self, type_: &Type) -> io::Result<Option<Gc<Type>>> {
+    pub(super) fn get_this_type_argument(&self, type_: &Type) -> io::Result<Option<Id<Type>>> {
         Ok(
             if get_object_flags(type_).intersects(ObjectFlags::Reference)
                 && Gc::ptr_eq(&type_.as_type_reference().target, &self.global_this_type())
@@ -97,14 +98,14 @@ impl TypeChecker {
     pub(super) fn get_this_type_from_contextual_type(
         &self,
         type_: &Type,
-    ) -> io::Result<Option<Gc<Type>>> {
+    ) -> io::Result<Option<Id<Type>>> {
         self.try_map_type(
             type_,
             &mut |t: &Type| {
                 Ok(if t.flags().intersects(TypeFlags::Intersection) {
                     try_for_each(
                         t.as_union_or_intersection_type_interface().types(),
-                        |type_: &Gc<Type>, _| self.get_this_type_argument(type_),
+                        |type_: &Id<Type>, _| self.get_this_type_argument(type_),
                     )?
                 } else {
                     self.get_this_type_argument(t)?
@@ -117,7 +118,7 @@ impl TypeChecker {
     pub(super) fn get_contextual_this_parameter_type(
         &self,
         func: &Node, /*SignatureDeclaration*/
-    ) -> io::Result<Option<Gc<Type>>> {
+    ) -> io::Result<Option<Id<Type>>> {
         if func.kind() == SyntaxKind::ArrowFunction {
             return Ok(None);
         }
@@ -200,7 +201,7 @@ impl TypeChecker {
     pub(super) fn get_contextually_typed_parameter_type(
         &self,
         parameter: &Node, /*ParameterDeclaration*/
-    ) -> io::Result<Option<Gc<Type>>> {
+    ) -> io::Result<Option<Id<Type>>> {
         let func = parameter.parent();
         if !self.is_context_sensitive_function_or_object_literal_method(&func)? {
             return Ok(None);
@@ -283,7 +284,7 @@ impl TypeChecker {
     pub(super) fn get_contextual_type_for_variable_like_declaration(
         &self,
         declaration: &Node,
-    ) -> io::Result<Option<Gc<Type>>> {
+    ) -> io::Result<Option<Id<Type>>> {
         let type_node = get_effective_type_annotation_node(declaration);
         if let Some(type_node) = type_node.as_ref() {
             return Ok(Some(self.get_type_from_type_node_(type_node)?));
@@ -308,7 +309,7 @@ impl TypeChecker {
     pub(super) fn get_contextual_type_for_binding_element(
         &self,
         declaration: &Node, /*BindingElement*/
-    ) -> io::Result<Option<Gc<Type>>> {
+    ) -> io::Result<Option<Id<Type>>> {
         let parent = declaration.parent().parent();
         let declaration_as_binding_element = declaration.as_binding_element();
         let name = declaration_as_binding_element
@@ -357,7 +358,7 @@ impl TypeChecker {
     pub(super) fn get_contextual_type_for_static_property_declaration(
         &self,
         declaration: &Node, /*PropertyDeclaration*/
-    ) -> io::Result<Option<Gc<Type>>> {
+    ) -> io::Result<Option<Id<Type>>> {
         let parent_type = return_ok_none_if_none!(if is_expression(&declaration.parent()) {
             self.get_contextual_type_(&declaration.parent(), None)?
         } else {
@@ -375,7 +376,7 @@ impl TypeChecker {
         &self,
         node: &Node,
         context_flags: Option<ContextFlags>,
-    ) -> io::Result<Option<Gc<Type>>> {
+    ) -> io::Result<Option<Id<Type>>> {
         let declaration = node.parent();
         if has_initializer(&declaration)
             && matches!(
@@ -408,7 +409,7 @@ impl TypeChecker {
     pub(super) fn get_contextual_type_for_return_expression(
         &self,
         node: &Node, /*Expression*/
-    ) -> io::Result<Option<Gc<Type>>> {
+    ) -> io::Result<Option<Id<Type>>> {
         let func = get_containing_function(node);
         if let Some(func) = func.as_ref() {
             let contextual_return_type = self.get_contextual_return_type(func)?;
@@ -463,7 +464,7 @@ impl TypeChecker {
         &self,
         node: &Node, /*AwaitExpression*/
         context_flags: Option<ContextFlags>,
-    ) -> io::Result<Option<Gc<Type>>> {
+    ) -> io::Result<Option<Id<Type>>> {
         let contextual_type = self.get_contextual_type_(node, context_flags)?;
         if let Some(contextual_type) = contextual_type.as_ref() {
             let contextual_awaited_type =
@@ -489,7 +490,7 @@ impl TypeChecker {
     pub(super) fn get_contextual_type_for_yield_operand(
         &self,
         node: &Node, /*YieldExpression*/
-    ) -> io::Result<Option<Gc<Type>>> {
+    ) -> io::Result<Option<Id<Type>>> {
         let func = get_containing_function(node);
         if let Some(func) = func.as_ref() {
             let function_flags = get_function_flags(Some(&**func));
@@ -555,7 +556,7 @@ impl TypeChecker {
         &self,
         kind: IterationTypeKind,
         function_decl: &Node, /*SignatureDeclaration*/
-    ) -> io::Result<Option<Gc<Type>>> {
+    ) -> io::Result<Option<Id<Type>>> {
         let is_async = get_function_flags(Some(function_decl)).intersects(FunctionFlags::Async);
         let contextual_return_type = self.get_contextual_return_type(function_decl)?;
         if let Some(contextual_return_type) = contextual_return_type.as_ref() {
@@ -572,7 +573,7 @@ impl TypeChecker {
     pub(super) fn get_contextual_return_type(
         &self,
         function_decl: &Node, /*SignatureDeclaration*/
-    ) -> io::Result<Option<Gc<Type>>> {
+    ) -> io::Result<Option<Id<Type>>> {
         let return_type = self.get_return_type_from_annotation(function_decl)?;
         if return_type.is_some() {
             return Ok(return_type);
@@ -596,7 +597,7 @@ impl TypeChecker {
         &self,
         call_target: &Node, /*CallLikeExpression*/
         arg: &Node,         /*Expression*/
-    ) -> io::Result<Option<Gc<Type>>> {
+    ) -> io::Result<Option<Id<Type>>> {
         let args = self.get_effective_call_arguments(call_target)?;
         let arg_index = args.iter().position(|argument| ptr::eq(&**argument, arg));
         arg_index.try_map(|arg_index| {
@@ -608,7 +609,7 @@ impl TypeChecker {
         &self,
         call_target: &Node, /*CallLikeExpression*/
         arg_index: usize,
-    ) -> io::Result<Gc<Type>> {
+    ) -> io::Result<Id<Type>> {
         if is_import_call(call_target) {
             return Ok(if arg_index == 0 {
                 self.string_type()
@@ -659,7 +660,7 @@ impl TypeChecker {
         &self,
         template: &Node,                /*TemplateExpression*/
         substitution_expression: &Node, /*Expression*/
-    ) -> io::Result<Option<Gc<Type>>> {
+    ) -> io::Result<Option<Id<Type>>> {
         if template.parent().kind() == SyntaxKind::TaggedTemplateExpression {
             return self
                 .get_contextual_type_for_argument(&template.parent(), substitution_expression);
@@ -672,7 +673,7 @@ impl TypeChecker {
         &self,
         node: &Node, /*Expression*/
         context_flags: Option<ContextFlags>,
-    ) -> io::Result<Option<Gc<Type>>> {
+    ) -> io::Result<Option<Id<Type>>> {
         let binary_expression = node.parent();
         let binary_expression_as_binary_expression = binary_expression.as_binary_expression();
         let left = &binary_expression_as_binary_expression.left;

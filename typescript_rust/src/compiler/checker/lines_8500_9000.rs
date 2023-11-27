@@ -106,7 +106,7 @@ impl TypeChecker {
     pub(super) fn get_type_for_binding_element(
         &self,
         declaration: &Node, /*BindingElement*/
-    ) -> io::Result<Option<Gc<Type>>> {
+    ) -> io::Result<Option<Id<Type>>> {
         let pattern = declaration.parent();
         let mut parent_type =
             return_ok_none_if_none!(self.get_type_for_binding_element_parent(&pattern.parent())?);
@@ -129,7 +129,7 @@ impl TypeChecker {
         {
             parent_type = self.get_type_with_facts(&parent_type, TypeFacts::NEUndefined)?;
         }
-        let type_: Option<Gc<Type>>;
+        let type_: Option<Id<Type>>;
         let declaration_as_binding_element = declaration.as_binding_element();
         if pattern.kind() == SyntaxKind::ObjectBindingPattern {
             if declaration_as_binding_element.dot_dot_dot_token.is_some() {
@@ -272,7 +272,7 @@ impl TypeChecker {
     pub(super) fn get_type_for_declaration_from_jsdoc_comment(
         &self,
         declaration: &Node,
-    ) -> io::Result<Option<Gc<Type>>> {
+    ) -> io::Result<Option<Id<Type>>> {
         let jsdoc_type = get_jsdoc_type(declaration);
         if jsdoc_type.is_none() {
             return Ok(None);
@@ -299,7 +299,7 @@ impl TypeChecker {
         type_: &Type,
         is_property: Option<bool>,
         is_optional: Option<bool>,
-    ) -> io::Result<Gc<Type>> {
+    ) -> io::Result<Id<Type>> {
         let is_property = is_property.unwrap_or(false);
         let is_optional = is_optional.unwrap_or(true);
         Ok(if self.strict_null_checks && is_optional {
@@ -313,7 +313,7 @@ impl TypeChecker {
         &self,
         declaration: &Node, /*ParameterDeclaration | PropertyDeclaration | PropertySignature | VariableDeclaration | BindingElement | JSDocPropertyLikeTag*/
         include_optionality: bool,
-    ) -> io::Result<Option<Gc<Type>>> {
+    ) -> io::Result<Option<Id<Type>>> {
         if is_variable_declaration(declaration)
             && declaration.parent().parent().kind() == SyntaxKind::ForInStatement
         {
@@ -837,7 +837,7 @@ impl TypeChecker {
                 self.get_widened_literal_type(&*self.check_expression_cached(&container, None)?)
             });
         }
-        let mut type_: Option<Gc<Type>> = None;
+        let mut type_: Option<Id<Type>> = None;
         let mut defined_in_constructor = false;
         let mut defined_in_method = false;
         if self.is_constructor_declared_property(symbol)? {
@@ -849,9 +849,9 @@ impl TypeChecker {
         let resolved_symbol =
             resolved_symbol.map(|resolved_symbol| resolved_symbol.borrow().symbol_wrapper());
         if type_.is_none() {
-            let mut types: Option<Vec<Gc<Type>>> = None;
+            let mut types: Option<Vec<Id<Type>>> = None;
             if let Some(symbol_declarations) = symbol.maybe_declarations().as_deref() {
-                let mut jsdoc_type: Option<Gc<Type>> = None;
+                let mut jsdoc_type: Option<Id<Type>> = None;
                 for declaration in symbol_declarations {
                     let expression =
                         if is_binary_expression(declaration) || is_call_expression(declaration) {
@@ -944,7 +944,7 @@ impl TypeChecker {
                 }
                 let source_types = if some(
                     constructor_types.as_deref(),
-                    Some(|t: &Gc<Type>| t.flags().intersects(!TypeFlags::Nullable)),
+                    Some(|t: &Id<Type>| t.flags().intersects(!TypeFlags::Nullable)),
                 ) {
                     constructor_types.unwrap()
                 } else {

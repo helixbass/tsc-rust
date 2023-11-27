@@ -7,6 +7,7 @@ use std::{
 };
 
 use gc::Gc;
+use id_arena::Id;
 use local_macros::enum_unwrapped;
 
 use super::{
@@ -154,12 +155,12 @@ impl TypeChecker {
         } else if type_.flags().intersects(TypeFlags::Union) {
             try_some(
                 Some(type_.as_union_or_intersection_type_interface().types()),
-                Some(|type_: &Gc<Type>| self.is_empty_object_type(type_)),
+                Some(|type_: &Id<Type>| self.is_empty_object_type(type_)),
             )?
         } else if type_.flags().intersects(TypeFlags::Intersection) {
             try_every(
                 type_.as_union_or_intersection_type_interface().types(),
-                |type_: &Gc<Type>, _| self.is_empty_object_type(type_),
+                |type_: &Id<Type>, _| self.is_empty_object_type(type_),
             )?
         } else {
             false
@@ -188,7 +189,7 @@ impl TypeChecker {
             || type_.flags().intersects(TypeFlags::UnionOrIntersection)
                 && try_every(
                     type_.as_union_or_intersection_type_interface().types(),
-                    |type_: &Gc<Type>, _| self.is_string_index_signature_only_type(type_),
+                    |type_: &Id<Type>, _| self.is_string_index_signature_only_type(type_),
                 )?
             || false)
     }
@@ -468,10 +469,10 @@ impl TypeChecker {
             && self.is_hyphenated_jsx_name(source_prop.escaped_name())
     }
 
-    pub(super) fn get_normalized_type(&self, type_: &Type, writing: bool) -> io::Result<Gc<Type>> {
+    pub(super) fn get_normalized_type(&self, type_: &Type, writing: bool) -> io::Result<Id<Type>> {
         let mut type_ = type_.type_wrapper();
         loop {
-            let mut t: Gc<Type> = if self.is_fresh_literal_type(&type_) {
+            let mut t: Id<Type> = if self.is_fresh_literal_type(&type_) {
                 match &*type_ {
                     Type::IntrinsicType(intrinsic_type) => {
                         enum_unwrapped!(intrinsic_type, [IntrinsicType, FreshableIntrinsicType])

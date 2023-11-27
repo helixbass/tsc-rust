@@ -1,6 +1,7 @@
 use std::{borrow::Borrow, io, ptr};
 
 use gc::Gc;
+use id_arena::Id;
 
 use crate::{
     add_related_info, contains_gc, create_diagnostic_for_node, find_ancestor,
@@ -333,7 +334,7 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn check_this_expression(&self, node: &Node) -> io::Result<Gc<Type>> {
+    pub(super) fn check_this_expression(&self, node: &Node) -> io::Result<Id<Type>> {
         let is_node_in_type_query = self.is_in_type_query(node);
         let mut container = get_this_container(node, true);
         let mut captured_by_arrow_function = false;
@@ -445,7 +446,7 @@ impl TypeChecker {
         node: &Node,
         include_global_this: Option<bool>,
         container: Option<impl Borrow<Node>>,
-    ) -> io::Result<Option<Gc<Type>>> {
+    ) -> io::Result<Option<Id<Type>>> {
         let include_global_this = include_global_this.unwrap_or(true);
         let container = container.map_or_else(
             || get_this_container(node, false),
@@ -546,7 +547,7 @@ impl TypeChecker {
     pub(super) fn get_explicit_this_type(
         &self,
         node: &Node, /*Expression*/
-    ) -> io::Result<Option<Gc<Type>>> {
+    ) -> io::Result<Option<Id<Type>>> {
         let container = get_this_container(node, false);
         if is_function_like(Some(&*container)) {
             let signature = self.get_signature_from_declaration_(&container)?;
@@ -708,7 +709,7 @@ impl TypeChecker {
     pub(super) fn get_type_for_this_expression_from_jsdoc(
         &self,
         node: &Node,
-    ) -> io::Result<Option<Gc<Type>>> {
+    ) -> io::Result<Option<Id<Type>>> {
         let jsdoc_type = get_jsdoc_type(node);
         if let Some(jsdoc_type) = jsdoc_type
             .as_ref()
@@ -762,7 +763,7 @@ impl TypeChecker {
         .is_some()
     }
 
-    pub(super) fn check_super_expression(&self, node: &Node) -> io::Result<Gc<Type>> {
+    pub(super) fn check_super_expression(&self, node: &Node) -> io::Result<Id<Type>> {
         let is_call_expression = node.parent().kind() == SyntaxKind::CallExpression
             && ptr::eq(&*node.parent().as_call_expression().expression, node);
 

@@ -1,6 +1,7 @@
 use std::{borrow::Borrow, io, ptr};
 
 use gc::Gc;
+use id_arena::Id;
 
 use super::{CheckMode, IterationTypeKind, IterationUse};
 use crate::{
@@ -320,7 +321,7 @@ impl TypeChecker {
         left_type: &Type,
         right_type: &Type,
         is_related: &mut impl FnMut(&Type, &Type) -> io::Result<bool>,
-    ) -> io::Result<(Gc<Type>, Gc<Type>)> {
+    ) -> io::Result<(Id<Type>, Id<Type>)> {
         let mut effective_left = left_type.type_wrapper();
         let mut effective_right = right_type.type_wrapper();
         let left_base = self.get_base_type_of_literal_type(left_type)?;
@@ -335,7 +336,7 @@ impl TypeChecker {
     pub(super) fn check_yield_expression(
         &self,
         node: &Node, /*YieldExpression*/
-    ) -> io::Result<Gc<Type>> {
+    ) -> io::Result<Id<Type>> {
         if self.produce_diagnostics {
             if !node.flags().intersects(NodeFlags::YieldContext) {
                 self.grammar_error_on_first_token(
@@ -481,7 +482,7 @@ impl TypeChecker {
         &self,
         node: &Node, /*ConditionalExpression*/
         check_mode: Option<CheckMode>,
-    ) -> io::Result<Gc<Type>> {
+    ) -> io::Result<Id<Type>> {
         let node_as_conditional_expression = node.as_conditional_expression();
         let type_ =
             self.check_truthiness_expression(&node_as_conditional_expression.condition, None)?;
@@ -516,7 +517,7 @@ impl TypeChecker {
     pub(super) fn check_template_expression(
         &self,
         node: &Node, /*TemplateExpression*/
-    ) -> io::Result<Gc<Type>> {
+    ) -> io::Result<Id<Type>> {
         let node_as_template_expression = node.as_template_expression();
         let mut texts = vec![node_as_template_expression
             .head
@@ -594,7 +595,7 @@ impl TypeChecker {
         contextual_type: &Type,
         inference_context: Option<Gc<InferenceContext>>,
         check_mode: CheckMode,
-    ) -> io::Result<Gc<Type>> {
+    ) -> io::Result<Id<Type>> {
         let context = self.get_context_node(node);
         let save_contextual_type = context.maybe_contextual_type().clone();
         let save_inference_context = context.maybe_inference_context().clone();
@@ -635,7 +636,7 @@ impl TypeChecker {
         &self,
         node: &Node, /*Expression*/
         check_mode: Option<CheckMode>,
-    ) -> io::Result<Gc<Type>> {
+    ) -> io::Result<Id<Type>> {
         let links = self.get_node_links(node);
         let links_resolved_type_is_none = (*links).borrow().resolved_type.is_none();
         if links_resolved_type_is_none {

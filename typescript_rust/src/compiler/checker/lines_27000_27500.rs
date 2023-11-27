@@ -1,6 +1,7 @@
 use std::{borrow::Borrow, io, ptr};
 
 use gc::{Gc, GcCell};
+use id_arena::Id;
 
 use super::{CheckMode, JsxNames};
 use crate::{
@@ -28,7 +29,7 @@ impl TypeChecker {
         is_js_object_literal: bool,
         pattern_with_computed_properties: bool,
         in_destructuring_pattern: bool,
-    ) -> io::Result<Gc<Type>> {
+    ) -> io::Result<Id<Type>> {
         let mut index_infos: Vec<Gc<IndexInfo>> = vec![];
         if has_computed_string_property {
             index_infos.push(Gc::new(self.get_object_literal_index_info(
@@ -104,7 +105,7 @@ impl TypeChecker {
             || type_.flags().intersects(TypeFlags::UnionOrIntersection)
                 && try_every(
                     &type_.as_union_or_intersection_type_interface().types(),
-                    |type_: &Gc<Type>, _| self.is_valid_spread_type(type_),
+                    |type_: &Id<Type>, _| self.is_valid_spread_type(type_),
                 )?)
     }
 
@@ -121,7 +122,7 @@ impl TypeChecker {
         &self,
         node: &Node, /*JsxSelfClosingElement*/
         _check_mode: Option<CheckMode>,
-    ) -> io::Result<Gc<Type>> {
+    ) -> io::Result<Id<Type>> {
         self.check_node_deferred(node);
         self.get_jsx_element_type_at(node) /*|| anyType*/
     }
@@ -162,7 +163,7 @@ impl TypeChecker {
         &self,
         node: &Node, /*JsxElement*/
         _check_mode: Option<CheckMode>,
-    ) -> io::Result<Gc<Type>> {
+    ) -> io::Result<Id<Type>> {
         self.check_node_deferred(node);
 
         self.get_jsx_element_type_at(node) /*|| anyType*/
@@ -171,7 +172,7 @@ impl TypeChecker {
     pub(super) fn check_jsx_fragment(
         &self,
         node: &Node, /*JsxFragment*/
-    ) -> io::Result<Gc<Type>> {
+    ) -> io::Result<Id<Type>> {
         let node_as_jsx_fragment = node.as_jsx_fragment();
         self.check_jsx_opening_like_element_or_opening_fragment(
             &node_as_jsx_fragment.opening_fragment,
@@ -220,7 +221,7 @@ impl TypeChecker {
         &self,
         node: &Node, /*JsxAttribute*/
         check_mode: Option<CheckMode>,
-    ) -> io::Result<Gc<Type>> {
+    ) -> io::Result<Id<Type>> {
         Ok(
             if let Some(node_initializer) = node.as_jsx_attribute().initializer.as_ref() {
                 self.check_expression_for_mutable_location(
@@ -239,7 +240,7 @@ impl TypeChecker {
         &self,
         opening_like_element: &Node, /*JsxOpeningLikeElement*/
         check_mode: Option<CheckMode>,
-    ) -> io::Result<Gc<Type>> {
+    ) -> io::Result<Id<Type>> {
         let opening_like_element_as_jsx_opening_like_element =
             opening_like_element.as_jsx_opening_like_element();
         let attributes = opening_like_element_as_jsx_opening_like_element.attributes();
@@ -253,7 +254,7 @@ impl TypeChecker {
         )));
         let mut spread = self.empty_jsx_object_type();
         let mut has_spread_any_type = false;
-        let mut type_to_intersect: Option<Gc<Type>> = None;
+        let mut type_to_intersect: Option<Id<Type>> = None;
         let mut explicitly_specify_children_attribute = false;
         let mut object_flags = ObjectFlags::JsxAttributes;
         let jsx_children_property_name = self.get_jsx_element_children_property_name(
@@ -528,7 +529,7 @@ impl TypeChecker {
         object_flags: &mut ObjectFlags,
         attributes: &Node,
         attributes_table: Gc<GcCell<SymbolTable>>,
-    ) -> io::Result<Gc<Type>> {
+    ) -> io::Result<Id<Type>> {
         *object_flags |= self.fresh_object_literal_flag;
         let result = self.create_anonymous_type(
             attributes.maybe_symbol(),
@@ -551,8 +552,8 @@ impl TypeChecker {
         &self,
         node: &Node, /*JsxElement | JsxFragment*/
         check_mode: Option<CheckMode>,
-    ) -> io::Result<Vec<Gc<Type>>> {
-        let mut children_types: Vec<Gc<Type>> = vec![];
+    ) -> io::Result<Vec<Id<Type>>> {
+        let mut children_types: Vec<Id<Type>> = vec![];
         for child in &node.as_has_children().children() {
             if child.kind() == SyntaxKind::JsxText {
                 if !child.as_jsx_text().contains_only_trivia_white_spaces {
@@ -613,7 +614,7 @@ impl TypeChecker {
         &self,
         node: &Node, /*JsxAttributes*/
         check_mode: Option<CheckMode>,
-    ) -> io::Result<Gc<Type>> {
+    ) -> io::Result<Id<Type>> {
         self.create_jsx_attributes_type_from_attributes_property(&node.parent(), check_mode)
     }
 
@@ -621,7 +622,7 @@ impl TypeChecker {
         &self,
         name: &str, /*__String*/
         location: Option<impl Borrow<Node>>,
-    ) -> io::Result<Gc<Type>> {
+    ) -> io::Result<Id<Type>> {
         let location = location.map(|location| location.borrow().node_wrapper());
         let namespace = self.get_jsx_namespace_at(location.as_deref())?;
         let exports = namespace

@@ -7,6 +7,7 @@ use std::{
 };
 
 use gc::Gc;
+use id_arena::Id;
 use itertools::{Either, Itertools};
 
 use super::{
@@ -51,8 +52,8 @@ impl CheckTypeRelatedTo {
         original_error_info: &mut Option<Rc<DiagnosticMessageChain>>,
         save_error_info: &ErrorCalculationState,
         variance_check_failed: &mut bool,
-        source_type_arguments: Option<&[Gc<Type>]>,
-        target_type_arguments: Option<&[Gc<Type>]>,
+        source_type_arguments: Option<&[Id<Type>]>,
+        target_type_arguments: Option<&[Id<Type>]>,
         variances: &[VarianceFlags],
         intersection_state: IntersectionState,
     ) -> io::Result<Option<Ternary>> {
@@ -217,7 +218,7 @@ impl CheckTypeRelatedTo {
             }
         }
 
-        let mut source_discriminant_types: Vec<Vec<Gc<Type>>> =
+        let mut source_discriminant_types: Vec<Vec<Id<Type>>> =
             Vec::with_capacity(source_properties_filtered.len());
         let mut excluded_properties: HashSet<__String> = HashSet::new();
         for source_property in source_properties_filtered.iter() {
@@ -238,7 +239,7 @@ impl CheckTypeRelatedTo {
         }
 
         let discriminant_combinations = cartesian_product(&source_discriminant_types);
-        let mut matching_types: Vec<Gc<Type>> = vec![];
+        let mut matching_types: Vec<Id<Type>> = vec![];
         for combination in &discriminant_combinations {
             let mut has_match = false;
             'outer: for type_ in target.as_union_or_intersection_type_interface().types() {
@@ -340,7 +341,7 @@ impl CheckTypeRelatedTo {
         &self,
         source_prop: &Symbol,
         target_prop: &Symbol,
-        mut get_type_of_source_property: impl FnMut(&Symbol) -> io::Result<Gc<Type>>,
+        mut get_type_of_source_property: impl FnMut(&Symbol) -> io::Result<Id<Type>>,
         report_errors: bool,
         intersection_state: IntersectionState,
     ) -> io::Result<Ternary> {
@@ -370,7 +371,7 @@ impl CheckTypeRelatedTo {
         target: &Type,
         source_prop: &Symbol,
         target_prop: &Symbol,
-        get_type_of_source_property: impl FnMut(&Symbol) -> io::Result<Gc<Type>>,
+        get_type_of_source_property: impl FnMut(&Symbol) -> io::Result<Id<Type>>,
         report_errors: bool,
         intersection_state: IntersectionState,
         skip_optional: bool,

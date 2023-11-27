@@ -5,6 +5,7 @@ use std::{
 };
 
 use gc::{Gc, GcCell};
+use id_arena::Id;
 
 use super::{signature_has_rest_parameter, MembersOrExportsResolutionKind};
 use crate::{
@@ -401,7 +402,7 @@ impl TypeChecker {
         type_: &Type,
         this_argument: Option<impl Borrow<Type>>,
         need_apparent_type: Option<bool>,
-    ) -> io::Result<Gc<Type>> {
+    ) -> io::Result<Id<Type>> {
         let this_argument =
             this_argument.map(|this_argument| this_argument.borrow().type_wrapper());
         if get_object_flags(type_).intersects(ObjectFlags::Reference) {
@@ -429,7 +430,7 @@ impl TypeChecker {
         } else if type_.flags().intersects(TypeFlags::Intersection) {
             let types = try_map(
                 type_.as_union_or_intersection_type_interface().types(),
-                |t: &Gc<Type>, _| {
+                |t: &Id<Type>, _| {
                     self.get_type_with_this_argument(
                         t,
                         this_argument.as_deref(),
@@ -459,8 +460,8 @@ impl TypeChecker {
         &self,
         type_: &Type,  /*ObjectType*/
         source: &Type, /*InterfaceTypeWithDeclaredMembers*/
-        type_parameters: Vec<Gc<Type /*TypeParameter*/>>,
-        type_arguments: Vec<Gc<Type>>,
+        type_parameters: Vec<Id<Type /*TypeParameter*/>>,
+        type_arguments: Vec<Id<Type>>,
     ) -> io::Result<()> {
         let mut mapper: Option<Gc<TypeMapper>> = None;
         let mut members: Gc<GcCell<SymbolTable>>;
@@ -626,10 +627,10 @@ impl TypeChecker {
     pub(super) fn create_signature(
         &self,
         declaration: Option<Gc<Node>>,
-        type_parameters: Option<Vec<Gc<Type>>>,
+        type_parameters: Option<Vec<Id<Type>>>,
         this_parameter: Option<Gc<Symbol>>,
         parameters: Vec<Gc<Symbol>>,
-        resolved_return_type: Option<Gc<Type>>,
+        resolved_return_type: Option<Id<Type>>,
         resolved_type_predicate: Option<Gc<TypePredicate>>,
         min_argument_count: usize,
         flags: SignatureFlags,
@@ -759,12 +760,12 @@ impl TypeChecker {
                 && rest_type.flags().intersects(TypeFlags::Union)
                 && every(
                     rest_type.as_union_or_intersection_type_interface().types(),
-                    |type_: &Gc<Type>, _| self.is_tuple_type(type_),
+                    |type_: &Id<Type>, _| self.is_tuple_type(type_),
                 )
             {
                 return try_map(
                     rest_type.as_union_or_intersection_type_interface().types(),
-                    |t: &Gc<Type>, _| {
+                    |t: &Id<Type>, _| {
                         self.expand_signature_parameters_with_tuple_members(sig, t, rest_index)
                     },
                 );
@@ -785,7 +786,7 @@ impl TypeChecker {
         let associated_names = rest_type_target_as_tuple_type
             .labeled_element_declarations
             .as_ref();
-        let rest_params = try_map(&element_types, |t: &Gc<Type>, i| -> io::Result<_> {
+        let rest_params = try_map(&element_types, |t: &Id<Type>, i| -> io::Result<_> {
             let tuple_label_name = associated_names
                 .map(|associated_names| self.get_tuple_element_label(&associated_names[i]));
             let name = tuple_label_name.try_unwrap_or_else(|| {
@@ -1087,8 +1088,8 @@ impl TypeChecker {
 
     pub(super) fn compare_type_parameters_identical(
         &self,
-        source_params: Option<&[Gc<Type /*TypeParameter*/>]>,
-        target_params: Option<&[Gc<Type /*TypeParameter*/>]>,
+        source_params: Option<&[Id<Type /*TypeParameter*/>]>,
+        target_params: Option<&[Id<Type /*TypeParameter*/>]>,
     ) -> io::Result<bool> {
         if length(source_params) != length(target_params) {
             return Ok(false);

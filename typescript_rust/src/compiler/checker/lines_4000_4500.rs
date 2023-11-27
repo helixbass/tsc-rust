@@ -1,6 +1,7 @@
 use std::{borrow::Borrow, collections::HashMap, io, ptr};
 
 use gc::{Gc, GcCell};
+use id_arena::Id;
 
 use super::{get_node_id, get_symbol_id, typeof_eq_facts};
 use crate::{
@@ -151,11 +152,11 @@ impl TypeChecker {
         type_
     }
 
-    pub(super) fn create_typeof_type(&self) -> io::Result<Gc<Type>> {
+    pub(super) fn create_typeof_type(&self) -> io::Result<Id<Type>> {
         self.get_union_type(
             &typeof_eq_facts
                 .keys()
-                .map(|key| -> Gc<Type> { self.get_string_literal_type(key).into() })
+                .map(|key| -> Id<Type> { self.get_string_literal_type(key).into() })
                 .collect::<Vec<_>>(),
             None,
             Option::<&Symbol>::None,
@@ -293,7 +294,7 @@ impl TypeChecker {
         call_signatures: Vec<Gc<Signature>>,
         construct_signatures: Vec<Gc<Signature>>,
         index_infos: Vec<Gc<IndexInfo>>,
-    ) -> io::Result<Gc<Type>> {
+    ) -> io::Result<Id<Type>> {
         Ok(BaseInterfaceType::new(
             self.create_anonymous_type_returning_base_object_type(
                 symbol,
@@ -313,7 +314,7 @@ impl TypeChecker {
     pub(super) fn get_resolved_type_without_abstract_construct_signatures(
         &self,
         type_: &Type, /*ResolvedType*/
-    ) -> io::Result<Gc<Type>> {
+    ) -> io::Result<Id<Type>> {
         let type_as_resolved_type = type_.as_resolved_type();
         let type_construct_signatures = type_as_resolved_type.construct_signatures();
         if type_construct_signatures.is_empty() {

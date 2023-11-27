@@ -32,7 +32,7 @@ impl GetFlowTypeOfReference {
         operator: SyntaxKind,
         identifier: &Node, /*Expression*/
         assume_true: bool,
-    ) -> io::Result<Gc<Type>> {
+    ) -> io::Result<Id<Type>> {
         if if assume_true {
             !matches!(
                 operator,
@@ -106,7 +106,7 @@ impl GetFlowTypeOfReference {
         type_: &Type,
         expr: &Node, /*BinaryExpression*/
         assume_true: bool,
-    ) -> io::Result<Gc<Type>> {
+    ) -> io::Result<Id<Type>> {
         let expr_as_binary_expression = expr.as_binary_expression();
         let left = self
             .type_checker
@@ -138,7 +138,7 @@ impl GetFlowTypeOfReference {
             return Ok(type_.type_wrapper());
         }
 
-        let mut target_type: Option<Gc<Type>> = None;
+        let mut target_type: Option<Id<Type>> = None;
         let prototype_property =
             self.type_checker
                 .get_property_of_type_(&right_type, "prototype", None)?;
@@ -193,7 +193,7 @@ impl GetFlowTypeOfReference {
         if !assume_true && right_type.flags().intersects(TypeFlags::Union) {
             let non_constructor_type_in_union = try_find(
                 &right_type.as_union_type().types(),
-                |t: &Gc<Type>, _| -> io::Result<_> {
+                |t: &Id<Type>, _| -> io::Result<_> {
                     Ok(!self.type_checker.is_constructor_type(t)?)
                 },
             )?
@@ -217,7 +217,7 @@ impl GetFlowTypeOfReference {
         candidate: &Type,
         assume_true: bool,
         mut is_related: impl FnMut(&Type, &Type) -> io::Result<bool>,
-    ) -> io::Result<Gc<Type>> {
+    ) -> io::Result<Id<Type>> {
         if !assume_true {
             return self
                 .type_checker
@@ -252,7 +252,7 @@ impl GetFlowTypeOfReference {
         type_: &Type,
         call_expression: &Node, /*CallExpression*/
         assume_true: bool,
-    ) -> io::Result<Gc<Type>> {
+    ) -> io::Result<Id<Type>> {
         if self
             .type_checker
             .has_matching_argument(call_expression, &self.reference)?
@@ -327,7 +327,7 @@ impl GetFlowTypeOfReference {
         predicate: &TypePredicate,
         call_expression: &Node, /*CallExpression*/
         assume_true: bool,
-    ) -> io::Result<Gc<Type>> {
+    ) -> io::Result<Id<Type>> {
         let mut type_ = type_.type_wrapper();
         if let Some(predicate_type) = predicate.type_.as_ref().filter(|predicate_type| {
             !(self.type_checker.is_type_any(Some(&*type_))
@@ -388,7 +388,7 @@ impl GetFlowTypeOfReference {
         type_: &Type,
         expr: &Node, /*Expression*/
         assume_true: bool,
-    ) -> io::Result<Gc<Type>> {
+    ) -> io::Result<Id<Type>> {
         if is_expression_of_optional_chain_root(expr) || {
             let expr_parent = expr.parent();
             is_binary_expression(&expr_parent) && {
@@ -484,7 +484,7 @@ impl GetFlowTypeOfReference {
         type_: &Type,
         expr: &Node, /*Expression*/
         assume_present: bool,
-    ) -> io::Result<Gc<Type>> {
+    ) -> io::Result<Id<Type>> {
         if self
             .type_checker
             .is_matching_reference(&self.reference, expr)?
@@ -520,7 +520,7 @@ impl TypeChecker {
         &self,
         symbol: &Symbol,
         location: &Node,
-    ) -> io::Result<Gc<Type>> {
+    ) -> io::Result<Id<Type>> {
         let symbol = symbol
             .maybe_export_symbol()
             .unwrap_or_else(|| symbol.symbol_wrapper());
@@ -645,7 +645,7 @@ impl TypeChecker {
         &self,
         declared_type: &Type,
         declaration: &Node, /*VariableLikeDeclaration (actually also includes BindingElement)*/
-    ) -> io::Result<Gc<Type>> {
+    ) -> io::Result<Id<Type>> {
         let declaration_as_has_initializer = declaration.as_has_initializer();
         Ok(
             if self.push_type_resolution(
@@ -734,7 +734,7 @@ impl TypeChecker {
         type_: &Type,
         reference: &Node,
         check_mode: Option<CheckMode>,
-    ) -> io::Result<Gc<Type>> {
+    ) -> io::Result<Id<Type>> {
         let substitute_constraints = !matches!(
             check_mode,
             Some(check_mode) if check_mode.intersects(CheckMode::Inferential)
@@ -815,7 +815,7 @@ impl TypeChecker {
         &self,
         node: &Node, /*Identifier*/
         check_mode: Option<CheckMode>,
-    ) -> io::Result<Gc<Type>> {
+    ) -> io::Result<Id<Type>> {
         let symbol = self.get_resolved_symbol(node)?;
         if Gc::ptr_eq(&symbol, &self.unknown_symbol()) {
             return Ok(self.error_type());

@@ -1,6 +1,7 @@
 use std::{borrow::Borrow, cmp, io, ptr};
 
 use gc::Gc;
+use id_arena::Id;
 
 use super::{CheckMode, IterationUse, JsxNames};
 use crate::{
@@ -26,7 +27,7 @@ impl TypeChecker {
         context: &Node, /*JsxOpeningLikeElement*/
         ns: Option<impl Borrow<Symbol>>,
         attributes_type: &Type,
-    ) -> io::Result<Gc<Type>> {
+    ) -> io::Result<Id<Type>> {
         let managed_sym = self.get_jsx_library_managed_attributes(ns)?;
         if let Some(managed_sym) = managed_sym.as_ref() {
             let declared_managed_type = self.get_declared_type_of_symbol(managed_sym)?;
@@ -75,7 +76,7 @@ impl TypeChecker {
         &self,
         sig: Gc<Signature>,
         context: &Node, /*JsxOpeningLikeElement*/
-    ) -> io::Result<Gc<Type>> {
+    ) -> io::Result<Id<Type>> {
         let ns = self.get_jsx_namespace_at(Some(context))?;
         let forced_lookup_location = self.get_jsx_element_properties_name(ns.as_deref())?;
         let attributes_type = match forced_lookup_location.as_ref() {
@@ -519,7 +520,7 @@ impl TypeChecker {
         &self,
         node: &Node, /*SpreadElement*/
         check_mode: Option<CheckMode>,
-    ) -> io::Result<Gc<Type>> {
+    ) -> io::Result<Id<Type>> {
         if self.language_version < ScriptTarget::ES2015 {
             self.check_external_emit_helpers(
                 node,
@@ -544,7 +545,7 @@ impl TypeChecker {
     pub(super) fn check_synthetic_expression(
         &self,
         node: &Node, /*SyntheticExpression*/
-    ) -> io::Result<Gc<Type>> {
+    ) -> io::Result<Id<Type>> {
         let node_as_synthetic_expression = node.as_synthetic_expression();
         Ok(if node_as_synthetic_expression.is_spread {
             self.get_indexed_access_type(
@@ -575,10 +576,10 @@ impl TypeChecker {
         node: &Node, /*ArrayLiteralExpression*/
         check_mode: Option<CheckMode>,
         force_tuple: Option<bool>,
-    ) -> io::Result<Gc<Type>> {
+    ) -> io::Result<Id<Type>> {
         let elements = &node.as_array_literal_expression().elements;
         let element_count = elements.len();
-        let mut element_types: Vec<Gc<Type>> = vec![];
+        let mut element_types: Vec<Id<Type>> = vec![];
         let mut element_flags: Vec<ElementFlags> = vec![];
         let contextual_type = self.get_apparent_type_of_contextual_type(node, None)?;
         let in_destructuring_pattern = is_assignment_target(node);
@@ -681,7 +682,7 @@ impl TypeChecker {
         Ok(self.create_array_literal_type(&self.create_array_type(
             &*if !element_types.is_empty() {
                 self.get_union_type(
-                    &try_map(&element_types, |t: &Gc<Type>, i| -> io::Result<_> {
+                    &try_map(&element_types, |t: &Id<Type>, i| -> io::Result<_> {
                         Ok(if element_flags[i].intersects(ElementFlags::Variadic) {
                             self.get_indexed_access_type_or_undefined(
                                 t,
@@ -710,7 +711,7 @@ impl TypeChecker {
         )))
     }
 
-    pub(super) fn create_array_literal_type(&self, type_: &Type) -> Gc<Type> {
+    pub(super) fn create_array_literal_type(&self, type_: &Type) -> Id<Type> {
         if !get_object_flags(type_).intersects(ObjectFlags::Reference) {
             return type_.type_wrapper();
         }
@@ -768,7 +769,7 @@ impl TypeChecker {
     pub(super) fn check_computed_property_name(
         &self,
         node: &Node, /*ComputedPropertyName*/
-    ) -> io::Result<Gc<Type>> {
+    ) -> io::Result<Id<Type>> {
         let node_as_computed_property_name = node.as_computed_property_name();
         let links = self.get_node_links(&node_as_computed_property_name.expression);
         if (*links).borrow().resolved_type.is_none() {
@@ -869,7 +870,7 @@ impl TypeChecker {
         properties: &[Gc<Symbol>],
         key_type: &Type,
     ) -> io::Result<IndexInfo> {
-        let mut prop_types: Vec<Gc<Type>> = vec![];
+        let mut prop_types: Vec<Id<Type>> = vec![];
         for i in offset..properties.len() {
             let prop = &properties[i];
             if ptr::eq(key_type, &*self.string_type()) && !self.is_symbol_with_symbol_name(prop)?
@@ -923,7 +924,7 @@ impl TypeChecker {
         &self,
         node: &Node, /*ObjectLiteralExpression*/
         check_mode: Option<CheckMode>,
-    ) -> io::Result<Gc<Type>> {
+    ) -> io::Result<Id<Type>> {
         let in_destructuring_pattern = is_assignment_target(node);
         self.check_grammar_object_literal_expression(node, in_destructuring_pattern);
 
@@ -935,7 +936,7 @@ impl TypeChecker {
         };
         let mut properties_table = create_symbol_table(Option::<&[Gc<Symbol>]>::None);
         let mut properties_array: Vec<Gc<Symbol>> = vec![];
-        let mut spread: Gc<Type> = self.empty_object_type();
+        let mut spread: Id<Type> = self.empty_object_type();
 
         let contextual_type = self.get_apparent_type_of_contextual_type(node, None)?;
         let contextual_type_has_pattern = matches!(
@@ -992,7 +993,7 @@ impl TypeChecker {
             ) || is_object_literal_method(member_decl)
             {
                 let member_present = member.as_ref().unwrap();
-                let mut type_: Gc<Type> = if member_decl.kind() == SyntaxKind::PropertyAssignment {
+                let mut type_: Id<Type> = if member_decl.kind() == SyntaxKind::PropertyAssignment {
                     self.check_property_assignment(member_decl, check_mode)?
                 } else if member_decl.kind() == SyntaxKind::ShorthandPropertyAssignment {
                     let member_decl_as_shorthand_property_assignment =

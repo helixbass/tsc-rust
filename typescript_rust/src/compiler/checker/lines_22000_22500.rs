@@ -1,6 +1,7 @@
 use std::{cmp, io, iter::once, ptr};
 
 use gc::Gc;
+use id_arena::Id;
 use itertools::Either;
 use peekmore::PeekMore;
 
@@ -27,14 +28,14 @@ impl InferTypes {
 
     pub(super) fn get_single_type_variable_from_intersection_types(
         &self,
-        types: &[Gc<Type>],
-    ) -> Option<Gc<Type>> {
-        let mut type_variable: Option<Gc<Type>> = None;
+        types: &[Id<Type>],
+    ) -> Option<Id<Type>> {
+        let mut type_variable: Option<Id<Type>> = None;
         for type_ in types {
             let t = if type_.flags().intersects(TypeFlags::Intersection) {
                 find(
                     type_.as_union_or_intersection_type_interface().types(),
-                    |t: &Gc<Type>, _| self.get_inference_info_for_type(t).is_some(),
+                    |t: &Id<Type>, _| self.get_inference_info_for_type(t).is_some(),
                 )
                 .map(Clone::clone)
             } else {
@@ -58,12 +59,12 @@ impl InferTypes {
     pub(super) fn infer_to_multiple_types(
         &self,
         source: &Type,
-        targets: &[Gc<Type>],
+        targets: &[Id<Type>],
         target_flags: TypeFlags,
     ) -> io::Result<()> {
         let mut type_variable_count = 0;
         if target_flags.intersects(TypeFlags::Union) {
-            let mut naked_type_variable: Option<Gc<Type>> = None;
+            let mut naked_type_variable: Option<Id<Type>> = None;
             let sources = if source.flags().intersects(TypeFlags::Union) {
                 source
                     .as_union_or_intersection_type_interface()
@@ -108,7 +109,7 @@ impl InferTypes {
                 return Ok(());
             }
             if type_variable_count == 1 && !inference_circularity {
-                let unmatched = flat_map(Some(&sources), |s: &Gc<Type>, i| {
+                let unmatched = flat_map(Some(&sources), |s: &Id<Type>, i| {
                     if matched[i] {
                         vec![]
                     } else {
@@ -666,7 +667,7 @@ impl InferTypes {
             .is_object_type_with_inferable_index(source)?
         {
             for target_info in &index_infos {
-                let mut prop_types: Vec<Gc<Type>> = vec![];
+                let mut prop_types: Vec<Id<Type>> = vec![];
                 for ref prop in self.type_checker.get_properties_of_type(source)? {
                     if self.type_checker.is_applicable_index_type(
                         &*self.type_checker.get_literal_type_from_property(
@@ -785,9 +786,9 @@ impl TypeChecker {
     pub(super) fn union_object_and_array_literal_candidates<'self_and_candidates, TCandidates>(
         &'self_and_candidates self,
         candidates: TCandidates,
-    ) -> io::Result<impl Iterator<Item = Gc<Type>> + 'self_and_candidates>
+    ) -> io::Result<impl Iterator<Item = Id<Type>> + 'self_and_candidates>
     where
-        TCandidates: IntoIterator<Item = &'self_and_candidates Gc<Type>> + Clone,
+        TCandidates: IntoIterator<Item = &'self_and_candidates Id<Type>> + Clone,
         TCandidates::IntoIter: Clone + 'self_and_candidates,
     {
         let candidates = candidates.into_iter();
@@ -818,7 +819,7 @@ impl TypeChecker {
     pub(super) fn get_contravariant_inference(
         &self,
         inference: &InferenceInfo,
-    ) -> io::Result<Gc<Type>> {
+    ) -> io::Result<Id<Type>> {
         Ok(
             if matches!(
                 inference.maybe_priority(),
@@ -839,7 +840,7 @@ impl TypeChecker {
         &self,
         inference: &InferenceInfo,
         signature: Gc<Signature>,
-    ) -> io::Result<Gc<Type>> {
+    ) -> io::Result<Id<Type>> {
         let inference_candidates = inference.maybe_candidates();
         let candidates = self
             .union_object_and_array_literal_candidates(inference_candidates.as_deref().unwrap())?;
@@ -883,10 +884,10 @@ impl TypeChecker {
         &self,
         context: &InferenceContext,
         index: usize,
-    ) -> io::Result<Gc<Type>> {
+    ) -> io::Result<Id<Type>> {
         let inference = context.inferences()[index].clone();
         if inference.maybe_inferred_type().is_none() {
-            let mut inferred_type: Option<Gc<Type>> = None;
+            let mut inferred_type: Option<Id<Type>> = None;
             let signature = context.signature.as_ref();
             if let Some(signature) = signature {
                 let inferred_covariant_type = if inference.maybe_candidates().is_some() {
@@ -905,7 +906,7 @@ impl TypeChecker {
                                     !inferred_covariant_type.flags().intersects(TypeFlags::Never)
                                         && try_some(
                                             Some(inference_contra_candidates),
-                                            Some(|t: &Gc<Type>| {
+                                            Some(|t: &Id<Type>| {
                                                 self.is_type_subtype_of(inferred_covariant_type, t)
                                             }),
                                         )?,
@@ -976,7 +977,7 @@ impl TypeChecker {
         Ok(ret)
     }
 
-    pub(super) fn get_default_type_argument_type(&self, is_in_java_script_file: bool) -> Gc<Type> {
+    pub(super) fn get_default_type_argument_type(&self, is_in_java_script_file: bool) -> Id<Type> {
         if is_in_java_script_file {
             self.any_type()
         } else {
@@ -987,8 +988,8 @@ impl TypeChecker {
     pub(super) fn get_inferred_types(
         &self,
         context: &InferenceContext,
-    ) -> io::Result<Vec<Gc<Type>>> {
-        let mut result: Vec<Gc<Type>> = vec![];
+    ) -> io::Result<Vec<Id<Type>>> {
+        let mut result: Vec<Id<Type>> = vec![];
         for i in 0..context.inferences().len() {
             result.push(self.get_inferred_type(context, i)?);
         }

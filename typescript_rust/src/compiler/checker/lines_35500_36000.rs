@@ -1,6 +1,7 @@
 use std::{borrow::Borrow, cell::RefCell, io, ptr, rc::Rc};
 
 use gc::Gc;
+use id_arena::Id;
 
 use super::ResolveCallContainingMessageChain;
 use crate::{
@@ -174,7 +175,7 @@ impl TypeChecker {
             return Ok(());
         }
 
-        let expected_return_type: Gc<Type>;
+        let expected_return_type: Id<Type>;
         let head_message = self.get_diagnostic_head_message_for_decorator_resolution(node);
         let mut error_info: Option<Rc<RefCell<DiagnosticMessageChain>>> = None;
         match node.parent().kind() {

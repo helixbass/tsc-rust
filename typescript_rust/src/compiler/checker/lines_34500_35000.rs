@@ -265,8 +265,8 @@ impl TypeChecker {
     pub(super) fn get_effective_type_arguments(
         &self,
         node: &Node, /*TypeReferenceNode | ExpressionWithTypeArguments*/
-        type_parameters: Option<&[Gc<Type /*TypeParameter*/>]>,
-    ) -> io::Result<Vec<Gc<Type>>> {
+        type_parameters: Option<&[Id<Type /*TypeParameter*/>]>,
+    ) -> io::Result<Vec<Id<Type>>> {
         Ok(self
             .fill_missing_type_arguments(
                 try_maybe_map(
@@ -284,9 +284,9 @@ impl TypeChecker {
     pub(super) fn check_type_argument_constraints(
         &self,
         node: &Node, /*TypeReferenceNode | ExpressionWithTypeArguments*/
-        type_parameters: &[Gc<Type /*TypeParameter*/>],
+        type_parameters: &[Id<Type /*TypeParameter*/>],
     ) -> io::Result<bool> {
-        let mut type_arguments: Option<Vec<Gc<Type>>> = None;
+        let mut type_arguments: Option<Vec<Id<Type>>> = None;
         let mut mapper: Option<Gc<TypeMapper>> = None;
         let mut result = true;
         for i in 0..type_parameters.len() {
@@ -322,7 +322,7 @@ impl TypeChecker {
     pub(super) fn get_type_parameters_for_type_reference(
         &self,
         node: &Node, /*TypeReferenceNode | ExpressionWithTypeArguments*/
-    ) -> io::Result<Option<Vec<Gc<Type>>>> {
+    ) -> io::Result<Option<Vec<Id<Type>>>> {
         let type_ = self.get_type_from_type_reference(node)?;
         if !self.is_error_type(&type_) {
             let symbol = (*self.get_node_links(node))
@@ -440,7 +440,7 @@ impl TypeChecker {
     pub(super) fn get_type_argument_constraint_(
         &self,
         node: &Node, /*TypeNode*/
-    ) -> io::Result<Option<Gc<Type>>> {
+    ) -> io::Result<Option<Id<Type>>> {
         let type_reference_node =
             return_ok_default_if_none!(try_cast(node.parent(), |parent: &Gc<Node>| {
                 is_type_reference_type(parent)
@@ -608,7 +608,7 @@ impl TypeChecker {
         &self,
         type_: &Type,
         access_node: &Node, /*IndexedAccessTypeNode | ElementAccessExpression*/
-    ) -> io::Result<Gc<Type>> {
+    ) -> io::Result<Id<Type>> {
         if !type_.flags().intersects(TypeFlags::IndexedAccess) {
             return Ok(type_.type_wrapper());
         }

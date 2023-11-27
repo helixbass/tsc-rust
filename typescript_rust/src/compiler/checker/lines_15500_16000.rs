@@ -5,6 +5,7 @@ use std::{
 };
 
 use gc::{Gc, GcCell};
+use id_arena::Id;
 
 use crate::{
     try_every, HasTypeArgumentsInterface, __String, append, concatenate, create_symbol_table,
@@ -23,7 +24,7 @@ impl TypeChecker {
     pub(super) fn get_type_from_indexed_access_type_node(
         &self,
         node: &Node, /*IndexedAccessTypeNode*/
-    ) -> io::Result<Gc<Type>> {
+    ) -> io::Result<Id<Type>> {
         let links = self.get_node_links(node);
         if (*links).borrow().resolved_type.is_none() {
             let node_as_indexed_access_type_node = node.as_indexed_access_type_node();
@@ -60,11 +61,11 @@ impl TypeChecker {
     pub(super) fn get_type_from_mapped_type_node(
         &self,
         node: &Node, /*MappedTypeNode*/
-    ) -> io::Result<Gc<Type>> {
+    ) -> io::Result<Id<Type>> {
         let links = self.get_node_links(node);
         if (*links).borrow().resolved_type.is_none() {
             let type_ = self.create_object_type(ObjectFlags::Mapped, node.maybe_symbol());
-            let type_: Gc<Type> = MappedType::new(type_, node.node_wrapper()).into();
+            let type_: Id<Type> = MappedType::new(type_, node.node_wrapper()).into();
             let alias_symbol = self.get_alias_symbol_for_type_node(node)?;
             *type_.maybe_alias_symbol_mut() = alias_symbol.clone();
             *type_.maybe_alias_type_arguments_mut() =
@@ -76,7 +77,7 @@ impl TypeChecker {
         Ok(ret)
     }
 
-    pub(super) fn get_actual_type_variable(&self, type_: &Type) -> io::Result<Gc<Type>> {
+    pub(super) fn get_actual_type_variable(&self, type_: &Type) -> io::Result<Id<Type>> {
         if type_.flags().intersects(TypeFlags::Substitution) {
             return Ok(type_.as_substitution_type().base_type.clone());
         }
@@ -140,7 +141,7 @@ impl TypeChecker {
         &self,
         root: Gc<GcCell<ConditionalRoot>>,
         type_: &Type,
-    ) -> io::Result<Gc<Type>> {
+    ) -> io::Result<Id<Type>> {
         Ok(
             if self.is_typical_nondistributive_conditional(root) && self.is_tuple_type(type_) {
                 self.get_type_arguments(type_)?[0].clone()
@@ -155,10 +156,10 @@ impl TypeChecker {
         root: Gc<GcCell<ConditionalRoot>>,
         mut mapper: Option<Gc<TypeMapper>>,
         alias_symbol: Option<impl Borrow<Symbol>>,
-        mut alias_type_arguments: Option<&[Gc<Type>]>,
-    ) -> io::Result<Gc<Type>> {
-        let result: Gc<Type>;
-        let mut extra_types: Option<Vec<Gc<Type>>> = None;
+        mut alias_type_arguments: Option<&[Id<Type>]>,
+    ) -> io::Result<Id<Type>> {
+        let result: Id<Type>;
+        let mut extra_types: Option<Vec<Id<Type>>> = None;
         let mut tail_count = 0;
         let mut root = root.clone();
         let mut alias_symbol =
@@ -368,7 +369,7 @@ impl TypeChecker {
         root: &mut Gc<GcCell<ConditionalRoot>>,
         mapper: &mut Option<Gc<TypeMapper>>,
         alias_symbol: &mut Option<Gc<Symbol>>,
-        alias_type_arguments: &mut Option<&[Gc<Type>]>,
+        alias_type_arguments: &mut Option<&[Id<Type>]>,
         tail_count: &mut usize,
         new_type: &Type,
         new_mapper: Option<Gc<TypeMapper>>,
@@ -387,7 +388,7 @@ impl TypeChecker {
                         new_mapper,
                     );
                     let type_arguments =
-                        try_map(new_root_outer_type_parameters, |t: &Gc<Type>, _| {
+                        try_map(new_root_outer_type_parameters, |t: &Id<Type>, _| {
                             self.get_mapped_type(t, &type_param_mapper)
                         })?;
                     let new_root_mapper = Gc::new(self.create_type_mapper(
@@ -429,7 +430,7 @@ impl TypeChecker {
     pub(super) fn get_true_type_from_conditional_type(
         &self,
         type_: &Type, /*ConditionalType*/
-    ) -> io::Result<Gc<Type>> {
+    ) -> io::Result<Id<Type>> {
         let type_as_conditional_type = type_.as_conditional_type();
         if type_as_conditional_type
             .maybe_resolved_true_type()
@@ -458,7 +459,7 @@ impl TypeChecker {
     pub(super) fn get_false_type_from_conditional_type(
         &self,
         type_: &Type, /*ConditionalType*/
-    ) -> io::Result<Gc<Type>> {
+    ) -> io::Result<Id<Type>> {
         let type_as_conditional_type = type_.as_conditional_type();
         if type_as_conditional_type
             .maybe_resolved_false_type()
@@ -487,7 +488,7 @@ impl TypeChecker {
     pub(super) fn get_inferred_true_type_from_conditional_type(
         &self,
         type_: &Type, /*ConditionalType*/
-    ) -> io::Result<Gc<Type>> {
+    ) -> io::Result<Id<Type>> {
         let type_as_conditional_type = type_.as_conditional_type();
         if type_as_conditional_type
             .maybe_resolved_inferred_true_type()
@@ -521,8 +522,8 @@ impl TypeChecker {
     pub(super) fn get_infer_type_parameters(
         &self,
         node: &Node, /*ConditionalTypeNode*/
-    ) -> io::Result<Option<Vec<Gc<Type /*TypeParameter*/>>>> {
-        let mut result: Option<Vec<Gc<Type>>> = None;
+    ) -> io::Result<Option<Vec<Id<Type /*TypeParameter*/>>>> {
+        let mut result: Option<Vec<Id<Type>>> = None;
         if let Some(node_locals) = node.maybe_locals().clone() {
             (*node_locals).borrow().values().try_for_each(
                 |symbol: &Gc<Symbol>| -> io::Result<_> {
@@ -557,7 +558,7 @@ impl TypeChecker {
     pub(super) fn get_type_from_conditional_type_node(
         &self,
         node: &Node, /*ConditionalTypeNode*/
-    ) -> io::Result<Gc<Type>> {
+    ) -> io::Result<Id<Type>> {
         let links = self.get_node_links(node);
         if (*links).borrow().resolved_type.is_none() {
             let node_as_conditional_type_node = node.as_conditional_type_node();
@@ -570,7 +571,7 @@ impl TypeChecker {
             let outer_type_parameters = if alias_type_arguments.is_some() {
                 all_outer_type_parameters
             } else {
-                try_maybe_filter(all_outer_type_parameters.as_deref(), |tp: &Gc<Type>| {
+                try_maybe_filter(all_outer_type_parameters.as_deref(), |tp: &Id<Type>| {
                     self.is_type_parameter_possibly_referenced(tp, node)
                 })
                 .transpose()?
@@ -589,7 +590,7 @@ impl TypeChecker {
                 self.get_conditional_type(root.clone(), None, Option::<&Symbol>::None, None)?;
             links.borrow_mut().resolved_type = Some(resolved_type.clone());
             if let Some(outer_type_parameters) = outer_type_parameters {
-                let mut instantiations: HashMap<String, Gc<Type>> = HashMap::new();
+                let mut instantiations: HashMap<String, Id<Type>> = HashMap::new();
                 instantiations.insert(
                     self.get_type_list_id(Some(&outer_type_parameters)),
                     resolved_type,
@@ -604,7 +605,7 @@ impl TypeChecker {
     pub(super) fn get_type_from_infer_type_node(
         &self,
         node: &Node, /*InferTypeNode*/
-    ) -> io::Result<Gc<Type>> {
+    ) -> io::Result<Id<Type>> {
         let links = self.get_node_links(node);
         if (*links).borrow().resolved_type.is_none() {
             links.borrow_mut().resolved_type = Some(
@@ -636,7 +637,7 @@ impl TypeChecker {
     pub(super) fn get_type_from_import_type_node(
         &self,
         node: &Node, /*ImportTypeNode*/
-    ) -> io::Result<Gc<Type>> {
+    ) -> io::Result<Id<Type>> {
         let links = self.get_node_links(node);
         if (*links).borrow().resolved_type.is_none() {
             let node_as_import_type_node = node.as_import_type_node();
@@ -799,7 +800,7 @@ impl TypeChecker {
         links: &GcCell<NodeLinks>,
         symbol: &Symbol,
         meaning: SymbolFlags,
-    ) -> io::Result<Gc<Type>> {
+    ) -> io::Result<Id<Type>> {
         let resolved_symbol = self.resolve_symbol(Some(symbol), None)?.unwrap();
         links.borrow_mut().resolved_symbol = Some(resolved_symbol.clone());
         Ok(if meaning == SymbolFlags::Value {
@@ -812,7 +813,7 @@ impl TypeChecker {
     pub(super) fn get_type_from_type_literal_or_function_or_constructor_type_node(
         &self,
         node: &Node, /*TypeNode*/
-    ) -> io::Result<Gc<Type>> {
+    ) -> io::Result<Id<Type>> {
         let links = self.get_node_links(node);
         if (*links).borrow().resolved_type.is_none() {
             let alias_symbol = self.get_alias_symbol_for_type_node(node)?;
@@ -823,7 +824,7 @@ impl TypeChecker {
             {
                 links.borrow_mut().resolved_type = Some(self.empty_type_literal_type());
             } else {
-                let mut type_: Gc<Type> = self
+                let mut type_: Id<Type> = self
                     .create_object_type(ObjectFlags::Anonymous, node.maybe_symbol())
                     .into();
                 *type_.maybe_alias_symbol_mut() = alias_symbol.clone();
@@ -861,7 +862,7 @@ impl TypeChecker {
     pub(super) fn get_type_arguments_for_alias_symbol(
         &self,
         symbol: Option<impl Borrow<Symbol>>,
-    ) -> io::Result<Option<Vec<Gc<Type>>>> {
+    ) -> io::Result<Option<Vec<Id<Type>>>> {
         symbol.try_and_then(|symbol| {
             self.get_local_type_parameters_of_class_or_interface_or_type_alias(symbol.borrow())
         })
@@ -893,15 +894,15 @@ impl TypeChecker {
         &self,
         type_: &Type,
         readonly: bool,
-    ) -> io::Result<Gc<Type>> {
+    ) -> io::Result<Id<Type>> {
         if !type_.flags().intersects(TypeFlags::Union) {
             return Ok(type_.type_wrapper());
         }
         let type_as_union_type = type_.as_union_type();
-        if try_every(type_as_union_type.types(), |type_: &Gc<Type>, _| {
+        if try_every(type_as_union_type.types(), |type_: &Id<Type>, _| {
             self.is_empty_object_type_or_spreads_into_empty_object(type_)
         })? {
-            return Ok(try_find(type_as_union_type.types(), |type_: &Gc<Type>, _| {
+            return Ok(try_find(type_as_union_type.types(), |type_: &Id<Type>, _| {
                 self.is_empty_object_type(type_)
             })?
             .cloned()
@@ -909,7 +910,7 @@ impl TypeChecker {
         }
         let first_type = try_find(
             type_as_union_type.types(),
-            |type_: &Gc<Type>, _| -> io::Result<_> {
+            |type_: &Id<Type>, _| -> io::Result<_> {
                 Ok(!self.is_empty_object_type_or_spreads_into_empty_object(type_)?)
             },
         )?
@@ -920,7 +921,7 @@ impl TypeChecker {
         let first_type = first_type.unwrap();
         let second_type = try_find(
             type_as_union_type.types(),
-            |t: &Gc<Type>, _| -> io::Result<_> {
+            |t: &Id<Type>, _| -> io::Result<_> {
                 Ok(!Gc::ptr_eq(t, &first_type)
                     && !self.is_empty_object_type_or_spreads_into_empty_object(type_)?)
             },
@@ -936,7 +937,7 @@ impl TypeChecker {
         &self,
         readonly: bool,
         type_: &Type,
-    ) -> io::Result<Gc<Type>> {
+    ) -> io::Result<Id<Type>> {
         let mut members = create_symbol_table(Option::<&[Gc<Symbol>]>::None);
         for prop in self.get_properties_of_type(type_)? {
             if get_declaration_modifier_flags_from_symbol(&prop, None)
@@ -999,7 +1000,7 @@ impl TypeChecker {
         symbol: Option<impl Borrow<Symbol>>,
         object_flags: ObjectFlags,
         readonly: bool,
-    ) -> io::Result<Gc<Type>> {
+    ) -> io::Result<Id<Type>> {
         if left.flags().intersects(TypeFlags::Any) || right.flags().intersects(TypeFlags::Any) {
             return Ok(self.any_type());
         }

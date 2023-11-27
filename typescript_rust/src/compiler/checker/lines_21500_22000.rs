@@ -22,7 +22,7 @@ impl TypeChecker {
         source_type: &Type,
         target: &Type,     /*MappedType*/
         constraint: &Type, /*IndexType*/
-    ) -> io::Result<Gc<Type>> {
+    ) -> io::Result<Id<Type>> {
         let type_parameter = self.get_indexed_access_type(
             &constraint.as_index_type().type_,
             &*self.get_type_parameter_from_mapped_type(target)?,
@@ -145,7 +145,7 @@ impl TypeChecker {
     pub(super) fn get_type_from_inference(
         &self,
         inference: &InferenceInfo,
-    ) -> io::Result<Option<Gc<Type>>> {
+    ) -> io::Result<Option<Id<Type>>> {
         Ok(
             if let Some(inference_candidates) = inference.maybe_candidates().as_ref() {
                 Some(self.get_union_type(
@@ -264,7 +264,7 @@ impl TypeChecker {
         &self,
         source: &Type,
         target: &Type, /*TemplateLiteralType*/
-    ) -> io::Result<Option<Vec<Gc<Type>>>> {
+    ) -> io::Result<Option<Vec<Id<Type>>>> {
         let target_as_template_literal_type = target.as_template_literal_type();
         Ok(if source.flags().intersects(TypeFlags::StringLiteral) {
             self.infer_from_literal_parts_to_template_literal(
@@ -280,7 +280,7 @@ impl TypeChecker {
             ) {
                 Some(try_map(
                     &source_as_template_literal_type.types,
-                    |type_: &Gc<Type>, _| self.get_string_like_type_for_type(type_),
+                    |type_: &Id<Type>, _| self.get_string_like_type_for_type(type_),
                 )?)
             } else {
                 self.infer_from_literal_parts_to_template_literal(
@@ -305,7 +305,7 @@ impl TypeChecker {
             inferences.as_ref(),
             Some(inferences) if try_every(
                 inferences,
-                |r: &Gc<Type>, i| {
+                |r: &Id<Type>, i| {
                     self.is_valid_type_for_template_literal_placeholder(
                         r,
                         &target_as_template_literal_type.types[i],
@@ -315,7 +315,7 @@ impl TypeChecker {
         ))
     }
 
-    pub(super) fn get_string_like_type_for_type(&self, type_: &Type) -> io::Result<Gc<Type>> {
+    pub(super) fn get_string_like_type_for_type(&self, type_: &Type) -> io::Result<Id<Type>> {
         Ok(
             if type_
                 .flags()
@@ -334,9 +334,9 @@ impl TypeChecker {
     pub(super) fn infer_from_literal_parts_to_template_literal(
         &self,
         source_texts: &[String],
-        source_types: &[Gc<Type>],
+        source_types: &[Id<Type>],
         target: &Type, /*TemplateLiteralType*/
-    ) -> io::Result<Option<Vec<Gc<Type>>>> {
+    ) -> io::Result<Option<Vec<Id<Type>>>> {
         let last_source_index = source_texts.len() - 1;
         let source_start_text = &source_texts[0];
         // TODO: should be using chars for any of this instead?
@@ -353,7 +353,7 @@ impl TypeChecker {
             return Ok(None);
         }
         let remaining_end_text = &source_end_text[0..source_end_text.len() - target_end_text.len()];
-        let mut matches: Vec<Gc<Type>> = vec![];
+        let mut matches: Vec<Id<Type>> = vec![];
         let mut seg = 0;
         let mut pos = target_start_text.len();
         for i in 1..last_target_index {
@@ -468,8 +468,8 @@ impl TypeChecker {
         last_source_index: usize,
         seg: &mut usize,
         pos: &mut usize,
-        matches: &mut Vec<Gc<Type>>,
-        source_types: &[Gc<Type>],
+        matches: &mut Vec<Id<Type>>,
+        source_types: &[Id<Type>],
         s: usize,
         p: usize,
     ) -> io::Result<()> {
@@ -531,14 +531,14 @@ impl TypeChecker {
 pub(super) struct InferTypes {
     pub type_checker: Gc<TypeChecker>,
     pub inferences: Vec<Gc<InferenceInfo>>,
-    pub original_target: Gc<Type>,
+    pub original_target: Id<Type>,
     #[unsafe_ignore_trace]
     priority: Cell<InferencePriority>,
     #[unsafe_ignore_trace]
     contravariant: Cell<bool>,
     #[unsafe_ignore_trace]
     bivariant: Cell<bool>,
-    propagation_type: GcCell<Option<Gc<Type>>>,
+    propagation_type: GcCell<Option<Id<Type>>>,
     #[unsafe_ignore_trace]
     inference_priority: Cell<InferencePriority>,
     #[unsafe_ignore_trace]
@@ -555,7 +555,7 @@ impl InferTypes {
     pub(super) fn new(
         type_checker: Gc<TypeChecker>,
         inferences: Vec<Gc<InferenceInfo>>,
-        original_target: Gc<Type>,
+        original_target: Id<Type>,
         priority: InferencePriority,
         contravariant: bool,
     ) -> Self {
@@ -600,7 +600,7 @@ impl InferTypes {
         self.bivariant.set(bivariant);
     }
 
-    pub(super) fn maybe_propagation_type(&self) -> GcCellRefMut<Option<Gc<Type>>> {
+    pub(super) fn maybe_propagation_type(&self) -> GcCellRefMut<Option<Id<Type>>> {
         self.propagation_type.borrow_mut()
     }
 
@@ -720,7 +720,7 @@ impl InferTypes {
         } else if target.flags().intersects(TypeFlags::Intersection)
             && try_some(
                 Some(target.as_union_or_intersection_type_interface().types()),
-                Some(|t: &Gc<Type>| -> io::Result<_> {
+                Some(|t: &Id<Type>| -> io::Result<_> {
                     Ok(self.get_inference_info_for_type(t).is_some()
                         || (self.type_checker.is_generic_mapped_type(t)?
                             && self
@@ -1088,8 +1088,8 @@ impl InferTypes {
         targets: &[Gc<Type>],
         mut matches: impl FnMut(&Type, &Type) -> io::Result<bool>,
     ) -> io::Result<(Vec<Gc<Type>>, Vec<Gc<Type>>)> {
-        let mut matched_sources: Option<Vec<Gc<Type>>> = None;
-        let mut matched_targets: Option<Vec<Gc<Type>>> = None;
+        let mut matched_sources: Option<Vec<Id<Type>>> = None;
+        let mut matched_targets: Option<Vec<Id<Type>>> = None;
         for t in targets {
             for s in sources {
                 if matches(s, t)? {
@@ -1107,14 +1107,14 @@ impl InferTypes {
         }
         Ok((
             if let Some(matched_sources) = matched_sources.as_ref() {
-                filter(sources, |t: &Gc<Type>| {
+                filter(sources, |t: &Id<Type>| {
                     !contains_gc(Some(matched_sources), t)
                 })
             } else {
                 sources.to_owned()
             },
             if let Some(matched_targets) = matched_targets.as_ref() {
-                filter(targets, |t: &Gc<Type>| {
+                filter(targets, |t: &Id<Type>| {
                     !contains_gc(Some(matched_targets), t)
                 })
             } else {

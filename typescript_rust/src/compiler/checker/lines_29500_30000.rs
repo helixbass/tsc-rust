@@ -8,6 +8,7 @@ use std::{
 };
 
 use gc::{Finalize, Gc, Trace};
+use id_arena::Id;
 use local_macros::enum_unwrapped;
 
 use super::{CheckMode, CheckTypeContainingMessageChain, CheckTypeErrorOutputContainer};
@@ -189,7 +190,7 @@ impl TypeChecker {
                         spread_type.as_type_reference().target.as_tuple_type();
                     for_each(
                         &self.get_type_arguments(spread_type)?,
-                        |t: &Gc<Type>, i| -> Option<()> {
+                        |t: &Id<Type>, i| -> Option<()> {
                             let flags = spread_type_target_as_tuple_type.element_flags[i];
                             let synthetic_arg = self.create_synthetic_expression(
                                 arg,
@@ -1167,7 +1168,7 @@ impl TypeChecker {
             let mut inference_context: Option<Gc<InferenceContext>> = None;
 
             if let Some(ref candidate_type_parameters) = candidate.maybe_type_parameters().clone() {
-                let type_argument_types: Option<Vec<Gc<Type>>>;
+                let type_argument_types: Option<Vec<Id<Type>>>;
                 if some(
                     type_arguments.map(|type_arguments| &**type_arguments),
                     Option::<fn(&Gc<Node>) -> bool>::None,

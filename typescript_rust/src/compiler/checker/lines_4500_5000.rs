@@ -7,6 +7,7 @@ use std::{
 };
 
 use gc::{Finalize, Gc, GcCell, Trace};
+use id_arena::Id;
 
 use super::SignatureToSignatureDeclarationOptions;
 use crate::{
@@ -1303,7 +1304,7 @@ impl NodeBuilder {
             let template_head: Gc<Node> =
                 get_factory().create_template_head(Some(texts[0].clone()), None, None);
             let template_spans = get_factory().create_node_array(
-                Some(try_map(types, |t: &Gc<Type>, i| -> io::Result<Gc<Node>> {
+                Some(try_map(types, |t: &Id<Type>, i| -> io::Result<Gc<Node>> {
                     Ok(get_factory().create_template_literal_type_span(
                         self.type_to_type_node_helper(Some(&**t), context)?.unwrap(),
                         if i < types.len() - 1 {
@@ -1756,7 +1757,7 @@ pub struct NodeBuilderContext {
     pub visited_types: Rc<RefCell<Option<HashSet<TypeId>>>>,
     #[unsafe_ignore_trace]
     pub symbol_depth: Rc<RefCell<Option<HashMap<String, usize>>>>,
-    pub infer_type_parameters: Gc<GcCell<Option<Vec<Gc<Type /*TypeParameter*/>>>>>,
+    pub infer_type_parameters: Gc<GcCell<Option<Vec<Id<Type /*TypeParameter*/>>>>>,
     #[unsafe_ignore_trace]
     pub approximate_length: Cell<usize>,
     #[unsafe_ignore_trace]

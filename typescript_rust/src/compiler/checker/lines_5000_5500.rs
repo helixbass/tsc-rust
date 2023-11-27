@@ -5,6 +5,7 @@ use std::{
 };
 
 use gc::Gc;
+use id_arena::Id;
 
 use super::{
     get_node_id, get_symbol_id, MappedTypeModifiers, NodeBuilderContext,
@@ -609,7 +610,7 @@ impl NodeBuilder {
                 .intersects(ObjectFlags::Tuple)
             {
                 let type_target_as_tuple_type = type_target.as_tuple_type();
-                let type_arguments = same_map(&type_arguments, |t: &Gc<Type>, i| {
+                let type_arguments = same_map(&type_arguments, |t: &Id<Type>, i| {
                     self.type_checker.remove_missing_type(
                         t,
                         type_target_as_tuple_type.element_flags[i]

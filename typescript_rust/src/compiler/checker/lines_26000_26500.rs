@@ -24,7 +24,7 @@ impl TypeChecker {
     pub(super) fn get_contextual_type_for_assignment_declaration(
         &self,
         binary_expression: &Node, /*BinaryExpression*/
-    ) -> io::Result<Option<Gc<Type>>> {
+    ) -> io::Result<Option<Id<Type>>> {
         let kind = get_assignment_declaration_kind(binary_expression);
         let binary_expression_as_binary_expression = binary_expression.as_binary_expression();
         Ok(match kind {
@@ -232,7 +232,7 @@ impl TypeChecker {
     pub(super) fn get_contextual_type_for_this_property_assignment(
         &self,
         binary_expression: &Node, /*BinaryExpression*/
-    ) -> io::Result<Option<Gc<Type>>> {
+    ) -> io::Result<Option<Id<Type>>> {
         let binary_expression_symbol = binary_expression.maybe_symbol();
         let binary_expression_as_binary_expression = binary_expression.as_binary_expression();
         if binary_expression_symbol.is_none() {
@@ -287,7 +287,7 @@ impl TypeChecker {
         &self,
         type_: &Type,
         name: &str, /*__String*/
-    ) -> io::Result<Option<Gc<Type>>> {
+    ) -> io::Result<Option<Id<Type>>> {
         self.try_map_type(
             type_,
             &mut |t| -> io::Result<_> {
@@ -338,7 +338,7 @@ impl TypeChecker {
         &self,
         node: &Node, /*MethodDeclaration*/
         context_flags: Option<ContextFlags>,
-    ) -> io::Result<Option<Gc<Type>>> {
+    ) -> io::Result<Option<Id<Type>>> {
         Debug_.assert(is_object_literal_method(node), None);
         if node.flags().intersects(NodeFlags::InWithStatement) {
             return Ok(None);
@@ -350,7 +350,7 @@ impl TypeChecker {
         &self,
         element: &Node, /*ObjectLiteralElementLike*/
         context_flags: Option<ContextFlags>,
-    ) -> io::Result<Option<Gc<Type>>> {
+    ) -> io::Result<Option<Id<Type>>> {
         let object_literal = element.parent();
         let property_assignment_type = if is_property_assignment(element) {
             self.get_contextual_type_for_variable_like_declaration(element)?
@@ -391,7 +391,7 @@ impl TypeChecker {
         &self,
         array_contextual_type: Option<impl Borrow<Type>>,
         index: usize,
-    ) -> io::Result<Option<Gc<Type>>> {
+    ) -> io::Result<Option<Id<Type>>> {
         if array_contextual_type.is_none() {
             return Ok(None);
         }
@@ -419,7 +419,7 @@ impl TypeChecker {
         &self,
         node: &Node, /*Expression*/
         context_flags: Option<ContextFlags>,
-    ) -> io::Result<Option<Gc<Type>>> {
+    ) -> io::Result<Option<Id<Type>>> {
         let conditional = node.parent();
         let conditional_as_conditional_expression = conditional.as_conditional_expression();
         Ok(
@@ -437,7 +437,7 @@ impl TypeChecker {
         &self,
         node: &Node,  /*JsxElement*/
         child: &Node, /*JsxChild*/
-    ) -> io::Result<Option<Gc<Type>>> {
+    ) -> io::Result<Option<Id<Type>>> {
         let node_as_jsx_element = node.as_jsx_element();
         let attributes_type = self.get_apparent_type_of_contextual_type(
             &node_as_jsx_element
@@ -499,7 +499,7 @@ impl TypeChecker {
     pub(super) fn get_contextual_type_for_jsx_expression(
         &self,
         node: &Node, /*JsxExpression*/
-    ) -> io::Result<Option<Gc<Type>>> {
+    ) -> io::Result<Option<Id<Type>>> {
         let expr_parent = node.parent();
         Ok(if is_jsx_attribute_like(&expr_parent) {
             self.get_contextual_type_(node, None)?
@@ -513,7 +513,7 @@ impl TypeChecker {
     pub(super) fn get_contextual_type_for_jsx_attribute_(
         &self,
         attribute: &Node, /*JsxAttribute | JsxSpreadAttribute*/
-    ) -> io::Result<Option<Gc<Type>>> {
+    ) -> io::Result<Option<Id<Type>>> {
         Ok(if is_jsx_attribute(attribute) {
             let attributes_type = return_ok_default_if_none!(
                 self.get_apparent_type_of_contextual_type(&attribute.parent(), None)?
@@ -560,7 +560,7 @@ impl TypeChecker {
         &self,
         node: &Node,            /*ObjectLiteralExpression*/
         contextual_type: &Type, /*UnionType*/
-    ) -> io::Result<Gc<Type>> {
+    ) -> io::Result<Id<Type>> {
         self.get_matching_union_constituent_for_object_literal(
             contextual_type,
             node,
@@ -585,7 +585,7 @@ impl TypeChecker {
                                 move || {
                                     type_checker.get_context_free_type_of_expression(&prop_clone.as_has_initializer().maybe_initializer().unwrap())
                                 }
-                            }) as Box<dyn Fn() -> io::Result<Gc<Type>>>,
+                            }) as Box<dyn Fn() -> io::Result<Id<Type>>>,
                             prop.symbol().escaped_name().to_owned(),
                         )
                     }
@@ -615,7 +615,7 @@ impl TypeChecker {
                                     move || {
                                         Ok(type_checker.undefined_type())
                                     }
-                                }) as Box<dyn Fn() -> io::Result<Gc<Type>>>,
+                                }) as Box<dyn Fn() -> io::Result<Id<Type>>>,
                                 s.escaped_name().to_owned(),
                             )
                         }
@@ -665,7 +665,7 @@ impl TypeChecker {
                                         type_checker.get_context_free_type_of_expression(prop_initializer)?
                                 })
                             }
-                        }) as Box<dyn Fn() -> io::Result<Gc<Type>>>,
+                        }) as Box<dyn Fn() -> io::Result<Id<Type>>>,
                         prop.symbol().escaped_name().to_owned(),
                     )
                 }
@@ -696,7 +696,7 @@ impl TypeChecker {
                                     move || {
                                         Ok(type_checker.undefined_type())
                                     }
-                                }) as Box<dyn Fn() -> io::Result<Gc<Type>>>,
+                                }) as Box<dyn Fn() -> io::Result<Id<Type>>>,
                                 s.escaped_name().to_owned(),
                             )
                         }
@@ -814,7 +814,7 @@ impl TypeChecker {
         }
         if type_.flags().intersects(TypeFlags::Union) {
             return self.get_union_type(
-                &try_map(type_.as_union_type().types(), |t: &Gc<Type>, _| {
+                &try_map(type_.as_union_type().types(), |t: &Id<Type>, _| {
                     self.instantiate_instantiable_types(t, mapper.clone())
                 })?,
                 Some(UnionReduction::None),
@@ -825,7 +825,7 @@ impl TypeChecker {
         }
         if type_.flags().intersects(TypeFlags::Intersection) {
             return self.get_intersection_type(
-                &try_map(type_.as_intersection_type().types(), |t: &Gc<Type>, _| {
+                &try_map(type_.as_intersection_type().types(), |t: &Id<Type>, _| {
                     self.instantiate_instantiable_types(t, mapper.clone())
                 })?,
                 Option::<&Symbol>::None,
@@ -1017,7 +1017,7 @@ impl TypeChecker {
         forced_lookup_location: &str, /*__String*/
     ) -> io::Result<Option<Gc<Type>>> {
         if let Some(sig_composite_signatures) = sig.composite_signatures.as_ref() {
-            let mut results: Vec<Gc<Type>> = vec![];
+            let mut results: Vec<Id<Type>> = vec![];
             for signature in sig_composite_signatures {
                 let instance = self.get_return_type_of_signature(signature.clone())?;
                 if self.is_type_any(Some(&*instance)) {

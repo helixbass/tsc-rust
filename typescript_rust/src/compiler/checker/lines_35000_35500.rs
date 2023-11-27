@@ -288,7 +288,7 @@ impl TypeChecker {
         error_node: Option<impl Borrow<Node>>,
         diagnostic_message: Option<&DiagnosticMessage>,
         args: Option<Vec<String>>,
-    ) -> io::Result<Option<Gc<Type>>> {
+    ) -> io::Result<Option<Id<Type>>> {
         let error_node = error_node.map(|error_node| error_node.borrow().node_wrapper());
         let promised_type = self.get_promised_type_of_promise(type_, error_node.as_deref())?;
         promised_type.as_ref().try_and_then(|promised_type| {
@@ -300,7 +300,7 @@ impl TypeChecker {
         &self,
         type_: &Type,
         error_node: Option<impl Borrow<Node>>,
-    ) -> io::Result<Option<Gc<Type>>> {
+    ) -> io::Result<Option<Id<Type>>> {
         if self.is_type_any(Some(type_)) {
             return Ok(None);
         }
@@ -399,7 +399,7 @@ impl TypeChecker {
         error_node: &Node,
         diagnostic_message: &DiagnosticMessage,
         args: Option<Vec<String>>,
-    ) -> io::Result<Gc<Type>> {
+    ) -> io::Result<Id<Type>> {
         let awaited_type = if with_alias {
             self.get_awaited_type_(type_, Some(error_node), Some(diagnostic_message), args)?
         } else {

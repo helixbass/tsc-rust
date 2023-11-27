@@ -8,6 +8,7 @@ use std::{
 };
 
 use gc::{Finalize, Gc, Trace};
+use id_arena::Id;
 
 use super::{
     CheckMode, CheckTypeContainingMessageChain, CheckTypeErrorOutputContainer,
@@ -298,7 +299,7 @@ impl TypeChecker {
         signature: Gc<Signature>,
         check_mode: CheckMode,
         context: Gc<InferenceContext>,
-    ) -> io::Result<Vec<Gc<Type>>> {
+    ) -> io::Result<Vec<Id<Type>>> {
         let param_type =
             self.get_effective_first_argument_for_jsx_signature(signature.clone(), node)?;
         let check_attr_type = self.check_expression_with_contextual_type(
@@ -320,7 +321,7 @@ impl TypeChecker {
     pub(super) fn get_this_argument_type(
         &self,
         this_argument_node: Option<impl Borrow<Node> /*LeftHandSideExpression*/>,
-    ) -> io::Result<Gc<Type>> {
+    ) -> io::Result<Id<Type>> {
         if this_argument_node.is_none() {
             return Ok(self.void_type());
         }
@@ -343,7 +344,7 @@ impl TypeChecker {
         args: &[Gc<Node /*Expression*/>],
         check_mode: CheckMode,
         context: Gc<InferenceContext>,
-    ) -> io::Result<Vec<Gc<Type>>> {
+    ) -> io::Result<Vec<Id<Type>>> {
         if is_jsx_opening_like_element(node) {
             return self.infer_jsx_type_arguments(node, signature, check_mode, context);
         }
@@ -354,7 +355,7 @@ impl TypeChecker {
                 Some(
                     if try_maybe_every(
                         signature.maybe_type_parameters().as_deref(),
-                        |p: &Gc<Type>, _| -> io::Result<_> {
+                        |p: &Id<Type>, _| -> io::Result<_> {
                             Ok(self.get_default_from_type_parameter_(p)?.is_some())
                         },
                     )? {
@@ -509,7 +510,7 @@ impl TypeChecker {
         self.get_inferred_types(&context)
     }
 
-    pub(super) fn get_mutable_array_or_tuple_type(&self, type_: &Type) -> io::Result<Gc<Type>> {
+    pub(super) fn get_mutable_array_or_tuple_type(&self, type_: &Type) -> io::Result<Id<Type>> {
         Ok(if type_.flags().intersects(TypeFlags::Union) {
             self.try_map_type(
                 type_,
@@ -561,7 +562,7 @@ impl TypeChecker {
         rest_type: &Type,
         context: Option<Gc<InferenceContext>>,
         check_mode: CheckMode,
-    ) -> io::Result<Gc<Type>> {
+    ) -> io::Result<Id<Type>> {
         if index >= arg_count - 1 {
             let arg = &args[arg_count - 1];
             if self.is_spread_argument(Some(&**arg)) {
@@ -579,7 +580,7 @@ impl TypeChecker {
                 });
             }
         }
-        let mut types: Vec<Gc<Type>> = vec![];
+        let mut types: Vec<Id<Type>> = vec![];
         let mut flags: Vec<ElementFlags> = vec![];
         let mut names: Vec<Gc<Node>> = vec![];
         for i in index..arg_count {
@@ -661,7 +662,7 @@ impl TypeChecker {
         type_argument_nodes: &[Gc<Node /*TypeNode*/>],
         report_errors: bool,
         head_message: Option<&'static DiagnosticMessage>,
-    ) -> io::Result<Option<Vec<Gc<Type>>>> {
+    ) -> io::Result<Option<Vec<Id<Type>>>> {
         let is_javascript = is_in_js_file(signature.declaration.as_deref());
         let type_parameters = signature.maybe_type_parameters().clone().unwrap();
         let type_argument_types = self

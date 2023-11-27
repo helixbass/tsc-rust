@@ -1,6 +1,7 @@
 use std::{borrow::Borrow, cell::RefCell, collections::HashMap, io, ptr, rc::Rc};
 
 use gc::{Finalize, Gc, Trace};
+use id_arena::Id;
 use itertools::Either;
 
 use super::CheckTypeContainingMessageChain;
@@ -669,7 +670,7 @@ impl TypeChecker {
     pub(super) fn get_non_interhited_properties<TProperties, TPropertiesItem>(
         &self,
         type_: &Type, /*InterfaceType*/
-        base_types: &[Gc<Type /*BaseType*/>],
+        base_types: &[Id<Type /*BaseType*/>],
         properties: TProperties,
     ) -> io::Result<impl Iterator<Item = Gc<Symbol>> + Clone>
     where
@@ -826,16 +827,16 @@ impl TypeChecker {
 struct IssueMemberSpecificErrorContainingMessageChain {
     type_checker: Gc<TypeChecker>,
     declared_prop: Gc<Symbol>,
-    type_with_this: Gc<Type>,
-    base_with_this: Gc<Type>,
+    type_with_this: Id<Type>,
+    base_with_this: Id<Type>,
 }
 
 impl IssueMemberSpecificErrorContainingMessageChain {
     pub fn new(
         type_checker: Gc<TypeChecker>,
         declared_prop: Gc<Symbol>,
-        type_with_this: Gc<Type>,
-        base_with_this: Gc<Type>,
+        type_with_this: Id<Type>,
+        base_with_this: Id<Type>,
     ) -> Self {
         Self {
             type_checker,
@@ -876,5 +877,5 @@ impl CheckTypeContainingMessageChain for IssueMemberSpecificErrorContainingMessa
 
 struct InheritanceInfoMap {
     pub prop: Gc<Symbol>,
-    pub containing_type: Gc<Type>,
+    pub containing_type: Id<Type>,
 }

@@ -1,6 +1,7 @@
 use std::{cell::RefCell, cmp, collections::HashMap, io, ptr, rc::Rc};
 
 use gc::{Finalize, Gc, GcCell, Trace};
+use id_arena::Id;
 
 use super::{MappedTypeModifiers, WideningKind};
 use crate::{
@@ -17,7 +18,7 @@ use crate::{
 };
 
 impl TypeChecker {
-    pub(super) fn get_regular_type_of_object_literal(&self, type_: &Type) -> io::Result<Gc<Type>> {
+    pub(super) fn get_regular_type_of_object_literal(&self, type_: &Type) -> io::Result<Id<Type>> {
         if !(self.is_object_literal_type(type_)
             && get_object_flags(type_).intersects(ObjectFlags::FreshLiteral))
         {
@@ -57,7 +58,7 @@ impl TypeChecker {
         &self,
         parent: Option<Rc<RefCell<WideningContext>>>,
         property_name: Option<__String>,
-        siblings: Option<Vec<Gc<Type>>>,
+        siblings: Option<Vec<Id<Type>>>,
     ) -> WideningContext {
         WideningContext {
             parent,
@@ -70,9 +71,9 @@ impl TypeChecker {
     pub(super) fn get_siblings_of_context(
         &self,
         context: Rc<RefCell<WideningContext>>,
-    ) -> io::Result<Vec<Gc<Type>>> {
+    ) -> io::Result<Vec<Id<Type>>> {
         if (*context).borrow().siblings.is_none() {
-            let mut siblings: Vec<Gc<Type>> = vec![];
+            let mut siblings: Vec<Id<Type>> = vec![];
             for type_ in
                 &self.get_siblings_of_context((*context).borrow().parent.clone().unwrap())?
             {
@@ -158,7 +159,7 @@ impl TypeChecker {
         &self,
         type_: &Type,
         context: Option<Rc<RefCell<WideningContext>>>,
-    ) -> io::Result<Gc<Type>> {
+    ) -> io::Result<Id<Type>> {
         let mut members = create_symbol_table(Option::<&[Gc<Symbol>]>::None);
         for ref prop in self.get_properties_of_object_type(type_)? {
             members.insert(
@@ -202,7 +203,7 @@ impl TypeChecker {
         Ok(result)
     }
 
-    pub(super) fn get_widened_type(&self, type_: &Type) -> io::Result<Gc<Type>> {
+    pub(super) fn get_widened_type(&self, type_: &Type) -> io::Result<Id<Type>> {
         self.get_widened_type_with_context(type_, None)
     }
 
@@ -210,14 +211,14 @@ impl TypeChecker {
         &self,
         type_: &Type,
         context: Option<Rc<RefCell<WideningContext>>>,
-    ) -> io::Result<Gc<Type>> {
+    ) -> io::Result<Id<Type>> {
         if get_object_flags(type_).intersects(ObjectFlags::RequiresWidening) {
             if context.is_none() {
                 if let Some(type_widened) = type_.maybe_widened().clone() {
                     return Ok(type_widened);
                 }
             }
-            let mut result: Option<Gc<Type>> = None;
+            let mut result: Option<Id<Type>> = None;
             if type_
                 .flags()
                 .intersects(TypeFlags::Any | TypeFlags::Nullable)
@@ -242,7 +243,7 @@ impl TypeChecker {
                 });
                 let widened_types = try_map(
                     type_.as_union_or_intersection_type_interface().types(),
-                    |t: &Gc<Type>, _| -> io::Result<_> {
+                    |t: &Id<Type>, _| -> io::Result<_> {
                         Ok(if t.flags().intersects(TypeFlags::Nullable) {
                             t.clone()
                         } else {
@@ -252,7 +253,7 @@ impl TypeChecker {
                 )?;
                 let union_reduction = if try_some(
                     Some(&widened_types),
-                    Some(|type_: &Gc<Type>| self.is_empty_object_type(type_)),
+                    Some(|type_: &Id<Type>| self.is_empty_object_type(type_)),
                 )? {
                     UnionReduction::Subtype
                 } else {
@@ -269,7 +270,7 @@ impl TypeChecker {
                 result = Some(self.get_intersection_type(
                     &try_map(
                         type_.as_union_or_intersection_type_interface().types(),
-                        |type_: &Gc<Type>, _| self.get_widened_type(type_),
+                        |type_: &Id<Type>, _| self.get_widened_type(type_),
                     )?,
                     Option::<&Symbol>::None,
                     None,
@@ -279,7 +280,7 @@ impl TypeChecker {
                     &type_.as_type_reference().target,
                     Some(try_map(
                         &self.get_type_arguments(type_)?,
-                        |type_: &Gc<Type>, _| self.get_widened_type(type_),
+                        |type_: &Id<Type>, _| self.get_widened_type(type_),
                     )?),
                 ));
             }
@@ -297,7 +298,7 @@ impl TypeChecker {
             if type_.flags().intersects(TypeFlags::Union) {
                 if try_some(
                     Some(type_.as_union_or_intersection_type_interface().types()),
-                    Some(|type_: &Gc<Type>| self.is_empty_object_type(type_)),
+                    Some(|type_: &Id<Type>| self.is_empty_object_type(type_)),
                 )? {
                     error_reported = true;
                 } else {
@@ -646,7 +647,7 @@ impl TypeChecker {
 
     pub(super) fn create_inference_context(
         &self,
-        type_parameters: &[Gc<Type /*TypeParameter*/>],
+        type_parameters: &[Id<Type /*TypeParameter*/>],
         signature: Option<Gc<Signature>>,
         flags: InferenceFlags,
         compare_types: Option<Gc<Box<dyn TypeComparer>>>,
@@ -654,7 +655,7 @@ impl TypeChecker {
         self.create_inference_context_worker(
             type_parameters
                 .into_iter()
-                .map(|type_parameter: &Gc<Type>| {
+                .map(|type_parameter: &Id<Type>| {
                     Gc::new(self.create_inference_info(type_parameter))
                 })
                 .collect(),
@@ -720,7 +721,7 @@ impl TypeChecker {
         context: &InferenceContext,
         t: &Type,
         fix: bool,
-    ) -> io::Result<Gc<Type>> {
+    ) -> io::Result<Id<Type>> {
         let inferences = context.inferences();
         let inferences = &*inferences;
         for (i, inference) in inferences.into_iter().enumerate() {
@@ -812,7 +813,7 @@ impl TypeChecker {
                     && (type_.as_type_reference_interface().maybe_node().is_some()
                         || try_for_each_bool(
                             &self.get_type_arguments(type_)?,
-                            |type_argument: &Gc<Type>, _| {
+                            |type_argument: &Id<Type>, _| {
                                 self.could_contain_type_variables(type_argument)
                             },
                         )?)
@@ -832,7 +833,7 @@ impl TypeChecker {
                 && !self.is_non_generic_top_level_type(type_)
                 && try_some(
                     Some(type_.as_union_or_intersection_type_interface().types()),
-                    Some(|type_: &Gc<Type>| self.could_contain_type_variables(type_)),
+                    Some(|type_: &Id<Type>| self.could_contain_type_variables(type_)),
                 )?;
         if type_.flags().intersects(TypeFlags::ObjectFlagsType) {
             let type_as_has_object_flags = type_.as_object_flags_type();
@@ -883,7 +884,7 @@ impl TypeChecker {
             || type_.flags().intersects(TypeFlags::UnionOrIntersection)
                 && try_some(
                     Some(type_.as_union_or_intersection_type_interface().types()),
-                    Some(|t: &Gc<Type>| self.is_type_parameter_at_top_level(t, type_parameter)),
+                    Some(|t: &Id<Type>| self.is_type_parameter_at_top_level(t, type_parameter)),
                 )?
             || type_.flags().intersects(TypeFlags::Conditional)
                 && (ptr::eq(
@@ -898,7 +899,7 @@ impl TypeChecker {
     pub(super) fn create_empty_object_type_from_string_literal(
         &self,
         type_: &Type,
-    ) -> io::Result<Gc<Type>> {
+    ) -> io::Result<Id<Type>> {
         let mut members = create_symbol_table(Option::<&[Gc<Symbol>]>::None);
         self.for_each_type(type_, |t: &Type| -> Option<()> {
             if !t.flags().intersects(TypeFlags::StringLiteral) {
@@ -948,7 +949,7 @@ impl TypeChecker {
         source: &Type,
         target: &Type,     /*MappedType*/
         constraint: &Type, /*IndexType*/
-    ) -> io::Result<Option<Gc<Type>>> {
+    ) -> io::Result<Option<Id<Type>>> {
         if self.in_infer_type_for_homomorphic_mapped_type() {
             return Ok(None);
         }
@@ -979,7 +980,7 @@ impl TypeChecker {
                 || self.is_tuple_type(type_)
                     && try_some(
                         Some(&self.get_type_arguments(type_)?),
-                        Some(|type_argument: &Gc<Type>| {
+                        Some(|type_argument: &Id<Type>| {
                             self.is_partially_inferable_type(type_argument)
                         }),
                     )?,
@@ -991,7 +992,7 @@ impl TypeChecker {
         source: &Type,
         target: &Type,     /*MappedType*/
         constraint: &Type, /*IndexType*/
-    ) -> io::Result<Option<Gc<Type>>> {
+    ) -> io::Result<Option<Id<Type>>> {
         if !(self
             .get_index_info_of_type_(source, &self.string_type())?
             .is_some()
@@ -1011,7 +1012,7 @@ impl TypeChecker {
             )));
         }
         if self.is_tuple_type(source) {
-            let element_types = try_map(&self.get_type_arguments(source)?, |t: &Gc<Type>, _| {
+            let element_types = try_map(&self.get_type_arguments(source)?, |t: &Id<Type>, _| {
                 self.infer_reverse_mapped_type(t, target, constraint)
             })?;
             let element_flags = if self
@@ -1072,7 +1073,7 @@ impl TypeChecker {
     pub(super) fn get_type_of_reverse_mapped_symbol(
         &self,
         symbol: &Symbol, /*ReverseMappedSymbol*/
-    ) -> io::Result<Gc<Type>> {
+    ) -> io::Result<Id<Type>> {
         let links = self.get_symbol_links(symbol);
         if (*links).borrow().type_.is_none() {
             let symbol_as_reverse_mapped_symbol = symbol.as_reverse_mapped_symbol();
@@ -1099,7 +1100,7 @@ impl CreateInferenceContextWorkerMapperCallback {
 }
 
 impl TypeMapperCallback for CreateInferenceContextWorkerMapperCallback {
-    fn call(&self, checker: &TypeChecker, t: &Type) -> io::Result<Gc<Type>> {
+    fn call(&self, checker: &TypeChecker, t: &Type) -> io::Result<Id<Type>> {
         checker.map_to_inferred_type(&self.inference_context, t, true)
     }
 }
@@ -1116,7 +1117,7 @@ impl CreateInferenceContextWorkerNonFixingMapperCallback {
 }
 
 impl TypeMapperCallback for CreateInferenceContextWorkerNonFixingMapperCallback {
-    fn call(&self, checker: &TypeChecker, t: &Type) -> io::Result<Gc<Type>> {
+    fn call(&self, checker: &TypeChecker, t: &Type) -> io::Result<Id<Type>> {
         checker.map_to_inferred_type(&self.inference_context, t, false)
     }
 }

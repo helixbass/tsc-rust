@@ -1,6 +1,7 @@
 use std::{borrow::Borrow, collections::HashMap, io, ptr};
 
 use gc::{Gc, GcCell};
+use id_arena::Id;
 
 use super::{
     signature_has_rest_parameter, CheckMode, GetDiagnosticSpanForCallNodeReturn,
@@ -789,7 +790,7 @@ impl TypeChecker {
         &self,
         node: &Node, /*CallExpression |} NewExpression*/
         check_mode: Option<CheckMode>,
-    ) -> io::Result<Gc<Type>> {
+    ) -> io::Result<Id<Type>> {
         if !self.check_grammar_type_arguments(
             node,
             node.as_has_type_arguments()

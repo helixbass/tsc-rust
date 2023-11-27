@@ -1,6 +1,7 @@
 use std::{borrow::Borrow, cell::RefCell, convert::TryInto, io, ptr, rc::Rc};
 
 use gc::{Finalize, Gc, Trace};
+use id_arena::Id;
 
 use super::{CheckMode, IterationUse, TypeFacts};
 use crate::{
@@ -23,7 +24,7 @@ impl TypeChecker {
         node: &Node, /*ObjectLiteralExpression*/
         source_type: &Type,
         right_is_this: Option<bool>,
-    ) -> io::Result<Gc<Type>> {
+    ) -> io::Result<Id<Type>> {
         let properties = &node.as_object_literal_expression().properties;
         if self.strict_null_checks && properties.is_empty() {
             return self.check_non_null_type(source_type, node);
@@ -47,7 +48,7 @@ impl TypeChecker {
         property_index: usize,
         all_properties: Option<&NodeArray /*<ObjectLiteralElementLike>*/>,
         right_is_this: Option<bool>,
-    ) -> io::Result<Option<Gc<Type>>> {
+    ) -> io::Result<Option<Id<Type>>> {
         let right_is_this = right_is_this.unwrap_or(false);
         let properties = &node.as_object_literal_expression().properties;
         let property = &properties[property_index];
@@ -143,7 +144,7 @@ impl TypeChecker {
         node: &Node, /*ArrayLiteralExpression*/
         source_type: &Type,
         check_mode: Option<CheckMode>,
-    ) -> io::Result<Gc<Type>> {
+    ) -> io::Result<Id<Type>> {
         let node_as_array_literal_expression = node.as_array_literal_expression();
         let elements = &node_as_array_literal_expression.elements;
         if self.language_version < ScriptTarget::ES2015
@@ -194,7 +195,7 @@ impl TypeChecker {
         element_index: usize,
         element_type: &Type,
         check_mode: Option<CheckMode>,
-    ) -> io::Result<Option<Gc<Type>>> {
+    ) -> io::Result<Option<Id<Type>>> {
         let node_as_array_literal_expression = node.as_array_literal_expression();
         let elements = &node_as_array_literal_expression.elements;
         let element = &elements[element_index];
@@ -293,7 +294,7 @@ impl TypeChecker {
         source_type: &Type,
         check_mode: Option<CheckMode>,
         right_is_this: Option<bool>,
-    ) -> io::Result<Gc<Type>> {
+    ) -> io::Result<Id<Type>> {
         let mut target: Gc<Node>;
         let mut source_type = source_type.type_wrapper();
         if expr_or_assignment.kind() == SyntaxKind::ShorthandPropertyAssignment {
@@ -345,7 +346,7 @@ impl TypeChecker {
         target: &Node, /*Expression*/
         source_type: &Type,
         check_mode: Option<CheckMode>,
-    ) -> io::Result<Gc<Type>> {
+    ) -> io::Result<Id<Type>> {
         let target_type = self.check_expression(target, check_mode, None)?;
         let error = if target.parent().kind() == SyntaxKind::SpreadAssignment {
             &*Diagnostics::The_target_of_an_object_rest_assignment_must_be_a_variable_or_a_property_access
@@ -499,7 +500,7 @@ impl TypeChecker {
         right: &Node, /*Expression*/
         check_mode: Option<CheckMode>,
         error_node: Option<impl Borrow<Node>>,
-    ) -> io::Result<Gc<Type>> {
+    ) -> io::Result<Id<Type>> {
         let operator = operator_token.kind();
         if operator == SyntaxKind::EqualsToken
             && matches!(
@@ -514,7 +515,7 @@ impl TypeChecker {
                 Some(right.kind() == SyntaxKind::ThisKeyword),
             );
         }
-        let left_type: Gc<Type>;
+        let left_type: Id<Type>;
         if matches!(
             operator,
             SyntaxKind::AmpersandAmpersandToken
@@ -545,7 +546,7 @@ impl TypeChecker {
         left_type: &Type,
         right_type: &Type,
         error_node: Option<impl Borrow<Node>>,
-    ) -> io::Result<Gc<Type>> {
+    ) -> io::Result<Id<Type>> {
         let operator = operator_token.kind();
         let error_node = error_node.map(|error_node| error_node.borrow().node_wrapper());
         Ok(match operator {
@@ -613,7 +614,7 @@ impl TypeChecker {
                         &Diagnostics::The_right_hand_side_of_an_arithmetic_operation_must_be_of_type_any_number_bigint_or_an_enum_type,
                         Some(true)
                     )?;
-                    let result_type: Gc<Type>;
+                    let result_type: Id<Type>;
                     if self.is_type_assignable_to_kind(&left_type, TypeFlags::AnyOrUnknown, None)?
                         && self.is_type_assignable_to_kind(
                             &right_type,
@@ -689,7 +690,7 @@ impl TypeChecker {
                     right_type = self.check_non_null_type(&right_type, left)?;
                 }
 
-                let mut result_type: Option<Gc<Type>> = None;
+                let mut result_type: Option<Id<Type>> = None;
                 if self.is_type_assignable_to_kind(&left_type, TypeFlags::NumberLike, Some(true))?
                     && self.is_type_assignable_to_kind(
                         &right_type,
@@ -989,7 +990,7 @@ impl CheckBinaryExpression {
         &self,
         node: &Node, /*BinaryExpression*/
         check_mode: Option<CheckMode>,
-    ) -> io::Result<Gc<Type>> {
+    ) -> io::Result<Id<Type>> {
         let result = self.trampoline.call(node, check_mode)?;
         Debug_.assert_is_defined(&result, None);
         Ok(result.unwrap())
@@ -1000,7 +1001,7 @@ pub struct WorkArea {
     pub check_mode: Option<CheckMode>,
     pub skip: bool,
     pub stack_index: isize,
-    pub type_stack: Vec<Option<Gc<Type>>>,
+    pub type_stack: Vec<Option<Id<Type>>>,
 }
 
 #[derive(Debug, Trace, Finalize)]
@@ -1028,7 +1029,7 @@ impl CheckBinaryExpressionStateMachine {
         Ok(None)
     }
 
-    pub fn get_left_type(&self, state: Rc<RefCell<WorkArea>>) -> Option<Gc<Type>> {
+    pub fn get_left_type(&self, state: Rc<RefCell<WorkArea>>) -> Option<Id<Type>> {
         let state = (*state).borrow();
         state
             .type_stack
@@ -1045,7 +1046,7 @@ impl CheckBinaryExpressionStateMachine {
         );
     }
 
-    pub fn get_last_result(&self, state: Rc<RefCell<WorkArea>>) -> Option<Gc<Type>> {
+    pub fn get_last_result(&self, state: Rc<RefCell<WorkArea>>) -> Option<Id<Type>> {
         let state = (*state).borrow();
         state
             .type_stack
@@ -1064,7 +1065,7 @@ impl CheckBinaryExpressionStateMachine {
 }
 
 impl BinaryExpressionStateMachine for CheckBinaryExpressionStateMachine {
-    type TResult = Option<Gc<Type>>;
+    type TResult = Option<Id<Type>>;
     type TOuterState = Option<CheckMode>;
     type TState = Rc<RefCell<WorkArea>>;
 
@@ -1209,8 +1210,8 @@ impl BinaryExpressionStateMachine for CheckBinaryExpressionStateMachine {
         &self,
         node: &Node, /*BinaryExpression*/
         state: Rc<RefCell<WorkArea>>,
-    ) -> io::Result<Option<Gc<Type>>> {
-        let result: Option<Gc<Type>>;
+    ) -> io::Result<Option<Id<Type>>> {
+        let result: Option<Id<Type>>;
         if (*state).borrow().skip {
             result = self.get_last_result(state.clone());
         } else {
@@ -1246,7 +1247,7 @@ impl BinaryExpressionStateMachine for CheckBinaryExpressionStateMachine {
     fn fold_state(
         &self,
         state: Rc<RefCell<WorkArea>>,
-        result: Option<Gc<Type>>,
+        result: Option<Id<Type>>,
         _side: LeftOrRight,
     ) -> Rc<RefCell<WorkArea>> {
         self.set_last_result(&mut state.borrow_mut(), result);

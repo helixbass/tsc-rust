@@ -1,6 +1,7 @@
 use std::{borrow::Borrow, collections::HashMap, io, ptr};
 
 use gc::Gc;
+use id_arena::Id;
 
 use super::{get_node_id, CheckMode};
 use crate::{
@@ -31,7 +32,7 @@ impl TypeChecker {
         &self,
         declaration: &Node, /*HasExpressionInitializer*/
         contextual_type: Option<impl Borrow<Type>>,
-    ) -> io::Result<Gc<Type>> {
+    ) -> io::Result<Id<Type>> {
         let initializer = get_effective_initializer(declaration).unwrap();
         let type_ = self
             .get_quick_type_of_expression(&initializer)?
@@ -76,7 +77,7 @@ impl TypeChecker {
         &self,
         type_: &Type,   /*TupleTypeReference*/
         pattern: &Node, /*ArrayBindingPattern*/
-    ) -> io::Result<Gc<Type>> {
+    ) -> io::Result<Id<Type>> {
         let pattern_elements = &pattern.as_array_binding_pattern().elements;
         let mut element_types = self.get_type_arguments(type_)?;
         let type_target_as_tuple_type = type_.as_type_reference().target.as_tuple_type();
@@ -110,7 +111,7 @@ impl TypeChecker {
         &self,
         declaration: &Node, /*HasExpressionInitializer*/
         type_: &Type,
-    ) -> io::Result<Gc<Type>> {
+    ) -> io::Result<Id<Type>> {
         let widened = if get_combined_node_flags(declaration).intersects(NodeFlags::Const)
             || is_declaration_readonly(declaration)
         {
@@ -146,7 +147,7 @@ impl TypeChecker {
                     .types();
                 return try_some(
                     Some(types),
-                    Some(|t: &Gc<Type>| {
+                    Some(|t: &Id<Type>| {
                         self.is_literal_of_contextual_type(candidate_type, Some(&**t))
                     }),
                 );
@@ -212,7 +213,7 @@ impl TypeChecker {
         check_mode: Option<CheckMode>,
         contextual_type: Option<impl Borrow<Type>>,
         force_tuple: Option<bool>,
-    ) -> io::Result<Gc<Type>> {
+    ) -> io::Result<Id<Type>> {
         let type_ = self.check_expression(node, check_mode, force_tuple)?;
         Ok(if self.is_const_context(node) {
             self.get_regular_type_of_literal_type(&type_)
@@ -238,7 +239,7 @@ impl TypeChecker {
         &self,
         node: &Node, /*PropertyAssignment*/
         check_mode: Option<CheckMode>,
-    ) -> io::Result<Gc<Type>> {
+    ) -> io::Result<Id<Type>> {
         let node_as_property_assignment = node.as_property_assignment();
         if node_as_property_assignment.name().kind() == SyntaxKind::ComputedPropertyName {
             self.check_computed_property_name(&node_as_property_assignment.name())?;
@@ -255,7 +256,7 @@ impl TypeChecker {
         &self,
         node: &Node, /*MethodDeclaration*/
         check_mode: Option<CheckMode>,
-    ) -> io::Result<Gc<Type>> {
+    ) -> io::Result<Id<Type>> {
         self.check_grammar_method(node)?;
 
         let node_as_method_declaration = node.as_method_declaration();
@@ -277,7 +278,7 @@ impl TypeChecker {
         node: &Node, /*Expression | MethodDeclaration | QualifiedName*/
         type_: &Type,
         check_mode: Option<CheckMode>,
-    ) -> io::Result<Gc<Type>> {
+    ) -> io::Result<Id<Type>> {
         if let Some(check_mode) = check_mode.filter(|check_mode| {
             check_mode.intersects(CheckMode::Inferential | CheckMode::SkipGenericFunctions)
         }) {
@@ -454,11 +455,11 @@ impl TypeChecker {
     pub(super) fn get_unique_type_parameters(
         &self,
         context: &InferenceContext,
-        type_parameters: &[Gc<Type /*TypeParameter*/>],
-    ) -> Vec<Gc<Type /*TypeParameter*/>> {
-        let mut result: Vec<Gc<Type /*TypeParameter*/>> = vec![];
-        let mut old_type_parameters: Option<Vec<Gc<Type /*TypeParameter*/>>> = None;
-        let mut new_type_parameters: Option<Vec<Gc<Type /*TypeParameter*/>>> = None;
+        type_parameters: &[Id<Type /*TypeParameter*/>],
+    ) -> Vec<Id<Type /*TypeParameter*/>> {
+        let mut result: Vec<Id<Type /*TypeParameter*/>> = vec![];
+        let mut old_type_parameters: Option<Vec<Id<Type /*TypeParameter*/>>> = None;
+        let mut new_type_parameters: Option<Vec<Id<Type /*TypeParameter*/>>> = None;
         for tp in type_parameters {
             let tp_symbol = tp.symbol();
             let name = tp_symbol.escaped_name();
@@ -482,7 +483,7 @@ impl TypeChecker {
                     .into();
                 let mut new_type_parameter = self.create_type_parameter(Some(&*symbol));
                 new_type_parameter.target = Some(tp.clone());
-                let new_type_parameter: Gc<Type> = new_type_parameter.into();
+                let new_type_parameter: Id<Type> = new_type_parameter.into();
                 if old_type_parameters.is_none() {
                     old_type_parameters = Some(vec![]);
                 }
@@ -513,18 +514,18 @@ impl TypeChecker {
 
     pub(super) fn has_type_parameter_by_name(
         &self,
-        type_parameters: Option<&[Gc<Type /*TypeParameter*/>]>,
+        type_parameters: Option<&[Id<Type /*TypeParameter*/>]>,
         name: &str, /*__String*/
     ) -> bool {
         some(
             type_parameters,
-            Some(|tp: &Gc<Type>| tp.symbol().escaped_name() == name),
+            Some(|tp: &Id<Type>| tp.symbol().escaped_name() == name),
         )
     }
 
     pub(super) fn get_unique_type_parameter_name(
         &self,
-        type_parameters: &[Gc<Type /*TypeParameter*/>],
+        type_parameters: &[Id<Type /*TypeParameter*/>],
         base_name: &str, /*__String*/
     ) -> __String {
         let base_name_as_chars = base_name.chars().collect::<Vec<_>>();
@@ -549,7 +550,7 @@ impl TypeChecker {
     pub(super) fn get_return_type_of_single_non_generic_call_signature(
         &self,
         func_type: &Type,
-    ) -> io::Result<Option<Gc<Type>>> {
+    ) -> io::Result<Option<Id<Type>>> {
         let signature = self.get_single_call_signature(func_type)?;
         signature
             .filter(|signature| signature.maybe_type_parameters().is_none())
@@ -559,7 +560,7 @@ impl TypeChecker {
     pub(super) fn get_return_type_of_single_non_generic_signature_of_call_chain(
         &self,
         expr: &Node, /*CallChain*/
-    ) -> io::Result<Option<Gc<Type>>> {
+    ) -> io::Result<Option<Id<Type>>> {
         let expr_as_call_expression = expr.as_call_expression();
         let func_type = self.check_expression(&expr_as_call_expression.expression, None, None)?;
         let non_optional_type =
@@ -577,7 +578,7 @@ impl TypeChecker {
     pub(super) fn get_type_of_expression(
         &self,
         node: &Node, /*Expression*/
-    ) -> io::Result<Gc<Type>> {
+    ) -> io::Result<Id<Type>> {
         let quick_type = self.get_quick_type_of_expression(node)?;
         if let Some(quick_type) = quick_type {
             return Ok(quick_type);
@@ -607,7 +608,7 @@ impl TypeChecker {
     pub(super) fn get_quick_type_of_expression(
         &self,
         node: &Node, /*Expression*/
-    ) -> io::Result<Option<Gc<Type>>> {
+    ) -> io::Result<Option<Id<Type>>> {
         let mut expr = skip_parentheses(node, Some(true));
         if is_jsdoc_type_assertion(&expr) {
             let type_ = get_jsdoc_type_assertion_type(&expr);
@@ -652,7 +653,7 @@ impl TypeChecker {
     pub(super) fn get_context_free_type_of_expression(
         &self,
         node: &Node, /*Expression*/
-    ) -> io::Result<Gc<Type>> {
+    ) -> io::Result<Id<Type>> {
         let links = self.get_node_links(node);
         if let Some(links_context_free_type) = (*links).borrow().context_free_type.clone() {
             return Ok(links_context_free_type);
@@ -674,7 +675,7 @@ impl TypeChecker {
         node: &Node, /*Expression | QualifiedName*/
         check_mode: Option<CheckMode>,
         force_tuple: Option<bool>,
-    ) -> io::Result<Gc<Type>> {
+    ) -> io::Result<Id<Type>> {
         // tracing?.push(tracing.Phase.Check, "checkExpression", { kind: node.kind, pos: node.pos, end: node.end });
         let save_current_node = self.maybe_current_node();
         self.set_current_node(Some(node.node_wrapper()));
@@ -747,7 +748,7 @@ impl TypeChecker {
         &self,
         node: &Node, /*ParenthesizedExpression*/
         check_mode: Option<CheckMode>,
-    ) -> io::Result<Gc<Type>> {
+    ) -> io::Result<Id<Type>> {
         let node_as_parenthesized_expression = node.as_parenthesized_expression();
         if has_jsdoc_nodes(node) && is_jsdoc_type_assertion(node) {
             let type_ = get_jsdoc_type_assertion_type(node);
@@ -770,7 +771,7 @@ impl TypeChecker {
         node: &Node, /*Expression*/
         check_mode: Option<CheckMode>,
         force_tuple: Option<bool>,
-    ) -> io::Result<Gc<Type>> {
+    ) -> io::Result<Id<Type>> {
         let kind = node.kind();
         if let Some(cancellation_token) = self.maybe_cancellation_token() {
             match kind {

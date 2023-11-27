@@ -79,7 +79,7 @@ impl NodeBuilder {
 
     pub(super) fn map_to_type_nodes(
         &self,
-        types: Option<&[Gc<Type>]>,
+        types: Option<&[Id<Type>]>,
         context: &NodeBuilderContext,
         is_bare_list: Option<bool>,
     ) -> io::Result<Option<Vec<Gc<Node /*TypeNode*/>>>> {
@@ -109,7 +109,7 @@ impl NodeBuilder {
                 let may_have_name_collisions = !context
                     .flags()
                     .intersects(NodeBuilderFlags::UseFullyQualifiedType);
-                let mut seen_names: Option<UnderscoreEscapedMultiMap<(Gc<Type>, usize)>> =
+                let mut seen_names: Option<UnderscoreEscapedMultiMap<(Id<Type>, usize)>> =
                     if may_have_name_collisions {
                         Some(create_underscore_escaped_multi_map())
                     } else {
@@ -570,7 +570,7 @@ impl NodeBuilder {
         &self,
         type_: &Type, /*TypeParameter*/
         context: &NodeBuilderContext,
-        constraint: Option<Gc<Type>>,
+        constraint: Option<Id<Type>>,
     ) -> io::Result<Gc<Node /*TypeParameterDeclaration*/>> {
         let constraint =
             constraint.try_or_else(|| self.type_checker.get_constraint_of_type_parameter(type_))?;
@@ -1030,7 +1030,7 @@ impl NodeBuilder {
                         self.type_checker
                             .get_local_type_parameters_of_class_or_interface_or_type_alias(symbol)?
                             .as_ref(),
-                        |tp: &Gc<Type>, _| self.type_parameter_to_declaration_(tp, context, None),
+                        |tp: &Id<Type>, _| self.type_parameter_to_declaration_(tp, context, None),
                     )
                     .transpose()?,
                     None,
@@ -1084,7 +1084,7 @@ impl NodeBuilder {
                         parent_symbol.clone()
                     })?;
                 type_parameter_nodes = self.map_to_type_nodes(
-                    try_maybe_map(params.as_ref(), |t: &Gc<Type>, _| {
+                    try_maybe_map(params.as_ref(), |t: &Id<Type>, _| {
                         self.type_checker.get_mapped_type(
                             t,
                             (*next_symbol.as_transient_symbol().symbol_links())

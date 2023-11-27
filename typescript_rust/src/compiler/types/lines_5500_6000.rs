@@ -12,6 +12,7 @@ use std::{
 use bitflags::bitflags;
 use derive_builder::Builder;
 use gc::{Finalize, Gc, GcCell, GcCellRef, GcCellRefMut, Trace};
+use id_arena::Id;
 use local_macros::{enum_unwrapped, type_type};
 use serde::Serialize;
 
@@ -29,7 +30,7 @@ use crate::{Debug_, GcVec, ObjectFlags, ScriptKind, TypeFlags, __String, are_opt
 )]
 pub struct IntersectionType {
     _union_or_intersection_type: BaseUnionOrIntersectionType,
-    resolved_apparent_type: GcCell<Option<Gc<Type>>>,
+    resolved_apparent_type: GcCell<Option<Id<Type>>>,
 }
 
 impl IntersectionType {
@@ -40,7 +41,7 @@ impl IntersectionType {
         }
     }
 
-    pub(crate) fn maybe_resolved_apparent_type(&self) -> GcCellRefMut<Option<Gc<Type>>> {
+    pub(crate) fn maybe_resolved_apparent_type(&self) -> GcCellRefMut<Option<Id<Type>>> {
         self.resolved_apparent_type.borrow_mut()
     }
 }
@@ -53,12 +54,12 @@ impl IntersectionType {
 pub struct MappedType {
     _object_type: BaseObjectType,
     pub declaration: Gc<Node /*MappedTypeNode*/>,
-    type_parameter: GcCell<Option<Gc<Type /*TypeParameter*/>>>,
-    constraint_type: GcCell<Option<Gc<Type>>>,
-    name_type: GcCell<Option<Gc<Type>>>,
-    template_type: GcCell<Option<Gc<Type>>>,
-    modifiers_type: GcCell<Option<Gc<Type>>>,
-    resolved_apparent_type: GcCell<Option<Gc<Type>>>,
+    type_parameter: GcCell<Option<Id<Type /*TypeParameter*/>>>,
+    constraint_type: GcCell<Option<Id<Type>>>,
+    name_type: GcCell<Option<Id<Type>>>,
+    template_type: GcCell<Option<Id<Type>>>,
+    modifiers_type: GcCell<Option<Id<Type>>>,
+    resolved_apparent_type: GcCell<Option<Id<Type>>>,
     #[unsafe_ignore_trace]
     contains_error: Cell<Option<bool>>,
 }
@@ -78,27 +79,27 @@ impl MappedType {
         }
     }
 
-    pub fn maybe_type_parameter(&self) -> GcCellRefMut<Option<Gc<Type>>> {
+    pub fn maybe_type_parameter(&self) -> GcCellRefMut<Option<Id<Type>>> {
         self.type_parameter.borrow_mut()
     }
 
-    pub fn maybe_constraint_type(&self) -> GcCellRefMut<Option<Gc<Type>>> {
+    pub fn maybe_constraint_type(&self) -> GcCellRefMut<Option<Id<Type>>> {
         self.constraint_type.borrow_mut()
     }
 
-    pub fn maybe_name_type(&self) -> GcCellRefMut<Option<Gc<Type>>> {
+    pub fn maybe_name_type(&self) -> GcCellRefMut<Option<Id<Type>>> {
         self.name_type.borrow_mut()
     }
 
-    pub fn maybe_template_type(&self) -> GcCellRefMut<Option<Gc<Type>>> {
+    pub fn maybe_template_type(&self) -> GcCellRefMut<Option<Id<Type>>> {
         self.template_type.borrow_mut()
     }
 
-    pub fn maybe_modifiers_type(&self) -> GcCellRefMut<Option<Gc<Type>>> {
+    pub fn maybe_modifiers_type(&self) -> GcCellRefMut<Option<Id<Type>>> {
         self.modifiers_type.borrow_mut()
     }
 
-    pub fn maybe_resolved_apparent_type(&self) -> GcCellRefMut<Option<Gc<Type>>> {
+    pub fn maybe_resolved_apparent_type(&self) -> GcCellRefMut<Option<Id<Type>>> {
         self.resolved_apparent_type.borrow_mut()
     }
 
@@ -118,12 +119,12 @@ impl MappedType {
 )]
 pub struct EvolvingArrayType {
     _object_type: BaseObjectType,
-    pub element_type: Gc<Type>,
-    final_array_type: GcCell<Option<Gc<Type>>>,
+    pub element_type: Id<Type>,
+    final_array_type: GcCell<Option<Id<Type>>>,
 }
 
 impl EvolvingArrayType {
-    pub fn new(base_object_type: BaseObjectType, element_type: Gc<Type>) -> Self {
+    pub fn new(base_object_type: BaseObjectType, element_type: Id<Type>) -> Self {
         Self {
             _object_type: base_object_type,
             element_type,
@@ -131,7 +132,7 @@ impl EvolvingArrayType {
         }
     }
 
-    pub fn maybe_final_array_type(&self) -> GcCellRefMut<Option<Gc<Type>>> {
+    pub fn maybe_final_array_type(&self) -> GcCellRefMut<Option<Id<Type>>> {
         self.final_array_type.borrow_mut()
     }
 }
@@ -143,17 +144,17 @@ impl EvolvingArrayType {
 )]
 pub struct ReverseMappedType {
     _object_type: BaseObjectType,
-    pub source: Gc<Type>,
-    pub mapped_type: Gc<Type /*MappedType*/>,
-    pub constraint_type: Gc<Type /*IndexType*/>,
+    pub source: Id<Type>,
+    pub mapped_type: Id<Type /*MappedType*/>,
+    pub constraint_type: Id<Type /*IndexType*/>,
 }
 
 impl ReverseMappedType {
     pub fn new(
         base_object_type: BaseObjectType,
-        source: Gc<Type>,
-        mapped_type: Gc<Type /*MappedType*/>,
-        constraint_type: Gc<Type /*IndexType*/>,
+        source: Id<Type>,
+        mapped_type: Id<Type /*MappedType*/>,
+        constraint_type: Id<Type /*IndexType*/>,
     ) -> Self {
         Self {
             _object_type: base_object_type,
@@ -176,15 +177,15 @@ pub trait ResolvedTypeInterface:
     fn construct_signatures(&self) -> GcCellRef<Vec<Gc<Signature>>>;
     fn set_construct_signatures(&self, construct_signatures: Vec<Gc<Signature>>);
     fn index_infos(&self) -> GcCellRef<Vec<Gc<IndexInfo>>>;
-    fn maybe_object_type_without_abstract_construct_signatures(&self) -> Option<Gc<Type>>;
+    fn maybe_object_type_without_abstract_construct_signatures(&self) -> Option<Id<Type>>;
     fn set_object_type_without_abstract_construct_signatures(
         &self,
-        object_type_without_abstract_construct_signatures: Option<Gc<Type>>,
+        object_type_without_abstract_construct_signatures: Option<Id<Type>>,
     );
 }
 
 pub trait FreshObjectLiteralTypeInterface: ResolvedTypeInterface {
-    fn maybe_regular_type(&self) -> GcCellRefMut<Option<Gc<Type /*ResolvedType*/>>>;
+    fn maybe_regular_type(&self) -> GcCellRefMut<Option<Id<Type /*ResolvedType*/>>>;
 }
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
@@ -196,13 +197,13 @@ pub enum IterationTypesKey {
 
 #[derive(Debug, Trace, Finalize)]
 pub struct IterationTypes {
-    yield_type: Option<Gc<Type>>,
-    return_type: Option<Gc<Type>>,
-    next_type: Option<Gc<Type>>,
+    yield_type: Option<Id<Type>>,
+    return_type: Option<Id<Type>>,
+    next_type: Option<Id<Type>>,
 }
 
 impl IterationTypes {
-    pub fn new(yield_type: Gc<Type>, return_type: Gc<Type>, next_type: Gc<Type>) -> Self {
+    pub fn new(yield_type: Id<Type>, return_type: Id<Type>, next_type: Id<Type>) -> Self {
         Self {
             yield_type: Some(yield_type),
             return_type: Some(return_type),
@@ -218,7 +219,7 @@ impl IterationTypes {
         }
     }
 
-    pub fn yield_type(&self) -> Gc<Type> {
+    pub fn yield_type(&self) -> Id<Type> {
         let cloned = self.yield_type.clone();
         if cloned.is_none() {
             Debug_.fail(Some("Not supported"));
@@ -226,7 +227,7 @@ impl IterationTypes {
         cloned.unwrap()
     }
 
-    pub fn return_type(&self) -> Gc<Type> {
+    pub fn return_type(&self) -> Id<Type> {
         let cloned = self.return_type.clone();
         if cloned.is_none() {
             Debug_.fail(Some("Not supported"));
@@ -234,7 +235,7 @@ impl IterationTypes {
         cloned.unwrap()
     }
 
-    pub fn next_type(&self) -> Gc<Type> {
+    pub fn next_type(&self) -> Id<Type> {
         let cloned = self.next_type.clone();
         if cloned.is_none() {
             Debug_.fail(Some("Not supported"));
@@ -242,7 +243,7 @@ impl IterationTypes {
         cloned.unwrap()
     }
 
-    pub fn get_by_key(&self, key: IterationTypesKey) -> Gc<Type> {
+    pub fn get_by_key(&self, key: IterationTypesKey) -> Id<Type> {
         match key {
             IterationTypesKey::YieldType => self.yield_type(),
             IterationTypesKey::ReturnType => self.return_type(),
@@ -266,9 +267,9 @@ pub enum IterationTypeCacheKey {
 #[type_type]
 pub struct TypeParameter {
     _type: BaseType,
-    pub constraint: GcCell<Option<Gc<Type>>>,
-    pub default: GcCell<Option<Gc<Type>>>,
-    pub target: Option<Gc<Type /*TypeParameter*/>>,
+    pub constraint: GcCell<Option<Id<Type>>>,
+    pub default: GcCell<Option<Id<Type>>>,
+    pub target: Option<Id<Type /*TypeParameter*/>>,
     pub mapper: GcCell<Option<Gc<TypeMapper>>>,
     pub is_this_type: Option<bool>,
 }
@@ -285,15 +286,15 @@ impl TypeParameter {
         }
     }
 
-    pub fn maybe_constraint(&self) -> Option<Gc<Type>> {
+    pub fn maybe_constraint(&self) -> Option<Id<Type>> {
         self.constraint.borrow().clone()
     }
 
-    pub fn set_constraint(&self, constraint: Gc<Type>) {
+    pub fn set_constraint(&self, constraint: Id<Type>) {
         *self.constraint.borrow_mut() = Some(constraint);
     }
 
-    pub fn maybe_default(&self) -> GcCellRefMut<Option<Gc<Type>>> {
+    pub fn maybe_default(&self) -> GcCellRefMut<Option<Id<Type>>> {
         self.default.borrow_mut()
     }
 
@@ -326,20 +327,20 @@ bitflags! {
 #[type_type]
 pub struct IndexedAccessType {
     _type: BaseType,
-    pub object_type: Gc<Type>,
-    pub index_type: Gc<Type>,
+    pub object_type: Id<Type>,
+    pub index_type: Id<Type>,
     #[unsafe_ignore_trace]
     pub(crate) access_flags: AccessFlags,
-    pub(crate) constraint: Option<Gc<Type>>,
-    simplified_for_reading: GcCell<Option<Gc<Type>>>,
-    simplified_for_writing: GcCell<Option<Gc<Type>>>,
+    pub(crate) constraint: Option<Id<Type>>,
+    simplified_for_reading: GcCell<Option<Id<Type>>>,
+    simplified_for_writing: GcCell<Option<Id<Type>>>,
 }
 
 impl IndexedAccessType {
     pub fn new(
         base_type: BaseType,
-        object_type: Gc<Type>,
-        index_type: Gc<Type>,
+        object_type: Id<Type>,
+        index_type: Id<Type>,
         access_flags: AccessFlags,
     ) -> Self {
         Self {
@@ -353,11 +354,11 @@ impl IndexedAccessType {
         }
     }
 
-    pub fn maybe_simplified_for_reading(&self) -> GcCellRefMut<Option<Gc<Type>>> {
+    pub fn maybe_simplified_for_reading(&self) -> GcCellRefMut<Option<Id<Type>>> {
         self.simplified_for_reading.borrow_mut()
     }
 
-    pub fn maybe_simplified_for_writing(&self) -> GcCellRefMut<Option<Gc<Type>>> {
+    pub fn maybe_simplified_for_writing(&self) -> GcCellRefMut<Option<Id<Type>>> {
         self.simplified_for_writing.borrow_mut()
     }
 }
@@ -366,12 +367,12 @@ impl IndexedAccessType {
 #[type_type]
 pub struct IndexType {
     _type: BaseType,
-    pub type_: Gc<Type /*InstantiableType | UnionOrIntersectionType*/>,
+    pub type_: Id<Type /*InstantiableType | UnionOrIntersectionType*/>,
     pub(crate) strings_only: bool,
 }
 
 impl IndexType {
-    pub fn new(_type: BaseType, type_: Gc<Type>, strings_only: bool) -> Self {
+    pub fn new(_type: BaseType, type_: Id<Type>, strings_only: bool) -> Self {
         Self {
             _type,
             type_,
@@ -383,26 +384,26 @@ impl IndexType {
 #[derive(Clone, Debug, Trace, Finalize)]
 pub struct ConditionalRoot {
     pub node: Gc<Node /*ConditionalTypeNode*/>,
-    pub check_type: Gc<Type>,
-    pub extends_type: Gc<Type>,
+    pub check_type: Id<Type>,
+    pub extends_type: Id<Type>,
     pub is_distributive: bool,
-    pub infer_type_parameters: Option<Vec<Gc<Type /*TypeParameter*/>>>,
-    pub outer_type_parameters: Option<Vec<Gc<Type /*TypeParameter*/>>>,
-    instantiations: GcCell<Option<HashMap<String, Gc<Type>>>>,
+    pub infer_type_parameters: Option<Vec<Id<Type /*TypeParameter*/>>>,
+    pub outer_type_parameters: Option<Vec<Id<Type /*TypeParameter*/>>>,
+    instantiations: GcCell<Option<HashMap<String, Id<Type>>>>,
     pub alias_symbol: Option<Gc<Symbol>>,
-    pub alias_type_arguments: Option<Vec<Gc<Type>>>,
+    pub alias_type_arguments: Option<Vec<Id<Type>>>,
 }
 
 impl ConditionalRoot {
     pub fn new(
         node: Gc<Node>,
-        check_type: Gc<Type>,
-        extends_type: Gc<Type>,
+        check_type: Id<Type>,
+        extends_type: Id<Type>,
         is_distributive: bool,
-        infer_type_parameters: Option<Vec<Gc<Type>>>,
-        outer_type_parameters: Option<Vec<Gc<Type>>>,
+        infer_type_parameters: Option<Vec<Id<Type>>>,
+        outer_type_parameters: Option<Vec<Id<Type>>>,
         alias_symbol: Option<Gc<Symbol>>,
-        alias_type_arguments: Option<Vec<Gc<Type>>>,
+        alias_type_arguments: Option<Vec<Id<Type>>>,
     ) -> Self {
         Self {
             node,
@@ -417,7 +418,7 @@ impl ConditionalRoot {
         }
     }
 
-    pub fn maybe_instantiations(&self) -> GcCellRefMut<Option<HashMap<String, Gc<Type>>>> {
+    pub fn maybe_instantiations(&self) -> GcCellRefMut<Option<HashMap<String, Id<Type>>>> {
         self.instantiations.borrow_mut()
     }
 }
@@ -427,12 +428,12 @@ impl ConditionalRoot {
 pub struct ConditionalType {
     _type: BaseType,
     pub root: Gc<GcCell<ConditionalRoot>>,
-    pub check_type: Gc<Type>,
-    pub extends_type: Gc<Type>,
-    resolved_true_type: GcCell<Option<Gc<Type>>>,
-    resolved_false_type: GcCell<Option<Gc<Type>>>,
-    resolved_inferred_true_type: GcCell<Option<Gc<Type>>>,
-    resolved_default_constraint: GcCell<Option<Gc<Type>>>,
+    pub check_type: Id<Type>,
+    pub extends_type: Id<Type>,
+    resolved_true_type: GcCell<Option<Id<Type>>>,
+    resolved_false_type: GcCell<Option<Id<Type>>>,
+    resolved_inferred_true_type: GcCell<Option<Id<Type>>>,
+    resolved_default_constraint: GcCell<Option<Id<Type>>>,
     pub(crate) mapper: Option<Gc<TypeMapper>>,
     pub(crate) combined_mapper: Option<Gc<TypeMapper>>,
 }
@@ -441,8 +442,8 @@ impl ConditionalType {
     pub fn new(
         base_type: BaseType,
         root: Gc<GcCell<ConditionalRoot>>,
-        check_type: Gc<Type>,
-        extends_type: Gc<Type>,
+        check_type: Id<Type>,
+        extends_type: Id<Type>,
         mapper: Option<Gc<TypeMapper>>,
         combined_mapper: Option<Gc<TypeMapper>>,
     ) -> Self {
@@ -460,19 +461,19 @@ impl ConditionalType {
         }
     }
 
-    pub(crate) fn maybe_resolved_true_type(&self) -> GcCellRefMut<Option<Gc<Type>>> {
+    pub(crate) fn maybe_resolved_true_type(&self) -> GcCellRefMut<Option<Id<Type>>> {
         self.resolved_true_type.borrow_mut()
     }
 
-    pub(crate) fn maybe_resolved_false_type(&self) -> GcCellRefMut<Option<Gc<Type>>> {
+    pub(crate) fn maybe_resolved_false_type(&self) -> GcCellRefMut<Option<Id<Type>>> {
         self.resolved_false_type.borrow_mut()
     }
 
-    pub(crate) fn maybe_resolved_inferred_true_type(&self) -> GcCellRefMut<Option<Gc<Type>>> {
+    pub(crate) fn maybe_resolved_inferred_true_type(&self) -> GcCellRefMut<Option<Id<Type>>> {
         self.resolved_inferred_true_type.borrow_mut()
     }
 
-    pub(crate) fn maybe_resolved_default_constraint(&self) -> GcCellRefMut<Option<Gc<Type>>> {
+    pub(crate) fn maybe_resolved_default_constraint(&self) -> GcCellRefMut<Option<Id<Type>>> {
         self.resolved_default_constraint.borrow_mut()
     }
 }
@@ -482,11 +483,11 @@ impl ConditionalType {
 pub struct TemplateLiteralType {
     _type: BaseType,
     pub texts: Vec<String>,
-    pub types: Vec<Gc<Type>>,
+    pub types: Vec<Id<Type>>,
 }
 
 impl TemplateLiteralType {
-    pub fn new(_type: BaseType, texts: Vec<String>, types: Vec<Gc<Type>>) -> Self {
+    pub fn new(_type: BaseType, texts: Vec<String>, types: Vec<Id<Type>>) -> Self {
         Self {
             _type,
             texts,
@@ -499,11 +500,11 @@ impl TemplateLiteralType {
 #[type_type]
 pub struct StringMappingType {
     _type: BaseType,
-    pub type_: Gc<Type>,
+    pub type_: Id<Type>,
 }
 
 impl StringMappingType {
-    pub fn new(base_type: BaseType, type_: Gc<Type>) -> Self {
+    pub fn new(base_type: BaseType, type_: Id<Type>) -> Self {
         Self {
             _type: base_type,
             type_,
@@ -517,12 +518,12 @@ pub struct SubstitutionType {
     _type: BaseType,
     #[unsafe_ignore_trace]
     object_flags: Cell<ObjectFlags>,
-    pub base_type: Gc<Type>,
-    pub substitute: Gc<Type>,
+    pub base_type: Id<Type>,
+    pub substitute: Id<Type>,
 }
 
 impl SubstitutionType {
-    pub fn new(_type: BaseType, base_type: Gc<Type>, substitute: Gc<Type>) -> Self {
+    pub fn new(_type: BaseType, base_type: Id<Type>, substitute: Id<Type>) -> Self {
         Self {
             _type,
             object_flags: Cell::new(
@@ -580,10 +581,10 @@ pub struct Signature {
     #[unsafe_ignore_trace]
     pub flags: SignatureFlags,
     pub declaration: Option<Gc<Node /*SignatureDeclaration | JSDocSignature*/>>,
-    type_parameters: GcCell<Option<Vec<Gc<Type /*TypeParameter*/>>>>,
+    type_parameters: GcCell<Option<Vec<Id<Type /*TypeParameter*/>>>>,
     parameters: Option<Vec<Gc<Symbol>>>,
     this_parameter: GcCell<Option<Gc<Symbol>>>,
-    resolved_return_type: GcCell<Option<Gc<Type>>>,
+    resolved_return_type: GcCell<Option<Id<Type>>>,
     resolved_type_predicate: GcCell<Option<Gc<TypePredicate>>>,
     min_argument_count: Option<usize>,
     #[unsafe_ignore_trace]
@@ -597,7 +598,7 @@ pub struct Signature {
     canonical_signature_cache: GcCell<Option<Gc<Signature>>>,
     base_signature_cache: GcCell<Option<Gc<Signature>>>,
     optional_call_signature_cache: GcCell<Option<SignatureOptionalCallSignatureCache>>,
-    isolated_signature_type: GcCell<Option<Gc<Type /*ObjectType*/>>>,
+    isolated_signature_type: GcCell<Option<Id<Type /*ObjectType*/>>>,
     instantiations: GcCell<Option<HashMap<String, Gc<Signature>>>>,
 }
 
@@ -626,11 +627,11 @@ impl Signature {
         }
     }
 
-    pub fn maybe_type_parameters(&self) -> GcCellRef<Option<Vec<Gc<Type>>>> {
+    pub fn maybe_type_parameters(&self) -> GcCellRef<Option<Vec<Id<Type>>>> {
         self.type_parameters.borrow()
     }
 
-    pub fn maybe_type_parameters_mut(&self) -> GcCellRefMut<Option<Vec<Gc<Type>>>> {
+    pub fn maybe_type_parameters_mut(&self) -> GcCellRefMut<Option<Vec<Id<Type>>>> {
         self.type_parameters.borrow_mut()
     }
 
@@ -650,11 +651,11 @@ impl Signature {
         self.this_parameter.borrow_mut()
     }
 
-    pub fn maybe_resolved_return_type(&self) -> Option<Gc<Type>> {
+    pub fn maybe_resolved_return_type(&self) -> Option<Id<Type>> {
         self.resolved_return_type.borrow().clone()
     }
 
-    pub fn maybe_resolved_return_type_mut(&self) -> GcCellRefMut<Option<Gc<Type>>> {
+    pub fn maybe_resolved_return_type_mut(&self) -> GcCellRefMut<Option<Id<Type>>> {
         self.resolved_return_type.borrow_mut()
     }
 
@@ -705,7 +706,7 @@ impl Signature {
         self.optional_call_signature_cache.borrow_mut()
     }
 
-    pub fn maybe_isolated_signature_type(&self) -> GcCellRefMut<Option<Gc<Type>>> {
+    pub fn maybe_isolated_signature_type(&self) -> GcCellRefMut<Option<Id<Type>>> {
         self.isolated_signature_type.borrow_mut()
     }
 
@@ -737,8 +738,8 @@ pub enum IndexKind {
 
 #[derive(Debug, Trace, Finalize)]
 pub struct IndexInfo {
-    pub key_type: Gc<Type>,
-    pub type_: Gc<Type>,
+    pub key_type: Id<Type>,
+    pub type_: Id<Type>,
     pub is_readonly: bool,
     pub declaration: Option<Gc<Node /*IndexSignatureDeclaration*/>>,
 }
@@ -763,19 +764,19 @@ impl TypeMapper {
 
 #[derive(Clone, Debug, Finalize, Trace)]
 pub struct TypeMapperSimple {
-    pub source: Gc<Type>,
-    pub target: Gc<Type>,
+    pub source: Id<Type>,
+    pub target: Id<Type>,
 }
 
 #[derive(Clone, Debug, Finalize, Trace)]
 pub struct TypeMapperArray {
-    pub sources: Vec<Gc<Type>>,
-    pub targets: Option<Vec<Gc<Type>>>,
+    pub sources: Vec<Id<Type>>,
+    pub targets: Option<Vec<Id<Type>>>,
 }
 
 pub trait TypeMapperCallback: Trace + Finalize {
     // TODO: now that TypeChecker is wrapped in Rc should remove the checker argument here?
-    fn call(&self, checker: &TypeChecker, type_: &Type) -> io::Result<Gc<Type>>;
+    fn call(&self, checker: &TypeChecker, type_: &Type) -> io::Result<Id<Type>>;
 }
 
 #[derive(Clone, Finalize, Trace)]
@@ -796,11 +797,11 @@ pub struct TypeMapperCompositeOrMerged {
 }
 
 impl TypeMapper {
-    pub fn new_simple(source: Gc<Type>, target: Gc<Type>) -> Self {
+    pub fn new_simple(source: Id<Type>, target: Id<Type>) -> Self {
         Self::Simple(TypeMapperSimple { source, target })
     }
 
-    pub fn new_array(sources: Vec<Gc<Type>>, targets: Option<Vec<Gc<Type>>>) -> Self {
+    pub fn new_array(sources: Vec<Id<Type>>, targets: Option<Vec<Id<Type>>>) -> Self {
         Self::Array(TypeMapperArray { sources, targets })
     }
 
@@ -842,10 +843,10 @@ bitflags! {
 
 #[derive(Debug, Trace, Finalize)]
 pub struct InferenceInfo {
-    pub type_parameter: Gc<Type /*TypeParameter*/>,
-    candidates: GcCell<Option<Vec<Gc<Type>>>>,
-    contra_candidates: GcCell<Option<Vec<Gc<Type>>>>,
-    inferred_type: GcCell<Option<Gc<Type>>>,
+    pub type_parameter: Id<Type /*TypeParameter*/>,
+    candidates: GcCell<Option<Vec<Id<Type>>>>,
+    contra_candidates: GcCell<Option<Vec<Id<Type>>>>,
+    inferred_type: GcCell<Option<Id<Type>>>,
     #[unsafe_ignore_trace]
     priority: Cell<Option<InferencePriority>>,
     #[unsafe_ignore_trace]
@@ -858,10 +859,10 @@ pub struct InferenceInfo {
 
 impl InferenceInfo {
     pub fn new(
-        type_parameter: Gc<Type /*TypeParameter*/>,
-        candidates: Option<Vec<Gc<Type>>>,
-        contra_candidates: Option<Vec<Gc<Type>>>,
-        inferred_type: Option<Gc<Type>>,
+        type_parameter: Id<Type /*TypeParameter*/>,
+        candidates: Option<Vec<Id<Type>>>,
+        contra_candidates: Option<Vec<Id<Type>>>,
+        inferred_type: Option<Id<Type>>,
         priority: Option<InferencePriority>,
         top_level: bool,
         is_fixed: bool,
@@ -879,27 +880,27 @@ impl InferenceInfo {
         }
     }
 
-    pub fn maybe_candidates(&self) -> GcCellRef<Option<Vec<Gc<Type>>>> {
+    pub fn maybe_candidates(&self) -> GcCellRef<Option<Vec<Id<Type>>>> {
         self.candidates.borrow()
     }
 
-    pub fn maybe_candidates_mut(&self) -> GcCellRefMut<Option<Vec<Gc<Type>>>> {
+    pub fn maybe_candidates_mut(&self) -> GcCellRefMut<Option<Vec<Id<Type>>>> {
         self.candidates.borrow_mut()
     }
 
-    pub fn maybe_contra_candidates(&self) -> GcCellRef<Option<Vec<Gc<Type>>>> {
+    pub fn maybe_contra_candidates(&self) -> GcCellRef<Option<Vec<Id<Type>>>> {
         self.contra_candidates.borrow()
     }
 
-    pub fn maybe_contra_candidates_mut(&self) -> GcCellRefMut<Option<Vec<Gc<Type>>>> {
+    pub fn maybe_contra_candidates_mut(&self) -> GcCellRefMut<Option<Vec<Id<Type>>>> {
         self.contra_candidates.borrow_mut()
     }
 
-    pub fn maybe_inferred_type(&self) -> Option<Gc<Type>> {
+    pub fn maybe_inferred_type(&self) -> Option<Id<Type>> {
         self.inferred_type.borrow().clone()
     }
 
-    pub fn maybe_inferred_type_mut(&self) -> GcCellRefMut<Option<Gc<Type>>> {
+    pub fn maybe_inferred_type_mut(&self) -> GcCellRefMut<Option<Id<Type>>> {
         self.inferred_type.borrow_mut()
     }
 
@@ -1001,7 +1002,7 @@ pub struct InferenceContext {
     mapper: GcCell<Option<Gc<TypeMapper>>>,
     non_fixing_mapper: GcCell<Option<Gc<TypeMapper>>>,
     return_mapper: GcCell<Option<Gc<TypeMapper>>>,
-    inferred_type_parameters: GcCell<Option<Vec<Gc<Type /*TypeParameter*/>>>>,
+    inferred_type_parameters: GcCell<Option<Vec<Id<Type /*TypeParameter*/>>>>,
 }
 
 impl InferenceContext {
@@ -1013,7 +1014,7 @@ impl InferenceContext {
         mapper: Option<Gc<TypeMapper>>,
         non_fixing_mapper: Option<Gc<TypeMapper>>,
         return_mapper: Option<Gc<TypeMapper>>,
-        inferred_type_parameters: Option<Vec<Gc<Type>>>,
+        inferred_type_parameters: Option<Vec<Id<Type>>>,
     ) -> Self {
         Self {
             inferences: GcCell::new(inferences),
@@ -1067,11 +1068,11 @@ impl InferenceContext {
         *self.return_mapper.borrow_mut() = return_mapper;
     }
 
-    pub fn maybe_inferred_type_parameters(&self) -> GcCellRef<Option<Vec<Gc<Type>>>> {
+    pub fn maybe_inferred_type_parameters(&self) -> GcCellRef<Option<Vec<Id<Type>>>> {
         self.inferred_type_parameters.borrow()
     }
 
-    pub fn maybe_inferred_type_parameters_mut(&self) -> GcCellRefMut<Option<Vec<Gc<Type>>>> {
+    pub fn maybe_inferred_type_parameters_mut(&self) -> GcCellRefMut<Option<Vec<Id<Type>>>> {
         self.inferred_type_parameters.borrow_mut()
     }
 }
@@ -1093,7 +1094,7 @@ impl fmt::Debug for InferenceContext {
 pub(crate) struct WideningContext {
     pub parent: Option<Rc<RefCell<WideningContext>>>,
     pub property_name: Option<__String>,
-    pub siblings: Option<Vec<Gc<Type>>>,
+    pub siblings: Option<Vec<Id<Type>>>,
     pub resolved_properties: Option<Vec<Gc<Symbol>>>,
 }
 

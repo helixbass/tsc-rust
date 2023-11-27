@@ -1,6 +1,7 @@
 use std::{borrow::Borrow, cmp, convert::TryInto, io, ptr};
 
 use gc::{Gc, GcCell};
+use id_arena::Id;
 
 use super::MappedTypeModifiers;
 use crate::{
@@ -216,14 +217,14 @@ impl TypeChecker {
 
     pub(super) fn get_union_index_infos(
         &self,
-        types: &[Gc<Type>],
+        types: &[Id<Type>],
     ) -> io::Result<Vec<Gc<IndexInfo>>> {
         let source_infos = self.get_index_infos_of_type(&types[0])?;
         // if (sourceInfos) {
         let mut result = vec![];
         for info in source_infos {
             let index_type = &info.key_type;
-            if try_every(types, |t: &Gc<Type>, _| -> io::Result<_> {
+            if try_every(types, |t: &Id<Type>, _| -> io::Result<_> {
                 Ok(self.get_index_info_of_type_(t, index_type)?.is_some())
             })? {
                 result.push(Gc::new(
@@ -243,7 +244,7 @@ impl TypeChecker {
                         )?,
                         try_some(
                             Some(types),
-                            Some(|t: &Gc<Type>| -> io::Result<_> {
+                            Some(|t: &Id<Type>| -> io::Result<_> {
                                 Ok(self
                                     .get_index_info_of_type_(t, index_type)?
                                     .unwrap()
@@ -267,7 +268,7 @@ impl TypeChecker {
         let type_as_union_type = type_.as_union_type();
         let call_signatures = self.get_union_signatures(&try_map(
             type_as_union_type.types(),
-            |t: &Gc<Type>, _| -> io::Result<_> {
+            |t: &Id<Type>, _| -> io::Result<_> {
                 Ok(if Gc::ptr_eq(t, &self.global_function_type()) {
                     vec![self.unknown_signature()]
                 } else {
@@ -277,7 +278,7 @@ impl TypeChecker {
         )?)?;
         let construct_signatures = self.get_union_signatures(&try_map(
             type_as_union_type.types(),
-            |t: &Gc<Type>, _| -> io::Result<_> {
+            |t: &Id<Type>, _| -> io::Result<_> {
                 self.get_signatures_of_type(t, SignatureKind::Construct)
             },
         )?)?;
@@ -297,7 +298,7 @@ impl TypeChecker {
         &self,
         type1: Option<impl Borrow<Type>>,
         type2: Option<impl Borrow<Type>>,
-    ) -> io::Result<Option<Gc<Type>>> {
+    ) -> io::Result<Option<Id<Type>>> {
         let type1 = type1.map(|type1| type1.borrow().type_wrapper());
         let type2 = type2.map(|type2| type2.borrow().type_wrapper());
         Ok(if type1.is_none() {
@@ -311,14 +312,14 @@ impl TypeChecker {
         })
     }
 
-    pub(super) fn find_mixins(&self, types: &[Gc<Type>]) -> io::Result<Vec<bool>> {
+    pub(super) fn find_mixins(&self, types: &[Id<Type>]) -> io::Result<Vec<bool>> {
         let constructor_type_count =
-            try_count_where(Some(types), |t: &Gc<Type>, _| -> io::Result<_> {
+            try_count_where(Some(types), |t: &Id<Type>, _| -> io::Result<_> {
                 Ok(!self
                     .get_signatures_of_type(t, SignatureKind::Construct)?
                     .is_empty())
             })?;
-        let mut mixin_flags = try_map(types, |t: &Gc<Type>, _| self.is_mixin_constructor_type(t))?;
+        let mut mixin_flags = try_map(types, |t: &Id<Type>, _| self.is_mixin_constructor_type(t))?;
         if constructor_type_count > 0
             && constructor_type_count == count_where(Some(&mixin_flags), |b: &bool, _| *b)
         {
@@ -334,11 +335,11 @@ impl TypeChecker {
     pub(super) fn include_mixin_type(
         &self,
         type_: &Type,
-        types: &[Gc<Type>],
+        types: &[Id<Type>],
         mixin_flags: &[bool],
         index: usize,
-    ) -> io::Result<Gc<Type>> {
-        let mut mixed_types: Vec<Gc<Type>> = vec![];
+    ) -> io::Result<Id<Type>> {
+        let mut mixed_types: Vec<Id<Type>> = vec![];
         for i in 0..types.len() {
             if i == index {
                 mixed_types.push(type_.type_wrapper());
@@ -677,7 +678,7 @@ impl TypeChecker {
         instantiable: &Type,
         type_: &Type, /*ReplaceableIndexedAccessType*/
         replacement: &Type,
-    ) -> io::Result<Gc<Type>> {
+    ) -> io::Result<Id<Type>> {
         let type_as_indexed_access_type = type_.as_indexed_access_type();
         self.instantiate_type(
             instantiable,
@@ -745,8 +746,8 @@ impl TypeChecker {
             inferred_prop.symbol_links().borrow_mut().name_type =
                 (*self.get_symbol_links(&prop)).borrow().name_type.clone();
             let property_type = self.get_type_of_symbol(&prop)?;
-            let mapped_type: Gc<Type>;
-            let constraint_type: Gc<Type>;
+            let mapped_type: Id<Type>;
+            let constraint_type: Id<Type>;
             let type_constraint_type_type = &type_as_reverse_mapped_type
                 .constraint_type
                 .as_index_type()
@@ -795,7 +796,7 @@ impl TypeChecker {
         Ok(())
     }
 
-    pub(super) fn get_lower_bound_of_key_type(&self, type_: &Type) -> io::Result<Gc<Type>> {
+    pub(super) fn get_lower_bound_of_key_type(&self, type_: &Type) -> io::Result<Id<Type>> {
         if type_.flags().intersects(TypeFlags::Index) {
             let t = self.get_apparent_type(&type_.as_index_type().type_)?;
             return Ok(if self.is_generic_tuple_type(&t) {
@@ -837,7 +838,7 @@ impl TypeChecker {
             return self.get_intersection_type(
                 &try_map(
                     type_.as_union_or_intersection_type_interface().types(),
-                    |type_: &Gc<Type>, _| self.get_lower_bound_of_key_type(type_),
+                    |type_: &Id<Type>, _| self.get_lower_bound_of_key_type(type_),
                 )?,
                 Option::<&Symbol>::None,
                 None,
@@ -1179,7 +1180,7 @@ impl TypeChecker {
     pub(super) fn get_type_of_mapped_symbol(
         &self,
         symbol: &Symbol, /*MappedSymbol*/
-    ) -> io::Result<Gc<Type>> {
+    ) -> io::Result<Id<Type>> {
         let symbol_as_mapped_symbol = symbol.as_mapped_symbol();
         if (*symbol_as_mapped_symbol.symbol_links())
             .borrow()
@@ -1242,7 +1243,7 @@ impl TypeChecker {
     pub(super) fn get_type_parameter_from_mapped_type(
         &self,
         type_: &Type, /*MappedType*/
-    ) -> io::Result<Gc<Type>> {
+    ) -> io::Result<Id<Type>> {
         let type_as_mapped_type = type_.as_mapped_type();
         {
             let value = type_as_mapped_type.maybe_type_parameter().clone();
@@ -1267,7 +1268,7 @@ impl TypeChecker {
     pub(super) fn get_constraint_type_from_mapped_type(
         &self,
         type_: &Type, /*MappedType*/
-    ) -> io::Result<Gc<Type>> {
+    ) -> io::Result<Id<Type>> {
         let type_as_mapped_type = type_.as_mapped_type();
         {
             let value = type_as_mapped_type.maybe_constraint_type().clone();

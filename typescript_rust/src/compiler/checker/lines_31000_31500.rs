@@ -65,7 +65,7 @@ impl TypeChecker {
     pub(super) fn check_import_call_expression(
         &self,
         node: &Node, /*ImportCall*/
-    ) -> io::Result<Gc<Type>> {
+    ) -> io::Result<Id<Type>> {
         let node_as_call_expression = node.as_call_expression();
         if !self.check_grammar_arguments(Some(&node_as_call_expression.arguments)) {
             self.check_grammar_import_call_expression(node);
@@ -149,7 +149,7 @@ impl TypeChecker {
         symbol: &Symbol,
         original_symbol: &Symbol,
         anonymous_symbol: Option<impl Borrow<Symbol>>,
-    ) -> io::Result<Gc<Type>> {
+    ) -> io::Result<Id<Type>> {
         let mut member_table = create_symbol_table(Option::<&[Gc<Symbol>]>::None);
         let new_symbol: Gc<Symbol> = self
             .create_symbol(
@@ -181,7 +181,7 @@ impl TypeChecker {
         symbol: &Symbol,
         original_symbol: &Symbol,
         module_specifier: &Node, /*Expression*/
-    ) -> io::Result<Option<Gc<Type>>> {
+    ) -> io::Result<Option<Id<Type>>> {
         let has_default_only = self.is_only_imported_as_default(module_specifier);
         if has_default_only {
             if
@@ -208,7 +208,7 @@ impl TypeChecker {
         symbol: &Symbol,
         original_symbol: &Symbol,
         module_specifier: &Node, /*Expression*/
-    ) -> io::Result<Gc<Type>> {
+    ) -> io::Result<Id<Type>> {
         if self.allow_synthetic_default_imports && /*type &&*/ !self.is_error_type(type_) {
             let synth_type = type_;
             if synth_type.maybe_synthetic_type().is_none() {
@@ -317,7 +317,7 @@ impl TypeChecker {
     pub(super) fn check_tagged_template_expression(
         &self,
         node: &Node, /*TaggedTemplateExpression*/
-    ) -> io::Result<Gc<Type>> {
+    ) -> io::Result<Id<Type>> {
         let node_as_tagged_template_expression = node.as_tagged_template_expression();
         if !self.check_grammar_tagged_template_chain(node) {
             self.check_grammar_type_arguments(
@@ -338,7 +338,7 @@ impl TypeChecker {
     pub(super) fn check_assertion(
         &self,
         node: &Node, /*AssertionExpression*/
-    ) -> io::Result<Gc<Type>> {
+    ) -> io::Result<Id<Type>> {
         if node.kind() == SyntaxKind::TypeAssertionExpression {
             let file = maybe_get_source_file_of_node(Some(node));
             if matches!(
@@ -412,7 +412,7 @@ impl TypeChecker {
         type_: &Node,      /*TypeNode*/
         expression: &Node, /*UnaryExpression | Expression*/
         check_mode: Option<CheckMode>,
-    ) -> io::Result<Gc<Type>> {
+    ) -> io::Result<Id<Type>> {
         let mut expr_type = self.check_expression(expression, check_mode, None)?;
         if is_const_type_reference(type_) {
             if !self.is_valid_const_assertion_argument(expression)? {
@@ -447,7 +447,7 @@ impl TypeChecker {
     pub(super) fn check_non_null_chain(
         &self,
         node: &Node, /*NonNullChain*/
-    ) -> io::Result<Gc<Type>> {
+    ) -> io::Result<Id<Type>> {
         let left_type =
             self.check_expression(&node.as_has_expression().expression(), None, None)?;
         let non_optional_type =
@@ -462,7 +462,7 @@ impl TypeChecker {
     pub(super) fn check_non_null_assertion(
         &self,
         node: &Node, /*NonNullExpression*/
-    ) -> io::Result<Gc<Type>> {
+    ) -> io::Result<Id<Type>> {
         Ok(if node.flags().intersects(NodeFlags::OptionalChain) {
             self.check_non_null_chain(node)?
         } else {
@@ -477,7 +477,7 @@ impl TypeChecker {
     pub(super) fn check_meta_property(
         &self,
         node: &Node, /*MetaProperty*/
-    ) -> io::Result<Gc<Type>> {
+    ) -> io::Result<Id<Type>> {
         self.check_grammar_meta_property(node);
 
         let node_as_meta_property = node.as_meta_property();
@@ -495,7 +495,7 @@ impl TypeChecker {
     pub(super) fn check_meta_property_keyword(
         &self,
         node: &Node, /*MetaProperty*/
-    ) -> io::Result<Gc<Type>> {
+    ) -> io::Result<Id<Type>> {
         Ok(match node.as_meta_property().keyword_token {
             SyntaxKind::ImportKeyword => self.get_global_import_meta_expression_type()?,
             SyntaxKind::NewKeyword => {
@@ -513,7 +513,7 @@ impl TypeChecker {
     pub(super) fn check_new_target_meta_property(
         &self,
         node: &Node, /*MetaProperty*/
-    ) -> io::Result<Gc<Type>> {
+    ) -> io::Result<Id<Type>> {
         let container = get_new_target_container(node);
         Ok(match container.as_ref() {
             None => {
@@ -541,7 +541,7 @@ impl TypeChecker {
     pub(super) fn check_import_meta_property(
         &self,
         node: &Node, /*MetaProperty*/
-    ) -> io::Result<Gc<Type>> {
+    ) -> io::Result<Id<Type>> {
         if matches!(self.module_kind, ModuleKind::Node12 | ModuleKind::NodeNext) {
             if get_source_file_of_node(node)
                 .as_source_file()
@@ -576,7 +576,7 @@ impl TypeChecker {
         )
     }
 
-    pub(super) fn get_type_of_parameter(&self, symbol: &Symbol) -> io::Result<Gc<Type>> {
+    pub(super) fn get_type_of_parameter(&self, symbol: &Symbol) -> io::Result<Id<Type>> {
         let type_ = self.get_type_of_symbol(symbol)?;
         if self.strict_null_checks {
             let declaration = symbol.maybe_value_declaration();

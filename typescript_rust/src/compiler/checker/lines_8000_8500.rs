@@ -7,6 +7,7 @@ use std::{
 };
 
 use gc::{Gc, GcCell};
+use id_arena::Id;
 
 use super::{get_symbol_id, NodeBuilderContext, TypeFacts};
 use crate::{
@@ -120,8 +121,8 @@ impl TypeChecker {
         Ok(())
     }
 
-    pub(super) fn format_union_types(&self, types: &[Gc<Type>]) -> io::Result<Vec<Gc<Type>>> {
-        let mut result: Vec<Gc<Type>> = vec![];
+    pub(super) fn format_union_types(&self, types: &[Id<Type>]) -> io::Result<Vec<Id<Type>>> {
+        let mut result: Vec<Id<Type>> = vec![];
         let mut flags: TypeFlags = TypeFlags::None;
         let mut i = 0;
         while i < types.len() {
@@ -676,7 +677,7 @@ impl TypeChecker {
     pub(super) fn get_type_of_prototype_property(
         &self,
         prototype: &Symbol,
-    ) -> io::Result<Gc<Type>> {
+    ) -> io::Result<Id<Type>> {
         let class_type =
             self.get_declared_type_of_symbol(&self.get_parent_of_symbol(prototype)?.unwrap())?;
         Ok(
@@ -699,7 +700,7 @@ impl TypeChecker {
         &self,
         type_: &Type,
         name: &str, /*__String*/
-    ) -> io::Result<Option<Gc<Type>>> {
+    ) -> io::Result<Option<Id<Type>>> {
         let prop = return_ok_none_if_none!(self.get_property_of_type_(type_, name, None)?);
         Ok(Some(self.get_type_of_symbol(&prop)?))
     }
@@ -708,7 +709,7 @@ impl TypeChecker {
         &self,
         type_: &Type,
         name: &str, /*__String*/
-    ) -> io::Result<Gc<Type>> {
+    ) -> io::Result<Id<Type>> {
         Ok(self
             .get_type_of_property_of_type_(type_, name)?
             .try_or_else(|| -> io::Result<_> {
@@ -737,7 +738,7 @@ impl TypeChecker {
     pub(super) fn get_type_for_binding_element_parent(
         &self,
         node: &Node, /*BindingElementGrandparent*/
-    ) -> io::Result<Option<Gc<Type>>> {
+    ) -> io::Result<Option<Id<Type>>> {
         let symbol = self.get_symbol_of_node(node)?;
         symbol
             .as_ref()
@@ -750,7 +751,7 @@ impl TypeChecker {
         source: &Type,
         properties: &[Gc<Node /*PropertyName*/>],
         symbol: Option<impl Borrow<Symbol>>,
-    ) -> io::Result<Gc<Type>> {
+    ) -> io::Result<Id<Type>> {
         let source = self.filter_type(source, |t| !t.flags().intersects(TypeFlags::Nullable));
         if source.flags().intersects(TypeFlags::Never) {
             return Ok(self.empty_object_type());
@@ -843,7 +844,7 @@ impl TypeChecker {
             ))
     }
 
-    pub(super) fn get_non_undefined_type(&self, type_: &Type) -> io::Result<Gc<Type>> {
+    pub(super) fn get_non_undefined_type(&self, type_: &Type) -> io::Result<Id<Type>> {
         let type_or_constraint = if self.try_some_type(type_, |type_| {
             self.is_generic_type_with_undefined_constraint(type_)
         })? {
@@ -869,7 +870,7 @@ impl TypeChecker {
         &self,
         node: &Node, /*BindingElement | PropertyAssignment | ShorthandPropertyAssignment | Expression*/
         declared_type: &Type,
-    ) -> io::Result<Gc<Type>> {
+    ) -> io::Result<Id<Type>> {
         let reference = self.get_synthetic_element_access(node)?;
         Ok(if let Some(reference) = reference {
             self.get_flow_type_of_reference(

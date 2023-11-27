@@ -1,6 +1,7 @@
 use std::{io, iter, ptr};
 
 use gc::Gc;
+use id_arena::Id;
 use itertools::Either;
 
 use super::MappedTypeModifiers;
@@ -17,7 +18,7 @@ impl TypeChecker {
     pub(super) fn get_name_type_from_mapped_type(
         &self,
         type_: &Type, /*MappedType*/
-    ) -> io::Result<Option<Gc<Type>>> {
+    ) -> io::Result<Option<Id<Type>>> {
         let type_as_mapped_type = type_.as_mapped_type();
         type_as_mapped_type
             .declaration
@@ -39,7 +40,7 @@ impl TypeChecker {
     pub(super) fn get_template_type_from_mapped_type(
         &self,
         type_: &Type, /*MappedType*/
-    ) -> io::Result<Gc<Type>> {
+    ) -> io::Result<Id<Type>> {
         let type_as_mapped_type = type_.as_mapped_type();
         if type_as_mapped_type.maybe_template_type().is_none() {
             let template_type = if let Some(type_declaration_type) = type_as_mapped_type
@@ -94,7 +95,7 @@ impl TypeChecker {
     pub(super) fn get_modifiers_type_from_mapped_type(
         &self,
         type_: &Type, /*MappedType*/
-    ) -> io::Result<Gc<Type>> {
+    ) -> io::Result<Id<Type>> {
         let type_as_mapped_type = type_.as_mapped_type();
         if type_as_mapped_type.maybe_modifiers_type().is_none() {
             if self.is_mapped_type_with_keyof_constraint_declaration(type_) {
@@ -210,7 +211,7 @@ impl TypeChecker {
     pub(super) fn resolve_structured_type_members(
         &self,
         type_: &Type, /*StructuredType*/
-    ) -> io::Result<Gc<Type /*ResolvedType*/>> {
+    ) -> io::Result<Id<Type /*ResolvedType*/>> {
         if !type_.as_resolvable_type().is_resolved() {
             if type_.flags().intersects(TypeFlags::Object) {
                 let type_as_object_type = type_.as_object_type();
@@ -378,7 +379,7 @@ impl TypeChecker {
 
     pub fn get_all_possible_properties_of_types(
         &self,
-        types: &[Gc<Type>],
+        types: &[Id<Type>],
     ) -> io::Result<Vec<Gc<Symbol>>> {
         let union_type = self.get_union_type(
             types,
@@ -413,7 +414,7 @@ impl TypeChecker {
     pub(super) fn get_constraint_of_type(
         &self,
         type_: &Type, /*InstantiableType | UnionOrIntersectionType*/
-    ) -> io::Result<Option<Gc<Type>>> {
+    ) -> io::Result<Option<Id<Type>>> {
         Ok(if type_.flags().intersects(TypeFlags::TypeParameter) {
             self.get_constraint_of_type_parameter(type_)?
         } else if type_.flags().intersects(TypeFlags::IndexedAccess) {
@@ -428,7 +429,7 @@ impl TypeChecker {
     pub(super) fn get_constraint_of_type_parameter(
         &self,
         type_parameter: &Type, /*TypeParameter*/
-    ) -> io::Result<Option<Gc<Type>>> {
+    ) -> io::Result<Option<Id<Type>>> {
         Ok(if self.has_non_circular_base_constraint(type_parameter)? {
             self.get_constraint_from_type_parameter(type_parameter)?
         } else {
@@ -439,7 +440,7 @@ impl TypeChecker {
     pub(super) fn get_constraint_of_indexed_access(
         &self,
         type_: &Type, /*IndexedAccessType*/
-    ) -> io::Result<Option<Gc<Type>>> {
+    ) -> io::Result<Option<Id<Type>>> {
         Ok(if self.has_non_circular_base_constraint(type_)? {
             self.get_constraint_from_indexed_access(type_)?
         } else {
@@ -450,7 +451,7 @@ impl TypeChecker {
     pub(super) fn get_simplified_type_or_constraint(
         &self,
         type_: &Type,
-    ) -> io::Result<Option<Gc<Type>>> {
+    ) -> io::Result<Option<Id<Type>>> {
         let simplified = self.get_simplified_type(type_, false)?;
         Ok(if !ptr::eq(&*simplified, type_) {
             Some(simplified)
@@ -462,7 +463,7 @@ impl TypeChecker {
     pub(super) fn get_constraint_from_indexed_access(
         &self,
         type_: &Type, /*IndexedAccessType*/
-    ) -> io::Result<Option<Gc<Type>>> {
+    ) -> io::Result<Option<Id<Type>>> {
         let type_as_indexed_access_type = type_.as_indexed_access_type();
         let index_constraint =
             self.get_simplified_type_or_constraint(&type_as_indexed_access_type.index_type)?;
@@ -501,7 +502,7 @@ impl TypeChecker {
     pub(super) fn get_default_constraint_of_conditional_type(
         &self,
         type_: &Type, /*ConditionalType*/
-    ) -> io::Result<Gc<Type>> {
+    ) -> io::Result<Id<Type>> {
         let type_as_conditional_type = type_.as_conditional_type();
         if type_as_conditional_type
             .maybe_resolved_default_constraint()
@@ -533,7 +534,7 @@ impl TypeChecker {
     pub(super) fn get_constraint_of_distributive_conditional_type(
         &self,
         type_: &Type, /*ConditionalType*/
-    ) -> io::Result<Option<Gc<Type>>> {
+    ) -> io::Result<Option<Id<Type>>> {
         let type_as_conditional_type = type_.as_conditional_type();
         if (*type_as_conditional_type.root).borrow().is_distributive
             && !matches!(
@@ -572,7 +573,7 @@ impl TypeChecker {
     pub(super) fn get_constraint_from_conditional_type(
         &self,
         type_: &Type, /*ConditionalType*/
-    ) -> io::Result<Gc<Type>> {
+    ) -> io::Result<Id<Type>> {
         self.get_constraint_of_distributive_conditional_type(type_)?
             .try_unwrap_or_else(|| self.get_default_constraint_of_conditional_type(type_))
     }
@@ -580,7 +581,7 @@ impl TypeChecker {
     pub(super) fn get_constraint_of_conditional_type(
         &self,
         type_: &Type, /*ConditionalType*/
-    ) -> io::Result<Option<Gc<Type>>> {
+    ) -> io::Result<Option<Id<Type>>> {
         Ok(if self.has_non_circular_base_constraint(type_)? {
             Some(self.get_constraint_from_conditional_type(type_)?)
         } else {
@@ -590,10 +591,10 @@ impl TypeChecker {
 
     pub(super) fn get_effective_constraint_of_intersection(
         &self,
-        types: &[Gc<Type>],
+        types: &[Id<Type>],
         target_is_union: bool,
-    ) -> io::Result<Option<Gc<Type>>> {
-        let mut constraints: Option<Vec<Gc<Type>>> = None;
+    ) -> io::Result<Option<Id<Type>>> {
+        let mut constraints: Option<Vec<Id<Type>>> = None;
         let mut has_disjoint_domain_type = false;
         for t in types {
             if t.flags().intersects(TypeFlags::Instantiable) {
@@ -637,7 +638,7 @@ impl TypeChecker {
         })
     }
 
-    pub(super) fn get_base_constraint_of_type(&self, type_: &Type) -> io::Result<Option<Gc<Type>>> {
+    pub(super) fn get_base_constraint_of_type(&self, type_: &Type) -> io::Result<Option<Id<Type>>> {
         if type_.flags().intersects(
             TypeFlags::InstantiableNonPrimitive
                 | TypeFlags::UnionOrIntersection
@@ -662,7 +663,7 @@ impl TypeChecker {
         })
     }
 
-    pub(super) fn get_base_constraint_or_type(&self, type_: &Type) -> io::Result<Gc<Type>> {
+    pub(super) fn get_base_constraint_or_type(&self, type_: &Type) -> io::Result<Id<Type>> {
         Ok(self
             .get_base_constraint_of_type(type_)?
             .unwrap_or_else(|| type_.type_wrapper()))
@@ -681,12 +682,12 @@ impl TypeChecker {
     pub(super) fn get_resolved_base_constraint(
         &self,
         type_: &Type, /*InstantiableType | UnionOrIntersectionType*/
-    ) -> io::Result<Gc<Type>> {
+    ) -> io::Result<Id<Type>> {
         if let Some(type_resolved_base_constraint) = type_.maybe_resolved_base_constraint().clone()
         {
             return Ok(type_resolved_base_constraint);
         }
-        let mut stack: Vec<Gc<Type>> = vec![];
+        let mut stack: Vec<Id<Type>> = vec![];
         let ret = self.get_type_with_this_argument(
             &*self.get_immediate_base_constraint(&mut stack, type_)?,
             Some(type_),
@@ -698,9 +699,9 @@ impl TypeChecker {
 
     pub(super) fn get_immediate_base_constraint(
         &self,
-        stack: &mut Vec<Gc<Type>>,
+        stack: &mut Vec<Id<Type>>,
         t: &Type,
-    ) -> io::Result<Gc<Type>> {
+    ) -> io::Result<Id<Type>> {
         if t.maybe_immediate_base_constraint().is_none() {
             if !self.push_type_resolution(
                 &t.type_wrapper().into(),
@@ -708,7 +709,7 @@ impl TypeChecker {
             ) {
                 return Ok(self.circular_constraint_type());
             }
-            let mut result: Option<Gc<Type>> = None;
+            let mut result: Option<Id<Type>> = None;
             if stack.len() < 10
                 || stack.len() < 50 && !self.is_deeply_nested_type(t, stack, stack.len(), None)
             {
@@ -755,9 +756,9 @@ impl TypeChecker {
 
     pub(super) fn get_base_constraint(
         &self,
-        stack: &mut Vec<Gc<Type>>,
+        stack: &mut Vec<Id<Type>>,
         t: &Type,
-    ) -> io::Result<Option<Gc<Type>>> {
+    ) -> io::Result<Option<Id<Type>>> {
         let c = self.get_immediate_base_constraint(stack, t)?;
         Ok(
             if !Gc::ptr_eq(&c, &self.no_constraint_type())
@@ -772,9 +773,9 @@ impl TypeChecker {
 
     pub(super) fn compute_base_constraint(
         &self,
-        stack: &mut Vec<Gc<Type>>,
+        stack: &mut Vec<Id<Type>>,
         t: &Type,
-    ) -> io::Result<Option<Gc<Type>>> {
+    ) -> io::Result<Option<Id<Type>>> {
         if t.flags().intersects(TypeFlags::TypeParameter) {
             let constraint = self.get_constraint_from_type_parameter(t)?;
             return Ok(
@@ -788,7 +789,7 @@ impl TypeChecker {
         }
         if t.flags().intersects(TypeFlags::UnionOrIntersection) {
             let types = t.as_union_or_intersection_type_interface().types();
-            let mut base_types: Vec<Gc<Type>> = vec![];
+            let mut base_types: Vec<Id<Type>> = vec![];
             let mut different = false;
             for type_ in types {
                 let base_type = self.get_base_constraint(stack, type_)?;
@@ -826,7 +827,7 @@ impl TypeChecker {
         if t.flags().intersects(TypeFlags::TemplateLiteral) {
             let t_as_template_literal_type = t.as_template_literal_type();
             let types = &t_as_template_literal_type.types;
-            let constraints = try_map_defined(Some(types), |type_: &Gc<Type>, _| {
+            let constraints = try_map_defined(Some(types), |type_: &Id<Type>, _| {
                 self.get_base_constraint(stack, type_)
             })?;
             return Ok(Some(if constraints.len() == types.len() {
@@ -880,7 +881,7 @@ impl TypeChecker {
     pub(super) fn get_apparent_type_of_intersection_type(
         &self,
         type_: &Type, /*IntersectionType*/
-    ) -> io::Result<Gc<Type>> {
+    ) -> io::Result<Id<Type>> {
         let type_as_intersection_type = type_.as_intersection_type();
         if type_as_intersection_type
             .maybe_resolved_apparent_type()
@@ -898,7 +899,7 @@ impl TypeChecker {
     pub(super) fn get_resolved_type_parameter_default(
         &self,
         type_parameter: &Type, /*TypeParameter*/
-    ) -> io::Result<Option<Gc<Type>>> {
+    ) -> io::Result<Option<Id<Type>>> {
         let type_parameter_as_type_parameter = type_parameter.as_type_parameter();
         if type_parameter_as_type_parameter.maybe_default().is_none() {
             if let Some(type_parameter_target) = type_parameter_as_type_parameter.target.as_ref() {
@@ -956,7 +957,7 @@ impl TypeChecker {
     pub(super) fn get_default_from_type_parameter_(
         &self,
         type_parameter: &Type, /*TypeParameter*/
-    ) -> io::Result<Option<Gc<Type>>> {
+    ) -> io::Result<Option<Id<Type>>> {
         let default_type = self.get_resolved_type_parameter_default(type_parameter)?;
         Ok(default_type.filter(|default_type| {
             !Gc::ptr_eq(&default_type, &self.no_constraint_type())
@@ -989,7 +990,7 @@ impl TypeChecker {
     pub(super) fn get_apparent_type_of_mapped_type(
         &self,
         type_: &Type, /*MappedType*/
-    ) -> io::Result<Gc<Type>> {
+    ) -> io::Result<Id<Type>> {
         let type_as_mapped_type = type_.as_mapped_type();
         if type_as_mapped_type.maybe_resolved_apparent_type().is_none() {
             let resolved = self.get_resolved_apparent_type_of_mapped_type(type_)?;
@@ -1004,7 +1005,7 @@ impl TypeChecker {
     pub(super) fn get_resolved_apparent_type_of_mapped_type(
         &self,
         type_: &Type, /*MappedType*/
-    ) -> io::Result<Gc<Type>> {
+    ) -> io::Result<Id<Type>> {
         let type_variable = self.get_homomorphic_type_variable(type_)?;
         if let Some(type_variable) = type_variable {
             let type_as_mapped_type = type_.as_mapped_type();

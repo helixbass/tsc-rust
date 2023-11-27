@@ -8,6 +8,7 @@ use std::{
 };
 
 use gc::{Finalize, Gc, GcCell, Trace};
+use id_arena::Id;
 
 use super::{
     signature_has_rest_parameter, CheckMode, SignatureCheckMode, TypeComparerCompareTypesAssignable,
@@ -91,7 +92,7 @@ impl TypeChecker {
             || type_.flags().intersects(TypeFlags::Intersection)
                 && some(
                     Some(type_.as_intersection_type().types()),
-                    Some(|type_: &Gc<Type>| self.is_or_has_generic_conditional(type_)),
+                    Some(|type_: &Id<Type>| self.is_or_has_generic_conditional(type_)),
                 )
     }
 
@@ -392,7 +393,7 @@ impl TypeChecker {
         source: &Type,
         target: &Type,
         name_type: &Type,
-    ) -> io::Result<Option<Gc<Type>>> {
+    ) -> io::Result<Option<Id<Type>>> {
         let idx = self.get_indexed_access_type_or_undefined(
             target,
             name_type,
@@ -428,7 +429,7 @@ impl TypeChecker {
         &self,
         next: &Node, /*Expression*/
         source_prop_type: &Type,
-    ) -> io::Result<Gc<Type>> {
+    ) -> io::Result<Id<Type>> {
         *next.maybe_contextual_type() = Some(source_prop_type.type_wrapper());
         let ret = self.check_expression_for_mutable_location(
             next,
@@ -1522,7 +1523,7 @@ impl TypeChecker {
 pub(super) struct ElaborationIteratorItem {
     pub error_node: Gc<Node>,
     pub inner_expression: Option<Gc<Node /*Expression*/>>,
-    name_type: Gc<Type>,
+    name_type: Id<Type>,
     error_message: Option<Cow<'static, DiagnosticMessage>>,
 }
 

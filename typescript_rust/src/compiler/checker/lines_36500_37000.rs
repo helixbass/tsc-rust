@@ -1,6 +1,7 @@
 use std::{borrow::Borrow, io, ptr};
 
 use gc::Gc;
+use id_arena::Id;
 
 use super::IterationUse;
 use crate::{
@@ -381,7 +382,7 @@ impl TypeChecker {
         Ok(())
     }
 
-    pub(super) fn convert_auto_to_any(&self, type_: &Type) -> Gc<Type> {
+    pub(super) fn convert_auto_to_any(&self, type_: &Type) -> Id<Type> {
         if ptr::eq(type_, &*self.auto_type()) {
             self.any_type()
         } else if ptr::eq(type_, &*self.auto_array_type()) {

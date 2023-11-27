@@ -1,6 +1,7 @@
 use std::{borrow::Borrow, io, ptr};
 
 use gc::Gc;
+use id_arena::Id;
 
 use super::{
     get_iteration_types_key_from_iteration_type_kind, CheckMode, IterationTypeKind, IterationUse,
@@ -82,7 +83,7 @@ impl TypeChecker {
         Ok(())
     }
 
-    pub(super) fn check_truthiness_of_type(&self, type_: &Type, node: &Node) -> Gc<Type> {
+    pub(super) fn check_truthiness_of_type(&self, type_: &Type, node: &Node) -> Id<Type> {
         if type_.flags().intersects(TypeFlags::Void) {
             self.error(
                 Some(node),
@@ -97,7 +98,7 @@ impl TypeChecker {
         &self,
         node: &Node, /*Expression*/
         check_mode: Option<CheckMode>,
-    ) -> io::Result<Gc<Type>> {
+    ) -> io::Result<Id<Type>> {
         Ok(self.check_truthiness_of_type(&*self.check_expression(node, check_mode, None)?, node))
     }
 
@@ -330,7 +331,7 @@ impl TypeChecker {
     pub(super) fn check_right_hand_side_of_for_of(
         &self,
         statement: &Node, /*ForOfStatement*/
-    ) -> io::Result<Gc<Type>> {
+    ) -> io::Result<Id<Type>> {
         let statement_as_for_of_statement = statement.as_for_of_statement();
         let use_ = if statement_as_for_of_statement.await_modifier.is_some() {
             IterationUse::ForAwaitOf
@@ -351,7 +352,7 @@ impl TypeChecker {
         input_type: &Type,
         sent_type: &Type,
         error_node: Option<impl Borrow<Node>>,
-    ) -> io::Result<Gc<Type>> {
+    ) -> io::Result<Id<Type>> {
         if self.is_type_any(Some(input_type)) {
             return Ok(input_type.type_wrapper());
         }
@@ -367,7 +368,7 @@ impl TypeChecker {
         sent_type: &Type,
         error_node: Option<impl Borrow<Node>>,
         check_assignability: bool,
-    ) -> io::Result<Option<Gc<Type>>> {
+    ) -> io::Result<Option<Id<Type>>> {
         let allow_async_iterables = use_.intersects(IterationUse::AllowsAsyncIterablesFlag);
         let error_node = error_node.map(|error_node| error_node.borrow().node_wrapper());
         if ptr::eq(input_type, &*self.never_type()) {
@@ -446,7 +447,7 @@ impl TypeChecker {
         if use_.intersects(IterationUse::AllowsStringInputFlag) {
             if array_type.flags().intersects(TypeFlags::Union) {
                 let array_types = input_type.as_union_type().types();
-                let filtered_types = filter(array_types, |t: &Gc<Type>| {
+                let filtered_types = filter(array_types, |t: &Id<Type>| {
                     !t.flags().intersects(TypeFlags::StringLike)
                 });
                 if filtered_types.len() != array_types.len() {
@@ -634,7 +635,7 @@ impl TypeChecker {
         type_kind: IterationTypeKind,
         input_type: &Type,
         error_node: Option<impl Borrow<Node>>,
-    ) -> io::Result<Option<Gc<Type>>> {
+    ) -> io::Result<Option<Id<Type>>> {
         if self.is_type_any(Some(input_type)) {
             return Ok(None);
         }
@@ -647,9 +648,9 @@ impl TypeChecker {
 
     pub(super) fn create_iteration_types(
         &self,
-        yield_type: Option<Gc<Type>>,
-        return_type: Option<Gc<Type>>,
-        next_type: Option<Gc<Type>>,
+        yield_type: Option<Id<Type>>,
+        return_type: Option<Id<Type>>,
+        next_type: Option<Id<Type>>,
     ) -> Gc<IterationTypes> {
         let yield_type = yield_type.unwrap_or_else(|| self.never_type());
         let return_type = return_type.unwrap_or_else(|| self.never_type());
@@ -688,9 +689,9 @@ impl TypeChecker {
         &self,
         array: &[Option<Gc<IterationTypes>>],
     ) -> io::Result<Gc<IterationTypes>> {
-        let mut yield_types: Option<Vec<Gc<Type>>> = None;
-        let mut return_types: Option<Vec<Gc<Type>>> = None;
-        let mut next_types: Option<Vec<Gc<Type>>> = None;
+        let mut yield_types: Option<Vec<Id<Type>>> = None;
+        let mut return_types: Option<Vec<Id<Type>>> = None;
+        let mut next_types: Option<Vec<Id<Type>>> = None;
         for iteration_types in array {
             if iteration_types.is_none() {
                 continue;

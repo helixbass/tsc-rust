@@ -6,6 +6,7 @@ use std::{
 };
 
 use gc::{Finalize, Gc, Trace};
+use id_arena::Id;
 
 use super::{CheckMode, CheckTypeContainingMessageChain, JsxNames};
 use crate::{
@@ -162,7 +163,7 @@ impl TypeChecker {
         if signatures.is_empty() && apparent_elem_type.flags().intersects(TypeFlags::Union) {
             signatures = self.get_union_signatures(&try_map(
                 apparent_elem_type.as_union_type().types(),
-                |t: &Gc<Type>, _| self.get_uninstantiated_jsx_signatures_of_type(t, caller),
+                |t: &Id<Type>, _| self.get_uninstantiated_jsx_signatures_of_type(t, caller),
             )?)?;
         }
         Ok(signatures)
@@ -172,7 +173,7 @@ impl TypeChecker {
         &self,
         type_: &Type, /*StringLiteralType*/
         location: &Node,
-    ) -> io::Result<Option<Gc<Type>>> {
+    ) -> io::Result<Option<Id<Type>>> {
         let intrinsic_elements_type =
             self.get_jsx_type(&JsxNames::IntrinsicElements, Some(location))?;
         if !self.is_error_type(&intrinsic_elements_type) {
@@ -285,7 +286,7 @@ impl TypeChecker {
     pub(super) fn get_intrinsic_attributes_type_from_jsx_opening_like_element(
         &self,
         node: &Node, /*JsxOpeningLikeElement*/
-    ) -> io::Result<Gc<Type>> {
+    ) -> io::Result<Id<Type>> {
         let node_as_jsx_opening_like_element = node.as_jsx_opening_like_element();
         Debug_.assert(
             self.is_jsx_intrinsic_identifier(&node_as_jsx_opening_like_element.tag_name()),
@@ -336,7 +337,7 @@ impl TypeChecker {
     pub(super) fn get_jsx_element_class_type_at(
         &self,
         location: &Node,
-    ) -> io::Result<Option<Gc<Type>>> {
+    ) -> io::Result<Option<Id<Type>>> {
         let type_ = self.get_jsx_type(&JsxNames::ElementClass, Some(location))?;
         if self.is_error_type(&type_) {
             return Ok(None);
@@ -344,14 +345,14 @@ impl TypeChecker {
         Ok(Some(type_))
     }
 
-    pub(super) fn get_jsx_element_type_at(&self, location: &Node) -> io::Result<Gc<Type>> {
+    pub(super) fn get_jsx_element_type_at(&self, location: &Node) -> io::Result<Id<Type>> {
         self.get_jsx_type(&JsxNames::Element, Some(location))
     }
 
     pub(super) fn get_jsx_stateless_element_type_at(
         &self,
         location: &Node,
-    ) -> io::Result<Option<Gc<Type>>> {
+    ) -> io::Result<Option<Id<Type>>> {
         let jsx_element_type = self.get_jsx_element_type_at(location)?;
         // if (jsxElementType) {
         Ok(Some(self.get_union_type(
@@ -521,12 +522,12 @@ impl TypeChecker {
             || (type_.flags().intersects(TypeFlags::Union)
                 && some(
                     Some(type_.as_union_type().types()),
-                    Some(|type_: &Gc<Type>| self.is_excess_property_check_target(type_)),
+                    Some(|type_: &Id<Type>| self.is_excess_property_check_target(type_)),
                 ))
             || (type_.flags().intersects(TypeFlags::Intersection)
                 && every(
                     type_.as_intersection_type().types(),
-                    |type_: &Gc<Type>, _| self.is_excess_property_check_target(type_),
+                    |type_: &Id<Type>, _| self.is_excess_property_check_target(type_),
                 ))
     }
 
@@ -534,7 +535,7 @@ impl TypeChecker {
         &self,
         node: &Node, /*JsxExpression*/
         check_mode: Option<CheckMode>,
-    ) -> io::Result<Gc<Type>> {
+    ) -> io::Result<Id<Type>> {
         self.check_grammar_jsx_expression(node);
         let node_as_jsx_expression = node.as_jsx_expression();
         Ok(

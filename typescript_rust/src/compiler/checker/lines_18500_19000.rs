@@ -1,6 +1,7 @@
 use std::{cell::Cell, io, ptr, rc::Rc};
 
 use gc::{Finalize, Gc, Trace};
+use id_arena::Id;
 use regex::{Captures, Regex};
 
 use super::{
@@ -170,7 +171,7 @@ impl CheckTypeRelatedTo {
         &self,
         source: &Type,
         target: &Type,
-    ) -> Gc<Type> {
+    ) -> Id<Type> {
         if source.flags().intersects(TypeFlags::Union)
             && target.flags().intersects(TypeFlags::Union)
             && !source.as_union_or_intersection_type_interface().types()[0]
@@ -242,8 +243,8 @@ impl CheckTypeRelatedTo {
 
     pub(super) fn type_arguments_related_to(
         &self,
-        sources: Option<Vec<Gc<Type>>>,
-        targets: Option<Vec<Gc<Type>>>,
+        sources: Option<Vec<Id<Type>>>,
+        targets: Option<Vec<Id<Type>>>,
         variances: Option<Vec<VarianceFlags>>,
         report_errors: bool,
         intersection_state: IntersectionState,
@@ -658,7 +659,7 @@ impl CheckTypeRelatedTo {
             {
                 let constraints = try_map(
                     source.as_union_or_intersection_type_interface().types(),
-                    |type_: &Gc<Type>, _| self.type_checker.get_base_constraint_or_type(type_),
+                    |type_: &Id<Type>, _| self.type_checker.get_base_constraint_or_type(type_),
                 )?;
                 if !are_gc_slices_equal(
                     &constraints,
@@ -999,7 +1000,7 @@ impl CheckTypeRelatedTo {
                     let constraint_type = self
                         .type_checker
                         .get_constraint_type_from_mapped_type(target_type)?;
-                    let target_keys: Gc<Type>;
+                    let target_keys: Id<Type>;
                     if let Some(name_type) = name_type.as_ref().filter(|_| {
                         self.type_checker
                             .is_mapped_type_with_keyof_constraint_declaration(target_type)
@@ -1009,7 +1010,7 @@ impl CheckTypeRelatedTo {
                                 .type_checker
                                 .get_modifiers_type_from_mapped_type(target_type)?,
                         )?;
-                        let mut mapped_keys: Vec<Gc<Type>> = vec![];
+                        let mut mapped_keys: Vec<Id<Type>> = vec![];
                         self.type_checker
                             .try_for_each_mapped_type_property_key_type_and_index_signature_key_type(
                                 &modifiers_type,
@@ -1818,7 +1819,7 @@ impl CheckTypeRelatedTo {
 #[derive(Trace, Finalize)]
 pub(super) struct ReportUnmeasurableMarkers;
 impl TypeMapperCallback for ReportUnmeasurableMarkers {
-    fn call(&self, checker: &TypeChecker, p: &Type /*TypeParameter*/) -> io::Result<Gc<Type>> {
+    fn call(&self, checker: &TypeChecker, p: &Type /*TypeParameter*/) -> io::Result<Id<Type>> {
         if let Some(outofband_variance_marker_handler) =
             checker.maybe_outofband_variance_marker_handler()
         {
@@ -1836,7 +1837,7 @@ impl TypeMapperCallback for ReportUnmeasurableMarkers {
 #[derive(Trace, Finalize)]
 pub(super) struct ReportUnreliableMarkers;
 impl TypeMapperCallback for ReportUnreliableMarkers {
-    fn call(&self, checker: &TypeChecker, p: &Type /*TypeParameter*/) -> io::Result<Gc<Type>> {
+    fn call(&self, checker: &TypeChecker, p: &Type /*TypeParameter*/) -> io::Result<Id<Type>> {
         if let Some(outofband_variance_marker_handler) =
             checker.maybe_outofband_variance_marker_handler()
         {

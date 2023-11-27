@@ -24,7 +24,7 @@ impl TypeChecker {
     pub(super) fn get_base_type_variable_of_class(
         &self,
         symbol: &Symbol,
-    ) -> io::Result<Option<Gc<Type>>> {
+    ) -> io::Result<Option<Id<Type>>> {
         let base_constructor_type = self.get_base_constructor_type_of_class(
             &*self.get_declared_type_of_class_or_interface(symbol)?,
         )?;
@@ -42,7 +42,7 @@ impl TypeChecker {
                     base_constructor_type
                         .as_union_or_intersection_type_interface()
                         .types(),
-                    |t: &Gc<Type>, _| t.flags().intersects(TypeFlags::TypeVariable),
+                    |t: &Id<Type>, _| t.flags().intersects(TypeFlags::TypeVariable),
                 )
                 .cloned()
             } else {
@@ -54,7 +54,7 @@ impl TypeChecker {
     pub(super) fn get_type_of_func_class_enum_module(
         &self,
         symbol: &Symbol,
-    ) -> io::Result<Gc<Type>> {
+    ) -> io::Result<Id<Type>> {
         let mut links = self.get_symbol_links(symbol);
         let original_links = links.clone();
         let mut symbol = symbol.symbol_wrapper();
@@ -82,7 +82,7 @@ impl TypeChecker {
     pub(super) fn get_type_of_func_class_enum_module_worker(
         &self,
         symbol: &Symbol,
-    ) -> io::Result<Gc<Type>> {
+    ) -> io::Result<Id<Type>> {
         let declaration = symbol.maybe_value_declaration();
         if symbol.flags().intersects(SymbolFlags::Module)
             && is_shorthand_ambient_module_symbol(symbol)
@@ -157,7 +157,7 @@ impl TypeChecker {
         })
     }
 
-    pub(super) fn get_type_of_enum_member(&self, symbol: &Symbol) -> io::Result<Gc<Type>> {
+    pub(super) fn get_type_of_enum_member(&self, symbol: &Symbol) -> io::Result<Id<Type>> {
         let links = self.get_symbol_links(symbol);
         if let Some(links_type) = (*links).borrow().type_.clone() {
             return Ok(links_type);
@@ -167,7 +167,7 @@ impl TypeChecker {
         Ok(ret)
     }
 
-    pub(super) fn get_type_of_alias(&self, symbol: &Symbol) -> io::Result<Gc<Type>> {
+    pub(super) fn get_type_of_alias(&self, symbol: &Symbol) -> io::Result<Id<Type>> {
         let links = self.get_symbol_links(symbol);
         if (*links).borrow().type_.is_none() {
             let target_symbol = self.resolve_alias(symbol)?;
@@ -405,12 +405,12 @@ impl TypeChecker {
                 matches!(check_base, Some(check_base) if ptr::eq(&*target, check_base))
                     || try_some(
                         Some(&*self.get_base_types(&target)?),
-                        Some(|type_: &Gc<Type>| self.has_base_type_check(check_base, type_)),
+                        Some(|type_: &Id<Type>| self.has_base_type_check(check_base, type_)),
                     )?
             } else if type_.flags().intersects(TypeFlags::Intersection) {
                 try_some(
                     Some(type_.as_union_or_intersection_type_interface().types()),
-                    Some(|type_: &Gc<Type>| self.has_base_type_check(check_base, type_)),
+                    Some(|type_: &Id<Type>| self.has_base_type_check(check_base, type_)),
                 )?
             } else {
                 false
@@ -607,7 +607,7 @@ impl TypeChecker {
     ) -> io::Result<Option<Vec<Gc<Type /*TypeParameter*/>>>> {
         let symbol_declarations = symbol.maybe_declarations();
         let symbol_declarations = return_ok_default_if_none!(symbol_declarations.as_ref());
-        let mut result: Option<Vec<Gc<Type /*TypeParameter*/>>> = None;
+        let mut result: Option<Vec<Id<Type /*TypeParameter*/>>> = None;
         for node in symbol_declarations {
             if matches!(
                 node.kind(),
@@ -722,7 +722,7 @@ impl TypeChecker {
             Ok(
                 if some(
                     sig.maybe_type_parameters().as_deref(),
-                    Option::<fn(&Gc<Type>) -> bool>::None,
+                    Option::<fn(&Id<Type>) -> bool>::None,
                 ) {
                     self.get_signature_instantiation(
                         sig.clone(),
@@ -870,7 +870,7 @@ impl TypeChecker {
         &self,
         type_: &Type, /*InterfaceType*/
     ) -> io::Result<Vec<Gc<Type /*BaseType*/>>> {
-        let mut resolved_implements_types: Vec<Gc<Type /*BaseType*/>> = vec![];
+        let mut resolved_implements_types: Vec<Id<Type /*BaseType*/>> = vec![];
         if let Some(type_symbol_declarations) = type_.symbol().maybe_declarations().as_deref() {
             for declaration in type_symbol_declarations {
                 let implements_type_nodes = get_effective_implements_type_nodes(declaration);
@@ -970,7 +970,7 @@ impl TypeChecker {
         let type_as_tuple_type = type_.as_tuple_type();
         let element_types = try_maybe_map(
             type_as_tuple_type.maybe_type_parameters(),
-            |t: &Gc<Type>, i| -> io::Result<_> {
+            |t: &Id<Type>, i| -> io::Result<_> {
                 Ok(
                     if type_as_tuple_type.element_flags[i].intersects(ElementFlags::Variadic) {
                         self.get_indexed_access_type(
@@ -1018,7 +1018,7 @@ impl TypeChecker {
             return Ok(ret);
         }
         let base_type_node = self.get_base_type_node_of_class(type_).unwrap();
-        let base_type: Gc<Type>;
+        let base_type: Id<Type>;
         let original_base_type = base_constructor_type
             .maybe_symbol()
             .map(|symbol| self.get_declared_type_of_symbol(&symbol))

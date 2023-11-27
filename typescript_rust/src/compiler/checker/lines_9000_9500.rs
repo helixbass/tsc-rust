@@ -1,6 +1,7 @@
 use std::{borrow::Borrow, convert::TryInto, io, ptr};
 
 use gc::{Gc, GcCell};
+use id_arena::Id;
 
 use super::CheckMode;
 use crate::{
@@ -59,9 +60,9 @@ impl TypeChecker {
 
     pub(super) fn get_constructor_defined_this_assignment_types(
         &self,
-        types: &[Gc<Type>],
+        types: &[Id<Type>],
         declarations: &[Gc<Node /*Declaration*/>],
-    ) -> Option<Vec<Gc<Type>>> {
+    ) -> Option<Vec<Id<Type>>> {
         Debug_.assert(types.len() == declarations.len(), None);
         Some(types.iter().enumerate().filter(|(i, _)| {
             let declaration = &declarations[*i];
@@ -81,7 +82,7 @@ impl TypeChecker {
         element: &Node, /*BindingElement*/
         include_pattern_in_type: Option<bool>,
         report_errors: Option<bool>,
-    ) -> io::Result<Gc<Type>> {
+    ) -> io::Result<Id<Type>> {
         let element_as_binding_element = element.as_binding_element();
         if element_as_binding_element.maybe_initializer().is_some() {
             let contextual_type = if is_binding_pattern(Some(element_as_binding_element.name())) {
@@ -126,7 +127,7 @@ impl TypeChecker {
         pattern: &Node, /*ObjectBindingPattern*/
         include_pattern_in_type: bool,
         report_errors: bool,
-    ) -> io::Result<Gc<Type>> {
+    ) -> io::Result<Id<Type>> {
         let mut members = create_symbol_table(Option::<&[Gc<Symbol>]>::None);
         let mut string_index_info: Option<Gc<IndexInfo>> = None;
         let mut object_flags =
@@ -207,7 +208,7 @@ impl TypeChecker {
         pattern: &Node, /*BindingPattern*/
         include_pattern_in_type: bool,
         report_errors: bool,
-    ) -> io::Result<Gc<Type>> {
+    ) -> io::Result<Id<Type>> {
         let ref elements = pattern.as_has_elements().elements();
         let last_element = last_or_undefined(&**elements);
         let rest_element = last_element.filter(|last_element| {
@@ -255,7 +256,7 @@ impl TypeChecker {
                 ElementFlags::Required
             }
         });
-        let mut result: Gc<Type> =
+        let mut result: Id<Type> =
             self.create_tuple_type(&element_types, Some(&element_flags), None, None)?;
         if include_pattern_in_type {
             result = self.clone_type_reference(&result);
@@ -273,7 +274,7 @@ impl TypeChecker {
         pattern: &Node, /*BindingPattern*/
         include_pattern_in_type: Option<bool>,
         report_errors: Option<bool>,
-    ) -> io::Result<Gc<Type>> {
+    ) -> io::Result<Id<Type>> {
         let include_pattern_in_type = include_pattern_in_type.unwrap_or(false);
         let report_errors = report_errors.unwrap_or(false);
         Ok(if pattern.kind() == SyntaxKind::ObjectBindingPattern {
@@ -295,7 +296,7 @@ impl TypeChecker {
         &self,
         declaration: &Node, /*ParameterDeclaration | PropertyDeclaration | PropertySignature | VariableDeclaration | BindingElement | JSDocPropertyLikeTag*/
         report_errors: Option<bool>,
-    ) -> io::Result<Gc<Type>> {
+    ) -> io::Result<Id<Type>> {
         self.widen_type_for_variable_like_declaration(
             self.get_type_for_variable_like_declaration(declaration, true)?,
             declaration,
@@ -317,7 +318,7 @@ impl TypeChecker {
         type_: Option<impl Borrow<Type>>,
         declaration: &Node,
         report_errors: Option<bool>,
-    ) -> io::Result<Gc<Type>> {
+    ) -> io::Result<Id<Type>> {
         let report_errors = report_errors.unwrap_or(false);
         if let Some(type_) = type_ {
             let mut type_ = type_.borrow().type_wrapper();
@@ -379,7 +380,7 @@ impl TypeChecker {
     pub(super) fn try_get_type_from_effective_type_node(
         &self,
         declaration: &Node, /*Declaration*/
-    ) -> io::Result<Option<Gc<Type>>> {
+    ) -> io::Result<Option<Id<Type>>> {
         let type_node = get_effective_type_annotation_node(declaration);
         type_node.try_map(|type_node| self.get_type_from_type_node_(&type_node))
     }
@@ -387,7 +388,7 @@ impl TypeChecker {
     pub(super) fn get_type_of_variable_or_parameter_or_property(
         &self,
         symbol: &Symbol,
-    ) -> io::Result<Gc<Type>> {
+    ) -> io::Result<Id<Type>> {
         let links = self.get_symbol_links(symbol);
         let links_type_is_none = { (*links).borrow().type_.is_none() };
         if links_type_is_none {
@@ -404,7 +405,7 @@ impl TypeChecker {
     pub(super) fn get_type_of_variable_or_parameter_or_property_worker(
         &self,
         symbol: &Symbol,
-    ) -> io::Result<Gc<Type>> {
+    ) -> io::Result<Id<Type>> {
         if symbol.flags().intersects(SymbolFlags::Prototype) {
             return self.get_type_of_prototype_property(symbol);
         }
@@ -506,7 +507,7 @@ impl TypeChecker {
             }
             return self.report_circularity_error(symbol);
         }
-        let type_: Gc<Type>;
+        let type_: Id<Type>;
         if declaration.kind() == SyntaxKind::ExportAssignment {
             type_ = self.widen_type_for_variable_like_declaration(
                 Some(
@@ -638,7 +639,7 @@ impl TypeChecker {
     pub(super) fn get_annotated_accessor_type(
         &self,
         accessor: Option<impl Borrow<Node> /*AccessorDeclaration*/>,
-    ) -> io::Result<Option<Gc<Type>>> {
+    ) -> io::Result<Option<Id<Type>>> {
         let node = return_ok_none_if_none!(self.get_annotated_accessor_type_node(accessor));
         Ok(Some(self.get_type_from_type_node_(&node)?))
     }
@@ -654,11 +655,11 @@ impl TypeChecker {
     pub(super) fn get_this_type_of_declaration(
         &self,
         declaration: &Node, /*SignatureDeclaration*/
-    ) -> io::Result<Option<Gc<Type>>> {
+    ) -> io::Result<Option<Id<Type>>> {
         self.get_this_type_of_signature(&*self.get_signature_from_declaration_(declaration)?)
     }
 
-    pub(super) fn get_type_of_accessors(&self, symbol: &Symbol) -> io::Result<Gc<Type>> {
+    pub(super) fn get_type_of_accessors(&self, symbol: &Symbol) -> io::Result<Id<Type>> {
         let links = self.get_symbol_links(symbol);
         if let Some(links_type) = (*links).borrow().type_.clone() {
             return Ok(links_type);
@@ -672,7 +673,7 @@ impl TypeChecker {
         Ok(ret)
     }
 
-    pub(super) fn get_type_of_set_accessor(&self, symbol: &Symbol) -> io::Result<Option<Gc<Type>>> {
+    pub(super) fn get_type_of_set_accessor(&self, symbol: &Symbol) -> io::Result<Option<Id<Type>>> {
         let links = self.get_symbol_links(symbol);
         if let Some(links_write_type) = (*links).borrow().write_type.clone() {
             return Ok(Some(links_write_type));
@@ -686,7 +687,7 @@ impl TypeChecker {
         &self,
         symbol: &Symbol,
         writing: Option<bool>,
-    ) -> io::Result<Option<Gc<Type>>> {
+    ) -> io::Result<Option<Id<Type>>> {
         if !self.push_type_resolution(
             &symbol.symbol_wrapper().into(),
             TypeSystemPropertyName::Type,
@@ -716,7 +717,7 @@ impl TypeChecker {
         &self,
         symbol: &Symbol,
         writing: Option<bool>,
-    ) -> io::Result<Option<Gc<Type>>> {
+    ) -> io::Result<Option<Id<Type>>> {
         let writing = writing.unwrap_or(false);
         let getter = get_declaration_of_kind(symbol, SyntaxKind::GetAccessor);
         let setter = get_declaration_of_kind(symbol, SyntaxKind::SetAccessor);
@@ -789,7 +790,7 @@ impl TypeChecker {
         &self,
         type_: &Type,
         symbol: &Symbol,
-    ) -> io::Result<Gc<Type>> {
+    ) -> io::Result<Id<Type>> {
         if get_check_flags(symbol).intersects(CheckFlags::Instantiated) {
             let links = self.get_symbol_links(symbol);
             return self.instantiate_type(type_, (*links).borrow().mapper.clone());

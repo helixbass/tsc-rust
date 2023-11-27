@@ -750,7 +750,7 @@ impl TypeChecker {
         &self,
         source: &Type,
         union_target: &Type, /*UnionOrIntersectionType*/
-    ) -> Option<Gc<Type>> {
+    ) -> Option<Id<Type>> {
         let source_object_flags = get_object_flags(source);
         if source_object_flags.intersects(ObjectFlags::Reference | ObjectFlags::Anonymous)
             && union_target.flags().intersects(TypeFlags::Union)
@@ -759,7 +759,7 @@ impl TypeChecker {
                 union_target
                     .as_union_or_intersection_type_interface()
                     .types(),
-                |target: &Gc<Type>, _| {
+                |target: &Id<Type>, _| {
                     if target.flags().intersects(TypeFlags::Object) {
                         let overlap_obj_flags = source_object_flags & get_object_flags(target);
                         if overlap_obj_flags.intersects(ObjectFlags::Reference) {
@@ -788,7 +788,7 @@ impl TypeChecker {
         &self,
         source: &Type,
         union_target: &Type, /*UnionOrIntersectionType*/
-    ) -> io::Result<Option<Gc<Type>>> {
+    ) -> io::Result<Option<Id<Type>>> {
         if get_object_flags(source).intersects(ObjectFlags::ObjectLiteral)
             && self.try_some_type(union_target, |type_: &Type| self.is_array_like_type(type_))?
         {
@@ -796,7 +796,7 @@ impl TypeChecker {
                 union_target
                     .as_union_or_intersection_type_interface()
                     .types(),
-                |t: &Gc<Type>, _| -> io::Result<_> { Ok(!self.is_array_like_type(t)?) },
+                |t: &Id<Type>, _| -> io::Result<_> { Ok(!self.is_array_like_type(t)?) },
             )?
             .cloned());
         }
@@ -807,7 +807,7 @@ impl TypeChecker {
         &self,
         source: &Type,
         union_target: &Type, /*UnionOrIntersectionType*/
-    ) -> io::Result<Option<Gc<Type>>> {
+    ) -> io::Result<Option<Id<Type>>> {
         let mut signature_kind = SignatureKind::Call;
         let has_signatures = !self
             .get_signatures_of_type(source, signature_kind)?
@@ -823,7 +823,7 @@ impl TypeChecker {
                 union_target
                     .as_union_or_intersection_type_interface()
                     .types(),
-                |t: &Gc<Type>, _| -> io::Result<_> {
+                |t: &Id<Type>, _| -> io::Result<_> {
                     Ok(!self.get_signatures_of_type(t, signature_kind)?.is_empty())
                 },
             )?
@@ -836,8 +836,8 @@ impl TypeChecker {
         &self,
         source: &Type,
         union_target: &Type, /*UnionOrIntersectionType*/
-    ) -> io::Result<Option<Gc<Type>>> {
-        let mut best_match: Option<Gc<Type>> = None;
+    ) -> io::Result<Option<Id<Type>>> {
+        let mut best_match: Option<Id<Type>> = None;
         let mut matching_count = 0;
         for target in union_target
             .as_union_or_intersection_type_interface()
@@ -857,7 +857,7 @@ impl TypeChecker {
             } else if overlap.flags().intersects(TypeFlags::Union) {
                 let len = length(Some(&filter(
                     overlap.as_union_or_intersection_type_interface().types(),
-                    |type_: &Gc<Type>| self.is_unit_type(type_),
+                    |type_: &Id<Type>| self.is_unit_type(type_),
                 )));
                 if len >= matching_count {
                     best_match = Some(target.clone());
@@ -874,7 +874,7 @@ impl TypeChecker {
     pub(super) fn filter_primitives_if_contains_non_primitive(
         &self,
         type_: &Type, /*UnionType*/
-    ) -> Gc<Type> {
+    ) -> Id<Type> {
         if self.maybe_type_of_kind(type_, TypeFlags::NonPrimitive) {
             let result = self.filter_type(type_, |t: &Type| {
                 !t.flags().intersects(TypeFlags::Primitive)
@@ -892,7 +892,7 @@ impl TypeChecker {
         target: &Type,
         mut is_related_to: impl FnMut(&Type, &Type) -> io::Result<Ternary>,
         skip_partial: Option<bool>,
-    ) -> io::Result<Option<Gc<Type>>> {
+    ) -> io::Result<Option<Id<Type>>> {
         if target.flags().intersects(TypeFlags::Union)
             && source
                 .flags()
@@ -914,7 +914,7 @@ impl TypeChecker {
                         let type_checker = self.rc_wrapper();
                         (
                             Box::new(move || type_checker.get_type_of_symbol(&p_clone))
-                                as Box<dyn Fn() -> io::Result<Gc<Type>>>,
+                                as Box<dyn Fn() -> io::Result<Id<Type>>>,
                             p.escaped_name().to_owned(),
                         )
                     }),

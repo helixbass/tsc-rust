@@ -6,6 +6,7 @@ use std::{
 
 use bitflags::bitflags;
 use gc::{Finalize, Gc, GcCell, GcCellRef, GcCellRefMut, Trace};
+use id_arena::Id;
 use local_macros::type_type;
 
 use super::{
@@ -18,11 +19,11 @@ use crate::{
 };
 
 pub trait LiteralTypeInterface: TypeInterface {
-    fn fresh_type(&self) -> Option<Gc<Type>>;
-    fn set_fresh_type(&self, fresh_type: Gc<Type>);
-    fn get_or_initialize_fresh_type(&self, type_checker: &TypeChecker) -> Gc<Type>;
-    fn regular_type(&self) -> Gc<Type>;
-    fn set_regular_type(&self, regular_type: Gc<Type>);
+    fn fresh_type(&self) -> Option<Id<Type>>;
+    fn set_fresh_type(&self, fresh_type: Id<Type>);
+    fn get_or_initialize_fresh_type(&self, type_checker: &TypeChecker) -> Id<Type>;
+    fn regular_type(&self) -> Id<Type>;
+    fn set_regular_type(&self, regular_type: Id<Type>);
 }
 
 #[derive(Clone, Debug, Trace, Finalize)]
@@ -48,8 +49,8 @@ impl LiteralType {
 #[type_type(impl_from = false)]
 pub struct BaseLiteralType {
     _type: BaseType,
-    fresh_type: GcCell<Option<Gc<Type>>>,
-    regular_type: GcCell<Option<Gc<Type>>>,
+    fresh_type: GcCell<Option<Id<Type>>>,
+    regular_type: GcCell<Option<Id<Type>>>,
 }
 
 impl BaseLiteralType {
@@ -63,23 +64,23 @@ impl BaseLiteralType {
 }
 
 impl LiteralTypeInterface for BaseLiteralType {
-    fn fresh_type(&self) -> Option<Gc<Type>> {
+    fn fresh_type(&self) -> Option<Id<Type>> {
         self.fresh_type.borrow().clone()
     }
 
-    fn set_fresh_type(&self, fresh_type: Gc<Type>) {
+    fn set_fresh_type(&self, fresh_type: Id<Type>) {
         *self.fresh_type.borrow_mut() = Some(fresh_type);
     }
 
-    fn get_or_initialize_fresh_type(&self, _type_checker: &TypeChecker) -> Gc<Type> {
+    fn get_or_initialize_fresh_type(&self, _type_checker: &TypeChecker) -> Id<Type> {
         panic!("Shouldn't call get_or_initialize_fresh_type() on base BaseLiteralType");
     }
 
-    fn regular_type(&self) -> Gc<Type> {
+    fn regular_type(&self) -> Id<Type> {
         self.regular_type.borrow().clone().unwrap()
     }
 
-    fn set_regular_type(&self, regular_type: Gc<Type>) {
+    fn set_regular_type(&self, regular_type: Id<Type>) {
         *self.regular_type.borrow_mut() = Some(regular_type);
     }
 }
@@ -118,7 +119,7 @@ impl StringLiteralType {
         }
     }
 
-    fn create_fresh_type_from_self(&self, type_checker: &TypeChecker) -> Gc<Type> {
+    fn create_fresh_type_from_self(&self, type_checker: &TypeChecker) -> Id<Type> {
         let fresh_type = type_checker.create_string_literal_type(
             self.flags(),
             self.value.clone(),
@@ -134,15 +135,15 @@ impl StringLiteralType {
 }
 
 impl LiteralTypeInterface for StringLiteralType {
-    fn fresh_type(&self) -> Option<Gc<Type>> {
+    fn fresh_type(&self) -> Option<Id<Type>> {
         self._literal_type.fresh_type()
     }
 
-    fn set_fresh_type(&self, fresh_type: Gc<Type>) {
+    fn set_fresh_type(&self, fresh_type: Id<Type>) {
         self._literal_type.set_fresh_type(fresh_type);
     }
 
-    fn get_or_initialize_fresh_type(&self, type_checker: &TypeChecker) -> Gc<Type> {
+    fn get_or_initialize_fresh_type(&self, type_checker: &TypeChecker) -> Id<Type> {
         if self.fresh_type().is_none() {
             let fresh_type = self.create_fresh_type_from_self(type_checker);
             self.set_fresh_type(fresh_type.clone());
@@ -151,11 +152,11 @@ impl LiteralTypeInterface for StringLiteralType {
         return self.fresh_type().unwrap();
     }
 
-    fn regular_type(&self) -> Gc<Type> {
+    fn regular_type(&self) -> Id<Type> {
         self._literal_type.regular_type()
     }
 
-    fn set_regular_type(&self, regular_type: Gc<Type>) {
+    fn set_regular_type(&self, regular_type: Id<Type>) {
         self._literal_type.set_regular_type(regular_type);
     }
 }
@@ -176,7 +177,7 @@ impl NumberLiteralType {
         }
     }
 
-    fn create_fresh_type_from_self(&self, type_checker: &TypeChecker) -> Gc<Type> {
+    fn create_fresh_type_from_self(&self, type_checker: &TypeChecker) -> Id<Type> {
         let fresh_type = type_checker.create_number_literal_type(
             self.flags(),
             self.value,
@@ -192,15 +193,15 @@ impl NumberLiteralType {
 }
 
 impl LiteralTypeInterface for NumberLiteralType {
-    fn fresh_type(&self) -> Option<Gc<Type>> {
+    fn fresh_type(&self) -> Option<Id<Type>> {
         self._literal_type.fresh_type()
     }
 
-    fn set_fresh_type(&self, fresh_type: Gc<Type>) {
+    fn set_fresh_type(&self, fresh_type: Id<Type>) {
         self._literal_type.set_fresh_type(fresh_type);
     }
 
-    fn get_or_initialize_fresh_type(&self, type_checker: &TypeChecker) -> Gc<Type> {
+    fn get_or_initialize_fresh_type(&self, type_checker: &TypeChecker) -> Id<Type> {
         if self.fresh_type().is_none() {
             let fresh_type = self.create_fresh_type_from_self(type_checker);
             self.set_fresh_type(fresh_type.clone());
@@ -209,11 +210,11 @@ impl LiteralTypeInterface for NumberLiteralType {
         return self.fresh_type().unwrap();
     }
 
-    fn regular_type(&self) -> Gc<Type> {
+    fn regular_type(&self) -> Id<Type> {
         self._literal_type.regular_type()
     }
 
-    fn set_regular_type(&self, regular_type: Gc<Type>) {
+    fn set_regular_type(&self, regular_type: Id<Type>) {
         self._literal_type.set_regular_type(regular_type);
     }
 }
@@ -234,7 +235,7 @@ impl BigIntLiteralType {
         }
     }
 
-    fn create_fresh_type_from_self(&self, type_checker: &TypeChecker) -> Gc<Type> {
+    fn create_fresh_type_from_self(&self, type_checker: &TypeChecker) -> Id<Type> {
         let fresh_type = type_checker.create_big_int_literal_type(
             self.flags(),
             self.value.clone(),
@@ -250,15 +251,15 @@ impl BigIntLiteralType {
 }
 
 impl LiteralTypeInterface for BigIntLiteralType {
-    fn fresh_type(&self) -> Option<Gc<Type>> {
+    fn fresh_type(&self) -> Option<Id<Type>> {
         self._literal_type.fresh_type()
     }
 
-    fn set_fresh_type(&self, fresh_type: Gc<Type>) {
+    fn set_fresh_type(&self, fresh_type: Id<Type>) {
         self._literal_type.set_fresh_type(fresh_type);
     }
 
-    fn get_or_initialize_fresh_type(&self, type_checker: &TypeChecker) -> Gc<Type> {
+    fn get_or_initialize_fresh_type(&self, type_checker: &TypeChecker) -> Id<Type> {
         if self.fresh_type().is_none() {
             let fresh_type = self.create_fresh_type_from_self(type_checker);
             self.set_fresh_type(fresh_type.clone());
@@ -267,11 +268,11 @@ impl LiteralTypeInterface for BigIntLiteralType {
         self.fresh_type().unwrap()
     }
 
-    fn regular_type(&self) -> Gc<Type> {
+    fn regular_type(&self) -> Id<Type> {
         self._literal_type.regular_type()
     }
 
-    fn set_regular_type(&self, regular_type: Gc<Type>) {
+    fn set_regular_type(&self, regular_type: Id<Type>) {
         self._literal_type.set_regular_type(regular_type);
     }
 }
@@ -338,9 +339,9 @@ pub trait ObjectTypeInterface: ObjectFlagsTypeInterface {
     // fn maybe_properties(&self) -> Option<&[Gc<Symbol>]>;
     // fn properties(&self) -> &[Gc<Symbol>];
     // fn set_properties(&self, properties: Vec<Gc<Symbol>>);
-    fn maybe_target(&self) -> Option<Gc<Type>>;
+    fn maybe_target(&self) -> Option<Id<Type>>;
     fn maybe_mapper(&self) -> Option<Gc<TypeMapper>>;
-    fn maybe_instantiations(&self) -> GcCellRefMut<Option<HashMap<String, Gc<Type>>>>;
+    fn maybe_instantiations(&self) -> GcCellRefMut<Option<HashMap<String, Id<Type>>>>;
 }
 
 #[derive(Clone, Debug, Trace, Finalize)]
@@ -367,18 +368,18 @@ pub struct BaseObjectType {
     call_signatures: GcCell<Option<Vec<Gc<Signature>>>>,
     construct_signatures: GcCell<Option<Vec<Gc<Signature>>>>,
     index_infos: GcCell<Option<Vec<Gc<IndexInfo>>>>,
-    object_type_without_abstract_construct_signatures: GcCell<Option<Gc<Type>>>,
+    object_type_without_abstract_construct_signatures: GcCell<Option<Id<Type>>>,
     // AnonymousType fields
-    pub target: Option<Gc<Type>>,
+    pub target: Option<Id<Type>>,
     pub mapper: Option<Gc<TypeMapper>>,
-    instantiations: GcCell<Option<HashMap<String, Gc<Type>>>>,
+    instantiations: GcCell<Option<HashMap<String, Id<Type>>>>,
     // FreshObjectLiteralType fields
-    regular_type: GcCell<Option<Gc<Type /*ResolvedType*/>>>,
+    regular_type: GcCell<Option<Id<Type /*ResolvedType*/>>>,
     // "not actually interface type" fields
-    not_actually_interface_type_resolved_base_types: GcCell<Option<Gc<Vec<Gc<Type>>>>>,
+    not_actually_interface_type_resolved_base_types: GcCell<Option<Gc<Vec<Id<Type>>>>>,
     #[unsafe_ignore_trace]
     not_actually_interface_type_base_types_resolved: Cell<Option<bool>>,
-    not_actually_interface_type_resolved_base_constructor_type: GcCell<Option<Gc<Type>>>,
+    not_actually_interface_type_resolved_base_constructor_type: GcCell<Option<Id<Type>>>,
 }
 
 impl BaseObjectType {
@@ -404,7 +405,7 @@ impl BaseObjectType {
 
     pub fn not_actually_interface_type_maybe_resolved_base_types(
         &self,
-    ) -> GcCellRefMut<Option<Gc<Vec<Gc<Type>>>>> {
+    ) -> GcCellRefMut<Option<Gc<Vec<Id<Type>>>>> {
         self.not_actually_interface_type_resolved_base_types
             .borrow_mut()
     }
@@ -423,7 +424,7 @@ impl BaseObjectType {
 
     pub fn not_actually_interface_type_maybe_resolved_base_constructor_type(
         &self,
-    ) -> GcCellRefMut<Option<Gc<Type>>> {
+    ) -> GcCellRefMut<Option<Id<Type>>> {
         self.not_actually_interface_type_resolved_base_constructor_type
             .borrow_mut()
     }
@@ -456,7 +457,7 @@ impl ObjectTypeInterface for BaseObjectType {
         self.call_signatures.borrow()
     }
 
-    fn maybe_target(&self) -> Option<Gc<Type>> {
+    fn maybe_target(&self) -> Option<Id<Type>> {
         self.target.clone()
     }
 
@@ -464,7 +465,7 @@ impl ObjectTypeInterface for BaseObjectType {
         self.mapper.clone()
     }
 
-    fn maybe_instantiations(&self) -> GcCellRefMut<Option<HashMap<String, Gc<Type>>>> {
+    fn maybe_instantiations(&self) -> GcCellRefMut<Option<HashMap<String, Id<Type>>>> {
         self.instantiations.borrow_mut()
     }
 }
@@ -543,7 +544,7 @@ impl ResolvedTypeInterface for BaseObjectType {
         GcCellRef::map(self.index_infos.borrow(), |option| option.as_ref().unwrap())
     }
 
-    fn maybe_object_type_without_abstract_construct_signatures(&self) -> Option<Gc<Type>> {
+    fn maybe_object_type_without_abstract_construct_signatures(&self) -> Option<Id<Type>> {
         self.object_type_without_abstract_construct_signatures
             .borrow()
             .clone()
@@ -551,7 +552,7 @@ impl ResolvedTypeInterface for BaseObjectType {
 
     fn set_object_type_without_abstract_construct_signatures(
         &self,
-        object_type_without_abstract_construct_signatures: Option<Gc<Type>>,
+        object_type_without_abstract_construct_signatures: Option<Id<Type>>,
     ) {
         *self
             .object_type_without_abstract_construct_signatures
@@ -560,7 +561,7 @@ impl ResolvedTypeInterface for BaseObjectType {
 }
 
 impl FreshObjectLiteralTypeInterface for BaseObjectType {
-    fn maybe_regular_type(&self) -> GcCellRefMut<Option<Gc<Type /*ResolvedType*/>>> {
+    fn maybe_regular_type(&self) -> GcCellRefMut<Option<Id<Type /*ResolvedType*/>>> {
         self.regular_type.borrow_mut()
     }
 }
@@ -571,7 +572,7 @@ pub enum NotActuallyInterfaceType<'a> {
 }
 
 impl NotActuallyInterfaceType<'_> {
-    pub fn maybe_resolved_base_types(&self) -> GcCellRefMut<Option<Gc<Vec<Gc<Type>>>>> {
+    pub fn maybe_resolved_base_types(&self) -> GcCellRefMut<Option<Gc<Vec<Id<Type>>>>> {
         match self {
             Self::InterfaceType(value) => value.maybe_resolved_base_types(),
             Self::BaseObjectType(value) => {
@@ -612,7 +613,7 @@ impl NotActuallyInterfaceType<'_> {
         }
     }
 
-    pub fn maybe_resolved_base_constructor_type(&self) -> GcCellRefMut<Option<Gc<Type>>> {
+    pub fn maybe_resolved_base_constructor_type(&self) -> GcCellRefMut<Option<Id<Type>>> {
         match self {
             Self::InterfaceType(value) => value.maybe_resolved_base_constructor_type(),
             Self::BaseObjectType(value) => {
@@ -639,12 +640,12 @@ pub enum InterfaceType {
 )]
 pub struct BaseInterfaceType {
     _object_type: BaseObjectType,
-    type_parameters: Option<Vec<Gc<Type /*TypeParameter*/>>>,
-    outer_type_parameters: Option<Vec<Gc<Type /*TypeParameter*/>>>,
-    local_type_parameters: Option<Vec<Gc<Type /*TypeParameter*/>>>,
-    this_type: GcCell<Option<Gc<Type /*TypeParameter*/>>>,
-    resolved_base_constructor_type: GcCell<Option<Gc<Type /*TypeParameter*/>>>,
-    resolved_base_types: GcCell<Option<Gc<Vec<Gc<Type /*BaseType*/>>>>>,
+    type_parameters: Option<Vec<Id<Type /*TypeParameter*/>>>,
+    outer_type_parameters: Option<Vec<Id<Type /*TypeParameter*/>>>,
+    local_type_parameters: Option<Vec<Id<Type /*TypeParameter*/>>>,
+    this_type: GcCell<Option<Id<Type /*TypeParameter*/>>>,
+    resolved_base_constructor_type: GcCell<Option<Id<Type /*TypeParameter*/>>>,
+    resolved_base_types: GcCell<Option<Gc<Vec<Id<Type /*BaseType*/>>>>>,
     #[unsafe_ignore_trace]
     base_types_resolved: Cell<Option<bool>>,
     // InterfaceTypeWithDeclaredMembers fields
@@ -653,24 +654,24 @@ pub struct BaseInterfaceType {
     declared_construct_signatures: GcCell<Option<Vec<Gc<Signature>>>>,
     declared_index_infos: GcCell<Option<Vec<Gc<IndexInfo>>>>,
     // GenericType fields
-    instantiations: GcCell<Option<HashMap<String, Gc<Type /*TypeReference*/>>>>,
+    instantiations: GcCell<Option<HashMap<String, Id<Type /*TypeReference*/>>>>,
     #[unsafe_ignore_trace]
     variances: Rc<RefCell<Option<Vec<VarianceFlags>>>>,
     // TypeReference fields (for GenericType)
-    pub target: GcCell<Option<Gc<Type /*GenericType*/>>>,
+    pub target: GcCell<Option<Id<Type /*GenericType*/>>>,
     pub node: GcCell<Option<Gc<Node /*TypeReferenceNode | ArrayTypeNode | TupleTypeNode*/>>>,
-    pub resolved_type_arguments: GcCell<Option<Vec<Gc<Type>>>>,
-    literal_type: GcCell<Option<Gc<Type /*TypeReference*/>>>,
-    cached_equivalent_base_type: GcCell<Option<Gc<Type>>>,
+    pub resolved_type_arguments: GcCell<Option<Vec<Id<Type>>>>,
+    literal_type: GcCell<Option<Id<Type /*TypeReference*/>>>,
+    cached_equivalent_base_type: GcCell<Option<Id<Type>>>,
 }
 
 impl BaseInterfaceType {
     pub fn new(
         object_type: BaseObjectType,
-        type_parameters: Option<Vec<Gc<Type>>>,
-        outer_type_parameters: Option<Vec<Gc<Type>>>,
-        local_type_parameters: Option<Vec<Gc<Type>>>,
-        this_type: Option<Gc<Type>>,
+        type_parameters: Option<Vec<Id<Type>>>,
+        outer_type_parameters: Option<Vec<Id<Type>>>,
+        local_type_parameters: Option<Vec<Id<Type>>>,
+        this_type: Option<Id<Type>>,
     ) -> Self {
         Self {
             _object_type: object_type,
@@ -703,43 +704,43 @@ pub trait InterfaceTypeInterface:
     + ResolvedTypeInterface
     + FreshObjectLiteralTypeInterface
 {
-    fn maybe_type_parameters(&self) -> Option<&[Gc<Type>]>;
-    fn maybe_outer_type_parameters(&self) -> Option<&[Gc<Type>]>;
-    fn maybe_local_type_parameters(&self) -> Option<&[Gc<Type>]>;
-    fn maybe_this_type(&self) -> Option<Gc<Type>>;
-    fn maybe_this_type_mut(&self) -> GcCellRefMut<Option<Gc<Type>>>;
-    fn maybe_resolved_base_constructor_type(&self) -> GcCellRefMut<Option<Gc<Type>>>;
-    fn maybe_resolved_base_types(&self) -> GcCellRefMut<Option<Gc<Vec<Gc<Type>>>>>;
+    fn maybe_type_parameters(&self) -> Option<&[Id<Type>]>;
+    fn maybe_outer_type_parameters(&self) -> Option<&[Id<Type>]>;
+    fn maybe_local_type_parameters(&self) -> Option<&[Id<Type>]>;
+    fn maybe_this_type(&self) -> Option<Id<Type>>;
+    fn maybe_this_type_mut(&self) -> GcCellRefMut<Option<Id<Type>>>;
+    fn maybe_resolved_base_constructor_type(&self) -> GcCellRefMut<Option<Id<Type>>>;
+    fn maybe_resolved_base_types(&self) -> GcCellRefMut<Option<Gc<Vec<Id<Type>>>>>;
     fn maybe_base_types_resolved(&self) -> Option<bool>;
     fn set_base_types_resolved(&self, base_types_resolved: Option<bool>);
 }
 
 impl InterfaceTypeInterface for BaseInterfaceType {
-    fn maybe_type_parameters(&self) -> Option<&[Gc<Type>]> {
+    fn maybe_type_parameters(&self) -> Option<&[Id<Type>]> {
         self.type_parameters.as_deref()
     }
 
-    fn maybe_outer_type_parameters(&self) -> Option<&[Gc<Type>]> {
+    fn maybe_outer_type_parameters(&self) -> Option<&[Id<Type>]> {
         self.outer_type_parameters.as_deref()
     }
 
-    fn maybe_local_type_parameters(&self) -> Option<&[Gc<Type>]> {
+    fn maybe_local_type_parameters(&self) -> Option<&[Id<Type>]> {
         self.local_type_parameters.as_deref()
     }
 
-    fn maybe_this_type(&self) -> Option<Gc<Type>> {
+    fn maybe_this_type(&self) -> Option<Id<Type>> {
         self.this_type.borrow().clone()
     }
 
-    fn maybe_this_type_mut(&self) -> GcCellRefMut<Option<Gc<Type>>> {
+    fn maybe_this_type_mut(&self) -> GcCellRefMut<Option<Id<Type>>> {
         self.this_type.borrow_mut()
     }
 
-    fn maybe_resolved_base_constructor_type(&self) -> GcCellRefMut<Option<Gc<Type>>> {
+    fn maybe_resolved_base_constructor_type(&self) -> GcCellRefMut<Option<Id<Type>>> {
         self.resolved_base_constructor_type.borrow_mut()
     }
 
-    fn maybe_resolved_base_types(&self) -> GcCellRefMut<Option<Gc<Vec<Gc<Type>>>>> {
+    fn maybe_resolved_base_types(&self) -> GcCellRefMut<Option<Gc<Vec<Id<Type>>>>> {
         self.resolved_base_types.borrow_mut()
     }
 
@@ -806,7 +807,7 @@ pub trait InterfaceTypeWithDeclaredMembersInterface {
 }
 
 impl GenericableTypeInterface for BaseInterfaceType {
-    fn genericize(&self, instantiations: HashMap<String, Gc<Type /*TypeReference*/>>) {
+    fn genericize(&self, instantiations: HashMap<String, Id<Type /*TypeReference*/>>) {
         *self.instantiations.borrow_mut() = Some(instantiations);
     }
 }
@@ -815,8 +816,8 @@ impl GenericTypeInterface for BaseInterfaceType {
     fn instantiations(
         &self,
     ) -> GcCellRefMut<
-        Option<HashMap<String, Gc<Type /*TypeReference*/>>>,
-        HashMap<String, Gc<Type /*TypeReference*/>>,
+        Option<HashMap<String, Id<Type /*TypeReference*/>>>,
+        HashMap<String, Id<Type /*TypeReference*/>>,
     > {
         GcCellRefMut::map(self.instantiations.borrow_mut(), |instantiations| {
             instantiations.as_mut().unwrap()
@@ -833,11 +834,11 @@ impl GenericTypeInterface for BaseInterfaceType {
 }
 
 impl TypeReferenceInterface for BaseInterfaceType {
-    fn target(&self) -> Gc<Type> {
+    fn target(&self) -> Id<Type> {
         self.target.borrow().clone().unwrap()
     }
 
-    fn set_target(&self, target: Gc<Type>) {
+    fn set_target(&self, target: Id<Type>) {
         *self.target.borrow_mut() = Some(target);
     }
 
@@ -849,23 +850,23 @@ impl TypeReferenceInterface for BaseInterfaceType {
         self.node.borrow_mut()
     }
 
-    fn maybe_literal_type(&self) -> Option<Gc<Type>> {
+    fn maybe_literal_type(&self) -> Option<Id<Type>> {
         self.literal_type.borrow().clone()
     }
 
-    fn maybe_literal_type_mut(&self) -> GcCellRefMut<Option<Gc<Type>>> {
+    fn maybe_literal_type_mut(&self) -> GcCellRefMut<Option<Id<Type>>> {
         self.literal_type.borrow_mut()
     }
 
-    fn maybe_resolved_type_arguments(&self) -> GcCellRef<Option<Vec<Gc<Type>>>> {
+    fn maybe_resolved_type_arguments(&self) -> GcCellRef<Option<Vec<Id<Type>>>> {
         self.resolved_type_arguments.borrow()
     }
 
-    fn maybe_resolved_type_arguments_mut(&self) -> GcCellRefMut<Option<Vec<Gc<Type>>>> {
+    fn maybe_resolved_type_arguments_mut(&self) -> GcCellRefMut<Option<Vec<Id<Type>>>> {
         self.resolved_type_arguments.borrow_mut()
     }
 
-    fn maybe_cached_equivalent_base_type(&self) -> GcCellRefMut<Option<Gc<Type>>> {
+    fn maybe_cached_equivalent_base_type(&self) -> GcCellRefMut<Option<Id<Type>>> {
         self.cached_equivalent_base_type.borrow_mut()
     }
 }
@@ -877,18 +878,18 @@ impl TypeReferenceInterface for BaseInterfaceType {
 )]
 pub struct TypeReference {
     _object_type: BaseObjectType,
-    pub target: Gc<Type /*GenericType*/>,
+    pub target: Id<Type /*GenericType*/>,
     pub node: GcCell<Option<Gc<Node /*TypeReferenceNode | ArrayTypeNode | TupleTypeNode*/>>>, // TODO: should be weak?
-    pub resolved_type_arguments: GcCell<Option<Vec<Gc<Type>>>>,
-    literal_type: GcCell<Option<Gc<Type /*TypeReference*/>>>,
-    cached_equivalent_base_type: GcCell<Option<Gc<Type>>>,
+    pub resolved_type_arguments: GcCell<Option<Vec<Id<Type>>>>,
+    literal_type: GcCell<Option<Id<Type /*TypeReference*/>>>,
+    cached_equivalent_base_type: GcCell<Option<Id<Type>>>,
 }
 
 impl TypeReference {
     pub fn new(
         object_type: BaseObjectType,
-        target: Gc<Type>,
-        resolved_type_arguments: Option<Vec<Gc<Type>>>,
+        target: Id<Type>,
+        resolved_type_arguments: Option<Vec<Id<Type>>>,
     ) -> Self {
         Self {
             _object_type: object_type,
@@ -902,23 +903,23 @@ impl TypeReference {
 }
 
 pub trait TypeReferenceInterface: ObjectTypeInterface {
-    fn target(&self) -> Gc<Type>;
-    fn set_target(&self, target: Gc<Type>);
+    fn target(&self) -> Id<Type>;
+    fn set_target(&self, target: Id<Type>);
     fn maybe_node(&self) -> Option<Gc<Node>>;
     fn maybe_node_mut(&self) -> GcCellRefMut<Option<Gc<Node>>>;
-    fn maybe_resolved_type_arguments(&self) -> GcCellRef<Option<Vec<Gc<Type>>>>;
-    fn maybe_resolved_type_arguments_mut(&self) -> GcCellRefMut<Option<Vec<Gc<Type>>>>;
-    fn maybe_literal_type(&self) -> Option<Gc<Type>>;
-    fn maybe_literal_type_mut(&self) -> GcCellRefMut<Option<Gc<Type>>>;
-    fn maybe_cached_equivalent_base_type(&self) -> GcCellRefMut<Option<Gc<Type>>>;
+    fn maybe_resolved_type_arguments(&self) -> GcCellRef<Option<Vec<Id<Type>>>>;
+    fn maybe_resolved_type_arguments_mut(&self) -> GcCellRefMut<Option<Vec<Id<Type>>>>;
+    fn maybe_literal_type(&self) -> Option<Id<Type>>;
+    fn maybe_literal_type_mut(&self) -> GcCellRefMut<Option<Id<Type>>>;
+    fn maybe_cached_equivalent_base_type(&self) -> GcCellRefMut<Option<Id<Type>>>;
 }
 
 impl TypeReferenceInterface for TypeReference {
-    fn target(&self) -> Gc<Type> {
+    fn target(&self) -> Id<Type> {
         self.target.clone()
     }
 
-    fn set_target(&self, _target: Gc<Type>) {
+    fn set_target(&self, _target: Id<Type>) {
         panic!("Shouldn't call set_target() on a TypeReference")
     }
 
@@ -930,23 +931,23 @@ impl TypeReferenceInterface for TypeReference {
         self.node.borrow_mut()
     }
 
-    fn maybe_resolved_type_arguments(&self) -> GcCellRef<Option<Vec<Gc<Type>>>> {
+    fn maybe_resolved_type_arguments(&self) -> GcCellRef<Option<Vec<Id<Type>>>> {
         self.resolved_type_arguments.borrow()
     }
 
-    fn maybe_resolved_type_arguments_mut(&self) -> GcCellRefMut<Option<Vec<Gc<Type>>>> {
+    fn maybe_resolved_type_arguments_mut(&self) -> GcCellRefMut<Option<Vec<Id<Type>>>> {
         self.resolved_type_arguments.borrow_mut()
     }
 
-    fn maybe_literal_type(&self) -> Option<Gc<Type>> {
+    fn maybe_literal_type(&self) -> Option<Id<Type>> {
         self.literal_type.borrow().clone()
     }
 
-    fn maybe_literal_type_mut(&self) -> GcCellRefMut<Option<Gc<Type>>> {
+    fn maybe_literal_type_mut(&self) -> GcCellRefMut<Option<Id<Type>>> {
         self.literal_type.borrow_mut()
     }
 
-    fn maybe_cached_equivalent_base_type(&self) -> GcCellRefMut<Option<Gc<Type>>> {
+    fn maybe_cached_equivalent_base_type(&self) -> GcCellRefMut<Option<Id<Type>>> {
         self.cached_equivalent_base_type.borrow_mut()
     }
 }
@@ -966,7 +967,7 @@ bitflags! {
 }
 
 pub trait GenericableTypeInterface: TypeInterface {
-    fn genericize(&self, instantiations: HashMap<String, Gc<Type /*TypeReference*/>>);
+    fn genericize(&self, instantiations: HashMap<String, Id<Type /*TypeReference*/>>);
 }
 
 pub trait GenericTypeInterface:
@@ -979,8 +980,8 @@ pub trait GenericTypeInterface:
     fn instantiations(
         &self,
     ) -> GcCellRefMut<
-        Option<HashMap<String, Gc<Type /*TypeReference*/>>>,
-        HashMap<String, Gc<Type /*TypeReference*/>>,
+        Option<HashMap<String, Id<Type /*TypeReference*/>>>,
+        HashMap<String, Id<Type /*TypeReference*/>>,
     >;
     fn maybe_variances(&self) -> Rc<RefCell<Option<Vec<VarianceFlags>>>>;
     fn set_variances(&self, variances: Vec<VarianceFlags>);
@@ -1044,7 +1045,7 @@ impl TupleType {
 }
 
 pub trait UnionOrIntersectionTypeInterface: TypeInterface {
-    fn types(&self) -> &[Gc<Type>];
+    fn types(&self) -> &[Id<Type>];
     fn maybe_property_cache(&self) -> GcCellRefMut<Option<SymbolTable>>;
     fn maybe_property_cache_without_object_function_property_augment(
         &self,
@@ -1066,7 +1067,7 @@ pub enum UnionOrIntersectionType {
 #[type_type(impl_from = false)]
 pub struct BaseUnionOrIntersectionType {
     _type: BaseType,
-    pub types: Vec<Gc<Type>>,
+    pub types: Vec<Id<Type>>,
     #[unsafe_ignore_trace]
     pub object_flags: Cell<ObjectFlags>,
     property_cache: GcCell<Option<SymbolTable>>,
@@ -1081,7 +1082,7 @@ pub struct BaseUnionOrIntersectionType {
 }
 
 impl BaseUnionOrIntersectionType {
-    pub fn new(base_type: BaseType, types: Vec<Gc<Type>>, object_flags: ObjectFlags) -> Self {
+    pub fn new(base_type: BaseType, types: Vec<Id<Type>>, object_flags: ObjectFlags) -> Self {
         Self {
             _type: base_type,
             types,
@@ -1099,7 +1100,7 @@ impl BaseUnionOrIntersectionType {
 }
 
 impl UnionOrIntersectionTypeInterface for BaseUnionOrIntersectionType {
-    fn types(&self) -> &[Gc<Type>] {
+    fn types(&self) -> &[Id<Type>] {
         &self.types
     }
 
@@ -1195,20 +1196,20 @@ impl ResolvedTypeInterface for BaseUnionOrIntersectionType {
         GcCellRef::map(self.index_infos.borrow(), |option| option.as_ref().unwrap())
     }
 
-    fn maybe_object_type_without_abstract_construct_signatures(&self) -> Option<Gc<Type>> {
+    fn maybe_object_type_without_abstract_construct_signatures(&self) -> Option<Id<Type>> {
         None
     }
 
     fn set_object_type_without_abstract_construct_signatures(
         &self,
-        _object_type_without_abstract_construct_signatures: Option<Gc<Type>>,
+        _object_type_without_abstract_construct_signatures: Option<Id<Type>>,
     ) {
         panic!("Shouldn't call set_object_type_without_abstract_construct_signatures() on BaseUnionOrIntersectionType?")
     }
 }
 
 impl FreshObjectLiteralTypeInterface for BaseUnionOrIntersectionType {
-    fn maybe_regular_type(&self) -> GcCellRefMut<Option<Gc<Type /*ResolvedType*/>>> {
+    fn maybe_regular_type(&self) -> GcCellRefMut<Option<Id<Type /*ResolvedType*/>>> {
         panic!("Shouldn't call regular_type() on BaseUnionOrIntersectionType?")
     }
 }
@@ -1230,7 +1231,7 @@ impl ObjectTypeInterface for BaseUnionOrIntersectionType {
         self.call_signatures.borrow()
     }
 
-    fn maybe_target(&self) -> Option<Gc<Type>> {
+    fn maybe_target(&self) -> Option<Id<Type>> {
         panic!("Shouldn't call maybe_target() on BaseUnionOrIntersectionType?")
     }
 
@@ -1238,7 +1239,7 @@ impl ObjectTypeInterface for BaseUnionOrIntersectionType {
         panic!("Shouldn't call maybe_mapper() on BaseUnionOrIntersectionType?")
     }
 
-    fn maybe_instantiations(&self) -> GcCellRefMut<Option<HashMap<String, Gc<Type>>>> {
+    fn maybe_instantiations(&self) -> GcCellRefMut<Option<HashMap<String, Id<Type>>>> {
         panic!("Shouldn't call maybe_instantiations() on BaseUnionOrIntersectionType?")
     }
 }
@@ -1250,12 +1251,12 @@ impl ObjectTypeInterface for BaseUnionOrIntersectionType {
 )]
 pub struct UnionType {
     _union_or_intersection_type: BaseUnionOrIntersectionType,
-    resolved_reduced_type: GcCell<Option<Gc<Type>>>,
-    regular_type: GcCell<Option<Gc<Type /*UnionType*/>>>,
-    pub(crate) origin: Option<Gc<Type>>,
+    resolved_reduced_type: GcCell<Option<Id<Type>>>,
+    regular_type: GcCell<Option<Id<Type /*UnionType*/>>>,
+    pub(crate) origin: Option<Id<Type>>,
     #[unsafe_ignore_trace]
     key_property_name: RefCell<Option<__String>>,
-    constituent_map: GcCell<Option<HashMap<TypeId, Gc<Type>>>>,
+    constituent_map: GcCell<Option<HashMap<TypeId, Id<Type>>>>,
 }
 
 impl UnionType {
@@ -1270,11 +1271,11 @@ impl UnionType {
         }
     }
 
-    pub fn maybe_resolved_reduced_type(&self) -> GcCellRefMut<Option<Gc<Type>>> {
+    pub fn maybe_resolved_reduced_type(&self) -> GcCellRefMut<Option<Id<Type>>> {
         self.resolved_reduced_type.borrow_mut()
     }
 
-    pub fn maybe_regular_type(&self) -> GcCellRefMut<Option<Gc<Type>>> {
+    pub fn maybe_regular_type(&self) -> GcCellRefMut<Option<Id<Type>>> {
         self.regular_type.borrow_mut()
     }
 
@@ -1282,7 +1283,7 @@ impl UnionType {
         self.key_property_name.borrow_mut()
     }
 
-    pub fn maybe_constituent_map(&self) -> GcCellRefMut<Option<HashMap<TypeId, Gc<Type>>>> {
+    pub fn maybe_constituent_map(&self) -> GcCellRefMut<Option<HashMap<TypeId, Id<Type>>>> {
         self.constituent_map.borrow_mut()
     }
 }

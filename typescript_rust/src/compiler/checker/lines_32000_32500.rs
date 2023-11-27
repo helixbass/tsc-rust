@@ -1,6 +1,7 @@
 use std::{convert::TryInto, io, ptr};
 
 use gc::Gc;
+use id_arena::Id;
 
 use super::{CheckMode, TypeFacts};
 use crate::{
@@ -27,7 +28,7 @@ impl TypeChecker {
         &self,
         node: &Node, /*FunctionExpression | ArrowFunction | MethodDeclaration*/
         check_mode: Option<CheckMode>,
-    ) -> io::Result<Gc<Type>> {
+    ) -> io::Result<Id<Type>> {
         Debug_.assert(
             node.kind() != SyntaxKind::MethodDeclaration || is_object_literal_method(node),
             None,
@@ -439,7 +440,7 @@ impl TypeChecker {
     pub(super) fn check_delete_expression(
         &self,
         node: &Node, /*DeleteExpression*/
-    ) -> io::Result<Gc<Type>> {
+    ) -> io::Result<Id<Type>> {
         let node_as_delete_expression = node.as_delete_expression();
         self.check_expression(&node_as_delete_expression.expression, None, None)?;
         let expr = skip_parentheses(&node_as_delete_expression.expression, None);
@@ -506,7 +507,7 @@ impl TypeChecker {
     pub(super) fn check_type_of_expression(
         &self,
         node: &Node, /*TypeOfExpression*/
-    ) -> io::Result<Gc<Type>> {
+    ) -> io::Result<Id<Type>> {
         self.check_expression(&node.as_type_of_expression().expression, None, None)?;
         Ok(self.typeof_type())
     }
@@ -514,7 +515,7 @@ impl TypeChecker {
     pub(super) fn check_void_expression(
         &self,
         node: &Node, /*VoidExpression*/
-    ) -> io::Result<Gc<Type>> {
+    ) -> io::Result<Id<Type>> {
         self.check_expression(&node.as_void_expression().expression, None, None)?;
         Ok(self.undefined_widening_type())
     }
@@ -522,7 +523,7 @@ impl TypeChecker {
     pub(super) fn check_await_expression(
         &self,
         node: &Node, /*AwaitExpression*/
-    ) -> io::Result<Gc<Type>> {
+    ) -> io::Result<Id<Type>> {
         if self.produce_diagnostics {
             let container = get_containing_function_or_class_static_block(node);
             if matches!(
@@ -659,7 +660,7 @@ impl TypeChecker {
     pub(super) fn check_prefix_unary_expression(
         &self,
         node: &Node, /*PrefixUnaryExpression*/
-    ) -> io::Result<Gc<Type>> {
+    ) -> io::Result<Id<Type>> {
         let node_as_prefix_unary_expression = node.as_prefix_unary_expression();
         let operand_type =
             self.check_expression(&node_as_prefix_unary_expression.operand, None, None)?;
@@ -781,7 +782,7 @@ impl TypeChecker {
     pub(super) fn check_postfix_unary_expression(
         &self,
         node: &Node, /*PostfixUnaryExpression*/
-    ) -> io::Result<Gc<Type>> {
+    ) -> io::Result<Id<Type>> {
         let node_as_postfix_unary_expression = node.as_postfix_unary_expression();
         let operand_type =
             self.check_expression(&node_as_postfix_unary_expression.operand, None, None)?;
@@ -804,7 +805,7 @@ impl TypeChecker {
         self.get_unary_result_type(&operand_type)
     }
 
-    pub(super) fn get_unary_result_type(&self, operand_type: &Type) -> io::Result<Gc<Type>> {
+    pub(super) fn get_unary_result_type(&self, operand_type: &Type) -> io::Result<Id<Type>> {
         if self.maybe_type_of_kind(operand_type, TypeFlags::BigIntLike) {
             return Ok(
                 if self.is_type_assignable_to_kind(operand_type, TypeFlags::AnyOrUnknown, None)?
@@ -879,7 +880,7 @@ impl TypeChecker {
         strict: Option<bool>,
     ) -> io::Result<bool> {
         Ok(if source.flags().intersects(TypeFlags::Union) {
-            try_every(source.as_union_type().types(), |sub_type: &Gc<Type>, _| {
+            try_every(source.as_union_type().types(), |sub_type: &Id<Type>, _| {
                 self.all_types_assignable_to_kind(sub_type, kind, strict)
             })?
         } else {
@@ -905,7 +906,7 @@ impl TypeChecker {
         right: &Node, /*Expression*/
         left_type: &Type,
         right_type: &Type,
-    ) -> io::Result<Gc<Type>> {
+    ) -> io::Result<Id<Type>> {
         if ptr::eq(left_type, &*self.silent_never_type())
             || ptr::eq(right_type, &*self.silent_never_type())
         {
@@ -939,7 +940,7 @@ impl TypeChecker {
         right: &Node, /*Expression*/
         left_type: &Type,
         right_type: &Type,
-    ) -> io::Result<Gc<Type>> {
+    ) -> io::Result<Id<Type>> {
         if ptr::eq(left_type, &*self.silent_never_type())
             || ptr::eq(right_type, &*self.silent_never_type())
         {

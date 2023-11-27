@@ -147,7 +147,7 @@ impl SymbolTableToDeclarationStatements {
             .borrow()
             .type_parameters
             .clone();
-        let type_param_decls = try_maybe_map(type_params.as_ref(), |p: &Gc<Type>, _| {
+        let type_param_decls = try_maybe_map(type_params.as_ref(), |p: &Id<Type>, _| {
             self.node_builder
                 .type_parameter_to_declaration_(p, &self.context(), None)
         })
@@ -244,7 +244,7 @@ impl SymbolTableToDeclarationStatements {
         let local_params = self
             .type_checker
             .get_local_type_parameters_of_class_or_interface_or_type_alias(symbol)?;
-        let type_param_decls = try_maybe_map(local_params.as_deref(), |p: &Gc<Type>, _| {
+        let type_param_decls = try_maybe_map(local_params.as_deref(), |p: &Id<Type>, _| {
             self.node_builder
                 .type_parameter_to_declaration_(p, &self.context(), None)
         })
@@ -290,7 +290,7 @@ impl SymbolTableToDeclarationStatements {
         } else {
             Some(vec![get_factory().create_heritage_clause(
                 SyntaxKind::ExtendsKeyword,
-                try_map_defined(Some(&base_types), |b: &Gc<Type>, _| {
+                try_map_defined(Some(&base_types), |b: &Id<Type>, _| {
                     self.try_serialize_as_type_reference(b, SymbolFlags::Value)
                 })?,
             )])
@@ -837,7 +837,7 @@ impl SymbolTableToDeclarationStatements {
         let local_params = self
             .type_checker
             .get_local_type_parameters_of_class_or_interface_or_type_alias(symbol)?;
-        let type_param_decls = try_maybe_map(local_params.as_ref(), |p: &Gc<Type>, _| {
+        let type_param_decls = try_maybe_map(local_params.as_ref(), |p: &Id<Type>, _| {
             self.node_builder
                 .type_parameter_to_declaration_(p, &self.context(), None)
         })
@@ -857,7 +857,7 @@ impl SymbolTableToDeclarationStatements {
             .try_unwrap_or_else(|| {
                 try_map_defined(
                     Some(&self.type_checker.get_implements_types(class_type)?),
-                    |type_: &Gc<Type>, _| self.serialize_implemented_type(type_),
+                    |type_: &Id<Type>, _| self.serialize_implemented_type(type_),
                 )
             })?;
         let ref static_type = self.type_checker.get_type_of_symbol(symbol)?;
@@ -877,7 +877,7 @@ impl SymbolTableToDeclarationStatements {
                 if !base_types.is_empty() {
                     heritage_clauses.push(get_factory().create_heritage_clause(
                         SyntaxKind::ExtendsKeyword,
-                        try_map(&base_types, |b: &Gc<Type>, _| {
+                        try_map(&base_types, |b: &Id<Type>, _| {
                             self.serialize_base_type(b, static_base_type, local_name)
                         })?,
                     ));

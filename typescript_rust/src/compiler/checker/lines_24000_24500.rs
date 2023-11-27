@@ -1,6 +1,7 @@
 use std::{io, ptr};
 
 use gc::Gc;
+use id_arena::Id;
 
 use super::{typeof_eq_facts, typeof_ne_facts, GetFlowTypeOfReference, TypeFacts};
 use crate::{
@@ -15,13 +16,13 @@ use crate::{
 impl GetFlowTypeOfReference {
     pub(super) fn get_union_or_evolving_array_type(
         &self,
-        types: &[Gc<Type>],
+        types: &[Id<Type>],
         subtype_reduction: UnionReduction,
-    ) -> io::Result<Gc<Type>> {
+    ) -> io::Result<Id<Type>> {
         if self.type_checker.is_evolving_array_type_list(types) {
             return Ok(self.type_checker.get_evolving_array_type(
                 &*self.type_checker.get_union_type(
-                    &map(types, |type_: &Gc<Type>, _| {
+                    &map(types, |type_: &Id<Type>, _| {
                         self.type_checker
                             .get_element_type_of_evolving_array_type(type_)
                     }),
@@ -33,7 +34,7 @@ impl GetFlowTypeOfReference {
             ));
         }
         let result = self.type_checker.get_union_type(
-            &try_map(types, |type_: &Gc<Type>, _| {
+            &try_map(types, |type_: &Id<Type>, _| {
                 self.type_checker.finalize_evolving_array_type(type_)
             })?,
             Some(subtype_reduction),
@@ -108,8 +109,8 @@ impl GetFlowTypeOfReference {
         &self,
         type_: &Type,
         access: &Node, /*AccessExpression | BindingElement*/
-        mut narrow_type: impl FnMut(&Type) -> Gc<Type>,
-    ) -> Gc<Type> {
+        mut narrow_type: impl FnMut(&Type) -> Id<Type>,
+    ) -> Id<Type> {
         self.try_narrow_type_by_discriminant(type_, access, |type_: &Type| Ok(narrow_type(type_)))
             .unwrap()
     }
@@ -118,8 +119,8 @@ impl GetFlowTypeOfReference {
         &self,
         type_: &Type,
         access: &Node, /*AccessExpression | BindingElement*/
-        mut narrow_type: impl FnMut(&Type) -> io::Result<Gc<Type>>,
-    ) -> io::Result<Gc<Type>> {
+        mut narrow_type: impl FnMut(&Type) -> io::Result<Id<Type>>,
+    ) -> io::Result<Id<Type>> {
         let prop_name = self.type_checker.get_accessed_property_name(access)?;
         if prop_name.is_none() {
             return Ok(type_.type_wrapper());
@@ -167,7 +168,7 @@ impl GetFlowTypeOfReference {
         operator: SyntaxKind,
         value: &Node, /*Expression*/
         assume_true: bool,
-    ) -> io::Result<Gc<Type>> {
+    ) -> io::Result<Id<Type>> {
         if matches!(
             operator,
             SyntaxKind::EqualsEqualsEqualsToken | SyntaxKind::ExclamationEqualsEqualsToken
@@ -222,7 +223,7 @@ impl GetFlowTypeOfReference {
         switch_statement: &Node, /*SwitchStatement*/
         clause_start: usize,
         clause_end: usize,
-    ) -> io::Result<Gc<Type>> {
+    ) -> io::Result<Id<Type>> {
         if clause_start < clause_end
             && type_.flags().intersects(TypeFlags::Union)
             && self.type_checker.get_key_property_name(type_)?
@@ -233,7 +234,7 @@ impl GetFlowTypeOfReference {
                 .get_switch_clause_types(switch_statement)?;
             let clause_types = &clause_types[clause_start..clause_end];
             let candidate = self.type_checker.get_union_type(
-                &map(clause_types, |t: &Gc<Type>, _| {
+                &map(clause_types, |t: &Id<Type>, _| {
                     self.type_checker
                         .get_constituent_type_for_key_type(type_, t)
                         .unwrap_or_else(|| self.type_checker.unknown_type())
@@ -262,7 +263,7 @@ impl GetFlowTypeOfReference {
         type_: &Type,
         expr: &Node, /*Expression*/
         assume_true: bool,
-    ) -> io::Result<Gc<Type>> {
+    ) -> io::Result<Id<Type>> {
         if self
             .type_checker
             .is_matching_reference(&self.reference, expr)?
@@ -343,12 +344,12 @@ impl GetFlowTypeOfReference {
         type_: &Type,
         name: &str, /*__String*/
         assume_true: bool,
-    ) -> io::Result<Gc<Type>> {
+    ) -> io::Result<Id<Type>> {
         if type_.flags().intersects(TypeFlags::Union)
             || type_.flags().intersects(TypeFlags::Object) && !ptr::eq(&*self.declared_type, type_)
             || self.type_checker.is_this_type_parameter(type_)
             || type_.flags().intersects(TypeFlags::Intersection)
-                && every(type_.as_intersection_type().types(), |t: &Gc<Type>, _| {
+                && every(type_.as_intersection_type().types(), |t: &Id<Type>, _| {
                     !matches!(
                         t.maybe_symbol().as_ref(),
                         Some(t_symbol) if Gc::ptr_eq(
@@ -370,7 +371,7 @@ impl GetFlowTypeOfReference {
         type_: &Type,
         expr: &Node, /*BinaryExpression*/
         assume_true: bool,
-    ) -> io::Result<Gc<Type>> {
+    ) -> io::Result<Id<Type>> {
         let expr_as_binary_expression = expr.as_binary_expression();
         let mut type_ = type_.type_wrapper();
         match expr_as_binary_expression.operator_token.kind() {
@@ -578,7 +579,7 @@ impl GetFlowTypeOfReference {
         type_: &Type,
         expr: &Node, /*BinaryExpression*/
         assume_true: bool,
-    ) -> io::Result<Gc<Type>> {
+    ) -> io::Result<Id<Type>> {
         let expr_as_binary_expression = expr.as_binary_expression();
         let target = self
             .type_checker
@@ -626,7 +627,7 @@ impl GetFlowTypeOfReference {
         operator: SyntaxKind,
         value: &Node, /*Expression*/
         assume_true: bool,
-    ) -> io::Result<Gc<Type>> {
+    ) -> io::Result<Id<Type>> {
         let equals_operator = matches!(
             operator,
             SyntaxKind::EqualsEqualsToken | SyntaxKind::EqualsEqualsEqualsToken
@@ -663,7 +664,7 @@ impl GetFlowTypeOfReference {
         operator: SyntaxKind,
         value: &Node, /*Expression*/
         mut assume_true: bool,
-    ) -> io::Result<Gc<Type>> {
+    ) -> io::Result<Id<Type>> {
         if type_.flags().intersects(TypeFlags::Any) {
             return Ok(type_.type_wrapper());
         }
@@ -780,7 +781,7 @@ impl GetFlowTypeOfReference {
         operator: SyntaxKind,
         literal: &Node, /*LiteralExpression*/
         mut assume_true: bool,
-    ) -> io::Result<Gc<Type>> {
+    ) -> io::Result<Id<Type>> {
         if matches!(
             operator,
             SyntaxKind::ExclamationEqualsToken | SyntaxKind::ExclamationEqualsEqualsToken
@@ -875,13 +876,13 @@ impl GetFlowTypeOfReference {
         clause_start: usize,
         clause_end: usize,
         mut clause_check: impl FnMut(&Type) -> bool,
-    ) -> io::Result<Gc<Type>> {
+    ) -> io::Result<Id<Type>> {
         let every_clause_checks = clause_start != clause_end
             && every(
                 &self
                     .type_checker
                     .get_switch_clause_types(switch_statement)?[clause_start..clause_end],
-                |clause_type: &Gc<Type>, _| clause_check(clause_type),
+                |clause_type: &Id<Type>, _| clause_check(clause_type),
             );
         Ok(if every_clause_checks {
             self.type_checker
@@ -897,7 +898,7 @@ impl GetFlowTypeOfReference {
         switch_statement: &Node, /*SwitchStatement*/
         clause_start: usize,
         clause_end: usize,
-    ) -> io::Result<Gc<Type>> {
+    ) -> io::Result<Id<Type>> {
         let switch_types = self
             .type_checker
             .get_switch_clause_types(switch_statement)?;
@@ -908,7 +909,7 @@ impl GetFlowTypeOfReference {
         let has_default_clause = clause_start == clause_end
             || contains_gc(Some(clause_types), &self.type_checker.never_type());
         if type_.flags().intersects(TypeFlags::Unknown) && !has_default_clause {
-            let mut ground_clause_types: Option<Vec<Gc<Type>>> = None;
+            let mut ground_clause_types: Option<Vec<Id<Type>>> = None;
             for i in 0..clause_types.len() {
                 let t = &clause_types[i];
                 if t.flags()
@@ -987,7 +988,7 @@ impl GetFlowTypeOfReference {
         &self,
         type_: &Type,
         text: &str,
-    ) -> io::Result<Option<Gc<Type>>> {
+    ) -> io::Result<Option<Id<Type>>> {
         Ok(match text {
             "function" => {
                 if type_.flags().intersects(TypeFlags::Any) {
@@ -1019,7 +1020,7 @@ impl GetFlowTypeOfReference {
     pub(super) fn narrow_union_member_by_typeof(
         &self,
         candidate: &Type,
-    ) -> impl FnMut(&Type) -> io::Result<Gc<Type>> + 'static {
+    ) -> impl FnMut(&Type) -> io::Result<Id<Type>> + 'static {
         let type_checker = self.type_checker.clone();
         let candidate = candidate.type_wrapper();
         move |type_: &Type| {
@@ -1051,7 +1052,7 @@ impl GetFlowTypeOfReference {
         switch_statement: &Node, /*SwitchStatement*/
         clause_start: usize,
         clause_end: usize,
-    ) -> io::Result<Gc<Type>> {
+    ) -> io::Result<Id<Type>> {
         let switch_witnesses = self
             .type_checker
             .get_switch_clause_type_of_witnesses(switch_statement, true);

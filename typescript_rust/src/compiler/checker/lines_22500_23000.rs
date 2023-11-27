@@ -1,6 +1,7 @@
 use std::{borrow::Borrow, collections::HashMap, convert::TryInto, io, ptr};
 
 use gc::Gc;
+use id_arena::Id;
 
 use super::{get_next_flow_id, increment_next_flow_id, IterationUse, TypeFacts};
 use crate::{
@@ -413,10 +414,10 @@ impl TypeChecker {
 
     pub(super) fn map_types_by_key_property(
         &self,
-        types: &[Gc<Type>],
+        types: &[Id<Type>],
         name: &str, /*__String*/
-    ) -> io::Result<Option<HashMap<TypeId, Gc<Type>>>> {
-        let mut map: HashMap<TypeId, Gc<Type>> = HashMap::new();
+    ) -> io::Result<Option<HashMap<TypeId, Id<Type>>>> {
+        let mut map: HashMap<TypeId, Id<Type>> = HashMap::new();
         let mut count = 0;
         for type_ in types {
             if type_.flags().intersects(
@@ -465,7 +466,7 @@ impl TypeChecker {
         let types = union_type_as_union_type.types();
         if types.len() < 10
             || get_object_flags(union_type).intersects(ObjectFlags::PrimitiveUnion)
-            || count_where(Some(types), |t: &Gc<Type>, _| {
+            || count_where(Some(types), |t: &Id<Type>, _| {
                 t.flags()
                     .intersects(TypeFlags::Object | TypeFlags::InstantiableNonPrimitive)
             }) < 10
@@ -473,7 +474,7 @@ impl TypeChecker {
             return Ok(None);
         }
         if union_type_as_union_type.maybe_key_property_name().is_none() {
-            let key_property_name = try_for_each(types, |t: &Gc<Type>, _| -> io::Result<_> {
+            let key_property_name = try_for_each(types, |t: &Id<Type>, _| -> io::Result<_> {
                 Ok(
                     if t.flags()
                         .intersects(TypeFlags::Object | TypeFlags::InstantiableNonPrimitive)
@@ -521,7 +522,7 @@ impl TypeChecker {
         &self,
         union_type: &Type, /*UnionType*/
         key_type: &Type,
-    ) -> Option<Gc<Type>> {
+    ) -> Option<Id<Type>> {
         let result = union_type
             .as_union_type()
             .maybe_constituent_map()
@@ -538,7 +539,7 @@ impl TypeChecker {
         &self,
         union_type: &Type, /*UnionType*/
         type_: &Type,
-    ) -> io::Result<Option<Gc<Type>>> {
+    ) -> io::Result<Option<Id<Type>>> {
         let key_property_name = self.get_key_property_name(union_type)?;
         let prop_type = key_property_name
             .as_ref()
@@ -554,7 +555,7 @@ impl TypeChecker {
         &self,
         union_type: &Type, /*UnionType*/
         node: &Node,       /*ObjectLiteralExpression*/
-    ) -> io::Result<Option<Gc<Type>>> {
+    ) -> io::Result<Option<Id<Type>>> {
         let key_property_name = self.get_key_property_name(union_type)?;
         let prop_node = key_property_name.as_ref().and_then(|key_property_name| {
             find(
@@ -651,7 +652,7 @@ impl TypeChecker {
         &self,
         declared_type: &Type, /*UnionType*/
         assigned_type: &Type,
-    ) -> io::Result<Gc<Type>> {
+    ) -> io::Result<Id<Type>> {
         if !ptr::eq(declared_type, assigned_type) {
             if assigned_type.flags().intersects(TypeFlags::Never) {
                 return Ok(assigned_type.type_wrapper());
@@ -859,7 +860,7 @@ impl TypeChecker {
         if flags.intersects(TypeFlags::Union) {
             return try_reduce_left(
                 type_.as_union_or_intersection_type_interface().types(),
-                |facts, t: &Gc<Type>, _| -> io::Result<_> {
+                |facts, t: &Id<Type>, _| -> io::Result<_> {
                     Ok(facts | self.get_type_facts(t, Some(ignore_objects))?)
                 },
                 TypeFacts::None,
@@ -871,7 +872,7 @@ impl TypeChecker {
             ignore_objects = ignore_objects || self.maybe_type_of_kind(type_, TypeFlags::Primitive);
             return try_reduce_left(
                 type_.as_union_or_intersection_type_interface().types(),
-                |facts, t: &Gc<Type>, _| -> io::Result<_> {
+                |facts, t: &Id<Type>, _| -> io::Result<_> {
                     Ok(facts & self.get_type_facts(t, Some(ignore_objects))?)
                 },
                 TypeFacts::All,
@@ -886,7 +887,7 @@ impl TypeChecker {
         &self,
         type_: &Type,
         include: TypeFacts,
-    ) -> io::Result<Gc<Type>> {
+    ) -> io::Result<Id<Type>> {
         self.try_filter_type(type_, |t: &Type| {
             Ok(self.get_type_facts(t, None)? & include != TypeFacts::None)
         })
@@ -896,7 +897,7 @@ impl TypeChecker {
         &self,
         type_: &Type,
         default_expression: &Node, /*Expression*/
-    ) -> io::Result<Gc<Type>> {
+    ) -> io::Result<Id<Type>> {
         /*defaultExpression ? */
         self.get_union_type(
             &[
@@ -915,7 +916,7 @@ impl TypeChecker {
         &self,
         type_: &Type,
         name: &Node, /*PropertyName*/
-    ) -> io::Result<Gc<Type>> {
+    ) -> io::Result<Id<Type>> {
         let name_type = self.get_literal_type_from_property_name(name)?;
         if !self.is_type_usable_as_property_name(&name_type) {
             return Ok(self.error_type());
@@ -936,7 +937,7 @@ impl TypeChecker {
         &self,
         type_: &Type,
         index: usize,
-    ) -> io::Result<Gc<Type>> {
+    ) -> io::Result<Id<Type>> {
         Ok(
             if self.try_every_type(type_, |type_: &Type| self.is_tuple_like_type(type_))? {
                 self.get_tuple_element_type(type_, index)?
@@ -960,7 +961,7 @@ impl TypeChecker {
     pub(super) fn include_undefined_in_index_signature(
         &self,
         type_: Option<impl Borrow<Type>>,
-    ) -> io::Result<Option<Gc<Type>>> {
+    ) -> io::Result<Option<Id<Type>>> {
         let type_ = return_ok_default_if_none!(type_);
         let type_ = type_.borrow();
         Ok(Some(
@@ -981,7 +982,7 @@ impl TypeChecker {
     pub(super) fn get_type_of_destructured_spread_expression(
         &self,
         type_: &Type,
-    ) -> io::Result<Gc<Type>> {
+    ) -> io::Result<Id<Type>> {
         Ok(self.create_array_type(
             &*self.check_iterated_type_or_element_type(
                 IterationUse::Destructuring,
@@ -996,7 +997,7 @@ impl TypeChecker {
     pub(super) fn get_assigned_type_of_binary_expression(
         &self,
         node: &Node, /*BinaryExpression*/
-    ) -> io::Result<Gc<Type>> {
+    ) -> io::Result<Id<Type>> {
         let is_destructuring_default_assignment = node.parent().kind()
             == SyntaxKind::ArrayLiteralExpression
             && self.is_destructuring_assignment_target(&node.parent())
@@ -1023,7 +1024,7 @@ impl TypeChecker {
         &self,
         node: &Node,    /*ArrayLiteralExpression*/
         element: &Node, /*Expression*/
-    ) -> io::Result<Gc<Type>> {
+    ) -> io::Result<Id<Type>> {
         self.get_type_of_destructured_array_element(
             &*self.get_assigned_type(node)?,
             node.as_array_literal_expression()
@@ -1037,14 +1038,14 @@ impl TypeChecker {
     pub(super) fn get_assigned_type_of_spread_expression(
         &self,
         node: &Node, /*SpreadElement*/
-    ) -> io::Result<Gc<Type>> {
+    ) -> io::Result<Id<Type>> {
         self.get_type_of_destructured_spread_expression(&*self.get_assigned_type(&node.parent())?)
     }
 
     pub(super) fn get_assigned_type_of_property_assignment(
         &self,
         node: &Node, /*PropertyAssignment | ShorthandPropertyAssignment*/
-    ) -> io::Result<Gc<Type>> {
+    ) -> io::Result<Id<Type>> {
         self.get_type_of_destructured_property(
             &*self.get_assigned_type(&node.parent())?,
             &node.as_named_declaration().name(),
@@ -1054,7 +1055,7 @@ impl TypeChecker {
     pub(super) fn get_assigned_type_of_shorthand_property_assignment(
         &self,
         node: &Node, /*ShorthandPropertyAssignment*/
-    ) -> io::Result<Gc<Type>> {
+    ) -> io::Result<Id<Type>> {
         self.get_type_with_default(
             &*self.get_assigned_type_of_property_assignment(node)?,
             node.as_shorthand_property_assignment()
@@ -1067,7 +1068,7 @@ impl TypeChecker {
     pub(super) fn get_assigned_type(
         &self,
         node: &Node, /*Expression*/
-    ) -> io::Result<Gc<Type>> {
+    ) -> io::Result<Id<Type>> {
         let parent = node.parent();
         Ok(match parent.kind() {
             SyntaxKind::ForInStatement => self.string_type(),

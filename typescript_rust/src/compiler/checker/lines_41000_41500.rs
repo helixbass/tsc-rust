@@ -44,7 +44,7 @@ impl TypeChecker {
             };
             return Ok(Some(try_flat_map(
                 Some(&object_types),
-                |t: &Gc<Type>, _| {
+                |t: &Id<Type>, _| {
                     try_filter(
                         &*self.get_index_infos_of_type(t)?,
                         |info: &Gc<IndexInfo>| {
@@ -119,7 +119,7 @@ impl TypeChecker {
         })
     }
 
-    pub(super) fn get_type_of_node(&self, node: &Node) -> io::Result<Gc<Type>> {
+    pub(super) fn get_type_of_node(&self, node: &Node) -> io::Result<Id<Type>> {
         if is_source_file(node) && !is_external_module(node) {
             return Ok(self.error_type());
         }
@@ -225,7 +225,7 @@ impl TypeChecker {
     pub(super) fn get_type_of_assignment_pattern_(
         &self,
         expr: &Node, /*AssignmentPattern*/
-    ) -> io::Result<Option<Gc<Type>>> {
+    ) -> io::Result<Option<Id<Type>>> {
         Debug_.assert(
             matches!(
                 expr.kind(),
@@ -322,7 +322,7 @@ impl TypeChecker {
     pub(super) fn get_regular_type_of_expression(
         &self,
         expr: &Node, /*Expression*/
-    ) -> io::Result<Gc<Type>> {
+    ) -> io::Result<Id<Type>> {
         let mut expr = expr.node_wrapper();
         if is_right_side_of_qualified_name_or_property_access(&expr) {
             expr = expr.parent();
@@ -333,7 +333,7 @@ impl TypeChecker {
     pub(super) fn get_parent_type_of_class_element(
         &self,
         node: &Node, /*ClassElement*/
-    ) -> io::Result<Gc<Type>> {
+    ) -> io::Result<Id<Type>> {
         let ref class_symbol = self.get_symbol_of_node(&node.parent())?.unwrap();
         Ok(if is_static(node) {
             self.get_type_of_symbol(class_symbol)?
@@ -345,7 +345,7 @@ impl TypeChecker {
     pub(super) fn get_class_element_property_key_type(
         &self,
         element: &Node, /*ClassElement*/
-    ) -> io::Result<Gc<Type>> {
+    ) -> io::Result<Id<Type>> {
         let ref name = element.as_named_declaration().name();
         Ok(match name.kind() {
             SyntaxKind::Identifier => self.get_string_literal_type(&id_text(name)),
@@ -427,7 +427,7 @@ impl TypeChecker {
                         .as_union_or_intersection_type_interface()
                         .types(),
                 ),
-                |type_: &Gc<Type>, _| {
+                |type_: &Id<Type>, _| {
                     self.get_property_of_type_(type_, symbol.escaped_name(), None)
                 },
             )?));

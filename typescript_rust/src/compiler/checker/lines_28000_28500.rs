@@ -1,6 +1,7 @@
 use std::{borrow::Borrow, io, ptr};
 
 use gc::Gc;
+use id_arena::Id;
 
 use super::{anon, CheckMode};
 use crate::{
@@ -41,7 +42,7 @@ impl TypeChecker {
     pub(super) fn check_non_null_expression(
         &self,
         node: &Node, /*Expression | QualifiedName*/
-    ) -> io::Result<Gc<Type>> {
+    ) -> io::Result<Id<Type>> {
         self.check_non_null_type(&*self.check_expression(node, None, None)?, node)
     }
 
@@ -54,7 +55,7 @@ impl TypeChecker {
         .intersects(TypeFlags::Nullable)
     }
 
-    pub(super) fn get_non_nullable_type_if_needed(&self, type_: &Type) -> io::Result<Gc<Type>> {
+    pub(super) fn get_non_nullable_type_if_needed(&self, type_: &Type) -> io::Result<Id<Type>> {
         Ok(if self.is_nullable_type(type_) {
             self.get_non_nullable_type(&type_)?
         } else {
@@ -107,7 +108,7 @@ impl TypeChecker {
         type_: &Type,
         node: &Node,
         mut report_error: impl FnMut(&Node, TypeFlags),
-    ) -> io::Result<Gc<Type>> {
+    ) -> io::Result<Id<Type>> {
         if self.strict_null_checks && type_.flags().intersects(TypeFlags::Unknown) {
             self.error(Some(node), &Diagnostics::Object_is_of_type_unknown, None);
             return Ok(self.error_type());
@@ -131,7 +132,7 @@ impl TypeChecker {
         Ok(type_.type_wrapper())
     }
 
-    pub(super) fn check_non_null_type(&self, type_: &Type, node: &Node) -> io::Result<Gc<Type>> {
+    pub(super) fn check_non_null_type(&self, type_: &Type, node: &Node) -> io::Result<Id<Type>> {
         self.check_non_null_type_with_reporter(type_, node, |node: &Node, flags: TypeFlags| {
             self.report_object_possibly_null_or_undefined_error(node, flags)
         })
@@ -141,7 +142,7 @@ impl TypeChecker {
         &self,
         type_: &Type,
         node: &Node,
-    ) -> io::Result<Gc<Type>> {
+    ) -> io::Result<Id<Type>> {
         let non_null_type = self.check_non_null_type(type_, node)?;
         if non_null_type.flags().intersects(TypeFlags::Void) {
             self.error(Some(node), &Diagnostics::Object_is_possibly_undefined, None);
@@ -153,7 +154,7 @@ impl TypeChecker {
         &self,
         node: &Node, /*PropertyAccessExpression*/
         check_mode: Option<CheckMode>,
-    ) -> io::Result<Gc<Type>> {
+    ) -> io::Result<Id<Type>> {
         let node_as_property_access_expression = node.as_property_access_expression();
         Ok(if node.flags().intersects(NodeFlags::OptionalChain) {
             self.check_property_access_chain(node, check_mode)?
@@ -172,7 +173,7 @@ impl TypeChecker {
         &self,
         node: &Node, /*PropertyAccessChain*/
         check_mode: Option<CheckMode>,
-    ) -> io::Result<Gc<Type>> {
+    ) -> io::Result<Id<Type>> {
         let node_as_property_access_expression = node.as_property_access_expression();
         let left_type =
             self.check_expression(&node_as_property_access_expression.expression, None, None)?;
@@ -200,7 +201,7 @@ impl TypeChecker {
         &self,
         node: &Node, /*QualifiedName*/
         check_mode: Option<CheckMode>,
-    ) -> io::Result<Gc<Type>> {
+    ) -> io::Result<Id<Type>> {
         let node_as_qualified_name = node.as_qualified_name();
         let left_type = if is_part_of_type_query(node)
             && is_this_identifier(Some(&*node_as_qualified_name.left))
@@ -291,7 +292,7 @@ impl TypeChecker {
     pub(super) fn check_private_identifier_expression(
         &self,
         priv_id: &Node, /*PrivateIdentifier*/
-    ) -> Gc<Type> {
+    ) -> Id<Type> {
         self.check_grammar_private_identifier_expression(priv_id);
         let symbol = self.get_symbol_for_private_identifier_expression(priv_id);
         if let Some(symbol) = symbol.as_ref() {
@@ -452,7 +453,7 @@ impl TypeChecker {
         left_type: &Type,
         right: &Node, /*Identifier | PrivateIdentifier*/
         check_mode: Option<CheckMode>,
-    ) -> io::Result<Gc<Type>> {
+    ) -> io::Result<Id<Type>> {
         let parent_symbol = (*self.get_node_links(left))
             .borrow()
             .resolved_symbol
@@ -584,7 +585,7 @@ impl TypeChecker {
             }
         }
 
-        let prop_type: Gc<Type>;
+        let prop_type: Id<Type>;
         match prop.as_ref() {
             None => {
                 let index_info = if !is_private_identifier(right)
@@ -821,7 +822,7 @@ impl TypeChecker {
         prop_type: &Type,
         error_node: &Node,
         check_mode: Option<CheckMode>,
-    ) -> io::Result<Gc<Type>> {
+    ) -> io::Result<Id<Type>> {
         let assignment_kind = get_assignment_target_kind(node);
         let prop = prop.map(|prop| prop.borrow().symbol_wrapper());
         if assignment_kind == AssignmentKind::Definite {
@@ -1026,7 +1027,7 @@ impl TypeChecker {
         {
             return Ok(false);
         }
-        let mut class_type: Option<Gc<Type>> =
+        let mut class_type: Option<Id<Type>> =
             Some(self.get_type_of_symbol(&prop.maybe_parent().unwrap())?);
         loop {
             let class_type_present = class_type.as_ref().unwrap();
@@ -1054,7 +1055,7 @@ impl TypeChecker {
     pub(super) fn get_super_class(
         &self,
         class_type: &Type, /*InterfaceType*/
-    ) -> io::Result<Option<Gc<Type>>> {
+    ) -> io::Result<Option<Id<Type>>> {
         let x = self.get_base_types(class_type)?;
         if x.is_empty() {
             return Ok(None);

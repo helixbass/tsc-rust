@@ -29,8 +29,8 @@ use crate::{
 pub(super) struct CheckTypeRelatedTo {
     _rc_wrapper: GcCell<Option<Gc<CheckTypeRelatedTo>>>,
     pub type_checker: Gc<TypeChecker>,
-    pub source: Gc<Type>,
-    pub target: Gc<Type>,
+    pub source: Id<Type>,
+    pub target: Id<Type>,
     #[unsafe_ignore_trace]
     pub relation: Rc<RefCell<HashMap<String, RelationComparisonResult>>>,
     pub error_node: GcCell<Option<Gc<Node>>>,
@@ -43,8 +43,8 @@ pub(super) struct CheckTypeRelatedTo {
     pub related_info: GcCell<Option<Vec<DiagnosticRelatedInformation>>>,
     #[unsafe_ignore_trace]
     pub maybe_keys: RefCell<Option<Vec<String>>>,
-    pub source_stack: GcCell<Option<Vec<Gc<Type>>>>,
-    pub target_stack: GcCell<Option<Vec<Gc<Type>>>>,
+    pub source_stack: GcCell<Option<Vec<Id<Type>>>>,
+    pub target_stack: GcCell<Option<Vec<Id<Type>>>>,
     #[unsafe_ignore_trace]
     pub maybe_count: Cell<usize>,
     #[unsafe_ignore_trace]
@@ -57,7 +57,7 @@ pub(super) struct CheckTypeRelatedTo {
     pub overflow: Cell<bool>,
     #[unsafe_ignore_trace]
     pub override_next_error_info: Cell<usize>,
-    pub last_skipped_info: GcCell<Option<(Gc<Type>, Gc<Type>)>>,
+    pub last_skipped_info: GcCell<Option<(Id<Type>, Id<Type>)>>,
     #[unsafe_ignore_trace]
     pub incompatible_stack: RefCell<Vec<(&'static DiagnosticMessage, Option<Vec<String>>)>>,
     #[unsafe_ignore_trace]
@@ -139,11 +139,11 @@ impl CheckTypeRelatedTo {
         self.maybe_keys.borrow_mut()
     }
 
-    pub(super) fn maybe_source_stack(&self) -> GcCellRefMut<Option<Vec<Gc<Type>>>> {
+    pub(super) fn maybe_source_stack(&self) -> GcCellRefMut<Option<Vec<Id<Type>>>> {
         self.source_stack.borrow_mut()
     }
 
-    pub(super) fn maybe_target_stack(&self) -> GcCellRefMut<Option<Vec<Gc<Type>>>> {
+    pub(super) fn maybe_target_stack(&self) -> GcCellRefMut<Option<Vec<Id<Type>>>> {
         self.target_stack.borrow_mut()
     }
 
@@ -195,7 +195,7 @@ impl CheckTypeRelatedTo {
         self.override_next_error_info.set(override_next_error_info);
     }
 
-    pub(super) fn maybe_last_skipped_info(&self) -> GcCellRefMut<Option<(Gc<Type>, Gc<Type>)>> {
+    pub(super) fn maybe_last_skipped_info(&self) -> GcCellRefMut<Option<(Id<Type>, Id<Type>)>> {
         self.last_skipped_info.borrow_mut()
     }
 
@@ -1129,7 +1129,7 @@ impl CheckTypeRelatedTo {
                         .intersects(TypeFlags::StructuredType)
                     && !some(
                         Some(source.as_union_or_intersection_type().types()),
-                        Some(|t: &Gc<Type>| {
+                        Some(|t: &Id<Type>| {
                             get_object_flags(t).intersects(ObjectFlags::NonInferrableType)
                         }),
                     ))
@@ -1324,13 +1324,13 @@ impl CheckTypeRelatedTo {
 
     pub(super) fn get_type_of_property_in_types(
         &self,
-        types: &[Gc<Type>],
+        types: &[Id<Type>],
         name: &str, /*__String*/
-    ) -> io::Result<Gc<Type>> {
-        let append_prop_type = |mut prop_types: Option<Vec<Gc<Type>>>,
-                                type_: &Gc<Type>,
+    ) -> io::Result<Id<Type>> {
+        let append_prop_type = |mut prop_types: Option<Vec<Id<Type>>>,
+                                type_: &Id<Type>,
                                 _|
-         -> io::Result<Option<Vec<Gc<Type>>>> {
+         -> io::Result<Option<Vec<Id<Type>>>> {
             let type_ = self.type_checker.get_apparent_type(type_)?;
             let prop = if type_.flags().intersects(TypeFlags::UnionOrIntersection) {
                 self.type_checker
@@ -1389,7 +1389,7 @@ impl CheckTypeRelatedTo {
             return Ok(false);
         }
         let mut reduced_target = target.type_wrapper();
-        let mut check_types: Option<Vec<Gc<Type>>> = None;
+        let mut check_types: Option<Vec<Id<Type>>> = None;
         if target.flags().intersects(TypeFlags::Union) {
             reduced_target = self
                 .type_checker

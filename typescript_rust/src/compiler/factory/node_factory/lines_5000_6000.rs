@@ -1,6 +1,7 @@
 use std::{borrow::Borrow, cell::RefCell, collections::HashMap, io, rc::Rc};
 
 use gc::{Finalize, Gc, Trace};
+use id_arena::Id;
 use local_macros::generate_node_factory_method_wrapper;
 
 use super::{propagate_child_flags, propagate_children_flags};
@@ -466,7 +467,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_synthetic_expression_raw(
         &self,
-        type_: Gc<Type>,
+        type_: Id<Type>,
         is_spread: Option<bool>,
         tuple_name_source: Option<Gc<Node /*ParameterDeclaration | NamedTupleMember*/>>,
     ) -> SyntheticExpression {

@@ -1,6 +1,7 @@
 use std::{convert::TryInto, io, ptr};
 
 use gc::Gc;
+use id_arena::Id;
 
 use crate::{
     try_maybe_for_each, Type, TypeChecker, __String, are_option_gcs_equal,
@@ -402,7 +403,7 @@ impl TypeChecker {
                         .try_filter(|_| -> io::Result<_> {
                             Ok(!try_some(
                                 Some(&self.get_base_types(type_)?),
-                                Some(|base: &Gc<Type>| -> io::Result<_> {
+                                Some(|base: &Id<Type>| -> io::Result<_> {
                                     Ok(self
                                         .get_property_of_object_type(base, prop.escaped_name())?
                                         .is_some()
@@ -476,7 +477,7 @@ impl TypeChecker {
                         .try_filter(|_| -> io::Result<_> {
                             Ok(!try_some(
                                 Some(&self.get_base_types(type_)?),
-                                Some(|base: &Gc<Type>| -> io::Result<_> {
+                                Some(|base: &Id<Type>| -> io::Result<_> {
                                     Ok(self
                                         .get_index_info_of_type_(base, &check_info.key_type)?
                                         .is_some()
@@ -682,7 +683,7 @@ impl TypeChecker {
     pub(super) fn are_type_parameters_identical(
         &self,
         declarations: &[Gc<Node /*ClassDeclaration | InterfaceDeclaration*/>],
-        target_parameters: Option<&[Gc<Type /*TypeParameter*/>]>,
+        target_parameters: Option<&[Id<Type /*TypeParameter*/>]>,
     ) -> io::Result<bool> {
         let max_type_argument_count = length(target_parameters);
         let min_type_argument_count = self.get_min_type_argument_count(target_parameters);
@@ -748,7 +749,7 @@ impl TypeChecker {
     pub(super) fn check_class_expression(
         &self,
         node: &Node, /*ClassExpression*/
-    ) -> io::Result<Gc<Type>> {
+    ) -> io::Result<Id<Type>> {
         self.check_class_like_declaration(node)?;
         self.check_node_deferred(node);
         self.get_type_of_symbol(&self.get_symbol_of_node(node)?.unwrap())

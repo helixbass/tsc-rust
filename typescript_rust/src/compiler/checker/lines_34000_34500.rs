@@ -1,6 +1,7 @@
 use std::{cell::RefCell, collections::HashMap, io, ptr, rc::Rc};
 
 use gc::{Finalize, Gc, Trace};
+use id_arena::Id;
 
 use super::{
     signature_has_rest_parameter, CheckTypeContainingMessageChain, DeclarationMeaning,
@@ -921,6 +922,6 @@ impl CheckTypeContainingMessageChain for CheckTypePredicateContainingMessageChai
 }
 
 struct IndexSignatureMapValue {
-    pub type_: Gc<Type>,
+    pub type_: Id<Type>,
     pub declarations: Vec<Gc<Node /*IndexSignatureDeclaration*/>>,
 }

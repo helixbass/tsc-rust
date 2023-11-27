@@ -2,6 +2,7 @@ use std::{cell::Cell, fmt};
 
 use bitflags::bitflags;
 use gc::{Finalize, Gc, GcCell, GcCellRef, GcCellRefMut, Trace};
+use id_arena::Id;
 use local_macros::{ast_type, enum_unwrapped};
 
 use super::{
@@ -216,7 +217,7 @@ pub trait NodeInterface: ReadonlyTextRange {
     fn maybe_emit_node(&self) -> Option<Gc<GcCell<EmitNode>>>;
     fn maybe_emit_node_mut(&self) -> GcCellRefMut<Option<Gc<GcCell<EmitNode>>>>;
     fn set_emit_node(&self, emit_node: Option<Gc<GcCell<EmitNode>>>);
-    fn maybe_contextual_type(&self) -> GcCellRefMut<Option<Gc<Type>>>;
+    fn maybe_contextual_type(&self) -> GcCellRefMut<Option<Id<Type>>>;
     fn maybe_inference_context(&self) -> GcCellRefMut<Option<Gc<InferenceContext>>>;
     fn maybe_js_doc(&self) -> Option<Vec<Gc<Node /*JSDoc*/>>>;
     fn set_js_doc(&self, js_doc: Option<Vec<Gc<Node /*JSDoc*/>>>);
@@ -1731,7 +1732,7 @@ pub struct BaseNode {
     next_container: GcCell<Option<Gc<Node>>>,
     local_symbol: GcCell<Option<Gc<Symbol>>>,
     emit_node: GcCell<Option<Gc<GcCell<EmitNode>>>>,
-    contextual_type: GcCell<Option<Gc<Type>>>,
+    contextual_type: GcCell<Option<Id<Type>>>,
     inference_context: GcCell<Option<Gc<InferenceContext>>>,
     flow_node: GcCell<Option<Gc<FlowNode>>>,
     js_doc: GcCell<Option<Vec<Gc<Node>>>>,
@@ -1995,7 +1996,7 @@ impl NodeInterface for BaseNode {
         *self.emit_node.borrow_mut() = emit_node;
     }
 
-    fn maybe_contextual_type(&self) -> GcCellRefMut<Option<Gc<Type>>> {
+    fn maybe_contextual_type(&self) -> GcCellRefMut<Option<Id<Type>>> {
         self.contextual_type.borrow_mut()
     }
 

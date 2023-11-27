@@ -1,6 +1,7 @@
 use std::{convert::TryInto, io, ptr};
 
 use gc::Gc;
+use id_arena::Id;
 
 use super::{signature_has_literal_types, signature_has_rest_parameter, CheckMode};
 use crate::{
@@ -158,7 +159,7 @@ impl TypeChecker {
     pub(super) fn create_combined_symbol_from_types(
         &self,
         sources: &[Gc<Symbol>],
-        types: &[Gc<Type>],
+        types: &[Id<Type>],
     ) -> io::Result<Gc<Symbol>> {
         Ok(self.create_combined_symbol_for_overload_failure(
             sources,
@@ -230,9 +231,9 @@ impl TypeChecker {
     pub(super) fn get_type_arguments_from_nodes(
         &self,
         type_argument_nodes: &[Gc<Node /*TypeNode*/>],
-        type_parameters: &[Gc<Type /*TypeParameter*/>],
+        type_parameters: &[Id<Type /*TypeParameter*/>],
         is_js: bool,
-    ) -> io::Result<Vec<Gc<Type>>> {
+    ) -> io::Result<Vec<Id<Type>>> {
         let mut type_arguments = type_argument_nodes
             .into_iter()
             .map(|type_argument_node| self.get_type_of_node(type_argument_node))
@@ -252,7 +253,7 @@ impl TypeChecker {
     pub(super) fn infer_signature_instantiation_for_overload_failure(
         &self,
         node: &Node, /*CallLikeExpression*/
-        type_parameters: &[Gc<Type /*TypeParameter*/>],
+        type_parameters: &[Id<Type /*TypeParameter*/>],
         candidate: Gc<Signature>,
         args: &[Gc<Node /*Expression*/>],
     ) -> io::Result<Gc<Signature>> {

@@ -1,6 +1,7 @@
 use std::{borrow::Borrow, convert::TryInto, io, ptr};
 
 use gc::Gc;
+use id_arena::Id;
 use indexmap::IndexMap;
 
 use super::{get_symbol_id, MinArgumentCountFlags};
@@ -20,7 +21,7 @@ use crate::{
 };
 
 impl TypeChecker {
-    pub(super) fn get_apparent_type(&self, type_: &Type) -> io::Result<Gc<Type>> {
+    pub(super) fn get_apparent_type(&self, type_: &Type) -> io::Result<Id<Type>> {
         let t = if type_.flags().intersects(TypeFlags::Instantiable) {
             self.get_base_constraint_of_type(type_)?
                 .unwrap_or_else(|| self.unknown_type())
@@ -52,7 +53,7 @@ impl TypeChecker {
         })
     }
 
-    pub(super) fn get_reduced_apparent_type(&self, type_: &Type) -> io::Result<Gc<Type>> {
+    pub(super) fn get_reduced_apparent_type(&self, type_: &Type) -> io::Result<Id<Type>> {
         self.get_reduced_type(&*self.get_apparent_type(&*self.get_reduced_type(type_)?)?)
     }
 
@@ -64,7 +65,7 @@ impl TypeChecker {
     ) -> io::Result<Option<Gc<Symbol>>> {
         let mut single_prop: Option<Gc<Symbol>> = None;
         let mut prop_set: Option<IndexMap<SymbolId, Gc<Symbol>>> = None;
-        let mut index_types: Option<Vec<Gc<Type>>> = None;
+        let mut index_types: Option<Vec<Id<Type>>> = None;
         let is_union = containing_type.flags().intersects(TypeFlags::Union);
         let mut optional_flag = if is_union {
             SymbolFlags::None
@@ -249,9 +250,9 @@ impl TypeChecker {
             vec![single_prop]
         };
         let mut declarations: Option<Vec<Gc<Node /*Declaration*/>>> = None;
-        let mut first_type: Option<Gc<Type>> = None;
-        let mut name_type: Option<Gc<Type>> = None;
-        let mut prop_types: Vec<Gc<Type>> = vec![];
+        let mut first_type: Option<Id<Type>> = None;
+        let mut name_type: Option<Id<Type>> = None;
+        let mut prop_types: Vec<Id<Type>> = vec![];
         let mut first_value_declaration: Option<Gc<Node /*Declaration*/>> = None;
         let mut has_non_uniform_value_declaration = false;
         for prop in props {
@@ -416,7 +417,7 @@ impl TypeChecker {
             .filter(|property| !get_check_flags(property).intersects(CheckFlags::ReadPartial)))
     }
 
-    pub(super) fn get_reduced_type(&self, type_: &Type) -> io::Result<Gc<Type>> {
+    pub(super) fn get_reduced_type(&self, type_: &Type) -> io::Result<Id<Type>> {
         if type_.flags().intersects(TypeFlags::Union)
             && type_
                 .as_union_type()
@@ -468,9 +469,9 @@ impl TypeChecker {
     pub(super) fn get_reduced_union_type(
         &self,
         union_type: &Type, /*UnionType*/
-    ) -> io::Result<Gc<Type>> {
+    ) -> io::Result<Id<Type>> {
         let union_type_as_union_type = union_type.as_union_type();
-        let reduced_types = try_map(union_type_as_union_type.types(), |type_: &Gc<Type>, _| {
+        let reduced_types = try_map(union_type_as_union_type.types(), |type_: &Id<Type>, _| {
             self.get_reduced_type(type_)
         })?;
         if are_gc_slices_equal(&reduced_types, union_type_as_union_type.types()) {
@@ -728,7 +729,7 @@ impl TypeChecker {
         &self,
         type_: &Type,
         key_type: &Type,
-    ) -> io::Result<Option<Gc<Type>>> {
+    ) -> io::Result<Option<Id<Type>>> {
         Ok(self
             .get_index_info_of_type_(type_, key_type)?
             .map(|index_info| index_info.type_.clone()))
@@ -771,8 +772,8 @@ impl TypeChecker {
     pub(super) fn get_type_parameters_from_declaration(
         &self,
         declaration: &Node, /*DeclarationWithTypeParameters*/
-    ) -> Option<Vec<Gc<Type /*<TypeParameter>*/>>> {
-        let mut result: Option<Vec<Gc<Type>>> = None;
+    ) -> Option<Vec<Id<Type /*<TypeParameter>*/>>> {
+        let mut result: Option<Vec<Id<Type>>> = None;
         for node in get_effective_type_parameter_declarations(declaration) {
             result = Some(maybe_append_if_unique_gc(
                 result,
@@ -903,7 +904,7 @@ impl TypeChecker {
         kind: TypePredicateKind,
         parameter_name: Option<String>,
         parameter_index: Option<usize>,
-        type_: Option<Gc<Type>>,
+        type_: Option<Id<Type>>,
     ) -> TypePredicate {
         TypePredicate {
             kind,
@@ -915,7 +916,7 @@ impl TypeChecker {
 
     pub(super) fn get_min_type_argument_count(
         &self,
-        type_parameters: Option<&[Gc<Type /*TypeParameter*/>]>,
+        type_parameters: Option<&[Id<Type /*TypeParameter*/>]>,
     ) -> usize {
         let mut min_type_argument_count = 0;
         if let Some(type_parameters) = type_parameters {

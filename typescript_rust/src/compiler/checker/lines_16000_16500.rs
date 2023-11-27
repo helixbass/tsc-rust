@@ -1,6 +1,7 @@
 use std::{borrow::Borrow, collections::HashMap, io, ptr};
 
 use gc::{Finalize, Gc, Trace};
+use id_arena::Id;
 use local_macros::enum_unwrapped;
 
 use crate::{
@@ -100,10 +101,10 @@ impl TypeChecker {
         value: String,
         symbol: Option<TSymbol>,
         regular_type: Option<TRegularType>,
-    ) -> Gc<Type> {
+    ) -> Id<Type> {
         let type_ = self.create_type(flags);
         let type_ = BaseLiteralType::new(type_);
-        let type_: Gc<Type> = StringLiteralType::new(type_, value).into();
+        let type_: Id<Type> = StringLiteralType::new(type_, value).into();
         type_.set_symbol(symbol.map(|symbol| symbol.borrow().symbol_wrapper()));
         type_
             .as_literal_type()
@@ -121,10 +122,10 @@ impl TypeChecker {
         value: Number,
         symbol: Option<TSymbol>,
         regular_type: Option<TRegularType>,
-    ) -> Gc<Type> {
+    ) -> Id<Type> {
         let type_ = self.create_type(flags);
         let type_ = BaseLiteralType::new(type_);
-        let type_: Gc<Type> = NumberLiteralType::new(type_, value).into();
+        let type_: Id<Type> = NumberLiteralType::new(type_, value).into();
         type_.set_symbol(symbol.map(|symbol| symbol.borrow().symbol_wrapper()));
         type_
             .as_literal_type()
@@ -142,10 +143,10 @@ impl TypeChecker {
         value: PseudoBigInt,
         symbol: Option<TSymbol>,
         regular_type: Option<TRegularType>,
-    ) -> Gc<Type> {
+    ) -> Id<Type> {
         let type_ = self.create_type(flags);
         let type_ = BaseLiteralType::new(type_);
-        let type_: Gc<Type> = BigIntLiteralType::new(type_, value).into();
+        let type_: Id<Type> = BigIntLiteralType::new(type_, value).into();
         type_.set_symbol(symbol.map(|symbol| symbol.borrow().symbol_wrapper()));
         type_
             .as_literal_type()
@@ -157,7 +158,7 @@ impl TypeChecker {
         type_
     }
 
-    pub(super) fn get_fresh_type_of_literal_type(&self, type_: &Type) -> Gc<Type> {
+    pub(super) fn get_fresh_type_of_literal_type(&self, type_: &Type) -> Id<Type> {
         if type_.flags().intersects(TypeFlags::Literal) {
             return match type_ {
                 Type::LiteralType(type_) => type_.get_or_initialize_fresh_type(self),
@@ -170,7 +171,7 @@ impl TypeChecker {
         type_.type_wrapper()
     }
 
-    pub(super) fn get_regular_type_of_literal_type(&self, type_: &Type) -> Gc<Type> {
+    pub(super) fn get_regular_type_of_literal_type(&self, type_: &Type) -> Id<Type> {
         if type_.flags().intersects(TypeFlags::Literal) {
             // TODO: this seems like it should be encapsulated behind an abstraction (also above in
             // get_fresh_type_of_literal_type())?
@@ -223,7 +224,7 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn get_string_literal_type(&self, value: &str) -> Gc<Type> {
+    pub(super) fn get_string_literal_type(&self, value: &str) -> Id<Type> {
         let mut string_literal_types = self.string_literal_types();
         if string_literal_types.contains_key(value) {
             return string_literal_types.get(value).unwrap().clone();
@@ -238,7 +239,7 @@ impl TypeChecker {
         type_
     }
 
-    pub(super) fn get_number_literal_type(&self, value: Number) -> Gc<Type> {
+    pub(super) fn get_number_literal_type(&self, value: Number) -> Id<Type> {
         let mut number_literal_types = self.number_literal_types();
         if number_literal_types.contains_key(&value) {
             return number_literal_types.get(&value).unwrap().clone();
@@ -253,7 +254,7 @@ impl TypeChecker {
         type_
     }
 
-    pub(super) fn get_big_int_literal_type(&self, value: PseudoBigInt) -> Gc<Type> {
+    pub(super) fn get_big_int_literal_type(&self, value: PseudoBigInt) -> Id<Type> {
         let key = pseudo_big_int_to_string(&value);
         let mut big_int_literal_types = self.big_int_literal_types();
         if big_int_literal_types.contains_key(&key) {
@@ -274,7 +275,7 @@ impl TypeChecker {
         value: StringOrNumber,
         enum_id: usize,
         symbol: &Symbol,
-    ) -> Gc<Type /*LiteralType*/> {
+    ) -> Id<Type /*LiteralType*/> {
         let key = match value.clone() {
             StringOrNumber::String(value) => {
                 format!("{}@{}", enum_id, value)
@@ -287,7 +288,7 @@ impl TypeChecker {
         if enum_literal_types.contains_key(&key) {
             return enum_literal_types.get(&key).unwrap().clone();
         }
-        let type_: Gc<Type> = match value {
+        let type_: Id<Type> = match value {
             StringOrNumber::String(value) => self.create_string_literal_type(
                 TypeFlags::EnumLiteral | TypeFlags::StringLiteral,
                 value,
@@ -308,7 +309,7 @@ impl TypeChecker {
     pub(super) fn get_type_from_literal_type_node(
         &self,
         node: &Node, /*LiteralTypeNode*/
-    ) -> io::Result<Gc<Type>> {
+    ) -> io::Result<Id<Type>> {
         let node_as_literal_type_node = node.as_literal_type_node();
         if node_as_literal_type_node.literal.kind() == SyntaxKind::NullKeyword {
             return Ok(self.null_type());
@@ -326,9 +327,9 @@ impl TypeChecker {
     pub(super) fn create_unique_es_symbol_type(
         &self,
         symbol: &Symbol,
-    ) -> Gc<Type /*UniqueESSymbolType*/> {
+    ) -> Id<Type /*UniqueESSymbolType*/> {
         let type_ = self.create_type(TypeFlags::UniqueESSymbol);
-        let type_: Gc<Type> = UniqueESSymbolType::new(
+        let type_: Id<Type> = UniqueESSymbolType::new(
             type_,
             symbol.symbol_wrapper(),
             format!("__@{}@{}", symbol.escaped_name(), get_symbol_id(symbol)),
@@ -337,7 +338,7 @@ impl TypeChecker {
         type_
     }
 
-    pub(super) fn get_es_symbol_like_type_for_node(&self, node: &Node) -> io::Result<Gc<Type>> {
+    pub(super) fn get_es_symbol_like_type_for_node(&self, node: &Node) -> io::Result<Id<Type>> {
         if is_valid_es_symbol_declaration(node) {
             let symbol = self.get_symbol_of_node(node)?.unwrap();
             let links = self.get_symbol_links(&symbol);
@@ -350,7 +351,7 @@ impl TypeChecker {
         Ok(self.es_symbol_type())
     }
 
-    pub(super) fn get_this_type(&self, node: &Node) -> io::Result<Gc<Type>> {
+    pub(super) fn get_this_type(&self, node: &Node) -> io::Result<Id<Type>> {
         let container = get_this_container(node, false);
         let parent = /*container &&*/ container.maybe_parent();
         if let Some(parent) = parent.as_ref().filter(|parent| {
@@ -436,7 +437,7 @@ impl TypeChecker {
     pub(super) fn get_type_from_this_type_node(
         &self,
         node: &Node, /*ThisExpression | ThisTypeNode*/
-    ) -> io::Result<Gc<Type>> {
+    ) -> io::Result<Id<Type>> {
         let links = self.get_node_links(node);
         if (*links).borrow().resolved_type.is_none() {
             links.borrow_mut().resolved_type = Some(self.get_this_type(node)?);
@@ -448,7 +449,7 @@ impl TypeChecker {
     pub(super) fn get_type_from_rest_type_node(
         &self,
         node: &Node, /*RestTypeNode | NamedTupleMember*/
-    ) -> io::Result<Gc<Type>> {
+    ) -> io::Result<Id<Type>> {
         let node_as_has_type = node.as_has_type();
         self.get_type_from_type_node_(
             &self
@@ -490,7 +491,7 @@ impl TypeChecker {
     pub(super) fn get_type_from_named_tuple_type_node(
         &self,
         node: &Node, /*NamedTupleMember*/
-    ) -> io::Result<Gc<Type>> {
+    ) -> io::Result<Id<Type>> {
         let links = self.get_node_links(node);
         if (*links).borrow().resolved_type.is_none() {
             let node_as_named_tuple_member = node.as_named_tuple_member();
@@ -512,14 +513,14 @@ impl TypeChecker {
     pub(super) fn get_type_from_type_node_(
         &self,
         node: &Node, /*TypeNode*/
-    ) -> io::Result<Gc<Type>> {
+    ) -> io::Result<Id<Type>> {
         self.get_conditional_flow_type_of_type(&*self.get_type_from_type_node_worker(node)?, node)
     }
 
     pub(super) fn get_type_from_type_node_worker(
         &self,
         node: &Node, /*TypeNode*/
-    ) -> io::Result<Gc<Type>> {
+    ) -> io::Result<Id<Type>> {
         Ok(match node.kind() {
             SyntaxKind::AnyKeyword | SyntaxKind::JSDocAllType | SyntaxKind::JSDocUnknownType => {
                 self.any_type()
@@ -655,10 +656,10 @@ impl TypeChecker {
 
     pub(super) fn instantiate_types(
         &self,
-        types: Option<&[Gc<Type>]>,
+        types: Option<&[Id<Type>]>,
         mapper: Option<Gc<TypeMapper>>,
-    ) -> io::Result<Option<Vec<Gc<Type>>>> {
-        self.try_instantiate_list(types, mapper, |type_: &Gc<Type>, mapper| {
+    ) -> io::Result<Option<Vec<Id<Type>>>> {
+        self.try_instantiate_list(types, mapper, |type_: &Id<Type>, mapper| {
             self.instantiate_type(type_, mapper)
         })
     }
@@ -701,8 +702,8 @@ impl TypeChecker {
 
     pub(super) fn create_type_mapper(
         &self,
-        sources: Vec<Gc<Type /*TypeParameter*/>>,
-        targets: Option<Vec<Gc<Type>>>,
+        sources: Vec<Id<Type /*TypeParameter*/>>,
+        targets: Option<Vec<Id<Type>>>,
     ) -> TypeMapper {
         if sources.len() == 1 {
             self.make_unary_type_mapper(
@@ -718,7 +719,7 @@ impl TypeChecker {
         &self,
         type_: &Type,
         mapper: &TypeMapper,
-    ) -> io::Result<Gc<Type>> {
+    ) -> io::Result<Id<Type>> {
         Ok(match mapper {
             TypeMapper::Simple(mapper) => {
                 if ptr::eq(type_, &*mapper.source) {
@@ -758,8 +759,8 @@ impl TypeChecker {
 
     pub(super) fn make_array_type_mapper(
         &self,
-        sources: Vec<Gc<Type /*TypeParameter*/>>,
-        targets: Option<Vec<Gc<Type>>>,
+        sources: Vec<Id<Type /*TypeParameter*/>>,
+        targets: Option<Vec<Id<Type>>>,
     ) -> TypeMapper {
         TypeMapper::new_array(sources, targets)
     }
@@ -789,7 +790,7 @@ impl TypeChecker {
 
     pub(super) fn create_type_eraser(
         &self,
-        sources: Vec<Gc<Type /*TypeParameter*/>>,
+        sources: Vec<Id<Type /*TypeParameter*/>>,
     ) -> TypeMapper {
         self.create_type_mapper(sources, None)
     }
@@ -859,7 +860,7 @@ impl TypeChecker {
     pub(super) fn get_restrictive_type_parameter(
         &self,
         tp: &Type, /*TypeParameter*/
-    ) -> Gc<Type> {
+    ) -> Id<Type> {
         if matches!(
             tp.as_type_parameter().maybe_constraint().as_ref(),
             Some(constraint) if Gc::ptr_eq(constraint, &self.unknown_type())
@@ -867,7 +868,7 @@ impl TypeChecker {
             tp.type_wrapper()
         } else {
             if tp.maybe_restrictive_instantiation().is_none() {
-                let restrictive_instantiation: Gc<Type> =
+                let restrictive_instantiation: Id<Type> =
                     self.create_type_parameter(tp.maybe_symbol()).into();
                 *tp.maybe_restrictive_instantiation() = Some(restrictive_instantiation.clone());
                 restrictive_instantiation
@@ -881,7 +882,7 @@ impl TypeChecker {
     pub(super) fn clone_type_parameter(
         &self,
         type_parameter: &Type, /*TypeParameter*/
-    ) -> Gc<Type /*TypeParameter*/> {
+    ) -> Id<Type /*TypeParameter*/> {
         let mut result = self.create_type_parameter(Some(type_parameter.symbol()));
         result.target = Some(type_parameter.type_wrapper());
         result.into()
@@ -907,7 +908,7 @@ impl TypeChecker {
         erase_type_parameters: Option<bool>,
     ) -> io::Result<Signature> {
         let erase_type_parameters = erase_type_parameters.unwrap_or(false);
-        let mut fresh_type_parameters: Option<Vec<Gc<Type /*TypeParameter*/>>> = None;
+        let mut fresh_type_parameters: Option<Vec<Id<Type /*TypeParameter*/>>> = None;
         if let Some(signature_type_parameters) = signature.maybe_type_parameters().clone() {
             if !erase_type_parameters {
                 fresh_type_parameters =
@@ -1005,8 +1006,8 @@ impl TypeChecker {
         type_: &Type, /*AnonymousType | DeferredTypeReference*/
         mapper: Gc<TypeMapper>,
         alias_symbol: Option<impl Borrow<Symbol>>,
-        alias_type_arguments: Option<&[Gc<Type>]>,
-    ) -> io::Result<Gc<Type>> {
+        alias_type_arguments: Option<&[Id<Type>]>,
+    ) -> io::Result<Id<Type>> {
         let type_as_object_type = type_.as_object_type();
         let declaration = if type_as_object_type
             .object_flags()
@@ -1061,7 +1062,7 @@ impl TypeChecker {
                 || target.symbol().flags().intersects(SymbolFlags::TypeLiteral))
                 && target.maybe_alias_type_arguments().is_none()
             {
-                try_maybe_filter(type_parameters.as_deref(), |tp: &Gc<Type>| {
+                try_maybe_filter(type_parameters.as_deref(), |tp: &Id<Type>| {
                     try_some(
                         Some(&*all_declarations),
                         Some(|d: &Gc<Node>| self.is_type_parameter_possibly_referenced(tp, d)),
@@ -1077,7 +1078,7 @@ impl TypeChecker {
         if !type_parameters.is_empty() {
             let combined_mapper =
                 self.combine_type_mappers(type_as_object_type.maybe_mapper(), mapper.clone());
-            let type_arguments = try_map(&type_parameters, |t: &Gc<Type>, _| {
+            let type_arguments = try_map(&type_parameters, |t: &Id<Type>, _| {
                 self.get_mapped_type(t, &combined_mapper)
             })?;
             let alias_symbol =
@@ -1185,7 +1186,7 @@ impl BackreferenceMapperCallback {
 }
 
 impl TypeMapperCallback for BackreferenceMapperCallback {
-    fn call(&self, checker: &TypeChecker, t: &Type) -> io::Result<Gc<Type>> {
+    fn call(&self, checker: &TypeChecker, t: &Type) -> io::Result<Id<Type>> {
         Ok(
             if matches!(
                 find_index(&self.context_inferences, |info: &Gc<InferenceInfo>, _| ptr::eq(&*info.type_parameter, t), None),

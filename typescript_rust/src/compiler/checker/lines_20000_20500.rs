@@ -7,6 +7,7 @@ use std::{
 };
 
 use gc::{Finalize, Gc, GcCell, Trace};
+use id_arena::Id;
 use itertools::Itertools;
 
 use super::{CheckTypeRelatedTo, IntersectionState, RecursionFlags};
@@ -257,7 +258,7 @@ impl TypeChecker {
         if type_.flags().intersects(TypeFlags::UnionOrIntersection) {
             return try_for_each_bool(
                 type_.as_union_or_intersection_type_interface().types(),
-                |type_: &Gc<Type>, _| self.type_could_have_top_level_singleton_types(type_),
+                |type_: &Id<Type>, _| self.type_could_have_top_level_singleton_types(type_),
             );
         }
 
@@ -325,7 +326,7 @@ impl TypeChecker {
         source: &Type,
         target: &Type, /*UnionOrIntersectionType*/
         is_related_to: Option<impl Fn(&Type, &Type) -> io::Result<Ternary>>,
-    ) -> io::Result<Option<Gc<Type>>> {
+    ) -> io::Result<Option<Id<Type>>> {
         let is_related_to = |source: &Type, target: &Type| {
             Ok(match is_related_to.as_ref() {
                 None => self.compare_types_assignable(source, target)?,
@@ -342,11 +343,11 @@ impl TypeChecker {
     pub(super) fn discriminate_type_by_discriminable_items(
         &self,
         target: &Type, /*UnionType*/
-        discriminators: impl IntoIterator<Item = (Box<dyn Fn() -> io::Result<Gc<Type>>>, __String)>,
+        discriminators: impl IntoIterator<Item = (Box<dyn Fn() -> io::Result<Id<Type>>>, __String)>,
         mut related: impl FnMut(&Type, &Type) -> io::Result<bool>,
         default_value: Option<impl Borrow<Type>>,
         skip_partial: Option<bool>,
-    ) -> io::Result<Option<Gc<Type>>> {
+    ) -> io::Result<Option<Id<Type>>> {
         let target_as_union_type = target.as_union_type();
         let target_types = target_as_union_type.types();
         let mut discriminable: Vec<Option<bool>> = target_types
@@ -425,7 +426,7 @@ impl TypeChecker {
         if type_.flags().intersects(TypeFlags::Intersection) {
             return try_every(
                 type_.as_union_or_intersection_type_interface().types(),
-                |type_: &Gc<Type>, _| self.is_weak_type(type_),
+                |type_: &Id<Type>, _| self.is_weak_type(type_),
             );
         }
         Ok(false)
@@ -450,12 +451,12 @@ impl TypeChecker {
         type_: &Type,  /*GenericType*/
         source: &Type, /*TypeParameter*/
         target: &Type,
-    ) -> Gc<Type /*TypeReference*/> {
+    ) -> Id<Type /*TypeReference*/> {
         let result = self.create_type_reference(
             type_,
             maybe_map(
                 type_.as_generic_type().maybe_type_parameters(),
-                |t: &Gc<Type>, _| {
+                |t: &Id<Type>, _| {
                     if ptr::eq(&**t, source) {
                         target.type_wrapper()
                     } else {
@@ -503,13 +504,13 @@ impl TypeChecker {
 
     pub(super) fn get_variances_worker(
         &self,
-        type_parameters: Option<&[Gc<Type /*TypeParameter*/>]>,
+        type_parameters: Option<&[Id<Type /*TypeParameter*/>]>,
         cache: impl Into<GetVariancesCache>,
         mut create_marker_type: impl FnMut(
             &GetVariancesCache,
             &Type, /*TypeParameter*/
             &Type,
-        ) -> Gc<Type>,
+        ) -> Id<Type>,
     ) -> Vec<VarianceFlags> {
         self.try_get_variances_worker(
             type_parameters,
@@ -521,13 +522,13 @@ impl TypeChecker {
 
     pub(super) fn try_get_variances_worker(
         &self,
-        type_parameters: Option<&[Gc<Type /*TypeParameter*/>]>,
+        type_parameters: Option<&[Id<Type /*TypeParameter*/>]>,
         cache: impl Into<GetVariancesCache>,
         mut create_marker_type: impl FnMut(
             &GetVariancesCache,
             &Type, /*TypeParameter*/
             &Type,
-        ) -> io::Result<Gc<Type>>,
+        ) -> io::Result<Id<Type>>,
     ) -> io::Result<Vec<VarianceFlags>> {
         let type_parameters = type_parameters.map_or_else(|| vec![], ToOwned::to_owned);
         let cache = cache.into();
@@ -612,7 +613,7 @@ impl TypeChecker {
 
     pub(super) fn has_covariant_void_argument(
         &self,
-        type_arguments: &[Gc<Type>],
+        type_arguments: &[Id<Type>],
         variances: &[VarianceFlags],
     ) -> bool {
         for i in 0..variances.len() {
@@ -642,7 +643,7 @@ impl TypeChecker {
         Ok(self.is_non_deferred_type_reference(type_)
             && try_some(
                 Some(&*self.get_type_arguments(type_)?),
-                Some(|t: &Gc<Type>| -> io::Result<_> {
+                Some(|t: &Id<Type>| -> io::Result<_> {
                     Ok(t.flags().intersects(TypeFlags::TypeParameter)
                         || self.is_type_reference_with_generic_arguments(t)?)
                 }),
@@ -652,7 +653,7 @@ impl TypeChecker {
     pub(super) fn get_type_reference_id(
         &self,
         type_: &Type, /*TypeReference*/
-        type_parameters: &mut Vec<Gc<Type>>,
+        type_parameters: &mut Vec<Id<Type>>,
         depth: Option<usize>,
     ) -> io::Result<String> {
         let depth = depth.unwrap_or(0);
@@ -706,7 +707,7 @@ impl TypeChecker {
         if self.is_type_reference_with_generic_arguments(&source)?
             && self.is_type_reference_with_generic_arguments(&target)?
         {
-            let mut type_parameters: Vec<Gc<Type>> = vec![];
+            let mut type_parameters: Vec<Id<Type>> = vec![];
             return Ok(format!(
                 "{},{}{}",
                 self.get_type_reference_id(&source, &mut type_parameters, None)?,
@@ -759,7 +760,7 @@ impl TypeChecker {
     pub(super) fn get_declaring_class(
         &self,
         prop: &Symbol,
-    ) -> io::Result<Option<Gc<Type /*InterfaceType*/>>> {
+    ) -> io::Result<Option<Id<Type /*InterfaceType*/>>> {
         prop.maybe_parent()
             .filter(|prop_parent| prop_parent.flags().intersects(SymbolFlags::Class))
             .try_map(|_prop_parent| {
@@ -770,7 +771,7 @@ impl TypeChecker {
     pub(super) fn get_type_of_property_in_base_class(
         &self,
         property: &Symbol,
-    ) -> io::Result<Option<Gc<Type>>> {
+    ) -> io::Result<Option<Id<Type>>> {
         let class_type = self.get_declaring_class(property)?;
         let base_class_type = class_type
             .as_ref()
@@ -826,7 +827,7 @@ impl TypeChecker {
         check_class: &Type,
         prop: &Symbol,
         writing: bool,
-    ) -> io::Result<Option<Gc<Type>>> {
+    ) -> io::Result<Option<Id<Type>>> {
         Ok(
             if self.for_each_property_bool(prop, &mut |p: &Symbol| {
                 Ok(
@@ -849,7 +850,7 @@ impl TypeChecker {
     pub(super) fn is_deeply_nested_type(
         &self,
         type_: &Type,
-        stack: &[Gc<Type>],
+        stack: &[Id<Type>],
         depth: usize,
         max_depth: Option<usize>,
     ) -> bool {
@@ -988,7 +989,7 @@ impl TypeChecker {
 
 pub(super) enum GetVariancesCache {
     SymbolLinks(Gc<GcCell<SymbolLinks>>),
-    GenericType(Gc<Type /*GenericType*/>),
+    GenericType(Id<Type /*GenericType*/>),
 }
 
 impl GetVariancesCache {
@@ -1006,8 +1007,8 @@ impl From<Gc<GcCell<SymbolLinks>>> for GetVariancesCache {
     }
 }
 
-impl From<Gc<Type>> for GetVariancesCache {
-    fn from(value: Gc<Type>) -> Self {
+impl From<Id<Type>> for GetVariancesCache {
+    fn from(value: Id<Type>) -> Self {
         Self::GenericType(value)
     }
 }
@@ -1016,7 +1017,7 @@ impl From<Gc<Type>> for GetVariancesCache {
 pub(super) enum RecursionIdentity {
     Node(Gc<Node>),
     Symbol(Gc<Symbol>),
-    Type(Gc<Type>),
+    Type(Id<Type>),
     ConditionalRoot(Gc<GcCell<ConditionalRoot>>),
     None,
 }
@@ -1048,8 +1049,8 @@ impl From<Gc<Symbol>> for RecursionIdentity {
     }
 }
 
-impl From<Gc<Type>> for RecursionIdentity {
-    fn from(value: Gc<Type>) -> Self {
+impl From<Id<Type>> for RecursionIdentity {
+    fn from(value: Id<Type>) -> Self {
         Self::Type(value)
     }
 }

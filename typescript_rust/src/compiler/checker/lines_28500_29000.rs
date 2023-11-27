@@ -352,7 +352,7 @@ impl TypeChecker {
         &self,
         source: &Type, /*StringLiteralType*/
         target: &Type, /*UnionType*/
-    ) -> Option<Gc<Type /*StringLiteralType*/>> {
+    ) -> Option<Id<Type /*StringLiteralType*/>> {
         let candidates = target
             .as_union_type()
             .types()
@@ -363,7 +363,7 @@ impl TypeChecker {
         get_spelling_suggestion(
             &source.as_string_literal_type().value,
             &candidates,
-            |type_: &Gc<Type>| Some(type_.as_string_literal_type().value.clone()),
+            |type_: &Id<Type>| Some(type_.as_string_literal_type().value.clone()),
         )
     }
 
