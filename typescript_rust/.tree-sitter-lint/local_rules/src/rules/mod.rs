@@ -1,0 +1,3 @@
+mod rewrite_gc_type_to_id_type;
+
+pub use rewrite_gc_type_to_id_type::rewrite_gc_type_to_id_type_rule;

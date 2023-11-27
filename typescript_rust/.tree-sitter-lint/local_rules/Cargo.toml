@@ -1,0 +1,13 @@
+[package]
+name = "local_rules"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+tracing = "0.1.37"
+tree-sitter-lint = { path = "../../../../tree-sitter-lint" }
+
+[patch.crates-io]
+tree-sitter = { git = "https://github.com/tree-sitter/tree-sitter", rev = "c16b90d" }

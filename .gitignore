@@ -5,4 +5,4 @@ out
 typescript_rust/typescript_src/tests/baselines/local/
 rusty-tags.vi
 NOTES
-.tree-sitter-lint/
+tree-sitter-lint-local/
