@@ -868,13 +868,13 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         &self,
         arena: &AllArenas,
         id: Id<Node>,
-        expression: Gc<Node /*Expression*/>,
-        question_dot_token: Option<Gc<Node /*QuestionDotToken*/>>,
+        expression: Id<Node /*Expression*/>,
+        question_dot_token: Option<Id<Node /*QuestionDotToken*/>>,
         index: impl Into<StringOrNumberOrBoolOrRcNode>,
     ) -> ElementAccessExpression {
-        let node = self.create_base_expression(SyntaxKind::ElementAccessExpression);
+        let mut node = self.create_base_expression(id, SyntaxKind::ElementAccessExpression);
         node.set_flags(node.flags() | NodeFlags::OptionalChain);
-        let node = ElementAccessExpression::new(
+        let mut node = ElementAccessExpression::new(
             node,
             self.parenthesizer_rules()
                 .parenthesize_left_side_of_access(&expression),
@@ -882,9 +882,9 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
             self.as_expression(index),
         );
         node.add_transform_flags(
-            propagate_child_flags(Some(&*node.expression))
-                | propagate_child_flags(node.question_dot_token.clone())
-                | propagate_child_flags(Some(&*node.argument_expression))
+            propagate_child_flags(arena, Some(&*node.expression))
+                | propagate_child_flags(arena, node.question_dot_token.clone())
+                | propagate_child_flags(arena, Some(&*node.argument_expression))
                 | TransformFlags::ContainsES2020,
         );
         node
@@ -892,30 +892,27 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn update_element_access_chain(
         &self,
-        node: &Node, /*ElementAccessChain*/
-        expression: Gc<Node /*Expression*/>,
-        question_dot_token: Option<Gc<Node /*QuestionDotToken*/>>,
-        argument_expression: Gc<Node /*Expression*/>,
-    ) -> Gc<Node> {
-        let node_as_element_access_expression = node.as_element_access_expression();
-        Debug_.assert(
-            node.flags().intersects(NodeFlags::OptionalChain),
-            Some("Cannot update a ElementAccessExpression using updateElementAccessChain. Use updateElementAccess instead.")
-        );
-        if !Gc::ptr_eq(&node_as_element_access_expression.expression, &expression)
-            || !are_option_gcs_equal(
-                node_as_element_access_expression
-                    .question_dot_token
-                    .as_ref(),
-                question_dot_token.as_ref(),
-            )
-            || !Gc::ptr_eq(
-                &node_as_element_access_expression.argument_expression,
-                &argument_expression,
-            )
-        {
+        arena: &AllArenas,
+        node: Id<Node>, /*ElementAccessChain*/
+        expression: Id<Node /*Expression*/>,
+        question_dot_token: Option<Id<Node /*QuestionDotToken*/>>,
+        argument_expression: Id<Node /*Expression*/>,
+    ) -> Id<Node> {
+        if {
+            let node = arena.node(node);
+            let node_as_element_access_expression = node.as_element_access_expression();
+            Debug_.assert(
+                node.flags().intersects(NodeFlags::OptionalChain),
+                Some("Cannot update a ElementAccessExpression using updateElementAccessChain. Use updateElementAccess instead.")
+            );
+            node_as_element_access_expression.expression != expression
+                || node_as_element_access_expression.question_dot_token != question_dot_token
+                || node_as_element_access_expression.argument_expression != argument_expression
+        } {
             self.update(
+                arena,
                 self.create_element_access_chain(
+                    arena,
                     expression,
                     question_dot_token,
                     argument_expression,
@@ -923,7 +920,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
                 node,
             )
         } else {
-            node.node_wrapper()
+            node
         }
     }
 
@@ -932,12 +929,12 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         &self,
         arena: &AllArenas,
         id: Id<Node>,
-        expression: Gc<Node /*Expression*/>,
+        expression: Id<Node /*Expression*/>,
         type_arguments: Option<impl Into<NodeArrayOrVec /*<TypeNode>*/>>,
         arguments_array: Option<impl Into<NodeArrayOrVec /*<Expression>*/>>,
     ) -> CallExpression {
-        let node = self.create_base_expression(SyntaxKind::CallExpression);
-        let node = CallExpression::new(
+        let node = self.create_base_expression(id, SyntaxKind::CallExpression);
+        let mut node = CallExpression::new(
             node,
             self.parenthesizer_rules()
                 .parenthesize_left_side_of_access(&expression),
@@ -945,11 +942,11 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
             self.as_node_array(type_arguments),
             self.parenthesizer_rules()
                 .parenthesize_expressions_of_comma_delimited_list(
-                    self.create_node_array(arguments_array, None).into(),
+                    self.create_node_array(arena, arguments_array, None).into(),
                 ),
         );
         node.add_transform_flags(
-            propagate_child_flags(Some(&*node.expression))
+            propagate_child_flags(arena, Some(&*node.expression))
                 | propagate_children_flags(node.maybe_type_arguments().as_deref())
                 | propagate_children_flags(Some(&node.arguments)),
         );
@@ -966,36 +963,49 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn update_call_expression(
         &self,
-        node: &Node, /*CallExpression*/
-        expression: Gc<Node /*Expression*/>,
+        arena: &AllArenas,
+        node: Id<Node>, /*CallExpression*/
+        expression: Id<Node /*Expression*/>,
         type_arguments: Option<impl Into<NodeArrayOrVec /*<TypeNode>*/>>,
         arguments_array: impl Into<NodeArrayOrVec /*<Expression>*/>,
-    ) -> Gc<Node /*CallExpression*/> {
-        let node_as_call_expression = node.as_call_expression();
-        if is_call_chain(node) {
+    ) -> Id<Node /*CallExpression*/> {
+        if {
+            let node = arena.node(node);
+            is_call_chain(node)
+        } {
             return self.update_call_chain(
+                arena,
                 node,
                 expression,
-                node_as_call_expression.question_dot_token.clone(),
+                arena.node(node).as_call_expression().question_dot_token,
                 type_arguments,
                 arguments_array,
             );
         }
-        let type_arguments = type_arguments.map(Into::into);
-        let arguments_array = arguments_array.into();
-        if !Gc::ptr_eq(&node_as_call_expression.expression, &expression)
-            || has_option_node_array_changed(
-                node_as_call_expression.maybe_type_arguments().as_deref(),
-                type_arguments.as_ref(),
-            )
-            || has_node_array_changed(&node_as_call_expression.arguments, &arguments_array)
-        {
+        if {
+            let node = arena.node(node);
+            let node_as_call_expression = node.as_call_expression();
+            let type_arguments = type_arguments.map(Into::into);
+            let arguments_array = arguments_array.into();
+            node_as_call_expression.expression != expression
+                || has_option_node_array_changed(
+                    node_as_call_expression.maybe_type_arguments().as_deref(),
+                    type_arguments.as_ref(),
+                )
+                || has_node_array_changed(&node_as_call_expression.arguments, &arguments_array)
+        } {
             self.update(
-                self.create_call_expression(expression, type_arguments, Some(arguments_array)),
+                arena,
+                self.create_call_expression(
+                    arena,
+                    expression,
+                    type_arguments,
+                    Some(arguments_array),
+                ),
                 node,
             )
         } else {
-            node.node_wrapper()
+            node
         }
     }
 
@@ -1004,8 +1014,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         &self,
         arena: &AllArenas,
         id: Id<Node>,
-        expression: Gc<Node /*Expression*/>,
-        question_dot_token: Option<Gc<Node /*QuestionDotToken*/>>,
+        expression: Id<Node /*Expression*/>,
+        question_dot_token: Option<Id<Node /*QuestionDotToken*/>>,
         type_arguments: Option<
             impl Into<NodeArrayOrVec>,
             /*<TypeNode>*/
@@ -1015,9 +1025,9 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
             /*<Expression>*/
         >,
     ) -> CallExpression {
-        let node = self.create_base_expression(SyntaxKind::CallExpression);
+        let mut node = self.create_base_expression(id, SyntaxKind::CallExpression);
         node.set_flags(node.flags() | NodeFlags::OptionalChain);
-        let node = CallExpression::new(
+        let mut node = CallExpression::new(
             node,
             self.parenthesizer_rules()
                 .parenthesize_left_side_of_access(&expression),
@@ -1029,8 +1039,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
                 ),
         );
         node.add_transform_flags(
-            propagate_child_flags(Some(&*node.expression))
-                | propagate_child_flags(node.question_dot_token.clone())
+            propagate_child_flags(arena, Some(&*node.expression))
+                | propagate_child_flags(arena, node.question_dot_token.clone())
                 | propagate_children_flags(node.maybe_type_arguments().as_deref())
                 | propagate_children_flags(Some(&node.arguments))
                 | TransformFlags::ContainsES2020,
@@ -1046,36 +1056,40 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn update_call_chain(
         &self,
-        node: &Node, /*CallChain*/
-        expression: Gc<Node /*Expression*/>,
-        question_dot_token: Option<Gc<Node /*QuestionDotToken*/>>,
+        arena: &AllArenas,
+        node: Id<Node>, /*CallChain*/
+        expression: Id<Node /*Expression*/>,
+        question_dot_token: Option<Id<Node /*QuestionDotToken*/>>,
         type_arguments: Option<
             impl Into<NodeArrayOrVec>,
             /*<TypeNode>*/
         >,
         arguments_array: impl Into<NodeArrayOrVec>,
         /*<Expression>*/
-    ) -> Gc<Node /*CallExpression*/> {
-        let node_as_call_expression = node.as_call_expression();
-        let type_arguments = type_arguments.map(Into::into);
-        let arguments_array = arguments_array.into();
-        Debug_.assert(
-            node.flags().intersects(NodeFlags::OptionalChain),
-            Some("Cannot update a CallExpression using updateCallChain. Use updateCall instead."),
-        );
-        if !Gc::ptr_eq(&node_as_call_expression.expression, &expression)
-            || !are_option_gcs_equal(
-                node_as_call_expression.question_dot_token.as_ref(),
-                question_dot_token.as_ref(),
-            )
-            || has_option_node_array_changed(
-                node_as_call_expression.maybe_type_arguments().as_deref(),
-                type_arguments.as_ref(),
-            )
-            || has_node_array_changed(&node_as_call_expression.arguments, &arguments_array)
-        {
+    ) -> Id<Node /*CallExpression*/> {
+        if {
+            let node = arena.node(node);
+            let node_as_call_expression = node.as_call_expression();
+            let type_arguments = type_arguments.map(Into::into);
+            let arguments_array = arguments_array.into();
+            Debug_.assert(
+                node.flags().intersects(NodeFlags::OptionalChain),
+                Some(
+                    "Cannot update a CallExpression using updateCallChain. Use updateCall instead.",
+                ),
+            );
+            node_as_call_expression.expression != expression
+                || node_as_call_expression.question_dot_token != question_dot_token
+                || has_option_node_array_changed(
+                    node_as_call_expression.maybe_type_arguments().as_deref(),
+                    type_arguments.as_ref(),
+                )
+                || has_node_array_changed(&node_as_call_expression.arguments, &arguments_array)
+        } {
             self.update(
+                arena,
                 self.create_call_chain(
+                    arena,
                     expression,
                     question_dot_token,
                     type_arguments,
@@ -1084,7 +1098,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
                 node,
             )
         } else {
-            node.node_wrapper()
+            node
         }
     }
 
@@ -1093,7 +1107,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         &self,
         arena: &AllArenas,
         id: Id<Node>,
-        expression: Gc<Node /*Expression*/>,
+        expression: Id<Node /*Expression*/>,
         type_arguments: Option<
             impl Into<NodeArrayOrVec>,
             /*<TypeNode>*/
@@ -1103,8 +1117,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
             /*<Expression>*/
         >,
     ) -> NewExpression {
-        let node = self.create_base_expression(SyntaxKind::NewExpression);
-        let node = NewExpression::new(
+        let node = self.create_base_expression(id, SyntaxKind::NewExpression);
+        let mut node = NewExpression::new(
             node,
             self.parenthesizer_rules()
                 .parenthesize_expression_of_new(&expression),
@@ -1115,7 +1129,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
             }),
         );
         node.add_transform_flags(
-            propagate_child_flags(Some(&*node.expression))
+            propagate_child_flags(arena, Some(&*node.expression))
                 | propagate_children_flags(node.maybe_type_arguments().as_deref())
                 | propagate_children_flags(node.arguments.as_deref())
                 | TransformFlags::ContainsES2020,
@@ -1128,8 +1142,9 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn update_new_expression(
         &self,
-        node: &Node, /*NewExpression*/
-        expression: Gc<Node /*Expression*/>,
+        arena: &AllArenas,
+        node: Id<Node>, /*NewExpression*/
+        expression: Id<Node /*Expression*/>,
         type_arguments: Option<
             impl Into<NodeArrayOrVec>,
             /*<TypeNode>*/
@@ -1138,26 +1153,29 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
             impl Into<NodeArrayOrVec>,
             /*<Expression>*/
         >,
-    ) -> Gc<Node> {
-        let node_as_new_expression = node.as_new_expression();
-        let type_arguments = type_arguments.map(Into::into);
-        let arguments_array = arguments_array.map(Into::into);
-        if !Gc::ptr_eq(&node_as_new_expression.expression, &expression)
-            || has_option_node_array_changed(
-                node_as_new_expression.maybe_type_arguments().as_deref(),
-                type_arguments.as_ref(),
-            )
-            || has_option_node_array_changed(
-                node_as_new_expression.arguments.as_deref(),
-                arguments_array.as_ref(),
-            )
-        {
+    ) -> Id<Node> {
+        if {
+            let node = arena.node(node);
+            let node_as_new_expression = node.as_new_expression();
+            let type_arguments = type_arguments.map(Into::into);
+            let arguments_array = arguments_array.map(Into::into);
+            node_as_new_expression.expression != expression
+                || has_option_node_array_changed(
+                    node_as_new_expression.maybe_type_arguments().as_deref(),
+                    type_arguments.as_ref(),
+                )
+                || has_option_node_array_changed(
+                    node_as_new_expression.arguments.as_deref(),
+                    arguments_array.as_ref(),
+                )
+        } {
             self.update(
-                self.create_new_expression(expression, type_arguments, arguments_array),
+                arena,
+                self.create_new_expression(arena, expression, type_arguments, arguments_array),
                 node,
             )
         } else {
-            node.node_wrapper()
+            node
         }
     }
 
@@ -1166,12 +1184,12 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         &self,
         arena: &AllArenas,
         id: Id<Node>,
-        tag: Gc<Node /*Expression*/>,
+        tag: Id<Node /*Expression*/>,
         type_arguments: Option<impl Into<NodeArrayOrVec> /*<TypeNode>*/>,
-        template: Gc<Node /*TemplateLiteral*/>,
+        template: Id<Node /*TemplateLiteral*/>,
     ) -> TaggedTemplateExpression {
-        let node = self.create_base_expression(SyntaxKind::TaggedTemplateExpression);
-        let node = TaggedTemplateExpression::new(
+        let node = self.create_base_expression(id, SyntaxKind::TaggedTemplateExpression);
+        let mut node = TaggedTemplateExpression::new(
             node,
             self.parenthesizer_rules()
                 .parenthesize_left_side_of_access(&tag),
@@ -1180,9 +1198,9 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
             None,
         );
         node.add_transform_flags(
-            propagate_child_flags(Some(&*node.tag))
+            propagate_child_flags(arena, Some(&*node.tag))
                 | propagate_children_flags(node.maybe_type_arguments().as_deref())
-                | propagate_child_flags(Some(&*node.template))
+                | propagate_child_flags(arena, Some(&*node.template))
                 | TransformFlags::ContainsES2015,
         );
         if node.maybe_type_arguments().is_some() {
@@ -1196,28 +1214,32 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn update_tagged_template_expression(
         &self,
-        node: &Node, /*TaggedTemplateExpression*/
-        tag: Gc<Node /*Expression*/>,
+        arena: &AllArenas,
+        node: Id<Node>, /*TaggedTemplateExpression*/
+        tag: Id<Node /*Expression*/>,
         type_arguments: Option<impl Into<NodeArrayOrVec> /*<TypeNode>*/>,
-        template: Gc<Node /*TemplateLiteral*/>,
-    ) -> Gc<Node> {
-        let node_as_tagged_template_expression = node.as_tagged_template_expression();
-        let type_arguments = type_arguments.map(Into::into);
-        if !Gc::ptr_eq(&node_as_tagged_template_expression.tag, &tag)
-            || has_option_node_array_changed(
-                node_as_tagged_template_expression
-                    .maybe_type_arguments()
-                    .as_deref(),
-                type_arguments.as_ref(),
-            )
-            || !Gc::ptr_eq(&node_as_tagged_template_expression.template, &template)
-        {
+        template: Id<Node /*TemplateLiteral*/>,
+    ) -> Id<Node> {
+        if {
+            let node = arena.node(node);
+            let node_as_tagged_template_expression = node.as_tagged_template_expression();
+            let type_arguments = type_arguments.map(Into::into);
+            node_as_tagged_template_expression.tag != tag
+                || has_option_node_array_changed(
+                    node_as_tagged_template_expression
+                        .maybe_type_arguments()
+                        .as_deref(),
+                    type_arguments.as_ref(),
+                )
+                || node_as_tagged_template_expression.template != template
+        } {
             self.update(
-                self.create_tagged_template_expression(tag, type_arguments, template),
+                arena,
+                self.create_tagged_template_expression(arena, tag, type_arguments, template),
                 node,
             )
         } else {
-            node.node_wrapper()
+            node
         }
     }
 
@@ -1226,19 +1248,19 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         &self,
         arena: &AllArenas,
         id: Id<Node>,
-        type_: Gc<Node /*TypeNode*/>,
-        expression: Gc<Node /*Expression*/>,
+        type_: Id<Node /*TypeNode*/>,
+        expression: Id<Node /*Expression*/>,
     ) -> TypeAssertion {
-        let node = self.create_base_expression(SyntaxKind::TypeAssertionExpression);
-        let node = TypeAssertion::new(
+        let node = self.create_base_expression(id, SyntaxKind::TypeAssertionExpression);
+        let mut node = TypeAssertion::new(
             node,
             self.parenthesizer_rules()
                 .parenthesize_operand_of_prefix_unary(&expression),
             type_,
         );
         node.add_transform_flags(
-            propagate_child_flags(Some(&*node.expression))
-                | propagate_child_flags(Some(&*node.type_))
+            propagate_child_flags(arena, Some(&*node.expression))
+                | propagate_child_flags(arena, Some(&*node.type_))
                 | TransformFlags::ContainsTypeScript,
         );
         node
@@ -1246,17 +1268,23 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn update_type_assertion(
         &self,
-        node: &Node, /*TypeAssertion*/
-        type_: Gc<Node /*TypeNode*/>,
-        expression: Gc<Node /*Expression*/>,
-    ) -> Gc<Node> {
-        let node_as_type_assertion = node.as_type_assertion();
-        if !Gc::ptr_eq(&node_as_type_assertion.type_, &type_)
-            || !Gc::ptr_eq(&node_as_type_assertion.expression, &expression)
-        {
-            self.update(self.create_type_assertion(type_, expression), node)
+        arena: &AllArenas,
+        node: Id<Node>, /*TypeAssertion*/
+        type_: Id<Node /*TypeNode*/>,
+        expression: Id<Node /*Expression*/>,
+    ) -> Id<Node> {
+        if {
+            let node = arena.node(node);
+            let node_as_type_assertion = node.as_type_assertion();
+            node_as_type_assertion.type_ != type_ || node_as_type_assertion.expression != expression
+        } {
+            self.update(
+                arena,
+                self.create_type_assertion(arena, type_, expression),
+                node,
+            )
         } else {
-            node.node_wrapper()
+            node
         }
     }
 
@@ -1265,24 +1293,32 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         &self,
         arena: &AllArenas,
         id: Id<Node>,
-        expression: Gc<Node /*Expression*/>,
+        expression: Id<Node /*Expression*/>,
     ) -> ParenthesizedExpression {
-        let node = self.create_base_expression(SyntaxKind::ParenthesizedExpression);
-        let node = ParenthesizedExpression::new(node, expression);
-        node.add_transform_flags(propagate_child_flags(Some(&*node.expression)));
+        let node = self.create_base_expression(id, SyntaxKind::ParenthesizedExpression);
+        let mut node = ParenthesizedExpression::new(node, expression);
+        node.add_transform_flags(propagate_child_flags(arena, Some(&*node.expression)));
         node
     }
 
     pub fn update_parenthesized_expression(
         &self,
-        node: &Node, /*ParenthesizedExpression*/
-        expression: Gc<Node /*Expression*/>,
-    ) -> Gc<Node> {
-        let node_as_parenthesized_expression = node.as_parenthesized_expression();
-        if !Gc::ptr_eq(&node_as_parenthesized_expression.expression, &expression) {
-            self.update(self.create_parenthesized_expression(expression), node)
+        arena: &AllArenas,
+        node: Id<Node>, /*ParenthesizedExpression*/
+        expression: Id<Node /*Expression*/>,
+    ) -> Id<Node> {
+        if {
+            let node = arena.node(node);
+            let node_as_parenthesized_expression = node.as_parenthesized_expression();
+            node_as_parenthesized_expression.expression != expression
+        } {
+            self.update(
+                arena,
+                self.create_parenthesized_expression(arena, expression),
+                node,
+            )
         } else {
-            node.node_wrapper()
+            node
         }
     }
 
@@ -1292,14 +1328,16 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         arena: &AllArenas,
         id: Id<Node>,
         modifiers: Option<impl Into<NodeArrayOrVec>>,
-        asterisk_token: Option<Gc<Node>>,
+        asterisk_token: Option<Id<Node>>,
         name: Option<impl Into<StrOrRcNode<'name>>>,
         type_parameters: Option<impl Into<NodeArrayOrVec>>,
         parameters: Option<impl Into<NodeArrayOrVec>>,
-        type_: Option<Gc<Node>>,
-        body: Gc<Node>,
+        type_: Option<Id<Node>>,
+        body: Id<Node>,
     ) -> FunctionExpression {
         let mut node = self.create_base_function_like_declaration(
+            arena,
+            id,
             SyntaxKind::FunctionExpression,
             Option::<Gc<NodeArray>>::None,
             modifiers,
@@ -1310,8 +1348,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
             Some(body),
         );
         node.asterisk_token = asterisk_token;
-        let node = FunctionExpression::new(node);
-        node.add_transform_flags(propagate_child_flags(node.maybe_asterisk_token()));
+        let mut node = FunctionExpression::new(node);
+        node.add_transform_flags(propagate_child_flags(arena, node.maybe_asterisk_token()));
         if node.maybe_type_parameters().is_some() {
             node.add_transform_flags(TransformFlags::ContainsTypeScript);
         }
