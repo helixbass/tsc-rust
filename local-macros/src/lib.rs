@@ -1250,8 +1250,7 @@ impl TypeTypeArgs {
             || vec![],
             |ancestors_str| {
                 ancestors_str
-                    .split(",")
-                    .into_iter()
+                    .split(',')
                     .map(|chunk| chunk.trim().to_string())
                     .collect()
             },
@@ -1269,8 +1268,7 @@ impl TypeTypeArgs {
         if let Some(interfaces_str) = self.interfaces.as_ref() {
             vec.append(
                 &mut interfaces_str
-                    .split(",")
-                    .into_iter()
+                    .split(',')
                     .map(|chunk| chunk.trim().to_string())
                     .collect(),
             );
@@ -1288,12 +1286,12 @@ fn get_type_struct_interface_impl(
         "TypeInterface" => {
             quote! {
                 impl crate::TypeInterface for #type_type_name {
-                    fn type_wrapper(&self) -> ::gc::Gc<crate::Type> {
-                        self.#first_field_name.type_wrapper()
+                    fn arena_id(&self) -> ::id_arena::Id<crate::Type> {
+                        self.#first_field_name.arena_id()
                     }
 
-                    fn set_type_wrapper(&self, wrapper: ::gc::Gc<crate::Type>) {
-                        self.#first_field_name.set_type_wrapper(wrapper)
+                    fn set_arena_id(&mut self, id: ::id_arena::Id<crate::Type>) {
+                        self.#first_field_name.set_arena_id(id)
                     }
 
                     fn flags(&self) -> crate::TypeFlags {
@@ -1789,15 +1787,15 @@ fn get_type_enum_interface_impl(
         "TypeInterface" => {
             quote! {
                 impl crate::TypeInterface for #type_type_name {
-                    fn type_wrapper(&self) -> ::gc::Gc<crate::Type> {
+                    fn arena_id(&self) -> ::id_arena::Id<crate::Type> {
                         match self {
-                            #(#type_type_name::#variant_names(nested) => nested.type_wrapper()),*
+                            #(#type_type_name::#variant_names(nested) => nested.arena_id()),*
                         }
                     }
 
-                    fn set_type_wrapper(&self, wrapper: ::gc::Gc<crate::Type>) {
+                    fn set_arena_id(&mut self, id: ::id_arena::Id<crate::Type>) {
                         match self {
-                            #(#type_type_name::#variant_names(nested) => nested.set_type_wrapper(wrapper)),*
+                            #(#type_type_name::#variant_names(nested) => nested.set_arena_id(id)),*
                         }
                     }
 
@@ -2570,14 +2568,6 @@ pub fn type_type(attr: TokenStream, item: TokenStream) -> TokenStream {
 
         quote! {
             #into_implementations
-
-            impl ::std::convert::From<#type_type_name> for ::gc::Gc<crate::Type> {
-                fn from(concrete: #type_type_name) -> Self {
-                    let rc = ::gc::Gc::new(#construct_variant);
-                    crate::TypeInterface::set_type_wrapper(&*rc, rc.clone());
-                    rc
-                }
-            }
         }
     } else {
         quote! {}
