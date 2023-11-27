@@ -36,7 +36,7 @@ use crate::{
     SymbolFlags, SymbolFormatFlags, SymbolId, SymbolInterface, SymbolTable, SymbolTracker,
     SymbolWalker, SyntaxKind, Type, TypeChecker, TypeCheckerHost, TypeCheckerHostDebuggable,
     TypeFlags, TypeFormatFlags, TypeId, TypeInterface, TypeMapperCallback, TypePredicate,
-    TypePredicateKind, VarianceFlags,
+    TypePredicateKind, VarianceFlags, AllArenas,
 };
 
 lazy_static! {
@@ -519,6 +519,7 @@ pub fn is_instantiated_module(
 }
 
 pub fn create_type_checker(
+    arena: &AllArenas,
     host: Gc<Box<dyn TypeCheckerHostDebuggable>>,
     produce_diagnostics: bool,
 ) -> io::Result<Gc<TypeChecker>> {
