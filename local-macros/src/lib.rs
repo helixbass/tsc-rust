@@ -242,7 +242,7 @@ fn get_ast_struct_interface_impl(
                         self.#first_field_name.set_emit_node(emit_node)
                     }
 
-                    fn maybe_contextual_type(&self) -> ::gc::GcCellRefMut<::std::option::Option<::gc::Gc<crate::Type>>> {
+                    fn maybe_contextual_type(&self) -> ::gc::GcCellRefMut<::std::option::Option<::id_arena::Id<crate::Type>>> {
                         self.#first_field_name.maybe_contextual_type()
                     }
 
@@ -778,7 +778,7 @@ fn get_ast_enum_interface_impl(
                         }
                     }
 
-                    fn maybe_contextual_type(&self) -> ::gc::GcCellRefMut<::std::option::Option<::gc::Gc<crate::Type>>> {
+                    fn maybe_contextual_type(&self) -> ::gc::GcCellRefMut<::std::option::Option<::id_arena::Id<crate::Type>>> {
                         match self {
                             #(#ast_type_name::#variant_names(nested) => nested.maybe_contextual_type()),*
                         }
@@ -1290,7 +1290,7 @@ fn get_type_struct_interface_impl(
                         self.#first_field_name.arena_id()
                     }
 
-                    fn set_arena_id(&mut self, id: ::id_arena::Id<crate::Type>) {
+                    fn set_arena_id(&self, id: ::id_arena::Id<crate::Type>) {
                         self.#first_field_name.set_arena_id(id)
                     }
 
@@ -1330,11 +1330,11 @@ fn get_type_struct_interface_impl(
                         self.#first_field_name.maybe_alias_symbol_mut()
                     }
 
-                    fn maybe_alias_type_arguments(&self) -> ::std::option::Option<::std::vec::Vec<::gc::Gc<crate::Type>>> {
+                    fn maybe_alias_type_arguments(&self) -> ::std::option::Option<::std::vec::Vec<::id_arena::Id<crate::Type>>> {
                         self.#first_field_name.maybe_alias_type_arguments()
                     }
 
-                    fn maybe_alias_type_arguments_mut(&self) -> ::gc::GcCellRefMut<::std::option::Option<::std::vec::Vec<::gc::Gc<crate::Type>>>> {
+                    fn maybe_alias_type_arguments_mut(&self) -> ::gc::GcCellRefMut<::std::option::Option<::std::vec::Vec<::id_arena::Id<crate::Type>>>> {
                         self.#first_field_name.maybe_alias_type_arguments_mut()
                     }
 
@@ -1349,51 +1349,51 @@ fn get_type_struct_interface_impl(
                         self.#first_field_name.set_alias_type_arguments_contains_marker(alias_type_arguments_contains_marker);
                     }
 
-                    fn maybe_immediate_base_constraint(&self) -> ::gc::GcCellRefMut<::std::option::Option<::gc::Gc<crate::Type>>> {
+                    fn maybe_immediate_base_constraint(&self) -> ::gc::GcCellRefMut<::std::option::Option<::id_arena::Id<crate::Type>>> {
                         self.#first_field_name.maybe_immediate_base_constraint()
                     }
 
-                    fn maybe_widened(&self) -> ::gc::GcCellRefMut<::std::option::Option<::gc::Gc<crate::Type>>> {
+                    fn maybe_widened(&self) -> ::gc::GcCellRefMut<::std::option::Option<::id_arena::Id<crate::Type>>> {
                         self.#first_field_name.maybe_widened()
                     }
 
-                    fn maybe_restrictive_instantiation(&self) -> ::gc::GcCellRefMut<::std::option::Option<::gc::Gc<crate::Type>>> {
+                    fn maybe_restrictive_instantiation(&self) -> ::gc::GcCellRefMut<::std::option::Option<::id_arena::Id<crate::Type>>> {
                         self.#first_field_name.maybe_restrictive_instantiation()
                     }
 
-                    fn maybe_permissive_instantiation(&self) -> ::gc::GcCellRefMut<::std::option::Option<::gc::Gc<crate::Type>>> {
+                    fn maybe_permissive_instantiation(&self) -> ::gc::GcCellRefMut<::std::option::Option<::id_arena::Id<crate::Type>>> {
                         self.#first_field_name.maybe_permissive_instantiation()
                     }
 
-                    fn maybe_resolved_base_constraint(&self) -> ::gc::GcCellRefMut<::std::option::Option<::gc::Gc<crate::Type>>> {
+                    fn maybe_resolved_base_constraint(&self) -> ::gc::GcCellRefMut<::std::option::Option<::id_arena::Id<crate::Type>>> {
                         self.#first_field_name.maybe_resolved_base_constraint()
                     }
 
-                    fn maybe_resolved_index_type(&self) -> ::gc::GcCellRefMut<::std::option::Option<::gc::Gc<crate::Type>>> {
+                    fn maybe_resolved_index_type(&self) -> ::gc::GcCellRefMut<::std::option::Option<::id_arena::Id<crate::Type>>> {
                         self.#first_field_name.maybe_resolved_index_type()
                     }
 
-                    fn maybe_resolved_string_index_type(&self) -> ::gc::GcCellRefMut<::std::option::Option<::gc::Gc<crate::Type>>> {
+                    fn maybe_resolved_string_index_type(&self) -> ::gc::GcCellRefMut<::std::option::Option<::id_arena::Id<crate::Type>>> {
                         self.#first_field_name.maybe_resolved_string_index_type()
                     }
 
-                    fn maybe_synthetic_type(&self) -> ::gc::GcCellRefMut<::std::option::Option<::gc::Gc<crate::Type>>> {
+                    fn maybe_synthetic_type(&self) -> ::gc::GcCellRefMut<::std::option::Option<::id_arena::Id<crate::Type>>> {
                         self.#first_field_name.maybe_synthetic_type()
                     }
 
-                    fn maybe_default_only_type(&self) -> ::gc::GcCellRefMut<::std::option::Option<::gc::Gc<crate::Type>>> {
+                    fn maybe_default_only_type(&self) -> ::gc::GcCellRefMut<::std::option::Option<::id_arena::Id<crate::Type>>> {
                         self.#first_field_name.maybe_default_only_type()
                     }
 
-                    fn maybe_promise_type_of_promise_constructor(&self) -> ::gc::GcCellRefMut<::std::option::Option<::gc::Gc<crate::Type>>> {
+                    fn maybe_promise_type_of_promise_constructor(&self) -> ::gc::GcCellRefMut<::std::option::Option<::id_arena::Id<crate::Type>>> {
                         self.#first_field_name.maybe_promise_type_of_promise_constructor()
                     }
 
-                    fn maybe_promised_type_of_promise(&self) -> ::gc::GcCellRefMut<::std::option::Option<::gc::Gc<crate::Type>>> {
+                    fn maybe_promised_type_of_promise(&self) -> ::gc::GcCellRefMut<::std::option::Option<::id_arena::Id<crate::Type>>> {
                         self.#first_field_name.maybe_promised_type_of_promise()
                     }
 
-                    fn maybe_awaited_type_of_type(&self) -> ::gc::GcCellRefMut<::std::option::Option<::gc::Gc<crate::Type>>> {
+                    fn maybe_awaited_type_of_type(&self) -> ::gc::GcCellRefMut<::std::option::Option<::id_arena::Id<crate::Type>>> {
                         self.#first_field_name.maybe_awaited_type_of_type()
                     }
 
@@ -1456,26 +1456,26 @@ fn get_type_struct_interface_impl(
         "LiteralTypeInterface" => {
             quote! {
                 impl crate::LiteralTypeInterface for #type_type_name {
-                    fn fresh_type(&self) -> ::std::option::Option<::gc::Gc<crate::Type>> {
+                    fn fresh_type(&self) -> ::std::option::Option<::id_arena::Id<crate::Type>> {
                         self.#first_field_name.fresh_type()
                     }
 
-                    fn set_fresh_type(&self, fresh_type: ::gc::Gc<crate::Type>) {
+                    fn set_fresh_type(&self, fresh_type: ::id_arena::Id<crate::Type>) {
                         self.#first_field_name.set_fresh_type(fresh_type)
                     }
 
                     fn get_or_initialize_fresh_type(
                         &self,
                         type_checker: &crate::TypeChecker,
-                    ) -> ::gc::Gc<crate::Type> {
+                    ) -> ::id_arena::Id<crate::Type> {
                         self.#first_field_name.get_or_initialize_fresh_type(type_checker)
                     }
 
-                    fn regular_type(&self) -> ::gc::Gc<crate::Type> {
+                    fn regular_type(&self) -> ::id_arena::Id<crate::Type> {
                         self.#first_field_name.regular_type()
                     }
 
-                    fn set_regular_type(&self, regular_type: ::gc::Gc<crate::Type>) {
+                    fn set_regular_type(&self, regular_type: ::id_arena::Id<crate::Type>) {
                         self.#first_field_name.set_regular_type(regular_type)
                     }
                 }
@@ -1513,7 +1513,7 @@ fn get_type_struct_interface_impl(
                         self.#first_field_name.maybe_call_signatures()
                     }
 
-                    fn maybe_target(&self) -> ::std::option::Option<::gc::Gc<crate::Type>> {
+                    fn maybe_target(&self) -> ::std::option::Option<::id_arena::Id<crate::Type>> {
                         self.#first_field_name.maybe_target()
                     }
 
@@ -1521,7 +1521,7 @@ fn get_type_struct_interface_impl(
                         self.#first_field_name.maybe_mapper()
                     }
 
-                    fn maybe_instantiations(&self) -> ::gc::GcCellRefMut<::std::option::Option<::std::collections::HashMap<String, ::gc::Gc<crate::Type>>>> {
+                    fn maybe_instantiations(&self) -> ::gc::GcCellRefMut<::std::option::Option<::std::collections::HashMap<String, ::id_arena::Id<crate::Type>>>> {
                         self.#first_field_name.maybe_instantiations()
                     }
                 }
@@ -1579,13 +1579,13 @@ fn get_type_struct_interface_impl(
                         self.#first_field_name.index_infos()
                     }
 
-                    fn maybe_object_type_without_abstract_construct_signatures(&self) -> ::std::option::Option<::gc::Gc<crate::Type>> {
+                    fn maybe_object_type_without_abstract_construct_signatures(&self) -> ::std::option::Option<::id_arena::Id<crate::Type>> {
                         self.#first_field_name.maybe_object_type_without_abstract_construct_signatures()
                     }
 
                     fn set_object_type_without_abstract_construct_signatures(
                         &self,
-                        object_type_without_abstract_construct_signatures: ::std::option::Option<::gc::Gc<crate::Type>>,
+                        object_type_without_abstract_construct_signatures: ::std::option::Option<::id_arena::Id<crate::Type>>,
                     ) {
                         self.#first_field_name.set_object_type_without_abstract_construct_signatures(object_type_without_abstract_construct_signatures)
                     }
@@ -1595,7 +1595,7 @@ fn get_type_struct_interface_impl(
         "FreshObjectLiteralTypeInterface" => {
             quote! {
                 impl crate::FreshObjectLiteralTypeInterface for #type_type_name {
-                    fn maybe_regular_type(&self) -> ::gc::GcCellRefMut<::std::option::Option<::gc::Gc<crate::Type>>> {
+                    fn maybe_regular_type(&self) -> ::gc::GcCellRefMut<::std::option::Option<::id_arena::Id<crate::Type>>> {
                         self.#first_field_name.maybe_regular_type()
                     }
                 }
@@ -1604,7 +1604,7 @@ fn get_type_struct_interface_impl(
         "UnionOrIntersectionTypeInterface" => {
             quote! {
                 impl crate::UnionOrIntersectionTypeInterface for #type_type_name {
-                    fn types(&self) -> &[::gc::Gc<crate::Type>] {
+                    fn types(&self) -> &[::id_arena::Id<crate::Type>] {
                         self.#first_field_name.types()
                     }
 
@@ -1668,7 +1668,7 @@ fn get_type_struct_interface_impl(
         "GenericableTypeInterface" => {
             quote! {
                 impl crate::GenericableTypeInterface for #type_type_name {
-                    fn genericize(&self, instantiations: ::std::collections::HashMap<String, ::gc::Gc<crate::Type>>) {
+                    fn genericize(&self, instantiations: ::std::collections::HashMap<String, ::id_arena::Id<crate::Type>>) {
                         self.#first_field_name.genericize(instantiations)
                     }
                 }
@@ -1677,7 +1677,7 @@ fn get_type_struct_interface_impl(
         "GenericTypeInterface" => {
             quote! {
                 impl crate::GenericTypeInterface for #type_type_name {
-                    fn instantiations(&self) -> ::gc::GcCellRefMut<::std::option::Option<::std::collections::HashMap<String, ::gc::Gc<crate::Type>>>, ::std::collections::HashMap<String, ::gc::Gc<crate::Type>>> {
+                    fn instantiations(&self) -> ::gc::GcCellRefMut<::std::option::Option<::std::collections::HashMap<String, ::id_arena::Id<crate::Type>>>, ::std::collections::HashMap<String, ::id_arena::Id<crate::Type>>> {
                         self.#first_field_name.instantiations()
                     }
 
@@ -1694,31 +1694,31 @@ fn get_type_struct_interface_impl(
         "InterfaceTypeInterface" => {
             quote! {
                 impl crate::InterfaceTypeInterface for #type_type_name {
-                    fn maybe_type_parameters(&self) -> ::std::option::Option<&[::gc::Gc<crate::Type>]> {
+                    fn maybe_type_parameters(&self) -> ::std::option::Option<&[::id_arena::Id<crate::Type>]> {
                         self.#first_field_name.maybe_type_parameters()
                     }
 
-                    fn maybe_outer_type_parameters(&self) -> ::std::option::Option<&[::gc::Gc<crate::Type>]> {
+                    fn maybe_outer_type_parameters(&self) -> ::std::option::Option<&[::id_arena::Id<crate::Type>]> {
                         self.#first_field_name.maybe_outer_type_parameters()
                     }
 
-                    fn maybe_local_type_parameters(&self) -> ::std::option::Option<&[::gc::Gc<crate::Type>]> {
+                    fn maybe_local_type_parameters(&self) -> ::std::option::Option<&[::id_arena::Id<crate::Type>]> {
                         self.#first_field_name.maybe_local_type_parameters()
                     }
 
-                    fn maybe_this_type(&self) -> ::std::option::Option<::gc::Gc<crate::Type>> {
+                    fn maybe_this_type(&self) -> ::std::option::Option<::id_arena::Id<crate::Type>> {
                         self.#first_field_name.maybe_this_type()
                     }
 
-                    fn maybe_this_type_mut(&self) -> ::gc::GcCellRefMut<::std::option::Option<::gc::Gc<crate::Type>>> {
+                    fn maybe_this_type_mut(&self) -> ::gc::GcCellRefMut<::std::option::Option<::id_arena::Id<crate::Type>>> {
                         self.#first_field_name.maybe_this_type_mut()
                     }
 
-                    fn maybe_resolved_base_constructor_type(&self) -> ::gc::GcCellRefMut<::std::option::Option<::gc::Gc<crate::Type>>> {
+                    fn maybe_resolved_base_constructor_type(&self) -> ::gc::GcCellRefMut<::std::option::Option<::id_arena::Id<crate::Type>>> {
                         self.#first_field_name.maybe_resolved_base_constructor_type()
                     }
 
-                    fn maybe_resolved_base_types(&self) -> ::gc::GcCellRefMut<::std::option::Option<::gc::Gc<::std::vec::Vec<::gc::Gc<crate::Type>>>>> {
+                    fn maybe_resolved_base_types(&self) -> ::gc::GcCellRefMut<::std::option::Option<::gc::Gc<::std::vec::Vec<::id_arena::Id<crate::Type>>>>> {
                         self.#first_field_name.maybe_resolved_base_types()
                     }
 
@@ -1735,11 +1735,11 @@ fn get_type_struct_interface_impl(
         "TypeReferenceInterface" => {
             quote! {
                 impl crate::TypeReferenceInterface for #type_type_name {
-                    fn target(&self) -> ::gc::Gc<crate::Type> {
+                    fn target(&self) -> ::id_arena::Id<crate::Type> {
                         self.#first_field_name.target()
                     }
 
-                    fn set_target(&self, target: ::gc::Gc<crate::Type>) {
+                    fn set_target(&self, target: ::id_arena::Id<crate::Type>) {
                         self.#first_field_name.set_target(target)
                     }
 
@@ -1751,23 +1751,23 @@ fn get_type_struct_interface_impl(
                         self.#first_field_name.maybe_node_mut()
                     }
 
-                    fn maybe_resolved_type_arguments(&self) -> ::gc::GcCellRef<::std::option::Option<::std::vec::Vec<::gc::Gc<crate::Type>>>> {
+                    fn maybe_resolved_type_arguments(&self) -> ::gc::GcCellRef<::std::option::Option<::std::vec::Vec<::id_arena::Id<crate::Type>>>> {
                         self.#first_field_name.maybe_resolved_type_arguments()
                     }
 
-                    fn maybe_resolved_type_arguments_mut(&self) -> ::gc::GcCellRefMut<::std::option::Option<::std::vec::Vec<::gc::Gc<crate::Type>>>> {
+                    fn maybe_resolved_type_arguments_mut(&self) -> ::gc::GcCellRefMut<::std::option::Option<::std::vec::Vec<::id_arena::Id<crate::Type>>>> {
                         self.#first_field_name.maybe_resolved_type_arguments_mut()
                     }
 
-                    fn maybe_literal_type(&self) -> ::std::option::Option<::gc::Gc<crate::Type>> {
+                    fn maybe_literal_type(&self) -> ::std::option::Option<::id_arena::Id<crate::Type>> {
                         self.#first_field_name.maybe_literal_type()
                     }
 
-                    fn maybe_literal_type_mut(&self) -> ::gc::GcCellRefMut<::std::option::Option<::gc::Gc<crate::Type>>> {
+                    fn maybe_literal_type_mut(&self) -> ::gc::GcCellRefMut<::std::option::Option<::id_arena::Id<crate::Type>>> {
                         self.#first_field_name.maybe_literal_type_mut()
                     }
 
-                    fn maybe_cached_equivalent_base_type(&self) -> ::gc::GcCellRefMut<::std::option::Option<::gc::Gc<crate::Type>>> {
+                    fn maybe_cached_equivalent_base_type(&self) -> ::gc::GcCellRefMut<::std::option::Option<::id_arena::Id<crate::Type>>> {
                         self.#first_field_name.maybe_cached_equivalent_base_type()
                     }
                 }
@@ -1793,7 +1793,7 @@ fn get_type_enum_interface_impl(
                         }
                     }
 
-                    fn set_arena_id(&mut self, id: ::id_arena::Id<crate::Type>) {
+                    fn set_arena_id(&self, id: ::id_arena::Id<crate::Type>) {
                         match self {
                             #(#type_type_name::#variant_names(nested) => nested.set_arena_id(id)),*
                         }
@@ -1853,13 +1853,13 @@ fn get_type_enum_interface_impl(
                         }
                     }
 
-                    fn maybe_alias_type_arguments(&self) -> ::std::option::Option<::std::vec::Vec<::gc::Gc<crate::Type>>> {
+                    fn maybe_alias_type_arguments(&self) -> ::std::option::Option<::std::vec::Vec<::id_arena::Id<crate::Type>>> {
                         match self {
                             #(#type_type_name::#variant_names(nested) => nested.maybe_alias_type_arguments()),*
                         }
                     }
 
-                    fn maybe_alias_type_arguments_mut(&self) -> ::gc::GcCellRefMut<::std::option::Option<::std::vec::Vec<::gc::Gc<crate::Type>>>> {
+                    fn maybe_alias_type_arguments_mut(&self) -> ::gc::GcCellRefMut<::std::option::Option<::std::vec::Vec<::id_arena::Id<crate::Type>>>> {
                         match self {
                             #(#type_type_name::#variant_names(nested) => nested.maybe_alias_type_arguments_mut()),*
                         }
@@ -1880,73 +1880,73 @@ fn get_type_enum_interface_impl(
                         }
                     }
 
-                    fn maybe_immediate_base_constraint(&self) -> ::gc::GcCellRefMut<::std::option::Option<::gc::Gc<crate::Type>>> {
+                    fn maybe_immediate_base_constraint(&self) -> ::gc::GcCellRefMut<::std::option::Option<::id_arena::Id<crate::Type>>> {
                         match self {
                             #(#type_type_name::#variant_names(nested) => nested.maybe_immediate_base_constraint()),*
                         }
                     }
 
-                    fn maybe_widened(&self) -> ::gc::GcCellRefMut<::std::option::Option<::gc::Gc<crate::Type>>> {
+                    fn maybe_widened(&self) -> ::gc::GcCellRefMut<::std::option::Option<::id_arena::Id<crate::Type>>> {
                         match self {
                             #(#type_type_name::#variant_names(nested) => nested.maybe_widened()),*
                         }
                     }
 
-                    fn maybe_restrictive_instantiation(&self) -> ::gc::GcCellRefMut<::std::option::Option<::gc::Gc<crate::Type>>> {
+                    fn maybe_restrictive_instantiation(&self) -> ::gc::GcCellRefMut<::std::option::Option<::id_arena::Id<crate::Type>>> {
                         match self {
                             #(#type_type_name::#variant_names(nested) => nested.maybe_restrictive_instantiation()),*
                         }
                     }
 
-                    fn maybe_permissive_instantiation(&self) -> ::gc::GcCellRefMut<::std::option::Option<::gc::Gc<crate::Type>>> {
+                    fn maybe_permissive_instantiation(&self) -> ::gc::GcCellRefMut<::std::option::Option<::id_arena::Id<crate::Type>>> {
                         match self {
                             #(#type_type_name::#variant_names(nested) => nested.maybe_permissive_instantiation()),*
                         }
                     }
 
-                    fn maybe_resolved_base_constraint(&self) -> ::gc::GcCellRefMut<::std::option::Option<::gc::Gc<crate::Type>>> {
+                    fn maybe_resolved_base_constraint(&self) -> ::gc::GcCellRefMut<::std::option::Option<::id_arena::Id<crate::Type>>> {
                         match self {
                             #(#type_type_name::#variant_names(nested) => nested.maybe_resolved_base_constraint()),*
                         }
                     }
 
-                    fn maybe_resolved_index_type(&self) -> ::gc::GcCellRefMut<::std::option::Option<::gc::Gc<crate::Type>>> {
+                    fn maybe_resolved_index_type(&self) -> ::gc::GcCellRefMut<::std::option::Option<::id_arena::Id<crate::Type>>> {
                         match self {
                             #(#type_type_name::#variant_names(nested) => nested.maybe_resolved_index_type()),*
                         }
                     }
 
-                    fn maybe_resolved_string_index_type(&self) -> ::gc::GcCellRefMut<::std::option::Option<::gc::Gc<crate::Type>>> {
+                    fn maybe_resolved_string_index_type(&self) -> ::gc::GcCellRefMut<::std::option::Option<::id_arena::Id<crate::Type>>> {
                         match self {
                             #(#type_type_name::#variant_names(nested) => nested.maybe_resolved_string_index_type()),*
                         }
                     }
 
-                    fn maybe_synthetic_type(&self) -> ::gc::GcCellRefMut<::std::option::Option<::gc::Gc<crate::Type>>> {
+                    fn maybe_synthetic_type(&self) -> ::gc::GcCellRefMut<::std::option::Option<::id_arena::Id<crate::Type>>> {
                         match self {
                             #(#type_type_name::#variant_names(nested) => nested.maybe_synthetic_type()),*
                         }
                     }
 
-                    fn maybe_default_only_type(&self) -> ::gc::GcCellRefMut<::std::option::Option<::gc::Gc<crate::Type>>> {
+                    fn maybe_default_only_type(&self) -> ::gc::GcCellRefMut<::std::option::Option<::id_arena::Id<crate::Type>>> {
                         match self {
                             #(#type_type_name::#variant_names(nested) => nested.maybe_default_only_type()),*
                         }
                     }
 
-                    fn maybe_promise_type_of_promise_constructor(&self) -> ::gc::GcCellRefMut<::std::option::Option<::gc::Gc<crate::Type>>> {
+                    fn maybe_promise_type_of_promise_constructor(&self) -> ::gc::GcCellRefMut<::std::option::Option<::id_arena::Id<crate::Type>>> {
                         match self {
                             #(#type_type_name::#variant_names(nested) => nested.maybe_promise_type_of_promise_constructor()),*
                         }
                     }
 
-                    fn maybe_promised_type_of_promise(&self) -> ::gc::GcCellRefMut<::std::option::Option<::gc::Gc<crate::Type>>> {
+                    fn maybe_promised_type_of_promise(&self) -> ::gc::GcCellRefMut<::std::option::Option<::id_arena::Id<crate::Type>>> {
                         match self {
                             #(#type_type_name::#variant_names(nested) => nested.maybe_promised_type_of_promise()),*
                         }
                     }
 
-                    fn maybe_awaited_type_of_type(&self) -> ::gc::GcCellRefMut<::std::option::Option<::gc::Gc<crate::Type>>> {
+                    fn maybe_awaited_type_of_type(&self) -> ::gc::GcCellRefMut<::std::option::Option<::id_arena::Id<crate::Type>>> {
                         match self {
                             #(#type_type_name::#variant_names(nested) => nested.maybe_awaited_type_of_type()),*
                         }
@@ -2031,13 +2031,13 @@ fn get_type_enum_interface_impl(
         "LiteralTypeInterface" => {
             quote! {
                 impl crate::LiteralTypeInterface for #type_type_name {
-                    fn fresh_type(&self) -> ::std::option::Option<::gc::Gc<crate::Type>> {
+                    fn fresh_type(&self) -> ::std::option::Option<::id_arena::Id<crate::Type>> {
                         match self {
                             #(#type_type_name::#variant_names(nested) => nested.fresh_type()),*
                         }
                     }
 
-                    fn set_fresh_type(&self, fresh_type: ::gc::Gc<crate::Type>) {
+                    fn set_fresh_type(&self, fresh_type: ::id_arena::Id<crate::Type>) {
                         match self {
                             #(#type_type_name::#variant_names(nested) => nested.set_fresh_type(fresh_type)),*
                         }
@@ -2046,19 +2046,19 @@ fn get_type_enum_interface_impl(
                     fn get_or_initialize_fresh_type(
                         &self,
                         type_checker: &crate::TypeChecker,
-                    ) -> ::gc::Gc<crate::Type> {
+                    ) -> ::id_arena::Id<crate::Type> {
                         match self {
                             #(#type_type_name::#variant_names(nested) => nested.get_or_initialize_fresh_type(type_checker)),*
                         }
                     }
 
-                    fn regular_type(&self) -> ::gc::Gc<crate::Type> {
+                    fn regular_type(&self) -> ::id_arena::Id<crate::Type> {
                         match self {
                             #(#type_type_name::#variant_names(nested) => nested.regular_type()),*
                         }
                     }
 
-                    fn set_regular_type(&self, regular_type: ::gc::Gc<crate::Type>) {
+                    fn set_regular_type(&self, regular_type: ::id_arena::Id<crate::Type>) {
                         match self {
                             #(#type_type_name::#variant_names(nested) => nested.set_regular_type(regular_type)),*
                         }
@@ -2110,7 +2110,7 @@ fn get_type_enum_interface_impl(
                         }
                     }
 
-                    fn maybe_target(&self) -> ::std::option::Option<::gc::Gc<crate::Type>> {
+                    fn maybe_target(&self) -> ::std::option::Option<::id_arena::Id<crate::Type>> {
                         match self {
                             #(#type_type_name::#variant_names(nested) => nested.maybe_target()),*
                         }
@@ -2122,7 +2122,7 @@ fn get_type_enum_interface_impl(
                         }
                     }
 
-                    fn maybe_instantiations(&self) -> ::gc::GcCellRefMut<::std::option::Option<::std::collections::HashMap<String, ::gc::Gc<crate::Type>>>> {
+                    fn maybe_instantiations(&self) -> ::gc::GcCellRefMut<::std::option::Option<::std::collections::HashMap<String, ::id_arena::Id<crate::Type>>>> {
                         match self {
                             #(#type_type_name::#variant_names(nested) => nested.maybe_instantiations()),*
                         }
@@ -2204,7 +2204,7 @@ fn get_type_enum_interface_impl(
                         }
                     }
 
-                    fn maybe_object_type_without_abstract_construct_signatures(&self) -> ::std::option::Option<::gc::Gc<crate::Type>> {
+                    fn maybe_object_type_without_abstract_construct_signatures(&self) -> ::std::option::Option<::id_arena::Id<crate::Type>> {
                         match self {
                             #(#type_type_name::#variant_names(nested) => nested.maybe_object_type_without_abstract_construct_signatures()),*
                         }
@@ -2212,7 +2212,7 @@ fn get_type_enum_interface_impl(
 
                     fn set_object_type_without_abstract_construct_signatures(
                         &self,
-                        object_type_without_abstract_construct_signatures: ::std::option::Option<::gc::Gc<crate::Type>>,
+                        object_type_without_abstract_construct_signatures: ::std::option::Option<::id_arena::Id<crate::Type>>,
                     ) {
                         match self {
                             #(#type_type_name::#variant_names(nested) => nested.set_object_type_without_abstract_construct_signatures(object_type_without_abstract_construct_signatures)),*
@@ -2224,7 +2224,7 @@ fn get_type_enum_interface_impl(
         "FreshObjectLiteralTypeInterface" => {
             quote! {
                 impl crate::FreshObjectLiteralTypeInterface for #type_type_name {
-                    fn maybe_regular_type(&self) -> ::gc::GcCellRefMut<::std::option::Option<::gc::Gc<crate::Type>>> {
+                    fn maybe_regular_type(&self) -> ::gc::GcCellRefMut<::std::option::Option<::id_arena::Id<crate::Type>>> {
                         match self {
                             #(#type_type_name::#variant_names(nested) => nested.maybe_regular_type()),*
                         }
@@ -2235,7 +2235,7 @@ fn get_type_enum_interface_impl(
         "UnionOrIntersectionTypeInterface" => {
             quote! {
                 impl crate::UnionOrIntersectionTypeInterface for #type_type_name {
-                    fn types(&self) -> &[::gc::Gc<crate::Type>] {
+                    fn types(&self) -> &[::id_arena::Id<crate::Type>] {
                         match self {
                             #(#type_type_name::#variant_names(nested) => nested.types()),*
                         }
@@ -2325,7 +2325,7 @@ fn get_type_enum_interface_impl(
         "GenericableTypeInterface" => {
             quote! {
                 impl crate::GenericableTypeInterface for #type_type_name {
-                    fn genericize(&self, instantiations: ::std::collections::HashMap<String, ::gc::Gc<crate::Type>>) {
+                    fn genericize(&self, instantiations: ::std::collections::HashMap<String, ::id_arena::Id<crate::Type>>) {
                         match self {
                             #(#type_type_name::#variant_names(nested) => nested.genericize(instantiations)),*
                         }
@@ -2336,7 +2336,7 @@ fn get_type_enum_interface_impl(
         "GenericTypeInterface" => {
             quote! {
                 impl crate::GenericTypeInterface for #type_type_name {
-                    fn instantiations(&self) -> ::gc::GcCellRefMut<::std::option::Option<::std::collections::HashMap<String, ::gc::Gc<crate::Type>>>, ::std::collections::HashMap<String, ::gc::Gc<crate::Type>>> {
+                    fn instantiations(&self) -> ::gc::GcCellRefMut<::std::option::Option<::std::collections::HashMap<String, ::id_arena::Id<crate::Type>>>, ::std::collections::HashMap<String, ::id_arena::Id<crate::Type>>> {
                         match self {
                             #(#type_type_name::#variant_names(nested) => nested.instantiations()),*
                         }
@@ -2359,43 +2359,43 @@ fn get_type_enum_interface_impl(
         "InterfaceTypeInterface" => {
             quote! {
                 impl crate::InterfaceTypeInterface for #type_type_name {
-                    fn maybe_type_parameters(&self) -> ::std::option::Option<&[::gc::Gc<crate::Type>]> {
+                    fn maybe_type_parameters(&self) -> ::std::option::Option<&[::id_arena::Id<crate::Type>]> {
                         match self {
                             #(#type_type_name::#variant_names(nested) => nested.maybe_type_parameters()),*
                         }
                     }
 
-                    fn maybe_outer_type_parameters(&self) -> ::std::option::Option<&[::gc::Gc<crate::Type>]> {
+                    fn maybe_outer_type_parameters(&self) -> ::std::option::Option<&[::id_arena::Id<crate::Type>]> {
                         match self {
                             #(#type_type_name::#variant_names(nested) => nested.maybe_outer_type_parameters()),*
                         }
                     }
 
-                    fn maybe_local_type_parameters(&self) -> ::std::option::Option<&[::gc::Gc<crate::Type>]> {
+                    fn maybe_local_type_parameters(&self) -> ::std::option::Option<&[::id_arena::Id<crate::Type>]> {
                         match self {
                             #(#type_type_name::#variant_names(nested) => nested.maybe_local_type_parameters()),*
                         }
                     }
 
-                    fn maybe_this_type(&self) -> ::std::option::Option<::gc::Gc<crate::Type>> {
+                    fn maybe_this_type(&self) -> ::std::option::Option<::id_arena::Id<crate::Type>> {
                         match self {
                             #(#type_type_name::#variant_names(nested) => nested.maybe_this_type()),*
                         }
                     }
 
-                    fn maybe_this_type_mut(&self) -> ::gc::GcCellRefMut<::std::option::Option<::gc::Gc<crate::Type>>> {
+                    fn maybe_this_type_mut(&self) -> ::gc::GcCellRefMut<::std::option::Option<::id_arena::Id<crate::Type>>> {
                         match self {
                             #(#type_type_name::#variant_names(nested) => nested.maybe_this_type_mut()),*
                         }
                     }
 
-                    fn maybe_resolved_base_constructor_type(&self) -> ::gc::GcCellRefMut<::std::option::Option<::gc::Gc<crate::Type>>> {
+                    fn maybe_resolved_base_constructor_type(&self) -> ::gc::GcCellRefMut<::std::option::Option<::id_arena::Id<crate::Type>>> {
                         match self {
                             #(#type_type_name::#variant_names(nested) => nested.maybe_resolved_base_constructor_type()),*
                         }
                     }
 
-                    fn maybe_resolved_base_types(&self) -> ::gc::GcCellRefMut<::std::option::Option<::gc::Gc<::std::vec::Vec<::gc::Gc<crate::Type>>>>> {
+                    fn maybe_resolved_base_types(&self) -> ::gc::GcCellRefMut<::std::option::Option<::gc::Gc<::std::vec::Vec<::id_arena::Id<crate::Type>>>>> {
                         match self {
                             #(#type_type_name::#variant_names(nested) => nested.maybe_resolved_base_types()),*
                         }
@@ -2418,13 +2418,13 @@ fn get_type_enum_interface_impl(
         "TypeReferenceInterface" => {
             quote! {
                 impl crate::TypeReferenceInterface for #type_type_name {
-                    fn target(&self) -> ::gc::Gc<crate::Type> {
+                    fn target(&self) -> ::id_arena::Id<crate::Type> {
                         match self {
                             #(#type_type_name::#variant_names(nested) => nested.target()),*
                         }
                     }
 
-                    fn set_target(&self, target: ::gc::Gc<crate::Type>) {
+                    fn set_target(&self, target: ::id_arena::Id<crate::Type>) {
                         match self {
                             #(#type_type_name::#variant_names(nested) => nested.set_target(target)),*
                         }
@@ -2442,31 +2442,31 @@ fn get_type_enum_interface_impl(
                         }
                     }
 
-                    fn maybe_resolved_type_arguments(&self) -> ::gc::GcCellRef<::std::option::Option<::std::vec::Vec<::gc::Gc<crate::Type>>>> {
+                    fn maybe_resolved_type_arguments(&self) -> ::gc::GcCellRef<::std::option::Option<::std::vec::Vec<::id_arena::Id<crate::Type>>>> {
                         match self {
                             #(#type_type_name::#variant_names(nested) => nested.maybe_resolved_type_arguments()),*
                         }
                     }
 
-                    fn maybe_resolved_type_arguments_mut(&self) -> ::gc::GcCellRefMut<::std::option::Option<::std::vec::Vec<::gc::Gc<crate::Type>>>> {
+                    fn maybe_resolved_type_arguments_mut(&self) -> ::gc::GcCellRefMut<::std::option::Option<::std::vec::Vec<::id_arena::Id<crate::Type>>>> {
                         match self {
                             #(#type_type_name::#variant_names(nested) => nested.maybe_resolved_type_arguments_mut()),*
                         }
                     }
 
-                    fn maybe_literal_type(&self) -> ::std::option::Option<::gc::Gc<crate::Type>> {
+                    fn maybe_literal_type(&self) -> ::std::option::Option<::id_arena::Id<crate::Type>> {
                         match self {
                             #(#type_type_name::#variant_names(nested) => nested.maybe_literal_type()),*
                         }
                     }
 
-                    fn maybe_literal_type_mut(&self) -> ::gc::GcCellRefMut<::std::option::Option<::gc::Gc<crate::Type>>> {
+                    fn maybe_literal_type_mut(&self) -> ::gc::GcCellRefMut<::std::option::Option<::id_arena::Id<crate::Type>>> {
                         match self {
                             #(#type_type_name::#variant_names(nested) => nested.maybe_literal_type_mut()),*
                         }
                     }
 
-                    fn maybe_cached_equivalent_base_type(&self) -> ::gc::GcCellRefMut<::std::option::Option<::gc::Gc<crate::Type>>> {
+                    fn maybe_cached_equivalent_base_type(&self) -> ::gc::GcCellRefMut<::std::option::Option<::id_arena::Id<crate::Type>>> {
                         match self {
                             #(#type_type_name::#variant_names(nested) => nested.maybe_cached_equivalent_base_type()),*
                         }

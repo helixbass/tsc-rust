@@ -9,6 +9,7 @@ use std::{
 
 use bitflags::bitflags;
 use gc::{Finalize, Gc, GcCell, GcCellRef, GcCellRefMut, Trace};
+use id_arena::Id;
 use indexmap::IndexMap;
 use regex::Regex;
 

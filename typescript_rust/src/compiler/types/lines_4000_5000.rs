@@ -1351,7 +1351,7 @@ mod _TransientSymbolTraceDeriveScope {
     use gc::Finalize;
     use local_macros::{symbol_type, Trace};
 
-    use super::{BaseTransientSymbol, Gc, MappedSymbol, ReverseMappedSymbol, Type};
+    use super::{BaseTransientSymbol, Id, MappedSymbol, ReverseMappedSymbol, Type};
 
     #[derive(Debug, Finalize, Trace)]
     #[symbol_type(interfaces = "TransientSymbolInterface")]
