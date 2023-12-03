@@ -1,6 +1,7 @@
 use std::{borrow::Borrow, convert::TryInto, io, ptr};
 
 use gc::Gc;
+use id_arena::Id;
 use itertools::Itertools;
 
 use super::{IterationUse, JsxNames};

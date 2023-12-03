@@ -7,6 +7,7 @@ use std::{
 };
 
 use gc::Gc;
+use id_arena::Id;
 
 use super::{ambient_module_symbol_regex, get_symbol_id, NodeBuilderContext, TypeFacts};
 use crate::{

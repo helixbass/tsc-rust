@@ -2,6 +2,7 @@ use std::{io, ptr, rc::Rc};
 
 use gc::{Gc, GcCell};
 use itertools::Itertools;
+use id_arena::Id;
 
 use super::{
     SignatureToSignatureDeclarationOptions, SymbolTableToDeclarationStatements,

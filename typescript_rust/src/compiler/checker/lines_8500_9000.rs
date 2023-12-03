@@ -1,5 +1,6 @@
 use std::{borrow::Borrow, convert::TryInto, io, ptr};
 
+use id_arena::Id;
 use gc::{Gc, GcCell};
 
 use super::{IterationUse, TypeFacts};

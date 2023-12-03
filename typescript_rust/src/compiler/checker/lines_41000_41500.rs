@@ -1,6 +1,7 @@
 use std::{borrow::Borrow, convert::TryInto, io, ptr};
 
 use gc::Gc;
+use id_arena::Id;
 
 use super::{is_declaration_name_or_import_property_name, IterationUse};
 use crate::{

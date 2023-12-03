@@ -5,6 +5,7 @@ use std::{
 };
 
 use gc::Gc;
+use id_arena::Id;
 use indexmap::IndexMap;
 use local_macros::enum_unwrapped;
 use peekmore::PeekMore;

@@ -1,5 +1,6 @@
 use std::{borrow::Borrow, io, ptr};
 
+use id_arena::Id;
 use gc::Gc;
 
 use super::signature_has_rest_parameter;
