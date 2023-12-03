@@ -7,6 +7,7 @@ use std::{
 };
 
 use gc::{Finalize, Gc, GcCell, GcCellRefMut, Trace};
+use id_arena::Id;
 
 use super::{
     CheckTypeContainingMessageChain, CheckTypeErrorOutputContainer, ExpandingFlags,

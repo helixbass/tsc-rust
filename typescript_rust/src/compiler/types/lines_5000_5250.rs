@@ -19,6 +19,7 @@ use crate::{
     InterfaceTypeInterface, IterationTypeCacheKey, IterationTypes, JsxFlags, Node, NodeId,
     NotActuallyInterfaceType, ObjectFlags, Pattern, StringOrNumber, TypeReferenceInterface,
 };
+use crate::_d;
 
 #[derive(Debug, Trace, Finalize)]
 #[symbol_type(ancestors = "TransientSymbol", interfaces = "TransientSymbolInterface")]
@@ -536,8 +537,8 @@ impl Type {
 }
 
 pub trait TypeInterface {
-    fn type_wrapper(&self) -> Id<Type>;
-    fn set_type_wrapper(&self, wrapper: Id<Type>);
+    fn arena_id(&self) -> Id<Type>;
+    fn set_arena_id(&self, id: Id<Type>);
     fn flags(&self) -> TypeFlags;
     fn set_flags(&self, flags: TypeFlags);
     fn id(&self) -> TypeId;
@@ -594,7 +595,7 @@ pub trait TypeInterface {
 
 #[derive(Clone, Debug, Trace, Finalize)]
 pub struct BaseType {
-    _type_wrapper: GcCell<Option<Id<Type>>>,
+    _arena_id: GcCell<Option<Id<Type>>>,
     #[unsafe_ignore_trace]
     flags: Cell<TypeFlags>,
     #[unsafe_ignore_trace]
@@ -633,44 +634,44 @@ pub struct BaseType {
 impl BaseType {
     pub fn new(flags: TypeFlags) -> Self {
         Self {
-            _type_wrapper: GcCell::new(None),
+            _arena_id: _d(),
             flags: Cell::new(flags),
-            id: None,
-            symbol: GcCell::new(None),
-            pattern: GcCell::new(None),
-            alias_symbol: GcCell::new(None),
-            alias_type_arguments: GcCell::new(None),
-            alias_type_arguments_contains_marker: Cell::new(None),
-            permissive_instantiation: GcCell::new(None),
-            restrictive_instantiation: GcCell::new(None),
-            immediate_base_constraint: GcCell::new(None),
-            widened: GcCell::new(None),
-            resolved_base_constraint: GcCell::new(None),
-            resolved_index_type: GcCell::new(None),
-            resolved_string_index_type: GcCell::new(None),
-            synthetic_type: GcCell::new(None),
-            default_only_type: GcCell::new(None),
-            promise_type_of_promise_constructor: GcCell::new(None),
-            promised_type_of_promise: GcCell::new(None),
-            awaited_type_of_type: GcCell::new(None),
-            iteration_types_of_generator_return_type: GcCell::new(None),
-            iteration_types_of_async_generator_return_type: GcCell::new(None),
-            iteration_types_of_iterable: GcCell::new(None),
-            iteration_types_of_iterator: GcCell::new(None),
-            iteration_types_of_async_iterable: GcCell::new(None),
-            iteration_types_of_async_iterator: GcCell::new(None),
-            iteration_types_of_iterator_result: GcCell::new(None),
+            id: _d(),
+            symbol: _d(),
+            pattern: _d(),
+            alias_symbol: _d(),
+            alias_type_arguments: _d(),
+            alias_type_arguments_contains_marker: _d(),
+            permissive_instantiation: _d(),
+            restrictive_instantiation: _d(),
+            immediate_base_constraint: _d(),
+            widened: _d(),
+            resolved_base_constraint: _d(),
+            resolved_index_type: _d(),
+            resolved_string_index_type: _d(),
+            synthetic_type: _d(),
+            default_only_type: _d(),
+            promise_type_of_promise_constructor: _d(),
+            promised_type_of_promise: _d(),
+            awaited_type_of_type: _d(),
+            iteration_types_of_generator_return_type: _d(),
+            iteration_types_of_async_generator_return_type: _d(),
+            iteration_types_of_iterable: _d(),
+            iteration_types_of_iterator: _d(),
+            iteration_types_of_async_iterable: _d(),
+            iteration_types_of_async_iterator: _d(),
+            iteration_types_of_iterator_result: _d(),
         }
     }
 }
 
 impl TypeInterface for BaseType {
-    fn type_wrapper(&self) -> Id<Type> {
-        self._type_wrapper.borrow().clone().unwrap()
+    fn arena_id(&self) -> Id<Type> {
+        self._arena_id.borrow().clone().unwrap()
     }
 
-    fn set_type_wrapper(&self, wrapper: Id<Type>) {
-        *self._type_wrapper.borrow_mut() = Some(wrapper);
+    fn set_arena_id(&self, id: Id<Type>) {
+        *self._arena_id.borrow_mut() = Some(id);
     }
 
     fn flags(&self) -> TypeFlags {
