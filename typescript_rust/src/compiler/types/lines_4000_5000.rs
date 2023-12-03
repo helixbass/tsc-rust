@@ -8,6 +8,7 @@ use std::{
 use bitflags::bitflags;
 use derive_builder::Builder;
 use gc::{Finalize, Gc, GcCell, GcCellRef, GcCellRefMut, Trace};
+use id_arena::Id;
 use local_macros::{enum_unwrapped, symbol_type};
 
 use super::{
@@ -22,7 +23,7 @@ use crate::{
     CheckBinaryExpression, Diagnostic, DuplicateInfoForFiles, FlowNode, FlowType, IndexInfo,
     IterationTypes, IterationTypesResolver, MappedSymbol, MultiMap, NodeBuilder, Number,
     PatternAmbientModule, ResolvedTypeReferenceDirective, ReverseMappedSymbol, StringOrNumber,
-    TypeId, TypeSystemEntity, TypeSystemPropertyName, VarianceFlags,
+    TypeId, TypeSystemEntity, TypeSystemPropertyName, VarianceFlags, _d,
 };
 
 pub type RedirectTargetsMap = MultiMap<Path, String>;
@@ -1386,9 +1387,6 @@ mod _TransientSymbolTraceDeriveScope {
     }
 }
 pub use _TransientSymbolTraceDeriveScope::TransientSymbol;
-use id_arena::Id;
-
-use crate::_d;
 
 #[derive(Debug, Finalize, Trace)]
 #[symbol_type(ancestors = "TransientSymbol")]
