@@ -24,7 +24,7 @@ use crate::{
     is_parameter, is_property_access_expression,
     is_property_access_or_qualified_name_or_import_type_node, is_source_file, is_type_node,
     object_allocator, parse_pseudo_big_int, return_ok_default_if_none, return_ok_none_if_none,
-    skip_type_checking, sum, unescape_leading_underscores, BaseInterfaceType,
+    skip_type_checking, sum, unescape_leading_underscores, AllArenas, BaseInterfaceType,
     CancellationTokenDebuggable, CheckBinaryExpression, CheckFlags, ContextFlags, Debug_,
     Diagnostic, DiagnosticCategory, DiagnosticCollection, DiagnosticMessage,
     DiagnosticRelatedInformationInterface, Diagnostics, EmitResolver, EmitTextWriter, Extension,
@@ -298,9 +298,9 @@ impl TypeSystemEntity {
         }
     }
 
-    pub fn as_type(&self) -> &Type {
+    pub fn as_type(&self) -> Id<Type> {
         match self {
-            Self::Type(type_) => &*type_,
+            Self::Type(type_) => *type_,
             _ => panic!("Expected type"),
         }
     }
@@ -318,7 +318,7 @@ impl PartialEq for TypeSystemEntity {
         match (self, other) {
             (Self::Node(a), Self::Node(b)) => Gc::ptr_eq(a, b),
             (Self::Symbol(a), Self::Symbol(b)) => Gc::ptr_eq(a, b),
-            (Self::Type(a), Self::Type(b)) => Gc::ptr_eq(a, b),
+            (Self::Type(a), Self::Type(b)) => a == b,
             (Self::Signature(a), Self::Signature(b)) => Gc::ptr_eq(a, b),
             _ => false,
         }
@@ -892,125 +892,167 @@ pub fn create_type_checker(
     );
 
     type_checker.any_type = Some(
-        type_checker
-            .create_intrinsic_type(TypeFlags::Any, "any", None)
-            .into(),
+        type_checker.arena().create_type(
+            type_checker
+                .create_intrinsic_type(TypeFlags::Any, "any", None)
+                .into(),
+        ),
     );
     type_checker.auto_type = Some(
-        type_checker
-            .create_intrinsic_type(TypeFlags::Any, "any", None)
-            .into(),
+        type_checker.arena().create_type(
+            type_checker
+                .create_intrinsic_type(TypeFlags::Any, "any", None)
+                .into(),
+        ),
     );
     type_checker.wildcard_type = Some(
-        type_checker
-            .create_intrinsic_type(TypeFlags::Any, "any", None)
-            .into(),
+        type_checker.arena().create_type(
+            type_checker
+                .create_intrinsic_type(TypeFlags::Any, "any", None)
+                .into(),
+        ),
     );
     type_checker.error_type = Some(
-        type_checker
-            .create_intrinsic_type(TypeFlags::Any, "error", None)
-            .into(),
+        type_checker.arena().create_type(
+            type_checker
+                .create_intrinsic_type(TypeFlags::Any, "error", None)
+                .into(),
+        ),
     );
     type_checker.unresolved_type = Some(
-        type_checker
-            .create_intrinsic_type(TypeFlags::Any, "unresolved", None)
-            .into(),
+        type_checker.arena().create_type(
+            type_checker
+                .create_intrinsic_type(TypeFlags::Any, "unresolved", None)
+                .into(),
+        ),
     );
     type_checker.non_inferrable_any_type = Some(
-        type_checker
-            .create_intrinsic_type(
-                TypeFlags::Any,
-                "any",
-                Some(ObjectFlags::ContainsWideningType),
-            )
-            .into(),
+        type_checker.arena().create_type(
+            type_checker
+                .create_intrinsic_type(
+                    TypeFlags::Any,
+                    "any",
+                    Some(ObjectFlags::ContainsWideningType),
+                )
+                .into(),
+        ),
     );
     type_checker.intrinsic_marker_type = Some(
-        type_checker
-            .create_intrinsic_type(TypeFlags::Any, "intrinsic", None)
-            .into(),
+        type_checker.arena().create_type(
+            type_checker
+                .create_intrinsic_type(TypeFlags::Any, "intrinsic", None)
+                .into(),
+        ),
     );
     type_checker.unknown_type = Some(
-        type_checker
-            .create_intrinsic_type(TypeFlags::Unknown, "unknown", None)
-            .into(),
+        type_checker.arena().create_type(
+            type_checker
+                .create_intrinsic_type(TypeFlags::Unknown, "unknown", None)
+                .into(),
+        ),
     );
     type_checker.non_null_unknown_type = Some(
-        type_checker
-            .create_intrinsic_type(TypeFlags::Unknown, "unknown", None)
-            .into(),
+        type_checker.arena().create_type(
+            type_checker
+                .create_intrinsic_type(TypeFlags::Unknown, "unknown", None)
+                .into(),
+        ),
     );
     type_checker.undefined_type = Some(
-        type_checker
-            .create_intrinsic_type(TypeFlags::Undefined, "undefined", None)
-            .into(),
+        type_checker.arena().create_type(
+            type_checker
+                .create_intrinsic_type(TypeFlags::Undefined, "undefined", None)
+                .into(),
+        ),
     );
     type_checker.undefined_widening_type = Some(if type_checker.strict_null_checks {
         type_checker.undefined_type()
     } else {
-        type_checker
-            .create_intrinsic_type(
-                TypeFlags::Undefined,
-                "undefined",
-                Some(ObjectFlags::ContainsWideningType),
-            )
-            .into()
+        type_checker.arena().create_type(
+            type_checker
+                .create_intrinsic_type(
+                    TypeFlags::Undefined,
+                    "undefined",
+                    Some(ObjectFlags::ContainsWideningType),
+                )
+                .into(),
+        )
     });
     type_checker.optional_type = Some(
-        type_checker
-            .create_intrinsic_type(TypeFlags::Undefined, "undefined", None)
-            .into(),
+        type_checker.arena().create_type(
+            type_checker
+                .create_intrinsic_type(TypeFlags::Undefined, "undefined", None)
+                .into(),
+        ),
     );
     type_checker.missing_type = Some(
         if matches!(type_checker.exact_optional_property_types, Some(true)) {
-            type_checker
-                .create_intrinsic_type(TypeFlags::Undefined, "undefined", None)
-                .into()
+            type_checker.arena().create_type(
+                type_checker
+                    .create_intrinsic_type(TypeFlags::Undefined, "undefined", None)
+                    .into(),
+            )
         } else {
             type_checker.undefined_type()
         },
     );
     type_checker.null_type = Some(
-        type_checker
-            .create_intrinsic_type(TypeFlags::Null, "null", None)
-            .into(),
+        type_checker.arena().create_type(
+            type_checker
+                .create_intrinsic_type(TypeFlags::Null, "null", None)
+                .into(),
+        ),
     );
     type_checker.null_widening_type = Some(if type_checker.strict_null_checks {
         type_checker.null_type()
     } else {
-        type_checker
-            .create_intrinsic_type(
-                TypeFlags::Null,
-                "null",
-                Some(ObjectFlags::ContainsWideningType),
-            )
-            .into()
+        type_checker.arena().create_type(
+            type_checker
+                .create_intrinsic_type(
+                    TypeFlags::Null,
+                    "null",
+                    Some(ObjectFlags::ContainsWideningType),
+                )
+                .into(),
+        )
     });
     type_checker.string_type = Some(
-        type_checker
-            .create_intrinsic_type(TypeFlags::String, "string", None)
-            .into(),
+        type_checker.arena().create_type(
+            type_checker
+                .create_intrinsic_type(TypeFlags::String, "string", None)
+                .into(),
+        ),
     );
     type_checker.number_type = Some(
-        type_checker
-            .create_intrinsic_type(TypeFlags::Number, "number", None)
-            .into(),
+        type_checker.arena().create_type(
+            type_checker
+                .create_intrinsic_type(TypeFlags::Number, "number", None)
+                .into(),
+        ),
     );
     type_checker.bigint_type = Some(
-        type_checker
-            .create_intrinsic_type(TypeFlags::BigInt, "bigint", None)
-            .into(),
+        type_checker.arena().create_type(
+            type_checker
+                .create_intrinsic_type(TypeFlags::BigInt, "bigint", None)
+                .into(),
+        ),
     );
-    let false_type: Id<Type> = FreshableIntrinsicType::new(type_checker.create_intrinsic_type(
-        TypeFlags::BooleanLiteral,
-        "false",
-        None,
-    ))
-    .into();
-    let regular_false_type: Id<Type> = FreshableIntrinsicType::new(
-        type_checker.create_intrinsic_type(TypeFlags::BooleanLiteral, "false", None),
-    )
-    .into();
+    let false_type = type_checker.arena().create_type(
+        FreshableIntrinsicType::new(type_checker.create_intrinsic_type(
+            TypeFlags::BooleanLiteral,
+            "false",
+            None,
+        ))
+        .into(),
+    );
+    let regular_false_type = type_checker.arena().create_type(
+        FreshableIntrinsicType::new(type_checker.create_intrinsic_type(
+            TypeFlags::BooleanLiteral,
+            "false",
+            None,
+        ))
+        .into(),
+    );
     let false_type_as_freshable_intrinsic_type = false_type.as_freshable_intrinsic_type();
     false_type_as_freshable_intrinsic_type.set_regular_type(regular_false_type.clone());
     false_type_as_freshable_intrinsic_type.set_fresh_type(false_type.clone());
@@ -1407,6 +1449,10 @@ pub(crate) struct DuplicateInfoForFiles {
 }
 
 impl TypeChecker {
+    pub fn arena(&self) -> &AllArenas {
+        unimplemented!()
+    }
+
     pub fn rc_wrapper(&self) -> Gc<TypeChecker> {
         self._rc_wrapper.borrow().clone().unwrap()
     }

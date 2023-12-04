@@ -1,7 +1,7 @@
 use std::{borrow::Borrow, convert::TryInto, io, ptr};
 
-use id_arena::Id;
 use gc::{Gc, GcCell};
+use id_arena::Id;
 
 use super::{IterationUse, TypeFacts};
 use crate::{

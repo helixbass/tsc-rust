@@ -17,9 +17,8 @@ use super::{
 use crate::{
     BaseTransientSymbol, EvolvingArrayType, FreshObjectLiteralTypeInterface, GenericTypeInterface,
     InterfaceTypeInterface, IterationTypeCacheKey, IterationTypes, JsxFlags, Node, NodeId,
-    NotActuallyInterfaceType, ObjectFlags, Pattern, StringOrNumber, TypeReferenceInterface,
+    NotActuallyInterfaceType, ObjectFlags, Pattern, StringOrNumber, TypeReferenceInterface, _d,
 };
-use crate::_d;
 
 #[derive(Debug, Trace, Finalize)]
 #[symbol_type(ancestors = "TransientSymbol", interfaces = "TransientSymbolInterface")]
@@ -874,14 +873,6 @@ impl TypeInterface for BaseType {
 impl From<BaseType> for Type {
     fn from(value: BaseType) -> Self {
         Self::BaseType(value)
-    }
-}
-
-impl From<BaseType> for Id<Type> {
-    fn from(value: BaseType) -> Id<Type> {
-        let rc = Gc::new(Type::BaseType(value));
-        rc.set_type_wrapper(rc.clone());
-        rc
     }
 }
 

@@ -124,9 +124,11 @@ impl StringLiteralType {
             self.flags(),
             self.value.clone(),
             self.maybe_symbol(),
-            Some(self.type_wrapper()),
+            Some(self.arena_id()),
         );
-        fresh_type
+        type_checker
+            .arena()
+            .type_(fresh_type)
             .as_literal_type()
             .set_fresh_type(fresh_type.clone());
         self.set_fresh_type(fresh_type.clone());
@@ -182,9 +184,11 @@ impl NumberLiteralType {
             self.flags(),
             self.value,
             self.maybe_symbol(),
-            Some(self.type_wrapper()),
+            Some(self.arena_id()),
         );
-        fresh_type
+        type_checker
+            .arena()
+            .type_(fresh_type)
             .as_literal_type()
             .set_fresh_type(fresh_type.clone());
         self.set_fresh_type(fresh_type.clone());
@@ -240,9 +244,11 @@ impl BigIntLiteralType {
             self.flags(),
             self.value.clone(),
             self.maybe_symbol(),
-            Some(self.type_wrapper()),
+            Some(self.arena_id()),
         );
-        fresh_type
+        type_checker
+            .arena()
+            .type_(fresh_type)
             .as_literal_type()
             .set_fresh_type(fresh_type.clone());
         self.set_fresh_type(fresh_type.clone());
