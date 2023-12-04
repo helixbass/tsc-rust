@@ -182,14 +182,15 @@ impl TypeChecker {
                 } else {
                     None
                 };
-                if let Some(spread_type) = spread_type
-                    .filter(|&spread_type| self.is_tuple_type(spread_type))
+                if let Some(spread_type) =
+                    spread_type.filter(|&spread_type| self.is_tuple_type(spread_type))
                 {
                     let spread_type_target = self.type_(spread_type).as_type_reference().target;
                     for_each(
                         &self.get_type_arguments(spread_type)?,
                         |&t: &Id<Type>, i| -> Option<()> {
-                            let flags = self.type_(spread_type_target).as_tuple_type().element_flags[i];
+                            let flags =
+                                self.type_(spread_type_target).as_tuple_type().element_flags[i];
                             let synthetic_arg = self.create_synthetic_expression(
                                 arg,
                                 if flags.intersects(ElementFlags::Rest) {
@@ -198,7 +199,8 @@ impl TypeChecker {
                                     t
                                 },
                                 Some(flags.intersects(ElementFlags::Variable)),
-                                self.type_(spread_type_target).as_tuple_type()
+                                self.type_(spread_type_target)
+                                    .as_tuple_type()
                                     .labeled_element_declarations
                                     .as_ref()
                                     .and_then(|spread_type_target_labeled_element_declarations| {

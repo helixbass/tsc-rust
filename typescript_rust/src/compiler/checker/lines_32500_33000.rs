@@ -572,9 +572,7 @@ impl TypeChecker {
             | SyntaxKind::CaretEqualsToken
             | SyntaxKind::AmpersandToken
             | SyntaxKind::AmpersandEqualsToken => {
-                if left_type == self.silent_never_type()
-                    || right_type == self.silent_never_type()
-                {
+                if left_type == self.silent_never_type() || right_type == self.silent_never_type() {
                     return Ok(self.silent_never_type());
                 }
 
@@ -582,8 +580,14 @@ impl TypeChecker {
                 let right_type = self.check_non_null_type(right_type, right)?;
 
                 let mut suggested_operator: Option<SyntaxKind> = None;
-                if self.type_(left_type).flags().intersects(TypeFlags::BooleanLike)
-                    && self.type_(right_type).flags().intersects(TypeFlags::BooleanLike)
+                if self
+                    .type_(left_type)
+                    .flags()
+                    .intersects(TypeFlags::BooleanLike)
+                    && self
+                        .type_(right_type)
+                        .flags()
+                        .intersects(TypeFlags::BooleanLike)
                     && {
                         suggested_operator =
                             self.get_suggested_boolean_operator(operator_token.kind());
@@ -675,9 +679,7 @@ impl TypeChecker {
                 }
             }
             SyntaxKind::PlusToken | SyntaxKind::PlusEqualsToken => {
-                if left_type == self.silent_never_type()
-                    || right_type == self.silent_never_type()
-                {
+                if left_type == self.silent_never_type() || right_type == self.silent_never_type() {
                     return Ok(self.silent_never_type());
                 }
 
@@ -717,9 +719,7 @@ impl TypeChecker {
                     Some(true),
                 )? {
                     result_type = Some(self.string_type());
-                } else if self.is_type_any(Some(left_type))
-                    || self.is_type_any(Some(right_type))
-                {
+                } else if self.is_type_any(Some(left_type)) || self.is_type_any(Some(right_type)) {
                     result_type = Some(
                         if self.is_error_type(left_type) || self.is_error_type(right_type) {
                             self.error_type()
@@ -731,11 +731,7 @@ impl TypeChecker {
 
                 if let Some(result_type) = result_type {
                     if !self.check_for_disallowed_es_symbol_operand(
-                        left_type,
-                        right_type,
-                        left,
-                        right,
-                        operator,
+                        left_type, right_type, left, right, operator,
                     ) {
                         return Ok(result_type.clone());
                     }
@@ -767,13 +763,7 @@ impl TypeChecker {
                 let result_type = result_type.unwrap();
 
                 if operator == SyntaxKind::PlusEqualsToken {
-                    self.check_assignment_operator(
-                        operator,
-                        left,
-                        left_type,
-                        right,
-                        result_type,
-                    )?;
+                    self.check_assignment_operator(operator, left, left_type, right, result_type)?;
                 }
                 result_type
             }
@@ -865,10 +855,7 @@ impl TypeChecker {
                     .intersects(TypeFacts::Falsy)
                 {
                     self.get_union_type(
-                        &[
-                            self.remove_definitely_falsy_types(left_type),
-                            right_type,
-                        ],
+                        &[self.remove_definitely_falsy_types(left_type), right_type],
                         Some(UnionReduction::Subtype),
                         Option::<&Symbol>::None,
                         None,
@@ -888,10 +875,7 @@ impl TypeChecker {
                     .intersects(TypeFacts::EQUndefinedOrNull)
                 {
                     self.get_union_type(
-                        &[
-                            self.get_non_nullable_type(left_type)?,
-                            right_type,
-                        ],
+                        &[self.get_non_nullable_type(left_type)?, right_type],
                         Some(UnionReduction::Subtype),
                         Option::<&Symbol>::None,
                         None,
@@ -920,7 +904,8 @@ impl TypeChecker {
                                 | AssignmentDeclarationKind::Prototype
                         ) && !self.is_empty_object_type(right_type)?
                             && !self.is_function_object_type(right_type)?
-                            && !get_object_flags(self.type_(right_type)).intersects(ObjectFlags::Class)
+                            && !get_object_flags(self.type_(right_type))
+                                .intersects(ObjectFlags::Class)
                     {
                         self.check_assignment_operator(
                             operator, left, left_type, right, right_type,
@@ -1040,7 +1025,7 @@ impl CheckBinaryExpressionStateMachine {
         push_or_replace(
             &mut state.type_stack,
             TryInto::<usize>::try_into(state.stack_index).unwrap(),
-            type_
+            type_,
         );
     }
 

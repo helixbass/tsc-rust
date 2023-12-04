@@ -775,7 +775,9 @@ impl TypeChecker {
                     return Ok(property_declaration);
                 }
                 if parent.as_meta_property().keyword_token == SyntaxKind::NewKeyword {
-                    return Ok(self.type_(self.check_new_target_meta_property(parent)?).maybe_symbol());
+                    return Ok(self
+                        .type_(self.check_new_target_meta_property(parent)?)
+                        .maybe_symbol());
                 }
             }
         }
@@ -797,15 +799,22 @@ impl TypeChecker {
                     }
                 }
                 if is_in_expression_context(node) {
-                    return Ok(self.type_(self.check_expression(node, None, None)?).maybe_symbol());
+                    return Ok(self
+                        .type_(self.check_expression(node, None, None)?)
+                        .maybe_symbol());
                 }
 
-                self.type_(self.get_type_from_this_type_node(node)?).maybe_symbol()
+                self.type_(self.get_type_from_this_type_node(node)?)
+                    .maybe_symbol()
             }
 
-            SyntaxKind::ThisType => self.type_(self.get_type_from_this_type_node(node)?).maybe_symbol(),
+            SyntaxKind::ThisType => self
+                .type_(self.get_type_from_this_type_node(node)?)
+                .maybe_symbol(),
 
-            SyntaxKind::SuperKeyword => self.type_(self.check_expression(node, None, None)?).maybe_symbol(),
+            SyntaxKind::SuperKeyword => self
+                .type_(self.check_expression(node, None, None)?)
+                .maybe_symbol(),
 
             SyntaxKind::ConstructorKeyword => {
                 let constructor_declaration = node.maybe_parent();
@@ -951,7 +960,9 @@ impl TypeChecker {
                     None
                 }
             }
-            SyntaxKind::MetaProperty => self.type_(self.check_expression(node, None, None)?).maybe_symbol(),
+            SyntaxKind::MetaProperty => self
+                .type_(self.check_expression(node, None, None)?)
+                .maybe_symbol(),
 
             _ => None,
         })

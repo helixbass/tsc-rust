@@ -236,15 +236,11 @@ impl TypeChecker {
                 self.get_awaited_type_no_alias(left_type, Option::<&Node>::None, None, None)?;
             let awaited_right_type =
                 self.get_awaited_type_no_alias(right_type, Option::<&Node>::None, None, None)?;
-            would_work_with_await = !(
-                awaited_left_type == Some(left_type)
-             && awaited_right_type == Some(right_type)
-            ) && awaited_left_type.is_some()
+            would_work_with_await = !(awaited_left_type == Some(left_type)
+                && awaited_right_type == Some(right_type))
+                && awaited_left_type.is_some()
                 && awaited_right_type.is_some()
-                && is_related(
-                    awaited_left_type.unwrap(),
-                    awaited_right_type.unwrap(),
-                )?;
+                && is_related(awaited_left_type.unwrap(), awaited_right_type.unwrap())?;
         }
 
         let mut effective_left = left_type;
@@ -567,11 +563,13 @@ impl TypeChecker {
     }
 
     pub(super) fn is_template_literal_contextual_type(&self, type_: Id<Type>) -> io::Result<bool> {
-        Ok(self.type_(type_
-            ).flags()
+        Ok(self
+            .type_(type_)
+            .flags()
             .intersects(TypeFlags::StringLiteral | TypeFlags::TemplateLiteral)
-            || self.type_(type_
-                ).flags()
+            || self
+                .type_(type_)
+                .flags()
                 .intersects(TypeFlags::InstantiableNonPrimitive)
                 && self.maybe_type_of_kind(
                     &self

@@ -84,10 +84,19 @@ impl GetFlowTypeOfReference {
         }
 
         let is_constructed_by = |source: Id<Type>, target: Id<Type>| {
-            if self.type_checker.type_(source).flags().intersects(TypeFlags::Object)
+            if self
+                .type_checker
+                .type_(source)
+                .flags()
+                .intersects(TypeFlags::Object)
                 && get_object_flags(self.type_checker.type_(source)).intersects(ObjectFlags::Class)
-                || self.type_checker.type_(target).flags().intersects(TypeFlags::Object)
-                    && get_object_flags(self.type_checker.type_(target)).intersects(ObjectFlags::Class)
+                || self
+                    .type_checker
+                    .type_(target)
+                    .flags()
+                    .intersects(TypeFlags::Object)
+                    && get_object_flags(self.type_checker.type_(target))
+                        .intersects(ObjectFlags::Class)
             {
                 return Ok(are_option_gcs_equal(
                     self.type_checker.type_(source).maybe_symbol().as_ref(),
@@ -146,10 +155,7 @@ impl GetFlowTypeOfReference {
         if let Some(prototype_property) = prototype_property.as_ref() {
             let prototype_property_type =
                 self.type_checker.get_type_of_symbol(prototype_property)?;
-            if !self
-                .type_checker
-                .is_type_any(Some(prototype_property_type))
-            {
+            if !self.type_checker.is_type_any(Some(prototype_property_type)) {
                 target_type = Some(prototype_property_type);
             }
         }
@@ -187,7 +193,13 @@ impl GetFlowTypeOfReference {
         }
         let target_type = target_type.unwrap();
 
-        if !assume_true && self.type_checker.type_(right_type).flags().intersects(TypeFlags::Union) {
+        if !assume_true
+            && self
+                .type_checker
+                .type_(right_type)
+                .flags()
+                .intersects(TypeFlags::Union)
+        {
             let non_constructor_type_in_union = try_find(
                 &self.type_checker.type_(right_type).as_union_type().types(),
                 |t: &Id<Type>, _| -> io::Result<_> {
@@ -222,11 +234,21 @@ impl GetFlowTypeOfReference {
                 .type_checker
                 .try_filter_type(type_, |t: Id<Type>| Ok(!is_related(t, candidate)?));
         }
-        if self.type_checker.type_(type_).flags().intersects(TypeFlags::Union) {
+        if self
+            .type_checker
+            .type_(type_)
+            .flags()
+            .intersects(TypeFlags::Union)
+        {
             let assignable_type = self
                 .type_checker
                 .try_filter_type(type_, |t: Id<Type>| is_related(t, candidate))?;
-            if !self.type_checker.type_(assignable_type).flags().intersects(TypeFlags::Never) {
+            if !self
+                .type_checker
+                .type_(assignable_type)
+                .flags()
+                .intersects(TypeFlags::Never)
+            {
                 return Ok(assignable_type);
             }
         }
@@ -689,9 +711,12 @@ impl TypeChecker {
         &self,
         type_: Id<Type>,
     ) -> io::Result<bool> {
-        Ok(self.type_(type_).flags().intersects(TypeFlags::Instantiable)
-            && self.type_(self
-                .get_base_constraint_or_type(type_)?)
+        Ok(self
+            .type_(type_)
+            .flags()
+            .intersects(TypeFlags::Instantiable)
+            && self
+                .type_(self.get_base_constraint_or_type(type_)?)
                 .flags()
                 .intersects(TypeFlags::Nullable | TypeFlags::Union))
     }
@@ -700,7 +725,10 @@ impl TypeChecker {
         &self,
         type_: Id<Type>,
     ) -> io::Result<bool> {
-        Ok(self.type_(type_).flags().intersects(TypeFlags::Instantiable)
+        Ok(self
+            .type_(type_)
+            .flags()
+            .intersects(TypeFlags::Instantiable)
             && !self.maybe_type_of_kind(
                 self.get_base_constraint_or_type(type_)?,
                 TypeFlags::Nullable,
@@ -747,11 +775,13 @@ impl TypeChecker {
             self.try_map_type(
                 type_,
                 &mut |t: Id<Type>| {
-                    Ok(Some(if self.type_(t).flags().intersects(TypeFlags::Instantiable) {
-                        self.get_base_constraint_or_type(t)?
-                    } else {
-                        t
-                    }))
+                    Ok(Some(
+                        if self.type_(t).flags().intersects(TypeFlags::Instantiable) {
+                            self.get_base_constraint_or_type(t)?
+                        } else {
+                            t
+                        },
+                    ))
                 },
                 None,
             )?
@@ -1071,8 +1101,7 @@ impl TypeChecker {
             flow_container.kind(),
             SyntaxKind::FunctionExpression | SyntaxKind::ArrowFunction
         ) || is_object_literal_or_class_expression_method_or_accessor(&flow_container))
-            && (self.is_const_variable(&local_or_export_symbol)
-                && type_ != self.auto_array_type()
+            && (self.is_const_variable(&local_or_export_symbol) && type_ != self.auto_array_type()
                 || is_parameter && !self.is_symbol_assigned(&local_or_export_symbol)?)
         {
             flow_container = self.get_control_flow_container(&flow_container);
@@ -1086,8 +1115,9 @@ impl TypeChecker {
             || type_ != self.auto_type()
                 && type_ != self.auto_array_type()
                 && (!self.strict_null_checks
-                    || self.type_(type_
-                        ).flags()
+                    || self
+                        .type_(type_)
+                        .flags()
                         .intersects(TypeFlags::AnyOrUnknown | TypeFlags::Void)
                     || self.is_in_type_query(node)
                     || node.parent().kind() == SyntaxKind::ExportSpecifier)
@@ -1104,9 +1134,7 @@ impl TypeChecker {
             } else {
                 type_.clone()
             }
-        } else if type_ == self.auto_type()
-            || type_ == self.auto_array_type()
-        {
+        } else if type_ == self.auto_type() || type_ == self.auto_array_type() {
             self.undefined_type()
         } else {
             self.get_optional_type_(type_, None)?
@@ -1118,12 +1146,9 @@ impl TypeChecker {
             Some(&*flow_container),
         )?;
         if !self.is_evolving_array_operation_target(node)?
-            && (type_ == self.auto_type()
-                || type_ == self.auto_array_type())
+            && (type_ == self.auto_type() || type_ == self.auto_array_type())
         {
-            if flow_type == self.auto_type()
-                || flow_type == self.auto_array_type()
-            {
+            if flow_type == self.auto_type() || flow_type == self.auto_array_type() {
                 if self.no_implicit_any {
                     self.error(
                         get_name_of_declaration(Some(&*declaration)),
@@ -1159,9 +1184,7 @@ impl TypeChecker {
                 return Ok(self.convert_auto_to_any(flow_type));
             }
         } else if !assume_initialized
-            && !self
-                .get_falsy_flags(type_)
-                .intersects(TypeFlags::Undefined)
+            && !self.get_falsy_flags(type_).intersects(TypeFlags::Undefined)
             && self
                 .get_falsy_flags(flow_type)
                 .intersects(TypeFlags::Undefined)

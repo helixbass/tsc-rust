@@ -360,11 +360,15 @@ impl TypeChecker {
             return Ok(());
         }
         let index_infos = self.get_applicable_index_infos(type_, prop_name_type)?;
-        let interface_declaration = if get_object_flags(self.type_(type_)).intersects(ObjectFlags::Interface) {
-            get_declaration_of_kind(&self.type_(type_).symbol(), SyntaxKind::InterfaceDeclaration)
-        } else {
-            None
-        };
+        let interface_declaration =
+            if get_object_flags(self.type_(type_)).intersects(ObjectFlags::Interface) {
+                get_declaration_of_kind(
+                    &self.type_(type_).symbol(),
+                    SyntaxKind::InterfaceDeclaration,
+                )
+            } else {
+                None
+            };
         let local_prop_declaration = if matches!(
             declaration.as_ref(),
             Some(declaration) if declaration.kind() == SyntaxKind::BinaryExpression
@@ -436,11 +440,15 @@ impl TypeChecker {
     ) -> io::Result<()> {
         let declaration = check_info.declaration.as_ref();
         let index_infos = self.get_applicable_index_infos(type_, check_info.key_type)?;
-        let interface_declaration = if get_object_flags(self.type_(type_)).intersects(ObjectFlags::Interface) {
-            get_declaration_of_kind(&self.type_(type_).symbol(), SyntaxKind::InterfaceDeclaration)
-        } else {
-            None
-        };
+        let interface_declaration =
+            if get_object_flags(self.type_(type_)).intersects(ObjectFlags::Interface) {
+                get_declaration_of_kind(
+                    &self.type_(type_).symbol(),
+                    SyntaxKind::InterfaceDeclaration,
+                )
+            } else {
+                None
+            };
         let local_check_declaration = declaration
             .try_filter(|declaration| -> io::Result<_> {
                 Ok(are_option_gcs_equal(
@@ -486,9 +494,7 @@ impl TypeChecker {
                             )?)
                         })
                 })?;
-            if error_node.is_some()
-                && !self.is_type_assignable_to(check_info.type_, info.type_)?
-            {
+            if error_node.is_some() && !self.is_type_assignable_to(check_info.type_, info.type_)? {
                 self.error(
                     error_node,
                     &Diagnostics::_0_index_type_1_is_not_assignable_to_2_index_type_3,
@@ -614,7 +620,11 @@ impl TypeChecker {
     ) -> io::Result<()> {
         if node.kind() == SyntaxKind::TypeReference {
             let type_ = self.get_type_from_type_reference(node)?;
-            if self.type_(type_).flags().intersects(TypeFlags::TypeParameter) {
+            if self
+                .type_(type_)
+                .flags()
+                .intersects(TypeFlags::TypeParameter)
+            {
                 for i in index..type_parameters.len() {
                     if are_option_gcs_equal(
                         self.type_(type_).maybe_symbol().as_ref(),
@@ -661,7 +671,9 @@ impl TypeChecker {
             let type_ = self.get_declared_type_of_symbol(symbol)?;
             if !self.are_type_parameters_identical(
                 &declarations,
-                self.type_(type_).as_interface_type().maybe_local_type_parameters(),
+                self.type_(type_)
+                    .as_interface_type()
+                    .maybe_local_type_parameters(),
             )? {
                 let name =
                     self.symbol_to_string_(symbol, Option::<&Node>::None, None, None, None)?;
@@ -936,8 +948,9 @@ impl TypeChecker {
                         None, None,
                     )?;
                 }
-                if self.type_(base_constructor_type
-                    ).flags()
+                if self
+                    .type_(base_constructor_type)
+                    .flags()
                     .intersects(TypeFlags::TypeVariable)
                 {
                     if !self.is_mixin_constructor_type(static_type)? {
@@ -968,8 +981,9 @@ impl TypeChecker {
                 if !matches!(
                     self.type_(static_base_type).maybe_symbol().as_ref(),
                     Some(static_base_type_symbol) if static_base_type_symbol.flags().intersects(SymbolFlags::Class)
-                ) && !self.type_(base_constructor_type
-                    ).flags()
+                ) && !self
+                    .type_(base_constructor_type)
+                    .flags()
                     .intersects(TypeFlags::TypeVariable)
                 {
                     let constructors = self.get_instantiated_constructors_for_type_arguments(
@@ -1020,8 +1034,7 @@ impl TypeChecker {
                 }
                 self.check_type_reference_node(type_ref_node)?;
                 if self.produce_diagnostics {
-                    let t =
-                        self.get_reduced_type(self.get_type_from_type_node_(type_ref_node)?)?;
+                    let t = self.get_reduced_type(self.get_type_from_type_node_(type_ref_node)?)?;
                     if !self.is_error_type(t) {
                         if self.is_valid_base_type(t)? {
                             let generic_diag = if matches!(

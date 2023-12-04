@@ -505,12 +505,18 @@ impl TypeChecker {
     ) -> io::Result<bool> {
         Ok(self.is_type_any(Some(func_type))
             || self.is_type_any(Some(apparent_func_type))
-                && self.type_(func_type).flags().intersects(TypeFlags::TypeParameter)
+                && self
+                    .type_(func_type)
+                    .flags()
+                    .intersects(TypeFlags::TypeParameter)
             || num_call_signatures == 0
                 && num_construct_signatures == 0
-                && !self.type_(apparent_func_type).flags().intersects(TypeFlags::Union)
-                && !self.type_(self
-                    .get_reduced_type(apparent_func_type)?)
+                && !self
+                    .type_(apparent_func_type)
+                    .flags()
+                    .intersects(TypeFlags::Union)
+                && !self
+                    .type_(self.get_reduced_type(apparent_func_type)?)
                     .flags()
                     .intersects(TypeFlags::Never)
                 && self.is_type_assignable_to(func_type, self.global_function_type())?)
@@ -575,13 +581,13 @@ impl TypeChecker {
                 );
                 return self.resolve_error_call(node);
             }
-            let value_decl =
-                self.type_(expression_type
-                    ).maybe_symbol()
-                    .as_ref()
-                    .and_then(|expression_type_symbol| {
-                        get_class_like_declaration_of_symbol(expression_type_symbol)
-                    });
+            let value_decl = self
+                .type_(expression_type)
+                .maybe_symbol()
+                .as_ref()
+                .and_then(|expression_type_symbol| {
+                    get_class_like_declaration_of_symbol(expression_type_symbol)
+                });
             if value_decl
                 .as_ref()
                 .matches(|value_decl| has_syntactic_modifier(value_decl, ModifierFlags::Abstract))
@@ -790,7 +796,11 @@ impl TypeChecker {
             awaited_type,
             Some(awaited_type) if !self.get_signatures_of_type(awaited_type, kind)?.is_empty()
         );
-        if self.type_(apparent_type).flags().intersects(TypeFlags::Union) {
+        if self
+            .type_(apparent_type)
+            .flags()
+            .intersects(TypeFlags::Union)
+        {
             let types = self.type_(apparent_type).as_union_type().types().to_owned();
             let mut has_signatures = false;
             for constituent in types {

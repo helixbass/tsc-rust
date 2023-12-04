@@ -841,7 +841,10 @@ impl TypeChecker {
         }
 
         let return_type = self.get_return_type_of_signature(signature.clone())?;
-        if self.type_(return_type).flags().intersects(TypeFlags::ESSymbolLike)
+        if self
+            .type_(return_type)
+            .flags()
+            .intersects(TypeFlags::ESSymbolLike)
             && self.is_symbol_or_symbol_for_call(node)?
         {
             return self.get_es_symbol_like_type_for_node(
@@ -893,7 +896,8 @@ impl TypeChecker {
                     let js_assignment_type_as_object_flags_type =
                         js_assignment_type.as_object_flags_type();
                     js_assignment_type_as_object_flags_type.set_object_flags(
-                        js_assignment_type_as_object_flags_type.object_flags() | ObjectFlags::JSLiteral,
+                        js_assignment_type_as_object_flags_type.object_flags()
+                            | ObjectFlags::JSLiteral,
                     );
                 }
                 return self.get_intersection_type(

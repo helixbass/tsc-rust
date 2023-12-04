@@ -341,9 +341,7 @@ impl TypeChecker {
                 }
                 .or_else(|| {
                     if get_object_flags(self.type_(type_)).intersects(ObjectFlags::Reference) {
-                        self.type_(self.type_(type_
-                            ).as_type_reference_interface()
-                            .target())
+                        self.type_(self.type_(type_).as_type_reference_interface().target())
                             .as_interface_type_interface()
                             .maybe_local_type_parameters()
                             .map(ToOwned::to_owned)
@@ -539,9 +537,8 @@ impl TypeChecker {
                 }
                 if self.is_array_type(type_)
                     || self.is_tuple_type(type_)
-                        && self.type_(self.type_(type_)
-                            .as_type_reference_interface()
-                            .target())
+                        && self
+                            .type_(self.type_(type_).as_type_reference_interface().target())
                             .as_tuple_type()
                             .combined_flags
                             .intersects(ElementFlags::Rest)
@@ -610,13 +607,20 @@ impl TypeChecker {
         type_: Id<Type>,
         access_node: &Node, /*IndexedAccessTypeNode | ElementAccessExpression*/
     ) -> io::Result<Id<Type>> {
-        if !self.type_(type_).flags().intersects(TypeFlags::IndexedAccess) {
+        if !self
+            .type_(type_)
+            .flags()
+            .intersects(TypeFlags::IndexedAccess)
+        {
             return Ok(type_);
         }
         let (object_type, index_type) = {
             let type_ = self.type_(type_);
             let type_as_indexed_access_type = type_.as_indexed_access_type();
-            (type_as_indexed_access_type.object_type, type_as_indexed_access_type.index_type)
+            (
+                type_as_indexed_access_type.object_type,
+                type_as_indexed_access_type.index_type,
+            )
         };
         if self.is_type_assignable_to(
             index_type,

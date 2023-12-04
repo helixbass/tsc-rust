@@ -53,15 +53,15 @@ impl TypeChecker {
                 }
             }
             if length(
-                self.type_(declared_managed_type
-                    ).as_interface_type()
+                self.type_(declared_managed_type)
+                    .as_interface_type()
                     .maybe_type_parameters(),
             ) >= 2
             {
                 let args = self.fill_missing_type_arguments(
                     Some(vec![ctor_type, attributes_type]),
-                    self.type_(declared_managed_type
-                        ).as_interface_type()
+                    self.type_(declared_managed_type)
+                        .as_interface_type()
                         .maybe_type_parameters(),
                     2,
                     is_in_js_file(Some(context)),
@@ -719,8 +719,9 @@ impl TypeChecker {
         if !get_object_flags(self.type_(type_)).intersects(ObjectFlags::Reference) {
             return type_;
         }
-        if self.type_(type_
-            ).as_type_reference_interface()
+        if self
+            .type_(type_)
+            .as_type_reference_interface()
             .maybe_literal_type()
             .is_none()
         {
@@ -734,10 +735,13 @@ impl TypeChecker {
                         | ObjectFlags::ContainsObjectOrArrayLiteral,
                 );
             }
-            *self.type_(type_).as_type_reference_interface().maybe_literal_type_mut() = Some(literal_type);
+            *self
+                .type_(type_)
+                .as_type_reference_interface()
+                .maybe_literal_type_mut() = Some(literal_type);
         }
-        self.type_(type_
-            ).as_type_reference_interface()
+        self.type_(type_)
+            .as_type_reference_interface()
             .maybe_literal_type()
             .unwrap()
     }
@@ -818,15 +822,16 @@ impl TypeChecker {
                         .flags |= NodeCheckFlags::BlockScopedBindingInLoop;
                 }
             }
-            if self.type_(links_resolved_type).flags().intersects(TypeFlags::Nullable)
+            if self
+                .type_(links_resolved_type)
+                .flags()
+                .intersects(TypeFlags::Nullable)
                 || !self.is_type_assignable_to_kind(
                     links_resolved_type,
                     TypeFlags::StringLike | TypeFlags::NumberLike | TypeFlags::ESSymbolLike,
                     None,
-                )? && !self.is_type_assignable_to(
-                    links_resolved_type,
-                    self.string_number_symbol_type(),
-                )?
+                )? && !self
+                    .is_type_assignable_to(links_resolved_type, self.string_number_symbol_type())?
             {
                 self.error(
                     Some(node),
@@ -881,10 +886,8 @@ impl TypeChecker {
         for i in offset..properties.len() {
             let prop = &properties[i];
             if key_type == self.string_type() && !self.is_symbol_with_symbol_name(prop)?
-                || key_type == self.number_type()
-                    && self.is_symbol_with_numeric_name(prop)?
-                || key_type == self.es_symbol_type()
-                    && self.is_symbol_with_symbol_name(prop)?
+                || key_type == self.number_type() && self.is_symbol_with_numeric_name(prop)?
+                || key_type == self.es_symbol_type() && self.is_symbol_with_symbol_name(prop)?
             {
                 prop_types.push(self.get_type_of_symbol(&properties[i])?);
             }
@@ -900,12 +903,7 @@ impl TypeChecker {
         } else {
             self.undefined_type()
         };
-        Ok(self.create_index_info(
-            key_type,
-            union_type,
-            self.is_const_context(node),
-            None,
-        ))
+        Ok(self.create_index_info(key_type, union_type, self.is_const_context(node), None))
     }
 
     pub(super) fn get_immediate_aliased_symbol(
@@ -1114,10 +1112,7 @@ impl TypeChecker {
                         );
                     } else if self.compiler_options.suppress_excess_property_errors != Some(true)
                         && self
-                            .get_index_info_of_type_(
-                                contextual_type.unwrap(),
-                                self.string_type(),
-                            )?
+                            .get_index_info_of_type_(contextual_type.unwrap(), self.string_type())?
                             .is_none()
                     {
                         self.error(
@@ -1193,10 +1188,8 @@ impl TypeChecker {
                     None,
                 )?)?;
                 if self.is_valid_spread_type(type_)? {
-                    let merged_type = self.try_merge_union_of_object_type_and_empty_object(
-                        type_,
-                        in_const_context,
-                    )?;
+                    let merged_type = self
+                        .try_merge_union_of_object_type_and_empty_object(type_, in_const_context)?;
                     if let Some(all_properties_table) = all_properties_table.as_ref() {
                         self.check_spread_prop_overrides(
                             merged_type,
@@ -1236,13 +1229,12 @@ impl TypeChecker {
             }
             let member = member.unwrap();
 
-            if let Some(computed_name_type) =
-                computed_name_type.filter(|&computed_name_type| {
-                    !self.type_(computed_name_type
-                        ).flags()
-                        .intersects(TypeFlags::StringOrNumberLiteralOrUnique)
-                })
-            {
+            if let Some(computed_name_type) = computed_name_type.filter(|&computed_name_type| {
+                !self
+                    .type_(computed_name_type)
+                    .flags()
+                    .intersects(TypeFlags::StringOrNumberLiteralOrUnique)
+            }) {
                 if self
                     .is_type_assignable_to(computed_name_type, self.string_number_symbol_type())?
                 {

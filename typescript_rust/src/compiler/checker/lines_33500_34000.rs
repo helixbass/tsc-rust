@@ -53,9 +53,8 @@ impl TypeChecker {
                 && declaration.as_parameter_declaration().name().kind()
                     == SyntaxKind::ArrayBindingPattern
                 && self.is_tuple_type(type_)
-                && !self.type_(self.type_(type_)
-                    .as_type_reference()
-                    .target)
+                && !self
+                    .type_(self.type_(type_).as_type_reference().target)
                     .as_tuple_type()
                     .has_rest_element
                 && self.get_type_reference_arity(type_)
@@ -141,22 +140,24 @@ impl TypeChecker {
         contextual_type: Option<Id<Type>>,
     ) -> io::Result<bool> {
         if let Some(contextual_type) = contextual_type {
-            if self.type_(contextual_type
-                ).flags()
+            if self
+                .type_(contextual_type)
+                .flags()
                 .intersects(TypeFlags::UnionOrIntersection)
             {
-                let types = self.type_(contextual_type
-                    ).as_union_or_intersection_type_interface()
-                    .types().to_owned();
+                let types = self
+                    .type_(contextual_type)
+                    .as_union_or_intersection_type_interface()
+                    .types()
+                    .to_owned();
                 return try_some(
                     Some(types),
-                    Some(|t: Id<Type>| {
-                        self.is_literal_of_contextual_type(candidate_type, Some(t))
-                    }),
+                    Some(|t: Id<Type>| self.is_literal_of_contextual_type(candidate_type, Some(t))),
                 );
             }
-            if self.type_(contextual_type
-                ).flags()
+            if self
+                .type_(contextual_type)
+                .flags()
                 .intersects(TypeFlags::InstantiableNonPrimitive)
             {
                 let constraint = self
@@ -178,16 +179,24 @@ impl TypeChecker {
                     | TypeFlags::TemplateLiteral
                     | TypeFlags::StringMapping,
             ) && self.maybe_type_of_kind(candidate_type, TypeFlags::StringLiteral)
-                || self.type_(contextual_type).flags().intersects(TypeFlags::NumberLiteral)
+                || self
+                    .type_(contextual_type)
+                    .flags()
+                    .intersects(TypeFlags::NumberLiteral)
                     && self.maybe_type_of_kind(candidate_type, TypeFlags::NumberLiteral)
-                || self.type_(contextual_type).flags().intersects(TypeFlags::BigIntLiteral)
+                || self
+                    .type_(contextual_type)
+                    .flags()
+                    .intersects(TypeFlags::BigIntLiteral)
                     && self.maybe_type_of_kind(candidate_type, TypeFlags::BigIntLiteral)
-                || self.type_(contextual_type
-                    ).flags()
+                || self
+                    .type_(contextual_type)
+                    .flags()
                     .intersects(TypeFlags::BooleanLiteral)
                     && self.maybe_type_of_kind(candidate_type, TypeFlags::BooleanLiteral)
-                || self.type_(contextual_type
-                    ).flags()
+                || self
+                    .type_(contextual_type)
+                    .flags()
                     .intersects(TypeFlags::UniqueESSymbol)
                     && self.maybe_type_of_kind(candidate_type, TypeFlags::UniqueESSymbol));
         }
@@ -325,10 +334,9 @@ impl TypeChecker {
                             context.signature.as_ref().try_map(|context_signature| {
                                 self.get_return_type_of_signature(context_signature.clone())
                             })?;
-                        let return_signature =
-                            return_type.try_and_then(|return_type| {
-                                self.get_single_call_or_construct_signature(return_type)
-                            })?;
+                        let return_signature = return_type.try_and_then(|return_type| {
+                            self.get_single_call_or_construct_signature(return_type)
+                        })?;
                         if return_signature.as_ref().matches(|return_signature| {
                             return_signature.maybe_type_parameters().is_none()
                                 && !every(
@@ -509,7 +517,9 @@ impl TypeChecker {
                 Some(new_type_parameters.clone()),
             ));
             for tp in new_type_parameters {
-                self.type_(tp).as_type_parameter().set_mapper(mapper.clone());
+                self.type_(tp)
+                    .as_type_parameter()
+                    .set_mapper(mapper.clone());
             }
         }
         result
@@ -570,11 +580,7 @@ impl TypeChecker {
             self.get_optional_expression_type(func_type, &expr_as_call_expression.expression)?;
         let return_type = self.get_return_type_of_single_non_generic_call_signature(func_type)?;
         return_type.try_map(|return_type| {
-            self.propagate_optional_type_marker(
-                return_type,
-                expr,
-                non_optional_type != func_type,
-            )
+            self.propagate_optional_type_marker(return_type, expr, non_optional_type != func_type)
         })
     }
 
@@ -730,10 +736,17 @@ impl TypeChecker {
 
         if self.compiler_options.isolated_modules == Some(true) {
             Debug_.assert(
-                self.type_(type_).symbol().flags().intersects(SymbolFlags::ConstEnum),
+                self.type_(type_)
+                    .symbol()
+                    .flags()
+                    .intersects(SymbolFlags::ConstEnum),
                 None,
             );
-            let const_enum_declaration = self.type_(type_).symbol().maybe_value_declaration().unwrap();
+            let const_enum_declaration = self
+                .type_(type_)
+                .symbol()
+                .maybe_value_declaration()
+                .unwrap();
             if const_enum_declaration
                 .flags()
                 .intersects(NodeFlags::Ambient)

@@ -754,18 +754,22 @@ impl TypeChecker {
     ) -> Option<Id<Type>> {
         let source_object_flags = get_object_flags(self.type_(source));
         if source_object_flags.intersects(ObjectFlags::Reference | ObjectFlags::Anonymous)
-            && self.type_(union_target).flags().intersects(TypeFlags::Union)
+            && self
+                .type_(union_target)
+                .flags()
+                .intersects(TypeFlags::Union)
         {
             return find(
-                self.type_(union_target
-                    ).as_union_or_intersection_type_interface()
+                self.type_(union_target)
+                    .as_union_or_intersection_type_interface()
                     .types(),
                 |&target: &Id<Type>, _| {
                     if self.type_(target).flags().intersects(TypeFlags::Object) {
-                        let overlap_obj_flags = source_object_flags & get_object_flags(self.type_(target));
+                        let overlap_obj_flags =
+                            source_object_flags & get_object_flags(self.type_(target));
                         if overlap_obj_flags.intersects(ObjectFlags::Reference) {
-                            return self.type_(source).as_type_reference_interface().target() ==
-                                self.type_(target).as_type_reference_interface().target();
+                            return self.type_(source).as_type_reference_interface().target()
+                                == self.type_(target).as_type_reference_interface().target();
                         }
                         if overlap_obj_flags.intersects(ObjectFlags::Anonymous) {
                             return self.type_(source).maybe_alias_symbol().is_some()
@@ -794,9 +798,11 @@ impl TypeChecker {
             })?
         {
             return Ok(try_find(
-                &self.type_(union_target
-                    ).as_union_or_intersection_type_interface()
-                    .types().to_owned(),
+                &self
+                    .type_(union_target)
+                    .as_union_or_intersection_type_interface()
+                    .types()
+                    .to_owned(),
                 |&t: &Id<Type>, _| -> io::Result<_> { Ok(!self.is_array_like_type(t)?) },
             )?
             .cloned());
@@ -821,9 +827,11 @@ impl TypeChecker {
             };
         if has_signatures {
             return Ok(try_find(
-                &self.type_(union_target
-                    ).as_union_or_intersection_type_interface()
-                    .types().to_owned(),
+                &self
+                    .type_(union_target)
+                    .as_union_or_intersection_type_interface()
+                    .types()
+                    .to_owned(),
                 |&t: &Id<Type>, _| -> io::Result<_> {
                     Ok(!self.get_signatures_of_type(t, signature_kind)?.is_empty())
                 },
@@ -840,9 +848,11 @@ impl TypeChecker {
     ) -> io::Result<Option<Id<Type>>> {
         let mut best_match: Option<Id<Type>> = None;
         let mut matching_count = 0;
-        for target in self.type_(union_target
-            ).as_union_or_intersection_type_interface()
-            .types().to_owned()
+        for target in self
+            .type_(union_target)
+            .as_union_or_intersection_type_interface()
+            .types()
+            .to_owned()
         {
             let overlap = self.get_intersection_type(
                 &vec![
@@ -857,7 +867,11 @@ impl TypeChecker {
                 matching_count = usize::MAX;
             } else if self.type_(overlap).flags().intersects(TypeFlags::Union) {
                 let len = length(Some(&filter(
-                    &self.type_(overlap).as_union_or_intersection_type_interface().types().to_owned(),
+                    &self
+                        .type_(overlap)
+                        .as_union_or_intersection_type_interface()
+                        .types()
+                        .to_owned(),
                     |&type_: &Id<Type>| self.is_unit_type(type_),
                 )));
                 if len >= matching_count {
@@ -895,8 +909,9 @@ impl TypeChecker {
         skip_partial: Option<bool>,
     ) -> io::Result<Option<Id<Type>>> {
         if self.type_(target).flags().intersects(TypeFlags::Union)
-            && self.type_(source
-                ).flags()
+            && self
+                .type_(source)
+                .flags()
                 .intersects(TypeFlags::Intersection | TypeFlags::Object)
         {
             let match_ = self.get_matching_union_constituent_for_type(target, source)?;

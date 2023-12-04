@@ -102,14 +102,19 @@ impl TypeChecker {
         self.try_map_type(
             type_,
             &mut |t: Id<Type>| {
-                Ok(if self.type_(t).flags().intersects(TypeFlags::Intersection) {
-                    try_for_each(
-                        self.type_(t).as_union_or_intersection_type_interface().types().to_owned(),
-                        |type_: Id<Type>, _| self.get_this_type_argument(type_),
-                    )?
-                } else {
-                    self.get_this_type_argument(t)?
-                })
+                Ok(
+                    if self.type_(t).flags().intersects(TypeFlags::Intersection) {
+                        try_for_each(
+                            self.type_(t)
+                                .as_union_or_intersection_type_interface()
+                                .types()
+                                .to_owned(),
+                            |type_: Id<Type>, _| self.get_this_type_argument(type_),
+                        )?
+                    } else {
+                        self.get_this_type_argument(t)?
+                    },
+                )
             },
             None,
         )
@@ -438,19 +443,18 @@ impl TypeChecker {
                         },
                         None,
                     )?;
-                    return contextual_awaited_type
-                        .try_map(|contextual_awaited_type| {
-                            self.get_union_type(
-                                &[
-                                    contextual_awaited_type.clone(),
-                                    self.create_promise_like_type(contextual_awaited_type)?,
-                                ],
-                                None,
-                                Option::<&Symbol>::None,
-                                None,
-                                None,
-                            )
-                        });
+                    return contextual_awaited_type.try_map(|contextual_awaited_type| {
+                        self.get_union_type(
+                            &[
+                                contextual_awaited_type.clone(),
+                                self.create_promise_like_type(contextual_awaited_type)?,
+                            ],
+                            None,
+                            Option::<&Symbol>::None,
+                            None,
+                            None,
+                        )
+                    });
                 }
 
                 return Ok(Some(contextual_return_type));
@@ -468,19 +472,18 @@ impl TypeChecker {
         if let Some(contextual_type) = contextual_type {
             let contextual_awaited_type =
                 self.get_awaited_type_no_alias(contextual_type, Option::<&Node>::None, None, None)?;
-            return contextual_awaited_type
-                .try_map(|contextual_awaited_type| {
-                    self.get_union_type(
-                        &[
-                            contextual_awaited_type.clone(),
-                            self.create_promise_like_type(contextual_awaited_type)?,
-                        ],
-                        None,
-                        Option::<&Symbol>::None,
-                        None,
-                        None,
-                    )
-                });
+            return contextual_awaited_type.try_map(|contextual_awaited_type| {
+                self.get_union_type(
+                    &[
+                        contextual_awaited_type.clone(),
+                        self.create_promise_like_type(contextual_awaited_type)?,
+                    ],
+                    None,
+                    Option::<&Symbol>::None,
+                    None,
+                    None,
+                )
+            });
         }
         Ok(None)
     }
