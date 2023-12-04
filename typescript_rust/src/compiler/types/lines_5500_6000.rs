@@ -776,7 +776,7 @@ pub struct TypeMapperArray {
 
 pub trait TypeMapperCallback: Trace + Finalize {
     // TODO: now that TypeChecker is wrapped in Rc should remove the checker argument here?
-    fn call(&self, checker: &TypeChecker, type_: &Type) -> io::Result<Id<Type>>;
+    fn call(&self, checker: &TypeChecker, type_: Id<Type>) -> io::Result<Id<Type>>;
 }
 
 #[derive(Clone, Finalize, Trace)]
