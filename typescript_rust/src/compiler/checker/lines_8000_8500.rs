@@ -698,7 +698,7 @@ impl TypeChecker {
 
     pub(super) fn get_type_of_property_of_type_(
         &self,
-        type_: &Type,
+        type_: Id<Type>,
         name: &str, /*__String*/
     ) -> io::Result<Option<Id<Type>>> {
         let prop = return_ok_none_if_none!(self.get_property_of_type_(type_, name, None)?);
@@ -720,7 +720,7 @@ impl TypeChecker {
             .unwrap_or_else(|| self.unknown_type()))
     }
 
-    pub(super) fn is_type_any(&self, type_: Option<impl Borrow<Type>>) -> bool {
+    pub(super) fn is_type_any(&self, type_: Option<Id<Type>>) -> bool {
         match type_ {
             Some(type_) => {
                 let type_ = type_.borrow();
@@ -730,7 +730,7 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn is_error_type(&self, type_: &Type) -> bool {
+    pub(super) fn is_error_type(&self, type_: Id<Type>) -> bool {
         ptr::eq(type_, &*self.error_type())
             || type_.flags().intersects(TypeFlags::Any) && type_.maybe_alias_symbol().is_some()
     }

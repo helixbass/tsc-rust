@@ -295,7 +295,7 @@ impl TypeChecker {
     pub(super) fn create_signature_for_jsx_intrinsic(
         &self,
         node: &Node, /*JsxOpeningLikeElement*/
-        result: &Type,
+        result: Id<Type>,
     ) -> io::Result<Gc<Signature>> {
         let namespace = self.get_jsx_namespace_at(Some(node))?;
         let exports = namespace

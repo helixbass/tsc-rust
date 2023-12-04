@@ -21,7 +21,7 @@ use crate::{
 };
 
 impl TypeChecker {
-    pub(super) fn get_apparent_type(&self, type_: &Type) -> io::Result<Id<Type>> {
+    pub(super) fn get_apparent_type(&self, type_: Id<Type>) -> io::Result<Id<Type>> {
         let t = if type_.flags().intersects(TypeFlags::Instantiable) {
             self.get_base_constraint_of_type(type_)?
                 .unwrap_or_else(|| self.unknown_type())
@@ -554,7 +554,7 @@ impl TypeChecker {
 
     pub(super) fn get_property_of_type_(
         &self,
-        type_: &Type,
+        type_: Id<Type>,
         name: &str, /*__String*/
         skip_object_function_property_augment: Option<bool>,
     ) -> io::Result<Option<Gc<Symbol>>> {
@@ -640,7 +640,7 @@ impl TypeChecker {
     pub(super) fn find_applicable_index_info(
         &self,
         index_infos: &[Gc<IndexInfo>],
-        key_type: &Type,
+        key_type: Id<Type>,
     ) -> io::Result<Option<Gc<IndexInfo>>> {
         let mut string_index_info: Option<Gc<IndexInfo>> = None;
         let mut applicable_info: Option<Gc<IndexInfo>> = None;
@@ -704,7 +704,7 @@ impl TypeChecker {
 
     pub(super) fn get_index_infos_of_structured_type(
         &self,
-        type_: &Type,
+        type_: Id<Type>,
     ) -> io::Result<Vec<Gc<IndexInfo>>> {
         if type_.flags().intersects(TypeFlags::StructuredType) {
             let resolved = self.resolve_structured_type_members(type_)?;

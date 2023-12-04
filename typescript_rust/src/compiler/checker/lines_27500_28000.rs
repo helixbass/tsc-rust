@@ -171,7 +171,7 @@ impl TypeChecker {
 
     pub(super) fn get_intrinsic_attributes_type_from_string_literal_type(
         &self,
-        type_: &Type, /*StringLiteralType*/
+        type_: Id<Type>, /*StringLiteralType*/
         location: &Node,
     ) -> io::Result<Option<Id<Type>>> {
         let intrinsic_elements_type =

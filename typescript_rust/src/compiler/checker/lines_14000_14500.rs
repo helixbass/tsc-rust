@@ -720,7 +720,7 @@ impl TypeChecker {
         union_reduction: Option<UnionReduction>,
         alias_symbol: Option<impl Borrow<Symbol>>,
         alias_type_arguments: Option<&[Id<Type>]>,
-        origin: Option<impl Borrow<Type>>,
+        origin: Option<Id<Type>>,
     ) -> io::Result<Id<Type>>
     where
         TTypesItem: Borrow<Id<Type>>,

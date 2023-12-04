@@ -21,7 +21,7 @@ impl TypeChecker {
     pub(super) fn get_type_of_first_parameter_of_signature_with_fallback(
         &self,
         signature: &Signature,
-        fallback_type: &Type,
+        fallback_type: Id<Type>,
     ) -> io::Result<Id<Type>> {
         Ok(if !signature.parameters().is_empty() {
             self.get_type_at_position(signature, 0)?

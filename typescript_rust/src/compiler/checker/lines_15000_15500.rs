@@ -1250,8 +1250,8 @@ impl TypeChecker {
 
     pub(super) fn get_indexed_access_type(
         &self,
-        object_type: &Type,
-        index_type: &Type,
+        object_type: Id<Type>,
+        index_type: Id<Type>,
         access_flags: Option<AccessFlags>,
         access_node: Option<
             impl Borrow<Node>, /*ElementAccessExpression | IndexedAccessTypeNode | PropertyName | BindingName | SyntheticExpression*/

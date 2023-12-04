@@ -26,7 +26,7 @@ impl TypeChecker {
         &self,
         context: &Node, /*JsxOpeningLikeElement*/
         ns: Option<impl Borrow<Symbol>>,
-        attributes_type: &Type,
+        attributes_type: Id<Type>,
     ) -> io::Result<Id<Type>> {
         let managed_sym = self.get_jsx_library_managed_attributes(ns)?;
         if let Some(managed_sym) = managed_sym.as_ref() {

@@ -625,7 +625,7 @@ impl TypeChecker {
         Ok(type_)
     }
 
-    pub(super) fn is_tuple_type(&self, type_: &Type) -> bool {
+    pub(super) fn is_tuple_type(&self, type_: Id<Type>) -> bool {
         get_object_flags(type_).intersects(ObjectFlags::Reference)
             && type_
                 .as_type_reference_interface()
@@ -658,7 +658,7 @@ impl TypeChecker {
 
     pub(super) fn get_rest_type_of_tuple_type(
         &self,
-        type_: &Type, /*TupleTypeReference*/
+        type_: Id<Type>, /*TupleTypeReference*/
     ) -> io::Result<Option<Id<Type>>> {
         self.get_element_type_of_slice_of_tuple_type(
             type_,

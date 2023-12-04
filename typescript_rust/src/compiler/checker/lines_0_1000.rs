@@ -892,42 +892,42 @@ pub fn create_type_checker(
     );
 
     type_checker.any_type = Some(
-        type_checker.arena().create_type(
+        type_checker.create_type(
             type_checker
                 .create_intrinsic_type(TypeFlags::Any, "any", None)
                 .into(),
         ),
     );
     type_checker.auto_type = Some(
-        type_checker.arena().create_type(
+        type_checker.create_type(
             type_checker
                 .create_intrinsic_type(TypeFlags::Any, "any", None)
                 .into(),
         ),
     );
     type_checker.wildcard_type = Some(
-        type_checker.arena().create_type(
+        type_checker.create_type(
             type_checker
                 .create_intrinsic_type(TypeFlags::Any, "any", None)
                 .into(),
         ),
     );
     type_checker.error_type = Some(
-        type_checker.arena().create_type(
+        type_checker.create_type(
             type_checker
                 .create_intrinsic_type(TypeFlags::Any, "error", None)
                 .into(),
         ),
     );
     type_checker.unresolved_type = Some(
-        type_checker.arena().create_type(
+        type_checker.create_type(
             type_checker
                 .create_intrinsic_type(TypeFlags::Any, "unresolved", None)
                 .into(),
         ),
     );
     type_checker.non_inferrable_any_type = Some(
-        type_checker.arena().create_type(
+        type_checker.create_type(
             type_checker
                 .create_intrinsic_type(
                     TypeFlags::Any,
@@ -938,28 +938,28 @@ pub fn create_type_checker(
         ),
     );
     type_checker.intrinsic_marker_type = Some(
-        type_checker.arena().create_type(
+        type_checker.create_type(
             type_checker
                 .create_intrinsic_type(TypeFlags::Any, "intrinsic", None)
                 .into(),
         ),
     );
     type_checker.unknown_type = Some(
-        type_checker.arena().create_type(
+        type_checker.create_type(
             type_checker
                 .create_intrinsic_type(TypeFlags::Unknown, "unknown", None)
                 .into(),
         ),
     );
     type_checker.non_null_unknown_type = Some(
-        type_checker.arena().create_type(
+        type_checker.create_type(
             type_checker
                 .create_intrinsic_type(TypeFlags::Unknown, "unknown", None)
                 .into(),
         ),
     );
     type_checker.undefined_type = Some(
-        type_checker.arena().create_type(
+        type_checker.create_type(
             type_checker
                 .create_intrinsic_type(TypeFlags::Undefined, "undefined", None)
                 .into(),
@@ -968,7 +968,7 @@ pub fn create_type_checker(
     type_checker.undefined_widening_type = Some(if type_checker.strict_null_checks {
         type_checker.undefined_type()
     } else {
-        type_checker.arena().create_type(
+        type_checker.create_type(
             type_checker
                 .create_intrinsic_type(
                     TypeFlags::Undefined,
@@ -979,7 +979,7 @@ pub fn create_type_checker(
         )
     });
     type_checker.optional_type = Some(
-        type_checker.arena().create_type(
+        type_checker.create_type(
             type_checker
                 .create_intrinsic_type(TypeFlags::Undefined, "undefined", None)
                 .into(),
@@ -987,7 +987,7 @@ pub fn create_type_checker(
     );
     type_checker.missing_type = Some(
         if matches!(type_checker.exact_optional_property_types, Some(true)) {
-            type_checker.arena().create_type(
+            type_checker.create_type(
                 type_checker
                     .create_intrinsic_type(TypeFlags::Undefined, "undefined", None)
                     .into(),
@@ -997,7 +997,7 @@ pub fn create_type_checker(
         },
     );
     type_checker.null_type = Some(
-        type_checker.arena().create_type(
+        type_checker.create_type(
             type_checker
                 .create_intrinsic_type(TypeFlags::Null, "null", None)
                 .into(),
@@ -1006,7 +1006,7 @@ pub fn create_type_checker(
     type_checker.null_widening_type = Some(if type_checker.strict_null_checks {
         type_checker.null_type()
     } else {
-        type_checker.arena().create_type(
+        type_checker.create_type(
             type_checker
                 .create_intrinsic_type(
                     TypeFlags::Null,
@@ -1017,27 +1017,27 @@ pub fn create_type_checker(
         )
     });
     type_checker.string_type = Some(
-        type_checker.arena().create_type(
+        type_checker.create_type(
             type_checker
                 .create_intrinsic_type(TypeFlags::String, "string", None)
                 .into(),
         ),
     );
     type_checker.number_type = Some(
-        type_checker.arena().create_type(
+        type_checker.create_type(
             type_checker
                 .create_intrinsic_type(TypeFlags::Number, "number", None)
                 .into(),
         ),
     );
     type_checker.bigint_type = Some(
-        type_checker.arena().create_type(
+        type_checker.create_type(
             type_checker
                 .create_intrinsic_type(TypeFlags::BigInt, "bigint", None)
                 .into(),
         ),
     );
-    let false_type = type_checker.arena().create_type(
+    let false_type = type_checker.create_type(
         FreshableIntrinsicType::new(type_checker.create_intrinsic_type(
             TypeFlags::BooleanLiteral,
             "false",
@@ -1045,7 +1045,7 @@ pub fn create_type_checker(
         ))
         .into(),
     );
-    let regular_false_type = type_checker.arena().create_type(
+    let regular_false_type = type_checker.create_type(
         FreshableIntrinsicType::new(type_checker.create_intrinsic_type(
             TypeFlags::BooleanLiteral,
             "false",
@@ -1451,6 +1451,14 @@ pub(crate) struct DuplicateInfoForFiles {
 impl TypeChecker {
     pub fn arena(&self) -> &AllArenas {
         unimplemented!()
+    }
+
+    pub fn type_(&self, type_: Id<Type>) -> &Type {
+        self.arena().type_(type_)
+    }
+
+    pub fn create_type(&self, type_: Type) -> Id<Type> {
+        self.arena().create_type(type_)
     }
 
     pub fn rc_wrapper(&self) -> Gc<TypeChecker> {

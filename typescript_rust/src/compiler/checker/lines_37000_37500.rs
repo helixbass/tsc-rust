@@ -364,8 +364,8 @@ impl TypeChecker {
     pub(super) fn get_iterated_type_or_element_type(
         &self,
         use_: IterationUse,
-        input_type: &Type,
-        sent_type: &Type,
+        input_type: Id<Type>,
+        sent_type: Id<Type>,
         error_node: Option<impl Borrow<Node>>,
         check_assignability: bool,
     ) -> io::Result<Option<Id<Type>>> {

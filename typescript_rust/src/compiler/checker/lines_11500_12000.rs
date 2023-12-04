@@ -203,7 +203,7 @@ impl TypeChecker {
                 .intersects(MappedTypeModifiers::IncludeOptional)
     }
 
-    pub(super) fn is_generic_mapped_type(&self, type_: &Type) -> io::Result<bool> {
+    pub(super) fn is_generic_mapped_type(&self, type_: Id<Type>) -> io::Result<bool> {
         Ok(get_object_flags(type_).intersects(ObjectFlags::Mapped)
             && self.is_generic_index_type(&*self.get_constraint_type_from_mapped_type(type_)?)?)
     }

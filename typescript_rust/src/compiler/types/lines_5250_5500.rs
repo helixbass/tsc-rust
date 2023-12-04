@@ -127,7 +127,6 @@ impl StringLiteralType {
             Some(self.arena_id()),
         );
         type_checker
-            .arena()
             .type_(fresh_type)
             .as_literal_type()
             .set_fresh_type(fresh_type.clone());
@@ -187,7 +186,6 @@ impl NumberLiteralType {
             Some(self.arena_id()),
         );
         type_checker
-            .arena()
             .type_(fresh_type)
             .as_literal_type()
             .set_fresh_type(fresh_type.clone());
@@ -247,7 +245,6 @@ impl BigIntLiteralType {
             Some(self.arena_id()),
         );
         type_checker
-            .arena()
             .type_(fresh_type)
             .as_literal_type()
             .set_fresh_type(fresh_type.clone());

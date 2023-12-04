@@ -344,8 +344,8 @@ impl TypeChecker {
         &self,
         target: &Type, /*UnionType*/
         discriminators: impl IntoIterator<Item = (Box<dyn Fn() -> io::Result<Id<Type>>>, __String)>,
-        mut related: impl FnMut(&Type, &Type) -> io::Result<bool>,
-        default_value: Option<impl Borrow<Type>>,
+        mut related: impl FnMut(Id<Type>, Id<Type>) -> io::Result<bool>,
+        default_value: Option<Id<Type>>,
         skip_partial: Option<bool>,
     ) -> io::Result<Option<Id<Type>>> {
         let target_as_union_type = target.as_union_type();

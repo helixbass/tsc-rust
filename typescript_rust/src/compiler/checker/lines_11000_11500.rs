@@ -296,8 +296,8 @@ impl TypeChecker {
 
     pub(super) fn intersect_types(
         &self,
-        type1: Option<impl Borrow<Type>>,
-        type2: Option<impl Borrow<Type>>,
+        type1: Option<Id<Type>>,
+        type2: Option<Id<Type>>,
     ) -> io::Result<Option<Id<Type>>> {
         let type1 = type1.map(|type1| type1.borrow().type_wrapper());
         let type2 = type2.map(|type2| type2.borrow().type_wrapper());
@@ -1267,7 +1267,7 @@ impl TypeChecker {
 
     pub(super) fn get_constraint_type_from_mapped_type(
         &self,
-        type_: &Type, /*MappedType*/
+        type_: Id<Type>, /*MappedType*/
     ) -> io::Result<Id<Type>> {
         let type_as_mapped_type = type_.as_mapped_type();
         {
