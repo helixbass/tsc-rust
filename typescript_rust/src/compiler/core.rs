@@ -1164,6 +1164,21 @@ pub fn sort<TItem: Clone + Trace + Finalize, TComparer: Fn(&TItem, &TItem) -> Co
     })
 }
 
+pub fn range_equals<TItem: PartialEq>(
+    array1: &[TItem],
+    array2: &[TItem],
+    mut pos: usize,
+    end: usize,
+) -> bool {
+    while pos < end {
+        if array1[pos] != array2[pos] {
+            return false;
+        }
+        pos += 1;
+    }
+    true
+}
+
 pub fn range_equals_rc<TItem>(
     array1: &[Rc<TItem>],
     array2: &[Rc<TItem>],

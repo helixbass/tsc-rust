@@ -1,6 +1,7 @@
 use std::{borrow::Borrow, collections::HashMap, io, ptr};
 
 use gc::{Gc, GcCell};
+use id_arena::Id;
 use itertools::Itertools;
 
 use super::{get_node_id, MembersOrExportsResolutionKind};
@@ -230,7 +231,7 @@ impl TypeChecker {
                 };
                 let type_ = self.get_type_of_symbol(&symbol)?;
                 let default_only_type = self.get_type_with_synthetic_default_only(
-                    &type_,
+                    type_,
                     &symbol,
                     module_symbol.as_ref().unwrap(),
                     reference,
@@ -245,22 +246,22 @@ impl TypeChecker {
 
                 if matches!(get_es_module_interop(&self.compiler_options), Some(true)) {
                     let mut sigs =
-                        self.get_signatures_of_structured_type(&type_, SignatureKind::Call)?;
+                        self.get_signatures_of_structured_type(type_, SignatureKind::Call)?;
                     if
                     /* !sigs ||*/
                     sigs.is_empty() {
                         sigs = self
-                            .get_signatures_of_structured_type(&type_, SignatureKind::Construct)?;
+                            .get_signatures_of_structured_type(type_, SignatureKind::Construct)?;
                     }
                     if
                     /*sigs &&*/
                     !sigs.is_empty()
                         || self
-                            .get_property_of_type_(&type_, InternalSymbolName::Default, None)?
+                            .get_property_of_type_(type_, InternalSymbolName::Default, None)?
                             .is_some()
                     {
                         let module_type = self.get_type_with_synthetic_default_import_type(
-                            &type_,
+                            type_,
                             &symbol,
                             module_symbol.as_ref().unwrap(),
                             reference,
@@ -313,14 +314,20 @@ impl TypeChecker {
                 Some(Gc::new(GcCell::new((**symbol_exports).borrow().clone())));
         }
         let resolved_module_type = self.resolve_structured_type_members(module_type)?;
-        let resolved_module_type_as_resolved_type = resolved_module_type.as_resolved_type();
-        result_links.type_ = Some(self.create_anonymous_type(
-            Some(result.clone()),
-            resolved_module_type_as_resolved_type.members(),
-            vec![],
-            vec![],
-            resolved_module_type_as_resolved_type.index_infos().clone(),
-        )?);
+        result_links.type_ = Some(
+            self.create_anonymous_type(
+                Some(result.clone()),
+                self.type_(resolved_module_type)
+                    .as_resolved_type()
+                    .members(),
+                vec![],
+                vec![],
+                self.type_(resolved_module_type)
+                    .as_resolved_type()
+                    .index_infos()
+                    .clone(),
+            )?,
+        );
         Ok(result)
     }
 
@@ -351,7 +358,7 @@ impl TypeChecker {
             if self.should_treat_properties_of_external_module_as_exports(&type_) {
                 add_range(
                     &mut exports,
-                    Some(&*self.get_properties_of_type(&type_)?.collect_vec()),
+                    Some(&*self.get_properties_of_type(type_)?.collect_vec()),
                     None,
                     None,
                 );
@@ -377,7 +384,7 @@ impl TypeChecker {
         if !ptr::eq(&*export_equals, module_symbol) {
             let type_ = self.get_type_of_symbol(&export_equals)?;
             if self.should_treat_properties_of_external_module_as_exports(&type_) {
-                self.for_each_property_of_type(&type_, |symbol, escaped_name| {
+                self.for_each_property_of_type(type_, |symbol, escaped_name| {
                     cb(symbol, escaped_name)
                 })?;
             }
@@ -418,7 +425,7 @@ impl TypeChecker {
         let type_ = self.get_type_of_symbol(&export_equals)?;
         Ok(
             if self.should_treat_properties_of_external_module_as_exports(&type_) {
-                self.get_property_of_type_(&type_, member_name, None)?
+                self.get_property_of_type_(type_, member_name, None)?
             } else {
                 None
             },
@@ -783,8 +790,8 @@ impl TypeChecker {
                     .flags()
                     .intersects(self.get_qualified_left_meaning(meaning)))
                     && container.flags().intersects(SymbolFlags::Type)
-                    && self
-                        .get_declared_type_of_symbol(&container)?
+                    && self.type_(self
+                        .get_declared_type_of_symbol(&container)?)
                         .flags()
                         .intersects(TypeFlags::Object)
                     && meaning == SymbolFlags::Value
@@ -797,10 +804,8 @@ impl TypeChecker {
                                 |s: &Gc<Symbol>, _| -> io::Result<_> {
                                     if s.flags()
                                         .intersects(self.get_qualified_left_meaning(meaning))
-                                        && Gc::ptr_eq(
-                                            &self.get_type_of_symbol(s)?,
-                                            &self.get_declared_type_of_symbol(&container)?,
-                                        )
+                                        && self.get_type_of_symbol(s)? ==
+                                            self.get_declared_type_of_symbol(&container)?
                                     {
                                         return Ok(Some(s.clone()));
                                     }

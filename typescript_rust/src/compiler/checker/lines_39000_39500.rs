@@ -1,6 +1,7 @@
 use std::{io, ptr};
 
 use gc::Gc;
+use id_arena::Id;
 
 use super::{intrinsic_type_kinds, is_instantiated_module};
 use crate::{
@@ -44,9 +45,12 @@ impl TypeChecker {
                 if is_identifier(&prop_name) || is_private_identifier(&prop_name) {
                     let type_ =
                         self.get_type_of_symbol(&self.get_symbol_of_node(member)?.unwrap())?;
-                    if !(type_.flags().intersects(TypeFlags::AnyOrUnknown)
+                    if !(self
+                        .type_(type_)
+                        .flags()
+                        .intersects(TypeFlags::AnyOrUnknown)
                         || self
-                            .get_falsy_flags(&type_)
+                            .get_falsy_flags(type_)
                             .intersects(TypeFlags::Undefined))
                     {
                         if match constructor.as_ref() {
@@ -112,7 +116,7 @@ impl TypeChecker {
                     Option::<&Node>::None,
                 )?;
                 if !self
-                    .get_falsy_flags(&flow_type)
+                    .get_falsy_flags(flow_type)
                     .intersects(TypeFlags::Undefined)
                 {
                     return Ok(true);
@@ -147,7 +151,7 @@ impl TypeChecker {
             Option::<&Node>::None,
         )?;
         Ok(!self
-            .get_falsy_flags(&flow_type)
+            .get_falsy_flags(flow_type)
             .intersects(TypeFlags::Undefined))
     }
 
@@ -182,18 +186,17 @@ impl TypeChecker {
                 Some(first_interface_decl) if ptr::eq(node, &**first_interface_decl)
             ) {
                 let type_ = self.get_declared_type_of_symbol(&symbol)?;
-                let type_with_this = self.get_type_with_this_argument(&type_, None, None)?;
-                let type_as_interface_type = type_.as_interface_type();
+                let type_with_this = self.get_type_with_this_argument(type_, None, None)?;
                 if self.check_inherited_properties_are_identical(
-                    &type_,
+                    type_,
                     &node_as_interface_declaration.name(),
                 )? {
-                    for base_type in &self.get_base_types(&type_)? {
+                    for &base_type in &self.get_base_types(type_)? {
                         self.check_type_assignable_to(
-                            &type_with_this,
-                            &*self.get_type_with_this_argument(
+                            type_with_this,
+                            self.get_type_with_this_argument(
                                 base_type,
-                                type_as_interface_type.maybe_this_type(),
+                                self.type_(type_).as_interface_type().maybe_this_type(),
                                 None,
                             )?,
                             node_as_interface_declaration.maybe_name(),
@@ -202,7 +205,7 @@ impl TypeChecker {
                             None,
                         )?;
                     }
-                    self.check_index_constraints(&type_, &symbol, None)?;
+                    self.check_index_constraints(type_, &symbol, None)?;
                 }
             }
             self.check_object_type_for_duplicate_declarations(node);
@@ -405,13 +408,13 @@ impl TypeChecker {
             );
         } else {
             let source = self.check_expression(initializer, None, None)?;
-            if !self.is_type_assignable_to_kind(&source, TypeFlags::NumberLike, None)? {
+            if !self.is_type_assignable_to_kind(source, TypeFlags::NumberLike, None)? {
                 self.error(
                     Some(&**initializer),
                     &Diagnostics::Only_numeric_enums_can_have_computed_members_but_this_expression_has_type_0_If_you_do_not_need_exhaustiveness_checks_consider_using_an_object_literal_instead,
                     Some(vec![
                         self.type_to_string_(
-                            &source,
+                            source,
                             Option::<&Node>::None,
                             None, None,
                         )?
@@ -419,8 +422,8 @@ impl TypeChecker {
                 );
             } else {
                 self.check_type_assignable_to(
-                    &source,
-                    &*self.get_declared_type_of_symbol(
+                    source,
+                    self.get_declared_type_of_symbol(
                         &self.get_symbol_of_node(&member.parent())?.unwrap(),
                     )?,
                     Some(&**initializer),
@@ -551,8 +554,8 @@ impl TypeChecker {
                 if self.is_constant_member_access(ex) {
                     let type_ =
                         self.get_type_of_expression(&ex.as_has_expression().expression())?;
-                    if let Some(type_symbol) = type_
-                        .maybe_symbol()
+                    if let Some(type_symbol) = self.type_(type_
+                        ).maybe_symbol()
                         .as_ref()
                         .filter(|type_symbol| type_symbol.flags().intersects(SymbolFlags::Enum))
                     {

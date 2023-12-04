@@ -1,6 +1,7 @@
 use std::{borrow::Borrow, convert::TryInto, io, ptr};
 
 use gc::Gc;
+use id_arena::Id;
 use regex::{Captures, Regex};
 
 use super::{wrap_symbol_tracker_to_report_for_context, NodeBuilderContext};
@@ -510,11 +511,11 @@ impl NodeBuilder {
             return Ok(None);
         }
         let name_type = name_type.unwrap();
-        if name_type
+        if self.type_(name_type)
             .flags()
             .intersects(TypeFlags::StringOrNumberLiteral)
         {
-            let name = match name_type.as_ref() {
+            let name = match self.type_checker.type_(name_type) {
                 Type::LiteralType(LiteralType::StringLiteralType(name_type)) => {
                     name_type.value.clone()
                 }
@@ -544,9 +545,9 @@ impl NodeBuilder {
                 self.create_property_name_node_for_identifier_or_literal(name, None, None),
             ));
         }
-        if name_type.flags().intersects(TypeFlags::UniqueESSymbol) {
+        if self.type_checker.type_(name_type).flags().intersects(TypeFlags::UniqueESSymbol) {
             return Ok(Some(get_factory().create_computed_property_name(
-                self.symbol_to_expression_(&name_type.symbol(), context, Some(SymbolFlags::Value))?,
+                self.symbol_to_expression_(&self.type_checker.type_(name_type).symbol(), context, Some(SymbolFlags::Value))?,
             )));
         }
         Ok(None)
@@ -680,12 +681,9 @@ impl NodeBuilder {
                 {
                     let ref existing =
                         get_effective_type_annotation_node(decl_with_existing_annotation).unwrap();
-                    if ptr::eq(
-                        &*self.type_checker.get_type_from_type_node_(
+                    if self.type_checker.get_type_from_type_node_(
                             existing,
-                        )?,
-                        type_,
-                    ) && self.existing_type_node_is_not_reference_or_is_reference_with_compatible_type_argument_count(
+                        )? == type_ && self.existing_type_node_is_not_reference_or_is_reference_with_compatible_type_argument_count(
                         existing,
                         type_
                     ) {
@@ -758,18 +756,16 @@ impl NodeBuilder {
                     {
                         let annotated = self.type_checker.get_type_from_type_node_(annotation)?;
                         let this_instantiated =
-                            if annotated.flags().intersects(TypeFlags::TypeParameter)
-                                && annotated.as_type_parameter().is_this_type == Some(true)
+                            if self.type_checker.type_(annotated).flags().intersects(TypeFlags::TypeParameter)
+                                && self.type_checker.type_(annotated).as_type_parameter().is_this_type == Some(true)
                             {
                                 self.type_checker
-                                    .instantiate_type(&annotated, signature.mapper.clone())?
+                                    .instantiate_type(annotated, signature.mapper.clone())?
                             } else {
                                 annotated
                             };
-                        if ptr::eq(
-                            &*this_instantiated,
-                            type_
-                        ) && self.existing_type_node_is_not_reference_or_is_reference_with_compatible_type_argument_count(
+                        if this_instantiated == type_
+                         && self.existing_type_node_is_not_reference_or_is_reference_with_compatible_type_argument_count(
                             annotation,
                             type_
                         ) {
@@ -849,7 +845,7 @@ impl NodeBuilder {
             if is_identifier(node) {
                 let name = if sym.flags().intersects(SymbolFlags::TypeParameter) {
                     self.type_parameter_to_name(
-                        &*self.type_checker.get_declared_type_of_symbol(sym)?,
+                        self.type_checker.get_declared_type_of_symbol(sym)?,
                         context,
                     )?
                 } else {
@@ -1032,22 +1028,21 @@ impl NodeBuilder {
                                 t_as_jsdoc_property_like_tag.name.as_qualified_name().right.clone()
                             };
                             let type_via_parent = self.type_checker.get_type_of_property_of_type_(
-                                &*self.type_checker.get_type_from_type_node_(
+                                self.type_checker.get_type_from_type_node_(
                                     node
                                 )?,
                                 &name.as_identifier().escaped_text
                             )?;
-                            let override_type_node = type_via_parent.as_ref().try_filter(|type_via_parent| -> io::Result<_> {
+                            let override_type_node = type_via_parent.try_filter(|&type_via_parent| -> io::Result<_> {
                                 Ok(matches!(
                                     t_as_jsdoc_property_like_tag.type_expression.as_ref(),
-                                    Some(t_type_expression) if !Gc::ptr_eq(
-                                        &self.type_checker.get_type_from_type_node_(&t_type_expression.as_jsdoc_type_expression().type_)?,
-                                        *type_via_parent
-                                    )
+                                    Some(t_type_expression) if self.type_checker.get_type_from_type_node_(
+                                        &t_type_expression.as_jsdoc_type_expression().type_
+                                    )? != type_via_parent
                                 ))
                             })?.try_and_then(|type_via_parent| {
                                 self.type_to_type_node_helper(
-                                    Some(&**type_via_parent),
+                                    Some(type_via_parent),
                                     context,
                                 )
                             })?;
@@ -1295,7 +1290,7 @@ impl NodeBuilder {
         if is_type_reference_node(node) && is_in_jsdoc(Some(node)) && (
             !self.existing_type_node_is_not_reference_or_is_reference_with_compatible_type_argument_count(
                 node,
-                &*self.type_checker.get_type_from_type_node_(node)?
+                self.type_checker.get_type_from_type_node_(node)?
             ) || self.type_checker.get_intended_type_from_jsdoc_type_reference(node)?.is_some() ||
             Gc::ptr_eq(
                 &self.type_checker.unknown_symbol(),

@@ -1,6 +1,7 @@
 use std::{borrow::Borrow, collections::HashMap, io, iter, ptr};
 
 use gc::Gc;
+use id_arena::Id;
 use itertools::Either;
 
 use super::EmitResolverCreateResolver;
@@ -191,7 +192,7 @@ impl TypeChecker {
         let declaration = declaration.as_ref().unwrap();
         let symbol = self.get_symbol_of_node(declaration)?;
         Ok(if let Some(symbol) = symbol.as_ref() {
-            Some(self.get_properties_of_type(&*self.get_type_of_symbol(symbol)?)?)
+            Some(self.get_properties_of_type(self.get_type_of_symbol(symbol)?)?)
         } else {
             None
         }
@@ -353,7 +354,7 @@ impl TypeChecker {
                 return Ok(TypeReferenceSerializationKind::Promise);
             }
 
-            let ref constructor_type = self.get_type_of_symbol(resolved_symbol)?;
+            let constructor_type = self.get_type_of_symbol(resolved_symbol)?;
             if
             /*constructorType &&*/
             self.is_constructor_type(constructor_type)? {
@@ -373,14 +374,14 @@ impl TypeChecker {
             });
         }
         let type_symbol = type_symbol.as_ref().unwrap();
-        let ref type_ = self.get_declared_type_of_symbol(type_symbol)?;
+        let type_ = self.get_declared_type_of_symbol(type_symbol)?;
         Ok(if self.is_error_type(type_) {
             if is_type_only {
                 TypeReferenceSerializationKind::ObjectType
             } else {
                 TypeReferenceSerializationKind::Unknown
             }
-        } else if type_.flags().intersects(TypeFlags::AnyOrUnknown) {
+        } else if self.type_(type_).flags().intersects(TypeFlags::AnyOrUnknown) {
             TypeReferenceSerializationKind::ObjectType
         } else if self.is_type_assignable_to_kind(
             type_,
@@ -431,20 +432,20 @@ impl TypeChecker {
                 .flags()
                 .intersects(SymbolFlags::TypeLiteral | SymbolFlags::Signature)
         }) {
-            self.get_widened_literal_type(&*self.get_type_of_symbol(symbol)?)?
+            self.get_widened_literal_type(self.get_type_of_symbol(symbol)?)?
         } else {
             self.error_type()
         };
-        if type_.flags().intersects(TypeFlags::UniqueESSymbol)
-            && are_option_gcs_equal(type_.maybe_symbol().as_ref(), symbol.as_ref())
+        if self.type_(type_).flags().intersects(TypeFlags::UniqueESSymbol)
+            && are_option_gcs_equal(self.type_(type_).maybe_symbol().as_ref(), symbol.as_ref())
         {
             flags |= NodeBuilderFlags::AllowUniqueESSymbolType;
         }
         if add_undefined == Some(true) {
-            type_ = self.get_optional_type_(&type_, None)?;
+            type_ = self.get_optional_type_(type_, None)?;
         }
         self.node_builder().type_to_type_node(
-            &type_,
+            type_,
             Some(enclosing_declaration),
             Some(flags | NodeBuilderFlags::MultilineObjectLiterals),
             Some(tracker),
@@ -468,7 +469,7 @@ impl TypeChecker {
         let signature_declaration = signature_declaration.as_ref().unwrap();
         let signature = self.get_signature_from_declaration_(signature_declaration)?;
         self.node_builder().type_to_type_node(
-            &*self.get_return_type_of_signature(signature)?,
+            self.get_return_type_of_signature(signature)?,
             Some(enclosing_declaration),
             Some(flags | NodeBuilderFlags::MultilineObjectLiterals),
             Some(tracker),
@@ -487,9 +488,9 @@ impl TypeChecker {
             return Ok(Some(get_factory().create_token(SyntaxKind::AnyKeyword)));
         }
         let expr = expr.as_ref().unwrap();
-        let ref type_ = self.get_widened_type(&*self.get_regular_type_of_expression(expr)?)?;
+        let ref type_ = self.get_widened_type(self.get_regular_type_of_expression(expr)?)?;
         self.node_builder().type_to_type_node(
-            &type_,
+            type_,
             Some(enclosing_declaration),
             Some(flags | NodeBuilderFlags::MultilineObjectLiterals),
             Some(tracker),
@@ -568,7 +569,7 @@ impl TypeChecker {
     ) -> io::Result<bool> {
         if is_declaration_readonly(node) || is_variable_declaration(node) && is_var_const(node) {
             return Ok(self.is_fresh_literal_type(
-                &*self.get_type_of_symbol(&self.get_symbol_of_node(node)?.unwrap())?,
+                self.get_type_of_symbol(&self.get_symbol_of_node(node)?.unwrap())?,
             ));
         }
         Ok(false)
@@ -588,9 +589,9 @@ impl TypeChecker {
                 None,
                 Some(tracker),
             )?
-        } else if ptr::eq(type_, &*self.true_type()) {
+        } else if ptr::eq(type_, self.true_type()) {
             Some(get_factory().create_true())
-        } else if ptr::eq(type_, &*self.false_type()) {
+        } else if ptr::eq(type_, self.false_type()) {
             Some(get_factory().create_false())
         } else {
             None
@@ -825,8 +826,10 @@ impl TypeChecker {
         self.get_symbol_links(&self.global_this_symbol())
             .borrow_mut()
             .type_ = Some(
+                self.alloc_type(
             self.create_object_type(ObjectFlags::Anonymous, Some(self.global_this_symbol()))
                 .into(),
+                )
         );
 
         *self.global_array_type.borrow_mut() = self.get_global_type("Array", 1, true)?;
@@ -852,10 +855,10 @@ impl TypeChecker {
         *self.global_number_type.borrow_mut() = self.get_global_type("Number", 0, true)?;
         *self.global_boolean_type.borrow_mut() = self.get_global_type("Boolean", 0, true)?;
         *self.global_reg_exp_type.borrow_mut() = self.get_global_type("RegExp", 0, true)?;
-        *self.any_array_type.borrow_mut() = Some(self.create_array_type(&self.any_type(), None));
+        *self.any_array_type.borrow_mut() = Some(self.create_array_type(self.any_type(), None));
 
-        *self.auto_array_type.borrow_mut() = Some(self.create_array_type(&self.auto_type(), None));
-        if Gc::ptr_eq(&self.auto_array_type(), &self.empty_object_type()) {
+        *self.auto_array_type.borrow_mut() = Some(self.create_array_type(self.auto_type(), None));
+        if self.auto_array_type() == self.empty_object_type() {
             *self.auto_array_type.borrow_mut() = Some(self.create_anonymous_type(
                 Option::<&Symbol>::None,
                 self.empty_symbols(),
@@ -870,7 +873,7 @@ impl TypeChecker {
             .or_else(|| self.global_array_type.borrow().clone());
         *self.any_readonly_array_type.borrow_mut() = Some(
             if let Some(global_readonly_array_type) =
-                self.global_readonly_array_type.borrow().as_ref()
+                self.global_readonly_array_type.borrow()
             {
                 self.create_type_from_generic_global_type(
                     global_readonly_array_type,

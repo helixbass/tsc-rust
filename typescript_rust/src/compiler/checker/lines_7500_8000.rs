@@ -1,6 +1,7 @@
 use std::{borrow::Borrow, io};
 
 use gc::{Finalize, Gc, Trace};
+use id_arena::Id;
 use regex::Regex;
 
 use super::{
@@ -21,7 +22,7 @@ use crate::{
     ModifierFlags, Node, NodeArray, NodeArrayOrVec, NodeBuilder, NodeBuilderFlags, NodeFlags,
     NodeInterface, NodeWrappered, ObjectFlags, OptionTry, SignatureKind, StrOrRcNode, Symbol,
     SymbolFlags, SymbolInterface, SymbolWrappered, SyntaxKind, Ternary, Type, TypeChecker,
-    TypeInterface, TypeWrappered,
+    TypeInterface,
 };
 
 impl SymbolTableToDeclarationStatements {
@@ -160,9 +161,9 @@ impl SymbolTableToDeclarationStatements {
                 true
             } else {
                 let var_name = self.get_unused_name(name, Some(symbol));
-                let ref type_to_serialize =
+                let type_to_serialize =
                     self.type_checker
-                        .get_widened_type(&*self.type_checker.get_type_of_symbol(
+                        .get_widened_type(self.type_checker.get_type_of_symbol(
                             &self.type_checker.get_merged_symbol(Some(symbol)).unwrap(),
                         )?)?;
                 if self
@@ -429,11 +430,11 @@ impl SymbolTableToDeclarationStatements {
             if let Some(base_type) = base_type.as_ref() {
                 let base_info = self
                     .type_checker
-                    .get_index_info_of_type_(base_type, &info.key_type)?;
+                    .get_index_info_of_type_(base_type, info.key_type)?;
                 if let Some(base_info) = base_info.as_ref() {
                     if self
                         .type_checker
-                        .is_type_identical_to(&info.type_, &base_info.type_)?
+                        .is_type_identical_to(info.type_, base_info.type_)?
                     {
                         continue;
                     }
@@ -505,10 +506,10 @@ impl SymbolTableToDeclarationStatements {
                 self.type_checker
                     .get_type_arguments(t)?
                     .iter()
-                    .map(|t| -> io::Result<_> {
+                    .map(|&t| -> io::Result<_> {
                         Ok(self
                             .node_builder
-                            .type_to_type_node_helper(Some(&**t), &self.context())?
+                            .type_to_type_node_helper(Some(t), &self.context())?
                             .unwrap())
                     })
                     .collect::<Result<Vec<_>, _>>()?,
@@ -721,8 +722,8 @@ impl MakeSerializePropertySymbol {
                     p.flags() & SymbolFlags::Optional ==
                         self.type_checker.get_property_of_type_(base_type, p.escaped_name(), None)?.unwrap().flags() & SymbolFlags::Optional &&
                     self.type_checker.is_type_identical_to(
-                        &*self.type_checker.get_type_of_symbol(p)?,
-                        &*self.type_checker.get_type_of_property_of_type_(
+                        self.type_checker.get_type_of_symbol(p)?,
+                        self.type_checker.get_type_of_property_of_type_(
                             base_type,
                             p.escaped_name()
                         )?.unwrap()
@@ -773,7 +774,7 @@ impl MakeSerializePropertySymbol {
                                 Some(
                                     self.node_builder.serialize_type_for_declaration(
                                         &self.context,
-                                        &*self.type_checker.get_type_of_symbol(p)?,
+                                        self.type_checker.get_type_of_symbol(p)?,
                                         p,
                                         Some(
                                             &*self
@@ -818,7 +819,7 @@ impl MakeSerializePropertySymbol {
                             Some(
                                 self.node_builder.serialize_type_for_declaration(
                                     &self.context,
-                                    &*self.type_checker.get_type_of_symbol(p)?,
+                                    self.type_checker.get_type_of_symbol(p)?,
                                     p,
                                     Some(
                                         &*self
@@ -874,7 +875,7 @@ impl MakeSerializePropertySymbol {
                         Some(
                             self.node_builder.serialize_type_for_declaration(
                                 &self.context,
-                                &*self.type_checker.get_type_of_symbol(p)?,
+                                self.type_checker.get_type_of_symbol(p)?,
                                 p,
                                 Some(
                                     &*self
@@ -911,7 +912,7 @@ impl MakeSerializePropertySymbol {
         if p.flags()
             .intersects(SymbolFlags::Method | SymbolFlags::Function)
         {
-            let ref type_ = self.type_checker.get_type_of_symbol(p)?;
+            let type_ = self.type_checker.get_type_of_symbol(p)?;
             let signatures = self
                 .type_checker
                 .get_signatures_of_type(type_, SignatureKind::Call)?;

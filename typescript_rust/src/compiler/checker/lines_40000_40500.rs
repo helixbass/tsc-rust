@@ -1,6 +1,7 @@
 use std::{borrow::Borrow, io};
 
 use gc::Gc;
+use id_arena::Id;
 use indexmap::IndexMap;
 
 use super::UnusedKind;
@@ -403,7 +404,7 @@ impl TypeChecker {
         &self,
         node: &Node, /*JSDocVariadicType*/
     ) -> io::Result<Id<Type>> {
-        let ref type_ =
+        let type_ =
             self.get_type_from_type_node_(node.as_base_jsdoc_unary_type().type_.as_ref().unwrap())?;
         let ref parent = node.parent();
         let ref param_tag = node.parent().parent();

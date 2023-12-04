@@ -311,7 +311,7 @@ impl TypeChecker {
                         )?)
                         .intersects(TypeFlags::Undefined)
                 {
-                    source_type = self.get_type_with_facts(&source_type, TypeFacts::NEUndefined)?;
+                    source_type = self.get_type_with_facts(source_type, TypeFacts::NEUndefined)?;
                 }
                 self.check_binary_like_expression(
                     &prop.name(),
@@ -333,12 +333,12 @@ impl TypeChecker {
             target = target.as_binary_expression().left.clone();
         }
         if target.kind() == SyntaxKind::ObjectLiteralExpression {
-            return self.check_object_literal_assignment(&target, &source_type, right_is_this);
+            return self.check_object_literal_assignment(&target, source_type, right_is_this);
         }
         if target.kind() == SyntaxKind::ArrayLiteralExpression {
-            return self.check_array_literal_assignment(&target, &source_type, check_mode);
+            return self.check_array_literal_assignment(&target, source_type, check_mode);
         }
-        self.check_reference_assignment(&target, &source_type, check_mode)
+        self.check_reference_assignment(&target, source_type, check_mode)
     }
 
     pub(super) fn check_reference_assignment(
@@ -829,7 +829,7 @@ impl TypeChecker {
                 {
                     self.get_union_type(
                         &[
-                            self.extract_definitely_falsy_types(&*if self.strict_null_checks {
+                            self.extract_definitely_falsy_types(if self.strict_null_checks {
                                 left_type
                             } else {
                                 self.get_base_type_of_literal_type(right_type)?

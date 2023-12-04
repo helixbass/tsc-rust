@@ -252,7 +252,7 @@ impl TypeChecker {
             }
         }
         let (left_str, right_str) =
-            self.get_type_names_for_error_display(&effective_left, &effective_right)?;
+            self.get_type_names_for_error_display(effective_left, effective_right)?;
         if self
             .try_give_better_primary_error(
                 operator_token,
@@ -572,7 +572,7 @@ impl TypeChecker {
                 .flags()
                 .intersects(TypeFlags::InstantiableNonPrimitive)
                 && self.maybe_type_of_kind(
-                    &self
+                    self
                         .get_base_constraint_of_type(type_)?
                         .unwrap_or_else(|| self.unknown_type()),
                     TypeFlags::StringLike,

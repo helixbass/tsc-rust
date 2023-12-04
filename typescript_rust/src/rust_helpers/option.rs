@@ -1,10 +1,9 @@
 use std::{borrow::Borrow, iter};
 
 use gc::Gc;
-use id_arena::Id;
 use itertools::Either;
 
-use crate::{Node, NodeArray, NodeInterface, Symbol, SymbolInterface, Type, TypeInterface};
+use crate::{Node, NodeArray, NodeInterface, Symbol, SymbolInterface, TypeInterface};
 
 pub trait NonEmpty {
     type Optional;
@@ -170,16 +169,6 @@ pub trait SymbolWrappered {
 impl<TValue: Borrow<Symbol>> SymbolWrappered for Option<TValue> {
     fn symbol_wrappered(self) -> Option<Gc<Symbol>> {
         self.map(|symbol| symbol.borrow().symbol_wrapper())
-    }
-}
-
-pub trait TypeWrappered {
-    fn type_wrappered(self) -> Option<Id<Type>>;
-}
-
-impl<TValue: Borrow<Type>> TypeWrappered for Option<TValue> {
-    fn type_wrappered(self) -> Option<Id<Type>> {
-        self.map(|type_| type_.borrow().type_wrapper())
     }
 }
 
