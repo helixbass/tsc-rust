@@ -135,7 +135,7 @@ impl TypeChecker {
                 return Ok(type_);
             }
         }
-        let type_: Gc<Type> = self
+        let type_: Id<Type> = self
             .create_object_type(ObjectFlags::Anonymous, Some(symbol))
             .into();
         Ok(if symbol.flags().intersects(SymbolFlags::Class) {
@@ -213,7 +213,7 @@ impl TypeChecker {
         Ok(ret)
     }
 
-    pub(super) fn get_type_of_instantiated_symbol(&self, symbol: &Symbol) -> io::Result<Gc<Type>> {
+    pub(super) fn get_type_of_instantiated_symbol(&self, symbol: &Symbol) -> io::Result<Id<Type>> {
         let links = self.get_symbol_links(symbol);
         if (*links).borrow().type_.is_none() {
             if !self.push_type_resolution(
@@ -242,7 +242,7 @@ impl TypeChecker {
         Ok(ret)
     }
 
-    pub(super) fn report_circularity_error(&self, symbol: &Symbol) -> io::Result<Gc<Type>> {
+    pub(super) fn report_circularity_error(&self, symbol: &Symbol) -> io::Result<Id<Type>> {
         let declaration = symbol.maybe_value_declaration().unwrap();
         if get_effective_type_annotation_node(&declaration).is_some() {
             self.error(
@@ -279,7 +279,7 @@ impl TypeChecker {
     pub(super) fn get_type_of_symbol_with_deferred_type(
         &self,
         symbol: &Symbol,
-    ) -> io::Result<Gc<Type>> {
+    ) -> io::Result<Id<Type>> {
         let links = self.get_symbol_links(symbol);
         let mut links = links.borrow_mut();
         if links.type_.is_none() {
@@ -312,7 +312,7 @@ impl TypeChecker {
         Ok(links.type_.clone().unwrap())
     }
 
-    pub(super) fn get_set_accessor_type_of_symbol(&self, symbol: &Symbol) -> io::Result<Gc<Type>> {
+    pub(super) fn get_set_accessor_type_of_symbol(&self, symbol: &Symbol) -> io::Result<Id<Type>> {
         if symbol.flags().intersects(SymbolFlags::Accessor) {
             let type_ = self.get_type_of_set_accessor(symbol)?;
             if let Some(type_) = type_ {
@@ -322,7 +322,7 @@ impl TypeChecker {
         self.get_type_of_symbol(symbol)
     }
 
-    pub(super) fn get_type_of_symbol(&self, symbol: &Symbol) -> io::Result<Gc<Type>> {
+    pub(super) fn get_type_of_symbol(&self, symbol: &Symbol) -> io::Result<Id<Type>> {
         let check_flags = get_check_flags(symbol);
         if check_flags.intersects(CheckFlags::DeferredType) {
             return self.get_type_of_symbol_with_deferred_type(symbol);
@@ -363,7 +363,7 @@ impl TypeChecker {
         Ok(self.error_type())
     }
 
-    pub(super) fn get_non_missing_type_of_symbol(&self, symbol: &Symbol) -> io::Result<Gc<Type>> {
+    pub(super) fn get_non_missing_type_of_symbol(&self, symbol: &Symbol) -> io::Result<Id<Type>> {
         Ok(self.remove_missing_type(
             &*self.get_type_of_symbol(symbol)?,
             symbol.flags().intersects(SymbolFlags::Optional),
@@ -376,7 +376,7 @@ impl TypeChecker {
             && ptr::eq(&*type_.as_type_reference_interface().target(), target)
     }
 
-    pub(super) fn get_target_type(&self, type_: &Type) -> Gc<Type> {
+    pub(super) fn get_target_type(&self, type_: &Type) -> Id<Type> {
         if get_object_flags(type_).intersects(ObjectFlags::Reference) {
             type_.as_type_reference_interface().target()
         } else {
@@ -421,9 +421,9 @@ impl TypeChecker {
 
     pub(super) fn append_type_parameters(
         &self,
-        mut type_parameters: Option<Vec<Gc<Type>>>,
+        mut type_parameters: Option<Vec<Id<Type>>>,
         declarations: &[Gc<Node>],
-    ) -> io::Result<Option<Vec<Gc<Type>>>> {
+    ) -> io::Result<Option<Vec<Id<Type>>>> {
         for declaration in declarations {
             type_parameters = Some(maybe_append_if_unique_gc(
                 type_parameters,
@@ -439,7 +439,7 @@ impl TypeChecker {
         &self,
         node: &Node,
         include_this_types: Option<bool>,
-    ) -> io::Result<Option<Vec<Gc<Type /*TypeParameter*/>>>> {
+    ) -> io::Result<Option<Vec<Id<Type /*TypeParameter*/>>>> {
         let mut node = Some(node.node_wrapper());
         loop {
             node = node.unwrap().maybe_parent();
@@ -588,7 +588,7 @@ impl TypeChecker {
     pub(super) fn get_outer_type_parameters_of_class_or_interface(
         &self,
         symbol: &Symbol,
-    ) -> io::Result<Option<Vec<Gc<Type /*TypeParameter*/>>>> {
+    ) -> io::Result<Option<Vec<Id<Type /*TypeParameter*/>>>> {
         let declaration = if symbol.flags().intersects(SymbolFlags::Class) {
             symbol.maybe_value_declaration()
         } else {
@@ -605,7 +605,7 @@ impl TypeChecker {
     pub(super) fn get_local_type_parameters_of_class_or_interface_or_type_alias(
         &self,
         symbol: &Symbol,
-    ) -> io::Result<Option<Vec<Gc<Type /*TypeParameter*/>>>> {
+    ) -> io::Result<Option<Vec<Id<Type /*TypeParameter*/>>>> {
         let symbol_declarations = symbol.maybe_declarations();
         let symbol_declarations = return_ok_default_if_none!(symbol_declarations.as_ref());
         let mut result: Option<Vec<Id<Type /*TypeParameter*/>>> = None;
@@ -631,7 +631,7 @@ impl TypeChecker {
     pub(super) fn get_type_parameters_of_class_or_interface(
         &self,
         symbol: &Symbol,
-    ) -> io::Result<Option<Vec<Gc<Type /*TypeParameter*/>>>> {
+    ) -> io::Result<Option<Vec<Id<Type /*TypeParameter*/>>>> {
         let outer_type_parameters = self.get_outer_type_parameters_of_class_or_interface(symbol)?;
         let local_type_parameters =
             self.get_local_type_parameters_of_class_or_interface_or_type_alias(symbol)?;
@@ -741,7 +741,7 @@ impl TypeChecker {
     pub(super) fn get_base_constructor_type_of_class(
         &self,
         type_: &Type, /*InterfaceType*/
-    ) -> io::Result<Gc<Type>> {
+    ) -> io::Result<Id<Type>> {
         let type_as_not_actually_interface_type = type_.as_not_actually_interface_type();
         if type_as_not_actually_interface_type
             .maybe_resolved_base_constructor_type()
@@ -870,7 +870,7 @@ impl TypeChecker {
     pub(super) fn get_implements_types(
         &self,
         type_: &Type, /*InterfaceType*/
-    ) -> io::Result<Vec<Gc<Type /*BaseType*/>>> {
+    ) -> io::Result<Vec<Id<Type /*BaseType*/>>> {
         let mut resolved_implements_types: Vec<Id<Type /*BaseType*/>> = vec![];
         if let Some(type_symbol_declarations) = type_.symbol().maybe_declarations().as_deref() {
             for declaration in type_symbol_declarations {
@@ -908,7 +908,7 @@ impl TypeChecker {
     pub(super) fn get_base_types(
         &self,
         type_: &Type, /*InterfaceType*/
-    ) -> io::Result<Vec<Gc<Type /*BaseType*/>>> {
+    ) -> io::Result<Vec<Id<Type /*BaseType*/>>> {
         let type_as_not_actually_interface_type = type_.as_not_actually_interface_type();
         if !matches!(
             type_as_not_actually_interface_type.maybe_base_types_resolved(),
@@ -967,7 +967,7 @@ impl TypeChecker {
     pub(super) fn get_tuple_base_type(
         &self,
         type_: &Type, /*TupleType*/
-    ) -> io::Result<Gc<Type>> {
+    ) -> io::Result<Id<Type>> {
         let type_as_tuple_type = type_.as_tuple_type();
         let element_types = try_maybe_map(
             type_as_tuple_type.maybe_type_parameters(),
@@ -1004,7 +1004,7 @@ impl TypeChecker {
     pub(super) fn resolve_base_types_of_class(
         &self,
         type_: &Type, /*InterfaceType*/
-    ) -> io::Result<Gc<Vec<Gc<Type /*BaseType*/>>>> {
+    ) -> io::Result<Gc<Vec<Id<Type /*BaseType*/>>>> {
         let type_as_not_actually_interface_type = type_.as_not_actually_interface_type();
         *type_as_not_actually_interface_type.maybe_resolved_base_types() =
             Some(resolving_empty_array());

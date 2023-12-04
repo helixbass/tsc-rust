@@ -46,7 +46,7 @@ use crate::{
 };
 
 thread_local! {
-    static resolving_empty_array_: Gc<Vec<Gc<Type>>> = Gc::new(vec![]);
+    static resolving_empty_array_: Gc<Vec<Id<Type>>> = Gc::new(vec![]);
 }
 pub fn resolving_empty_array() -> Gc<Vec<Id<Type>>> {
     resolving_empty_array_.with(|resolving_empty_array| resolving_empty_array.clone())

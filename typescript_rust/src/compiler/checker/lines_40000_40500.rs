@@ -402,7 +402,7 @@ impl TypeChecker {
     pub(super) fn get_type_from_jsdoc_variadic_type(
         &self,
         node: &Node, /*JSDocVariadicType*/
-    ) -> io::Result<Gc<Type>> {
+    ) -> io::Result<Id<Type>> {
         let ref type_ =
             self.get_type_from_type_node_(node.as_base_jsdoc_unary_type().type_.as_ref().unwrap())?;
         let ref parent = node.parent();

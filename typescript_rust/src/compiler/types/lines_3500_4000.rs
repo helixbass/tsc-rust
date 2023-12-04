@@ -24,7 +24,7 @@ use crate::{
     ProjectReference, RawSourceMap, ReadFileCallback, RedirectTargetsMap, ResolvedProjectReference,
     SourceOfProjectReferenceRedirect, StructureIsReused, SymlinkCache, Type,
     TypeCheckerHostDebuggable, TypeFlags, TypeInterface, TypeReferenceDirectiveResolutionCache,
-    __String, get_line_and_character_of_position, LineAndCharacter, ProgramBuildInfo,
+    __String, get_line_and_character_of_position, AllArenas, LineAndCharacter, ProgramBuildInfo,
 };
 
 #[derive(Clone, Debug, Trace, Finalize)]
@@ -34,9 +34,9 @@ pub enum FlowType {
 }
 
 impl FlowType {
-    pub fn flags(&self) -> TypeFlags {
+    pub fn flags(&self, arena: &AllArenas) -> TypeFlags {
         match self {
-            Self::Type(value) => value.flags(),
+            Self::Type(value) => arena.type_(*value).flags(),
             Self::IncompleteType(value) => value.flags,
         }
     }

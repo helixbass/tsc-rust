@@ -523,7 +523,7 @@ impl TypeChecker {
 
     pub(super) fn instantiate_type(
         &self,
-        type_: &Type,
+        type_: Id<Type>,
         mapper: Option<Gc<TypeMapper>>,
     ) -> io::Result<Id<Type>> {
         Ok(self.maybe_instantiate_type(Some(type_), mapper)?.unwrap())
@@ -1038,7 +1038,7 @@ impl TypeChecker {
         self.is_type_related_to(source, target, self.subtype_relation.clone())
     }
 
-    pub(super) fn is_type_assignable_to(&self, source: &Type, target: &Type) -> io::Result<bool> {
+    pub(super) fn is_type_assignable_to(&self, source: Id<Type>, target: Id<Type>) -> io::Result<bool> {
         self.is_type_related_to(source, target, self.assignable_relation.clone())
     }
 

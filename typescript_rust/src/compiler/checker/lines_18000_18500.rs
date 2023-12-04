@@ -1610,7 +1610,7 @@ impl CheckTypeRelatedTo {
 #[derive(Clone)]
 pub(super) struct ErrorCalculationState {
     pub error_info: Option<Rc<DiagnosticMessageChain>>,
-    pub last_skipped_info: Option<(Gc<Type>, Gc<Type>)>,
+    pub last_skipped_info: Option<(Id<Type>, Id<Type>)>,
     pub incompatible_stack: Vec<(&'static DiagnosticMessage, Option<Vec<String>>)>,
     pub override_next_error_info: usize,
     pub related_info: Option<Vec<DiagnosticRelatedInformation>>,

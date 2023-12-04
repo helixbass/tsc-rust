@@ -2,7 +2,7 @@ use std::cell::RefCell;
 
 use id_arena::{Arena, Id};
 
-use crate::Type;
+use crate::{Type, TypeInterface};
 
 pub struct AllArenas {
     // pub nodes: RefCell<Arena<Node>>,
@@ -32,7 +32,7 @@ impl AllArenas {
 
     pub fn create_type(&self, type_: Type) -> Id<Type> {
         let id = self.types.borrow_mut().alloc(type_);
-        self.type_mut(id).set_arena_id(id);
+        self.type_(id).set_arena_id(id);
         id
     }
 }

@@ -638,7 +638,10 @@ impl TypeChecker {
         })
     }
 
-    pub(super) fn get_base_constraint_of_type(&self, type_: &Type) -> io::Result<Option<Id<Type>>> {
+    pub(super) fn get_base_constraint_of_type(
+        &self,
+        type_: Id<Type>,
+    ) -> io::Result<Option<Id<Type>>> {
         if type_.flags().intersects(
             TypeFlags::InstantiableNonPrimitive
                 | TypeFlags::UnionOrIntersection

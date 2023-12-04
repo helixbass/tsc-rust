@@ -412,8 +412,8 @@ impl TypeChecker {
 
     pub(super) fn try_map_type(
         &self,
-        type_: &Type,
-        mapper: &mut impl FnMut(&Type) -> io::Result<Option<Id<Type>>>,
+        type_: Id<Type>,
+        mapper: &mut impl FnMut(Id<Type>) -> io::Result<Option<Id<Type>>>,
         no_reductions: Option<bool>,
     ) -> io::Result<Option<Id<Type>>> {
         let no_reductions = no_reductions.unwrap_or(false);

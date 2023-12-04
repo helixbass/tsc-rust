@@ -1085,10 +1085,10 @@ impl InferTypes {
 
     pub(super) fn infer_from_matching_types(
         &self,
-        sources: &[Gc<Type>],
-        targets: &[Gc<Type>],
+        sources: &[Id<Type>],
+        targets: &[Id<Type>],
         mut matches: impl FnMut(&Type, &Type) -> io::Result<bool>,
-    ) -> io::Result<(Vec<Gc<Type>>, Vec<Gc<Type>>)> {
+    ) -> io::Result<(Vec<Id<Type>>, Vec<Id<Type>>)> {
         let mut matched_sources: Option<Vec<Id<Type>>> = None;
         let mut matched_targets: Option<Vec<Id<Type>>> = None;
         for t in targets {
@@ -1126,8 +1126,8 @@ impl InferTypes {
 
     pub(super) fn infer_from_type_arguments(
         &self,
-        source_types: &[Gc<Type>],
-        target_types: &[Gc<Type>],
+        source_types: &[Id<Type>],
+        target_types: &[Id<Type>],
         variances: &[VarianceFlags],
     ) -> io::Result<()> {
         let count = if source_types.len() < target_types.len() {

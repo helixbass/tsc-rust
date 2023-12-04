@@ -625,7 +625,7 @@ impl TypeChecker {
     pub(super) fn get_flow_type_from_common_js_export(
         &self,
         symbol: &Symbol,
-    ) -> io::Result<Gc<Type>> {
+    ) -> io::Result<Id<Type>> {
         let file = get_source_file_of_node(
             symbol
                 .maybe_declarations()
@@ -689,7 +689,7 @@ impl TypeChecker {
         &self,
         symbol: &Symbol,
         static_blocks: &[Gc<Node /*ClassStaticBlockDeclaration*/>],
-    ) -> io::Result<Option<Gc<Type>>> {
+    ) -> io::Result<Option<Id<Type>>> {
         let access_name: StrOrRcNode<'_> = if starts_with(symbol.escaped_name(), "__#") {
             factory.with(|factory_| {
                 factory_
@@ -740,7 +740,7 @@ impl TypeChecker {
         &self,
         symbol: &Symbol,
         constructor: &Node, /*ConstructorDeclaration*/
-    ) -> io::Result<Option<Gc<Type>>> {
+    ) -> io::Result<Option<Id<Type>>> {
         let access_name: StrOrRcNode<'_> = if starts_with(symbol.escaped_name(), "__#") {
             factory.with(|factory_| {
                 factory_
@@ -790,7 +790,7 @@ impl TypeChecker {
         &self,
         reference: &Node,
         prop: Option<impl Borrow<Symbol>>,
-    ) -> io::Result<Gc<Type>> {
+    ) -> io::Result<Id<Type>> {
         let initial_type = prop.try_and_then(|prop| -> io::Result<_> {
             let prop = prop.borrow();
             Ok(if matches!(
@@ -814,7 +814,7 @@ impl TypeChecker {
         &self,
         symbol: &Symbol,
         resolved_symbol: Option<impl Borrow<Symbol>>,
-    ) -> io::Result<Gc<Type>> {
+    ) -> io::Result<Id<Type>> {
         let container = get_assigned_expando_initializer(symbol.maybe_value_declaration());
         if let Some(container) = container {
             let tag = get_jsdoc_type_tag(&container);
@@ -983,7 +983,7 @@ impl TypeChecker {
         decl: &Node,
         symbol: Option<impl Borrow<Symbol>>,
         init: Option<impl Borrow<Node>>,
-    ) -> io::Result<Option<Gc<Type>>> {
+    ) -> io::Result<Option<Id<Type>>> {
         if !is_in_js_file(Some(decl)) {
             return Ok(None);
         }
@@ -1036,7 +1036,7 @@ impl TypeChecker {
         expression: &Node, /*Expression*/
         symbol: &Symbol,
         declaration: &Node, /*Declaration*/
-    ) -> io::Result<Option<Gc<Type>>> {
+    ) -> io::Result<Option<Id<Type>>> {
         let type_node = get_effective_type_annotation_node(&expression.parent());
         let declared_type =
             declared_type.map(|declared_type| declared_type.borrow().type_wrapper());
@@ -1086,7 +1086,7 @@ impl TypeChecker {
         resolved_symbol: Option<impl Borrow<Symbol>>,
         expression: &Node, /*BinaryExpression | CallExpression*/
         kind: AssignmentDeclarationKind,
-    ) -> io::Result<Gc<Type>> {
+    ) -> io::Result<Id<Type>> {
         let resolved_symbol =
             resolved_symbol.map(|resolved_symbol| resolved_symbol.borrow().symbol_wrapper());
         if is_call_expression(expression) {

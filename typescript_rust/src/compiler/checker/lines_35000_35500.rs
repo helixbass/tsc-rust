@@ -448,7 +448,7 @@ impl TypeChecker {
         Ok(false)
     }
 
-    pub(super) fn unwrap_awaited_type(&self, type_: &Type) -> io::Result<Gc<Type>> {
+    pub(super) fn unwrap_awaited_type(&self, type_: &Type) -> io::Result<Id<Type>> {
         Ok(if type_.flags().intersects(TypeFlags::Union) {
             self.try_map_type(
                 type_,
@@ -463,7 +463,7 @@ impl TypeChecker {
         })
     }
 
-    pub(super) fn create_awaited_type_if_needed(&self, type_: &Type) -> io::Result<Gc<Type>> {
+    pub(super) fn create_awaited_type_if_needed(&self, type_: &Type) -> io::Result<Id<Type>> {
         if self.is_type_any(Some(type_)) {
             return Ok(type_.type_wrapper());
         }
@@ -508,7 +508,7 @@ impl TypeChecker {
         error_node: Option<impl Borrow<Node>>,
         diagnostic_message: Option<&DiagnosticMessage>,
         args: Option<Vec<String>>,
-    ) -> io::Result<Option<Gc<Type>>> {
+    ) -> io::Result<Option<Id<Type>>> {
         let awaited_type =
             self.get_awaited_type_no_alias(type_, error_node, diagnostic_message, args)?;
         awaited_type
@@ -522,7 +522,7 @@ impl TypeChecker {
         error_node: Option<impl Borrow<Node>>,
         diagnostic_message: Option<&DiagnosticMessage>,
         args: Option<Vec<String>>,
-    ) -> io::Result<Option<Gc<Type>>> {
+    ) -> io::Result<Option<Id<Type>>> {
         if self.is_type_any(Some(type_)) {
             return Ok(Some(type_.type_wrapper()));
         }

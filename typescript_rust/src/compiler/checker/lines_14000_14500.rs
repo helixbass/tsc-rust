@@ -600,7 +600,7 @@ impl TypeChecker {
 
     pub(super) fn remove_redundant_literal_types(
         &self,
-        types: &mut Vec<Gc<Type>>,
+        types: &mut Vec<Id<Type>>,
         includes: TypeFlags,
         reduce_void_undefined: bool,
     ) {

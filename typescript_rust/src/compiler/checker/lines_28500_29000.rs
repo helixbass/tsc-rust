@@ -676,7 +676,7 @@ impl TypeChecker {
         &self,
         node: &Node, /*ElementAccessExpression*/
         check_mode: Option<CheckMode>,
-    ) -> io::Result<Gc<Type>> {
+    ) -> io::Result<Id<Type>> {
         Ok(if node.flags().intersects(NodeFlags::OptionalChain) {
             self.check_element_access_chain(node, check_mode)?
         } else {
@@ -693,7 +693,7 @@ impl TypeChecker {
         &self,
         node: &Node, /*ElementAccessChain*/
         check_mode: Option<CheckMode>,
-    ) -> io::Result<Gc<Type>> {
+    ) -> io::Result<Id<Type>> {
         let node_as_element_access_expression = node.as_element_access_expression();
         let expr_type =
             self.check_expression(&node_as_element_access_expression.expression, None, None)?;
@@ -720,7 +720,7 @@ impl TypeChecker {
         node: &Node, /*ElementAccessExpression*/
         expr_type: &Type,
         check_mode: Option<CheckMode>,
-    ) -> io::Result<Gc<Type>> {
+    ) -> io::Result<Id<Type>> {
         let object_type = if get_assignment_target_kind(node) != AssignmentKind::None
             || self.is_method_access_for_call(node)
         {

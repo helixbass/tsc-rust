@@ -763,7 +763,7 @@ impl TypeChecker {
         &self,
         signature: &Signature,
         pos: usize,
-    ) -> io::Result<Gc<Type>> {
+    ) -> io::Result<Id<Type>> {
         Ok(self
             .try_get_type_at_position(signature, pos)?
             .unwrap_or_else(|| self.any_type()))
@@ -773,7 +773,7 @@ impl TypeChecker {
         &self,
         signature: &Signature,
         pos: usize,
-    ) -> io::Result<Option<Gc<Type>>> {
+    ) -> io::Result<Option<Id<Type>>> {
         let param_count = signature.parameters().len()
             - if signature_has_rest_parameter(signature) {
                 1
@@ -811,7 +811,7 @@ impl TypeChecker {
         &self,
         source: &Signature,
         pos: usize,
-    ) -> io::Result<Gc<Type>> {
+    ) -> io::Result<Id<Type>> {
         let parameter_count = self.get_parameter_count(source)?;
         let min_argument_count = self.get_min_argument_count(source, None)?;
         let rest_type = self.get_effective_rest_type(source)?;
@@ -979,7 +979,7 @@ impl TypeChecker {
     pub(super) fn get_effective_rest_type(
         &self,
         signature: &Signature,
-    ) -> io::Result<Option<Gc<Type>>> {
+    ) -> io::Result<Option<Id<Type>>> {
         if signature_has_rest_parameter(signature) {
             let rest_type =
                 self.get_type_of_symbol(&signature.parameters()[signature.parameters().len() - 1])?;
@@ -1002,7 +1002,7 @@ impl TypeChecker {
     pub(super) fn get_non_array_rest_type(
         &self,
         signature: &Signature,
-    ) -> io::Result<Option<Gc<Type>>> {
+    ) -> io::Result<Option<Id<Type>>> {
         let rest_type = self.get_effective_rest_type(signature)?;
         rest_type.try_filter(|rest_type| -> io::Result<_> {
             Ok(!self.is_array_type(rest_type)
@@ -1017,7 +1017,7 @@ impl TypeChecker {
     pub(super) fn get_type_of_first_parameter_of_signature(
         &self,
         signature: &Signature,
-    ) -> io::Result<Gc<Type>> {
+    ) -> io::Result<Id<Type>> {
         self.get_type_of_first_parameter_of_signature_with_fallback(signature, &self.never_type())
     }
 }

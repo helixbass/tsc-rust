@@ -44,7 +44,7 @@ impl TypeChecker {
                         if let Some(overall_annotation) = overall_annotation.as_ref() {
                             Some(
                                 self.instantiate_type(
-                                    &*self.get_type_from_type_node_(overall_annotation)?,
+                                    self.get_type_from_type_node_(overall_annotation)?,
                                     (*self.get_symbol_links(lhs_symbol.as_ref().unwrap()))
                                         .borrow()
                                         .mapper
@@ -117,7 +117,7 @@ impl TypeChecker {
                                 let name_str = get_element_or_property_access_name(lhs);
                                 if let Some(name_str) = name_str.as_ref() {
                                     return self.get_type_of_property_of_contextual_type(
-                                        &*self.get_type_from_type_node_(annotated)?,
+                                        self.get_type_from_type_node_(annotated)?,
                                         name_str,
                                     );
                                 }
@@ -268,7 +268,7 @@ impl TypeChecker {
             self.check_this_expression(&this_access.as_has_expression().expression())?;
         let name_str = get_element_or_property_access_name(&this_access);
         name_str.as_ref().try_and_then(|name_str| {
-            self.get_type_of_property_of_contextual_type(&this_type, name_str)
+            self.get_type_of_property_of_contextual_type(this_type, name_str)
         })
     }
 
@@ -286,7 +286,7 @@ impl TypeChecker {
 
     pub(super) fn get_type_of_property_of_contextual_type(
         &self,
-        type_: &Type,
+        type_: Id<Type>,
         name: &str, /*__String*/
     ) -> io::Result<Option<Id<Type>>> {
         self.try_map_type(
@@ -295,13 +295,13 @@ impl TypeChecker {
                 if self.is_generic_mapped_type(t)? {
                     let constraint = self.get_constraint_type_from_mapped_type(t)?;
                     let constraint_of_constraint = self
-                        .get_base_constraint_of_type(&constraint)?
+                        .get_base_constraint_of_type(constraint)?
                         .unwrap_or(constraint);
                     let property_name_type =
                         self.get_string_literal_type(&unescape_leading_underscores(name));
-                    if self.is_type_assignable_to(&property_name_type, &constraint_of_constraint)? {
+                    if self.is_type_assignable_to(property_name_type, constraint_of_constraint)? {
                         return Ok(Some(
-                            self.substitute_indexed_mapped_type(t, &property_name_type)?,
+                            self.substitute_indexed_mapped_type(t, property_name_type)?,
                         ));
                     }
                 } else if t.flags().intersects(TypeFlags::StructuredType) {
@@ -633,7 +633,7 @@ impl TypeChecker {
         &self,
         node: &Node,            /*JsxAttributes*/
         contextual_type: &Type, /*UnionType*/
-    ) -> io::Result<Gc<Type>> {
+    ) -> io::Result<Id<Type>> {
         Ok(self.discriminate_type_by_discriminable_items(
             contextual_type,
             map(
@@ -713,7 +713,7 @@ impl TypeChecker {
         &self,
         node: &Node, /*Expression | MethodDeclaration*/
         context_flags: Option<ContextFlags>,
-    ) -> io::Result<Option<Gc<Type>>> {
+    ) -> io::Result<Option<Id<Type>>> {
         let contextual_type = if is_object_literal_method(node) {
             self.get_contextual_type_for_object_literal_method(node, context_flags)?
         } else {
@@ -767,7 +767,7 @@ impl TypeChecker {
         contextual_type: Option<impl Borrow<Type>>,
         node: &Node,
         context_flags: Option<ContextFlags>,
-    ) -> io::Result<Option<Gc<Type>>> {
+    ) -> io::Result<Option<Id<Type>>> {
         let contextual_type =
             contextual_type.map(|contextual_type| contextual_type.borrow().type_wrapper());
         if let Some(contextual_type) = contextual_type.as_ref().filter(|contextual_type| {
@@ -809,7 +809,7 @@ impl TypeChecker {
         &self,
         type_: &Type,
         mapper: Gc<TypeMapper>,
-    ) -> io::Result<Gc<Type>> {
+    ) -> io::Result<Id<Type>> {
         if type_.flags().intersects(TypeFlags::Instantiable) {
             return self.instantiate_type(type_, Some(mapper));
         }
@@ -840,7 +840,7 @@ impl TypeChecker {
         &self,
         node: &Node, /*Expression*/
         context_flags: Option<ContextFlags>,
-    ) -> io::Result<Option<Gc<Type>>> {
+    ) -> io::Result<Option<Id<Type>>> {
         if node.flags().intersects(NodeFlags::InWithStatement) {
             return Ok(None);
         }
@@ -954,7 +954,7 @@ impl TypeChecker {
     pub(super) fn try_find_when_const_type_reference(
         &self,
         node: &Node, /*Expression*/
-    ) -> io::Result<Option<Gc<Type>>> {
+    ) -> io::Result<Option<Id<Type>>> {
         self.get_contextual_type_(node, None)
     }
 
@@ -967,7 +967,7 @@ impl TypeChecker {
         &self,
         node: &Node, /*JsxOpeningLikeElement*/
         context_flags: Option<ContextFlags>,
-    ) -> io::Result<Gc<Type>> {
+    ) -> io::Result<Id<Type>> {
         if is_jsx_opening_element(node)
             && node.parent().maybe_contextual_type().is_some()
             && context_flags != Some(ContextFlags::Completions)
@@ -981,7 +981,7 @@ impl TypeChecker {
         &self,
         signature: Gc<Signature>,
         node: &Node, /*JsxOpeningLikeElement*/
-    ) -> io::Result<Gc<Type>> {
+    ) -> io::Result<Id<Type>> {
         Ok(
             if self.get_jsx_reference_kind(node)? != JsxReferenceKind::Component {
                 self.get_jsx_props_type_from_call_signature(&signature, node)?
@@ -995,7 +995,7 @@ impl TypeChecker {
         &self,
         sig: &Signature,
         context: &Node, /*JsxOpeningLikeElement*/
-    ) -> io::Result<Gc<Type>> {
+    ) -> io::Result<Id<Type>> {
         let mut props_type =
             self.get_type_of_first_parameter_of_signature_with_fallback(sig, &self.unknown_type())?;
         props_type = self.get_jsx_managed_attributes_from_located_attributes(
@@ -1016,7 +1016,7 @@ impl TypeChecker {
         &self,
         sig: Gc<Signature>,
         forced_lookup_location: &str, /*__String*/
-    ) -> io::Result<Option<Gc<Type>>> {
+    ) -> io::Result<Option<Id<Type>>> {
         if let Some(sig_composite_signatures) = sig.composite_signatures.as_ref() {
             let mut results: Vec<Id<Type>> = vec![];
             for signature in sig_composite_signatures {
@@ -1046,7 +1046,7 @@ impl TypeChecker {
     pub(super) fn get_static_type_of_referenced_jsx_constructor(
         &self,
         context: &Node, /*JsxOpeningLikeElement*/
-    ) -> io::Result<Gc<Type>> {
+    ) -> io::Result<Id<Type>> {
         let context_as_jsx_opening_like_element = context.as_jsx_opening_like_element();
         if self.is_jsx_intrinsic_identifier(&context_as_jsx_opening_like_element.tag_name()) {
             let result =

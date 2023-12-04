@@ -1233,8 +1233,8 @@ impl TypeChecker {
 
     pub(super) fn substitute_indexed_mapped_type(
         &self,
-        object_type: &Type, /*MappedType*/
-        index: &Type,
+        object_type: Id<Type>, /*MappedType*/
+        index: Id<Type>,
     ) -> io::Result<Id<Type>> {
         let mapper = Gc::new(self.create_type_mapper(
             vec![self.get_type_parameter_from_mapped_type(object_type)?],
