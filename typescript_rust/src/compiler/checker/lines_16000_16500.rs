@@ -95,49 +95,51 @@ impl TypeChecker {
     }
 
     // pub fn create_literal_type(
-    pub fn create_string_literal_type<TSymbol: Borrow<Symbol>, TRegularType: Borrow<Type>>(
+    pub fn create_string_literal_type<TSymbol: Borrow<Symbol>>(
         &self,
         flags: TypeFlags,
         value: String,
         symbol: Option<TSymbol>,
-        regular_type: Option<TRegularType>,
+        regular_type: Option<Id<Type>>,
     ) -> Id<Type> {
         let type_ = self.create_type(flags);
         let type_ = BaseLiteralType::new(type_);
-        let type_: Id<Type> = StringLiteralType::new(type_, value).into();
-        type_.set_symbol(symbol.map(|symbol| symbol.borrow().symbol_wrapper()));
-        type_
-            .as_literal_type()
-            .set_regular_type(if let Some(regular_type) = regular_type {
-                regular_type.borrow().type_wrapper()
+        let type_ = self.alloc_type(StringLiteralType::new(type_, value).into());
+        self.type_(type_)
+            .set_symbol(symbol.map(|symbol| symbol.borrow().symbol_wrapper()));
+        self.type_(type_).as_literal_type().set_regular_type(
+            if let Some(regular_type) = regular_type {
+                regular_type
             } else {
-                type_.clone()
-            });
+                type_
+            },
+        );
         type_
     }
 
-    pub fn create_number_literal_type<TSymbol: Borrow<Symbol>, TRegularType: Borrow<Type>>(
+    pub fn create_number_literal_type<TSymbol: Borrow<Symbol>>(
         &self,
         flags: TypeFlags,
         value: Number,
         symbol: Option<TSymbol>,
-        regular_type: Option<TRegularType>,
+        regular_type: Option<Id<Type>>,
     ) -> Id<Type> {
         let type_ = self.create_type(flags);
         let type_ = BaseLiteralType::new(type_);
-        let type_: Id<Type> = NumberLiteralType::new(type_, value).into();
-        type_.set_symbol(symbol.map(|symbol| symbol.borrow().symbol_wrapper()));
-        type_
-            .as_literal_type()
-            .set_regular_type(if let Some(regular_type) = regular_type {
-                regular_type.borrow().type_wrapper()
+        let type_ = self.alloc_type(NumberLiteralType::new(type_, value).into());
+        self.type_(type_)
+            .set_symbol(symbol.map(|symbol| symbol.borrow().symbol_wrapper()));
+        self.type_(type_).as_literal_type().set_regular_type(
+            if let Some(regular_type) = regular_type {
+                regular_type
             } else {
-                type_.clone()
-            });
+                type_
+            },
+        );
         type_
     }
 
-    pub fn create_big_int_literal_type<TSymbol: Borrow<Symbol>, TRegularType: Borrow<Type>>(
+    pub fn create_big_int_literal_type<TSymbol: Borrow<Symbol>>(
         &self,
         flags: TypeFlags,
         value: PseudoBigInt,
@@ -146,21 +148,22 @@ impl TypeChecker {
     ) -> Id<Type> {
         let type_ = self.create_type(flags);
         let type_ = BaseLiteralType::new(type_);
-        let type_: Id<Type> = BigIntLiteralType::new(type_, value).into();
-        type_.set_symbol(symbol.map(|symbol| symbol.borrow().symbol_wrapper()));
-        type_
-            .as_literal_type()
+        let type_ = self.alloc_type(BigIntLiteralType::new(type_, value).into());
+        self.type_(type_)
+            .set_symbol(symbol.map(|symbol| symbol.borrow().symbol_wrapper()));
+        self.type_(type_
+            ).as_literal_type()
             .set_regular_type(if let Some(regular_type) = regular_type {
-                regular_type.borrow().type_wrapper()
+                regular_type
             } else {
-                type_.clone()
+                type_
             });
         type_
     }
 
     pub(super) fn get_fresh_type_of_literal_type(&self, type_: Id<Type>) -> Id<Type> {
-        if type_.flags().intersects(TypeFlags::Literal) {
-            return match type_ {
+        if self.type_(type_).flags().intersects(TypeFlags::Literal) {
+            return match self.type_(type_ ){
                 Type::LiteralType(type_) => type_.get_or_initialize_fresh_type(self),
                 Type::IntrinsicType(IntrinsicType::FreshableIntrinsicType(type_)) => {
                     type_.fresh_type()
@@ -168,24 +171,28 @@ impl TypeChecker {
                 _ => unreachable!(),
             };
         }
-        type_.type_wrapper()
+        type_
     }
 
     pub(super) fn get_regular_type_of_literal_type(&self, type_: Id<Type>) -> Id<Type> {
-        if type_.flags().intersects(TypeFlags::Literal) {
+        if self.type_(type_).flags().intersects(TypeFlags::Literal) {
             // TODO: this seems like it should be encapsulated behind an abstraction (also above in
             // get_fresh_type_of_literal_type())?
-            match type_ {
+            match self.type_(type_ ){
                 Type::LiteralType(type_) => type_.regular_type(),
                 Type::IntrinsicType(IntrinsicType::FreshableIntrinsicType(type_)) => {
                     type_.regular_type()
                 }
                 _ => unreachable!(),
             }
-        } else if type_.flags().intersects(TypeFlags::Union) {
-            let type_as_union_type = type_.as_union_type();
-            if type_as_union_type.maybe_regular_type().is_none() {
-                *type_as_union_type.maybe_regular_type() = Some(
+        } else if self.type_(type_).flags().intersects(TypeFlags::Union) {
+            if self
+                .type_(type_)
+                .as_union_type()
+                .maybe_regular_type()
+                .is_none()
+            {
+                *self.type_(type_).as_union_type().maybe_regular_type() = Some(
                     self.map_type(
                         type_,
                         &mut |type_| Some(self.get_regular_type_of_literal_type(type_)),
@@ -194,30 +201,32 @@ impl TypeChecker {
                     .unwrap(),
                 );
             }
-            type_as_union_type.maybe_regular_type().clone().unwrap()
+            self.type_(type_)
+                .as_union_type()
+                .maybe_regular_type()
+                .clone()
+                .unwrap()
         } else {
-            type_.type_wrapper()
+            type_
         }
     }
 
     pub(super) fn is_fresh_literal_type(&self, type_: Id<Type>) -> bool {
-        if !type_.flags().intersects(TypeFlags::Literal) {
+        if !self.type_(type_).flags().intersects(TypeFlags::Literal) {
             return false;
         }
         // TODO: should this be using eg a Type.as_has_fresh_type() "unwrapper-helper" instead?
         // (same question in is_type_related_to() and get_normalized_type() below, and in
         // remove_redundant_literal_types()) or maybe this looks like it should be a trait that
         // includes `maybe_fresh_type()` that both of these implement?
-        match type_ {
-            Type::IntrinsicType(intrinsic_type) => ptr::eq(
-                type_,
-                &*enum_unwrapped!(intrinsic_type, [IntrinsicType, FreshableIntrinsicType])
+        match self.type_(type_ ){
+            Type::IntrinsicType(intrinsic_type) => type_ ==
+                enum_unwrapped!(intrinsic_type, [IntrinsicType, FreshableIntrinsicType])
                     .fresh_type(),
-            ),
             Type::LiteralType(literal_type) => {
                 matches!(
                     literal_type.fresh_type(),
-                    Some(fresh_type) if ptr::eq(type_, &*fresh_type)
+                    Some(fresh_type) if type_ == fresh_type
                 )
             }
             _ => panic!("Expected IntrinsicType or LiteralType"),
@@ -317,7 +326,7 @@ impl TypeChecker {
         let links = self.get_node_links(node);
         if (*links).borrow().resolved_type.is_none() {
             links.borrow_mut().resolved_type = Some(self.get_regular_type_of_literal_type(
-                &*self.check_expression(&node_as_literal_type_node.literal, None, None)?,
+                self.check_expression(&node_as_literal_type_node.literal, None, None)?,
             ));
         }
         let ret = (*links).borrow().resolved_type.clone().unwrap();

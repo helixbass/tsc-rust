@@ -904,15 +904,14 @@ impl TypeChecker {
         &self,
         type_: Id<Type>, /*IntersectionType*/
     ) -> io::Result<Id<Type>> {
-        let type_as_intersection_type = type_.as_intersection_type();
-        if type_as_intersection_type
+        if self.type_(type_).as_intersection_type()
             .maybe_resolved_apparent_type()
             .is_none()
         {
             let resolved = self.get_type_with_this_argument(type_, Some(type_), Some(true))?;
             *type_as_intersection_type.maybe_resolved_apparent_type() = Some(resolved);
         }
-        Ok(type_as_intersection_type
+        Ok(self.type_(type_).as_intersection_type()
             .maybe_resolved_apparent_type()
             .clone()
             .unwrap())
@@ -922,24 +921,23 @@ impl TypeChecker {
         &self,
         type_parameter: Id<Type>, /*TypeParameter*/
     ) -> io::Result<Option<Id<Type>>> {
-        let type_parameter_as_type_parameter = type_parameter.as_type_parameter();
-        if type_parameter_as_type_parameter.maybe_default().is_none() {
-            if let Some(type_parameter_target) = type_parameter_as_type_parameter.target.as_ref() {
+        if self.type_(type_parameter).as_type_parameter().maybe_default().is_none() {
+            if let Some(type_parameter_target) = self.type_(type_parameter).as_type_parameter().target {
                 let target_default =
                     self.get_resolved_type_parameter_default(type_parameter_target)?;
-                *type_parameter_as_type_parameter.maybe_default() =
+                *self.type_(type_parameter).as_type_parameter().maybe_default() =
                     Some(if let Some(target_default) = target_default {
                         self.instantiate_type(
-                            &target_default,
-                            type_parameter_as_type_parameter.maybe_mapper(),
+                            target_default,
+                            self.type_(type_parameter).as_type_parameter().maybe_mapper(),
                         )?
                     } else {
                         self.no_constraint_type()
                     });
             } else {
-                *type_parameter_as_type_parameter.maybe_default() =
+                *self.type_(type_parameter).as_type_parameter().maybe_default() =
                     Some(self.resolving_default_type());
-                let default_declaration = type_parameter.maybe_symbol().and_then(|symbol| {
+                let default_declaration = self.type_(type_parameter).maybe_symbol().and_then(|symbol| {
                     maybe_for_each(
                         symbol.maybe_declarations().as_deref(),
                         |decl: &Gc<Node>, _| {
@@ -957,23 +955,21 @@ impl TypeChecker {
                     self.no_constraint_type()
                 };
                 if matches!(
-                    type_parameter_as_type_parameter.maybe_default().as_ref(),
-                    Some(default) if Gc::ptr_eq(default, &self.resolving_default_type())
+                    *self.type_(type_parameter).as_type_parameter().maybe_default(),
+                    Some(default) if default == self.resolving_default_type()
                 ) {
-                    *type_parameter_as_type_parameter.maybe_default() = Some(default_type);
+                    *self.type_(type_parameter).as_type_parameter().maybe_default() = Some(default_type);
                 }
             }
-        } else if Gc::ptr_eq(
-            type_parameter_as_type_parameter
+        } else if self.type_(type_parameter).as_type_parameter()
                 .maybe_default()
-                .as_ref()
-                .unwrap(),
-            &self.resolving_default_type(),
-        ) {
-            *type_parameter_as_type_parameter.maybe_default() =
+                .unwrap() ==
+            self.resolving_default_type()
+        {
+            *self.type_(type_parameter).as_type_parameter().maybe_default() =
                 Some(self.circular_constraint_type());
         }
-        Ok(type_parameter_as_type_parameter.maybe_default().clone())
+        Ok(self.type_(type_parameter).as_type_parameter().maybe_default().clone())
     }
 
     pub(super) fn get_default_from_type_parameter_(
@@ -981,9 +977,9 @@ impl TypeChecker {
         type_parameter: Id<Type>, /*TypeParameter*/
     ) -> io::Result<Option<Id<Type>>> {
         let default_type = self.get_resolved_type_parameter_default(type_parameter)?;
-        Ok(default_type.filter(|default_type| {
-            !Gc::ptr_eq(&default_type, &self.no_constraint_type())
-                && !Gc::ptr_eq(&default_type, &self.circular_constraint_type())
+        Ok(default_type.filter(|&default_type| {
+            default_type != self.no_constraint_type()
+                && default_type != self.circular_constraint_type()
         }))
     }
 
@@ -993,7 +989,7 @@ impl TypeChecker {
     ) -> io::Result<bool> {
         Ok(!matches!(
             self.get_resolved_type_parameter_default(type_parameter)?,
-            Some(resolved) if Gc::ptr_eq(&resolved, &self.circular_constraint_type())
+            Some(resolved) if resolved == self.circular_constraint_type()
         ))
     }
 
@@ -1002,7 +998,7 @@ impl TypeChecker {
         type_parameter: Id<Type>, /*TypeParameter*/
     ) -> bool {
         matches!(
-            type_parameter.maybe_symbol(),
+            self.type_(type_parameter).maybe_symbol(),
             Some(symbol) if maybe_for_each_bool(symbol.maybe_declarations().as_deref(), |decl: &Gc<Node>, _| {
                 is_type_parameter_declaration(decl) && decl.as_type_parameter_declaration().default.is_some()
             })
@@ -1013,12 +1009,11 @@ impl TypeChecker {
         &self,
         type_: Id<Type>, /*MappedType*/
     ) -> io::Result<Id<Type>> {
-        let type_as_mapped_type = type_.as_mapped_type();
-        if type_as_mapped_type.maybe_resolved_apparent_type().is_none() {
+        if self.type_(type_).as_mapped_type().maybe_resolved_apparent_type().is_none() {
             let resolved = self.get_resolved_apparent_type_of_mapped_type(type_)?;
-            *type_as_mapped_type.maybe_resolved_apparent_type() = Some(resolved);
+            *self.type_(type_).as_mapped_type().maybe_resolved_apparent_type() = Some(resolved);
         }
-        Ok(type_as_mapped_type
+        Ok(self.type_(type_).as_mapped_type()
             .maybe_resolved_apparent_type()
             .clone()
             .unwrap())
@@ -1030,28 +1025,27 @@ impl TypeChecker {
     ) -> io::Result<Id<Type>> {
         let type_variable = self.get_homomorphic_type_variable(type_)?;
         if let Some(type_variable) = type_variable {
-            let type_as_mapped_type = type_.as_mapped_type();
-            if type_as_mapped_type
+            if self.type_(type_).as_mapped_type()
                 .declaration
                 .as_mapped_type_node()
                 .name_type
                 .is_none()
             {
-                let constraint = self.get_constraint_of_type_parameter(&type_variable)?;
-                if let Some(constraint) = constraint.filter(|constraint| {
+                let constraint = self.get_constraint_of_type_parameter(type_variable)?;
+                if let Some(constraint) = constraint.filter(|&constraint| {
                     self.is_array_type(constraint) || self.is_tuple_type(constraint)
                 }) {
                     return self.instantiate_type(
                         type_,
                         Some(Gc::new(self.prepend_type_mapping(
-                            &type_variable,
-                            &constraint,
-                            type_as_mapped_type.maybe_mapper(),
+                            type_variable,
+                            constraint,
+                            self.type_(type_).as_mapped_type().maybe_mapper(),
                         ))),
                     );
                 }
             }
         }
-        Ok(type_.type_wrapper())
+        Ok(type_)
     }
 }
