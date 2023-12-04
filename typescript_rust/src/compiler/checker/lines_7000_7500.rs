@@ -530,7 +530,7 @@ impl SymbolTableToDeclarationStatements {
 
     pub(super) fn serialize_as_function_namespace_merge(
         &self,
-        type_: &Type,
+        type_: Id<Type>,
         symbol: &Symbol,
         local_name: &str,
         modifier_flags: ModifierFlags,

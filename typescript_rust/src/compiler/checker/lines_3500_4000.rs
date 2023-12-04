@@ -280,7 +280,7 @@ impl TypeChecker {
     pub(super) fn clone_type_as_module_type(
         &self,
         symbol: &Symbol,
-        module_type: &Type,
+        module_type: Id<Type>,
         reference_parent: &Node, /*ImportDeclaration | ImportCall*/
     ) -> io::Result<Gc<Symbol>> {
         let result: Gc<Symbol> = self
@@ -427,7 +427,7 @@ impl TypeChecker {
 
     pub(super) fn should_treat_properties_of_external_module_as_exports(
         &self,
-        resolved_external_module_type: &Type,
+        resolved_external_module_type: Id<Type>,
     ) -> bool {
         !(resolved_external_module_type
             .flags()

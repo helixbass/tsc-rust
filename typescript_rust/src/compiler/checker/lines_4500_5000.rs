@@ -411,7 +411,7 @@ impl TypeChecker {
 
     pub(super) fn type_to_string_(
         &self,
-        type_: &Type,
+        type_: Id<Type>,
         enclosing_declaration: Option<impl Borrow<Node>>,
         flags: Option<TypeFormatFlags>,
         writer: Option<Gc<Box<dyn EmitTextWriter>>>,
@@ -472,8 +472,8 @@ impl TypeChecker {
 
     pub(super) fn get_type_names_for_error_display(
         &self,
-        left: &Type,
-        right: &Type,
+        left: Id<Type>,
+        right: Id<Type>,
     ) -> io::Result<(String, String)> {
         let mut left_str = if let Some(symbol) = left.maybe_symbol() {
             if self.symbol_value_declaration_is_context_sensitive(Some(&symbol))? {
@@ -502,7 +502,7 @@ impl TypeChecker {
         Ok((left_str, right_str))
     }
 
-    pub(super) fn get_type_name_for_error_display(&self, type_: &Type) -> io::Result<String> {
+    pub(super) fn get_type_name_for_error_display(&self, type_: Id<Type>) -> io::Result<String> {
         self.type_to_string_(
             type_,
             Option::<&Node>::None,
@@ -530,7 +530,7 @@ impl TypeChecker {
         NodeBuilderFlags::from_bits((flags & TypeFormatFlags::NodeBuilderFlagsMask).bits()).unwrap()
     }
 
-    pub(super) fn is_class_instance_side(&self, type_: &Type) -> io::Result<bool> {
+    pub(super) fn is_class_instance_side(&self, type_: Id<Type>) -> io::Result<bool> {
         Ok(matches!(
             type_.maybe_symbol(),
             Some(type_symbol) if type_symbol.flags().intersects(SymbolFlags::Class) && (
@@ -567,7 +567,7 @@ impl NodeBuilder {
 
     pub fn type_to_type_node(
         &self,
-        type_: &Type,
+        type_: Id<Type>,
         enclosing_declaration: Option<impl Borrow<Node>>,
         flags: Option<NodeBuilderFlags>,
         tracker: Option<Gc<Box<dyn SymbolTracker>>>,
@@ -672,7 +672,7 @@ impl NodeBuilder {
 
     pub fn type_parameter_to_declaration(
         &self,
-        parameter: &Type, /*TypeParameter*/
+        parameter: Id<Type>, /*TypeParameter*/
         enclosing_declaration: Option<impl Borrow<Node>>,
         flags: Option<NodeBuilderFlags>,
         tracker: Option<Gc<Box<dyn SymbolTracker>>>,
@@ -815,7 +815,7 @@ impl NodeBuilder {
 
     pub(super) fn type_to_type_node_helper(
         &self,
-        type_: Option<impl Borrow<Type>>,
+        type_: Option<Id<Type>>,
         context: &NodeBuilderContext,
     ) -> io::Result<Option<Gc<Node>>> {
         if let Some(_cancellation_token) = self.type_checker.maybe_cancellation_token()

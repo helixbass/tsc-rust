@@ -109,7 +109,7 @@ impl TypeChecker {
                     Some(UnionReduction::Subtype),
                     Option::<&Symbol>::None,
                     None,
-                    Option::<&Type>::None,
+                    None,
                 )?,
                 None,
             );
@@ -168,7 +168,7 @@ impl TypeChecker {
                 Some(UnionReduction::Subtype),
                 Option::<&Symbol>::None,
                 None,
-                Option::<&Type>::None,
+                None,
             )?,
         ))
     }
@@ -176,7 +176,7 @@ impl TypeChecker {
     pub(super) fn create_combined_symbol_for_overload_failure(
         &self,
         sources: &[Gc<Symbol>],
-        type_: &Type,
+        type_: Id<Type>,
     ) -> Gc<Symbol> {
         self.create_symbol_with_type(&*first(sources), Some(type_))
     }
@@ -498,8 +498,8 @@ impl TypeChecker {
 
     pub(super) fn is_untyped_function_call(
         &self,
-        func_type: &Type,
-        apparent_func_type: &Type,
+        func_type: Id<Type>,
+        apparent_func_type: Id<Type>,
         num_call_signatures: usize,
         num_construct_signatures: usize,
     ) -> io::Result<bool> {
@@ -657,7 +657,7 @@ impl TypeChecker {
     pub(super) fn type_has_protected_accessible_base(
         &self,
         target: &Symbol,
-        type_: &Type, /*InterfaceType*/
+        type_: Id<Type>, /*InterfaceType*/
     ) -> io::Result<bool> {
         let base_types = self.get_base_types(type_)?;
         if length(Some(&base_types)) == 0 {
@@ -776,7 +776,7 @@ impl TypeChecker {
     pub(super) fn invocation_error_details(
         &self,
         error_target: &Node,
-        apparent_type: &Type,
+        apparent_type: Id<Type>,
         kind: SignatureKind,
     ) -> io::Result<InvocationErrorDetails> {
         let mut error_info: Option<DiagnosticMessageChain> = None;

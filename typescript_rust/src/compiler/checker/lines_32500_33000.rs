@@ -22,7 +22,7 @@ impl TypeChecker {
     pub(super) fn check_object_literal_assignment(
         &self,
         node: &Node, /*ObjectLiteralExpression*/
-        source_type: &Type,
+        source_type: Id<Type>,
         right_is_this: Option<bool>,
     ) -> io::Result<Id<Type>> {
         let properties = &node.as_object_literal_expression().properties;
@@ -44,7 +44,7 @@ impl TypeChecker {
     pub(super) fn check_object_literal_destructuring_property_assignment(
         &self,
         node: &Node, /*ObjectLiteralExpression*/
-        object_literal_type: &Type,
+        object_literal_type: Id<Type>,
         property_index: usize,
         all_properties: Option<&NodeArray /*<ObjectLiteralElementLike>*/>,
         right_is_this: Option<bool>,
@@ -142,7 +142,7 @@ impl TypeChecker {
     pub(super) fn check_array_literal_assignment(
         &self,
         node: &Node, /*ArrayLiteralExpression*/
-        source_type: &Type,
+        source_type: Id<Type>,
         check_mode: Option<CheckMode>,
     ) -> io::Result<Id<Type>> {
         let node_as_array_literal_expression = node.as_array_literal_expression();
@@ -191,9 +191,9 @@ impl TypeChecker {
     pub(super) fn check_array_literal_destructuring_element_assignment(
         &self,
         node: &Node, /*ArrayLiteralExpression*/
-        source_type: &Type,
+        source_type: Id<Type>,
         element_index: usize,
-        element_type: &Type,
+        element_type: Id<Type>,
         check_mode: Option<CheckMode>,
     ) -> io::Result<Option<Id<Type>>> {
         let node_as_array_literal_expression = node.as_array_literal_expression();
@@ -264,10 +264,10 @@ impl TypeChecker {
                         Some(&Diagnostics::A_rest_parameter_or_binding_pattern_may_not_have_a_trailing_comma)
                     );
                     let type_ =
-                        if self.every_type(source_type, |type_: &Type| self.is_tuple_type(type_)) {
+                        if self.every_type(source_type, |type_: Id<Type>| self.is_tuple_type(type_)) {
                             self.try_map_type(
                                 source_type,
-                                &mut |t: &Type| -> io::Result<_> {
+                                &mut |t: Id<Type>| -> io::Result<_> {
                                     Ok(Some(self.slice_tuple_type(t, element_index, None)?))
                                 },
                                 None,
@@ -291,7 +291,7 @@ impl TypeChecker {
     pub(super) fn check_destructuring_assignment(
         &self,
         expr_or_assignment: &Node, /*Expression | ShorthandPropertyAssignment*/
-        source_type: &Type,
+        source_type: Id<Type>,
         check_mode: Option<CheckMode>,
         right_is_this: Option<bool>,
     ) -> io::Result<Id<Type>> {
@@ -344,7 +344,7 @@ impl TypeChecker {
     pub(super) fn check_reference_assignment(
         &self,
         target: &Node, /*Expression*/
-        source_type: &Type,
+        source_type: Id<Type>,
         check_mode: Option<CheckMode>,
     ) -> io::Result<Id<Type>> {
         let target_type = self.check_expression(target, check_mode, None)?;
@@ -433,8 +433,8 @@ impl TypeChecker {
 
     pub(super) fn is_type_equality_comparable_to(
         &self,
-        source: &Type,
-        target: &Type,
+        source: Id<Type>,
+        target: Id<Type>,
     ) -> io::Result<bool> {
         Ok(target.flags().intersects(TypeFlags::Nullable)
             || self.is_type_comparable_to(source, target)?)
@@ -543,8 +543,8 @@ impl TypeChecker {
         left: &Node, /*Expression*/
         operator_token: &Node,
         right: &Node, /*Expression*/
-        left_type: &Type,
-        right_type: &Type,
+        left_type: Id<Type>,
+        right_type: Id<Type>,
         error_node: Option<impl Borrow<Node>>,
     ) -> io::Result<Id<Type>> {
         let operator = operator_token.kind();
@@ -634,7 +634,7 @@ impl TypeChecker {
                                     operator_token,
                                     &left_type,
                                     &right_type,
-                                    Option::<fn(&Type, &Type) -> io::Result<bool>>::None,
+                                    Option::<fn(Id<Type>, Id<Type>) -> io::Result<bool>>::None,
                                 )?;
                             }
                             SyntaxKind::AsteriskAsteriskToken
@@ -656,7 +656,7 @@ impl TypeChecker {
                             operator_token,
                             &left_type,
                             &right_type,
-                            Some(|type1: &Type, type2: &Type| {
+                            Some(|type1: Id<Type>, type2: Id<Type>| {
                                 self.both_are_big_int_like(type1, type2)
                             }),
                         )?;
@@ -753,7 +753,7 @@ impl TypeChecker {
                         operator_token,
                         &left_type,
                         &right_type,
-                        Some(|left: &Type, right: &Type| {
+                        Some(|left: Id<Type>, right: Id<Type>| {
                             Ok(
                                 self.is_type_assignable_to_kind(left, close_enough_kind, None)?
                                     && self.is_type_assignable_to_kind(
@@ -797,7 +797,7 @@ impl TypeChecker {
                         &right_type,
                         operator_token,
                         error_node.as_deref(),
-                        |left: &Type, right: &Type| {
+                        |left: Id<Type>, right: Id<Type>| {
                             Ok(self.is_type_comparable_to(left, right)?
                                 || self.is_type_comparable_to(right, left)?
                                 || self
@@ -820,7 +820,7 @@ impl TypeChecker {
                     right_type,
                     operator_token,
                     error_node.as_deref(),
-                    |left: &Type, right: &Type| {
+                    |left: Id<Type>, right: Id<Type>| {
                         Ok(self.is_type_equality_comparable_to(left, right)?
                             || self.is_type_equality_comparable_to(right, left)?)
                     },
@@ -851,7 +851,7 @@ impl TypeChecker {
                         None,
                         Option::<&Symbol>::None,
                         None,
-                        Option::<&Type>::None,
+                        None,
                     )?
                 } else {
                     left_type.type_wrapper()
@@ -874,7 +874,7 @@ impl TypeChecker {
                         Some(UnionReduction::Subtype),
                         Option::<&Symbol>::None,
                         None,
-                        Option::<&Type>::None,
+                        None,
                     )?
                 } else {
                     left_type.type_wrapper()
@@ -897,7 +897,7 @@ impl TypeChecker {
                         Some(UnionReduction::Subtype),
                         Option::<&Symbol>::None,
                         None,
-                        Option::<&Type>::None,
+                        None,
                     )?
                 } else {
                     left_type.type_wrapper()
@@ -1079,8 +1079,8 @@ impl BinaryExpressionStateMachine for CheckBinaryExpressionStateMachine {
             let mut state = state.borrow_mut();
             state.stack_index += 1;
             state.skip = false;
-            self.set_left_type(&mut state, Option::<&Type>::None);
-            self.set_last_result(&mut state, Option::<&Type>::None);
+            self.set_left_type(&mut state, None);
+            self.set_last_result(&mut state, None);
         } else {
             state = Some(Rc::new(RefCell::new(WorkArea {
                 check_mode,
@@ -1164,7 +1164,7 @@ impl BinaryExpressionStateMachine for CheckBinaryExpressionStateMachine {
             Debug_.assert_is_defined(&left_type, None);
             let left_type = left_type.unwrap();
             self.set_left_type(&mut state.borrow_mut(), Some(&*left_type));
-            self.set_last_result(&mut state.borrow_mut(), Option::<&Type>::None);
+            self.set_last_result(&mut state.borrow_mut(), None);
             let operator = operator_token.kind();
             if matches!(
                 operator,
@@ -1237,8 +1237,8 @@ impl BinaryExpressionStateMachine for CheckBinaryExpressionStateMachine {
         {
             let mut state = state.borrow_mut();
             state.skip = false;
-            self.set_left_type(&mut state, Option::<&Type>::None);
-            self.set_last_result(&mut state, Option::<&Type>::None);
+            self.set_left_type(&mut state, None);
+            self.set_last_result(&mut state, None);
             state.stack_index -= 1;
         }
         Ok(result)

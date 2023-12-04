@@ -166,7 +166,7 @@ impl NodeBuilder {
         &self,
         escaped_name: &str, /*__String*/
         context: &NodeBuilderContext,
-        type_: &Type, /*TypeParameter*/
+        type_: Id<Type>, /*TypeParameter*/
     ) -> io::Result<bool> {
         let result = self.type_checker.resolve_name_(
             context.maybe_enclosing_declaration(),
@@ -196,7 +196,7 @@ impl NodeBuilder {
 
     pub(super) fn type_parameter_to_name(
         &self,
-        type_: &Type, /*TypeParameter*/
+        type_: Id<Type>, /*TypeParameter*/
         context: &NodeBuilderContext,
     ) -> io::Result<Gc<Node>> {
         if context
@@ -639,7 +639,7 @@ impl NodeBuilder {
     pub(super) fn existing_type_node_is_not_reference_or_is_reference_with_compatible_type_argument_count(
         &self,
         existing: &Node, /*TypeNode*/
-        type_: &Type,
+        type_: Id<Type>,
     ) -> bool {
         !get_object_flags(type_).intersects(ObjectFlags::Reference)
             || !is_type_reference_node(existing)
@@ -660,7 +660,7 @@ impl NodeBuilder {
     pub(super) fn serialize_type_for_declaration(
         &self,
         context: &NodeBuilderContext,
-        type_: &Type,
+        type_: Id<Type>,
         symbol: &Symbol,
         enclosing_declaration: Option<impl Borrow<Node>>,
         include_private_symbol: Option<&impl Fn(&Symbol)>,
@@ -735,7 +735,7 @@ impl NodeBuilder {
     pub(super) fn serialize_return_type_for_signature(
         &self,
         context: &NodeBuilderContext,
-        type_: &Type,
+        type_: Id<Type>,
         signature: &Signature,
         include_private_symbol: Option<&impl Fn(&Symbol)>,
         bundled: Option<bool>,

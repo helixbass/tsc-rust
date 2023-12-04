@@ -292,7 +292,7 @@ impl TypeChecker {
 
     pub(super) fn check_index_constraints(
         &self,
-        type_: &Type,
+        type_: Id<Type>,
         symbol: &Symbol,
         is_static_index: Option<bool>,
     ) -> io::Result<()> {
@@ -348,10 +348,10 @@ impl TypeChecker {
 
     pub(super) fn check_index_constraint_for_property(
         &self,
-        type_: &Type,
+        type_: Id<Type>,
         prop: &Symbol,
-        prop_name_type: &Type,
-        prop_type: &Type,
+        prop_name_type: Id<Type>,
+        prop_type: Id<Type>,
     ) -> io::Result<()> {
         let declaration = prop.maybe_value_declaration();
         let name = get_name_of_declaration(declaration.as_deref());
@@ -433,7 +433,7 @@ impl TypeChecker {
 
     pub(super) fn check_index_constraint_for_index_signature(
         &self,
-        type_: &Type,
+        type_: Id<Type>,
         check_info: &IndexInfo,
     ) -> io::Result<()> {
         let declaration = check_info.declaration.as_ref();
@@ -830,7 +830,7 @@ impl TypeChecker {
         let symbol = self.get_symbol_of_node(node)?.unwrap();
         let type_ = self.get_declared_type_of_symbol(&symbol)?;
         let type_with_this =
-            self.get_type_with_this_argument(&type_, Option::<&Type>::None, None)?;
+            self.get_type_with_this_argument(&type_, None, None)?;
         let static_type = self.get_type_of_symbol(&symbol)?;
         self.check_type_parameter_lists_identical(&symbol)?;
         self.check_function_or_constructor_symbol(&symbol)?;

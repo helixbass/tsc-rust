@@ -86,12 +86,12 @@ impl TypeChecker {
             let left_name = if i >= left_count {
                 None
             } else {
-                Some(self.get_parameter_name_at_position(left, i, Option::<&Type>::None)?)
+                Some(self.get_parameter_name_at_position(left, i, None)?)
             };
             let right_name = if i >= right_count {
                 None
             } else {
-                Some(self.get_parameter_name_at_position(right, i, Option::<&Type>::None)?)
+                Some(self.get_parameter_name_at_position(right, i, None)?)
             };
 
             let param_name = if left_name == right_name {
@@ -240,7 +240,7 @@ impl TypeChecker {
                             None,
                             Option::<&Symbol>::None,
                             None,
-                            Option::<&Type>::None,
+                            None,
                         )?,
                         try_some(
                             Some(types),
@@ -263,7 +263,7 @@ impl TypeChecker {
 
     pub(super) fn resolve_union_type_members(
         &self,
-        type_: &Type, /*UnionType*/
+        type_: Id<Type>, /*UnionType*/
     ) -> io::Result<()> {
         let type_as_union_type = type_.as_union_type();
         let call_signatures = self.get_union_signatures(&try_map(
@@ -334,7 +334,7 @@ impl TypeChecker {
 
     pub(super) fn include_mixin_type(
         &self,
-        type_: &Type,
+        type_: Id<Type>,
         types: &[Id<Type>],
         mixin_flags: &[bool],
         index: usize,
@@ -354,7 +354,7 @@ impl TypeChecker {
 
     pub(super) fn resolve_intersection_type_members(
         &self,
-        type_: &Type, /*IntersectionType*/
+        type_: Id<Type>, /*IntersectionType*/
     ) -> io::Result<()> {
         let mut call_signatures: Vec<Gc<Signature>> = vec![];
         let mut construct_signatures: Vec<Gc<Signature>> = vec![];
@@ -450,7 +450,7 @@ impl TypeChecker {
                             None,
                             Option::<&Symbol>::None,
                             None,
-                            Option::<&Type>::None,
+                            None,
                         )?
                     } else {
                         self.get_intersection_type(
@@ -478,7 +478,7 @@ impl TypeChecker {
 
     pub(super) fn resolve_anonymous_type_members(
         &self,
-        type_: &Type, /*AnonymousType*/
+        type_: Id<Type>, /*AnonymousType*/
     ) -> io::Result<()> {
         let symbol = self.get_merged_symbol(type_.maybe_symbol()).unwrap();
         let type_as_object_type = type_.as_object_type();
@@ -675,9 +675,9 @@ impl TypeChecker {
 
     pub(super) fn replace_indexed_access(
         &self,
-        instantiable: &Type,
-        type_: &Type, /*ReplaceableIndexedAccessType*/
-        replacement: &Type,
+        instantiable: Id<Type>,
+        type_: Id<Type>, /*ReplaceableIndexedAccessType*/
+        replacement: Id<Type>,
     ) -> io::Result<Id<Type>> {
         let type_as_indexed_access_type = type_.as_indexed_access_type();
         self.instantiate_type(
@@ -697,7 +697,7 @@ impl TypeChecker {
 
     pub(super) fn resolve_reverse_mapped_type_members(
         &self,
-        type_: &Type, /*ReverseMappedType*/
+        type_: Id<Type>, /*ReverseMappedType*/
     ) -> io::Result<()> {
         let type_as_reverse_mapped_type = type_.as_reverse_mapped_type();
         let index_info =
@@ -796,7 +796,7 @@ impl TypeChecker {
         Ok(())
     }
 
-    pub(super) fn get_lower_bound_of_key_type(&self, type_: &Type) -> io::Result<Id<Type>> {
+    pub(super) fn get_lower_bound_of_key_type(&self, type_: Id<Type>) -> io::Result<Id<Type>> {
         if type_.flags().intersects(TypeFlags::Index) {
             let t = self.get_apparent_type(&type_.as_index_type().type_)?;
             return Ok(if self.is_generic_tuple_type(&t) {
@@ -854,26 +854,26 @@ impl TypeChecker {
     #[allow(dead_code)]
     pub(super) fn for_each_mapped_type_property_key_type_and_index_signature_key_type(
         &self,
-        type_: &Type,
+        type_: Id<Type>,
         include: TypeFlags,
         strings_only: bool,
-        mut cb: impl FnMut(&Type),
+        mut cb: impl FnMut(Id<Type>),
     ) {
         self.try_for_each_mapped_type_property_key_type_and_index_signature_key_type(
             type_,
             include,
             strings_only,
-            |type_: &Type| Ok(cb(type_)),
+            |type_: Id<Type>| Ok(cb(type_)),
         )
         .unwrap()
     }
 
     pub(super) fn try_for_each_mapped_type_property_key_type_and_index_signature_key_type(
         &self,
-        type_: &Type,
+        type_: Id<Type>,
         include: TypeFlags,
         strings_only: bool,
-        mut cb: impl FnMut(&Type) -> io::Result<()>,
+        mut cb: impl FnMut(Id<Type>) -> io::Result<()>,
     ) -> io::Result<()> {
         for prop in self.get_properties_of_type(type_)? {
             cb(&*self.get_literal_type_from_property(&prop, include, None)?)?;
@@ -898,7 +898,7 @@ impl TypeChecker {
 
     pub(super) fn resolve_mapped_type_members(
         &self,
-        type_: &Type, /*MappedType*/
+        type_: Id<Type>, /*MappedType*/
     ) -> io::Result<()> {
         let mut members = create_symbol_table(Option::<&[Gc<Symbol>]>::None);
         let mut index_infos: Vec<Gc<IndexInfo>> = vec![];
@@ -981,15 +981,15 @@ impl TypeChecker {
 
     pub(super) fn add_member_for_key_type_resolved_mapped_type_members(
         &self,
-        type_: &Type, /*MappedType*/
-        name_type: Option<&Type>,
-        type_parameter: &Type,
+        type_: Id<Type>, /*MappedType*/
+        name_type: Option<Id<Type>,
+        type_parameter: Id<Type>,
         members: &mut SymbolTable,
-        modifiers_type: &Type,
+        modifiers_type: Id<Type>,
         template_modifiers: MappedTypeModifiers,
-        template_type: &Type,
+        template_type: Id<Type>,
         index_infos: &mut Vec<Gc<IndexInfo>>,
-        key_type: &Type,
+        key_type: Id<Type>,
     ) -> io::Result<()> {
         let prop_name_type = if let Some(name_type) = name_type {
             self.instantiate_type(
@@ -1025,15 +1025,15 @@ impl TypeChecker {
     pub(super) fn add_member_for_key_type_worker(
         &self,
         members: &mut SymbolTable,
-        modifiers_type: &Type,
+        modifiers_type: Id<Type>,
         template_modifiers: MappedTypeModifiers,
-        type_: &Type,
-        name_type: Option<&Type>,
-        template_type: &Type,
-        type_parameter: &Type,
+        type_: Id<Type>,
+        name_type: Option<Id<Type>,
+        template_type: Id<Type>,
+        type_parameter: Id<Type>,
         index_infos: &mut Vec<Gc<IndexInfo>>,
-        key_type: &Type,
-        prop_name_type: &Type,
+        key_type: Id<Type>,
+        prop_name_type: Id<Type>,
     ) -> io::Result<()> {
         if self.is_type_usable_as_property_name(prop_name_type) {
             let prop_name = self.get_property_name_from_type(prop_name_type);
@@ -1053,7 +1053,7 @@ impl TypeChecker {
                     None,
                     Option::<&Symbol>::None,
                     None,
-                    Option::<&Type>::None,
+                    None,
                 )?);
                 existing_prop_as_mapped_symbol.set_key_type(self.get_union_type(
                     &[
@@ -1063,7 +1063,7 @@ impl TypeChecker {
                     None,
                     Option::<&Symbol>::None,
                     None,
-                    Option::<&Type>::None,
+                    None,
                 )?);
             } else {
                 let modifiers_prop = if self.is_type_usable_as_property_name(key_type) {
@@ -1242,7 +1242,7 @@ impl TypeChecker {
 
     pub(super) fn get_type_parameter_from_mapped_type(
         &self,
-        type_: &Type, /*MappedType*/
+        type_: Id<Type>, /*MappedType*/
     ) -> io::Result<Id<Type>> {
         let type_as_mapped_type = type_.as_mapped_type();
         {

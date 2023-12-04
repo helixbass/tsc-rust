@@ -572,7 +572,7 @@ impl TypeChecker {
                 union_reduction,
                 Option::<&Symbol>::None,
                 None,
-                Option::<&Type>::None,
+                None,
             )?
         } else {
             self.get_intersection_type(types, Option::<&Symbol>::None, None)?
@@ -1078,7 +1078,7 @@ impl TypeChecker {
         Ok(vec![])
     }
 
-    pub(super) fn is_valid_index_key_type(&self, type_: &Type) -> io::Result<bool> {
+    pub(super) fn is_valid_index_key_type(&self, type_: Id<Type>) -> io::Result<bool> {
         Ok(type_
             .flags()
             .intersects(TypeFlags::String | TypeFlags::Number | TypeFlags::ESSymbol)
@@ -1093,7 +1093,7 @@ impl TypeChecker {
 
     pub(super) fn get_constraint_declaration(
         &self,
-        type_: &Type, /*TypeParameter*/
+        type_: Id<Type>, /*TypeParameter*/
     ) -> Option<Gc<Node /*TypeNode*/>> {
         map_defined(
             maybe_filter(

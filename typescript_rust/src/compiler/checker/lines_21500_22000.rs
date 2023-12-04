@@ -20,9 +20,9 @@ use crate::{
 impl TypeChecker {
     pub(super) fn infer_reverse_mapped_type(
         &self,
-        source_type: &Type,
-        target: &Type,     /*MappedType*/
-        constraint: &Type, /*IndexType*/
+        source_type: Id<Type>,
+        target: Id<Type>,     /*MappedType*/
+        constraint: Id<Type>, /*IndexType*/
     ) -> io::Result<Id<Type>> {
         let type_parameter = self.get_indexed_access_type(
             &constraint.as_index_type().type_,
@@ -48,8 +48,8 @@ impl TypeChecker {
 
     pub(super) fn get_unmatched_properties(
         &self,
-        source: &Type,
-        target: &Type,
+        source: Id<Type>,
+        target: Id<Type>,
         require_optional_properties: bool,
         match_discriminant_properties: bool,
     ) -> io::Result<Vec<Gc<Symbol>>> {
@@ -93,8 +93,8 @@ impl TypeChecker {
 
     pub(super) fn get_unmatched_property(
         &self,
-        source: &Type,
-        target: &Type,
+        source: Id<Type>,
+        target: Id<Type>,
         require_optional_properties: bool,
         match_discriminant_properties: bool,
     ) -> io::Result<Option<Gc<Symbol>>> {
@@ -109,8 +109,8 @@ impl TypeChecker {
 
     pub(super) fn tuple_types_definitely_unrelated(
         &self,
-        source: &Type, /*TupleTypeReference*/
-        target: &Type, /*TupleTypeReference*/
+        source: Id<Type>, /*TupleTypeReference*/
+        target: Id<Type>, /*TupleTypeReference*/
     ) -> bool {
         let source_target = source.as_type_reference_interface().target();
         let source_target_as_tuple_type = source_target.as_tuple_type();
@@ -127,8 +127,8 @@ impl TypeChecker {
 
     pub(super) fn types_definitely_unrelated(
         &self,
-        source: &Type,
-        target: &Type,
+        source: Id<Type>,
+        target: Id<Type>,
     ) -> io::Result<bool> {
         Ok(
             if self.is_tuple_type(source) && self.is_tuple_type(target) {
@@ -154,7 +154,7 @@ impl TypeChecker {
                     Some(UnionReduction::Subtype),
                     Option::<&Symbol>::None,
                     None,
-                    Option::<&Type>::None,
+                    None,
                 )?)
             } else if let Some(inference_contra_candidates) =
                 inference.maybe_contra_candidates().as_ref()
@@ -174,7 +174,7 @@ impl TypeChecker {
         (*self.get_node_links(node)).borrow().skip_direct_inference == Some(true)
     }
 
-    pub(super) fn is_from_inference_blocked_source(&self, type_: &Type) -> bool {
+    pub(super) fn is_from_inference_blocked_source(&self, type_: Id<Type>) -> bool {
         matches!(
             type_.maybe_symbol().as_ref(),
             Some(type_symbol) if some(
@@ -186,8 +186,8 @@ impl TypeChecker {
 
     pub(super) fn template_literal_types_definitely_unrelated(
         &self,
-        source: &Type, /*TemplateLiteralType*/
-        target: &Type, /*TemplateLiteralType*/
+        source: Id<Type>, /*TemplateLiteralType*/
+        target: Id<Type>, /*TemplateLiteralType*/
     ) -> bool {
         let source_as_template_literal_type = source.as_template_literal_type();
         let target_as_template_literal_type = target.as_template_literal_type();
@@ -227,8 +227,8 @@ impl TypeChecker {
 
     pub(super) fn is_valid_type_for_template_literal_placeholder(
         &self,
-        source: &Type,
-        target: &Type, /*TemplateLiteralType*/
+        source: Id<Type>,
+        target: Id<Type>, /*TemplateLiteralType*/
     ) -> io::Result<bool> {
         if ptr::eq(source, target)
             || target
@@ -263,8 +263,8 @@ impl TypeChecker {
 
     pub(super) fn infer_types_from_template_literal_type(
         &self,
-        source: &Type,
-        target: &Type, /*TemplateLiteralType*/
+        source: Id<Type>,
+        target: Id<Type>, /*TemplateLiteralType*/
     ) -> io::Result<Option<Vec<Id<Type>>>> {
         let target_as_template_literal_type = target.as_template_literal_type();
         Ok(if source.flags().intersects(TypeFlags::StringLiteral) {
@@ -297,8 +297,8 @@ impl TypeChecker {
 
     pub(super) fn is_type_matched_by_template_literal_type(
         &self,
-        source: &Type,
-        target: &Type, /*TemplateLiteralType*/
+        source: Id<Type>,
+        target: Id<Type>, /*TemplateLiteralType*/
     ) -> io::Result<bool> {
         let inferences = self.infer_types_from_template_literal_type(source, target)?;
         let target_as_template_literal_type = target.as_template_literal_type();
@@ -316,7 +316,7 @@ impl TypeChecker {
         ))
     }
 
-    pub(super) fn get_string_like_type_for_type(&self, type_: &Type) -> io::Result<Id<Type>> {
+    pub(super) fn get_string_like_type_for_type(&self, type_: Id<Type>) -> io::Result<Id<Type>> {
         Ok(
             if type_
                 .flags()
@@ -336,7 +336,7 @@ impl TypeChecker {
         &self,
         source_texts: &[String],
         source_types: &[Id<Type>],
-        target: &Type, /*TemplateLiteralType*/
+        target: Id<Type>, /*TemplateLiteralType*/
     ) -> io::Result<Option<Vec<Id<Type>>>> {
         let last_source_index = source_texts.len() - 1;
         let source_start_text = &source_texts[0];
@@ -508,8 +508,8 @@ impl TypeChecker {
     pub(super) fn infer_types(
         &self,
         inferences: &[Gc<InferenceInfo>],
-        original_source: &Type,
-        original_target: &Type,
+        original_source: Id<Type>,
+        original_target: Id<Type>,
         priority: Option<InferencePriority>,
         contravariant: Option<bool>,
     ) -> io::Result<()> {
@@ -645,7 +645,7 @@ impl InferTypes {
         self.expanding_flags.set(expanding_flags);
     }
 
-    pub(super) fn infer_from_types(&self, source: &Type, target: &Type) -> io::Result<()> {
+    pub(super) fn infer_from_types(&self, source: Id<Type>, target: Id<Type>) -> io::Result<()> {
         if !self.type_checker.could_contain_type_variables(target)? {
             return Ok(());
         }
@@ -690,12 +690,12 @@ impl InferTypes {
                     vec![source.clone()]
                 },
                 target.as_union_or_intersection_type_interface().types(),
-                |s: &Type, t: &Type| self.type_checker.is_type_or_base_identical_to(s, t),
+                |s: Id<Type>, t: Id<Type>| self.type_checker.is_type_or_base_identical_to(s, t),
             )?;
             let (sources, targets) = self.infer_from_matching_types(
                 &temp_sources,
                 &temp_targets,
-                |s: &Type, t: &Type| Ok(self.type_checker.is_type_closely_matched_by(s, t)),
+                |s: Id<Type>, t: Id<Type>| Ok(self.type_checker.is_type_closely_matched_by(s, t)),
             )?;
             if targets.is_empty() {
                 return Ok(());
@@ -705,7 +705,7 @@ impl InferTypes {
                 None,
                 Option::<&Symbol>::None,
                 None,
-                Option::<&Type>::None,
+                None,
             )?;
             if sources.is_empty() {
                 self.infer_with_priority(&source, &target, InferencePriority::NakedTypeVariable)?;
@@ -716,7 +716,7 @@ impl InferTypes {
                 None,
                 Option::<&Symbol>::None,
                 None,
-                Option::<&Type>::None,
+                None,
             )?;
         } else if target.flags().intersects(TypeFlags::Intersection)
             && try_some(
@@ -746,7 +746,7 @@ impl InferTypes {
                         vec![source.clone()]
                     },
                     target.as_union_or_intersection_type_interface().types(),
-                    |s: &Type, t: &Type| self.type_checker.is_type_identical_to(s, t),
+                    |s: Id<Type>, t: Id<Type>| self.type_checker.is_type_identical_to(s, t),
                 )?;
                 if sources.is_empty() || targets.is_empty() {
                     return Ok(());
@@ -840,7 +840,7 @@ impl InferTypes {
             } else {
                 let simplified = self.type_checker.get_simplified_type(&target, false)?;
                 if !Gc::ptr_eq(&simplified, &target) {
-                    self.try_invoke_once(&source, &simplified, |source: &Type, target: &Type| {
+                    self.try_invoke_once(&source, &simplified, |source: Id<Type>, target: Id<Type>| {
                         self.infer_from_types(source, target)
                     })?;
                 } else if target.flags().intersects(TypeFlags::IndexedAccess) {
@@ -864,7 +864,7 @@ impl InferTypes {
                             self.try_invoke_once(
                                 &source,
                                 simplified,
-                                |source: &Type, target: &Type| {
+                                |source: Id<Type>, target: Id<Type>| {
                                     self.infer_from_types(source, target)
                                 },
                             )?;
@@ -946,7 +946,7 @@ impl InferTypes {
             self.infer_from_types(&source_as_substitution_type.substitute, &target)?;
             self.set_priority(old_priority);
         } else if target.flags().intersects(TypeFlags::Conditional) {
-            self.try_invoke_once(&source, &target, |source: &Type, target: &Type| {
+            self.try_invoke_once(&source, &target, |source: Id<Type>, target: Id<Type>| {
                 self.infer_to_conditional_type(source, target)
             })?;
         } else if target.flags().intersects(TypeFlags::UnionOrIntersection) {
@@ -985,7 +985,7 @@ impl InferTypes {
                 .flags()
                 .intersects(TypeFlags::Object | TypeFlags::Intersection)
             {
-                self.try_invoke_once(&source, &target, |source: &Type, target: &Type| {
+                self.try_invoke_once(&source, &target, |source: Id<Type>, target: Id<Type>| {
                     self.infer_from_object_types(source, target)
                 })?;
             }
@@ -996,8 +996,8 @@ impl InferTypes {
 
     pub(super) fn infer_with_priority(
         &self,
-        source: &Type,
-        target: &Type,
+        source: Id<Type>,
+        target: Id<Type>,
         new_priority: InferencePriority,
     ) -> io::Result<()> {
         let save_priority = self.priority();
@@ -1011,19 +1011,19 @@ impl InferTypes {
     #[allow(dead_code)]
     pub(super) fn invoke_once(
         &self,
-        source: &Type,
-        target: &Type,
-        mut action: impl FnMut(&Type, &Type),
+        source: Id<Type>,
+        target: Id<Type>,
+        mut action: impl FnMut(Id<Type>, Id<Type>),
     ) {
-        self.try_invoke_once(source, target, |a: &Type, b: &Type| Ok(action(a, b)))
+        self.try_invoke_once(source, target, |a: Id<Type>, b: Id<Type>| Ok(action(a, b)))
             .unwrap()
     }
 
     pub(super) fn try_invoke_once(
         &self,
-        source: &Type,
-        target: &Type,
-        mut action: impl FnMut(&Type, &Type) -> io::Result<()>,
+        source: Id<Type>,
+        target: Id<Type>,
+        mut action: impl FnMut(Id<Type>, Id<Type>) -> io::Result<()>,
     ) -> io::Result<()> {
         let key = format!("{},{}", source.id(), target.id());
         let status = self
@@ -1087,7 +1087,7 @@ impl InferTypes {
         &self,
         sources: &[Id<Type>],
         targets: &[Id<Type>],
-        mut matches: impl FnMut(&Type, &Type) -> io::Result<bool>,
+        mut matches: impl FnMut(Id<Type>, Id<Type>) -> io::Result<bool>,
     ) -> io::Result<(Vec<Id<Type>>, Vec<Id<Type>>)> {
         let mut matched_sources: Option<Vec<Id<Type>>> = None;
         let mut matched_targets: Option<Vec<Id<Type>>> = None;
@@ -1150,8 +1150,8 @@ impl InferTypes {
 
     pub(super) fn infer_from_contravariant_types(
         &self,
-        source: &Type,
-        target: &Type,
+        source: Id<Type>,
+        target: Id<Type>,
     ) -> io::Result<()> {
         if self.type_checker.strict_function_types
             || self.priority().intersects(InferencePriority::AlwaysStrict)

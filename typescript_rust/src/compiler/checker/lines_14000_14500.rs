@@ -24,7 +24,7 @@ use crate::{
 impl TypeChecker {
     pub(super) fn create_normalized_type_reference(
         &self,
-        target: &Type, /*GenericType*/
+        target: Id<Type>, /*GenericType*/
         type_arguments: Option<Vec<Id<Type>>>,
     ) -> io::Result<Id<Type>> {
         Ok(
@@ -42,7 +42,7 @@ impl TypeChecker {
 
     pub(super) fn create_normalized_tuple_type(
         &self,
-        target: &Type, /*TupleType*/
+        target: Id<Type>, /*TupleType*/
         element_types: Vec<Id<Type>>,
     ) -> io::Result<Id<Type>> {
         let target_as_tuple_type = target.as_tuple_type();
@@ -76,7 +76,7 @@ impl TypeChecker {
                     })) {
                         self.try_map_type(
                             &element_types[union_index],
-                            &mut |t: &Type| {
+                            &mut |t: Id<Type>| {
                                 Ok(Some(self.create_normalized_tuple_type(
                                     target,
                                     replace_element(&element_types, union_index, t.type_wrapper()),
@@ -242,7 +242,7 @@ impl TypeChecker {
                 None,
                 Option::<&Symbol>::None,
                 None,
-                Option::<&Type>::None,
+                None,
             )?;
             expanded_types.splice(first_rest_index + 1..last_optional_or_rest_index + 1, []);
             expanded_flags.splice(first_rest_index + 1..last_optional_or_rest_index + 1, []);
@@ -273,7 +273,7 @@ impl TypeChecker {
         last_optional_or_rest_index: &mut isize,
         expanded_types: &mut Vec<Id<Type>>,
         expanded_declarations: &mut Option<Vec<Gc<Node>>>,
-        type_: &Type,
+        type_: Id<Type>,
         flags: ElementFlags,
         declaration: Option<Gc<Node /*NamedTupleMember | ParameterDeclaration*/>>,
     ) {
@@ -300,7 +300,7 @@ impl TypeChecker {
 
     pub(super) fn slice_tuple_type(
         &self,
-        type_: &Type, /*TupleTypeReference*/
+        type_: Id<Type>, /*TupleTypeReference*/
         index: usize,
         end_skip_count: Option<usize>,
     ) -> io::Result<Id<Type>> {
@@ -329,7 +329,7 @@ impl TypeChecker {
 
     pub(super) fn get_known_keys_of_tuple_type(
         &self,
-        type_: &Type, /*TupleTypeReference*/
+        type_: Id<Type>, /*TupleTypeReference*/
     ) -> io::Result<Id<Type>> {
         let type_target = type_.as_type_reference().target();
         let type_target_as_tuple_type = type_target.as_tuple_type();
@@ -352,13 +352,13 @@ impl TypeChecker {
             None,
             Option::<&Symbol>::None,
             None,
-            Option::<&Type>::None,
+            None,
         )
     }
 
     pub(super) fn get_start_element_count(
         &self,
-        type_: &Type, /*TupleType*/
+        type_: Id<Type>, /*TupleType*/
         flags: ElementFlags,
     ) -> usize {
         let type_as_tuple_type = type_.as_tuple_type();
@@ -372,7 +372,7 @@ impl TypeChecker {
 
     pub(super) fn get_end_element_count(
         &self,
-        type_: &Type, /*TupleType*/
+        type_: Id<Type>, /*TupleType*/
         flags: ElementFlags,
     ) -> usize {
         let type_as_tuple_type = type_.as_tuple_type();
@@ -397,11 +397,11 @@ impl TypeChecker {
         )
     }
 
-    pub(super) fn get_type_id(&self, type_: &Type) -> TypeId {
+    pub(super) fn get_type_id(&self, type_: Id<Type>) -> TypeId {
         type_.id()
     }
 
-    pub(super) fn contains_type(&self, types: &[Id<Type>], type_: &Type) -> bool {
+    pub(super) fn contains_type(&self, types: &[Id<Type>], type_: Id<Type>) -> bool {
         binary_search_copy_key(
             types,
             &type_.type_wrapper(),
@@ -411,7 +411,7 @@ impl TypeChecker {
         ) >= 0
     }
 
-    pub(super) fn insert_type(&self, types: &mut Vec<Id<Type>>, type_: &Type) -> bool {
+    pub(super) fn insert_type(&self, types: &mut Vec<Id<Type>>, type_: Id<Type>) -> bool {
         let index = binary_search_copy_key(
             types,
             &type_.type_wrapper(),
@@ -430,7 +430,7 @@ impl TypeChecker {
         &self,
         type_set: &mut Vec<Id<Type>>,
         mut includes: TypeFlags,
-        type_: &Type,
+        type_: Id<Type>,
     ) -> TypeFlags {
         let flags = type_.flags();
         if flags.intersects(TypeFlags::Union) {
@@ -668,7 +668,7 @@ impl TypeChecker {
         Ok(())
     }
 
-    pub(super) fn is_named_union_type(&self, type_: &Type) -> bool {
+    pub(super) fn is_named_union_type(&self, type_: Id<Type>) -> bool {
         type_.flags().intersects(TypeFlags::Union)
             && (type_.maybe_alias_symbol().is_some() || type_.as_union_type().origin.is_some())
     }
@@ -1007,7 +1007,7 @@ impl TypeChecker {
                     alias_symbol.clone(),
                     self.get_type_arguments_for_alias_symbol(alias_symbol)?
                         .as_deref(),
-                    Option::<&Type>::None,
+                    None,
                 )?,
             );
         }
@@ -1019,7 +1019,7 @@ impl TypeChecker {
         &self,
         type_set: &mut IndexMap<TypeId, Id<Type>>,
         mut includes: TypeFlags,
-        type_: &Type,
+        type_: Id<Type>,
     ) -> io::Result<TypeFlags> {
         let flags = type_.flags();
         if flags.intersects(TypeFlags::Intersection) {

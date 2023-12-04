@@ -26,9 +26,9 @@ impl TypeChecker {
     pub(super) fn check_members_for_override_modifier(
         &self,
         node: &Node,  /*ClassLikeDeclaration*/
-        type_: &Type, /*InterfaceType*/
-        type_with_this: &Type,
-        static_type: &Type, /*ObjectType*/
+        type_: Id<Type>, /*InterfaceType*/
+        type_with_this: Id<Type>,
+        static_type: Id<Type>, /*ObjectType*/
     ) -> io::Result<()> {
         let base_type_node = get_effective_base_type_node(node);
         let base_types = if base_type_node.is_some() {
@@ -93,11 +93,11 @@ impl TypeChecker {
     pub(super) fn check_existing_member_for_override_modifier(
         &self,
         node: &Node,        /*ClassLikeDeclaration*/
-        static_type: &Type, /*ObjectType*/
-        base_static_type: &Type,
-        base_with_this: Option<impl Borrow<Type>>,
-        type_: &Type, /*InterfaceType*/
-        type_with_this: &Type,
+        static_type: Id<Type>, /*ObjectType*/
+        base_static_type: Id<Type>,
+        base_with_this: Option<Id<Type>>,
+        type_: Id<Type>, /*InterfaceType*/
+        type_with_this: Id<Type>,
         member: &Node, /*ClassElement | ParameterPropertyDeclaration*/
         member_is_parameter_property: bool,
         report_errors: Option<bool>,
@@ -133,11 +133,11 @@ impl TypeChecker {
     pub(super) fn check_member_for_override_modifier(
         &self,
         node: &Node,        /*ClassLikeDeclaration*/
-        static_type: &Type, /*ObjectType*/
-        base_static_type: &Type,
-        base_with_this: Option<impl Borrow<Type>>,
-        type_: &Type, /*InterfaceType*/
-        type_with_this: &Type,
+        static_type: Id<Type>, /*ObjectType*/
+        base_static_type: Id<Type>,
+        base_with_this: Option<Id<Type>>,
+        type_: Id<Type>, /*InterfaceType*/
+        type_with_this: Id<Type>,
         member_has_override_modifier: bool,
         member_has_abstract_modifier: bool,
         member_is_static: bool,
@@ -150,7 +150,6 @@ impl TypeChecker {
         if let Some(base_with_this) = base_with_this.filter(|_| {
             member_has_override_modifier || self.compiler_options.no_implicit_override == Some(true)
         }) {
-            let base_with_this: &Type = base_with_this.borrow();
             let member_escaped_name = escape_leading_underscores(member_name);
             let this_type = if member_is_static {
                 static_type
@@ -246,8 +245,8 @@ impl TypeChecker {
     pub(super) fn issue_member_specific_error(
         &self,
         node: &Node, /*ClassLikeDeclaration*/
-        type_with_this: &Type,
-        base_with_this: &Type,
+        type_with_this: Id<Type>,
+        base_with_this: Id<Type>,
         broad_diag: &'static DiagnosticMessage,
     ) -> io::Result<()> {
         let mut issued_member_error = false;
@@ -312,7 +311,7 @@ impl TypeChecker {
 
     pub(super) fn check_base_type_accessibility(
         &self,
-        type_: &Type,
+        type_: Id<Type>,
         node: &Node, /*ExpressionWithTypeArguments*/
     ) -> io::Result<()> {
         let signatures = self.get_signatures_of_type(type_, SignatureKind::Construct)?;
@@ -356,7 +355,7 @@ impl TypeChecker {
         let symbol = self.get_symbol_of_node(node)?.unwrap();
         let type_ = self.get_declared_type_of_symbol(&symbol)?;
         let type_with_this =
-            self.get_type_with_this_argument(&type_, Option::<&Type>::None, None)?;
+            self.get_type_with_this_argument(&type_, None, None)?;
         let static_type = self.get_type_of_symbol(&symbol)?;
 
         let base_type_node = get_effective_base_type_node(node);
@@ -428,8 +427,8 @@ impl TypeChecker {
 
     pub(super) fn check_kinds_of_property_member_overrides(
         &self,
-        type_: &Type,     /*InterfaceType*/
-        base_type: &Type, /*BaseType*/
+        type_: Id<Type>,     /*InterfaceType*/
+        base_type: Id<Type>, /*BaseType*/
     ) -> io::Result<()> {
         let base_properties = self.get_properties_of_type(base_type)?;
         'base_property_check: for ref base_property in base_properties {
@@ -669,7 +668,7 @@ impl TypeChecker {
 
     pub(super) fn get_non_interhited_properties<TProperties, TPropertiesItem>(
         &self,
-        type_: &Type, /*InterfaceType*/
+        type_: Id<Type>, /*InterfaceType*/
         base_types: &[Id<Type /*BaseType*/>],
         properties: TProperties,
     ) -> io::Result<impl Iterator<Item = Gc<Symbol>> + Clone>
@@ -717,7 +716,7 @@ impl TypeChecker {
 
     pub(super) fn check_inherited_properties_are_identical(
         &self,
-        type_: &Type, /*InterfaceType*/
+        type_: Id<Type>, /*InterfaceType*/
         type_node: &Node,
     ) -> io::Result<bool> {
         let base_types = self.get_base_types(type_)?;

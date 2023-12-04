@@ -72,8 +72,8 @@ impl CheckTypeRelatedTo {
 
     pub(super) fn index_signatures_related_to(
         &self,
-        source: &Type,
-        target: &Type,
+        source: Id<Type>,
+        target: Id<Type>,
         source_is_primitive: bool,
         report_errors: bool,
         intersection_state: IntersectionState,
@@ -124,7 +124,7 @@ impl CheckTypeRelatedTo {
 
     pub(super) fn type_related_to_index_info(
         &self,
-        source: &Type,
+        source: Id<Type>,
         target_info: &IndexInfo,
         report_errors: bool,
         intersection_state: IntersectionState,
@@ -162,8 +162,8 @@ impl CheckTypeRelatedTo {
 
     pub(super) fn index_signatures_identical_to(
         &self,
-        source: &Type,
-        target: &Type,
+        source: Id<Type>,
+        target: Id<Type>,
     ) -> io::Result<Ternary> {
         let source_infos = self.type_checker.get_index_infos_of_type(source)?;
         let target_infos = self.type_checker.get_index_infos_of_type(target)?;
@@ -249,7 +249,7 @@ impl CheckTypeRelatedTo {
 impl TypeChecker {
     pub(super) fn type_could_have_top_level_singleton_types(
         &self,
-        type_: &Type,
+        type_: Id<Type>,
     ) -> io::Result<bool> {
         if type_.flags().intersects(TypeFlags::Boolean) {
             return Ok(false);
@@ -277,8 +277,8 @@ impl TypeChecker {
 
     pub(super) fn get_exact_optional_unassignable_properties(
         &self,
-        source: &Type,
-        target: &Type,
+        source: Id<Type>,
+        target: Id<Type>,
     ) -> io::Result<Vec<Gc<Symbol>>> {
         if self.is_tuple_type(source) && self.is_tuple_type(target) {
             return Ok(vec![]);
@@ -312,7 +312,7 @@ impl TypeChecker {
         self.maybe_type_of_kind(source, TypeFlags::Undefined) && self.contains_missing_type(target)
     }
 
-    pub fn get_exact_optional_properties(&self, type_: &Type) -> io::Result<Vec<Gc<Symbol>>> {
+    pub fn get_exact_optional_properties(&self, type_: Id<Type>) -> io::Result<Vec<Gc<Symbol>>> {
         try_filter(
             &self.get_properties_of_type(type_)?.collect_vec(),
             |target_prop: &Gc<Symbol>| -> io::Result<_> {
@@ -323,11 +323,11 @@ impl TypeChecker {
 
     pub(super) fn get_best_matching_type(
         &self,
-        source: &Type,
-        target: &Type, /*UnionOrIntersectionType*/
-        is_related_to: Option<impl Fn(&Type, &Type) -> io::Result<Ternary>>,
+        source: Id<Type>,
+        target: Id<Type>, /*UnionOrIntersectionType*/
+        is_related_to: Option<impl Fn(Id<Type>, Id<Type>) -> io::Result<Ternary>>,
     ) -> io::Result<Option<Id<Type>>> {
-        let is_related_to = |source: &Type, target: &Type| {
+        let is_related_to = |source: Id<Type>, target: Id<Type>| {
             Ok(match is_related_to.as_ref() {
                 None => self.compare_types_assignable(source, target)?,
                 Some(is_related_to) => is_related_to(source, target)?,
@@ -342,7 +342,7 @@ impl TypeChecker {
 
     pub(super) fn discriminate_type_by_discriminable_items(
         &self,
-        target: &Type, /*UnionType*/
+        target: Id<Type>, /*UnionType*/
         discriminators: impl IntoIterator<Item = (Box<dyn Fn() -> io::Result<Id<Type>>>, __String)>,
         mut related: impl FnMut(Id<Type>, Id<Type>) -> io::Result<bool>,
         default_value: Option<Id<Type>>,
@@ -410,7 +410,7 @@ impl TypeChecker {
         Ok(Some(target_types[match_].clone()))
     }
 
-    pub(super) fn is_weak_type(&self, type_: &Type) -> io::Result<bool> {
+    pub(super) fn is_weak_type(&self, type_: Id<Type>) -> io::Result<bool> {
         if type_.flags().intersects(TypeFlags::Object) {
             let resolved = self.resolve_structured_type_members(type_)?;
             let resolved_as_resolved_type = resolved.as_resolved_type();
@@ -434,8 +434,8 @@ impl TypeChecker {
 
     pub(super) fn has_common_properties(
         &self,
-        source: &Type,
-        target: &Type,
+        source: Id<Type>,
+        target: Id<Type>,
         is_comparing_jsx_attributes: bool,
     ) -> io::Result<bool> {
         for ref prop in self.get_properties_of_type(source)? {
@@ -448,9 +448,9 @@ impl TypeChecker {
 
     pub(super) fn get_marker_type_reference(
         &self,
-        type_: &Type,  /*GenericType*/
-        source: &Type, /*TypeParameter*/
-        target: &Type,
+        type_: Id<Type>,  /*GenericType*/
+        source: Id<Type>, /*TypeParameter*/
+        target: Id<Type>,
     ) -> Id<Type /*TypeReference*/> {
         let result = self.create_type_reference(
             type_,
@@ -478,8 +478,8 @@ impl TypeChecker {
             links_type_parameters.as_deref(),
             links.clone(),
             |_links: &GetVariancesCache,
-             param: &Type, /*TypeParameter*/
-             marker: &Type|
+             param: Id<Type>, /*TypeParameter*/
+             marker: Id<Type>|
              -> io::Result<_> {
                 let type_ = self.get_type_alias_instantiation(
                     symbol,
@@ -508,14 +508,14 @@ impl TypeChecker {
         cache: impl Into<GetVariancesCache>,
         mut create_marker_type: impl FnMut(
             &GetVariancesCache,
-            &Type, /*TypeParameter*/
-            &Type,
+            Id<Type>, /*TypeParameter*/
+            Id<Type>,
         ) -> Id<Type>,
     ) -> Vec<VarianceFlags> {
         self.try_get_variances_worker(
             type_parameters,
             cache,
-            |a: &GetVariancesCache, b: &Type, c: &Type| Ok(create_marker_type(a, b, c)),
+            |a: &GetVariancesCache, b: Id<Type>, c: Id<Type>| Ok(create_marker_type(a, b, c)),
         )
         .unwrap()
     }
@@ -526,8 +526,8 @@ impl TypeChecker {
         cache: impl Into<GetVariancesCache>,
         mut create_marker_type: impl FnMut(
             &GetVariancesCache,
-            &Type, /*TypeParameter*/
-            &Type,
+            Id<Type>, /*TypeParameter*/
+            Id<Type>,
         ) -> io::Result<Id<Type>>,
     ) -> io::Result<Vec<VarianceFlags>> {
         let type_parameters = type_parameters.map_or_else(|| vec![], ToOwned::to_owned);
@@ -584,7 +584,7 @@ impl TypeChecker {
         Ok(ret)
     }
 
-    pub(super) fn get_variances(&self, type_: &Type /*GenericType*/) -> Vec<VarianceFlags> {
+    pub(super) fn get_variances(&self, type_: Id<Type >/*GenericType*/) -> Vec<VarianceFlags> {
         let type_as_generic_type = type_.as_generic_type();
         if ptr::eq(type_, &*self.global_array_type())
             || ptr::eq(type_, &*self.global_readonly_array_type())
@@ -597,7 +597,7 @@ impl TypeChecker {
         self.get_variances_worker(
             type_as_generic_type.maybe_type_parameters(),
             type_.type_wrapper(),
-            |input: &GetVariancesCache, param: &Type, marker: &Type| {
+            |input: &GetVariancesCache, param: Id<Type>, marker: Id<Type>| {
                 self.get_marker_type_reference(
                     // enum_unwrapped!(input, [GetVariancesCache, GenericType]),
                     match input {
@@ -626,19 +626,19 @@ impl TypeChecker {
         false
     }
 
-    pub(super) fn is_unconstrained_type_parameter(&self, type_: &Type) -> io::Result<bool> {
+    pub(super) fn is_unconstrained_type_parameter(&self, type_: Id<Type>) -> io::Result<bool> {
         Ok(type_.flags().intersects(TypeFlags::TypeParameter)
             && self.get_constraint_of_type_parameter(type_)?.is_none())
     }
 
-    pub(super) fn is_non_deferred_type_reference(&self, type_: &Type) -> bool {
+    pub(super) fn is_non_deferred_type_reference(&self, type_: Id<Type>) -> bool {
         get_object_flags(type_).intersects(ObjectFlags::Reference)
             && type_.as_type_reference_interface().maybe_node().is_none()
     }
 
     pub(super) fn is_type_reference_with_generic_arguments(
         &self,
-        type_: &Type,
+        type_: Id<Type>,
     ) -> io::Result<bool> {
         Ok(self.is_non_deferred_type_reference(type_)
             && try_some(
@@ -652,7 +652,7 @@ impl TypeChecker {
 
     pub(super) fn get_type_reference_id(
         &self,
-        type_: &Type, /*TypeReference*/
+        type_: Id<Type>, /*TypeReference*/
         type_parameters: &mut Vec<Id<Type>>,
         depth: Option<usize>,
     ) -> io::Result<String> {
@@ -687,8 +687,8 @@ impl TypeChecker {
 
     pub(super) fn get_relation_key(
         &self,
-        source: &Type,
-        target: &Type,
+        source: Id<Type>,
+        target: Id<Type>,
         intersection_state: IntersectionState,
         relation: &HashMap<String, RelationComparisonResult>,
     ) -> io::Result<String> {
@@ -786,7 +786,7 @@ impl TypeChecker {
     pub(super) fn is_property_in_class_derived_from(
         &self,
         prop: &Symbol,
-        base_class: Option<impl Borrow<Type>>,
+        base_class: Option<Id<Type>>,
     ) -> io::Result<bool> {
         let base_class = base_class.map(|base_class| base_class.borrow().type_wrapper());
         self.for_each_property_bool(prop, &mut |sp: &Symbol| {
@@ -824,7 +824,7 @@ impl TypeChecker {
 
     pub(super) fn is_class_derived_from_declaring_classes(
         &self,
-        check_class: &Type,
+        check_class: Id<Type>,
         prop: &Symbol,
         writing: bool,
     ) -> io::Result<Option<Id<Type>>> {
@@ -849,7 +849,7 @@ impl TypeChecker {
 
     pub(super) fn is_deeply_nested_type(
         &self,
-        type_: &Type,
+        type_: Id<Type>,
         stack: &[Id<Type>],
         depth: usize,
         max_depth: Option<usize>,
@@ -870,7 +870,7 @@ impl TypeChecker {
         false
     }
 
-    pub(super) fn get_recursion_identity(&self, type_: &Type) -> RecursionIdentity {
+    pub(super) fn get_recursion_identity(&self, type_: Id<Type>) -> RecursionIdentity {
         if type_.flags().intersects(TypeFlags::Object)
             && !self.is_object_or_array_literal_type(type_)
         {
@@ -915,7 +915,7 @@ impl TypeChecker {
         target_prop: &Symbol,
     ) -> io::Result<bool> {
         Ok(
-            self.compare_properties(source_prop, target_prop, |a: &Type, b: &Type| {
+            self.compare_properties(source_prop, target_prop, |a: Id<Type>, b: Id<Type>| {
                 self.compare_types_identical(a, b)
             })? != Ternary::False,
         )
@@ -925,7 +925,7 @@ impl TypeChecker {
         &self,
         source_prop: &Symbol,
         target_prop: &Symbol,
-        mut compare_types: impl FnMut(&Type, &Type) -> io::Result<Ternary>,
+        mut compare_types: impl FnMut(Id<Type>, Id<Type>) -> io::Result<Ternary>,
     ) -> io::Result<Ternary> {
         if ptr::eq(source_prop, target_prop) {
             return Ok(Ternary::True);

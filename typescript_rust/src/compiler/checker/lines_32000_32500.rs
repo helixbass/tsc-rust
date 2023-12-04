@@ -241,7 +241,7 @@ impl TypeChecker {
     pub(super) fn check_arithmetic_operand_type(
         &self,
         operand: &Node, /*Expression*/
-        type_: &Type,
+        type_: Id<Type>,
         diagnostic: &DiagnosticMessage,
         is_await_valid: Option<bool>,
     ) -> io::Result<bool> {
@@ -805,7 +805,7 @@ impl TypeChecker {
         self.get_unary_result_type(&operand_type)
     }
 
-    pub(super) fn get_unary_result_type(&self, operand_type: &Type) -> io::Result<Id<Type>> {
+    pub(super) fn get_unary_result_type(&self, operand_type: Id<Type>) -> io::Result<Id<Type>> {
         if self.maybe_type_of_kind(operand_type, TypeFlags::BigIntLike) {
             return Ok(
                 if self.is_type_assignable_to_kind(operand_type, TypeFlags::AnyOrUnknown, None)?
@@ -820,7 +820,7 @@ impl TypeChecker {
         Ok(self.number_type())
     }
 
-    pub(super) fn maybe_type_of_kind(&self, type_: &Type, kind: TypeFlags) -> bool {
+    pub(super) fn maybe_type_of_kind(&self, type_: Id<Type>, kind: TypeFlags) -> bool {
         if type_.flags().intersects(kind) {
             return true;
         }
@@ -837,7 +837,7 @@ impl TypeChecker {
 
     pub(super) fn is_type_assignable_to_kind(
         &self,
-        source: &Type,
+        source: Id<Type>,
         kind: TypeFlags,
         strict: Option<bool>,
     ) -> io::Result<bool> {
@@ -875,7 +875,7 @@ impl TypeChecker {
 
     pub(super) fn all_types_assignable_to_kind(
         &self,
-        source: &Type,
+        source: Id<Type>,
         kind: TypeFlags,
         strict: Option<bool>,
     ) -> io::Result<bool> {
@@ -888,7 +888,7 @@ impl TypeChecker {
         })
     }
 
-    pub(super) fn is_const_enum_object_type(&self, type_: &Type) -> bool {
+    pub(super) fn is_const_enum_object_type(&self, type_: Id<Type>) -> bool {
         get_object_flags(type_).intersects(ObjectFlags::Anonymous)
             && matches!(
                 type_.maybe_symbol().as_ref(),
@@ -904,8 +904,8 @@ impl TypeChecker {
         &self,
         left: &Node,  /*Expression*/
         right: &Node, /*Expression*/
-        left_type: &Type,
-        right_type: &Type,
+        left_type: Id<Type>,
+        right_type: Id<Type>,
     ) -> io::Result<Id<Type>> {
         if ptr::eq(left_type, &*self.silent_never_type())
             || ptr::eq(right_type, &*self.silent_never_type())
@@ -938,8 +938,8 @@ impl TypeChecker {
         &self,
         left: &Node,  /*Expression*/
         right: &Node, /*Expression*/
-        left_type: &Type,
-        right_type: &Type,
+        left_type: Id<Type>,
+        right_type: Id<Type>,
     ) -> io::Result<Id<Type>> {
         if ptr::eq(left_type, &*self.silent_never_type())
             || ptr::eq(right_type, &*self.silent_never_type())

@@ -244,7 +244,7 @@ impl TypeChecker {
                         .get_falsy_flags(
                             &*self.check_declaration_initializer(
                                 declaration,
-                                Option::<&Type>::None,
+                                None,
                             )?,
                         )
                         .intersects(TypeFlags::Undefined)
@@ -260,12 +260,12 @@ impl TypeChecker {
             &*self.get_union_type(
                 &[
                     self.get_non_undefined_type(&type_)?,
-                    self.check_declaration_initializer(declaration, Option::<&Type>::None)?,
+                    self.check_declaration_initializer(declaration, None)?,
                 ],
                 Some(UnionReduction::Subtype),
                 Option::<&Symbol>::None,
                 None,
-                Option::<&Type>::None,
+                None,
             )?,
         )?))
     }
@@ -297,7 +297,7 @@ impl TypeChecker {
 
     pub(super) fn add_optionality(
         &self,
-        type_: &Type,
+        type_: Id<Type>,
         is_property: Option<bool>,
         is_optional: Option<bool>,
     ) -> io::Result<Id<Type>> {
@@ -490,7 +490,7 @@ impl TypeChecker {
             }
             let type_ = self.widen_type_inferred_from_initializer(
                 declaration,
-                &*self.check_declaration_initializer(declaration, Option::<&Type>::None)?,
+                &*self.check_declaration_initializer(declaration, None)?,
             )?;
             return Ok(Some(self.add_optionality(
                 &type_,
@@ -578,7 +578,7 @@ impl TypeChecker {
                                     }
                                     && self
                                         .get_annotated_type_for_assignment_declaration(
-                                            Option::<&Type>::None,
+                                            None,
                                             declaration,
                                             symbol,
                                             declaration,
@@ -956,7 +956,7 @@ impl TypeChecker {
                     Some(UnionReduction::Subtype),
                     Option::<&Symbol>::None,
                     None,
-                    Option::<&Type>::None,
+                    None,
                 )?);
             }
         }
@@ -1032,7 +1032,7 @@ impl TypeChecker {
 
     pub(super) fn get_annotated_type_for_assignment_declaration(
         &self,
-        declared_type: Option<impl Borrow<Type>>,
+        declared_type: Option<Id<Type>>,
         expression: &Node, /*Expression*/
         symbol: &Symbol,
         declaration: &Node, /*Declaration*/
@@ -1219,7 +1219,7 @@ impl TypeChecker {
                             None,
                             Option::<&Symbol>::None,
                             None,
-                            Option::<&Type>::None,
+                            None,
                         )?);
                         if let Some(exported_member_value_declaration) =
                             exported_member.maybe_value_declaration()

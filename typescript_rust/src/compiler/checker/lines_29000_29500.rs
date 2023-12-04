@@ -49,11 +49,11 @@ impl TypeChecker {
         )
     }
 
-    pub(super) fn accepts_void(&self, t: &Type) -> bool {
+    pub(super) fn accepts_void(&self, t: Id<Type>) -> bool {
         t.flags().intersects(TypeFlags::Void)
     }
 
-    pub(super) fn accepts_void_undefined_unknown_or_any(&self, t: &Type) -> bool {
+    pub(super) fn accepts_void_undefined_unknown_or_any(&self, t: Id<Type>) -> bool {
         t.flags().intersects(
             TypeFlags::Void | TypeFlags::Undefined | TypeFlags::Unknown | TypeFlags::Any,
         )
@@ -151,7 +151,7 @@ impl TypeChecker {
         for i in arg_count..effective_minimum_arguments {
             let type_ = self.get_type_at_position(signature, i)?;
             if self
-                .filter_type(&type_, |type_: &Type| {
+                .filter_type(&type_, |type_: Id<Type>| {
                     if is_in_js_file(Some(node)) && !self.strict_null_checks {
                         self.accepts_void_undefined_unknown_or_any(type_)
                     } else {
@@ -187,14 +187,14 @@ impl TypeChecker {
 
     pub(super) fn get_single_call_signature(
         &self,
-        type_: &Type,
+        type_: Id<Type>,
     ) -> io::Result<Option<Gc<Signature>>> {
         self.get_single_signature(type_, SignatureKind::Call, false)
     }
 
     pub(super) fn get_single_call_or_construct_signature(
         &self,
-        type_: &Type,
+        type_: Id<Type>,
     ) -> io::Result<Option<Gc<Signature>>> {
         self.get_single_signature(type_, SignatureKind::Call, false)?
             .try_or_else(|| self.get_single_signature(type_, SignatureKind::Construct, false))
@@ -202,7 +202,7 @@ impl TypeChecker {
 
     pub(super) fn get_single_signature(
         &self,
-        type_: &Type,
+        type_: Id<Type>,
         kind: SignatureKind,
         allow_members: bool,
     ) -> io::Result<Option<Gc<Signature>>> {
@@ -264,7 +264,7 @@ impl TypeChecker {
         self.apply_to_parameter_types(
             &source_signature,
             &signature,
-            |source: &Type, target: &Type| {
+            |source: Id<Type>, target: Id<Type>| {
                 self.infer_types(&context.inferences(), source, target, None, None)
             },
         )?;
@@ -272,7 +272,7 @@ impl TypeChecker {
             self.apply_to_return_types(
                 contextual_signature.clone(),
                 signature.clone(),
-                |source: &Type, target: &Type| {
+                |source: Id<Type>, target: Id<Type>| {
                     self.infer_types(
                         &context.inferences(),
                         source,
@@ -510,11 +510,11 @@ impl TypeChecker {
         self.get_inferred_types(&context)
     }
 
-    pub(super) fn get_mutable_array_or_tuple_type(&self, type_: &Type) -> io::Result<Id<Type>> {
+    pub(super) fn get_mutable_array_or_tuple_type(&self, type_: Id<Type>) -> io::Result<Id<Type>> {
         Ok(if type_.flags().intersects(TypeFlags::Union) {
             self.try_map_type(
                 type_,
-                &mut |type_: &Type| Ok(Some(self.get_mutable_array_or_tuple_type(type_)?)),
+                &mut |type_: Id<Type>| Ok(Some(self.get_mutable_array_or_tuple_type(type_)?)),
                 None,
             )?
             .unwrap()
@@ -559,7 +559,7 @@ impl TypeChecker {
         args: &[Gc<Node /*Expression*/>],
         index: usize,
         arg_count: usize,
-        rest_type: &Type,
+        rest_type: Id<Type>,
         context: Option<Gc<InferenceContext>>,
         check_mode: CheckMode,
     ) -> io::Result<Id<Type>> {

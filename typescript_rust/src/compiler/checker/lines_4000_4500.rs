@@ -161,7 +161,7 @@ impl TypeChecker {
             None,
             Option::<&Symbol>::None,
             None,
-            Option::<&Type>::None,
+            None,
         )
     }
 
@@ -313,7 +313,7 @@ impl TypeChecker {
 
     pub(super) fn get_resolved_type_without_abstract_construct_signatures(
         &self,
-        type_: &Type, /*ResolvedType*/
+        type_: Id<Type>, /*ResolvedType*/
     ) -> io::Result<Id<Type>> {
         let type_as_resolved_type = type_.as_resolved_type();
         let type_construct_signatures = type_as_resolved_type.construct_signatures();

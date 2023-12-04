@@ -193,7 +193,7 @@ impl TypeChecker {
                 None,
                 Option::<&Symbol>::None,
                 None,
-                Option::<&Type>::None,
+                None,
             )?
         } else {
             try_reduce_left_no_initial_value(
@@ -236,7 +236,7 @@ impl TypeChecker {
                 Some(UnionReduction::Subtype),
                 Option::<&Symbol>::None,
                 None,
-                Option::<&Type>::None,
+                None,
             )?
         })
     }
@@ -256,7 +256,7 @@ impl TypeChecker {
         )
     }
 
-    pub(super) fn is_array_type(&self, type_: &Type) -> bool {
+    pub(super) fn is_array_type(&self, type_: Id<Type>) -> bool {
         get_object_flags(type_).intersects(ObjectFlags::Reference)
             && (Gc::ptr_eq(
                 &type_.as_type_reference_interface().target(),
@@ -267,7 +267,7 @@ impl TypeChecker {
             ))
     }
 
-    pub(super) fn is_readonly_array_type(&self, type_: &Type) -> bool {
+    pub(super) fn is_readonly_array_type(&self, type_: Id<Type>) -> bool {
         get_object_flags(type_).intersects(ObjectFlags::Reference)
             && Gc::ptr_eq(
                 &type_.as_type_reference_interface().target(),
@@ -275,7 +275,7 @@ impl TypeChecker {
             )
     }
 
-    pub(super) fn is_mutable_array_or_tuple(&self, type_: &Type) -> bool {
+    pub(super) fn is_mutable_array_or_tuple(&self, type_: Id<Type>) -> bool {
         self.is_array_type(type_) && !self.is_readonly_array_type(type_)
             || self.is_tuple_type(type_)
                 && !type_
@@ -287,7 +287,7 @@ impl TypeChecker {
 
     pub(super) fn get_element_type_of_array_type(
         &self,
-        type_: &Type,
+        type_: Id<Type>,
     ) -> io::Result<Option<Id<Type>>> {
         Ok(if self.is_array_type(type_) {
             self.get_type_arguments(type_)?.get(0).cloned()
@@ -296,7 +296,7 @@ impl TypeChecker {
         })
     }
 
-    pub(super) fn is_array_like_type(&self, type_: &Type) -> io::Result<bool> {
+    pub(super) fn is_array_like_type(&self, type_: Id<Type>) -> io::Result<bool> {
         Ok(self.is_array_type(type_)
             || !type_.flags().intersects(TypeFlags::Nullable)
                 && self.is_type_assignable_to(type_, &self.any_readonly_array_type())?)
@@ -304,7 +304,7 @@ impl TypeChecker {
 
     pub(super) fn get_single_base_for_non_augmenting_subtype(
         &self,
-        type_: &Type,
+        type_: Id<Type>,
     ) -> io::Result<Option<Id<Type>>> {
         if !get_object_flags(type_).intersects(ObjectFlags::Reference)
             || !get_object_flags(&type_.as_type_reference_interface().target())
@@ -385,7 +385,7 @@ impl TypeChecker {
         Ok(Some(instantiated_base))
     }
 
-    pub(super) fn is_empty_literal_type(&self, type_: &Type) -> bool {
+    pub(super) fn is_empty_literal_type(&self, type_: Id<Type>) -> bool {
         if self.strict_null_checks {
             ptr::eq(type_, &*self.implicit_never_type())
         } else {
@@ -393,7 +393,7 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn is_empty_array_literal_type(&self, type_: &Type) -> io::Result<bool> {
+    pub(super) fn is_empty_array_literal_type(&self, type_: Id<Type>) -> io::Result<bool> {
         let element_type = self.get_element_type_of_array_type(type_)?;
         Ok(matches!(
             element_type.as_ref(),
@@ -401,27 +401,27 @@ impl TypeChecker {
         ))
     }
 
-    pub(super) fn is_tuple_like_type(&self, type_: &Type) -> io::Result<bool> {
+    pub(super) fn is_tuple_like_type(&self, type_: Id<Type>) -> io::Result<bool> {
         Ok(self.is_tuple_type(type_) || self.get_property_of_type_(type_, "0", None)?.is_some())
     }
 
-    pub(super) fn is_array_or_tuple_like_type(&self, type_: &Type) -> io::Result<bool> {
+    pub(super) fn is_array_or_tuple_like_type(&self, type_: Id<Type>) -> io::Result<bool> {
         Ok(self.is_array_like_type(type_)? || self.is_tuple_like_type(type_)?)
     }
 
     pub(super) fn get_tuple_element_type(
         &self,
-        type_: &Type,
+        type_: Id<Type>,
         index: usize,
     ) -> io::Result<Option<Id<Type>>> {
         let prop_type = self.get_type_of_property_of_type_(type_, &index.to_string())?;
         if prop_type.is_some() {
             return Ok(prop_type);
         }
-        if self.every_type(type_, |type_: &Type| self.is_tuple_type(type_)) {
+        if self.every_type(type_, |type_: Id<Type>| self.is_tuple_type(type_)) {
             return self.try_map_type(
                 type_,
-                &mut |t: &Type| {
+                &mut |t: Id<Type>| {
                     Ok(Some(
                         self.get_rest_type_of_tuple_type(t)?
                             .unwrap_or_else(|| self.undefined_type()),
@@ -433,15 +433,15 @@ impl TypeChecker {
         Ok(None)
     }
 
-    pub(super) fn is_neither_unit_type_nor_never(&self, type_: &Type) -> bool {
+    pub(super) fn is_neither_unit_type_nor_never(&self, type_: Id<Type>) -> bool {
         !type_.flags().intersects(TypeFlags::Unit | TypeFlags::Never)
     }
 
-    pub(super) fn is_unit_type(&self, type_: &Type) -> bool {
+    pub(super) fn is_unit_type(&self, type_: Id<Type>) -> bool {
         type_.flags().intersects(TypeFlags::Unit)
     }
 
-    pub(super) fn is_unit_like_type(&self, type_: &Type) -> bool {
+    pub(super) fn is_unit_like_type(&self, type_: Id<Type>) -> bool {
         if type_.flags().intersects(TypeFlags::Intersection) {
             some(
                 Some(type_.as_union_or_intersection_type_interface().types()),
@@ -452,7 +452,7 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn extract_unit_type(&self, type_: &Type) -> Id<Type> {
+    pub(super) fn extract_unit_type(&self, type_: Id<Type>) -> Id<Type> {
         if type_.flags().intersects(TypeFlags::Intersection) {
             find(
                 type_.as_union_or_intersection_type_interface().types(),
@@ -465,7 +465,7 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn is_literal_type(&self, type_: &Type) -> bool {
+    pub(super) fn is_literal_type(&self, type_: Id<Type>) -> bool {
         if type_.flags().intersects(TypeFlags::Boolean) {
             true
         } else if type_.flags().intersects(TypeFlags::Union) {
@@ -482,7 +482,7 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn get_base_type_of_literal_type(&self, type_: &Type) -> io::Result<Id<Type>> {
+    pub(super) fn get_base_type_of_literal_type(&self, type_: Id<Type>) -> io::Result<Id<Type>> {
         Ok(if type_.flags().intersects(TypeFlags::EnumLiteral) {
             self.get_base_type_of_enum_literal_type(type_)?
         } else if type_.flags().intersects(TypeFlags::StringLiteral) {
@@ -505,7 +505,7 @@ impl TypeChecker {
         })
     }
 
-    pub(super) fn get_widened_literal_type(&self, type_: &Type) -> io::Result<Id<Type>> {
+    pub(super) fn get_widened_literal_type(&self, type_: Id<Type>) -> io::Result<Id<Type>> {
         let flags = type_.flags();
         Ok(
             if flags.intersects(TypeFlags::EnumLiteral) && self.is_fresh_literal_type(type_) {
@@ -539,7 +539,7 @@ impl TypeChecker {
         )
     }
 
-    pub(super) fn get_widened_unique_es_symbol_type(&self, type_: &Type) -> Id<Type> {
+    pub(super) fn get_widened_unique_es_symbol_type(&self, type_: Id<Type>) -> Id<Type> {
         if type_.flags().intersects(TypeFlags::UniqueESSymbol) {
             self.es_symbol_type()
         } else if type_.flags().intersects(TypeFlags::Union) {
@@ -556,8 +556,8 @@ impl TypeChecker {
 
     pub(super) fn get_widened_literal_like_type_for_contextual_type(
         &self,
-        type_: &Type,
-        contextual_type: Option<impl Borrow<Type>>,
+        type_: Id<Type>,
+        contextual_type: Option<Id<Type>>,
     ) -> io::Result<Id<Type>> {
         let mut type_ = type_.type_wrapper();
         if !self.is_literal_of_contextual_type(&type_, contextual_type)? {
@@ -569,8 +569,8 @@ impl TypeChecker {
 
     pub(super) fn get_widened_literal_like_type_for_contextual_return_type_if_needed(
         &self,
-        type_: Option<impl Borrow<Type>>,
-        contextual_signature_return_type: Option<impl Borrow<Type>>,
+        type_: Option<Id<Type>>,
+        contextual_signature_return_type: Option<Id<Type>>,
         is_async: bool,
     ) -> io::Result<Option<Id<Type>>> {
         let mut type_ = type_.map(|type_| type_.borrow().type_wrapper());
@@ -599,8 +599,8 @@ impl TypeChecker {
 
     pub(super) fn get_widened_literal_like_type_for_contextual_iteration_type_if_needed(
         &self,
-        type_: Option<impl Borrow<Type>>,
-        contextual_signature_return_type: Option<impl Borrow<Type>>,
+        type_: Option<Id<Type>>,
+        contextual_signature_return_type: Option<Id<Type>>,
         kind: IterationTypeKind,
         is_async_generator: bool,
     ) -> io::Result<Option<Id<Type>>> {
@@ -635,7 +635,7 @@ impl TypeChecker {
                 .intersects(ObjectFlags::Tuple)
     }
 
-    pub(super) fn is_generic_tuple_type(&self, type_: &Type) -> bool {
+    pub(super) fn is_generic_tuple_type(&self, type_: Id<Type>) -> bool {
         self.is_tuple_type(type_)
             && type_
                 .as_type_reference_interface()
@@ -645,7 +645,7 @@ impl TypeChecker {
                 .intersects(ElementFlags::Variadic)
     }
 
-    pub(super) fn is_single_element_generic_tuple_type(&self, type_: &Type) -> bool {
+    pub(super) fn is_single_element_generic_tuple_type(&self, type_: Id<Type>) -> bool {
         self.is_generic_tuple_type(type_)
             && type_
                 .as_type_reference()
@@ -674,7 +674,7 @@ impl TypeChecker {
 
     pub(super) fn get_rest_array_type_of_tuple_type(
         &self,
-        type_: &Type, /*TupleTypeReference*/
+        type_: Id<Type>, /*TupleTypeReference*/
     ) -> io::Result<Option<Id<Type>>> {
         let rest_type = self.get_rest_type_of_tuple_type(type_)?;
         Ok(rest_type
@@ -684,7 +684,7 @@ impl TypeChecker {
 
     pub(super) fn get_element_type_of_slice_of_tuple_type(
         &self,
-        type_: &Type, /*TupleTypeReference*/
+        type_: Id<Type>, /*TupleTypeReference*/
         index: usize,
         end_skip_count: Option<usize>,
         writing: Option<bool>,
@@ -726,7 +726,7 @@ impl TypeChecker {
                     None,
                     Option::<&Symbol>::None,
                     None,
-                    Option::<&Type>::None,
+                    None,
                 )?
             }));
         }
@@ -735,8 +735,8 @@ impl TypeChecker {
 
     pub(super) fn is_tuple_type_structure_matching(
         &self,
-        t1: &Type, /*TupleTypeReference*/
-        t2: &Type, /*TupleTypeReference*/
+        t1: Id<Type>, /*TupleTypeReference*/
+        t2: Id<Type>, /*TupleTypeReference*/
     ) -> bool {
         self.get_type_reference_arity(t1) == self.get_type_reference_arity(t2)
             && every(
@@ -749,7 +749,7 @@ impl TypeChecker {
             )
     }
 
-    pub(super) fn is_zero_big_int(&self, type_: &Type /*BigIntLiteralType*/) -> bool {
+    pub(super) fn is_zero_big_int(&self, type_: Id<Type >/*BigIntLiteralType*/) -> bool {
         type_.as_big_int_literal_type().value.base_10_value == "0"
     }
 
@@ -764,7 +764,7 @@ impl TypeChecker {
         result
     }
 
-    pub(super) fn get_falsy_flags(&self, type_: &Type) -> TypeFlags {
+    pub(super) fn get_falsy_flags(&self, type_: Id<Type>) -> TypeFlags {
         if type_.flags().intersects(TypeFlags::Union) {
             self.get_falsy_flags_of_types(type_.as_union_or_intersection_type_interface().types())
         } else if type_.flags().intersects(TypeFlags::StringLiteral) {
@@ -796,12 +796,12 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn remove_definitely_falsy_types(&self, type_: &Type) -> Id<Type> {
+    pub(super) fn remove_definitely_falsy_types(&self, type_: Id<Type>) -> Id<Type> {
         if self
             .get_falsy_flags(type_)
             .intersects(TypeFlags::DefinitelyFalsy)
         {
-            self.filter_type(type_, |t: &Type| {
+            self.filter_type(type_, |t: Id<Type>| {
                 !self
                     .get_falsy_flags(t)
                     .intersects(TypeFlags::DefinitelyFalsy)
@@ -811,16 +811,16 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn extract_definitely_falsy_types(&self, type_: &Type) -> Id<Type> {
+    pub(super) fn extract_definitely_falsy_types(&self, type_: Id<Type>) -> Id<Type> {
         self.map_type(
             type_,
-            &mut |type_: &Type| Some(self.get_definitely_falsy_part_of_type(type_)),
+            &mut |type_: Id<Type>| Some(self.get_definitely_falsy_part_of_type(type_)),
             None,
         )
         .unwrap()
     }
 
-    pub(super) fn get_definitely_falsy_part_of_type(&self, type_: &Type) -> Id<Type> {
+    pub(super) fn get_definitely_falsy_part_of_type(&self, type_: Id<Type>) -> Id<Type> {
         if type_.flags().intersects(TypeFlags::String) {
             self.empty_string_type()
         } else if type_.flags().intersects(TypeFlags::Number) {
@@ -842,7 +842,7 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn get_nullable_type(&self, type_: &Type, flags: TypeFlags) -> io::Result<Id<Type>> {
+    pub(super) fn get_nullable_type(&self, type_: Id<Type>, flags: TypeFlags) -> io::Result<Id<Type>> {
         let missing = (flags & !type_.flags()) & (TypeFlags::Undefined | TypeFlags::Null);
         Ok(if missing == TypeFlags::None {
             type_.type_wrapper()
@@ -852,7 +852,7 @@ impl TypeChecker {
                 None,
                 Option::<&Symbol>::None,
                 None,
-                Option::<&Type>::None,
+                None,
             )?
         } else if missing == TypeFlags::Null {
             self.get_union_type(
@@ -860,7 +860,7 @@ impl TypeChecker {
                 None,
                 Option::<&Symbol>::None,
                 None,
-                Option::<&Type>::None,
+                None,
             )?
         } else {
             self.get_union_type(
@@ -872,14 +872,14 @@ impl TypeChecker {
                 None,
                 Option::<&Symbol>::None,
                 None,
-                Option::<&Type>::None,
+                None,
             )?
         })
     }
 
     pub(super) fn get_optional_type_(
         &self,
-        type_: &Type,
+        type_: Id<Type>,
         is_property: Option<bool>,
     ) -> io::Result<Id<Type>> {
         let is_property = is_property.unwrap_or(false);
@@ -899,14 +899,14 @@ impl TypeChecker {
                 None,
                 Option::<&Symbol>::None,
                 None,
-                Option::<&Type>::None,
+                None,
             )?
         })
     }
 
     pub(super) fn get_global_non_nullable_type_instantiation(
         &self,
-        type_: &Type,
+        type_: Id<Type>,
     ) -> io::Result<Id<Type>> {
         let reduced_type = self.get_type_with_facts(type_, TypeFacts::NEUndefinedOrNull)?;
         if self
@@ -942,7 +942,7 @@ impl TypeChecker {
         )
     }
 
-    pub(super) fn get_non_nullable_type(&self, type_: &Type) -> io::Result<Id<Type>> {
+    pub(super) fn get_non_nullable_type(&self, type_: Id<Type>) -> io::Result<Id<Type>> {
         Ok(if self.strict_null_checks {
             self.get_global_non_nullable_type_instantiation(type_)?
         } else {
@@ -950,21 +950,21 @@ impl TypeChecker {
         })
     }
 
-    pub(super) fn add_optional_type_marker(&self, type_: &Type) -> io::Result<Id<Type>> {
+    pub(super) fn add_optional_type_marker(&self, type_: Id<Type>) -> io::Result<Id<Type>> {
         Ok(if self.strict_null_checks {
             self.get_union_type(
                 &[type_.type_wrapper(), self.optional_type()],
                 None,
                 Option::<&Symbol>::None,
                 None,
-                Option::<&Type>::None,
+                None,
             )?
         } else {
             type_.type_wrapper()
         })
     }
 
-    pub(super) fn remove_optional_type_marker(&self, type_: &Type) -> Id<Type> {
+    pub(super) fn remove_optional_type_marker(&self, type_: Id<Type>) -> Id<Type> {
         if self.strict_null_checks {
             self.remove_type(type_, &self.optional_type())
         } else {
@@ -974,7 +974,7 @@ impl TypeChecker {
 
     pub(super) fn propagate_optional_type_marker(
         &self,
-        type_: &Type,
+        type_: Id<Type>,
         node: &Node, /*OptionalChain*/
         was_optional: bool,
     ) -> io::Result<Id<Type>> {
@@ -991,7 +991,7 @@ impl TypeChecker {
 
     pub(super) fn get_optional_expression_type(
         &self,
-        expr_type: &Type,
+        expr_type: Id<Type>,
         expression: &Node, /*Expression*/
     ) -> io::Result<Id<Type>> {
         Ok(if is_expression_of_optional_chain_root(expression) {
@@ -1003,7 +1003,7 @@ impl TypeChecker {
         })
     }
 
-    pub(super) fn remove_missing_type(&self, type_: &Type, is_optional: bool) -> Id<Type> {
+    pub(super) fn remove_missing_type(&self, type_: Id<Type>, is_optional: bool) -> Id<Type> {
         if self.exact_optional_property_types == Some(true) && is_optional {
             self.remove_type(type_, &self.missing_type())
         } else {
@@ -1011,7 +1011,7 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn contains_missing_type(&self, type_: &Type) -> bool {
+    pub(super) fn contains_missing_type(&self, type_: Id<Type>) -> bool {
         self.exact_optional_property_types == Some(true)
             && (ptr::eq(type_, &*self.missing_type())
                 || type_.flags().intersects(TypeFlags::Union)
@@ -1021,7 +1021,7 @@ impl TypeChecker {
                     ))
     }
 
-    pub(super) fn remove_missing_or_undefined_type(&self, type_: &Type) -> io::Result<Id<Type>> {
+    pub(super) fn remove_missing_or_undefined_type(&self, type_: Id<Type>) -> io::Result<Id<Type>> {
         Ok(if self.exact_optional_property_types == Some(true) {
             self.remove_type(type_, &self.missing_type())
         } else {
@@ -1029,7 +1029,7 @@ impl TypeChecker {
         })
     }
 
-    pub(super) fn is_coercible_under_double_equals(&self, source: &Type, target: &Type) -> bool {
+    pub(super) fn is_coercible_under_double_equals(&self, source: Id<Type>, target: Id<Type>) -> bool {
         source
             .flags()
             .intersects(TypeFlags::Number | TypeFlags::String | TypeFlags::BooleanLiteral)
@@ -1038,7 +1038,7 @@ impl TypeChecker {
                 .intersects(TypeFlags::Number | TypeFlags::String | TypeFlags::Boolean)
     }
 
-    pub(super) fn is_object_type_with_inferable_index(&self, type_: &Type) -> io::Result<bool> {
+    pub(super) fn is_object_type_with_inferable_index(&self, type_: Id<Type>) -> io::Result<bool> {
         Ok(if type_.flags().intersects(TypeFlags::Intersection) {
             try_every(
                 type_.as_union_or_intersection_type_interface().types(),
@@ -1059,7 +1059,7 @@ impl TypeChecker {
     pub(super) fn create_symbol_with_type(
         &self,
         source: &Symbol,
-        type_: Option<impl Borrow<Type>>,
+        type_: Option<Id<Type>>,
     ) -> Gc<Symbol> {
         let symbol: Gc<Symbol> = self
             .create_symbol(
@@ -1086,8 +1086,8 @@ impl TypeChecker {
 
     pub(super) fn transform_type_of_members(
         &self,
-        type_: &Type,
-        mut f: impl FnMut(&Type) -> io::Result<Id<Type>>,
+        type_: Id<Type>,
+        mut f: impl FnMut(Id<Type>) -> io::Result<Id<Type>>,
     ) -> io::Result<SymbolTable> {
         let mut members = create_symbol_table(Option::<&[Gc<Symbol>]>::None);
         for ref property in self.get_properties_of_object_type(type_)? {

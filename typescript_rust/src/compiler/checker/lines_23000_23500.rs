@@ -225,7 +225,7 @@ impl TypeChecker {
         witnesses
     }
 
-    pub(super) fn each_type_contained_in(&self, source: &Type, types: &[Id<Type>]) -> bool {
+    pub(super) fn each_type_contained_in(&self, source: Id<Type>, types: &[Id<Type>]) -> bool {
         if source.flags().intersects(TypeFlags::Union) {
             !for_each_bool(
                 source.as_union_or_intersection_type_interface().types(),
@@ -236,7 +236,7 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn is_type_subset_of(&self, source: &Type, target: &Type) -> io::Result<bool> {
+    pub(super) fn is_type_subset_of(&self, source: Id<Type>, target: Id<Type>) -> io::Result<bool> {
         Ok(ptr::eq(source, target)
             || target.flags().intersects(TypeFlags::Union)
                 && self.is_type_subset_of_union(source, target)?)
@@ -244,8 +244,8 @@ impl TypeChecker {
 
     pub(super) fn is_type_subset_of_union(
         &self,
-        source: &Type,
-        target: &Type, /*UnionType*/
+        source: Id<Type>,
+        target: Id<Type>, /*UnionType*/
     ) -> io::Result<bool> {
         let target_as_union_type = target.as_union_type();
         if source.flags().intersects(TypeFlags::Union) {
@@ -266,17 +266,17 @@ impl TypeChecker {
 
     pub(super) fn for_each_type<TReturn>(
         &self,
-        type_: &Type,
-        mut f: impl FnMut(&Type) -> Option<TReturn>,
+        type_: Id<Type>,
+        mut f: impl FnMut(Id<Type>) -> Option<TReturn>,
     ) -> Option<TReturn> {
-        self.try_for_each_type(type_, |type_: &Type| Ok(f(type_)))
+        self.try_for_each_type(type_, |type_: Id<Type>| Ok(f(type_)))
             .unwrap()
     }
 
     pub(super) fn try_for_each_type<TReturn>(
         &self,
-        type_: &Type,
-        mut f: impl FnMut(&Type) -> io::Result<Option<TReturn>>,
+        type_: Id<Type>,
+        mut f: impl FnMut(Id<Type>) -> io::Result<Option<TReturn>>,
     ) -> io::Result<Option<TReturn>> {
         if type_.flags().intersects(TypeFlags::Union) {
             try_for_each(
@@ -288,15 +288,15 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn some_type(&self, type_: &Type, mut f: impl FnMut(&Type) -> bool) -> bool {
-        self.try_some_type(type_, |type_: &Type| Ok(f(type_)))
+    pub(super) fn some_type(&self, type_: Id<Type>, mut f: impl FnMut(Id<Type>) -> bool) -> bool {
+        self.try_some_type(type_, |type_: Id<Type>| Ok(f(type_)))
             .unwrap()
     }
 
     pub(super) fn try_some_type(
         &self,
-        type_: &Type,
-        mut f: impl FnMut(&Type) -> io::Result<bool>,
+        type_: Id<Type>,
+        mut f: impl FnMut(Id<Type>) -> io::Result<bool>,
     ) -> io::Result<bool> {
         Ok(if type_.flags().intersects(TypeFlags::Union) {
             try_some(
@@ -308,15 +308,15 @@ impl TypeChecker {
         })
     }
 
-    pub(super) fn every_type(&self, type_: &Type, mut f: impl FnMut(&Type) -> bool) -> bool {
-        self.try_every_type(type_, |type_: &Type| Ok(f(type_)))
+    pub(super) fn every_type(&self, type_: Id<Type>, mut f: impl FnMut(Id<Type>) -> bool) -> bool {
+        self.try_every_type(type_, |type_: Id<Type>| Ok(f(type_)))
             .unwrap()
     }
 
     pub(super) fn try_every_type(
         &self,
-        type_: &Type,
-        mut f: impl FnMut(&Type) -> io::Result<bool>,
+        type_: Id<Type>,
+        mut f: impl FnMut(Id<Type>) -> io::Result<bool>,
     ) -> io::Result<bool> {
         Ok(if type_.flags().intersects(TypeFlags::Union) {
             try_every(
@@ -330,8 +330,8 @@ impl TypeChecker {
 
     pub(super) fn every_contained_type(
         &self,
-        type_: &Type,
-        mut f: impl FnMut(&Type) -> bool,
+        type_: Id<Type>,
+        mut f: impl FnMut(Id<Type>) -> bool,
     ) -> bool {
         if type_.flags().intersects(TypeFlags::UnionOrIntersection) {
             every(
@@ -343,15 +343,19 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn filter_type(&self, type_: &Type, mut f: impl FnMut(&Type) -> bool) -> Id<Type> {
+    pub(super) fn filter_type(
+        &self,
+        type_: Id<Type>,
+        mut f: impl FnMut(Id<Type>) -> bool,
+    ) -> Id<Type> {
         self.try_filter_type(type_, |type_: &Type| Ok(f(type_)))
             .unwrap()
     }
 
     pub(super) fn try_filter_type(
         &self,
-        type_: &Type,
-        mut f: impl FnMut(&Type) -> io::Result<bool>,
+        type_: Id<Type>,
+        mut f: impl FnMut(Id<Type>) -> io::Result<bool>,
     ) -> io::Result<Id<Type>> {
         if type_.flags().intersects(TypeFlags::Union) {
             let type_as_union_type = type_.as_union_type();
@@ -395,11 +399,11 @@ impl TypeChecker {
         })
     }
 
-    pub(super) fn remove_type(&self, type_: &Type, target_type: &Type) -> Id<Type> {
-        self.filter_type(type_, |t: &Type| !ptr::eq(t, target_type))
+    pub(super) fn remove_type(&self, type_: Id<Type>, target_type: Id<Type>) -> Id<Type> {
+        self.filter_type(type_, |t: Id<Type>| !ptr::eq(t, target_type))
     }
 
-    pub(super) fn count_types(&self, type_: &Type) -> usize {
+    pub(super) fn count_types(&self, type_: Id<Type>) -> usize {
         if type_.flags().intersects(TypeFlags::Union) {
             type_
                 .as_union_or_intersection_type_interface()
@@ -463,7 +467,7 @@ impl TypeChecker {
                     }),
                     Option::<&Symbol>::None,
                     None,
-                    Option::<&Type>::None,
+                    None,
                 )?)
             } else {
                 None
@@ -475,25 +479,25 @@ impl TypeChecker {
 
     pub(super) fn map_type(
         &self,
-        type_: &Type,
-        mapper: &mut impl FnMut(&Type) -> Option<Id<Type>>,
+        type_: Id<Type>,
+        mapper: &mut impl FnMut(Id<Type>) -> Option<Id<Type>>,
         no_reductions: Option<bool>,
     ) -> Option<Id<Type>> {
-        self.try_map_type(type_, &mut |type_: &Type| Ok(mapper(type_)), no_reductions)
+        self.try_map_type(type_, &mut |type_: Id<Type>| Ok(mapper(type_)), no_reductions)
             .unwrap()
     }
 
     #[allow(dead_code)]
     pub(super) fn map_type_with_alias(
         &self,
-        type_: &Type,
-        mapper: &mut impl FnMut(&Type) -> Id<Type>,
+        type_: Id<Type>,
+        mapper: &mut impl FnMut(Id<Type>) -> Id<Type>,
         alias_symbol: Option<impl Borrow<Symbol>>,
         alias_type_arguments: Option<&[Id<Type>]>,
     ) -> Id<Type> {
         self.try_map_type_with_alias(
             type_,
-            &mut |type_: &Type| Ok(mapper(type_)),
+            &mut |type_: Id<Type>| Ok(mapper(type_)),
             alias_symbol,
             alias_type_arguments,
         )
@@ -502,8 +506,8 @@ impl TypeChecker {
 
     pub(super) fn try_map_type_with_alias(
         &self,
-        type_: &Type,
-        mapper: &mut impl FnMut(&Type) -> io::Result<Id<Type>>,
+        type_: Id<Type>,
+        mapper: &mut impl FnMut(Id<Type>) -> io::Result<Id<Type>>,
         alias_symbol: Option<impl Borrow<Symbol>>,
         alias_type_arguments: Option<&[Id<Type>]>,
     ) -> io::Result<Id<Type>> {
@@ -516,16 +520,16 @@ impl TypeChecker {
                     Some(UnionReduction::Literal),
                     alias_symbol,
                     alias_type_arguments,
-                    Option::<&Type>::None,
+                    None,
                 )?
             } else {
-                self.try_map_type(type_, &mut |type_: &Type| Ok(Some(mapper(type_)?)), None)?
+                self.try_map_type(type_, &mut |type_: Id<Type>| Ok(Some(mapper(type_)?)), None)?
                     .unwrap()
             },
         )
     }
 
-    pub(super) fn get_constituent_count(&self, type_: &Type) -> usize {
+    pub(super) fn get_constituent_count(&self, type_: Id<Type>) -> usize {
         if type_.flags().intersects(TypeFlags::Union) {
             type_
                 .as_union_or_intersection_type_interface()
@@ -536,14 +540,14 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn extract_types_of_kind(&self, type_: &Type, kind: TypeFlags) -> Id<Type> {
-        self.filter_type(type_, |t: &Type| t.flags().intersects(kind))
+    pub(super) fn extract_types_of_kind(&self, type_: Id<Type>, kind: TypeFlags) -> Id<Type> {
+        self.filter_type(type_, |t: Id<Type>| t.flags().intersects(kind))
     }
 
     pub(super) fn replace_primitives_with_literals(
         &self,
-        type_with_primitives: &Type,
-        type_with_literals: &Type,
+        type_with_primitives: Id<Type>,
+        type_with_literals: Id<Type>,
     ) -> Id<Type> {
         if self.maybe_type_of_kind(
             type_with_primitives,
@@ -559,7 +563,7 @@ impl TypeChecker {
             return self
                 .map_type(
                     type_with_primitives,
-                    &mut |t: &Type| {
+                    &mut |t: Id<Type>| {
                         Some(if t.flags().intersects(TypeFlags::String) {
                             self.extract_types_of_kind(
                                 type_with_literals,
@@ -610,7 +614,7 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn create_flow_type(&self, type_: &Type, incomplete: bool) -> FlowType {
+    pub(super) fn create_flow_type(&self, type_: Id<Type>, incomplete: bool) -> FlowType {
         if incomplete {
             FlowType::IncompleteType(IncompleteType::new(
                 TypeFlags::None,
@@ -627,7 +631,7 @@ impl TypeChecker {
 
     pub(super) fn create_evolving_array_type(
         &self,
-        element_type: &Type,
+        element_type: Id<Type>,
     ) -> Id<Type /*EvolvingArrayType*/> {
         let result = self.create_object_type(ObjectFlags::EvolvingArray, Option::<&Symbol>::None);
         EvolvingArrayType::new(result, element_type.type_wrapper()).into()
@@ -635,7 +639,7 @@ impl TypeChecker {
 
     pub(super) fn get_evolving_array_type(
         &self,
-        element_type: &Type,
+        element_type: Id<Type>,
     ) -> Id<Type /*EvolvingArrayType*/> {
         self.evolving_array_types()
             .entry(element_type.id())
@@ -645,7 +649,7 @@ impl TypeChecker {
 
     pub(super) fn add_evolving_array_element_type(
         &self,
-        evolving_array_type: &Type, /*EvolvingArrayType*/
+        evolving_array_type: Id<Type>, /*EvolvingArrayType*/
         node: &Node,                /*Expression*/
     ) -> io::Result<Id<Type /*EvolvingArrayType*/>> {
         let element_type = self
@@ -672,14 +676,14 @@ impl TypeChecker {
                         None,
                         Option::<&Symbol>::None,
                         None,
-                        Option::<&Type>::None,
+                        None,
                     )?,
                 )
             },
         )
     }
 
-    pub(super) fn create_final_array_type(&self, element_type: &Type) -> io::Result<Id<Type>> {
+    pub(super) fn create_final_array_type(&self, element_type: Id<Type>) -> io::Result<Id<Type>> {
         Ok(if element_type.flags().intersects(TypeFlags::Never) {
             self.auto_array_type()
         } else {
@@ -690,7 +694,7 @@ impl TypeChecker {
                         Some(UnionReduction::Subtype),
                         Option::<&Symbol>::None,
                         None,
-                        Option::<&Type>::None,
+                        None,
                     )?
                 } else {
                     element_type.type_wrapper()
@@ -702,7 +706,7 @@ impl TypeChecker {
 
     pub(super) fn get_final_array_type(
         &self,
-        evolving_array_type: &Type, /*EvolvingArrayType*/
+        evolving_array_type: Id<Type>, /*EvolvingArrayType*/
     ) -> io::Result<Id<Type>> {
         let evolving_array_type_as_evolving_array_type =
             evolving_array_type.as_evolving_array_type();
@@ -716,7 +720,7 @@ impl TypeChecker {
         Ok(final_array_type.clone().unwrap())
     }
 
-    pub(super) fn finalize_evolving_array_type(&self, type_: &Type) -> io::Result<Id<Type>> {
+    pub(super) fn finalize_evolving_array_type(&self, type_: Id<Type>) -> io::Result<Id<Type>> {
         Ok(
             if get_object_flags(type_).intersects(ObjectFlags::EvolvingArray) {
                 self.get_final_array_type(type_)?
@@ -726,7 +730,7 @@ impl TypeChecker {
         )
     }
 
-    pub(super) fn get_element_type_of_evolving_array_type(&self, type_: &Type) -> Id<Type> {
+    pub(super) fn get_element_type_of_evolving_array_type(&self, type_: Id<Type>) -> Id<Type> {
         if get_object_flags(type_).intersects(ObjectFlags::EvolvingArray) {
             type_.as_evolving_array_type().element_type.clone()
         } else {

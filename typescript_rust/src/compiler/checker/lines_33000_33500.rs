@@ -16,7 +16,7 @@ use crate::{
 };
 
 impl TypeChecker {
-    pub(super) fn both_are_big_int_like(&self, left: &Type, right: &Type) -> io::Result<bool> {
+    pub(super) fn both_are_big_int_like(&self, left: Id<Type>, right: Id<Type>) -> io::Result<bool> {
         Ok(
             self.is_type_assignable_to_kind(left, TypeFlags::BigIntLike, None)?
                 && self.is_type_assignable_to_kind(right, TypeFlags::BigIntLike, None)?,
@@ -26,7 +26,7 @@ impl TypeChecker {
     pub(super) fn check_assignment_declaration(
         &self,
         kind: AssignmentDeclarationKind,
-        right_type: &Type,
+        right_type: Id<Type>,
     ) -> io::Result<()> {
         if kind == AssignmentDeclarationKind::ModuleExports {
             for ref prop in self.get_properties_of_object_type(right_type)? {
@@ -75,8 +75,8 @@ impl TypeChecker {
 
     pub(super) fn check_for_disallowed_es_symbol_operand(
         &self,
-        left_type: &Type,
-        right_type: &Type,
+        left_type: Id<Type>,
+        right_type: Id<Type>,
         left: &Node,
         right: &Node,
         operator: SyntaxKind,
@@ -122,9 +122,9 @@ impl TypeChecker {
         &self,
         operator: SyntaxKind,
         left: &Node,
-        left_type: &Type,
+        left_type: Id<Type>,
         right: &Node,
-        value_type: &Type,
+        value_type: Id<Type>,
     ) -> io::Result<()> {
         if self.produce_diagnostics && is_assignment_operator(operator) {
             if self.check_reference_expression(
@@ -195,11 +195,11 @@ impl TypeChecker {
 
     pub(super) fn report_operator_error_unless(
         &self,
-        left_type: &Type,
-        right_type: &Type,
+        left_type: Id<Type>,
+        right_type: Id<Type>,
         operator_token: &Node,
         error_node: Option<impl Borrow<Node>>,
-        mut types_are_compatible: impl FnMut(&Type, &Type) -> io::Result<bool>,
+        mut types_are_compatible: impl FnMut(Id<Type>, Id<Type>) -> io::Result<bool>,
     ) -> io::Result<bool> {
         if !types_are_compatible(left_type, right_type)? {
             self.report_operator_error(
@@ -218,9 +218,9 @@ impl TypeChecker {
         &self,
         error_node: Option<impl Borrow<Node>>,
         operator_token: &Node,
-        left_type: &Type,
-        right_type: &Type,
-        mut is_related: Option<impl FnMut(&Type, &Type) -> io::Result<bool>>,
+        left_type: Id<Type>,
+        right_type: Id<Type>,
+        mut is_related: Option<impl FnMut(Id<Type>, Id<Type>) -> io::Result<bool>>,
     ) -> io::Result<()> {
         let mut would_work_with_await = false;
         let err_node = error_node.map_or_else(
@@ -318,9 +318,9 @@ impl TypeChecker {
 
     pub(super) fn get_base_types_if_unrelated(
         &self,
-        left_type: &Type,
-        right_type: &Type,
-        is_related: &mut impl FnMut(&Type, &Type) -> io::Result<bool>,
+        left_type: Id<Type>,
+        right_type: Id<Type>,
+        is_related: &mut impl FnMut(Id<Type>, Id<Type>) -> io::Result<bool>,
     ) -> io::Result<(Id<Type>, Id<Type>)> {
         let mut effective_left = left_type.type_wrapper();
         let mut effective_right = right_type.type_wrapper();
@@ -500,7 +500,7 @@ impl TypeChecker {
             Some(UnionReduction::Subtype),
             Option::<&Symbol>::None,
             None,
-            Option::<&Type>::None,
+            None,
         )
     }
 
@@ -547,10 +547,10 @@ impl TypeChecker {
             if self.is_const_context(node)
                 || self.is_template_literal_context(node)
                 || self.try_some_type(
-                    &self
+                    self
                         .get_contextual_type_(node, None)?
                         .unwrap_or_else(|| self.unknown_type()),
-                    |type_: &Type| self.is_template_literal_contextual_type(type_),
+                    |type_: Id<Type>| self.is_template_literal_contextual_type(type_),
                 )?
             {
                 self.get_template_literal_type(
@@ -566,7 +566,7 @@ impl TypeChecker {
         )
     }
 
-    pub(super) fn is_template_literal_contextual_type(&self, type_: &Type) -> io::Result<bool> {
+    pub(super) fn is_template_literal_contextual_type(&self, type_: Id<Type>) -> io::Result<bool> {
         Ok(type_
             .flags()
             .intersects(TypeFlags::StringLiteral | TypeFlags::TemplateLiteral)
@@ -592,7 +592,7 @@ impl TypeChecker {
     pub(super) fn check_expression_with_contextual_type(
         &self,
         node: &Node, /*Expression*/
-        contextual_type: &Type,
+        contextual_type: Id<Type>,
         inference_context: Option<Gc<InferenceContext>>,
         check_mode: CheckMode,
     ) -> io::Result<Id<Type>> {

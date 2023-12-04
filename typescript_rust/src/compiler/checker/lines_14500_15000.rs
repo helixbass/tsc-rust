@@ -24,7 +24,7 @@ impl TypeChecker {
     pub(super) fn each_union_contains(
         &self,
         union_types: &[Id<Type /*UnionType*/>],
-        type_: &Type,
+        type_: Id<Type>,
     ) -> bool {
         for u in union_types {
             let u_as_union_type = u.as_union_type();
@@ -89,7 +89,8 @@ impl TypeChecker {
 
     pub(super) fn remove_from_each(&self, types: &mut Vec<Id<Type>>, flag: TypeFlags) {
         for i in 0..types.len() {
-            types[i] = self.filter_type(&types[i].clone(), |t: &Type| !t.flags().intersects(flag));
+            types[i] =
+                self.filter_type(&types[i].clone(), |t: Id<Type>| !t.flags().intersects(flag));
         }
     }
 
@@ -137,7 +138,7 @@ impl TypeChecker {
             ObjectFlags::PrimitiveUnion,
             Option::<&Symbol>::None,
             None,
-            Option::<&Type>::None,
+            None,
         );
         true
     }
@@ -289,7 +290,7 @@ impl TypeChecker {
                         Some(UnionReduction::Literal),
                         alias_symbol.as_deref(),
                         alias_type_arguments,
-                        Option::<&Type>::None,
+                        None,
                     )?);
                 } else if self.each_is_union_containing(&type_set, TypeFlags::Null) {
                     self.remove_from_each(&mut type_set, TypeFlags::Null);
@@ -301,7 +302,7 @@ impl TypeChecker {
                         Some(UnionReduction::Literal),
                         alias_symbol.as_deref(),
                         alias_type_arguments,
-                        Option::<&Type>::None,
+                        None,
                     )?);
                 } else {
                     if !self.check_cross_product_union(&type_set) {
@@ -441,7 +442,7 @@ impl TypeChecker {
 
     pub(super) fn create_index_type(
         &self,
-        type_: &Type, /*InstantiableType | UnionOrIntersectionType*/
+        type_: Id<Type>, /*InstantiableType | UnionOrIntersectionType*/
         strings_only: bool,
     ) -> Id<Type> {
         let result = self.create_type(TypeFlags::Index);
@@ -451,7 +452,7 @@ impl TypeChecker {
 
     pub(super) fn create_origin_index_type(
         &self,
-        type_: &Type, /*InstantiableType | UnionOrIntersectionType*/
+        type_: Id<Type>, /*InstantiableType | UnionOrIntersectionType*/
     ) -> Id<Type> {
         let result = self.create_origin_type(TypeFlags::Index);
         let result: Id<Type> =
@@ -461,7 +462,7 @@ impl TypeChecker {
 
     pub(super) fn get_index_type_for_generic_type(
         &self,
-        type_: &Type, /*InstantiableType | UnionOrIntersectionType*/
+        type_: Id<Type>, /*InstantiableType | UnionOrIntersectionType*/
         strings_only: bool,
     ) -> Id<Type> {
         if strings_only {
@@ -481,7 +482,7 @@ impl TypeChecker {
 
     pub(super) fn get_index_type_for_mapped_type(
         &self,
-        type_: &Type, /*MappedType*/
+        type_: Id<Type>, /*MappedType*/
         strings_only: bool,
         no_index_signatures: Option<bool>,
     ) -> io::Result<Id<Type>> {
@@ -544,23 +545,11 @@ impl TypeChecker {
         }
         let result = if matches!(no_index_signatures, Some(true)) {
             self.filter_type(
-                &*self.get_union_type(
-                    &key_types,
-                    None,
-                    Option::<&Symbol>::None,
-                    None,
-                    Option::<&Type>::None,
-                )?,
+                &*self.get_union_type(&key_types, None, Option::<&Symbol>::None, None, None)?,
                 |t| !t.flags().intersects(TypeFlags::Any | TypeFlags::String),
             )
         } else {
-            self.get_union_type(
-                &key_types,
-                None,
-                Option::<&Symbol>::None,
-                None,
-                Option::<&Type>::None,
-            )?
+            self.get_union_type(&key_types, None, Option::<&Symbol>::None, None, None)?
         };
         if result.flags().intersects(TypeFlags::Union)
             && constraint_type.flags().intersects(TypeFlags::Union)
@@ -574,11 +563,11 @@ impl TypeChecker {
 
     pub(super) fn add_member_for_key_type_get_index_type_for_mapped_type(
         &self,
-        name_type: Option<&Id<Type>>,
-        type_parameter: &Type,
+        name_type: Option<Id<Type>>,
+        type_parameter: Id<Type>,
         key_types: &mut Vec<Id<Type>>,
-        type_: &Type,
-        key_type: &Type,
+        type_: Id<Type>,
+        key_type: Id<Type>,
     ) -> io::Result<()> {
         let prop_name_type = if let Some(name_type) = name_type {
             self.instantiate_type(
@@ -603,7 +592,7 @@ impl TypeChecker {
 
     pub(super) fn has_distributive_name_type(
         &self,
-        mapped_type: &Type, /*MappedType*/
+        mapped_type: Id<Type>, /*MappedType*/
     ) -> io::Result<bool> {
         let type_variable = self.get_type_parameter_from_mapped_type(mapped_type)?;
         Ok(self.is_distributive(
@@ -614,7 +603,7 @@ impl TypeChecker {
         ))
     }
 
-    pub(super) fn is_distributive(&self, type_variable: &Type, type_: &Type) -> bool {
+    pub(super) fn is_distributive(&self, type_variable: Id<Type>, type_: Id<Type>) -> bool {
         if type_.flags().intersects(
             TypeFlags::AnyOrUnknown
                 | TypeFlags::Primitive
@@ -711,7 +700,7 @@ impl TypeChecker {
         Ok(self.never_type())
     }
 
-    pub(super) fn is_key_type_included(&self, key_type: &Type, include: TypeFlags) -> bool {
+    pub(super) fn is_key_type_included(&self, key_type: Id<Type>, include: TypeFlags) -> bool {
         key_type.flags().intersects(include)
             || key_type.flags().intersects(TypeFlags::Intersection)
                 && some(
@@ -722,7 +711,7 @@ impl TypeChecker {
 
     pub(super) fn get_literal_type_from_properties(
         &self,
-        type_: &Type,
+        type_: Id<Type>,
         include: TypeFlags,
         include_origin: bool,
     ) -> io::Result<Id<Type>> {
@@ -766,7 +755,7 @@ impl TypeChecker {
 
     pub(super) fn get_index_type(
         &self,
-        type_: &Type,
+        type_: Id<Type>,
         strings_only: Option<bool>,
         no_index_signatures: Option<bool>,
     ) -> io::Result<Id<Type>> {
@@ -788,7 +777,7 @@ impl TypeChecker {
                 None,
                 Option::<&Symbol>::None,
                 None,
-                Option::<&Type>::None,
+                None,
             )?
         } else if type_
             .flags()
@@ -823,7 +812,7 @@ impl TypeChecker {
         })
     }
 
-    pub(super) fn get_extract_string_type(&self, type_: &Type) -> io::Result<Id<Type>> {
+    pub(super) fn get_extract_string_type(&self, type_: Id<Type>) -> io::Result<Id<Type>> {
         if self.keyof_strings_only {
             return Ok(type_.type_wrapper());
         }
@@ -840,7 +829,7 @@ impl TypeChecker {
         })
     }
 
-    pub(super) fn get_index_type_or_string(&self, type_: &Type) -> io::Result<Id<Type>> {
+    pub(super) fn get_index_type_or_string(&self, type_: Id<Type>) -> io::Result<Id<Type>> {
         let index_type = self.get_extract_string_type(&*self.get_index_type(type_, None, None)?)?;
         Ok(if index_type.flags().intersects(TypeFlags::Never) {
             self.string_type()

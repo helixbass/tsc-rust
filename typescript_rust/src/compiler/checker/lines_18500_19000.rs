@@ -35,8 +35,8 @@ impl CheckTypeRelatedTo {
 
     pub(super) fn each_type_related_to_some_type(
         &self,
-        source: &Type, /*UnionOrIntersectionType*/
-        target: &Type, /*UnionOrIntersectionType*/
+        source: Id<Type>, /*UnionOrIntersectionType*/
+        target: Id<Type>, /*UnionOrIntersectionType*/
     ) -> io::Result<Ternary> {
         let mut result = Ternary::True;
         let source_types = source.as_union_or_intersection_type_interface().types();
@@ -52,8 +52,8 @@ impl CheckTypeRelatedTo {
 
     pub(super) fn type_related_to_some_type(
         &self,
-        source: &Type,
-        target: &Type, /*UnionOrIntersectionType*/
+        source: Id<Type>,
+        target: Id<Type>, /*UnionOrIntersectionType*/
         report_errors: bool,
     ) -> io::Result<Ternary> {
         let target_types = target.as_union_or_intersection_type_interface().types();
@@ -95,7 +95,7 @@ impl CheckTypeRelatedTo {
             let best_matching_type = self.type_checker.get_best_matching_type(
                 source,
                 target,
-                Some(|source: &Type, target: &Type| {
+                Some(|source: Id<Type>, target: Id<Type>| {
                     self.is_related_to(source, target, None, None, None, None)
                 }),
             )?;
@@ -113,8 +113,8 @@ impl CheckTypeRelatedTo {
 
     pub(super) fn type_related_to_each_type(
         &self,
-        source: &Type,
-        target: &Type, /*IntersectionType*/
+        source: Id<Type>,
+        target: Id<Type>, /*IntersectionType*/
         report_errors: bool,
         intersection_state: IntersectionState,
     ) -> io::Result<Ternary> {
@@ -139,8 +139,8 @@ impl CheckTypeRelatedTo {
 
     pub(super) fn some_type_related_to_type(
         &self,
-        source: &Type, /*UnionOrIntersectionType*/
-        target: &Type,
+        source: Id<Type>, /*UnionOrIntersectionType*/
+        target: Id<Type>,
         report_errors: bool,
         intersection_state: IntersectionState,
     ) -> io::Result<Ternary> {
@@ -169,8 +169,8 @@ impl CheckTypeRelatedTo {
 
     pub(super) fn get_undefined_stripped_target_if_needed(
         &self,
-        source: &Type,
-        target: &Type,
+        source: Id<Type>,
+        target: Id<Type>,
     ) -> Id<Type> {
         if source.flags().intersects(TypeFlags::Union)
             && target.flags().intersects(TypeFlags::Union)
@@ -190,8 +190,8 @@ impl CheckTypeRelatedTo {
 
     pub(super) fn each_type_related_to_type(
         &self,
-        source: &Type, /*UnionOrIntersectionType*/
-        target: &Type,
+        source: Id<Type>, /*UnionOrIntersectionType*/
+        target: Id<Type>,
         report_errors: bool,
         intersection_state: IntersectionState,
     ) -> io::Result<Ternary> {
@@ -355,8 +355,8 @@ impl CheckTypeRelatedTo {
 
     pub(super) fn recursive_type_related_to(
         &self,
-        source: &Type,
-        target: &Type,
+        source: Id<Type>,
+        target: Id<Type>,
         report_errors: bool,
         intersection_state: IntersectionState,
         recursion_flags: RecursionFlags,
@@ -579,8 +579,8 @@ impl CheckTypeRelatedTo {
 
     pub(super) fn structured_type_related_to(
         &self,
-        source: &Type,
-        target: &Type,
+        source: Id<Type>,
+        target: Id<Type>,
         report_errors: bool,
         intersection_state: IntersectionState,
     ) -> io::Result<Ternary> {
@@ -598,8 +598,8 @@ impl CheckTypeRelatedTo {
     #[allow(clippy::if_same_then_else)]
     pub(super) fn structured_type_related_to_worker(
         &self,
-        source: &Type,
-        target: &Type,
+        source: Id<Type>,
+        target: Id<Type>,
         report_errors: bool,
         intersection_state: IntersectionState,
     ) -> io::Result<Ternary> {
@@ -1043,7 +1043,7 @@ impl CheckTypeRelatedTo {
                             None,
                             Option::<&Symbol>::None,
                             None,
-                            Option::<&Type>::None,
+                            None,
                         )?;
                     } else {
                         target_keys = name_type.unwrap_or(constraint_type);
@@ -1819,7 +1819,7 @@ impl CheckTypeRelatedTo {
 #[derive(Trace, Finalize)]
 pub(super) struct ReportUnmeasurableMarkers;
 impl TypeMapperCallback for ReportUnmeasurableMarkers {
-    fn call(&self, checker: &TypeChecker, p: &Type /*TypeParameter*/) -> io::Result<Id<Type>> {
+    fn call(&self, checker: &TypeChecker, p: Id<Type >/*TypeParameter*/) -> io::Result<Id<Type>> {
         if let Some(outofband_variance_marker_handler) =
             checker.maybe_outofband_variance_marker_handler()
         {
@@ -1837,7 +1837,7 @@ impl TypeMapperCallback for ReportUnmeasurableMarkers {
 #[derive(Trace, Finalize)]
 pub(super) struct ReportUnreliableMarkers;
 impl TypeMapperCallback for ReportUnreliableMarkers {
-    fn call(&self, checker: &TypeChecker, p: &Type /*TypeParameter*/) -> io::Result<Id<Type>> {
+    fn call(&self, checker: &TypeChecker, p: Id<Type >/*TypeParameter*/) -> io::Result<Id<Type>> {
         if let Some(outofband_variance_marker_handler) =
             checker.maybe_outofband_variance_marker_handler()
         {
@@ -1866,7 +1866,7 @@ impl TypeComparerIsRelatedToWorker {
 }
 
 impl TypeComparer for TypeComparerIsRelatedToWorker {
-    fn call(&self, s: &Type, t: &Type, report_errors: Option<bool>) -> io::Result<Ternary> {
+    fn call(&self, s: Id<Type>, t: Id<Type>, report_errors: Option<bool>) -> io::Result<Ternary> {
         self.check_type_related_to.is_related_to_worker(
             s,
             t,

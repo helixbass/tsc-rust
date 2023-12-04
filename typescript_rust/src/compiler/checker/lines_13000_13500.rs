@@ -25,7 +25,7 @@ use crate::{
 impl TypeChecker {
     pub(super) fn get_inferred_type_parameter_constraint(
         &self,
-        type_parameter: &Type, /*TypeParameter*/
+        type_parameter: Id<Type>, /*TypeParameter*/
     ) -> io::Result<Option<Id<Type>>> {
         let mut inferences: Option<Vec<Id<Type>>> = None;
         if let Some(type_parameter_symbol) = type_parameter.maybe_symbol() {
@@ -198,7 +198,7 @@ impl TypeChecker {
 
     pub(super) fn get_constraint_from_type_parameter(
         &self,
-        type_parameter: &Type, /*TypeParameter*/
+        type_parameter: Id<Type>, /*TypeParameter*/
     ) -> io::Result<Option<Id<Type>>> {
         let type_parameter_as_type_parameter = type_parameter.as_type_parameter();
         if type_parameter_as_type_parameter
@@ -253,7 +253,7 @@ impl TypeChecker {
 
     pub(super) fn get_parent_symbol_of_type_parameter(
         &self,
-        type_parameter: &Type, /*TypeParameter*/
+        type_parameter: Id<Type>, /*TypeParameter*/
     ) -> io::Result<Option<Gc<Symbol>>> {
         let tp =
             get_declaration_of_kind(&type_parameter.symbol(), SyntaxKind::TypeParameter).unwrap();
@@ -328,7 +328,7 @@ impl TypeChecker {
 
     pub(super) fn create_type_reference(
         &self,
-        target: &Type, /*GenericType*/
+        target: Id<Type>, /*GenericType*/
         type_arguments: Option<Vec<Id<Type>>>,
     ) -> Id<Type /*TypeReference*/> {
         let id = self.get_type_list_id(type_arguments.as_deref());
@@ -358,7 +358,7 @@ impl TypeChecker {
         type_.unwrap()
     }
 
-    pub(super) fn clone_type_reference(&self, source: &Type /*TypeReference*/) -> Id<Type> {
+    pub(super) fn clone_type_reference(&self, source: Id<Type >/*TypeReference*/) -> Id<Type> {
         let type_ = self.create_type(source.flags());
         type_.set_symbol(source.maybe_symbol());
         let source_as_type_reference = source.as_type_reference_interface();
@@ -376,7 +376,7 @@ impl TypeChecker {
 
     pub(super) fn create_deferred_type_reference(
         &self,
-        target: &Type, /*GenericType*/
+        target: Id<Type>, /*GenericType*/
         node: &Node,   /*TypeReferenceNode | ArrayTypeNode | TupleTypeNode*/
         mapper: Option<Gc<TypeMapper>>,
         alias_symbol: Option<impl Borrow<Symbol>>,
@@ -406,7 +406,7 @@ impl TypeChecker {
 
     pub(super) fn get_type_arguments(
         &self,
-        type_: &Type, /*TypeReference*/
+        type_: Id<Type>, /*TypeReference*/
     ) -> io::Result<Vec<Id<Type>>> {
         let type_as_type_reference = type_.as_type_reference_interface();
         if type_as_type_reference
@@ -511,7 +511,7 @@ impl TypeChecker {
             .unwrap())
     }
 
-    pub(super) fn get_type_reference_arity(&self, type_: &Type /*TypeReference*/) -> usize {
+    pub(super) fn get_type_reference_arity(&self, type_: Id<Type >/*TypeReference*/) -> usize {
         length(
             type_
                 .as_type_reference_interface()
@@ -937,7 +937,7 @@ impl TypeChecker {
         Ok(ret)
     }
 
-    pub(super) fn get_substitution_type(&self, base_type: &Type, substitute: &Type) -> Id<Type> {
+    pub(super) fn get_substitution_type(&self, base_type: Id<Type>, substitute: Id<Type>) -> Id<Type> {
         if substitute.flags().intersects(TypeFlags::AnyOrUnknown) || ptr::eq(substitute, base_type)
         {
             return base_type.type_wrapper();
@@ -965,7 +965,7 @@ impl TypeChecker {
 
     pub(super) fn get_implied_constraint(
         &self,
-        type_: &Type,
+        type_: Id<Type>,
         check_node: &Node,   /*TypeNode*/
         extends_node: &Node, /*TypeNode*/
     ) -> io::Result<Option<Id<Type>>> {
@@ -991,7 +991,7 @@ impl TypeChecker {
 
     pub(super) fn get_conditional_flow_type_of_type(
         &self,
-        type_: &Type,
+        type_: Id<Type>,
         node: &Node,
     ) -> io::Result<Id<Type>> {
         let mut constraints: Option<Vec<Id<Type>>> = None;

@@ -178,7 +178,7 @@ impl TypeChecker {
 
     pub(super) fn get_type_with_synthetic_default_only(
         &self,
-        type_: &Type,
+        type_: Id<Type>,
         symbol: &Symbol,
         original_symbol: &Symbol,
         module_specifier: &Node, /*Expression*/
@@ -205,7 +205,7 @@ impl TypeChecker {
 
     pub(super) fn get_type_with_synthetic_default_import_type(
         &self,
-        type_: &Type,
+        type_: Id<Type>,
         symbol: &Symbol,
         original_symbol: &Symbol,
         module_specifier: &Node, /*Expression*/
@@ -604,7 +604,7 @@ impl TypeChecker {
         &self,
         signature: &Signature,
         pos: usize,
-        override_rest_type: Option<impl Borrow<Type>>,
+        override_rest_type: Option<Id<Type>>,
     ) -> io::Result<__String> {
         let param_count = signature.parameters().len()
             - if signature_has_rest_parameter(signature) {

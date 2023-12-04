@@ -32,7 +32,7 @@ use crate::{
 impl TypeChecker {
     pub(super) fn container_seems_to_be_empty_dom_element(
         &self,
-        containing_type: &Type,
+        containing_type: Id<Type>,
     ) -> io::Result<bool> {
         Ok(matches!(
             self.compiler_options.lib.as_ref(),
@@ -40,7 +40,7 @@ impl TypeChecker {
         ) &&
             self.every_contained_type(
                 containing_type,
-                |type_: &Type| matches!(
+                |type_: Id<Type>| matches!(
                     type_.maybe_symbol(),
                     Some(type_symbol) if {
                         lazy_static! {
@@ -56,7 +56,7 @@ impl TypeChecker {
     pub(super) fn type_has_static_property(
         &self,
         prop_name: &str, /*__String*/
-        containing_type: &Type,
+        containing_type: Id<Type>,
     ) -> io::Result<bool> {
         let prop =
             containing_type
@@ -97,7 +97,7 @@ impl TypeChecker {
     pub(super) fn get_suggested_lib_for_non_existent_property(
         &self,
         missing_property: &str,
-        containing_type: &Type,
+        containing_type: Id<Type>,
     ) -> io::Result<Option<String>> {
         let container =
             return_ok_default_if_none!(self.get_apparent_type(containing_type)?.maybe_symbol());
@@ -120,7 +120,7 @@ impl TypeChecker {
     pub fn get_suggested_symbol_for_nonexistent_class_member(
         &self,
         name: &str,
-        base_type: &Type,
+        base_type: Id<Type>,
     ) -> io::Result<Option<Gc<Symbol>>> {
         self.get_spelling_suggestion_for_name(
             name,
@@ -132,7 +132,7 @@ impl TypeChecker {
     pub(super) fn get_suggested_symbol_for_nonexistent_property<'name>(
         &self,
         name: impl Into<StrOrRcNode<'name>>, /*Identifier | PrivateIdentifier*/
-        containing_type: &Type,
+        containing_type: Id<Type>,
     ) -> io::Result<Option<Gc<Symbol>>> {
         let props = self.get_properties_of_type(containing_type)?;
         let mut name = name.into();
@@ -170,7 +170,7 @@ impl TypeChecker {
     pub(super) fn get_suggested_symbol_for_nonexistent_jsx_attribute<'name>(
         &self,
         name: impl Into<StrOrRcNode<'name>>, /*Identifier | PrivateIdentifier*/
-        containing_type: &Type,
+        containing_type: Id<Type>,
     ) -> io::Result<Option<Gc<Symbol>>> {
         let name = name.into();
         let str_name = match &name {
@@ -193,7 +193,7 @@ impl TypeChecker {
     pub(super) fn get_suggestion_for_nonexistent_property<'name>(
         &self,
         name: impl Into<StrOrRcNode<'name>>, /*Identifier | PrivateIdentifier*/
-        containing_type: &Type,
+        containing_type: Id<Type>,
     ) -> io::Result<Option<String>> {
         let suggestion =
             self.get_suggested_symbol_for_nonexistent_property(name, containing_type)?;
@@ -302,9 +302,9 @@ impl TypeChecker {
 
     pub(super) fn get_suggestion_for_nonexistent_index_signature(
         &self,
-        object_type: &Type,
+        object_type: Id<Type>,
         expr: &Node, /*ElementAccessExpression*/
-        keyed_type: &Type,
+        keyed_type: Id<Type>,
     ) -> io::Result<Option<String>> {
         let suggested_method = if is_assignment_target(expr) {
             "set"
@@ -333,8 +333,8 @@ impl TypeChecker {
 
     pub(super) fn has_prop(
         &self,
-        object_type: &Type,
-        keyed_type: &Type,
+        object_type: Id<Type>,
+        keyed_type: Id<Type>,
         name: &str, /*"set | "get"*/
     ) -> io::Result<bool> {
         let prop = self.get_property_of_object_type(object_type, name)?;
@@ -351,8 +351,8 @@ impl TypeChecker {
 
     pub(super) fn get_suggested_type_for_nonexistent_string_literal_type(
         &self,
-        source: &Type, /*StringLiteralType*/
-        target: &Type, /*UnionType*/
+        source: Id<Type>, /*StringLiteralType*/
+        target: Id<Type>, /*UnionType*/
     ) -> Option<Id<Type /*StringLiteralType*/>> {
         let candidates = target
             .as_union_type()
@@ -526,7 +526,7 @@ impl TypeChecker {
     pub fn is_valid_property_access_for_completions_(
         &self,
         node: &Node, /*PropertyAccessExpression | ImportTypeNode | QualifiedName*/
-        type_: &Type,
+        type_: Id<Type>,
         property: &Symbol,
     ) -> io::Result<bool> {
         self.is_property_accessible(
@@ -545,7 +545,7 @@ impl TypeChecker {
         node: &Node, /*PropertyAccessExpression | QualifiedName | ImportTypeNode*/
         is_super: bool,
         property_name: &str, /*__String*/
-        type_: &Type,
+        type_: Id<Type>,
     ) -> io::Result<bool> {
         if self.is_type_any(Some(type_)) {
             return Ok(true);
@@ -569,7 +569,7 @@ impl TypeChecker {
         node: &Node,
         is_super: bool,
         is_write: bool,
-        containing_type: &Type,
+        containing_type: Id<Type>,
         property: &Symbol,
     ) -> io::Result<bool> {
         if self.is_type_any(Some(containing_type)) {
@@ -629,7 +629,7 @@ impl TypeChecker {
         Ok(None)
     }
 
-    pub(super) fn has_numeric_property_names(&self, type_: &Type) -> io::Result<bool> {
+    pub(super) fn has_numeric_property_names(&self, type_: Id<Type>) -> io::Result<bool> {
         Ok(self.get_index_infos_of_type(type_)?.len() == 1
             && self
                 .get_index_info_of_type_(type_, &self.number_type())?
@@ -718,7 +718,7 @@ impl TypeChecker {
     pub(super) fn check_element_access_expression(
         &self,
         node: &Node, /*ElementAccessExpression*/
-        expr_type: &Type,
+        expr_type: Id<Type>,
         check_mode: Option<CheckMode>,
     ) -> io::Result<Id<Type>> {
         let object_type = if get_assignment_target_kind(node) != AssignmentKind::None

@@ -1,6 +1,7 @@
 use std::{borrow::Borrow, collections::HashMap, convert::TryInto, io};
 
 use gc::Gc;
+use id_arena::Id;
 
 use super::DeclarationMeaning;
 use crate::{
@@ -470,7 +471,7 @@ impl TypeChecker {
         }
         let type_ = self
             .get_type_from_type_node_(&parameter_as_parameter_declaration.maybe_type().unwrap())?;
-        if self.some_type(&type_, |t: &Type| {
+        if self.some_type(type_, |t: Id<Type>| {
             t.flags()
                 .intersects(TypeFlags::StringOrNumberLiteralOrUnique)
         }) || self.is_generic_type(&type_)?
@@ -481,7 +482,7 @@ impl TypeChecker {
                 None,
             ));
         }
-        if !self.try_every_type(&type_, |type_: &Type| self.is_valid_index_key_type(type_))? {
+        if !self.try_every_type(type_, |type_: Id<Type>| self.is_valid_index_key_type(type_))? {
             return Ok(self.grammar_error_on_node(
                 &parameter_as_parameter_declaration.name(),
                 &Diagnostics::An_index_signature_parameter_type_must_be_string_number_symbol_or_a_template_literal_type,

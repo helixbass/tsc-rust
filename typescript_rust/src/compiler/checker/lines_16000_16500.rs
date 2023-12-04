@@ -158,7 +158,7 @@ impl TypeChecker {
         type_
     }
 
-    pub(super) fn get_fresh_type_of_literal_type(&self, type_: &Type) -> Id<Type> {
+    pub(super) fn get_fresh_type_of_literal_type(&self, type_: Id<Type>) -> Id<Type> {
         if type_.flags().intersects(TypeFlags::Literal) {
             return match type_ {
                 Type::LiteralType(type_) => type_.get_or_initialize_fresh_type(self),
@@ -171,7 +171,7 @@ impl TypeChecker {
         type_.type_wrapper()
     }
 
-    pub(super) fn get_regular_type_of_literal_type(&self, type_: &Type) -> Id<Type> {
+    pub(super) fn get_regular_type_of_literal_type(&self, type_: Id<Type>) -> Id<Type> {
         if type_.flags().intersects(TypeFlags::Literal) {
             // TODO: this seems like it should be encapsulated behind an abstraction (also above in
             // get_fresh_type_of_literal_type())?
@@ -200,7 +200,7 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn is_fresh_literal_type(&self, type_: &Type) -> bool {
+    pub(super) fn is_fresh_literal_type(&self, type_: Id<Type>) -> bool {
         if !type_.flags().intersects(TypeFlags::Literal) {
             return false;
         }
@@ -233,7 +233,7 @@ impl TypeChecker {
             TypeFlags::StringLiteral,
             value.to_owned(),
             Option::<&Symbol>::None,
-            Option::<&Type>::None,
+            None,
         );
         string_literal_types.insert(value.to_owned(), type_.clone());
         type_
@@ -248,7 +248,7 @@ impl TypeChecker {
             TypeFlags::NumberLiteral,
             value,
             Option::<&Symbol>::None,
-            Option::<&Type>::None,
+            None,
         );
         number_literal_types.insert(value, type_.clone());
         type_
@@ -264,7 +264,7 @@ impl TypeChecker {
             TypeFlags::BigIntLiteral,
             value,
             Option::<&Symbol>::None,
-            Option::<&Type>::None,
+            None,
         );
         big_int_literal_types.insert(key, type_.clone());
         type_
@@ -293,13 +293,13 @@ impl TypeChecker {
                 TypeFlags::EnumLiteral | TypeFlags::StringLiteral,
                 value,
                 Some(symbol),
-                Option::<&Type>::None,
+                None,
             ),
             StringOrNumber::Number(value) => self.create_number_literal_type(
                 TypeFlags::EnumLiteral | TypeFlags::NumberLiteral,
                 value,
                 Some(symbol),
-                Option::<&Type>::None,
+                None,
             ),
         };
         enum_literal_types.insert(key, type_.clone());
@@ -717,7 +717,7 @@ impl TypeChecker {
 
     pub(super) fn get_mapped_type(
         &self,
-        type_: &Type,
+        type_: Id<Type>,
         mapper: &TypeMapper,
     ) -> io::Result<Id<Type>> {
         Ok(match mapper {
@@ -753,7 +753,7 @@ impl TypeChecker {
         })
     }
 
-    pub(super) fn make_unary_type_mapper(&self, source: &Type, target: &Type) -> TypeMapper {
+    pub(super) fn make_unary_type_mapper(&self, source: Id<Type>, target: Id<Type>) -> TypeMapper {
         TypeMapper::new_simple(source.type_wrapper(), target.type_wrapper())
     }
 
@@ -829,8 +829,8 @@ impl TypeChecker {
 
     pub(super) fn prepend_type_mapping(
         &self,
-        source: &Type,
-        target: &Type,
+        source: Id<Type>,
+        target: Id<Type>,
         mapper: Option<Gc<TypeMapper>>,
     ) -> TypeMapper {
         match mapper {
@@ -845,8 +845,8 @@ impl TypeChecker {
     pub(super) fn append_type_mapping(
         &self,
         mapper: Option<Gc<TypeMapper>>,
-        source: &Type,
-        target: &Type,
+        source: Id<Type>,
+        target: Id<Type>,
     ) -> TypeMapper {
         match mapper {
             None => self.make_unary_type_mapper(source, target),
@@ -859,7 +859,7 @@ impl TypeChecker {
 
     pub(super) fn get_restrictive_type_parameter(
         &self,
-        tp: &Type, /*TypeParameter*/
+        tp: Id<Type>, /*TypeParameter*/
     ) -> Id<Type> {
         if matches!(
             tp.as_type_parameter().maybe_constraint().as_ref(),
@@ -881,7 +881,7 @@ impl TypeChecker {
 
     pub(super) fn clone_type_parameter(
         &self,
-        type_parameter: &Type, /*TypeParameter*/
+        type_parameter: Id<Type>, /*TypeParameter*/
     ) -> Id<Type /*TypeParameter*/> {
         let mut result = self.create_type_parameter(Some(type_parameter.symbol()));
         result.target = Some(type_parameter.type_wrapper());
@@ -1003,7 +1003,7 @@ impl TypeChecker {
 
     pub(super) fn get_object_type_instantiation(
         &self,
-        type_: &Type, /*AnonymousType | DeferredTypeReference*/
+        type_: Id<Type>, /*AnonymousType | DeferredTypeReference*/
         mapper: Gc<TypeMapper>,
         alias_symbol: Option<impl Borrow<Symbol>>,
         alias_type_arguments: Option<&[Id<Type>]>,
@@ -1186,7 +1186,7 @@ impl BackreferenceMapperCallback {
 }
 
 impl TypeMapperCallback for BackreferenceMapperCallback {
-    fn call(&self, checker: &TypeChecker, t: &Type) -> io::Result<Id<Type>> {
+    fn call(&self, checker: &TypeChecker, t: Id<Type>) -> io::Result<Id<Type>> {
         Ok(
             if matches!(
                 find_index(&self.context_inferences, |info: &Gc<InferenceInfo>, _| ptr::eq(&*info.type_parameter, t), None),

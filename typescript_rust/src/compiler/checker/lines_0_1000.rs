@@ -150,7 +150,7 @@ pub(crate) struct IterationTypesResolver {
         fn(&TypeChecker, report_errors: bool) -> io::Result<Id<Type /*GenericType*/>>,
     pub resolve_iteration_type: fn(
         &TypeChecker,
-        type_: &Type,
+        type_: Id<Type>,
         error_node: Option<Gc<Node>>,
     ) -> io::Result<Option<Id<Type>>>,
     pub must_have_a_next_method_diagnostic: &'static DiagnosticMessage,
@@ -892,42 +892,42 @@ pub fn create_type_checker(
     );
 
     type_checker.any_type = Some(
-        type_checker.create_type(
+        type_checker.alloc_type(
             type_checker
                 .create_intrinsic_type(TypeFlags::Any, "any", None)
                 .into(),
         ),
     );
     type_checker.auto_type = Some(
-        type_checker.create_type(
+        type_checker.alloc_type(
             type_checker
                 .create_intrinsic_type(TypeFlags::Any, "any", None)
                 .into(),
         ),
     );
     type_checker.wildcard_type = Some(
-        type_checker.create_type(
+        type_checker.alloc_type(
             type_checker
                 .create_intrinsic_type(TypeFlags::Any, "any", None)
                 .into(),
         ),
     );
     type_checker.error_type = Some(
-        type_checker.create_type(
+        type_checker.alloc_type(
             type_checker
                 .create_intrinsic_type(TypeFlags::Any, "error", None)
                 .into(),
         ),
     );
     type_checker.unresolved_type = Some(
-        type_checker.create_type(
+        type_checker.alloc_type(
             type_checker
                 .create_intrinsic_type(TypeFlags::Any, "unresolved", None)
                 .into(),
         ),
     );
     type_checker.non_inferrable_any_type = Some(
-        type_checker.create_type(
+        type_checker.alloc_type(
             type_checker
                 .create_intrinsic_type(
                     TypeFlags::Any,
@@ -938,28 +938,28 @@ pub fn create_type_checker(
         ),
     );
     type_checker.intrinsic_marker_type = Some(
-        type_checker.create_type(
+        type_checker.alloc_type(
             type_checker
                 .create_intrinsic_type(TypeFlags::Any, "intrinsic", None)
                 .into(),
         ),
     );
     type_checker.unknown_type = Some(
-        type_checker.create_type(
+        type_checker.alloc_type(
             type_checker
                 .create_intrinsic_type(TypeFlags::Unknown, "unknown", None)
                 .into(),
         ),
     );
     type_checker.non_null_unknown_type = Some(
-        type_checker.create_type(
+        type_checker.alloc_type(
             type_checker
                 .create_intrinsic_type(TypeFlags::Unknown, "unknown", None)
                 .into(),
         ),
     );
     type_checker.undefined_type = Some(
-        type_checker.create_type(
+        type_checker.alloc_type(
             type_checker
                 .create_intrinsic_type(TypeFlags::Undefined, "undefined", None)
                 .into(),
@@ -968,7 +968,7 @@ pub fn create_type_checker(
     type_checker.undefined_widening_type = Some(if type_checker.strict_null_checks {
         type_checker.undefined_type()
     } else {
-        type_checker.create_type(
+        type_checker.alloc_type(
             type_checker
                 .create_intrinsic_type(
                     TypeFlags::Undefined,
@@ -979,7 +979,7 @@ pub fn create_type_checker(
         )
     });
     type_checker.optional_type = Some(
-        type_checker.create_type(
+        type_checker.alloc_type(
             type_checker
                 .create_intrinsic_type(TypeFlags::Undefined, "undefined", None)
                 .into(),
@@ -987,7 +987,7 @@ pub fn create_type_checker(
     );
     type_checker.missing_type = Some(
         if matches!(type_checker.exact_optional_property_types, Some(true)) {
-            type_checker.create_type(
+            type_checker.alloc_type(
                 type_checker
                     .create_intrinsic_type(TypeFlags::Undefined, "undefined", None)
                     .into(),
@@ -997,7 +997,7 @@ pub fn create_type_checker(
         },
     );
     type_checker.null_type = Some(
-        type_checker.create_type(
+        type_checker.alloc_type(
             type_checker
                 .create_intrinsic_type(TypeFlags::Null, "null", None)
                 .into(),
@@ -1006,7 +1006,7 @@ pub fn create_type_checker(
     type_checker.null_widening_type = Some(if type_checker.strict_null_checks {
         type_checker.null_type()
     } else {
-        type_checker.create_type(
+        type_checker.alloc_type(
             type_checker
                 .create_intrinsic_type(
                     TypeFlags::Null,
@@ -1017,27 +1017,27 @@ pub fn create_type_checker(
         )
     });
     type_checker.string_type = Some(
-        type_checker.create_type(
+        type_checker.alloc_type(
             type_checker
                 .create_intrinsic_type(TypeFlags::String, "string", None)
                 .into(),
         ),
     );
     type_checker.number_type = Some(
-        type_checker.create_type(
+        type_checker.alloc_type(
             type_checker
                 .create_intrinsic_type(TypeFlags::Number, "number", None)
                 .into(),
         ),
     );
     type_checker.bigint_type = Some(
-        type_checker.create_type(
+        type_checker.alloc_type(
             type_checker
                 .create_intrinsic_type(TypeFlags::BigInt, "bigint", None)
                 .into(),
         ),
     );
-    let false_type = type_checker.create_type(
+    let false_type = type_checker.alloc_type(
         FreshableIntrinsicType::new(type_checker.create_intrinsic_type(
             TypeFlags::BooleanLiteral,
             "false",
@@ -1045,7 +1045,7 @@ pub fn create_type_checker(
         ))
         .into(),
     );
-    let regular_false_type = type_checker.create_type(
+    let regular_false_type = type_checker.alloc_type(
         FreshableIntrinsicType::new(type_checker.create_intrinsic_type(
             TypeFlags::BooleanLiteral,
             "false",
@@ -1089,7 +1089,7 @@ pub fn create_type_checker(
         None,
         Option::<&Symbol>::None,
         None,
-        Option::<&Type>::None,
+        None,
     )?);
     type_checker.es_symbol_type = Some(
         type_checker
@@ -1140,7 +1140,7 @@ pub fn create_type_checker(
         None,
         Option::<&Symbol>::None,
         None,
-        Option::<&Type>::None,
+        None,
     )?);
     type_checker.string_number_symbol_type = Some(type_checker.get_union_type(
         &[
@@ -1151,7 +1151,7 @@ pub fn create_type_checker(
         None,
         Option::<&Symbol>::None,
         None,
-        Option::<&Type>::None,
+        None,
     )?);
     type_checker.keyof_constraint_type = Some(if type_checker.keyof_strings_only {
         type_checker.string_type()
@@ -1163,7 +1163,7 @@ pub fn create_type_checker(
         None,
         Option::<&Symbol>::None,
         None,
-        Option::<&Type>::None,
+        None,
     )?);
     type_checker.template_constraint_type = Some(type_checker.get_union_type(
         &[
@@ -1177,7 +1177,7 @@ pub fn create_type_checker(
         None,
         Option::<&Symbol>::None,
         None,
-        Option::<&Type>::None,
+        None,
     )?);
 
     type_checker.restrictive_mapper = Some(Gc::new(
@@ -1396,7 +1396,7 @@ pub fn create_type_checker(
 struct RestrictiveMapperFunc {}
 
 impl TypeMapperCallback for RestrictiveMapperFunc {
-    fn call(&self, type_checker: &TypeChecker, t: &Type) -> io::Result<Id<Type>> {
+    fn call(&self, type_checker: &TypeChecker, t: Id<Type>) -> io::Result<Id<Type>> {
         Ok(if t.flags().intersects(TypeFlags::TypeParameter) {
             type_checker.get_restrictive_type_parameter(t)
         } else {
@@ -1409,7 +1409,7 @@ impl TypeMapperCallback for RestrictiveMapperFunc {
 struct PermissiveMapperFunc {}
 
 impl TypeMapperCallback for PermissiveMapperFunc {
-    fn call(&self, type_checker: &TypeChecker, t: &Type) -> io::Result<Id<Type>> {
+    fn call(&self, type_checker: &TypeChecker, t: Id<Type>) -> io::Result<Id<Type>> {
         Ok(if t.flags().intersects(TypeFlags::TypeParameter) {
             type_checker.wildcard_type()
         } else {
@@ -1420,7 +1420,7 @@ impl TypeMapperCallback for PermissiveMapperFunc {
 
 fn async_iteration_types_resolver_resolve_iteration_type(
     type_checker: &TypeChecker,
-    type_: &Type,
+    type_: Id<Type>,
     error_node: Option<Gc<Node>>,
 ) -> io::Result<Option<Id<Type>>> {
     type_checker.get_awaited_type_(type_, error_node, None, None)
@@ -1428,7 +1428,7 @@ fn async_iteration_types_resolver_resolve_iteration_type(
 
 fn sync_iteration_types_resolver_resolve_iteration_type(
     _type_checker: &TypeChecker,
-    type_: &Type,
+    type_: Id<Type>,
     _error_node: Option<Gc<Node>>,
 ) -> io::Result<Option<Id<Type>>> {
     Ok(Some(type_.type_wrapper()))
@@ -1457,7 +1457,7 @@ impl TypeChecker {
         self.arena().type_(type_)
     }
 
-    pub fn create_type(&self, type_: Type) -> Id<Type> {
+    pub fn alloc_type(&self, type_: Type) -> Id<Type> {
         self.arena().create_type(type_)
     }
 
@@ -1727,13 +1727,13 @@ impl TypeChecker {
         )
     }
 
-    pub fn get_property_of_type(&self, type_: &Type, name: &str) -> io::Result<Option<Gc<Symbol>>> {
+    pub fn get_property_of_type(&self, type_: Id<Type>, name: &str) -> io::Result<Option<Gc<Symbol>>> {
         self.get_property_of_type_(type_, &escape_leading_underscores(name), None)
     }
 
     pub fn get_private_identifier_property_of_type(
         &self,
-        left_type: &Type,
+        left_type: Id<Type>,
         name: &str,
         location: &Node,
     ) -> io::Result<Option<Gc<Symbol>>> {
@@ -1751,7 +1751,7 @@ impl TypeChecker {
 
     pub fn get_type_of_property_of_type(
         &self,
-        type_: &Type,
+        type_: Id<Type>,
         name: &str,
     ) -> io::Result<Option<Id<Type>>> {
         self.get_type_of_property_of_type_(type_, &escape_leading_underscores(name))
@@ -1759,7 +1759,7 @@ impl TypeChecker {
 
     pub fn get_index_info_of_type(
         &self,
-        type_: &Type,
+        type_: Id<Type>,
         kind: IndexKind,
     ) -> io::Result<Option<Gc<IndexInfo>>> {
         self.get_index_info_of_type_(
@@ -1774,7 +1774,7 @@ impl TypeChecker {
 
     pub fn get_index_type_of_type(
         &self,
-        type_: &Type,
+        type_: Id<Type>,
         kind: IndexKind,
     ) -> io::Result<Option<Id<Type>>> {
         self.get_index_type_of_type_(
@@ -1807,17 +1807,17 @@ impl TypeChecker {
         self.get_type_at_position(signature, parameter_index)
     }
 
-    pub fn get_awaited_type(&self, type_: &Type) -> io::Result<Option<Id<Type>>> {
+    pub fn get_awaited_type(&self, type_: Id<Type>) -> io::Result<Option<Id<Type>>> {
         self.get_awaited_type_(type_, Option::<&Node>::None, None, None)
     }
 
-    pub fn get_non_optional_type(&self, type_: &Type) -> Id<Type> {
+    pub fn get_non_optional_type(&self, type_: Id<Type>) -> Id<Type> {
         self.remove_optional_type_marker(type_)
     }
 
     pub fn type_to_type_node(
         &self,
-        type_: &Type,
+        type_: Id<Type>,
         enclosing_declaration: Option<impl Borrow<Node>>,
         flags: Option<NodeBuilderFlags>,
         tracker: Option<Gc<Box<dyn SymbolTracker>>>,
@@ -1922,7 +1922,7 @@ impl TypeChecker {
 
     pub fn type_parameter_to_declaration(
         &self,
-        parameter: &Type, /*TypeParameter*/
+        parameter: Id<Type>, /*TypeParameter*/
         enclosing_declaration: Option<impl Borrow<Node>>,
         flags: Option<NodeBuilderFlags>,
     ) -> io::Result<Option<Gc<Node /*TypeParameterDeclaration*/>>> {
@@ -2047,7 +2047,7 @@ impl TypeChecker {
 
     pub fn type_to_string(
         &self,
-        type_: &Type,
+        type_: Id<Type>,
         enclosing_declaration: Option<impl Borrow<Node>>,
         flags: Option<TypeFormatFlags>,
     ) -> io::Result<String> {
@@ -2108,7 +2108,7 @@ impl TypeChecker {
 
     pub fn write_type(
         &self,
-        type_: &Type,
+        type_: Id<Type>,
         enclosing_declaration: Option<impl Borrow<Node>>,
         flags: Option<TypeFormatFlags>,
         writer: Option<Gc<Box<dyn EmitTextWriter>>>,
@@ -2304,7 +2304,7 @@ impl TypeChecker {
     pub fn is_valid_property_access_for_completions(
         &self,
         node_in: &Node, /*PropertyAccessExpression | QualifiedName | ImportTypeNode*/
-        type_: &Type,
+        type_: Id<Type>,
         property: &Symbol,
     ) -> io::Result<bool> {
         let node = get_parse_tree_node(
@@ -2482,7 +2482,7 @@ impl TypeChecker {
         )
     }
 
-    pub fn get_default_from_type_parameter(&self, type_: &Type) -> io::Result<Option<Id<Type>>> {
+    pub fn get_default_from_type_parameter(&self, type_: Id<Type>) -> io::Result<Option<Id<Type>>> {
         /*type &&*/
         Ok(if type_.flags().intersects(TypeFlags::TypeParameter) {
             self.get_default_from_type_parameter_(type_)?

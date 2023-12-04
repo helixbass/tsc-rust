@@ -19,7 +19,7 @@ use crate::{
 };
 
 impl TypeChecker {
-    pub(super) fn are_all_outer_type_parameters_applied(&self, type_: &Type) -> io::Result<bool> {
+    pub(super) fn are_all_outer_type_parameters_applied(&self, type_: Id<Type>) -> io::Result<bool> {
         let outer_type_parameters = type_
             .maybe_as_interface_type()
             .and_then(|type_| type_.maybe_outer_type_parameters());
@@ -38,7 +38,7 @@ impl TypeChecker {
         Ok(true)
     }
 
-    pub(super) fn is_valid_base_type(&self, type_: &Type) -> io::Result<bool> {
+    pub(super) fn is_valid_base_type(&self, type_: Id<Type>) -> io::Result<bool> {
         if type_.flags().intersects(TypeFlags::TypeParameter) {
             if type_.flags().intersects(TypeFlags::TypeParameter) {
                 let constraint = self.get_base_constraint_of_type(type_)?;
@@ -60,7 +60,7 @@ impl TypeChecker {
 
     pub(super) fn resolve_base_types_of_interface(
         &self,
-        type_: &Type, /*InterfaceType*/
+        type_: Id<Type>, /*InterfaceType*/
     ) -> io::Result<()> {
         let type_as_interface_type = type_.as_interface_type();
         if type_as_interface_type.maybe_resolved_base_types().is_none() {
@@ -422,7 +422,7 @@ impl TypeChecker {
         Ok(ret)
     }
 
-    pub(super) fn get_base_type_of_enum_literal_type(&self, type_: &Type) -> io::Result<Id<Type>> {
+    pub(super) fn get_base_type_of_enum_literal_type(&self, type_: Id<Type>) -> io::Result<Id<Type>> {
         Ok(
             if type_.flags().intersects(TypeFlags::EnumLiteral)
                 && !type_.flags().intersects(TypeFlags::Union)
@@ -470,7 +470,7 @@ impl TypeChecker {
                     Some(UnionReduction::Literal),
                     Some(symbol),
                     None,
-                    Option::<&Type>::None,
+                    None,
                 )?;
                 if enum_type.flags().intersects(TypeFlags::Union) {
                     enum_type.set_flags(enum_type.flags() | TypeFlags::EnumLiteral);
@@ -697,7 +697,7 @@ impl TypeChecker {
 
     pub(super) fn resolve_declared_members(
         &self,
-        type_: &Type, /*InterfaceType*/
+        type_: Id<Type>, /*InterfaceType*/
     ) -> io::Result<Id<Type>> {
         let type_as_interface_type = type_.as_interface_type();
         if type_as_interface_type.maybe_declared_properties().is_none() {
@@ -721,7 +721,7 @@ impl TypeChecker {
         Ok(type_.type_wrapper())
     }
 
-    pub(super) fn is_type_usable_as_property_name(&self, type_: &Type) -> bool {
+    pub(super) fn is_type_usable_as_property_name(&self, type_: Id<Type>) -> bool {
         type_
             .flags()
             .intersects(TypeFlags::StringOrNumberLiteralOrUnique)

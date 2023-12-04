@@ -100,8 +100,8 @@ impl CheckTypeRelatedTo {
 
     pub(super) fn mapped_type_related_to(
         &self,
-        source: &Type, /*MappedType*/
-        target: &Type, /*MappedType*/
+        source: Id<Type>, /*MappedType*/
+        target: Id<Type>, /*MappedType*/
         report_errors: bool,
     ) -> io::Result<Ternary> {
         let modifiers_related = Rc::ptr_eq(&self.relation, &self.type_checker.comparable_relation)
@@ -193,8 +193,8 @@ impl CheckTypeRelatedTo {
 
     pub(super) fn type_related_to_discriminated_type(
         &self,
-        source: &Type,
-        target: &Type, /*UnionType*/
+        source: Id<Type>,
+        target: Id<Type>, /*UnionType*/
     ) -> io::Result<Ternary> {
         let source_properties = self.type_checker.get_properties_of_type(source)?;
         let source_properties_filtered = self
@@ -367,8 +367,8 @@ impl CheckTypeRelatedTo {
 
     pub(super) fn property_related_to(
         &self,
-        source: &Type,
-        target: &Type,
+        source: Id<Type>,
+        target: Id<Type>,
         source_prop: &Symbol,
         target_prop: &Symbol,
         get_type_of_source_property: impl FnMut(&Symbol) -> io::Result<Id<Type>>,
@@ -559,8 +559,8 @@ impl CheckTypeRelatedTo {
 
     pub(super) fn report_unmatched_property(
         &self,
-        source: &Type,
-        target: &Type,
+        source: Id<Type>,
+        target: Id<Type>,
         unmatched_property: &Symbol,
         require_optional_properties: bool,
     ) -> io::Result<()> {
@@ -734,8 +734,8 @@ impl CheckTypeRelatedTo {
 
     pub(super) fn properties_related_to(
         &self,
-        source: &Type,
-        target: &Type,
+        source: Id<Type>,
+        target: Id<Type>,
         report_errors: bool,
         excluded_properties: Option<&HashSet<__String>>,
         intersection_state: IntersectionState,
@@ -1113,8 +1113,8 @@ impl CheckTypeRelatedTo {
 
     pub(super) fn properties_identical_to(
         &self,
-        source: &Type,
-        target: &Type,
+        source: Id<Type>,
+        target: Id<Type>,
         excluded_properties: Option<&HashSet<__String>>,
     ) -> io::Result<Ternary> {
         if !(source.flags().intersects(TypeFlags::Object)
@@ -1159,8 +1159,8 @@ impl CheckTypeRelatedTo {
 
     pub(super) fn signatures_related_to(
         &self,
-        source: &Type,
-        target: &Type,
+        source: Id<Type>,
+        target: Id<Type>,
         kind: SignatureKind,
         report_errors: bool,
     ) -> io::Result<Ternary> {
@@ -1233,7 +1233,7 @@ impl CheckTypeRelatedTo {
             &Self,
             &Signature,
             &Signature,
-        ) -> fn(&Self, &Type, &Type) -> io::Result<()> = if kind == SignatureKind::Construct {
+        ) -> fn(&Self, Id<Type>, Id<Type>) -> io::Result<()> = if kind == SignatureKind::Construct {
             Self::report_incompatible_construct_signature_return
         } else {
             Self::report_incompatible_call_signature_return
@@ -1359,7 +1359,7 @@ impl CheckTypeRelatedTo {
         &self,
         siga: &Signature,
         sigb: &Signature,
-    ) -> fn(&Self, &Type, &Type) -> io::Result<()> {
+    ) -> fn(&Self, Id<Type>, Id<Type>) -> io::Result<()> {
         if siga.parameters().is_empty() && sigb.parameters().is_empty() {
             Self::report_incompatible_call_signature_return_no_arguments
         } else {
@@ -1369,8 +1369,8 @@ impl CheckTypeRelatedTo {
 
     pub(super) fn report_incompatible_call_signature_return_no_arguments(
         &self,
-        source: &Type,
-        target: &Type,
+        source: Id<Type>,
+        target: Id<Type>,
     ) -> io::Result<()> {
         self.report_incompatible_error(
             &Diagnostics::Call_signatures_with_no_arguments_have_incompatible_return_types_0_and_1,
@@ -1387,8 +1387,8 @@ impl CheckTypeRelatedTo {
 
     pub(super) fn report_incompatible_call_signature_return_some_arguments(
         &self,
-        source: &Type,
-        target: &Type,
+        source: Id<Type>,
+        target: Id<Type>,
     ) -> io::Result<()> {
         self.report_incompatible_error(
             &Diagnostics::Call_signature_return_types_0_and_1_are_incompatible,
@@ -1407,7 +1407,7 @@ impl CheckTypeRelatedTo {
         &self,
         siga: &Signature,
         sigb: &Signature,
-    ) -> fn(&Self, &Type, &Type) -> io::Result<()> {
+    ) -> fn(&Self, Id<Type>, Id<Type>) -> io::Result<()> {
         if siga.parameters().is_empty() && sigb.parameters().is_empty() {
             Self::report_incompatible_construct_signature_return_no_arguments
         } else {
@@ -1417,8 +1417,8 @@ impl CheckTypeRelatedTo {
 
     pub(super) fn report_incompatible_construct_signature_return_no_arguments(
         &self,
-        source: &Type,
-        target: &Type,
+        source: Id<Type>,
+        target: Id<Type>,
     ) -> io::Result<()> {
         self.report_incompatible_error(
             &Diagnostics::Construct_signatures_with_no_arguments_have_incompatible_return_types_0_and_1,
@@ -1435,8 +1435,8 @@ impl CheckTypeRelatedTo {
 
     pub(super) fn report_incompatible_construct_signature_return_some_arguments(
         &self,
-        source: &Type,
-        target: &Type,
+        source: Id<Type>,
+        target: Id<Type>,
     ) -> io::Result<()> {
         self.report_incompatible_error(
             &Diagnostics::Construct_signature_return_types_0_and_1_are_incompatible,
@@ -1457,7 +1457,7 @@ impl CheckTypeRelatedTo {
         target: Gc<Signature>,
         erase: bool,
         report_errors: bool,
-        incompatible_reporter: fn(&Self, &Type, &Type) -> io::Result<()>,
+        incompatible_reporter: fn(&Self, Id<Type>, Id<Type>) -> io::Result<()>,
     ) -> io::Result<Ternary> {
         self.type_checker.compare_signatures_related(
             if erase {
@@ -1480,7 +1480,7 @@ impl CheckTypeRelatedTo {
                             args: Option<Vec<String>>| {
                 self.report_error(message, args)
             }),
-            Some(&|source: &Type, target: &Type| incompatible_reporter(self, source, target)),
+            Some(&|source: Id<Type>, target: Id<Type>| incompatible_reporter(self, source, target)),
             Gc::new(Box::new(TypeComparerIsRelatedToWorker::new(
                 self.rc_wrapper(),
             ))),
@@ -1493,8 +1493,8 @@ impl CheckTypeRelatedTo {
 
     pub(super) fn signatures_identical_to(
         &self,
-        source: &Type,
-        target: &Type,
+        source: Id<Type>,
+        target: Id<Type>,
         kind: SignatureKind,
     ) -> io::Result<Ternary> {
         let source_signatures = self.type_checker.get_signatures_of_type(source, kind)?;
@@ -1510,7 +1510,7 @@ impl CheckTypeRelatedTo {
                 false,
                 false,
                 false,
-                |source: &Type, target: &Type| {
+                |source: Id<Type>, target: Id<Type>| {
                     self.is_related_to(source, target, None, None, None, None)
                 },
             )?;
@@ -1524,7 +1524,7 @@ impl CheckTypeRelatedTo {
 
     pub(super) fn members_related_to_index_info(
         &self,
-        source: &Type,
+        source: Id<Type>,
         target_info: &IndexInfo,
         report_errors: bool,
     ) -> io::Result<Ternary> {

@@ -46,7 +46,7 @@ impl TypeChecker {
         self.check_non_null_type(&*self.check_expression(node, None, None)?, node)
     }
 
-    pub(super) fn is_nullable_type(&self, type_: &Type) -> bool {
+    pub(super) fn is_nullable_type(&self, type_: Id<Type>) -> bool {
         if self.strict_null_checks {
             self.get_falsy_flags(type_)
         } else {
@@ -55,7 +55,7 @@ impl TypeChecker {
         .intersects(TypeFlags::Nullable)
     }
 
-    pub(super) fn get_non_nullable_type_if_needed(&self, type_: &Type) -> io::Result<Id<Type>> {
+    pub(super) fn get_non_nullable_type_if_needed(&self, type_: Id<Type>) -> io::Result<Id<Type>> {
         Ok(if self.is_nullable_type(type_) {
             self.get_non_nullable_type(&type_)?
         } else {
@@ -105,7 +105,7 @@ impl TypeChecker {
 
     pub(super) fn check_non_null_type_with_reporter(
         &self,
-        type_: &Type,
+        type_: Id<Type>,
         node: &Node,
         mut report_error: impl FnMut(&Node, TypeFlags),
     ) -> io::Result<Id<Type>> {
@@ -132,7 +132,7 @@ impl TypeChecker {
         Ok(type_.type_wrapper())
     }
 
-    pub(super) fn check_non_null_type(&self, type_: &Type, node: &Node) -> io::Result<Id<Type>> {
+    pub(super) fn check_non_null_type(&self, type_: Id<Type>, node: &Node) -> io::Result<Id<Type>> {
         self.check_non_null_type_with_reporter(type_, node, |node: &Node, flags: TypeFlags| {
             self.report_object_possibly_null_or_undefined_error(node, flags)
         })
@@ -140,7 +140,7 @@ impl TypeChecker {
 
     pub(super) fn check_non_null_non_void_type(
         &self,
-        type_: &Type,
+        type_: Id<Type>,
         node: &Node,
     ) -> io::Result<Id<Type>> {
         let non_null_type = self.check_non_null_type(type_, node)?;
@@ -323,7 +323,7 @@ impl TypeChecker {
 
     pub(super) fn get_private_identifier_property_of_type_(
         &self,
-        left_type: &Type,
+        left_type: Id<Type>,
         lexically_scoped_identifier: &Symbol,
     ) -> io::Result<Option<Gc<Symbol>>> {
         self.get_property_of_type_(left_type, lexically_scoped_identifier.escaped_name(), None)
@@ -331,7 +331,7 @@ impl TypeChecker {
 
     pub(super) fn check_private_identifier_property_access(
         &self,
-        left_type: &Type,
+        left_type: Id<Type>,
         right: &Node, /*PrivateIdentifier*/
         lexically_scoped_identifier: Option<impl Borrow<Symbol>>,
     ) -> io::Result<bool> {
@@ -450,7 +450,7 @@ impl TypeChecker {
         &self,
         node: &Node, /*PropertyAccessExpression | QualifiedName*/
         left: &Node, /*Expression | QualifiedName*/
-        left_type: &Type,
+        left_type: Id<Type>,
         right: &Node, /*Identifier | PrivateIdentifier*/
         check_mode: Option<CheckMode>,
     ) -> io::Result<Id<Type>> {
@@ -696,7 +696,7 @@ impl TypeChecker {
                         None,
                         Option::<&Symbol>::None,
                         None,
-                        Option::<&Type>::None,
+                        None,
                     )?
                 } else {
                     index_info.type_.clone()
@@ -819,7 +819,7 @@ impl TypeChecker {
         &self,
         node: &Node, /*ElementAccessExpression | PropertyAccessExpression | QualifiedName*/
         prop: Option<impl Borrow<Symbol>>,
-        prop_type: &Type,
+        prop_type: Id<Type>,
         error_node: &Node,
         check_mode: Option<CheckMode>,
     ) -> io::Result<Id<Type>> {
@@ -1054,7 +1054,7 @@ impl TypeChecker {
 
     pub(super) fn get_super_class(
         &self,
-        class_type: &Type, /*InterfaceType*/
+        class_type: Id<Type>, /*InterfaceType*/
     ) -> io::Result<Option<Id<Type>>> {
         let x = self.get_base_types(class_type)?;
         if x.is_empty() {
@@ -1070,7 +1070,7 @@ impl TypeChecker {
     pub(super) fn report_nonexistent_property(
         &self,
         prop_node: &Node, /*Identifier | PrivateIdentifier*/
-        containing_type: &Type,
+        containing_type: Id<Type>,
         is_unchecked_js: bool,
     ) -> io::Result<()> {
         let mut error_info: Option<DiagnosticMessageChain> = None;

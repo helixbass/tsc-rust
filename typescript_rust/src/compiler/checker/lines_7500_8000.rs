@@ -235,7 +235,7 @@ impl SymbolTableToDeclarationStatements {
 
     pub(super) fn is_type_representable_as_function_namespace_merge(
         &self,
-        type_to_serialize: &Type,
+        type_to_serialize: Id<Type>,
         host_symbol: &Symbol,
     ) -> io::Result<bool> {
         let ctx_src = maybe_get_source_file_of_node(self.context().maybe_enclosing_declaration());
@@ -329,7 +329,7 @@ impl SymbolTableToDeclarationStatements {
     pub(super) fn serialize_property_symbol_for_interface(
         &self,
         p: &Symbol,
-        base_type: Option<impl Borrow<Type>>,
+        base_type: Option<Id<Type>>,
     ) -> io::Result<Vec<Gc<Node>>> {
         self.serialize_property_symbol_for_interface_worker().call(
             p,
@@ -341,8 +341,8 @@ impl SymbolTableToDeclarationStatements {
     pub(super) fn serialize_signatures(
         &self,
         kind: SignatureKind,
-        input: &Type,
-        base_type: Option<impl Borrow<Type>>,
+        input: Id<Type>,
+        base_type: Option<Id<Type>>,
         output_kind: SyntaxKind,
     ) -> io::Result<Vec<Gc<Node>>> {
         let signatures = self.type_checker.get_signatures_of_type(input, kind)?;
@@ -367,7 +367,7 @@ impl SymbolTableToDeclarationStatements {
                             false,
                             false,
                             true,
-                            |a: &Type, b: &Type| self.type_checker.compare_types_identical(a, b),
+                            |a: Id<Type>, b: Id<Type>| self.type_checker.compare_types_identical(a, b),
                         )? == Ternary::False
                         {
                             failed = true;
@@ -418,8 +418,8 @@ impl SymbolTableToDeclarationStatements {
 
     pub(super) fn serialize_index_signatures(
         &self,
-        input: &Type,
-        base_type: Option<impl Borrow<Type>>,
+        input: Id<Type>,
+        base_type: Option<Id<Type>>,
     ) -> io::Result<Vec<Gc<Node>>> {
         let mut results: Vec<Gc<Node /*IndexSignatureDeclaration*/>> = Default::default();
         let base_type = base_type.type_wrappered();
@@ -451,8 +451,8 @@ impl SymbolTableToDeclarationStatements {
 
     pub(super) fn serialize_base_type(
         &self,
-        t: &Type,
-        static_type: &Type,
+        t: Id<Type>,
+        static_type: Id<Type>,
         root_name: &str,
     ) -> io::Result<Gc<Node>> {
         let ref_ = self.try_serialize_as_type_reference(t, SymbolFlags::Value)?;
@@ -482,7 +482,7 @@ impl SymbolTableToDeclarationStatements {
 
     pub(super) fn try_serialize_as_type_reference(
         &self,
-        t: &Type,
+        t: Id<Type>,
         flags: SymbolFlags,
     ) -> io::Result<Option<Gc<Node>>> {
         let mut type_args: Option<Vec<Gc<Node /*TypeNode*/>>> = Default::default();
@@ -534,7 +534,7 @@ impl SymbolTableToDeclarationStatements {
         }))
     }
 
-    pub(super) fn serialize_implemented_type(&self, t: &Type) -> io::Result<Option<Gc<Node>>> {
+    pub(super) fn serialize_implemented_type(&self, t: Id<Type>) -> io::Result<Option<Gc<Node>>> {
         let ref_ = self.try_serialize_as_type_reference(t, SymbolFlags::Type)?;
         if ref_.is_some() {
             return Ok(ref_);
@@ -695,7 +695,7 @@ impl MakeSerializePropertySymbol {
         &self,
         p: &Symbol,
         is_static: bool,
-        base_type: Option<&Type>,
+        base_type: Option<Id<Type>,
     ) -> io::Result<Vec<Gc<Node>>> {
         let modifier_flags = get_declaration_modifier_flags_from_symbol(p, None);
         let is_private = modifier_flags.intersects(ModifierFlags::Private);

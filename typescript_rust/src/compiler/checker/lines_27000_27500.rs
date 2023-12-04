@@ -86,7 +86,7 @@ impl TypeChecker {
         Ok(result)
     }
 
-    pub(super) fn is_valid_spread_type(&self, type_: &Type) -> io::Result<bool> {
+    pub(super) fn is_valid_spread_type(&self, type_: Id<Type>) -> io::Result<bool> {
         if type_.flags().intersects(TypeFlags::Instantiable) {
             let constraint = self.get_base_constraint_of_type(type_)?;
             if let Some(constraint) = constraint.as_ref() {
@@ -227,7 +227,7 @@ impl TypeChecker {
                 self.check_expression_for_mutable_location(
                     node_initializer,
                     check_mode,
-                    Option::<&Type>::None,
+                    None,
                     None,
                 )?
             } else {
@@ -442,7 +442,7 @@ impl TypeChecker {
                         children_contextual_type.as_ref(),
                         Some(children_contextual_type) if self.try_some_type(
                             children_contextual_type,
-                            |type_: &Type| self.is_tuple_like_type(type_)
+                            |type_: Id<Type>| self.is_tuple_like_type(type_)
                         )?
                     ) {
                         self.create_tuple_type(&children_types, None, None, None)?
@@ -453,7 +453,7 @@ impl TypeChecker {
                                 None,
                                 Option::<&Symbol>::None,
                                 None,
-                                Option::<&Type>::None,
+                                None,
                             )?,
                             None,
                         )
@@ -567,7 +567,7 @@ impl TypeChecker {
                 children_types.push(self.check_expression_for_mutable_location(
                     child,
                     check_mode,
-                    Option::<&Type>::None,
+                    None,
                     None,
                 )?);
             }
@@ -577,7 +577,7 @@ impl TypeChecker {
 
     pub(super) fn check_spread_prop_overrides(
         &self,
-        type_: &Type,
+        type_: Id<Type>,
         props: &SymbolTable,
         spread: &Node, /*SpreadAssignment | JsxSpreadAttribute*/
     ) -> io::Result<()> {

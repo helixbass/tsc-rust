@@ -31,7 +31,7 @@ impl TypeChecker {
     pub(super) fn check_declaration_initializer(
         &self,
         declaration: &Node, /*HasExpressionInitializer*/
-        contextual_type: Option<impl Borrow<Type>>,
+        contextual_type: Option<Id<Type>>,
     ) -> io::Result<Id<Type>> {
         let initializer = get_effective_initializer(declaration).unwrap();
         let type_ = self
@@ -75,8 +75,8 @@ impl TypeChecker {
 
     pub(super) fn pad_tuple_type(
         &self,
-        type_: &Type,   /*TupleTypeReference*/
-        pattern: &Node, /*ArrayBindingPattern*/
+        type_: Id<Type>, /*TupleTypeReference*/
+        pattern: &Node,  /*ArrayBindingPattern*/
     ) -> io::Result<Id<Type>> {
         let pattern_elements = &pattern.as_array_binding_pattern().elements;
         let mut element_types = self.get_type_arguments(type_)?;
@@ -110,7 +110,7 @@ impl TypeChecker {
     pub(super) fn widen_type_inferred_from_initializer(
         &self,
         declaration: &Node, /*HasExpressionInitializer*/
-        type_: &Type,
+        type_: Id<Type>,
     ) -> io::Result<Id<Type>> {
         let widened = if get_combined_node_flags(declaration).intersects(NodeFlags::Const)
             || is_declaration_readonly(declaration)
@@ -133,8 +133,8 @@ impl TypeChecker {
 
     pub(super) fn is_literal_of_contextual_type(
         &self,
-        candidate_type: &Type,
-        contextual_type: Option<impl Borrow<Type>>,
+        candidate_type: Id<Type>,
+        contextual_type: Option<Id<Type>>,
     ) -> io::Result<bool> {
         if let Some(contextual_type) = contextual_type {
             let contextual_type = contextual_type.borrow();
@@ -211,7 +211,7 @@ impl TypeChecker {
         &self,
         node: &Node, /*Expression*/
         check_mode: Option<CheckMode>,
-        contextual_type: Option<impl Borrow<Type>>,
+        contextual_type: Option<Id<Type>>,
         force_tuple: Option<bool>,
     ) -> io::Result<Id<Type>> {
         let type_ = self.check_expression(node, check_mode, force_tuple)?;
@@ -247,7 +247,7 @@ impl TypeChecker {
         self.check_expression_for_mutable_location(
             &node_as_property_assignment.initializer,
             check_mode,
-            Option::<&Type>::None,
+            None,
             None,
         )
     }
@@ -276,7 +276,7 @@ impl TypeChecker {
     pub(super) fn instantiate_type_with_single_generic_call_signature(
         &self,
         node: &Node, /*Expression | MethodDeclaration | QualifiedName*/
-        type_: &Type,
+        type_: Id<Type>,
         check_mode: Option<CheckMode>,
     ) -> io::Result<Id<Type>> {
         if let Some(check_mode) = check_mode.filter(|check_mode| {
@@ -351,7 +351,7 @@ impl TypeChecker {
                             self.apply_to_parameter_types(
                                 &instantiated_signature,
                                 contextual_signature,
-                                |source: &Type, target: &Type| {
+                                |source: Id<Type>, target: Id<Type>| {
                                     self.infer_types(
                                         &inferences,
                                         source,
@@ -370,7 +370,7 @@ impl TypeChecker {
                                 self.apply_to_return_types(
                                     instantiated_signature.clone(),
                                     contextual_signature.clone(),
-                                    |source: &Type, target: &Type| {
+                                    |source: Id<Type>, target: Id<Type>| {
                                         self.infer_types(&inferences, source, target, None, None)?;
 
                                         Ok(())
@@ -549,7 +549,7 @@ impl TypeChecker {
 
     pub(super) fn get_return_type_of_single_non_generic_call_signature(
         &self,
-        func_type: &Type,
+        func_type: Id<Type>,
     ) -> io::Result<Option<Id<Type>>> {
         let signature = self.get_single_call_signature(func_type)?;
         signature
@@ -697,7 +697,7 @@ impl TypeChecker {
     pub(super) fn check_const_enum_access(
         &self,
         node: &Node, /*Expression | QualifiedName*/
-        type_: &Type,
+        type_: Id<Type>,
     ) {
         let ok = (node.parent().kind() == SyntaxKind::PropertyAccessExpression
             && ptr::eq(

@@ -136,7 +136,7 @@ impl TypeChecker {
         Ok(false)
     }
 
-    pub(super) fn is_empty_resolved_type(&self, t: &Type /*ResolvedType*/) -> bool {
+    pub(super) fn is_empty_resolved_type(&self, t: Id<Type >/*ResolvedType*/) -> bool {
         !ptr::eq(t, &*self.any_function_type()) && {
             let t_as_resolved_type = t.as_resolved_type();
             t_as_resolved_type.properties().is_empty()
@@ -146,7 +146,7 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn is_empty_object_type(&self, type_: &Type) -> io::Result<bool> {
+    pub(super) fn is_empty_object_type(&self, type_: Id<Type>) -> io::Result<bool> {
         Ok(if type_.flags().intersects(TypeFlags::Object) {
             !self.is_generic_mapped_type(type_)?
                 && self.is_empty_resolved_type(&*self.resolve_structured_type_members(type_)?)
@@ -167,7 +167,7 @@ impl TypeChecker {
         })
     }
 
-    pub(super) fn is_empty_anonymous_object_type(&self, type_: &Type) -> io::Result<bool> {
+    pub(super) fn is_empty_anonymous_object_type(&self, type_: Id<Type>) -> io::Result<bool> {
         Ok(get_object_flags(type_).intersects(ObjectFlags::Anonymous)
             && (type_.as_object_type().maybe_members().is_some()
                 && self.is_empty_resolved_type(type_)
@@ -178,7 +178,7 @@ impl TypeChecker {
                 )))
     }
 
-    pub(super) fn is_string_index_signature_only_type(&self, type_: &Type) -> io::Result<bool> {
+    pub(super) fn is_string_index_signature_only_type(&self, type_: Id<Type>) -> io::Result<bool> {
         Ok(type_.flags().intersects(TypeFlags::Object)
             && !self.is_generic_mapped_type(type_)?
             && self.get_properties_of_type(type_)?.len() == 0
@@ -269,8 +269,8 @@ impl TypeChecker {
 
     pub(super) fn is_simple_type_related_to(
         &self,
-        source: &Type,
-        target: &Type,
+        source: Id<Type>,
+        target: Id<Type>,
         relation: &HashMap<String, RelationComparisonResult>,
         mut error_reporter: Option<ErrorReporter>,
     ) -> io::Result<bool> {
@@ -383,8 +383,8 @@ impl TypeChecker {
 
     pub(super) fn is_type_related_to(
         &self,
-        source: &Type,
-        target: &Type,
+        source: Id<Type>,
+        target: Id<Type>,
         relation: Rc<RefCell<HashMap<String, RelationComparisonResult>>>,
     ) -> io::Result<bool> {
         let mut source = source.type_wrapper();
@@ -464,12 +464,12 @@ impl TypeChecker {
         Ok(false)
     }
 
-    pub(super) fn is_ignored_jsx_property(&self, source: &Type, source_prop: &Symbol) -> bool {
+    pub(super) fn is_ignored_jsx_property(&self, source: Id<Type>, source_prop: &Symbol) -> bool {
         get_object_flags(source).intersects(ObjectFlags::JsxAttributes)
             && self.is_hyphenated_jsx_name(source_prop.escaped_name())
     }
 
-    pub(super) fn get_normalized_type(&self, type_: &Type, writing: bool) -> io::Result<Id<Type>> {
+    pub(super) fn get_normalized_type(&self, type_: Id<Type>, writing: bool) -> io::Result<Id<Type>> {
         let mut type_ = type_.type_wrapper();
         loop {
             let mut t: Id<Type> = if self.is_fresh_literal_type(&type_) {
@@ -515,8 +515,8 @@ impl TypeChecker {
 
     pub(super) fn check_type_related_to(
         &self,
-        source: &Type,
-        target: &Type,
+        source: Id<Type>,
+        target: Id<Type>,
         relation: Rc<RefCell<HashMap<String, RelationComparisonResult>>>,
         error_node: Option<impl Borrow<Node>>,
         head_message: Option<Cow<'static, DiagnosticMessage>>,

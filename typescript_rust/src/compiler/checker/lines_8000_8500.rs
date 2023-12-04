@@ -179,7 +179,7 @@ impl TypeChecker {
 
     pub(super) fn get_type_alias_for_type_literal(
         &self,
-        type_: &Type,
+        type_: Id<Type>,
     ) -> io::Result<Option<Gc<Symbol>>> {
         if let Some(type_symbol) = type_.maybe_symbol() {
             if type_symbol.flags().intersects(SymbolFlags::TypeLiteral) {
@@ -707,7 +707,7 @@ impl TypeChecker {
 
     pub(super) fn get_type_of_property_or_index_signature(
         &self,
-        type_: &Type,
+        type_: Id<Type>,
         name: &str, /*__String*/
     ) -> io::Result<Id<Type>> {
         Ok(self
@@ -748,7 +748,7 @@ impl TypeChecker {
 
     pub(super) fn get_rest_type(
         &self,
-        source: &Type,
+        source: Id<Type>,
         properties: &[Gc<Node /*PropertyName*/>],
         symbol: Option<impl Borrow<Symbol>>,
     ) -> io::Result<Id<Type>> {
@@ -779,7 +779,7 @@ impl TypeChecker {
             None,
             Option::<&Symbol>::None,
             None,
-            Option::<&Type>::None,
+            None,
         )?;
         if self.is_generic_object_type(&source)? || self.is_generic_index_type(&omit_key_type)? {
             if omit_key_type.flags().intersects(TypeFlags::Never) {
@@ -833,7 +833,7 @@ impl TypeChecker {
 
     pub(super) fn is_generic_type_with_undefined_constraint(
         &self,
-        type_: &Type,
+        type_: Id<Type>,
     ) -> io::Result<bool> {
         Ok(type_.flags().intersects(TypeFlags::Instantiable)
             && self.maybe_type_of_kind(
@@ -844,7 +844,7 @@ impl TypeChecker {
             ))
     }
 
-    pub(super) fn get_non_undefined_type(&self, type_: &Type) -> io::Result<Id<Type>> {
+    pub(super) fn get_non_undefined_type(&self, type_: Id<Type>) -> io::Result<Id<Type>> {
         let type_or_constraint = if self.try_some_type(type_, |type_| {
             self.is_generic_type_with_undefined_constraint(type_)
         })? {
@@ -869,14 +869,14 @@ impl TypeChecker {
     pub(super) fn get_flow_type_of_destructuring(
         &self,
         node: &Node, /*BindingElement | PropertyAssignment | ShorthandPropertyAssignment | Expression*/
-        declared_type: &Type,
+        declared_type: Id<Type>,
     ) -> io::Result<Id<Type>> {
         let reference = self.get_synthetic_element_access(node)?;
         Ok(if let Some(reference) = reference {
             self.get_flow_type_of_reference(
                 &reference,
                 declared_type,
-                Option::<&Type>::None,
+                None,
                 Option::<&Node>::None,
             )?
         } else {

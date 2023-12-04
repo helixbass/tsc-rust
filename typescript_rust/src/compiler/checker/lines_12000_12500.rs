@@ -53,13 +53,13 @@ impl TypeChecker {
         })
     }
 
-    pub(super) fn get_reduced_apparent_type(&self, type_: &Type) -> io::Result<Id<Type>> {
+    pub(super) fn get_reduced_apparent_type(&self, type_: Id<Type>) -> io::Result<Id<Type>> {
         self.get_reduced_type(&*self.get_apparent_type(&*self.get_reduced_type(type_)?)?)
     }
 
     pub(super) fn create_union_or_intersection_property(
         &self,
-        containing_type: &Type, /*UnionOrIntersectionType*/
+        containing_type: Id<Type>, /*UnionOrIntersectionType*/
         name: &str,             /*__String*/
         skip_object_function_property_augment: Option<bool>,
     ) -> io::Result<Option<Gc<Symbol>>> {
@@ -333,7 +333,7 @@ impl TypeChecker {
                     None,
                     Option::<&Symbol>::None,
                     None,
-                    Option::<&Type>::None,
+                    None,
                 )?
             } else {
                 self.get_intersection_type(&prop_types, Option::<&Symbol>::None, None)?
@@ -344,7 +344,7 @@ impl TypeChecker {
 
     pub(super) fn get_union_or_intersection_property(
         &self,
-        type_: &Type, /*UnionOrIntersectionType*/
+        type_: Id<Type>, /*UnionOrIntersectionType*/
         name: &str,   /*__String*/
         skip_object_function_property_augment: Option<bool>,
     ) -> io::Result<Option<Gc<Symbol>>> {
@@ -404,7 +404,7 @@ impl TypeChecker {
 
     pub(super) fn get_property_of_union_or_intersection_type(
         &self,
-        type_: &Type, /*UnionOrIntersectionType*/
+        type_: Id<Type>, /*UnionOrIntersectionType*/
         name: &str,   /*__String*/
         skip_object_function_property_augment: Option<bool>,
     ) -> io::Result<Option<Gc<Symbol>>> {
@@ -417,7 +417,7 @@ impl TypeChecker {
             .filter(|property| !get_check_flags(property).intersects(CheckFlags::ReadPartial)))
     }
 
-    pub(super) fn get_reduced_type(&self, type_: &Type) -> io::Result<Id<Type>> {
+    pub(super) fn get_reduced_type(&self, type_: Id<Type>) -> io::Result<Id<Type>> {
         if type_.flags().intersects(TypeFlags::Union)
             && type_
                 .as_union_type()
@@ -468,7 +468,7 @@ impl TypeChecker {
 
     pub(super) fn get_reduced_union_type(
         &self,
-        union_type: &Type, /*UnionType*/
+        union_type: Id<Type>, /*UnionType*/
     ) -> io::Result<Id<Type>> {
         let union_type_as_union_type = union_type.as_union_type();
         let reduced_types = try_map(union_type_as_union_type.types(), |type_: &Id<Type>, _| {
@@ -482,7 +482,7 @@ impl TypeChecker {
             None,
             Option::<Symbol>::None,
             None,
-            Option::<&Type>::None,
+            None,
         )?;
         if reduced.flags().intersects(TypeFlags::Union) {
             *reduced.as_union_type().maybe_resolved_reduced_type() = Some(reduced.clone());
@@ -513,7 +513,7 @@ impl TypeChecker {
     pub(super) fn elaborate_never_intersection(
         &self,
         error_info: Option<DiagnosticMessageChain>,
-        type_: &Type,
+        type_: Id<Type>,
     ) -> io::Result<Option<DiagnosticMessageChain>> {
         if type_.flags().intersects(TypeFlags::Intersection)
             && get_object_flags(type_).intersects(ObjectFlags::IsNeverIntersection)
@@ -603,7 +603,7 @@ impl TypeChecker {
 
     pub(super) fn get_signatures_of_structured_type(
         &self,
-        type_: &Type,
+        type_: Id<Type>,
         kind: SignatureKind,
     ) -> io::Result<Vec<Gc<Signature>>> {
         if type_.flags().intersects(TypeFlags::StructuredType) {
@@ -620,7 +620,7 @@ impl TypeChecker {
 
     pub fn get_signatures_of_type(
         &self,
-        type_: &Type,
+        type_: Id<Type>,
         kind: SignatureKind,
     ) -> io::Result<Vec<Gc<Signature>>> {
         self.get_signatures_of_structured_type(&*self.get_reduced_apparent_type(type_)?, kind)
@@ -629,7 +629,7 @@ impl TypeChecker {
     pub(super) fn find_index_info(
         &self,
         index_infos: &[Gc<IndexInfo>],
-        key_type: &Type,
+        key_type: Id<Type>,
     ) -> Option<Gc<IndexInfo>> {
         find(index_infos, |info: &Gc<IndexInfo>, _| {
             ptr::eq(&*info.key_type, key_type)
@@ -691,8 +691,8 @@ impl TypeChecker {
 
     pub(super) fn is_applicable_index_type(
         &self,
-        source: &Type,
-        target: &Type,
+        source: Id<Type>,
+        target: Id<Type>,
     ) -> io::Result<bool> {
         Ok(self.is_type_assignable_to(source, target)?
             || ptr::eq(target, &*self.string_type())
@@ -713,22 +713,22 @@ impl TypeChecker {
         Ok(vec![])
     }
 
-    pub(super) fn get_index_infos_of_type(&self, type_: &Type) -> io::Result<Vec<Gc<IndexInfo>>> {
+    pub(super) fn get_index_infos_of_type(&self, type_: Id<Type>) -> io::Result<Vec<Gc<IndexInfo>>> {
         self.get_index_infos_of_structured_type(&*self.get_reduced_apparent_type(type_)?)
     }
 
     pub(super) fn get_index_info_of_type_(
         &self,
-        type_: &Type,
-        key_type: &Type,
+        type_: Id<Type>,
+        key_type: Id<Type>,
     ) -> io::Result<Option<Gc<IndexInfo>>> {
         Ok(self.find_index_info(&self.get_index_infos_of_type(type_)?, key_type))
     }
 
     pub(super) fn get_index_type_of_type_(
         &self,
-        type_: &Type,
-        key_type: &Type,
+        type_: Id<Type>,
+        key_type: Id<Type>,
     ) -> io::Result<Option<Id<Type>>> {
         Ok(self
             .get_index_info_of_type_(type_, key_type)?
@@ -737,8 +737,8 @@ impl TypeChecker {
 
     pub(super) fn get_applicable_index_infos(
         &self,
-        type_: &Type,
-        key_type: &Type,
+        type_: Id<Type>,
+        key_type: Id<Type>,
     ) -> io::Result<Vec<Gc<IndexInfo>>> {
         try_filter(
             &self.get_index_infos_of_type(type_)?,
@@ -748,15 +748,15 @@ impl TypeChecker {
 
     pub(super) fn get_applicable_index_info(
         &self,
-        type_: &Type,
-        key_type: &Type,
+        type_: Id<Type>,
+        key_type: Id<Type>,
     ) -> io::Result<Option<Gc<IndexInfo>>> {
         self.find_applicable_index_info(&*self.get_index_infos_of_type(type_)?, key_type)
     }
 
     pub(super) fn get_applicable_index_info_for_name(
         &self,
-        type_: &Type,
+        type_: Id<Type>,
         name: &str, /*__String*/
     ) -> io::Result<Option<Gc<IndexInfo>>> {
         self.get_applicable_index_info(

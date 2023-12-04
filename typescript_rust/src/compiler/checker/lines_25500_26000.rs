@@ -83,7 +83,7 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn get_this_type_argument(&self, type_: &Type) -> io::Result<Option<Id<Type>>> {
+    pub(super) fn get_this_type_argument(&self, type_: Id<Type>) -> io::Result<Option<Id<Type>>> {
         Ok(
             if get_object_flags(type_).intersects(ObjectFlags::Reference)
                 && Gc::ptr_eq(&type_.as_type_reference().target, &self.global_this_type())
@@ -97,11 +97,11 @@ impl TypeChecker {
 
     pub(super) fn get_this_type_from_contextual_type(
         &self,
-        type_: &Type,
+        type_: Id<Type>,
     ) -> io::Result<Option<Id<Type>>> {
         self.try_map_type(
             type_,
-            &mut |t: &Type| {
+            &mut |t: Id<Type>| {
                 Ok(if t.flags().intersects(TypeFlags::Intersection) {
                     try_for_each(
                         t.as_union_or_intersection_type_interface().types(),
@@ -323,7 +323,7 @@ impl TypeChecker {
                     if parent.kind() != SyntaxKind::BindingElement
                         && parent.as_has_initializer().maybe_initializer().is_some()
                     {
-                        Some(self.check_declaration_initializer(&parent, Option::<&Type>::None)?)
+                        Some(self.check_declaration_initializer(&parent, None)?)
                     } else {
                         None
                     },
@@ -433,7 +433,7 @@ impl TypeChecker {
                 if function_flags.intersects(FunctionFlags::Async) {
                     let contextual_awaited_type = self.try_map_type(
                         &contextual_return_type,
-                        &mut |type_: &Type| {
+                        &mut |type_: Id<Type>| {
                             self.get_awaited_type_no_alias(type_, Option::<&Node>::None, None, None)
                         },
                         None,
@@ -449,7 +449,7 @@ impl TypeChecker {
                                 None,
                                 Option::<&Symbol>::None,
                                 None,
-                                Option::<&Type>::None,
+                                None,
                             )
                         });
                 }
@@ -480,7 +480,7 @@ impl TypeChecker {
                         None,
                         Option::<&Symbol>::None,
                         None,
-                        Option::<&Type>::None,
+                        None,
                     )
                 });
         }
@@ -751,7 +751,7 @@ impl TypeChecker {
 
     pub(super) fn try_get_private_identifier_property_of_type(
         &self,
-        type_: &Type,
+        type_: Id<Type>,
         id: &Node, /*PrivateIdentifier*/
     ) -> io::Result<Option<Gc<Symbol>>> {
         let lexically_scoped_symbol = self.lookup_symbol_for_private_identifier_declaration(

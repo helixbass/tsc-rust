@@ -108,7 +108,7 @@ impl TypeChecker {
             } {
                 if parameter.is_none() {
                     *signature.maybe_this_parameter_mut() = Some(
-                        self.create_symbol_with_type(context_this_parameter, Option::<&Type>::None),
+                        self.create_symbol_with_type(context_this_parameter, None),
                     );
                 }
                 self.assign_parameter_type(
@@ -151,10 +151,10 @@ impl TypeChecker {
         signature: &Signature,
     ) -> io::Result<()> {
         if let Some(signature_this_parameter) = signature.maybe_this_parameter().as_ref() {
-            self.assign_parameter_type(signature_this_parameter, Option::<&Type>::None)?;
+            self.assign_parameter_type(signature_this_parameter, None)?;
         }
         for parameter in signature.parameters() {
-            self.assign_parameter_type(parameter, Option::<&Type>::None)?;
+            self.assign_parameter_type(parameter, None)?;
         }
 
         Ok(())
@@ -163,7 +163,7 @@ impl TypeChecker {
     pub(super) fn assign_parameter_type(
         &self,
         parameter: &Symbol,
-        type_: Option<impl Borrow<Type>>,
+        type_: Option<Id<Type>>,
     ) -> io::Result<()> {
         let links = self.get_symbol_links(parameter);
         let type_ = type_.map(|type_| type_.borrow().type_wrapper());
@@ -208,7 +208,7 @@ impl TypeChecker {
         Ok(())
     }
 
-    pub(super) fn create_promise_type(&self, promised_type: &Type) -> io::Result<Id<Type>> {
+    pub(super) fn create_promise_type(&self, promised_type: Id<Type>) -> io::Result<Id<Type>> {
         let global_promise_type = self.get_global_promise_type(true)?;
         if !Gc::ptr_eq(&global_promise_type, &self.empty_generic_type()) {
             let promised_type = self
@@ -225,7 +225,7 @@ impl TypeChecker {
         Ok(self.unknown_type())
     }
 
-    pub(super) fn create_promise_like_type(&self, promised_type: &Type) -> io::Result<Id<Type>> {
+    pub(super) fn create_promise_like_type(&self, promised_type: Id<Type>) -> io::Result<Id<Type>> {
         let global_promise_like_type = self.get_global_promise_like_type(true)?;
         if !Gc::ptr_eq(&global_promise_like_type, &self.empty_generic_type()) {
             let promised_type = self
@@ -247,7 +247,7 @@ impl TypeChecker {
     pub(super) fn create_promise_return_type(
         &self,
         func: &Node, /*FunctionLikeDeclaration | ImportCall*/
-        promised_type: &Type,
+        promised_type: Id<Type>,
     ) -> io::Result<Id<Type>> {
         let promise_type = self.create_promise_type(promised_type)?;
         if Gc::ptr_eq(&promise_type, &self.unknown_type()) {
@@ -278,7 +278,7 @@ impl TypeChecker {
 
     pub(super) fn create_new_target_expression_type(
         &self,
-        target_type: &Type,
+        target_type: Id<Type>,
     ) -> io::Result<Id<Type>> {
         let symbol: Gc<Symbol> = self
             .create_symbol(SymbolFlags::None, "NewTargetExpression".to_owned(), None)
@@ -354,7 +354,7 @@ impl TypeChecker {
                             Some(UnionReduction::Subtype),
                             Option::<&Symbol>::None,
                             None,
-                            Option::<&Type>::None,
+                            None,
                         )?);
                     }
                 }
@@ -369,7 +369,7 @@ impl TypeChecker {
                     Some(UnionReduction::Subtype),
                     Option::<&Symbol>::None,
                     None,
-                    Option::<&Type>::None,
+                    None,
                 )?)
             } else {
                 None
@@ -402,7 +402,7 @@ impl TypeChecker {
                 Some(UnionReduction::Subtype),
                 Option::<&Symbol>::None,
                 None,
-                Option::<&Type>::None,
+                None,
             )?);
         }
 
@@ -521,9 +521,9 @@ impl TypeChecker {
 
     pub(super) fn create_generator_return_type(
         &self,
-        yield_type: &Type,
-        return_type: &Type,
-        next_type: &Type,
+        yield_type: Id<Type>,
+        return_type: Id<Type>,
+        next_type: Id<Type>,
         is_async_generator: bool,
     ) -> io::Result<Id<Type>> {
         let resolver = if is_async_generator {
@@ -641,8 +641,8 @@ impl TypeChecker {
     pub(super) fn get_yielded_type_of_yield_expression(
         &self,
         node: &Node, /*YieldExpression*/
-        expression_type: &Type,
-        sent_type: &Type,
+        expression_type: Id<Type>,
+        sent_type: Id<Type>,
         is_async: bool,
     ) -> io::Result<Option<Id<Type>>> {
         let node_as_yield_expression = node.as_yield_expression();
@@ -781,7 +781,7 @@ impl TypeChecker {
                 return Ok(TypeFacts::AllTypeofNE & not_equal_facts == TypeFacts::AllTypeofNE);
             }
             return Ok(self
-                .try_filter_type(&type_, |t: &Type| {
+                .try_filter_type(&type_, |t: Id<Type>| {
                     Ok(self.get_type_facts(t, None)? & not_equal_facts == not_equal_facts)
                 })?
                 .flags()
@@ -804,7 +804,7 @@ impl TypeChecker {
             &self
                 .map_type(
                     &type_,
-                    &mut |type_: &Type| Some(self.get_regular_type_of_literal_type(type_)),
+                    &mut |type_: Id<Type>| Some(self.get_regular_type_of_literal_type(type_)),
                     None,
                 )
                 .unwrap(),
@@ -894,7 +894,7 @@ impl TypeChecker {
     pub(super) fn check_all_code_paths_in_non_void_function_return_or_throw(
         &self,
         func: &Node, /*FunctionLikeDeclaration | MethodSignature*/
-        return_type: Option<impl Borrow<Type>>,
+        return_type: Option<Id<Type>>,
     ) -> io::Result<()> {
         if !self.produce_diagnostics {
             return Ok(());

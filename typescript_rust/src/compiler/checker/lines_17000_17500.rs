@@ -30,8 +30,8 @@ use crate::{
 impl TypeChecker {
     pub(super) fn check_type_assignable_to_and_optionally_elaborate(
         &self,
-        source: &Type,
-        target: &Type,
+        source: Id<Type>,
+        target: Id<Type>,
         error_node: Option<impl Borrow<Node>>,
         expr: Option<impl Borrow<Node>>,
         head_message: Option<&'static DiagnosticMessage>,
@@ -51,8 +51,8 @@ impl TypeChecker {
 
     pub(super) fn check_type_related_to_and_optionally_elaborate(
         &self,
-        source: &Type,
-        target: &Type,
+        source: Id<Type>,
+        target: Id<Type>,
         relation: Rc<RefCell<HashMap<String, RelationComparisonResult>>>,
         error_node: Option<impl Borrow<Node>>,
         expr: Option<impl Borrow<Node>>,
@@ -87,7 +87,7 @@ impl TypeChecker {
         Ok(false)
     }
 
-    pub(super) fn is_or_has_generic_conditional(&self, type_: &Type) -> bool {
+    pub(super) fn is_or_has_generic_conditional(&self, type_: Id<Type>) -> bool {
         type_.flags().intersects(TypeFlags::Conditional)
             || type_.flags().intersects(TypeFlags::Intersection)
                 && some(
@@ -99,8 +99,8 @@ impl TypeChecker {
     pub(super) fn elaborate_error(
         &self,
         node: Option<impl Borrow<Node>>,
-        source: &Type,
-        target: &Type,
+        source: Id<Type>,
+        target: Id<Type>,
         relation: Rc<RefCell<HashMap<String, RelationComparisonResult>>>,
         head_message: Option<&'static DiagnosticMessage>,
         containing_message_chain: Option<Gc<Box<dyn CheckTypeContainingMessageChain>>>,
@@ -207,8 +207,8 @@ impl TypeChecker {
     pub(super) fn elaborate_did_you_mean_to_call_or_construct(
         &self,
         node: &Node, /*Expression*/
-        source: &Type,
-        target: &Type,
+        source: Id<Type>,
+        target: Id<Type>,
         relation: Rc<RefCell<HashMap<String, RelationComparisonResult>>>,
         head_message: Option<&'static DiagnosticMessage>,
         containing_message_chain: Option<Gc<Box<dyn CheckTypeContainingMessageChain>>>,
@@ -274,8 +274,8 @@ impl TypeChecker {
     pub(super) fn elaborate_arrow_function(
         &self,
         node: &Node, /*ArrowFunction*/
-        source: &Type,
-        target: &Type,
+        source: Id<Type>,
+        target: Id<Type>,
         relation: Rc<RefCell<HashMap<String, RelationComparisonResult>>>,
         containing_message_chain: Option<Gc<Box<dyn CheckTypeContainingMessageChain>>>,
         error_output_container: Option<Gc<Box<dyn CheckTypeErrorOutputContainer>>>,
@@ -308,7 +308,7 @@ impl TypeChecker {
             None,
             Option::<&Symbol>::None,
             None,
-            Option::<&Type>::None,
+            None,
         )?;
         if !self.check_type_related_to(
             &source_return,
@@ -390,9 +390,9 @@ impl TypeChecker {
 
     pub(super) fn get_best_match_indexed_access_type_or_undefined(
         &self,
-        source: &Type,
-        target: &Type,
-        name_type: &Type,
+        source: Id<Type>,
+        target: Id<Type>,
+        name_type: Id<Type>,
     ) -> io::Result<Option<Id<Type>>> {
         let idx = self.get_indexed_access_type_or_undefined(
             target,
@@ -409,7 +409,7 @@ impl TypeChecker {
             let best = self.get_best_matching_type(
                 source,
                 target,
-                Option::<fn(&Type, &Type) -> io::Result<Ternary>>::None,
+                Option::<fn(Id<Type>, Id<Type>) -> io::Result<Ternary>>::None,
             )?;
             if let Some(best) = best.as_ref() {
                 return self.get_indexed_access_type_or_undefined(
@@ -428,7 +428,7 @@ impl TypeChecker {
     pub(super) fn check_expression_for_mutable_location_with_contextual_type(
         &self,
         next: &Node, /*Expression*/
-        source_prop_type: &Type,
+        source_prop_type: Id<Type>,
     ) -> io::Result<Id<Type>> {
         *next.maybe_contextual_type() = Some(source_prop_type.type_wrapper());
         let ret = self.check_expression_for_mutable_location(
@@ -444,8 +444,8 @@ impl TypeChecker {
     pub(super) fn elaborate_elementwise(
         &self,
         iterator: Vec<ElaborationIteratorItem>,
-        source: &Type,
-        target: &Type,
+        source: Id<Type>,
+        target: Id<Type>,
         relation: Rc<RefCell<HashMap<String, RelationComparisonResult>>>,
         containing_message_chain: Option<Gc<Box<dyn CheckTypeContainingMessageChain>>>,
         error_output_container: Option<Gc<Box<dyn CheckTypeErrorOutputContainer>>>,
@@ -722,7 +722,7 @@ impl TypeChecker {
     pub(super) fn get_elaboration_element_for_jsx_child(
         &self,
         child: &Node,     /*JsxChild*/
-        name_type: &Type, /*LiteralType*/
+        name_type: Id<Type>, /*LiteralType*/
         get_invalid_text_diagnostic: &mut impl FnMut() -> io::Result<Cow<'static, DiagnosticMessage>>,
     ) -> io::Result<Option<ElaborationIteratorItem>> {
         match child.kind() {
@@ -765,8 +765,8 @@ impl TypeChecker {
     pub(super) fn elaborate_jsx_components(
         &self,
         node: &Node, /*JsxAttributes*/
-        source: &Type,
-        target: &Type,
+        source: Id<Type>,
+        target: Id<Type>,
         relation: Rc<RefCell<HashMap<String, RelationComparisonResult>>>,
         containing_message_chain: Option<Gc<Box<dyn CheckTypeContainingMessageChain>>>,
         error_output_container: Option<Gc<Box<dyn CheckTypeErrorOutputContainer>>>,
@@ -969,7 +969,7 @@ impl TypeChecker {
     pub(super) fn generate_limited_tuple_elements(
         &self,
         node: &Node, /*ArrayLiteralExpression*/
-        target: &Type,
+        target: Id<Type>,
     ) -> io::Result<Vec<ElaborationIteratorItem>> {
         let node_as_array_literal_expression = node.as_array_literal_expression();
         let len = length(Some(&node_as_array_literal_expression.elements));
@@ -1002,8 +1002,8 @@ impl TypeChecker {
     pub(super) fn elaborate_array_literal(
         &self,
         node: &Node, /*ArrayLiteralExpression*/
-        source: &Type,
-        target: &Type,
+        source: Id<Type>,
+        target: Id<Type>,
         relation: Rc<RefCell<HashMap<String, RelationComparisonResult>>>,
         containing_message_chain: Option<Gc<Box<dyn CheckTypeContainingMessageChain>>>,
         error_output_container: Option<Gc<Box<dyn CheckTypeErrorOutputContainer>>>,
@@ -1100,8 +1100,8 @@ impl TypeChecker {
     pub(super) fn elaborate_object_literal(
         &self,
         node: &Node, /*ObjectLiteralExpression*/
-        source: &Type,
-        target: &Type,
+        source: Id<Type>,
+        target: Id<Type>,
         relation: Rc<RefCell<HashMap<String, RelationComparisonResult>>>,
         containing_message_chain: Option<Gc<Box<dyn CheckTypeContainingMessageChain>>>,
         error_output_container: Option<Gc<Box<dyn CheckTypeErrorOutputContainer>>>,
@@ -1121,8 +1121,8 @@ impl TypeChecker {
 
     pub(super) fn check_type_comparable_to(
         &self,
-        source: &Type,
-        target: &Type,
+        source: Id<Type>,
+        target: Id<Type>,
         error_node: &Node,
         head_message: Option<Cow<'static, DiagnosticMessage>>,
         containing_message_chain: Option<Gc<Box<dyn CheckTypeContainingMessageChain>>>,
@@ -1154,7 +1154,7 @@ impl TypeChecker {
             },
             false,
             &mut None,
-            Option::<&fn(&Type, &Type) -> io::Result<()>>::None,
+            Option::<&fn(Id<Type>, Id<Type>) -> io::Result<()>>::None,
             Gc::new(Box::new(TypeComparerCompareTypesAssignable::new(
                 self.rc_wrapper(),
             ))),
@@ -1187,7 +1187,7 @@ impl TypeChecker {
         check_mode: SignatureCheckMode,
         report_errors: bool,
         error_reporter: &mut Option<ErrorReporter>,
-        incompatible_error_reporter: Option<&impl Fn(&Type, &Type) -> io::Result<()>>,
+        incompatible_error_reporter: Option<&impl Fn(Id<Type>, Id<Type>) -> io::Result<()>>,
         compare_types: Gc<Box<dyn TypeComparer>>,
         report_unreliable_markers: Option<Gc<TypeMapper>>,
     ) -> io::Result<Ternary> {
@@ -1394,7 +1394,7 @@ impl TypeChecker {
                                         &*self.get_parameter_name_at_position(
                                             &source,
                                             i,
-                                            Option::<&Type>::None,
+                                            None,
                                         )?,
                                     )
                                     .to_owned(),
@@ -1402,7 +1402,7 @@ impl TypeChecker {
                                         &*self.get_parameter_name_at_position(
                                             &target,
                                             i,
-                                            Option::<&Type>::None,
+                                            None,
                                         )?,
                                     )
                                     .to_owned(),
@@ -1466,7 +1466,7 @@ impl TypeChecker {
                         target_type_predicate,
                         report_errors,
                         error_reporter,
-                        &mut |s: &Type, t: &Type, report_errors: Option<bool>| {
+                        &mut |s: Id<Type>, t: Id<Type>, report_errors: Option<bool>| {
                             compare_types.call(s, t, report_errors)
                         },
                     )?;

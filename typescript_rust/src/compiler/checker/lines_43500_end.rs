@@ -749,8 +749,8 @@ impl TypeChecker {
 
     pub(super) fn find_matching_type_reference_or_type_alias_reference(
         &self,
-        source: &Type,
-        union_target: &Type, /*UnionOrIntersectionType*/
+        source: Id<Type>,
+        union_target: Id<Type>, /*UnionOrIntersectionType*/
     ) -> Option<Id<Type>> {
         let source_object_flags = get_object_flags(source);
         if source_object_flags.intersects(ObjectFlags::Reference | ObjectFlags::Anonymous)
@@ -787,11 +787,11 @@ impl TypeChecker {
 
     pub(super) fn find_best_type_for_object_literal(
         &self,
-        source: &Type,
-        union_target: &Type, /*UnionOrIntersectionType*/
+        source: Id<Type>,
+        union_target: Id<Type>, /*UnionOrIntersectionType*/
     ) -> io::Result<Option<Id<Type>>> {
         if get_object_flags(source).intersects(ObjectFlags::ObjectLiteral)
-            && self.try_some_type(union_target, |type_: &Type| self.is_array_like_type(type_))?
+            && self.try_some_type(union_target, |type_: Id<Type>| self.is_array_like_type(type_))?
         {
             return Ok(try_find(
                 union_target
@@ -806,8 +806,8 @@ impl TypeChecker {
 
     pub(super) fn find_best_type_for_invokable(
         &self,
-        source: &Type,
-        union_target: &Type, /*UnionOrIntersectionType*/
+        source: Id<Type>,
+        union_target: Id<Type>, /*UnionOrIntersectionType*/
     ) -> io::Result<Option<Id<Type>>> {
         let mut signature_kind = SignatureKind::Call;
         let has_signatures = !self
@@ -835,8 +835,8 @@ impl TypeChecker {
 
     pub(super) fn find_most_overlappy_type(
         &self,
-        source: &Type,
-        union_target: &Type, /*UnionOrIntersectionType*/
+        source: Id<Type>,
+        union_target: Id<Type>, /*UnionOrIntersectionType*/
     ) -> io::Result<Option<Id<Type>>> {
         let mut best_match: Option<Id<Type>> = None;
         let mut matching_count = 0;
@@ -874,10 +874,10 @@ impl TypeChecker {
 
     pub(super) fn filter_primitives_if_contains_non_primitive(
         &self,
-        type_: &Type, /*UnionType*/
+        type_: Id<Type>, /*UnionType*/
     ) -> Id<Type> {
         if self.maybe_type_of_kind(type_, TypeFlags::NonPrimitive) {
-            let result = self.filter_type(type_, |t: &Type| {
+            let result = self.filter_type(type_, |t: Id<Type>| {
                 !t.flags().intersects(TypeFlags::Primitive)
             });
             if !result.flags().intersects(TypeFlags::Never) {
@@ -889,9 +889,9 @@ impl TypeChecker {
 
     pub(super) fn find_matching_discriminant_type(
         &self,
-        source: &Type,
-        target: &Type,
-        mut is_related_to: impl FnMut(&Type, &Type) -> io::Result<Ternary>,
+        source: Id<Type>,
+        target: Id<Type>,
+        mut is_related_to: impl FnMut(Id<Type>, Id<Type>) -> io::Result<Ternary>,
         skip_partial: Option<bool>,
     ) -> io::Result<Option<Id<Type>>> {
         if target.flags().intersects(TypeFlags::Union)
@@ -919,10 +919,10 @@ impl TypeChecker {
                             p.escaped_name().to_owned(),
                         )
                     }),
-                    |source: &Type, target: &Type| {
+                    |source: Id<Type>, target: Id<Type>| {
                         Ok(is_related_to(source, target)? != Ternary::False)
                     },
-                    Option::<&Type>::None,
+                    None,
                     skip_partial,
                 );
             }

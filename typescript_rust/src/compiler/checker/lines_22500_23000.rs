@@ -58,8 +58,8 @@ impl TypeChecker {
     pub(super) fn get_flow_cache_key(
         &self,
         node: &Node,
-        declared_type: &Type,
-        initial_type: &Type,
+        declared_type: Id<Type>,
+        initial_type: Id<Type>,
         flow_container: Option<impl Borrow<Node>>,
     ) -> io::Result<Option<String>> {
         let flow_container =
@@ -359,7 +359,7 @@ impl TypeChecker {
 
     pub(super) fn is_discriminant_property(
         &self,
-        type_: Option<impl Borrow<Type>>,
+        type_: Option<Id<Type>>,
         name: &str, /*__String*/
     ) -> io::Result<bool> {
         if let Some(type_) = type_ {
@@ -396,7 +396,7 @@ impl TypeChecker {
     pub(super) fn find_discriminant_properties(
         &self,
         source_properties: impl IntoIterator<Item = impl Borrow<Gc<Symbol>>>,
-        target: &Type,
+        target: Id<Type>,
     ) -> io::Result<Option<Vec<Gc<Symbol>>>> {
         let mut result: Option<Vec<Gc<Symbol>>> = None;
         for source_property in source_properties {
@@ -429,7 +429,7 @@ impl TypeChecker {
                         return Ok(None);
                     }
                     let mut duplicate = false;
-                    self.for_each_type(discriminant, |t: &Type| -> Option<()> {
+                    self.for_each_type(discriminant, |t: Id<Type>| -> Option<()> {
                         let id = self.get_type_id(&self.get_regular_type_of_literal_type(t));
                         let existing = map.get(&id);
                         match existing {
@@ -460,7 +460,7 @@ impl TypeChecker {
 
     pub(super) fn get_key_property_name(
         &self,
-        union_type: &Type, /*UnionType*/
+        union_type: Id<Type>, /*UnionType*/
     ) -> io::Result<Option<__String>> {
         let union_type_as_union_type = union_type.as_union_type();
         let types = union_type_as_union_type.types();
@@ -520,8 +520,8 @@ impl TypeChecker {
 
     pub(super) fn get_constituent_type_for_key_type(
         &self,
-        union_type: &Type, /*UnionType*/
-        key_type: &Type,
+        union_type: Id<Type>, /*UnionType*/
+        key_type: Id<Type>,
     ) -> Option<Id<Type>> {
         let result = union_type
             .as_union_type()
@@ -537,8 +537,8 @@ impl TypeChecker {
 
     pub(super) fn get_matching_union_constituent_for_type(
         &self,
-        union_type: &Type, /*UnionType*/
-        type_: &Type,
+        union_type: Id<Type>, /*UnionType*/
+        type_: Id<Type>,
     ) -> io::Result<Option<Id<Type>>> {
         let key_property_name = self.get_key_property_name(union_type)?;
         let prop_type = key_property_name
@@ -553,8 +553,8 @@ impl TypeChecker {
 
     pub(super) fn get_matching_union_constituent_for_object_literal(
         &self,
-        union_type: &Type, /*UnionType*/
-        node: &Node,       /*ObjectLiteralExpression*/
+        union_type: Id<Type>, /*UnionType*/
+        node: &Node,          /*ObjectLiteralExpression*/
     ) -> io::Result<Option<Id<Type>>> {
         let key_property_name = self.get_key_property_name(union_type)?;
         let prop_node = key_property_name.as_ref().and_then(|key_property_name| {
@@ -634,8 +634,8 @@ impl TypeChecker {
 
     pub(super) fn type_maybe_assignable_to(
         &self,
-        source: &Type,
-        target: &Type,
+        source: Id<Type>,
+        target: Id<Type>,
     ) -> io::Result<bool> {
         if !source.flags().intersects(TypeFlags::Union) {
             return self.is_type_assignable_to(source, target);
@@ -650,14 +650,14 @@ impl TypeChecker {
 
     pub(super) fn get_assignment_reduced_type(
         &self,
-        declared_type: &Type, /*UnionType*/
-        assigned_type: &Type,
+        declared_type: Id<Type>, /*UnionType*/
+        assigned_type: Id<Type>,
     ) -> io::Result<Id<Type>> {
         if !ptr::eq(declared_type, assigned_type) {
             if assigned_type.flags().intersects(TypeFlags::Never) {
                 return Ok(assigned_type.type_wrapper());
             }
-            let mut reduced_type = self.try_filter_type(declared_type, |t: &Type| {
+            let mut reduced_type = self.try_filter_type(declared_type, |t: Id<Type>| {
                 self.type_maybe_assignable_to(assigned_type, t)
             })?;
             if assigned_type.flags().intersects(TypeFlags::BooleanLiteral)
@@ -666,7 +666,7 @@ impl TypeChecker {
                 reduced_type = self
                     .map_type(
                         &reduced_type,
-                        &mut |type_: &Type| Some(self.get_fresh_type_of_literal_type(type_)),
+                        &mut |type_: Id<Type>| Some(self.get_fresh_type_of_literal_type(type_)),
                         None,
                     )
                     .unwrap();
@@ -680,7 +680,7 @@ impl TypeChecker {
 
     pub(super) fn is_function_object_type(
         &self,
-        type_: &Type, /*ObjectType*/
+        type_: Id<Type>, /*ObjectType*/
     ) -> io::Result<bool> {
         let resolved = self.resolve_structured_type_members(type_)?;
         let resolved_as_resolved_type = resolved.as_resolved_type();
@@ -695,7 +695,7 @@ impl TypeChecker {
 
     pub(super) fn get_type_facts(
         &self,
-        type_: &Type,
+        type_: Id<Type>,
         ignore_objects: Option<bool>,
     ) -> io::Result<TypeFacts> {
         let mut ignore_objects = ignore_objects.unwrap_or(false);
@@ -885,17 +885,17 @@ impl TypeChecker {
 
     pub(super) fn get_type_with_facts(
         &self,
-        type_: &Type,
+        type_: Id<Type>,
         include: TypeFacts,
     ) -> io::Result<Id<Type>> {
-        self.try_filter_type(type_, |t: &Type| {
+        self.try_filter_type(type_, |t: Id<Type>| {
             Ok(self.get_type_facts(t, None)? & include != TypeFacts::None)
         })
     }
 
     pub(super) fn get_type_with_default(
         &self,
-        type_: &Type,
+        type_: Id<Type>,
         default_expression: &Node, /*Expression*/
     ) -> io::Result<Id<Type>> {
         /*defaultExpression ? */
@@ -907,14 +907,14 @@ impl TypeChecker {
             None,
             Option::<&Symbol>::None,
             None,
-            Option::<&Type>::None,
+            None,
         )
         /*: type*/
     }
 
     pub(super) fn get_type_of_destructured_property(
         &self,
-        type_: &Type,
+        type_: Id<Type>,
         name: &Node, /*PropertyName*/
     ) -> io::Result<Id<Type>> {
         let name_type = self.get_literal_type_from_property_name(name)?;
@@ -935,11 +935,11 @@ impl TypeChecker {
 
     pub(super) fn get_type_of_destructured_array_element(
         &self,
-        type_: &Type,
+        type_: Id<Type>,
         index: usize,
     ) -> io::Result<Id<Type>> {
         Ok(
-            if self.try_every_type(type_, |type_: &Type| self.is_tuple_like_type(type_))? {
+            if self.try_every_type(type_, |type_: Id<Type>| self.is_tuple_like_type(type_))? {
                 self.get_tuple_element_type(type_, index)?
             } else {
                 None
@@ -960,7 +960,7 @@ impl TypeChecker {
 
     pub(super) fn include_undefined_in_index_signature(
         &self,
-        type_: Option<impl Borrow<Type>>,
+        type_: Option<Id<Type>>,
     ) -> io::Result<Option<Id<Type>>> {
         let type_ = return_ok_default_if_none!(type_);
         let type_ = type_.borrow();
@@ -971,7 +971,7 @@ impl TypeChecker {
                     None,
                     Option::<&Symbol>::None,
                     None,
-                    Option::<&Type>::None,
+                    None,
                 )?
             } else {
                 type_.type_wrapper()
@@ -981,7 +981,7 @@ impl TypeChecker {
 
     pub(super) fn get_type_of_destructured_spread_expression(
         &self,
-        type_: &Type,
+        type_: Id<Type>,
     ) -> io::Result<Id<Type>> {
         Ok(self.create_array_type(
             &*self.check_iterated_type_or_element_type(

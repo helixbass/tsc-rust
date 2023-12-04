@@ -367,7 +367,7 @@ impl TypeChecker {
 
     pub(super) fn get_augmented_properties_of_type(
         &self,
-        type_: &Type,
+        type_: Id<Type>,
     ) -> io::Result<Vec<Gc<Symbol>>> {
         let ref type_ = self.get_apparent_type(type_)?;
         let mut props_by_name = create_symbol_table(Some(self.get_properties_of_type(type_)?));
@@ -398,7 +398,7 @@ impl TypeChecker {
         self.get_named_members(&props_by_name)
     }
 
-    pub(super) fn type_has_call_or_construct_signatures(&self, type_: &Type) -> io::Result<bool> {
+    pub(super) fn type_has_call_or_construct_signatures(&self, type_: Id<Type>) -> io::Result<bool> {
         type_has_call_or_construct_signatures(type_, self)
     }
 

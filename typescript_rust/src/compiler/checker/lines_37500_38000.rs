@@ -48,7 +48,7 @@ impl TypeChecker {
 
     pub(super) fn get_iteration_types_of_iterable_worker(
         &self,
-        type_: &Type,
+        type_: Id<Type>,
         use_: IterationUse,
         error_node: Option<impl Borrow<Node>>,
     ) -> io::Result<Gc<IterationTypes>> {
@@ -138,7 +138,7 @@ impl TypeChecker {
 
     pub(super) fn get_iteration_types_of_iterable_cached(
         &self,
-        type_: &Type,
+        type_: Id<Type>,
         resolver: &IterationTypesResolver,
     ) -> Option<Gc<IterationTypes>> {
         self.get_cached_iteration_types(type_, resolver.iterable_cache_key)
@@ -146,7 +146,7 @@ impl TypeChecker {
 
     pub(super) fn get_iteration_types_of_global_iterable_type(
         &self,
-        global_type: &Type,
+        global_type: Id<Type>,
         resolver: &IterationTypesResolver,
     ) -> io::Result<Gc<IterationTypes>> {
         let global_iteration_types = self
@@ -169,7 +169,7 @@ impl TypeChecker {
 
     pub(super) fn get_iteration_types_of_iterable_fast(
         &self,
-        type_: &Type,
+        type_: Id<Type>,
         resolver: &IterationTypesResolver,
     ) -> io::Result<Option<Gc<IterationTypes>>> {
         let mut global_type: Id<Type>;
@@ -257,7 +257,7 @@ impl TypeChecker {
 
     pub(super) fn get_iteration_types_of_iterable_slow(
         &self,
-        type_: &Type,
+        type_: Id<Type>,
         resolver: &IterationTypesResolver,
         error_node: Option<impl Borrow<Node>>,
     ) -> io::Result<Gc<IterationTypes>> {
@@ -309,7 +309,7 @@ impl TypeChecker {
     pub(super) fn report_type_not_iterable_error(
         &self,
         error_node: &Node,
-        type_: &Type,
+        type_: Id<Type>,
         allow_async_iterables: bool,
     ) -> io::Result<()> {
         let message = if allow_async_iterables {
@@ -335,7 +335,7 @@ impl TypeChecker {
 
     pub(super) fn get_iteration_types_of_iterator(
         &self,
-        type_: &Type,
+        type_: Id<Type>,
         resolver: &IterationTypesResolver,
         error_node: Option<impl Borrow<Node>>,
     ) -> io::Result<Option<Gc<IterationTypes>>> {
@@ -360,7 +360,7 @@ impl TypeChecker {
 
     pub(super) fn get_iteration_types_of_iterator_cached(
         &self,
-        type_: &Type,
+        type_: Id<Type>,
         resolver: &IterationTypesResolver,
     ) -> Option<Gc<IterationTypes>> {
         self.get_cached_iteration_types(type_, resolver.iterator_cache_key)
@@ -368,7 +368,7 @@ impl TypeChecker {
 
     pub(super) fn get_iteration_types_of_iterator_fast(
         &self,
-        type_: &Type,
+        type_: Id<Type>,
         resolver: &IterationTypesResolver,
     ) -> io::Result<Option<Gc<IterationTypes>>> {
         let global_type = (resolver.get_global_iterable_iterator_type)(self, false)?;
@@ -424,7 +424,7 @@ impl TypeChecker {
 
     pub(super) fn is_iterator_result(
         &self,
-        type_: &Type,
+        type_: Id<Type>,
         kind: IterationTypeKind, /*IterationTypeKind.Yield | IterationTypeKind.Return*/
     ) -> io::Result<bool> {
         let done_type = self
@@ -440,11 +440,11 @@ impl TypeChecker {
         )
     }
 
-    pub(super) fn is_yield_iterator_result(&self, type_: &Type) -> io::Result<bool> {
+    pub(super) fn is_yield_iterator_result(&self, type_: Id<Type>) -> io::Result<bool> {
         self.is_iterator_result(type_, IterationTypeKind::Yield)
     }
 
-    pub(super) fn is_return_iterator_result(&self, type_: &Type) -> io::Result<bool> {
+    pub(super) fn is_return_iterator_result(&self, type_: Id<Type>) -> io::Result<bool> {
         self.is_iterator_result(type_, IterationTypeKind::Return)
     }
 
@@ -518,7 +518,7 @@ impl TypeChecker {
 
     pub(super) fn get_iteration_types_of_method(
         &self,
-        type_: &Type,
+        type_: Id<Type>,
         resolver: &IterationTypesResolver,
         method_name: &str, /*"next" | "return" | "throw"*/
         error_node: Option<impl Borrow<Node>>,
@@ -689,7 +689,7 @@ impl TypeChecker {
                     None,
                     Option::<&Symbol>::None,
                     None,
-                    Option::<&Type>::None,
+                    None,
                 )?
             } else {
                 self.unknown_type()
@@ -756,7 +756,7 @@ impl TypeChecker {
                 None,
                 Option::<&Symbol>::None,
                 None,
-                Option::<&Type>::None,
+                None,
             )?),
             next_type,
         )))
@@ -764,7 +764,7 @@ impl TypeChecker {
 
     pub(super) fn get_iteration_types_of_iterator_slow(
         &self,
-        type_: &Type,
+        type_: Id<Type>,
         resolver: &IterationTypesResolver,
         error_node: Option<impl Borrow<Node>>,
     ) -> io::Result<Gc<IterationTypes>> {
@@ -780,7 +780,7 @@ impl TypeChecker {
     pub(super) fn get_iteration_type_of_generator_function_return_type(
         &self,
         kind: IterationTypeKind,
-        return_type: &Type,
+        return_type: Id<Type>,
         is_async_generator: bool,
     ) -> io::Result<Option<Id<Type>>> {
         if self.is_type_any(Some(return_type)) {
@@ -798,7 +798,7 @@ impl TypeChecker {
 
     pub(super) fn get_iteration_types_of_generator_function_return_type(
         &self,
-        type_: &Type,
+        type_: Id<Type>,
         is_async_generator: bool,
     ) -> io::Result<Option<Gc<IterationTypes>>> {
         if self.is_type_any(Some(type_)) {
@@ -832,7 +832,7 @@ impl TypeChecker {
 
     pub(super) fn unwrap_return_type(
         &self,
-        return_type: &Type,
+        return_type: Id<Type>,
         function_flags: FunctionFlags,
     ) -> io::Result<Id<Type>> {
         let is_generator = function_flags.intersects(FunctionFlags::Generator);
@@ -855,7 +855,7 @@ impl TypeChecker {
     pub(super) fn is_unwrapped_return_type_void_or_any(
         &self,
         func: &Node, /*SignatureDeclaration*/
-        return_type: &Type,
+        return_type: Id<Type>,
     ) -> io::Result<bool> {
         let unwrapped_return_type =
             self.unwrap_return_type(return_type, get_function_flags(Some(func)))?;

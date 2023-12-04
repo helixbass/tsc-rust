@@ -77,7 +77,7 @@ impl TypeChecker {
         Ok(ret)
     }
 
-    pub(super) fn get_actual_type_variable(&self, type_: &Type) -> io::Result<Id<Type>> {
+    pub(super) fn get_actual_type_variable(&self, type_: Id<Type>) -> io::Result<Id<Type>> {
         if type_.flags().intersects(TypeFlags::Substitution) {
             return Ok(type_.as_substitution_type().base_type.clone());
         }
@@ -140,7 +140,7 @@ impl TypeChecker {
     pub(super) fn unwrap_nondistributive_conditional_tuple(
         &self,
         root: Gc<GcCell<ConditionalRoot>>,
-        type_: &Type,
+        type_: Id<Type>,
     ) -> io::Result<Id<Type>> {
         Ok(
             if self.is_typical_nondistributive_conditional(root) && self.is_tuple_type(type_) {
@@ -357,7 +357,7 @@ impl TypeChecker {
                 None,
                 Option::<&Symbol>::None,
                 None,
-                Option::<&Type>::None,
+                None,
             )?
         } else {
             result
@@ -371,7 +371,7 @@ impl TypeChecker {
         alias_symbol: &mut Option<Gc<Symbol>>,
         alias_type_arguments: &mut Option<&[Id<Type>]>,
         tail_count: &mut usize,
-        new_type: &Type,
+        new_type: Id<Type>,
         new_mapper: Option<Gc<TypeMapper>>,
     ) -> io::Result<bool> {
         if new_type.flags().intersects(TypeFlags::Conditional) {
@@ -429,7 +429,7 @@ impl TypeChecker {
 
     pub(super) fn get_true_type_from_conditional_type(
         &self,
-        type_: &Type, /*ConditionalType*/
+        type_: Id<Type>, /*ConditionalType*/
     ) -> io::Result<Id<Type>> {
         let type_as_conditional_type = type_.as_conditional_type();
         if type_as_conditional_type
@@ -458,7 +458,7 @@ impl TypeChecker {
 
     pub(super) fn get_false_type_from_conditional_type(
         &self,
-        type_: &Type, /*ConditionalType*/
+        type_: Id<Type>, /*ConditionalType*/
     ) -> io::Result<Id<Type>> {
         let type_as_conditional_type = type_.as_conditional_type();
         if type_as_conditional_type
@@ -487,7 +487,7 @@ impl TypeChecker {
 
     pub(super) fn get_inferred_true_type_from_conditional_type(
         &self,
-        type_: &Type, /*ConditionalType*/
+        type_: Id<Type>, /*ConditionalType*/
     ) -> io::Result<Id<Type>> {
         let type_as_conditional_type = type_.as_conditional_type();
         if type_as_conditional_type
@@ -868,13 +868,13 @@ impl TypeChecker {
         })
     }
 
-    pub(super) fn is_non_generic_object_type(&self, type_: &Type) -> io::Result<bool> {
+    pub(super) fn is_non_generic_object_type(&self, type_: Id<Type>) -> io::Result<bool> {
         Ok(type_.flags().intersects(TypeFlags::Object) && !self.is_generic_mapped_type(type_)?)
     }
 
     pub(super) fn is_empty_object_type_or_spreads_into_empty_object(
         &self,
-        type_: &Type,
+        type_: Id<Type>,
     ) -> io::Result<bool> {
         Ok(self.is_empty_object_type(type_)?
             || type_.flags().intersects(
@@ -892,7 +892,7 @@ impl TypeChecker {
 
     pub(super) fn try_merge_union_of_object_type_and_empty_object(
         &self,
-        type_: &Type,
+        type_: Id<Type>,
         readonly: bool,
     ) -> io::Result<Id<Type>> {
         if !type_.flags().intersects(TypeFlags::Union) {
@@ -936,7 +936,7 @@ impl TypeChecker {
     pub(super) fn get_anonymous_partial_type(
         &self,
         readonly: bool,
-        type_: &Type,
+        type_: Id<Type>,
     ) -> io::Result<Id<Type>> {
         let mut members = create_symbol_table(Option::<&[Gc<Symbol>]>::None);
         for prop in self.get_properties_of_type(type_)? {
@@ -995,8 +995,8 @@ impl TypeChecker {
 
     pub(super) fn get_spread_type(
         &self,
-        left: &Type,
-        right: &Type,
+        left: Id<Type>,
+        right: Id<Type>,
         symbol: Option<impl Borrow<Symbol>>,
         object_flags: ObjectFlags,
         readonly: bool,
@@ -1152,7 +1152,7 @@ impl TypeChecker {
                         None,
                         Option::<&Symbol>::None,
                         None,
-                        Option::<&Type>::None,
+                        None,
                     )?);
                     result_links.left_spread = Some(left_prop.clone());
                     result_links.right_spread = Some(right_prop.clone());

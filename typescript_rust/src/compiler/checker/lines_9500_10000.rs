@@ -298,7 +298,7 @@ impl TypeChecker {
                         None,
                         Option::<&Symbol>::None,
                         None,
-                        Option::<&Type>::None,
+                        None,
                     )?
                 } else {
                     self.get_intersection_type(
@@ -370,13 +370,13 @@ impl TypeChecker {
         ))
     }
 
-    pub(super) fn is_reference_to_type(&self, type_: &Type, target: &Type) -> bool {
+    pub(super) fn is_reference_to_type(&self, type_: Id<Type>, target: Id<Type>) -> bool {
         /*type !== undefined && target !== undefined &&*/
         get_object_flags(type_).intersects(ObjectFlags::Reference)
             && ptr::eq(&*type_.as_type_reference_interface().target(), target)
     }
 
-    pub(super) fn get_target_type(&self, type_: &Type) -> Id<Type> {
+    pub(super) fn get_target_type(&self, type_: Id<Type>) -> Id<Type> {
         if get_object_flags(type_).intersects(ObjectFlags::Reference) {
             type_.as_type_reference_interface().target()
         } else {
@@ -386,8 +386,8 @@ impl TypeChecker {
 
     pub(super) fn has_base_type(
         &self,
-        type_: &Type,
-        check_base: Option<impl Borrow<Type>>,
+        type_: Id<Type>,
+        check_base: Option<Id<Type>>,
     ) -> io::Result<bool> {
         let check_base = check_base.map(|check_base| check_base.borrow().type_wrapper());
         self.has_base_type_check(check_base.as_deref(), type_)
@@ -395,8 +395,8 @@ impl TypeChecker {
 
     pub(super) fn has_base_type_check(
         &self,
-        check_base: Option<&Type>,
-        type_: &Type,
+        check_base: Option<Id<Type>,
+        type_: Id<Type>,
     ) -> io::Result<bool> {
         Ok(
             if get_object_flags(type_)
@@ -644,7 +644,7 @@ impl TypeChecker {
         )))
     }
 
-    pub(super) fn is_mixin_constructor_type(&self, type_: &Type) -> io::Result<bool> {
+    pub(super) fn is_mixin_constructor_type(&self, type_: Id<Type>) -> io::Result<bool> {
         let signatures = self.get_signatures_of_type(type_, SignatureKind::Construct)?;
         if signatures.len() == 1 {
             let s = &signatures[0];
@@ -663,7 +663,7 @@ impl TypeChecker {
         Ok(false)
     }
 
-    pub(super) fn is_constructor_type(&self, type_: &Type) -> io::Result<bool> {
+    pub(super) fn is_constructor_type(&self, type_: Id<Type>) -> io::Result<bool> {
         if !self
             .get_signatures_of_type(type_, SignatureKind::Construct)?
             .is_empty()
@@ -682,14 +682,14 @@ impl TypeChecker {
 
     pub(super) fn get_base_type_node_of_class(
         &self,
-        type_: &Type, /*InterfaceType*/
+        type_: Id<Type>, /*InterfaceType*/
     ) -> Option<Gc<Node /*ExpressionWithTypeArguments*/>> {
         get_effective_base_type_node(&type_.symbol().maybe_value_declaration().unwrap())
     }
 
     pub(super) fn get_constructors_for_type_arguments(
         &self,
-        type_: &Type,
+        type_: Id<Type>,
         type_argument_nodes: Option<&[Gc<Node /*TypeNode*/>]>,
         location: &Node,
     ) -> io::Result<Vec<Gc<Signature>>> {
@@ -708,7 +708,7 @@ impl TypeChecker {
 
     pub(super) fn get_instantiated_constructors_for_type_arguments(
         &self,
-        type_: &Type,
+        type_: Id<Type>,
         type_argument_nodes: Option<&[Gc<Node /*TypeNode*/>]>,
         location: &Node,
     ) -> io::Result<Vec<Gc<Signature>>> {
@@ -740,7 +740,7 @@ impl TypeChecker {
 
     pub(super) fn get_base_constructor_type_of_class(
         &self,
-        type_: &Type, /*InterfaceType*/
+        type_: Id<Type>, /*InterfaceType*/
     ) -> io::Result<Id<Type>> {
         let type_as_not_actually_interface_type = type_.as_not_actually_interface_type();
         if type_as_not_actually_interface_type
@@ -869,7 +869,7 @@ impl TypeChecker {
 
     pub(super) fn get_implements_types(
         &self,
-        type_: &Type, /*InterfaceType*/
+        type_: Id<Type>, /*InterfaceType*/
     ) -> io::Result<Vec<Id<Type /*BaseType*/>>> {
         let mut resolved_implements_types: Vec<Id<Type /*BaseType*/>> = vec![];
         if let Some(type_symbol_declarations) = type_.symbol().maybe_declarations().as_deref() {
@@ -890,7 +890,7 @@ impl TypeChecker {
         Ok(resolved_implements_types)
     }
 
-    pub(super) fn report_circular_base_type(&self, node: &Node, type_: &Type) -> io::Result<()> {
+    pub(super) fn report_circular_base_type(&self, node: &Node, type_: Id<Type>) -> io::Result<()> {
         self.error(
             Some(node),
             &Diagnostics::Type_0_recursively_references_itself_as_a_base_type,
@@ -907,7 +907,7 @@ impl TypeChecker {
 
     pub(super) fn get_base_types(
         &self,
-        type_: &Type, /*InterfaceType*/
+        type_: Id<Type>, /*InterfaceType*/
     ) -> io::Result<Vec<Id<Type /*BaseType*/>>> {
         let type_as_not_actually_interface_type = type_.as_not_actually_interface_type();
         if !matches!(
@@ -966,7 +966,7 @@ impl TypeChecker {
 
     pub(super) fn get_tuple_base_type(
         &self,
-        type_: &Type, /*TupleType*/
+        type_: Id<Type>, /*TupleType*/
     ) -> io::Result<Id<Type>> {
         let type_as_tuple_type = type_.as_tuple_type();
         let element_types = try_maybe_map(
@@ -995,7 +995,7 @@ impl TypeChecker {
                 None,
                 Option::<&Symbol>::None,
                 None,
-                Option::<&Type>::None,
+                None,
             )?,
             Some(type_as_tuple_type.readonly),
         ))
@@ -1003,7 +1003,7 @@ impl TypeChecker {
 
     pub(super) fn resolve_base_types_of_class(
         &self,
-        type_: &Type, /*InterfaceType*/
+        type_: Id<Type>, /*InterfaceType*/
     ) -> io::Result<Gc<Vec<Id<Type /*BaseType*/>>>> {
         let type_as_not_actually_interface_type = type_.as_not_actually_interface_type();
         *type_as_not_actually_interface_type.maybe_resolved_base_types() =

@@ -255,7 +255,7 @@ impl TypeChecker {
         Ok(None)
     }
 
-    pub(super) fn is_function_type(&self, type_: &Type) -> io::Result<bool> {
+    pub(super) fn is_function_type(&self, type_: Id<Type>) -> io::Result<bool> {
         Ok(type_.flags().intersects(TypeFlags::Object)
             && !self
                 .get_signatures_of_type(type_, SignatureKind::Call)?
@@ -576,7 +576,7 @@ impl TypeChecker {
 
     pub(super) fn literal_type_to_node(
         &self,
-        type_: &Type, /*FreshableType*/
+        type_: Id<Type>, /*FreshableType*/
         enclosing: &Node,
         tracker: Gc<Box<dyn SymbolTracker>>,
     ) -> io::Result<Gc<Node /*Expression*/>> {

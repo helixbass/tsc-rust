@@ -227,7 +227,7 @@ impl TypeChecker {
             None,
             Option::<&Symbol>::None,
             None,
-            Option::<&Type>::None,
+            None,
         )?;
         Ok(Some(self.create_symbol_with_type(&left, Some(this_type))))
     }
@@ -273,7 +273,7 @@ impl TypeChecker {
                 None,
                 Option::<&Symbol>::None,
                 None,
-                Option::<&Type>::None,
+                None,
             )?;
             let is_rest_param =
                 either_has_effective_rest && !needs_extra_rest_element && i == longest_count - 1;
@@ -282,12 +282,12 @@ impl TypeChecker {
             let left_name = if i >= left_count {
                 None
             } else {
-                Some(self.get_parameter_name_at_position(left, i, Option::<&Type>::None)?)
+                Some(self.get_parameter_name_at_position(left, i, None)?)
             };
             let right_name = if i >= right_count {
                 None
             } else {
-                Some(self.get_parameter_name_at_position(right, i, Option::<&Type>::None)?)
+                Some(self.get_parameter_name_at_position(right, i, None)?)
             };
 
             let param_name = if left_name == right_name {
@@ -406,7 +406,7 @@ impl TypeChecker {
 
     pub(super) fn get_contextual_call_signature(
         &self,
-        type_: &Type,
+        type_: Id<Type>,
         node: &Node, /*SignatureDeclaration*/
     ) -> io::Result<Option<Gc<Signature>>> {
         let signatures = self.get_signatures_of_type(type_, SignatureKind::Call)?;
@@ -668,7 +668,7 @@ impl TypeChecker {
                 contextual_type.as_ref(),
                 Some(contextual_type) if self.try_some_type(
                     contextual_type,
-                    |type_: &Type| self.is_tuple_like_type(type_)
+                    |type_: Id<Type>| self.is_tuple_like_type(type_)
                 )?
             )
         {
@@ -700,7 +700,7 @@ impl TypeChecker {
                     Some(UnionReduction::Subtype),
                     Option::<&Symbol>::None,
                     None,
-                    Option::<&Type>::None,
+                    None,
                 )?
             } else if self.strict_null_checks {
                 self.implicit_never_type()
@@ -711,7 +711,7 @@ impl TypeChecker {
         )))
     }
 
-    pub(super) fn create_array_literal_type(&self, type_: &Type) -> Id<Type> {
+    pub(super) fn create_array_literal_type(&self, type_: Id<Type>) -> Id<Type> {
         if !get_object_flags(type_).intersects(ObjectFlags::Reference) {
             return type_.type_wrapper();
         }
@@ -868,7 +868,7 @@ impl TypeChecker {
         node: &Node, /*ObjectLiteralExpression*/
         offset: usize,
         properties: &[Gc<Symbol>],
-        key_type: &Type,
+        key_type: Id<Type>,
     ) -> io::Result<IndexInfo> {
         let mut prop_types: Vec<Id<Type>> = vec![];
         for i in offset..properties.len() {
@@ -888,7 +888,7 @@ impl TypeChecker {
                 Some(UnionReduction::Subtype),
                 Option::<&Symbol>::None,
                 None,
-                Option::<&Type>::None,
+                None,
             )?
         } else {
             self.undefined_type()
@@ -1012,7 +1012,7 @@ impl TypeChecker {
                             member_decl_as_shorthand_property_assignment.name()
                         },
                         check_mode,
-                        Option::<&Type>::None,
+                        None,
                         None,
                     )?
                 } else {
@@ -1313,7 +1313,7 @@ impl TypeChecker {
             return Ok(self
                 .try_map_type(
                     &spread,
-                    &mut |t: &Type| -> io::Result<_> {
+                    &mut |t: Id<Type>| -> io::Result<_> {
                         Ok(if ptr::eq(t, &*self.empty_object_type()) {
                             Some(self.create_object_literal_type(
                                 has_computed_string_property,

@@ -315,7 +315,7 @@ impl TypeChecker {
 
     pub(super) fn widen_type_for_variable_like_declaration(
         &self,
-        type_: Option<impl Borrow<Type>>,
+        type_: Option<Id<Type>>,
         declaration: &Node,
         report_errors: Option<bool>,
     ) -> io::Result<Id<Type>> {
@@ -572,7 +572,7 @@ impl TypeChecker {
                     self.check_expression_for_mutable_location(
                         &declaration.as_shorthand_property_assignment().name(),
                         Some(CheckMode::Normal),
-                        Option::<&Type>::None,
+                        None,
                         None,
                     )
                 })?;
@@ -788,7 +788,7 @@ impl TypeChecker {
 
     pub(super) fn instantiate_type_if_needed(
         &self,
-        type_: &Type,
+        type_: Id<Type>,
         symbol: &Symbol,
     ) -> io::Result<Id<Type>> {
         if get_check_flags(symbol).intersects(CheckFlags::Instantiated) {

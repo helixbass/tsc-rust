@@ -29,7 +29,7 @@ use crate::{
 impl GetFlowTypeOfReference {
     pub(super) fn narrow_type_by_constructor(
         &self,
-        type_: &Type,
+        type_: Id<Type>,
         operator: SyntaxKind,
         identifier: &Node, /*Expression*/
         assume_true: bool,
@@ -83,7 +83,7 @@ impl GetFlowTypeOfReference {
             return Ok(candidate);
         }
 
-        let is_constructed_by = |source: &Type, target: &Type| {
+        let is_constructed_by = |source: Id<Type>, target: Id<Type>| {
             if source.flags().intersects(TypeFlags::Object)
                 && get_object_flags(source).intersects(ObjectFlags::Class)
                 || target.flags().intersects(TypeFlags::Object)
@@ -99,12 +99,12 @@ impl GetFlowTypeOfReference {
         };
 
         self.type_checker
-            .try_filter_type(type_, |t: &Type| is_constructed_by(t, &candidate))
+            .try_filter_type(type_, |t: Id<Type>| is_constructed_by(t, &candidate))
     }
 
     pub(super) fn narrow_type_by_instanceof(
         &self,
-        type_: &Type,
+        type_: Id<Type>,
         expr: &Node, /*BinaryExpression*/
         assume_true: bool,
     ) -> io::Result<Id<Type>> {
@@ -183,7 +183,7 @@ impl GetFlowTypeOfReference {
                     None,
                     Option::<&Symbol>::None,
                     None,
-                    Option::<&Type>::None,
+                    None,
                 )?
             } else {
                 self.type_checker.empty_object_type()
@@ -208,26 +208,26 @@ impl GetFlowTypeOfReference {
             type_,
             &target_type,
             assume_true,
-            |source: &Type, target: &Type| self.type_checker.is_type_derived_from(source, target),
+            |source: Id<Type>, target: Id<Type>| self.type_checker.is_type_derived_from(source, target),
         )
     }
 
     pub(super) fn get_narrowed_type(
         &self,
-        type_: &Type,
-        candidate: &Type,
+        type_: Id<Type>,
+        candidate: Id<Type>,
         assume_true: bool,
-        mut is_related: impl FnMut(&Type, &Type) -> io::Result<bool>,
+        mut is_related: impl FnMut(Id<Type>, Id<Type>) -> io::Result<bool>,
     ) -> io::Result<Id<Type>> {
         if !assume_true {
             return self
                 .type_checker
-                .try_filter_type(type_, |t: &Type| Ok(!is_related(t, candidate)?));
+                .try_filter_type(type_, |t: Id<Type>| Ok(!is_related(t, candidate)?));
         }
         if type_.flags().intersects(TypeFlags::Union) {
             let assignable_type = self
                 .type_checker
-                .try_filter_type(type_, |t: &Type| is_related(t, candidate))?;
+                .try_filter_type(type_, |t: Id<Type>| is_related(t, candidate))?;
             if !assignable_type.flags().intersects(TypeFlags::Never) {
                 return Ok(assignable_type);
             }
@@ -250,7 +250,7 @@ impl GetFlowTypeOfReference {
 
     pub(super) fn narrow_type_by_call_expression(
         &self,
-        type_: &Type,
+        type_: Id<Type>,
         call_expression: &Node, /*CallExpression*/
         assume_true: bool,
     ) -> io::Result<Id<Type>> {
@@ -324,7 +324,7 @@ impl GetFlowTypeOfReference {
 
     pub(super) fn narrow_type_by_type_predicate(
         &self,
-        type_: &Type,
+        type_: Id<Type>,
         predicate: &TypePredicate,
         call_expression: &Node, /*CallExpression*/
         assume_true: bool,
@@ -347,7 +347,7 @@ impl GetFlowTypeOfReference {
                         &type_,
                         predicate_type,
                         assume_true,
-                        |type1: &Type, type2: &Type| {
+                        |type1: Id<Type>, type2: Id<Type>| {
                             self.type_checker.is_type_subtype_of(type1, type2)
                         },
                     );
@@ -368,12 +368,12 @@ impl GetFlowTypeOfReference {
                 }
                 let access = self.get_discriminant_property_access(predicate_argument, &type_)?;
                 if let Some(access) = access.as_ref() {
-                    return self.try_narrow_type_by_discriminant(&type_, access, |t: &Type| {
+                    return self.try_narrow_type_by_discriminant(&type_, access, |t: Id<Type>| {
                         self.get_narrowed_type(
                             t,
                             predicate_type,
                             assume_true,
-                            |type1: &Type, type2: &Type| {
+                            |type1: Id<Type>, type2: Id<Type>| {
                                 self.type_checker.is_type_subtype_of(type1, type2)
                             },
                         )
@@ -386,7 +386,7 @@ impl GetFlowTypeOfReference {
 
     pub(super) fn narrow_type(
         &self,
-        type_: &Type,
+        type_: Id<Type>,
         expr: &Node, /*Expression*/
         assume_true: bool,
     ) -> io::Result<Id<Type>> {
@@ -482,7 +482,7 @@ impl GetFlowTypeOfReference {
 
     pub(super) fn narrow_type_by_optionality(
         &self,
-        type_: &Type,
+        type_: Id<Type>,
         expr: &Node, /*Expression*/
         assume_present: bool,
     ) -> io::Result<Id<Type>> {
@@ -501,7 +501,7 @@ impl GetFlowTypeOfReference {
         }
         let access = self.get_discriminant_property_access(expr, type_)?;
         if let Some(access) = access.as_ref() {
-            return self.try_narrow_type_by_discriminant(type_, access, |t: &Type| {
+            return self.try_narrow_type_by_discriminant(type_, access, |t: Id<Type>| {
                 self.type_checker.get_type_with_facts(
                     t,
                     if assume_present {
@@ -644,7 +644,7 @@ impl TypeChecker {
 
     pub(super) fn remove_optionality_from_declared_type(
         &self,
-        declared_type: &Type,
+        declared_type: Id<Type>,
         declaration: &Node, /*VariableLikeDeclaration (actually also includes BindingElement)*/
     ) -> io::Result<Id<Type>> {
         let declaration_as_has_initializer = declaration.as_has_initializer();
@@ -674,21 +674,21 @@ impl TypeChecker {
         )
     }
 
-    pub(super) fn is_constraint_position(&self, type_: &Type, node: &Node) -> io::Result<bool> {
+    pub(super) fn is_constraint_position(&self, type_: Id<Type>, node: &Node) -> io::Result<bool> {
         let parent = node.parent();
         Ok(parent.kind() == SyntaxKind::PropertyAccessExpression
             || parent.kind() == SyntaxKind::CallExpression
                 && ptr::eq(&*parent.as_call_expression().expression, node)
             || parent.kind() == SyntaxKind::ElementAccessExpression
                 && ptr::eq(&*parent.as_element_access_expression().expression, node)
-                && !(self.try_some_type(type_, |type_: &Type| {
+                && !(self.try_some_type(type_, |type_: Id<Type>| {
                     self.is_generic_type_without_nullable_constraint(type_)
                 })? && self.is_generic_index_type(&*self.get_type_of_expression(
                     &parent.as_element_access_expression().argument_expression,
                 )?)?))
     }
 
-    pub(super) fn is_generic_type_with_union_constraint(&self, type_: &Type) -> io::Result<bool> {
+    pub(super) fn is_generic_type_with_union_constraint(&self, type_: Id<Type>) -> io::Result<bool> {
         Ok(type_.flags().intersects(TypeFlags::Instantiable)
             && self
                 .get_base_constraint_or_type(type_)?
@@ -698,7 +698,7 @@ impl TypeChecker {
 
     pub(super) fn is_generic_type_without_nullable_constraint(
         &self,
-        type_: &Type,
+        type_: Id<Type>,
     ) -> io::Result<bool> {
         Ok(type_.flags().intersects(TypeFlags::Instantiable)
             && !self.maybe_type_of_kind(
@@ -732,21 +732,21 @@ impl TypeChecker {
 
     pub(super) fn get_narrowable_type_for_reference(
         &self,
-        type_: &Type,
+        type_: Id<Type>,
         reference: &Node,
         check_mode: Option<CheckMode>,
     ) -> io::Result<Id<Type>> {
         let substitute_constraints = !matches!(
             check_mode,
             Some(check_mode) if check_mode.intersects(CheckMode::Inferential)
-        ) && self.try_some_type(type_, |type_: &Type| {
+        ) && self.try_some_type(type_, |type_: Id<Type>| {
             self.is_generic_type_with_union_constraint(type_)
         })? && (self.is_constraint_position(type_, reference)?
             || self.has_non_binding_pattern_contextual_type_with_no_generic_types(reference)?);
         Ok(if substitute_constraints {
             self.try_map_type(
                 type_,
-                &mut |t: &Type| {
+                &mut |t: Id<Type>| {
                     Ok(Some(if t.flags().intersects(TypeFlags::Instantiable) {
                         self.get_base_constraint_or_type(t)?
                     } else {

@@ -127,7 +127,7 @@ impl TypeChecker {
 
     pub(super) fn get_uninstantiated_jsx_signatures_of_type(
         &self,
-        element_type: &Type,
+        element_type: Id<Type>,
         caller: &Node, /*JsxOpeningLikeElement*/
     ) -> io::Result<Vec<Gc<Signature>>> {
         if element_type.flags().intersects(TypeFlags::String) {
@@ -199,7 +199,7 @@ impl TypeChecker {
     pub(super) fn check_jsx_return_assignable_to_appropriate_bound(
         &self,
         ref_kind: JsxReferenceKind,
-        elem_instance_type: &Type,
+        elem_instance_type: Id<Type>,
         opening_like_element: &Node, /*JsxOpeningLikeElement*/
     ) -> io::Result<()> {
         if ref_kind == JsxReferenceKind::Function {
@@ -259,7 +259,7 @@ impl TypeChecker {
                 None,
                 Option::<&Symbol>::None,
                 None,
-                Option::<&Type>::None,
+                None,
             )?;
             self.check_type_related_to(
                 elem_instance_type,
@@ -360,7 +360,7 @@ impl TypeChecker {
             None,
             Option::<&Symbol>::None,
             None,
-            Option::<&Type>::None,
+            None,
         )?))
         // }
     }
@@ -478,7 +478,7 @@ impl TypeChecker {
 
     pub(super) fn is_known_property(
         &self,
-        target_type: &Type,
+        target_type: Id<Type>,
         name: &str, /*__String*/
         is_comparing_jsx_attributes: bool,
     ) -> io::Result<bool> {
@@ -514,7 +514,7 @@ impl TypeChecker {
         Ok(false)
     }
 
-    pub(super) fn is_excess_property_check_target(&self, type_: &Type) -> bool {
+    pub(super) fn is_excess_property_check_target(&self, type_: Id<Type>) -> bool {
         (type_.flags().intersects(TypeFlags::Object)
             && !(get_object_flags(type_)
                 .intersects(ObjectFlags::ObjectLiteralPatternWithComputedProperties)))
@@ -588,7 +588,7 @@ impl TypeChecker {
         node: &Node, /*PropertyAccessExpression | QualifiedName | VariableDeclaration | ParameterDeclaration | ImportTypeNode | PropertyAssignment | ShorthandPropertyAssignment | BindingElement*/
         is_super: bool,
         writing: bool,
-        type_: &Type,
+        type_: Id<Type>,
         prop: &Symbol,
         report_error: Option<bool>,
     ) -> io::Result<bool> {
@@ -617,7 +617,7 @@ impl TypeChecker {
         location: &Node,
         is_super: bool,
         writing: bool,
-        containing_type: &Type,
+        containing_type: Id<Type>,
         prop: &Symbol,
         error_node: Option<impl Borrow<Node>>,
     ) -> io::Result<bool> {

@@ -25,7 +25,7 @@ use crate::{
 };
 
 impl TypeChecker {
-    pub(super) fn get_template_string_for_type(&self, type_: &Type) -> Option<String> {
+    pub(super) fn get_template_string_for_type(&self, type_: Id<Type>) -> Option<String> {
         if type_.flags().intersects(TypeFlags::StringLiteral) {
             Some(type_.as_string_literal_type().value.clone())
         } else if type_.flags().intersects(TypeFlags::NumberLiteral) {
@@ -57,7 +57,7 @@ impl TypeChecker {
     pub(super) fn get_string_mapping_type(
         &self,
         symbol: &Symbol,
-        type_: &Type,
+        type_: Id<Type>,
     ) -> io::Result<Id<Type>> {
         Ok(
             if type_
@@ -95,7 +95,7 @@ impl TypeChecker {
     pub(super) fn get_string_mapping_type_for_generic_type(
         &self,
         symbol: &Symbol,
-        type_: &Type,
+        type_: Id<Type>,
     ) -> Id<Type> {
         let id = format!("{},{}", get_symbol_id(symbol), self.get_type_id(type_));
         let mut result = self.string_mapping_types().get(&id).map(Clone::clone);
@@ -107,7 +107,7 @@ impl TypeChecker {
         result.unwrap()
     }
 
-    pub(super) fn create_string_mapping_type(&self, symbol: &Symbol, type_: &Type) -> Id<Type> {
+    pub(super) fn create_string_mapping_type(&self, symbol: &Symbol, type_: Id<Type>) -> Id<Type> {
         let result = self.create_type(TypeFlags::StringMapping);
         let result: Id<Type> = StringMappingType::new(result, type_.type_wrapper()).into();
         result.set_symbol(Some(symbol.symbol_wrapper()));
@@ -116,8 +116,8 @@ impl TypeChecker {
 
     pub(super) fn create_indexed_access_type(
         &self,
-        object_type: &Type,
-        index_type: &Type,
+        object_type: Id<Type>,
+        index_type: Id<Type>,
         access_flags: AccessFlags,
         alias_symbol: Option<impl Borrow<Symbol>>,
         alias_type_arguments: Option<&[Id<Type>]>,
@@ -136,7 +136,7 @@ impl TypeChecker {
         type_
     }
 
-    pub(super) fn is_js_literal_type(&self, type_: &Type) -> io::Result<bool> {
+    pub(super) fn is_js_literal_type(&self, type_: Id<Type>) -> io::Result<bool> {
         if self.no_implicit_any {
             return Ok(false);
         }
@@ -210,10 +210,10 @@ impl TypeChecker {
 
     pub(super) fn get_property_type_for_index_type(
         &self,
-        original_object_type: &Type,
-        object_type: &Type,
-        index_type: &Type,
-        full_index_type: &Type,
+        original_object_type: Id<Type>,
+        object_type: Id<Type>,
+        index_type: Id<Type>,
+        full_index_type: Id<Type>,
         access_node: Option<
             impl Borrow<Node>, /*ElementAccessExpression | IndexedAccessTypeNode | PropertyName | BindingName | SyntheticExpression*/
         >,
@@ -323,7 +323,7 @@ impl TypeChecker {
                         self.get_flow_type_of_reference(
                             access_expression,
                             &prop_type,
-                            Option::<&Type>::None,
+                            None,
                             Option::<&Node>::None,
                         )?
                     } else {
@@ -394,7 +394,7 @@ impl TypeChecker {
                                     None,
                                     Option::<&Symbol>::None,
                                     None,
-                                    Option::<&Type>::None,
+                                    None,
                                 )?
                             } else {
                                 rest_type
@@ -473,7 +473,7 @@ impl TypeChecker {
                                     None,
                                     Option::<&Symbol>::None,
                                     None,
-                                    Option::<&Type>::None,
+                                    None,
                                 )?
                             } else {
                                 index_info.type_.clone()
@@ -493,7 +493,7 @@ impl TypeChecker {
                             None,
                             Option::<&Symbol>::None,
                             None,
-                            Option::<&Type>::None,
+                            None,
                         )?
                     } else {
                         index_info.type_.clone()
@@ -553,7 +553,7 @@ impl TypeChecker {
                                 None,
                                 Option::<&Symbol>::None,
                                 None,
-                                Option::<&Type>::None,
+                                None,
                             )?));
                         }
                     }
@@ -842,7 +842,7 @@ impl TypeChecker {
     pub(super) fn error_if_writing_to_readonly_index(
         &self,
         access_expression: Option<&Node>,
-        object_type: &Type,
+        object_type: Id<Type>,
         index_info: Option<impl Borrow<IndexInfo>>,
     ) -> io::Result<()> {
         if let Some(index_info) = index_info {
@@ -888,13 +888,13 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn is_pattern_literal_placeholder_type(&self, type_: &Type) -> bool {
+    pub(super) fn is_pattern_literal_placeholder_type(&self, type_: Id<Type>) -> bool {
         type_
             .flags()
             .intersects(TypeFlags::Any | TypeFlags::String | TypeFlags::Number | TypeFlags::BigInt)
     }
 
-    pub(super) fn is_pattern_literal_type(&self, type_: &Type) -> bool {
+    pub(super) fn is_pattern_literal_type(&self, type_: Id<Type>) -> bool {
         type_.flags().intersects(TypeFlags::TemplateLiteral)
             && every(
                 &type_.as_template_literal_type().types,
@@ -902,23 +902,23 @@ impl TypeChecker {
             )
     }
 
-    pub(super) fn is_generic_type(&self, type_: &Type) -> io::Result<bool> {
+    pub(super) fn is_generic_type(&self, type_: Id<Type>) -> io::Result<bool> {
         Ok(self.get_generic_object_flags(type_)? != ObjectFlags::None)
     }
 
-    pub(super) fn is_generic_object_type(&self, type_: &Type) -> io::Result<bool> {
+    pub(super) fn is_generic_object_type(&self, type_: Id<Type>) -> io::Result<bool> {
         Ok(self
             .get_generic_object_flags(type_)?
             .intersects(ObjectFlags::IsGenericObjectType))
     }
 
-    pub(super) fn is_generic_index_type(&self, type_: &Type) -> io::Result<bool> {
+    pub(super) fn is_generic_index_type(&self, type_: Id<Type>) -> io::Result<bool> {
         Ok(self
             .get_generic_object_flags(type_)?
             .intersects(ObjectFlags::IsGenericIndexType))
     }
 
-    pub(super) fn get_generic_object_flags(&self, type_: &Type) -> io::Result<ObjectFlags> {
+    pub(super) fn get_generic_object_flags(&self, type_: Id<Type>) -> io::Result<ObjectFlags> {
         if type_.flags().intersects(TypeFlags::UnionOrIntersection) {
             let type_as_union_or_intersection_type = type_.as_union_or_intersection_type();
             if !type_as_union_or_intersection_type
@@ -980,12 +980,12 @@ impl TypeChecker {
         })
     }
 
-    pub(super) fn is_this_type_parameter(&self, type_: &Type) -> bool {
+    pub(super) fn is_this_type_parameter(&self, type_: Id<Type>) -> bool {
         type_.flags().intersects(TypeFlags::TypeParameter)
             && matches!(type_.as_type_parameter().is_this_type, Some(true))
     }
 
-    pub(super) fn get_simplified_type(&self, type_: &Type, writing: bool) -> io::Result<Id<Type>> {
+    pub(super) fn get_simplified_type(&self, type_: Id<Type>, writing: bool) -> io::Result<Id<Type>> {
         Ok(if type_.flags().intersects(TypeFlags::IndexedAccess) {
             self.get_simplified_indexed_access_type(type_, writing)?
         } else if type_.flags().intersects(TypeFlags::Conditional) {
@@ -997,8 +997,8 @@ impl TypeChecker {
 
     pub(super) fn distribute_index_over_object_type(
         &self,
-        object_type: &Type,
-        index_type: &Type,
+        object_type: Id<Type>,
+        index_type: Id<Type>,
         writing: bool,
     ) -> io::Result<Option<Id<Type>>> {
         if object_type
@@ -1032,7 +1032,7 @@ impl TypeChecker {
                         None,
                         Option::<&Symbol>::None,
                         None,
-                        Option::<&Type>::None,
+                        None,
                     )?
                 },
             ));
@@ -1042,8 +1042,8 @@ impl TypeChecker {
 
     pub(super) fn distribute_object_over_index_type(
         &self,
-        object_type: &Type,
-        index_type: &Type,
+        object_type: Id<Type>,
+        index_type: Id<Type>,
         writing: bool,
     ) -> io::Result<Option<Id<Type>>> {
         if index_type.flags().intersects(TypeFlags::Union) {
@@ -1068,7 +1068,7 @@ impl TypeChecker {
                     None,
                     Option::<&Symbol>::None,
                     None,
-                    Option::<&Type>::None,
+                    None,
                 )?
             }));
         }
@@ -1077,7 +1077,7 @@ impl TypeChecker {
 
     pub(super) fn get_simplified_indexed_access_type(
         &self,
-        type_: &Type, /*IndexedAccessType*/
+        type_: Id<Type>, /*IndexedAccessType*/
         writing: bool,
     ) -> io::Result<Id<Type>> {
         let type_as_indexed_access_type = type_.as_indexed_access_type();
@@ -1169,7 +1169,7 @@ impl TypeChecker {
 
     pub(super) fn get_simplified_conditional_type(
         &self,
-        type_: &Type, /*ConditionalType*/
+        type_: Id<Type>, /*ConditionalType*/
         writing: bool,
     ) -> io::Result<Id<Type>> {
         let type_as_conditional_type = type_.as_conditional_type();
@@ -1215,7 +1215,7 @@ impl TypeChecker {
         Ok(type_.type_wrapper())
     }
 
-    pub(super) fn is_intersection_empty(&self, type1: &Type, type2: &Type) -> io::Result<bool> {
+    pub(super) fn is_intersection_empty(&self, type1: Id<Type>, type2: Id<Type>) -> io::Result<bool> {
         Ok(self
             .get_union_type(
                 &[
@@ -1225,7 +1225,7 @@ impl TypeChecker {
                 None,
                 Option::<&Symbol>::None,
                 None,
-                Option::<&Type>::None,
+                None,
             )?
             .flags()
             .intersects(TypeFlags::Never))
@@ -1279,7 +1279,7 @@ impl TypeChecker {
             }))
     }
 
-    pub(super) fn index_type_less_than(&self, index_type: &Type, limit: isize) -> bool {
+    pub(super) fn index_type_less_than(&self, index_type: Id<Type>, limit: isize) -> bool {
         self.every_type(index_type, |t| {
             if t.flags().intersects(TypeFlags::StringOrNumberLiteral) {
                 let prop_name = self.get_property_name_from_type(t);
@@ -1294,8 +1294,8 @@ impl TypeChecker {
 
     pub(super) fn get_indexed_access_type_or_undefined(
         &self,
-        object_type: &Type,
-        index_type: &Type,
+        object_type: Id<Type>,
+        index_type: Id<Type>,
         access_flags: Option<AccessFlags>,
         access_node: Option<
             impl Borrow<Node>, /*ElementAccessExpression | IndexedAccessTypeNode | PropertyName | BindingName | SyntheticExpression*/
@@ -1429,7 +1429,7 @@ impl TypeChecker {
                     Some(UnionReduction::Literal),
                     alias_symbol.as_deref(),
                     alias_type_arguments,
-                    Option::<&Type>::None,
+                    None,
                 )?
             }));
         }

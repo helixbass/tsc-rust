@@ -68,8 +68,8 @@ pub(super) struct CheckTypeRelatedTo {
 impl CheckTypeRelatedTo {
     pub(super) fn new(
         type_checker: &TypeChecker,
-        source: &Type,
-        target: &Type,
+        source: Id<Type>,
+        target: Id<Type>,
         relation: Rc<RefCell<HashMap<String, RelationComparisonResult>>>,
         error_node: Option<Gc<Node>>,
         head_message: Option<Cow<'static, DiagnosticMessage>>,
@@ -510,8 +510,8 @@ impl CheckTypeRelatedTo {
     pub(super) fn report_relation_error(
         &self,
         mut message: Option<Cow<'static, DiagnosticMessage>>,
-        source: &Type,
-        target: &Type,
+        source: Id<Type>,
+        target: Id<Type>,
     ) -> io::Result<()> {
         if !self.incompatible_stack().is_empty() {
             self.report_incompatible_stack()?;
@@ -656,8 +656,8 @@ impl CheckTypeRelatedTo {
 
     pub(super) fn try_elaborate_errors_for_primitives_and_objects(
         &self,
-        source: &Type,
-        target: &Type,
+        source: Id<Type>,
+        target: Id<Type>,
     ) -> io::Result<()> {
         let source_type = if self
             .type_checker
@@ -713,8 +713,8 @@ impl CheckTypeRelatedTo {
 
     pub(super) fn try_elaborate_array_like_errors(
         &self,
-        source: &Type,
-        target: &Type,
+        source: Id<Type>,
+        target: Id<Type>,
         report_errors: bool,
     ) -> io::Result<bool> {
         if self.type_checker.is_tuple_type(source) {
@@ -778,8 +778,8 @@ impl CheckTypeRelatedTo {
 
     pub(super) fn is_related_to_worker(
         &self,
-        source: &Type,
-        target: &Type,
+        source: Id<Type>,
+        target: Id<Type>,
         report_errors: bool,
     ) -> io::Result<Ternary> {
         self.is_related_to(
@@ -794,8 +794,8 @@ impl CheckTypeRelatedTo {
 
     pub(super) fn is_related_to(
         &self,
-        original_source: &Type,
-        original_target: &Type,
+        original_source: Id<Type>,
+        original_target: Id<Type>,
         recursion_flags: Option<RecursionFlags>,
         report_errors: Option<bool>,
         head_message: Option<Cow<'static, DiagnosticMessage>>,
@@ -1163,10 +1163,10 @@ impl CheckTypeRelatedTo {
         &self,
         report_errors: bool,
         head_message: Option<Cow<'static, DiagnosticMessage>>,
-        original_source: &Type,
-        original_target: &Type,
-        source: &Type,
-        target: &Type,
+        original_source: Id<Type>,
+        original_target: Id<Type>,
+        source: Id<Type>,
+        target: Id<Type>,
         result: Ternary,
         is_comparing_jsx_attributes: bool,
     ) -> io::Result<()> {
@@ -1259,7 +1259,7 @@ impl CheckTypeRelatedTo {
         Ok(())
     }
 
-    pub(super) fn trace_unions_or_intersections_too_large(&self, source: &Type, target: &Type) {
+    pub(super) fn trace_unions_or_intersections_too_large(&self, source: Id<Type>, target: Id<Type>) {
         // if (!tracing) {
         //   return;
         // }
@@ -1296,8 +1296,8 @@ impl CheckTypeRelatedTo {
 
     pub(super) fn is_identical_to(
         &self,
-        source: &Type,
-        target: &Type,
+        source: Id<Type>,
+        target: Id<Type>,
         recursion_flags: RecursionFlags,
     ) -> io::Result<Ternary> {
         if source.flags() != target.flags() {
@@ -1361,14 +1361,14 @@ impl CheckTypeRelatedTo {
             None,
             Option::<&Symbol>::None,
             None,
-            Option::<&Type>::None,
+            None,
         )
     }
 
     pub(super) fn has_excess_properties(
         &self,
-        source: &Type, /*FreshObjectLiteralType*/
-        target: &Type,
+        source: Id<Type>, /*FreshObjectLiteralType*/
+        target: Id<Type>,
         report_errors: bool,
     ) -> io::Result<bool> {
         if !self.type_checker.is_excess_property_check_target(target)

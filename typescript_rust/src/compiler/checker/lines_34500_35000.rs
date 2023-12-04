@@ -607,7 +607,7 @@ impl TypeChecker {
 
     pub(super) fn check_indexed_access_index_type(
         &self,
-        type_: &Type,
+        type_: Id<Type>,
         access_node: &Node, /*IndexedAccessTypeNode | ElementAccessExpression*/
     ) -> io::Result<Id<Type>> {
         if !type_.flags().intersects(TypeFlags::IndexedAccess) {
@@ -652,7 +652,7 @@ impl TypeChecker {
             let property_name = self.get_property_name_from_index(index_type, Some(access_node));
             if let Some(property_name) = property_name.as_ref() {
                 let property_symbol = self
-                    .try_for_each_type(&apparent_object_type, |t: &Type| {
+                    .try_for_each_type(&apparent_object_type, |t: Id<Type>| {
                         self.get_property_of_type_(t, property_name, None)
                     })?;
                 if matches!(

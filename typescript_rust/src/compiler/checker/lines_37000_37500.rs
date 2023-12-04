@@ -83,7 +83,7 @@ impl TypeChecker {
         Ok(())
     }
 
-    pub(super) fn check_truthiness_of_type(&self, type_: &Type, node: &Node) -> Id<Type> {
+    pub(super) fn check_truthiness_of_type(&self, type_: Id<Type>, node: &Node) -> Id<Type> {
         if type_.flags().intersects(TypeFlags::Void) {
             self.error(
                 Some(node),
@@ -349,8 +349,8 @@ impl TypeChecker {
     pub(super) fn check_iterated_type_or_element_type(
         &self,
         use_: IterationUse,
-        input_type: &Type,
-        sent_type: &Type,
+        input_type: Id<Type>,
+        sent_type: Id<Type>,
         error_node: Option<impl Borrow<Node>>,
     ) -> io::Result<Id<Type>> {
         if self.is_type_any(Some(input_type)) {
@@ -456,7 +456,7 @@ impl TypeChecker {
                         Some(UnionReduction::Subtype),
                         Option::<&Symbol>::None,
                         None,
-                        Option::<&Type>::None,
+                        None,
                     )?;
                 }
             } else if array_type.flags().intersects(TypeFlags::StringLike) {
@@ -552,7 +552,7 @@ impl TypeChecker {
                     Some(UnionReduction::Subtype),
                     Option::<&Symbol>::None,
                     None,
-                    Option::<&Type>::None,
+                    None,
                 )?));
             }
         }
@@ -567,7 +567,7 @@ impl TypeChecker {
     pub(super) fn get_iteration_diagnostic_details(
         &self,
         use_: IterationUse,
-        input_type: &Type,
+        input_type: Id<Type>,
         allows_strings: bool,
         downlevel_iteration: Option<bool>,
     ) -> io::Result<(&'static DiagnosticMessage, bool)> {
@@ -633,7 +633,7 @@ impl TypeChecker {
         &self,
         use_: IterationUse,
         type_kind: IterationTypeKind,
-        input_type: &Type,
+        input_type: Id<Type>,
         error_node: Option<impl Borrow<Node>>,
     ) -> io::Result<Option<Id<Type>>> {
         if self.is_type_any(Some(input_type)) {
@@ -733,7 +733,7 @@ impl TypeChecker {
                         None,
                         Option::<&Symbol>::None,
                         None,
-                        Option::<&Type>::None,
+                        None,
                     )
                 })?,
                 return_types.try_map(|return_types| {
@@ -742,7 +742,7 @@ impl TypeChecker {
                         None,
                         Option::<&Symbol>::None,
                         None,
-                        Option::<&Type>::None,
+                        None,
                     )
                 })?,
                 next_types.try_map(|next_types| {
@@ -755,7 +755,7 @@ impl TypeChecker {
 
     pub(super) fn get_cached_iteration_types(
         &self,
-        type_: &Type,
+        type_: Id<Type>,
         cache_key: IterationTypeCacheKey,
     ) -> Option<Gc<IterationTypes>> {
         type_.get_by_iteration_type_cache_key(cache_key)
@@ -763,7 +763,7 @@ impl TypeChecker {
 
     pub(super) fn set_cached_iteration_types(
         &self,
-        type_: &Type,
+        type_: Id<Type>,
         cache_key: IterationTypeCacheKey,
         cached_types: Gc<IterationTypes>,
     ) -> Gc<IterationTypes> {
@@ -773,7 +773,7 @@ impl TypeChecker {
 
     pub(super) fn get_iteration_types_of_iterable(
         &self,
-        type_: &Type,
+        type_: Id<Type>,
         use_: IterationUse,
         error_node: Option<impl Borrow<Node>>,
     ) -> io::Result<Option<Gc<IterationTypes>>> {

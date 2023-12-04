@@ -399,8 +399,8 @@ impl TypeChecker {
 
     pub(super) fn get_type_with_this_argument(
         &self,
-        type_: &Type,
-        this_argument: Option<impl Borrow<Type>>,
+        type_: Id<Type>,
+        this_argument: Option<Id<Type>>,
         need_apparent_type: Option<bool>,
     ) -> io::Result<Id<Type>> {
         let this_argument =
@@ -458,8 +458,8 @@ impl TypeChecker {
 
     pub(super) fn resolve_object_type_members(
         &self,
-        type_: &Type,  /*ObjectType*/
-        source: &Type, /*InterfaceTypeWithDeclaredMembers*/
+        type_: Id<Type>,  /*ObjectType*/
+        source: Id<Type>, /*InterfaceTypeWithDeclaredMembers*/
         type_parameters: Vec<Id<Type /*TypeParameter*/>>,
         type_arguments: Vec<Id<Type>>,
     ) -> io::Result<()> {
@@ -587,7 +587,7 @@ impl TypeChecker {
 
     pub(super) fn resolve_class_or_interface_members(
         &self,
-        type_: &Type, /*InterfaceType*/
+        type_: Id<Type>, /*InterfaceType*/
     ) -> io::Result<()> {
         self.resolve_object_type_members(
             type_,
@@ -601,7 +601,7 @@ impl TypeChecker {
 
     pub(super) fn resolve_type_reference_members(
         &self,
-        type_: &Type, /*TypeReference*/
+        type_: Id<Type>, /*TypeReference*/
     ) -> io::Result<()> {
         let type_as_type_reference = type_.as_type_reference_interface();
         let source = self.resolve_declared_members(&type_as_type_reference.target())?;
@@ -777,7 +777,7 @@ impl TypeChecker {
     pub(super) fn expand_signature_parameters_with_tuple_members(
         &self,
         sig: &Signature,
-        rest_type: &Type, /*TupleTypeReference*/
+        rest_type: Id<Type>, /*TupleTypeReference*/
         rest_index: usize,
     ) -> io::Result<Vec<Gc<Symbol>>> {
         let element_types = self.get_type_arguments(rest_type)?;
@@ -822,7 +822,7 @@ impl TypeChecker {
 
     pub(super) fn get_default_construct_signatures(
         &self,
-        class_type: &Type, /*InterfaceType*/
+        class_type: Id<Type>, /*InterfaceType*/
     ) -> io::Result<Vec<Gc<Signature>>> {
         let base_constructor_type = self.get_base_constructor_type_of_class(class_type)?;
         let base_signatures =

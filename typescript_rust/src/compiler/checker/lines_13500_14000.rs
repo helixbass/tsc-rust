@@ -704,7 +704,7 @@ impl TypeChecker {
 
     pub(super) fn create_type_from_generic_global_type(
         &self,
-        generic_global_type: &Type, /*GenericType*/
+        generic_global_type: Id<Type>, /*GenericType*/
         type_arguments: Vec<Id<Type>>,
     ) -> Id<Type /*ObjectType*/> {
         if !ptr::eq(generic_global_type, &*self.empty_generic_type()) {
@@ -716,7 +716,7 @@ impl TypeChecker {
 
     pub(super) fn create_typed_property_descriptor_type(
         &self,
-        property_type: &Type,
+        property_type: Id<Type>,
     ) -> io::Result<Id<Type>> {
         Ok(self.create_type_from_generic_global_type(
             &*self.get_global_typed_property_descriptor_type()?,
@@ -724,7 +724,7 @@ impl TypeChecker {
         ))
     }
 
-    pub(super) fn create_iterable_type(&self, iterated_type: &Type) -> io::Result<Id<Type>> {
+    pub(super) fn create_iterable_type(&self, iterated_type: Id<Type>) -> io::Result<Id<Type>> {
         Ok(self.create_type_from_generic_global_type(
             &*self.get_global_iterable_type(true)?,
             vec![iterated_type.type_wrapper()],
@@ -733,7 +733,7 @@ impl TypeChecker {
 
     pub(super) fn create_array_type(
         &self,
-        element_type: &Type,
+        element_type: Id<Type>,
         readonly: Option<bool>,
     ) -> Id<Type /*ObjectType*/> {
         self.create_type_from_generic_global_type(
@@ -1121,7 +1121,7 @@ impl TypeChecker {
                 None,
                 Option::<&Symbol>::None,
                 None,
-                Option::<&Type>::None,
+                None,
             )?);
         }
         properties.push(length_symbol);

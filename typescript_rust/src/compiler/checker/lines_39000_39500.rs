@@ -84,7 +84,7 @@ impl TypeChecker {
     pub(super) fn is_property_initialized_in_static_blocks(
         &self,
         prop_name: &Node, /*Identifier | PrivateIdentifier*/
-        prop_type: &Type,
+        prop_type: Id<Type>,
         static_blocks: impl IntoIterator<Item = Gc<Node /*ClassStaticBlockDeclaration*/>>,
         start_pos: isize,
         end_pos: isize,
@@ -125,7 +125,7 @@ impl TypeChecker {
     pub(super) fn is_property_initialized_in_constructor(
         &self,
         prop_name: &Node, /*Identifier | PrivateIdentifier*/
-        prop_type: &Type,
+        prop_type: Id<Type>,
         constructor: &Node, /*ConstructorDeclaration*/
     ) -> io::Result<bool> {
         let reference = get_factory().create_property_access_expression(
@@ -183,7 +183,7 @@ impl TypeChecker {
             ) {
                 let type_ = self.get_declared_type_of_symbol(&symbol)?;
                 let type_with_this =
-                    self.get_type_with_this_argument(&type_, Option::<&Type>::None, None)?;
+                    self.get_type_with_this_argument(&type_, None, None)?;
                 let type_as_interface_type = type_.as_interface_type();
                 if self.check_inherited_properties_are_identical(
                     &type_,

@@ -285,7 +285,7 @@ impl TypeChecker {
 
     pub(super) fn get_awaited_type_of_promise(
         &self,
-        type_: &Type,
+        type_: Id<Type>,
         error_node: Option<impl Borrow<Node>>,
         diagnostic_message: Option<&DiagnosticMessage>,
         args: Option<Vec<String>>,
@@ -299,7 +299,7 @@ impl TypeChecker {
 
     pub(super) fn get_promised_type_of_promise(
         &self,
-        type_: &Type,
+        type_: Id<Type>,
         error_node: Option<impl Borrow<Node>>,
     ) -> io::Result<Option<Id<Type>>> {
         if self.is_type_any(Some(type_)) {
@@ -356,7 +356,7 @@ impl TypeChecker {
                 None,
                 Option::<&Symbol>::None,
                 None,
-                Option::<&Type>::None,
+                None,
             )?,
             TypeFacts::NEUndefinedOrNull,
         )?;
@@ -387,7 +387,7 @@ impl TypeChecker {
             Some(UnionReduction::Subtype),
             Option::<&Symbol>::None,
             None,
-            Option::<&Type>::None,
+            None,
         )?;
         *type_as_promise.maybe_promised_type_of_promise() = Some(ret.clone());
         Ok(Some(ret))
@@ -395,7 +395,7 @@ impl TypeChecker {
 
     pub(super) fn check_awaited_type(
         &self,
-        type_: &Type,
+        type_: Id<Type>,
         with_alias: bool,
         error_node: &Node,
         diagnostic_message: &DiagnosticMessage,
@@ -409,7 +409,7 @@ impl TypeChecker {
         Ok(awaited_type.unwrap_or_else(|| self.error_type()))
     }
 
-    pub(super) fn is_thenable_type(&self, type_: &Type) -> io::Result<bool> {
+    pub(super) fn is_thenable_type(&self, type_: Id<Type>) -> io::Result<bool> {
         if self.all_types_assignable_to_kind(
             type_,
             TypeFlags::Primitive | TypeFlags::Never,
@@ -428,7 +428,7 @@ impl TypeChecker {
         ))
     }
 
-    pub(super) fn is_awaited_type_instantiation(&self, type_: &Type) -> io::Result<bool> {
+    pub(super) fn is_awaited_type_instantiation(&self, type_: Id<Type>) -> io::Result<bool> {
         if type_.flags().intersects(TypeFlags::Conditional) {
             let awaited_symbol = self.get_global_awaited_symbol(false)?;
             return Ok(matches!(
@@ -448,7 +448,7 @@ impl TypeChecker {
         Ok(false)
     }
 
-    pub(super) fn unwrap_awaited_type(&self, type_: &Type) -> io::Result<Id<Type>> {
+    pub(super) fn unwrap_awaited_type(&self, type_: Id<Type>) -> io::Result<Id<Type>> {
         Ok(if type_.flags().intersects(TypeFlags::Union) {
             self.try_map_type(
                 type_,
@@ -463,7 +463,7 @@ impl TypeChecker {
         })
     }
 
-    pub(super) fn create_awaited_type_if_needed(&self, type_: &Type) -> io::Result<Id<Type>> {
+    pub(super) fn create_awaited_type_if_needed(&self, type_: Id<Type>) -> io::Result<Id<Type>> {
         if self.is_type_any(Some(type_)) {
             return Ok(type_.type_wrapper());
         }
@@ -504,7 +504,7 @@ impl TypeChecker {
 
     pub(super) fn get_awaited_type_(
         &self,
-        type_: &Type,
+        type_: Id<Type>,
         error_node: Option<impl Borrow<Node>>,
         diagnostic_message: Option<&DiagnosticMessage>,
         args: Option<Vec<String>>,
@@ -518,7 +518,7 @@ impl TypeChecker {
 
     pub(super) fn get_awaited_type_no_alias(
         &self,
-        type_: &Type,
+        type_: Id<Type>,
         error_node: Option<impl Borrow<Node>>,
         diagnostic_message: Option<&DiagnosticMessage>,
         args: Option<Vec<String>>,
@@ -540,7 +540,7 @@ impl TypeChecker {
 
         let error_node = error_node.map(|error_node| error_node.borrow().node_wrapper());
         if type_.flags().intersects(TypeFlags::Union) {
-            let mut mapper = |constituent_type: &Type| {
+            let mut mapper = |constituent_type: Id<Type>| {
                 if error_node.is_some() {
                     self.get_awaited_type_no_alias(
                         constituent_type,

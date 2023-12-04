@@ -112,8 +112,8 @@ impl TypeChecker {
     pub(super) fn get_flow_type_of_reference(
         &self,
         reference: &Node,
-        declared_type: &Type,
-        initial_type: Option<impl Borrow<Type>>,
+        declared_type: Id<Type>,
+        initial_type: Option<Id<Type>>,
         flow_container: Option<impl Borrow<Node>>,
     ) -> io::Result<Id<Type>> {
         let initial_type = initial_type.map_or_else(
@@ -502,7 +502,7 @@ impl GetFlowTypeOfReference {
 
     pub(super) fn narrow_type_by_assertion(
         &self,
-        type_: &Type,
+        type_: Id<Type>,
         expr: &Node, /*Expression*/
     ) -> io::Result<Id<Type>> {
         let node = skip_parentheses(expr, Some(true));
@@ -528,7 +528,7 @@ impl GetFlowTypeOfReference {
                     None,
                     Option::<&Symbol>::None,
                     None,
-                    Option::<&Type>::None,
+                    None,
                 );
             }
         }
@@ -739,7 +739,7 @@ impl GetFlowTypeOfReference {
                         &flow_as_flow_switch_clause.switch_statement,
                         flow_as_flow_switch_clause.clause_start,
                         flow_as_flow_switch_clause.clause_end,
-                        |t: &Type| {
+                        |t: Id<Type>| {
                             !t.flags()
                                 .intersects(TypeFlags::Undefined | TypeFlags::Never)
                         },
@@ -755,7 +755,7 @@ impl GetFlowTypeOfReference {
                         &flow_as_flow_switch_clause.switch_statement,
                         flow_as_flow_switch_clause.clause_start,
                         flow_as_flow_switch_clause.clause_end,
-                        |t: &Type| {
+                        |t: Id<Type>| {
                             !t.flags().intersects(TypeFlags::Never)
                                 || t.flags().intersects(TypeFlags::StringLiteral)
                                     && t.as_string_literal_type().value == "undefined"

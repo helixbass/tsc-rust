@@ -31,7 +31,7 @@ impl TypeChecker {
     pub(super) fn invocation_error(
         &self,
         error_target: &Node,
-        apparent_type: &Type,
+        apparent_type: Id<Type>,
         kind: SignatureKind,
         related_information: Option<Gc<DiagnosticRelatedInformation>>,
     ) -> io::Result<()> {
@@ -73,7 +73,7 @@ impl TypeChecker {
 
     pub(super) fn invocation_error_recovery(
         &self,
-        apparent_type: &Type,
+        apparent_type: Id<Type>,
         kind: SignatureKind,
         diagnostic: &Diagnostic,
     ) -> io::Result<()> {

@@ -15,7 +15,7 @@ use crate::{
 };
 
 impl InferTypes {
-    pub(super) fn get_inference_info_for_type(&self, type_: &Type) -> Option<Gc<InferenceInfo>> {
+    pub(super) fn get_inference_info_for_type(&self, type_: Id<Type>) -> Option<Gc<InferenceInfo>> {
         if type_.flags().intersects(TypeFlags::TypeVariable) {
             for inference in &self.inferences {
                 if ptr::eq(type_, &*inference.type_parameter) {
@@ -58,7 +58,7 @@ impl InferTypes {
 
     pub(super) fn infer_to_multiple_types(
         &self,
-        source: &Type,
+        source: Id<Type>,
         targets: &[Id<Type>],
         target_flags: TypeFlags,
     ) -> io::Result<()> {
@@ -123,7 +123,7 @@ impl InferTypes {
                             None,
                             Option::<&Symbol>::None,
                             None,
-                            Option::<&Type>::None,
+                            None,
                         )?,
                         naked_type_variable.as_deref().unwrap(),
                     )?;
@@ -156,9 +156,9 @@ impl InferTypes {
 
     pub(super) fn infer_to_mapped_type(
         &self,
-        source: &Type,
-        target: &Type, /*MappedType*/
-        constraint_type: &Type,
+        source: Id<Type>,
+        target: Id<Type>, /*MappedType*/
+        constraint_type: Id<Type>,
     ) -> io::Result<bool> {
         if constraint_type.flags().intersects(TypeFlags::Union) {
             let mut result = false;
@@ -227,7 +227,7 @@ impl InferTypes {
                     None,
                     Option::<&Symbol>::None,
                     None,
-                    Option::<&Type>::None,
+                    None,
                 )?,
                 &*self
                     .type_checker
@@ -240,8 +240,8 @@ impl InferTypes {
 
     pub(super) fn infer_to_conditional_type(
         &self,
-        source: &Type,
-        target: &Type, /*ConditionalType*/
+        source: Id<Type>,
+        target: Id<Type>, /*ConditionalType*/
     ) -> io::Result<()> {
         let target_as_conditional_type = target.as_conditional_type();
         if source.flags().intersects(TypeFlags::Conditional) {
@@ -295,8 +295,8 @@ impl InferTypes {
 
     pub(super) fn infer_to_template_literal_type(
         &self,
-        source: &Type,
-        target: &Type, /*TemplateLiteralType*/
+        source: Id<Type>,
+        target: Id<Type>, /*TemplateLiteralType*/
     ) -> io::Result<()> {
         let matches = self
             .type_checker
@@ -323,7 +323,11 @@ impl InferTypes {
         Ok(())
     }
 
-    pub(super) fn infer_from_object_types(&self, source: &Type, target: &Type) -> io::Result<()> {
+    pub(super) fn infer_from_object_types(
+        &self,
+        source: Id<Type>,
+        target: Id<Type>,
+    ) -> io::Result<()> {
         if get_object_flags(source).intersects(ObjectFlags::Reference)
             && get_object_flags(target).intersects(ObjectFlags::Reference)
             && (Gc::ptr_eq(
@@ -568,7 +572,11 @@ impl InferTypes {
         Ok(())
     }
 
-    pub(super) fn infer_from_properties(&self, source: &Type, target: &Type) -> io::Result<()> {
+    pub(super) fn infer_from_properties(
+        &self,
+        source: Id<Type>,
+        target: Id<Type>,
+    ) -> io::Result<()> {
         let properties = self.type_checker.get_properties_of_object_type(target)?;
         for ref target_prop in properties {
             let source_prop = self.type_checker.get_property_of_type_(
@@ -589,8 +597,8 @@ impl InferTypes {
 
     pub(super) fn infer_from_signatures(
         &self,
-        source: &Type,
-        target: &Type,
+        source: Id<Type>,
+        target: Id<Type>,
         kind: SignatureKind,
     ) -> io::Result<()> {
         let source_signatures = self.type_checker.get_signatures_of_type(source, kind)?;
@@ -641,19 +649,23 @@ impl InferTypes {
             self.type_checker.apply_to_parameter_types(
                 &source,
                 &target,
-                |s: &Type, t: &Type| self.infer_from_contravariant_types(s, t),
+                |s: Id<Type>, t: Id<Type>| self.infer_from_contravariant_types(s, t),
             )?;
             self.set_bivariant(save_bivariant);
         }
         self.type_checker
-            .apply_to_return_types(source, target, |s: &Type, t: &Type| {
+            .apply_to_return_types(source, target, |s: Id<Type>, t: Id<Type>| {
                 self.infer_from_types(s, t)
             })?;
 
         Ok(())
     }
 
-    pub(super) fn infer_from_index_types(&self, source: &Type, target: &Type) -> io::Result<()> {
+    pub(super) fn infer_from_index_types(
+        &self,
+        source: Id<Type>,
+        target: Id<Type>,
+    ) -> io::Result<()> {
         let priority = if (get_object_flags(source) & get_object_flags(target))
             .intersects(ObjectFlags::Mapped)
         {
@@ -701,7 +713,7 @@ impl InferTypes {
                             None,
                             Option::<&Symbol>::None,
                             None,
-                            Option::<&Type>::None,
+                            None,
                         )?,
                         &target_info.type_,
                         priority,
@@ -723,7 +735,11 @@ impl InferTypes {
 }
 
 impl TypeChecker {
-    pub(super) fn is_type_or_base_identical_to(&self, s: &Type, t: &Type) -> io::Result<bool> {
+    pub(super) fn is_type_or_base_identical_to(
+        &self,
+        s: Id<Type>,
+        t: Id<Type>,
+    ) -> io::Result<bool> {
         Ok(
             if self.exact_optional_property_types == Some(true) && ptr::eq(t, &*self.missing_type())
             {
@@ -738,7 +754,7 @@ impl TypeChecker {
         )
     }
 
-    pub(super) fn is_type_closely_matched_by(&self, s: &Type, t: &Type) -> bool {
+    pub(super) fn is_type_closely_matched_by(&self, s: Id<Type>, t: Id<Type>) -> bool {
         s.flags().intersects(TypeFlags::Object)
             && t.flags().intersects(TypeFlags::Object)
             && matches!(
@@ -759,7 +775,7 @@ impl TypeChecker {
 
     pub(super) fn has_primitive_constraint(
         &self,
-        type_: &Type, /*TypeParameter*/
+        type_: Id<Type>, /*TypeParameter*/
     ) -> io::Result<bool> {
         let constraint = self.get_constraint_of_type_parameter(type_)?;
         Ok(matches!(
@@ -775,11 +791,11 @@ impl TypeChecker {
         ))
     }
 
-    pub(super) fn is_object_literal_type(&self, type_: &Type) -> bool {
+    pub(super) fn is_object_literal_type(&self, type_: Id<Type>) -> bool {
         get_object_flags(type_).intersects(ObjectFlags::ObjectLiteral)
     }
 
-    pub(super) fn is_object_or_array_literal_type(&self, type_: &Type) -> bool {
+    pub(super) fn is_object_or_array_literal_type(&self, type_: Id<Type>) -> bool {
         get_object_flags(type_).intersects(ObjectFlags::ObjectLiteral | ObjectFlags::ArrayLiteral)
     }
 
@@ -803,7 +819,7 @@ impl TypeChecker {
                     Some(UnionReduction::Subtype),
                     Option::<&Symbol>::None,
                     None,
-                    Option::<&Type>::None,
+                    None,
                 )?;
                 return Ok(Either::Left(
                     candidates
@@ -872,7 +888,7 @@ impl TypeChecker {
                 Some(UnionReduction::Subtype),
                 Option::<&Symbol>::None,
                 None,
-                Option::<&Type>::None,
+                None,
             )?
         } else {
             self.get_common_supertype(&base_candidates)?

@@ -494,11 +494,11 @@ impl TypeChecker {
                 }
             }
 
-            if let Some(this_type) = this_type.as_ref() {
+            if let Some(this_type) = this_type {
                 return Ok(Some(self.get_flow_type_of_reference(
                     node,
                     this_type,
-                    Option::<&Type>::None,
+                    None,
                     Option::<&Node>::None,
                 )?));
             }
@@ -516,8 +516,8 @@ impl TypeChecker {
             };
             return Ok(Some(self.get_flow_type_of_reference(
                 node,
-                &type_,
-                Option::<&Type>::None,
+                type_,
+                None,
                 Option::<&Node>::None,
             )?));
         }

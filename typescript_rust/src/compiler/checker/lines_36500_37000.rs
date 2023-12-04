@@ -382,7 +382,7 @@ impl TypeChecker {
         Ok(())
     }
 
-    pub(super) fn convert_auto_to_any(&self, type_: &Type) -> Id<Type> {
+    pub(super) fn convert_auto_to_any(&self, type_: Id<Type>) -> Id<Type> {
         if ptr::eq(type_, &*self.auto_type()) {
             self.any_type()
         } else if ptr::eq(type_, &*self.auto_array_type()) {
@@ -666,9 +666,9 @@ impl TypeChecker {
     pub(super) fn error_next_variable_or_property_declaration_must_have_same_type(
         &self,
         first_declaration: Option<impl Borrow<Node> /*Declaration*/>,
-        first_type: &Type,
+        first_type: Id<Type>,
         next_declaration: &Node, /*Declaration*/
-        next_type: &Type,
+        next_type: Id<Type>,
     ) -> io::Result<()> {
         let next_declaration_name = get_name_of_declaration(Some(next_declaration));
         let message = if matches!(
@@ -820,7 +820,7 @@ impl TypeChecker {
     pub(super) fn check_testing_known_truthy_callable_or_awaitable_type(
         &self,
         cond_expr: &Node, /*Expression*/
-        type_: &Type,
+        type_: Id<Type>,
         body: Option<impl Borrow<Node> /*Statement | Expression*/>,
     ) -> io::Result<()> {
         if !self.strict_null_checks {
