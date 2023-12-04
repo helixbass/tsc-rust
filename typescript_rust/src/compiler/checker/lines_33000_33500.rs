@@ -36,7 +36,7 @@ impl TypeChecker {
             for ref prop in self.get_properties_of_object_type(right_type)? {
                 let prop_type = self.get_type_of_symbol(prop)?;
                 if matches!(
-                    prop_type.maybe_symbol().as_ref(),
+                    self.type_(prop_type).maybe_symbol().as_ref(),
                     Some(prop_type_symbol) if prop_type_symbol.flags().intersects(SymbolFlags::Class)
                 ) {
                     let name = prop.escaped_name();
@@ -146,7 +146,7 @@ impl TypeChecker {
                 ) {
                     let left_as_property_access_expression = left.as_property_access_expression();
                     let target = self.get_type_of_property_of_type_(
-                        &*self.get_type_of_expression(&left_as_property_access_expression.expression)?,
+                        self.get_type_of_expression(&left_as_property_access_expression.expression)?,
                         &left_as_property_access_expression.name.as_member_name().escaped_text()
                     )?;
                     if self.is_exact_optional_property_mismatch(
@@ -236,22 +236,19 @@ impl TypeChecker {
                 self.get_awaited_type_no_alias(left_type, Option::<&Node>::None, None, None)?;
             let awaited_right_type =
                 self.get_awaited_type_no_alias(right_type, Option::<&Node>::None, None, None)?;
-            would_work_with_await = !(are_option_gcs_equal(
-                awaited_left_type.as_ref(),
-                Some(&left_type.type_wrapper()),
-            ) && are_option_gcs_equal(
-                awaited_right_type.as_ref(),
-                Some(&right_type.type_wrapper()),
-            )) && awaited_left_type.is_some()
+            would_work_with_await = !(
+                awaited_left_type == Some(left_type)
+             && awaited_right_type == Some(right_type)
+            ) && awaited_left_type.is_some()
                 && awaited_right_type.is_some()
                 && is_related(
-                    awaited_left_type.as_ref().unwrap(),
-                    awaited_right_type.as_ref().unwrap(),
+                    awaited_left_type.unwrap(),
+                    awaited_right_type.unwrap(),
                 )?;
         }
 
-        let mut effective_left = left_type.type_wrapper();
-        let mut effective_right = right_type.type_wrapper();
+        let mut effective_left = left_type;
+        let mut effective_right = right_type;
         if !would_work_with_await {
             if let Some(is_related) = is_related.as_mut() {
                 (effective_left, effective_right) =
@@ -326,11 +323,11 @@ impl TypeChecker {
         right_type: Id<Type>,
         is_related: &mut impl FnMut(Id<Type>, Id<Type>) -> io::Result<bool>,
     ) -> io::Result<(Id<Type>, Id<Type>)> {
-        let mut effective_left = left_type.type_wrapper();
-        let mut effective_right = right_type.type_wrapper();
+        let mut effective_left = left_type;
+        let mut effective_right = right_type;
         let left_base = self.get_base_type_of_literal_type(left_type)?;
         let right_base = self.get_base_type_of_literal_type(right_type)?;
-        if !is_related(&left_base, &right_base)? {
+        if !is_related(left_base, right_base)? {
             effective_left = left_base;
             effective_right = right_base;
         }
@@ -389,7 +386,7 @@ impl TypeChecker {
         }
 
         let return_type = self.get_return_type_from_annotation(&func)?;
-        let iteration_types = return_type.as_ref().try_and_then(|return_type| {
+        let iteration_types = return_type.try_and_then(|return_type| {
             self.get_iteration_types_of_generator_function_return_type(return_type, is_async)
         })?;
         let signature_yield_type = iteration_types
@@ -401,7 +398,7 @@ impl TypeChecker {
             .map(|iteration_types| iteration_types.next_type())
             .unwrap_or_else(|| self.any_type());
         let resolved_signature_next_type = if is_async {
-            self.get_awaited_type_(&signature_next_type, Option::<&Node>::None, None, None)?
+            self.get_awaited_type_(signature_next_type, Option::<&Node>::None, None, None)?
                 .unwrap_or_else(|| self.any_type())
         } else {
             signature_next_type
@@ -414,15 +411,15 @@ impl TypeChecker {
             };
         let yielded_type = self.get_yielded_type_of_yield_expression(
             node,
-            &yield_expression_type,
-            &resolved_signature_next_type,
+            yield_expression_type,
+            resolved_signature_next_type,
             is_async,
         )?;
         if return_type.is_some() {
-            if let Some(yielded_type) = yielded_type.as_ref() {
+            if let Some(yielded_type) = yielded_type {
                 self.check_type_assignable_to_and_optionally_elaborate(
                     yielded_type,
-                    &signature_yield_type,
+                    signature_yield_type,
                     Some(
                         node_as_yield_expression
                             .expression
@@ -446,11 +443,11 @@ impl TypeChecker {
                 .get_iteration_type_of_iterable(
                     use_,
                     IterationTypeKind::Return,
-                    &yield_expression_type,
+                    yield_expression_type,
                     node_as_yield_expression.expression.as_deref(),
                 )?
                 .unwrap_or_else(|| self.any_type()));
-        } else if let Some(return_type) = return_type.as_ref() {
+        } else if let Some(return_type) = return_type {
             return Ok(self
                 .get_iteration_type_of_generator_function_return_type(
                     IterationTypeKind::Next,
@@ -467,9 +464,9 @@ impl TypeChecker {
                 && !expression_result_is_unused(node)
             {
                 let contextual_type = self.get_contextual_type_(node, None)?;
-                if match contextual_type.as_ref() {
+                if match contextual_type {
                     None => true,
-                    Some(contextual_type) => self.is_type_any(Some(&**contextual_type)),
+                    Some(contextual_type) => self.is_type_any(Some(contextual_type)),
                 } {
                     self.error(
                         Some(node),
@@ -492,7 +489,7 @@ impl TypeChecker {
             self.check_truthiness_expression(&node_as_conditional_expression.condition, None)?;
         self.check_testing_known_truthy_callable_or_awaitable_type(
             &node_as_conditional_expression.condition,
-            &type_,
+            type_,
             Some(&*node_as_conditional_expression.when_true),
         )?;
         let type1 =
@@ -531,7 +528,7 @@ impl TypeChecker {
         for span in node_as_template_expression.template_spans.iter() {
             let span = span.as_template_span();
             let type_ = self.check_expression(&span.expression, None, None)?;
-            if self.maybe_type_of_kind(&type_, TypeFlags::ESSymbolLike) {
+            if self.maybe_type_of_kind(type_, TypeFlags::ESSymbolLike) {
                 self.error(
                     Some(&*span.expression),
                     &Diagnostics::Implicit_conversion_of_a_symbol_to_a_string_will_fail_at_runtime_Consider_wrapping_this_expression_in_String,
@@ -540,7 +537,7 @@ impl TypeChecker {
             }
             texts.push(span.literal.as_literal_like_node().text());
             types.push(
-                if self.is_type_assignable_to(&type_, &self.template_constraint_type())? {
+                if self.is_type_assignable_to(type_, self.template_constraint_type())? {
                     type_
                 } else {
                     self.string_type()
@@ -570,11 +567,11 @@ impl TypeChecker {
     }
 
     pub(super) fn is_template_literal_contextual_type(&self, type_: Id<Type>) -> io::Result<bool> {
-        Ok(type_
-            .flags()
+        Ok(self.type_(type_
+            ).flags()
             .intersects(TypeFlags::StringLiteral | TypeFlags::TemplateLiteral)
-            || type_
-                .flags()
+            || self.type_(type_
+                ).flags()
                 .intersects(TypeFlags::InstantiableNonPrimitive)
                 && self.maybe_type_of_kind(
                     &self
@@ -603,7 +600,7 @@ impl TypeChecker {
         let save_contextual_type = context.maybe_contextual_type().clone();
         let save_inference_context = context.maybe_inference_context().clone();
         // try {
-        *context.maybe_contextual_type() = Some(contextual_type.type_wrapper());
+        *context.maybe_contextual_type() = Some(contextual_type);
         *context.maybe_inference_context() = inference_context.clone();
         let type_ = self.check_expression(
             node,
@@ -618,12 +615,12 @@ impl TypeChecker {
             ),
             None,
         )?;
-        let result = if self.maybe_type_of_kind(&type_, TypeFlags::Literal)
+        let result = if self.maybe_type_of_kind(type_, TypeFlags::Literal)
             && self.is_literal_of_contextual_type(
-                &type_,
+                type_,
                 self.instantiate_contextual_type(Some(contextual_type), node, None)?,
             )? {
-            self.get_regular_type_of_literal_type(&type_)
+            self.get_regular_type_of_literal_type(type_)
         } else {
             type_
         };

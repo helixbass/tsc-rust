@@ -38,7 +38,7 @@ impl TypeChecker {
                 right_is_this,
             )?;
         }
-        Ok(source_type.type_wrapper())
+        Ok(source_type)
     }
 
     pub(super) fn check_object_literal_destructuring_property_assignment(
@@ -56,8 +56,8 @@ impl TypeChecker {
             SyntaxKind::PropertyAssignment | SyntaxKind::ShorthandPropertyAssignment => {
                 let name = property.as_named_declaration().name();
                 let expr_type = self.get_literal_type_from_property_name(&name)?;
-                if self.is_type_usable_as_property_name(&expr_type) {
-                    let text = self.get_property_name_from_type(&expr_type);
+                if self.is_type_usable_as_property_name(expr_type) {
+                    let text = self.get_property_name_from_type(expr_type);
                     let prop = self.get_property_of_type_(object_literal_type, &text, None)?;
                     if let Some(prop) = prop.as_ref() {
                         self.mark_property_as_referenced(prop, Some(&**property), right_is_this);
@@ -73,20 +73,20 @@ impl TypeChecker {
                 }
                 let element_type = self.get_indexed_access_type(
                     object_literal_type,
-                    &expr_type,
+                    expr_type,
                     Some(AccessFlags::ExpressionPosition),
                     Some(&*name),
                     Option::<&Symbol>::None,
                     None,
                 )?;
-                let type_ = self.get_flow_type_of_destructuring(property, &element_type)?;
+                let type_ = self.get_flow_type_of_destructuring(property, element_type)?;
                 Some(self.check_destructuring_assignment(
                     &*if property.kind() == SyntaxKind::ShorthandPropertyAssignment {
                         property.clone()
                     } else {
                         property.as_has_initializer().maybe_initializer().unwrap()
                     },
-                    &type_,
+                    type_,
                     None,
                     None,
                 )?)
@@ -114,7 +114,7 @@ impl TypeChecker {
                     let type_ = self.get_rest_type(
                         object_literal_type,
                         &non_rest_names,
-                        object_literal_type.maybe_symbol(),
+                        self.type_(object_literal_type).maybe_symbol(),
                     )?;
                     self.check_grammar_for_disallowed_trailing_comma(
                         all_properties,
@@ -122,7 +122,7 @@ impl TypeChecker {
                     );
                     Some(self.check_destructuring_assignment(
                         &property.as_has_expression().expression(),
-                        &type_,
+                        type_,
                         None,
                         None,
                     )?)
@@ -155,7 +155,7 @@ impl TypeChecker {
         let possibly_out_of_bounds_type = self.check_iterated_type_or_element_type(
             IterationUse::Destructuring | IterationUse::PossiblyOutOfBounds,
             source_type,
-            &self.undefined_type(),
+            self.undefined_type(),
             Some(node)
         )? /*|| errorType*/;
         let mut in_bounds_type = if self.compiler_options.no_unchecked_indexed_access == Some(true)
@@ -171,7 +171,7 @@ impl TypeChecker {
                     self.check_iterated_type_or_element_type(
                         IterationUse::Destructuring,
                         source_type,
-                        &self.undefined_type(),
+                        self.undefined_type(),
                         Some(node),
                     ) /*|| errorType*/
                 })?);
@@ -181,11 +181,11 @@ impl TypeChecker {
                 node,
                 source_type,
                 i,
-                &type_,
+                type_,
                 check_mode,
             )?;
         }
-        Ok(source_type.type_wrapper())
+        Ok(source_type)
     }
 
     pub(super) fn check_array_literal_destructuring_element_assignment(
@@ -212,11 +212,11 @@ impl TypeChecker {
                     let element_type = self
                         .get_indexed_access_type_or_undefined(
                             source_type,
-                            &index_type,
+                            index_type,
                             Some(access_flags),
                             Some(self.create_synthetic_expression(
                                 element,
-                                &index_type,
+                                index_type,
                                 None,
                                 Option::<&Node>::None,
                             )),
@@ -225,13 +225,13 @@ impl TypeChecker {
                         )?
                         .unwrap_or_else(|| self.error_type());
                     let assigned_type = if self.has_default_value(element) {
-                        self.get_type_with_facts(&element_type, TypeFacts::NEUndefined)?
+                        self.get_type_with_facts(element_type, TypeFacts::NEUndefined)?
                     } else {
                         element_type.clone()
                     };
-                    let type_ = self.get_flow_type_of_destructuring(element, &assigned_type)?;
+                    let type_ = self.get_flow_type_of_destructuring(element, assigned_type)?;
                     return Ok(Some(self.check_destructuring_assignment(
-                        element, &type_, check_mode, None,
+                        element, type_, check_mode, None,
                     )?));
                 }
                 return Ok(Some(self.check_destructuring_assignment(
@@ -279,7 +279,7 @@ impl TypeChecker {
                     };
                     return Ok(Some(self.check_destructuring_assignment(
                         rest_expression,
-                        &type_,
+                        type_,
                         check_mode,
                         None,
                     )?));
@@ -292,12 +292,11 @@ impl TypeChecker {
     pub(super) fn check_destructuring_assignment(
         &self,
         expr_or_assignment: &Node, /*Expression | ShorthandPropertyAssignment*/
-        source_type: Id<Type>,
+        mut source_type: Id<Type>,
         check_mode: Option<CheckMode>,
         right_is_this: Option<bool>,
     ) -> io::Result<Id<Type>> {
         let mut target: Gc<Node>;
-        let mut source_type = source_type.type_wrapper();
         if expr_or_assignment.kind() == SyntaxKind::ShorthandPropertyAssignment {
             let prop = expr_or_assignment.as_shorthand_property_assignment();
             if let Some(prop_object_assignment_initializer) =
@@ -305,7 +304,7 @@ impl TypeChecker {
             {
                 if self.strict_null_checks
                     && !self
-                        .get_falsy_flags(&*self.check_expression(
+                        .get_falsy_flags(self.check_expression(
                             prop_object_assignment_initializer,
                             None,
                             None,
@@ -362,7 +361,7 @@ impl TypeChecker {
         if self.check_reference_expression(target, error, optional_error) {
             self.check_type_assignable_to_and_optionally_elaborate(
                 source_type,
-                &target_type,
+                target_type,
                 Some(target),
                 Some(target),
                 None,
@@ -375,7 +374,7 @@ impl TypeChecker {
                 ExternalEmitHelpers::ClassPrivateFieldSet,
             )?;
         }
-        Ok(source_type.type_wrapper())
+        Ok(source_type)
     }
 
     pub(super) fn is_side_effect_free(&self, node: &Node) -> bool {
@@ -437,7 +436,7 @@ impl TypeChecker {
         source: Id<Type>,
         target: Id<Type>,
     ) -> io::Result<bool> {
-        Ok(target.flags().intersects(TypeFlags::Nullable)
+        Ok(self.type_(target).flags().intersects(TypeFlags::Nullable)
             || self.is_type_comparable_to(source, target)?)
     }
 
@@ -511,7 +510,7 @@ impl TypeChecker {
         {
             return self.check_destructuring_assignment(
                 left,
-                &*self.check_expression(right, check_mode, None)?,
+                self.check_expression(right, check_mode, None)?,
                 check_mode,
                 Some(right.kind() == SyntaxKind::ThisKeyword),
             );
@@ -533,8 +532,8 @@ impl TypeChecker {
             left,
             operator_token,
             right,
-            &left_type,
-            &right_type,
+            left_type,
+            right_type,
             error_node,
         )
     }
@@ -544,8 +543,8 @@ impl TypeChecker {
         left: &Node, /*Expression*/
         operator_token: &Node,
         right: &Node, /*Expression*/
-        left_type: Id<Type>,
-        right_type: Id<Type>,
+        mut left_type: Id<Type>,
+        mut right_type: Id<Type>,
         error_node: Option<impl Borrow<Node>>,
     ) -> io::Result<Id<Type>> {
         let operator = operator_token.kind();
@@ -573,8 +572,8 @@ impl TypeChecker {
             | SyntaxKind::CaretEqualsToken
             | SyntaxKind::AmpersandToken
             | SyntaxKind::AmpersandEqualsToken => {
-                if ptr::eq(left_type, &*self.silent_never_type())
-                    || ptr::eq(right_type, &*self.silent_never_type())
+                if left_type == self.silent_never_type()
+                    || right_type == self.silent_never_type()
                 {
                     return Ok(self.silent_never_type());
                 }
@@ -583,8 +582,8 @@ impl TypeChecker {
                 let right_type = self.check_non_null_type(right_type, right)?;
 
                 let mut suggested_operator: Option<SyntaxKind> = None;
-                if left_type.flags().intersects(TypeFlags::BooleanLike)
-                    && right_type.flags().intersects(TypeFlags::BooleanLike)
+                if self.type_(left_type).flags().intersects(TypeFlags::BooleanLike)
+                    && self.type_(right_type).flags().intersects(TypeFlags::BooleanLike)
                     && {
                         suggested_operator =
                             self.get_suggested_boolean_operator(operator_token.kind());
@@ -605,36 +604,36 @@ impl TypeChecker {
                 } else {
                     let left_ok = self.check_arithmetic_operand_type(
                         left,
-                        &left_type,
+                        left_type,
                         &Diagnostics::The_left_hand_side_of_an_arithmetic_operation_must_be_of_type_any_number_bigint_or_an_enum_type,
                         Some(true)
                     )?;
                     let right_ok = self.check_arithmetic_operand_type(
                         right,
-                        &right_type,
+                        right_type,
                         &Diagnostics::The_right_hand_side_of_an_arithmetic_operation_must_be_of_type_any_number_bigint_or_an_enum_type,
                         Some(true)
                     )?;
                     let result_type: Id<Type>;
-                    if self.is_type_assignable_to_kind(&left_type, TypeFlags::AnyOrUnknown, None)?
+                    if self.is_type_assignable_to_kind(left_type, TypeFlags::AnyOrUnknown, None)?
                         && self.is_type_assignable_to_kind(
-                            &right_type,
+                            right_type,
                             TypeFlags::AnyOrUnknown,
                             None,
                         )?
-                        || !(self.maybe_type_of_kind(&left_type, TypeFlags::BigIntLike)
-                            || self.maybe_type_of_kind(&right_type, TypeFlags::BigIntLike))
+                        || !(self.maybe_type_of_kind(left_type, TypeFlags::BigIntLike)
+                            || self.maybe_type_of_kind(right_type, TypeFlags::BigIntLike))
                     {
                         result_type = self.number_type();
-                    } else if self.both_are_big_int_like(&left_type, &right_type)? {
+                    } else if self.both_are_big_int_like(left_type, right_type)? {
                         match operator {
                             SyntaxKind::GreaterThanGreaterThanGreaterThanToken
                             | SyntaxKind::GreaterThanGreaterThanGreaterThanEqualsToken => {
                                 self.report_operator_error(
                                     error_node.as_deref(),
                                     operator_token,
-                                    &left_type,
-                                    &right_type,
+                                    left_type,
+                                    right_type,
                                     Option::<fn(Id<Type>, Id<Type>) -> io::Result<bool>>::None,
                                 )?;
                             }
@@ -655,8 +654,8 @@ impl TypeChecker {
                         self.report_operator_error(
                             error_node.as_deref(),
                             operator_token,
-                            &left_type,
-                            &right_type,
+                            left_type,
+                            right_type,
                             Some(|type1: Id<Type>, type2: Id<Type>| {
                                 self.both_are_big_int_like(type1, type2)
                             }),
@@ -667,64 +666,62 @@ impl TypeChecker {
                         self.check_assignment_operator(
                             operator,
                             left,
-                            &left_type,
+                            left_type,
                             right,
-                            &result_type,
+                            result_type,
                         )?;
                     }
                     result_type
                 }
             }
             SyntaxKind::PlusToken | SyntaxKind::PlusEqualsToken => {
-                if ptr::eq(left_type, &*self.silent_never_type())
-                    || ptr::eq(right_type, &*self.silent_never_type())
+                if left_type == self.silent_never_type()
+                    || right_type == self.silent_never_type()
                 {
                     return Ok(self.silent_never_type());
                 }
 
-                let mut left_type = left_type.type_wrapper();
-                let mut right_type = right_type.type_wrapper();
-                if !self.is_type_assignable_to_kind(&left_type, TypeFlags::StringLike, None)?
-                    && !self.is_type_assignable_to_kind(&right_type, TypeFlags::StringLike, None)?
+                if !self.is_type_assignable_to_kind(left_type, TypeFlags::StringLike, None)?
+                    && !self.is_type_assignable_to_kind(right_type, TypeFlags::StringLike, None)?
                 {
-                    left_type = self.check_non_null_type(&left_type, left)?;
-                    right_type = self.check_non_null_type(&right_type, left)?;
+                    left_type = self.check_non_null_type(left_type, left)?;
+                    right_type = self.check_non_null_type(right_type, left)?;
                 }
 
                 let mut result_type: Option<Id<Type>> = None;
-                if self.is_type_assignable_to_kind(&left_type, TypeFlags::NumberLike, Some(true))?
+                if self.is_type_assignable_to_kind(left_type, TypeFlags::NumberLike, Some(true))?
                     && self.is_type_assignable_to_kind(
-                        &right_type,
+                        right_type,
                         TypeFlags::NumberLike,
                         Some(true),
                     )?
                 {
                     result_type = Some(self.number_type());
                 } else if self.is_type_assignable_to_kind(
-                    &left_type,
+                    left_type,
                     TypeFlags::BigIntLike,
                     Some(true),
                 )? && self.is_type_assignable_to_kind(
-                    &right_type,
+                    right_type,
                     TypeFlags::BigIntLike,
                     Some(true),
                 )? {
                     result_type = Some(self.bigint_type());
                 } else if self.is_type_assignable_to_kind(
-                    &left_type,
+                    left_type,
                     TypeFlags::StringLike,
                     Some(true),
                 )? || self.is_type_assignable_to_kind(
-                    &right_type,
+                    right_type,
                     TypeFlags::StringLike,
                     Some(true),
                 )? {
                     result_type = Some(self.string_type());
-                } else if self.is_type_any(Some(&*left_type))
-                    || self.is_type_any(Some(&*right_type))
+                } else if self.is_type_any(Some(left_type))
+                    || self.is_type_any(Some(right_type))
                 {
                     result_type = Some(
-                        if self.is_error_type(&left_type) || self.is_error_type(&right_type) {
+                        if self.is_error_type(left_type) || self.is_error_type(right_type) {
                             self.error_type()
                         } else {
                             self.any_type()
@@ -732,10 +729,10 @@ impl TypeChecker {
                     );
                 }
 
-                if let Some(result_type) = result_type.as_ref() {
+                if let Some(result_type) = result_type {
                     if !self.check_for_disallowed_es_symbol_operand(
-                        &left_type,
-                        &right_type,
+                        left_type,
+                        right_type,
                         left,
                         right,
                         operator,
@@ -752,8 +749,8 @@ impl TypeChecker {
                     self.report_operator_error(
                         error_node.as_deref(),
                         operator_token,
-                        &left_type,
-                        &right_type,
+                        left_type,
+                        right_type,
                         Some(|left: Id<Type>, right: Id<Type>| {
                             Ok(
                                 self.is_type_assignable_to_kind(left, close_enough_kind, None)?
@@ -773,9 +770,9 @@ impl TypeChecker {
                     self.check_assignment_operator(
                         operator,
                         left,
-                        &left_type,
+                        left_type,
                         right,
-                        &result_type,
+                        result_type,
                     )?;
                 }
                 result_type
@@ -788,24 +785,24 @@ impl TypeChecker {
                     left_type, right_type, left, right, operator,
                 ) {
                     let left_type = self.get_base_type_of_literal_type(
-                        &*self.check_non_null_type(left_type, left)?,
+                        self.check_non_null_type(left_type, left)?,
                     )?;
                     let right_type = self.get_base_type_of_literal_type(
-                        &*self.check_non_null_type(right_type, right)?,
+                        self.check_non_null_type(right_type, right)?,
                     )?;
                     self.report_operator_error_unless(
-                        &left_type,
-                        &right_type,
+                        left_type,
+                        right_type,
                         operator_token,
                         error_node.as_deref(),
                         |left: Id<Type>, right: Id<Type>| {
                             Ok(self.is_type_comparable_to(left, right)?
                                 || self.is_type_comparable_to(right, left)?
                                 || self
-                                    .is_type_assignable_to(left, &self.number_or_big_int_type())?
+                                    .is_type_assignable_to(left, self.number_or_big_int_type())?
                                     && self.is_type_assignable_to(
                                         right,
-                                        &self.number_or_big_int_type(),
+                                        self.number_or_big_int_type(),
                                     )?)
                         },
                     )?;
@@ -843,11 +840,11 @@ impl TypeChecker {
                     self.get_union_type(
                         &[
                             self.extract_definitely_falsy_types(&*if self.strict_null_checks {
-                                left_type.type_wrapper()
+                                left_type
                             } else {
                                 self.get_base_type_of_literal_type(right_type)?
                             }),
-                            right_type.type_wrapper(),
+                            right_type,
                         ],
                         None,
                         Option::<&Symbol>::None,
@@ -855,7 +852,7 @@ impl TypeChecker {
                         None,
                     )?
                 } else {
-                    left_type.type_wrapper()
+                    left_type
                 };
                 if operator == SyntaxKind::AmpersandAmpersandEqualsToken {
                     self.check_assignment_operator(operator, left, left_type, right, right_type)?;
@@ -870,7 +867,7 @@ impl TypeChecker {
                     self.get_union_type(
                         &[
                             self.remove_definitely_falsy_types(left_type),
-                            right_type.type_wrapper(),
+                            right_type,
                         ],
                         Some(UnionReduction::Subtype),
                         Option::<&Symbol>::None,
@@ -878,7 +875,7 @@ impl TypeChecker {
                         None,
                     )?
                 } else {
-                    left_type.type_wrapper()
+                    left_type
                 };
                 if operator == SyntaxKind::BarBarEqualsToken {
                     self.check_assignment_operator(operator, left, left_type, right, right_type)?;
@@ -893,7 +890,7 @@ impl TypeChecker {
                     self.get_union_type(
                         &[
                             self.get_non_nullable_type(left_type)?,
-                            right_type.type_wrapper(),
+                            right_type,
                         ],
                         Some(UnionReduction::Subtype),
                         Option::<&Symbol>::None,
@@ -901,7 +898,7 @@ impl TypeChecker {
                         None,
                     )?
                 } else {
-                    left_type.type_wrapper()
+                    left_type
                 };
                 if operator == SyntaxKind::QuestionQuestionEqualsToken {
                     self.check_assignment_operator(operator, left, left_type, right, right_type)?;
@@ -916,20 +913,20 @@ impl TypeChecker {
                 };
                 self.check_assignment_declaration(decl_kind, right_type)?;
                 if self.is_assignment_declaration(left, right, decl_kind)? {
-                    if !right_type.flags().intersects(TypeFlags::Object)
+                    if !self.type_(right_type).flags().intersects(TypeFlags::Object)
                         || !matches!(
                             decl_kind,
                             AssignmentDeclarationKind::ModuleExports
                                 | AssignmentDeclarationKind::Prototype
                         ) && !self.is_empty_object_type(right_type)?
                             && !self.is_function_object_type(right_type)?
-                            && !get_object_flags(right_type).intersects(ObjectFlags::Class)
+                            && !get_object_flags(self.type_(right_type)).intersects(ObjectFlags::Class)
                     {
                         self.check_assignment_operator(
                             operator, left, left_type, right, right_type,
                         )?;
                     }
-                    left_type.type_wrapper()
+                    left_type
                 } else {
                     self.check_assignment_operator(operator, left, left_type, right, right_type)?;
                     self.get_regular_type_of_object_literal(right_type)?
@@ -969,7 +966,7 @@ impl TypeChecker {
                         );
                     }
                 }
-                right_type.type_wrapper()
+                right_type
             }
 
             _ => Debug_.fail(None),
@@ -1039,11 +1036,11 @@ impl CheckBinaryExpressionStateMachine {
             .flatten()
     }
 
-    pub fn set_left_type<TType: Borrow<Type>>(&self, state: &mut WorkArea, type_: Option<TType>) {
+    pub fn set_left_type(&self, state: &mut WorkArea, type_: Option<Id<Type>>) {
         push_or_replace(
             &mut state.type_stack,
             TryInto::<usize>::try_into(state.stack_index).unwrap(),
-            type_.map(|type_| type_.borrow().type_wrapper()),
+            type_
         );
     }
 
@@ -1056,11 +1053,11 @@ impl CheckBinaryExpressionStateMachine {
             .flatten()
     }
 
-    pub fn set_last_result<TType: Borrow<Type>>(&self, state: &mut WorkArea, type_: Option<TType>) {
+    pub fn set_last_result(&self, state: &mut WorkArea, type_: Option<Id<Type>>) {
         push_or_replace(
             &mut state.type_stack,
             TryInto::<usize>::try_into(state.stack_index).unwrap() + 1,
-            type_.map(|type_| type_.borrow().type_wrapper()),
+            type_,
         );
     }
 }
@@ -1126,7 +1123,7 @@ impl BinaryExpressionStateMachine for CheckBinaryExpressionStateMachine {
                     &mut state,
                     Some(self.type_checker.check_destructuring_assignment(
                         &node_as_binary_expression.left,
-                        &*self.type_checker.check_expression(
+                        self.type_checker.check_expression(
                             &node_as_binary_expression.right,
                             check_mode,
                             None,
@@ -1164,7 +1161,7 @@ impl BinaryExpressionStateMachine for CheckBinaryExpressionStateMachine {
             let left_type = self.get_last_result(state.clone());
             Debug_.assert_is_defined(&left_type, None);
             let left_type = left_type.unwrap();
-            self.set_left_type(&mut state.borrow_mut(), Some(&*left_type));
+            self.set_left_type(&mut state.borrow_mut(), Some(left_type));
             self.set_last_result(&mut state.borrow_mut(), None);
             let operator = operator_token.kind();
             if matches!(
@@ -1179,7 +1176,7 @@ impl BinaryExpressionStateMachine for CheckBinaryExpressionStateMachine {
                     self.type_checker
                         .check_testing_known_truthy_callable_or_awaitable_type(
                             &node_as_binary_expression.left,
-                            &left_type,
+                            left_type,
                             if is_if_statement(&parent) {
                                 Some(&*parent.as_if_statement().then_statement)
                             } else {
@@ -1188,7 +1185,7 @@ impl BinaryExpressionStateMachine for CheckBinaryExpressionStateMachine {
                         )?;
                 }
                 self.type_checker
-                    .check_truthiness_of_type(&left_type, &node_as_binary_expression.left);
+                    .check_truthiness_of_type(left_type, &node_as_binary_expression.left);
             }
         }
 
@@ -1229,8 +1226,8 @@ impl BinaryExpressionStateMachine for CheckBinaryExpressionStateMachine {
                 &node_as_binary_expression.left,
                 &node_as_binary_expression.operator_token,
                 &node_as_binary_expression.right,
-                &left_type,
-                &right_type,
+                left_type,
+                right_type,
                 Some(node),
             )?);
         }

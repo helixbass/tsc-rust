@@ -48,12 +48,16 @@ impl TypeChecker {
         Ok(is_dynamic_name(node) && !self.is_late_bindable_name(node)?)
     }
 
-    pub(super) fn get_property_name_from_type<'type_>(
+    pub(super) fn get_property_name_from_type(
         &self,
-        type_: &'type_ Type, /*StringLiteralType | NumberLiteralType | UniqueESSymbolType*/
-    ) -> Cow<'type_, str> /*__String*/ {
+        type_: Id<Type>, /*StringLiteralType | NumberLiteralType | UniqueESSymbolType*/
+    ) -> String /*__String*/ {
         if type_.flags().intersects(TypeFlags::UniqueESSymbol) {
-            return (&*type_.as_unique_es_symbol_type().escaped_name).into();
+            return self
+                .type_(type_)
+                .as_unique_es_symbol_type()
+                .escaped_name
+                .clone();
         }
         if type_
             .flags()
@@ -61,12 +65,10 @@ impl TypeChecker {
         {
             return match type_ {
                 Type::LiteralType(LiteralType::NumberLiteralType(type_)) => {
-                    escape_leading_underscores(&type_.value.to_string())
-                        .into_owned()
-                        .into()
+                    escape_leading_underscores(&type_.value.to_string()).into_owned()
                 }
                 Type::LiteralType(LiteralType::StringLiteralType(type_)) => {
-                    escape_leading_underscores(&type_.value)
+                    escape_leading_underscores(&type_.value).into_owned()
                 }
                 _ => panic!("Expected NumberLiteralType or StringLiteralType"),
             };

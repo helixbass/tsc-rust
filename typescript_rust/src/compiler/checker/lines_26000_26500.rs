@@ -772,7 +772,7 @@ impl TypeChecker {
         node: &Node,
         context_flags: Option<ContextFlags>,
     ) -> io::Result<Option<Id<Type>>> {
-        if let Some(contextual_type) = contextual_type.filter(|contextual_type| {
+        if let Some(contextual_type) = contextual_type.filter(|&contextual_type| {
             self.maybe_type_of_kind(contextual_type, TypeFlags::Instantiable)
         }) {
             let inference_context = self.get_inference_context(node);

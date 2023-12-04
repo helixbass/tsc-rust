@@ -54,7 +54,7 @@ impl TypeChecker {
                 let awaited_type_of_source =
                     self.get_awaited_type_of_promise(source, Option::<&Node>::None, None, None)?;
                 if matches!(
-                    awaited_type_of_source.as_ref(),
+                    awaited_type_of_source,
                     Some(awaited_type_of_source) if self.is_type_related_to(
                         awaited_type_of_source,
                         target,
@@ -110,7 +110,7 @@ impl TypeChecker {
     ) -> Gc<Node> {
         let result = parse_node_factory.with(|parse_node_factory_| {
             parse_node_factory_.create_synthetic_expression(
-                type_.type_wrapper(),
+                type_,
                 is_spread,
                 tuple_name_source
                     .map(|tuple_name_source| tuple_name_source.borrow().node_wrapper()),
@@ -129,7 +129,7 @@ impl TypeChecker {
             let template = &node.as_tagged_template_expression().template;
             let mut args: Vec<Gc<Node /*Expression*/>> = vec![self.create_synthetic_expression(
                 template,
-                &*self.get_global_template_strings_array_type()?,
+                self.get_global_template_strings_array_type()?,
                 None,
                 Option::<&Node>::None,
             )];
@@ -183,24 +183,22 @@ impl TypeChecker {
                     None
                 };
                 if let Some(spread_type) = spread_type
-                    .as_ref()
-                    .filter(|spread_type| self.is_tuple_type(spread_type))
+                    .filter(|&spread_type| self.is_tuple_type(spread_type))
                 {
-                    let spread_type_target_as_tuple_type =
-                        spread_type.as_type_reference().target.as_tuple_type();
+                    let spread_type_target = self.type_(spread_type).as_type_reference().target;
                     for_each(
                         &self.get_type_arguments(spread_type)?,
-                        |t: &Id<Type>, i| -> Option<()> {
-                            let flags = spread_type_target_as_tuple_type.element_flags[i];
+                        |&t: &Id<Type>, i| -> Option<()> {
+                            let flags = self.type_(spread_type_target).as_tuple_type().element_flags[i];
                             let synthetic_arg = self.create_synthetic_expression(
                                 arg,
-                                &*if flags.intersects(ElementFlags::Rest) {
+                                if flags.intersects(ElementFlags::Rest) {
                                     self.create_array_type(t, None)
                                 } else {
-                                    t.clone()
+                                    t
                                 },
                                 Some(flags.intersects(ElementFlags::Variable)),
-                                spread_type_target_as_tuple_type
+                                self.type_(spread_type_target).as_tuple_type()
                                     .labeled_element_declarations
                                     .as_ref()
                                     .and_then(|spread_type_target_labeled_element_declarations| {
@@ -232,7 +230,7 @@ impl TypeChecker {
             SyntaxKind::ClassDeclaration | SyntaxKind::ClassExpression => {
                 vec![self.create_synthetic_expression(
                     expr,
-                    &*self.get_type_of_symbol(&self.get_symbol_of_node(&parent)?.unwrap())?,
+                    self.get_type_of_symbol(&self.get_symbol_of_node(&parent)?.unwrap())?,
                     None,
                     Option::<&Node>::None,
                 )]
@@ -242,7 +240,7 @@ impl TypeChecker {
                 vec![
                     self.create_synthetic_expression(
                         expr,
-                        &*if parent.parent().kind() == SyntaxKind::Constructor {
+                        if parent.parent().kind() == SyntaxKind::Constructor {
                             self.get_type_of_symbol(&self.get_symbol_of_node(&func)?.unwrap())?
                         } else {
                             self.error_type()
@@ -252,13 +250,13 @@ impl TypeChecker {
                     ),
                     self.create_synthetic_expression(
                         expr,
-                        &self.any_type(),
+                        self.any_type(),
                         None,
                         Option::<&Node>::None,
                     ),
                     self.create_synthetic_expression(
                         expr,
-                        &self.number_type(),
+                        self.number_type(),
                         None,
                         Option::<&Node>::None,
                     ),
@@ -273,21 +271,21 @@ impl TypeChecker {
                 vec![
                     self.create_synthetic_expression(
                         expr,
-                        &*self.get_parent_type_of_class_element(&parent)?,
+                        self.get_parent_type_of_class_element(&parent)?,
                         None,
                         Option::<&Node>::None,
                     ),
                     self.create_synthetic_expression(
                         expr,
-                        &*self.get_class_element_property_key_type(&parent)?,
+                        self.get_class_element_property_key_type(&parent)?,
                         None,
                         Option::<&Node>::None,
                     ),
                     self.create_synthetic_expression(
                         expr,
-                        &*if has_prop_desc {
+                        if has_prop_desc {
                             self.create_typed_property_descriptor_type(
-                                &*self.get_type_of_node(&parent)?,
+                                self.get_type_of_node(&parent)?,
                             )?
                         } else {
                             self.any_type()

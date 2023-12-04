@@ -199,7 +199,7 @@ impl TypeChecker {
 
         if self.produce_diagnostics && get_effective_return_type_node(node).is_none() {
             if node_is_missing(body.as_deref()) && !self.is_private_within_ambient(node) {
-                self.report_implicit_any(node, &self.any_type(), None)?;
+                self.report_implicit_any(node, self.any_type(), None)?;
             }
 
             if function_flags.intersects(FunctionFlags::Generator)
@@ -218,7 +218,7 @@ impl TypeChecker {
                 .try_filter(|type_tag_type_expression| -> io::Result<_> {
                     Ok(self
                         .get_contextual_call_signature(
-                            &*self.get_type_from_type_node_(type_tag_type_expression)?,
+                            self.get_type_from_type_node_(type_tag_type_expression)?,
                             node,
                         )?
                         .is_none())

@@ -459,23 +459,23 @@ impl TypeChecker {
             if this_type.is_none() {
                 let class_name = self.get_class_name_from_prototype_method(&container);
                 if let Some(class_name) = class_name.as_ref().filter(|_| is_in_js) {
-                    let class_symbol = self
-                        .check_expression(class_name, None, None)?
+                    let class_symbol = self.type_(self
+                        .check_expression(class_name, None, None)?)
                         .maybe_symbol();
                     if let Some(class_symbol) = class_symbol.as_ref().filter(|class_symbol| {
                         class_symbol.maybe_members().is_some()
                             && class_symbol.flags().intersects(SymbolFlags::Function)
                     }) {
-                        this_type = self
+                        this_type = self.type_(self
                             .get_declared_type_of_symbol(class_symbol)?
-                            .maybe_as_interface_type()
+                            .maybe_as_interface_type())
                             .and_then(|interface_type| interface_type.maybe_this_type());
                     }
                 } else if self.is_js_constructor(Some(&*container))? {
-                    this_type = self
+                    this_type = self.type_(self
                         .get_declared_type_of_symbol(
                             &self.get_merged_symbol(Some(container.symbol())).unwrap(),
-                        )?
+                        )?)
                         .maybe_as_interface_type()
                         .and_then(|interface_type| interface_type.maybe_this_type());
                 }
@@ -499,7 +499,7 @@ impl TypeChecker {
             let type_ = if is_static(&container) {
                 self.get_type_of_symbol(&symbol)?
             } else {
-                self.get_declared_type_of_symbol(&symbol)?
+                self.type_(self.get_declared_type_of_symbol(&symbol)?)
                     .as_interface_type()
                     .maybe_this_type()
                     .unwrap()
@@ -551,7 +551,7 @@ impl TypeChecker {
             return Ok(if is_static(&container) {
                 Some(self.get_type_of_symbol(&symbol)?)
             } else {
-                self.get_declared_type_of_symbol(&symbol)?
+                self.type_(self.get_declared_type_of_symbol(&symbol)?)
                     .as_interface_type()
                     .maybe_this_type()
             });
@@ -898,7 +898,7 @@ impl TypeChecker {
             &self.get_symbol_of_node(&class_like_declaration)?.unwrap(),
         )?;
         let base_class_type = /*classType &&*/
-            self.get_base_types(&class_type)?.get(0).cloned();
+            self.get_base_types(class_type)?.get(0).cloned();
         if base_class_type.is_none() {
             return Ok(self.error_type());
         }
@@ -916,11 +916,11 @@ impl TypeChecker {
         }
 
         Ok(if node_check_flag == NodeCheckFlags::SuperStatic {
-            self.get_base_constructor_type_of_class(&class_type)?
+            self.get_base_constructor_type_of_class(class_type)?
         } else {
             self.get_type_with_this_argument(
-                &base_class_type,
-                class_type.as_interface_type().maybe_this_type(),
+                base_class_type,
+                self.type_(class_type).as_interface_type().maybe_this_type(),
                 None,
             )?
         })

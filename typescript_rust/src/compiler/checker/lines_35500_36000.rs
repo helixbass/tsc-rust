@@ -26,20 +26,20 @@ impl TypeChecker {
         let return_type = self.get_type_from_type_node_(return_type_node)?;
 
         if self.language_version >= ScriptTarget::ES2015 {
-            if self.is_error_type(&return_type) {
+            if self.is_error_type(return_type) {
                 return Ok(());
             }
             let global_promise_type = self.get_global_promise_type(true)?;
-            if !Gc::ptr_eq(&global_promise_type, &self.empty_generic_type())
-                && !self.is_reference_to_type(&return_type, &global_promise_type)
+            if global_promise_type != self.empty_generic_type()
+                && !self.is_reference_to_type(return_type, global_promise_type)
             {
                 self.error(
                     Some(return_type_node),
                     &Diagnostics::The_return_type_of_an_async_function_or_method_must_be_the_global_Promise_T_type_Did_you_mean_to_write_Promise_0,
                     Some(vec![
                         self.type_to_string_(
-                            &self.get_awaited_type_no_alias(
-                                &return_type,
+                            self.get_awaited_type_no_alias(
+                                return_type,
                                 Option::<&Node>::None,
                                 None, None,
                             )?.unwrap_or_else(|| self.void_type()),
@@ -53,7 +53,7 @@ impl TypeChecker {
         } else {
             self.mark_type_node_as_referenced(return_type_node)?;
 
-            if self.is_error_type(&return_type) {
+            if self.is_error_type(return_type) {
                 return Ok(());
             }
 
@@ -64,7 +64,7 @@ impl TypeChecker {
                     &Diagnostics::Type_0_is_not_a_valid_async_function_return_type_in_ES5_SlashES3_because_it_does_not_refer_to_a_Promise_compatible_constructor_value,
                     Some(vec![
                         self.type_to_string_(
-                            &return_type,
+                            return_type,
                             Option::<&Node>::None,
                             None, None
                         )?
@@ -87,13 +87,10 @@ impl TypeChecker {
                 } else {
                     self.error_type()
                 };
-            if self.is_error_type(&promise_constructor_type) {
+            if self.is_error_type(promise_constructor_type) {
                 if promise_constructor_name.kind() == SyntaxKind::Identifier
                     && promise_constructor_name.as_identifier().escaped_text == "Promise"
-                    && Gc::ptr_eq(
-                        &self.get_target_type(&return_type),
-                        &self.get_global_promise_type(false)?,
-                    )
+                    && self.get_target_type(return_type) == self.get_global_promise_type(false)?
                 {
                     self.error(
                         Some(return_type_node),
@@ -114,10 +111,7 @@ impl TypeChecker {
 
             let global_promise_constructor_like_type =
                 self.get_global_promise_constructor_like_type(true)?;
-            if Gc::ptr_eq(
-                &global_promise_constructor_like_type,
-                &self.empty_object_type(),
-            ) {
+            if global_promise_constructor_like_type == self.empty_object_type() {
                 self.error(
                     Some(return_type_node),
                     &Diagnostics::Type_0_is_not_a_valid_async_function_return_type_in_ES5_SlashES3_because_it_does_not_refer_to_a_Promise_compatible_constructor_value,
@@ -129,8 +123,8 @@ impl TypeChecker {
             }
 
             if !self.check_type_assignable_to(
-                &promise_constructor_type,
-                &global_promise_constructor_like_type,
+                promise_constructor_type,
+                global_promise_constructor_like_type,
                 Some(return_type_node),
                 Some(&Diagnostics::Type_0_is_not_a_valid_async_function_return_type_in_ES5_SlashES3_because_it_does_not_refer_to_a_Promise_compatible_constructor_value),
                 None, None,
@@ -157,7 +151,7 @@ impl TypeChecker {
             }
         }
         self.check_awaited_type(
-            &return_type,
+            return_type,
             false,
             node,
             &Diagnostics::The_return_type_of_an_async_function_must_either_be_a_valid_promise_or_must_not_contain_a_callable_then_member,
@@ -171,7 +165,7 @@ impl TypeChecker {
         let signature = self.get_resolved_signature_(node, None, None)?;
         self.check_deprecated_signature(signature.clone(), node)?;
         let return_type = self.get_return_type_of_signature(signature.clone())?;
-        if return_type.flags().intersects(TypeFlags::Any) {
+        if self.type_(return_type).flags().intersects(TypeFlags::Any) {
             return Ok(());
         }
 
@@ -215,7 +209,7 @@ impl TypeChecker {
 
             SyntaxKind::MethodDeclaration | SyntaxKind::GetAccessor | SyntaxKind::SetAccessor => {
                 let method_type = self.get_type_of_node(&node.parent())?;
-                let descriptor_type = self.create_typed_property_descriptor_type(&method_type)?;
+                let descriptor_type = self.create_typed_property_descriptor_type(method_type)?;
                 expected_return_type = self.get_union_type(
                     &[descriptor_type, self.void_type()],
                     None,
@@ -229,8 +223,8 @@ impl TypeChecker {
         }
 
         self.check_type_assignable_to(
-            &return_type,
-            &expected_return_type,
+            return_type,
+            expected_return_type,
             Some(node),
             Some(head_message),
             Some(Gc::new(Box::new(ResolveCallContainingMessageChain::new(
@@ -610,7 +604,7 @@ impl TypeChecker {
                         node_type_expression.as_jsdoc_type_expression().type_.clone()
                     }).as_ref(),
                     Some(node_type_expression_type) if !self.is_array_type(
-                        &*self.get_type_from_type_node_(
+                        self.get_type_from_type_node_(
                             node_type_expression_type
                         )?
                     )
@@ -653,7 +647,7 @@ impl TypeChecker {
             && node.as_jsdoc_function_type().maybe_type().is_none()
             && !is_jsdoc_construct_signature(node)
         {
-            self.report_implicit_any(node, &self.any_type(), None)?;
+            self.report_implicit_any(node, self.any_type(), None)?;
         }
         self.check_signature_declaration(node)?;
 

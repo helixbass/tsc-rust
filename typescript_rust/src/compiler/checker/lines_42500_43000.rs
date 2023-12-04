@@ -472,9 +472,10 @@ impl TypeChecker {
         let type_ = self
             .get_type_from_type_node_(&parameter_as_parameter_declaration.maybe_type().unwrap())?;
         if self.some_type(type_, |t: Id<Type>| {
-            t.flags()
+            self.type_(t)
+                .flags()
                 .intersects(TypeFlags::StringOrNumberLiteralOrUnique)
-        }) || self.is_generic_type(&type_)?
+        }) || self.is_generic_type(type_)?
         {
             return Ok(self.grammar_error_on_node(
                 &parameter_as_parameter_declaration.name(),

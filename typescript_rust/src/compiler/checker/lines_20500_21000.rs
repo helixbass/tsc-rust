@@ -23,7 +23,7 @@ impl TypeChecker {
         partial_match: bool,
         ignore_this_types: bool,
         ignore_return_types: bool,
-        mut compare_types: impl FnMut(&Type, &Type) -> io::Result<Ternary>,
+        mut compare_types: impl FnMut(Id<Type>, Id<Type>) -> io::Result<Ternary>,
     ) -> io::Result<Ternary> {
         if Gc::ptr_eq(&source, &target) {
             return Ok(Ternary::True);

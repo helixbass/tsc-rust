@@ -34,34 +34,32 @@ impl TypeChecker {
         self.check_source_element(node_as_type_parameter_declaration.default.as_deref())?;
         let type_parameter =
             self.get_declared_type_of_type_parameter(&self.get_symbol_of_node(node)?.unwrap());
-        self.get_base_constraint_of_type(&type_parameter)?;
-        if !self.has_non_circular_type_parameter_default(&type_parameter)? {
+        self.get_base_constraint_of_type(type_parameter)?;
+        if !self.has_non_circular_type_parameter_default(type_parameter)? {
             self.error(
                 node_as_type_parameter_declaration.default.as_deref(),
                 &Diagnostics::Type_parameter_0_has_a_circular_default,
                 Some(vec![self.type_to_string_(
-                    &type_parameter,
+                    type_parameter,
                     Option::<&Node>::None,
                     None,
                     None,
                 )?]),
             );
         }
-        let constraint_type = self.get_constraint_of_type_parameter(&type_parameter)?;
-        let default_type = self.get_default_from_type_parameter_(&type_parameter)?;
-        if let (Some(constraint_type), Some(default_type)) =
-            (constraint_type.as_ref(), default_type.as_ref())
-        {
+        let constraint_type = self.get_constraint_of_type_parameter(type_parameter)?;
+        let default_type = self.get_default_from_type_parameter_(type_parameter)?;
+        if let (Some(constraint_type), Some(default_type)) = (constraint_type, default_type) {
             self.check_type_assignable_to(
                 default_type,
-                &*self.get_type_with_this_argument(
-                    &*self.instantiate_type(
+                self.get_type_with_this_argument(
+                    self.instantiate_type(
                         constraint_type,
                         Some(Gc::new(
-                            self.make_unary_type_mapper(&type_parameter, default_type),
+                            self.make_unary_type_mapper(type_parameter, default_type),
                         )),
                     )?,
-                    Some(&**default_type),
+                    Some(default_type),
                     None,
                 )?,
                 node_as_type_parameter_declaration.default.as_deref(),
@@ -183,8 +181,8 @@ impl TypeChecker {
         if node_as_parameter_declaration.dot_dot_dot_token.is_some()
             && !is_binding_pattern(node_as_parameter_declaration.maybe_name())
             && !self.is_type_assignable_to(
-                &*self.get_reduced_type(&*self.get_type_of_symbol(&node.symbol())?)?,
-                &self.any_readonly_array_type(),
+                self.get_reduced_type(self.get_type_of_symbol(&node.symbol())?)?,
+                self.any_readonly_array_type(),
             )?
         {
             self.error(
@@ -237,12 +235,12 @@ impl TypeChecker {
                         None,
                     );
                 } else {
-                    if let Some(type_predicate_type) = type_predicate.type_.as_ref() {
+                    if let Some(type_predicate_type) = type_predicate.type_ {
                         let leading_error: Gc<Box<dyn CheckTypeContainingMessageChain>> =
                             Gc::new(Box::new(CheckTypePredicateContainingMessageChain));
                         self.check_type_assignable_to(
                             type_predicate_type,
-                            &*self.get_type_of_symbol(
+                            self.get_type_of_symbol(
                                 &signature.parameters()[type_predicate_parameter_index],
                             )?,
                             node_as_type_predicate_node.type_.as_deref(),
@@ -430,7 +428,7 @@ impl TypeChecker {
                     == FunctionFlags::Generator
                 {
                     let return_type = self.get_type_from_type_node_(return_type_node)?;
-                    if Gc::ptr_eq(&return_type, &self.void_type()) {
+                    if return_type == self.void_type() {
                         self.error(
                             Some(&**return_type_node),
                             &Diagnostics::A_generator_cannot_have_a_void_type_annotation,
@@ -440,33 +438,33 @@ impl TypeChecker {
                         let generator_yield_type = self
                             .get_iteration_type_of_generator_function_return_type(
                                 IterationTypeKind::Yield,
-                                &return_type,
+                                return_type,
                                 function_flags.intersects(FunctionFlags::Async),
                             )?
                             .unwrap_or_else(|| self.any_type());
                         let generator_return_type = self
                             .get_iteration_type_of_generator_function_return_type(
                                 IterationTypeKind::Return,
-                                &return_type,
+                                return_type,
                                 function_flags.intersects(FunctionFlags::Async),
                             )?
                             .unwrap_or_else(|| generator_yield_type.clone());
                         let generator_next_type = self
                             .get_iteration_type_of_generator_function_return_type(
                                 IterationTypeKind::Next,
-                                &return_type,
+                                return_type,
                                 function_flags.intersects(FunctionFlags::Async),
                             )?
                             .unwrap_or_else(|| self.unknown_type());
                         let generator_instantiation = self.create_generator_return_type(
-                            &generator_yield_type,
-                            &generator_return_type,
-                            &generator_next_type,
+                            generator_yield_type,
+                            generator_return_type,
+                            generator_next_type,
                             function_flags.intersects(FunctionFlags::Async),
                         )?;
                         self.check_type_assignable_to(
-                            &generator_instantiation,
-                            &return_type,
+                            generator_instantiation,
+                            return_type,
                             Some(&**return_type_node),
                             None,
                             None,
@@ -735,12 +733,12 @@ impl TypeChecker {
                             .as_ref()
                     {
                         self.for_each_type(
-                            &*self.get_type_from_type_node_(declaration_parameters_0_type)?,
+                            self.get_type_from_type_node_(declaration_parameters_0_type)?,
                             |type_: Id<Type>| -> Option<()> {
                                 let entry = index_signature_map
                                     .entry(self.get_type_id(type_))
                                     .or_insert_with(|| IndexSignatureMapValue {
-                                        type_: type_.type_wrapper(),
+                                        type_,
                                         declarations: vec![],
                                     });
                                 entry.declarations.push(declaration.clone());
@@ -759,7 +757,7 @@ impl TypeChecker {
                                 Some(&**declaration),
                                 &Diagnostics::Duplicate_index_signature_for_type_0,
                                 Some(vec![self.type_to_string_(
-                                    &entry.type_,
+                                    entry.type_,
                                     Option::<&Node>::None,
                                     None,
                                     None,

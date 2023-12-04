@@ -687,7 +687,7 @@ impl TypeChecker {
         };
         if let Some(left) = left.as_ref() {
             let proto = if left.flags().intersects(SymbolFlags::Value) {
-                self.get_property_of_type_(&*self.get_type_of_symbol(left)?, "prototype", None)?
+                self.get_property_of_type_(self.get_type_of_symbol(left)?, "prototype", None)?
             } else {
                 None
             };
@@ -696,7 +696,7 @@ impl TypeChecker {
             } else {
                 self.get_declared_type_of_symbol(left)?
             };
-            return self.get_property_of_type_(&t, &right, None);
+            return self.get_property_of_type_(t, &right, None);
         }
         Ok(None)
     }
@@ -754,7 +754,7 @@ impl TypeChecker {
                     )
                 )
             {
-                let ref type_of_pattern = self.get_type_of_node(grand_parent)?;
+                let type_of_pattern = self.get_type_of_node(grand_parent)?;
                 let property_declaration = self.get_property_of_type_(
                     type_of_pattern,
                     &node.as_identifier().escaped_text,
@@ -765,7 +765,7 @@ impl TypeChecker {
                     return Ok(property_declaration);
                 }
             } else if is_meta_property(parent) {
-                let ref parent_type = self.get_type_of_node(parent)?;
+                let parent_type = self.get_type_of_node(parent)?;
                 let property_declaration = self.get_property_of_type_(
                     parent_type,
                     &node.as_identifier().escaped_text,
@@ -775,7 +775,7 @@ impl TypeChecker {
                     return Ok(property_declaration);
                 }
                 if parent.as_meta_property().keyword_token == SyntaxKind::NewKeyword {
-                    return Ok(self.check_new_target_meta_property(parent)?.maybe_symbol());
+                    return Ok(self.type_(self.check_new_target_meta_property(parent)?).maybe_symbol());
                 }
             }
         }
@@ -797,15 +797,15 @@ impl TypeChecker {
                     }
                 }
                 if is_in_expression_context(node) {
-                    return Ok(self.check_expression(node, None, None)?.maybe_symbol());
+                    return Ok(self.type_(self.check_expression(node, None, None)?).maybe_symbol());
                 }
 
-                self.get_type_from_this_type_node(node)?.maybe_symbol()
+                self.type_(self.get_type_from_this_type_node(node)?).maybe_symbol()
             }
 
-            SyntaxKind::ThisType => self.get_type_from_this_type_node(node)?.maybe_symbol(),
+            SyntaxKind::ThisType => self.type_(self.get_type_from_this_type_node(node)?).maybe_symbol(),
 
-            SyntaxKind::SuperKeyword => self.check_expression(node, None, None)?.maybe_symbol(),
+            SyntaxKind::SuperKeyword => self.type_(self.check_expression(node, None, None)?).maybe_symbol(),
 
             SyntaxKind::ConstructorKeyword => {
                 let constructor_declaration = node.maybe_parent();
@@ -877,7 +877,7 @@ impl TypeChecker {
                 } else {
                     None
                 };
-                object_type.as_ref().try_and_then(|object_type| {
+                object_type.try_and_then(|object_type| {
                     self.get_property_of_type_(
                         object_type,
                         &escape_leading_underscores(&node.as_literal_like_node().text()),
@@ -907,7 +907,7 @@ impl TypeChecker {
                 } else {
                     None
                 };
-                object_type.as_ref().try_and_then(|object_type| {
+                object_type.try_and_then(|object_type| {
                     self.get_property_of_type_(
                         object_type,
                         &escape_leading_underscores(&node.as_literal_like_node().text()),
@@ -945,13 +945,13 @@ impl TypeChecker {
 
             SyntaxKind::ImportKeyword | SyntaxKind::NewKeyword => {
                 if is_meta_property(&node.parent()) {
-                    self.check_meta_property_keyword(&node.parent())?
+                    self.type_(self.check_meta_property_keyword(&node.parent())?)
                         .maybe_symbol()
                 } else {
                     None
                 }
             }
-            SyntaxKind::MetaProperty => self.check_expression(node, None, None)?.maybe_symbol(),
+            SyntaxKind::MetaProperty => self.type_(self.check_expression(node, None, None)?).maybe_symbol(),
 
             _ => None,
         })

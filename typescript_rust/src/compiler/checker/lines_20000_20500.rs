@@ -294,13 +294,10 @@ impl TypeChecker {
         )
     }
 
-    pub(super) fn is_exact_optional_property_mismatch<
-        TSource: Borrow<Type>,
-        TTarget: Borrow<Type>,
-    >(
+    pub(super) fn is_exact_optional_property_mismatch(
         &self,
-        source: Option<TSource>,
-        target: Option<TTarget>,
+        source: Option<Id<Type>>,
+        target: Option<Id<Type>>,
     ) -> bool {
         if source.is_none() || target.is_none() {
             return false;

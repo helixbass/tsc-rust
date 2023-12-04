@@ -805,7 +805,7 @@ impl TypeChecker {
             && is_entity_name_expression(&expr.as_has_expression().expression())
         {
             return Ok(self
-                .check_expression_cached(expr, None)?
+                .type_(self.check_expression_cached(expr, None)?)
                 .flags()
                 .intersects(TypeFlags::EnumLiteral));
         }

@@ -40,7 +40,7 @@ impl TypeChecker {
                 Ok(if let Some(contextual_type) = contextual_type {
                     self.check_expression_with_contextual_type(
                         &initializer,
-                        contextual_type.borrow(),
+                        contextual_type,
                         None,
                         CheckMode::Normal,
                     )?
@@ -52,13 +52,13 @@ impl TypeChecker {
             if is_parameter(declaration)
                 && declaration.as_parameter_declaration().name().kind()
                     == SyntaxKind::ArrayBindingPattern
-                && self.is_tuple_type(&type_)
-                && !type_
+                && self.is_tuple_type(type_)
+                && !self.type_(self.type_(type_)
                     .as_type_reference()
-                    .target
+                    .target)
                     .as_tuple_type()
                     .has_rest_element
-                && self.get_type_reference_arity(&type_)
+                && self.get_type_reference_arity(type_)
                     < declaration
                         .as_parameter_declaration()
                         .name()
@@ -66,7 +66,7 @@ impl TypeChecker {
                         .elements
                         .len()
             {
-                self.pad_tuple_type(&type_, &declaration.as_parameter_declaration().name())?
+                self.pad_tuple_type(type_, &declaration.as_parameter_declaration().name())?
             } else {
                 type_
             },
@@ -80,8 +80,12 @@ impl TypeChecker {
     ) -> io::Result<Id<Type>> {
         let pattern_elements = &pattern.as_array_binding_pattern().elements;
         let mut element_types = self.get_type_arguments(type_)?;
-        let type_target_as_tuple_type = type_.as_type_reference().target.as_tuple_type();
-        let mut element_flags = type_target_as_tuple_type.element_flags.clone();
+        let type_target = self.type_(type_).as_type_reference().target;
+        let mut element_flags = self
+            .type_(type_target)
+            .as_tuple_type()
+            .element_flags
+            .clone();
         for i in self.get_type_reference_arity(type_)..pattern_elements.len() {
             let e = &pattern_elements[i];
             if i < pattern_elements.len() - 1
@@ -95,14 +99,14 @@ impl TypeChecker {
                 });
                 element_flags.push(ElementFlags::Optional);
                 if !is_omitted_expression(e) && !self.has_default_value(e) {
-                    self.report_implicit_any(e, &self.any_type(), None)?;
+                    self.report_implicit_any(e, self.any_type(), None)?;
                 }
             }
         }
         self.create_tuple_type(
             &element_types,
             Some(&element_flags),
-            Some(type_target_as_tuple_type.readonly),
+            Some(self.type_(type_target).as_tuple_type().readonly),
             None,
         )
     }
@@ -115,16 +119,16 @@ impl TypeChecker {
         let widened = if get_combined_node_flags(declaration).intersects(NodeFlags::Const)
             || is_declaration_readonly(declaration)
         {
-            type_.type_wrapper()
+            type_
         } else {
             self.get_widened_literal_type(type_)?
         };
         if is_in_js_file(Some(declaration)) {
             if self.is_empty_literal_type(&widened) {
-                self.report_implicit_any(declaration, &self.any_type(), None)?;
+                self.report_implicit_any(declaration, self.any_type(), None)?;
                 return Ok(self.any_type());
             } else if self.is_empty_array_literal_type(&widened)? {
-                self.report_implicit_any(declaration, &self.any_array_type(), None)?;
+                self.report_implicit_any(declaration, self.any_array_type(), None)?;
                 return Ok(self.any_array_type());
             }
         }
@@ -137,54 +141,53 @@ impl TypeChecker {
         contextual_type: Option<Id<Type>>,
     ) -> io::Result<bool> {
         if let Some(contextual_type) = contextual_type {
-            let contextual_type = contextual_type.borrow();
-            if contextual_type
-                .flags()
+            if self.type_(contextual_type
+                ).flags()
                 .intersects(TypeFlags::UnionOrIntersection)
             {
-                let types = contextual_type
-                    .as_union_or_intersection_type_interface()
-                    .types();
+                let types = self.type_(contextual_type
+                    ).as_union_or_intersection_type_interface()
+                    .types().to_owned();
                 return try_some(
                     Some(types),
-                    Some(|t: &Id<Type>| {
-                        self.is_literal_of_contextual_type(candidate_type, Some(&**t))
+                    Some(|t: Id<Type>| {
+                        self.is_literal_of_contextual_type(candidate_type, Some(t))
                     }),
                 );
             }
-            if contextual_type
-                .flags()
+            if self.type_(contextual_type
+                ).flags()
                 .intersects(TypeFlags::InstantiableNonPrimitive)
             {
                 let constraint = self
                     .get_base_constraint_of_type(contextual_type)?
                     .unwrap_or_else(|| self.unknown_type());
-                return Ok(self.maybe_type_of_kind(&constraint, TypeFlags::String)
+                return Ok(self.maybe_type_of_kind(constraint, TypeFlags::String)
                     && self.maybe_type_of_kind(candidate_type, TypeFlags::StringLiteral)
-                    || self.maybe_type_of_kind(&constraint, TypeFlags::Number)
+                    || self.maybe_type_of_kind(constraint, TypeFlags::Number)
                         && self.maybe_type_of_kind(candidate_type, TypeFlags::NumberLiteral)
-                    || self.maybe_type_of_kind(&constraint, TypeFlags::BigInt)
+                    || self.maybe_type_of_kind(constraint, TypeFlags::BigInt)
                         && self.maybe_type_of_kind(candidate_type, TypeFlags::BigIntLiteral)
-                    || self.maybe_type_of_kind(&constraint, TypeFlags::ESSymbol)
+                    || self.maybe_type_of_kind(constraint, TypeFlags::ESSymbol)
                         && self.maybe_type_of_kind(candidate_type, TypeFlags::UniqueESSymbol)
                     || self.is_literal_of_contextual_type(candidate_type, Some(constraint))?);
             }
-            return Ok(contextual_type.flags().intersects(
+            return Ok(self.type_(contextual_type).flags().intersects(
                 TypeFlags::StringLiteral
                     | TypeFlags::Index
                     | TypeFlags::TemplateLiteral
                     | TypeFlags::StringMapping,
             ) && self.maybe_type_of_kind(candidate_type, TypeFlags::StringLiteral)
-                || contextual_type.flags().intersects(TypeFlags::NumberLiteral)
+                || self.type_(contextual_type).flags().intersects(TypeFlags::NumberLiteral)
                     && self.maybe_type_of_kind(candidate_type, TypeFlags::NumberLiteral)
-                || contextual_type.flags().intersects(TypeFlags::BigIntLiteral)
+                || self.type_(contextual_type).flags().intersects(TypeFlags::BigIntLiteral)
                     && self.maybe_type_of_kind(candidate_type, TypeFlags::BigIntLiteral)
-                || contextual_type
-                    .flags()
+                || self.type_(contextual_type
+                    ).flags()
                     .intersects(TypeFlags::BooleanLiteral)
                     && self.maybe_type_of_kind(candidate_type, TypeFlags::BooleanLiteral)
-                || contextual_type
-                    .flags()
+                || self.type_(contextual_type
+                    ).flags()
                     .intersects(TypeFlags::UniqueESSymbol)
                     && self.maybe_type_of_kind(candidate_type, TypeFlags::UniqueESSymbol));
         }
@@ -216,17 +219,17 @@ impl TypeChecker {
     ) -> io::Result<Id<Type>> {
         let type_ = self.check_expression(node, check_mode, force_tuple)?;
         Ok(if self.is_const_context(node) {
-            self.get_regular_type_of_literal_type(&type_)
+            self.get_regular_type_of_literal_type(type_)
         } else if self.is_type_assertion(node) {
-            type_.type_wrapper()
+            type_
         } else {
             self.get_widened_literal_like_type_for_contextual_type(
-                &type_,
+                type_,
                 self.instantiate_contextual_type(
                     if contextual_type.is_none() {
                         self.get_contextual_type_(node, None)?
                     } else {
-                        Some(contextual_type.unwrap().borrow().type_wrapper())
+                        Some(contextual_type.unwrap())
                     },
                     node,
                     None,
@@ -268,7 +271,7 @@ impl TypeChecker {
             self.check_function_expression_or_object_literal_method(node, check_mode)?;
         self.instantiate_type_with_single_generic_call_signature(
             node,
-            &uninstantiated_type,
+            uninstantiated_type,
             check_mode,
         )
     }
@@ -298,7 +301,7 @@ impl TypeChecker {
                 )?;
                 if let Some(contextual_type) = contextual_type.as_ref() {
                     let contextual_signature = self.get_single_signature(
-                        &*self.get_non_nullable_type(contextual_type)?,
+                        self.get_non_nullable_type(contextual_type)?,
                         if call_signature.is_some() {
                             SignatureKind::Call
                         } else {
@@ -323,7 +326,7 @@ impl TypeChecker {
                                 self.get_return_type_of_signature(context_signature.clone())
                             })?;
                         let return_signature =
-                            return_type.as_ref().try_and_then(|return_type| {
+                            return_type.try_and_then(|return_type| {
                                 self.get_single_call_or_construct_signature(return_type)
                             })?;
                         if return_signature.as_ref().matches(|return_signature| {
@@ -346,7 +349,7 @@ impl TypeChecker {
                                 )?;
                             let inferences =
                                 map(&*context.inferences(), |info: &Gc<InferenceInfo>, _| {
-                                    Gc::new(self.create_inference_info(&info.type_parameter))
+                                    Gc::new(self.create_inference_info(info.type_parameter))
                                 });
                             self.apply_to_parameter_types(
                                 &instantiated_signature,
@@ -411,7 +414,7 @@ impl TypeChecker {
                 }
             }
         }
-        Ok(type_.type_wrapper())
+        Ok(type_)
     }
 
     pub(super) fn skipped_generic_function(&self, node: &Node, check_mode: CheckMode) {
@@ -461,7 +464,7 @@ impl TypeChecker {
         let mut old_type_parameters: Option<Vec<Id<Type /*TypeParameter*/>>> = None;
         let mut new_type_parameters: Option<Vec<Id<Type /*TypeParameter*/>>> = None;
         for tp in type_parameters {
-            let tp_symbol = tp.symbol();
+            let tp_symbol = self.type_(tp).symbol();
             let name = tp_symbol.escaped_name();
             if self.has_type_parameter_by_name(
                 context.maybe_inferred_type_parameters().as_deref(),
@@ -483,7 +486,7 @@ impl TypeChecker {
                     .into();
                 let mut new_type_parameter = self.create_type_parameter(Some(&*symbol));
                 new_type_parameter.target = Some(tp.clone());
-                let new_type_parameter: Id<Type> = new_type_parameter.into();
+                let new_type_parameter: Id<Type> = self.alloc_type(new_type_parameter.into());
                 if old_type_parameters.is_none() {
                     old_type_parameters = Some(vec![]);
                 }
@@ -506,7 +509,7 @@ impl TypeChecker {
                 Some(new_type_parameters.clone()),
             ));
             for tp in new_type_parameters {
-                tp.as_type_parameter().set_mapper(mapper.clone());
+                self.type_(tp).as_type_parameter().set_mapper(mapper.clone());
             }
         }
         result
@@ -519,7 +522,7 @@ impl TypeChecker {
     ) -> bool {
         some(
             type_parameters,
-            Some(|tp: &Id<Type>| tp.symbol().escaped_name() == name),
+            Some(|&tp: &Id<Type>| self.type_(tp).symbol().escaped_name() == name),
         )
     }
 
@@ -564,13 +567,13 @@ impl TypeChecker {
         let expr_as_call_expression = expr.as_call_expression();
         let func_type = self.check_expression(&expr_as_call_expression.expression, None, None)?;
         let non_optional_type =
-            self.get_optional_expression_type(&func_type, &expr_as_call_expression.expression)?;
-        let return_type = self.get_return_type_of_single_non_generic_call_signature(&func_type)?;
-        return_type.as_ref().try_map(|return_type| {
+            self.get_optional_expression_type(func_type, &expr_as_call_expression.expression)?;
+        let return_type = self.get_return_type_of_single_non_generic_call_signature(func_type)?;
+        return_type.try_map(|return_type| {
             self.propagate_optional_type_marker(
                 return_type,
                 expr,
-                !Gc::ptr_eq(&non_optional_type, &func_type),
+                non_optional_type != func_type,
             )
         })
     }
@@ -626,7 +629,7 @@ impl TypeChecker {
                 self.get_return_type_of_single_non_generic_signature_of_call_chain(&expr)?
             } else {
                 self.get_return_type_of_single_non_generic_call_signature(
-                    &*self.check_non_null_expression(&expr.as_call_expression().expression)?,
+                    self.check_non_null_expression(&expr.as_call_expression().expression)?,
                 )?
             };
             if type_.is_some() {
@@ -683,11 +686,11 @@ impl TypeChecker {
         let uninstantiated_type = self.check_expression_worker(node, check_mode, force_tuple)?;
         let type_ = self.instantiate_type_with_single_generic_call_signature(
             node,
-            &uninstantiated_type,
+            uninstantiated_type,
             check_mode,
         )?;
-        if self.is_const_enum_object_type(&type_) {
-            self.check_const_enum_access(node, &type_);
+        if self.is_const_enum_object_type(type_) {
+            self.check_const_enum_access(node, type_);
         }
         self.set_current_node(save_current_node);
         // tracing?.pop();
@@ -727,10 +730,10 @@ impl TypeChecker {
 
         if self.compiler_options.isolated_modules == Some(true) {
             Debug_.assert(
-                type_.symbol().flags().intersects(SymbolFlags::ConstEnum),
+                self.type_(type_).symbol().flags().intersects(SymbolFlags::ConstEnum),
                 None,
             );
-            let const_enum_declaration = type_.symbol().maybe_value_declaration().unwrap();
+            let const_enum_declaration = self.type_(type_).symbol().maybe_value_declaration().unwrap();
             if const_enum_declaration
                 .flags()
                 .intersects(NodeFlags::Ambient)
@@ -791,17 +794,17 @@ impl TypeChecker {
             SyntaxKind::NullKeyword => self.null_widening_type(),
             SyntaxKind::NoSubstitutionTemplateLiteral | SyntaxKind::StringLiteral => self
                 .get_fresh_type_of_literal_type(
-                    &self.get_string_literal_type(&node.as_literal_like_node().text()),
+                    self.get_string_literal_type(&node.as_literal_like_node().text()),
                 ),
             SyntaxKind::NumericLiteral => {
                 self.check_grammar_numeric_literal(node);
-                self.get_fresh_type_of_literal_type(&self.get_number_literal_type(Number::new(
+                self.get_fresh_type_of_literal_type(self.get_number_literal_type(Number::new(
                     node.as_literal_like_node().text().parse::<f64>().unwrap(),
                 )))
             }
             SyntaxKind::BigIntLiteral => {
                 self.check_grammar_big_int_literal(node);
-                self.get_fresh_type_of_literal_type(&self.get_big_int_literal_type(
+                self.get_fresh_type_of_literal_type(self.get_big_int_literal_type(
                     PseudoBigInt::new(
                         false,
                         parse_pseudo_big_int(&node.as_literal_like_node().text()),

@@ -864,8 +864,8 @@ impl TypeChecker {
         let type_annotation_node = get_effective_type_annotation_node(node);
         if let Some(type_annotation_node) = type_annotation_node.as_ref() {
             self.check_type_assignable_to(
-                &*self.check_expression_cached(&node_as_export_assignment.expression, None)?,
-                &*self.get_type_from_type_node_(type_annotation_node)?,
+                self.check_expression_cached(&node_as_export_assignment.expression, None)?,
+                self.get_type_from_type_node_(type_annotation_node)?,
                 Some(&*node_as_export_assignment.expression),
                 None,
                 None,

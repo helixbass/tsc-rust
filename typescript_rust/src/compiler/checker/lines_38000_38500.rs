@@ -69,7 +69,7 @@ impl TypeChecker {
         let node_as_switch_statement = node.as_switch_statement();
         let expression_type =
             self.check_expression(&node_as_switch_statement.expression, None, None)?;
-        let expression_is_literal = self.is_literal_type(&expression_type);
+        let expression_is_literal = self.is_literal_type(expression_type);
         try_for_each(
             &node_as_switch_statement.case_block.as_case_block().clauses,
             |clause: &Gc<Node>, _| -> io::Result<Option<()>> {
@@ -90,23 +90,21 @@ impl TypeChecker {
                     let clause_as_case_clause = clause.as_case_clause();
                     let mut case_type =
                         self.check_expression(&clause_as_case_clause.expression, None, None)?;
-                    let case_is_literal = self.is_literal_type(&case_type);
+                    let case_is_literal = self.is_literal_type(case_type);
                     let mut compared_expression_type = expression_type.clone();
                     if !case_is_literal || !expression_is_literal {
                         case_type = if case_is_literal {
-                            self.get_base_type_of_literal_type(&case_type)?
+                            self.get_base_type_of_literal_type(case_type)?
                         } else {
                             case_type
                         };
                         compared_expression_type =
-                            self.get_base_type_of_literal_type(&expression_type)?;
+                            self.get_base_type_of_literal_type(expression_type)?;
                     }
-                    if !self
-                        .is_type_equality_comparable_to(&compared_expression_type, &case_type)?
-                    {
+                    if !self.is_type_equality_comparable_to(compared_expression_type, case_type)? {
                         self.check_type_comparable_to(
-                            &case_type,
-                            &compared_expression_type,
+                            case_type,
+                            compared_expression_type,
                             &clause_as_case_clause.expression,
                             None,
                             None,
@@ -228,8 +226,8 @@ impl TypeChecker {
                 if let Some(type_node) = type_node.as_ref() {
                     let type_ = self.get_type_for_variable_like_declaration(declaration, false)?;
                     if matches!(
-                        type_.as_ref(),
-                        Some(type_) if !type_.flags().intersects(TypeFlags::AnyOrUnknown)
+                        type_,
+                        Some(type_) if !self.type_(type_).flags().intersects(TypeFlags::AnyOrUnknown)
                     ) {
                         self.grammar_error_on_first_token(
                             type_node,
@@ -305,12 +303,12 @@ impl TypeChecker {
                 self.check_index_constraint_for_property(
                     type_,
                     prop,
-                    &*self.get_literal_type_from_property(
+                    self.get_literal_type_from_property(
                         prop,
                         TypeFlags::StringOrNumberLiteralOrUnique,
                         Some(true),
                     )?,
-                    &*self.get_non_missing_type_of_symbol(prop)?,
+                    self.get_non_missing_type_of_symbol(prop)?,
                 )?;
             }
         }
@@ -325,14 +323,14 @@ impl TypeChecker {
                     self.check_index_constraint_for_property(
                         type_,
                         &symbol,
-                        &*self.get_type_of_expression(
+                        self.get_type_of_expression(
                             &member
                                 .as_named_declaration()
                                 .name()
                                 .as_computed_property_name()
                                 .expression,
                         )?,
-                        &*self.get_non_missing_type_of_symbol(&symbol)?,
+                        self.get_non_missing_type_of_symbol(&symbol)?,
                     )?;
                 }
             }
@@ -362,8 +360,8 @@ impl TypeChecker {
             return Ok(());
         }
         let index_infos = self.get_applicable_index_infos(type_, prop_name_type)?;
-        let interface_declaration = if get_object_flags(type_).intersects(ObjectFlags::Interface) {
-            get_declaration_of_kind(&type_.symbol(), SyntaxKind::InterfaceDeclaration)
+        let interface_declaration = if get_object_flags(self.type_(type_)).intersects(ObjectFlags::Interface) {
+            get_declaration_of_kind(&self.type_(type_).symbol(), SyntaxKind::InterfaceDeclaration)
         } else {
             None
         };
@@ -375,7 +373,7 @@ impl TypeChecker {
             Some(name) if name.kind() == SyntaxKind::ComputedPropertyName
         ) || are_option_gcs_equal(
             self.get_parent_of_symbol(prop)?.as_ref(),
-            type_.maybe_symbol().as_ref(),
+            self.type_(type_).maybe_symbol().as_ref(),
         ) {
             declaration
         } else {
@@ -391,7 +389,7 @@ impl TypeChecker {
                                 &self.get_symbol_of_node(info_declaration)?.unwrap(),
                             )?
                             .as_ref(),
-                            type_.maybe_symbol().as_ref(),
+                            self.type_(type_).maybe_symbol().as_ref(),
                         ))
                     })?;
             let error_node = local_prop_declaration
@@ -403,26 +401,26 @@ impl TypeChecker {
                         .try_filter(|_| -> io::Result<_> {
                             Ok(!try_some(
                                 Some(&self.get_base_types(type_)?),
-                                Some(|base: &Id<Type>| -> io::Result<_> {
+                                Some(|&base: &Id<Type>| -> io::Result<_> {
                                     Ok(self
                                         .get_property_of_object_type(base, prop.escaped_name())?
                                         .is_some()
                                         && self
-                                            .get_index_type_of_type_(base, &info.key_type)?
+                                            .get_index_type_of_type_(base, info.key_type)?
                                             .is_some())
                                 }),
                             )?)
                         })
                 })?;
-            if error_node.is_some() && !self.is_type_assignable_to(prop_type, &info.type_)? {
+            if error_node.is_some() && !self.is_type_assignable_to(prop_type, info.type_)? {
                 self.error(
                     error_node,
                     &Diagnostics::Property_0_of_type_1_is_not_assignable_to_2_index_type_3,
                     Some(vec![
                         self.symbol_to_string_(prop, Option::<&Node>::None, None, None, None)?,
                         self.type_to_string_(prop_type, Option::<&Node>::None, None, None)?,
-                        self.type_to_string_(&info.key_type, Option::<&Node>::None, None, None)?,
-                        self.type_to_string_(&info.type_, Option::<&Node>::None, None, None)?,
+                        self.type_to_string_(info.key_type, Option::<&Node>::None, None, None)?,
+                        self.type_to_string_(info.type_, Option::<&Node>::None, None, None)?,
                     ]),
                 );
             }
@@ -437,9 +435,9 @@ impl TypeChecker {
         check_info: &IndexInfo,
     ) -> io::Result<()> {
         let declaration = check_info.declaration.as_ref();
-        let index_infos = self.get_applicable_index_infos(type_, &check_info.key_type)?;
-        let interface_declaration = if get_object_flags(type_).intersects(ObjectFlags::Interface) {
-            get_declaration_of_kind(&type_.symbol(), SyntaxKind::InterfaceDeclaration)
+        let index_infos = self.get_applicable_index_infos(type_, check_info.key_type)?;
+        let interface_declaration = if get_object_flags(self.type_(type_)).intersects(ObjectFlags::Interface) {
+            get_declaration_of_kind(&self.type_(type_).symbol(), SyntaxKind::InterfaceDeclaration)
         } else {
             None
         };
@@ -448,7 +446,7 @@ impl TypeChecker {
                 Ok(are_option_gcs_equal(
                     self.get_parent_of_symbol(&self.get_symbol_of_node(declaration)?.unwrap())?
                         .as_ref(),
-                    type_.maybe_symbol().as_ref(),
+                    self.type_(type_).maybe_symbol().as_ref(),
                 ))
             })?
             .cloned();
@@ -465,7 +463,7 @@ impl TypeChecker {
                                 &self.get_symbol_of_node(info_declaration)?.unwrap(),
                             )?
                             .as_ref(),
-                            type_.maybe_symbol().as_ref(),
+                            self.type_(type_).maybe_symbol().as_ref(),
                         ))
                     })?;
             let error_node = local_check_declaration
@@ -477,7 +475,7 @@ impl TypeChecker {
                         .try_filter(|_| -> io::Result<_> {
                             Ok(!try_some(
                                 Some(&self.get_base_types(type_)?),
-                                Some(|base: &Id<Type>| -> io::Result<_> {
+                                Some(|&base: &Id<Type>| -> io::Result<_> {
                                     Ok(self
                                         .get_index_info_of_type_(base, &check_info.key_type)?
                                         .is_some()
@@ -489,21 +487,21 @@ impl TypeChecker {
                         })
                 })?;
             if error_node.is_some()
-                && !self.is_type_assignable_to(&check_info.type_, &info.type_)?
+                && !self.is_type_assignable_to(check_info.type_, info.type_)?
             {
                 self.error(
                     error_node,
                     &Diagnostics::_0_index_type_1_is_not_assignable_to_2_index_type_3,
                     Some(vec![
                         self.type_to_string_(
-                            &check_info.key_type,
+                            check_info.key_type,
                             Option::<&Node>::None,
                             None,
                             None,
                         )?,
-                        self.type_to_string_(&check_info.type_, Option::<&Node>::None, None, None)?,
-                        self.type_to_string_(&info.key_type, Option::<&Node>::None, None, None)?,
-                        self.type_to_string_(&info.type_, Option::<&Node>::None, None, None)?,
+                        self.type_to_string_(check_info.type_, Option::<&Node>::None, None, None)?,
+                        self.type_to_string_(info.key_type, Option::<&Node>::None, None, None)?,
+                        self.type_to_string_(info.type_, Option::<&Node>::None, None, None)?,
                     ]),
                 );
             }
@@ -616,10 +614,10 @@ impl TypeChecker {
     ) -> io::Result<()> {
         if node.kind() == SyntaxKind::TypeReference {
             let type_ = self.get_type_from_type_reference(node)?;
-            if type_.flags().intersects(TypeFlags::TypeParameter) {
+            if self.type_(type_).flags().intersects(TypeFlags::TypeParameter) {
                 for i in index..type_parameters.len() {
                     if are_option_gcs_equal(
-                        type_.maybe_symbol().as_ref(),
+                        self.type_(type_).maybe_symbol().as_ref(),
                         self.get_symbol_of_node(&type_parameters[i])?.as_ref(),
                     ) {
                         self.error(
@@ -663,7 +661,7 @@ impl TypeChecker {
             let type_ = self.get_declared_type_of_symbol(symbol)?;
             if !self.are_type_parameters_identical(
                 &declarations,
-                type_.as_interface_type().maybe_local_type_parameters(),
+                self.type_(type_).as_interface_type().maybe_local_type_parameters(),
             )? {
                 let name =
                     self.symbol_to_string_(symbol, Option::<&Node>::None, None, None, None)?;
@@ -700,14 +698,14 @@ impl TypeChecker {
             for i in 0..num_type_parameters {
                 let target_parameters = target_parameters.unwrap();
                 let source = &source_parameters[i];
-                let target = &target_parameters[i];
+                let target = target_parameters[i];
 
                 let source_as_type_parameter_declaration = source.as_type_parameter_declaration();
                 if &source_as_type_parameter_declaration
                     .name()
                     .as_identifier()
                     .escaped_text
-                    != target.symbol().escaped_name()
+                    != self.type_(target).symbol().escaped_name()
                 {
                     return Ok(false);
                 }
@@ -718,7 +716,7 @@ impl TypeChecker {
                     .try_map(|constraint| self.get_type_from_type_node_(constraint))?;
                 let target_constraint = self.get_constraint_of_type_parameter(target)?;
                 if matches!(
-                    (source_constraint.as_ref(), target_constraint.as_ref()),
+                    (source_constraint, target_constraint),
                     (Some(source_constraint), Some(target_constraint)) if !self.is_type_identical_to(
                         source_constraint,
                         target_constraint
@@ -733,7 +731,7 @@ impl TypeChecker {
                     .try_map(|source_default| self.get_type_from_type_node_(source_default))?;
                 let target_default = self.get_default_from_type_parameter_(target)?;
                 if matches!(
-                    (source_default.as_ref(), target_default.as_ref()),
+                    (source_default, target_default),
                     (Some(source_default), Some(target_default)) if !self.is_type_identical_to(
                         source_default, target_default
                     )?
@@ -829,7 +827,7 @@ impl TypeChecker {
         self.check_exports_on_merged_declarations(node)?;
         let symbol = self.get_symbol_of_node(node)?.unwrap();
         let type_ = self.get_declared_type_of_symbol(&symbol)?;
-        let type_with_this = self.get_type_with_this_argument(&type_, None, None)?;
+        let type_with_this = self.get_type_with_this_argument(type_, None, None)?;
         let static_type = self.get_type_of_symbol(&symbol)?;
         self.check_type_parameter_lists_identical(&symbol)?;
         self.check_function_or_constructor_symbol(&symbol)?;
@@ -841,7 +839,6 @@ impl TypeChecker {
         }
 
         let base_type_node = get_effective_base_type_node(node);
-        let type_as_interface_type = type_.as_interface_type();
         if let Some(base_type_node) = base_type_node.as_ref() {
             let base_type_node_as_expression_with_type_arguments =
                 base_type_node.as_expression_with_type_arguments();
@@ -872,12 +869,12 @@ impl TypeChecker {
                 )?;
             }
 
-            let base_types = self.get_base_types(&type_)?;
+            let base_types = self.get_base_types(type_)?;
             if !base_types.is_empty() && self.produce_diagnostics {
-                let base_type = &base_types[0];
-                let base_constructor_type = self.get_base_constructor_type_of_class(&type_)?;
-                let static_base_type = self.get_apparent_type(&base_constructor_type)?;
-                self.check_base_type_accessibility(&static_base_type, base_type_node)?;
+                let base_type = base_types[0];
+                let base_constructor_type = self.get_base_constructor_type_of_class(type_)?;
+                let static_base_type = self.get_apparent_type(base_constructor_type)?;
+                self.check_base_type_accessibility(static_base_type, base_type_node)?;
                 self.check_source_element(Some(
                     &*base_type_node_as_expression_with_type_arguments.expression,
                 ))?;
@@ -897,7 +894,7 @@ impl TypeChecker {
                         },
                     )?;
                     for constructor in &self.get_constructors_for_type_arguments(
-                        &static_base_type,
+                        static_base_type,
                         base_type_node_as_expression_with_type_arguments
                             .maybe_type_arguments()
                             .as_double_deref(),
@@ -913,12 +910,12 @@ impl TypeChecker {
                 }
                 let base_with_this = self.get_type_with_this_argument(
                     base_type,
-                    type_as_interface_type.maybe_this_type(),
+                    self.type_(type_).as_interface_type().maybe_this_type(),
                     None,
                 )?;
                 if !self.check_type_assignable_to(
-                    &type_with_this,
-                    &base_with_this,
+                    type_with_this,
+                    base_with_this,
                     Option::<&Node>::None,
                     None,
                     None,
@@ -926,24 +923,24 @@ impl TypeChecker {
                 )? {
                     self.issue_member_specific_error(
                         node,
-                        &type_with_this,
-                        &base_with_this,
+                        type_with_this,
+                        base_with_this,
                         &Diagnostics::Class_0_incorrectly_extends_base_class_1,
                     )?;
                 } else {
                     self.check_type_assignable_to(
-                        &static_type,
-                        &*self.get_type_without_signatures(&static_base_type)?,
+                        static_type,
+                        self.get_type_without_signatures(static_base_type)?,
                         Some(node_as_class_like_declaration.maybe_name().unwrap_or_else(|| node.node_wrapper())),
                         Some(&Diagnostics::Class_static_side_0_incorrectly_extends_base_class_static_side_1),
                         None, None,
                     )?;
                 }
-                if base_constructor_type
-                    .flags()
+                if self.type_(base_constructor_type
+                    ).flags()
                     .intersects(TypeFlags::TypeVariable)
                 {
-                    if !self.is_mixin_constructor_type(&static_type)? {
+                    if !self.is_mixin_constructor_type(static_type)? {
                         self.error(
                             Some(node_as_class_like_declaration.maybe_name().unwrap_or_else(|| node.node_wrapper())),
                             &Diagnostics::A_mixin_class_must_have_a_constructor_with_a_single_rest_parameter_of_type_any,
@@ -951,7 +948,7 @@ impl TypeChecker {
                         );
                     } else {
                         let construct_signatures = self.get_signatures_of_type(
-                            &base_constructor_type,
+                            base_constructor_type,
                             SignatureKind::Construct,
                         )?;
                         if construct_signatures
@@ -969,14 +966,14 @@ impl TypeChecker {
                 }
 
                 if !matches!(
-                    static_base_type.maybe_symbol().as_ref(),
+                    self.type_(static_base_type).maybe_symbol().as_ref(),
                     Some(static_base_type_symbol) if static_base_type_symbol.flags().intersects(SymbolFlags::Class)
-                ) && !base_constructor_type
-                    .flags()
+                ) && !self.type_(base_constructor_type
+                    ).flags()
                     .intersects(TypeFlags::TypeVariable)
                 {
                     let constructors = self.get_instantiated_constructors_for_type_arguments(
-                        &static_base_type,
+                        static_base_type,
                         base_type_node_as_expression_with_type_arguments
                             .maybe_type_arguments()
                             .as_double_deref(),
@@ -987,7 +984,7 @@ impl TypeChecker {
                         |sig: &Gc<Signature>, _| -> io::Result<_> {
                             Ok(!self.is_js_constructor(sig.declaration.as_deref())?
                                 && !self.is_type_identical_to(
-                                    &*self.get_return_type_of_signature(sig.clone())?,
+                                    self.get_return_type_of_signature(sig.clone())?,
                                     base_type,
                                 )?)
                         },
@@ -999,11 +996,11 @@ impl TypeChecker {
                         );
                     }
                 }
-                self.check_kinds_of_property_member_overrides(&type_, base_type)?;
+                self.check_kinds_of_property_member_overrides(type_, base_type)?;
             }
         }
 
-        self.check_members_for_override_modifier(node, &type_, &type_with_this, &static_type)?;
+        self.check_members_for_override_modifier(node, type_, type_with_this, static_type)?;
 
         let implemented_type_nodes = get_effective_implements_type_nodes(node);
         if let Some(implemented_type_nodes) = implemented_type_nodes.as_ref() {
@@ -1024,11 +1021,11 @@ impl TypeChecker {
                 self.check_type_reference_node(type_ref_node)?;
                 if self.produce_diagnostics {
                     let t =
-                        self.get_reduced_type(&*self.get_type_from_type_node_(type_ref_node)?)?;
-                    if !self.is_error_type(&t) {
-                        if self.is_valid_base_type(&t)? {
+                        self.get_reduced_type(self.get_type_from_type_node_(type_ref_node)?)?;
+                    if !self.is_error_type(t) {
+                        if self.is_valid_base_type(t)? {
                             let generic_diag = if matches!(
-                                t.maybe_symbol().as_ref(),
+                                self.type_(t).maybe_symbol().as_ref(),
                                 Some(t_symbol) if t_symbol.flags().intersects(SymbolFlags::Class)
                             ) {
                                 &*Diagnostics::Class_0_incorrectly_implements_class_1_Did_you_mean_to_extend_1_and_inherit_its_members_as_a_subclass
@@ -1036,13 +1033,13 @@ impl TypeChecker {
                                 &*Diagnostics::Class_0_incorrectly_implements_interface_1
                             };
                             let base_with_this = self.get_type_with_this_argument(
-                                &t,
-                                type_as_interface_type.maybe_this_type(),
+                                t,
+                                self.type_(type_).as_interface_type().maybe_this_type(),
                                 None,
                             )?;
                             if !self.check_type_assignable_to(
-                                &type_with_this,
-                                &base_with_this,
+                                type_with_this,
+                                base_with_this,
                                 Option::<&Node>::None,
                                 None,
                                 None,
@@ -1050,8 +1047,8 @@ impl TypeChecker {
                             )? {
                                 self.issue_member_specific_error(
                                     node,
-                                    &type_with_this,
-                                    &base_with_this,
+                                    type_with_this,
+                                    base_with_this,
                                     generic_diag,
                                 )?;
                             }
@@ -1068,8 +1065,8 @@ impl TypeChecker {
         }
 
         if self.produce_diagnostics {
-            self.check_index_constraints(&type_, &symbol, None)?;
-            self.check_index_constraints(&static_type, &symbol, Some(true))?;
+            self.check_index_constraints(type_, &symbol, None)?;
+            self.check_index_constraints(static_type, &symbol, Some(true))?;
             self.check_type_for_duplicate_index_signatures(node)?;
             self.check_property_initialization(node)?;
         }

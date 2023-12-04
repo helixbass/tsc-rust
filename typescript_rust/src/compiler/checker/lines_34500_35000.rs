@@ -228,7 +228,7 @@ impl TypeChecker {
                             let getter_type = self.get_annotated_accessor_type(Some(&**getter))?;
                             let setter_type = self.get_annotated_accessor_type(Some(&**setter))?;
                             if let (Some(getter_type), Some(setter_type)) =
-                                (getter_type.as_ref(), setter_type.as_ref())
+                                (getter_type, setter_type)
                             {
                                 self.check_type_assignable_to(
                                     getter_type,
@@ -247,7 +247,7 @@ impl TypeChecker {
             if node.kind() == SyntaxKind::GetAccessor {
                 self.check_all_code_paths_in_non_void_function_return_or_throw(
                     node,
-                    Some(&*return_type),
+                    Some(return_type),
                 )?;
             }
         }
@@ -291,7 +291,7 @@ impl TypeChecker {
         let mut mapper: Option<Gc<TypeMapper>> = None;
         let mut result = true;
         for i in 0..type_parameters.len() {
-            let constraint = self.get_constraint_of_type_parameter(&type_parameters[i])?;
+            let constraint = self.get_constraint_of_type_parameter(type_parameters[i])?;
             if let Some(constraint) = constraint.as_ref() {
                 if type_arguments.is_none() {
                     type_arguments =
@@ -303,8 +303,8 @@ impl TypeChecker {
                 }
                 result = result
                     && self.check_type_assignable_to(
-                        &type_arguments.as_ref().unwrap()[i],
-                        &*self.instantiate_type(constraint, mapper.clone())?,
+                        type_arguments.as_ref().unwrap()[i],
+                        self.instantiate_type(constraint, mapper.clone())?,
                         node.as_has_type_arguments()
                             .maybe_type_arguments()
                             .as_ref()
@@ -325,7 +325,7 @@ impl TypeChecker {
         node: &Node, /*TypeReferenceNode | ExpressionWithTypeArguments*/
     ) -> io::Result<Option<Vec<Id<Type>>>> {
         let type_ = self.get_type_from_type_reference(node)?;
-        if !self.is_error_type(&type_) {
+        if !self.is_error_type(type_) {
             let symbol = (*self.get_node_links(node))
                 .borrow()
                 .resolved_symbol
@@ -340,10 +340,10 @@ impl TypeChecker {
                     None
                 }
                 .or_else(|| {
-                    if get_object_flags(&type_).intersects(ObjectFlags::Reference) {
-                        type_
-                            .as_type_reference_interface()
-                            .target()
+                    if get_object_flags(self.type_(type_)).intersects(ObjectFlags::Reference) {
+                        self.type_(self.type_(type_
+                            ).as_type_reference_interface()
+                            .target())
                             .as_interface_type_interface()
                             .maybe_local_type_parameters()
                             .map(ToOwned::to_owned)
@@ -391,7 +391,7 @@ impl TypeChecker {
             },
         )?;
         let type_ = self.get_type_from_type_reference(node)?;
-        if !self.is_error_type(&type_) {
+        if !self.is_error_type(type_) {
             if node_as_has_type_arguments.maybe_type_arguments().is_some()
                 && self.produce_diagnostics
             {
@@ -417,7 +417,7 @@ impl TypeChecker {
                         symbol.escaped_name(),
                     );
                 }
-                if type_.flags().intersects(TypeFlags::Enum)
+                if self.type_(type_).flags().intersects(TypeFlags::Enum)
                     && symbol.flags().intersects(SymbolFlags::EnumMember)
                 {
                     self.error(
@@ -425,7 +425,7 @@ impl TypeChecker {
                         &Diagnostics::Enum_type_0_has_members_with_initializers_that_are_not_literals,
                         Some(vec![
                             self.type_to_string_(
-                                &type_,
+                                type_,
                                 Option::<&Node>::None,
                                 None, None,
                             )?
@@ -450,7 +450,7 @@ impl TypeChecker {
             self.get_type_parameters_for_type_reference(&type_reference_node)?
         );
         let constraint = return_ok_default_if_none!(self.get_constraint_of_type_parameter(
-            &type_parameters[type_reference_node
+            type_parameters[type_reference_node
                 .as_has_type_arguments()
                 .maybe_type_arguments()
                 .as_ref()
@@ -460,7 +460,7 @@ impl TypeChecker {
                 .unwrap()],
         )?);
         Ok(Some(self.instantiate_type(
-            &constraint,
+            constraint,
             Some(Gc::new(self.create_type_mapper(
                 type_parameters.clone(),
                 Some(
@@ -493,7 +493,7 @@ impl TypeChecker {
         if self.produce_diagnostics {
             let type_ =
                 self.get_type_from_type_literal_or_function_or_constructor_type_node(node)?;
-            self.check_index_constraints(&type_, &type_.symbol(), None)?;
+            self.check_index_constraints(type_, &self.type_(type_).symbol(), None)?;
             self.check_type_for_duplicate_index_signatures(node)?;
             self.check_object_type_for_duplicate_declarations(node);
         }
@@ -529,7 +529,7 @@ impl TypeChecker {
             if flags.intersects(ElementFlags::Variadic) {
                 let type_ =
                     self.get_type_from_type_node_(&e.as_has_type().maybe_type().unwrap())?;
-                if !self.is_array_like_type(&type_)? {
+                if !self.is_array_like_type(type_)? {
                     self.error(
                         Some(&**e),
                         &Diagnostics::A_rest_element_type_must_be_an_array_type,
@@ -537,11 +537,11 @@ impl TypeChecker {
                     );
                     break;
                 }
-                if self.is_array_type(&type_)
-                    || self.is_tuple_type(&type_)
-                        && type_
+                if self.is_array_type(type_)
+                    || self.is_tuple_type(type_)
+                        && self.type_(self.type_(type_)
                             .as_type_reference_interface()
-                            .target()
+                            .target())
                             .as_tuple_type()
                             .combined_flags
                             .intersects(ElementFlags::Rest)
@@ -610,15 +610,17 @@ impl TypeChecker {
         type_: Id<Type>,
         access_node: &Node, /*IndexedAccessTypeNode | ElementAccessExpression*/
     ) -> io::Result<Id<Type>> {
-        if !type_.flags().intersects(TypeFlags::IndexedAccess) {
-            return Ok(type_.type_wrapper());
+        if !self.type_(type_).flags().intersects(TypeFlags::IndexedAccess) {
+            return Ok(type_);
         }
-        let type_as_indexed_access_type = type_.as_indexed_access_type();
-        let object_type = &type_as_indexed_access_type.object_type;
-        let index_type = &type_as_indexed_access_type.index_type;
+        let (object_type, index_type) = {
+            let type_ = self.type_(type_);
+            let type_as_indexed_access_type = type_.as_indexed_access_type();
+            (type_as_indexed_access_type.object_type, type_as_indexed_access_type.index_type)
+        };
         if self.is_type_assignable_to(
             index_type,
-            &*self.get_index_type(object_type, Some(false), None)?,
+            self.get_index_type(object_type, Some(false), None)?,
         )? {
             if access_node.kind() == SyntaxKind::ElementAccessExpression
                 && is_assignment_target(access_node)
@@ -638,21 +640,21 @@ impl TypeChecker {
                     )?]),
                 );
             }
-            return Ok(type_.type_wrapper());
+            return Ok(type_);
         }
         let apparent_object_type = self.get_apparent_type(object_type)?;
         if self
-            .get_index_info_of_type_(&apparent_object_type, &self.number_type())?
+            .get_index_info_of_type_(apparent_object_type, self.number_type())?
             .is_some()
             && self.is_type_assignable_to_kind(index_type, TypeFlags::NumberLike, None)?
         {
-            return Ok(type_.type_wrapper());
+            return Ok(type_);
         }
         if self.is_generic_object_type(object_type)? {
             let property_name = self.get_property_name_from_index(index_type, Some(access_node));
             if let Some(property_name) = property_name.as_ref() {
                 let property_symbol = self
-                    .try_for_each_type(&apparent_object_type, |t: Id<Type>| {
+                    .try_for_each_type(apparent_object_type, |t: Id<Type>| {
                         self.get_property_of_type_(t, property_name, None)
                     })?;
                 if matches!(
@@ -692,7 +694,7 @@ impl TypeChecker {
         self.check_source_element(Some(&*node_as_indexed_access_type_node.object_type))?;
         self.check_source_element(Some(&*node_as_indexed_access_type_node.index_type))?;
         self.check_indexed_access_index_type(
-            &*self.get_type_from_indexed_access_type_node(node)?,
+            self.get_type_from_indexed_access_type_node(node)?,
             node,
         )?;
 
@@ -707,25 +709,25 @@ impl TypeChecker {
         self.check_source_element(node_as_mapped_type_node.type_.as_deref())?;
 
         if node_as_mapped_type_node.type_.is_none() {
-            self.report_implicit_any(node, &self.any_type(), None)?;
+            self.report_implicit_any(node, self.any_type(), None)?;
         }
 
         let type_ = self.get_type_from_mapped_type_node(node)?;
-        let name_type = self.get_name_type_from_mapped_type(&type_)?;
+        let name_type = self.get_name_type_from_mapped_type(type_)?;
         if let Some(name_type) = name_type.as_ref() {
             self.check_type_assignable_to(
                 name_type,
-                &self.keyof_constraint_type(),
+                self.keyof_constraint_type(),
                 node_as_mapped_type_node.name_type.as_deref(),
                 None,
                 None,
                 None,
             )?;
         } else {
-            let constraint_type = self.get_constraint_type_from_mapped_type(&type_)?;
+            let constraint_type = self.get_constraint_type_from_mapped_type(type_)?;
             self.check_type_assignable_to(
-                &constraint_type,
-                &self.keyof_constraint_type(),
+                constraint_type,
+                self.keyof_constraint_type(),
                 get_effective_constraint_of_type_parameter(
                     &node_as_mapped_type_node.type_parameter,
                 ),
@@ -817,8 +819,8 @@ impl TypeChecker {
             self.check_source_element(Some(&*span_as_template_literal_type_span.type_))?;
             let type_ = self.get_type_from_type_node_(&span_as_template_literal_type_span.type_)?;
             self.check_type_assignable_to(
-                &type_,
-                &self.template_constraint_type(),
+                type_,
+                self.template_constraint_type(),
                 Some(&*span_as_template_literal_type_span.type_),
                 None,
                 None,
