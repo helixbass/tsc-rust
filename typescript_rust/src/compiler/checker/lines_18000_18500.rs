@@ -1259,7 +1259,11 @@ impl CheckTypeRelatedTo {
         Ok(())
     }
 
-    pub(super) fn trace_unions_or_intersections_too_large(&self, source: Id<Type>, target: Id<Type>) {
+    pub(super) fn trace_unions_or_intersections_too_large(
+        &self,
+        source: Id<Type>,
+        target: Id<Type>,
+    ) {
         // if (!tracing) {
         //   return;
         // }

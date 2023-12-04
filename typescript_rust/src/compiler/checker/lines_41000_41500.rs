@@ -398,7 +398,10 @@ impl TypeChecker {
         self.get_named_members(&props_by_name)
     }
 
-    pub(super) fn type_has_call_or_construct_signatures(&self, type_: Id<Type>) -> io::Result<bool> {
+    pub(super) fn type_has_call_or_construct_signatures(
+        &self,
+        type_: Id<Type>,
+    ) -> io::Result<bool> {
         type_has_call_or_construct_signatures(type_, self)
     }
 

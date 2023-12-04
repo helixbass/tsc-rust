@@ -182,8 +182,7 @@ impl TypeChecker {
                 Some(first_interface_decl) if ptr::eq(node, &**first_interface_decl)
             ) {
                 let type_ = self.get_declared_type_of_symbol(&symbol)?;
-                let type_with_this =
-                    self.get_type_with_this_argument(&type_, None, None)?;
+                let type_with_this = self.get_type_with_this_argument(&type_, None, None)?;
                 let type_as_interface_type = type_.as_interface_type();
                 if self.check_inherited_properties_are_identical(
                     &type_,

@@ -168,7 +168,7 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn get_mapped_type_optionality(&self, type_: Id<Type >/*MappedType*/) -> i32 {
+    pub(super) fn get_mapped_type_optionality(&self, type_: Id<Type> /*MappedType*/) -> i32 {
         let modifiers = self.get_mapped_type_modifiers(type_);
         if modifiers.intersects(MappedTypeModifiers::ExcludeOptional) {
             -1
@@ -381,13 +381,7 @@ impl TypeChecker {
         &self,
         types: &[Id<Type>],
     ) -> io::Result<Vec<Gc<Symbol>>> {
-        let union_type = self.get_union_type(
-            types,
-            None,
-            Option::<&Symbol>::None,
-            None,
-            None,
-        )?;
+        let union_type = self.get_union_type(types, None, Option::<&Symbol>::None, None, None)?;
         if !union_type.flags().intersects(TypeFlags::Union) {
             return self.get_augmented_properties_of_type(&union_type);
         }

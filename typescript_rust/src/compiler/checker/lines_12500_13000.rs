@@ -567,13 +567,7 @@ impl TypeChecker {
         union_reduction: Option<UnionReduction>,
     ) -> io::Result<Id<Type>> {
         Ok(if !matches!(kind, Some(TypeFlags::Intersection)) {
-            self.get_union_type(
-                types,
-                union_reduction,
-                Option::<&Symbol>::None,
-                None,
-                None,
-            )?
+            self.get_union_type(types, union_reduction, Option::<&Symbol>::None, None, None)?
         } else {
             self.get_intersection_type(types, Option::<&Symbol>::None, None)?
         })

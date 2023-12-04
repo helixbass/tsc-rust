@@ -136,7 +136,7 @@ impl TypeChecker {
         Ok(false)
     }
 
-    pub(super) fn is_empty_resolved_type(&self, t: Id<Type >/*ResolvedType*/) -> bool {
+    pub(super) fn is_empty_resolved_type(&self, t: Id<Type> /*ResolvedType*/) -> bool {
         !ptr::eq(t, &*self.any_function_type()) && {
             let t_as_resolved_type = t.as_resolved_type();
             t_as_resolved_type.properties().is_empty()
@@ -469,7 +469,11 @@ impl TypeChecker {
             && self.is_hyphenated_jsx_name(source_prop.escaped_name())
     }
 
-    pub(super) fn get_normalized_type(&self, type_: Id<Type>, writing: bool) -> io::Result<Id<Type>> {
+    pub(super) fn get_normalized_type(
+        &self,
+        type_: Id<Type>,
+        writing: bool,
+    ) -> io::Result<Id<Type>> {
         let mut type_ = type_.type_wrapper();
         loop {
             let mut t: Id<Type> = if self.is_fresh_literal_type(&type_) {

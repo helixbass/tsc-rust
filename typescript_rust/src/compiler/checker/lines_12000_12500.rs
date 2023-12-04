@@ -60,7 +60,7 @@ impl TypeChecker {
     pub(super) fn create_union_or_intersection_property(
         &self,
         containing_type: Id<Type>, /*UnionOrIntersectionType*/
-        name: &str,             /*__String*/
+        name: &str,                /*__String*/
         skip_object_function_property_augment: Option<bool>,
     ) -> io::Result<Option<Gc<Symbol>>> {
         let mut single_prop: Option<Gc<Symbol>> = None;
@@ -328,13 +328,7 @@ impl TypeChecker {
             result_links.deferral_constituents = Some(prop_types);
         } else {
             result_links.type_ = Some(if is_union {
-                self.get_union_type(
-                    &prop_types,
-                    None,
-                    Option::<&Symbol>::None,
-                    None,
-                    None,
-                )?
+                self.get_union_type(&prop_types, None, Option::<&Symbol>::None, None, None)?
             } else {
                 self.get_intersection_type(&prop_types, Option::<&Symbol>::None, None)?
             });
@@ -345,7 +339,7 @@ impl TypeChecker {
     pub(super) fn get_union_or_intersection_property(
         &self,
         type_: Id<Type>, /*UnionOrIntersectionType*/
-        name: &str,   /*__String*/
+        name: &str,      /*__String*/
         skip_object_function_property_augment: Option<bool>,
     ) -> io::Result<Option<Gc<Symbol>>> {
         let type_as_union_or_intersection_type = type_.as_union_or_intersection_type_interface();
@@ -405,7 +399,7 @@ impl TypeChecker {
     pub(super) fn get_property_of_union_or_intersection_type(
         &self,
         type_: Id<Type>, /*UnionOrIntersectionType*/
-        name: &str,   /*__String*/
+        name: &str,      /*__String*/
         skip_object_function_property_augment: Option<bool>,
     ) -> io::Result<Option<Gc<Symbol>>> {
         let property = self.get_union_or_intersection_property(
@@ -477,13 +471,8 @@ impl TypeChecker {
         if are_gc_slices_equal(&reduced_types, union_type_as_union_type.types()) {
             return Ok(union_type.type_wrapper());
         }
-        let reduced = self.get_union_type(
-            &reduced_types,
-            None,
-            Option::<Symbol>::None,
-            None,
-            None,
-        )?;
+        let reduced =
+            self.get_union_type(&reduced_types, None, Option::<Symbol>::None, None, None)?;
         if reduced.flags().intersects(TypeFlags::Union) {
             *reduced.as_union_type().maybe_resolved_reduced_type() = Some(reduced.clone());
         }
@@ -713,7 +702,10 @@ impl TypeChecker {
         Ok(vec![])
     }
 
-    pub(super) fn get_index_infos_of_type(&self, type_: Id<Type>) -> io::Result<Vec<Gc<IndexInfo>>> {
+    pub(super) fn get_index_infos_of_type(
+        &self,
+        type_: Id<Type>,
+    ) -> io::Result<Vec<Gc<IndexInfo>>> {
         self.get_index_infos_of_structured_type(&*self.get_reduced_apparent_type(type_)?)
     }
 

@@ -263,19 +263,20 @@ impl TypeChecker {
                         Some(&node_as_array_literal_expression.elements),
                         Some(&Diagnostics::A_rest_parameter_or_binding_pattern_may_not_have_a_trailing_comma)
                     );
-                    let type_ =
-                        if self.every_type(source_type, |type_: Id<Type>| self.is_tuple_type(type_)) {
-                            self.try_map_type(
-                                source_type,
-                                &mut |t: Id<Type>| -> io::Result<_> {
-                                    Ok(Some(self.slice_tuple_type(t, element_index, None)?))
-                                },
-                                None,
-                            )?
-                            .unwrap()
-                        } else {
-                            self.create_array_type(element_type, None)
-                        };
+                    let type_ = if self
+                        .every_type(source_type, |type_: Id<Type>| self.is_tuple_type(type_))
+                    {
+                        self.try_map_type(
+                            source_type,
+                            &mut |t: Id<Type>| -> io::Result<_> {
+                                Ok(Some(self.slice_tuple_type(t, element_index, None)?))
+                            },
+                            None,
+                        )?
+                        .unwrap()
+                    } else {
+                        self.create_array_type(element_type, None)
+                    };
                     return Ok(Some(self.check_destructuring_assignment(
                         rest_expression,
                         &type_,

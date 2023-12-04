@@ -18,7 +18,10 @@ use crate::{
 };
 
 impl TypeChecker {
-    pub(super) fn get_regular_type_of_object_literal(&self, type_: Id<Type>) -> io::Result<Id<Type>> {
+    pub(super) fn get_regular_type_of_object_literal(
+        &self,
+        type_: Id<Type>,
+    ) -> io::Result<Id<Type>> {
         if !(self.is_object_literal_type(type_)
             && get_object_flags(type_).intersects(ObjectFlags::FreshLiteral))
         {

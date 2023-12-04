@@ -25,7 +25,7 @@ use crate::{
 impl TypeChecker {
     pub(super) fn check_members_for_override_modifier(
         &self,
-        node: &Node,  /*ClassLikeDeclaration*/
+        node: &Node,     /*ClassLikeDeclaration*/
         type_: Id<Type>, /*InterfaceType*/
         type_with_this: Id<Type>,
         static_type: Id<Type>, /*ObjectType*/
@@ -92,7 +92,7 @@ impl TypeChecker {
 
     pub(super) fn check_existing_member_for_override_modifier(
         &self,
-        node: &Node,        /*ClassLikeDeclaration*/
+        node: &Node,           /*ClassLikeDeclaration*/
         static_type: Id<Type>, /*ObjectType*/
         base_static_type: Id<Type>,
         base_with_this: Option<Id<Type>>,
@@ -132,7 +132,7 @@ impl TypeChecker {
 
     pub(super) fn check_member_for_override_modifier(
         &self,
-        node: &Node,        /*ClassLikeDeclaration*/
+        node: &Node,           /*ClassLikeDeclaration*/
         static_type: Id<Type>, /*ObjectType*/
         base_static_type: Id<Type>,
         base_with_this: Option<Id<Type>>,
@@ -354,8 +354,7 @@ impl TypeChecker {
 
         let symbol = self.get_symbol_of_node(node)?.unwrap();
         let type_ = self.get_declared_type_of_symbol(&symbol)?;
-        let type_with_this =
-            self.get_type_with_this_argument(&type_, None, None)?;
+        let type_with_this = self.get_type_with_this_argument(&type_, None, None)?;
         let static_type = self.get_type_of_symbol(&symbol)?;
 
         let base_type_node = get_effective_base_type_node(node);

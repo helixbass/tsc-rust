@@ -873,12 +873,7 @@ impl TypeChecker {
     ) -> io::Result<Id<Type>> {
         let reference = self.get_synthetic_element_access(node)?;
         Ok(if let Some(reference) = reference {
-            self.get_flow_type_of_reference(
-                &reference,
-                declared_type,
-                None,
-                Option::<&Node>::None,
-            )?
+            self.get_flow_type_of_reference(&reference, declared_type, None, Option::<&Node>::None)?
         } else {
             declared_type.type_wrapper()
         })

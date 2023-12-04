@@ -988,7 +988,11 @@ impl TypeChecker {
         Ok(type_.type_wrapper())
     }
 
-    pub(super) fn is_type_identical_to(&self, source: Id<Type>, target: Id<Type>) -> io::Result<bool> {
+    pub(super) fn is_type_identical_to(
+        &self,
+        source: Id<Type>,
+        target: Id<Type>,
+    ) -> io::Result<bool> {
         self.is_type_related_to(source, target, self.identity_relation.clone())
     }
 
@@ -1034,15 +1038,27 @@ impl TypeChecker {
         )
     }
 
-    pub(super) fn is_type_subtype_of(&self, source: Id<Type>, target: Id<Type>) -> io::Result<bool> {
+    pub(super) fn is_type_subtype_of(
+        &self,
+        source: Id<Type>,
+        target: Id<Type>,
+    ) -> io::Result<bool> {
         self.is_type_related_to(source, target, self.subtype_relation.clone())
     }
 
-    pub(super) fn is_type_assignable_to(&self, source: Id<Type>, target: Id<Type>) -> io::Result<bool> {
+    pub(super) fn is_type_assignable_to(
+        &self,
+        source: Id<Type>,
+        target: Id<Type>,
+    ) -> io::Result<bool> {
         self.is_type_related_to(source, target, self.assignable_relation.clone())
     }
 
-    pub(super) fn is_type_derived_from(&self, source: Id<Type>, target: Id<Type>) -> io::Result<bool> {
+    pub(super) fn is_type_derived_from(
+        &self,
+        source: Id<Type>,
+        target: Id<Type>,
+    ) -> io::Result<bool> {
         Ok(if source.flags().intersects(TypeFlags::Union) {
             try_every(source.as_union_type().types(), |t: &Id<Type>, _| {
                 self.is_type_derived_from(t, target)
@@ -1076,11 +1092,19 @@ impl TypeChecker {
         })
     }
 
-    pub(super) fn is_type_comparable_to(&self, source: Id<Type>, target: Id<Type>) -> io::Result<bool> {
+    pub(super) fn is_type_comparable_to(
+        &self,
+        source: Id<Type>,
+        target: Id<Type>,
+    ) -> io::Result<bool> {
         self.is_type_related_to(source, target, self.comparable_relation.clone())
     }
 
-    pub(super) fn are_types_comparable(&self, type1: Id<Type>, type2: Id<Type>) -> io::Result<bool> {
+    pub(super) fn are_types_comparable(
+        &self,
+        type1: Id<Type>,
+        type2: Id<Type>,
+    ) -> io::Result<bool> {
         Ok(
             self.is_type_comparable_to(type1, type2)?
                 || self.is_type_comparable_to(type2, type1)?,

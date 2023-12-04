@@ -584,7 +584,7 @@ impl TypeChecker {
         Ok(ret)
     }
 
-    pub(super) fn get_variances(&self, type_: Id<Type >/*GenericType*/) -> Vec<VarianceFlags> {
+    pub(super) fn get_variances(&self, type_: Id<Type> /*GenericType*/) -> Vec<VarianceFlags> {
         let type_as_generic_type = type_.as_generic_type();
         if ptr::eq(type_, &*self.global_array_type())
             || ptr::eq(type_, &*self.global_readonly_array_type())

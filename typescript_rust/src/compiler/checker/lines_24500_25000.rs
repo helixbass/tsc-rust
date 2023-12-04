@@ -208,7 +208,9 @@ impl GetFlowTypeOfReference {
             type_,
             &target_type,
             assume_true,
-            |source: Id<Type>, target: Id<Type>| self.type_checker.is_type_derived_from(source, target),
+            |source: Id<Type>, target: Id<Type>| {
+                self.type_checker.is_type_derived_from(source, target)
+            },
         )
     }
 
@@ -688,7 +690,10 @@ impl TypeChecker {
                 )?)?))
     }
 
-    pub(super) fn is_generic_type_with_union_constraint(&self, type_: Id<Type>) -> io::Result<bool> {
+    pub(super) fn is_generic_type_with_union_constraint(
+        &self,
+        type_: Id<Type>,
+    ) -> io::Result<bool> {
         Ok(type_.flags().intersects(TypeFlags::Instantiable)
             && self
                 .get_base_constraint_or_type(type_)?

@@ -16,7 +16,11 @@ use crate::{
 };
 
 impl TypeChecker {
-    pub(super) fn both_are_big_int_like(&self, left: Id<Type>, right: Id<Type>) -> io::Result<bool> {
+    pub(super) fn both_are_big_int_like(
+        &self,
+        left: Id<Type>,
+        right: Id<Type>,
+    ) -> io::Result<bool> {
         Ok(
             self.is_type_assignable_to_kind(left, TypeFlags::BigIntLike, None)?
                 && self.is_type_assignable_to_kind(right, TypeFlags::BigIntLike, None)?,
@@ -547,8 +551,7 @@ impl TypeChecker {
             if self.is_const_context(node)
                 || self.is_template_literal_context(node)
                 || self.try_some_type(
-                    self
-                        .get_contextual_type_(node, None)?
+                    self.get_contextual_type_(node, None)?
                         .unwrap_or_else(|| self.unknown_type()),
                     |type_: Id<Type>| self.is_template_literal_contextual_type(type_),
                 )?

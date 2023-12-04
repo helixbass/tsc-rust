@@ -358,7 +358,7 @@ impl TypeChecker {
         type_.unwrap()
     }
 
-    pub(super) fn clone_type_reference(&self, source: Id<Type >/*TypeReference*/) -> Id<Type> {
+    pub(super) fn clone_type_reference(&self, source: Id<Type> /*TypeReference*/) -> Id<Type> {
         let type_ = self.create_type(source.flags());
         type_.set_symbol(source.maybe_symbol());
         let source_as_type_reference = source.as_type_reference_interface();
@@ -377,7 +377,7 @@ impl TypeChecker {
     pub(super) fn create_deferred_type_reference(
         &self,
         target: Id<Type>, /*GenericType*/
-        node: &Node,   /*TypeReferenceNode | ArrayTypeNode | TupleTypeNode*/
+        node: &Node,      /*TypeReferenceNode | ArrayTypeNode | TupleTypeNode*/
         mapper: Option<Gc<TypeMapper>>,
         alias_symbol: Option<impl Borrow<Symbol>>,
         alias_type_arguments: Option<&[Id<Type>]>,
@@ -511,7 +511,7 @@ impl TypeChecker {
             .unwrap())
     }
 
-    pub(super) fn get_type_reference_arity(&self, type_: Id<Type >/*TypeReference*/) -> usize {
+    pub(super) fn get_type_reference_arity(&self, type_: Id<Type> /*TypeReference*/) -> usize {
         length(
             type_
                 .as_type_reference_interface()
@@ -937,7 +937,11 @@ impl TypeChecker {
         Ok(ret)
     }
 
-    pub(super) fn get_substitution_type(&self, base_type: Id<Type>, substitute: Id<Type>) -> Id<Type> {
+    pub(super) fn get_substitution_type(
+        &self,
+        base_type: Id<Type>,
+        substitute: Id<Type>,
+    ) -> Id<Type> {
         if substitute.flags().intersects(TypeFlags::AnyOrUnknown) || ptr::eq(substitute, base_type)
         {
             return base_type.type_wrapper();

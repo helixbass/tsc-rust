@@ -188,13 +188,7 @@ impl TypeChecker {
             return Ok(types.next().unwrap().clone());
         }
         Ok(if self.literal_types_with_same_base_type(types.clone())? {
-            self.get_union_type(
-                types,
-                None,
-                Option::<&Symbol>::None,
-                None,
-                None,
-            )?
+            self.get_union_type(types, None, Option::<&Symbol>::None, None, None)?
         } else {
             try_reduce_left_no_initial_value(
                 &types.cloned().collect::<Vec<_>>(),
@@ -721,13 +715,7 @@ impl TypeChecker {
             return Ok(Some(if writing {
                 self.get_intersection_type(&element_types, Option::<&Symbol>::None, None)?
             } else {
-                self.get_union_type(
-                    &element_types,
-                    None,
-                    Option::<&Symbol>::None,
-                    None,
-                    None,
-                )?
+                self.get_union_type(&element_types, None, Option::<&Symbol>::None, None, None)?
             }));
         }
         Ok(None)
@@ -749,7 +737,7 @@ impl TypeChecker {
             )
     }
 
-    pub(super) fn is_zero_big_int(&self, type_: Id<Type >/*BigIntLiteralType*/) -> bool {
+    pub(super) fn is_zero_big_int(&self, type_: Id<Type> /*BigIntLiteralType*/) -> bool {
         type_.as_big_int_literal_type().value.base_10_value == "0"
     }
 
@@ -842,7 +830,11 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn get_nullable_type(&self, type_: Id<Type>, flags: TypeFlags) -> io::Result<Id<Type>> {
+    pub(super) fn get_nullable_type(
+        &self,
+        type_: Id<Type>,
+        flags: TypeFlags,
+    ) -> io::Result<Id<Type>> {
         let missing = (flags & !type_.flags()) & (TypeFlags::Undefined | TypeFlags::Null);
         Ok(if missing == TypeFlags::None {
             type_.type_wrapper()
@@ -1029,7 +1021,11 @@ impl TypeChecker {
         })
     }
 
-    pub(super) fn is_coercible_under_double_equals(&self, source: Id<Type>, target: Id<Type>) -> bool {
+    pub(super) fn is_coercible_under_double_equals(
+        &self,
+        source: Id<Type>,
+        target: Id<Type>,
+    ) -> bool {
         source
             .flags()
             .intersects(TypeFlags::Number | TypeFlags::String | TypeFlags::BooleanLiteral)

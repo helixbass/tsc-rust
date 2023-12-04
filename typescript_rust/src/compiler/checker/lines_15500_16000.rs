@@ -352,13 +352,7 @@ impl TypeChecker {
         }
         Ok(if let Some(mut extra_types) = extra_types {
             append(&mut extra_types, Some(result));
-            self.get_union_type(
-                &extra_types,
-                None,
-                Option::<&Symbol>::None,
-                None,
-                None,
-            )?
+            self.get_union_type(&extra_types, None, Option::<&Symbol>::None, None, None)?
         } else {
             result
         })

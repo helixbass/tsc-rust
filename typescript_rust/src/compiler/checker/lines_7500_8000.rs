@@ -367,7 +367,9 @@ impl SymbolTableToDeclarationStatements {
                             false,
                             false,
                             true,
-                            |a: Id<Type>, b: Id<Type>| self.type_checker.compare_types_identical(a, b),
+                            |a: Id<Type>, b: Id<Type>| {
+                                self.type_checker.compare_types_identical(a, b)
+                            },
                         )? == Ternary::False
                         {
                             failed = true;
@@ -695,7 +697,7 @@ impl MakeSerializePropertySymbol {
         &self,
         p: &Symbol,
         is_static: bool,
-        base_type: Option<Id<Type>,
+        base_type: Option<Id<Type>>,
     ) -> io::Result<Vec<Gc<Node>>> {
         let modifier_flags = get_declaration_modifier_flags_from_symbol(p, None);
         let is_private = modifier_flags.intersects(ModifierFlags::Private);

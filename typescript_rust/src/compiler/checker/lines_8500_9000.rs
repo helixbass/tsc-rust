@@ -241,12 +241,7 @@ impl TypeChecker {
             return Ok(Some(
                 if self.strict_null_checks
                     && !self
-                        .get_falsy_flags(
-                            &*self.check_declaration_initializer(
-                                declaration,
-                                None,
-                            )?,
-                        )
+                        .get_falsy_flags(&*self.check_declaration_initializer(declaration, None)?)
                         .intersects(TypeFlags::Undefined)
                 {
                     self.get_non_undefined_type(&type_)?

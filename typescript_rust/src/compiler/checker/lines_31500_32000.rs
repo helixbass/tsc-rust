@@ -107,9 +107,8 @@ impl TypeChecker {
                 ),
             } {
                 if parameter.is_none() {
-                    *signature.maybe_this_parameter_mut() = Some(
-                        self.create_symbol_with_type(context_this_parameter, None),
-                    );
+                    *signature.maybe_this_parameter_mut() =
+                        Some(self.create_symbol_with_type(context_this_parameter, None));
                 }
                 self.assign_parameter_type(
                     signature.maybe_this_parameter().as_ref().unwrap(),

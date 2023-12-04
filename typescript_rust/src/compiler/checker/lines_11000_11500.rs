@@ -982,7 +982,7 @@ impl TypeChecker {
     pub(super) fn add_member_for_key_type_resolved_mapped_type_members(
         &self,
         type_: Id<Type>, /*MappedType*/
-        name_type: Option<Id<Type>,
+        name_type: Option<Id<Type>>,
         type_parameter: Id<Type>,
         members: &mut SymbolTable,
         modifiers_type: Id<Type>,
@@ -1028,7 +1028,7 @@ impl TypeChecker {
         modifiers_type: Id<Type>,
         template_modifiers: MappedTypeModifiers,
         type_: Id<Type>,
-        name_type: Option<Id<Type>,
+        name_type: Option<Id<Type>>,
         template_type: Id<Type>,
         type_parameter: Id<Type>,
         index_infos: &mut Vec<Gc<IndexInfo>>,

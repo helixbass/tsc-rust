@@ -468,31 +468,30 @@ impl TypeChecker {
             attributes_type,
             &jsx_children_property_name,
         )?;
-        child_field_type
-            .try_and_then(|child_field_type| -> io::Result<_> {
-                Ok(if real_children.len() == 1 {
-                    Some(child_field_type.clone())
-                } else {
-                    self.try_map_type(
-                        child_field_type,
-                        &mut |t: Id<Type>| {
-                            Ok(if self.is_array_like_type(t)? {
-                                Some(self.get_indexed_access_type(
-                                    t,
-                                    self.get_number_literal_type(Number::new(child_index as f64)),
-                                    None,
-                                    Option::<&Node>::None,
-                                    Option::<&Symbol>::None,
-                                    None,
-                                )?)
-                            } else {
-                                Some(t)
-                            })
-                        },
-                        Some(true),
-                    )?
-                })
+        child_field_type.try_and_then(|child_field_type| -> io::Result<_> {
+            Ok(if real_children.len() == 1 {
+                Some(child_field_type.clone())
+            } else {
+                self.try_map_type(
+                    child_field_type,
+                    &mut |t: Id<Type>| {
+                        Ok(if self.is_array_like_type(t)? {
+                            Some(self.get_indexed_access_type(
+                                t,
+                                self.get_number_literal_type(Number::new(child_index as f64)),
+                                None,
+                                Option::<&Node>::None,
+                                Option::<&Symbol>::None,
+                                None,
+                            )?)
+                        } else {
+                            Some(t)
+                        })
+                    },
+                    Some(true),
+                )?
             })
+        })
     }
 
     pub(super) fn get_contextual_type_for_jsx_expression(
@@ -557,7 +556,7 @@ impl TypeChecker {
 
     pub(super) fn discriminate_contextual_type_by_object_members(
         &self,
-        node: &Node,            /*ObjectLiteralExpression*/
+        node: &Node,               /*ObjectLiteralExpression*/
         contextual_type: Id<Type>, /*UnionType*/
     ) -> io::Result<Id<Type>> {
         self.get_matching_union_constituent_for_object_literal(
@@ -629,7 +628,7 @@ impl TypeChecker {
 
     pub(super) fn discriminate_contextual_type_by_jsx_attributes(
         &self,
-        node: &Node,            /*JsxAttributes*/
+        node: &Node,               /*JsxAttributes*/
         contextual_type: Id<Type>, /*UnionType*/
     ) -> io::Result<Id<Type>> {
         Ok(self.discriminate_type_by_discriminable_items(
@@ -721,7 +720,8 @@ impl TypeChecker {
             self.instantiate_contextual_type(contextual_type, node, context_flags)?;
         if let Some(instantiated_type) = instantiated_type {
             if !(matches!(context_flags, Some(context_flags) if context_flags.intersects(ContextFlags::NoConstraints))
-                && self.type_(instantiated_type)
+                && self
+                    .type_(instantiated_type)
                     .flags()
                     .intersects(TypeFlags::TypeVariable))
             {
@@ -733,7 +733,10 @@ impl TypeChecker {
                     )?
                     .unwrap();
                 return Ok(
-                    if self.type_(apparent_type).flags().intersects(TypeFlags::Union)
+                    if self
+                        .type_(apparent_type)
+                        .flags()
+                        .intersects(TypeFlags::Union)
                         && is_object_literal_expression(node)
                     {
                         Some(
@@ -742,7 +745,10 @@ impl TypeChecker {
                                 apparent_type,
                             )?,
                         )
-                    } else if self.type_(apparent_type).flags().intersects(TypeFlags::Union)
+                    } else if self
+                        .type_(apparent_type)
+                        .flags()
+                        .intersects(TypeFlags::Union)
                         && is_jsx_attributes(node)
                     {
                         Some(
@@ -806,25 +812,35 @@ impl TypeChecker {
         type_: Id<Type>,
         mapper: Gc<TypeMapper>,
     ) -> io::Result<Id<Type>> {
-        if self.type_(type_).flags().intersects(TypeFlags::Instantiable) {
+        if self
+            .type_(type_)
+            .flags()
+            .intersects(TypeFlags::Instantiable)
+        {
             return self.instantiate_type(type_, Some(mapper));
         }
         if self.type_(type_).flags().intersects(TypeFlags::Union) {
             return self.get_union_type(
-                &try_map(self.type_(type_).as_union_type().types().to_owned(), |t: Id<Type>, _| {
-                    self.instantiate_instantiable_types(t, mapper.clone())
-                })?,
+                &try_map(
+                    self.type_(type_).as_union_type().types().to_owned(),
+                    |t: Id<Type>, _| self.instantiate_instantiable_types(t, mapper.clone()),
+                )?,
                 Some(UnionReduction::None),
                 Option::<&Symbol>::None,
                 None,
                 None,
             );
         }
-        if self.type_(type_).flags().intersects(TypeFlags::Intersection) {
+        if self
+            .type_(type_)
+            .flags()
+            .intersects(TypeFlags::Intersection)
+        {
             return self.get_intersection_type(
-                &try_map(self.type_(type_).as_intersection_type().types().to_owned(), |t: Id<Type>, _| {
-                    self.instantiate_instantiable_types(t, mapper.clone())
-                })?,
+                &try_map(
+                    self.type_(type_).as_intersection_type().types().to_owned(),
+                    |t: Id<Type>, _| self.instantiate_instantiable_types(t, mapper.clone()),
+                )?,
                 Option::<&Symbol>::None,
                 None,
             );
@@ -1052,7 +1068,11 @@ impl TypeChecker {
         }
         let tag_type =
             self.check_expression_cached(&context_as_jsx_opening_like_element.tag_name(), None)?;
-        if self.type_(tag_type).flags().intersects(TypeFlags::StringLiteral) {
+        if self
+            .type_(tag_type)
+            .flags()
+            .intersects(TypeFlags::StringLiteral)
+        {
             let result =
                 self.get_intrinsic_attributes_type_from_string_literal_type(tag_type, context)?;
             if result.is_none() {

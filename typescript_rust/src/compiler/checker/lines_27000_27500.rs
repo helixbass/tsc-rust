@@ -564,12 +564,9 @@ impl TypeChecker {
             {
                 continue;
             } else {
-                children_types.push(self.check_expression_for_mutable_location(
-                    child,
-                    check_mode,
-                    None,
-                    None,
-                )?);
+                children_types.push(
+                    self.check_expression_for_mutable_location(child, check_mode, None, None)?,
+                );
             }
         }
         Ok(children_types)

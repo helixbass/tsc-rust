@@ -829,8 +829,7 @@ impl TypeChecker {
         self.check_exports_on_merged_declarations(node)?;
         let symbol = self.get_symbol_of_node(node)?.unwrap();
         let type_ = self.get_declared_type_of_symbol(&symbol)?;
-        let type_with_this =
-            self.get_type_with_this_argument(&type_, None, None)?;
+        let type_with_this = self.get_type_with_this_argument(&type_, None, None)?;
         let static_type = self.get_type_of_symbol(&symbol)?;
         self.check_type_parameter_lists_identical(&symbol)?;
         self.check_function_or_constructor_symbol(&symbol)?;

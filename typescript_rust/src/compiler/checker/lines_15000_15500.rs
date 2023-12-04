@@ -985,7 +985,11 @@ impl TypeChecker {
             && matches!(type_.as_type_parameter().is_this_type, Some(true))
     }
 
-    pub(super) fn get_simplified_type(&self, type_: Id<Type>, writing: bool) -> io::Result<Id<Type>> {
+    pub(super) fn get_simplified_type(
+        &self,
+        type_: Id<Type>,
+        writing: bool,
+    ) -> io::Result<Id<Type>> {
         Ok(if type_.flags().intersects(TypeFlags::IndexedAccess) {
             self.get_simplified_indexed_access_type(type_, writing)?
         } else if type_.flags().intersects(TypeFlags::Conditional) {
@@ -1027,13 +1031,7 @@ impl TypeChecker {
                 if object_type.flags().intersects(TypeFlags::Intersection) || writing {
                     self.get_intersection_type(&types, Option::<&Symbol>::None, None)?
                 } else {
-                    self.get_union_type(
-                        &types,
-                        None,
-                        Option::<&Symbol>::None,
-                        None,
-                        None,
-                    )?
+                    self.get_union_type(&types, None, Option::<&Symbol>::None, None, None)?
                 },
             ));
         }
@@ -1063,13 +1061,7 @@ impl TypeChecker {
             return Ok(Some(if writing {
                 self.get_intersection_type(&types, Option::<&Symbol>::None, None)?
             } else {
-                self.get_union_type(
-                    &types,
-                    None,
-                    Option::<&Symbol>::None,
-                    None,
-                    None,
-                )?
+                self.get_union_type(&types, None, Option::<&Symbol>::None, None, None)?
             }));
         }
         Ok(None)
@@ -1215,7 +1207,11 @@ impl TypeChecker {
         Ok(type_.type_wrapper())
     }
 
-    pub(super) fn is_intersection_empty(&self, type1: Id<Type>, type2: Id<Type>) -> io::Result<bool> {
+    pub(super) fn is_intersection_empty(
+        &self,
+        type1: Id<Type>,
+        type2: Id<Type>,
+    ) -> io::Result<bool> {
         Ok(self
             .get_union_type(
                 &[

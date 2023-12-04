@@ -728,22 +728,10 @@ impl TypeChecker {
         if yield_types.is_some() || return_types.is_some() || next_types.is_some() {
             return Ok(self.create_iteration_types(
                 yield_types.try_map(|yield_types| {
-                    self.get_union_type(
-                        &yield_types,
-                        None,
-                        Option::<&Symbol>::None,
-                        None,
-                        None,
-                    )
+                    self.get_union_type(&yield_types, None, Option::<&Symbol>::None, None, None)
                 })?,
                 return_types.try_map(|return_types| {
-                    self.get_union_type(
-                        &return_types,
-                        None,
-                        Option::<&Symbol>::None,
-                        None,
-                        None,
-                    )
+                    self.get_union_type(&return_types, None, Option::<&Symbol>::None, None, None)
                 })?,
                 next_types.try_map(|next_types| {
                     self.get_intersection_type(&next_types, Option::<&Symbol>::None, None)

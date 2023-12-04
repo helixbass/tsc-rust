@@ -791,7 +791,9 @@ impl TypeChecker {
         union_target: Id<Type>, /*UnionOrIntersectionType*/
     ) -> io::Result<Option<Id<Type>>> {
         if get_object_flags(source).intersects(ObjectFlags::ObjectLiteral)
-            && self.try_some_type(union_target, |type_: Id<Type>| self.is_array_like_type(type_))?
+            && self.try_some_type(union_target, |type_: Id<Type>| {
+                self.is_array_like_type(type_)
+            })?
         {
             return Ok(try_find(
                 union_target

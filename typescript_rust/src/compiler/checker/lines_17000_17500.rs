@@ -721,7 +721,7 @@ impl TypeChecker {
 
     pub(super) fn get_elaboration_element_for_jsx_child(
         &self,
-        child: &Node,     /*JsxChild*/
+        child: &Node,        /*JsxChild*/
         name_type: Id<Type>, /*LiteralType*/
         get_invalid_text_diagnostic: &mut impl FnMut() -> io::Result<Cow<'static, DiagnosticMessage>>,
     ) -> io::Result<Option<ElaborationIteratorItem>> {
@@ -1391,19 +1391,11 @@ impl TypeChecker {
                                 ),
                                 Some(vec![
                                     unescape_leading_underscores(
-                                        &*self.get_parameter_name_at_position(
-                                            &source,
-                                            i,
-                                            None,
-                                        )?,
+                                        &*self.get_parameter_name_at_position(&source, i, None)?,
                                     )
                                     .to_owned(),
                                     unescape_leading_underscores(
-                                        &*self.get_parameter_name_at_position(
-                                            &target,
-                                            i,
-                                            None,
-                                        )?,
+                                        &*self.get_parameter_name_at_position(&target, i, None)?,
                                     )
                                     .to_owned(),
                                 ]),

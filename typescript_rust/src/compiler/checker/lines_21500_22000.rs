@@ -840,9 +840,11 @@ impl InferTypes {
             } else {
                 let simplified = self.type_checker.get_simplified_type(&target, false)?;
                 if !Gc::ptr_eq(&simplified, &target) {
-                    self.try_invoke_once(&source, &simplified, |source: Id<Type>, target: Id<Type>| {
-                        self.infer_from_types(source, target)
-                    })?;
+                    self.try_invoke_once(
+                        &source,
+                        &simplified,
+                        |source: Id<Type>, target: Id<Type>| self.infer_from_types(source, target),
+                    )?;
                 } else if target.flags().intersects(TypeFlags::IndexedAccess) {
                     let target_as_indexed_access_type = target.as_indexed_access_type();
                     let index_type = self

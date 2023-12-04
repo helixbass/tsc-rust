@@ -1727,7 +1727,11 @@ impl TypeChecker {
         )
     }
 
-    pub fn get_property_of_type(&self, type_: Id<Type>, name: &str) -> io::Result<Option<Gc<Symbol>>> {
+    pub fn get_property_of_type(
+        &self,
+        type_: Id<Type>,
+        name: &str,
+    ) -> io::Result<Option<Gc<Symbol>>> {
         self.get_property_of_type_(type_, &escape_leading_underscores(name), None)
     }
 

@@ -483,8 +483,12 @@ impl TypeChecker {
         mapper: &mut impl FnMut(Id<Type>) -> Option<Id<Type>>,
         no_reductions: Option<bool>,
     ) -> Option<Id<Type>> {
-        self.try_map_type(type_, &mut |type_: Id<Type>| Ok(mapper(type_)), no_reductions)
-            .unwrap()
+        self.try_map_type(
+            type_,
+            &mut |type_: Id<Type>| Ok(mapper(type_)),
+            no_reductions,
+        )
+        .unwrap()
     }
 
     #[allow(dead_code)]
@@ -650,7 +654,7 @@ impl TypeChecker {
     pub(super) fn add_evolving_array_element_type(
         &self,
         evolving_array_type: Id<Type>, /*EvolvingArrayType*/
-        node: &Node,                /*Expression*/
+        node: &Node,                   /*Expression*/
     ) -> io::Result<Id<Type /*EvolvingArrayType*/>> {
         let element_type = self
             .get_regular_type_of_object_literal(&*self.get_base_type_of_literal_type(

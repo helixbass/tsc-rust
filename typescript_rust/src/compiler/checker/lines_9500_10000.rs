@@ -395,7 +395,7 @@ impl TypeChecker {
 
     pub(super) fn has_base_type_check(
         &self,
-        check_base: Option<Id<Type>,
+        check_base: Option<Id<Type>>,
         type_: Id<Type>,
     ) -> io::Result<bool> {
         Ok(

@@ -1819,7 +1819,11 @@ impl CheckTypeRelatedTo {
 #[derive(Trace, Finalize)]
 pub(super) struct ReportUnmeasurableMarkers;
 impl TypeMapperCallback for ReportUnmeasurableMarkers {
-    fn call(&self, checker: &TypeChecker, p: Id<Type >/*TypeParameter*/) -> io::Result<Id<Type>> {
+    fn call(
+        &self,
+        checker: &TypeChecker,
+        p: Id<Type>, /*TypeParameter*/
+    ) -> io::Result<Id<Type>> {
         if let Some(outofband_variance_marker_handler) =
             checker.maybe_outofband_variance_marker_handler()
         {
@@ -1837,7 +1841,11 @@ impl TypeMapperCallback for ReportUnmeasurableMarkers {
 #[derive(Trace, Finalize)]
 pub(super) struct ReportUnreliableMarkers;
 impl TypeMapperCallback for ReportUnreliableMarkers {
-    fn call(&self, checker: &TypeChecker, p: Id<Type >/*TypeParameter*/) -> io::Result<Id<Type>> {
+    fn call(
+        &self,
+        checker: &TypeChecker,
+        p: Id<Type>, /*TypeParameter*/
+    ) -> io::Result<Id<Type>> {
         if let Some(outofband_variance_marker_handler) =
             checker.maybe_outofband_variance_marker_handler()
         {

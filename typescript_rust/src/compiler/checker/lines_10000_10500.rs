@@ -19,7 +19,10 @@ use crate::{
 };
 
 impl TypeChecker {
-    pub(super) fn are_all_outer_type_parameters_applied(&self, type_: Id<Type>) -> io::Result<bool> {
+    pub(super) fn are_all_outer_type_parameters_applied(
+        &self,
+        type_: Id<Type>,
+    ) -> io::Result<bool> {
         let outer_type_parameters = type_
             .maybe_as_interface_type()
             .and_then(|type_| type_.maybe_outer_type_parameters());
@@ -422,7 +425,10 @@ impl TypeChecker {
         Ok(ret)
     }
 
-    pub(super) fn get_base_type_of_enum_literal_type(&self, type_: Id<Type>) -> io::Result<Id<Type>> {
+    pub(super) fn get_base_type_of_enum_literal_type(
+        &self,
+        type_: Id<Type>,
+    ) -> io::Result<Id<Type>> {
         Ok(
             if type_.flags().intersects(TypeFlags::EnumLiteral)
                 && !type_.flags().intersects(TypeFlags::Union)
