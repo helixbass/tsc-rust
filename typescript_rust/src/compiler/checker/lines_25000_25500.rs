@@ -281,13 +281,9 @@ impl TypeChecker {
     ) -> io::Result<bool> {
         let class_symbol = self.get_symbol_of_node(class_decl)?.unwrap();
         let class_instance_type = self.get_declared_type_of_symbol(&class_symbol)?;
-        let base_constructor_type =
-            self.get_base_constructor_type_of_class(&class_instance_type)?;
+        let base_constructor_type = self.get_base_constructor_type_of_class(class_instance_type)?;
 
-        Ok(Gc::ptr_eq(
-            &base_constructor_type,
-            &self.null_widening_type(),
-        ))
+        Ok(base_constructor_type == self.null_widening_type())
     }
 
     pub(super) fn check_this_before_super(
@@ -394,11 +390,8 @@ impl TypeChecker {
         if self.no_implicit_this {
             let global_this_type = self.get_type_of_symbol(&self.global_this_symbol())?;
             if matches!(
-                type_.as_ref(),
-                Some(type_) if Gc::ptr_eq(
-                    type_,
-                    &global_this_type
-                )
+                type_,
+                Some(type_) if type_ == global_this_type
             ) && captured_by_arrow_function
             {
                 self.error(
@@ -416,11 +409,8 @@ impl TypeChecker {
                     let outside_this =
                         self.try_get_this_type_at_(&container, None, Option::<&Node>::None)?;
                     if matches!(
-                        outside_this.as_ref(),
-                        Some(outside_this) if !Gc::ptr_eq(
-                            outside_this,
-                            &global_this_type
-                        )
+                        outside_this,
+                        Some(outside_this) if outside_this != global_this_type
                     ) {
                         add_related_info(
                             &diag,

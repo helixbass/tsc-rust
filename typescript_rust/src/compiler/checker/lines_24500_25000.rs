@@ -156,7 +156,7 @@ impl GetFlowTypeOfReference {
 
         if self.type_checker.is_type_any(Some(type_))
             && matches!(
-                target_type.as_ref(),
+                target_type,
                 Some(target_type) if
                     target_type == self.type_checker.global_object_type()
                         || target_type == self.type_checker.global_function_type()
@@ -327,8 +327,8 @@ impl GetFlowTypeOfReference {
         call_expression: &Node, /*CallExpression*/
         assume_true: bool,
     ) -> io::Result<Id<Type>> {
-        if let Some(predicate_type) = predicate.type_.filter(|predicate_type| {
-            !(self.type_checker.is_type_any(Some(&*type_))
+        if let Some(predicate_type) = predicate.type_.filter(|&predicate_type| {
+            !(self.type_checker.is_type_any(Some(type_))
                 && (predicate_type == self.type_checker.global_object_type()
                     || predicate_type == self.type_checker.global_function_type()))
         }) {
@@ -341,7 +341,7 @@ impl GetFlowTypeOfReference {
                     .is_matching_reference(&self.reference, predicate_argument)?
                 {
                     return self.get_narrowed_type(
-                        &type_,
+                        type_,
                         predicate_type,
                         assume_true,
                         |type1: Id<Type>, type2: Id<Type>| {
@@ -361,11 +361,11 @@ impl GetFlowTypeOfReference {
                 {
                     type_ = self
                         .type_checker
-                        .get_type_with_facts(&type_, TypeFacts::NEUndefinedOrNull)?;
+                        .get_type_with_facts(type_, TypeFacts::NEUndefinedOrNull)?;
                 }
-                let access = self.get_discriminant_property_access(predicate_argument, &type_)?;
+                let access = self.get_discriminant_property_access(predicate_argument, type_)?;
                 if let Some(access) = access.as_ref() {
-                    return self.try_narrow_type_by_discriminant(&type_, access, |t: Id<Type>| {
+                    return self.try_narrow_type_by_discriminant(type_, access, |t: Id<Type>| {
                         self.get_narrowed_type(
                             t,
                             predicate_type,
@@ -378,7 +378,7 @@ impl GetFlowTypeOfReference {
                 }
             }
         }
-        Ok(type_.type_wrapper())
+        Ok(type_)
     }
 
     pub(super) fn narrow_type(
