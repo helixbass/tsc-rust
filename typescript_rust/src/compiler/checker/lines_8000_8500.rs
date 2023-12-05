@@ -85,7 +85,7 @@ impl TypeChecker {
             } else {
                 get_factory().create_this_type_node()
             },
-            type_predicate.type_.as_ref().try_and_then(|type_| {
+            type_predicate.type_.try_and_then(|type_| {
                 self.node_builder().type_to_type_node(
                     type_,
                     enclosing_declaration.as_deref(),
@@ -126,13 +126,13 @@ impl TypeChecker {
         let mut flags: TypeFlags = TypeFlags::None;
         let mut i = 0;
         while i < types.len() {
-            let t = &types[i];
-            flags |= t.flags();
-            if !t.flags().intersects(TypeFlags::Nullable) {
-                if t.flags()
+            let t = types[i];
+            flags |= self.type_(t).flags();
+            if !self.type_(t).flags().intersects(TypeFlags::Nullable) {
+                if self.type_(t).flags()
                     .intersects(TypeFlags::BooleanLiteral | TypeFlags::EnumLiteral)
                 {
-                    let base_type = if t.flags().intersects(TypeFlags::BooleanLiteral) {
+                    let base_type = if self.type_(t).flags().intersects(TypeFlags::BooleanLiteral) {
                         self.boolean_type()
                     } else {
                         self.get_base_type_of_enum_literal_type(t)?
@@ -141,12 +141,11 @@ impl TypeChecker {
                         let base_type_as_union_type = base_type.as_union_type();
                         let count = base_type_as_union_type.types().len();
                         if i + count <= types.len()
-                            && Gc::ptr_eq(
-                                &self.get_regular_type_of_literal_type(&*types[i + count - 1]),
-                                &self.get_regular_type_of_literal_type(
-                                    &base_type_as_union_type.types()[count - 1],
-                                ),
-                            )
+                            && 
+                                self.get_regular_type_of_literal_type(types[i + count - 1]) ==
+                                self.get_regular_type_of_literal_type(
+                                    base_type_as_union_type.types()[count - 1],
+                                )
                         {
                             result.push(base_type);
                             i += count - 1 + 1;
@@ -181,7 +180,7 @@ impl TypeChecker {
         &self,
         type_: Id<Type>,
     ) -> io::Result<Option<Gc<Symbol>>> {
-        if let Some(type_symbol) = type_.maybe_symbol() {
+        if let Some(type_symbol) = self.type_(type_).maybe_symbol() {
             if type_symbol.flags().intersects(SymbolFlags::TypeLiteral) {
                 if let Some(type_symbol_declarations) = type_symbol.maybe_declarations().as_deref()
                 {
@@ -217,11 +216,11 @@ impl TypeChecker {
             .borrow()
             .name_type
             .clone()?;
-        if name_type
-            .flags()
+        if self.type_(name_type
+            ).flags()
             .intersects(TypeFlags::StringOrNumberLiteral)
         {
-            let name: String = match &*name_type {
+            let name: String = match self.type_(name_type ){
                 Type::LiteralType(LiteralType::StringLiteralType(name_type)) => {
                     name_type.value.clone()
                 }
@@ -246,10 +245,14 @@ impl TypeChecker {
             }
             return Some(name);
         }
-        if name_type.flags().intersects(TypeFlags::UniqueESSymbol) {
+        if self
+            .type_(name_type)
+            .flags()
+            .intersects(TypeFlags::UniqueESSymbol)
+        {
             return Some(format!(
                 "[{}]",
-                self.get_name_of_symbol_as_written(&name_type.symbol(), context)
+                self.get_name_of_symbol_as_written(&self.type_(name_type).symbol(), context)
             ));
         }
         None
@@ -305,7 +308,7 @@ impl TypeChecker {
                         {
                             let name_type =
                                 (*self.get_symbol_links(symbol)).borrow().name_type.clone();
-                            if matches!(name_type, Some(name_type) if name_type.flags().intersects(TypeFlags::StringOrNumberLiteral))
+                            if matches!(name_type, Some(name_type) if self.type_(name_type).flags().intersects(TypeFlags::StringOrNumberLiteral))
                             {
                                 let result =
                                     self.get_name_of_symbol_from_name_type(symbol, context);
@@ -625,8 +628,8 @@ impl TypeChecker {
                 .borrow()
                 .declared_type
                 .is_some(),
-            TypeSystemPropertyName::ResolvedBaseConstructorType => target
-                .as_type()
+            TypeSystemPropertyName::ResolvedBaseConstructorType => self.type_(target
+                .as_type())
                 .as_not_actually_interface_type()
                 .maybe_resolved_base_constructor_type()
                 .is_some(),
@@ -634,16 +637,16 @@ impl TypeChecker {
                 target.as_signature().maybe_resolved_return_type().is_some()
             }
             TypeSystemPropertyName::ImmediateBaseConstraint => {
-                target.as_type().maybe_immediate_base_constraint().is_some()
+                self.type_(target.as_type()).maybe_immediate_base_constraint().is_some()
             }
-            TypeSystemPropertyName::ResolvedTypeArguments => target
-                .as_type()
+            TypeSystemPropertyName::ResolvedTypeArguments => self.type_(target
+                .as_type())
                 .as_type_reference()
                 .maybe_resolved_type_arguments()
                 .is_some(),
             TypeSystemPropertyName::ResolvedBaseTypes => matches!(
-                target
-                    .as_type()
+                self.type_(target
+                    .as_type())
                     .as_not_actually_interface_type()
                     .maybe_base_types_resolved(),
                 Some(true)
@@ -681,13 +684,13 @@ impl TypeChecker {
         let class_type =
             self.get_declared_type_of_symbol(&self.get_parent_of_symbol(prototype)?.unwrap())?;
         Ok(
-            if let Some(class_type_type_parameters) = class_type
-                .as_interface_type()
+            if let Some(class_type_type_parameters) = self.type_(class_type
+                ).as_interface_type()
                 .maybe_type_parameters()
                 .as_deref()
             {
                 self.create_type_reference(
-                    &class_type,
+                    class_type,
                     Some(map(class_type_type_parameters, |_, _| self.any_type())),
                 )
             } else {
@@ -723,16 +726,16 @@ impl TypeChecker {
     pub(super) fn is_type_any(&self, type_: Option<Id<Type>>) -> bool {
         match type_ {
             Some(type_) => {
-                let type_ = type_.borrow();
-                type_.flags().intersects(TypeFlags::Any)
+                self.type_(type_).flags().intersects(TypeFlags::Any)
             }
             None => false,
         }
     }
 
     pub(super) fn is_error_type(&self, type_: Id<Type>) -> bool {
-        ptr::eq(type_, &*self.error_type())
-            || type_.flags().intersects(TypeFlags::Any) && type_.maybe_alias_symbol().is_some()
+        type_ == self.error_type()
+            || self.type_(type_).flags().intersects(TypeFlags::Any)
+                && self.type_(type_).maybe_alias_symbol().is_some()
     }
 
     pub(super) fn get_type_for_binding_element_parent(
@@ -752,15 +755,17 @@ impl TypeChecker {
         properties: &[Gc<Node /*PropertyName*/>],
         symbol: Option<impl Borrow<Symbol>>,
     ) -> io::Result<Id<Type>> {
-        let source = self.filter_type(source, |t| !t.flags().intersects(TypeFlags::Nullable));
-        if source.flags().intersects(TypeFlags::Never) {
+        let source = self.filter_type(source, |t| {
+            !self.type_(t).flags().intersects(TypeFlags::Nullable)
+        });
+        if self.type_(source).flags().intersects(TypeFlags::Never) {
             return Ok(self.empty_object_type());
         }
         let symbol = symbol.map(|symbol| symbol.borrow().symbol_wrapper());
-        if source.flags().intersects(TypeFlags::Union) {
+        if self.type_(source).flags().intersects(TypeFlags::Union) {
             return Ok(self
                 .try_map_type(
-                    &source,
+                    source,
                     &mut |t| {
                         Ok(Some(self.get_rest_type(
                             t,
@@ -781,8 +786,12 @@ impl TypeChecker {
             None,
             None,
         )?;
-        if self.is_generic_object_type(&source)? || self.is_generic_index_type(&omit_key_type)? {
-            if omit_key_type.flags().intersects(TypeFlags::Never) {
+        if self.is_generic_object_type(source)? || self.is_generic_index_type(omit_key_type)? {
+            if self
+                .type_(omit_key_type)
+                .flags()
+                .intersects(TypeFlags::Never)
+            {
                 return Ok(source);
             }
 
@@ -799,14 +808,14 @@ impl TypeChecker {
             );
         }
         let mut members = create_symbol_table(Option::<&[Gc<Symbol>]>::None);
-        for prop in self.get_properties_of_type(&source)? {
+        for prop in self.get_properties_of_type(source)? {
             if !self.is_type_assignable_to(
-                &*self.get_literal_type_from_property(
+                self.get_literal_type_from_property(
                     &prop,
                     TypeFlags::StringOrNumberLiteralOrUnique,
                     None,
                 )?,
-                &omit_key_type,
+                omit_key_type,
             )? && !get_declaration_modifier_flags_from_symbol(&prop, None)
                 .intersects(ModifierFlags::Private | ModifierFlags::Protected)
                 && self.is_spreadable_property(&prop)
@@ -822,11 +831,10 @@ impl TypeChecker {
             Gc::new(GcCell::new(members)),
             vec![],
             vec![],
-            self.get_index_infos_of_type(&source)?,
+            self.get_index_infos_of_type(source)?,
         )?;
-        let result_as_interface_type = result.as_interface_type();
-        result_as_interface_type.set_object_flags(
-            result_as_interface_type.object_flags() | ObjectFlags::ObjectRestType,
+        self.type_(result).as_interface_type().set_object_flags(
+            self.type_(result).as_interface_type().object_flags() | ObjectFlags::ObjectRestType,
         );
         Ok(result)
     }
@@ -835,9 +843,9 @@ impl TypeChecker {
         &self,
         type_: Id<Type>,
     ) -> io::Result<bool> {
-        Ok(type_.flags().intersects(TypeFlags::Instantiable)
+        Ok(self.type_(type_).flags().intersects(TypeFlags::Instantiable)
             && self.maybe_type_of_kind(
-                &self
+                self
                     .get_base_constraint_of_type(type_)?
                     .unwrap_or_else(|| self.unknown_type()),
                 TypeFlags::Undefined,
@@ -851,17 +859,17 @@ impl TypeChecker {
             self.try_map_type(
                 type_,
                 &mut |t| {
-                    Ok(Some(if t.flags().intersects(TypeFlags::Instantiable) {
+                    Ok(Some(if self.type_(t).flags().intersects(TypeFlags::Instantiable) {
                         self.get_base_constraint_or_type(t)?
                     } else {
-                        t.type_wrapper()
+                        t
                     }))
                 },
                 None,
             )?
             .unwrap()
         } else {
-            type_.type_wrapper()
+            type_
         };
         self.get_type_with_facts(&type_or_constraint, TypeFacts::NEUndefined)
     }
@@ -875,7 +883,7 @@ impl TypeChecker {
         Ok(if let Some(reference) = reference {
             self.get_flow_type_of_reference(&reference, declared_type, None, Option::<&Node>::None)?
         } else {
-            declared_type.type_wrapper()
+            declared_type
         })
     }
 

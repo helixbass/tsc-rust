@@ -28,7 +28,7 @@ impl TypeChecker {
         type_parameter: Id<Type>, /*TypeParameter*/
     ) -> io::Result<Option<Id<Type>>> {
         let mut inferences: Option<Vec<Id<Type>>> = None;
-        if let Some(type_parameter_symbol) = type_parameter.maybe_symbol() {
+        if let Some(type_parameter_symbol) = self.type_(type_parameter).maybe_symbol() {
             if let Some(type_parameter_symbol_declarations) =
                 type_parameter_symbol.maybe_declarations().as_deref()
             {
@@ -59,7 +59,7 @@ impl TypeChecker {
                                 if index < type_parameters.len() {
                                     let declared_constraint = self
                                         .get_constraint_of_type_parameter(
-                                            &type_parameters[index],
+                                            type_parameters[index],
                                         )?;
                                     if let Some(declared_constraint) = declared_constraint {
                                         let mapper = Gc::new(self.create_type_mapper(
@@ -70,8 +70,8 @@ impl TypeChecker {
                                             )?),
                                         ));
                                         let constraint = self
-                                            .instantiate_type(&declared_constraint, Some(mapper))?;
-                                        if !ptr::eq(&*constraint, type_parameter) {
+                                            .instantiate_type(declared_constraint, Some(mapper))?;
+                                        if constraint != type_parameter {
                                             if inferences.is_none() {
                                                 inferences = Some(vec![]);
                                             }
@@ -97,7 +97,7 @@ impl TypeChecker {
                             }
                             append(
                                 inferences.as_mut().unwrap(),
-                                Some(self.create_array_type(&self.unknown_type(), None)),
+                                Some(self.create_array_type(self.unknown_type(), None)),
                             );
                         } else if grand_parent.kind() == SyntaxKind::TemplateLiteralTypeSpan {
                             if inferences.is_none() {
@@ -157,17 +157,17 @@ impl TypeChecker {
                                 inferences.get_or_insert_default_(),
                                 Some(
                                     self.instantiate_type(
-                                        &node_type,
+                                        node_type,
                                         Some(Gc::new(
                                             self.make_unary_type_mapper(
-                                                &self.get_declared_type_of_type_parameter(
+                                                self.get_declared_type_of_type_parameter(
                                                     &self
                                                         .get_symbol_of_node(
                                                             &check_mapped_type.type_parameter,
                                                         )?
                                                         .unwrap(),
                                                 ),
-                                                &*if let Some(
+                                                if let Some(
                                                     check_mapped_type_type_parameter_constraint,
                                                 ) = check_mapped_type
                                                     .type_parameter
@@ -200,18 +200,24 @@ impl TypeChecker {
         &self,
         type_parameter: Id<Type>, /*TypeParameter*/
     ) -> io::Result<Option<Id<Type>>> {
-        let type_parameter_as_type_parameter = type_parameter.as_type_parameter();
-        if type_parameter_as_type_parameter
+        if self
+            .type_(type_parameter)
+            .as_type_parameter()
             .maybe_constraint()
             .is_none()
         {
-            if let Some(type_parameter_target) = type_parameter_as_type_parameter.target.as_ref() {
+            if let Some(type_parameter_target) = self
+                .type_(type_parameter)
+                .as_type_parameter()
+                .target
+                .as_ref()
+            {
                 let target_constraint =
                     self.get_constraint_of_type_parameter(type_parameter_target)?;
-                type_parameter_as_type_parameter.set_constraint(match target_constraint {
+                self.type_(type_parameter).as_type_parameter().set_constraint(match target_constraint {
                     Some(target_constraint) => self.instantiate_type(
-                        &target_constraint,
-                        type_parameter_as_type_parameter.maybe_mapper(),
+                        target_constraint,
+                        self.type_(type_parameter).as_type_parameter().maybe_mapper(),
                     )?,
                     None => self.no_constraint_type(),
                 });
@@ -219,14 +225,14 @@ impl TypeChecker {
                 let constraint_declaration = self.get_constraint_declaration(type_parameter);
                 match constraint_declaration {
                     None => {
-                        type_parameter_as_type_parameter.set_constraint(
+                        self.type_(type_parameter).as_type_parameter().set_constraint(
                             self.get_inferred_type_parameter_constraint(type_parameter)?
                                 .unwrap_or_else(|| self.no_constraint_type()),
                         );
                     }
                     Some(constraint_declaration) => {
                         let mut type_ = self.get_type_from_type_node_(&constraint_declaration)?;
-                        if type_.flags().intersects(TypeFlags::Any) && !self.is_error_type(&type_) {
+                        if self.type_(type_).flags().intersects(TypeFlags::Any) && !self.is_error_type(type_) {
                             type_ = if constraint_declaration.parent().parent().kind()
                                 == SyntaxKind::MappedType
                             {
@@ -235,20 +241,21 @@ impl TypeChecker {
                                 self.unknown_type()
                             };
                         }
-                        type_parameter_as_type_parameter.set_constraint(type_);
+                        self.type_(type_parameter).as_type_parameter().set_constraint(type_);
                     }
                 }
             }
         }
-        Ok(type_parameter_as_type_parameter
+        Ok(self
+            .type_(type_parameter)
+            .as_type_parameter()
             .maybe_constraint()
             .and_then(|type_parameter_constraint| {
-                if Gc::ptr_eq(&type_parameter_constraint, &self.no_constraint_type()) {
+                if type_parameter_constraint == self.no_constraint_type() {
                     None
                 } else {
                     Some(type_parameter_constraint)
-                }
-            }))
+                }))
     }
 
     pub(super) fn get_parent_symbol_of_type_parameter(
@@ -256,7 +263,7 @@ impl TypeChecker {
         type_parameter: Id<Type>, /*TypeParameter*/
     ) -> io::Result<Option<Gc<Symbol>>> {
         let tp =
-            get_declaration_of_kind(&type_parameter.symbol(), SyntaxKind::TypeParameter).unwrap();
+            get_declaration_of_kind(&self.type_(type_parameter).symbol(), SyntaxKind::TypeParameter).unwrap();
         let host = if is_jsdoc_template_tag(&tp.parent()) {
             get_effective_container_for_jsdoc_template_tag(&tp.parent())
         } else {
@@ -271,10 +278,10 @@ impl TypeChecker {
             let length = types.len();
             let mut i = 0;
             while i < length {
-                let start_id = types[i].id();
+                let start_id = self.type_(types[i]).id();
                 let mut count = 1;
                 while i + count < length
-                    && types[i + count].id() == start_id + TypeId::try_from(count).unwrap()
+                    && self.type_(types[i + count]).id() == start_id + TypeId::try_from(count).unwrap()
                 {
                     count += 1;
                 }
@@ -318,9 +325,9 @@ impl TypeChecker {
         exclude_kinds: TypeFlags,
     ) -> ObjectFlags {
         let mut result = ObjectFlags::None;
-        for type_ in types {
-            if !type_.flags().intersects(exclude_kinds) {
-                result |= get_object_flags(&type_);
+        for &type_ in types {
+            if !self.type_(type_).flags().intersects(exclude_kinds) {
+                result |= get_object_flags(type_);
             }
         }
         result & ObjectFlags::PropagatingFlags
@@ -332,13 +339,13 @@ impl TypeChecker {
         type_arguments: Option<Vec<Id<Type>>>,
     ) -> Id<Type /*TypeReference*/> {
         let id = self.get_type_list_id(type_arguments.as_deref());
-        let type_ = target
-            .as_generic_type()
+        let type_ = self.type_(target
+            ).as_generic_type()
             .instantiations()
             .get(&id)
             .map(Clone::clone);
         if type_.is_none() {
-            let type_ = self.create_object_type(ObjectFlags::Reference, target.maybe_symbol());
+            let type_ = self.create_object_type(ObjectFlags::Reference, self.type_(target).maybe_symbol());
             type_.set_object_flags(
                 type_.object_flags()
                     | if let Some(type_arguments) = type_arguments.as_ref() {
@@ -347,10 +354,10 @@ impl TypeChecker {
                         ObjectFlags::None
                     },
             );
-            let type_: Id<Type> =
-                TypeReference::new(type_, target.type_wrapper(), type_arguments).into();
-            target
-                .as_generic_type()
+            let type_ = self.alloc_type(
+                TypeReference::new(type_, target, type_arguments).into());
+            self.type_(target
+                ).as_generic_type()
                 .instantiations()
                 .insert(id, type_.clone());
             return type_;
@@ -359,18 +366,17 @@ impl TypeChecker {
     }
 
     pub(super) fn clone_type_reference(&self, source: Id<Type> /*TypeReference*/) -> Id<Type> {
-        let type_ = self.create_type(source.flags());
-        type_.set_symbol(source.maybe_symbol());
-        let source_as_type_reference = source.as_type_reference_interface();
-        let type_ = BaseObjectType::new(type_, source_as_type_reference.object_flags());
-        let type_: Id<Type> = TypeReference::new(
+        let type_ = self.create_type(self.type_(source).flags());
+        type_.set_symbol(self.type_(source).maybe_symbol());
+        let type_ = BaseObjectType::new(type_, self.type_(source).as_type_reference_interface().object_flags());
+        let type_ = self.alloc_type(TypeReference::new(
             type_,
-            source_as_type_reference.target(),
-            source_as_type_reference
+            self.type_(source).as_type_reference_interface().target(),
+            self.type_(source).as_type_reference_interface()
                 .maybe_resolved_type_arguments()
                 .clone(),
         )
-        .into();
+        .into());
         type_
     }
 
@@ -395,12 +401,12 @@ impl TypeChecker {
                 local_alias_type_arguments
             };
         }
-        let mut type_ = self.create_object_type(ObjectFlags::Reference, target.maybe_symbol());
+        let mut type_ = self.create_object_type(ObjectFlags::Reference, self.type_(target).maybe_symbol());
         type_.mapper = mapper;
-        let type_: Id<Type> = TypeReference::new(type_, target.type_wrapper(), None).into();
-        *type_.as_type_reference().maybe_node_mut() = Some(node.node_wrapper());
-        *type_.maybe_alias_symbol_mut() = alias_symbol;
-        *type_.maybe_alias_type_arguments_mut() = alias_type_arguments;
+        let type_ = self.alloc_type(TypeReference::new(type_, target, None).into());
+        *self.type_(type_).as_type_reference().maybe_node_mut() = Some(node.node_wrapper());
+        *self.type_(type_).maybe_alias_symbol_mut() = alias_symbol;
+        *self.type_(type_).maybe_alias_type_arguments_mut() = alias_type_arguments;
         Ok(type_)
     }
 
@@ -408,16 +414,15 @@ impl TypeChecker {
         &self,
         type_: Id<Type>, /*TypeReference*/
     ) -> io::Result<Vec<Id<Type>>> {
-        let type_as_type_reference = type_.as_type_reference_interface();
-        if type_as_type_reference
+        if self.type_(type_).as_type_reference_interface()
             .maybe_resolved_type_arguments()
             .is_none()
         {
             if !self.push_type_resolution(
-                &type_.type_wrapper().into(),
+                &type_.into(),
                 TypeSystemPropertyName::ResolvedTypeArguments,
             ) {
-                return Ok(type_as_type_reference
+                return Ok(self.type_(type_).as_type_reference_interface()
                     .target()
                     .as_interface_type()
                     .maybe_local_type_parameters()
@@ -431,13 +436,13 @@ impl TypeChecker {
                         },
                     ));
             }
-            let node = type_as_type_reference.maybe_node().clone();
+            let node = self.type_(type_).as_type_reference_interface().maybe_node().clone();
             let type_arguments: Vec<Id<Type>> = if node.is_none() {
                 vec![]
             } else {
                 let node = node.unwrap();
                 if node.kind() == SyntaxKind::TypeReference {
-                    let target = type_as_type_reference.target();
+                    let target = self.type_(type_).as_type_reference_interface().target();
                     let target_as_interface_type = target.as_interface_type();
                     concatenate(
                         target_as_interface_type
@@ -458,15 +463,15 @@ impl TypeChecker {
                 }
             };
             if self.pop_type_resolution() {
-                *type_as_type_reference.maybe_resolved_type_arguments_mut() =
-                    if let Some(type_mapper) = type_as_type_reference.maybe_mapper() {
+                *self.type_(type_).as_type_reference_interface().maybe_resolved_type_arguments_mut() =
+                    if let Some(type_mapper) = self.type_(type_).as_type_reference_interface().maybe_mapper() {
                         self.instantiate_types(Some(&type_arguments), Some(type_mapper))?
                     } else {
                         Some(type_arguments)
                     };
             } else {
-                *type_as_type_reference.maybe_resolved_type_arguments_mut() = Some(
-                    type_as_type_reference
+                *self.type_(type_).as_type_reference_interface().maybe_resolved_type_arguments_mut() = Some(
+                    self.type_(type_).as_type_reference_interface()
                         .target()
                         .as_interface_type()
                         .maybe_local_type_parameters()
@@ -481,16 +486,16 @@ impl TypeChecker {
                         ),
                 );
                 self.error(
-                    type_as_type_reference
+                    self.type_(type_).as_type_reference_interface()
                         .maybe_node()
                         .clone()
                         .or_else(|| self.maybe_current_node()),
-                    if type_as_type_reference.target().maybe_symbol().is_some() {
+                    if self.type_(type_).as_type_reference_interface().target().maybe_symbol().is_some() {
                         &Diagnostics::Type_arguments_for_0_circularly_reference_themselves
                     } else {
                         &Diagnostics::Tuple_type_arguments_circularly_reference_themselves
                     },
-                    if let Some(type_target_symbol) = type_as_type_reference.target().maybe_symbol()
+                    if let Some(type_target_symbol) = self.type_(type_).as_type_reference_interface().target().maybe_symbol()
                     {
                         Some(vec![self.symbol_to_string_(
                             &type_target_symbol,
@@ -505,7 +510,7 @@ impl TypeChecker {
                 );
             }
         }
-        Ok(type_as_type_reference
+        Ok(self.type_(type_).as_type_reference_interface()
             .maybe_resolved_type_arguments()
             .clone()
             .unwrap())
@@ -513,9 +518,9 @@ impl TypeChecker {
 
     pub(super) fn get_type_reference_arity(&self, type_: Id<Type> /*TypeReference*/) -> usize {
         length(
-            type_
-                .as_type_reference_interface()
-                .target()
+            self.type_(self.type_(type_
+                ).as_type_reference_interface()
+                .target())
                 .as_interface_type()
                 .maybe_type_parameters(),
         )
@@ -528,8 +533,7 @@ impl TypeChecker {
     ) -> io::Result<Id<Type>> {
         let type_ =
             self.get_declared_type_of_symbol(&self.get_merged_symbol(Some(symbol)).unwrap())?;
-        let type_as_interface_type = type_.as_interface_type();
-        let type_parameters = type_as_interface_type.maybe_local_type_parameters();
+        let type_parameters = self.type_(type_).as_interface_type().maybe_local_type_parameters();
         if let Some(type_parameters) = type_parameters {
             let num_type_arguments = length(
                 node.as_has_type_arguments()
@@ -561,7 +565,7 @@ impl TypeChecker {
                 };
 
                 let type_str = self.type_to_string_(
-                    &type_,
+                    type_,
                     Option::<&Node>::None,
                     Some(TypeFormatFlags::WriteArrayAsGenericType),
                     None,
@@ -592,7 +596,7 @@ impl TypeChecker {
                 )?
             {
                 return self.create_deferred_type_reference(
-                    &type_,
+                    type_,
                     node,
                     None,
                     Option::<&Symbol>::None,
@@ -600,7 +604,7 @@ impl TypeChecker {
                 );
             }
             let type_arguments = maybe_concatenate(
-                type_as_interface_type
+                self.type_(type_).as_interface_type()
                     .maybe_outer_type_parameters()
                     .map(ToOwned::to_owned),
                 self.fill_missing_type_arguments(
@@ -610,7 +614,7 @@ impl TypeChecker {
                     is_js,
                 )?,
             );
-            return Ok(self.create_type_reference(&type_, type_arguments));
+            return Ok(self.create_type_reference(type_, type_arguments));
         }
         Ok(if self.check_no_type_arguments(node, Some(symbol))? {
             type_
@@ -627,11 +631,11 @@ impl TypeChecker {
         alias_type_arguments: Option<&[Id<Type>]>,
     ) -> io::Result<Id<Type>> {
         let type_ = self.get_declared_type_of_symbol(symbol)?;
-        if Gc::ptr_eq(&type_, &self.intrinsic_marker_type())
+        if type_ == self.intrinsic_marker_type()
             && intrinsic_type_kinds.contains_key(symbol.escaped_name())
             && matches!(type_arguments, Some(type_arguments) if type_arguments.len() == 1)
         {
-            return self.get_string_mapping_type(symbol, &type_arguments.unwrap()[0]);
+            return self.get_string_mapping_type(symbol, type_arguments.unwrap()[0]);
         }
         let links = self.get_symbol_links(symbol);
         let type_parameters = (*links).borrow().type_parameters.clone().unwrap();
@@ -650,7 +654,7 @@ impl TypeChecker {
             .map(Clone::clone);
         if instantiation.is_none() {
             instantiation = Some(self.instantiate_type_with_alias(
-                &type_,
+                type_,
                 Gc::new(self.create_type_mapper(
                     type_parameters.clone(),
                     self.fill_missing_type_arguments(
@@ -684,12 +688,12 @@ impl TypeChecker {
             let mut error_type = self.error_types().get(&id).map(Clone::clone);
             if error_type.is_none() {
                 error_type = Some(
-                    self.create_intrinsic_type(TypeFlags::Any, "error", None)
-                        .into(),
+                    self.alloc_type(self.create_intrinsic_type(TypeFlags::Any, "error", None)
+                        .into()),
                 );
-                let error_type = error_type.as_ref().unwrap();
-                *error_type.maybe_alias_symbol_mut() = Some(symbol.symbol_wrapper());
-                *error_type.maybe_alias_type_arguments_mut() = type_arguments;
+                let error_type = error_type.unwrap();
+                *self.type_(error_type).maybe_alias_symbol_mut() = Some(symbol.symbol_wrapper());
+                *self.type_(error_type).maybe_alias_type_arguments_mut() = type_arguments;
                 self.error_types().insert(id, error_type.clone());
             }
             return Ok(error_type.unwrap());
@@ -894,7 +898,7 @@ impl TypeChecker {
         let res = self.try_get_declared_type_of_symbol(&symbol)?;
         if let Some(res) = res {
             return Ok(if self.check_no_type_arguments(node, Some(&*symbol))? {
-                self.get_regular_type_of_literal_type(&res)
+                self.get_regular_type_of_literal_type(res)
             } else {
                 self.error_type()
             });
@@ -924,7 +928,7 @@ impl TypeChecker {
                 let is_import_type_with_qualifier = node.kind() == SyntaxKind::ImportType
                     && node.as_import_type_node().qualifier.is_some();
                 if let Some(value_type_symbol) =
-                    value_type.maybe_symbol().filter(|value_type_symbol| {
+                    self.type_(value_type).maybe_symbol().filter(|value_type_symbol| {
                         !ptr::eq(&**value_type_symbol, symbol) && is_import_type_with_qualifier
                     })
                 {
@@ -942,9 +946,9 @@ impl TypeChecker {
         base_type: Id<Type>,
         substitute: Id<Type>,
     ) -> Id<Type> {
-        if substitute.flags().intersects(TypeFlags::AnyOrUnknown) || ptr::eq(substitute, base_type)
+        if self.type_(substitute).flags().intersects(TypeFlags::AnyOrUnknown) || substitute == base_type
         {
-            return base_type.type_wrapper();
+            return base_type;
         }
         let id = format!(
             "{}>{}",
@@ -956,9 +960,9 @@ impl TypeChecker {
             return cached;
         }
         let result = self.create_type(TypeFlags::Substitution);
-        let result: Id<Type> =
-            SubstitutionType::new(result, base_type.type_wrapper(), substitute.type_wrapper())
-                .into();
+        let result = self.alloc_type(
+            SubstitutionType::new(result, base_type, substitute)
+                .into());
         self.substitution_types().insert(id, result.clone());
         result
     }
@@ -982,10 +986,9 @@ impl TypeChecker {
                     &check_node.as_tuple_type_node().elements[0],
                     &extends_node.as_tuple_type_node().elements[0],
                 )?
-            } else if ptr::eq(
-                &*self.get_actual_type_variable(&*self.get_type_from_type_node_(check_node)?)?,
-                type_,
-            ) {
+            } else if self.get_actual_type_variable(&*self.get_type_from_type_node_(check_node)?)? ==
+                type_
+             {
                 Some(self.get_type_from_type_node_(extends_node)?)
             } else {
                 None
@@ -1008,7 +1011,7 @@ impl TypeChecker {
             if parent.kind() == SyntaxKind::Parameter {
                 covariant = !covariant;
             }
-            if (covariant || type_.flags().intersects(TypeFlags::TypeVariable))
+            if (covariant || self.type_(type_).flags().intersects(TypeFlags::TypeVariable))
                 && parent.kind() == SyntaxKind::ConditionalType
                 && Gc::ptr_eq(&node, &parent.as_conditional_type_node().true_type)
             {
@@ -1028,13 +1031,13 @@ impl TypeChecker {
             node = parent;
         }
         Ok(if let Some(mut constraints) = constraints {
-            constraints.push(type_.type_wrapper());
+            constraints.push(type_);
             self.get_substitution_type(
                 type_,
-                &*self.get_intersection_type(&constraints, Option::<&Symbol>::None, None)?,
+                self.get_intersection_type(&constraints, Option::<&Symbol>::None, None)?,
             )
         } else {
-            type_.type_wrapper()
+            type_
         })
     }
 
@@ -1137,7 +1140,7 @@ impl TypeChecker {
                             Some(type_args) => type_args.is_empty(),
                         } && !self.no_implicit_any
                         {
-                            Some(self.create_promise_type(&self.any_type())?)
+                            Some(self.create_promise_type(self.any_type())?)
                         } else {
                             None
                         },
@@ -1149,8 +1152,8 @@ impl TypeChecker {
                             if is_jsdoc_index_signature(node) {
                                 let indexed = self.get_type_from_type_node_(&type_args[0])?;
                                 let target = self.get_type_from_type_node_(&type_args[1])?;
-                                let index_info = if Gc::ptr_eq(&indexed, &self.string_type())
-                                    || Gc::ptr_eq(&indexed, &self.number_type())
+                                let index_info = if indexed == self.string_type()
+                                    || indexed == self.number_type()
                                 {
                                     vec![Gc::new(
                                         self.create_index_info(indexed, target, false, None),
