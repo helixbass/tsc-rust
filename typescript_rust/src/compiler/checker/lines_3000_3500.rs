@@ -450,7 +450,7 @@ impl TypeChecker {
         while is_qualified_name(&left.parent()) {
             let type_ = self.get_type_of_symbol(&symbol)?;
             symbol = return_ok_none_if_none!(self.get_property_of_type_(
-                &type_,
+                type_,
                 &left
                     .parent()
                     .as_qualified_name()

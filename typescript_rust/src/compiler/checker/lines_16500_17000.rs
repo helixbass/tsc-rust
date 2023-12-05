@@ -767,64 +767,63 @@ impl TypeChecker {
         type_: Id<Type>, /*ReverseMappedType*/
         mapper: Gc<TypeMapper>,
     ) -> io::Result<Id<Type>> {
-        let type_as_reverse_mapped_type = type_.as_reverse_mapped_type();
         let inner_mapped_type = self.instantiate_type(
-            &type_as_reverse_mapped_type.mapped_type,
+            self.type_(type_).as_reverse_mapped_type().mapped_type,
             Some(mapper.clone()),
         )?;
-        if !get_object_flags(&inner_mapped_type).intersects(ObjectFlags::Mapped) {
-            return Ok(type_.type_wrapper());
+        if !get_object_flags(self.type_(inner_mapped_type)).intersects(ObjectFlags::Mapped) {
+            return Ok(type_);
         }
         let inner_index_type = self.instantiate_type(
-            &type_as_reverse_mapped_type.constraint_type,
+            self.type_(type_).as_reverse_mapped_type().constraint_type,
             Some(mapper.clone()),
         )?;
-        if !inner_index_type.flags().intersects(TypeFlags::Index) {
-            return Ok(type_.type_wrapper());
+        if !self.type_(inner_index_type).flags().intersects(TypeFlags::Index) {
+            return Ok(type_);
         }
         let instantiated = self.infer_type_for_homomorphic_mapped_type(
-            &*self.instantiate_type(&type_as_reverse_mapped_type.source, Some(mapper))?,
-            &inner_mapped_type,
-            &inner_index_type,
+            self.instantiate_type(self.type_(type_).as_reverse_mapped_type().source, Some(mapper))?,
+            inner_mapped_type,
+            inner_index_type,
         )?;
         if let Some(instantiated) = instantiated {
             return Ok(instantiated);
         }
-        Ok(type_.type_wrapper())
+        Ok(type_)
     }
 
     pub(super) fn get_permissive_instantiation(&self, type_: Id<Type>) -> io::Result<Id<Type>> {
         Ok(
-            if type_
-                .flags()
+            if self.type_(type_
+                ).flags()
                 .intersects(TypeFlags::Primitive | TypeFlags::AnyOrUnknown | TypeFlags::Never)
             {
-                type_.type_wrapper()
+                type_
             } else {
-                if type_.maybe_permissive_instantiation().is_none() {
-                    *type_.maybe_permissive_instantiation() =
+                if self.type_(type_).maybe_permissive_instantiation().is_none() {
+                    *self.type_(type_).maybe_permissive_instantiation() =
                         Some(self.instantiate_type(type_, self.permissive_mapper.clone())?);
                 }
-                type_.maybe_permissive_instantiation().clone().unwrap()
+                self.type_(type_).maybe_permissive_instantiation().clone().unwrap()
             },
         )
     }
 
     pub(super) fn get_restrictive_instantiation(&self, type_: Id<Type>) -> io::Result<Id<Type>> {
-        if type_
-            .flags()
+        if self.type_(type_
+            ).flags()
             .intersects(TypeFlags::Primitive | TypeFlags::AnyOrUnknown | TypeFlags::Never)
         {
-            return Ok(type_.type_wrapper());
+            return Ok(type_);
         }
         if let Some(type_restrictive_instantiation) =
-            type_.maybe_restrictive_instantiation().clone()
+            self.type_(type_).maybe_restrictive_instantiation().clone()
         {
             return Ok(type_restrictive_instantiation);
         }
         let ret = self.instantiate_type(type_, self.restrictive_mapper.clone())?;
-        *type_.maybe_restrictive_instantiation() = Some(ret.clone());
-        *ret.maybe_restrictive_instantiation() = Some(ret.clone());
+        *self.type_(type_).maybe_restrictive_instantiation() = Some(ret.clone());
+        *self.type_(ret).maybe_restrictive_instantiation() = Some(ret.clone());
         Ok(ret)
     }
 
@@ -835,7 +834,7 @@ impl TypeChecker {
     ) -> io::Result<Gc<IndexInfo>> {
         Ok(Gc::new(self.create_index_info(
             info.key_type.clone(),
-            self.instantiate_type(&info.type_, Some(mapper))?,
+            self.instantiate_type(info.type_, Some(mapper))?,
             info.is_readonly,
             info.declaration.clone(),
         )))
@@ -950,33 +949,32 @@ impl TypeChecker {
     }
 
     pub(super) fn get_type_without_signatures(&self, type_: Id<Type>) -> io::Result<Id<Type>> {
-        if type_.flags().intersects(TypeFlags::Object) {
+        if self.type_(type_).flags().intersects(TypeFlags::Object) {
             let resolved = self.resolve_structured_type_members(type_)?;
-            let resolved_as_resolved_type = resolved.as_resolved_type();
-            if !resolved_as_resolved_type.construct_signatures().is_empty()
-                || !resolved_as_resolved_type.call_signatures().is_empty()
+            if !self.type_(resolved).as_resolved_type().construct_signatures().is_empty()
+                || !self.type_(resolved).as_resolved_type().call_signatures().is_empty()
             {
-                let result = self.create_object_type(ObjectFlags::Anonymous, type_.maybe_symbol());
+                let result = self.create_object_type(ObjectFlags::Anonymous, self.type_(type_).maybe_symbol());
                 result.resolve(
-                    resolved_as_resolved_type.members(),
-                    resolved_as_resolved_type.properties(),
+                    self.type_(resolved).as_resolved_type().members(),
+                    self.type_(resolved).as_resolved_type().properties(),
                     vec![],
                     vec![],
                     vec![],
                 );
-                return Ok(result.into());
+                return Ok(self.alloc_type(result.into()));
             }
-        } else if type_.flags().intersects(TypeFlags::Intersection) {
+        } else if self.type_(type_).flags().intersects(TypeFlags::Intersection) {
             return self.get_intersection_type(
                 &try_map(
-                    type_.as_intersection_type().types(),
-                    |type_: &Id<Type>, _| self.get_type_without_signatures(type_),
+                    self.type_checker.type_(type_).as_intersection_type().types(),
+                    |&type_: &Id<Type>, _| self.get_type_without_signatures(type_),
                 )?,
                 Option::<&Symbol>::None,
                 None,
             );
         }
-        Ok(type_.type_wrapper())
+        Ok(type_)
     }
 
     pub(super) fn is_type_identical_to(
@@ -1050,36 +1048,36 @@ impl TypeChecker {
         source: Id<Type>,
         target: Id<Type>,
     ) -> io::Result<bool> {
-        Ok(if source.flags().intersects(TypeFlags::Union) {
-            try_every(source.as_union_type().types(), |t: &Id<Type>, _| {
+        Ok(if self.type_(source).flags().intersects(TypeFlags::Union) {
+            try_every(self.type_(source).as_union_type().types(), |&t: &Id<Type>, _| {
                 self.is_type_derived_from(t, target)
             })?
-        } else if target.flags().intersects(TypeFlags::Union) {
+        } else if self.type_(target).flags().intersects(TypeFlags::Union) {
             try_some(
-                Some(target.as_union_type().types()),
-                Some(|t: &Id<Type>| self.is_type_derived_from(source, t)),
+                Some(self.type_(target).as_union_type().types()),
+                Some(|&t: &Id<Type>| self.is_type_derived_from(source, t)),
             )?
-        } else if source
-            .flags()
+        } else if self.type_(source
+            ).flags()
             .intersects(TypeFlags::InstantiableNonPrimitive)
         {
             self.is_type_derived_from(
-                &self
+                self
                     .get_base_constraint_of_type(source)?
                     .unwrap_or_else(|| self.unknown_type()),
                 target,
             )?
-        } else if ptr::eq(target, &*self.global_object_type()) {
-            source
-                .flags()
+        } else if target == self.global_object_type() {
+            self.type_(source
+                ).flags()
                 .intersects(TypeFlags::Object | TypeFlags::NonPrimitive)
-        } else if ptr::eq(target, &*self.global_function_type()) {
-            source.flags().intersects(TypeFlags::Object) && self.is_function_object_type(source)?
+        } else if target == self.global_function_type() {
+            self.type_(source).flags().intersects(TypeFlags::Object) && self.is_function_object_type(source)?
         } else {
             self.has_base_type(source, Some(self.get_target_type(target)))?
                 || self.is_array_type(target)
                     && !self.is_readonly_array_type(target)
-                    && self.is_type_derived_from(source, &self.global_readonly_array_type())?
+                    && self.is_type_derived_from(source, self.global_readonly_array_type())?
         })
     }
 

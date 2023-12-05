@@ -156,7 +156,7 @@ pub use compiler::{
         get_spelling_suggestion, get_string_comparer, get_ui_locale, group, identity,
         identity_str_to_cow, identity_str_to_owned, index_of_any_char_code, indices_of,
         insert_sorted, last, last_or_undefined, length, map, map_defined, matched_text,
-        maybe_add_range, maybe_append_if_unique_gc, maybe_append_if_unique_rc, maybe_concatenate,
+        maybe_add_range, maybe_append_if_unique_eq, maybe_append_if_unique_gc, maybe_append_if_unique_rc, maybe_concatenate,
         maybe_every, maybe_filter, maybe_first_defined, maybe_for_each, maybe_for_each_bool,
         maybe_map, maybe_same_map, maybe_single_or_many_node, not_implemented,
         ordered_remove_item_at, pad_left, pad_right, pattern_text, push_if_unique_eq,

@@ -1094,6 +1094,18 @@ pub fn append_if_unique_gc<TItem: Trace + Finalize>(
     push_if_unique_gc(array, to_add);
 }
 
+pub fn maybe_append_if_unique_eq<TItem: PartialEq + Clone>(
+    array: Option<Vec<TItem>>,
+    to_add: &TItem,
+) -> Vec<TItem> {
+    if let Some(mut array) = array {
+        push_if_unique_rc(&mut array, to_add);
+        array
+    } else {
+        vec![to_add.clone()]
+    }
+}
+
 pub fn maybe_append_if_unique_rc<TItem>(
     array: Option<Vec<Rc<TItem>>>,
     to_add: &Rc<TItem>,

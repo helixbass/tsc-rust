@@ -206,10 +206,7 @@ impl TypeChecker {
                     break_if_none!(self.get_symbol_of_node(&location_present.parent())?);
 
                 let constructor_type = self.get_type_of_symbol(&class_symbol)?;
-                if self
-                    .get_property_of_type(&constructor_type, name)?
-                    .is_some()
-                {
+                if self.get_property_of_type(constructor_type, name)?.is_some() {
                     self.error(
                         Some(error_location),
                         &Diagnostics::Cannot_find_name_0_Did_you_mean_the_static_member_1_0,
@@ -229,8 +226,11 @@ impl TypeChecker {
 
                 if Gc::ptr_eq(&location_present, &container) && !is_static(&location_present) {
                     let declared_type = self.get_declared_type_of_symbol(&class_symbol)?;
-                    let instance_type =
-                        declared_type.as_interface_type().maybe_this_type().unwrap();
+                    let instance_type = self
+                        .type_(declared_type)
+                        .as_interface_type()
+                        .maybe_this_type()
+                        .unwrap();
                     if self.get_property_of_type(&instance_type, name)?.is_some() {
                         self.error(
                             Some(error_location),
@@ -329,7 +329,7 @@ impl TypeChecker {
                     );
                     let prop_name = &parent_as_qualified_name.right.as_identifier().escaped_text;
                     let prop_type = self.get_property_of_type(
-                        &*self.get_declared_type_of_symbol(&symbol)?,
+                        self.get_declared_type_of_symbol(&symbol)?,
                         prop_name,
                     )?;
                     if prop_type.is_some() {
@@ -485,9 +485,9 @@ impl TypeChecker {
         if matches!(container, Some(container) if container.as_type_literal_node().members.len() == 1)
         {
             let type_ = self.get_declared_type_of_symbol(symbol)?;
-            return Ok(type_.flags().intersects(TypeFlags::Union)
+            return Ok(self.type_(type_).flags().intersects(TypeFlags::Union)
                 && self.all_types_assignable_to_kind(
-                    &type_,
+                    type_,
                     TypeFlags::StringOrNumberLiteral,
                     Some(true),
                 )?);
@@ -750,7 +750,7 @@ impl TypeChecker {
                 if is_identifier(&common_js_property_access_as_property_access_expression.name) {
                     self.resolve_symbol(
                         self.get_property_of_type(
-                            &*self.resolve_external_module_type_by_literal(name)?,
+                            self.resolve_external_module_type_by_literal(name)?,
                             &common_js_property_access_as_property_access_expression
                                 .name
                                 .as_identifier()
@@ -855,7 +855,7 @@ impl TypeChecker {
         let module_symbol_exports = (*module_symbol_exports).borrow();
         let export_value = module_symbol_exports.get(InternalSymbolName::ExportEquals);
         let export_symbol = if let Some(export_value) = export_value {
-            self.get_property_of_type(&*self.get_type_of_symbol(&export_value)?, name)?
+            self.get_property_of_type(self.get_type_of_symbol(&export_value)?, name)?
         } else {
             module_symbol_exports.get(name).cloned()
         };
@@ -1318,7 +1318,7 @@ impl TypeChecker {
             if let Some(type_annotation) = type_annotation {
                 return self.resolve_symbol(
                     self.get_property_of_type(
-                        &*self.get_type_from_type_node_(&type_annotation)?,
+                        self.get_type_from_type_node_(&type_annotation)?,
                         name,
                     )?,
                     None,
@@ -1388,7 +1388,7 @@ impl TypeChecker {
                 .is_some()
             {
                 symbol_from_variable = self.get_property_of_type_(
-                    &*self.get_type_of_symbol(&target_symbol)?,
+                    self.get_type_of_symbol(&target_symbol)?,
                     &name_as_identifier.escaped_text,
                     Some(true),
                 )?;
@@ -1689,7 +1689,7 @@ impl TypeChecker {
                 if is_identifier(&name) {
                     return self.resolve_symbol(
                         self.get_property_of_type_(
-                            &*self.get_type_of_symbol(resolved)?,
+                            self.get_type_of_symbol(resolved)?,
                             &name.as_identifier().escaped_text,
                             None,
                         )?,
@@ -1801,7 +1801,7 @@ impl TypeChecker {
     ) -> io::Result<Option<Gc<Symbol>>> {
         if is_class_expression(expression) {
             return Ok(self
-                .check_expression_cached(expression, None)?
+                .type_(self.check_expression_cached(expression, None)?)
                 .maybe_symbol());
         }
         if !is_entity_name(expression) && !is_entity_name_expression(expression) {

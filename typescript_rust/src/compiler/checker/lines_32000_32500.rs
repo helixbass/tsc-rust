@@ -53,7 +53,7 @@ impl TypeChecker {
                 let contextual_signature = self.get_contextual_signature(node)?;
                 if matches!(
                     contextual_signature.as_ref(),
-                    Some(contextual_signature) if self.could_contain_type_variables(&*self.get_return_type_of_signature(contextual_signature.clone())?)?
+                    Some(contextual_signature) if self.could_contain_type_variables(self.get_return_type_of_signature(contextual_signature.clone())?)?
                 ) {
                     let links = self.get_node_links(node);
                     if let Some(links_context_free_type) =
@@ -79,12 +79,14 @@ impl TypeChecker {
                         vec![],
                         vec![],
                     )?;
-                    let return_only_type_as_object_flags_type =
-                        return_only_type.as_object_flags_type();
-                    return_only_type_as_object_flags_type.set_object_flags(
-                        return_only_type_as_object_flags_type.object_flags()
-                            | ObjectFlags::NonInferrableType,
-                    );
+                    self.type_(return_only_type)
+                        .as_object_flags_type()
+                        .set_object_flags(
+                            self.type_(return_only_type)
+                                .as_object_flags_type()
+                                .object_flags()
+                                | ObjectFlags::NonInferrableType,
+                        );
                     links.borrow_mut().context_free_type = Some(return_only_type.clone());
                     return Ok(return_only_type);
                 }
@@ -121,7 +123,7 @@ impl TypeChecker {
             {
                 links.borrow_mut().flags |= NodeCheckFlags::ContextChecked;
                 let signatures_of_type = self.get_signatures_of_type(
-                    &*self.get_type_of_symbol(&self.get_symbol_of_node(node)?.unwrap())?,
+                    self.get_type_of_symbol(&self.get_symbol_of_node(node)?.unwrap())?,
                     SignatureKind::Call,
                 )?;
                 let signature = first_or_undefined(&signatures_of_type);
@@ -189,7 +191,7 @@ impl TypeChecker {
         let return_type = self.get_return_type_from_annotation(node)?;
         self.check_all_code_paths_in_non_void_function_return_or_throw(
             node,
-            return_type.as_deref(),
+            return_type,
         )?;
 
         if let Some(node_body) = node.as_function_like_declaration().maybe_body().as_ref() {
@@ -202,19 +204,18 @@ impl TypeChecker {
             } else {
                 let expr_type = self.check_expression(node_body, None, None)?;
                 let return_or_promised_type = return_type
-                    .as_ref()
                     .try_map(|return_type| self.unwrap_return_type(return_type, function_flags))?;
-                if let Some(return_or_promised_type) = return_or_promised_type.as_ref() {
+                if let Some(return_or_promised_type) = return_or_promised_type {
                     if function_flags & FunctionFlags::AsyncGenerator == FunctionFlags::Async {
                         let awaited_type = self.check_awaited_type(
-                            &expr_type,
+                            expr_type,
                             false,
                             node_body,
                             &Diagnostics::The_return_type_of_an_async_function_must_either_be_a_valid_promise_or_must_not_contain_a_callable_then_member,
                             None,
                         )?;
                         self.check_type_assignable_to_and_optionally_elaborate(
-                            &awaited_type,
+                            awaited_type,
                             return_or_promised_type,
                             Some(&**node_body),
                             Some(&**node_body),
@@ -223,7 +224,7 @@ impl TypeChecker {
                         )?;
                     } else {
                         self.check_type_assignable_to_and_optionally_elaborate(
-                            &expr_type,
+                            expr_type,
                             return_or_promised_type,
                             Some(&**node_body),
                             Some(&**node_body),
@@ -246,7 +247,7 @@ impl TypeChecker {
         is_await_valid: Option<bool>,
     ) -> io::Result<bool> {
         let is_await_valid = is_await_valid.unwrap_or(false);
-        if !self.is_type_assignable_to(type_, &self.number_or_big_int_type())? {
+        if !self.is_type_assignable_to(type_, self.number_or_big_int_type())? {
             let awaited_type = if is_await_valid {
                 self.get_awaited_type_of_promise(type_, Option::<&Node>::None, None, None)?
             } else {
@@ -255,8 +256,8 @@ impl TypeChecker {
             self.error_and_maybe_suggest_await(
                 operand,
                 matches!(
-                    awaited_type.as_ref(),
-                    Some(awaited_type) if self.is_type_assignable_to(awaited_type, &self.number_or_big_int_type())?
+                    awaited_type,
+                    Some(awaited_type) if self.is_type_assignable_to(awaited_type, self.number_or_big_int_type())?
                 ),
                 diagnostic,
                 None,
@@ -279,17 +280,17 @@ impl TypeChecker {
         let d_as_call_expression = d.as_call_expression();
         let object_lit_type =
             self.check_expression_cached(&d_as_call_expression.arguments[2], None)?;
-        let value_type = self.get_type_of_property_of_type_(&object_lit_type, "value")?;
+        let value_type = self.get_type_of_property_of_type_(object_lit_type, "value")?;
         if value_type.is_some() {
-            let writable_prop = self.get_property_of_type_(&object_lit_type, "writable", None)?;
+            let writable_prop = self.get_property_of_type_(object_lit_type, "writable", None)?;
             let writable_type = writable_prop
                 .as_ref()
                 .try_map(|writable_prop| self.get_type_of_symbol(writable_prop))?;
             if match writable_type.as_ref() {
                 None => true,
                 Some(writable_type) => {
-                    Gc::ptr_eq(writable_type, &self.false_type())
-                        || Gc::ptr_eq(writable_type, &self.regular_false_type())
+                    writable_type == self.false_type()
+                        || writable_type == self.regular_false_type()
                 }
             } {
                 return Ok(true);
@@ -305,15 +306,15 @@ impl TypeChecker {
                     .as_property_assignment()
                     .initializer;
                 let raw_original_type = self.check_expression(initializer, None, None)?;
-                if Gc::ptr_eq(&raw_original_type, &self.false_type())
-                    || Gc::ptr_eq(&raw_original_type, &self.regular_false_type())
+                if raw_original_type == self.false_type()
+                    || raw_original_type == self.regular_false_type()
                 {
                     return Ok(true);
                 }
             }
             return Ok(false);
         }
-        let set_prop = self.get_property_of_type_(&object_lit_type, "set", None)?;
+        let set_prop = self.get_property_of_type_(object_lit_type, "set", None)?;
         Ok(set_prop.is_none())
     }
 
@@ -484,13 +485,13 @@ impl TypeChecker {
     ) -> io::Result<()> {
         let type_ = self.get_type_of_symbol(symbol)?;
         if self.strict_null_checks
-            && !type_
-                .flags()
+            && !self.type_(type_
+                ).flags()
                 .intersects(TypeFlags::AnyOrUnknown | TypeFlags::Never)
             && !if self.exact_optional_property_types == Some(true) {
                 symbol.flags().intersects(SymbolFlags::Optional)
             } else {
-                self.get_falsy_flags(&type_)
+                self.get_falsy_flags(type_)
                     .intersects(TypeFlags::Undefined)
             }
         {
@@ -632,15 +633,18 @@ impl TypeChecker {
         let operand_type =
             self.check_expression(&node.as_await_expression().expression, None, None)?;
         let awaited_type = self.check_awaited_type(
-            &operand_type,
+            operand_type,
             true,
             node,
             &Diagnostics::Type_of_await_operand_must_either_be_a_valid_promise_or_must_not_contain_a_callable_then_member,
             None,
         )?;
-        if Gc::ptr_eq(&awaited_type, &operand_type)
-            && !self.is_error_type(&awaited_type)
-            && !operand_type.flags().intersects(TypeFlags::AnyOrUnknown)
+        if awaited_type == operand_type
+            && !self.is_error_type(awaited_type)
+            && !self
+                .type_(operand_type)
+                .flags()
+                .intersects(TypeFlags::AnyOrUnknown)
         {
             self.add_error_or_suggestion(
                 false,
@@ -664,14 +668,14 @@ impl TypeChecker {
         let node_as_prefix_unary_expression = node.as_prefix_unary_expression();
         let operand_type =
             self.check_expression(&node_as_prefix_unary_expression.operand, None, None)?;
-        if Gc::ptr_eq(&operand_type, &self.silent_never_type()) {
+        if operand_type == self.silent_never_type() {
             return Ok(self.silent_never_type());
         }
         match node_as_prefix_unary_expression.operand.kind() {
             SyntaxKind::NumericLiteral => match node_as_prefix_unary_expression.operator {
                 SyntaxKind::MinusToken => {
                     return Ok(self.get_fresh_type_of_literal_type(
-                        &self.get_number_literal_type(Number::new(
+                        self.get_number_literal_type(Number::new(
                             node_as_prefix_unary_expression
                                 .operand
                                 .as_numeric_literal()
@@ -684,7 +688,7 @@ impl TypeChecker {
                 }
                 SyntaxKind::PlusToken => {
                     return Ok(self.get_fresh_type_of_literal_type(
-                        &self.get_number_literal_type(Number::new(
+                        self.get_number_literal_type(Number::new(
                             node_as_prefix_unary_expression
                                 .operand
                                 .as_numeric_literal()
@@ -699,7 +703,7 @@ impl TypeChecker {
             SyntaxKind::BigIntLiteral => {
                 if node_as_prefix_unary_expression.operator == SyntaxKind::MinusToken {
                     return Ok(self.get_fresh_type_of_literal_type(
-                        &self.get_big_int_literal_type(PseudoBigInt::new(
+                        self.get_big_int_literal_type(PseudoBigInt::new(
                             true,
                             parse_pseudo_big_int(
                                 &node_as_prefix_unary_expression
@@ -715,8 +719,8 @@ impl TypeChecker {
         }
         Ok(match node_as_prefix_unary_expression.operator {
             SyntaxKind::PlusToken | SyntaxKind::MinusToken | SyntaxKind::TildeToken => {
-                self.check_non_null_type(&operand_type, &node_as_prefix_unary_expression.operand)?;
-                if self.maybe_type_of_kind(&operand_type, TypeFlags::ESSymbolLike) {
+                self.check_non_null_type(operand_type, &node_as_prefix_unary_expression.operand)?;
+                if self.maybe_type_of_kind(operand_type, TypeFlags::ESSymbolLike) {
                     self.error(
                         Some(&*node_as_prefix_unary_expression.operand),
                         &Diagnostics::The_0_operator_cannot_be_applied_to_type_symbol,
@@ -728,7 +732,7 @@ impl TypeChecker {
                     );
                 }
                 if node_as_prefix_unary_expression.operator == SyntaxKind::PlusToken {
-                    if self.maybe_type_of_kind(&operand_type, TypeFlags::BigIntLike) {
+                    if self.maybe_type_of_kind(operand_type, TypeFlags::BigIntLike) {
                         self.error(
                             Some(&*node_as_prefix_unary_expression.operand),
                             &Diagnostics::Operator_0_cannot_be_applied_to_type_1,
@@ -737,7 +741,7 @@ impl TypeChecker {
                                     .unwrap()
                                     .to_owned(),
                                 self.type_to_string_(
-                                    &*self.get_base_type_of_literal_type(&operand_type)?,
+                                    self.get_base_type_of_literal_type(operand_type)?,
                                     Option::<&Node>::None,
                                     None,
                                     None,
@@ -747,11 +751,11 @@ impl TypeChecker {
                     }
                     return Ok(self.number_type());
                 }
-                self.get_unary_result_type(&operand_type)?
+                self.get_unary_result_type(operand_type)?
             }
             SyntaxKind::ExclamationToken => {
                 self.check_truthiness_expression(&node_as_prefix_unary_expression.operand, None)?;
-                let facts = self.get_type_facts(&operand_type, None)?
+                let facts = self.get_type_facts(operand_type, None)?
                     & (TypeFacts::Truthy | TypeFacts::Falsy);
                 match facts {
                     TypeFacts::Truthy => self.false_type(),
@@ -762,7 +766,7 @@ impl TypeChecker {
             SyntaxKind::PlusPlusToken | SyntaxKind::MinusMinusToken => {
                 let ok = self.check_arithmetic_operand_type(
                     &node_as_prefix_unary_expression.operand,
-                    &*self.check_non_null_type(&operand_type, &node_as_prefix_unary_expression.operand)?,
+                    self.check_non_null_type(operand_type, &node_as_prefix_unary_expression.operand)?,
                     &Diagnostics::An_arithmetic_operand_must_be_of_type_any_number_bigint_or_an_enum_type,
                     None
                 )?;
@@ -773,7 +777,7 @@ impl TypeChecker {
                         &Diagnostics::The_operand_of_an_increment_or_decrement_operator_may_not_be_an_optional_property_access,
                     );
                 }
-                self.get_unary_result_type(&operand_type)?
+                self.get_unary_result_type(operand_type)?
             }
             _ => self.error_type(),
         })
@@ -786,12 +790,12 @@ impl TypeChecker {
         let node_as_postfix_unary_expression = node.as_postfix_unary_expression();
         let operand_type =
             self.check_expression(&node_as_postfix_unary_expression.operand, None, None)?;
-        if Gc::ptr_eq(&operand_type, &self.silent_never_type()) {
+        if operand_type == self.silent_never_type() {
             return Ok(self.silent_never_type());
         }
         let ok = self.check_arithmetic_operand_type(
             &node_as_postfix_unary_expression.operand,
-            &*self.check_non_null_type(&operand_type, &node_as_postfix_unary_expression.operand)?,
+            self.check_non_null_type(operand_type, &node_as_postfix_unary_expression.operand)?,
             &Diagnostics::An_arithmetic_operand_must_be_of_type_any_number_bigint_or_an_enum_type,
             None,
         )?;
@@ -802,7 +806,7 @@ impl TypeChecker {
                 &Diagnostics::The_operand_of_an_increment_or_decrement_operator_may_not_be_an_optional_property_access,
             );
         }
-        self.get_unary_result_type(&operand_type)
+        self.get_unary_result_type(operand_type)
     }
 
     pub(super) fn get_unary_result_type(&self, operand_type: Id<Type>) -> io::Result<Id<Type>> {
@@ -821,12 +825,19 @@ impl TypeChecker {
     }
 
     pub(super) fn maybe_type_of_kind(&self, type_: Id<Type>, kind: TypeFlags) -> bool {
-        if type_.flags().intersects(kind) {
+        if self.type_(type_).flags().intersects(kind) {
             return true;
         }
-        if type_.flags().intersects(TypeFlags::UnionOrIntersection) {
-            let types = type_.as_union_or_intersection_type_interface().types();
-            for t in types {
+        if self
+            .type_(type_)
+            .flags()
+            .intersects(TypeFlags::UnionOrIntersection)
+        {
+            let types = self
+                .type_(type_)
+                .as_union_or_intersection_type_interface()
+                .types();
+            for &t in types {
                 if self.maybe_type_of_kind(t, kind) {
                     return true;
                 }
@@ -845,32 +856,32 @@ impl TypeChecker {
             return Ok(true);
         }
         if strict == Some(true)
-            && source.flags().intersects(
+            && self.type_(source).flags().intersects(
                 TypeFlags::AnyOrUnknown | TypeFlags::Void | TypeFlags::Undefined | TypeFlags::Null,
             )
         {
             return Ok(false);
         }
         Ok(kind.intersects(TypeFlags::NumberLike)
-            && self.is_type_assignable_to(source, &self.number_type())?
+            && self.is_type_assignable_to(source, self.number_type())?
             || kind.intersects(TypeFlags::BigIntLike)
-                && self.is_type_assignable_to(source, &self.bigint_type())?
+                && self.is_type_assignable_to(source, self.bigint_type())?
             || kind.intersects(TypeFlags::StringLike)
-                && self.is_type_assignable_to(source, &self.string_type())?
+                && self.is_type_assignable_to(source, self.string_type())?
             || kind.intersects(TypeFlags::BooleanLike)
-                && self.is_type_assignable_to(source, &self.boolean_type())?
+                && self.is_type_assignable_to(source, self.boolean_type())?
             || kind.intersects(TypeFlags::Void)
-                && self.is_type_assignable_to(source, &self.void_type())?
+                && self.is_type_assignable_to(source, self.void_type())?
             || kind.intersects(TypeFlags::Never)
-                && self.is_type_assignable_to(source, &self.never_type())?
+                && self.is_type_assignable_to(source, self.never_type())?
             || kind.intersects(TypeFlags::Null)
-                && self.is_type_assignable_to(source, &self.null_type())?
+                && self.is_type_assignable_to(source, self.null_type())?
             || kind.intersects(TypeFlags::Undefined)
-                && self.is_type_assignable_to(source, &self.undefined_type())?
+                && self.is_type_assignable_to(source, self.undefined_type())?
             || kind.intersects(TypeFlags::ESSymbol)
-                && self.is_type_assignable_to(source, &self.es_symbol_type())?
+                && self.is_type_assignable_to(source, self.es_symbol_type())?
             || kind.intersects(TypeFlags::NonPrimitive)
-                && self.is_type_assignable_to(source, &self.non_primitive_type())?)
+                && self.is_type_assignable_to(source, self.non_primitive_type())?)
     }
 
     pub(super) fn all_types_assignable_to_kind(
@@ -879,8 +890,8 @@ impl TypeChecker {
         kind: TypeFlags,
         strict: Option<bool>,
     ) -> io::Result<bool> {
-        Ok(if source.flags().intersects(TypeFlags::Union) {
-            try_every(source.as_union_type().types(), |sub_type: &Id<Type>, _| {
+        Ok(if self.type_(source).flags().intersects(TypeFlags::Union) {
+            try_every(self.type_(source).as_union_type().types(), |&sub_type: &Id<Type>, _| {
                 self.all_types_assignable_to_kind(sub_type, kind, strict)
             })?
         } else {
@@ -889,9 +900,9 @@ impl TypeChecker {
     }
 
     pub(super) fn is_const_enum_object_type(&self, type_: Id<Type>) -> bool {
-        get_object_flags(type_).intersects(ObjectFlags::Anonymous)
+        get_object_flags(self.type_(type_)).intersects(ObjectFlags::Anonymous)
             && matches!(
-                type_.maybe_symbol().as_ref(),
+                self.type_(type_).maybe_symbol().as_ref(),
                 Some(type_symbol) if self.is_const_enum_symbol(type_symbol)
             )
     }
@@ -907,9 +918,7 @@ impl TypeChecker {
         left_type: Id<Type>,
         right_type: Id<Type>,
     ) -> io::Result<Id<Type>> {
-        if ptr::eq(left_type, &*self.silent_never_type())
-            || ptr::eq(right_type, &*self.silent_never_type())
-        {
+        if left_type == self.silent_never_type() || right_type == self.silent_never_type() {
             return Ok(self.silent_never_type());
         }
         if !self.is_type_any(Some(left_type))
@@ -923,7 +932,7 @@ impl TypeChecker {
         }
         if !(self.is_type_any(Some(right_type))
             || self.type_has_call_or_construct_signatures(right_type)?
-            || self.is_type_subtype_of(right_type, &self.global_function_type())?)
+            || self.is_type_subtype_of(right_type, self.global_function_type())?)
         {
             self.error(
                 Some(right),
@@ -938,15 +947,12 @@ impl TypeChecker {
         &self,
         left: &Node,  /*Expression*/
         right: &Node, /*Expression*/
-        left_type: Id<Type>,
+        mut left_type: Id<Type>,
         right_type: Id<Type>,
     ) -> io::Result<Id<Type>> {
-        if ptr::eq(left_type, &*self.silent_never_type())
-            || ptr::eq(right_type, &*self.silent_never_type())
-        {
+        if left_type == self.silent_never_type() || right_type == self.silent_never_type() {
             return Ok(self.silent_never_type());
         }
-        let mut left_type = left_type.type_wrapper();
         if is_private_identifier(left) {
             if self.language_version < ScriptTarget::ESNext {
                 self.check_external_emit_helpers(left, ExternalEmitHelpers::ClassPrivateFieldIn)?;
@@ -958,7 +964,7 @@ impl TypeChecker {
                 && get_containing_class(left).is_some()
             {
                 let is_unchecked_js =
-                    self.is_unchecked_js_suggestion(Some(left), right_type.maybe_symbol(), true);
+                    self.is_unchecked_js_suggestion(Some(left), self.type_(right_type).maybe_symbol(), true);
                 self.report_nonexistent_property(left, right_type, is_unchecked_js)?;
             }
         } else {
@@ -983,15 +989,15 @@ impl TypeChecker {
             }
         }
         let right_type = self.check_non_null_type(right_type, right)?;
-        let right_type_constraint = self.get_constraint_of_type(&right_type)?;
+        let right_type_constraint = self.get_constraint_of_type(right_type)?;
         if !self.all_types_assignable_to_kind(
-            &right_type,
+            right_type,
             TypeFlags::NonPrimitive | TypeFlags::InstantiableNonPrimitive,
             None,
         )? || matches!(
-            right_type_constraint.as_ref(),
+            right_type_constraint,
             Some(right_type_constraint) if self.is_type_assignable_to_kind(
-                &right_type,
+                right_type,
                 TypeFlags::UnionOrIntersection,
                 None,
             )? &&

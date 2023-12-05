@@ -46,7 +46,7 @@ impl TypeChecker {
                 self.get_declared_type_of_symbol(jsx_element_attrib_prop_interface_sym)
             })?;
         let properties_of_jsx_element_attrib_prop_interface =
-            jsx_element_attrib_prop_interface_type.as_ref().try_map(
+            jsx_element_attrib_prop_interface_type.try_map(
                 |jsx_element_attrib_prop_interface_type| {
                     self.get_properties_of_type(jsx_element_attrib_prop_interface_type)
                 },
@@ -130,18 +130,26 @@ impl TypeChecker {
         element_type: Id<Type>,
         caller: &Node, /*JsxOpeningLikeElement*/
     ) -> io::Result<Vec<Gc<Signature>>> {
-        if element_type.flags().intersects(TypeFlags::String) {
+        if self
+            .type_(element_type)
+            .flags()
+            .intersects(TypeFlags::String)
+        {
             return Ok(vec![self.any_signature()]);
-        } else if element_type.flags().intersects(TypeFlags::StringLiteral) {
+        } else if self
+            .type_(element_type)
+            .flags()
+            .intersects(TypeFlags::StringLiteral)
+        {
             let intrinsic_type =
                 self.get_intrinsic_attributes_type_from_string_literal_type(element_type, caller)?;
-            match intrinsic_type.as_ref() {
+            match intrinsic_type {
                 None => {
                     self.error(
                         Some(caller),
                         &Diagnostics::Property_0_does_not_exist_on_type_1,
                         Some(vec![
-                            element_type.as_string_literal_type().value.clone(),
+                            self.type_(element_type).as_string_literal_type().value.clone(),
                             format!("JSX.{}", JsxNames::IntrinsicElements),
                         ]),
                     );
@@ -156,14 +164,14 @@ impl TypeChecker {
         }
         let apparent_elem_type = self.get_apparent_type(element_type)?;
         let mut signatures =
-            self.get_signatures_of_type(&apparent_elem_type, SignatureKind::Construct)?;
+            self.get_signatures_of_type(apparent_elem_type, SignatureKind::Construct)?;
         if signatures.is_empty() {
-            signatures = self.get_signatures_of_type(&apparent_elem_type, SignatureKind::Call)?;
+            signatures = self.get_signatures_of_type(apparent_elem_type, SignatureKind::Call)?;
         }
-        if signatures.is_empty() && apparent_elem_type.flags().intersects(TypeFlags::Union) {
+        if signatures.is_empty() && self.type_(apparent_elem_type).flags().intersects(TypeFlags::Union) {
             signatures = self.get_union_signatures(&try_map(
-                apparent_elem_type.as_union_type().types(),
-                |t: &Id<Type>, _| self.get_uninstantiated_jsx_signatures_of_type(t, caller),
+                self.type_(apparent_elem_type).as_union_type().types(),
+                |&t: &Id<Type>, _| self.get_uninstantiated_jsx_signatures_of_type(t, caller),
             )?)?;
         }
         Ok(signatures)
@@ -176,10 +184,10 @@ impl TypeChecker {
     ) -> io::Result<Option<Id<Type>>> {
         let intrinsic_elements_type =
             self.get_jsx_type(&JsxNames::IntrinsicElements, Some(location))?;
-        if !self.is_error_type(&intrinsic_elements_type) {
-            let string_literal_type_name = &type_.as_string_literal_type().value;
+        if !self.is_error_type(intrinsic_elements_type) {
+            let string_literal_type_name = &self.type_(type_).as_string_literal_type().value;
             let intrinsic_prop = self.get_property_of_type_(
-                &intrinsic_elements_type,
+                intrinsic_elements_type,
                 &escape_leading_underscores(string_literal_type_name),
                 None,
             )?;
@@ -187,7 +195,7 @@ impl TypeChecker {
                 return Ok(Some(self.get_type_of_symbol(intrinsic_prop)?));
             }
             let index_signature_type =
-                self.get_index_type_of_type_(&intrinsic_elements_type, &self.string_type())?;
+                self.get_index_type_of_type_(intrinsic_elements_type, self.string_type())?;
             if index_signature_type.is_some() {
                 return Ok(index_signature_type);
             }
@@ -205,7 +213,7 @@ impl TypeChecker {
         if ref_kind == JsxReferenceKind::Function {
             let sfc_return_constraint =
                 self.get_jsx_stateless_element_type_at(opening_like_element)?;
-            if let Some(sfc_return_constraint) = sfc_return_constraint.as_ref() {
+            if let Some(sfc_return_constraint) = sfc_return_constraint {
                 self.check_type_related_to(
                     elem_instance_type,
                     sfc_return_constraint,
@@ -226,7 +234,7 @@ impl TypeChecker {
             }
         } else if ref_kind == JsxReferenceKind::Component {
             let class_constraint = self.get_jsx_element_class_type_at(opening_like_element)?;
-            if let Some(class_constraint) = class_constraint.as_ref() {
+            if let Some(class_constraint) = class_constraint {
                 self.check_type_related_to(
                     elem_instance_type,
                     class_constraint,
@@ -263,7 +271,7 @@ impl TypeChecker {
             )?;
             self.check_type_related_to(
                 elem_instance_type,
-                &combined,
+                combined,
                 self.assignable_relation.clone(),
                 Some(
                     opening_like_element
@@ -314,8 +322,8 @@ impl TypeChecker {
             {
                 let ret = self
                     .get_index_type_of_type_(
-                        &*self.get_jsx_type(&JsxNames::IntrinsicElements, Some(node))?,
-                        &self.string_type(),
+                        self.get_jsx_type(&JsxNames::IntrinsicElements, Some(node))?,
+                        self.string_type(),
                     )?
                     .unwrap_or_else(|| self.error_type());
                 links.borrow_mut().resolved_jsx_element_attributes_type = Some(ret.clone());
@@ -339,7 +347,7 @@ impl TypeChecker {
         location: &Node,
     ) -> io::Result<Option<Id<Type>>> {
         let type_ = self.get_jsx_type(&JsxNames::ElementClass, Some(location))?;
-        if self.is_error_type(&type_) {
+        if self.is_error_type(type_) {
             return Ok(None);
         }
         Ok(Some(type_))
@@ -371,7 +379,7 @@ impl TypeChecker {
     ) -> io::Result<impl Iterator<Item = Gc<Symbol>>> {
         let intrinsics = self.get_jsx_type(&JsxNames::IntrinsicElements, Some(location))?;
         /*intrinsics ?*/
-        self.get_properties_of_type(&intrinsics) /*: emptyArray*/
+        self.get_properties_of_type(intrinsics) /*: emptyArray*/
     }
 
     pub(super) fn check_jsx_preconditions(&self, error_node: &Node) {
@@ -468,7 +476,7 @@ impl TypeChecker {
             self.check_deprecated_signature(sig.clone(), node)?;
             self.check_jsx_return_assignable_to_appropriate_bound(
                 self.get_jsx_reference_kind(jsx_opening_like_node)?,
-                &*self.get_return_type_of_signature(sig.clone())?,
+                self.get_return_type_of_signature(sig.clone())?,
                 jsx_opening_like_node,
             )?;
         }
@@ -482,7 +490,7 @@ impl TypeChecker {
         name: &str, /*__String*/
         is_comparing_jsx_attributes: bool,
     ) -> io::Result<bool> {
-        if target_type.flags().intersects(TypeFlags::Object) {
+        if self.type_(target_type).flags().intersects(TypeFlags::Object) {
             if self
                 .get_property_of_object_type(target_type, name)?
                 .is_some()
@@ -491,19 +499,19 @@ impl TypeChecker {
                     .is_some()
                 || self.is_late_bound_name(name)
                     && self
-                        .get_index_info_of_type_(target_type, &self.string_type())?
+                        .get_index_info_of_type_(target_type, self.string_type())?
                         .is_some()
                 || is_comparing_jsx_attributes && self.is_hyphenated_jsx_name(name)
             {
                 return Ok(true);
             }
-        } else if target_type
-            .flags()
+        } else if self.type_(target_type
+            ).flags()
             .intersects(TypeFlags::UnionOrIntersection)
             && self.is_excess_property_check_target(target_type)
         {
-            for t in target_type
-                .as_union_or_intersection_type_interface()
+            for t in self.type_(target_type
+                ).as_union_or_intersection_type_interface()
                 .types()
             {
                 if self.is_known_property(t, name, is_comparing_jsx_attributes)? {
@@ -515,19 +523,19 @@ impl TypeChecker {
     }
 
     pub(super) fn is_excess_property_check_target(&self, type_: Id<Type>) -> bool {
-        (type_.flags().intersects(TypeFlags::Object)
-            && !(get_object_flags(type_)
+        (self.type_(type_).flags().intersects(TypeFlags::Object)
+            && !(get_object_flags(self.type_(type_))
                 .intersects(ObjectFlags::ObjectLiteralPatternWithComputedProperties)))
-            || type_.flags().intersects(TypeFlags::NonPrimitive)
-            || (type_.flags().intersects(TypeFlags::Union)
+            || self.type_(type_).flags().intersects(TypeFlags::NonPrimitive)
+            || (self.type_(type_).flags().intersects(TypeFlags::Union)
                 && some(
-                    Some(type_.as_union_type().types()),
-                    Some(|type_: &Id<Type>| self.is_excess_property_check_target(type_)),
+                    Some(self.type_(type_).as_union_type().types()),
+                    Some(|&type_: &Id<Type>| self.is_excess_property_check_target(type_)),
                 ))
-            || (type_.flags().intersects(TypeFlags::Intersection)
+            || (self.type_(type_).flags().intersects(TypeFlags::Intersection)
                 && every(
-                    type_.as_intersection_type().types(),
-                    |type_: &Id<Type>, _| self.is_excess_property_check_target(type_),
+                    self.type_(type_).as_intersection_type().types(),
+                    |&type_: &Id<Type>, _| self.is_excess_property_check_target(type_),
                 ))
     }
 
@@ -542,8 +550,8 @@ impl TypeChecker {
             if let Some(node_expression) = node_as_jsx_expression.expression.as_ref() {
                 let type_ = self.check_expression(node_expression, check_mode, None)?;
                 if node_as_jsx_expression.dot_dot_dot_token.is_some()
-                    && !Gc::ptr_eq(&type_, &self.any_type())
-                    && !self.is_array_type(&type_)
+                    && type_ != self.any_type()
+                    && !self.is_array_type(type_)
                 {
                     self.error(
                         Some(node),
@@ -649,7 +657,7 @@ impl TypeChecker {
                                 None, None, None
                             )?,
                             self.type_to_string_(
-                                &self.get_declaring_class(prop)?.unwrap(),
+                                self.get_declaring_class(prop)?.unwrap(),
                                 Option::<&Node>::None,
                                 None, None,
                             )?,
@@ -705,7 +713,7 @@ impl TypeChecker {
                         Some(vec![
                             self.symbol_to_string_(prop, Option::<&Node>::None, None, None, None)?,
                             self.type_to_string_(
-                                &self.get_declaring_class(prop)?.unwrap(),
+                                self.get_declaring_class(prop)?.unwrap(),
                                 Option::<&Node>::None,
                                 None,
                                 None,
@@ -729,7 +737,7 @@ impl TypeChecker {
                 )?;
                 Ok(
                     if self
-                        .is_class_derived_from_declaring_classes(&enclosing_class, prop, writing)?
+                        .is_class_derived_from_declaring_classes(enclosing_class, prop, writing)?
                         .is_some()
                     {
                         Some(enclosing_class)
@@ -761,7 +769,7 @@ impl TypeChecker {
                                 None, None, None,
                             )?,
                             self.type_to_string_(
-                                &self.get_declaring_class(prop)?.unwrap_or_else(|| containing_type.type_wrapper()),
+                                self.get_declaring_class(prop)?.unwrap_or_else(|| containing_type),
                                 Option::<&Node>::None,
                                 None, None,
                             )?,
@@ -780,8 +788,8 @@ impl TypeChecker {
                     .unwrap(),
             )?;
             enclosing_class = Some(
-                if this_type.flags().intersects(TypeFlags::TypeParameter) {
-                    self.get_constraint_of_type_parameter(&this_type)?.unwrap()
+                if self.type_(this_type).flags().intersects(TypeFlags::TypeParameter) {
+                    self.get_constraint_of_type_parameter(this_type)?.unwrap()
                 } else {
                     this_type
                 }
@@ -793,7 +801,7 @@ impl TypeChecker {
         if flags.intersects(ModifierFlags::Static) {
             return Ok(true);
         }
-        let mut containing_type = Some(containing_type.type_wrapper());
+        let mut containing_type = Some(containing_type);
         if containing_type
             .as_ref()
             .unwrap()
@@ -815,7 +823,7 @@ impl TypeChecker {
         if match containing_type.as_ref() {
             None => true,
             Some(containing_type) => {
-                !self.has_base_type(containing_type, Some(&*enclosing_class))?
+                !self.has_base_type(containing_type, Some(enclosing_class))?
             }
         } {
             if error_node.is_some() {
@@ -829,7 +837,7 @@ impl TypeChecker {
                             None, None, None,
                         )?,
                         self.type_to_string_(
-                            &enclosing_class,
+                            enclosing_class,
                             Option::<&Node>::None,
                             None, None,
                         )?,

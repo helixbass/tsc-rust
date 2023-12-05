@@ -41,8 +41,8 @@ impl TypeChecker {
             .filter(|base_types| !base_types.is_empty())
             .try_map(|base_types| {
                 self.get_type_with_this_argument(
-                    &*first(base_types),
-                    type_.as_interface_type().maybe_this_type(),
+                    *first(base_types),
+                    self.type_(type_).as_interface_type().maybe_this_type(),
                     None,
                 )
             })?;
@@ -61,8 +61,8 @@ impl TypeChecker {
                             self.check_existing_member_for_override_modifier(
                                 node,
                                 static_type,
-                                &base_static_type,
-                                base_with_this.as_deref(),
+                                base_static_type,
+                                base_with_this,
                                 type_,
                                 type_with_this,
                                 param,
@@ -77,8 +77,8 @@ impl TypeChecker {
             self.check_existing_member_for_override_modifier(
                 node,
                 static_type,
-                &base_static_type,
-                base_with_this.as_deref(),
+                base_static_type,
+                base_with_this,
                 type_,
                 type_with_this,
                 member,
@@ -268,8 +268,8 @@ impl TypeChecker {
                     self.get_property_of_type_(base_with_this, declared_prop.escaped_name(), None)?;
                 if let (Some(prop), Some(base_prop)) = (prop.as_ref(), base_prop.as_ref()) {
                     if !self.check_type_assignable_to(
-                        &*self.get_type_of_symbol(prop)?,
-                        &*self.get_type_of_symbol(base_prop)?,
+                        self.get_type_of_symbol(prop)?,
+                        self.get_type_of_symbol(base_prop)?,
                         Some(
                             member_as_named_declaration
                                 .maybe_name()
@@ -280,8 +280,8 @@ impl TypeChecker {
                             IssueMemberSpecificErrorContainingMessageChain::new(
                                 self.rc_wrapper(),
                                 declared_prop.clone(),
-                                type_with_this.type_wrapper(),
-                                base_with_this.type_wrapper(),
+                                type_with_this,
+                                base_with_this,
                             ),
                         ))),
                         None,
@@ -322,7 +322,7 @@ impl TypeChecker {
                 Some(declaration) if has_effective_modifier(declaration, ModifierFlags::Private)
             ) {
                 let type_class_declaration =
-                    get_class_like_declaration_of_symbol(&type_.symbol()).unwrap();
+                    get_class_like_declaration_of_symbol(&self.type_(type_).symbol()).unwrap();
                 if !self.is_node_within_class(node, &type_class_declaration) {
                     self.error(
                         Some(node),
@@ -354,12 +354,12 @@ impl TypeChecker {
 
         let symbol = self.get_symbol_of_node(node)?.unwrap();
         let type_ = self.get_declared_type_of_symbol(&symbol)?;
-        let type_with_this = self.get_type_with_this_argument(&type_, None, None)?;
+        let type_with_this = self.get_type_with_this_argument(type_, None, None)?;
         let static_type = self.get_type_of_symbol(&symbol)?;
 
         let base_type_node = get_effective_base_type_node(node);
         let base_types = if base_type_node.is_some() {
-            Some(self.get_base_types(&type_)?)
+            Some(self.get_base_types(type_)?)
         } else {
             None
         };
@@ -368,12 +368,12 @@ impl TypeChecker {
             .filter(|base_types| !base_types.is_empty())
             .try_map(|base_types| {
                 self.get_type_with_this_argument(
-                    &*first(base_types),
-                    type_.as_interface_type().maybe_this_type(),
+                    *first(base_types),
+                    self.type_(type_).as_interface_type().maybe_this_type(),
                     None,
                 )
             })?;
-        let base_static_type = self.get_base_constructor_type_of_class(&type_)?;
+        let base_static_type = self.get_base_constructor_type_of_class(type_)?;
 
         let member_has_override_modifier = if member.maybe_parent().is_some() {
             has_override_modifier(member)
@@ -386,11 +386,11 @@ impl TypeChecker {
 
         self.check_member_for_override_modifier(
             node,
-            &static_type,
-            &base_static_type,
+            static_type,
+            base_static_type,
             base_with_this,
-            &type_,
-            &type_with_this,
+            type_,
+            type_with_this,
             member_has_override_modifier,
             has_abstract_modifier(member),
             is_static(member),
@@ -445,12 +445,12 @@ impl TypeChecker {
 
             if Gc::ptr_eq(&derived, &base) {
                 let derived_class_decl =
-                    get_class_like_declaration_of_symbol(&type_.symbol()).unwrap();
+                    get_class_like_declaration_of_symbol(&self.type_(type_).symbol()).unwrap();
 
                 if base_declaration_flags.intersects(ModifierFlags::Abstract) && /* !derivedClassDecl ||*/ !has_syntactic_modifier(&derived_class_decl, ModifierFlags::Abstract)
                 {
-                    for other_base_type in &self.get_base_types(type_)? {
-                        if ptr::eq(&**other_base_type, base_type) {
+                    for &other_base_type in &self.get_base_types(type_)? {
+                        if other_base_type == base_type {
                             continue;
                         }
                         let base_symbol =
@@ -590,7 +590,7 @@ impl TypeChecker {
                                 )
                             {
                                 let constructor = self.find_constructor_declaration(
-                                    &get_class_like_declaration_of_symbol(&type_.symbol()).unwrap(),
+                                    &get_class_like_declaration_of_symbol(&self.type_(type_).symbol()).unwrap(),
                                 );
                                 let uninitialized_as_property_declaration =
                                     uninitialized.as_property_declaration();
@@ -621,7 +621,7 @@ impl TypeChecker {
                                                 None,
                                             )?,
                                             self.type_to_string_(
-                                                &base_type,
+                                                base_type,
                                                 Option::<&Node>::None,
                                                 None,
                                                 None,
@@ -689,11 +689,10 @@ impl TypeChecker {
             None
         });
 
-        let type_as_interface_type = type_.as_interface_type();
-        for base in base_types {
-            let properties = self.get_properties_of_type(&*self.get_type_with_this_argument(
+        for &base in base_types {
+            let properties = self.get_properties_of_type(self.get_type_with_this_argument(
                 base,
-                type_as_interface_type.maybe_this_type(),
+                self.type_(type_).as_interface_type().maybe_this_type(),
                 None,
             )?)?;
             for ref prop in properties {
@@ -725,7 +724,7 @@ impl TypeChecker {
 
         let mut seen: HashMap<__String, InheritanceInfoMap> = HashMap::new();
         maybe_for_each(
-            self.resolve_declared_members(type_)?
+            self.type_(self.resolve_declared_members(type_)?)
                 .as_interface_type_with_declared_members()
                 .maybe_declared_properties()
                 .as_ref(),
@@ -734,7 +733,7 @@ impl TypeChecker {
                     p.escaped_name().to_owned(),
                     InheritanceInfoMap {
                         prop: p.clone(),
-                        containing_type: type_.type_wrapper(),
+                        containing_type: type_,
                     },
                 );
                 None
@@ -742,11 +741,10 @@ impl TypeChecker {
         );
         let mut ok = true;
 
-        let type_as_interface_type = type_.as_interface_type();
-        for base in &base_types {
-            let properties = self.get_properties_of_type(&*self.get_type_with_this_argument(
+        for &base in &base_types {
+            let properties = self.get_properties_of_type(self.get_type_with_this_argument(
                 base,
-                type_as_interface_type.maybe_this_type(),
+                self.type_(type_).as_interface_type().maybe_this_type(),
                 None,
             )?)?;
             for ref prop in properties {
@@ -762,14 +760,14 @@ impl TypeChecker {
                         );
                     }
                     Some(existing) => {
-                        let is_inherited_property = !ptr::eq(&*existing.containing_type, type_);
+                        let is_inherited_property = existing.containing_type != type_;
                         if is_inherited_property
                             && !self.is_property_identical_to(&existing.prop, prop)?
                         {
                             ok = false;
 
                             let type_name1 = self.type_to_string_(
-                                &existing.containing_type,
+                                existing.containing_type,
                                 Option::<&Node>::None,
                                 None,
                                 None,
@@ -858,12 +856,12 @@ impl CheckTypeContainingMessageChain for IssueMemberSpecificErrorContainingMessa
                         None, None, None,
                     )?,
                     self.type_checker.type_to_string_(
-                        &self.type_with_this,
+                        self.type_with_this,
                         Option::<&Node>::None,
                         None, None,
                     )?,
                     self.type_checker.type_to_string_(
-                        &self.base_with_this,
+                        self.base_with_this,
                         Option::<&Node>::None,
                         None, None,
                     )?,
