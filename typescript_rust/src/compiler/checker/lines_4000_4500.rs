@@ -295,7 +295,7 @@ impl TypeChecker {
         construct_signatures: Vec<Gc<Signature>>,
         index_infos: Vec<Gc<IndexInfo>>,
     ) -> io::Result<Id<Type>> {
-        Ok(BaseInterfaceType::new(
+        Ok(self.alloc_type(BaseInterfaceType::new(
             self.create_anonymous_type_returning_base_object_type(
                 symbol,
                 members,
@@ -308,20 +308,19 @@ impl TypeChecker {
             None,
             None,
         )
-        .into())
+        .into()))
     }
 
     pub(super) fn get_resolved_type_without_abstract_construct_signatures(
         &self,
         type_: Id<Type>, /*ResolvedType*/
     ) -> io::Result<Id<Type>> {
-        let type_as_resolved_type = type_.as_resolved_type();
-        let type_construct_signatures = type_as_resolved_type.construct_signatures();
+        let type_construct_signatures = self.type_(type_).as_resolved_type().construct_signatures();
         if type_construct_signatures.is_empty() {
-            return Ok(type_.type_wrapper());
+            return Ok(type_);
         }
         if let Some(type_object_type_without_abstract_construct_signatures) =
-            type_as_resolved_type.maybe_object_type_without_abstract_construct_signatures()
+            self.type_(type_).as_resolved_type().maybe_object_type_without_abstract_construct_signatures()
         {
             return Ok(type_object_type_without_abstract_construct_signatures);
         }
@@ -330,19 +329,19 @@ impl TypeChecker {
                 !signature.flags.intersects(SignatureFlags::Abstract)
             });
         if type_construct_signatures.len() == construct_signatures.len() {
-            return Ok(type_.type_wrapper());
+            return Ok(type_);
         }
         let type_copy = self.create_anonymous_type(
-            type_.maybe_symbol(),
-            type_as_resolved_type.members(),
-            type_as_resolved_type.call_signatures().clone(),
+            self.type_(type_).maybe_symbol(),
+            self.type_(type_).as_resolved_type().members(),
+            self.type_(type_).as_resolved_type().call_signatures().clone(),
             construct_signatures,
-            type_as_resolved_type.index_infos().clone(),
+            self.type_(type_).as_resolved_type().index_infos().clone(),
         )?;
-        type_as_resolved_type
+        self.type_(type_).as_resolved_type()
             .set_object_type_without_abstract_construct_signatures(Some(type_copy.clone()));
-        type_copy
-            .as_resolved_type()
+        self.type_(type_copy
+            ).as_resolved_type()
             .set_object_type_without_abstract_construct_signatures(Some(type_copy.clone()));
         Ok(type_copy)
     }

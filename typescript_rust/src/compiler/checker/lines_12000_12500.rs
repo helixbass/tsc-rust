@@ -940,7 +940,7 @@ impl TypeChecker {
         let mut min_type_argument_count = 0;
         if let Some(type_parameters) = type_parameters {
             for (i, type_parameter) in type_parameters.iter().enumerate() {
-                if !self.has_type_parameter_default(type_parameter) {
+                if !self.has_type_parameter_default(*type_parameter) {
                     min_type_argument_count = i + 1;
                 }
             }

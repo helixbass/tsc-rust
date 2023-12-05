@@ -7,6 +7,7 @@ use std::{
 
 use base64::{engine::general_purpose, Engine as _};
 use gc::Gc;
+use id_arena::Id;
 use regex::{Captures, Regex};
 
 use super::supported_ts_extensions_for_extract_extension;
@@ -624,7 +625,7 @@ pub fn get_object_flags(type_: &Type) -> ObjectFlags {
 }
 
 pub fn type_has_call_or_construct_signatures(
-    type_: &Type,
+    type_: Id<Type>,
     checker: &TypeChecker,
 ) -> io::Result<bool> {
     Ok(!checker

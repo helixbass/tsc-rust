@@ -29,7 +29,7 @@ use crate::{
     RedirectTargetsMap, ScriptTarget, Signature, SignatureKind, Symbol, SymbolAccessibility,
     SymbolFlags, SymbolFormatFlags, SymbolId, SymbolInterface, SymbolTable, SymbolTracker,
     SymbolVisibilityResult, SymlinkCache, SyntaxKind, Type, TypeChecker, TypeCheckerHostDebuggable,
-    TypeFlags, TypeFormatFlags, TypeId, TypeInterface,
+    TypeFlags, TypeFormatFlags, TypeId, TypeInterface, contains,
 };
 
 impl TypeChecker {
@@ -444,7 +444,7 @@ impl TypeChecker {
             Some(type_node) => type_node,
         };
         let options = PrinterOptionsBuilder::default()
-            .remove_comments(Some(!ptr::eq(type_, &*self.unresolved_type())))
+            .remove_comments(Some(type_ != self.unresolved_type()))
             .build()
             .unwrap();
         let printer = create_printer(options, None);
@@ -475,7 +475,7 @@ impl TypeChecker {
         left: Id<Type>,
         right: Id<Type>,
     ) -> io::Result<(String, String)> {
-        let mut left_str = if let Some(symbol) = left.maybe_symbol() {
+        let mut left_str = if let Some(symbol) = self.type_(left).maybe_symbol() {
             if self.symbol_value_declaration_is_context_sensitive(Some(&symbol))? {
                 let enclosing_declaration = (*symbol.maybe_value_declaration().borrow()).clone();
                 self.type_to_string_(left, enclosing_declaration, None, None)?
@@ -485,7 +485,7 @@ impl TypeChecker {
         } else {
             self.type_to_string_(left, Option::<&Node>::None, None, None)?
         };
-        let mut right_str = if let Some(symbol) = right.maybe_symbol() {
+        let mut right_str = if let Some(symbol) = self.type_(right).maybe_symbol() {
             if self.symbol_value_declaration_is_context_sensitive(Some(&symbol))? {
                 let enclosing_declaration = (*symbol.maybe_value_declaration().borrow()).clone();
                 self.type_to_string_(right, enclosing_declaration, None, None)?
@@ -532,10 +532,10 @@ impl TypeChecker {
 
     pub(super) fn is_class_instance_side(&self, type_: Id<Type>) -> io::Result<bool> {
         Ok(matches!(
-            type_.maybe_symbol(),
+            self.type_(type_).maybe_symbol(),
             Some(type_symbol) if type_symbol.flags().intersects(SymbolFlags::Class) && (
-                ptr::eq(type_, &*self.get_declared_type_of_class_or_interface(&type_symbol)?) ||
-                type_.flags().intersects(TypeFlags::Object) && get_object_flags(type_).intersects(ObjectFlags::IsClassInstanceClone)
+                type_ == self.get_declared_type_of_class_or_interface(&type_symbol)? ||
+                self.type_(type_).flags().intersects(TypeFlags::Object) && get_object_flags(self.type_(type_)).intersects(ObjectFlags::IsClassInstanceClone)
             )
         ))
     }
@@ -842,8 +842,7 @@ impl NodeBuilder {
                 .wrap(),
             ));
         }
-        let type_ = type_.unwrap();
-        let mut type_ = type_.borrow().type_wrapper();
+        let mut type_ = type_.unwrap();
 
         if !context
             .flags()
@@ -863,7 +862,7 @@ impl NodeBuilder {
                     )?,
                 )));
             }
-            if Gc::ptr_eq(&type_, &self.type_checker.unresolved_type()) {
+            if type_ == self.type_checker.unresolved_type() {
                 let ret: Node = Into::<KeywordTypeNode>::into(
                     get_factory().create_keyword_type_node_raw(SyntaxKind::AnyKeyword),
                 )
@@ -879,7 +878,7 @@ impl NodeBuilder {
             context.increment_approximate_length_by(3);
             return Ok(Some(
                 Into::<KeywordTypeNode>::into(get_factory().create_keyword_type_node_raw(
-                    if Gc::ptr_eq(&type_, &self.type_checker.intrinsic_marker_type()) {
+                    if type_ == self.type_checker.intrinsic_marker_type() {
                         SyntaxKind::IntrinsicKeyword
                     } else {
                         SyntaxKind::AnyKeyword
@@ -941,12 +940,11 @@ impl NodeBuilder {
                 .unwrap();
             let parent_name =
                 self.symbol_to_type_node(&parent_symbol, context, SymbolFlags::Type, None)?;
-            if Gc::ptr_eq(
-                &self
+            if self
                     .type_checker
-                    .get_declared_type_of_symbol(&parent_symbol)?,
-                &type_,
-            ) {
+                    .get_declared_type_of_symbol(&parent_symbol)? ==
+                type_
+             {
                 return Ok(Some(parent_name));
             }
             let type_symbol = type_.symbol();
@@ -1208,9 +1206,9 @@ impl NodeBuilder {
             || object_flags.intersects(ObjectFlags::ClassOrInterface)
         {
             if type_.flags().intersects(TypeFlags::TypeParameter)
-                && contains_gc(
+                && contains(
                     (*context.infer_type_parameters).borrow().as_deref(),
-                    &type_.type_wrapper(),
+                    &type_,
                 )
             {
                 context.increment_approximate_length_by(symbol_name(&type_.symbol()).len() + 6);
@@ -1304,9 +1302,9 @@ impl NodeBuilder {
             let template_head: Gc<Node> =
                 get_factory().create_template_head(Some(texts[0].clone()), None, None);
             let template_spans = get_factory().create_node_array(
-                Some(try_map(types, |t: &Id<Type>, i| -> io::Result<Gc<Node>> {
+                Some(try_map(types, |&t: &Id<Type>, i| -> io::Result<Gc<Node>> {
                     Ok(get_factory().create_template_literal_type_span(
-                        self.type_to_type_node_helper(Some(&**t), context)?.unwrap(),
+                        self.type_to_type_node_helper(Some(t), context)?.unwrap(),
                         if i < types.len() - 1 {
                             get_factory().create_template_middle(
                                 Some(texts[i + 1].clone()),

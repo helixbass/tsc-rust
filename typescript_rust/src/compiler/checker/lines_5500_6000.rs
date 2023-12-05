@@ -96,13 +96,13 @@ impl NodeBuilder {
                         )]));
                     } else if types.len() > 2 {
                         return Ok(Some(vec![
-                            self.type_to_type_node_helper(Some(&*types[0]), context)?
+                            self.type_to_type_node_helper(Some(types[0]), context)?
                                 .unwrap(),
                             get_factory().create_type_reference_node(
                                 &*format!("... {} more ...", types.len() - 2),
                                 Option::<Gc<NodeArray>>::None,
                             ),
-                            self.type_to_type_node_helper(Some(&*types[types.len() - 1]), context)?
+                            self.type_to_type_node_helper(Some(types[types.len() - 1]), context)?
                                 .unwrap(),
                         ]));
                     }
@@ -118,7 +118,7 @@ impl NodeBuilder {
                     };
                 let mut result: Vec<Gc<Node /*TypeNode*/>> = vec![];
                 let mut i = 0;
-                for type_ in types {
+                for &type_ in types {
                     i += 1;
                     if self.check_truncation_length(context) && i + 2 < types.len() - 1 {
                         result.push(get_factory().create_type_reference_node(
@@ -126,14 +126,14 @@ impl NodeBuilder {
                             Option::<Gc<NodeArray>>::None,
                         ));
                         let type_node =
-                            self.type_to_type_node_helper(Some(&*types[types.len() - 1]), context)?;
+                            self.type_to_type_node_helper(Some(types[types.len() - 1]), context)?;
                         if let Some(type_node) = type_node {
                             result.push(type_node);
                         }
                         break;
                     }
                     context.increment_approximate_length_by(2);
-                    let type_node = self.type_to_type_node_helper(Some(&**type_), context)?;
+                    let type_node = self.type_to_type_node_helper(Some(type_), context)?;
                     if let Some(type_node) = type_node.as_ref() {
                         result.push(type_node.clone());
                         if let Some(seen_names) = seen_names.as_mut() {
@@ -159,11 +159,11 @@ impl NodeBuilder {
                         .set(context.flags.get() | NodeBuilderFlags::UseFullyQualifiedType);
                     for types in seen_names.0.values() {
                         if !array_is_homogeneous(types, |(a, _), (b, _)| {
-                            self.types_are_same_reference(a, b)
+                            self.types_are_same_reference(*a, *b)
                         }) {
                             for (type_, result_index) in types {
                                 result[*result_index] = self
-                                    .type_to_type_node_helper(Some(&**type_), context)?
+                                    .type_to_type_node_helper(Some(*type_), context)?
                                     .unwrap();
                             }
                         }
@@ -177,7 +177,7 @@ impl NodeBuilder {
         Ok(None)
     }
 
-    pub(super) fn types_are_same_reference(&self, a: &Type, b: &Type) -> bool {
+    pub(super) fn types_are_same_reference(&self, a: Id<Type>, b: Id<Type>) -> bool {
         ptr::eq(a, b)
             || a.maybe_symbol().is_some()
                 && are_option_gcs_equal(a.maybe_symbol().as_ref(), b.maybe_symbol().as_ref())
@@ -196,7 +196,7 @@ impl NodeBuilder {
     ) -> io::Result<Gc<Node /*IndexSignatureDeclaration*/>> {
         let name = get_name_from_index_info(index_info).unwrap_or_else(|| Cow::Borrowed("x"));
         let indexer_type_node =
-            self.type_to_type_node_helper(Some(&*index_info.key_type), context)?;
+            self.type_to_type_node_helper(Some(index_info.key_type), context)?;
 
         let indexing_parameter = get_factory().create_parameter_declaration(
             Option::<Gc<NodeArray>>::None,
@@ -210,7 +210,7 @@ impl NodeBuilder {
         let type_node = type_node
             .map(|type_node| type_node.borrow().node_wrapper())
             .try_or_else(|| {
-                self.type_to_type_node_helper(Some(&*index_info.type_ /*|| anyType*/), context)
+                self.type_to_type_node_helper(Some(index_info.type_ /*|| anyType*/), context)
             })?;
         // if (!indexInfo.type && !(context.flags & NodeBuilderFlags.AllowEmptyIndexInfoType)) {
         //     context.encounteredError = true;
@@ -259,7 +259,7 @@ impl NodeBuilder {
                     _type_arguments = Some(
                         signature_target_type_parameters
                             .into_iter()
-                            .map(|parameter| {
+                            .map(|&parameter| {
                                 Ok(self
                                     .type_to_type_node_helper(
                                         Some(self.type_checker.instantiate_type(
@@ -280,7 +280,7 @@ impl NodeBuilder {
                 |signature_type_parameters| {
                     signature_type_parameters
                         .into_iter()
-                        .map(|parameter| {
+                        .map(|&parameter| {
                             self.type_parameter_to_declaration_(parameter, context, None)
                         })
                         .collect::<io::Result<Vec<_>>>()
@@ -356,9 +356,8 @@ impl NodeBuilder {
             };
             let type_node = type_predicate
                 .type_
-                .as_ref()
                 .try_and_then(|type_predicate_type| {
-                    self.type_to_type_node_helper(Some(&**type_predicate_type), context)
+                    self.type_to_type_node_helper(Some(type_predicate_type), context)
                 })?;
             return_type_node = Some(get_factory().create_type_predicate_node(
                 asserts_modifier,
@@ -366,12 +365,12 @@ impl NodeBuilder {
                 type_node,
             ));
         } else {
-            let ref return_type = self
+            let return_type = self
                 .type_checker
                 .get_return_type_of_signature(signature.clone())?;
             if
             /*returnType &&*/
-            !(suppress_any && self.type_checker.is_type_any(Some(&**return_type))) {
+            !(suppress_any && self.type_checker.is_type_any(Some(return_type))) {
                 return_type_node = Some(
                     self.serialize_return_type_for_signature(
                         context,
@@ -545,7 +544,7 @@ impl NodeBuilder {
 
     pub(super) fn type_parameter_to_declaration_with_constraint(
         &self,
-        type_: &Type, /*TypeParameter*/
+        type_: Id<Type>, /*TypeParameter*/
         context: &NodeBuilderContext,
         constraint_node: Option<Gc<Node>>,
     ) -> io::Result<Gc<Node /*TypeParameterDeclaration*/>> {
@@ -555,9 +554,8 @@ impl NodeBuilder {
         let default_parameter = self.type_checker.get_default_from_type_parameter_(type_)?;
         let default_parameter_node =
             default_parameter
-                .as_ref()
                 .try_and_then(|default_parameter| {
-                    self.type_to_type_node_helper(Some(&**default_parameter), context)
+                    self.type_to_type_node_helper(Some(default_parameter), context)
                 })?;
         context.set_flags(saved_context_flags);
         Ok(get_factory().create_type_parameter_declaration(
@@ -569,14 +567,14 @@ impl NodeBuilder {
 
     pub(super) fn type_parameter_to_declaration_(
         &self,
-        type_: &Type, /*TypeParameter*/
+        type_: Id<Type>, /*TypeParameter*/
         context: &NodeBuilderContext,
         constraint: Option<Id<Type>>,
     ) -> io::Result<Gc<Node /*TypeParameterDeclaration*/>> {
         let constraint =
             constraint.try_or_else(|| self.type_checker.get_constraint_of_type_parameter(type_))?;
-        let constraint_node = constraint.as_ref().try_and_then(|constraint| {
-            self.type_to_type_node_helper(Some(&**constraint), context)
+        let constraint_node = constraint.try_and_then(|constraint| {
+            self.type_to_type_node_helper(Some(constraint), context)
         })?;
         self.type_parameter_to_declaration_with_constraint(type_, context, constraint_node)
     }
@@ -604,7 +602,7 @@ impl NodeBuilder {
         ) {
             parameter_type = self
                 .type_checker
-                .get_optional_type_(&parameter_type, None)?;
+                .get_optional_type_(parameter_type, None)?;
         }
         if context
             .flags()
@@ -617,7 +615,7 @@ impl NodeBuilder {
         {
             parameter_type = self
                 .type_checker
-                .get_type_with_facts(&parameter_type, TypeFacts::NEUndefined)?;
+                .get_type_with_facts(parameter_type, TypeFacts::NEUndefined)?;
         }
         let parameter_type_node = self.serialize_type_for_declaration(
             context,
@@ -1031,7 +1029,7 @@ impl NodeBuilder {
                         self.type_checker
                             .get_local_type_parameters_of_class_or_interface_or_type_alias(symbol)?
                             .as_ref(),
-                        |tp: &Id<Type>, _| self.type_parameter_to_declaration_(tp, context, None),
+                        |&tp: &Id<Type>, _| self.type_parameter_to_declaration_(tp, context, None),
                     )
                     .transpose()?,
                     None,
@@ -1085,7 +1083,7 @@ impl NodeBuilder {
                         parent_symbol.clone()
                     })?;
                 type_parameter_nodes = self.map_to_type_nodes(
-                    try_maybe_map(params.as_ref(), |t: &Id<Type>, _| {
+                    try_maybe_map(params.as_ref(), |&t: &Id<Type>, _| {
                         self.type_checker.get_mapped_type(
                             t,
                             (*next_symbol.as_transient_symbol().symbol_links())

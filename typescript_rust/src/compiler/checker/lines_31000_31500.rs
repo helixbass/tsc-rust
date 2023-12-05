@@ -73,7 +73,7 @@ impl TypeChecker {
         }
 
         if node_as_call_expression.arguments.is_empty() {
-            return self.create_promise_return_type(node, &self.any_type());
+            return self.create_promise_return_type(node, self.any_type());
         }
 
         let specifier = &node_as_call_expression.arguments[0];
@@ -87,15 +87,15 @@ impl TypeChecker {
             self.check_expression_cached(&node_as_call_expression.arguments[i], None)?;
         }
 
-        if specifier_type.flags().intersects(TypeFlags::Undefined)
-            || specifier_type.flags().intersects(TypeFlags::Null)
-            || !self.is_type_assignable_to(&specifier_type, &self.string_type())?
+        if self.type_(specifier_type).flags().intersects(TypeFlags::Undefined)
+            || self.type_(specifier_type).flags().intersects(TypeFlags::Null)
+            || !self.is_type_assignable_to(specifier_type, self.string_type())?
         {
             self.error(
                 Some(&**specifier),
                 &Diagnostics::Dynamic_import_s_specifier_must_be_of_type_string_but_here_has_type_0,
                 Some(vec![self.type_to_string_(
-                    &specifier_type,
+                    specifier_type,
                     Option::<&Node>::None,
                     None,
                     None,
@@ -103,12 +103,12 @@ impl TypeChecker {
             );
         }
 
-        if let Some(options_type) = options_type.as_ref() {
+        if let Some(options_type) = options_type {
             let import_call_options_type = self.get_global_import_call_options_type(true)?;
-            if !Gc::ptr_eq(&import_call_options_type, &self.empty_object_type()) {
+            if import_call_options_type != self.empty_object_type() {
                 self.check_type_assignable_to(
                     options_type,
-                    &*self.get_nullable_type(&import_call_options_type, TypeFlags::Undefined)?,
+                    self.get_nullable_type(import_call_options_type, TypeFlags::Undefined)?,
                     Some(&*node_as_call_expression.arguments[1]),
                     None,
                     None,
@@ -124,16 +124,16 @@ impl TypeChecker {
             if let Some(es_module_symbol) = es_module_symbol.as_ref() {
                 return self.create_promise_return_type(
                     node,
-                    &*self
+                    self
                         .get_type_with_synthetic_default_only(
-                            &*self.get_type_of_symbol(es_module_symbol)?,
+                            self.get_type_of_symbol(es_module_symbol)?,
                             es_module_symbol,
                             module_symbol,
                             specifier,
                         )?
                         .try_unwrap_or_else(|| {
                             self.get_type_with_synthetic_default_import_type(
-                                &*self.get_type_of_symbol(es_module_symbol)?,
+                                self.get_type_of_symbol(es_module_symbol)?,
                                 es_module_symbol,
                                 module_symbol,
                                 specifier,
@@ -142,7 +142,7 @@ impl TypeChecker {
                 );
             }
         }
-        self.create_promise_return_type(node, &self.any_type())
+        self.create_promise_return_type(node, self.any_type())
     }
 
     pub(super) fn create_default_property_wrapper_for_module(
@@ -189,15 +189,15 @@ impl TypeChecker {
             /*type &&*/
             !self.is_error_type(type_) {
                 let synth_type = type_;
-                if synth_type.maybe_default_only_type().is_none() {
+                if self.type_(synth_type).maybe_default_only_type().is_none() {
                     let type_ = self.create_default_property_wrapper_for_module(
                         symbol,
                         original_symbol,
                         Option::<&Symbol>::None,
                     )?;
-                    *synth_type.maybe_default_only_type() = Some(type_);
+                    *self.type_(synth_type).maybe_default_only_type() = Some(type_);
                 }
-                return Ok(synth_type.maybe_default_only_type().clone());
+                return Ok(self.type_(synth_type).maybe_default_only_type().clone());
             }
         }
         Ok(None)
@@ -212,7 +212,7 @@ impl TypeChecker {
     ) -> io::Result<Id<Type>> {
         if self.allow_synthetic_default_imports && /*type &&*/ !self.is_error_type(type_) {
             let synth_type = type_;
-            if synth_type.maybe_synthetic_type().is_none() {
+            if self.type_(synth_type).maybe_synthetic_type().is_none() {
                 let file = original_symbol.maybe_declarations().as_ref().and_then(
                     |original_symbol_declarations| {
                         original_symbol_declarations
@@ -246,11 +246,11 @@ impl TypeChecker {
                         .symbol_links()
                         .borrow_mut()
                         .type_ = Some(default_containing_object.clone());
-                    *synth_type.maybe_synthetic_type() =
+                    *self.type_(synth_type).maybe_synthetic_type() =
                         Some(if self.is_valid_spread_type(type_)? {
                             self.get_spread_type(
                                 type_,
-                                &default_containing_object,
+                                default_containing_object,
                                 Some(anonymous_symbol),
                                 ObjectFlags::None,
                                 false,
@@ -259,12 +259,12 @@ impl TypeChecker {
                             default_containing_object
                         });
                 } else {
-                    *synth_type.maybe_synthetic_type() = Some(type_.type_wrapper());
+                    *self.type_(synth_type).maybe_synthetic_type() = Some(type_);
                 }
             }
-            return Ok(synth_type.maybe_synthetic_type().clone().unwrap());
+            return Ok(self.type_(synth_type).maybe_synthetic_type().clone().unwrap());
         }
-        Ok(type_.type_wrapper())
+        Ok(type_)
     }
 
     pub(super) fn is_common_js_require(&self, node: &Node) -> io::Result<bool> {
@@ -391,7 +391,7 @@ impl TypeChecker {
             }
             SyntaxKind::PropertyAccessExpression | SyntaxKind::ElementAccessExpression => {
                 let expr = node.as_has_expression().expression();
-                let mut symbol = self.get_type_of_node(&expr)?.maybe_symbol();
+                let mut symbol = self.type_(self.get_type_of_node(&expr)?).maybe_symbol();
                 if let Some(symbol_present) = symbol
                     .as_ref()
                     .filter(|symbol| symbol.flags().intersects(SymbolFlags::Alias))
@@ -423,19 +423,19 @@ impl TypeChecker {
                     None,
                 );
             }
-            return Ok(self.get_regular_type_of_literal_type(&expr_type));
+            return Ok(self.get_regular_type_of_literal_type(expr_type));
         }
         self.check_source_element(Some(type_))?;
         expr_type = self.get_regular_type_of_object_literal(
-            &*self.get_base_type_of_literal_type(&expr_type)?,
+            self.get_base_type_of_literal_type(expr_type)?,
         )?;
         let target_type = self.get_type_from_type_node_(type_)?;
-        if self.produce_diagnostics && !self.is_error_type(&target_type) {
-            let widened_type = self.get_widened_type(&expr_type)?;
-            if !self.is_type_comparable_to(&target_type, &widened_type)? {
+        if self.produce_diagnostics && !self.is_error_type(target_type) {
+            let widened_type = self.get_widened_type(expr_type)?;
+            if !self.is_type_comparable_to(target_type, widened_type)? {
                 self.check_type_comparable_to(
-                    &expr_type,
-                    &target_type,
+                    expr_type,
+                    target_type,
                     err_node,
                     Some(Cow::Borrowed(&Diagnostics::Conversion_of_type_0_to_type_1_may_be_a_mistake_because_neither_type_sufficiently_overlaps_with_the_other_If_this_was_intentional_convert_the_expression_to_unknown_first)),
                     None,
@@ -452,11 +452,11 @@ impl TypeChecker {
         let left_type =
             self.check_expression(&node.as_has_expression().expression(), None, None)?;
         let non_optional_type =
-            self.get_optional_expression_type(&left_type, &node.as_has_expression().expression())?;
+            self.get_optional_expression_type(left_type, &node.as_has_expression().expression())?;
         self.propagate_optional_type_marker(
-            &*self.get_non_nullable_type(&non_optional_type)?,
+            self.get_non_nullable_type(non_optional_type)?,
             node,
-            !Gc::ptr_eq(&non_optional_type, &left_type),
+            non_optional_type != left_type,
         )
     }
 
@@ -467,7 +467,7 @@ impl TypeChecker {
         Ok(if node.flags().intersects(NodeFlags::OptionalChain) {
             self.check_non_null_chain(node)?
         } else {
-            self.get_non_nullable_type(&*self.check_expression(
+            self.get_non_nullable_type(self.check_expression(
                 &node.as_has_expression().expression(),
                 None,
                 None,
@@ -501,10 +501,10 @@ impl TypeChecker {
             SyntaxKind::ImportKeyword => self.get_global_import_meta_expression_type()?,
             SyntaxKind::NewKeyword => {
                 let type_ = self.check_new_target_meta_property(node)?;
-                if self.is_error_type(&type_) {
+                if self.is_error_type(type_) {
                     self.error_type()
                 } else {
-                    self.create_new_target_expression_type(&type_)?
+                    self.create_new_target_expression_type(type_)?
                 }
             }
             _ => Debug_.assert_never(node.as_meta_property().keyword_token, None),
@@ -582,7 +582,7 @@ impl TypeChecker {
         if self.strict_null_checks {
             let declaration = symbol.maybe_value_declaration();
             if matches!(declaration.as_ref(), Some(declaration) if has_initializer(&declaration)) {
-                return self.get_optional_type_(&type_, None);
+                return self.get_optional_type_(type_, None);
             }
         }
         Ok(type_)
@@ -621,7 +621,7 @@ impl TypeChecker {
             .cloned()
             .unwrap_or_else(|| self.unknown_symbol());
         let override_rest_type =
-            override_rest_type.map(|override_rest_type| override_rest_type.borrow().type_wrapper());
+            override_rest_type.map(|override_rest_type| override_rest_type.borrow());
         let rest_type =
             override_rest_type.try_unwrap_or_else(|| self.get_type_of_symbol(&rest_parameter))?;
         if self.is_tuple_type(&rest_type) {
@@ -671,10 +671,10 @@ impl TypeChecker {
         }
 
         let rest_type = self.get_type_of_symbol(&rest_parameter)?;
-        if self.is_tuple_type(&rest_type) {
-            let associated_names = rest_type
-                .as_type_reference()
-                .target
+        if self.is_tuple_type(rest_type) {
+            let associated_names = self.type_(self.type_(rest_type
+                ).as_type_reference()
+                .target)
                 .as_tuple_type()
                 .labeled_element_declarations
                 .as_ref();
@@ -740,10 +740,10 @@ impl TypeChecker {
             .cloned()
             .unwrap_or_else(|| self.unknown_symbol());
         let rest_type = self.get_type_of_symbol(&rest_parameter)?;
-        if self.is_tuple_type(&rest_type) {
-            let associated_names = rest_type
-                .as_type_reference()
-                .target
+        if self.is_tuple_type(rest_type) {
+            let associated_names = self.type_(self.type_(rest_type
+                ).as_type_reference()
+                .target)
                 .as_tuple_type()
                 .labeled_element_declarations
                 .as_ref();
@@ -788,15 +788,14 @@ impl TypeChecker {
         if signature_has_rest_parameter(signature) {
             let rest_type = self.get_type_of_symbol(&signature.parameters()[param_count])?;
             let index = pos - param_count;
-            if !self.is_tuple_type(&rest_type) || {
-                let rest_type_target = rest_type.as_type_reference_interface().target();
-                let rest_type_target_as_tuple_type = rest_type_target.as_tuple_type();
-                rest_type_target_as_tuple_type.has_rest_element
-                    || index < rest_type_target_as_tuple_type.fixed_length
+            if !self.is_tuple_type(rest_type) || {
+                let rest_type_target = self.type_(rest_type).as_type_reference_interface().target();
+                self.type_(rest_type_target).as_tuple_type().has_rest_element
+                    || index < self.type_(rest_type_target).as_tuple_type().fixed_length
             } {
                 return Ok(Some(self.get_indexed_access_type(
-                    &rest_type,
-                    &self.get_number_literal_type(Number::new(index as f64)),
+                    rest_type,
+                    self.get_number_literal_type(Number::new(index as f64)),
                     None,
                     Option::<&Node>::None,
                     Option::<&Symbol>::None,
@@ -821,9 +820,9 @@ impl TypeChecker {
                     rest_type.clone()
                 } else {
                     self.create_array_type(
-                        &*self.get_indexed_access_type(
+                        self.get_indexed_access_type(
                             rest_type,
-                            &self.number_type(),
+                            self.number_type(),
                             None,
                             Option::<&Node>::None,
                             Option::<&Symbol>::None,
@@ -870,11 +869,10 @@ impl TypeChecker {
         let length = signature.parameters().len();
         if signature_has_rest_parameter(signature) {
             let rest_type = self.get_type_of_symbol(&signature.parameters()[length - 1])?;
-            if self.is_tuple_type(&rest_type) {
-                let rest_type_target = rest_type.as_type_reference_interface().target();
-                let rest_type_target_as_tuple_type = rest_type_target.as_tuple_type();
-                return Ok(length + rest_type_target_as_tuple_type.fixed_length
-                    - if rest_type_target_as_tuple_type.has_rest_element {
+            if self.is_tuple_type(rest_type) {
+                let rest_type_target = self.type_(rest_type).as_type_reference_interface().target();
+                return Ok(length + self.type_(rest_type_target).as_tuple_type().fixed_length
+                    - if self.type_(rest_type_target).as_tuple_type().has_rest_element {
                         0
                     } else {
                         1
@@ -903,16 +901,15 @@ impl TypeChecker {
                 let rest_type = self.get_type_of_symbol(
                     &signature.parameters()[signature.parameters().len() - 1],
                 )?;
-                if self.is_tuple_type(&rest_type) {
-                    let rest_type_target = rest_type.as_type_reference_interface().target();
-                    let rest_type_target_as_tuple_type = rest_type_target.as_tuple_type();
+                if self.is_tuple_type(rest_type) {
+                    let rest_type_target = self.type_(rest_type).as_type_reference_interface().target();
                     let first_optional_index = find_index(
-                        &rest_type_target_as_tuple_type.element_flags,
+                        &self.type_(rest_type_target).as_tuple_type().element_flags,
                         |f: &ElementFlags, _| !f.intersects(ElementFlags::Required),
                         None,
                     );
                     let required_count =
-                        first_optional_index.unwrap_or(rest_type_target_as_tuple_type.fixed_length);
+                        first_optional_index.unwrap_or(self.type_(rest_type_target).as_tuple_type().fixed_length);
                     if required_count > 0 {
                         min_argument_count =
                             Some(signature.parameters().len() - 1 + required_count);
@@ -943,8 +940,8 @@ impl TypeChecker {
             /*while (i >= 0)*/
             {
                 let type_ = self.get_type_at_position(signature, i)?;
-                if self
-                    .filter_type(&type_, |type_| self.accepts_void(type_))
+                if self.type_(self
+                    .filter_type(type_, |type_| self.accepts_void(type_)))
                     .flags()
                     .intersects(TypeFlags::Never)
                 {
@@ -966,10 +963,10 @@ impl TypeChecker {
         if signature_has_rest_parameter(signature) {
             let rest_type =
                 self.get_type_of_symbol(&signature.parameters()[signature.parameters().len() - 1])?;
-            return Ok(!self.is_tuple_type(&rest_type)
-                || rest_type
-                    .as_type_reference_interface()
-                    .target()
+            return Ok(!self.is_tuple_type(rest_type)
+                || self.type_(self.type_(rest_type
+                    ).as_type_reference_interface()
+                    .target())
                     .as_tuple_type()
                     .has_rest_element);
         }
@@ -983,15 +980,14 @@ impl TypeChecker {
         if signature_has_rest_parameter(signature) {
             let rest_type =
                 self.get_type_of_symbol(&signature.parameters()[signature.parameters().len() - 1])?;
-            if !self.is_tuple_type(&rest_type) {
+            if !self.is_tuple_type(rest_type) {
                 return Ok(Some(rest_type));
             }
-            let rest_type_target = rest_type.as_type_reference_interface().target();
-            let rest_type_target_as_tuple_type = rest_type_target.as_tuple_type();
-            if rest_type_target_as_tuple_type.has_rest_element {
+            let rest_type_target = self.type_(rest_type).as_type_reference_interface().target();
+            if self.type_(rest_type_target).as_tuple_type().has_rest_element {
                 return Ok(Some(self.slice_tuple_type(
-                    &rest_type,
-                    rest_type_target_as_tuple_type.fixed_length,
+                    rest_type,
+                    self.type_(rest_type_target).as_tuple_type().fixed_length,
                     None,
                 )?));
             }
@@ -1004,11 +1000,11 @@ impl TypeChecker {
         signature: &Signature,
     ) -> io::Result<Option<Id<Type>>> {
         let rest_type = self.get_effective_rest_type(signature)?;
-        rest_type.try_filter(|rest_type| -> io::Result<_> {
+        rest_type.try_filter(|&rest_type| -> io::Result<_> {
             Ok(!self.is_array_type(rest_type)
-                && !self.is_type_any(Some(&**rest_type))
-                && !self
-                    .get_reduced_type(rest_type)?
+                && !self.is_type_any(Some(rest_type))
+                && !self.type_(self
+                    .get_reduced_type(rest_type)?)
                     .flags()
                     .intersects(TypeFlags::Never))
         })
@@ -1018,6 +1014,6 @@ impl TypeChecker {
         &self,
         signature: &Signature,
     ) -> io::Result<Id<Type>> {
-        self.get_type_of_first_parameter_of_signature_with_fallback(signature, &self.never_type())
+        self.get_type_of_first_parameter_of_signature_with_fallback(signature, self.never_type())
     }
 }
