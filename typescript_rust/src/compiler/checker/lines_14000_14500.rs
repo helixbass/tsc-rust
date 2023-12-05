@@ -28,8 +28,8 @@ impl TypeChecker {
         type_arguments: Option<Vec<Id<Type>>>,
     ) -> io::Result<Id<Type>> {
         Ok(
-            if target
-                .as_object_flags_type()
+            if self.type_(target
+                ).as_object_flags_type()
                 .object_flags()
                 .intersects(ObjectFlags::Tuple)
             {

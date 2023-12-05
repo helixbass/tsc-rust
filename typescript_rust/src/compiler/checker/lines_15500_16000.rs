@@ -34,8 +34,8 @@ impl TypeChecker {
                 self.get_type_from_type_node_(&node_as_indexed_access_type_node.index_type)?;
             let potential_alias = self.get_alias_symbol_for_type_node(node)?;
             let resolved = self.get_indexed_access_type(
-                &object_type,
-                &index_type,
+                object_type,
+                index_type,
                 Some(AccessFlags::None),
                 Some(node),
                 potential_alias.as_deref(),
@@ -43,11 +43,16 @@ impl TypeChecker {
                     .as_deref(),
             )?;
             links.borrow_mut().resolved_type = Some(
-                if resolved.flags().intersects(TypeFlags::IndexedAccess) && {
-                    let resolved_as_indexed_access_type = resolved.as_indexed_access_type();
-                    Gc::ptr_eq(&resolved_as_indexed_access_type.object_type, &object_type)
-                        && Gc::ptr_eq(&resolved_as_indexed_access_type.index_type, &index_type)
-                } {
+                if self
+                    .type_(resolved)
+                    .flags()
+                    .intersects(TypeFlags::IndexedAccess)
+                    && {
+                        self.type_(resolved).as_indexed_access_type().object_type == object_type
+                            && self.type_(resolved).as_indexed_access_type().index_type
+                                == index_type
+                    }
+                {
                     self.get_conditional_flow_type_of_type(&resolved, node)?
                 } else {
                     resolved
@@ -65,36 +70,43 @@ impl TypeChecker {
         let links = self.get_node_links(node);
         if (*links).borrow().resolved_type.is_none() {
             let type_ = self.create_object_type(ObjectFlags::Mapped, node.maybe_symbol());
-            let type_: Id<Type> = MappedType::new(type_, node.node_wrapper()).into();
+            let type_ = self.alloc_type(MappedType::new(type_, node.node_wrapper()).into());
             let alias_symbol = self.get_alias_symbol_for_type_node(node)?;
-            *type_.maybe_alias_symbol_mut() = alias_symbol.clone();
-            *type_.maybe_alias_type_arguments_mut() =
+            *self.type_(type_).maybe_alias_symbol_mut() = alias_symbol.clone();
+            *self.type_(type_).maybe_alias_type_arguments_mut() =
                 self.get_type_arguments_for_alias_symbol(alias_symbol)?;
             links.borrow_mut().resolved_type = Some(type_.clone());
-            self.get_constraint_type_from_mapped_type(&type_)?;
+            self.get_constraint_type_from_mapped_type(type_)?;
         }
         let ret = (*links).borrow().resolved_type.clone().unwrap();
         Ok(ret)
     }
 
     pub(super) fn get_actual_type_variable(&self, type_: Id<Type>) -> io::Result<Id<Type>> {
-        if type_.flags().intersects(TypeFlags::Substitution) {
-            return Ok(type_.as_substitution_type().base_type.clone());
+        if self
+            .type_(type_)
+            .flags()
+            .intersects(TypeFlags::Substitution)
+        {
+            return Ok(self.type_(type_).as_substitution_type().base_type.clone());
         }
-        if type_.flags().intersects(TypeFlags::IndexedAccess) {
-            let type_as_indexed_access_type = type_.as_indexed_access_type();
-            if type_as_indexed_access_type
+        if self
+            .type_(type_)
+            .flags()
+            .intersects(TypeFlags::IndexedAccess)
+        {
+            if self.type_(type_).as_indexed_access_type()
                 .object_type
                 .flags()
                 .intersects(TypeFlags::Substitution)
-                || type_as_indexed_access_type
+                || self.type_(type_).as_indexed_access_type()
                     .index_type
                     .flags()
                     .intersects(TypeFlags::Substitution)
             {
                 return self.get_indexed_access_type(
-                    &*self.get_actual_type_variable(&type_as_indexed_access_type.object_type)?,
-                    &*self.get_actual_type_variable(&type_as_indexed_access_type.index_type)?,
+                    self.get_actual_type_variable(self.type_(type_).as_indexed_access_type().object_type)?,
+                    self.get_actual_type_variable(self.type_(type_).as_indexed_access_type().index_type)?,
                     None,
                     Option::<&Node>::None,
                     Option::<&Symbol>::None,
@@ -102,7 +114,7 @@ impl TypeChecker {
                 );
             }
         }
-        Ok(type_.type_wrapper())
+        Ok(type_)
     }
 
     pub(super) fn is_typical_nondistributive_conditional(
@@ -146,7 +158,7 @@ impl TypeChecker {
             if self.is_typical_nondistributive_conditional(root) && self.is_tuple_type(type_) {
                 self.get_type_arguments(type_)?[0].clone()
             } else {
-                type_.type_wrapper()
+                type_
             },
         )
     }
@@ -176,23 +188,21 @@ impl TypeChecker {
             }
             let is_unwrapped = self.is_typical_nondistributive_conditional(root.clone());
             let check_type = self.instantiate_type(
-                &*self.unwrap_nondistributive_conditional_tuple(
+                self.unwrap_nondistributive_conditional_tuple(
                     root.clone(),
-                    &*self.get_actual_type_variable(&(*root).borrow().check_type.clone())?,
+                    self.get_actual_type_variable((*root).borrow().check_type.clone())?,
                 )?,
                 mapper.clone(),
             )?;
-            let check_type_instantiable = self.is_generic_type(&check_type)?;
+            let check_type_instantiable = self.is_generic_type(check_type)?;
             let extends_type = self.instantiate_type(
-                &*self.unwrap_nondistributive_conditional_tuple(
+                self.unwrap_nondistributive_conditional_tuple(
                     root.clone(),
-                    &(*root).borrow().extends_type.clone(),
+                    (*root).borrow().extends_type.clone(),
                 )?,
                 mapper.clone(),
             )?;
-            if Gc::ptr_eq(&check_type, &self.wildcard_type())
-                || Gc::ptr_eq(&extends_type, &self.wildcard_type())
-            {
+            if check_type == self.wildcard_type() || extends_type == self.wildcard_type() {
                 return Ok(self.wildcard_type());
             }
             let mut combined_mapper: Option<Gc<TypeMapper>> = None;
@@ -208,8 +218,8 @@ impl TypeChecker {
                 if !check_type_instantiable {
                     self.infer_types(
                         &context.inferences(),
-                        &check_type,
-                        &extends_type,
+                        check_type,
+                        extends_type,
                         Some(InferencePriority::NoConstraints | InferencePriority::AlwaysStrict),
                         None,
                     )?;
@@ -222,32 +232,32 @@ impl TypeChecker {
             }
             let inferred_extends_type = if let Some(combined_mapper) = combined_mapper.as_ref() {
                 self.instantiate_type(
-                    &*self.unwrap_nondistributive_conditional_tuple(
+                    self.unwrap_nondistributive_conditional_tuple(
                         root.clone(),
-                        &(*root).borrow().extends_type.clone(),
+                        (*root).borrow().extends_type.clone(),
                     )?,
                     Some(combined_mapper.clone()),
                 )?
             } else {
                 extends_type.clone()
             };
-            if !check_type_instantiable && !self.is_generic_type(&inferred_extends_type)? {
-                if !inferred_extends_type
-                    .flags()
+            if !check_type_instantiable && !self.is_generic_type(inferred_extends_type)? {
+                if !iself.type_(nferred_extends_type
+                    ).flags()
                     .intersects(TypeFlags::AnyOrUnknown)
-                    && (check_type.flags().intersects(TypeFlags::Any) && !is_unwrapped
+                    && (self.type_(check_type).flags().intersects(TypeFlags::Any) && !is_unwrapped
                         || !self.is_type_assignable_to(
-                            &*self.get_permissive_instantiation(&check_type)?,
-                            &*self.get_permissive_instantiation(&inferred_extends_type)?,
+                            self.get_permissive_instantiation(check_type)?,
+                            self.get_permissive_instantiation(inferred_extends_type)?,
                         )?)
                 {
-                    if check_type.flags().intersects(TypeFlags::Any) && !is_unwrapped {
+                    if self.type_(check_type).flags().intersects(TypeFlags::Any) && !is_unwrapped {
                         if extra_types.is_none() {
                             extra_types = Some(vec![]);
                         }
                         extra_types.as_mut().unwrap().push(
                             self.instantiate_type(
-                                &*self.get_type_from_type_node_(
+                                self.get_type_from_type_node_(
                                     &(*root)
                                         .borrow()
                                         .node
@@ -267,14 +277,14 @@ impl TypeChecker {
                             .as_conditional_type_node()
                             .false_type,
                     )?;
-                    if false_type.flags().intersects(TypeFlags::Conditional) {
-                        let new_root = false_type.as_conditional_type().root.clone();
+                    if self.type_(false_type).flags().intersects(TypeFlags::Conditional) {
+                        let new_root = self.type_(false_type).as_conditional_type().root.clone();
                         if Gc::ptr_eq(&(*new_root).borrow().node.parent(), &(*root).borrow().node)
                             && (!(*new_root).borrow().is_distributive
-                                || Gc::ptr_eq(
-                                    &(*new_root).borrow().check_type,
-                                    &(*root).borrow().check_type,
-                                ))
+                                || 
+                                    (*new_root).borrow().check_type ==
+                                    (*root).borrow().check_type
+                                )
                         {
                             root = new_root.clone();
                             continue;
@@ -286,21 +296,21 @@ impl TypeChecker {
                             &mut alias_symbol,
                             &mut alias_type_arguments,
                             &mut tail_count,
-                            &false_type,
+                            false_type,
                             mapper_clone,
                         )? {
                             continue;
                         }
                     }
-                    result = self.instantiate_type(&false_type, mapper.clone())?;
+                    result = self.instantiate_type(false_type, mapper.clone())?;
                     break;
                 }
-                if inferred_extends_type
-                    .flags()
+                if self.type_(inferred_extends_type
+                    ).flags()
                     .intersects(TypeFlags::AnyOrUnknown)
                     || self.is_type_assignable_to(
-                        &*self.get_restrictive_instantiation(&check_type)?,
-                        &*self.get_restrictive_instantiation(&inferred_extends_type)?,
+                        self.get_restrictive_instantiation(check_type)?,
+                        self.get_restrictive_instantiation(inferred_extends_type)?,
                     )?
                 {
                     let true_type = self.get_type_from_type_node_(
@@ -318,29 +328,29 @@ impl TypeChecker {
                         &mut alias_symbol,
                         &mut alias_type_arguments,
                         &mut tail_count,
-                        &true_type,
+                        true_type,
                         true_mapper.clone(),
                     )? {
                         continue;
                     }
-                    result = self.instantiate_type(&true_type, true_mapper)?;
+                    result = self.instantiate_type(true_type, true_mapper)?;
                     break;
                 }
             }
             let result_base = self.create_type(TypeFlags::Conditional);
-            result = ConditionalType::new(
+            result = self.alloc_type(ConditionalType::new(
                 result_base,
                 root.clone(),
-                self.instantiate_type(&(*root).borrow().check_type.clone(), mapper.clone())?,
-                self.instantiate_type(&(*root).borrow().extends_type.clone(), mapper.clone())?,
+                self.instantiate_type((*root).borrow().check_type.clone(), mapper.clone())?,
+                self.instantiate_type((*root).borrow().extends_type.clone(), mapper.clone())?,
                 mapper.clone(),
                 combined_mapper,
             )
-            .into();
-            *result.maybe_alias_symbol_mut() = alias_symbol
+            .into());
+            *self.type_(result).maybe_alias_symbol_mut() = alias_symbol
                 .clone()
                 .or_else(|| (*root).borrow().alias_symbol.clone());
-            *result.maybe_alias_type_arguments_mut() = if alias_symbol.is_some() {
+            *self.type_(result).maybe_alias_type_arguments_mut() = if alias_symbol.is_some() {
                 alias_type_arguments.map(ToOwned::to_owned)
             } else {
                 self.instantiate_types(
@@ -368,21 +378,24 @@ impl TypeChecker {
         new_type: Id<Type>,
         new_mapper: Option<Gc<TypeMapper>>,
     ) -> io::Result<bool> {
-        if new_type.flags().intersects(TypeFlags::Conditional) {
+        if self
+            .type_(new_type)
+            .flags()
+            .intersects(TypeFlags::Conditional)
+        {
             if let Some(new_mapper) = new_mapper {
-                let new_type_as_conditional_type = new_type.as_conditional_type();
-                let new_root = new_type_as_conditional_type.root.clone();
+                let new_root = self.type_(new_type).as_conditional_type().root.clone();
                 let new_root_outer_type_parameters =
                     (*new_root).borrow().outer_type_parameters.clone();
                 if let Some(new_root_outer_type_parameters) =
                     new_root_outer_type_parameters.as_ref()
                 {
                     let type_param_mapper = self.combine_type_mappers(
-                        new_type_as_conditional_type.mapper.clone(),
+                        self.type_(new_type).as_conditional_type().mapper.clone(),
                         new_mapper,
                     );
                     let type_arguments =
-                        try_map(new_root_outer_type_parameters, |t: &Id<Type>, _| {
+                        try_map(new_root_outer_type_parameters, |&t: &Id<Type>, _| {
                             self.get_mapped_type(t, &type_param_mapper)
                         })?;
                     let new_root_mapper = Gc::new(self.create_type_mapper(
@@ -425,26 +438,27 @@ impl TypeChecker {
         &self,
         type_: Id<Type>, /*ConditionalType*/
     ) -> io::Result<Id<Type>> {
-        let type_as_conditional_type = type_.as_conditional_type();
-        if type_as_conditional_type
+        if self
+            .type_(type_)
+            .as_conditional_type()
             .maybe_resolved_true_type()
             .is_none()
         {
-            *type_as_conditional_type.maybe_resolved_true_type() = Some(
+            *self.type_(type_).as_conditional_type().maybe_resolved_true_type() = Some(
                 self.instantiate_type(
-                    &*self.get_type_from_type_node_(
-                        &(*type_as_conditional_type.root)
+                    self.get_type_from_type_node_(
+                        &(*self.type_(type_).as_conditional_type().root)
                             .borrow()
                             .node
                             .clone()
                             .as_conditional_type_node()
                             .true_type,
                     )?,
-                    type_as_conditional_type.mapper.clone(),
+                    self.type_(type_).as_conditional_type().mapper.clone(),
                 )?,
             );
         }
-        Ok(type_as_conditional_type
+        Ok(self.type_(type_).as_conditional_type()
             .maybe_resolved_true_type()
             .clone()
             .unwrap())
@@ -454,26 +468,27 @@ impl TypeChecker {
         &self,
         type_: Id<Type>, /*ConditionalType*/
     ) -> io::Result<Id<Type>> {
-        let type_as_conditional_type = type_.as_conditional_type();
-        if type_as_conditional_type
+        if self.type_(type_).as_conditional_type()
             .maybe_resolved_false_type()
             .is_none()
         {
-            *type_as_conditional_type.maybe_resolved_false_type() = Some(
+            *self.type_(type_).as_conditional_type().maybe_resolved_false_type() = Some(
                 self.instantiate_type(
-                    &*self.get_type_from_type_node_(
-                        &(*type_as_conditional_type.root)
+                    self.get_type_from_type_node_(
+                        &(*self.type_(type_).as_conditional_type().root)
                             .borrow()
                             .node
                             .clone()
                             .as_conditional_type_node()
                             .false_type,
                     )?,
-                    type_as_conditional_type.mapper.clone(),
+                    self.type_(type_).as_conditional_type().mapper.clone(),
                 )?,
             );
         }
-        Ok(type_as_conditional_type
+        Ok(self
+            .type_(type_)
+            .as_conditional_type()
             .maybe_resolved_false_type()
             .clone()
             .unwrap())
@@ -483,17 +498,16 @@ impl TypeChecker {
         &self,
         type_: Id<Type>, /*ConditionalType*/
     ) -> io::Result<Id<Type>> {
-        let type_as_conditional_type = type_.as_conditional_type();
-        if type_as_conditional_type
+        if self.type_(type_).as_conditional_type()
             .maybe_resolved_inferred_true_type()
             .is_none()
         {
-            *type_as_conditional_type.maybe_resolved_inferred_true_type() = Some(
-                if let Some(type_combined_mapper) = type_as_conditional_type.combined_mapper.clone()
+            *self.type_(type_).as_conditional_type().maybe_resolved_inferred_true_type() = Some(
+                if let Some(type_combined_mapper) = self.type_(type_).as_conditional_type().combined_mapper.clone()
                 {
                     self.instantiate_type(
-                        &*self.get_type_from_type_node_(
-                            &(*type_as_conditional_type.root)
+                        self.get_type_from_type_node_(
+                            &(*self.type_(type_).as_conditional_type().root)
                                 .borrow()
                                 .node
                                 .clone()
@@ -507,7 +521,7 @@ impl TypeChecker {
                 },
             );
         }
-        Ok(type_as_conditional_type
+        Ok(self.type_(type_).as_conditional_type()
             .maybe_resolved_inferred_true_type()
             .clone()
             .unwrap())
@@ -541,10 +555,10 @@ impl TypeChecker {
     pub(super) fn is_distribution_dependent(&self, root: &ConditionalRoot) -> io::Result<bool> {
         Ok(root.is_distributive
             && (self.is_type_parameter_possibly_referenced(
-                &root.check_type,
+                root.check_type,
                 &root.node.as_conditional_type_node().true_type,
             )? || self.is_type_parameter_possibly_referenced(
-                &root.check_type,
+                root.check_type,
                 &root.node.as_conditional_type_node().false_type,
             )?))
     }
@@ -565,7 +579,7 @@ impl TypeChecker {
             let outer_type_parameters = if alias_type_arguments.is_some() {
                 all_outer_type_parameters
             } else {
-                try_maybe_filter(all_outer_type_parameters.as_deref(), |tp: &Id<Type>| {
+                try_maybe_filter(all_outer_type_parameters.as_deref(), |&tp: &Id<Type>| {
                     self.is_type_parameter_possibly_referenced(tp, node)
                 })
                 .transpose()?
@@ -574,7 +588,7 @@ impl TypeChecker {
                 node.node_wrapper(),
                 check_type.clone(),
                 self.get_type_from_type_node_(&node_as_conditional_type_node.extends_type)?,
-                check_type.flags().intersects(TypeFlags::TypeParameter),
+                self.type_(check_type).flags().intersects(TypeFlags::TypeParameter),
                 self.get_infer_type_parameters(node)?,
                 outer_type_parameters.clone(),
                 alias_symbol,
@@ -711,7 +725,7 @@ impl TypeChecker {
                         .unwrap();
                     let next = if node_as_import_type_node.is_type_of() {
                         self.get_property_of_type_(
-                            &*self.get_type_of_symbol(&merged_resolved_symbol)?,
+                            self.get_type_of_symbol(&merged_resolved_symbol)?,
                             &current.as_identifier().escaped_text,
                             None,
                         )?
@@ -818,14 +832,14 @@ impl TypeChecker {
             {
                 links.borrow_mut().resolved_type = Some(self.empty_type_literal_type());
             } else {
-                let mut type_: Id<Type> = self
+                let mut type_ = self.alloc_type(self
                     .create_object_type(ObjectFlags::Anonymous, node.maybe_symbol())
-                    .into();
-                *type_.maybe_alias_symbol_mut() = alias_symbol.clone();
-                *type_.maybe_alias_type_arguments_mut() =
+                    .into());
+                *self.type_(type_).maybe_alias_symbol_mut() = alias_symbol.clone();
+                *self.type_(type_).maybe_alias_type_arguments_mut() =
                     self.get_type_arguments_for_alias_symbol(alias_symbol.as_deref())?;
                 if is_jsdoc_type_literal(node) && node.as_jsdoc_type_literal().is_array_type {
-                    type_ = self.create_array_type(&type_, None);
+                    type_ = self.create_array_type(type_, None);
                 }
                 links.borrow_mut().resolved_type = Some(type_);
             }
@@ -863,7 +877,8 @@ impl TypeChecker {
     }
 
     pub(super) fn is_non_generic_object_type(&self, type_: Id<Type>) -> io::Result<bool> {
-        Ok(type_.flags().intersects(TypeFlags::Object) && !self.is_generic_mapped_type(type_)?)
+        Ok(self.type_(type_).flags().intersects(TypeFlags::Object)
+            && !self.is_generic_mapped_type(type_)?)
     }
 
     pub(super) fn is_empty_object_type_or_spreads_into_empty_object(
@@ -871,7 +886,7 @@ impl TypeChecker {
         type_: Id<Type>,
     ) -> io::Result<bool> {
         Ok(self.is_empty_object_type(type_)?
-            || type_.flags().intersects(
+            || self.type_(type_).flags().intersects(
                 TypeFlags::Null
                     | TypeFlags::Undefined
                     | TypeFlags::BooleanLike
@@ -889,42 +904,42 @@ impl TypeChecker {
         type_: Id<Type>,
         readonly: bool,
     ) -> io::Result<Id<Type>> {
-        if !type_.flags().intersects(TypeFlags::Union) {
-            return Ok(type_.type_wrapper());
+        if !self.type_(type_).flags().intersects(TypeFlags::Union) {
+            return Ok(type_);
         }
-        let type_as_union_type = type_.as_union_type();
-        if try_every(type_as_union_type.types(), |type_: &Id<Type>, _| {
-            self.is_empty_object_type_or_spreads_into_empty_object(type_)
-        })? {
-            return Ok(try_find(type_as_union_type.types(), |type_: &Id<Type>, _| {
+        if try_every(
+            self.type_(type_).as_union_type().types(),
+            |&type_: &Id<Type>, _| self.is_empty_object_type_or_spreads_into_empty_object(type_),
+        )? {
+            return Ok(try_find(self.type_(type_).as_union_type().types(), |&type_: &Id<Type>, _| {
                 self.is_empty_object_type(type_)
             })?
             .cloned()
             .unwrap_or_else(|| self.empty_object_type()));
         }
         let first_type = try_find(
-            type_as_union_type.types(),
-            |type_: &Id<Type>, _| -> io::Result<_> {
+            self.type_(type_).as_union_type().types(),
+            |&type_: &Id<Type>, _| -> io::Result<_> {
                 Ok(!self.is_empty_object_type_or_spreads_into_empty_object(type_)?)
             },
         )?
         .cloned();
         if first_type.is_none() {
-            return Ok(type_.type_wrapper());
+            return Ok(type_);
         }
         let first_type = first_type.unwrap();
         let second_type = try_find(
-            type_as_union_type.types(),
-            |t: &Id<Type>, _| -> io::Result<_> {
-                Ok(!Gc::ptr_eq(t, &first_type)
+            self.type_(type_).as_union_type().types(),
+            |&t: &Id<Type>, _| -> io::Result<_> {
+                Ok(t != first_type
                     && !self.is_empty_object_type_or_spreads_into_empty_object(type_)?)
             },
         )?
         .cloned();
         if second_type.is_some() {
-            return Ok(type_.type_wrapper());
+            return Ok(type_);
         }
-        self.get_anonymous_partial_type(readonly, &first_type)
+        self.get_anonymous_partial_type(readonly, first_type)
     }
 
     pub(super) fn get_anonymous_partial_type(
@@ -960,7 +975,7 @@ impl TypeChecker {
                 result_links.type_ = Some(if is_setonly_accessor {
                     self.undefined_type()
                 } else {
-                    self.add_optionality(&*self.get_type_of_symbol(&prop)?, Some(true), None)?
+                    self.add_optionality(self.get_type_of_symbol(&prop)?, Some(true), None)?
                 });
                 let prop_declarations = prop.maybe_declarations();
                 if let Some(prop_declarations) = prop_declarations.as_ref() {
@@ -972,15 +987,14 @@ impl TypeChecker {
             }
         }
         let spread = self.create_anonymous_type(
-            type_.maybe_symbol(),
+            self.type_(type_).maybe_symbol(),
             Gc::new(GcCell::new(members)),
             vec![],
             vec![],
             self.get_index_infos_of_type(type_)?,
         )?;
-        let spread_as_object_type = spread.as_object_type();
-        spread_as_object_type.set_object_flags(
-            spread_as_object_type.object_flags()
+        self.type_(spread).as_object_type().set_object_flags(
+            self.type_(spread).as_object_type().object_flags()
                 | ObjectFlags::ObjectLiteral
                 | ObjectFlags::ContainsObjectOrArrayLiteral,
         );
@@ -995,27 +1009,29 @@ impl TypeChecker {
         object_flags: ObjectFlags,
         readonly: bool,
     ) -> io::Result<Id<Type>> {
-        if left.flags().intersects(TypeFlags::Any) || right.flags().intersects(TypeFlags::Any) {
+        if self.type_(left).flags().intersects(TypeFlags::Any)
+            || self.type_(right).flags().intersects(TypeFlags::Any)
+        {
             return Ok(self.any_type());
         }
-        if left.flags().intersects(TypeFlags::Unknown)
-            || right.flags().intersects(TypeFlags::Unknown)
+        if self.type_(left).flags().intersects(TypeFlags::Unknown)
+            || self.type_(right).flags().intersects(TypeFlags::Unknown)
         {
             return Ok(self.unknown_type());
         }
-        if left.flags().intersects(TypeFlags::Never) {
-            return Ok(right.type_wrapper());
+        if self.type_(left).flags().intersects(TypeFlags::Never) {
+            return Ok(right);
         }
-        if right.flags().intersects(TypeFlags::Never) {
-            return Ok(left.type_wrapper());
+        if self.type_(right).flags().intersects(TypeFlags::Never) {
+            return Ok(left);
         }
         let left = self.try_merge_union_of_object_type_and_empty_object(left, readonly)?;
         let symbol = symbol.map(|symbol| symbol.borrow().symbol_wrapper());
-        if left.flags().intersects(TypeFlags::Union) {
+        if self.type_(left).flags().intersects(TypeFlags::Union) {
             return Ok(
-                if self.check_cross_product_union(&[left.clone(), right.type_wrapper()]) {
+                if self.check_cross_product_union(&[left.clone(), right]) {
                     self.try_map_type(
-                        &left,
+                        left,
                         &mut |t| {
                             Ok(Some(self.get_spread_type(
                                 t,
@@ -1034,14 +1050,14 @@ impl TypeChecker {
             );
         }
         let right = self.try_merge_union_of_object_type_and_empty_object(right, readonly)?;
-        if right.flags().intersects(TypeFlags::Union) {
+        if self.type_(right).intersects(TypeFlags::Union) {
             return Ok(
                 if self.check_cross_product_union(&[left.clone(), right.clone()]) {
                     self.try_map_type(
-                        &right,
+                        right,
                         &mut |t| {
                             Ok(Some(self.get_spread_type(
-                                &left,
+                                left,
                                 t,
                                 symbol.as_deref(),
                                 object_flags,
@@ -1056,7 +1072,7 @@ impl TypeChecker {
                 },
             );
         }
-        if right.flags().intersects(
+        if self.type_(right).flags().intersects(
             TypeFlags::BooleanLike
                 | TypeFlags::NumberLike
                 | TypeFlags::BigIntLike
@@ -1068,22 +1084,22 @@ impl TypeChecker {
             return Ok(left);
         }
 
-        if self.is_generic_object_type(&left)? || self.is_generic_object_type(&right)? {
-            if self.is_empty_object_type(&left)? {
+        if self.is_generic_object_type(left)? || self.is_generic_object_type(right)? {
+            if self.is_empty_object_type(left)? {
                 return Ok(right);
             }
-            if left.flags().intersects(TypeFlags::Intersection) {
-                let types = left.as_intersection_type().types();
-                let last_left = &types[types.len() - 1];
+            if self.type_(left).flags().intersects(TypeFlags::Intersection) {
+                let types = self.type_(left).as_intersection_type().types();
+                let last_left = types[types.len() - 1];
                 if self.is_non_generic_object_type(last_left)?
-                    && self.is_non_generic_object_type(&right)?
+                    && self.is_non_generic_object_type(right)?
                 {
                     return self.get_intersection_type(
                         &concatenate(
                             types[0..types.len() - 1].to_owned(),
                             vec![self.get_spread_type(
                                 last_left,
-                                &right,
+                                right,
                                 symbol.as_deref(),
                                 object_flags,
                                 readonly,
@@ -1099,13 +1115,13 @@ impl TypeChecker {
 
         let mut members = create_symbol_table(Option::<&[Gc<Symbol>]>::None);
         let mut skipped_private_members: HashSet<__String> = HashSet::new();
-        let index_infos = if Gc::ptr_eq(&left, &self.empty_object_type()) {
-            self.get_index_infos_of_type(&right)?
+        let index_infos = if left == self.empty_object_type() {
+            self.get_index_infos_of_type(right)?
         } else {
             self.get_union_index_infos(&[left.clone(), right.clone()])?
         };
 
-        for right_prop in self.get_properties_of_type(&right)? {
+        for right_prop in self.get_properties_of_type(right)? {
             if get_declaration_modifier_flags_from_symbol(&right_prop, None)
                 .intersects(ModifierFlags::Private | ModifierFlags::Protected)
             {
@@ -1118,7 +1134,7 @@ impl TypeChecker {
             }
         }
 
-        for left_prop in self.get_properties_of_type(&left)? {
+        for left_prop in self.get_properties_of_type(left)? {
             if skipped_private_members.contains(left_prop.escaped_name())
                 || !self.is_spreadable_property(&left_prop)
             {
@@ -1141,7 +1157,7 @@ impl TypeChecker {
                     result_links.type_ = Some(self.get_union_type(
                         &[
                             self.get_type_of_symbol(&left_prop)?,
-                            self.remove_missing_or_undefined_type(&right_type)?,
+                            self.remove_missing_or_undefined_type(right_type)?,
                         ],
                         None,
                         Option::<&Symbol>::None,
@@ -1176,9 +1192,8 @@ impl TypeChecker {
                 self.get_index_info_with_readonly(info, readonly)
             }),
         )?;
-        let spread_as_object_type = spread.as_object_type();
-        spread_as_object_type.set_object_flags(
-            spread_as_object_type.object_flags()
+        self.type_(spread).as_object_type().set_object_flags(
+            self.type_(spread).as_object_type().object_flags()
                 | ObjectFlags::ObjectLiteral
                 | ObjectFlags::ContainsObjectOrArrayLiteral
                 | ObjectFlags::ContainsSpread
