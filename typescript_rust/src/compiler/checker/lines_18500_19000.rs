@@ -1859,14 +1859,14 @@ impl TypeMapperCallback for ReportUnmeasurableMarkers {
         if let Some(outofband_variance_marker_handler) =
             checker.maybe_outofband_variance_marker_handler()
         {
-            if ptr::eq(p, &*checker.marker_super_type())
-                || ptr::eq(p, &*checker.marker_sub_type())
-                || ptr::eq(p, &*checker.marker_other_type())
+            if p == checker.marker_super_type()
+                || p == checker.marker_sub_type()
+                || p == checker.marker_other_type()
             {
                 outofband_variance_marker_handler.call(false);
             }
         }
-        Ok(p.type_wrapper())
+        Ok(p)
     }
 }
 
@@ -1881,14 +1881,14 @@ impl TypeMapperCallback for ReportUnreliableMarkers {
         if let Some(outofband_variance_marker_handler) =
             checker.maybe_outofband_variance_marker_handler()
         {
-            if ptr::eq(p, &*checker.marker_super_type())
-                || ptr::eq(p, &*checker.marker_sub_type())
-                || ptr::eq(p, &*checker.marker_other_type())
+            if p == checker.marker_super_type()
+                || p == checker.marker_sub_type()
+                || p == checker.marker_other_type()
             {
                 outofband_variance_marker_handler.call(true);
             }
         }
-        Ok(p.type_wrapper())
+        Ok(p)
     }
 }
 
