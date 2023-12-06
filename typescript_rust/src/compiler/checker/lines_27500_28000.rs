@@ -193,7 +193,8 @@ impl TypeChecker {
         let intrinsic_elements_type =
             self.get_jsx_type(&JsxNames::IntrinsicElements, Some(location))?;
         if !self.is_error_type(intrinsic_elements_type) {
-            let string_literal_type_name = &self.type_(type_).as_string_literal_type().value;
+            let type_ref = self.type_(type_);
+            let string_literal_type_name = &type_ref.as_string_literal_type().value;
             let intrinsic_prop = self.get_property_of_type_(
                 intrinsic_elements_type,
                 &escape_leading_underscores(string_literal_type_name),

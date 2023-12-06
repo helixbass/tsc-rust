@@ -829,8 +829,8 @@ impl TypeChecker {
             .flags()
             .intersects(TypeFlags::UnionOrIntersection)
         {
-            let types = self
-                .type_(type_)
+            let type_ref = self.type_(type_);
+            let types = type_ref
                 .as_union_or_intersection_type_interface()
                 .types();
             for &t in types {

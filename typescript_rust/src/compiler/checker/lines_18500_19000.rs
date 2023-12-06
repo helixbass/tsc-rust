@@ -61,9 +61,8 @@ impl CheckTypeRelatedTo {
         target: Id<Type>, /*UnionOrIntersectionType*/
         report_errors: bool,
     ) -> io::Result<Ternary> {
-        let target_types = self
-            .type_checker
-            .type_(target)
+        let target_ref = self.type_checker.type_(target);
+        let target_types = target_ref
             .as_union_or_intersection_type_interface()
             .types();
         if self
@@ -163,9 +162,10 @@ impl CheckTypeRelatedTo {
         report_errors: bool,
         intersection_state: IntersectionState,
     ) -> io::Result<Ternary> {
-        let source_types = self
+        let source_ref = self
             .type_checker
-            .type_(source)
+            .type_(source);
+        let source_types = source_ref
             .as_union_or_intersection_type_interface()
             .types();
         if self
@@ -245,9 +245,10 @@ impl CheckTypeRelatedTo {
         intersection_state: IntersectionState,
     ) -> io::Result<Ternary> {
         let mut result = Ternary::True;
-        let source_types = self
+        let source_ref = self
             .type_checker
-            .type_(source)
+            .type_(source);
+        let source_types = source_ref
             .as_union_or_intersection_type_interface()
             .types();
         let undefined_stripped_target =

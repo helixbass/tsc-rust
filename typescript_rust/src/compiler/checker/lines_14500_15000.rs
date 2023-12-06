@@ -414,7 +414,8 @@ impl TypeChecker {
                     .flags()
                     .intersects(TypeFlags::Union)
                 {
-                    let source_types = self.type_(types[j_as_usize]).as_union_type().types();
+                    let types_j_ref = self.type_(types[j_as_usize]);
+                    let source_types = types_j_ref.as_union_type().types();
                     let length = source_types.len();
                     constituents.to_mut()[j_as_usize] = source_types[n % length].clone();
                     n = (n as f64 / length as f64).floor() as usize;
@@ -493,14 +494,16 @@ impl TypeChecker {
         strings_only: bool,
     ) -> Id<Type> {
         if strings_only {
+            let type_ref = self.type_(type_);
             let mut type_resolved_string_index_type =
-                self.type_(type_).maybe_resolved_string_index_type();
+                type_ref.maybe_resolved_string_index_type();
             if type_resolved_string_index_type.is_none() {
                 *type_resolved_string_index_type = Some(self.create_index_type(type_, true));
             }
             type_resolved_string_index_type.clone().unwrap()
         } else {
-            let mut type_resolved_index_type = self.type_(type_).maybe_resolved_index_type();
+            let type_ref = self.type_(type_);
+            let mut type_resolved_index_type = type_ref.maybe_resolved_index_type();
             if type_resolved_index_type.is_none() {
                 *type_resolved_index_type = Some(self.create_index_type(type_, false));
             }
@@ -658,17 +661,18 @@ impl TypeChecker {
             .flags()
             .intersects(TypeFlags::UnionOrIntersection | TypeFlags::TemplateLiteral)
         {
+            let type_ref = self.type_(type_);
             every(
                 if self
                     .type_(type_)
                     .flags()
                     .intersects(TypeFlags::UnionOrIntersection)
                 {
-                    self.type_(type_)
+                    type_ref
                         .as_union_or_intersection_type_interface()
                         .types()
                 } else {
-                    &*self.type_(type_).as_template_literal_type().types
+                    &*type_ref.as_template_literal_type().types
                 },
                 |&t: &Id<Type>, _| self.is_distributive(type_variable, t),
             )

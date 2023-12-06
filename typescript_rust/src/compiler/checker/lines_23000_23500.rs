@@ -377,7 +377,8 @@ impl TypeChecker {
         mut f: impl FnMut(Id<Type>) -> io::Result<bool>,
     ) -> io::Result<Id<Type>> {
         if self.type_(type_).flags().intersects(TypeFlags::Union) {
-            let types = self.type_(type_).as_union_type().types();
+            let type_ref = self.type_(type_);
+            let types = type_ref.as_union_type().types();
             let filtered = try_filter(types, |&type_: &Id<Type>| f(type_))?;
             if filtered.len() == types.len() {
                 return Ok(type_);
@@ -387,7 +388,8 @@ impl TypeChecker {
             if let Some(origin) =
                 origin.filter(|&origin| self.type_(origin).flags().intersects(TypeFlags::Union))
             {
-                let origin_types = self.type_(origin).as_union_type().types();
+                let origin_ref = self.type_(origin_);
+                let origin_types = origin_ref.as_union_type().types();
                 let origin_filtered = try_filter(origin_types, |&t: &Id<Type>| -> io::Result<_> {
                     Ok(self.type_(t).flags().intersects(TypeFlags::Union) || f(t)?)
                 })?;
@@ -741,8 +743,9 @@ impl TypeChecker {
         &self,
         evolving_array_type: Id<Type>, /*EvolvingArrayType*/
     ) -> io::Result<Id<Type>> {
-        let mut final_array_type = self
-            .type_(evolving_array_type)
+        let evolving_array_type_ref = self
+            .type_(evolving_array_type);
+        let mut final_array_type = evolving_array_type_ref
             .as_evolving_array_type()
             .maybe_final_array_type();
         if final_array_type.is_none() {

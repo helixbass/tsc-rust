@@ -1122,7 +1122,8 @@ impl TypeChecker {
                 return Ok(right);
             }
             if self.type_(left).flags().intersects(TypeFlags::Intersection) {
-                let types = self.type_(left).as_intersection_type().types();
+                let left_ref = self.type_(left);
+                let types = left_ref.as_intersection_type().types();
                 let last_left = types[types.len() - 1];
                 if self.is_non_generic_object_type(last_left)?
                     && self.is_non_generic_object_type(right)?

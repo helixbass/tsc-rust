@@ -125,9 +125,11 @@ impl NodeBuilder {
                 .intersects(TypeFlags::Object),
             None,
         );
-        let type_declaration_as_mapped_type_node = self
+        let type_ref = self
             .type_checker
-            .type_(type_)
+            .type_(type_);
+        let type_declaration_as_mapped_type_node =
+            type_ref
             .as_mapped_type()
             .declaration
             .as_mapped_type_node();
@@ -551,9 +553,10 @@ impl NodeBuilder {
                     .construct_signatures()
                     .is_empty()
             {
-                let signature = &self
+                let resolved = self
                     .type_checker
-                    .type_(resolved)
+                    .type_(resolved);
+                let signature = &resolved
                     .as_resolved_type()
                     .call_signatures()[0];
                 let signature_node = self.signature_to_signature_declaration_helper(
@@ -579,9 +582,11 @@ impl NodeBuilder {
                     .call_signatures()
                     .is_empty()
             {
-                let signature = &self
+                let resolved = self
                     .type_checker
-                    .type_(resolved)
+                    .type_(resolved);
+                let signature = 
+                    &resolved
                     .as_resolved_type()
                     .construct_signatures()[0];
                 let signature_node = self.signature_to_signature_declaration_helper(
@@ -884,9 +889,11 @@ impl NodeBuilder {
             {
                 Some(self.create_anonymous_type_node(context, type_)?)
             } else {
-                let outer_type_parameters = self
+                let type_target_ref = self
                     .type_checker
-                    .type_(type_target)
+                    .type_(type_target);
+                let outer_type_parameters =
+                    type_target_ref
                     .as_interface_type()
                     .maybe_outer_type_parameters();
                 let mut i = 0;

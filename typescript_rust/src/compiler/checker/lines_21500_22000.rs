@@ -189,11 +189,13 @@ impl TypeChecker {
         source: Id<Type>, /*TemplateLiteralType*/
         target: Id<Type>, /*TemplateLiteralType*/
     ) -> bool {
-        let source_start = &self.type_(source).as_template_literal_type().texts[0];
-        let target_start = &self.type_(target).as_template_literal_type().texts[0];
-        let source_end = &self.type_(source).as_template_literal_type().texts
+        let source_ref = self.type_(source);
+        let source_start = &source_ref.as_template_literal_type().texts[0];
+        let target_ref = self.type_(target);
+        let target_start = &target_ref.as_template_literal_type().texts[0];
+        let source_end = &source_ref.as_template_literal_type().texts
             [self.type_(source).as_template_literal_type().texts.len() - 1];
-        let target_end = &self.type_(target).as_template_literal_type().texts
+        let target_end = &target_ref.as_template_literal_type().texts
             [self.type_(target).as_template_literal_type().texts.len() - 1];
         let start_len = cmp::min(source_start.len(), target_start.len());
         let end_len = cmp::min(source_end.len(), target_end.len());
@@ -241,7 +243,8 @@ impl TypeChecker {
             .flags()
             .intersects(TypeFlags::StringLiteral)
         {
-            let value = &self.type_(source).as_string_literal_type().value;
+            let source_ref = self.type_(source_);
+            let value = &source_ref.as_string_literal_type().value;
             return Ok(self.type_(target).flags().intersects(TypeFlags::Number)
                 && value != ""
                 && value.parse::<f64>().is_ok()
@@ -259,7 +262,8 @@ impl TypeChecker {
             .flags()
             .intersects(TypeFlags::TemplateLiteral)
         {
-            let texts = &self.type_(source).as_template_literal_type().texts;
+            let source_ref = self.type_(source_);
+            let texts = &source_ref.as_template_literal_type().texts;
             return Ok(texts.len() == 2
                 && texts[0] == ""
                 && texts[1] == ""
@@ -357,7 +361,8 @@ impl TypeChecker {
         let source_start_text = &source_texts[0];
         // TODO: should be using chars for any of this instead?
         let source_end_text = &source_texts[last_source_index];
-        let target_texts = &self.type_(target).as_template_literal_type().texts;
+        let target_ref = self.type_(target_);
+        let target_texts = &target_ref.as_template_literal_type().texts;
         let last_target_index = target_texts.len() - 1;
         let target_start_text = &target_texts[0];
         let target_end_text = &target_texts[last_target_index];
@@ -1150,9 +1155,10 @@ impl InferTypes {
             .flags()
             .intersects(TypeFlags::Union)
         {
-            let source_types = self
+            let source_ref = self
                 .type_checker
-                .type_(source)
+                .type_(source);
+            let source_types = source_ref
                 .as_union_or_intersection_type_interface()
                 .types();
             for &source_type in source_types {

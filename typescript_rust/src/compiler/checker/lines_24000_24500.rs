@@ -536,10 +536,11 @@ impl GetFlowTypeOfReference {
                     .flags()
                     .intersects(TypeFlags::StringLiteral)
                 {
+                    let left_type_ref = self
+                        .type_checker
+                        .type_(left_type);
                     let name = escape_leading_underscores(
-                        &self
-                            .type_checker
-                            .type_(left_type)
+                        &left_type_ref
                             .as_string_literal_type()
                             .value,
                     );

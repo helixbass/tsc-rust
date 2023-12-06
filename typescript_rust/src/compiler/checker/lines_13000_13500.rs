@@ -575,8 +575,8 @@ impl TypeChecker {
     ) -> io::Result<Id<Type>> {
         let type_ =
             self.get_declared_type_of_symbol(&self.get_merged_symbol(Some(symbol)).unwrap())?;
-        let type_parameters = self
-            .type_(type_)
+        let type_ref = self.type_(type_);
+        let type_parameters = type_ref
             .as_interface_type()
             .maybe_local_type_parameters();
         if let Some(type_parameters) = type_parameters {

@@ -383,8 +383,9 @@ impl TypeChecker {
             )?;
             if let Some(property) = property.as_ref() {
                 if matches!(skip_object_function_property_augment, Some(true)) {
-                    let mut property_cache_without_object_function_property_augment = self
-                        .type_(type_)
+                    let type_ref = self
+                        .type_(type_);
+                    let mut property_cache_without_object_function_property_augment = type_ref
                         .as_union_or_intersection_type_interface()
                         .maybe_property_cache_without_object_function_property_augment();
                     if property_cache_without_object_function_property_augment.is_none() {
@@ -396,8 +397,9 @@ impl TypeChecker {
                         .unwrap()
                         .insert(name.to_owned(), property.clone());
                 } else {
-                    let mut property_cache = self
-                        .type_(type_)
+                    let type_ref = self
+                        .type_(type_);
+                    let mut property_cache = type_ref
                         .as_union_or_intersection_type_interface()
                         .maybe_property_cache();
                     if property_cache.is_none() {

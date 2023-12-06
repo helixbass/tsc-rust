@@ -669,7 +669,8 @@ impl TypeChecker {
             .flags()
             .intersects(TypeFlags::Intersection)
         {
-            let types = self.type_(first_base).as_intersection_type().types();
+            let first_base_ref = self.type_(first_base);
+            let types = first_base_ref.as_intersection_type().types();
             let mixin_flags = self.find_mixins(types)?;
             let mut i = 0;
             for intersection_member in self

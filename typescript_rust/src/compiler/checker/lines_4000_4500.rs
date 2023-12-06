@@ -317,7 +317,8 @@ impl TypeChecker {
         &self,
         type_: Id<Type>, /*ResolvedType*/
     ) -> io::Result<Id<Type>> {
-        let type_construct_signatures = self.type_(type_).as_resolved_type().construct_signatures();
+        let type_ref = self.type_(type_);
+        let type_construct_signatures = type_ref.as_resolved_type().construct_signatures();
         if type_construct_signatures.is_empty() {
             return Ok(type_);
         }

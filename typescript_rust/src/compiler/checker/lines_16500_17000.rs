@@ -245,8 +245,9 @@ impl TypeChecker {
         type_variable: Id<Type>, /*TypeVariable*/
         mapper: Gc<TypeMapper>,
     ) -> io::Result<Id<Type>> {
-        let element_flags = &self
-            .type_(self.type_(tuple_type).as_type_reference().target)
+        let tuple_type_target = self
+            .type_(self.type_(tuple_type).as_type_reference().target);
+        let element_flags = &tuple_type_target
             .as_tuple_type()
             .element_flags;
         let element_types = try_map(&self.get_type_arguments(tuple_type)?, |&t: &Id<Type>, i| {
@@ -309,7 +310,8 @@ impl TypeChecker {
             .type_(tuple_type)
             .as_type_reference_interface()
             .target();
-        let element_flags = &self.type_(tuple_type_target).as_tuple_type().element_flags;
+        let tuple_type_target_ref = self.type_(tuple_type_target_);
+        let element_flags = &tuple_type_target_ref.as_tuple_type().element_flags;
         let element_types = try_map(&self.get_type_arguments(tuple_type), |_, i| {
             self.instantiate_mapped_type_template(
                 mapped_type,
@@ -617,8 +619,8 @@ impl TypeChecker {
                         .maybe_node()
                         .is_none()
                 {
-                    let resolved_type_arguments = self
-                        .type_(type_)
+                    let type_ref = self.type_(type_);
+                    let resolved_type_arguments = type_ref
                         .as_type_reference_interface()
                         .maybe_resolved_type_arguments();
                     let resolved_type_arguments = resolved_type_arguments.as_deref();

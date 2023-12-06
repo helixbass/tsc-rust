@@ -1108,9 +1108,11 @@ impl NodeBuilder {
             .flags()
             .intersects(TypeFlags::BigIntLiteral)
         {
-            let value = &self
+            let type_ = self
                 .type_checker
-                .type_(type_)
+                .type_(type_);
+            let value = &
+                type_
                 .as_big_int_literal_type()
                 .value;
             context.increment_approximate_length_by(pseudo_big_int_to_string(value).len() + 1);
@@ -1124,9 +1126,11 @@ impl NodeBuilder {
             .flags()
             .intersects(TypeFlags::BooleanLiteral)
         {
-            let type_intrinsic_name = self
+            let type_ = self
                 .type_checker
-                .type_(type_)
+                .type_(type_);
+            let type_intrinsic_name =
+                type_
                 .as_intrinsic_type()
                 .intrinsic_name();
             context.increment_approximate_length_by(type_intrinsic_name.len());
@@ -1418,9 +1422,10 @@ impl NodeBuilder {
             .intersects(TypeFlags::Union | TypeFlags::Intersection)
         {
             let types = {
-                let types = self
+                let type_ref = self
                     .type_checker
-                    .type_(type_)
+                    .type_(type_);
+                let types = type_ref
                     .as_union_or_intersection_type_interface()
                     .types();
                 if self
@@ -1495,14 +1500,15 @@ impl NodeBuilder {
             .flags()
             .intersects(TypeFlags::TemplateLiteral)
         {
-            let texts = &self
+            let type_ = self
                 .type_checker
-                .type_(type_)
+                .type_(type_);
+            let texts = 
+                &type_
                 .as_template_literal_type()
                 .texts;
-            let types = &self
-                .type_checker
-                .type_(type_)
+            let types = 
+                &type_
                 .as_template_literal_type()
                 .types;
             let template_head: Gc<Node> =

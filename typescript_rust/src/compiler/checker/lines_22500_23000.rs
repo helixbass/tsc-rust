@@ -461,7 +461,8 @@ impl TypeChecker {
         &self,
         union_type: Id<Type>, /*UnionType*/
     ) -> io::Result<Option<__String>> {
-        let types = self.type_(union_type).as_union_type().types();
+        let union_type_ref = self.type_(union_type);
+        let types = union_type_ref.as_union_type().types();
         if types.len() < 10
             || get_object_flags(&self.type_(union_type)).intersects(ObjectFlags::PrimitiveUnion)
             || count_where(Some(types), |&t: &Id<Type>, _| {
