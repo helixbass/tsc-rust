@@ -49,9 +49,7 @@ impl TypeChecker {
                         .type_(type_)
                         .flags()
                         .intersects(TypeFlags::AnyOrUnknown)
-                        || self
-                            .get_falsy_flags(type_)
-                            .intersects(TypeFlags::Undefined))
+                        || self.get_falsy_flags(type_).intersects(TypeFlags::Undefined))
                     {
                         if match constructor.as_ref() {
                             None => true,
@@ -554,8 +552,9 @@ impl TypeChecker {
                 if self.is_constant_member_access(ex) {
                     let type_ =
                         self.get_type_of_expression(&ex.as_has_expression().expression())?;
-                    if let Some(type_symbol) = self.type_(type_
-                        ).maybe_symbol()
+                    if let Some(type_symbol) = self
+                        .type_(type_)
+                        .maybe_symbol()
                         .as_ref()
                         .filter(|type_symbol| type_symbol.flags().intersects(SymbolFlags::Enum))
                     {

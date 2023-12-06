@@ -157,16 +157,30 @@ impl TypeChecker {
         Ok(if self.type_(type_).flags().intersects(TypeFlags::Object) {
             !self.is_generic_mapped_type(type_)?
                 && self.is_empty_resolved_type(self.resolve_structured_type_members(type_)?)
-        } else if self.type_(type_).flags().intersects(TypeFlags::NonPrimitive) {
+        } else if self
+            .type_(type_)
+            .flags()
+            .intersects(TypeFlags::NonPrimitive)
+        {
             true
         } else if self.type_(type_).flags().intersects(TypeFlags::Union) {
             try_some(
-                Some(self.type_(type_).as_union_or_intersection_type_interface().types()),
+                Some(
+                    self.type_(type_)
+                        .as_union_or_intersection_type_interface()
+                        .types(),
+                ),
                 Some(|&type_: &Id<Type>| self.is_empty_object_type(type_)),
             )?
-        } else if self.type_(type_).flags().intersects(TypeFlags::Intersection) {
+        } else if self
+            .type_(type_)
+            .flags()
+            .intersects(TypeFlags::Intersection)
+        {
             try_every(
-                self.type_(type_).as_union_or_intersection_type_interface().types(),
+                self.type_(type_)
+                    .as_union_or_intersection_type_interface()
+                    .types(),
                 |&type_: &Id<Type>, _| self.is_empty_object_type(type_),
             )?
         } else {
@@ -175,14 +189,16 @@ impl TypeChecker {
     }
 
     pub(super) fn is_empty_anonymous_object_type(&self, type_: Id<Type>) -> io::Result<bool> {
-        Ok(get_object_flags(self.type_(type_)).intersects(ObjectFlags::Anonymous)
-            && (self.type_(type_).as_object_type().maybe_members().is_some()
-                && self.is_empty_resolved_type(type_)
-                || matches!(
-                    self.type_(type_).maybe_symbol(),
-                    Some(type_symbol) if type_symbol.flags().intersects(SymbolFlags::TypeLiteral)
-                        && (*self.get_members_of_symbol(&type_symbol)?).borrow().len() == 0
-                )))
+        Ok(
+            get_object_flags(self.type_(type_)).intersects(ObjectFlags::Anonymous)
+                && (self.type_(type_).as_object_type().maybe_members().is_some()
+                    && self.is_empty_resolved_type(type_)
+                    || matches!(
+                        self.type_(type_).maybe_symbol(),
+                        Some(type_symbol) if type_symbol.flags().intersects(SymbolFlags::TypeLiteral)
+                            && (*self.get_members_of_symbol(&type_symbol)?).borrow().len() == 0
+                    )),
+        )
     }
 
     pub(super) fn is_string_index_signature_only_type(&self, type_: Id<Type>) -> io::Result<bool> {
@@ -193,9 +209,14 @@ impl TypeChecker {
             && self
                 .get_index_info_of_type_(type_, self.string_type())?
                 .is_some()
-            || self.type_(type_).flags().intersects(TypeFlags::UnionOrIntersection)
+            || self
+                .type_(type_)
+                .flags()
+                .intersects(TypeFlags::UnionOrIntersection)
                 && try_every(
-                    self.type_(type_).as_union_or_intersection_type_interface().types(),
+                    self.type_(type_)
+                        .as_union_or_intersection_type_interface()
+                        .types(),
                     |&type_: &Id<Type>, _| self.is_string_index_signature_only_type(type_),
                 )?
             || false)
@@ -299,7 +320,8 @@ impl TypeChecker {
             && s.intersects(TypeFlags::EnumLiteral)
             && t.intersects(TypeFlags::StringLiteral)
             && !t.intersects(TypeFlags::EnumLiteral)
-            && self.type_(source).as_string_literal_type().value == self.type_(target).as_string_literal_type().value
+            && self.type_(source).as_string_literal_type().value
+                == self.type_(target).as_string_literal_type().value
         {
             return Ok(true);
         }
@@ -310,7 +332,8 @@ impl TypeChecker {
             && s.intersects(TypeFlags::EnumLiteral)
             && t.intersects(TypeFlags::NumberLiteral)
             && !t.intersects(TypeFlags::EnumLiteral)
-            && self.type_(source).as_number_literal_type().value == self.type_(target).as_number_literal_type().value
+            && self.type_(source).as_number_literal_type().value
+                == self.type_(target).as_number_literal_type().value
         {
             return Ok(true);
         }
@@ -348,8 +371,12 @@ impl TypeChecker {
                 && t.intersects(TypeFlags::Literal)
                 && self.type_(source).as_literal_type().is_value_eq(target)
                 && self.is_enum_type_related_to(
-                    &self.get_parent_of_symbol(&self.type_(source).symbol())?.unwrap(),
-                    &self.get_parent_of_symbol(&self.type_(target).symbol())?.unwrap(),
+                    &self
+                        .get_parent_of_symbol(&self.type_(source).symbol())?
+                        .unwrap(),
+                    &self
+                        .get_parent_of_symbol(&self.type_(target).symbol())?
+                        .unwrap(),
                     &mut error_reporter,
                 )?
             {

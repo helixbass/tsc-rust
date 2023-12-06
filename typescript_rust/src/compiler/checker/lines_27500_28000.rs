@@ -149,7 +149,10 @@ impl TypeChecker {
                         Some(caller),
                         &Diagnostics::Property_0_does_not_exist_on_type_1,
                         Some(vec![
-                            self.type_(element_type).as_string_literal_type().value.clone(),
+                            self.type_(element_type)
+                                .as_string_literal_type()
+                                .value
+                                .clone(),
                             format!("JSX.{}", JsxNames::IntrinsicElements),
                         ]),
                     );
@@ -168,7 +171,12 @@ impl TypeChecker {
         if signatures.is_empty() {
             signatures = self.get_signatures_of_type(apparent_elem_type, SignatureKind::Call)?;
         }
-        if signatures.is_empty() && self.type_(apparent_elem_type).flags().intersects(TypeFlags::Union) {
+        if signatures.is_empty()
+            && self
+                .type_(apparent_elem_type)
+                .flags()
+                .intersects(TypeFlags::Union)
+        {
             signatures = self.get_union_signatures(&try_map(
                 self.type_(apparent_elem_type).as_union_type().types(),
                 |&t: &Id<Type>, _| self.get_uninstantiated_jsx_signatures_of_type(t, caller),
@@ -490,7 +498,11 @@ impl TypeChecker {
         name: &str, /*__String*/
         is_comparing_jsx_attributes: bool,
     ) -> io::Result<bool> {
-        if self.type_(target_type).flags().intersects(TypeFlags::Object) {
+        if self
+            .type_(target_type)
+            .flags()
+            .intersects(TypeFlags::Object)
+        {
             if self
                 .get_property_of_object_type(target_type, name)?
                 .is_some()
@@ -505,13 +517,15 @@ impl TypeChecker {
             {
                 return Ok(true);
             }
-        } else if self.type_(target_type
-            ).flags()
+        } else if self
+            .type_(target_type)
+            .flags()
             .intersects(TypeFlags::UnionOrIntersection)
             && self.is_excess_property_check_target(target_type)
         {
-            for t in self.type_(target_type
-                ).as_union_or_intersection_type_interface()
+            for t in self
+                .type_(target_type)
+                .as_union_or_intersection_type_interface()
                 .types()
             {
                 if self.is_known_property(t, name, is_comparing_jsx_attributes)? {
@@ -526,13 +540,19 @@ impl TypeChecker {
         (self.type_(type_).flags().intersects(TypeFlags::Object)
             && !(get_object_flags(self.type_(type_))
                 .intersects(ObjectFlags::ObjectLiteralPatternWithComputedProperties)))
-            || self.type_(type_).flags().intersects(TypeFlags::NonPrimitive)
+            || self
+                .type_(type_)
+                .flags()
+                .intersects(TypeFlags::NonPrimitive)
             || (self.type_(type_).flags().intersects(TypeFlags::Union)
                 && some(
                     Some(self.type_(type_).as_union_type().types()),
                     Some(|&type_: &Id<Type>| self.is_excess_property_check_target(type_)),
                 ))
-            || (self.type_(type_).flags().intersects(TypeFlags::Intersection)
+            || (self
+                .type_(type_)
+                .flags()
+                .intersects(TypeFlags::Intersection)
                 && every(
                     self.type_(type_).as_intersection_type().types(),
                     |&type_: &Id<Type>, _| self.is_excess_property_check_target(type_),
@@ -788,7 +808,11 @@ impl TypeChecker {
                     .unwrap(),
             )?;
             enclosing_class = Some(
-                if self.type_(this_type).flags().intersects(TypeFlags::TypeParameter) {
+                if self
+                    .type_(this_type)
+                    .flags()
+                    .intersects(TypeFlags::TypeParameter)
+                {
                     self.get_constraint_of_type_parameter(this_type)?.unwrap()
                 } else {
                     this_type
@@ -822,9 +846,7 @@ impl TypeChecker {
         }
         if match containing_type.as_ref() {
             None => true,
-            Some(containing_type) => {
-                !self.has_base_type(containing_type, Some(enclosing_class))?
-            }
+            Some(containing_type) => !self.has_base_type(containing_type, Some(enclosing_class))?,
         } {
             if error_node.is_some() {
                 self.error(

@@ -457,7 +457,11 @@ impl TypeChecker {
             )?
             .unwrap()
         } else if self.is_awaited_type_instantiation(type_)? {
-            self.type_(type_).maybe_alias_type_arguments().as_ref().unwrap()[0].clone()
+            self.type_(type_)
+                .maybe_alias_type_arguments()
+                .as_ref()
+                .unwrap()[0]
+                .clone()
         } else {
             type_
         })
@@ -477,7 +481,9 @@ impl TypeChecker {
             if match base_constraint {
                 None => true,
                 Some(base_constraint) => {
-                    self.type_(base_constraint).flags().intersects(TypeFlags::AnyOrUnknown)
+                    self.type_(base_constraint)
+                        .flags()
+                        .intersects(TypeFlags::AnyOrUnknown)
                         || self.is_empty_object_type(base_constraint)?
                         || self.is_thenable_type(base_constraint)?
                 }
@@ -511,8 +517,7 @@ impl TypeChecker {
     ) -> io::Result<Option<Id<Type>>> {
         let awaited_type =
             self.get_awaited_type_no_alias(type_, error_node, diagnostic_message, args)?;
-        awaited_type
-            .try_map(|awaited_type| self.create_awaited_type_if_needed(awaited_type))
+        awaited_type.try_map(|awaited_type| self.create_awaited_type_if_needed(awaited_type))
     }
 
     pub(super) fn get_awaited_type_no_alias(
@@ -592,7 +597,8 @@ impl TypeChecker {
 
             let awaited_type = return_ok_none_if_none!(awaited_type);
 
-            *self.type_(type_as_awaitable).maybe_awaited_type_of_type() = Some(awaited_type.clone());
+            *self.type_(type_as_awaitable).maybe_awaited_type_of_type() =
+                Some(awaited_type.clone());
             return Ok(Some(awaited_type));
         }
 

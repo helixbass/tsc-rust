@@ -15,14 +15,14 @@ use crate::{
     get_members_of_declaration, get_name_of_declaration, get_object_flags, has_dynamic_name,
     has_static_modifier, has_syntactic_modifier, is_binary_expression, is_dynamic_name,
     is_element_access_expression, is_in_js_file, last_or_undefined, length, maybe_concatenate,
-    maybe_for_each, range_equals_gc, return_ok_default_if_none, some, try_map, try_map_defined,
-    try_maybe_map, try_some, unescape_leading_underscores, AssignmentDeclarationKind, CheckFlags,
-    Debug_, Diagnostics, ElementFlags, IndexInfo, InterfaceTypeInterface,
-    InterfaceTypeWithDeclaredMembersInterface, InternalSymbolName, LiteralType, ModifierFlags,
-    Node, NodeInterface, ObjectFlags, OptionTry, Signature, SignatureFlags, SignatureKind,
-    SignatureOptionalCallSignatureCache, Symbol, SymbolFlags, SymbolInterface, SymbolLinks,
-    SymbolTable, Ternary, TransientSymbolInterface, Type, TypeChecker, TypeFlags, TypeInterface,
-    TypeMapper, TypePredicate, range_equals,
+    maybe_for_each, range_equals, range_equals_gc, return_ok_default_if_none, some, try_map,
+    try_map_defined, try_maybe_map, try_some, unescape_leading_underscores,
+    AssignmentDeclarationKind, CheckFlags, Debug_, Diagnostics, ElementFlags, IndexInfo,
+    InterfaceTypeInterface, InterfaceTypeWithDeclaredMembersInterface, InternalSymbolName,
+    LiteralType, ModifierFlags, Node, NodeInterface, ObjectFlags, OptionTry, Signature,
+    SignatureFlags, SignatureKind, SignatureOptionalCallSignatureCache, Symbol, SymbolFlags,
+    SymbolInterface, SymbolLinks, SymbolTable, Ternary, TransientSymbolInterface, Type,
+    TypeChecker, TypeFlags, TypeInterface, TypeMapper, TypePredicate,
 };
 
 impl TypeChecker {
@@ -515,8 +515,8 @@ impl TypeChecker {
             ));
             members = Gc::new(GcCell::new(
                 self.create_instantiated_symbol_table(
-                    self.type_(source
-                        ).as_interface_type()
+                    self.type_(source)
+                        .as_interface_type()
                         .maybe_declared_properties()
                         .as_ref()
                         .unwrap(),
@@ -585,17 +585,16 @@ impl TypeChecker {
                     construct_signatures,
                     self.get_signatures_of_type(instantiated_base_type, SignatureKind::Construct)?,
                 );
-                let inherited_index_infos =
-                    if instantiated_base_type != self.any_type() {
-                        self.get_index_infos_of_type(instantiated_base_type)?
-                    } else {
-                        vec![Gc::new(self.create_index_info(
-                            self.string_type(),
-                            self.any_type(),
-                            false,
-                            None,
-                        ))]
-                    };
+                let inherited_index_infos = if instantiated_base_type != self.any_type() {
+                    self.get_index_infos_of_type(instantiated_base_type)?
+                } else {
+                    vec![Gc::new(self.create_index_info(
+                        self.string_type(),
+                        self.any_type(),
+                        false,
+                        None,
+                    ))]
+                };
                 let inherited_index_infos_filtered = inherited_index_infos
                     .into_iter()
                     .filter(|info| self.find_index_info(&index_infos, info.key_type).is_none())
@@ -632,12 +631,18 @@ impl TypeChecker {
         &self,
         type_: Id<Type>, /*TypeReference*/
     ) -> io::Result<()> {
-        let source = self.resolve_declared_members(&self.type_(type_).as_type_reference().target())?;
+        let source =
+            self.resolve_declared_members(&self.type_(type_).as_type_reference().target())?;
         let type_parameters = maybe_concatenate(
-            self.type_(source).as_interface_type()
+            self.type_(source)
+                .as_interface_type()
                 .maybe_type_parameters()
                 .map(|type_parameters| type_parameters.to_owned()),
-            Some(vec![self.type_(source).as_interface_type().maybe_this_type().unwrap()]),
+            Some(vec![self
+                .type_(source)
+                .as_interface_type()
+                .maybe_this_type()
+                .unwrap()]),
         )
         .unwrap();
         let type_arguments = self.get_type_arguments(type_)?;
@@ -786,12 +791,17 @@ impl TypeChecker {
             } else if !skip_union_expanding
                 && self.type_(rest_type).flags().intersects(TypeFlags::Union)
                 && every(
-                    self.type_(rest_type).as_union_or_intersection_type_interface().types(),
+                    self.type_(rest_type)
+                        .as_union_or_intersection_type_interface()
+                        .types(),
                     |&type_: &Id<Type>, _| self.is_tuple_type(type_),
                 )
             {
                 return try_map(
-                    self.type_(rest_type).as_union_or_intersection_type_interface().types().to_owned(),
+                    self.type_(rest_type)
+                        .as_union_or_intersection_type_interface()
+                        .types()
+                        .to_owned(),
                     |t: Id<Type>, _| {
                         self.expand_signature_parameters_with_tuple_members(sig, t, rest_index)
                     },
@@ -809,7 +819,9 @@ impl TypeChecker {
     ) -> io::Result<Vec<Gc<Symbol>>> {
         let element_types = self.get_type_arguments(rest_type)?;
         let rest_type_target = self.type_(rest_type).as_type_reference().target;
-        let associated_names = self.type_(rest_type_target).as_tuple_type()
+        let associated_names = self
+            .type_(rest_type_target)
+            .as_tuple_type()
             .labeled_element_declarations
             .as_ref();
         let rest_params = try_map(&element_types, |&t: &Id<Type>, i| -> io::Result<_> {
@@ -859,8 +871,8 @@ impl TypeChecker {
             return Ok(vec![Gc::new(
                 self.create_signature(
                     None,
-                    self.type_(class_type
-                        ).as_interface_type()
+                    self.type_(class_type)
+                        .as_interface_type()
                         .maybe_local_type_parameters()
                         .map(ToOwned::to_owned),
                     None,
@@ -902,7 +914,9 @@ impl TypeChecker {
                 } else {
                     self.clone_signature(&base_sig)
                 };
-                *sig.maybe_type_parameters_mut() = self.type_(class_type).as_interface_type()
+                *sig.maybe_type_parameters_mut() = self
+                    .type_(class_type)
+                    .as_interface_type()
                     .maybe_local_type_parameters()
                     .map(ToOwned::to_owned);
                 *sig.maybe_resolved_return_type_mut() = Some(class_type);
@@ -1134,12 +1148,10 @@ impl TypeChecker {
                 continue;
             }
             if !self.is_type_identical_to(
-                self
-                    .get_constraint_from_type_parameter(*source)?
+                self.get_constraint_from_type_parameter(*source)?
                     .unwrap_or_else(|| self.unknown_type()),
                 self.instantiate_type(
-                    self
-                        .get_constraint_from_type_parameter(target)?
+                    self.get_constraint_from_type_parameter(target)?
                         .unwrap_or_else(|| self.unknown_type()),
                     Some(mapper.clone()),
                 )?,

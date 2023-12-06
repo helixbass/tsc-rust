@@ -10,11 +10,11 @@ use super::{
 use crate::{
     are_option_gcs_equal, create_symbol_table, get_effective_return_type_node,
     get_effective_type_annotation_node, get_function_flags, is_import_call, is_omitted_expression,
-    is_transient_symbol, last, node_is_missing, push_if_unique_gc, some,
+    is_transient_symbol, last, node_is_missing, push_if_unique_eq, push_if_unique_gc, some,
     try_for_each_return_statement, try_for_each_yield_expression, CheckFlags, Diagnostics,
     FunctionFlags, HasTypeInterface, InferenceContext, NamedDeclarationInterface, Node, NodeFlags,
     NodeInterface, OptionTry, Signature, Symbol, SymbolFlags, SymbolInterface, SyntaxKind,
-    TransientSymbolInterface, Type, TypeChecker, TypeFlags, TypeInterface, UnionReduction, push_if_unique_eq,
+    TransientSymbolInterface, Type, TypeChecker, TypeFlags, TypeInterface, UnionReduction,
 };
 
 impl TypeChecker {
@@ -773,11 +773,15 @@ impl TypeChecker {
             let type_ = self
                 .get_base_constraint_of_type(operand_type)?
                 .unwrap_or(operand_type);
-            if self.type_(type_).flags().intersects(TypeFlags::AnyOrUnknown) {
+            if self
+                .type_(type_)
+                .flags()
+                .intersects(TypeFlags::AnyOrUnknown)
+            {
                 return Ok(TypeFacts::AllTypeofNE & not_equal_facts == TypeFacts::AllTypeofNE);
             }
-            return Ok(self.type_(self
-                .try_filter_type(type_, |t: Id<Type>| {
+            return Ok(self
+                .type_(self.try_filter_type(type_, |t: Id<Type>| {
                     Ok(self.get_type_facts(t, None)? & not_equal_facts == not_equal_facts)
                 })?)
                 .flags()
@@ -797,13 +801,12 @@ impl TypeChecker {
             return Ok(false);
         }
         Ok(self.each_type_contained_in(
-            self
-                .map_type(
-                    type_,
-                    &mut |type_: Id<Type>| Some(self.get_regular_type_of_literal_type(type_)),
-                    None,
-                )
-                .unwrap(),
+            self.map_type(
+                type_,
+                &mut |type_: Id<Type>| Some(self.get_regular_type_of_literal_type(type_)),
+                None,
+            )
+            .unwrap(),
             &switch_types,
         ))
     }
@@ -869,7 +872,10 @@ impl TypeChecker {
             && has_return_with_no_expression
             && !(self.is_js_constructor(Some(func))?
                 && aggregated_types.iter().any(|&t| {
-                    are_option_gcs_equal(self.type_(t).maybe_symbol().as_ref(), func.maybe_symbol().as_ref())
+                    are_option_gcs_equal(
+                        self.type_(t).maybe_symbol().as_ref(),
+                        func.maybe_symbol().as_ref(),
+                    )
                 }))
         {
             push_if_unique_eq(&mut aggregated_types, &self.undefined_type());
@@ -897,9 +903,8 @@ impl TypeChecker {
         }
 
         let function_flags = get_function_flags(Some(func));
-        let type_ = return_type.try_map(|return_type| {
-            self.unwrap_return_type(return_type, function_flags)
-        })?;
+        let type_ = return_type
+            .try_map(|return_type| self.unwrap_return_type(return_type, function_flags))?;
 
         if matches!(
             type_,

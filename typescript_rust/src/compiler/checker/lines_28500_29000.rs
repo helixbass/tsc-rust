@@ -58,17 +58,17 @@ impl TypeChecker {
         prop_name: &str, /*__String*/
         containing_type: Id<Type>,
     ) -> io::Result<bool> {
-        let prop =
-            self.type_(containing_type
-                ).maybe_symbol()
-                .as_ref()
-                .try_and_then(|containing_type_symbol| {
-                    self.get_property_of_type_(
-                        self.get_type_of_symbol(containing_type_symbol)?,
-                        prop_name,
-                        None,
-                    )
-                })?;
+        let prop = self
+            .type_(containing_type)
+            .maybe_symbol()
+            .as_ref()
+            .try_and_then(|containing_type_symbol| {
+                self.get_property_of_type_(
+                    self.get_type_of_symbol(containing_type_symbol)?,
+                    prop_name,
+                    None,
+                )
+            })?;
         Ok(matches!(
             prop.as_ref().and_then(|prop| prop.maybe_value_declaration()).as_ref(),
             Some(prop_value_declaration) if is_static(prop_value_declaration)
@@ -99,8 +99,9 @@ impl TypeChecker {
         missing_property: &str,
         containing_type: Id<Type>,
     ) -> io::Result<Option<String>> {
-        let container =
-            return_ok_default_if_none!(self.type_(self.get_apparent_type(containing_type)?).maybe_symbol());
+        let container = return_ok_default_if_none!(self
+            .type_(self.get_apparent_type(containing_type)?)
+            .maybe_symbol());
         let all_features = get_script_target_features();
         let lib_targets = all_features.keys();
         for lib_target in lib_targets {
@@ -354,11 +355,16 @@ impl TypeChecker {
         source: Id<Type>, /*StringLiteralType*/
         target: Id<Type>, /*UnionType*/
     ) -> Option<Id<Type /*StringLiteralType*/>> {
-        let candidates = self.type_(target
-            ).as_union_type()
+        let candidates = self
+            .type_(target)
+            .as_union_type()
             .types()
             .into_iter()
-            .filter(|&&type_| self.type_(type_).flags().intersects(TypeFlags::StringLiteral))
+            .filter(|&&type_| {
+                self.type_(type_)
+                    .flags()
+                    .intersects(TypeFlags::StringLiteral)
+            })
             .cloned()
             .collect::<Vec<_>>();
         get_spelling_suggestion(
@@ -657,10 +663,9 @@ impl TypeChecker {
                                     &symbol
                                 )
                             )
-                            && self
-                                .has_numeric_property_names(self.get_type_of_expression(
-                                    &node_as_for_in_statement.expression,
-                                )?)?
+                            && self.has_numeric_property_names(
+                                self.get_type_of_expression(&node_as_for_in_statement.expression)?,
+                            )?
                     } {
                         return Ok(true);
                     }
@@ -682,8 +687,7 @@ impl TypeChecker {
         } else {
             self.check_element_access_expression(
                 node,
-                self
-                    .check_non_null_expression(&node.as_element_access_expression().expression)?,
+                self.check_non_null_expression(&node.as_element_access_expression().expression)?,
                 check_mode,
             )?
         })

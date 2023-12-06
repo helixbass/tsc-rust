@@ -150,8 +150,8 @@ impl TypeChecker {
         }
         for i in arg_count..effective_minimum_arguments {
             let type_ = self.get_type_at_position(signature, i)?;
-            if self.type_(self
-                .filter_type(type_, |type_: Id<Type>| {
+            if self
+                .type_(self.filter_type(type_, |type_: Id<Type>| {
                     if is_in_js_file(Some(node)) && !self.strict_null_checks {
                         self.accepts_void_undefined_unknown_or_any(type_)
                     } else {
@@ -551,8 +551,7 @@ impl TypeChecker {
             .unwrap()
         } else if self.type_(type_).flags().intersects(TypeFlags::Any)
             || self.is_mutable_array_or_tuple(
-                self
-                    .get_base_constraint_of_type(type_)?
+                self.get_base_constraint_of_type(type_)?
                     .unwrap_or_else(|| type_),
             )
         {
@@ -561,27 +560,19 @@ impl TypeChecker {
             self.create_tuple_type(
                 &*self.get_type_arguments(type_)?,
                 Some(
-                    &self.type_(self.type_(type_
-                        .as_type_reference())
-                        .target)
+                    &self
+                        .type_(self.type_(type_.as_type_reference()).target)
                         .as_tuple_type()
                         .element_flags,
                 ),
                 Some(false),
-                self.type_(self.type_(type_
-                    ).as_type_reference()
-                    .target)
+                self.type_(self.type_(type_).as_type_reference().target)
                     .as_tuple_type()
                     .labeled_element_declarations
                     .as_deref(),
             )?
         } else {
-            self.create_tuple_type(
-                &[type_],
-                Some(&[ElementFlags::Variadic]),
-                None,
-                None,
-            )?
+            self.create_tuple_type(&[type_], Some(&[ElementFlags::Variadic]), None, None)?
         })
     }
 
@@ -597,18 +588,18 @@ impl TypeChecker {
         if index >= arg_count - 1 {
             let arg = &args[arg_count - 1];
             if self.is_spread_argument(Some(&**arg)) {
-                return self.get_mutable_array_or_tuple_type(if arg.kind()
-                    == SyntaxKind::SyntheticExpression
-                {
-                    arg.as_synthetic_expression().type_.clone()
-                } else {
-                    self.check_expression_with_contextual_type(
-                        &arg.as_spread_element().expression,
-                        rest_type,
-                        context.clone(),
-                        check_mode,
-                    )?
-                });
+                return self.get_mutable_array_or_tuple_type(
+                    if arg.kind() == SyntaxKind::SyntheticExpression {
+                        arg.as_synthetic_expression().type_.clone()
+                    } else {
+                        self.check_expression_with_contextual_type(
+                            &arg.as_spread_element().expression,
+                            rest_type,
+                            context.clone(),
+                            check_mode,
+                        )?
+                    },
+                );
             }
         }
         let mut types: Vec<Id<Type>> = vec![];

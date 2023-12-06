@@ -590,7 +590,10 @@ impl TypeChecker {
                                 )
                             {
                                 let constructor = self.find_constructor_declaration(
-                                    &get_class_like_declaration_of_symbol(&self.type_(type_).symbol()).unwrap(),
+                                    &get_class_like_declaration_of_symbol(
+                                        &self.type_(type_).symbol(),
+                                    )
+                                    .unwrap(),
                                 );
                                 let uninitialized_as_property_declaration =
                                     uninitialized.as_property_declaration();

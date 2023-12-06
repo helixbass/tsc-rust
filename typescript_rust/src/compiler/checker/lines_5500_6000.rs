@@ -354,11 +354,9 @@ impl NodeBuilder {
             } else {
                 get_factory().create_this_type_node()
             };
-            let type_node = type_predicate
-                .type_
-                .try_and_then(|type_predicate_type| {
-                    self.type_to_type_node_helper(Some(type_predicate_type), context)
-                })?;
+            let type_node = type_predicate.type_.try_and_then(|type_predicate_type| {
+                self.type_to_type_node_helper(Some(type_predicate_type), context)
+            })?;
             return_type_node = Some(get_factory().create_type_predicate_node(
                 asserts_modifier,
                 parameter_name,
@@ -552,11 +550,9 @@ impl NodeBuilder {
         context.set_flags(context.flags() & !NodeBuilderFlags::WriteTypeParametersInQualifiedName);
         let name = self.type_parameter_to_name(type_, context)?;
         let default_parameter = self.type_checker.get_default_from_type_parameter_(type_)?;
-        let default_parameter_node =
-            default_parameter
-                .try_and_then(|default_parameter| {
-                    self.type_to_type_node_helper(Some(default_parameter), context)
-                })?;
+        let default_parameter_node = default_parameter.try_and_then(|default_parameter| {
+            self.type_to_type_node_helper(Some(default_parameter), context)
+        })?;
         context.set_flags(saved_context_flags);
         Ok(get_factory().create_type_parameter_declaration(
             name,
@@ -573,9 +569,8 @@ impl NodeBuilder {
     ) -> io::Result<Gc<Node /*TypeParameterDeclaration*/>> {
         let constraint =
             constraint.try_or_else(|| self.type_checker.get_constraint_of_type_parameter(type_))?;
-        let constraint_node = constraint.try_and_then(|constraint| {
-            self.type_to_type_node_helper(Some(constraint), context)
-        })?;
+        let constraint_node = constraint
+            .try_and_then(|constraint| self.type_to_type_node_helper(Some(constraint), context))?;
         self.type_parameter_to_declaration_with_constraint(type_, context, constraint_node)
     }
 
@@ -600,9 +595,7 @@ impl NodeBuilder {
             parameter_declaration.as_ref(),
             Some(parameter_declaration) if self.type_checker.is_required_initialized_parameter(parameter_declaration)?
         ) {
-            parameter_type = self
-                .type_checker
-                .get_optional_type_(parameter_type, None)?;
+            parameter_type = self.type_checker.get_optional_type_(parameter_type, None)?;
         }
         if context
             .flags()

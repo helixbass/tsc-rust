@@ -244,8 +244,8 @@ impl TypeChecker {
             )
         })?;
         Ok(
-            if let Some(unique_type) = unique_type
-                .filter(|&unique_type| self.is_type_usable_as_property_name(unique_type))
+            if let Some(unique_type) =
+                unique_type.filter(|&unique_type| self.is_type_usable_as_property_name(unique_type))
             {
                 self.get_property_name_from_type(unique_type)
             } else {
@@ -400,8 +400,7 @@ impl TypeChecker {
             )));
         }
         if self.is_reference_to_type(type_, (resolver.get_global_iterator_type)(self, false)?)
-            || self
-                .is_reference_to_type(type_, (resolver.get_global_generator_type)(self, false)?)
+            || self.is_reference_to_type(type_, (resolver.get_global_generator_type)(self, false)?)
         {
             let type_arguments = self.get_type_arguments(type_)?;
             let yield_type = &type_arguments[0];
@@ -614,8 +613,9 @@ impl TypeChecker {
                         self.create_iteration_types(
                             Some(
                                 self.get_mapped_type(
-                                    &self.type_(global_type
-                                        ).as_generic_type()
+                                    &self
+                                        .type_(global_type)
+                                        .as_generic_type()
                                         .maybe_type_parameters()
                                         .unwrap()[0],
                                     &mapper.clone().unwrap(),
@@ -623,8 +623,9 @@ impl TypeChecker {
                             ),
                             Some(
                                 self.get_mapped_type(
-                                    &self.type_(global_type
-                                        ).as_generic_type()
+                                    &self
+                                        .type_(global_type)
+                                        .as_generic_type()
                                         .maybe_type_parameters()
                                         .unwrap()[1],
                                     &mapper.clone().unwrap(),
@@ -633,8 +634,9 @@ impl TypeChecker {
                             if method_name == "next" {
                                 Some(
                                     self.get_mapped_type(
-                                        &self.type_(global_type
-                                            ).as_generic_type()
+                                        &self
+                                            .type_(global_type)
+                                            .as_generic_type()
                                             .maybe_type_parameters()
                                             .unwrap()[2],
                                         &mapper.unwrap(),

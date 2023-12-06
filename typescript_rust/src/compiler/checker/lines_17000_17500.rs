@@ -227,8 +227,9 @@ impl TypeChecker {
                 Some(&signatures),
                 Some(|s: &Gc<Signature>| -> io::Result<_> {
                     let return_type = self.get_return_type_of_signature(s.clone())?;
-                    Ok(!self.type_(return_type
-                        ).flags()
+                    Ok(!self
+                        .type_(return_type)
+                        .flags()
                         .intersects(TypeFlags::Any | TypeFlags::Never)
                         && self.check_type_related_to(
                             return_type,
@@ -464,8 +465,9 @@ impl TypeChecker {
             let mut target_prop_type =
                 continue_if_none!(self
                     .get_best_match_indexed_access_type_or_undefined(source, target, name_type)?);
-            if self.type_(target_prop_type
-                ).flags()
+            if self
+                .type_(target_prop_type)
+                .flags()
                 .intersects(TypeFlags::IndexedAccess)
             {
                 continue;
@@ -626,7 +628,12 @@ impl TypeChecker {
                                 }) {
                                 target_prop.maybe_declarations().as_ref().unwrap()[0].clone()
                             } else {
-                                self.type_(target).symbol().maybe_declarations().as_ref().unwrap()[0].clone()
+                                self.type_(target)
+                                    .symbol()
+                                    .maybe_declarations()
+                                    .as_ref()
+                                    .unwrap()[0]
+                                    .clone()
                             };
                             if !get_source_file_of_node(&target_node)
                                 .as_source_file()
@@ -1176,10 +1183,8 @@ impl TypeChecker {
             }
             && s.parameters().len() == 1
             && signature_has_rest_parameter(&s)
-            && (
-                self.get_type_of_parameter(&s.parameters()[0])? ==
-                self.any_array_type()
-             || self.is_type_any(Some(self.get_type_of_parameter(&s.parameters()[0])?)))
+            && (self.get_type_of_parameter(&s.parameters()[0])? == self.any_array_type()
+                || self.is_type_any(Some(self.get_type_of_parameter(&s.parameters()[0])?)))
             && self.is_type_any(Some(self.get_return_type_of_signature(s)?)))
     }
 
@@ -1481,11 +1486,8 @@ impl TypeChecker {
                 }
             } else {
                 result &= if check_mode.intersects(SignatureCheckMode::BivariantCallback) {
-                    let mut val = compare_types.call(
-                        target_return_type,
-                        source_return_type,
-                        Some(false),
-                    )?;
+                    let mut val =
+                        compare_types.call(target_return_type, source_return_type, Some(false))?;
                     if val == Ternary::False {
                         val = compare_types.call(
                             source_return_type,

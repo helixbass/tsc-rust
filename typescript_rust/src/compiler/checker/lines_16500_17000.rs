@@ -10,15 +10,15 @@ use super::{
     CheckTypeContainingMessageChain, CheckTypeErrorOutputContainer, MappedTypeModifiers, TypeFacts,
 };
 use crate::{
-    are_gc_slices_equal, are_option_gcs_equal, contains_gc, get_effective_return_type_node,
-    get_object_flags, has_context_sensitive_parameters, is_function_declaration,
-    is_function_expression_or_arrow_function, is_in_js_file, is_jsx_opening_element,
-    is_object_literal_method, is_part_of_type_node, map, try_every, try_for_each_child_bool,
-    try_map, try_some, AsDoubleDeref, Debug_, DiagnosticMessage, Diagnostics, ElementFlags,
-    HasTypeArgumentsInterface, IndexInfo, MappedType, Node, NodeArray, NodeInterface, ObjectFlags,
-    ObjectTypeInterface, ResolvableTypeInterface, Symbol, SymbolInterface, SyntaxKind, Ternary,
-    Type, TypeChecker, TypeFlags, TypeInterface, TypeMapper, TypeSystemPropertyName,
-    UnionOrIntersectionTypeInterface, UnionReduction, contains,
+    are_gc_slices_equal, are_option_gcs_equal, contains, contains_gc,
+    get_effective_return_type_node, get_object_flags, has_context_sensitive_parameters,
+    is_function_declaration, is_function_expression_or_arrow_function, is_in_js_file,
+    is_jsx_opening_element, is_object_literal_method, is_part_of_type_node, map, try_every,
+    try_for_each_child_bool, try_map, try_some, AsDoubleDeref, Debug_, DiagnosticMessage,
+    Diagnostics, ElementFlags, HasTypeArgumentsInterface, IndexInfo, MappedType, Node, NodeArray,
+    NodeInterface, ObjectFlags, ObjectTypeInterface, ResolvableTypeInterface, Symbol,
+    SymbolInterface, SyntaxKind, Ternary, Type, TypeChecker, TypeFlags, TypeInterface, TypeMapper,
+    TypeSystemPropertyName, UnionOrIntersectionTypeInterface, UnionReduction,
 };
 
 impl TypeChecker {
@@ -91,7 +91,9 @@ impl TypeChecker {
         node: &Node,
     ) -> io::Result<bool> {
         Ok(match node.kind() {
-            SyntaxKind::ThisType => matches!(self.type_(tp).as_type_parameter().is_this_type, Some(true)),
+            SyntaxKind::ThisType => {
+                matches!(self.type_(tp).as_type_parameter().is_this_type, Some(true))
+            }
             SyntaxKind::Identifier => {
                 !matches!(self.type_(tp).as_type_parameter().is_this_type, Some(true))
                     && is_part_of_type_node(node)
@@ -136,10 +138,21 @@ impl TypeChecker {
         type_: Id<Type>, /*MappedType*/
     ) -> io::Result<Option<Id<Type>>> {
         let constraint_type = self.get_constraint_type_from_mapped_type(type_)?;
-        if self.type_(constraint_type).flags().intersects(TypeFlags::Index) {
-            let type_variable =
-                self.type_(self.get_actual_type_variable(&constraint_type).as_index_type().type_)?;
-            if self.type_(type_variable).flags().intersects(TypeFlags::TypeParameter) {
+        if self
+            .type_(constraint_type)
+            .flags()
+            .intersects(TypeFlags::Index)
+        {
+            let type_variable = self.type_(
+                self.get_actual_type_variable(&constraint_type)
+                    .as_index_type()
+                    .type_,
+            )?;
+            if self
+                .type_(type_variable)
+                .flags()
+                .intersects(TypeFlags::TypeParameter)
+            {
                 return Ok(Some(type_variable));
             }
         }
@@ -200,13 +213,11 @@ impl TypeChecker {
             }
         }
         Ok(
-            if 
-                self.instantiate_type(
-                    self.get_constraint_type_from_mapped_type(type_)?,
-                    Some(mapper.clone()),
-                )? ==
-                self.wildcard_type()
-             {
+            if self.instantiate_type(
+                self.get_constraint_type_from_mapped_type(type_)?,
+                Some(mapper.clone()),
+            )? == self.wildcard_type()
+            {
                 self.wildcard_type()
             } else {
                 self.instantiate_anonymous_type(type_, mapper, alias_symbol, alias_type_arguments)?
@@ -235,7 +246,9 @@ impl TypeChecker {
         type_variable: Id<Type>, /*TypeVariable*/
         mapper: Gc<TypeMapper>,
     ) -> io::Result<Id<Type>> {
-        let element_flags = &self.type_(tuple_type).as_type_reference()
+        let element_flags = &self
+            .type_(tuple_type)
+            .as_type_reference()
             .target
             .as_tuple_type()
             .element_flags;
@@ -255,7 +268,11 @@ impl TypeChecker {
             )
         })?;
         let new_readonly = self.get_modified_readonly_state(
-            self.type_(tuple_type).as_type_reference().target.as_tuple_type().readonly,
+            self.type_(tuple_type)
+                .as_type_reference()
+                .target
+                .as_tuple_type()
+                .readonly,
             self.get_mapped_type_modifiers(mapped_type),
         );
         self.create_tuple_type(
@@ -354,8 +371,9 @@ impl TypeChecker {
         ));
         let prop_type = self.instantiate_type(
             self.get_template_type_from_mapped_type(
-                &self.type_(type_
-                    ).as_mapped_type()
+                &self
+                    .type_(type_)
+                    .as_mapped_type()
                     .maybe_target()
                     .unwrap_or_else(|| type_),
             )?,
@@ -390,7 +408,9 @@ impl TypeChecker {
             self.type_(type_).as_object_flags_type().object_flags() | ObjectFlags::Instantiated,
             self.type_(type_).maybe_symbol(),
         );
-        let is_mapped_type = self.type_(type_).as_object_flags_type()
+        let is_mapped_type = self
+            .type_(type_)
+            .as_object_flags_type()
             .object_flags()
             .intersects(ObjectFlags::Mapped);
         let mut mapped_type_type_parameter: Option<Id<Type>> = None;
@@ -405,14 +425,17 @@ impl TypeChecker {
                 ))),
                 mapper,
             );
-            self.type_(fresh_type_parameter
-                ).as_type_parameter()
+            self.type_(fresh_type_parameter)
+                .as_type_parameter()
                 .set_mapper(mapper.clone());
         }
         result.target = Some(type_);
         result.mapper = Some(mapper.clone());
         let result = if is_mapped_type {
-            let result = MappedType::new(result, self.type_(type_).as_mapped_type().declaration.clone());
+            let result = MappedType::new(
+                result,
+                self.type_(type_).as_mapped_type().declaration.clone(),
+            );
             *result.maybe_type_parameter() = mapped_type_type_parameter;
             self.alloc_type(result.into())
         } else {
@@ -425,7 +448,10 @@ impl TypeChecker {
         *result.maybe_alias_type_arguments_mut() = if alias_symbol.is_some() {
             alias_type_arguments.map(ToOwned::to_owned)
         } else {
-            self.instantiate_types(self.type_(type_).maybe_alias_type_arguments().as_deref(), Some(mapper))?
+            self.instantiate_types(
+                self.type_(type_).maybe_alias_type_arguments().as_deref(),
+                Some(mapper),
+            )?
         };
         Ok(result)
     }
@@ -585,10 +611,16 @@ impl TypeChecker {
                 .intersects(ObjectFlags::Reference | ObjectFlags::Anonymous | ObjectFlags::Mapped)
             {
                 if object_flags.intersects(ObjectFlags::Reference)
-                    && self.type_(type_).as_type_reference_interface().maybe_node().is_none()
+                    && self
+                        .type_(type_)
+                        .as_type_reference_interface()
+                        .maybe_node()
+                        .is_none()
                 {
-                    let resolved_type_arguments =
-                        self.type_(type_).as_type_reference().maybe_resolved_type_arguments();
+                    let resolved_type_arguments = self
+                        .type_(type_)
+                        .as_type_reference()
+                        .maybe_resolved_type_arguments();
                     let resolved_type_arguments = resolved_type_arguments.as_deref();
                     let new_type_arguments =
                         self.instantiate_types(resolved_type_arguments, Some(mapper))?;
@@ -637,8 +669,8 @@ impl TypeChecker {
                     .types()
                     .to_owned()
             } else {
-                self.type_(type_
-                    ).as_union_or_intersection_type_interface()
+                self.type_(type_)
+                    .as_union_or_intersection_type_interface()
                     .types()
                     .to_owned()
             };
@@ -646,7 +678,10 @@ impl TypeChecker {
                 .instantiate_types(Some(&types), Some(mapper.clone()))?
                 .unwrap();
             if &new_types == &types
-                && are_option_gcs_equal(alias_symbol.as_ref(), self.type_(type_).maybe_alias_symbol().as_ref())
+                && are_option_gcs_equal(
+                    alias_symbol.as_ref(),
+                    self.type_(type_).maybe_alias_symbol().as_ref(),
+                )
             {
                 return Ok(type_);
             }
@@ -656,7 +691,10 @@ impl TypeChecker {
             let new_alias_type_arguments = if alias_symbol.is_some() {
                 alias_type_arguments.map(ToOwned::to_owned)
             } else {
-                self.instantiate_types(self.type_(type_).maybe_alias_type_arguments().as_deref(), Some(mapper))?
+                self.instantiate_types(
+                    self.type_(type_).maybe_alias_type_arguments().as_deref(),
+                    Some(mapper),
+                )?
             };
             return Ok(
                 if flags.intersects(TypeFlags::Intersection)
@@ -692,14 +730,20 @@ impl TypeChecker {
             return self.get_template_literal_type(
                 &self.type_(type_).as_template_literal_type().texts,
                 &self
-                    .instantiate_types(Some(&self.type_(type_).as_template_literal_type().types), Some(mapper))?
+                    .instantiate_types(
+                        Some(&self.type_(type_).as_template_literal_type().types),
+                        Some(mapper),
+                    )?
                     .unwrap(),
             );
         }
         if flags.intersects(TypeFlags::StringMapping) {
             return self.get_string_mapping_type(
                 &self.type_(type_).symbol(),
-                self.instantiate_type(self.type_(type_).as_string_mapping_type().type_, Some(mapper))?,
+                self.instantiate_type(
+                    self.type_(type_).as_string_mapping_type().type_,
+                    Some(mapper),
+                )?,
             );
         }
         if flags.intersects(TypeFlags::IndexedAccess) {
@@ -719,7 +763,10 @@ impl TypeChecker {
                     self.type_(type_).as_indexed_access_type().object_type,
                     Some(mapper.clone()),
                 )?,
-                self.instantiate_type(self.type_(type_).as_indexed_access_type().index_type, Some(mapper))?,
+                self.instantiate_type(
+                    self.type_(type_).as_indexed_access_type().index_type,
+                    Some(mapper),
+                )?,
                 Some(self.type_(type_).as_indexed_access_type().access_flags),
                 Option::<&Node>::None,
                 new_alias_symbol,
@@ -738,16 +785,27 @@ impl TypeChecker {
             );
         }
         if flags.intersects(TypeFlags::Substitution) {
-            let maybe_variable =
-                self.instantiate_type(&self.type_(type_).as_substitution_type().base_type, Some(mapper.clone()))?;
-            if self.type_(maybe_variable).flags().intersects(TypeFlags::TypeVariable) {
+            let maybe_variable = self.instantiate_type(
+                &self.type_(type_).as_substitution_type().base_type,
+                Some(mapper.clone()),
+            )?;
+            if self
+                .type_(maybe_variable)
+                .flags()
+                .intersects(TypeFlags::TypeVariable)
+            {
                 return Ok(self.get_substitution_type(
                     maybe_variable,
-                    self.instantiate_type(self.type_(type_).as_substitution_type().substitute, Some(mapper))?,
+                    self.instantiate_type(
+                        self.type_(type_).as_substitution_type().substitute,
+                        Some(mapper),
+                    )?,
                 ));
             } else {
-                let sub =
-                    self.instantiate_type(self.type_(type_).as_substitution_type().substitute, Some(mapper))?;
+                let sub = self.instantiate_type(
+                    self.type_(type_).as_substitution_type().substitute,
+                    Some(mapper),
+                )?;
                 if self.type_(sub).flags().intersects(TypeFlags::AnyOrUnknown)
                     || self.is_type_assignable_to(
                         self.get_restrictive_instantiation(maybe_variable)?,
@@ -778,11 +836,18 @@ impl TypeChecker {
             self.type_(type_).as_reverse_mapped_type().constraint_type,
             Some(mapper.clone()),
         )?;
-        if !self.type_(inner_index_type).flags().intersects(TypeFlags::Index) {
+        if !self
+            .type_(inner_index_type)
+            .flags()
+            .intersects(TypeFlags::Index)
+        {
             return Ok(type_);
         }
         let instantiated = self.infer_type_for_homomorphic_mapped_type(
-            self.instantiate_type(self.type_(type_).as_reverse_mapped_type().source, Some(mapper))?,
+            self.instantiate_type(
+                self.type_(type_).as_reverse_mapped_type().source,
+                Some(mapper),
+            )?,
             inner_mapped_type,
             inner_index_type,
         )?;
@@ -794,8 +859,9 @@ impl TypeChecker {
 
     pub(super) fn get_permissive_instantiation(&self, type_: Id<Type>) -> io::Result<Id<Type>> {
         Ok(
-            if self.type_(type_
-                ).flags()
+            if self
+                .type_(type_)
+                .flags()
                 .intersects(TypeFlags::Primitive | TypeFlags::AnyOrUnknown | TypeFlags::Never)
             {
                 type_
@@ -804,14 +870,18 @@ impl TypeChecker {
                     *self.type_(type_).maybe_permissive_instantiation() =
                         Some(self.instantiate_type(type_, self.permissive_mapper.clone())?);
                 }
-                self.type_(type_).maybe_permissive_instantiation().clone().unwrap()
+                self.type_(type_)
+                    .maybe_permissive_instantiation()
+                    .clone()
+                    .unwrap()
             },
         )
     }
 
     pub(super) fn get_restrictive_instantiation(&self, type_: Id<Type>) -> io::Result<Id<Type>> {
-        if self.type_(type_
-            ).flags()
+        if self
+            .type_(type_)
+            .flags()
             .intersects(TypeFlags::Primitive | TypeFlags::AnyOrUnknown | TypeFlags::Never)
         {
             return Ok(type_);
@@ -951,10 +1021,19 @@ impl TypeChecker {
     pub(super) fn get_type_without_signatures(&self, type_: Id<Type>) -> io::Result<Id<Type>> {
         if self.type_(type_).flags().intersects(TypeFlags::Object) {
             let resolved = self.resolve_structured_type_members(type_)?;
-            if !self.type_(resolved).as_resolved_type().construct_signatures().is_empty()
-                || !self.type_(resolved).as_resolved_type().call_signatures().is_empty()
+            if !self
+                .type_(resolved)
+                .as_resolved_type()
+                .construct_signatures()
+                .is_empty()
+                || !self
+                    .type_(resolved)
+                    .as_resolved_type()
+                    .call_signatures()
+                    .is_empty()
             {
-                let result = self.create_object_type(ObjectFlags::Anonymous, self.type_(type_).maybe_symbol());
+                let result = self
+                    .create_object_type(ObjectFlags::Anonymous, self.type_(type_).maybe_symbol());
                 result.resolve(
                     self.type_(resolved).as_resolved_type().members(),
                     self.type_(resolved).as_resolved_type().properties(),
@@ -964,10 +1043,17 @@ impl TypeChecker {
                 );
                 return Ok(self.alloc_type(result.into()));
             }
-        } else if self.type_(type_).flags().intersects(TypeFlags::Intersection) {
+        } else if self
+            .type_(type_)
+            .flags()
+            .intersects(TypeFlags::Intersection)
+        {
             return self.get_intersection_type(
                 &try_map(
-                    self.type_checker.type_(type_).as_intersection_type().types(),
+                    self.type_checker
+                        .type_(type_)
+                        .as_intersection_type()
+                        .types(),
                     |&type_: &Id<Type>, _| self.get_type_without_signatures(type_),
                 )?,
                 Option::<&Symbol>::None,
@@ -1049,30 +1135,32 @@ impl TypeChecker {
         target: Id<Type>,
     ) -> io::Result<bool> {
         Ok(if self.type_(source).flags().intersects(TypeFlags::Union) {
-            try_every(self.type_(source).as_union_type().types(), |&t: &Id<Type>, _| {
-                self.is_type_derived_from(t, target)
-            })?
+            try_every(
+                self.type_(source).as_union_type().types(),
+                |&t: &Id<Type>, _| self.is_type_derived_from(t, target),
+            )?
         } else if self.type_(target).flags().intersects(TypeFlags::Union) {
             try_some(
                 Some(self.type_(target).as_union_type().types()),
                 Some(|&t: &Id<Type>| self.is_type_derived_from(source, t)),
             )?
-        } else if self.type_(source
-            ).flags()
+        } else if self
+            .type_(source)
+            .flags()
             .intersects(TypeFlags::InstantiableNonPrimitive)
         {
             self.is_type_derived_from(
-                self
-                    .get_base_constraint_of_type(source)?
+                self.get_base_constraint_of_type(source)?
                     .unwrap_or_else(|| self.unknown_type()),
                 target,
             )?
         } else if target == self.global_object_type() {
-            self.type_(source
-                ).flags()
+            self.type_(source)
+                .flags()
                 .intersects(TypeFlags::Object | TypeFlags::NonPrimitive)
         } else if target == self.global_function_type() {
-            self.type_(source).flags().intersects(TypeFlags::Object) && self.is_function_object_type(source)?
+            self.type_(source).flags().intersects(TypeFlags::Object)
+                && self.is_function_object_type(source)?
         } else {
             self.has_base_type(source, Some(self.get_target_type(target)))?
                 || self.is_array_type(target)

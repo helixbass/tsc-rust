@@ -533,7 +533,10 @@ impl TypeChecker {
         let array_element_type = self.get_index_type_of_type_(array_type, self.number_type())?;
         if has_string_constituent {
             if let Some(array_element_type) = array_element_type.as_ref() {
-                if self.type_(array_element_type).flags().intersects(TypeFlags::StringLike)
+                if self
+                    .type_(array_element_type)
+                    .flags()
+                    .intersects(TypeFlags::StringLike)
                     && self.compiler_options.no_unchecked_indexed_access != Some(true)
                 {
                     return Ok(Some(self.string_type()));
@@ -594,8 +597,8 @@ impl TypeChecker {
         }
 
         if self.is_es2015_or_later_iterable(
-            self.type_(input_type
-                ).maybe_symbol()
+            self.type_(input_type)
+                .maybe_symbol()
                 .as_ref()
                 .map(|input_type_symbol| input_type_symbol.escaped_name()),
         ) {
@@ -655,7 +658,10 @@ impl TypeChecker {
         let yield_type = yield_type.unwrap_or_else(|| self.never_type());
         let return_type = return_type.unwrap_or_else(|| self.never_type());
         let next_type = next_type.unwrap_or_else(|| self.unknown_type());
-        if self.type_(yield_type).flags().intersects(TypeFlags::Intrinsic)
+        if self
+            .type_(yield_type)
+            .flags()
+            .intersects(TypeFlags::Intrinsic)
             && self.type_(return_type).flags().intersects(
                 TypeFlags::Any
                     | TypeFlags::Never
@@ -755,7 +761,8 @@ impl TypeChecker {
         cache_key: IterationTypeCacheKey,
         cached_types: Gc<IterationTypes>,
     ) -> Gc<IterationTypes> {
-        self.type_(type_).set_by_iteration_type_cache_key(cache_key, Some(cached_types.clone()));
+        self.type_(type_)
+            .set_by_iteration_type_cache_key(cache_key, Some(cached_types.clone()));
         cached_types
     }
 

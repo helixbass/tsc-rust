@@ -572,8 +572,7 @@ impl TypeChecker {
                 .flags()
                 .intersects(TypeFlags::InstantiableNonPrimitive)
                 && self.maybe_type_of_kind(
-                    self
-                        .get_base_constraint_of_type(type_)?
+                    self.get_base_constraint_of_type(type_)?
                         .unwrap_or_else(|| self.unknown_type()),
                     TypeFlags::StringLike,
                 ))

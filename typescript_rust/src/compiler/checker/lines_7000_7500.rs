@@ -267,9 +267,7 @@ impl SymbolTableToDeclarationStatements {
                     .get_properties_of_type(interface_type)?
                     .collect_vec(),
             ),
-            |p: &Gc<Symbol>, _| {
-                self.serialize_property_symbol_for_interface(p, base_type)
-            },
+            |p: &Gc<Symbol>, _| self.serialize_property_symbol_for_interface(p, base_type),
         )?;
         let call_signatures = self.serialize_signatures(
             SignatureKind::Call,
@@ -283,8 +281,7 @@ impl SymbolTableToDeclarationStatements {
             base_type,
             SyntaxKind::ConstructSignature,
         )?;
-        let index_signatures =
-            self.serialize_index_signatures(interface_type, base_type)?;
+        let index_signatures = self.serialize_index_signatures(interface_type, base_type)?;
 
         let heritage_clauses: Option<Vec<Gc<Node>>> = if base_types.is_empty() {
             None

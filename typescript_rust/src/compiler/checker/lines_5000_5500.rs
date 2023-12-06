@@ -17,13 +17,13 @@ use crate::{
     get_object_flags, get_parse_tree_node, is_binary_expression, is_class_like,
     is_element_access_expression, is_identifier, is_import_type_node,
     is_property_access_entity_name_expression, is_static, last, length, map, maybe_for_each_bool,
-    node_is_synthesized, null_transformation_context, range_equals_gc, same_map, set_emit_flags,
-    set_text_range, some, symbol_name, unescape_leading_underscores, visit_each_child, CheckFlags,
-    Debug_, ElementFlags, EmitFlags, GetOrInsertDefault, HasTypeArgumentsInterface,
-    InterfaceTypeInterface, KeywordTypeNode, ModifierFlags, Node, NodeArray, NodeBuilder,
-    NodeBuilderFlags, NodeInterface, NodeLinksSerializedType, ObjectFlags,
+    node_is_synthesized, null_transformation_context, range_equals, range_equals_gc, same_map,
+    set_emit_flags, set_text_range, some, symbol_name, unescape_leading_underscores,
+    visit_each_child, CheckFlags, Debug_, ElementFlags, EmitFlags, GetOrInsertDefault,
+    HasTypeArgumentsInterface, InterfaceTypeInterface, KeywordTypeNode, ModifierFlags, Node,
+    NodeArray, NodeBuilder, NodeBuilderFlags, NodeInterface, NodeLinksSerializedType, ObjectFlags,
     ObjectFlagsTypeInterface, PeekableExt, Signature, SignatureFlags, SignatureKind, Symbol,
-    SymbolFlags, SymbolInterface, SyntaxKind, Type, TypeFlags, TypeId, TypeInterface, range_equals,
+    SymbolFlags, SymbolInterface, SyntaxKind, Type, TypeFlags, TypeId, TypeInterface,
 };
 
 impl NodeBuilder {
@@ -47,14 +47,12 @@ impl NodeBuilder {
         *context.infer_type_parameters.borrow_mut() = save_infer_type_parameters;
         let true_type_node = self.type_to_type_node_or_circularity_elision(
             context,
-            self
-                .type_checker
+            self.type_checker
                 .get_true_type_from_conditional_type(type_)?,
         )?;
         let false_type_node = self.type_to_type_node_or_circularity_elision(
             context,
-            self
-                .type_checker
+            self.type_checker
                 .get_false_type_from_conditional_type(type_)?,
         )?;
         context.increment_approximate_length_by(15);
@@ -139,8 +137,7 @@ impl NodeBuilder {
                 .unwrap();
         }
         let type_parameter_node: Gc<Node> = self.type_parameter_to_declaration_with_constraint(
-            self
-                .type_checker
+            self.type_checker
                 .get_type_parameter_from_mapped_type(type_)?,
             context,
             Some(appropriate_constraint_type_node),
@@ -157,8 +154,7 @@ impl NodeBuilder {
         let template_type_node: Option<Gc<Node>> = self.type_to_type_node_helper(
             Some(
                 self.type_checker.remove_missing_type(
-                    self
-                        .type_checker
+                    self.type_checker
                         .get_template_type_from_mapped_type(type_)?,
                     self.type_checker
                         .get_mapped_type_modifiers(type_)
@@ -546,7 +542,11 @@ impl NodeBuilder {
         }
 
         let abstract_signatures = filter(
-            &*self.type_checker.type_(resolved).as_resolved_type().construct_signatures(),
+            &*self
+                .type_checker
+                .type_(resolved)
+                .as_resolved_type()
+                .construct_signatures(),
             |signature: &Gc<Signature>| signature.flags.intersects(SignatureFlags::Abstract),
         );
         if some(
@@ -557,20 +557,47 @@ impl NodeBuilder {
                 self.type_checker
                     .get_or_create_type_from_signature(signature.clone())
             });
-            let type_element_count = self.type_checker.type_(resolved).as_resolved_type().call_signatures().len()
-                + (self.type_checker.type_(resolved).as_resolved_type().construct_signatures().len()
+            let type_element_count = self
+                .type_checker
+                .type_(resolved)
+                .as_resolved_type()
+                .call_signatures()
+                .len()
+                + (self
+                    .type_checker
+                    .type_(resolved)
+                    .as_resolved_type()
+                    .construct_signatures()
+                    .len()
                     - abstract_signatures.len())
-                + self.type_checker.type_(resolved).as_resolved_type().index_infos().len()
+                + self
+                    .type_checker
+                    .type_(resolved)
+                    .as_resolved_type()
+                    .index_infos()
+                    .len()
                 + if context
                     .flags()
                     .intersects(NodeBuilderFlags::WriteClassExpressionAsTypeLiteral)
                 {
                     count_where(
-                        Some(&*self.type_checker.type_(resolved).as_resolved_type().properties()),
+                        Some(
+                            &*self
+                                .type_checker
+                                .type_(resolved)
+                                .as_resolved_type()
+                                .properties(),
+                        ),
                         |p: &Gc<Symbol>, _| !p.flags().intersects(SymbolFlags::Prototype),
                     )
                 } else {
-                    length(Some(&*self.type_checker.type_(resolved).as_resolved_type().properties()))
+                    length(Some(
+                        &*self
+                            .type_checker
+                            .type_(resolved)
+                            .as_resolved_type()
+                            .properties(),
+                    ))
                 };
             if type_element_count > 0 {
                 types.push(
@@ -620,9 +647,7 @@ impl NodeBuilder {
         let type_target = type_as_type_reference.target();
         Ok(
             if type_target == self.type_checker.global_array_type()
-                || 
-                    type_target ==
-                    self.type_checker.global_readonly_array_type()
+                || type_target == self.type_checker.global_readonly_array_type()
             {
                 if context
                     .flags()
@@ -644,16 +669,15 @@ impl NodeBuilder {
                     .type_to_type_node_helper(Some(type_arguments[0]), context)?
                     .unwrap();
                 let array_type = get_factory().create_array_type_node(element_type);
-                Some(
-                    if type_target == self.type_checker.global_array_type() {
-                        array_type
-                    } else {
-                        get_factory()
-                            .create_type_operator_node(SyntaxKind::ReadonlyKeyword, array_type)
-                    },
-                )
-            } else if self.type_checker.type_(type_target
-                ).as_object_type()
+                Some(if type_target == self.type_checker.global_array_type() {
+                    array_type
+                } else {
+                    get_factory().create_type_operator_node(SyntaxKind::ReadonlyKeyword, array_type)
+                })
+            } else if self
+                .type_checker
+                .type_(type_target)
+                .as_object_type()
                 .object_flags()
                 .intersects(ObjectFlags::Tuple)
             {
@@ -669,14 +693,16 @@ impl NodeBuilder {
                     let tuple_constituent_nodes =
                         self.map_to_type_nodes(Some(&type_arguments[0..arity]), context, None)?;
                     if let Some(mut tuple_constituent_nodes) = tuple_constituent_nodes {
-                        if let Some(type_target_labeled_element_declarations) =
-                            self.type_(type_target).as_tuple_type()
-                                .labeled_element_declarations
-                                .as_ref()
+                        if let Some(type_target_labeled_element_declarations) = self
+                            .type_(type_target)
+                            .as_tuple_type()
+                            .labeled_element_declarations
+                            .as_ref()
                         {
                             for i in 0..tuple_constituent_nodes.len() {
                                 let tuple_constituent_node = tuple_constituent_nodes[i].clone();
-                                let flags = self.type_(type_target).as_tuple_type().element_flags[i];
+                                let flags =
+                                    self.type_(type_target).as_tuple_type().element_flags[i];
                                 tuple_constituent_nodes[i] = get_factory()
                                     .create_named_tuple_member(
                                         if flags.intersects(ElementFlags::Variable) {
@@ -713,7 +739,8 @@ impl NodeBuilder {
                         } else {
                             for i in 0..cmp::min(arity, tuple_constituent_nodes.len()) {
                                 let tuple_constituent_node = tuple_constituent_nodes[i].clone();
-                                let flags = self.type_(type_target).as_tuple_type().element_flags[i];
+                                let flags =
+                                    self.type_(type_target).as_tuple_type().element_flags[i];
                                 tuple_constituent_nodes[i] = if flags
                                     .intersects(ElementFlags::Variable)
                                 {
@@ -775,8 +802,10 @@ impl NodeBuilder {
             {
                 Some(self.create_anonymous_type_node(context, type_)?)
             } else {
-                let outer_type_parameters = self.type_checker.type_(type_target
-                    ).as_interface_type()
+                let outer_type_parameters = self
+                    .type_checker
+                    .type_(type_target)
+                    .as_interface_type()
                     .maybe_outer_type_parameters();
                 let mut i = 0;
                 let mut result_type: Option<Gc<Node /*TypeReferenceNode | ImportTypeNode*/>> = None;
@@ -828,8 +857,10 @@ impl NodeBuilder {
                 }
                 let mut type_argument_nodes: Option<Vec<Gc<Node /*TypeNode*/>>> = None;
                 if !type_arguments.is_empty() {
-                    let type_parameter_count = self.type_checker.type_(type_target
-                        ).as_interface_type()
+                    let type_parameter_count = self
+                        .type_checker
+                        .type_(type_target)
+                        .as_interface_type()
                         .maybe_type_parameters()
                         .map_or(0, |type_parameters| type_parameters.len());
                     type_argument_nodes = self.map_to_type_nodes(
@@ -1087,9 +1118,11 @@ impl NodeBuilder {
                 context.reverse_mapped_stack.borrow().as_ref(),
                 Some(reverse_mapped_stack) if reverse_mapped_stack.get(0).is_some()
             ) && !get_object_flags(
-                self.type_checker.type_(last(context.reverse_mapped_stack.borrow().as_deref().unwrap())
-                    .as_reverse_mapped_symbol()
-                    .property_type),
+                self.type_checker.type_(
+                    last(context.reverse_mapped_stack.borrow().as_deref().unwrap())
+                        .as_reverse_mapped_symbol()
+                        .property_type,
+                ),
             )
             .intersects(ObjectFlags::Anonymous))
     }
@@ -1193,7 +1226,11 @@ impl NodeBuilder {
         {
             let signatures = self.type_checker.get_signatures_of_type(
                 self.type_checker.filter_type(property_type, |t| {
-                    !self.type_checker.type_(t).flags().intersects(TypeFlags::Undefined)
+                    !self
+                        .type_checker
+                        .type_(t)
+                        .flags()
+                        .intersects(TypeFlags::Undefined)
                 }),
                 SignatureKind::Call,
             )?;

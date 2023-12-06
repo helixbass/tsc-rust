@@ -84,21 +84,22 @@ impl CheckTypeRelatedTo {
         let index_infos = self.type_checker.get_index_infos_of_type(target)?;
         let target_has_string_index = some(
             Some(&index_infos),
-            Some(|info: &Gc<IndexInfo>| {
-                info.key_type == self.type_checker.string_type()
-            }),
+            Some(|info: &Gc<IndexInfo>| info.key_type == self.type_checker.string_type()),
         );
         let mut result = Ternary::True;
         for target_info in &index_infos {
             let related = if !source_is_primitive
                 && target_has_string_index
-                && self.type_checker.type_(target_info.type_).flags().intersects(TypeFlags::Any)
+                && self
+                    .type_checker
+                    .type_(target_info.type_)
+                    .flags()
+                    .intersects(TypeFlags::Any)
             {
                 Ternary::True
             } else if self.type_checker.is_generic_mapped_type(source)? && target_has_string_index {
                 self.is_related_to(
-                    self
-                        .type_checker
+                    self.type_checker
                         .get_template_type_from_mapped_type(source)?,
                     target_info.type_,
                     Some(RecursionFlags::Both),
@@ -416,18 +417,40 @@ impl TypeChecker {
     pub(super) fn is_weak_type(&self, type_: Id<Type>) -> io::Result<bool> {
         if self.type_(type_).flags().intersects(TypeFlags::Object) {
             let resolved = self.resolve_structured_type_members(type_)?;
-            return Ok(self.type_(resolved).as_resolved_type().call_signatures().is_empty()
-                && self.type_(resolved).as_resolved_type().construct_signatures().is_empty()
-                && self.type_(resolved).as_resolved_type().index_infos().is_empty()
-                && !self.type_(resolved).as_resolved_type().properties().is_empty()
+            return Ok(self
+                .type_(resolved)
+                .as_resolved_type()
+                .call_signatures()
+                .is_empty()
+                && self
+                    .type_(resolved)
+                    .as_resolved_type()
+                    .construct_signatures()
+                    .is_empty()
+                && self
+                    .type_(resolved)
+                    .as_resolved_type()
+                    .index_infos()
+                    .is_empty()
+                && !self
+                    .type_(resolved)
+                    .as_resolved_type()
+                    .properties()
+                    .is_empty()
                 && every(
                     &*self.type_(resolved).as_resolved_type().properties(),
                     |p: &Gc<Symbol>, _| p.flags().intersects(SymbolFlags::Optional),
                 ));
         }
-        if self.type_(type_).flags().intersects(TypeFlags::Intersection) {
+        if self
+            .type_(type_)
+            .flags()
+            .intersects(TypeFlags::Intersection)
+        {
             return try_every(
-                self.type_(type_).as_union_or_intersection_type_interface().types(),
+                self.type_(type_)
+                    .as_union_or_intersection_type_interface()
+                    .types(),
                 |&type_: &Id<Type>, _| self.is_weak_type(type_),
             );
         }
@@ -467,9 +490,9 @@ impl TypeChecker {
                 },
             ),
         );
-        self.type_(result
-            ).as_type_reference()
-            .set_object_flags(self.type_(result).as_type_reference().object_flags() | ObjectFlags::MarkerType);
+        self.type_(result).as_type_reference().set_object_flags(
+            self.type_(result).as_type_reference().object_flags() | ObjectFlags::MarkerType,
+        );
         result
     }
 
@@ -497,7 +520,8 @@ impl TypeChecker {
                     Option::<&Symbol>::None,
                     None,
                 )?;
-                self.type_(type_).set_alias_type_arguments_contains_marker(Some(true));
+                self.type_(type_)
+                    .set_alias_type_arguments_contains_marker(Some(true));
                 Ok(type_)
             },
         )?;
@@ -589,7 +613,9 @@ impl TypeChecker {
     pub(super) fn get_variances(&self, type_: Id<Type> /*GenericType*/) -> Vec<VarianceFlags> {
         if type_ == self.global_array_type()
             || type_ == self.global_readonly_array_type()
-            || self.type_(type_).as_generic_type()
+            || self
+                .type_(type_)
+                .as_generic_type()
                 .object_flags()
                 .intersects(ObjectFlags::Tuple)
         {
@@ -619,7 +645,10 @@ impl TypeChecker {
     ) -> bool {
         for i in 0..variances.len() {
             if variances[i] & VarianceFlags::VarianceMask == VarianceFlags::Covariant
-                && self.type_(type_arguments[i]).flags().intersects(TypeFlags::Void)
+                && self
+                    .type_(type_arguments[i])
+                    .flags()
+                    .intersects(TypeFlags::Void)
             {
                 return true;
             }
@@ -628,7 +657,10 @@ impl TypeChecker {
     }
 
     pub(super) fn is_unconstrained_type_parameter(&self, type_: Id<Type>) -> io::Result<bool> {
-        Ok(self.type_(type_).flags().intersects(TypeFlags::TypeParameter)
+        Ok(self
+            .type_(type_)
+            .flags()
+            .intersects(TypeFlags::TypeParameter)
             && self.get_constraint_of_type_parameter(type_)?.is_none())
     }
 
@@ -668,9 +700,7 @@ impl TypeChecker {
             .to_string();
         for &t in &self.get_type_arguments(type_)? {
             if self.is_unconstrained_type_parameter(t)? {
-                let mut index = type_parameters
-                    .iter()
-                    .position(|&type_| type_ == t);
+                let mut index = type_parameters.iter().position(|&type_| type_ == t);
                 if index.is_none() {
                     index = Some(type_parameters.len());
                     type_parameters.push(t.clone());
@@ -1021,7 +1051,9 @@ impl GetVariancesCache {
     pub(super) fn maybe_variances(&self) -> Rc<RefCell<Option<Vec<VarianceFlags>>>> {
         match self {
             Self::SymbolLinks(symbol_links) => (**symbol_links).borrow().variances.clone(),
-            Self::GenericType(generic_type) => self.type_(generic_type).as_generic_type().maybe_variances(),
+            Self::GenericType(generic_type) => {
+                self.type_(generic_type).as_generic_type().maybe_variances()
+            }
         }
     }
 }

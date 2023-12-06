@@ -511,7 +511,8 @@ impl NodeBuilder {
             return Ok(None);
         }
         let name_type = name_type.unwrap();
-        if self.type_(name_type)
+        if self
+            .type_(name_type)
             .flags()
             .intersects(TypeFlags::StringOrNumberLiteral)
         {
@@ -545,9 +546,18 @@ impl NodeBuilder {
                 self.create_property_name_node_for_identifier_or_literal(name, None, None),
             ));
         }
-        if self.type_checker.type_(name_type).flags().intersects(TypeFlags::UniqueESSymbol) {
+        if self
+            .type_checker
+            .type_(name_type)
+            .flags()
+            .intersects(TypeFlags::UniqueESSymbol)
+        {
             return Ok(Some(get_factory().create_computed_property_name(
-                self.symbol_to_expression_(&self.type_checker.type_(name_type).symbol(), context, Some(SymbolFlags::Value))?,
+                self.symbol_to_expression_(
+                    &self.type_checker.type_(name_type).symbol(),
+                    context,
+                    Some(SymbolFlags::Value),
+                )?,
             )));
         }
         Ok(None)
@@ -755,15 +765,23 @@ impl NodeBuilder {
                     .is_some()
                     {
                         let annotated = self.type_checker.get_type_from_type_node_(annotation)?;
-                        let this_instantiated =
-                            if self.type_checker.type_(annotated).flags().intersects(TypeFlags::TypeParameter)
-                                && self.type_checker.type_(annotated).as_type_parameter().is_this_type == Some(true)
-                            {
-                                self.type_checker
-                                    .instantiate_type(annotated, signature.mapper.clone())?
-                            } else {
-                                annotated
-                            };
+                        let this_instantiated = if self
+                            .type_checker
+                            .type_(annotated)
+                            .flags()
+                            .intersects(TypeFlags::TypeParameter)
+                            && self
+                                .type_checker
+                                .type_(annotated)
+                                .as_type_parameter()
+                                .is_this_type
+                                == Some(true)
+                        {
+                            self.type_checker
+                                .instantiate_type(annotated, signature.mapper.clone())?
+                        } else {
+                            annotated
+                        };
                         if this_instantiated == type_
                          && self.existing_type_node_is_not_reference_or_is_reference_with_compatible_type_argument_count(
                             annotation,

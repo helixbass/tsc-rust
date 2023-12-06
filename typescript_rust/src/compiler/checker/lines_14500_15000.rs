@@ -9,15 +9,15 @@ use id_arena::Id;
 use indexmap::IndexMap;
 
 use crate::{
-    contains_gc, every, filter, find_index, get_declaration_modifier_flags_from_symbol,
-    get_name_of_declaration, get_object_flags, index_of_gc, is_computed_property_name,
+    contains, contains_gc, every, filter, find_index, get_declaration_modifier_flags_from_symbol,
+    get_name_of_declaration, get_object_flags, index_of_eq, index_of_gc, is_computed_property_name,
     is_identifier, is_known_symbol, is_private_identifier, map, ordered_remove_item_at,
     reduce_left, replace_element, some, symbol_name, try_find_index, try_map,
     unescape_leading_underscores, walk_up_parenthesized_types, BaseUnionOrIntersectionType, Debug_,
     Diagnostics, IndexType, InternalSymbolName, IntersectionType, ModifierFlags, Node,
     NodeInterface, ObjectFlags, ObjectTypeInterface, Symbol, SymbolInterface, SyntaxKind, Type,
     TypeChecker, TypeFlags, TypeId, TypeInterface, UnionOrIntersectionTypeInterface,
-    UnionReduction, VecExt, contains, index_of_eq,
+    UnionReduction, VecExt,
 };
 
 impl TypeChecker {
@@ -28,13 +28,29 @@ impl TypeChecker {
     ) -> bool {
         for u in union_types {
             if !self.contains_type(self.type_(u).as_union_type().types(), type_) {
-                let primitive = if self.type_(type_).flags().intersects(TypeFlags::StringLiteral) {
+                let primitive = if self
+                    .type_(type_)
+                    .flags()
+                    .intersects(TypeFlags::StringLiteral)
+                {
                     Some(self.string_type())
-                } else if self.type_(type_).flags().intersects(TypeFlags::NumberLiteral) {
+                } else if self
+                    .type_(type_)
+                    .flags()
+                    .intersects(TypeFlags::NumberLiteral)
+                {
                     Some(self.number_type())
-                } else if self.type_(type_).flags().intersects(TypeFlags::BigIntLiteral) {
+                } else if self
+                    .type_(type_)
+                    .flags()
+                    .intersects(TypeFlags::BigIntLiteral)
+                {
                     Some(self.bigint_type())
-                } else if self.type_(type_).flags().intersects(TypeFlags::UniqueESSymbol) {
+                } else if self
+                    .type_(type_)
+                    .flags()
+                    .intersects(TypeFlags::UniqueESSymbol)
+                {
                     Some(self.es_symbol_type())
                 } else {
                     None
@@ -90,8 +106,9 @@ impl TypeChecker {
 
     pub(super) fn remove_from_each(&self, types: &mut Vec<Id<Type>>, flag: TypeFlags) {
         for i in 0..types.len() {
-            types[i] =
-                self.filter_type(types[i].clone(), |t: Id<Type>| !self.type_(t).flags().intersects(flag));
+            types[i] = self.filter_type(types[i].clone(), |t: Id<Type>| {
+                !self.type_(t).flags().intersects(flag)
+            });
         }
     }
 
@@ -313,7 +330,9 @@ impl TypeChecker {
                     let constituents = self.get_cross_product_intersections(&type_set)?;
                     let origin = if some(
                         Some(&constituents),
-                        Some(|&t: &Id<Type>| self.type_(t).flags().intersects(TypeFlags::Intersection)),
+                        Some(|&t: &Id<Type>| {
+                            self.type_(t).flags().intersects(TypeFlags::Intersection)
+                        }),
                     ) {
                         Some(self.create_origin_union_or_intersection_type(
                             TypeFlags::Intersection,
@@ -388,7 +407,11 @@ impl TypeChecker {
             let mut j: isize = (types.len() - 1).try_into().unwrap();
             while j >= 0 {
                 let j_as_usize: usize = j.try_into().unwrap();
-                if self.type_(types[j_as_usize]).flags().intersects(TypeFlags::Union) {
+                if self
+                    .type_(types[j_as_usize])
+                    .flags()
+                    .intersects(TypeFlags::Union)
+                {
                     let source_types = self.type_(types[j_as_usize]).as_union_type().types();
                     let length = source_types.len();
                     constituents.to_mut()[j_as_usize] = source_types[n % length].clone();
@@ -457,8 +480,8 @@ impl TypeChecker {
         type_: Id<Type>, /*InstantiableType | UnionOrIntersectionType*/
     ) -> Id<Type> {
         let result = self.create_origin_type(TypeFlags::Index);
-        let result = self.alloc_type(
-            IndexType::new(result, type_, false /*this is made up*/).into());
+        let result =
+            self.alloc_type(IndexType::new(result, type_, false /*this is made up*/).into());
         result
     }
 
@@ -468,7 +491,8 @@ impl TypeChecker {
         strings_only: bool,
     ) -> Id<Type> {
         if strings_only {
-            let mut type_resolved_string_index_type = self.type_(type_).maybe_resolved_string_index_type();
+            let mut type_resolved_string_index_type =
+                self.type_(type_).maybe_resolved_string_index_type();
             if type_resolved_string_index_type.is_none() {
                 *type_resolved_string_index_type = Some(self.create_index_type(type_, true));
             }
@@ -491,8 +515,9 @@ impl TypeChecker {
         let type_parameter = self.get_type_parameter_from_mapped_type(type_)?;
         let constraint_type = self.get_constraint_type_from_mapped_type(type_)?;
         let name_type = self.get_name_type_from_mapped_type(
-            &self.type_(type_
-                ).as_mapped_type()
+            &self
+                .type_(type_)
+                .as_mapped_type()
                 .maybe_target()
                 .unwrap_or_else(|| type_),
         )?;
@@ -554,7 +579,10 @@ impl TypeChecker {
             self.get_union_type(&key_types, None, Option::<&Symbol>::None, None, None)?
         };
         if self.type_(result).flags().intersects(TypeFlags::Union)
-            && self.type_(constraint_type).flags().intersects(TypeFlags::Union)
+            && self
+                .type_(constraint_type)
+                .flags()
+                .intersects(TypeFlags::Union)
             && self.get_type_list_id(Some(self.type_(result).as_union_type().types()))
                 == self.get_type_list_id(Some(self.type_(constraint_type).as_union_type().types()))
         {
@@ -599,8 +627,7 @@ impl TypeChecker {
         let type_variable = self.get_type_parameter_from_mapped_type(mapped_type)?;
         Ok(self.is_distributive(
             type_variable,
-            self
-                .get_name_type_from_mapped_type(mapped_type)?
+            self.get_name_type_from_mapped_type(mapped_type)?
                 .unwrap_or_else(|| type_variable.clone()),
         ))
     }
@@ -616,27 +643,59 @@ impl TypeChecker {
         ) {
             true
         } else if self.type_(type_).flags().intersects(TypeFlags::Conditional) {
-            (*self.type_(type_).as_conditional_type().root).borrow().is_distributive
+            (*self.type_(type_).as_conditional_type().root)
+                .borrow()
+                .is_distributive
                 && self.type_(type_).as_conditional_type().check_type == type_variable
-        } else if self.type_(type_
-            ).flags()
+        } else if self
+            .type_(type_)
+            .flags()
             .intersects(TypeFlags::UnionOrIntersection | TypeFlags::TemplateLiteral)
         {
             every(
-                if self.type_(type_).flags().intersects(TypeFlags::UnionOrIntersection) {
-                    self.type_(type_).as_union_or_intersection_type_interface().types()
+                if self
+                    .type_(type_)
+                    .flags()
+                    .intersects(TypeFlags::UnionOrIntersection)
+                {
+                    self.type_(type_)
+                        .as_union_or_intersection_type_interface()
+                        .types()
                 } else {
                     &*self.type_(type_).as_template_literal_type().types
                 },
                 |&t: &Id<Type>, _| self.is_distributive(type_variable, t),
             )
-        } else if self.type_(type_).flags().intersects(TypeFlags::IndexedAccess) {
-            self.is_distributive(type_variable, &self.type_(type_).as_indexed_access_type().object_type)
-                && self.is_distributive(type_variable, &self.type_(type_).as_indexed_access_type().index_type)
-        } else if self.type_(type_).flags().intersects(TypeFlags::Substitution) {
-            self.is_distributive(type_variable, &self.type_(type_).as_substitution_type().substitute)
-        } else if self.type_(type_).flags().intersects(TypeFlags::StringMapping) {
-            self.is_distributive(type_variable, self.type_(type_).as_string_mapping_type().type_)
+        } else if self
+            .type_(type_)
+            .flags()
+            .intersects(TypeFlags::IndexedAccess)
+        {
+            self.is_distributive(
+                type_variable,
+                &self.type_(type_).as_indexed_access_type().object_type,
+            ) && self.is_distributive(
+                type_variable,
+                &self.type_(type_).as_indexed_access_type().index_type,
+            )
+        } else if self
+            .type_(type_)
+            .flags()
+            .intersects(TypeFlags::Substitution)
+        {
+            self.is_distributive(
+                type_variable,
+                &self.type_(type_).as_substitution_type().substitute,
+            )
+        } else if self
+            .type_(type_)
+            .flags()
+            .intersects(TypeFlags::StringMapping)
+        {
+            self.is_distributive(
+                type_variable,
+                self.type_(type_).as_string_mapping_type().type_,
+            )
         } else {
             false
         }
@@ -702,7 +761,10 @@ impl TypeChecker {
 
     pub(super) fn is_key_type_included(&self, key_type: Id<Type>, include: TypeFlags) -> bool {
         self.type_(key_type).flags().intersects(include)
-            || self.type_(key_type).flags().intersects(TypeFlags::Intersection)
+            || self
+                .type_(key_type)
+                .flags()
+                .intersects(TypeFlags::Intersection)
                 && some(
                     Some(self.type_(key_type).as_intersection_type().types()),
                     Some(|&t: &Id<Type>| self.is_key_type_included(t, include)),
@@ -733,9 +795,7 @@ impl TypeChecker {
             if !Gc::ptr_eq(info, &self.enum_number_index_info())
                 && self.is_key_type_included(info.key_type, include)
             {
-                if info.key_type == self.string_type()
-                    && include.intersects(TypeFlags::Number)
-                {
+                if info.key_type == self.string_type() && include.intersects(TypeFlags::Number) {
                     self.string_or_number_type()
                 } else {
                     info.key_type.clone()
@@ -763,24 +823,35 @@ impl TypeChecker {
         let type_ = self.get_reduced_type(type_)?;
         Ok(if self.type_(type_).flags().intersects(TypeFlags::Union) {
             self.get_intersection_type(
-                &try_map(self.type_(type_).as_union_type().types(), |&t: &Id<Type>, _| {
-                    self.get_index_type(t, Some(strings_only), no_index_signatures)
-                })?,
+                &try_map(
+                    self.type_(type_).as_union_type().types(),
+                    |&t: &Id<Type>, _| {
+                        self.get_index_type(t, Some(strings_only), no_index_signatures)
+                    },
+                )?,
                 Option::<&Symbol>::None,
                 None,
             )?
-        } else if self.type_(type_).flags().intersects(TypeFlags::Intersection) {
+        } else if self
+            .type_(type_)
+            .flags()
+            .intersects(TypeFlags::Intersection)
+        {
             self.get_union_type(
-                &try_map(self.type_(type_).as_intersection_type().types(), |&t: &Id<Type>, _| {
-                    self.get_index_type(t, Some(strings_only), no_index_signatures)
-                })?,
+                &try_map(
+                    self.type_(type_).as_intersection_type().types(),
+                    |&t: &Id<Type>, _| {
+                        self.get_index_type(t, Some(strings_only), no_index_signatures)
+                    },
+                )?,
                 None,
                 Option::<&Symbol>::None,
                 None,
                 None,
             )?
-        } else if self.type_(type_
-            ).flags()
+        } else if self
+            .type_(type_)
+            .flags()
             .intersects(TypeFlags::InstantiableNonPrimitive)
             || self.is_generic_tuple_type(type_)
             || self.is_generic_mapped_type(type_)? && !self.has_distributive_name_type(type_)?
@@ -792,7 +863,11 @@ impl TypeChecker {
             self.wildcard_type()
         } else if self.type_(type_).flags().intersects(TypeFlags::Unknown) {
             self.never_type()
-        } else if self.type_(type_).flags().intersects(TypeFlags::Any | TypeFlags::Never) {
+        } else if self
+            .type_(type_)
+            .flags()
+            .intersects(TypeFlags::Any | TypeFlags::Never)
+        {
             self.keyof_constraint_type()
         } else {
             self.get_literal_type_from_properties(
@@ -831,11 +906,13 @@ impl TypeChecker {
 
     pub(super) fn get_index_type_or_string(&self, type_: Id<Type>) -> io::Result<Id<Type>> {
         let index_type = self.get_extract_string_type(self.get_index_type(type_, None, None)?)?;
-        Ok(if self.type_(index_type).flags().intersects(TypeFlags::Never) {
-            self.string_type()
-        } else {
-            index_type
-        })
+        Ok(
+            if self.type_(index_type).flags().intersects(TypeFlags::Never) {
+                self.string_type()
+            } else {
+                index_type
+            },
+        )
     }
 
     pub(super) fn get_type_from_type_operator_node(
@@ -923,7 +1000,11 @@ impl TypeChecker {
     ) -> io::Result<Id<Type>> {
         let union_index = find_index(
             types,
-            |&t: &Id<Type>, _| self.type_(t).flags().intersects(TypeFlags::Never | TypeFlags::Union),
+            |&t: &Id<Type>, _| {
+                self.type_(t)
+                    .flags()
+                    .intersects(TypeFlags::Never | TypeFlags::Union)
+            },
             None,
         );
         if let Some(union_index) = union_index {
@@ -988,7 +1069,9 @@ impl TypeChecker {
     ) -> io::Result<bool> {
         for (i, t) in types.iter().enumerate() {
             let t = *t;
-            if self.type_(t).flags()
+            if self
+                .type_(t)
+                .flags()
                 .intersects(TypeFlags::Literal | TypeFlags::Null | TypeFlags::Undefined)
             {
                 text.push_str(

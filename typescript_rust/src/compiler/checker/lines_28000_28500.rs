@@ -611,8 +611,11 @@ impl TypeChecker {
                 if !index_info.is_some()
                 /*&& indexInfo.type*/
                 {
-                    let is_unchecked_js =
-                        self.is_unchecked_js_suggestion(Some(node), self.type_(left_type).maybe_symbol(), true);
+                    let is_unchecked_js = self.is_unchecked_js_suggestion(
+                        Some(node),
+                        self.type_(left_type).maybe_symbol(),
+                        true,
+                    );
                     if !is_unchecked_js && self.is_js_literal_type(left_type)? {
                         return Ok(self.any_type());
                     }

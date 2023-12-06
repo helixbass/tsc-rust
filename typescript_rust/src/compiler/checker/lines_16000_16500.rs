@@ -151,19 +151,19 @@ impl TypeChecker {
         let type_ = self.alloc_type(BigIntLiteralType::new(type_, value).into());
         self.type_(type_)
             .set_symbol(symbol.map(|symbol| symbol.borrow().symbol_wrapper()));
-        self.type_(type_
-            ).as_literal_type()
-            .set_regular_type(if let Some(regular_type) = regular_type {
+        self.type_(type_).as_literal_type().set_regular_type(
+            if let Some(regular_type) = regular_type {
                 regular_type
             } else {
                 type_
-            });
+            },
+        );
         type_
     }
 
     pub(super) fn get_fresh_type_of_literal_type(&self, type_: Id<Type>) -> Id<Type> {
         if self.type_(type_).flags().intersects(TypeFlags::Literal) {
-            return match self.type_(type_ ){
+            return match self.type_(type_) {
                 Type::LiteralType(type_) => type_.get_or_initialize_fresh_type(self),
                 Type::IntrinsicType(IntrinsicType::FreshableIntrinsicType(type_)) => {
                     type_.fresh_type()
@@ -178,7 +178,7 @@ impl TypeChecker {
         if self.type_(type_).flags().intersects(TypeFlags::Literal) {
             // TODO: this seems like it should be encapsulated behind an abstraction (also above in
             // get_fresh_type_of_literal_type())?
-            match self.type_(type_ ){
+            match self.type_(type_) {
                 Type::LiteralType(type_) => type_.regular_type(),
                 Type::IntrinsicType(IntrinsicType::FreshableIntrinsicType(type_)) => {
                     type_.regular_type()
@@ -219,10 +219,12 @@ impl TypeChecker {
         // (same question in is_type_related_to() and get_normalized_type() below, and in
         // remove_redundant_literal_types()) or maybe this looks like it should be a trait that
         // includes `maybe_fresh_type()` that both of these implement?
-        match self.type_(type_ ){
-            Type::IntrinsicType(intrinsic_type) => type_ ==
-                enum_unwrapped!(intrinsic_type, [IntrinsicType, FreshableIntrinsicType])
-                    .fresh_type(),
+        match self.type_(type_) {
+            Type::IntrinsicType(intrinsic_type) => {
+                type_
+                    == enum_unwrapped!(intrinsic_type, [IntrinsicType, FreshableIntrinsicType])
+                        .fresh_type()
+            }
             Type::LiteralType(literal_type) => {
                 matches!(
                     literal_type.fresh_type(),
@@ -338,12 +340,14 @@ impl TypeChecker {
         symbol: &Symbol,
     ) -> Id<Type /*UniqueESSymbolType*/> {
         let type_ = self.create_type(TypeFlags::UniqueESSymbol);
-        let type_ = self.alloc_type(UniqueESSymbolType::new(
-            type_,
-            symbol.symbol_wrapper(),
-            format!("__@{}@{}", symbol.escaped_name(), get_symbol_id(symbol)),
-        )
-        .into());
+        let type_ = self.alloc_type(
+            UniqueESSymbolType::new(
+                type_,
+                symbol.symbol_wrapper(),
+                format!("__@{}@{}", symbol.escaped_name(), get_symbol_id(symbol)),
+            )
+            .into(),
+        );
         type_
     }
 
@@ -373,8 +377,8 @@ impl TypeChecker {
                         container.as_constructor_declaration().maybe_body(),
                     ))
             {
-                return Ok(self.type_(self
-                    .get_declared_type_of_class_or_interface(
+                return Ok(self
+                    .type_(self.get_declared_type_of_class_or_interface(
                         &self.get_symbol_of_node(parent)?.unwrap(),
                     )?)
                     .as_interface_type()
@@ -389,14 +393,16 @@ impl TypeChecker {
                 && get_assignment_declaration_kind(&parent.parent())
                     == AssignmentDeclarationKind::Prototype
         }) {
-            return Ok(self.type_(self
-                .get_declared_type_of_class_or_interface(
-                    &self
-                        .get_symbol_of_node(&parent.parent().as_binary_expression().left)?
-                        .unwrap()
-                        .maybe_parent()
-                        .unwrap(),
-                )?)
+            return Ok(self
+                .type_(
+                    self.get_declared_type_of_class_or_interface(
+                        &self
+                            .get_symbol_of_node(&parent.parent().as_binary_expression().left)?
+                            .unwrap()
+                            .maybe_parent()
+                            .unwrap(),
+                    )?,
+                )
                 .as_interface_type()
                 .maybe_this_type()
                 .unwrap());
@@ -412,14 +418,16 @@ impl TypeChecker {
                 && get_assignment_declaration_kind(&host.parent())
                     == AssignmentDeclarationKind::PrototypeProperty
         }) {
-            return Ok(self.type_(self
-                .get_declared_type_of_class_or_interface(
-                    &self
-                        .get_symbol_of_node(&host.parent().as_binary_expression().left)?
-                        .unwrap()
-                        .maybe_parent()
-                        .unwrap(),
-                )?)
+            return Ok(self
+                .type_(
+                    self.get_declared_type_of_class_or_interface(
+                        &self
+                            .get_symbol_of_node(&host.parent().as_binary_expression().left)?
+                            .unwrap()
+                            .maybe_parent()
+                            .unwrap(),
+                    )?,
+                )
                 .as_interface_type()
                 .maybe_this_type()
                 .unwrap());
@@ -427,8 +435,8 @@ impl TypeChecker {
         if self.is_js_constructor(Some(&*container))?
             && is_node_descendant_of(node, container.as_function_like_declaration().maybe_body())
         {
-            return Ok(self.type_(self
-                .get_declared_type_of_class_or_interface(
+            return Ok(self
+                .type_(self.get_declared_type_of_class_or_interface(
                     &self.get_symbol_of_node(&container)?.unwrap(),
                 )?)
                 .as_interface_type()
@@ -910,14 +918,19 @@ impl TypeChecker {
             tp
         } else {
             if self.type_(tp).maybe_restrictive_instantiation().is_none() {
-                let restrictive_instantiation: Id<Type> =
-                    self.create_type_parameter(self.type_(tp).maybe_symbol()).into();
-                *self.type_(tp).maybe_restrictive_instantiation() = Some(restrictive_instantiation.clone());
-                self.type_(restrictive_instantiation
-                    ).as_type_parameter()
+                let restrictive_instantiation: Id<Type> = self
+                    .create_type_parameter(self.type_(tp).maybe_symbol())
+                    .into();
+                *self.type_(tp).maybe_restrictive_instantiation() =
+                    Some(restrictive_instantiation.clone());
+                self.type_(restrictive_instantiation)
+                    .as_type_parameter()
                     .set_constraint(self.unknown_type());
             }
-            self.type_(tp).maybe_restrictive_instantiation().clone().unwrap()
+            self.type_(tp)
+                .maybe_restrictive_instantiation()
+                .clone()
+                .unwrap()
         }
     }
 
@@ -965,7 +978,9 @@ impl TypeChecker {
                     mapper,
                 );
                 for tp in fresh_type_parameters.as_ref().unwrap() {
-                    self.type_(tp).as_type_parameter().set_mapper(mapper.clone());
+                    self.type_(tp)
+                        .as_type_parameter()
+                        .set_mapper(mapper.clone());
                 }
             }
         }
@@ -1050,21 +1065,36 @@ impl TypeChecker {
         alias_symbol: Option<impl Borrow<Symbol>>,
         alias_type_arguments: Option<&[Id<Type>]>,
     ) -> io::Result<Id<Type>> {
-        let declaration = if self.type_(type_).as_object_type()
+        let declaration = if self
+            .type_(type_)
+            .as_object_type()
             .object_flags()
             .intersects(ObjectFlags::Reference)
         {
-            self.type_(type_).as_type_reference().maybe_node().clone().unwrap()
+            self.type_(type_)
+                .as_type_reference()
+                .maybe_node()
+                .clone()
+                .unwrap()
         } else {
-            self.type_(type_).symbol().maybe_declarations().clone().unwrap()[0].clone()
+            self.type_(type_)
+                .symbol()
+                .maybe_declarations()
+                .clone()
+                .unwrap()[0]
+                .clone()
         };
         let links = self.get_node_links(&declaration);
-        let target = if self.type_(type_).as_object_type()
+        let target = if self
+            .type_(type_)
+            .as_object_type()
             .object_flags()
             .intersects(ObjectFlags::Reference)
         {
             (*links).borrow().resolved_type.clone().unwrap()
-        } else if self.type_(type_).as_object_type()
+        } else if self
+            .type_(type_)
+            .as_object_type()
             .object_flags()
             .intersects(ObjectFlags::Instantiated)
         {
@@ -1088,13 +1118,19 @@ impl TypeChecker {
                 );
             }
             type_parameters = Some(outer_type_parameters.unwrap_or_else(|| vec![]));
-            let all_declarations = if self.type_(type_).as_object_type()
+            let all_declarations = if self
+                .type_(type_)
+                .as_object_type()
                 .object_flags()
                 .intersects(ObjectFlags::Reference)
             {
                 vec![declaration.clone()]
             } else {
-                self.type_(type_).symbol().maybe_declarations().clone().unwrap()
+                self.type_(type_)
+                    .symbol()
+                    .maybe_declarations()
+                    .clone()
+                    .unwrap()
             };
             type_parameters = if (target_as_object_type
                 .object_flags()
@@ -1117,8 +1153,10 @@ impl TypeChecker {
         }
         let type_parameters = type_parameters.unwrap();
         if !type_parameters.is_empty() {
-            let combined_mapper =
-                self.combine_type_mappers(self.type_(type_).as_object_type().maybe_mapper(), mapper.clone());
+            let combined_mapper = self.combine_type_mappers(
+                self.type_(type_).as_object_type().maybe_mapper(),
+                mapper.clone(),
+            );
             let type_arguments = try_map(&type_parameters, |&t: &Id<Type>, _| {
                 self.get_mapped_type(t, &combined_mapper)
             })?;
@@ -1130,7 +1168,10 @@ impl TypeChecker {
             let new_alias_type_arguments = if alias_symbol.is_some() {
                 alias_type_arguments.map(ToOwned::to_owned)
             } else {
-                self.instantiate_types(self.type_(type_).maybe_alias_type_arguments().as_deref(), Some(mapper))?
+                self.instantiate_types(
+                    self.type_(type_).maybe_alias_type_arguments().as_deref(),
+                    Some(mapper),
+                )?
             };
             let id = format!(
                 "{}{}",
@@ -1174,7 +1215,12 @@ impl TypeChecker {
                     {
                         self.create_deferred_type_reference(
                             self.type_(type_).as_type_reference().target,
-                            &self.type_(type_).as_type_reference().maybe_node().as_ref().unwrap(),
+                            &self
+                                .type_(type_)
+                                .as_type_reference()
+                                .maybe_node()
+                                .as_ref()
+                                .unwrap(),
                             Some(new_mapper),
                             new_alias_symbol,
                             new_alias_type_arguments.as_deref(),

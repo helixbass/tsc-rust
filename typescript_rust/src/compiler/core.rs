@@ -1090,7 +1090,7 @@ pub fn append_if_unique_eq<TItem: PartialEq + Clone>(
     push_if_unique_eq(array, to_add)
 }
 
-pub fn append_if_unique_rc<TItemgwarray: &mut Vec<Rc<TItem>>, to_add: &Rc<TItem>) {
+pub fn append_if_unique_rc<TItem>(array: &mut Vec<Rc<TItem>>, to_add: &Rc<TItem>) {
     push_if_unique_rc(array, to_add);
 }
 

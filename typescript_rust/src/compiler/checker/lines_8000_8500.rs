@@ -129,7 +129,9 @@ impl TypeChecker {
             let t = types[i];
             flags |= self.type_(t).flags();
             if !self.type_(t).flags().intersects(TypeFlags::Nullable) {
-                if self.type_(t).flags()
+                if self
+                    .type_(t)
+                    .flags()
                     .intersects(TypeFlags::BooleanLiteral | TypeFlags::EnumLiteral)
                 {
                     let base_type = if self.type_(t).flags().intersects(TypeFlags::BooleanLiteral) {
@@ -141,9 +143,8 @@ impl TypeChecker {
                         let base_type_as_union_type = base_type.as_union_type();
                         let count = base_type_as_union_type.types().len();
                         if i + count <= types.len()
-                            && 
-                                self.get_regular_type_of_literal_type(types[i + count - 1]) ==
-                                self.get_regular_type_of_literal_type(
+                            && self.get_regular_type_of_literal_type(types[i + count - 1])
+                                == self.get_regular_type_of_literal_type(
                                     base_type_as_union_type.types()[count - 1],
                                 )
                         {
@@ -216,11 +217,12 @@ impl TypeChecker {
             .borrow()
             .name_type
             .clone()?;
-        if self.type_(name_type
-            ).flags()
+        if self
+            .type_(name_type)
+            .flags()
             .intersects(TypeFlags::StringOrNumberLiteral)
         {
-            let name: String = match self.type_(name_type ){
+            let name: String = match self.type_(name_type) {
                 Type::LiteralType(LiteralType::StringLiteralType(name_type)) => {
                     name_type.value.clone()
                 }
@@ -628,25 +630,25 @@ impl TypeChecker {
                 .borrow()
                 .declared_type
                 .is_some(),
-            TypeSystemPropertyName::ResolvedBaseConstructorType => self.type_(target
-                .as_type())
+            TypeSystemPropertyName::ResolvedBaseConstructorType => self
+                .type_(target.as_type())
                 .as_not_actually_interface_type()
                 .maybe_resolved_base_constructor_type()
                 .is_some(),
             TypeSystemPropertyName::ResolvedReturnType => {
                 target.as_signature().maybe_resolved_return_type().is_some()
             }
-            TypeSystemPropertyName::ImmediateBaseConstraint => {
-                self.type_(target.as_type()).maybe_immediate_base_constraint().is_some()
-            }
-            TypeSystemPropertyName::ResolvedTypeArguments => self.type_(target
-                .as_type())
+            TypeSystemPropertyName::ImmediateBaseConstraint => self
+                .type_(target.as_type())
+                .maybe_immediate_base_constraint()
+                .is_some(),
+            TypeSystemPropertyName::ResolvedTypeArguments => self
+                .type_(target.as_type())
                 .as_type_reference()
                 .maybe_resolved_type_arguments()
                 .is_some(),
             TypeSystemPropertyName::ResolvedBaseTypes => matches!(
-                self.type_(target
-                    .as_type())
+                self.type_(target.as_type())
                     .as_not_actually_interface_type()
                     .maybe_base_types_resolved(),
                 Some(true)
@@ -684,8 +686,9 @@ impl TypeChecker {
         let class_type =
             self.get_declared_type_of_symbol(&self.get_parent_of_symbol(prototype)?.unwrap())?;
         Ok(
-            if let Some(class_type_type_parameters) = self.type_(class_type
-                ).as_interface_type()
+            if let Some(class_type_type_parameters) = self
+                .type_(class_type)
+                .as_interface_type()
                 .maybe_type_parameters()
                 .as_deref()
             {
@@ -725,9 +728,7 @@ impl TypeChecker {
 
     pub(super) fn is_type_any(&self, type_: Option<Id<Type>>) -> bool {
         match type_ {
-            Some(type_) => {
-                self.type_(type_).flags().intersects(TypeFlags::Any)
-            }
+            Some(type_) => self.type_(type_).flags().intersects(TypeFlags::Any),
             None => false,
         }
     }
@@ -843,10 +844,12 @@ impl TypeChecker {
         &self,
         type_: Id<Type>,
     ) -> io::Result<bool> {
-        Ok(self.type_(type_).flags().intersects(TypeFlags::Instantiable)
+        Ok(self
+            .type_(type_)
+            .flags()
+            .intersects(TypeFlags::Instantiable)
             && self.maybe_type_of_kind(
-                self
-                    .get_base_constraint_of_type(type_)?
+                self.get_base_constraint_of_type(type_)?
                     .unwrap_or_else(|| self.unknown_type()),
                 TypeFlags::Undefined,
             ))
@@ -859,11 +862,13 @@ impl TypeChecker {
             self.try_map_type(
                 type_,
                 &mut |t| {
-                    Ok(Some(if self.type_(t).flags().intersects(TypeFlags::Instantiable) {
-                        self.get_base_constraint_or_type(t)?
-                    } else {
-                        t
-                    }))
+                    Ok(Some(
+                        if self.type_(t).flags().intersects(TypeFlags::Instantiable) {
+                            self.get_base_constraint_or_type(t)?
+                        } else {
+                            t
+                        },
+                    ))
                 },
                 None,
             )?

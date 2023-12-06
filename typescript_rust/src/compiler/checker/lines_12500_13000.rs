@@ -200,8 +200,9 @@ impl TypeChecker {
                 None
             };
             let type_parameters = match class_type {
-                Some(class_type) => self.type_(class_type
-                    ).as_interface_type()
+                Some(class_type) => self
+                    .type_(class_type)
+                    .as_interface_type()
                     .maybe_local_type_parameters()
                     .map(ToOwned::to_owned),
                 None => self.get_type_parameters_from_declaration(declaration),
@@ -876,9 +877,8 @@ impl TypeChecker {
             try_maybe_map(
                 signature.maybe_type_parameters().as_deref(),
                 |tp: &Id<Type>, _| -> io::Result<_> {
-                    Ok(self.type_(self.type_(tp
-                        ).as_type_parameter()
-                        .target)
+                    Ok(self
+                        .type_(self.type_(tp).as_type_parameter().target)
                         .try_filter(|target| -> io::Result<_> {
                             Ok(self.get_constraint_of_type_parameter(target)?.is_none())
                         })?
@@ -955,9 +955,10 @@ impl TypeChecker {
                     | SyntaxKind::ConstructSignature
                     | SyntaxKind::ConstructorType
             );
-            let type_ = self.alloc_type(self
-                .create_object_type(ObjectFlags::Anonymous, Option::<&Symbol>::None)
-                .into());
+            let type_ = self.alloc_type(
+                self.create_object_type(ObjectFlags::Anonymous, Option::<&Symbol>::None)
+                    .into(),
+            );
             self.type_(type_).as_resolvable_type().resolve(
                 self.empty_symbols(),
                 // TODO: seems doable to hav per-type "empty vec singletons" for GcVec?
@@ -1071,14 +1072,22 @@ impl TypeChecker {
     }
 
     pub(super) fn is_valid_index_key_type(&self, type_: Id<Type>) -> io::Result<bool> {
-        Ok(self.type_(type_
-            ).flags()
+        Ok(self
+            .type_(type_)
+            .flags()
             .intersects(TypeFlags::String | TypeFlags::Number | TypeFlags::ESSymbol)
             || self.is_pattern_literal_type(type_)
-            || self.type_(type_).flags().intersects(TypeFlags::Intersection)
+            || self
+                .type_(type_)
+                .flags()
+                .intersects(TypeFlags::Intersection)
                 && !self.is_generic_type(type_)?
                 && try_some(
-                    Some(self.type_(type_).as_union_or_intersection_type_interface().types()),
+                    Some(
+                        self.type_(type_)
+                            .as_union_or_intersection_type_interface()
+                            .types(),
+                    ),
                     Some(|&type_: &Id<Type>| self.is_valid_index_key_type(type_)),
                 )?)
     }
@@ -1089,8 +1098,8 @@ impl TypeChecker {
     ) -> Option<Gc<Node /*TypeNode*/>> {
         map_defined(
             maybe_filter(
-                self.type_(type_
-                    ).maybe_symbol()
+                self.type_(type_)
+                    .maybe_symbol()
                     .and_then(|symbol| symbol.maybe_declarations().clone())
                     .as_deref(),
                 |node: &Gc<Node>| is_type_parameter_declaration(node),

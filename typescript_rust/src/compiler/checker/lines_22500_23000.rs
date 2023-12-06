@@ -465,7 +465,8 @@ impl TypeChecker {
         if types.len() < 10
             || get_object_flags(self.type_(union_type)).intersects(ObjectFlags::PrimitiveUnion)
             || count_where(Some(types), |&t: &Id<Type>, _| {
-                self.type_(t).flags()
+                self.type_(t)
+                    .flags()
                     .intersects(TypeFlags::Object | TypeFlags::InstantiableNonPrimitive)
             }) < 10
         {
@@ -479,7 +480,9 @@ impl TypeChecker {
         {
             let key_property_name = try_for_each(types, |&t: &Id<Type>, _| -> io::Result<_> {
                 Ok(
-                    if self.type_(t).flags()
+                    if self
+                        .type_(t)
+                        .flags()
                         .intersects(TypeFlags::Object | TypeFlags::InstantiableNonPrimitive)
                     {
                         try_for_each(
@@ -534,8 +537,9 @@ impl TypeChecker {
         union_type: Id<Type>, /*UnionType*/
         key_type: Id<Type>,
     ) -> Option<Id<Type>> {
-        let result = self.type_(union_type
-            ).as_union_type()
+        let result = self
+            .type_(union_type)
+            .as_union_type()
             .maybe_constituent_map()
             .as_ref()
             .and_then(|union_type_constituent_map| {
@@ -677,7 +681,10 @@ impl TypeChecker {
             let mut reduced_type = self.try_filter_type(declared_type, |t: Id<Type>| {
                 self.type_maybe_assignable_to(assigned_type, t)
             })?;
-            if self.type_(assigned_type).flags().intersects(TypeFlags::BooleanLiteral)
+            if self
+                .type_(assigned_type)
+                .flags()
+                .intersects(TypeFlags::BooleanLiteral)
                 && self.is_fresh_literal_type(assigned_type)
             {
                 reduced_type = self
@@ -700,8 +707,16 @@ impl TypeChecker {
         type_: Id<Type>, /*ObjectType*/
     ) -> io::Result<bool> {
         let resolved = self.resolve_structured_type_members(type_)?;
-        let ret = !self.type_(resolved).as_resolved_type().call_signatures().is_empty()
-            || !self.type_(resolved).as_resolved_type().construct_signatures().is_empty()
+        let ret = !self
+            .type_(resolved)
+            .as_resolved_type()
+            .call_signatures()
+            .is_empty()
+            || !self
+                .type_(resolved)
+                .as_resolved_type()
+                .construct_signatures()
+                .is_empty()
             || (*self.type_(resolved).as_resolved_type().members())
                 .borrow()
                 .contains_key("bind")
@@ -794,17 +809,13 @@ impl TypeChecker {
         }
         if flags.intersects(TypeFlags::BooleanLike) {
             return Ok(if self.strict_null_checks {
-                if type_ == self.false_type()
-                    || type_ == self.regular_false_type()
-                {
+                if type_ == self.false_type() || type_ == self.regular_false_type() {
                     TypeFacts::FalseStrictFacts
                 } else {
                     TypeFacts::TrueStrictFacts
                 }
             } else {
-                if type_ == self.false_type()
-                    || type_ == self.regular_false_type()
-                {
+                if type_ == self.false_type() || type_ == self.regular_false_type() {
                     TypeFacts::FalseFacts
                 } else {
                     TypeFacts::TrueFacts
@@ -862,8 +873,7 @@ impl TypeChecker {
         if flags.intersects(TypeFlags::Instantiable) {
             return Ok(if !self.is_pattern_literal_type(type_) {
                 self.get_type_facts(
-                    self
-                        .get_base_constraint_of_type(type_)?
+                    self.get_base_constraint_of_type(type_)?
                         .unwrap_or_else(|| self.unknown_type()),
                     Some(ignore_objects),
                 )?
@@ -875,7 +885,9 @@ impl TypeChecker {
         }
         if flags.intersects(TypeFlags::Union) {
             return try_reduce_left(
-                self.type_(type_).as_union_or_intersection_type_interface().types(),
+                self.type_(type_)
+                    .as_union_or_intersection_type_interface()
+                    .types(),
                 |facts, &t: &Id<Type>, _| -> io::Result<_> {
                     Ok(facts | self.get_type_facts(t, Some(ignore_objects))?)
                 },
@@ -887,7 +899,9 @@ impl TypeChecker {
         if flags.intersects(TypeFlags::Intersection) {
             ignore_objects = ignore_objects || self.maybe_type_of_kind(type_, TypeFlags::Primitive);
             return try_reduce_left(
-                self.type_(type_).as_union_or_intersection_type_interface().types(),
+                self.type_(type_)
+                    .as_union_or_intersection_type_interface()
+                    .types(),
                 |facts, &t: &Id<Type>, _| -> io::Result<_> {
                     Ok(facts & self.get_type_facts(t, Some(ignore_objects))?)
                 },
@@ -989,7 +1003,7 @@ impl TypeChecker {
                     None,
                 )?
             } else {
-                type_.
+                type_
             },
         ))
     }

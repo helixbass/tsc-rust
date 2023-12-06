@@ -82,13 +82,14 @@ impl TypeChecker {
     ) -> io::Result<Option<String>> {
         let type_ = self.get_literal_type_from_property_name(name)?;
         Ok(
-            if self.type_(type_
-                ).flags()
+            if self
+                .type_(type_)
+                .flags()
                 .intersects(TypeFlags::StringLiteral | TypeFlags::NumberLiteral)
             {
                 Some(format!(
                     "{}",
-                    match self.type_(type_ ){
+                    match self.type_(type_) {
                         Type::LiteralType(LiteralType::NumberLiteralType(type_)) => {
                             type_.value.to_string()
                         }
@@ -135,7 +136,10 @@ impl TypeChecker {
         if pattern.kind() == SyntaxKind::ObjectBindingPattern {
             if declaration_as_binding_element.dot_dot_dot_token.is_some() {
                 parent_type = self.get_reduced_type(parent_type)?;
-                if self.type_(parent_type).flags().intersects(TypeFlags::Unknown)
+                if self
+                    .type_(parent_type)
+                    .flags()
+                    .intersects(TypeFlags::Unknown)
                     || !self.is_valid_spread_type(parent_type)?
                 {
                     self.error(
@@ -329,8 +333,9 @@ impl TypeChecker {
                 None,
             )?;
             return Ok(Some(
-                if self.type_(index_type
-                    ).flags()
+                if self
+                    .type_(index_type)
+                    .flags()
                     .intersects(TypeFlags::TypeParameter | TypeFlags::Index)
                 {
                     self.get_extract_string_type(index_type)?
@@ -711,8 +716,7 @@ impl TypeChecker {
             );
             let flow_type = self.get_flow_type_of_property(&reference, Some(symbol))?;
             if self.no_implicit_any
-                && (flow_type == self.auto_type()
-                    || flow_type == self.auto_array_type())
+                && (flow_type == self.auto_type() || flow_type == self.auto_array_type())
             {
                 self.error(
                     symbol.maybe_value_declaration(),
@@ -760,8 +764,7 @@ impl TypeChecker {
         );
         let flow_type = self.get_flow_type_of_property(&reference, Some(symbol))?;
         if self.no_implicit_any
-            && (flow_type == self.auto_type()
-                || flow_type == self.auto_array_type())
+            && (flow_type == self.auto_type() || flow_type == self.auto_array_type())
         {
             self.error(
                 symbol.maybe_value_declaration(),
@@ -962,10 +965,10 @@ impl TypeChecker {
             Some(defined_in_method && !defined_in_constructor),
         )?)?;
         if let Some(symbol_value_declaration) = symbol.maybe_value_declaration() {
-            if 
-                self.filter_type(widened, |t| self.type_(t).flags().intersects(!TypeFlags::Nullable)) ==
-                self.never_type()
-             {
+            if self.filter_type(widened, |t| {
+                self.type_(t).flags().intersects(!TypeFlags::Nullable)
+            }) == self.never_type()
+            {
                 self.report_implicit_any(&symbol_value_declaration, self.any_type(), None)?;
                 return Ok(self.any_type());
             }
@@ -1019,8 +1022,9 @@ impl TypeChecker {
             }
         }
         let type_ = self.create_anonymous_type(symbol, exports, vec![], vec![], vec![])?;
-        self.type_(type_).as_object_type()
-            .set_object_flags(self.type_(type_).as_object_type().object_flags() | ObjectFlags::JSLiteral);
+        self.type_(type_).as_object_type().set_object_flags(
+            self.type_(type_).as_object_type().object_flags() | ObjectFlags::JSLiteral,
+        );
         Ok(Some(type_))
     }
 
@@ -1241,11 +1245,18 @@ impl TypeChecker {
                     self.type_(exported_type).maybe_symbol()
                 },
                 Gc::new(GcCell::new(members)),
-                self.type_(exported_type).as_resolved_type().call_signatures().clone(),
-                self.type_(exported_type).as_resolved_type()
+                self.type_(exported_type)
+                    .as_resolved_type()
+                    .call_signatures()
+                    .clone(),
+                self.type_(exported_type)
+                    .as_resolved_type()
                     .construct_signatures()
                     .clone(),
-                self.type_(exported_type).as_resolved_type().index_infos().clone(),
+                self.type_(exported_type)
+                    .as_resolved_type()
+                    .index_infos()
+                    .clone(),
             )?;
             self.type_(result).as_object_type().set_object_flags(
                 self.type_(result).as_object_type().object_flags()
@@ -1253,12 +1264,11 @@ impl TypeChecker {
             );
             if let Some(result_symbol) = self.type_(result).maybe_symbol() {
                 if result_symbol.flags().intersects(SymbolFlags::Class)
-                    && 
-                        type_ ==
-                        self.get_declared_type_of_class_or_interface(&result_symbol)?
+                    && type_ == self.get_declared_type_of_class_or_interface(&result_symbol)?
                 {
                     self.type_(result).as_object_type().set_object_flags(
-                        self.type_(result).as_object_type().object_flags() | ObjectFlags::IsClassInstanceClone,
+                        self.type_(result).as_object_type().object_flags()
+                            | ObjectFlags::IsClassInstanceClone,
                     );
                 }
             }

@@ -189,10 +189,7 @@ impl TypeChecker {
 
         let function_flags = get_function_flags(Some(node));
         let return_type = self.get_return_type_from_annotation(node)?;
-        self.check_all_code_paths_in_non_void_function_return_or_throw(
-            node,
-            return_type,
-        )?;
+        self.check_all_code_paths_in_non_void_function_return_or_throw(node, return_type)?;
 
         if let Some(node_body) = node.as_function_like_declaration().maybe_body().as_ref() {
             if get_effective_return_type_node(node).is_none() {
@@ -289,8 +286,7 @@ impl TypeChecker {
             if match writable_type.as_ref() {
                 None => true,
                 Some(writable_type) => {
-                    writable_type == self.false_type()
-                        || writable_type == self.regular_false_type()
+                    writable_type == self.false_type() || writable_type == self.regular_false_type()
                 }
             } {
                 return Ok(true);
@@ -485,14 +481,14 @@ impl TypeChecker {
     ) -> io::Result<()> {
         let type_ = self.get_type_of_symbol(symbol)?;
         if self.strict_null_checks
-            && !self.type_(type_
-                ).flags()
+            && !self
+                .type_(type_)
+                .flags()
                 .intersects(TypeFlags::AnyOrUnknown | TypeFlags::Never)
             && !if self.exact_optional_property_types == Some(true) {
                 symbol.flags().intersects(SymbolFlags::Optional)
             } else {
-                self.get_falsy_flags(type_)
-                    .intersects(TypeFlags::Undefined)
+                self.get_falsy_flags(type_).intersects(TypeFlags::Undefined)
             }
         {
             self.error(
@@ -891,9 +887,10 @@ impl TypeChecker {
         strict: Option<bool>,
     ) -> io::Result<bool> {
         Ok(if self.type_(source).flags().intersects(TypeFlags::Union) {
-            try_every(self.type_(source).as_union_type().types(), |&sub_type: &Id<Type>, _| {
-                self.all_types_assignable_to_kind(sub_type, kind, strict)
-            })?
+            try_every(
+                self.type_(source).as_union_type().types(),
+                |&sub_type: &Id<Type>, _| self.all_types_assignable_to_kind(sub_type, kind, strict),
+            )?
         } else {
             self.is_type_assignable_to_kind(source, kind, strict)?
         })
@@ -963,8 +960,11 @@ impl TypeChecker {
                 .is_none()
                 && get_containing_class(left).is_some()
             {
-                let is_unchecked_js =
-                    self.is_unchecked_js_suggestion(Some(left), self.type_(right_type).maybe_symbol(), true);
+                let is_unchecked_js = self.is_unchecked_js_suggestion(
+                    Some(left),
+                    self.type_(right_type).maybe_symbol(),
+                    true,
+                );
                 self.report_nonexistent_property(left, right_type, is_unchecked_js)?;
             }
         } else {

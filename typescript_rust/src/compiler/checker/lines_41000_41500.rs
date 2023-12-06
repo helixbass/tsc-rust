@@ -309,14 +309,13 @@ impl TypeChecker {
             location.parent().parent(),
             |node: &Gc<Node>| is_assignment_pattern(node),
         ))?;
-        type_of_object_literal
-            .try_and_then(|type_of_object_literal| {
-                self.get_property_of_type_(
-                    type_of_object_literal,
-                    &location.as_identifier().escaped_text,
-                    None,
-                )
-            })
+        type_of_object_literal.try_and_then(|type_of_object_literal| {
+            self.get_property_of_type_(
+                type_of_object_literal,
+                &location.as_identifier().escaped_text,
+                None,
+            )
+        })
     }
 
     pub(super) fn get_regular_type_of_expression(
@@ -422,12 +421,14 @@ impl TypeChecker {
         if get_check_flags(symbol).intersects(CheckFlags::Synthetic) {
             return Ok(Some(try_map_defined(
                 Some(
-                    self.type_((*self.get_symbol_links(symbol))
-                        .borrow()
-                        .containing_type
-                        .unwrap())
-                        .as_union_or_intersection_type_interface()
-                        .types(),
+                    self.type_(
+                        (*self.get_symbol_links(symbol))
+                            .borrow()
+                            .containing_type
+                            .unwrap(),
+                    )
+                    .as_union_or_intersection_type_interface()
+                    .types(),
                 ),
                 |&type_: &Id<Type>, _| {
                     self.get_property_of_type_(type_, symbol.escaped_name(), None)

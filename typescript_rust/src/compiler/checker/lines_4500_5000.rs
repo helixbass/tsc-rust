@@ -11,7 +11,7 @@ use id_arena::Id;
 
 use super::SignatureToSignatureDeclarationOptions;
 use crate::{
-    add_synthetic_leading_comment, append_if_unique_gc, contains_gc, create_printer,
+    add_synthetic_leading_comment, append_if_unique_gc, contains, contains_gc, create_printer,
     create_text_writer, default_maximum_truncation_length, every, get_factory,
     get_first_identifier, get_object_flags, get_text_of_node,
     get_trailing_semicolon_deferring_writer, has_syntactic_modifier, id_text, is_binding_element,
@@ -29,7 +29,7 @@ use crate::{
     RedirectTargetsMap, ScriptTarget, Signature, SignatureKind, Symbol, SymbolAccessibility,
     SymbolFlags, SymbolFormatFlags, SymbolId, SymbolInterface, SymbolTable, SymbolTracker,
     SymbolVisibilityResult, SymlinkCache, SyntaxKind, Type, TypeChecker, TypeCheckerHostDebuggable,
-    TypeFlags, TypeFormatFlags, TypeId, TypeInterface, contains,
+    TypeFlags, TypeFormatFlags, TypeId, TypeInterface,
 };
 
 impl TypeChecker {
@@ -941,10 +941,10 @@ impl NodeBuilder {
             let parent_name =
                 self.symbol_to_type_node(&parent_symbol, context, SymbolFlags::Type, None)?;
             if self
-                    .type_checker
-                    .get_declared_type_of_symbol(&parent_symbol)? ==
-                type_
-             {
+                .type_checker
+                .get_declared_type_of_symbol(&parent_symbol)?
+                == type_
+            {
                 return Ok(Some(parent_name));
             }
             let type_symbol = type_.symbol();
@@ -1206,10 +1206,7 @@ impl NodeBuilder {
             || object_flags.intersects(ObjectFlags::ClassOrInterface)
         {
             if type_.flags().intersects(TypeFlags::TypeParameter)
-                && contains(
-                    (*context.infer_type_parameters).borrow().as_deref(),
-                    &type_,
-                )
+                && contains((*context.infer_type_parameters).borrow().as_deref(), &type_)
             {
                 context.increment_approximate_length_by(symbol_name(&type_.symbol()).len() + 6);
                 return Ok(Some(get_factory().create_infer_type_node(
@@ -1302,24 +1299,27 @@ impl NodeBuilder {
             let template_head: Gc<Node> =
                 get_factory().create_template_head(Some(texts[0].clone()), None, None);
             let template_spans = get_factory().create_node_array(
-                Some(try_map(types, |&t: &Id<Type>, i| -> io::Result<Gc<Node>> {
-                    Ok(get_factory().create_template_literal_type_span(
-                        self.type_to_type_node_helper(Some(t), context)?.unwrap(),
-                        if i < types.len() - 1 {
-                            get_factory().create_template_middle(
-                                Some(texts[i + 1].clone()),
-                                None,
-                                None,
-                            )
-                        } else {
-                            get_factory().create_template_tail(
-                                Some(texts[i + 1].clone()),
-                                None,
-                                None,
-                            )
-                        },
-                    ))
-                })?),
+                Some(try_map(
+                    types,
+                    |&t: &Id<Type>, i| -> io::Result<Gc<Node>> {
+                        Ok(get_factory().create_template_literal_type_span(
+                            self.type_to_type_node_helper(Some(t), context)?.unwrap(),
+                            if i < types.len() - 1 {
+                                get_factory().create_template_middle(
+                                    Some(texts[i + 1].clone()),
+                                    None,
+                                    None,
+                                )
+                            } else {
+                                get_factory().create_template_tail(
+                                    Some(texts[i + 1].clone()),
+                                    None,
+                                    None,
+                                )
+                            },
+                        ))
+                    },
+                )?),
                 None,
             );
             context.increment_approximate_length_by(2);

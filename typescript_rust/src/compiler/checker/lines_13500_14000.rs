@@ -135,8 +135,8 @@ impl TypeChecker {
             });
         }
         if length(
-            self.type_(type_
-                ).maybe_as_interface_type()
+            self.type_(type_)
+                .maybe_as_interface_type()
                 .and_then(|type_| type_.maybe_type_parameters()),
         ) != arity
         {
@@ -1065,7 +1065,9 @@ impl TypeChecker {
             type_parameters = Some(vec![]);
             let type_parameters = type_parameters.as_mut().unwrap();
             for i in 0..arity {
-                type_parameters.push(self.alloc_type(self.create_type_parameter(Option::<&Symbol>::None).into()));
+                type_parameters.push(
+                    self.alloc_type(self.create_type_parameter(Option::<&Symbol>::None).into()),
+                );
                 let type_parameter = type_parameters[i];
                 let flags = element_flags[i];
                 combined_flags |= flags;
@@ -1139,17 +1141,19 @@ impl TypeChecker {
             type_parameters.clone(),
             Some(this_type.clone()),
         );
-        let type_ = self.alloc_type(TupleType::new(
-            type_,
-            element_flags.to_owned(),
-            min_length,
-            fixed_length,
-            combined_flags.intersects(ElementFlags::Variable),
-            combined_flags,
-            readonly,
-            named_member_declarations.map(ToOwned::to_owned),
-        )
-        .into());
+        let type_ = self.alloc_type(
+            TupleType::new(
+                type_,
+                element_flags.to_owned(),
+                min_length,
+                fixed_length,
+                combined_flags.intersects(ElementFlags::Variable),
+                combined_flags,
+                readonly,
+                named_member_declarations.map(ToOwned::to_owned),
+            )
+            .into(),
+        );
         self.type_(this_type)
             .as_type_parameter()
             .set_constraint(type_.clone());

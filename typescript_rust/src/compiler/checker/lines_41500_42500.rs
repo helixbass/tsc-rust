@@ -381,7 +381,11 @@ impl TypeChecker {
             } else {
                 TypeReferenceSerializationKind::Unknown
             }
-        } else if self.type_(type_).flags().intersects(TypeFlags::AnyOrUnknown) {
+        } else if self
+            .type_(type_)
+            .flags()
+            .intersects(TypeFlags::AnyOrUnknown)
+        {
             TypeReferenceSerializationKind::ObjectType
         } else if self.is_type_assignable_to_kind(
             type_,
@@ -436,7 +440,10 @@ impl TypeChecker {
         } else {
             self.error_type()
         };
-        if self.type_(type_).flags().intersects(TypeFlags::UniqueESSymbol)
+        if self
+            .type_(type_)
+            .flags()
+            .intersects(TypeFlags::UniqueESSymbol)
             && are_option_gcs_equal(self.type_(type_).maybe_symbol().as_ref(), symbol.as_ref())
         {
             flags |= NodeBuilderFlags::AllowUniqueESSymbolType;
@@ -826,10 +833,10 @@ impl TypeChecker {
         self.get_symbol_links(&self.global_this_symbol())
             .borrow_mut()
             .type_ = Some(
-                self.alloc_type(
-            self.create_object_type(ObjectFlags::Anonymous, Some(self.global_this_symbol()))
-                .into(),
-                )
+            self.alloc_type(
+                self.create_object_type(ObjectFlags::Anonymous, Some(self.global_this_symbol()))
+                    .into(),
+            ),
         );
 
         *self.global_array_type.borrow_mut() = self.get_global_type("Array", 1, true)?;
@@ -872,9 +879,7 @@ impl TypeChecker {
             .get_global_type_or_undefined("ReadonlyArray", Some(1))?
             .or_else(|| self.global_array_type.borrow().clone());
         *self.any_readonly_array_type.borrow_mut() = Some(
-            if let Some(global_readonly_array_type) =
-                self.global_readonly_array_type.borrow()
-            {
+            if let Some(global_readonly_array_type) = self.global_readonly_array_type.borrow() {
                 self.create_type_from_generic_global_type(
                     global_readonly_array_type,
                     vec![self.any_type()],

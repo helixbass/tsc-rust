@@ -86,7 +86,11 @@ impl TypeChecker {
     }
 
     pub(super) fn is_valid_spread_type(&self, type_: Id<Type>) -> io::Result<bool> {
-        if self.type_(type_).flags().intersects(TypeFlags::Instantiable) {
+        if self
+            .type_(type_)
+            .flags()
+            .intersects(TypeFlags::Instantiable)
+        {
             let constraint = self.get_base_constraint_of_type(type_)?;
             if let Some(constraint) = constraint {
                 return self.is_valid_spread_type(constraint);
@@ -101,9 +105,15 @@ impl TypeChecker {
             .get_falsy_flags(type_)
             .intersects(TypeFlags::DefinitelyFalsy)
             && self.is_valid_spread_type(self.remove_definitely_falsy_types(type_))?
-            || self.type_(type_).flags().intersects(TypeFlags::UnionOrIntersection)
+            || self
+                .type_(type_)
+                .flags()
+                .intersects(TypeFlags::UnionOrIntersection)
                 && try_every(
-                    &self.type_(type_).as_union_or_intersection_type_interface().types(),
+                    &self
+                        .type_(type_)
+                        .as_union_or_intersection_type_interface()
+                        .types(),
                     |&type_: &Id<Type>, _| self.is_valid_spread_type(type_),
                 )?)
     }
@@ -661,7 +671,8 @@ impl TypeChecker {
                     self.get_index_type_of_type_(intrinsic_elements_type, self.string_type())?;
                 if index_signature_type.is_some() {
                     links.borrow_mut().jsx_flags |= JsxFlags::IntrinsicIndexedElement;
-                    links.borrow_mut().resolved_symbol = Some(self.type_(intrinsic_elements_type).symbol());
+                    links.borrow_mut().resolved_symbol =
+                        Some(self.type_(intrinsic_elements_type).symbol());
                     return Ok(self.type_(intrinsic_elements_type).symbol());
                 }
 

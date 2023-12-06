@@ -8,9 +8,9 @@ use crate::{
     are_gc_slices_equal, contains_gc, escape_leading_underscores, every, find_index,
     has_static_modifier, id_text, is_element_access_expression, is_private_identifier,
     is_property_access_expression, is_string_literal_like, Debug_, SymbolFlags, SymbolInterface,
-    SyntaxKind, __String, is_access_expression, is_optional_chain, map, try_map, Node,
+    SyntaxKind, __String, contains, is_access_expression, is_optional_chain, map, try_map, Node,
     NodeInterface, OptionTry, Symbol, Type, TypeFlags, TypeInterface,
-    UnionOrIntersectionTypeInterface, UnionReduction, contains,
+    UnionOrIntersectionTypeInterface, UnionReduction,
 };
 
 impl GetFlowTypeOfReference {
@@ -46,7 +46,12 @@ impl GetFlowTypeOfReference {
             && (self.type_checker.type_(result).flags()
                 & self.type_checker.type_(self.declared_type).flags())
             .intersects(TypeFlags::Union)
-            && self.type_checker.type_(result).as_union_type().types() == self.type_checker.type_(self.declared_type).as_union_type().types()
+            && self.type_checker.type_(result).as_union_type().types()
+                == self
+                    .type_checker
+                    .type_(self.declared_type)
+                    .as_union_type()
+                    .types()
         {
             return Ok(self.declared_type.clone());
         }
@@ -60,7 +65,12 @@ impl GetFlowTypeOfReference {
     ) -> io::Result<Option<Gc<Node>>> {
         let mut access: Option<Gc<Node>> = None;
         let mut name: Option<__String> = None;
-        let type_ = if self.type_checker.type_(self.declared_type).flags().intersects(TypeFlags::Union) {
+        let type_ = if self
+            .type_checker
+            .type_(self.declared_type)
+            .flags()
+            .intersects(TypeFlags::Union)
+        {
             self.declared_type
         } else {
             computed_type
@@ -155,7 +165,11 @@ impl GetFlowTypeOfReference {
             let discriminant_type = self
                 .type_checker
                 .get_type_of_property_or_index_signature(t, &prop_name)?;
-            Ok(!self.type_checker.type_(narrowed_prop_type).flags().intersects(TypeFlags::Never)
+            Ok(!self
+                .type_checker
+                .type_(narrowed_prop_type)
+                .flags()
+                .intersects(TypeFlags::Never)
                 && self
                     .type_checker
                     .is_type_comparable_to(narrowed_prop_type, discriminant_type)?)
@@ -203,8 +217,7 @@ impl GetFlowTypeOfReference {
                         {
                             candidate.clone()
                         } else if self.type_checker.is_unit_type(
-                            self
-                                .type_checker
+                            self.type_checker
                                 .get_type_of_property_of_type_(candidate, key_property_name)?
                                 .unwrap_or_else(|| self.type_checker.unknown_type()),
                         ) {
@@ -230,7 +243,11 @@ impl GetFlowTypeOfReference {
         clause_end: usize,
     ) -> io::Result<Id<Type>> {
         if clause_start < clause_end
-            && self.type_checker.type_(type_).flags().intersects(TypeFlags::Union)
+            && self
+                .type_checker
+                .type_(type_)
+                .flags()
+                .intersects(TypeFlags::Union)
             && self.type_checker.get_key_property_name(type_)?
                 == self.type_checker.get_accessed_property_name(access)?
         {
@@ -274,7 +291,13 @@ impl GetFlowTypeOfReference {
             .is_matching_reference(&self.reference, expr)?
         {
             return Ok(
-                if self.type_checker.type_(type_).flags().intersects(TypeFlags::Unknown) && assume_true {
+                if self
+                    .type_checker
+                    .type_(type_)
+                    .flags()
+                    .intersects(TypeFlags::Unknown)
+                    && assume_true
+                {
                     self.type_checker.non_null_unknown_type()
                 } else {
                     self.type_checker.get_type_with_facts(
@@ -515,9 +538,19 @@ impl GetFlowTypeOfReference {
                 let left_type = self
                     .type_checker
                     .get_type_of_node(&expr_as_binary_expression.left)?;
-                if self.type_checker.type_(left_type).flags().intersects(TypeFlags::StringLiteral) {
-                    let name =
-                        escape_leading_underscores(&self.type_checker.type_(left_type).as_string_literal_type().value);
+                if self
+                    .type_checker
+                    .type_(left_type)
+                    .flags()
+                    .intersects(TypeFlags::StringLiteral)
+                {
+                    let name = escape_leading_underscores(
+                        &self
+                            .type_checker
+                            .type_(left_type)
+                            .as_string_literal_type()
+                            .value,
+                    );
                     if self.type_checker.contains_missing_type(type_)
                         && is_access_expression(&self.reference)
                         && self.type_checker.is_matching_reference(
@@ -667,11 +700,17 @@ impl GetFlowTypeOfReference {
         let value_type = self.type_checker.get_type_of_expression(value)?;
         let remove_nullable = equals_operator != assume_true
             && self.type_checker.every_type(value_type, |t: Id<Type>| {
-                self.type_checker.type_(t).flags().intersects(nullable_flags)
+                self.type_checker
+                    .type_(t)
+                    .flags()
+                    .intersects(nullable_flags)
             })
             || equals_operator == assume_true
                 && self.type_checker.every_type(value_type, |t: Id<Type>| {
-                    !self.type_checker.type_(t).flags()
+                    !self
+                        .type_checker
+                        .type_(t)
+                        .flags()
                         .intersects(TypeFlags::AnyOrUnknown | nullable_flags)
                 });
         Ok(if remove_nullable {
@@ -731,25 +770,41 @@ impl GetFlowTypeOfReference {
                 None,
             );
         }
-        if self.type_checker.type_(type_).flags().intersects(TypeFlags::Unknown)
+        if self
+            .type_checker
+            .type_(type_)
+            .flags()
+            .intersects(TypeFlags::Unknown)
             && assume_true
             && matches!(
                 operator,
                 SyntaxKind::EqualsEqualsEqualsToken | SyntaxKind::ExclamationEqualsEqualsToken
             )
         {
-            if self.type_checker.type_(value_type
-                ).flags()
+            if self
+                .type_checker
+                .type_(value_type)
+                .flags()
                 .intersects(TypeFlags::Primitive | TypeFlags::NonPrimitive)
             {
                 return Ok(value_type);
             }
-            if self.type_checker.type_(value_type).flags().intersects(TypeFlags::Object) {
+            if self
+                .type_checker
+                .type_(value_type)
+                .flags()
+                .intersects(TypeFlags::Object)
+            {
                 return Ok(self.type_checker.non_primitive_type());
             }
             return Ok(type_);
         }
-        if self.type_checker.type_(value_type).flags().intersects(TypeFlags::Nullable) {
+        if self
+            .type_checker
+            .type_(value_type)
+            .flags()
+            .intersects(TypeFlags::Nullable)
+        {
             if !self.type_checker.strict_null_checks {
                 return Ok(type_);
             }
@@ -763,7 +818,12 @@ impl GetFlowTypeOfReference {
                 } else {
                     TypeFacts::NEUndefinedOrNull
                 }
-            } else if self.type_checker.type_(value_type).flags().intersects(TypeFlags::Null) {
+            } else if self
+                .type_checker
+                .type_(value_type)
+                .flags()
+                .intersects(TypeFlags::Null)
+            {
                 if assume_true {
                     TypeFacts::EQNull
                 } else {
@@ -777,7 +837,11 @@ impl GetFlowTypeOfReference {
                 }
             };
             return Ok(
-                if self.type_checker.type_(type_).flags().intersects(TypeFlags::Unknown)
+                if self
+                    .type_checker
+                    .type_(type_)
+                    .flags()
+                    .intersects(TypeFlags::Unknown)
                     && facts.intersects(TypeFacts::NENull | TypeFacts::NEUndefinedOrNull)
                 {
                     self.type_checker.non_null_unknown_type()
@@ -846,31 +910,37 @@ impl GetFlowTypeOfReference {
             }
             return Ok(type_);
         }
-        if self.type_checker.type_(type_).flags().intersects(TypeFlags::Any)
+        if self
+            .type_checker
+            .type_(type_)
+            .flags()
+            .intersects(TypeFlags::Any)
             && &**literal_as_literal_like_node.text() == "function"
         {
             return Ok(type_);
         }
         if assume_true
-            && self.type_checker.type_(type_).flags().intersects(TypeFlags::Unknown)
+            && self
+                .type_checker
+                .type_(type_)
+                .flags()
+                .intersects(TypeFlags::Unknown)
             && &**literal_as_literal_like_node.text() == "object"
         {
-            return Ok(
-                if type_ == self.type_checker.non_null_unknown_type() {
-                    self.type_checker.non_primitive_type()
-                } else {
-                    self.type_checker.get_union_type(
-                        &[
-                            self.type_checker.non_primitive_type(),
-                            self.type_checker.null_type(),
-                        ],
-                        None,
-                        Option::<&Symbol>::None,
-                        None,
-                        None,
-                    )?
-                },
-            );
+            return Ok(if type_ == self.type_checker.non_null_unknown_type() {
+                self.type_checker.non_primitive_type()
+            } else {
+                self.type_checker.get_union_type(
+                    &[
+                        self.type_checker.non_primitive_type(),
+                        self.type_checker.null_type(),
+                    ],
+                    None,
+                    Option::<&Symbol>::None,
+                    None,
+                    None,
+                )?
+            });
         }
         let facts = if assume_true {
             typeof_eq_facts
@@ -886,8 +956,7 @@ impl GetFlowTypeOfReference {
         let implied_type =
             self.get_implied_type_from_typeof_guard(type_, &literal_as_literal_like_node.text())?;
         self.type_checker.get_type_with_facts(
-            &*if let Some(implied_type) = implied_type.filter(|_implied_type| assume_true)
-            {
+            &*if let Some(implied_type) = implied_type.filter(|_implied_type| assume_true) {
                 let mut callback_returning_non_optional =
                     self.narrow_union_member_by_typeof(implied_type);
                 self.type_checker
@@ -945,17 +1014,31 @@ impl GetFlowTypeOfReference {
         let clause_types = &switch_types[clause_start..clause_end];
         let has_default_clause = clause_start == clause_end
             || contains(Some(clause_types), &self.type_checker.never_type());
-        if self.type_checker.type_(type_).flags().intersects(TypeFlags::Unknown) && !has_default_clause {
+        if self
+            .type_checker
+            .type_(type_)
+            .flags()
+            .intersects(TypeFlags::Unknown)
+            && !has_default_clause
+        {
             let mut ground_clause_types: Option<Vec<Id<Type>>> = None;
             for i in 0..clause_types.len() {
                 let t = clause_types[i];
-                if self.type_checker.type_(t).flags()
+                if self
+                    .type_checker
+                    .type_(t)
+                    .flags()
                     .intersects(TypeFlags::Primitive | TypeFlags::NonPrimitive)
                 {
                     if let Some(ground_clause_types) = ground_clause_types.as_mut() {
                         ground_clause_types.push(t.clone());
                     }
-                } else if self.type_checker.type_(t).flags().intersects(TypeFlags::Object) {
+                } else if self
+                    .type_checker
+                    .type_(t)
+                    .flags()
+                    .intersects(TypeFlags::Object)
+                {
                     if ground_clause_types.is_none() {
                         ground_clause_types = Some(clause_types[0..i].to_owned());
                     }
@@ -985,13 +1068,17 @@ impl GetFlowTypeOfReference {
             None,
             None,
         )?;
-        let case_type = if self.type_checker.type_(discriminant_type).flags().intersects(TypeFlags::Never) {
+        let case_type = if self
+            .type_checker
+            .type_(discriminant_type)
+            .flags()
+            .intersects(TypeFlags::Never)
+        {
             self.type_checker.never_type()
         } else {
             self.type_checker.replace_primitives_with_literals(
                 self.type_checker.try_filter_type(type_, |t: Id<Type>| {
-                    self.type_checker
-                        .are_types_comparable(discriminant_type, t)
+                    self.type_checker.are_types_comparable(discriminant_type, t)
                 })?,
                 discriminant_type,
             )
@@ -1028,14 +1115,24 @@ impl GetFlowTypeOfReference {
     ) -> io::Result<Option<Id<Type>>> {
         Ok(match text {
             "function" => {
-                if self.type_checker.type_(type_).flags().intersects(TypeFlags::Any) {
+                if self
+                    .type_checker
+                    .type_(type_)
+                    .flags()
+                    .intersects(TypeFlags::Any)
+                {
                     Some(type_)
                 } else {
                     Some(self.type_checker.global_function_type())
                 }
             }
             "object" => {
-                if self.type_checker.type_(type_).flags().intersects(TypeFlags::Unknown) {
+                if self
+                    .type_checker
+                    .type_(type_)
+                    .flags()
+                    .intersects(TypeFlags::Unknown)
+                {
                     Some(self.type_checker.get_union_type(
                         &[
                             self.type_checker.non_primitive_type(),
@@ -1066,7 +1163,11 @@ impl GetFlowTypeOfReference {
             if type_checker.is_type_subtype_of(&candidate, type_)? {
                 return Ok(candidate.clone());
             }
-            if type_checker.type_(type_).flags().intersects(TypeFlags::Instantiable) {
+            if type_checker
+                .type_(type_)
+                .flags()
+                .intersects(TypeFlags::Instantiable)
+            {
                 let constraint = type_checker
                     .get_base_constraint_of_type(type_)?
                     .unwrap_or_else(|| type_checker.any_type());
@@ -1168,8 +1269,7 @@ impl GetFlowTypeOfReference {
         )?;
         let mut callback_returning_non_optional = self.narrow_union_member_by_typeof(implied_type);
         self.type_checker.get_type_with_facts(
-            self
-                .type_checker
+            self.type_checker
                 .try_map_type(
                     type_,
                     &mut move |candidate: Id<Type>| {

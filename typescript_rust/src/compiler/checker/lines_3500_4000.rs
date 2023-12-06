@@ -790,8 +790,8 @@ impl TypeChecker {
                     .flags()
                     .intersects(self.get_qualified_left_meaning(meaning)))
                     && container.flags().intersects(SymbolFlags::Type)
-                    && self.type_(self
-                        .get_declared_type_of_symbol(&container)?)
+                    && self
+                        .type_(self.get_declared_type_of_symbol(&container)?)
                         .flags()
                         .intersects(TypeFlags::Object)
                     && meaning == SymbolFlags::Value
@@ -804,8 +804,8 @@ impl TypeChecker {
                                 |s: &Gc<Symbol>, _| -> io::Result<_> {
                                     if s.flags()
                                         .intersects(self.get_qualified_left_meaning(meaning))
-                                        && self.get_type_of_symbol(s)? ==
-                                            self.get_declared_type_of_symbol(&container)?
+                                        && self.get_type_of_symbol(s)?
+                                            == self.get_declared_type_of_symbol(&container)?
                                     {
                                         return Ok(Some(s.clone()));
                                     }

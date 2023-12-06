@@ -198,7 +198,8 @@ impl TypeChecker {
         if include_pattern_in_type {
             *self.type_(result).maybe_pattern() = Some(pattern.node_wrapper());
             self.type_(result).as_object_type().set_object_flags(
-                self.type_(result).as_object_type().object_flags() | ObjectFlags::ContainsObjectOrArrayLiteral,
+                self.type_(result).as_object_type().object_flags()
+                    | ObjectFlags::ContainsObjectOrArrayLiteral,
             );
         }
         Ok(result)
@@ -263,7 +264,8 @@ impl TypeChecker {
             result = self.clone_type_reference(result);
             *self.type_(result).maybe_pattern() = Some(pattern.node_wrapper());
             self.type_(result).as_object_type().set_object_flags(
-                self.type_(result).as_object_type().object_flags() | ObjectFlags::ContainsObjectOrArrayLiteral,
+                self.type_(result).as_object_type().object_flags()
+                    | ObjectFlags::ContainsObjectOrArrayLiteral,
             );
         }
         Ok(result)
@@ -330,7 +332,10 @@ impl TypeChecker {
                 self.report_errors_from_widening(declaration, &type_, None)?;
             }
 
-            if self.type_(type_).flags().intersects(TypeFlags::UniqueESSymbol)
+            if self
+                .type_(type_)
+                .flags()
+                .intersects(TypeFlags::UniqueESSymbol)
                 && (is_binding_element(declaration)
                     || declaration.as_has_type().maybe_type().is_none())
                 && !are_option_gcs_equal(
