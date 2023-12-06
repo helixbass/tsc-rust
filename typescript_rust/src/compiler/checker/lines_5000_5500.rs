@@ -553,10 +553,10 @@ impl NodeBuilder {
                     .construct_signatures()
                     .is_empty()
             {
-                let resolved = self
+                let resolved_ref = self
                     .type_checker
                     .type_(resolved);
-                let signature = &resolved
+                let signature = &resolved_ref
                     .as_resolved_type()
                     .call_signatures()[0];
                 let signature_node = self.signature_to_signature_declaration_helper(
@@ -582,11 +582,11 @@ impl NodeBuilder {
                     .call_signatures()
                     .is_empty()
             {
-                let resolved = self
+                let resolved_ref = self
                     .type_checker
                     .type_(resolved);
                 let signature = 
-                    &resolved
+                    &resolved_ref
                     .as_resolved_type()
                     .construct_signatures()[0];
                 let signature_node = self.signature_to_signature_declaration_helper(

@@ -388,7 +388,7 @@ impl TypeChecker {
             if let Some(origin) =
                 origin.filter(|&origin| self.type_(origin).flags().intersects(TypeFlags::Union))
             {
-                let origin_ref = self.type_(origin_);
+                let origin_ref = self.type_(origin);
                 let origin_types = origin_ref.as_union_type().types();
                 let origin_filtered = try_filter(origin_types, |&t: &Id<Type>| -> io::Result<_> {
                     Ok(self.type_(t).flags().intersects(TypeFlags::Union) || f(t)?)

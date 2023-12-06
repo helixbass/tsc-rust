@@ -1108,11 +1108,11 @@ impl NodeBuilder {
             .flags()
             .intersects(TypeFlags::BigIntLiteral)
         {
-            let type_ = self
+            let type_ref = self
                 .type_checker
                 .type_(type_);
             let value = &
-                type_
+                type_ref
                 .as_big_int_literal_type()
                 .value;
             context.increment_approximate_length_by(pseudo_big_int_to_string(value).len() + 1);
@@ -1126,11 +1126,11 @@ impl NodeBuilder {
             .flags()
             .intersects(TypeFlags::BooleanLiteral)
         {
-            let type_ = self
+            let type_ref = self
                 .type_checker
                 .type_(type_);
             let type_intrinsic_name =
-                type_
+                type_ref
                 .as_intrinsic_type()
                 .intrinsic_name();
             context.increment_approximate_length_by(type_intrinsic_name.len());
@@ -1500,15 +1500,15 @@ impl NodeBuilder {
             .flags()
             .intersects(TypeFlags::TemplateLiteral)
         {
-            let type_ = self
+            let type_ref = self
                 .type_checker
                 .type_(type_);
             let texts = 
-                &type_
+                &type_ref
                 .as_template_literal_type()
                 .texts;
             let types = 
-                &type_
+                &type_ref
                 .as_template_literal_type()
                 .types;
             let template_head: Gc<Node> =

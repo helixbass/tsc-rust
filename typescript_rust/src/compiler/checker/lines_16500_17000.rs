@@ -310,7 +310,7 @@ impl TypeChecker {
             .type_(tuple_type)
             .as_type_reference_interface()
             .target();
-        let tuple_type_target_ref = self.type_(tuple_type_target_);
+        let tuple_type_target_ref = self.type_(tuple_type_target);
         let element_flags = &tuple_type_target_ref.as_tuple_type().element_flags;
         let element_types = try_map(&self.get_type_arguments(tuple_type), |_, i| {
             self.instantiate_mapped_type_template(

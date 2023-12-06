@@ -355,7 +355,7 @@ impl TypeChecker {
         default_value: Option<Id<Type>>,
         skip_partial: Option<bool>,
     ) -> io::Result<Option<Id<Type>>> {
-        let target_ref = self.type_(target_);
+        let target_ref = self.type_(target);
         let target_types = target_ref.as_union_type().types();
         let mut discriminable: Vec<Option<bool>> = target_types
             .into_iter()

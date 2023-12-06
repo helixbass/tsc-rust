@@ -243,7 +243,7 @@ impl TypeChecker {
             .flags()
             .intersects(TypeFlags::StringLiteral)
         {
-            let source_ref = self.type_(source_);
+            let source_ref = self.type_(source);
             let value = &source_ref.as_string_literal_type().value;
             return Ok(self.type_(target).flags().intersects(TypeFlags::Number)
                 && value != ""
@@ -262,7 +262,7 @@ impl TypeChecker {
             .flags()
             .intersects(TypeFlags::TemplateLiteral)
         {
-            let source_ref = self.type_(source_);
+            let source_ref = self.type_(source);
             let texts = &source_ref.as_template_literal_type().texts;
             return Ok(texts.len() == 2
                 && texts[0] == ""
@@ -361,7 +361,7 @@ impl TypeChecker {
         let source_start_text = &source_texts[0];
         // TODO: should be using chars for any of this instead?
         let source_end_text = &source_texts[last_source_index];
-        let target_ref = self.type_(target_);
+        let target_ref = self.type_(target);
         let target_texts = &target_ref.as_template_literal_type().texts;
         let last_target_index = target_texts.len() - 1;
         let target_start_text = &target_texts[0];
