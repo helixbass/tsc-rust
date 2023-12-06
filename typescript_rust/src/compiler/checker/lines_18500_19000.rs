@@ -92,7 +92,7 @@ impl CheckTypeRelatedTo {
                 }
             }
         }
-        for type_ in target_types {
+        for &type_ in target_types {
             let related = self.is_related_to(
                 source,
                 type_,

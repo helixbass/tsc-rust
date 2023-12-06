@@ -466,7 +466,7 @@ impl TypeChecker {
                 mapper(t)?
             };
             changed = changed
-                || match mapped.as_ref() {
+                || match mapped {
                     None => true,
                     Some(mapped) => t != mapped,
                 };
