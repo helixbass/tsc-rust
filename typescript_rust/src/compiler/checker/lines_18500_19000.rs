@@ -65,8 +65,7 @@ impl CheckTypeRelatedTo {
             .type_checker
             .type_(target)
             .as_union_or_intersection_type_interface()
-            .types()
-            .to_owned();
+            .types();
         if self
             .type_checker
             .type_(target)
@@ -168,8 +167,7 @@ impl CheckTypeRelatedTo {
             .type_checker
             .type_(source)
             .as_union_or_intersection_type_interface()
-            .types()
-            .to_owned();
+            .types();
         if self
             .type_checker
             .type_(source)
@@ -182,7 +180,7 @@ impl CheckTypeRelatedTo {
         let len = source_types.len();
         for i in 0..len {
             let related = self.is_related_to(
-                &source_types[i],
+                source_types[i],
                 target,
                 Some(RecursionFlags::Source),
                 Some(report_errors && i == len - 1),
@@ -1115,7 +1113,7 @@ impl CheckTypeRelatedTo {
             {
                 result = self.is_related_to(
                     target_type,
-                    source.as_index_type().type_,
+                    self.type_checker.type_(source).as_index_type().type_,
                     Some(RecursionFlags::Both),
                     Some(false),
                     None,
@@ -1863,7 +1861,7 @@ impl CheckTypeRelatedTo {
                     )?;
                     source_extends = self
                         .type_checker
-                        .instantiate_type(&source_extends, Some(ctx.mapper()))?;
+                        .instantiate_type(source_extends, Some(ctx.mapper()))?;
                     mapper = Some(ctx.mapper());
                 }
                 if self.type_checker.is_type_identical_to(
@@ -1986,7 +1984,7 @@ impl CheckTypeRelatedTo {
                 }
                 return Ok(Ternary::False);
             }
-            let source_is_primitive = source.flags().intersects(TypeFlags::Primitive);
+            let source_is_primitive = self.type_checker.type_(source).flags().intersects(TypeFlags::Primitive);
             if !Rc::ptr_eq(&self.relation, &self.type_checker.identity_relation) {
                 source = self.type_checker.get_apparent_type(source)?;
             } else if self.type_checker.is_generic_mapped_type(source)? {

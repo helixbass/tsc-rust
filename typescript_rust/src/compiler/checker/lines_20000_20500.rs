@@ -1058,7 +1058,7 @@ impl GetVariancesCache {
         match self {
             Self::SymbolLinks(symbol_links) => (**symbol_links).borrow().variances.clone(),
             Self::GenericType(generic_type) => type_checker
-                .type_(generic_type)
+                .type_(*generic_type)
                 .as_generic_type()
                 .maybe_variances(),
         }

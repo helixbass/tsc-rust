@@ -880,7 +880,7 @@ impl CheckTypeRelatedTo {
                         0
                     },
                     self.type_checker
-                        .get_start_element_count(&target_target, ElementFlags::NonRest),
+                        .get_start_element_count(target_target, ElementFlags::NonRest),
                 );
                 let end_count = cmp::min(
                     if self.type_checker.is_tuple_type(source) {
@@ -896,7 +896,7 @@ impl CheckTypeRelatedTo {
                     },
                     if target_rest_flag != ElementFlags::None {
                         self.type_checker
-                            .get_end_element_count(&target_target, ElementFlags::NonRest)
+                            .get_end_element_count(target_target, ElementFlags::NonRest)
                     } else {
                         0
                     },

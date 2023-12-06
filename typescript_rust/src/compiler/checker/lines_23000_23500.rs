@@ -459,16 +459,16 @@ impl TypeChecker {
         };
         let mut mapped_types: Vec<Id<Type>> = vec![];
         let mut changed = false;
-        for t in &types {
-            let mapped = if t.flags().intersects(TypeFlags::Union) {
-                self.try_map_type(&t, mapper, Some(no_reductions))?
+        for &t in &types {
+            let mapped = if self.type_(t).flags().intersects(TypeFlags::Union) {
+                self.try_map_type(t, mapper, Some(no_reductions))?
             } else {
-                mapper(&t)?
+                mapper(t)?
             };
             changed = changed
                 || match mapped.as_ref() {
                     None => true,
-                    Some(mapped) => !Gc::ptr_eq(t, mapped),
+                    Some(mapped) => t != mapped,
                 };
             if let Some(mapped) = mapped {
                 mapped_types.push(mapped);

@@ -558,7 +558,7 @@ impl TypeChecker {
                 type_
             };
             t = self
-                .get_single_base_for_non_augmenting_subtype(&t)?
+                .get_single_base_for_non_augmenting_subtype(t)?
                 .unwrap_or(t);
             if t == type_ {
                 break;

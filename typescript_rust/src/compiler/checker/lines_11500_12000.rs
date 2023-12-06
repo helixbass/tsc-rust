@@ -149,7 +149,7 @@ impl TypeChecker {
                 };
                 *self.type_(type_).as_mapped_type().maybe_modifiers_type() = Some(
                     if let Some(extended_constraint) =
-                        extended_constraint.filter(|extended_constraint| {
+                        extended_constraint.filter(|&extended_constraint| {
                             self.type_(extended_constraint)
                                 .flags()
                                 .intersects(TypeFlags::Index)

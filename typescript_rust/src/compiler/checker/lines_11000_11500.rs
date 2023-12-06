@@ -761,22 +761,23 @@ impl TypeChecker {
                 .type_(self.type_(type_).as_reverse_mapped_type().constraint_type)
                 .as_index_type()
                 .type_;
-            if type_constraint_type_type
+            if self
+                .type_(type_constraint_type_type)
                 .flags()
                 .intersects(TypeFlags::IndexedAccess)
-                && type_constraint_type_type
-                    .as_indexed_access_type()
-                    .object_type
+                && self.type_(self.type_(type_constraint_type_type
+                    ).as_indexed_access_type()
+                    .object_type)
                     .flags()
                     .intersects(TypeFlags::TypeParameter)
-                && type_constraint_type_type
-                    .as_indexed_access_type()
-                    .index_type
+                && self.type_(self.type_(type_constraint_type_type
+                    ).as_indexed_access_type()
+                    .index_type)
                     .flags()
                     .intersects(TypeFlags::TypeParameter)
             {
-                let new_type_param = &type_constraint_type_type
-                    .as_indexed_access_type()
+                let new_type_param = self.type_(type_constraint_type_type
+                    ).as_indexed_access_type()
                     .object_type;
                 let new_mapped_type = self.replace_indexed_access(
                     self.type_(type_).as_reverse_mapped_type().mapped_type,

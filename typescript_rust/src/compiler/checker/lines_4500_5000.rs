@@ -857,7 +857,7 @@ impl NodeBuilder {
             .flags()
             .intersects(TypeFlags::Any)
         {
-            if let Some(type_alias_symbol) = type_.maybe_alias_symbol() {
+            if let Some(type_alias_symbol) = self.type_checker.type_(type_).maybe_alias_symbol() {
                 return Ok(Some(
                     get_factory().create_type_reference_node(
                         self.symbol_to_entity_name_node(&type_alias_symbol),
@@ -1056,7 +1056,7 @@ impl NodeBuilder {
             .flags()
             .intersects(TypeFlags::StringLiteral)
         {
-            let value = type_.as_string_literal_type().value.clone();
+            let value = self.type_checker.type_(type_).as_string_literal_type().value.clone();
             context.increment_approximate_length_by(value.len() + 2);
             return Ok(Some(
                 get_factory().create_literal_type_node(set_emit_flags(
@@ -1079,7 +1079,7 @@ impl NodeBuilder {
             .flags()
             .intersects(TypeFlags::NumberLiteral)
         {
-            let value = type_.as_number_literal_type().value.value();
+            let value = self.type_checker.type_(type_).as_number_literal_type().value.value();
             context.increment_approximate_length_by(value.to_string().len());
             return Ok(Some(get_factory().create_literal_type_node(
                 if value < 0.0 {
@@ -1098,7 +1098,7 @@ impl NodeBuilder {
             .flags()
             .intersects(TypeFlags::BigIntLiteral)
         {
-            let value = &type_.as_big_int_literal_type().value;
+            let value = &self.type_checker.type_(type_).as_big_int_literal_type().value;
             context.increment_approximate_length_by(pseudo_big_int_to_string(value).len() + 1);
             return Ok(Some(get_factory().create_literal_type_node(
                 get_factory().create_big_int_literal(value.clone()),
@@ -1110,7 +1110,7 @@ impl NodeBuilder {
             .flags()
             .intersects(TypeFlags::BooleanLiteral)
         {
-            let type_intrinsic_name = type_.as_intrinsic_type().intrinsic_name();
+            let type_intrinsic_name = self.type_checker.type_(type_).as_intrinsic_type().intrinsic_name();
             context.increment_approximate_length_by(type_intrinsic_name.len());
             return Ok(Some(
                 get_factory().create_literal_type_node(
@@ -1417,7 +1417,7 @@ impl NodeBuilder {
                 }
             };
             if types.len() == 1 {
-                return self.type_to_type_node_helper(Some(&*types[0]), context);
+                return self.type_to_type_node_helper(Some(types[0]), context);
             }
             let type_nodes = self.map_to_type_nodes(Some(&types), context, Some(true))?;
             if let Some(type_nodes) = type_nodes {
@@ -1464,7 +1464,7 @@ impl NodeBuilder {
             let indexed_type = self.type_checker.type_(type_).as_index_type().type_;
             context.increment_approximate_length_by(6);
             let index_type_node = self
-                .type_to_type_node_helper(Some(&**indexed_type), context)?
+                .type_to_type_node_helper(Some(indexed_type), context)?
                 .unwrap();
             return Ok(Some(get_factory().create_type_operator_node(
                 SyntaxKind::KeyOfKeyword,
@@ -1551,7 +1551,7 @@ impl NodeBuilder {
             let object_type_node = self
                 .type_to_type_node_helper(
                     Some(
-                        &*self
+                        self
                             .type_checker
                             .type_(type_)
                             .as_indexed_access_type()
@@ -1563,7 +1563,7 @@ impl NodeBuilder {
             let index_type_node = self
                 .type_to_type_node_helper(
                     Some(
-                        &*self
+                        self
                             .type_checker
                             .type_(type_)
                             .as_indexed_access_type()

@@ -419,7 +419,7 @@ impl TypeChecker {
                     } else {
                         None
                     };
-                    if match new_check_type.as_ref() {
+                    if match new_check_type {
                         None => true,
                         Some(new_check_type) => {
                             new_check_type == (*new_root).borrow().check_type

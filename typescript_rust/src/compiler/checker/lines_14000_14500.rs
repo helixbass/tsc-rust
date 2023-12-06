@@ -348,7 +348,7 @@ impl TypeChecker {
                     self.get_string_literal_type(&i.to_string())
                 });
                 ret.push(self.get_index_type(
-                    &*if self.type_(type_target).as_tuple_type().readonly {
+                    if self.type_(type_target).as_tuple_type().readonly {
                         self.global_readonly_array_type()
                     } else {
                         self.global_array_type()
@@ -971,7 +971,7 @@ impl TypeChecker {
                 } else {
                     format!(
                         "#{}|{}",
-                        self.type_(origin).as_index_type().type_.id(),
+                        self.type_(self.type_(origin).as_index_type().type_).id(),
                         self.get_type_list_id(Some(&types))
                     )
                 }

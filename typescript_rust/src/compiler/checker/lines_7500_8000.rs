@@ -422,7 +422,7 @@ impl SymbolTableToDeclarationStatements {
     ) -> io::Result<Vec<Gc<Node>>> {
         let mut results: Vec<Gc<Node /*IndexSignatureDeclaration*/>> = Default::default();
         for info in &self.type_checker.get_index_infos_of_type(input)? {
-            if let Some(base_type) = base_type.as_ref() {
+            if let Some(base_type) = base_type {
                 let base_info = self
                     .type_checker
                     .get_index_info_of_type_(base_type, info.key_type)?;
@@ -491,9 +491,9 @@ impl SymbolTableToDeclarationStatements {
             .type_(t)
             .maybe_as_type_reference_interface()
             .map(|t| t.target())
-            .try_filter(|t_target| {
+            .try_filter(|&t_target| {
                 self.type_checker.is_symbol_accessible_by_flags(
-                    &t_target.symbol(),
+                    &self.type_checker.type_(t_target).symbol(),
                     Some(&*self.enclosing_declaration),
                     flags,
                 )
@@ -512,7 +512,7 @@ impl SymbolTableToDeclarationStatements {
                     .collect::<Result<Vec<_>, _>>()?,
             );
             reference = Some(self.node_builder.symbol_to_expression_(
-                &t_target.symbol(),
+                &self.type_checker.type_(t_target).symbol(),
                 &self.context(),
                 Some(SymbolFlags::Type),
             )?);

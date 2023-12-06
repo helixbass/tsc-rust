@@ -302,7 +302,7 @@ impl NodeBuilder {
         type_: Id<Type>,
         mut transform: impl FnMut(Id<Type>) -> Gc<Node>,
     ) -> Gc<Node> {
-        self.try_visit_and_transform_type(context, type_, |type_: &Type| Ok(transform(type_)))
+        self.try_visit_and_transform_type(context, type_, |type_: Id<Type>| Ok(transform(type_)))
             .unwrap()
     }
 
@@ -491,8 +491,8 @@ impl NodeBuilder {
     ) -> io::Result<Gc<Node>> {
         if self.type_checker.is_generic_mapped_type(type_)?
             || matches!(
-                type_
-                    .maybe_as_mapped_type()
+                self.type_checker.type_(type_
+                    ).maybe_as_mapped_type()
                     .and_then(|type_| type_.maybe_contains_error()),
                 Some(true)
             )
@@ -1077,8 +1077,12 @@ impl NodeBuilder {
             })]));
         }
         let mut type_elements: Vec<Gc<Node>> = vec![];
-        let resolved_type_as_resolved_type = resolved_type.as_resolved_type();
-        for signature in &*resolved_type_as_resolved_type.call_signatures() {
+        for signature in &*self
+            .type_checker
+            .type_(resolved_type)
+            .as_resolved_type()
+            .call_signatures()
+        {
             type_elements.push(self.signature_to_signature_declaration_helper(
                 signature.clone(),
                 SyntaxKind::CallSignature,
@@ -1086,7 +1090,12 @@ impl NodeBuilder {
                 Option::<SignatureToSignatureDeclarationOptions<fn(&Symbol)>>::None,
             )?);
         }
-        for signature in &*resolved_type_as_resolved_type.construct_signatures() {
+        for signature in &*self
+            .type_checker
+            .type_(resolved_type)
+            .as_resolved_type()
+            .construct_signatures()
+        {
             if signature.flags.intersects(SignatureFlags::Abstract) {
                 continue;
             }
@@ -1097,12 +1106,17 @@ impl NodeBuilder {
                 Option::<SignatureToSignatureDeclarationOptions<fn(&Symbol)>>::None,
             )?);
         }
-        for info in &*resolved_type_as_resolved_type.index_infos() {
+        for info in &*self
+            .type_checker
+            .type_(resolved_type)
+            .as_resolved_type()
+            .index_infos()
+        {
             type_elements.push(
                 self.index_info_to_index_signature_declaration_helper(
                     info,
                     context,
-                    if resolved_type_as_resolved_type
+                    if self.type_checker.type_(resolved_type).as_resolved_type()
                         .object_flags()
                         .intersects(ObjectFlags::ReverseMapped)
                     {
@@ -1114,7 +1128,11 @@ impl NodeBuilder {
             );
         }
 
-        let properties = resolved_type_as_resolved_type.properties();
+        let properties = self
+            .type_checker
+            .type_(resolved_type)
+            .as_resolved_type()
+            .properties();
         // if (!properties) {
         //     return typeElements;
         // }

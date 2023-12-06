@@ -259,7 +259,7 @@ impl TypeChecker {
             };
             self.instantiate_mapped_type(
                 mapped_type,
-                Gc::new(self.prepend_type_mapping(type_variable, &singleton, Some(mapper.clone()))),
+                Gc::new(self.prepend_type_mapping(type_variable, singleton, Some(mapper.clone()))),
                 Option::<&Symbol>::None,
                 None,
             )
@@ -339,7 +339,7 @@ impl TypeChecker {
             element_flags.clone()
         };
         let new_readonly =
-            self.get_modified_readonly_state(tuple_type_target.as_tuple_type().readonly, modifiers);
+            self.get_modified_readonly_state(self.type_(tuple_type_target).as_tuple_type().readonly, modifiers);
         Ok(if contains(Some(&element_types), &self.error_type()) {
             self.error_type()
         } else {
@@ -347,8 +347,8 @@ impl TypeChecker {
                 &element_types,
                 Some(&new_tuple_modifiers),
                 Some(new_readonly),
-                tuple_type_target
-                    .as_tuple_type()
+                self.type_(tuple_type_target
+                    ).as_tuple_type()
                     .labeled_element_declarations
                     .as_deref(),
             )?
@@ -626,7 +626,7 @@ impl TypeChecker {
                         if !match (resolved_type_arguments, new_type_arguments.as_deref()) {
                             (None, None) => true,
                             (Some(resolved_type_arguments), Some(new_type_arguments)) => {
-                                are_gc_slices_equal(new_type_arguments, resolved_type_arguments)
+                                new_type_arguments == resolved_type_arguments
                             }
                             _ => false,
                         } {
