@@ -214,8 +214,12 @@ impl NodeBuilder {
                 }
             }
         }
-        let mut result =
-            self.symbol_to_name(&self.type_checker.type_(type_).symbol(), context, Some(SymbolFlags::Type), true)?;
+        let mut result = self.symbol_to_name(
+            &self.type_checker.type_(type_).symbol(),
+            context,
+            Some(SymbolFlags::Type),
+            true,
+        )?;
         // TODO: the Typescript version has & SyntaxKind.Identifier which is presumably a bug?
         if result.kind() != SyntaxKind::Identifier {
             return Ok(get_factory().create_identifier("(Missing type parameter)"));
@@ -661,9 +665,13 @@ impl NodeBuilder {
                     .maybe_type_arguments()
                     .as_double_deref(),
             ) >= self.type_checker.get_min_type_argument_count(
-                self.type_checker.type_(self.type_checker.type_(type_
-                    ).as_type_reference_interface()
-                    .target())
+                self.type_checker
+                    .type_(
+                        self.type_checker
+                            .type_(type_)
+                            .as_type_reference_interface()
+                            .target(),
+                    )
                     .as_interface_type_interface()
                     .maybe_type_parameters(),
             )
@@ -712,7 +720,11 @@ impl NodeBuilder {
             }
         }
         let old_flags = context.flags();
-        if self.type_checker.type_(type_).flags().intersects(TypeFlags::UniqueESSymbol)
+        if self
+            .type_checker
+            .type_(type_)
+            .flags()
+            .intersects(TypeFlags::UniqueESSymbol)
             && matches!(
                 self.type_checker.type_(type_).maybe_symbol().as_ref(), Some(type_symbol) if ptr::eq(
                     &**type_symbol,

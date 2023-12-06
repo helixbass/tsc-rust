@@ -443,10 +443,8 @@ impl TypeChecker {
             if !self
                 .push_type_resolution(&type_.into(), TypeSystemPropertyName::ResolvedTypeArguments)
             {
-                return Ok(self.type_(self
-                    .type_(type_)
-                    .as_type_reference_interface()
-                    .target())
+                return Ok(self
+                    .type_(self.type_(type_).as_type_reference_interface().target())
                     .as_interface_type()
                     .maybe_local_type_parameters()
                     .map_or_else(
@@ -471,12 +469,15 @@ impl TypeChecker {
                 if node.kind() == SyntaxKind::TypeReference {
                     let target = self.type_(type_).as_type_reference_interface().target();
                     concatenate(
-                        self.type_(target).as_interface_type()
+                        self.type_(target)
+                            .as_interface_type()
                             .maybe_outer_type_parameters()
                             .map_or_else(|| vec![], ToOwned::to_owned),
                         self.get_effective_type_arguments(
                             &node,
-                            self.type_(target).as_interface_type().maybe_local_type_parameters(),
+                            self.type_(target)
+                                .as_interface_type()
+                                .maybe_local_type_parameters(),
                         )?,
                     )
                 } else if node.kind() == SyntaxKind::ArrayType {
@@ -506,9 +507,7 @@ impl TypeChecker {
                     .type_(type_)
                     .as_type_reference_interface()
                     .maybe_resolved_type_arguments_mut() = Some(
-                    self.type_(self.type_(type_)
-                        .as_type_reference_interface()
-                        .target())
+                    self.type_(self.type_(type_).as_type_reference_interface().target())
                         .as_interface_type()
                         .maybe_local_type_parameters()
                         .map_or_else(
@@ -527,10 +526,8 @@ impl TypeChecker {
                         .maybe_node()
                         .clone()
                         .or_else(|| self.maybe_current_node()),
-                    if self.type_(self
-                        .type_(type_)
-                        .as_type_reference_interface()
-                        .target())
+                    if self
+                        .type_(self.type_(type_).as_type_reference_interface().target())
                         .maybe_symbol()
                         .is_some()
                     {
@@ -538,10 +535,8 @@ impl TypeChecker {
                     } else {
                         &Diagnostics::Tuple_type_arguments_circularly_reference_themselves
                     },
-                    if let Some(type_target_symbol) = self.type_(self
-                        .type_(type_)
-                        .as_type_reference_interface()
-                        .target())
+                    if let Some(type_target_symbol) = self
+                        .type_(self.type_(type_).as_type_reference_interface().target())
                         .maybe_symbol()
                     {
                         Some(vec![self.symbol_to_string_(

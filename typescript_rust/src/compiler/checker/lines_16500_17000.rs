@@ -143,10 +143,10 @@ impl TypeChecker {
             .flags()
             .intersects(TypeFlags::Index)
         {
-            let type_variable = self.type_(
-                self.get_actual_type_variable(constraint_type)?)
-                    .as_index_type()
-                    .type_;
+            let type_variable = self
+                .type_(self.get_actual_type_variable(constraint_type)?)
+                .as_index_type()
+                .type_;
             if self
                 .type_(type_variable)
                 .flags()
@@ -245,10 +245,8 @@ impl TypeChecker {
         type_variable: Id<Type>, /*TypeVariable*/
         mapper: Gc<TypeMapper>,
     ) -> io::Result<Id<Type>> {
-        let element_flags = &self.type_(self
-            .type_(tuple_type)
-            .as_type_reference()
-            .target)
+        let element_flags = &self
+            .type_(self.type_(tuple_type).as_type_reference().target)
             .as_tuple_type()
             .element_flags;
         let element_types = try_map(&self.get_type_arguments(tuple_type)?, |&t: &Id<Type>, i| {
@@ -267,9 +265,7 @@ impl TypeChecker {
             )
         })?;
         let new_readonly = self.get_modified_readonly_state(
-            self.type_(self.type_(tuple_type)
-                .as_type_reference()
-                .target)
+            self.type_(self.type_(tuple_type).as_type_reference().target)
                 .as_tuple_type()
                 .readonly,
             self.get_mapped_type_modifiers(mapped_type),
@@ -309,7 +305,10 @@ impl TypeChecker {
         mapped_type: Id<Type>, /*MappedType*/
         mapper: Gc<TypeMapper>,
     ) -> io::Result<Id<Type>> {
-        let tuple_type_target = self.type_(tuple_type).as_type_reference_interface().target();
+        let tuple_type_target = self
+            .type_(tuple_type)
+            .as_type_reference_interface()
+            .target();
         let element_flags = &self.type_(tuple_type_target).as_tuple_type().element_flags;
         let element_types = try_map(&self.get_type_arguments(tuple_type), |_, i| {
             self.instantiate_mapped_type_template(
@@ -370,8 +369,7 @@ impl TypeChecker {
         ));
         let prop_type = self.instantiate_type(
             self.get_template_type_from_mapped_type(
-                self
-                    .type_(type_)
+                self.type_(type_)
                     .as_mapped_type()
                     .maybe_target()
                     .unwrap_or_else(|| type_),
@@ -498,8 +496,9 @@ impl TypeChecker {
                     if let Some(distribution_type) =
                         distribution_type.filter(|&distribution_type| {
                             check_type != distribution_type
-                                && self.type_(distribution_type
-                                    ).flags()
+                                && self
+                                    .type_(distribution_type)
+                                    .flags()
                                     .intersects(TypeFlags::Union | TypeFlags::Never)
                         })
                     {
@@ -659,11 +658,13 @@ impl TypeChecker {
             } else {
                 None
             };
-            let types = if let Some(origin) = origin
-                .filter(|&origin| self.type_(origin).flags().intersects(TypeFlags::UnionOrIntersection))
-            {
-                self.type_(origin
-                    ).as_union_or_intersection_type_interface()
+            let types = if let Some(origin) = origin.filter(|&origin| {
+                self.type_(origin)
+                    .flags()
+                    .intersects(TypeFlags::UnionOrIntersection)
+            }) {
+                self.type_(origin)
+                    .as_union_or_intersection_type_interface()
                     .types()
                     .to_owned()
             } else {
@@ -1048,9 +1049,7 @@ impl TypeChecker {
         {
             return self.get_intersection_type(
                 &try_map(
-                    self.type_(type_)
-                        .as_intersection_type()
-                        .types(),
+                    self.type_(type_).as_intersection_type().types(),
                     |&type_: &Id<Type>, _| self.get_type_without_signatures(type_),
                 )?,
                 Option::<&Symbol>::None,

@@ -99,10 +99,8 @@ impl TypeChecker {
                 .type_(self.type_(type_).as_indexed_access_type().object_type)
                 .flags()
                 .intersects(TypeFlags::Substitution)
-                || self.type_(self
-                    .type_(type_)
-                    .as_indexed_access_type()
-                    .index_type)
+                || self
+                    .type_(self.type_(type_).as_indexed_access_type().index_type)
                     .flags()
                     .intersects(TypeFlags::Substitution)
             {
@@ -425,8 +423,9 @@ impl TypeChecker {
                         None => true,
                         Some(new_check_type) => {
                             new_check_type == (*new_root).borrow().check_type
-                                || !self.type_(new_check_type
-                                    ).flags()
+                                || !self
+                                    .type_(new_check_type)
+                                    .flags()
                                     .intersects(TypeFlags::Union | TypeFlags::Never)
                         }
                     } {

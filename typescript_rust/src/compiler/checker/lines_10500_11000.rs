@@ -448,11 +448,7 @@ impl TypeChecker {
                     .types()
                     .to_owned(),
                 |t: Id<Type>, _| {
-                    self.get_type_with_this_argument(
-                        t,
-                        this_argument,
-                        need_apparent_type,
-                    )
+                    self.get_type_with_this_argument(t, this_argument, need_apparent_type)
                 },
             )?;
             return Ok(

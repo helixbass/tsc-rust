@@ -316,20 +316,41 @@ impl NodeBuilder {
         let is_constructor_object = get_object_flags(self.type_checker.type_(type_))
             .intersects(ObjectFlags::Anonymous)
             && matches!(self.type_checker.type_(type_).maybe_symbol(), Some(symbol) if symbol.flags().intersects(SymbolFlags::Class));
-        let id = if get_object_flags(self.type_checker.type_(type_)).intersects(ObjectFlags::Reference)
-            && self.type_checker.type_(type_
-                ).maybe_as_type_reference()
+        let id = if get_object_flags(self.type_checker.type_(type_))
+            .intersects(ObjectFlags::Reference)
+            && self
+                .type_checker
+                .type_(type_)
+                .maybe_as_type_reference()
                 .and_then(|type_| type_.node.borrow().clone())
                 .is_some()
         {
             Some(format!(
                 "N{}",
-                get_node_id(self.type_checker.type_(type_).as_type_reference().node.borrow().as_ref().unwrap())
+                get_node_id(
+                    self.type_checker
+                        .type_(type_)
+                        .as_type_reference()
+                        .node
+                        .borrow()
+                        .as_ref()
+                        .unwrap()
+                )
             ))
-        } else if self.type_checker.type_(type_).flags().intersects(TypeFlags::Conditional) {
+        } else if self
+            .type_checker
+            .type_(type_)
+            .flags()
+            .intersects(TypeFlags::Conditional)
+        {
             Some(format!(
                 "N{}",
-                get_node_id(&(*self.type_checker.type_(type_).as_conditional_type().root).borrow().node.clone())
+                get_node_id(
+                    &(*self.type_checker.type_(type_).as_conditional_type().root)
+                        .borrow()
+                        .node
+                        .clone()
+                )
             ))
         } else if let Some(type_symbol) = self.type_checker.type_(type_).maybe_symbol() {
             Some(format!(
@@ -718,7 +739,10 @@ impl NodeBuilder {
                 let type_arguments = same_map(&type_arguments, |&t: &Id<Type>, i| {
                     self.type_checker.remove_missing_type(
                         t,
-                        self.type_checker.type_(type_target).as_tuple_type().element_flags[i]
+                        self.type_checker
+                            .type_(type_target)
+                            .as_tuple_type()
+                            .element_flags[i]
                             .intersects(ElementFlags::Optional),
                     )
                 });
@@ -736,8 +760,11 @@ impl NodeBuilder {
                         {
                             for i in 0..tuple_constituent_nodes.len() {
                                 let tuple_constituent_node = tuple_constituent_nodes[i].clone();
-                                let flags =
-                                    self.type_checker.type_(type_target).as_tuple_type().element_flags[i];
+                                let flags = self
+                                    .type_checker
+                                    .type_(type_target)
+                                    .as_tuple_type()
+                                    .element_flags[i];
                                 tuple_constituent_nodes[i] = get_factory()
                                     .create_named_tuple_member(
                                         if flags.intersects(ElementFlags::Variable) {
@@ -774,8 +801,11 @@ impl NodeBuilder {
                         } else {
                             for i in 0..cmp::min(arity, tuple_constituent_nodes.len()) {
                                 let tuple_constituent_node = tuple_constituent_nodes[i].clone();
-                                let flags =
-                                    self.type_checker.type_(type_target).as_tuple_type().element_flags[i];
+                                let flags = self
+                                    .type_checker
+                                    .type_(type_target)
+                                    .as_tuple_type()
+                                    .element_flags[i];
                                 tuple_constituent_nodes[i] = if flags
                                     .intersects(ElementFlags::Variable)
                                 {
@@ -798,14 +828,21 @@ impl NodeBuilder {
                             get_factory().create_tuple_type_node(Some(tuple_constituent_nodes)),
                             EmitFlags::SingleLine,
                         );
-                        return Ok(Some(if self.type_checker.type_(type_target).as_tuple_type().readonly {
-                            get_factory().create_type_operator_node(
-                                SyntaxKind::ReadonlyKeyword,
-                                tuple_type_node,
-                            )
-                        } else {
-                            tuple_type_node
-                        }));
+                        return Ok(Some(
+                            if self
+                                .type_checker
+                                .type_(type_target)
+                                .as_tuple_type()
+                                .readonly
+                            {
+                                get_factory().create_type_operator_node(
+                                    SyntaxKind::ReadonlyKeyword,
+                                    tuple_type_node,
+                                )
+                            } else {
+                                tuple_type_node
+                            },
+                        ));
                     }
                 }
                 if context.encountered_error.get()
@@ -817,12 +854,21 @@ impl NodeBuilder {
                         get_factory().create_tuple_type_node(Some(vec![])),
                         EmitFlags::SingleLine,
                     );
-                    return Ok(Some(if self.type_checker.type_(type_target).as_tuple_type().readonly {
-                        get_factory()
-                            .create_type_operator_node(SyntaxKind::ReadonlyKeyword, tuple_type_node)
-                    } else {
-                        tuple_type_node
-                    }));
+                    return Ok(Some(
+                        if self
+                            .type_checker
+                            .type_(type_target)
+                            .as_tuple_type()
+                            .readonly
+                        {
+                            get_factory().create_type_operator_node(
+                                SyntaxKind::ReadonlyKeyword,
+                                tuple_type_node,
+                            )
+                        } else {
+                            tuple_type_node
+                        },
+                    ));
                 }
                 context.encountered_error.set(true);
                 return Ok(None);

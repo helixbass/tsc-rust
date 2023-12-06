@@ -622,8 +622,7 @@ impl TypeChecker {
                             ),
                             Some(
                                 self.get_mapped_type(
-                                    self
-                                        .type_(global_type)
+                                    self.type_(global_type)
                                         .as_generic_type()
                                         .maybe_type_parameters()
                                         .unwrap()[1],
@@ -633,8 +632,7 @@ impl TypeChecker {
                             if method_name == "next" {
                                 Some(
                                     self.get_mapped_type(
-                                        self
-                                            .type_(global_type)
+                                        self.type_(global_type)
                                             .as_generic_type()
                                             .maybe_type_parameters()
                                             .unwrap()[2],

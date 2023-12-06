@@ -467,13 +467,13 @@ impl TypeChecker {
             .resolved_symbol
             .clone();
         let assignment_kind = get_assignment_target_kind(node);
-        let apparent_type = self.get_apparent_type(if assignment_kind != AssignmentKind::None
-            || self.is_method_access_for_call(node)
-        {
-            self.get_widened_type(left_type)?
-        } else {
-            left_type
-        })?;
+        let apparent_type = self.get_apparent_type(
+            if assignment_kind != AssignmentKind::None || self.is_method_access_for_call(node) {
+                self.get_widened_type(left_type)?
+            } else {
+                left_type
+            },
+        )?;
         let is_any_like =
             self.is_type_any(Some(apparent_type)) || apparent_type == self.silent_never_type();
         let prop: Option<Gc<Symbol>>;

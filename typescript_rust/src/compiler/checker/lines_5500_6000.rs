@@ -180,7 +180,10 @@ impl NodeBuilder {
     pub(super) fn types_are_same_reference(&self, a: Id<Type>, b: Id<Type>) -> bool {
         a == b
             || self.type_checker.type_(a).maybe_symbol().is_some()
-                && are_option_gcs_equal(self.type_checker.type_(a).maybe_symbol().as_ref(), self.type_checker.type_(b).maybe_symbol().as_ref())
+                && are_option_gcs_equal(
+                    self.type_checker.type_(a).maybe_symbol().as_ref(),
+                    self.type_checker.type_(b).maybe_symbol().as_ref(),
+                )
             || self.type_checker.type_(a).maybe_alias_symbol().is_some()
                 && are_option_gcs_equal(
                     self.type_checker.type_(a).maybe_alias_symbol().as_ref(),

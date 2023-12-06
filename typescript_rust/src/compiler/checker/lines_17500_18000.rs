@@ -369,7 +369,10 @@ impl TypeChecker {
             }
             if s.intersects(TypeFlags::Literal)
                 && t.intersects(TypeFlags::Literal)
-                && self.type_(source).as_literal_type().is_value_eq(self.type_(target))
+                && self
+                    .type_(source)
+                    .as_literal_type()
+                    .is_value_eq(self.type_(target))
                 && self.is_enum_type_related_to(
                     &self
                         .get_parent_of_symbol(&self.type_(source).symbol())?
@@ -422,7 +425,7 @@ impl TypeChecker {
         relation: Rc<RefCell<HashMap<String, RelationComparisonResult>>>,
     ) -> io::Result<bool> {
         if self.is_fresh_literal_type(source) {
-            source = match self.type_(source ){
+            source = match self.type_(source) {
                 Type::IntrinsicType(intrinsic_type) => {
                     enum_unwrapped!(intrinsic_type, [IntrinsicType, FreshableIntrinsicType])
                         .regular_type()
@@ -432,7 +435,7 @@ impl TypeChecker {
             };
         }
         if self.is_fresh_literal_type(target) {
-            target = match self.type_(target ){
+            target = match self.type_(target) {
                 Type::IntrinsicType(intrinsic_type) => {
                     enum_unwrapped!(intrinsic_type, [IntrinsicType, FreshableIntrinsicType])
                         .regular_type()
@@ -476,11 +479,13 @@ impl TypeChecker {
                 return Ok(related.intersects(RelationComparisonResult::Succeeded));
             }
         }
-        if self.type_(source
-            ).flags()
+        if self
+            .type_(source)
+            .flags()
             .intersects(TypeFlags::StructuredOrInstantiable)
-            || self.type_(target
-                ).flags()
+            || self
+                .type_(target)
+                .flags()
                 .intersects(TypeFlags::StructuredOrInstantiable)
         {
             return self.check_type_related_to(
@@ -508,7 +513,7 @@ impl TypeChecker {
     ) -> io::Result<Id<Type>> {
         loop {
             let mut t = if self.is_fresh_literal_type(type_) {
-                match self.type_(type_ ){
+                match self.type_(type_) {
                     Type::IntrinsicType(intrinsic_type) => {
                         enum_unwrapped!(intrinsic_type, [IntrinsicType, FreshableIntrinsicType])
                             .regular_type()
@@ -517,21 +522,37 @@ impl TypeChecker {
                     _ => panic!("Expected IntrinsicType or LiteralType"),
                 }
             } else if get_object_flags(self.type_(type_)).intersects(ObjectFlags::Reference)
-                && self.type_(type_).as_type_reference_interface().maybe_node().is_some()
+                && self
+                    .type_(type_)
+                    .as_type_reference_interface()
+                    .maybe_node()
+                    .is_some()
             {
                 self.create_type_reference(
                     self.type_(type_).as_type_reference().target,
                     Some(self.get_type_arguments(type_)?),
                 )
-            } else if self.type_(type_).flags().intersects(TypeFlags::UnionOrIntersection) {
+            } else if self
+                .type_(type_)
+                .flags()
+                .intersects(TypeFlags::UnionOrIntersection)
+            {
                 self.get_reduced_type(type_)?
-            } else if self.type_(type_).flags().intersects(TypeFlags::Substitution) {
+            } else if self
+                .type_(type_)
+                .flags()
+                .intersects(TypeFlags::Substitution)
+            {
                 if writing {
                     self.type_(type_).as_substitution_type().base_type.clone()
                 } else {
                     self.type_(type_).as_substitution_type().substitute.clone()
                 }
-            } else if self.type_(type_).flags().intersects(TypeFlags::Simplifiable) {
+            } else if self
+                .type_(type_)
+                .flags()
+                .intersects(TypeFlags::Simplifiable)
+            {
                 self.get_simplified_type(type_, writing)?
             } else {
                 type_

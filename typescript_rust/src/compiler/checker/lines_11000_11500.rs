@@ -940,15 +940,13 @@ impl TypeChecker {
         let type_parameter = self.get_type_parameter_from_mapped_type(type_)?;
         let constraint_type = self.get_constraint_type_from_mapped_type(type_)?;
         let name_type = self.get_name_type_from_mapped_type(
-            self
-                .type_(type_)
+            self.type_(type_)
                 .as_mapped_type()
                 .maybe_target()
                 .unwrap_or_else(|| type_),
         )?;
         let template_type = self.get_template_type_from_mapped_type(
-            self
-                .type_(type_)
+            self.type_(type_)
                 .as_mapped_type()
                 .maybe_target()
                 .unwrap_or_else(|| type_),
@@ -1226,8 +1224,7 @@ impl TypeChecker {
                 return Ok(self.error_type());
             }
             let template_type = self.get_template_type_from_mapped_type(
-                self
-                    .type_(mapped_type)
+                self.type_(mapped_type)
                     .as_mapped_type()
                     .maybe_target()
                     .unwrap_or_else(|| mapped_type),

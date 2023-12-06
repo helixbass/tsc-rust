@@ -332,11 +332,8 @@ impl SymbolTableToDeclarationStatements {
         p: &Symbol,
         base_type: Option<Id<Type>>,
     ) -> io::Result<Vec<Gc<Node>>> {
-        self.serialize_property_symbol_for_interface_worker().call(
-            p,
-            false,
-            base_type,
-        )
+        self.serialize_property_symbol_for_interface_worker()
+            .call(p, false, base_type)
     }
 
     pub(super) fn serialize_signatures(
@@ -489,8 +486,10 @@ impl SymbolTableToDeclarationStatements {
         let mut type_args: Option<Vec<Gc<Node /*TypeNode*/>>> = Default::default();
         let mut reference: Option<Gc<Node /*Expression*/>> = Default::default();
 
-        if let Some(t_target) = self.type_checker.type_(t
-            ).maybe_as_type_reference_interface()
+        if let Some(t_target) = self
+            .type_checker
+            .type_(t)
+            .maybe_as_type_reference_interface()
             .map(|t| t.target())
             .try_filter(|t_target| {
                 self.type_checker.is_symbol_accessible_by_flags(
@@ -517,13 +516,19 @@ impl SymbolTableToDeclarationStatements {
                 &self.context(),
                 Some(SymbolFlags::Type),
             )?);
-        } else if let Some(t_symbol) = self.type_checker.type_(t).maybe_symbol().as_ref().try_filter(|t_symbol| {
-            self.type_checker.is_symbol_accessible_by_flags(
-                t_symbol,
-                Some(&*self.enclosing_declaration),
-                flags,
-            )
-        })? {
+        } else if let Some(t_symbol) = self
+            .type_checker
+            .type_(t)
+            .maybe_symbol()
+            .as_ref()
+            .try_filter(|t_symbol| {
+                self.type_checker.is_symbol_accessible_by_flags(
+                    t_symbol,
+                    Some(&*self.enclosing_declaration),
+                    flags,
+                )
+            })?
+        {
             reference = Some(self.node_builder.symbol_to_expression_(
                 t_symbol,
                 &self.context(),
@@ -540,7 +545,9 @@ impl SymbolTableToDeclarationStatements {
         if ref_.is_some() {
             return Ok(ref_);
         }
-        self.type_checker.type_(t).maybe_symbol()
+        self.type_checker
+            .type_(t)
+            .maybe_symbol()
             .as_ref()
             .try_map(|t_symbol| -> io::Result<_> {
                 Ok(get_factory().create_expression_with_type_arguments(

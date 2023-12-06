@@ -703,7 +703,10 @@ impl TypeChecker {
                     push_if_unique_eq(named_unions, &t);
                 } else if matches!(origin, Some(origin) if self.type_(origin).flags().intersects(TypeFlags::Union))
                 {
-                    self.add_named_unions(named_unions, self.type_(origin.unwrap()).as_union_type().types());
+                    self.add_named_unions(
+                        named_unions,
+                        self.type_(origin.unwrap()).as_union_type().types(),
+                    );
                 }
             }
         }
@@ -752,11 +755,7 @@ impl TypeChecker {
             return Ok(types.next().unwrap().borrow().clone());
         }
         let mut type_set: Vec<Id<Type>> = vec![];
-        let includes = self.add_types_to_union(
-            &mut type_set,
-            TypeFlags::None,
-            types.clone(),
-        );
+        let includes = self.add_types_to_union(&mut type_set, TypeFlags::None, types.clone());
         if union_reduction != UnionReduction::None {
             if includes.intersects(TypeFlags::AnyOrUnknown) {
                 return Ok(if includes.intersects(TypeFlags::Any) {
@@ -958,10 +957,16 @@ impl TypeChecker {
                         "|{}",
                         self.get_type_list_id(Some(self.type_(origin).as_union_type().types()))
                     )
-                } else if self.type_(origin).flags().intersects(TypeFlags::Intersection) {
+                } else if self
+                    .type_(origin)
+                    .flags()
+                    .intersects(TypeFlags::Intersection)
+                {
                     format!(
                         "&{}",
-                        self.get_type_list_id(Some(self.type_(origin).as_intersection_type().types()))
+                        self.get_type_list_id(Some(
+                            self.type_(origin).as_intersection_type().types()
+                        ))
                     )
                 } else {
                     format!(

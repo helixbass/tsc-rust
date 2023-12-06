@@ -987,7 +987,10 @@ impl TypeChecker {
             .is_none()
         {
             let resolved = self.get_type_with_this_argument(type_, Some(type_), Some(true))?;
-            *self.type_(type_).as_intersection_type().maybe_resolved_apparent_type() = Some(resolved);
+            *self
+                .type_(type_)
+                .as_intersection_type()
+                .maybe_resolved_apparent_type() = Some(resolved);
         }
         Ok(self
             .type_(type_)

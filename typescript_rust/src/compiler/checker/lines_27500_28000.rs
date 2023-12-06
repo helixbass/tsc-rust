@@ -828,13 +828,13 @@ impl TypeChecker {
             return Ok(true);
         }
         let mut containing_type = Some(containing_type);
-        if self.type_(containing_type
-            .unwrap())
+        if self
+            .type_(containing_type.unwrap())
             .flags()
             .intersects(TypeFlags::TypeParameter)
         {
-            containing_type = if self.type_(containing_type
-                .unwrap())
+            containing_type = if self
+                .type_(containing_type.unwrap())
                 .as_type_parameter()
                 .is_this_type
                 == Some(true)

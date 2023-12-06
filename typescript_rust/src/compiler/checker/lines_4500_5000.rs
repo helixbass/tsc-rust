@@ -858,14 +858,19 @@ impl NodeBuilder {
             .intersects(TypeFlags::Any)
         {
             if let Some(type_alias_symbol) = type_.maybe_alias_symbol() {
-                return Ok(Some(get_factory().create_type_reference_node(
-                    self.symbol_to_entity_name_node(&type_alias_symbol),
-                    self.map_to_type_nodes(
-                        self.type_checker.type_(type_).maybe_alias_type_arguments().as_deref(),
-                        context,
-                        None,
-                    )?,
-                )));
+                return Ok(Some(
+                    get_factory().create_type_reference_node(
+                        self.symbol_to_entity_name_node(&type_alias_symbol),
+                        self.map_to_type_nodes(
+                            self.type_checker
+                                .type_(type_)
+                                .maybe_alias_type_arguments()
+                                .as_deref(),
+                            context,
+                            None,
+                        )?,
+                    ),
+                ));
             }
             if type_ == self.type_checker.unresolved_type() {
                 let ret: Node = Into::<KeywordTypeNode>::into(
@@ -952,7 +957,11 @@ impl NodeBuilder {
             .type_(type_)
             .flags()
             .intersects(TypeFlags::Boolean)
-            && self.type_checker.type_(type_).maybe_alias_symbol().is_none()
+            && self
+                .type_checker
+                .type_(type_)
+                .maybe_alias_symbol()
+                .is_none()
         {
             context.increment_approximate_length_by(7);
             return Ok(Some(
@@ -1263,7 +1272,10 @@ impl NodeBuilder {
                     )?
                 {
                     let type_argument_nodes = self.map_to_type_nodes(
-                        self.type_checker.type_(type_).maybe_alias_type_arguments().as_deref(),
+                        self.type_checker
+                            .type_(type_)
+                            .maybe_alias_type_arguments()
+                            .as_deref(),
                         context,
                         None,
                     )?;
@@ -1290,9 +1302,21 @@ impl NodeBuilder {
         let object_flags = get_object_flags(self.type_checker.type_(type_));
 
         if object_flags.intersects(ObjectFlags::Reference) {
-            Debug_.assert(self.type_checker.type_(type_).flags().intersects(TypeFlags::Object), None);
+            Debug_.assert(
+                self.type_checker
+                    .type_(type_)
+                    .flags()
+                    .intersects(TypeFlags::Object),
+                None,
+            );
             return Ok(Some(
-                if self.type_checker.type_(type_).as_type_reference_interface().maybe_node().is_some() {
+                if self
+                    .type_checker
+                    .type_(type_)
+                    .as_type_reference_interface()
+                    .maybe_node()
+                    .is_some()
+                {
                     self.try_visit_and_transform_type(context, type_, |type_| {
                         Ok(self.type_reference_to_type_node(context, type_)?.unwrap())
                     })?
@@ -1301,13 +1325,23 @@ impl NodeBuilder {
                 },
             ));
         }
-        if self.type_checker.type_(type_).flags().intersects(TypeFlags::TypeParameter)
+        if self
+            .type_checker
+            .type_(type_)
+            .flags()
+            .intersects(TypeFlags::TypeParameter)
             || object_flags.intersects(ObjectFlags::ClassOrInterface)
         {
-            if self.type_checker.type_(type_).flags().intersects(TypeFlags::TypeParameter)
+            if self
+                .type_checker
+                .type_(type_)
+                .flags()
+                .intersects(TypeFlags::TypeParameter)
                 && contains((*context.infer_type_parameters).borrow().as_deref(), &type_)
             {
-                context.increment_approximate_length_by(symbol_name(&self.type_checker.type_(type_).symbol()).len() + 6);
+                context.increment_approximate_length_by(
+                    symbol_name(&self.type_checker.type_(type_).symbol()).len() + 6,
+                );
                 return Ok(Some(get_factory().create_infer_type_node(
                     self.type_parameter_to_declaration_with_constraint(type_, context, None)?,
                 )));
@@ -1315,7 +1349,11 @@ impl NodeBuilder {
             if context
                 .flags()
                 .intersects(NodeBuilderFlags::GenerateNamesForShadowedTypeParams)
-                && self.type_checker.type_(type_).flags().intersects(TypeFlags::TypeParameter)
+                && self
+                    .type_checker
+                    .type_(type_)
+                    .flags()
+                    .intersects(TypeFlags::TypeParameter)
                 && !self.type_checker.is_type_symbol_accessible(
                     &self.type_checker.type_(type_).symbol(),
                     context.maybe_enclosing_declaration().as_deref(),
@@ -1328,27 +1366,51 @@ impl NodeBuilder {
                     Option::<Gc<NodeArray>>::None,
                 )));
             }
-            return Ok(Some(if let Some(type_symbol) = self.type_checker.type_(type_).maybe_symbol() {
-                self.symbol_to_type_node(&type_symbol, context, SymbolFlags::Type, None)?
-            } else {
-                get_factory().create_type_reference_node(
-                    get_factory().create_identifier("?"),
-                    Option::<Gc<NodeArray>>::None,
-                )
-            }));
+            return Ok(Some(
+                if let Some(type_symbol) = self.type_checker.type_(type_).maybe_symbol() {
+                    self.symbol_to_type_node(&type_symbol, context, SymbolFlags::Type, None)?
+                } else {
+                    get_factory().create_type_reference_node(
+                        get_factory().create_identifier("?"),
+                        Option::<Gc<NodeArray>>::None,
+                    )
+                },
+            ));
         }
-        if self.type_checker.type_(type_).flags().intersects(TypeFlags::Union) {
-            if let Some(type_origin) = self.type_checker.type_(type_).as_union_type().origin.as_ref() {
+        if self
+            .type_checker
+            .type_(type_)
+            .flags()
+            .intersects(TypeFlags::Union)
+        {
+            if let Some(type_origin) = self
+                .type_checker
+                .type_(type_)
+                .as_union_type()
+                .origin
+                .as_ref()
+            {
                 type_ = type_origin.clone();
             }
         }
-        if self.type_checker.type_(type_
-            ).flags()
+        if self
+            .type_checker
+            .type_(type_)
+            .flags()
             .intersects(TypeFlags::Union | TypeFlags::Intersection)
         {
             let types = {
-                let types = self.type_checker.type_(type_).as_union_or_intersection_type_interface().types();
-                if self.type_checker.type_(type_).flags().intersects(TypeFlags::Union) {
+                let types = self
+                    .type_checker
+                    .type_(type_)
+                    .as_union_or_intersection_type_interface()
+                    .types();
+                if self
+                    .type_checker
+                    .type_(type_)
+                    .flags()
+                    .intersects(TypeFlags::Union)
+                {
                     self.type_checker.format_union_types(types)?
                 } else {
                     types.to_vec()
@@ -1360,11 +1422,18 @@ impl NodeBuilder {
             let type_nodes = self.map_to_type_nodes(Some(&types), context, Some(true))?;
             if let Some(type_nodes) = type_nodes {
                 if !type_nodes.is_empty() {
-                    return Ok(Some(if self.type_checker.type_(type_).flags().intersects(TypeFlags::Union) {
-                        get_factory().create_union_type_node(type_nodes)
-                    } else {
-                        get_factory().create_intersection_type_node(type_nodes)
-                    }));
+                    return Ok(Some(
+                        if self
+                            .type_checker
+                            .type_(type_)
+                            .flags()
+                            .intersects(TypeFlags::Union)
+                        {
+                            get_factory().create_union_type_node(type_nodes)
+                        } else {
+                            get_factory().create_intersection_type_node(type_nodes)
+                        },
+                    ));
                 }
             }
             if !context.encountered_error()
@@ -1377,10 +1446,21 @@ impl NodeBuilder {
             return Ok(None);
         }
         if object_flags.intersects(ObjectFlags::Anonymous | ObjectFlags::Mapped) {
-            Debug_.assert(self.type_checker.type_(type_).flags().intersects(TypeFlags::Object), None);
+            Debug_.assert(
+                self.type_checker
+                    .type_(type_)
+                    .flags()
+                    .intersects(TypeFlags::Object),
+                None,
+            );
             return Ok(Some(self.create_anonymous_type_node(context, type_)?));
         }
-        if self.type_checker.type_(type_).flags().intersects(TypeFlags::Index) {
+        if self
+            .type_checker
+            .type_(type_)
+            .flags()
+            .intersects(TypeFlags::Index)
+        {
             let indexed_type = self.type_checker.type_(type_).as_index_type().type_;
             context.increment_approximate_length_by(6);
             let index_type_node = self
@@ -1391,9 +1471,22 @@ impl NodeBuilder {
                 index_type_node,
             )));
         }
-        if self.type_checker.type_(type_).flags().intersects(TypeFlags::TemplateLiteral) {
-            let texts = &self.type_checker.type_(type_).as_template_literal_type().texts;
-            let types = &self.type_checker.type_(type_).as_template_literal_type().types;
+        if self
+            .type_checker
+            .type_(type_)
+            .flags()
+            .intersects(TypeFlags::TemplateLiteral)
+        {
+            let texts = &self
+                .type_checker
+                .type_(type_)
+                .as_template_literal_type()
+                .texts;
+            let types = &self
+                .type_checker
+                .type_(type_)
+                .as_template_literal_type()
+                .types;
             let template_head: Gc<Node> =
                 get_factory().create_template_head(Some(texts[0].clone()), None, None);
             let template_spans = get_factory().create_node_array(
@@ -1425,9 +1518,22 @@ impl NodeBuilder {
                 get_factory().create_template_literal_type(template_head, template_spans),
             ));
         }
-        if self.type_checker.type_(type_).flags().intersects(TypeFlags::StringMapping) {
+        if self
+            .type_checker
+            .type_(type_)
+            .flags()
+            .intersects(TypeFlags::StringMapping)
+        {
             let type_node = self
-                .type_to_type_node_helper(Some(self.type_checker.type_(type_).as_string_mapping_type().type_), context)?
+                .type_to_type_node_helper(
+                    Some(
+                        self.type_checker
+                            .type_(type_)
+                            .as_string_mapping_type()
+                            .type_,
+                    ),
+                    context,
+                )?
                 .unwrap();
             return Ok(Some(self.symbol_to_type_node(
                 &self.type_checker.type_(type_).symbol(),
@@ -1436,12 +1542,35 @@ impl NodeBuilder {
                 Some(&vec![type_node]),
             )?));
         }
-        if self.type_checker.type_(type_).flags().intersects(TypeFlags::IndexedAccess) {
+        if self
+            .type_checker
+            .type_(type_)
+            .flags()
+            .intersects(TypeFlags::IndexedAccess)
+        {
             let object_type_node = self
-                .type_to_type_node_helper(Some(&*self.type_checker.type_(type_).as_indexed_access_type().object_type), context)?
+                .type_to_type_node_helper(
+                    Some(
+                        &*self
+                            .type_checker
+                            .type_(type_)
+                            .as_indexed_access_type()
+                            .object_type,
+                    ),
+                    context,
+                )?
                 .unwrap();
             let index_type_node = self
-                .type_to_type_node_helper(Some(&*self.type_checker.type_(type_).as_indexed_access_type().index_type), context)?
+                .type_to_type_node_helper(
+                    Some(
+                        &*self
+                            .type_checker
+                            .type_(type_)
+                            .as_indexed_access_type()
+                            .index_type,
+                    ),
+                    context,
+                )?
                 .unwrap();
             context.increment_approximate_length_by(2);
             return Ok(Some(get_factory().create_indexed_access_type_node(
@@ -1449,16 +1578,33 @@ impl NodeBuilder {
                 index_type_node,
             )));
         }
-        if self.type_checker.type_(type_).flags().intersects(TypeFlags::Conditional) {
+        if self
+            .type_checker
+            .type_(type_)
+            .flags()
+            .intersects(TypeFlags::Conditional)
+        {
             return Ok(Some(self.try_visit_and_transform_type(
                 context,
                 type_,
                 |type_| self.conditional_type_to_type_node(context, type_),
             )?));
         }
-        if self.type_checker.type_(type_).flags().intersects(TypeFlags::Substitution) {
-            return self
-                .type_to_type_node_helper(Some(self.type_checker.type_(type_).as_substitution_type().base_type), context);
+        if self
+            .type_checker
+            .type_(type_)
+            .flags()
+            .intersects(TypeFlags::Substitution)
+        {
+            return self.type_to_type_node_helper(
+                Some(
+                    self.type_checker
+                        .type_(type_)
+                        .as_substitution_type()
+                        .base_type,
+                ),
+                context,
+            );
         }
 
         Debug_.fail(Some("Should be unreachable."));

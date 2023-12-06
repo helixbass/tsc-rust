@@ -1410,7 +1410,10 @@ impl TypeChecker {
             return Ok(Some(self.wildcard_type()));
         }
         if self.is_string_index_signature_only_type(object_type)?
-            && !self.type_(index_type).flags().intersects(TypeFlags::Nullable)
+            && !self
+                .type_(index_type)
+                .flags()
+                .intersects(TypeFlags::Nullable)
             && self.is_type_assignable_to_kind(
                 index_type,
                 TypeFlags::String | TypeFlags::Number,

@@ -203,7 +203,8 @@ impl TypeChecker {
                             }),
                         );
                     } else if self.is_object_literal_type(type_)
-                        && !get_object_flags(self.type_(type_)).intersects(ObjectFlags::ContainsSpread)
+                        && !get_object_flags(self.type_(type_))
+                            .intersects(ObjectFlags::ContainsSpread)
                     {
                         check_flags |= CheckFlags::WritePartial;
                         if index_types.is_none() {

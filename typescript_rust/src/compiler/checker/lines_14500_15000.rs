@@ -116,7 +116,9 @@ impl TypeChecker {
         let mut union_types: Option<Vec<Id<Type /*UnionType*/>>> = None;
         let index = find_index(
             types,
-            |&t: &Id<Type>, _| get_object_flags(self.type_(t)).intersects(ObjectFlags::PrimitiveUnion),
+            |&t: &Id<Type>, _| {
+                get_object_flags(self.type_(t)).intersects(ObjectFlags::PrimitiveUnion)
+            },
             None,
         );
         if index.is_none() {
@@ -515,8 +517,7 @@ impl TypeChecker {
         let type_parameter = self.get_type_parameter_from_mapped_type(type_)?;
         let constraint_type = self.get_constraint_type_from_mapped_type(type_)?;
         let name_type = self.get_name_type_from_mapped_type(
-            self
-                .type_(type_)
+            self.type_(type_)
                 .as_mapped_type()
                 .maybe_target()
                 .unwrap_or_else(|| type_),
@@ -573,7 +574,12 @@ impl TypeChecker {
         let result = if matches!(no_index_signatures, Some(true)) {
             self.filter_type(
                 self.get_union_type(&key_types, None, Option::<&Symbol>::None, None, None)?,
-                |t| !self.type_(t).flags().intersects(TypeFlags::Any | TypeFlags::String),
+                |t| {
+                    !self
+                        .type_(t)
+                        .flags()
+                        .intersects(TypeFlags::Any | TypeFlags::String)
+                },
             )
         } else {
             self.get_union_type(&key_types, None, Option::<&Symbol>::None, None, None)?

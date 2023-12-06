@@ -446,22 +446,10 @@ impl GetFlowTypeOfReference {
                     .type_checker
                     .get_reference_candidate(&expr_as_binary_expression.right);
                 if left.kind() == SyntaxKind::TypeOfExpression && is_string_literal_like(&right) {
-                    return self.narrow_type_by_typeof(
-                        type_,
-                        &left,
-                        operator,
-                        &right,
-                        assume_true,
-                    );
+                    return self.narrow_type_by_typeof(type_, &left, operator, &right, assume_true);
                 }
                 if right.kind() == SyntaxKind::TypeOfExpression && is_string_literal_like(&left) {
-                    return self.narrow_type_by_typeof(
-                        type_,
-                        &right,
-                        operator,
-                        &left,
-                        assume_true,
-                    );
+                    return self.narrow_type_by_typeof(type_, &right, operator, &left, assume_true);
                 }
                 if self
                     .type_checker
@@ -1099,17 +1087,24 @@ impl GetFlowTypeOfReference {
                         .get_regular_type_of_literal_type(self.type_checker.extract_unit_type(t)),
                 ))
         });
-        Ok(if self.type_checker.type_(case_type).flags().intersects(TypeFlags::Never) {
-            default_type
-        } else {
-            self.type_checker.get_union_type(
-                &[case_type, default_type],
-                None,
-                Option::<&Symbol>::None,
-                None,
-                None,
-            )?
-        })
+        Ok(
+            if self
+                .type_checker
+                .type_(case_type)
+                .flags()
+                .intersects(TypeFlags::Never)
+            {
+                default_type
+            } else {
+                self.type_checker.get_union_type(
+                    &[case_type, default_type],
+                    None,
+                    Option::<&Symbol>::None,
+                    None,
+                    None,
+                )?
+            },
+        )
     }
 
     pub(super) fn get_implied_type_from_typeof_guard(

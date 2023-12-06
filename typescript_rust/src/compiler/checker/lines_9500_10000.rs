@@ -1097,9 +1097,7 @@ impl TypeChecker {
                 Ok(base_constructor_type_symbol
                     .flags()
                     .intersects(SymbolFlags::Class)
-                    && self.are_all_outer_type_parameters_applied(
-                        original_base_type.unwrap(),
-                    )?)
+                    && self.are_all_outer_type_parameters_applied(original_base_type.unwrap())?)
             })?
         {
             base_type = self.get_type_from_class_or_interface_reference(

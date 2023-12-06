@@ -692,12 +692,14 @@ impl InferTypes {
         }
         if source == target
             && self
-                .type_checker.type_(source)
+                .type_checker
+                .type_(source)
                 .flags()
                 .intersects(TypeFlags::UnionOrIntersection)
         {
             for &t in self
-                .type_checker.type_(source)
+                .type_checker
+                .type_(source)
                 .as_union_or_intersection_type_interface()
                 .types()
             {
@@ -705,17 +707,31 @@ impl InferTypes {
             }
             return Ok(());
         }
-        if self.type_checker.type_(target).flags().intersects(TypeFlags::Union) {
+        if self
+            .type_checker
+            .type_(target)
+            .flags()
+            .intersects(TypeFlags::Union)
+        {
             let (temp_sources, temp_targets) = self.infer_from_matching_types(
-                &if self.type_checker.type_(source).flags().intersects(TypeFlags::Union) {
-                    self.type_checker.type_(source
-                        ).as_union_or_intersection_type_interface()
+                &if self
+                    .type_checker
+                    .type_(source)
+                    .flags()
+                    .intersects(TypeFlags::Union)
+                {
+                    self.type_checker
+                        .type_(source)
+                        .as_union_or_intersection_type_interface()
                         .types()
                         .to_owned()
                 } else {
                     vec![source.clone()]
                 },
-                self.type_checker.type_(target).as_union_or_intersection_type_interface().types(),
+                self.type_checker
+                    .type_(target)
+                    .as_union_or_intersection_type_interface()
+                    .types(),
                 |s: Id<Type>, t: Id<Type>| self.type_checker.is_type_or_base_identical_to(s, t),
             )?;
             let (sources, targets) = self.infer_from_matching_types(
@@ -745,12 +761,14 @@ impl InferTypes {
                 None,
             )?;
         } else if self
-            .type_checker.type_(target)
+            .type_checker
+            .type_(target)
             .flags()
             .intersects(TypeFlags::Intersection)
             && try_some(
                 Some(
-                    self.type_checker.type_(target)
+                    self.type_checker
+                        .type_(target)
                         .as_union_or_intersection_type_interface()
                         .types(),
                 ),
@@ -767,17 +785,31 @@ impl InferTypes {
                 }),
             )?
         {
-            if !self.type_checker.type_(source).flags().intersects(TypeFlags::Union) {
+            if !self
+                .type_checker
+                .type_(source)
+                .flags()
+                .intersects(TypeFlags::Union)
+            {
                 let (sources, targets) = self.infer_from_matching_types(
-                    &if self.type_checker.type_(source).flags().intersects(TypeFlags::Intersection) {
-                        self.type_checker.type_(source
-                            ).as_union_or_intersection_type_interface()
+                    &if self
+                        .type_checker
+                        .type_(source)
+                        .flags()
+                        .intersects(TypeFlags::Intersection)
+                    {
+                        self.type_checker
+                            .type_(source)
+                            .as_union_or_intersection_type_interface()
                             .types()
                             .to_owned()
                     } else {
                         vec![source.clone()]
                     },
-                    self.type_checker.type_(target).as_union_or_intersection_type_interface().types(),
+                    self.type_checker
+                        .type_(target)
+                        .as_union_or_intersection_type_interface()
+                        .types(),
                     |s: Id<Type>, t: Id<Type>| self.type_checker.is_type_identical_to(s, t),
                 )?;
                 if sources.is_empty() || targets.is_empty() {
@@ -794,14 +826,22 @@ impl InferTypes {
                     None,
                 )?;
             }
-        } else if self.type_checker.type_(target
-            ).flags()
+        } else if self
+            .type_checker
+            .type_(target)
+            .flags()
             .intersects(TypeFlags::IndexedAccess | TypeFlags::Substitution)
         {
             target = self.type_checker.get_actual_type_variable(target)?;
         }
-        if self.type_checker.type_(target).flags().intersects(TypeFlags::TypeVariable) {
-            if get_object_flags(self.type_checker.type_(source)).intersects(ObjectFlags::NonInferrableType)
+        if self
+            .type_checker
+            .type_(target)
+            .flags()
+            .intersects(TypeFlags::TypeVariable)
+        {
+            if get_object_flags(self.type_checker.type_(source))
+                .intersects(ObjectFlags::NonInferrableType)
                 || source == self.type_checker.non_inferrable_any_type()
                 || source == self.type_checker.silent_never_type()
                 || self.priority().intersects(InferencePriority::ReturnType)
@@ -854,7 +894,11 @@ impl InferTypes {
                         }
                     }
                     if !self.priority().intersects(InferencePriority::ReturnType)
-                        && self.type_checker.type_(target).flags().intersects(TypeFlags::TypeParameter)
+                        && self
+                            .type_checker
+                            .type_(target)
+                            .flags()
+                            .intersects(TypeFlags::TypeParameter)
                         && inference.top_level()
                         && !self
                             .type_checker
@@ -875,21 +919,32 @@ impl InferTypes {
                         |source: Id<Type>, target: Id<Type>| self.infer_from_types(source, target),
                     )?;
                 } else if self
-                    .type_checker.type_(target)
+                    .type_checker
+                    .type_(target)
                     .flags()
                     .intersects(TypeFlags::IndexedAccess)
                 {
-                    let index_type = self
-                        .type_checker
-                        .get_simplified_type(&self.type_checker.type_(target).as_indexed_access_type().index_type, false)?;
+                    let index_type = self.type_checker.get_simplified_type(
+                        &self
+                            .type_checker
+                            .type_(target)
+                            .as_indexed_access_type()
+                            .index_type,
+                        false,
+                    )?;
                     if self
-                        .type_checker.type_(index_type)
+                        .type_checker
+                        .type_(index_type)
                         .flags()
                         .intersects(TypeFlags::Instantiable)
                     {
                         let simplified = self.type_checker.distribute_index_over_object_type(
                             self.type_checker.get_simplified_type(
-                                &self.type_checker.type_(target).as_indexed_access_type().object_type,
+                                &self
+                                    .type_checker
+                                    .type_(target)
+                                    .as_indexed_access_type()
+                                    .object_type,
                                 false,
                             )?,
                             index_type,
@@ -913,31 +968,70 @@ impl InferTypes {
         if get_object_flags(self.type_checker.type_(source)).intersects(ObjectFlags::Reference)
             && get_object_flags(self.type_checker.type_(target)).intersects(ObjectFlags::Reference)
             && {
-                (
-                    self.type_checker.type_(source).as_type_reference_interface().target() ==
-                    self.type_checker.type_(target).as_type_reference_interface().target()
-                 || self.type_checker.is_array_type(source)
-                    && self.type_checker.is_array_type(target))
-                    && !(self.type_checker.type_(source).as_type_reference_interface().maybe_node().is_some()
-                        && self.type_checker.type_(target).as_type_reference_interface().maybe_node().is_some())
+                (self
+                    .type_checker
+                    .type_(source)
+                    .as_type_reference_interface()
+                    .target()
+                    == self
+                        .type_checker
+                        .type_(target)
+                        .as_type_reference_interface()
+                        .target()
+                    || self.type_checker.is_array_type(source)
+                        && self.type_checker.is_array_type(target))
+                    && !(self
+                        .type_checker
+                        .type_(source)
+                        .as_type_reference_interface()
+                        .maybe_node()
+                        .is_some()
+                        && self
+                            .type_checker
+                            .type_(target)
+                            .as_type_reference_interface()
+                            .maybe_node()
+                            .is_some())
             }
         {
             self.infer_from_type_arguments(
                 &*self.type_checker.get_type_arguments(source)?,
                 &*self.type_checker.get_type_arguments(target)?,
-                &self
-                    .type_checker
-                    .get_variances(self.type_checker.type_(source).as_type_reference_interface().target()),
+                &self.type_checker.get_variances(
+                    self.type_checker
+                        .type_(source)
+                        .as_type_reference_interface()
+                        .target(),
+                ),
             )?;
-        } else if self.type_checker.type_(source).flags().intersects(TypeFlags::Index)
-            && self.type_checker.type_(target).flags().intersects(TypeFlags::Index)
+        } else if self
+            .type_checker
+            .type_(source)
+            .flags()
+            .intersects(TypeFlags::Index)
+            && self
+                .type_checker
+                .type_(target)
+                .flags()
+                .intersects(TypeFlags::Index)
         {
             self.set_contravariant(!self.contravariant());
-            self.infer_from_types(self.type_checker.type_(source).as_index_type().type_, self.type_checker.type_(target).as_index_type().type_)?;
+            self.infer_from_types(
+                self.type_checker.type_(source).as_index_type().type_,
+                self.type_checker.type_(target).as_index_type().type_,
+            )?;
             self.set_contravariant(!self.contravariant());
         } else if (self.type_checker.is_literal_type(source)
-            || self.type_checker.type_(source).flags().intersects(TypeFlags::String))
-            && self.type_checker.type_(target).flags().intersects(TypeFlags::Index)
+            || self
+                .type_checker
+                .type_(source)
+                .flags()
+                .intersects(TypeFlags::String))
+            && self
+                .type_checker
+                .type_(target)
+                .flags()
+                .intersects(TypeFlags::Index)
         {
             let empty = self
                 .type_checker
@@ -949,54 +1043,137 @@ impl InferTypes {
                 InferencePriority::LiteralKeyof,
             )?;
             self.set_contravariant(!self.contravariant());
-        } else if self.type_checker.type_(source).flags().intersects(TypeFlags::IndexedAccess)
-            && self.type_checker.type_(target).flags().intersects(TypeFlags::IndexedAccess)
+        } else if self
+            .type_checker
+            .type_(source)
+            .flags()
+            .intersects(TypeFlags::IndexedAccess)
+            && self
+                .type_checker
+                .type_(target)
+                .flags()
+                .intersects(TypeFlags::IndexedAccess)
         {
             self.infer_from_types(
-                self.type_checker.type_(source).as_indexed_access_type().object_type,
-                self.type_checker.type_(target).as_indexed_access_type().object_type,
+                self.type_checker
+                    .type_(source)
+                    .as_indexed_access_type()
+                    .object_type,
+                self.type_checker
+                    .type_(target)
+                    .as_indexed_access_type()
+                    .object_type,
             )?;
             self.infer_from_types(
-                self.type_checker.type_(source).as_indexed_access_type().index_type,
-                self.type_checker.type_(target).as_indexed_access_type().index_type,
+                self.type_checker
+                    .type_(source)
+                    .as_indexed_access_type()
+                    .index_type,
+                self.type_checker
+                    .type_(target)
+                    .as_indexed_access_type()
+                    .index_type,
             )?;
-        } else if self.type_checker.type_(source).flags().intersects(TypeFlags::StringMapping)
-            && self.type_checker.type_(target).flags().intersects(TypeFlags::StringMapping)
+        } else if self
+            .type_checker
+            .type_(source)
+            .flags()
+            .intersects(TypeFlags::StringMapping)
+            && self
+                .type_checker
+                .type_(target)
+                .flags()
+                .intersects(TypeFlags::StringMapping)
         {
-            if Gc::ptr_eq(&self.type_checker.type_(source).symbol(), &self.type_checker.type_(target).symbol()) {
+            if Gc::ptr_eq(
+                &self.type_checker.type_(source).symbol(),
+                &self.type_checker.type_(target).symbol(),
+            ) {
                 self.infer_from_types(
-                    self.type_checker.type_(source).as_string_mapping_type().type_,
-                    self.type_checker.type_(target).as_string_mapping_type().type_,
+                    self.type_checker
+                        .type_(source)
+                        .as_string_mapping_type()
+                        .type_,
+                    self.type_checker
+                        .type_(target)
+                        .as_string_mapping_type()
+                        .type_,
                 )?;
             }
-        } else if self.type_checker.type_(source).flags().intersects(TypeFlags::Substitution) {
-            self.infer_from_types(self.type_checker.type_(source).as_substitution_type().base_type, target)?;
+        } else if self
+            .type_checker
+            .type_(source)
+            .flags()
+            .intersects(TypeFlags::Substitution)
+        {
+            self.infer_from_types(
+                self.type_checker
+                    .type_(source)
+                    .as_substitution_type()
+                    .base_type,
+                target,
+            )?;
             let old_priority = self.priority();
             self.set_priority(self.priority() | InferencePriority::SubstituteSource);
-            self.infer_from_types(self.type_checker.type_(source).as_substitution_type().substitute, target)?;
+            self.infer_from_types(
+                self.type_checker
+                    .type_(source)
+                    .as_substitution_type()
+                    .substitute,
+                target,
+            )?;
             self.set_priority(old_priority);
-        } else if self.type_checker.type_(target).flags().intersects(TypeFlags::Conditional) {
+        } else if self
+            .type_checker
+            .type_(target)
+            .flags()
+            .intersects(TypeFlags::Conditional)
+        {
             self.try_invoke_once(source, target, |source: Id<Type>, target: Id<Type>| {
                 self.infer_to_conditional_type(source, target)
             })?;
-        } else if self.type_checker.type_(target).flags().intersects(TypeFlags::UnionOrIntersection) {
+        } else if self
+            .type_checker
+            .type_(target)
+            .flags()
+            .intersects(TypeFlags::UnionOrIntersection)
+        {
             self.infer_to_multiple_types(
                 source,
-                self.type_checker.type_(target).as_union_or_intersection_type_interface().types(),
+                self.type_checker
+                    .type_(target)
+                    .as_union_or_intersection_type_interface()
+                    .types(),
                 self.type_checker.type_(target).flags(),
             )?;
-        } else if self.type_checker.type_(source).flags().intersects(TypeFlags::Union) {
-            let source_types = self.type_checker.type_(source).as_union_or_intersection_type_interface().types();
+        } else if self
+            .type_checker
+            .type_(source)
+            .flags()
+            .intersects(TypeFlags::Union)
+        {
+            let source_types = self
+                .type_checker
+                .type_(source)
+                .as_union_or_intersection_type_interface()
+                .types();
             for source_type in source_types {
                 self.infer_from_types(source_type, target)?;
             }
-        } else if self.type_checker.type_(target).flags().intersects(TypeFlags::TemplateLiteral) {
+        } else if self
+            .type_checker
+            .type_(target)
+            .flags()
+            .intersects(TypeFlags::TemplateLiteral)
+        {
             self.infer_to_template_literal_type(source, target)?;
         } else {
             source = self.type_checker.get_reduced_type(source)?;
             if !(self.priority().intersects(InferencePriority::NoConstraints)
-                && self.type_checker.type_(source
-                    ).flags()
+                && self
+                    .type_checker
+                    .type_(source)
+                    .flags()
                     .intersects(TypeFlags::Intersection | TypeFlags::Instantiable))
             {
                 let apparent_source = self.type_checker.get_apparent_type(source)?;
@@ -1013,8 +1190,10 @@ impl InferTypes {
                 }
                 source = apparent_source;
             }
-            if self.type_checker.type_(source
-                ).flags()
+            if self
+                .type_checker
+                .type_(source)
+                .flags()
                 .intersects(TypeFlags::Object | TypeFlags::Intersection)
             {
                 self.try_invoke_once(source, target, |source: Id<Type>, target: Id<Type>| {

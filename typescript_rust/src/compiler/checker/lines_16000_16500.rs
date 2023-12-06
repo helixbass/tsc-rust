@@ -1132,11 +1132,21 @@ impl TypeChecker {
                     .clone()
                     .unwrap()
             };
-            type_parameters = if (self.type_(target).as_object_type()
+            type_parameters = if (self
+                .type_(target)
+                .as_object_type()
                 .object_flags()
                 .intersects(ObjectFlags::Reference)
-                || self.type_(target).symbol().flags().intersects(SymbolFlags::Method)
-                || self.type_(target).symbol().flags().intersects(SymbolFlags::TypeLiteral))
+                || self
+                    .type_(target)
+                    .symbol()
+                    .flags()
+                    .intersects(SymbolFlags::Method)
+                || self
+                    .type_(target)
+                    .symbol()
+                    .flags()
+                    .intersects(SymbolFlags::TypeLiteral))
                 && self.type_(target).maybe_alias_type_arguments().is_none()
             {
                 try_maybe_filter(type_parameters.as_deref(), |&tp: &Id<Type>| {
@@ -1181,9 +1191,15 @@ impl TypeChecker {
                     new_alias_type_arguments.as_deref()
                 )
             );
-            if self.type_(target).as_object_type().maybe_instantiations().is_none() {
+            if self
+                .type_(target)
+                .as_object_type()
+                .maybe_instantiations()
+                .is_none()
+            {
                 *self.type_(target).as_object_type().maybe_instantiations() = Some(HashMap::new());
-                self.type_(target).as_object_type()
+                self.type_(target)
+                    .as_object_type()
                     .maybe_instantiations()
                     .as_mut()
                     .unwrap()
@@ -1199,7 +1215,9 @@ impl TypeChecker {
                         target.clone(),
                     );
             }
-            let mut result = self.type_(target).as_object_type()
+            let mut result = self
+                .type_(target)
+                .as_object_type()
                 .maybe_instantiations()
                 .as_ref()
                 .unwrap()
@@ -1209,7 +1227,9 @@ impl TypeChecker {
                 let new_mapper =
                     Gc::new(self.create_type_mapper(type_parameters, Some(type_arguments)));
                 result = Some(
-                    if self.type_(target).as_object_type()
+                    if self
+                        .type_(target)
+                        .as_object_type()
                         .object_flags()
                         .intersects(ObjectFlags::Reference)
                     {
@@ -1225,7 +1245,9 @@ impl TypeChecker {
                             new_alias_symbol,
                             new_alias_type_arguments.as_deref(),
                         )?
-                    } else if self.type_(target).as_object_type()
+                    } else if self
+                        .type_(target)
+                        .as_object_type()
                         .object_flags()
                         .intersects(ObjectFlags::Mapped)
                     {
@@ -1244,7 +1266,8 @@ impl TypeChecker {
                         )?
                     },
                 );
-                self.type_(target).as_object_type()
+                self.type_(target)
+                    .as_object_type()
                     .maybe_instantiations()
                     .as_mut()
                     .unwrap()

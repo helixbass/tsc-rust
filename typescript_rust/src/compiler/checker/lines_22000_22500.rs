@@ -291,25 +291,21 @@ impl InferTypes {
             .intersects(TypeFlags::Conditional)
         {
             self.infer_from_types(
-                self
-                    .type_checker
+                self.type_checker
                     .type_(source)
                     .as_conditional_type()
                     .check_type,
-                self
-                    .type_checker
+                self.type_checker
                     .type_(target)
                     .as_conditional_type()
                     .check_type,
             )?;
             self.infer_from_types(
-                self
-                    .type_checker
+                self.type_checker
                     .type_(source)
                     .as_conditional_type()
                     .extends_type,
-                self
-                    .type_checker
+                self.type_checker
                     .type_(target)
                     .as_conditional_type()
                     .extends_type,

@@ -612,7 +612,11 @@ impl CheckTypeRelatedTo {
                     .type_(source)
                     .flags()
                     .intersects(TypeFlags::StringLiteral)
-                    && self.type_checker.type_(target).flags().intersects(TypeFlags::Union)
+                    && self
+                        .type_checker
+                        .type_(target)
+                        .flags()
+                        .intersects(TypeFlags::Union)
                 {
                     let suggested_type = self
                         .type_checker
@@ -828,8 +832,16 @@ impl CheckTypeRelatedTo {
             Ok(())
         };
 
-        if self.type_checker.type_(original_source).flags().intersects(TypeFlags::Object)
-            && self.type_checker.type_(original_target).flags().intersects(TypeFlags::Primitive)
+        if self
+            .type_checker
+            .type_(original_source)
+            .flags()
+            .intersects(TypeFlags::Object)
+            && self
+                .type_checker
+                .type_(original_target)
+                .flags()
+                .intersects(TypeFlags::Primitive)
         {
             if self.type_checker.is_simple_type_related_to(
                 original_source,
@@ -851,7 +863,8 @@ impl CheckTypeRelatedTo {
                 original_source,
                 original_target,
                 Ternary::False,
-                get_object_flags(self.type_checker.type_(original_source)).intersects(ObjectFlags::JsxAttributes),
+                get_object_flags(self.type_checker.type_(original_source))
+                    .intersects(ObjectFlags::JsxAttributes),
             )?;
             return Ok(Ternary::False);
         }
@@ -962,7 +975,12 @@ impl CheckTypeRelatedTo {
                     self.report_relation_error(
                         head_message,
                         source,
-                        if self.type_checker.type_(original_target).maybe_alias_symbol().is_some() {
+                        if self
+                            .type_checker
+                            .type_(original_target)
+                            .maybe_alias_symbol()
+                            .is_some()
+                        {
                             original_target
                         } else {
                             target
@@ -1001,7 +1019,12 @@ impl CheckTypeRelatedTo {
         {
             if report_errors {
                 let source_string = self.type_checker.type_to_string_(
-                    if self.type_checker.type_(original_source).maybe_alias_symbol().is_some() {
+                    if self
+                        .type_checker
+                        .type_(original_source)
+                        .maybe_alias_symbol()
+                        .is_some()
+                    {
                         original_source
                     } else {
                         source
@@ -1011,7 +1034,12 @@ impl CheckTypeRelatedTo {
                     None,
                 )?;
                 let target_string = self.type_checker.type_to_string_(
-                    if self.type_checker.type_(original_target).maybe_alias_symbol().is_some() {
+                    if self
+                        .type_checker
+                        .type_(original_target)
+                        .maybe_alias_symbol()
+                        .is_some()
+                    {
                         original_target
                     } else {
                         target
@@ -1296,8 +1324,16 @@ impl CheckTypeRelatedTo {
             if maybe_suppress {
                 self.set_override_next_error_info(self.override_next_error_info() - 1);
             }
-            if self.type_checker.type_(source).flags().intersects(TypeFlags::Object)
-                && self.type_checker.type_(target).flags().intersects(TypeFlags::Object)
+            if self
+                .type_checker
+                .type_(source)
+                .flags()
+                .intersects(TypeFlags::Object)
+                && self
+                    .type_checker
+                    .type_(target)
+                    .flags()
+                    .intersects(TypeFlags::Object)
             {
                 let current_error = self.maybe_error_info();
                 self.try_elaborate_array_like_errors(source, target, report_errors)?;
@@ -1311,12 +1347,24 @@ impl CheckTypeRelatedTo {
                     maybe_suppress = self.maybe_error_info().is_some();
                 }
             }
-            if self.type_checker.type_(source).flags().intersects(TypeFlags::Object)
-                && self.type_checker.type_(target).flags().intersects(TypeFlags::Primitive)
+            if self
+                .type_checker
+                .type_(source)
+                .flags()
+                .intersects(TypeFlags::Object)
+                && self
+                    .type_checker
+                    .type_(target)
+                    .flags()
+                    .intersects(TypeFlags::Primitive)
             {
                 self.try_elaborate_errors_for_primitives_and_objects(source, target)?;
             } else if self.type_checker.type_(source).maybe_symbol().is_some()
-                && self.type_checker.type_(source).flags().intersects(TypeFlags::Object)
+                && self
+                    .type_checker
+                    .type_(source)
+                    .flags()
+                    .intersects(TypeFlags::Object)
                 && self.type_checker.global_object_type() == source
             {
                 self.report_error(
@@ -1324,9 +1372,17 @@ impl CheckTypeRelatedTo {
                     None,
                 )?;
             } else if is_comparing_jsx_attributes
-                && self.type_checker.type_(target).flags().intersects(TypeFlags::Intersection)
+                && self
+                    .type_checker
+                    .type_(target)
+                    .flags()
+                    .intersects(TypeFlags::Intersection)
             {
-                let target_types = self.type_checker.type_(target).as_union_or_intersection_type_interface().types();
+                let target_types = self
+                    .type_checker
+                    .type_(target)
+                    .as_union_or_intersection_type_interface()
+                    .types();
                 let intrinsic_attributes = self.type_checker.get_jsx_type(
                     &JsxNames::IntrinsicAttributes,
                     self.maybe_error_node().as_deref(),
@@ -1554,14 +1610,22 @@ impl CheckTypeRelatedTo {
                     self.type_checker
                         .filter_primitives_if_contains_non_primitive(target)
                 });
-            check_types = Some(if self.type_checker.type_(reduced_target).flags().intersects(TypeFlags::Union) {
-                self.type_checker.type_(reduced_target
-                    ).as_union_or_intersection_type_interface()
-                    .types()
-                    .to_owned()
-            } else {
-                vec![reduced_target.clone()]
-            });
+            check_types = Some(
+                if self
+                    .type_checker
+                    .type_(reduced_target)
+                    .flags()
+                    .intersects(TypeFlags::Union)
+                {
+                    self.type_checker
+                        .type_(reduced_target)
+                        .as_union_or_intersection_type_interface()
+                        .types()
+                        .to_owned()
+                } else {
+                    vec![reduced_target.clone()]
+                },
+            );
         }
         for prop in self.type_checker.get_properties_of_type(source)? {
             if self
@@ -1574,10 +1638,9 @@ impl CheckTypeRelatedTo {
                     is_comparing_jsx_attributes,
                 )? {
                     if report_errors {
-                        let error_target =
-                            self.type_checker.filter_type(reduced_target, |type_| {
-                                self.type_checker.is_excess_property_check_target(type_)
-                            });
+                        let error_target = self.type_checker.filter_type(reduced_target, |type_| {
+                            self.type_checker.is_excess_property_check_target(type_)
+                        });
                         if self.maybe_error_node().is_none() {
                             Debug_.fail(None);
                         }

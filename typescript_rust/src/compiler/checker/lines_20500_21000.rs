@@ -350,7 +350,9 @@ impl TypeChecker {
         {
             bases[0].clone()
         } else {
-            let target_type_parameters = self.type_(target).as_interface_type()
+            let target_type_parameters = self
+                .type_(target)
+                .as_interface_type()
                 .maybe_type_parameters()
                 .map(ToOwned::to_owned)
                 .unwrap();

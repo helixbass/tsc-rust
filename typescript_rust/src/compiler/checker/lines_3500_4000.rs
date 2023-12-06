@@ -440,7 +440,8 @@ impl TypeChecker {
             .type_(resolved_external_module_type)
             .flags()
             .intersects(TypeFlags::Primitive)
-            || get_object_flags(self.type_(resolved_external_module_type)).intersects(ObjectFlags::Class)
+            || get_object_flags(self.type_(resolved_external_module_type))
+                .intersects(ObjectFlags::Class)
             || self.is_array_type(resolved_external_module_type)
             || self.is_tuple_type(resolved_external_module_type))
     }

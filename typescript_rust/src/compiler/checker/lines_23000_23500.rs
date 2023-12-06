@@ -450,8 +450,8 @@ impl TypeChecker {
         let types = if let Some(origin) =
             origin.filter(|&origin| self.type_(origin).flags().intersects(TypeFlags::Union))
         {
-            self.type_(origin
-                ).as_union_or_intersection_type_interface()
+            self.type_(origin)
+                .as_union_or_intersection_type_interface()
                 .types()
                 .to_owned()
         } else {
@@ -748,8 +748,7 @@ impl TypeChecker {
         if final_array_type.is_none() {
             *final_array_type = Some(
                 self.create_final_array_type(
-                    self
-                        .type_(evolving_array_type)
+                    self.type_(evolving_array_type)
                         .as_evolving_array_type()
                         .element_type,
                 )?,
