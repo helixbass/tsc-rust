@@ -26,19 +26,37 @@ use crate::{
 
 impl TypeChecker {
     pub(super) fn get_template_string_for_type(&self, type_: Id<Type>) -> Option<String> {
-        if type_.flags().intersects(TypeFlags::StringLiteral) {
-            Some(type_.as_string_literal_type().value.clone())
-        } else if type_.flags().intersects(TypeFlags::NumberLiteral) {
-            Some(type_.as_number_literal_type().value.to_string())
-        } else if type_.flags().intersects(TypeFlags::BigIntLiteral) {
+        if self
+            .type_(type_)
+            .flags()
+            .intersects(TypeFlags::StringLiteral)
+        {
+            Some(self.type_(type_).as_string_literal_type().value.clone())
+        } else if self
+            .type_(type_)
+            .flags()
+            .intersects(TypeFlags::NumberLiteral)
+        {
+            Some(self.type_(type_).as_number_literal_type().value.to_string())
+        } else if self
+            .type_(type_)
+            .flags()
+            .intersects(TypeFlags::BigIntLiteral)
+        {
             Some(pseudo_big_int_to_string(
-                &type_.as_big_int_literal_type().value,
+                &self.type_(type_).as_big_int_literal_type().value,
             ))
-        } else if type_
+        } else if self
+            .type_(type_)
             .flags()
             .intersects(TypeFlags::BooleanLiteral | TypeFlags::Nullable)
         {
-            Some(type_.as_intrinsic_type().intrinsic_name().to_owned())
+            Some(
+                self.type_(type_)
+                    .as_intrinsic_type()
+                    .intrinsic_name()
+                    .to_owned(),
+            )
         } else {
             None
         }
@@ -50,7 +68,7 @@ impl TypeChecker {
         types: Vec<Id<Type>>,
     ) -> Id<Type> {
         let type_ = self.create_type(TypeFlags::TemplateLiteral);
-        let type_: Id<Type> = TemplateLiteralType::new(type_, texts, types).into();
+        let type_ = self.alloc_type(TemplateLiteralType::new(type_, texts, types).into());
         type_
     }
 
@@ -60,8 +78,8 @@ impl TypeChecker {
         type_: Id<Type>,
     ) -> io::Result<Id<Type>> {
         Ok(
-            if type_
-                .flags()
+            if self.type_(type_
+                ).flags()
                 .intersects(TypeFlags::Union | TypeFlags::Never)
             {
                 self.try_map_type(
@@ -72,12 +90,12 @@ impl TypeChecker {
                 .unwrap()
             } else if self.is_generic_index_type(type_)? {
                 self.get_string_mapping_type_for_generic_type(symbol, type_)
-            } else if type_.flags().intersects(TypeFlags::StringLiteral) {
+            } else if self.type_(type_).flags().intersects(TypeFlags::StringLiteral) {
                 self.get_string_literal_type(
-                    &self.apply_string_mapping(symbol, &type_.as_string_literal_type().value),
+                    &self.apply_string_mapping(symbol, &self.type_(type_).as_string_literal_type().value),
                 )
             } else {
-                type_.type_wrapper()
+                type_
             },
         )
     }
@@ -109,8 +127,8 @@ impl TypeChecker {
 
     pub(super) fn create_string_mapping_type(&self, symbol: &Symbol, type_: Id<Type>) -> Id<Type> {
         let result = self.create_type(TypeFlags::StringMapping);
-        let result: Id<Type> = StringMappingType::new(result, type_.type_wrapper()).into();
-        result.set_symbol(Some(symbol.symbol_wrapper()));
+        let result = self.alloc_type(StringMappingType::new(result, type_).into());
+        self.type_(result).set_symbol(Some(symbol.symbol_wrapper()));
         result
     }
 
@@ -123,16 +141,17 @@ impl TypeChecker {
         alias_type_arguments: Option<&[Id<Type>]>,
     ) -> Id<Type> {
         let type_ = self.create_type(TypeFlags::IndexedAccess);
-        let type_: Id<Type> = IndexedAccessType::new(
+        let type_ = self.alloc_type(IndexedAccessType::new(
             type_,
-            object_type.type_wrapper(),
-            index_type.type_wrapper(),
+            object_type,
+            index_type,
             access_flags,
         )
-        .into();
-        *type_.maybe_alias_symbol_mut() =
+        .into());
+        *self.type_(type_).maybe_alias_symbol_mut() =
             alias_symbol.map(|alias_symbol| alias_symbol.borrow().symbol_wrapper());
-        *type_.maybe_alias_type_arguments_mut() = alias_type_arguments.map(ToOwned::to_owned);
+        *self.type_(type_).maybe_alias_type_arguments_mut() =
+            alias_type_arguments.map(ToOwned::to_owned);
         type_
     }
 
@@ -140,34 +159,43 @@ impl TypeChecker {
         if self.no_implicit_any {
             return Ok(false);
         }
-        if get_object_flags(type_).intersects(ObjectFlags::JSLiteral) {
+        if get_object_flags(self.type_(type_)).intersects(ObjectFlags::JSLiteral) {
             return Ok(true);
         }
-        if type_.flags().intersects(TypeFlags::Union) {
-            return try_every(type_.as_union_type().types(), |type_: &Id<Type>, _| {
-                self.is_js_literal_type(type_)
-            });
-        }
-        if type_.flags().intersects(TypeFlags::Intersection) {
-            return try_some(
-                Some(type_.as_intersection_type().types()),
-                Some(|type_: &Id<Type>| self.is_js_literal_type(type_)),
+        if self.type_(type_).flags().intersects(TypeFlags::Union) {
+            return try_every(
+                self.type_(type_).as_union_type().types(),
+                |&type_: &Id<Type>, _| self.is_js_literal_type(type_),
             );
         }
-        if type_.flags().intersects(TypeFlags::Instantiable) {
+        if self
+            .type_(type_)
+            .flags()
+            .intersects(TypeFlags::Intersection)
+        {
+            return try_some(
+                Some(self.type_(type_).as_intersection_type().types()),
+                Some(|&type_: &Id<Type>| self.is_js_literal_type(type_)),
+            );
+        }
+        if self
+            .type_(type_)
+            .flags()
+            .intersects(TypeFlags::Instantiable)
+        {
             let constraint = self.get_resolved_base_constraint(type_)?;
-            return Ok(!ptr::eq(&*constraint, type_) && self.is_js_literal_type(&constraint)?);
+            return Ok(constraint != type_ && self.is_js_literal_type(constraint)?);
         }
         Ok(false)
     }
 
-    pub(super) fn get_property_name_from_index<'index_type>(
+    pub(super) fn get_property_name_from_index(
         &self,
-        index_type: &'index_type Type,
+        index_type: Id<Type>,
         access_node: Option<
             impl Borrow<Node>, /*StringLiteral | Identifier | PrivateIdentifier | ObjectBindingPattern | ArrayBindingPattern | ComputedPropertyName | NumericLiteral | IndexedAccessTypeNode | ElementAccessExpression | SyntheticExpression*/
         >,
-    ) -> Option<Cow<'index_type, str> /*__String*/> {
+    ) -> Option<String /*__String*/> {
         if self.is_type_usable_as_property_name(index_type) {
             return Some(self.get_property_name_from_type(index_type));
         }
@@ -177,7 +205,6 @@ impl TypeChecker {
             .and_then(|access_node| {
                 get_property_name_for_property_name_node(&access_node)
                     .map(Cow::into_owned)
-                    .map(Into::into)
             })
     }
 
@@ -282,7 +309,7 @@ impl TypeChecker {
                         Some(access_expression),
                         self.is_self_type_access(
                             &access_expression_as_element_access_expression.expression,
-                            object_type.maybe_symbol(),
+                            self.type_(object_type).maybe_symbol(),
                         )?,
                     );
                     if self.is_assignment_to_readonly_entity(
@@ -322,7 +349,7 @@ impl TypeChecker {
                     }) {
                         self.get_flow_type_of_reference(
                             access_expression,
-                            &prop_type,
+                            prop_type,
                             None,
                             Option::<&Node>::None,
                         )?
@@ -337,8 +364,8 @@ impl TypeChecker {
             {
                 if let Some(access_node) = access_node.as_ref() {
                     if self.every_type(object_type, |t| {
-                        !t.as_type_reference()
-                            .target
+                        !self.type_(self.type_(t).as_type_reference()
+                            .target)
                             .as_tuple_type()
                             .has_rest_element
                     }) && !access_flags.intersects(AccessFlags::NoTupleBoundsCheck)
@@ -379,7 +406,7 @@ impl TypeChecker {
                 self.error_if_writing_to_readonly_index(
                     access_expression,
                     object_type,
-                    self.get_index_info_of_type_(object_type, &self.number_type())?,
+                    self.get_index_info_of_type_(object_type, self.number_type())?,
                 )?;
                 return self.try_map_type(
                     object_type,
@@ -405,25 +432,25 @@ impl TypeChecker {
                 );
             }
         }
-        if !index_type.flags().intersects(TypeFlags::Nullable)
+        if !self.type_(index_type).flags().intersects(TypeFlags::Nullable)
             && self.is_type_assignable_to_kind(
                 index_type,
                 TypeFlags::StringLike | TypeFlags::NumberLike | TypeFlags::ESSymbolLike,
                 None,
             )?
         {
-            if object_type
-                .flags()
+            if self.type_(object_type
+                ).flags()
                 .intersects(TypeFlags::Any | TypeFlags::Never)
             {
-                return Ok(Some(object_type.type_wrapper()));
+                return Ok(Some(object_type));
             }
             let index_info = self
                 .get_applicable_index_info(object_type, index_type)?
-                .try_or_else(|| self.get_index_info_of_type_(object_type, &self.string_type()))?;
+                .try_or_else(|| self.get_index_info_of_type_(object_type, self.string_type()))?;
             if let Some(index_info) = index_info.as_deref() {
                 if access_flags.intersects(AccessFlags::NoIndexSignatures)
-                    && !Gc::ptr_eq(&index_info.key_type, &self.number_type())
+                    && index_info.key_type != self.number_type()
                 {
                     if access_expression.is_some() {
                         self.error(
@@ -448,7 +475,7 @@ impl TypeChecker {
                     return Ok(None);
                 }
                 if let Some(access_node) = access_node.as_ref() {
-                    if Gc::ptr_eq(&index_info.key_type, &self.string_type())
+                    if index_info.key_type == self.string_type()
                         && !self.is_type_assignable_to_kind(
                             index_type,
                             TypeFlags::String | TypeFlags::Number,
@@ -500,7 +527,7 @@ impl TypeChecker {
                     },
                 ));
             }
-            if index_type.flags().intersects(TypeFlags::Never) {
+            if self.type_(index_type).flags().intersects(TypeFlags::Never) {
                 return Ok(Some(self.never_type()));
             }
             if self.is_js_literal_type(object_type)? {
@@ -510,8 +537,8 @@ impl TypeChecker {
                 if !self.is_const_enum_object_type(object_type) {
                     if self.is_object_literal_type(object_type) {
                         if self.no_implicit_any
-                            && index_type
-                                .flags()
+                            && self.type_(index_type
+                                ).flags()
                                 .intersects(TypeFlags::StringLiteral | TypeFlags::NumberLiteral)
                         {
                             self.diagnostics().add(
@@ -519,7 +546,7 @@ impl TypeChecker {
                                     access_expression,
                                     &Diagnostics::Property_0_does_not_exist_on_type_1,
                                     Some(vec![
-                                        match index_type {
+                                        match self.type_(index_type ){
                                             Type::LiteralType(LiteralType::StringLiteralType(
                                                 index_type,
                                             )) => index_type.value.clone(),
@@ -539,12 +566,12 @@ impl TypeChecker {
                                 .into(),
                             );
                             return Ok(Some(self.undefined_type()));
-                        } else if index_type
-                            .flags()
+                        } else if self.type_(index_type
+                            ).flags()
                             .intersects(TypeFlags::Number | TypeFlags::String)
                         {
                             let mut types = try_map(
-                                &*object_type.as_resolved_type().properties(),
+                                &*self.type_(object_type).as_resolved_type().properties(),
                                 |property: &Gc<Symbol>, _| self.get_type_of_symbol(property),
                             )?;
                             append(&mut types, Some(self.undefined_type()));
@@ -560,7 +587,7 @@ impl TypeChecker {
 
                     let mut took_if_branch = false;
                     if matches!(
-                        object_type.maybe_symbol(),
+                        self.type_(object_type).maybe_symbol(),
                         Some(symbol) if Gc::ptr_eq(&symbol, &self.global_this_symbol())
                     ) {
                         if let Some(prop_name) = prop_name.as_ref() {
@@ -618,7 +645,7 @@ impl TypeChecker {
                                 ])
                             );
                         } else if self
-                            .get_index_type_of_type_(object_type, &self.number_type())?
+                            .get_index_type_of_type_(object_type, self.number_type())?
                             .is_some()
                         {
                             self.error(
@@ -664,7 +691,7 @@ impl TypeChecker {
                                     );
                                 } else {
                                     let mut error_info: Option<DiagnosticMessageChain> = None;
-                                    if index_type.flags().intersects(TypeFlags::EnumLiteral) {
+                                    if self.type_(index_type).flags().intersects(TypeFlags::EnumLiteral) {
                                         error_info = Some(chain_diagnostic_messages(
                                             None,
                                             &Diagnostics::Property_0_does_not_exist_on_type_1,
@@ -686,12 +713,12 @@ impl TypeChecker {
                                                 )?,
                                             ]),
                                         ));
-                                    } else if index_type
-                                        .flags()
+                                    } else if self.type_(index_type
+                                        ).flags()
                                         .intersects(TypeFlags::UniqueESSymbol)
                                     {
                                         let symbol_name = self.get_fully_qualified_name(
-                                            &index_type.symbol(),
+                                            &self.type_(index_type).symbol(),
                                             Some(access_expression),
                                         )?;
                                         error_info = Some(chain_diagnostic_messages(
@@ -707,15 +734,15 @@ impl TypeChecker {
                                                 )?,
                                             ]),
                                         ));
-                                    } else if index_type
-                                        .flags()
+                                    } else if self.type_(index_type
+                                        ).flags()
                                         .intersects(TypeFlags::StringLiteral)
                                     {
                                         error_info = Some(chain_diagnostic_messages(
                                             None,
                                             &Diagnostics::Property_0_does_not_exist_on_type_1,
                                             Some(vec![
-                                                index_type.as_string_literal_type().value.clone(),
+                                                self.type_(index_type).as_string_literal_type().value.clone(),
                                                 self.type_to_string_(
                                                     object_type,
                                                     Option::<&Node>::None,
@@ -724,16 +751,16 @@ impl TypeChecker {
                                                 )?,
                                             ]),
                                         ));
-                                    } else if index_type
-                                        .flags()
+                                    } else if self.type_(index_type
+                                        ).flags()
                                         .intersects(TypeFlags::NumberLiteral)
                                     {
                                         error_info = Some(chain_diagnostic_messages(
                                             None,
                                             &Diagnostics::Property_0_does_not_exist_on_type_1,
                                             Some(vec![
-                                                index_type
-                                                    .as_number_literal_type()
+                                                self.type_(index_type
+                                                    ).as_number_literal_type()
                                                     .value
                                                     .to_string(),
                                                 self.type_to_string_(
@@ -744,8 +771,8 @@ impl TypeChecker {
                                                 )?,
                                             ]),
                                         ));
-                                    } else if index_type
-                                        .flags()
+                                    } else if self.type_(index_type
+                                        ).flags()
                                         .intersects(TypeFlags::Number | TypeFlags::String)
                                     {
                                         error_info = Some(chain_diagnostic_messages(
@@ -787,8 +814,8 @@ impl TypeChecker {
         }
         if let Some(access_node) = access_node.as_ref() {
             let index_node = self.get_index_node_for_access_expression(access_node);
-            if index_type
-                .flags()
+            if self.type_(index_type
+                ).flags()
                 .intersects(TypeFlags::StringLiteral | TypeFlags::NumberLiteral)
             {
                 self.error(
@@ -796,7 +823,7 @@ impl TypeChecker {
                     &Diagnostics::Property_0_does_not_exist_on_type_1,
                     Some(vec![
                         // TODO: put this in a shared helper?
-                        match index_type {
+                        match self.type_(index_type ){
                             Type::LiteralType(LiteralType::NumberLiteralType(index_type)) => {
                                 index_type.value.to_string()
                             }
@@ -808,8 +835,8 @@ impl TypeChecker {
                         self.type_to_string_(object_type, Option::<&Node>::None, None, None)?,
                     ]),
                 );
-            } else if index_type
-                .flags()
+            } else if self.type_(index_type
+                ).flags()
                 .intersects(TypeFlags::String | TypeFlags::Number)
             {
                 self.error(
@@ -834,7 +861,7 @@ impl TypeChecker {
             }
         }
         if self.is_type_any(Some(index_type)) {
-            return Ok(Some(index_type.type_wrapper()));
+            return Ok(Some(index_type));
         }
         Ok(None)
     }
@@ -889,16 +916,18 @@ impl TypeChecker {
     }
 
     pub(super) fn is_pattern_literal_placeholder_type(&self, type_: Id<Type>) -> bool {
-        type_
-            .flags()
+        self.type_(type_
+            ).flags()
             .intersects(TypeFlags::Any | TypeFlags::String | TypeFlags::Number | TypeFlags::BigInt)
     }
 
     pub(super) fn is_pattern_literal_type(&self, type_: Id<Type>) -> bool {
-        type_.flags().intersects(TypeFlags::TemplateLiteral)
+        self.type_(type_)
+            .flags()
+            .intersects(TypeFlags::TemplateLiteral)
             && every(
-                &type_.as_template_literal_type().types,
-                |type_: &Id<Type>, _| self.is_pattern_literal_placeholder_type(type_),
+                &self.type_(type_).as_template_literal_type().types,
+                |&type_: &Id<Type>, _| self.is_pattern_literal_placeholder_type(type_),
             )
     }
 
@@ -919,18 +948,21 @@ impl TypeChecker {
     }
 
     pub(super) fn get_generic_object_flags(&self, type_: Id<Type>) -> io::Result<ObjectFlags> {
-        if type_.flags().intersects(TypeFlags::UnionOrIntersection) {
-            let type_as_union_or_intersection_type = type_.as_union_or_intersection_type();
-            if !type_as_union_or_intersection_type
+        if self
+            .type_(type_)
+            .flags()
+            .intersects(TypeFlags::UnionOrIntersection)
+        {
+            if !self.type_(type_).as_union_or_intersection_type()
                 .object_flags()
                 .intersects(ObjectFlags::IsGenericTypeComputed)
             {
-                type_as_union_or_intersection_type.set_object_flags(
-                    type_as_union_or_intersection_type.object_flags()
+                self.type_(type_).as_union_or_intersection_type().set_object_flags(
+                    self.type_(type_).as_union_or_intersection_type().object_flags()
                         | ObjectFlags::IsGenericTypeComputed
                         | try_reduce_left(
-                            type_.as_union_or_intersection_type().types(),
-                            |flags, t: &Id<Type>, _| -> io::Result<_> {
+                            self.type_(type_).as_union_or_intersection_type().types(),
+                            |flags, &t: &Id<Type>, _| -> io::Result<_> {
                                 Ok(flags | self.get_generic_object_flags(t)?)
                             },
                             ObjectFlags::None,
@@ -939,27 +971,33 @@ impl TypeChecker {
                         )?,
                 );
             }
-            return Ok(
-                type_as_union_or_intersection_type.object_flags() & ObjectFlags::IsGenericType
-            );
+            return Ok(self
+                .type_(type_)
+                .as_union_or_intersection_type()
+                .object_flags()
+                & ObjectFlags::IsGenericType);
         }
-        if type_.flags().intersects(TypeFlags::Substitution) {
-            let type_as_substitution_type = type_.as_substitution_type();
-            if !type_as_substitution_type
+        if self
+            .type_(type_)
+            .flags()
+            .intersects(TypeFlags::Substitution)
+        {
+            if !self.type_(type_).as_substitution_type()
                 .object_flags()
                 .intersects(ObjectFlags::IsGenericTypeComputed)
             {
-                type_as_substitution_type.set_object_flags(
-                    type_as_substitution_type.object_flags()
+                self.type_(type_).as_substitution_type().set_object_flags(
+                    self.type_(type_).as_substitution_type().object_flags()
                         | ObjectFlags::IsGenericTypeComputed
-                        | self.get_generic_object_flags(&type_as_substitution_type.substitute)?
-                        | self.get_generic_object_flags(&type_as_substitution_type.base_type)?,
+                        | self.get_generic_object_flags(&self.type_(type_).as_substitution_type().substitute)?
+                        | self.get_generic_object_flags(&self.type_(type_).as_substitution_type().base_type)?,
                 );
             }
-            return Ok(type_as_substitution_type.object_flags() & ObjectFlags::IsGenericType);
+            return Ok(self.type_(type_).as_substitution_type().object_flags()
+                & ObjectFlags::IsGenericType);
         }
-        Ok((if type_
-            .flags()
+        Ok((if self.type_(type_
+            ).flags()
             .intersects(TypeFlags::InstantiableNonPrimitive)
             || self.is_generic_mapped_type(type_)?
             || self.is_generic_tuple_type(type_)
@@ -967,7 +1005,7 @@ impl TypeChecker {
             ObjectFlags::IsGenericObjectType
         } else {
             ObjectFlags::None
-        }) | if type_.flags().intersects(
+        }) | if self.type_(type_).flags().intersects(
             TypeFlags::InstantiableNonPrimitive
                 | TypeFlags::Index
                 | TypeFlags::TemplateLiteral
@@ -981,8 +1019,8 @@ impl TypeChecker {
     }
 
     pub(super) fn is_this_type_parameter(&self, type_: Id<Type>) -> bool {
-        type_.flags().intersects(TypeFlags::TypeParameter)
-            && matches!(type_.as_type_parameter().is_this_type, Some(true))
+        self.type_(type_).flags().intersects(TypeFlags::TypeParameter)
+            && matches!(self.type_(type_).as_type_parameter().is_this_type, Some(true))
     }
 
     pub(super) fn get_simplified_type(
@@ -990,12 +1028,12 @@ impl TypeChecker {
         type_: Id<Type>,
         writing: bool,
     ) -> io::Result<Id<Type>> {
-        Ok(if type_.flags().intersects(TypeFlags::IndexedAccess) {
+        Ok(if self.type_(type_).flags().intersects(TypeFlags::IndexedAccess) {
             self.get_simplified_indexed_access_type(type_, writing)?
-        } else if type_.flags().intersects(TypeFlags::Conditional) {
+        } else if self.type_(type_).flags().intersects(TypeFlags::Conditional) {
             self.get_simplified_conditional_type(type_, writing)?
         } else {
-            type_.type_wrapper()
+            type_
         })
     }
 
@@ -1005,17 +1043,17 @@ impl TypeChecker {
         index_type: Id<Type>,
         writing: bool,
     ) -> io::Result<Option<Id<Type>>> {
-        if object_type
-            .flags()
+        if self.type_(object_type
+            ).flags()
             .intersects(TypeFlags::UnionOrIntersection)
         {
             let types = try_map(
-                object_type
-                    .as_union_or_intersection_type_interface()
+                self.type_(object_type
+                    ).as_union_or_intersection_type_interface()
                     .types(),
-                |t: &Id<Type>, _| {
+                |&t: &Id<Type>, _| {
                     self.get_simplified_type(
-                        &*self.get_indexed_access_type(
+                        self.get_indexed_access_type(
                             t,
                             index_type,
                             None,
@@ -1028,7 +1066,7 @@ impl TypeChecker {
                 },
             )?;
             return Ok(Some(
-                if object_type.flags().intersects(TypeFlags::Intersection) || writing {
+                if self.type_(object_type).flags().intersects(TypeFlags::Intersection) || writing {
                     self.get_intersection_type(&types, Option::<&Symbol>::None, None)?
                 } else {
                     self.get_union_type(&types, None, Option::<&Symbol>::None, None, None)?
@@ -1044,10 +1082,12 @@ impl TypeChecker {
         index_type: Id<Type>,
         writing: bool,
     ) -> io::Result<Option<Id<Type>>> {
-        if index_type.flags().intersects(TypeFlags::Union) {
-            let types = try_map(index_type.as_union_type().types(), |t: &Id<Type>, _| {
-                self.get_simplified_type(
-                    &*self.get_indexed_access_type(
+        if self.type_(index_type).flags().intersects(TypeFlags::Union) {
+            let types = try_map(
+                self.type_(index_type).as_union_type().types(),
+                |&t: &Id<Type>, _| {
+                    self.get_simplified_type(
+                    self.get_indexed_access_type(
                         object_type,
                         t,
                         None,
@@ -1057,7 +1097,8 @@ impl TypeChecker {
                     )?,
                     writing,
                 )
-            })?;
+                },
+            )?;
             return Ok(Some(if writing {
                 self.get_intersection_type(&types, Option::<&Symbol>::None, None)?
             } else {
@@ -1072,64 +1113,77 @@ impl TypeChecker {
         type_: Id<Type>, /*IndexedAccessType*/
         writing: bool,
     ) -> io::Result<Id<Type>> {
-        let type_as_indexed_access_type = type_.as_indexed_access_type();
         let read_cache = || {
             if writing {
-                type_as_indexed_access_type
+                self.type_(type_)
+                    .as_indexed_access_type()
                     .maybe_simplified_for_writing()
                     .clone()
             } else {
-                type_as_indexed_access_type
+                self.type_(type_).as_indexed_access_type()
                     .maybe_simplified_for_reading()
                     .clone()
-            }
-        };
+            };
         let write_cache = |simplified_type: Id<Type>| {
             if writing {
-                *type_as_indexed_access_type.maybe_simplified_for_writing() = Some(simplified_type);
+                *self
+                    .type_(type_)
+                    .as_indexed_access_type()
+                    .maybe_simplified_for_writing() = Some(simplified_type);
             } else {
-                *type_as_indexed_access_type.maybe_simplified_for_reading() = Some(simplified_type);
+                *self
+                    .type_(type_)
+                    .as_indexed_access_type()
+                    .maybe_simplified_for_reading() = Some(simplified_type);
             }
         };
         if let Some(type_cache) = read_cache() {
             return Ok(
-                if Gc::ptr_eq(&type_cache, &self.circular_constraint_type()) {
-                    type_.type_wrapper()
+                if type_cache == self.circular_constraint_type() {
+                    type_
                 } else {
                     type_cache
                 },
             );
         }
         write_cache(self.circular_constraint_type());
-        let object_type =
-            self.get_simplified_type(&type_as_indexed_access_type.object_type, writing)?;
-        let index_type =
-            self.get_simplified_type(&type_as_indexed_access_type.index_type, writing)?;
+        let object_type = self.get_simplified_type(
+            &self.type_(type_).as_indexed_access_type().object_type,
+            writing,
+        )?;
+        let index_type = self.get_simplified_type(
+            &self.type_(type_).as_indexed_access_type().index_type,
+            writing,
+        )?;
         let distributed_over_index =
-            self.distribute_object_over_index_type(&object_type, &index_type, writing)?;
+            self.distribute_object_over_index_type(object_type, index_type, writing)?;
         if let Some(distributed_over_index) = distributed_over_index {
             write_cache(distributed_over_index.clone());
             return Ok(distributed_over_index);
         }
-        if !index_type.flags().intersects(TypeFlags::Instantiable) {
+        if !self
+            .type_(index_type)
+            .flags()
+            .intersects(TypeFlags::Instantiable)
+        {
             let distributed_over_object =
-                self.distribute_index_over_object_type(&object_type, &index_type, writing)?;
+                self.distribute_index_over_object_type(object_type, index_type, writing)?;
             if let Some(distributed_over_object) = distributed_over_object {
                 write_cache(distributed_over_object.clone());
                 return Ok(distributed_over_object);
             }
         }
-        if self.is_generic_tuple_type(&object_type)
-            && index_type.flags().intersects(TypeFlags::NumberLike)
+        if self.is_generic_tuple_type(object_type)
+            && self.type_(index_type).flags().intersects(TypeFlags::NumberLike)
         {
             let element_type = self.get_element_type_of_slice_of_tuple_type(
-                &object_type,
-                if index_type.flags().intersects(TypeFlags::Number) {
+                object_type,
+                if self.type_(index_type).flags().intersects(TypeFlags::Number) {
                     0
                 } else {
-                    object_type
-                        .as_type_reference()
-                        .target
+                    self.type_(self.type_(object_type
+                        ).as_type_reference()
+                        .target)
                         .as_tuple_type()
                         .fixed_length
                 },
@@ -1141,12 +1195,12 @@ impl TypeChecker {
                 return Ok(element_type);
             }
         }
-        if self.is_generic_mapped_type(&object_type)? {
+        if self.is_generic_mapped_type(object_type)? {
             let ret = self
                 .try_map_type(
-                    &*self.substitute_indexed_mapped_type(
-                        &object_type,
-                        &type_as_indexed_access_type.index_type,
+                    self.substitute_indexed_mapped_type(
+                        object_type,
+                        self.type_(type_).as_indexed_access_type().index_type,
                     )?,
                     &mut |t| Ok(Some(self.get_simplified_type(t, writing)?)),
                     None,
@@ -1155,8 +1209,8 @@ impl TypeChecker {
             write_cache(ret.clone());
             return Ok(ret);
         }
-        write_cache(type_.type_wrapper());
-        Ok(type_.type_wrapper())
+        write_cache(type_);
+        Ok(type_)
     }
 
     pub(super) fn get_simplified_conditional_type(
@@ -1164,47 +1218,44 @@ impl TypeChecker {
         type_: Id<Type>, /*ConditionalType*/
         writing: bool,
     ) -> io::Result<Id<Type>> {
-        let type_as_conditional_type = type_.as_conditional_type();
-        let check_type = &type_as_conditional_type.check_type;
-        let extends_type = &type_as_conditional_type.extends_type;
+        let check_type = &self.type_(type_).as_conditional_type().check_type;
+        let extends_type = self.type_(type_).as_conditional_type().extends_type;
         let true_type = self.get_true_type_from_conditional_type(type_)?;
         let false_type = self.get_false_type_from_conditional_type(type_)?;
-        if false_type.flags().intersects(TypeFlags::Never)
-            && Gc::ptr_eq(
-                &self.get_actual_type_variable(&true_type)?,
-                &self.get_actual_type_variable(check_type)?,
-            )
+        if self.type_(false_type).flags().intersects(TypeFlags::Never)
+            && 
+                self.get_actual_type_variable(true_type)? ==
+                self.get_actual_type_variable(check_type)?
         {
             if check_type.flags().intersects(TypeFlags::Any)
                 || self.is_type_assignable_to(
-                    &*self.get_restrictive_instantiation(check_type)?,
-                    &*self.get_restrictive_instantiation(extends_type)?,
+                    self.get_restrictive_instantiation(check_type)?,
+                    self.get_restrictive_instantiation(extends_type)?,
                 )?
             {
-                return self.get_simplified_type(&true_type, writing);
+                return self.get_simplified_type(true_type, writing);
             } else if self.is_intersection_empty(check_type, extends_type)? {
                 return Ok(self.never_type());
             }
-        } else if true_type.flags().intersects(TypeFlags::Never)
-            && Gc::ptr_eq(
-                &self.get_actual_type_variable(&false_type)?,
-                &self.get_actual_type_variable(check_type)?,
-            )
+        } else if self.type_(true_type).flags().intersects(TypeFlags::Never)
+            && 
+                self.get_actual_type_variable(false_type)? ==
+                self.get_actual_type_variable(check_type)?
         {
             if !check_type.flags().intersects(TypeFlags::Any)
                 && self.is_type_assignable_to(
-                    &*self.get_restrictive_instantiation(check_type)?,
-                    &*self.get_restrictive_instantiation(extends_type)?,
+                    self.get_restrictive_instantiation(check_type)?,
+                    self.get_restrictive_instantiation(extends_type)?,
                 )?
             {
                 return Ok(self.never_type());
             } else if check_type.flags().intersects(TypeFlags::Any)
                 || self.is_intersection_empty(check_type, extends_type)?
             {
-                return self.get_simplified_type(&false_type, writing);
+                return self.get_simplified_type(false_type, writing);
             }
         }
-        Ok(type_.type_wrapper())
+        Ok(type_)
     }
 
     pub(super) fn is_intersection_empty(
@@ -1212,7 +1263,7 @@ impl TypeChecker {
         type1: Id<Type>,
         type2: Id<Type>,
     ) -> io::Result<bool> {
-        Ok(self
+        Ok(self.type_(self
             .get_union_type(
                 &[
                     self.intersect_types(Some(type1), Some(type2))?.unwrap(),
@@ -1222,7 +1273,7 @@ impl TypeChecker {
                 Option::<&Symbol>::None,
                 None,
                 None,
-            )?
+            )?)
             .flags()
             .intersects(TypeFlags::Never))
     }
@@ -1234,12 +1285,12 @@ impl TypeChecker {
     ) -> io::Result<Id<Type>> {
         let mapper = Gc::new(self.create_type_mapper(
             vec![self.get_type_parameter_from_mapped_type(object_type)?],
-            Some(vec![index.type_wrapper()]),
+            Some(vec![index]),
         ));
         let template_mapper =
-            self.combine_type_mappers(object_type.as_mapped_type().maybe_mapper(), mapper);
+            self.combine_type_mappers(self.type_(object_type).as_mapped_type().maybe_mapper(), mapper);
         self.instantiate_type(
-            &*self.get_template_type_from_mapped_type(object_type)?,
+            self.get_template_type_from_mapped_type(object_type)?,
             Some(template_mapper),
         )
     }
@@ -1277,7 +1328,7 @@ impl TypeChecker {
 
     pub(super) fn index_type_less_than(&self, index_type: Id<Type>, limit: isize) -> bool {
         self.every_type(index_type, |t| {
-            if t.flags().intersects(TypeFlags::StringOrNumberLiteral) {
+            if self.type_(t).flags().intersects(TypeFlags::StringOrNumberLiteral) {
                 let prop_name = self.get_property_name_from_type(t);
                 if self.is_numeric_literal_name(&*prop_name) {
                     let index = prop_name.parse::<isize>().unwrap();
@@ -1291,7 +1342,7 @@ impl TypeChecker {
     pub(super) fn get_indexed_access_type_or_undefined(
         &self,
         object_type: Id<Type>,
-        index_type: Id<Type>,
+        mut index_type: Id<Type>,
         access_flags: Option<AccessFlags>,
         access_node: Option<
             impl Borrow<Node>, /*ElementAccessExpression | IndexedAccessTypeNode | PropertyName | BindingName | SyntheticExpression*/
@@ -1300,12 +1351,11 @@ impl TypeChecker {
         alias_type_arguments: Option<&[Id<Type>]>,
     ) -> io::Result<Option<Id<Type>>> {
         let mut access_flags = access_flags.unwrap_or(AccessFlags::None);
-        if ptr::eq(object_type, &*self.wildcard_type())
-            || ptr::eq(index_type, &*self.wildcard_type())
+        if object_type == self.wildcard_type()
+            || index_type == self.wildcard_type()
         {
             return Ok(Some(self.wildcard_type()));
         }
-        let mut index_type = index_type.type_wrapper();
         if self.is_string_index_signature_only_type(object_type)?
             && !index_type.flags().intersects(TypeFlags::Nullable)
             && self.is_type_assignable_to_kind(
@@ -1333,9 +1383,9 @@ impl TypeChecker {
                 self.is_generic_tuple_type(object_type)
                     && !self.index_type_less_than(
                         &index_type,
-                        object_type
-                            .as_type_reference()
-                            .target
+                        self.type_(self.type_(object_type
+                            ).as_type_reference()
+                            .target)
                             .as_tuple_type()
                             .fixed_length
                             .try_into()
@@ -1346,9 +1396,9 @@ impl TypeChecker {
                     && !(self.is_tuple_type(object_type)
                         && self.index_type_less_than(
                             &index_type,
-                            object_type
-                                .as_type_reference()
-                                .target
+                            self.type_(self.type_(object_type
+                                ).as_type_reference()
+                                .target)
                                 .as_tuple_type()
                                 .fixed_length
                                 .try_into()
@@ -1356,14 +1406,14 @@ impl TypeChecker {
                         ))
             }
         {
-            if object_type.flags().intersects(TypeFlags::AnyOrUnknown) {
-                return Ok(Some(object_type.type_wrapper()));
+            if self.type_(object_type).flags().intersects(TypeFlags::AnyOrUnknown) {
+                return Ok(Some(object_type));
             }
             let persistent_access_flags = access_flags & AccessFlags::Persistent;
             let id = format!(
                 "{},{},{}{}",
-                object_type.id(),
-                index_type.id(),
+                self.type_(object_type).id(),
+                self.type_(index_type).id(),
                 persistent_access_flags.bits(),
                 self.get_alias_id(alias_symbol.as_deref(), alias_type_arguments)
             );
@@ -1391,9 +1441,9 @@ impl TypeChecker {
             for t in index_type.as_union_type().types() {
                 let prop_type = self.get_property_type_for_index_type(
                     object_type,
-                    &apparent_object_type,
+                    apparent_object_type,
                     t,
-                    &index_type,
+                    index_type,
                     access_node.as_deref(),
                     access_flags
                         | if was_missing_prop {
@@ -1431,7 +1481,7 @@ impl TypeChecker {
         }
         self.get_property_type_for_index_type(
             object_type,
-            &apparent_object_type,
+            apparent_object_type,
             &index_type,
             &index_type,
             access_node,

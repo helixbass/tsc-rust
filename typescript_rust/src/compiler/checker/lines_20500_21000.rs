@@ -819,7 +819,7 @@ impl TypeChecker {
                     .intersects(TypeFlags::DefinitelyFalsy)
             })
         } else {
-            type_.type_wrapper()
+            type_
         }
     }
 
@@ -833,22 +833,22 @@ impl TypeChecker {
     }
 
     pub(super) fn get_definitely_falsy_part_of_type(&self, type_: Id<Type>) -> Id<Type> {
-        if type_.flags().intersects(TypeFlags::String) {
+        if self.type_(type_).flags().intersects(TypeFlags::String) {
             self.empty_string_type()
-        } else if type_.flags().intersects(TypeFlags::Number) {
+        } else if self.type_(type_).flags().intersects(TypeFlags::Number) {
             self.zero_type()
-        } else if type_.flags().intersects(TypeFlags::BigInt) {
+        } else if self.type_(type_).flags().intersects(TypeFlags::BigInt) {
             self.zero_big_int_type()
-        } else if ptr::eq(type_, &*self.regular_false_type())
-            || ptr::eq(type_, &*self.false_type())
-            || type_.flags().intersects(
+        } else if type_ == self.regular_false_type()
+            || type_ == self.false_type()
+            || self.type_(type_).flags().intersects(
                 TypeFlags::Void | TypeFlags::Undefined | TypeFlags::Null | TypeFlags::AnyOrUnknown,
             )
-            || type_.flags().intersects(TypeFlags::StringLiteral)
-                && type_.as_string_literal_type().value == ""
-            || type_.flags().intersects(TypeFlags::BigIntLiteral) && self.is_zero_big_int(type_)
+            || self.type_(type_).flags().intersects(TypeFlags::StringLiteral)
+                && self.type_(type_).as_string_literal_type().value == ""
+            || self.type_(type_).flags().intersects(TypeFlags::BigIntLiteral) && self.is_zero_big_int(type_)
         {
-            type_.type_wrapper()
+            type_
         } else {
             self.never_type()
         }
@@ -859,12 +859,12 @@ impl TypeChecker {
         type_: Id<Type>,
         flags: TypeFlags,
     ) -> io::Result<Id<Type>> {
-        let missing = (flags & !type_.flags()) & (TypeFlags::Undefined | TypeFlags::Null);
+        let missing = (flags & !self.type_(type_).flags()) & (TypeFlags::Undefined | TypeFlags::Null);
         Ok(if missing == TypeFlags::None {
-            type_.type_wrapper()
+            type_
         } else if missing == TypeFlags::Undefined {
             self.get_union_type(
-                &[type_.type_wrapper(), self.undefined_type()],
+                &[type_, self.undefined_type()],
                 None,
                 Option::<&Symbol>::None,
                 None,
@@ -872,7 +872,7 @@ impl TypeChecker {
             )?
         } else if missing == TypeFlags::Null {
             self.get_union_type(
-                &[type_.type_wrapper(), self.null_type()],
+                &[type_, self.null_type()],
                 None,
                 Option::<&Symbol>::None,
                 None,
@@ -881,7 +881,7 @@ impl TypeChecker {
         } else {
             self.get_union_type(
                 &[
-                    type_.type_wrapper(),
+                    type_,
                     self.undefined_type(),
                     self.null_type(),
                 ],
@@ -900,12 +900,12 @@ impl TypeChecker {
     ) -> io::Result<Id<Type>> {
         let is_property = is_property.unwrap_or(false);
         Debug_.assert(self.strict_null_checks, None);
-        Ok(if type_.flags().intersects(TypeFlags::Undefined) {
-            type_.type_wrapper()
+        Ok(if self.type_(type_).flags().intersects(TypeFlags::Undefined) {
+            type_
         } else {
             self.get_union_type(
                 &[
-                    type_.type_wrapper(),
+                    type_,
                     if is_property {
                         self.missing_type()
                     } else {
@@ -962,29 +962,29 @@ impl TypeChecker {
         Ok(if self.strict_null_checks {
             self.get_global_non_nullable_type_instantiation(type_)?
         } else {
-            type_.type_wrapper()
+            type_
         })
     }
 
     pub(super) fn add_optional_type_marker(&self, type_: Id<Type>) -> io::Result<Id<Type>> {
         Ok(if self.strict_null_checks {
             self.get_union_type(
-                &[type_.type_wrapper(), self.optional_type()],
+                &[type_, self.optional_type()],
                 None,
                 Option::<&Symbol>::None,
                 None,
                 None,
             )?
         } else {
-            type_.type_wrapper()
+            type_
         })
     }
 
     pub(super) fn remove_optional_type_marker(&self, type_: Id<Type>) -> Id<Type> {
         if self.strict_null_checks {
-            self.remove_type(type_, &self.optional_type())
+            self.remove_type(type_, self.optional_type())
         } else {
-            type_.type_wrapper()
+            type_
         }
     }
 
@@ -1001,7 +1001,7 @@ impl TypeChecker {
                 self.add_optional_type_marker(type_)?
             }
         } else {
-            type_.type_wrapper()
+            type_
         })
     }
 
@@ -1015,31 +1015,31 @@ impl TypeChecker {
         } else if is_optional_chain(expression) {
             self.remove_optional_type_marker(expr_type)
         } else {
-            expr_type.type_wrapper()
+            expr_type
         })
     }
 
     pub(super) fn remove_missing_type(&self, type_: Id<Type>, is_optional: bool) -> Id<Type> {
         if self.exact_optional_property_types == Some(true) && is_optional {
-            self.remove_type(type_, &self.missing_type())
+            self.remove_type(type_, self.missing_type())
         } else {
-            type_.type_wrapper()
+            type_
         }
     }
 
     pub(super) fn contains_missing_type(&self, type_: Id<Type>) -> bool {
         self.exact_optional_property_types == Some(true)
-            && (ptr::eq(type_, &*self.missing_type())
-                || type_.flags().intersects(TypeFlags::Union)
+            && (type_ == self.missing_type()
+                || self.type_(type_).flags().intersects(TypeFlags::Union)
                     && self.contains_type(
-                        type_.as_union_or_intersection_type_interface().types(),
-                        &self.missing_type(),
+                        self.type_(type_).as_union_or_intersection_type_interface().types(),
+                        self.missing_type(),
                     ))
     }
 
     pub(super) fn remove_missing_or_undefined_type(&self, type_: Id<Type>) -> io::Result<Id<Type>> {
         Ok(if self.exact_optional_property_types == Some(true) {
-            self.remove_type(type_, &self.missing_type())
+            self.remove_type(type_, self.missing_type())
         } else {
             self.get_type_with_facts(type_, TypeFacts::NEUndefined)?
         })
@@ -1050,28 +1050,28 @@ impl TypeChecker {
         source: Id<Type>,
         target: Id<Type>,
     ) -> bool {
-        source
-            .flags()
+        self.type_(source
+            ).flags()
             .intersects(TypeFlags::Number | TypeFlags::String | TypeFlags::BooleanLiteral)
-            && target
-                .flags()
+            && taself.type_(rget
+                ).flags()
                 .intersects(TypeFlags::Number | TypeFlags::String | TypeFlags::Boolean)
     }
 
     pub(super) fn is_object_type_with_inferable_index(&self, type_: Id<Type>) -> io::Result<bool> {
-        Ok(if type_.flags().intersects(TypeFlags::Intersection) {
+        Ok(if self.type_(type_).flags().intersects(TypeFlags::Intersection) {
             try_every(
-                type_.as_union_or_intersection_type_interface().types(),
-                |type_: &Id<Type>, _| self.is_object_type_with_inferable_index(type_),
+                self.type_(type_).as_union_or_intersection_type_interface().types(),
+                |&type_: &Id<Type>, _| self.is_object_type_with_inferable_index(type_),
             )?
         } else {
             matches!(
-                type_.maybe_symbol().as_ref(),
+                self.type_(type_).maybe_symbol().as_ref(),
                 Some(type_symbol) if type_symbol.flags().intersects(SymbolFlags::ObjectLiteral | SymbolFlags::TypeLiteral | SymbolFlags::Enum | SymbolFlags::ValueModule)
             ) && !self.type_has_call_or_construct_signatures(type_)?
-                || get_object_flags(type_).intersects(ObjectFlags::ReverseMapped)
+                || get_object_flags(self.type_(type_)).intersects(ObjectFlags::ReverseMapped)
                     && self.is_object_type_with_inferable_index(
-                        &type_.as_reverse_mapped_type().source,
+                        self.type_(type_).as_reverse_mapped_type().source,
                     )?
         })
     }
@@ -1092,7 +1092,7 @@ impl TypeChecker {
         symbol.set_parent(source.maybe_parent());
         let symbol_links = symbol.as_transient_symbol().symbol_links();
         let mut symbol_links = symbol_links.borrow_mut();
-        symbol_links.type_ = type_.map(|type_| type_.borrow().type_wrapper());
+        symbol_links.type_ = type_;
         symbol_links.target = Some(source.symbol_wrapper());
         if let Some(source_value_declaration) = source.maybe_value_declaration() {
             symbol.set_value_declaration(source_value_declaration);
@@ -1112,10 +1112,10 @@ impl TypeChecker {
         let mut members = create_symbol_table(Option::<&[Gc<Symbol>]>::None);
         for ref property in self.get_properties_of_object_type(type_)? {
             let original = self.get_type_of_symbol(property)?;
-            let updated = f(&original)?;
+            let updated = f(original)?;
             members.insert(
                 property.escaped_name().to_owned(),
-                if Gc::ptr_eq(&updated, &original) {
+                if updated == original {
                     property.clone()
                 } else {
                     self.create_symbol_with_type(property, Some(updated))

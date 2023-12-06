@@ -82,13 +82,13 @@ impl TypeChecker {
     ) -> io::Result<Option<String>> {
         let type_ = self.get_literal_type_from_property_name(name)?;
         Ok(
-            if type_
-                .flags()
+            if self.type_(type_
+                ).flags()
                 .intersects(TypeFlags::StringLiteral | TypeFlags::NumberLiteral)
             {
                 Some(format!(
                     "{}",
-                    match &*type_ {
+                    match self.type_(type_ ){
                         Type::LiteralType(LiteralType::NumberLiteralType(type_)) => {
                             type_.value.to_string()
                         }
@@ -111,32 +111,32 @@ impl TypeChecker {
         let pattern = declaration.parent();
         let mut parent_type =
             return_ok_none_if_none!(self.get_type_for_binding_element_parent(&pattern.parent())?);
-        if self.is_type_any(Some(&*parent_type)) {
+        if self.is_type_any(Some(parent_type)) {
             return Ok(Some(parent_type));
         }
         if self.strict_null_checks
             && declaration.flags().intersects(NodeFlags::Ambient)
             && is_parameter_declaration(declaration)
         {
-            parent_type = self.get_non_nullable_type(&parent_type)?;
+            parent_type = self.get_non_nullable_type(parent_type)?;
         } else if self.strict_null_checks
             && matches!(
                 pattern.parent().as_has_initializer().maybe_initializer(),
                 Some(initializer) if !self.get_type_facts(
-                    &*self.get_type_of_initializer(&initializer)?,
+                    self.get_type_of_initializer(&initializer)?,
                     None
                 )?.intersects(TypeFacts::EQUndefined)
             )
         {
-            parent_type = self.get_type_with_facts(&parent_type, TypeFacts::NEUndefined)?;
+            parent_type = self.get_type_with_facts(parent_type, TypeFacts::NEUndefined)?;
         }
         let type_: Option<Id<Type>>;
         let declaration_as_binding_element = declaration.as_binding_element();
         if pattern.kind() == SyntaxKind::ObjectBindingPattern {
             if declaration_as_binding_element.dot_dot_dot_token.is_some() {
-                parent_type = self.get_reduced_type(&parent_type)?;
-                if parent_type.flags().intersects(TypeFlags::Unknown)
-                    || !self.is_valid_spread_type(&parent_type)?
+                parent_type = self.get_reduced_type(parent_type)?;
+                if self.type_(parent_type).flags().intersects(TypeFlags::Unknown)
+                    || !self.is_valid_spread_type(parent_type)?
                 {
                     self.error(
                         Some(declaration),
@@ -158,7 +158,7 @@ impl TypeChecker {
                     }
                 }
                 type_ = Some(self.get_rest_type(
-                    &parent_type,
+                    parent_type,
                     &literal_members,
                     declaration.maybe_symbol(),
                 )?);
@@ -169,8 +169,8 @@ impl TypeChecker {
                     .unwrap_or_else(|| declaration_as_binding_element.name());
                 let index_type = self.get_literal_type_from_property_name(&name)?;
                 let declared_type = self.get_indexed_access_type(
-                    &parent_type,
-                    &index_type,
+                    parent_type,
+                    index_type,
                     Some(AccessFlags::ExpressionPosition),
                     Some(&*name),
                     Option::<&Symbol>::None,

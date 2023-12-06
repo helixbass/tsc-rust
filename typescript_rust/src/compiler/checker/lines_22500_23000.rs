@@ -363,8 +363,7 @@ impl TypeChecker {
         name: &str, /*__String*/
     ) -> io::Result<bool> {
         if let Some(type_) = type_ {
-            let type_ = type_.borrow();
-            if type_.flags().intersects(TypeFlags::Union) {
+            if self.type_(type_).flags().intersects(TypeFlags::Union) {
                 let prop = self.get_union_or_intersection_property(type_, name, None)?;
                 if let Some(prop) = prop
                     .as_ref()
@@ -380,7 +379,7 @@ impl TypeChecker {
                         prop_symbol_links.borrow_mut().is_discriminant_property = Some(
                             prop_as_transient_symbol.check_flags() & CheckFlags::Discriminant
                                 == CheckFlags::Discriminant
-                                && !self.is_generic_type(&*self.get_type_of_symbol(&prop)?)?,
+                                && !self.is_generic_type(self.get_type_of_symbol(&prop)?)?,
                         );
                     }
                     return Ok((*prop_symbol_links)
@@ -419,25 +418,25 @@ impl TypeChecker {
     ) -> io::Result<Option<HashMap<TypeId, Id<Type>>>> {
         let mut map: HashMap<TypeId, Id<Type>> = HashMap::new();
         let mut count = 0;
-        for type_ in types {
-            if type_.flags().intersects(
+        for &type_ in types {
+            if self.type_(type_).flags().intersects(
                 TypeFlags::Object | TypeFlags::Intersection | TypeFlags::InstantiableNonPrimitive,
             ) {
                 let discriminant = self.get_type_of_property_of_type_(type_, name)?;
-                if let Some(discriminant) = discriminant.as_ref() {
+                if let Some(discriminant) = discriminant {
                     if !self.is_literal_type(discriminant) {
                         return Ok(None);
                     }
                     let mut duplicate = false;
                     self.for_each_type(discriminant, |t: Id<Type>| -> Option<()> {
-                        let id = self.get_type_id(&self.get_regular_type_of_literal_type(t));
+                        let id = self.get_type_id(self.get_regular_type_of_literal_type(t));
                         let existing = map.get(&id);
                         match existing {
                             None => {
                                 map.insert(id, type_.clone());
                             }
                             Some(existing) => {
-                                if !Gc::ptr_eq(existing, &self.unknown_type()) {
+                                if existing != self.unknown_type() {
                                     map.insert(id, self.unknown_type());
                                     duplicate = true;
                                 }
@@ -462,27 +461,31 @@ impl TypeChecker {
         &self,
         union_type: Id<Type>, /*UnionType*/
     ) -> io::Result<Option<__String>> {
-        let union_type_as_union_type = union_type.as_union_type();
-        let types = union_type_as_union_type.types();
+        let types = self.type_(union_type).as_union_type().types();
         if types.len() < 10
-            || get_object_flags(union_type).intersects(ObjectFlags::PrimitiveUnion)
-            || count_where(Some(types), |t: &Id<Type>, _| {
-                t.flags()
+            || get_object_flags(self.type_(union_type)).intersects(ObjectFlags::PrimitiveUnion)
+            || count_where(Some(types), |&t: &Id<Type>, _| {
+                self.type_(t).flags()
                     .intersects(TypeFlags::Object | TypeFlags::InstantiableNonPrimitive)
             }) < 10
         {
             return Ok(None);
         }
-        if union_type_as_union_type.maybe_key_property_name().is_none() {
-            let key_property_name = try_for_each(types, |t: &Id<Type>, _| -> io::Result<_> {
+        if self
+            .type_(union_type)
+            .as_union_type()
+            .maybe_key_property_name()
+            .is_none()
+        {
+            let key_property_name = try_for_each(types, |&t: &Id<Type>, _| -> io::Result<_> {
                 Ok(
-                    if t.flags()
+                    if self.type_(t).flags()
                         .intersects(TypeFlags::Object | TypeFlags::InstantiableNonPrimitive)
                     {
                         try_for_each(
                             self.get_properties_of_type(t)?,
                             |ref p: Gc<Symbol>, _| -> io::Result<_> {
-                                Ok(if self.is_unit_type(&*self.get_type_of_symbol(p)?) {
+                                Ok(if self.is_unit_type(self.get_type_of_symbol(p)?) {
                                     Some(p.escaped_name().to_owned())
                                 } else {
                                     None
@@ -500,14 +503,22 @@ impl TypeChecker {
                     .try_and_then(|key_property_name| {
                         self.map_types_by_key_property(types, key_property_name)
                     })?;
-            *union_type_as_union_type.maybe_key_property_name() = if map_by_key_property.is_some() {
+            *self
+                .type_(union_type)
+                .as_union_type()
+                .maybe_key_property_name() = if map_by_key_property.is_some() {
                 key_property_name
             } else {
                 Some("".to_owned())
             };
-            *union_type_as_union_type.maybe_constituent_map() = map_by_key_property;
+            *self
+                .type_(union_type)
+                .as_union_type()
+                .maybe_constituent_map() = map_by_key_property;
         }
-        let union_type_key_property_name = union_type_as_union_type
+        let union_type_key_property_name = self
+            .type_(union_type)
+            .as_union_type()
             .maybe_key_property_name()
             .clone()
             .unwrap();
@@ -523,16 +534,16 @@ impl TypeChecker {
         union_type: Id<Type>, /*UnionType*/
         key_type: Id<Type>,
     ) -> Option<Id<Type>> {
-        let result = union_type
-            .as_union_type()
+        let result = self.type_(union_type
+            ).as_union_type()
             .maybe_constituent_map()
             .as_ref()
             .and_then(|union_type_constituent_map| {
                 union_type_constituent_map
-                    .get(&self.get_type_id(&self.get_regular_type_of_literal_type(key_type)))
+                    .get(&self.get_type_id(self.get_regular_type_of_literal_type(key_type)))
                     .map(Clone::clone)
             });
-        result.filter(|result| !Gc::ptr_eq(result, &self.unknown_type()))
+        result.filter(|result| result != self.unknown_type())
     }
 
     pub(super) fn get_matching_union_constituent_for_type(
@@ -547,7 +558,6 @@ impl TypeChecker {
                 self.get_type_of_property_of_type(type_, key_property_name)
             })?;
         Ok(prop_type
-            .as_ref()
             .and_then(|prop_type| self.get_constituent_type_for_key_type(union_type, prop_type)))
     }
 
@@ -583,7 +593,6 @@ impl TypeChecker {
             )
         })?;
         Ok(prop_type
-            .as_ref()
             .and_then(|prop_type| self.get_constituent_type_for_key_type(union_type, prop_type)))
     }
 
@@ -637,10 +646,14 @@ impl TypeChecker {
         source: Id<Type>,
         target: Id<Type>,
     ) -> io::Result<bool> {
-        if !source.flags().intersects(TypeFlags::Union) {
+        if !self.type_(source).flags().intersects(TypeFlags::Union) {
             return self.is_type_assignable_to(source, target);
         }
-        for t in source.as_union_or_intersection_type_interface().types() {
+        for &t in self
+            .type_(source)
+            .as_union_or_intersection_type_interface()
+            .types()
+        {
             if self.is_type_assignable_to(t, target)? {
                 return Ok(true);
             }
@@ -653,29 +666,33 @@ impl TypeChecker {
         declared_type: Id<Type>, /*UnionType*/
         assigned_type: Id<Type>,
     ) -> io::Result<Id<Type>> {
-        if !ptr::eq(declared_type, assigned_type) {
-            if assigned_type.flags().intersects(TypeFlags::Never) {
-                return Ok(assigned_type.type_wrapper());
+        if declared_type != assigned_type {
+            if self
+                .type_(assigned_type)
+                .flags()
+                .intersects(TypeFlags::Never)
+            {
+                return Ok(assigned_type);
             }
             let mut reduced_type = self.try_filter_type(declared_type, |t: Id<Type>| {
                 self.type_maybe_assignable_to(assigned_type, t)
             })?;
-            if assigned_type.flags().intersects(TypeFlags::BooleanLiteral)
+            if self.type_(assigned_type).flags().intersects(TypeFlags::BooleanLiteral)
                 && self.is_fresh_literal_type(assigned_type)
             {
                 reduced_type = self
                     .map_type(
-                        &reduced_type,
+                        reduced_type,
                         &mut |type_: Id<Type>| Some(self.get_fresh_type_of_literal_type(type_)),
                         None,
                     )
                     .unwrap();
             }
-            if self.is_type_assignable_to(assigned_type, &reduced_type)? {
+            if self.is_type_assignable_to(assigned_type, reduced_type)? {
                 return Ok(reduced_type);
             }
         }
-        Ok(declared_type.type_wrapper())
+        Ok(declared_type)
     }
 
     pub(super) fn is_function_object_type(
@@ -683,13 +700,12 @@ impl TypeChecker {
         type_: Id<Type>, /*ObjectType*/
     ) -> io::Result<bool> {
         let resolved = self.resolve_structured_type_members(type_)?;
-        let resolved_as_resolved_type = resolved.as_resolved_type();
-        let ret = !resolved_as_resolved_type.call_signatures().is_empty()
-            || !resolved_as_resolved_type.construct_signatures().is_empty()
-            || (*resolved_as_resolved_type.members())
+        let ret = !self.type_(resolved).as_resolved_type().call_signatures().is_empty()
+            || !self.type_(resolved).as_resolved_type().construct_signatures().is_empty()
+            || (*self.type_(resolved).as_resolved_type().members())
                 .borrow()
                 .contains_key("bind")
-                && self.is_type_subtype_of(type_, &self.global_function_type())?;
+                && self.is_type_subtype_of(type_, self.global_function_type())?;
         Ok(ret)
     }
 
@@ -699,7 +715,7 @@ impl TypeChecker {
         ignore_objects: Option<bool>,
     ) -> io::Result<TypeFacts> {
         let mut ignore_objects = ignore_objects.unwrap_or(false);
-        let flags = type_.flags();
+        let flags = self.type_(type_).flags();
         if flags.intersects(TypeFlags::String) {
             return Ok(if self.strict_null_checks {
                 TypeFacts::StringStrictFacts
@@ -708,7 +724,7 @@ impl TypeChecker {
             });
         }
         if flags.intersects(TypeFlags::StringLiteral) {
-            let is_empty = type_.as_string_literal_type().value == "";
+            let is_empty = self.type_(type_).as_string_literal_type().value == "";
             return Ok(if self.strict_null_checks {
                 if is_empty {
                     TypeFacts::EmptyStringStrictFacts
@@ -731,7 +747,7 @@ impl TypeChecker {
             });
         }
         if flags.intersects(TypeFlags::NumberLiteral) {
-            let is_zero = type_.as_number_literal_type().value == Number::new(0.0);
+            let is_zero = self.type_(type_).as_number_literal_type().value == Number::new(0.0);
             return Ok(if self.strict_null_checks {
                 if is_zero {
                     TypeFacts::ZeroNumberStrictFacts
@@ -778,16 +794,16 @@ impl TypeChecker {
         }
         if flags.intersects(TypeFlags::BooleanLike) {
             return Ok(if self.strict_null_checks {
-                if ptr::eq(type_, &*self.false_type())
-                    || ptr::eq(type_, &*self.regular_false_type())
+                if type_ == self.false_type()
+                    || type_ == self.regular_false_type()
                 {
                     TypeFacts::FalseStrictFacts
                 } else {
                     TypeFacts::TrueStrictFacts
                 }
             } else {
-                if ptr::eq(type_, &*self.false_type())
-                    || ptr::eq(type_, &*self.regular_false_type())
+                if type_ == self.false_type()
+                    || type_ == self.regular_false_type()
                 {
                     TypeFacts::FalseFacts
                 } else {
@@ -797,7 +813,7 @@ impl TypeChecker {
         }
         if flags.intersects(TypeFlags::Object) && !ignore_objects {
             return Ok(
-                if get_object_flags(type_).intersects(ObjectFlags::Anonymous)
+                if get_object_flags(self.type_(type_)).intersects(ObjectFlags::Anonymous)
                     && self.is_empty_object_type(type_)?
                 {
                     if self.strict_null_checks {
@@ -846,7 +862,7 @@ impl TypeChecker {
         if flags.intersects(TypeFlags::Instantiable) {
             return Ok(if !self.is_pattern_literal_type(type_) {
                 self.get_type_facts(
-                    &self
+                    self
                         .get_base_constraint_of_type(type_)?
                         .unwrap_or_else(|| self.unknown_type()),
                     Some(ignore_objects),
@@ -859,8 +875,8 @@ impl TypeChecker {
         }
         if flags.intersects(TypeFlags::Union) {
             return try_reduce_left(
-                type_.as_union_or_intersection_type_interface().types(),
-                |facts, t: &Id<Type>, _| -> io::Result<_> {
+                self.type_(type_).as_union_or_intersection_type_interface().types(),
+                |facts, &t: &Id<Type>, _| -> io::Result<_> {
                     Ok(facts | self.get_type_facts(t, Some(ignore_objects))?)
                 },
                 TypeFacts::None,
@@ -871,8 +887,8 @@ impl TypeChecker {
         if flags.intersects(TypeFlags::Intersection) {
             ignore_objects = ignore_objects || self.maybe_type_of_kind(type_, TypeFlags::Primitive);
             return try_reduce_left(
-                type_.as_union_or_intersection_type_interface().types(),
-                |facts, t: &Id<Type>, _| -> io::Result<_> {
+                self.type_(type_).as_union_or_intersection_type_interface().types(),
+                |facts, &t: &Id<Type>, _| -> io::Result<_> {
                     Ok(facts & self.get_type_facts(t, Some(ignore_objects))?)
                 },
                 TypeFacts::All,
@@ -918,10 +934,10 @@ impl TypeChecker {
         name: &Node, /*PropertyName*/
     ) -> io::Result<Id<Type>> {
         let name_type = self.get_literal_type_from_property_name(name)?;
-        if !self.is_type_usable_as_property_name(&name_type) {
+        if !self.is_type_usable_as_property_name(name_type) {
             return Ok(self.error_type());
         }
-        let text = self.get_property_name_from_type(&name_type);
+        let text = self.get_property_name_from_type(name_type);
         Ok(self
             .get_type_of_property_of_type_(type_, &text)?
             .try_or_else(|| {
@@ -949,7 +965,7 @@ impl TypeChecker {
                     self.check_iterated_type_or_element_type(
                         IterationUse::Destructuring,
                         type_,
-                        &self.undefined_type(),
+                        self.undefined_type(),
                         Option::<&Node>::None,
                     )?,
                 ))
@@ -963,18 +979,17 @@ impl TypeChecker {
         type_: Option<Id<Type>>,
     ) -> io::Result<Option<Id<Type>>> {
         let type_ = return_ok_default_if_none!(type_);
-        let type_ = type_.borrow();
         Ok(Some(
             if self.compiler_options.no_unchecked_indexed_access == Some(true) {
                 self.get_union_type(
-                    &[type_.type_wrapper(), self.undefined_type()],
+                    &[type_, self.undefined_type()],
                     None,
                     Option::<&Symbol>::None,
                     None,
                     None,
                 )?
             } else {
-                type_.type_wrapper()
+                type_.
             },
         ))
     }
@@ -984,10 +999,10 @@ impl TypeChecker {
         type_: Id<Type>,
     ) -> io::Result<Id<Type>> {
         Ok(self.create_array_type(
-            &*self.check_iterated_type_or_element_type(
+            self.check_iterated_type_or_element_type(
                 IterationUse::Destructuring,
                 type_,
-                &self.undefined_type(),
+                self.undefined_type(),
                 Option::<&Node>::None,
             )?, /* || errorType */
             None,
@@ -1005,7 +1020,7 @@ impl TypeChecker {
                 && self.is_destructuring_assignment_target(&node.parent().parent());
         Ok(if is_destructuring_default_assignment {
             self.get_type_with_default(
-                &*self.get_assigned_type(node)?,
+                self.get_assigned_type(node)?,
                 &node.as_binary_expression().right,
             )?
         } else {
@@ -1026,7 +1041,7 @@ impl TypeChecker {
         element: &Node, /*Expression*/
     ) -> io::Result<Id<Type>> {
         self.get_type_of_destructured_array_element(
-            &*self.get_assigned_type(node)?,
+            self.get_assigned_type(node)?,
             node.as_array_literal_expression()
                 .elements
                 .iter()
@@ -1039,7 +1054,7 @@ impl TypeChecker {
         &self,
         node: &Node, /*SpreadElement*/
     ) -> io::Result<Id<Type>> {
-        self.get_type_of_destructured_spread_expression(&*self.get_assigned_type(&node.parent())?)
+        self.get_type_of_destructured_spread_expression(self.get_assigned_type(&node.parent())?)
     }
 
     pub(super) fn get_assigned_type_of_property_assignment(
@@ -1047,7 +1062,7 @@ impl TypeChecker {
         node: &Node, /*PropertyAssignment | ShorthandPropertyAssignment*/
     ) -> io::Result<Id<Type>> {
         self.get_type_of_destructured_property(
-            &*self.get_assigned_type(&node.parent())?,
+            self.get_assigned_type(&node.parent())?,
             &node.as_named_declaration().name(),
         )
     }
@@ -1057,7 +1072,7 @@ impl TypeChecker {
         node: &Node, /*ShorthandPropertyAssignment*/
     ) -> io::Result<Id<Type>> {
         self.get_type_with_default(
-            &*self.get_assigned_type_of_property_assignment(node)?,
+            self.get_assigned_type_of_property_assignment(node)?,
             node.as_shorthand_property_assignment()
                 .object_assignment_initializer
                 .as_ref()

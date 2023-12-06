@@ -747,7 +747,7 @@ impl SymbolTableToDeclarationStatements {
                 || symbol.flags().intersects(SymbolFlags::Function)
                     && self
                         .type_checker
-                        .get_properties_of_type(&*self.type_checker.get_type_of_symbol(symbol)?)?
+                        .get_properties_of_type(self.type_checker.get_type_of_symbol(symbol)?)?
                         .len()
                         > 0)
             && !symbol.flags().intersects(SymbolFlags::Alias);
@@ -776,7 +776,7 @@ impl SymbolTableToDeclarationStatements {
             && symbol.escaped_name() != InternalSymbolName::ExportEquals;
         let is_const_merged_with_ns_printable_as_signature_merge = is_const_merged_with_ns
             && self.is_type_representable_as_function_namespace_merge(
-                &*self.type_checker.get_type_of_symbol(symbol)?,
+                self.type_checker.get_type_of_symbol(symbol)?,
                 symbol,
             )?;
         if symbol
@@ -785,7 +785,7 @@ impl SymbolTableToDeclarationStatements {
             || is_const_merged_with_ns_printable_as_signature_merge
         {
             self.serialize_as_function_namespace_merge(
-                &*self.type_checker.get_type_of_symbol(symbol)?,
+                self.type_checker.get_type_of_symbol(symbol)?,
                 symbol,
                 &self.get_internal_symbol_name(symbol, symbol_name),
                 modifier_flags,
@@ -810,7 +810,7 @@ impl SymbolTableToDeclarationStatements {
                     needs_post_export_default = false;
                 }
             } else {
-                let ref type_ = self.type_checker.get_type_of_symbol(symbol)?;
+                let type_ = self.type_checker.get_type_of_symbol(symbol)?;
                 let local_name = self.get_internal_symbol_name(symbol, symbol_name);
                 if !symbol.flags().intersects(SymbolFlags::Function)
                     && self.is_type_representable_as_function_namespace_merge(type_, symbol)?
@@ -871,7 +871,7 @@ impl SymbolTableToDeclarationStatements {
                         let property_access_require_parent = property_access_require.parent();
                         is_binary_expression(&property_access_require_parent) && is_identifier(&property_access_require_parent.as_binary_expression().right) &&
                             matches!(
-                                type_.maybe_symbol().and_then(|type_symbol| type_symbol.maybe_value_declaration()),
+                                self.type_(type_).maybe_symbol().and_then(|type_symbol| type_symbol.maybe_value_declaration()),
                                 Some(type_symbol_value_declaration) if is_source_file(&type_symbol_value_declaration)
                             )
                     }) {
@@ -900,7 +900,7 @@ impl SymbolTableToDeclarationStatements {
                             ModifierFlags::None
                         );
                         self.context().tracker().track_symbol(
-                            &type_.symbol(),
+                            &self.type_(type_).symbol(),
                             self.context().maybe_enclosing_declaration(),
                             SymbolFlags::Value,
                         ).transpose()?;

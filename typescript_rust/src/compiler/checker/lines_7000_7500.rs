@@ -148,7 +148,7 @@ impl SymbolTableToDeclarationStatements {
             .borrow()
             .type_parameters
             .clone();
-        let type_param_decls = try_maybe_map(type_params.as_ref(), |p: &Id<Type>, _| {
+        let type_param_decls = try_maybe_map(type_params.as_ref(), |&p: &Id<Type>, _| {
             self.node_builder
                 .type_parameter_to_declaration_(p, &self.context(), None)
         })
@@ -202,7 +202,7 @@ impl SymbolTableToDeclarationStatements {
             .try_unwrap_or_else(|| -> io::Result<_> {
                 Ok(self
                     .node_builder
-                    .type_to_type_node_helper(Some(&*alias_type), &self.context())?
+                    .type_to_type_node_helper(Some(alias_type), &self.context())?
                     .unwrap())
             })?;
         self.add_result(
@@ -239,13 +239,13 @@ impl SymbolTableToDeclarationStatements {
         symbol_name: &str,
         modifier_flags: ModifierFlags,
     ) -> io::Result<()> {
-        let ref interface_type = self
+        let interface_type = self
             .type_checker
             .get_declared_type_of_class_or_interface(symbol)?;
         let local_params = self
             .type_checker
             .get_local_type_parameters_of_class_or_interface_or_type_alias(symbol)?;
-        let type_param_decls = try_maybe_map(local_params.as_deref(), |p: &Id<Type>, _| {
+        let type_param_decls = try_maybe_map(local_params.as_deref(), |&p: &Id<Type>, _| {
             self.node_builder
                 .type_parameter_to_declaration_(p, &self.context(), None)
         })
@@ -268,23 +268,23 @@ impl SymbolTableToDeclarationStatements {
                     .collect_vec(),
             ),
             |p: &Gc<Symbol>, _| {
-                self.serialize_property_symbol_for_interface(p, base_type.as_deref())
+                self.serialize_property_symbol_for_interface(p, base_type)
             },
         )?;
         let call_signatures = self.serialize_signatures(
             SignatureKind::Call,
             interface_type,
-            base_type.as_deref(),
+            base_type,
             SyntaxKind::CallSignature,
         )?;
         let construct_signatures = self.serialize_signatures(
             SignatureKind::Construct,
             interface_type,
-            base_type.as_deref(),
+            base_type,
             SyntaxKind::ConstructSignature,
         )?;
         let index_signatures =
-            self.serialize_index_signatures(interface_type, base_type.as_deref())?;
+            self.serialize_index_signatures(interface_type, base_type)?;
 
         let heritage_clauses: Option<Vec<Gc<Node>>> = if base_types.is_empty() {
             None
@@ -495,7 +495,7 @@ impl SymbolTableToDeclarationStatements {
                 &*self.get_internal_symbol_name(symbol, symbol_name),
                 Some(
                     self.type_checker
-                        .get_properties_of_type(&*self.type_checker.get_type_of_symbol(symbol)?)?
+                        .get_properties_of_type(self.type_checker.get_type_of_symbol(symbol)?)?
                         .filter(|p| p.flags().intersects(SymbolFlags::EnumMember))
                         .map(|p| -> io::Result<Gc<Node>> {
                             let initialized_value = p
@@ -838,12 +838,12 @@ impl SymbolTableToDeclarationStatements {
         let local_params = self
             .type_checker
             .get_local_type_parameters_of_class_or_interface_or_type_alias(symbol)?;
-        let type_param_decls = try_maybe_map(local_params.as_ref(), |p: &Id<Type>, _| {
+        let type_param_decls = try_maybe_map(local_params.as_ref(), |&p: &Id<Type>, _| {
             self.node_builder
                 .type_parameter_to_declaration_(p, &self.context(), None)
         })
         .transpose()?;
-        let ref class_type = self
+        let class_type = self
             .type_checker
             .get_declared_type_of_class_or_interface(symbol)?;
         let base_types = self.type_checker.get_base_types(class_type)?;
@@ -861,12 +861,12 @@ impl SymbolTableToDeclarationStatements {
                     |type_: &Id<Type>, _| self.serialize_implemented_type(type_),
                 )
             })?;
-        let ref static_type = self.type_checker.get_type_of_symbol(symbol)?;
+        let static_type = self.type_checker.get_type_of_symbol(symbol)?;
         let is_class = matches!(
-            static_type.maybe_symbol().and_then(|static_type_symbol| static_type_symbol.maybe_value_declaration()).as_ref(),
+            self.type_(static_type).maybe_symbol().and_then(|static_type_symbol| static_type_symbol.maybe_value_declaration()).as_ref(),
             Some(static_type_symbol_value_declaration) if is_class_like(static_type_symbol_value_declaration)
         );
-        let ref static_base_type = if is_class {
+        let static_base_type = if is_class {
             self.type_checker
                 .get_base_constructor_type_of_class(static_type)?
         } else {
@@ -932,7 +932,7 @@ impl SymbolTableToDeclarationStatements {
                 self.serialize_property_symbol_for_class().call(
                     p,
                     false,
-                    base_types.get(0).as_double_deref(),
+                    base_types.get(0).copied(),
                 )
             },
         )?;
@@ -950,7 +950,7 @@ impl SymbolTableToDeclarationStatements {
             )),
             |p: &Gc<Symbol>, _| {
                 self.serialize_property_symbol_for_class()
-                    .call(p, true, Some(&**static_base_type))
+                    .call(p, true, Some(static_base_type))
             },
         )?;
         let is_non_constructable_class_like_in_js_file = !is_class
@@ -977,12 +977,12 @@ impl SymbolTableToDeclarationStatements {
             self.serialize_signatures(
                 SignatureKind::Construct,
                 static_type,
-                Some(&**static_base_type),
+                Some(static_base_type),
                 SyntaxKind::Constructor,
             )?
         };
         let index_signatures =
-            self.serialize_index_signatures(class_type, base_types.get(0).as_double_deref())?;
+            self.serialize_index_signatures(class_type, base_types.get(0).copied())?;
         self.context().set_enclosing_declaration(old_enclosing);
         self.add_result(
             &set_text_range_rc_node(
