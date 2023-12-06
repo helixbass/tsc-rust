@@ -1155,12 +1155,8 @@ impl InferTypes {
             .flags()
             .intersects(TypeFlags::Union)
         {
-            let source_ref = self
-                .type_checker
-                .type_(source);
-            let source_types = source_ref
-                .as_union_or_intersection_type_interface()
-                .types();
+            let source_ref = self.type_checker.type_(source);
+            let source_types = source_ref.as_union_or_intersection_type_interface().types();
             for &source_type in source_types {
                 self.infer_from_types(source_type, target)?;
             }

@@ -357,12 +357,8 @@ impl InferTypes {
         let matches = self
             .type_checker
             .infer_types_from_template_literal_type(source, target)?;
-        let target_ref = &self
-            .type_checker
-            .type_(target);
-        let types = &target_ref
-            .as_template_literal_type()
-            .types;
+        let target_ref = &self.type_checker.type_(target);
+        let types = &target_ref.as_template_literal_type().types;
         if matches.is_some()
             || every(
                 &self
@@ -470,12 +466,8 @@ impl InferTypes {
                     let target_arity = self.type_checker.get_type_reference_arity(target);
                     let element_types = self.type_checker.get_type_arguments(target)?;
                     let target_target = self.type_checker.type_(target).as_type_reference().target;
-                    let target_target_ref = self
-                        .type_checker
-                        .type_(target_target);
-                    let element_flags = &target_target_ref
-                        .as_tuple_type()
-                        .element_flags;
+                    let target_target_ref = self.type_checker.type_(target_target);
+                    let element_flags = &target_target_ref.as_tuple_type().element_flags;
                     if self.type_checker.is_tuple_type(source)
                         && self
                             .type_checker

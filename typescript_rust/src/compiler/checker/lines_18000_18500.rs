@@ -1379,9 +1379,7 @@ impl CheckTypeRelatedTo {
                     .intersects(TypeFlags::Intersection)
             {
                 let target_ref = self.type_checker.type_(target);
-                let target_types = target_ref
-                    .as_union_or_intersection_type_interface()
-                    .types();
+                let target_types = target_ref.as_union_or_intersection_type_interface().types();
                 let intrinsic_attributes = self.type_checker.get_jsx_type(
                     &JsxNames::IntrinsicAttributes,
                     self.maybe_error_node().as_deref(),

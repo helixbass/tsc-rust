@@ -820,10 +820,8 @@ impl TypeChecker {
     ) -> io::Result<Vec<Gc<Symbol>>> {
         let element_types = self.get_type_arguments(rest_type)?;
         let rest_type_target = self.type_(rest_type).as_type_reference().target;
-        let rest_type_target_ref = self
-            .type_(rest_type_target);
-        let associated_names = 
-            rest_type_target_ref
+        let rest_type_target_ref = self.type_(rest_type_target);
+        let associated_names = rest_type_target_ref
             .as_tuple_type()
             .labeled_element_declarations
             .as_ref();

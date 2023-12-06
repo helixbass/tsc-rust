@@ -62,9 +62,7 @@ impl CheckTypeRelatedTo {
         report_errors: bool,
     ) -> io::Result<Ternary> {
         let target_ref = self.type_checker.type_(target);
-        let target_types = target_ref
-            .as_union_or_intersection_type_interface()
-            .types();
+        let target_types = target_ref.as_union_or_intersection_type_interface().types();
         if self
             .type_checker
             .type_(target)
@@ -162,12 +160,8 @@ impl CheckTypeRelatedTo {
         report_errors: bool,
         intersection_state: IntersectionState,
     ) -> io::Result<Ternary> {
-        let source_ref = self
-            .type_checker
-            .type_(source);
-        let source_types = source_ref
-            .as_union_or_intersection_type_interface()
-            .types();
+        let source_ref = self.type_checker.type_(source);
+        let source_types = source_ref.as_union_or_intersection_type_interface().types();
         if self
             .type_checker
             .type_(source)
@@ -245,12 +239,8 @@ impl CheckTypeRelatedTo {
         intersection_state: IntersectionState,
     ) -> io::Result<Ternary> {
         let mut result = Ternary::True;
-        let source_ref = self
-            .type_checker
-            .type_(source);
-        let source_types = source_ref
-            .as_union_or_intersection_type_interface()
-            .types();
+        let source_ref = self.type_checker.type_(source);
+        let source_types = source_ref.as_union_or_intersection_type_interface().types();
         let undefined_stripped_target =
             self.get_undefined_stripped_target_if_needed(source, target);
         for (i, source_type) in source_types.into_iter().enumerate() {

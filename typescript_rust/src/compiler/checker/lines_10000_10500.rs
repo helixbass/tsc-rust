@@ -23,8 +23,7 @@ impl TypeChecker {
         &self,
         type_: Id<Type>,
     ) -> io::Result<bool> {
-        let type_ref = self
-            .type_(type_);
+        let type_ref = self.type_(type_);
         let outer_type_parameters = type_ref
             .maybe_as_interface_type()
             .and_then(|type_| type_.maybe_outer_type_parameters());

@@ -631,8 +631,7 @@ impl TypeChecker {
         let rest_type =
             override_rest_type.try_unwrap_or_else(|| self.get_type_of_symbol(&rest_parameter))?;
         if self.is_tuple_type(rest_type) {
-            let rest_type_target_ref = self
-                .type_(self.type_(rest_type).as_type_reference().target);
+            let rest_type_target_ref = self.type_(self.type_(rest_type).as_type_reference().target);
             let associated_names = rest_type_target_ref
                 .as_tuple_type()
                 .labeled_element_declarations
@@ -678,8 +677,7 @@ impl TypeChecker {
 
         let rest_type = self.get_type_of_symbol(&rest_parameter)?;
         if self.is_tuple_type(rest_type) {
-            let rest_type_target_ref = self
-                .type_(self.type_(rest_type).as_type_reference().target);
+            let rest_type_target_ref = self.type_(self.type_(rest_type).as_type_reference().target);
             let associated_names = rest_type_target_ref
                 .as_tuple_type()
                 .labeled_element_declarations
@@ -747,8 +745,7 @@ impl TypeChecker {
             .unwrap_or_else(|| self.unknown_symbol());
         let rest_type = self.get_type_of_symbol(&rest_parameter)?;
         if self.is_tuple_type(rest_type) {
-            let rest_type_target_ref = self
-                .type_(self.type_(rest_type).as_type_reference().target);
+            let rest_type_target_ref = self.type_(self.type_(rest_type).as_type_reference().target);
             let associated_names = rest_type_target_ref
                 .as_tuple_type()
                 .labeled_element_declarations

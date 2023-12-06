@@ -495,8 +495,7 @@ impl TypeChecker {
     ) -> Id<Type> {
         if strings_only {
             let type_ref = self.type_(type_);
-            let mut type_resolved_string_index_type =
-                type_ref.maybe_resolved_string_index_type();
+            let mut type_resolved_string_index_type = type_ref.maybe_resolved_string_index_type();
             if type_resolved_string_index_type.is_none() {
                 *type_resolved_string_index_type = Some(self.create_index_type(type_, true));
             }
@@ -668,9 +667,7 @@ impl TypeChecker {
                     .flags()
                     .intersects(TypeFlags::UnionOrIntersection)
                 {
-                    type_ref
-                        .as_union_or_intersection_type_interface()
-                        .types()
+                    type_ref.as_union_or_intersection_type_interface().types()
                 } else {
                     &*type_ref.as_template_literal_type().types
                 },

@@ -125,14 +125,9 @@ impl NodeBuilder {
                 .intersects(TypeFlags::Object),
             None,
         );
-        let type_ref = self
-            .type_checker
-            .type_(type_);
+        let type_ref = self.type_checker.type_(type_);
         let type_declaration_as_mapped_type_node =
-            type_ref
-            .as_mapped_type()
-            .declaration
-            .as_mapped_type_node();
+            type_ref.as_mapped_type().declaration.as_mapped_type_node();
         let readonly_token: Option<Gc<Node>> = type_declaration_as_mapped_type_node
             .readonly_token
             .as_ref()
@@ -553,12 +548,8 @@ impl NodeBuilder {
                     .construct_signatures()
                     .is_empty()
             {
-                let resolved_ref = self
-                    .type_checker
-                    .type_(resolved);
-                let signature = &resolved_ref
-                    .as_resolved_type()
-                    .call_signatures()[0];
+                let resolved_ref = self.type_checker.type_(resolved);
+                let signature = &resolved_ref.as_resolved_type().call_signatures()[0];
                 let signature_node = self.signature_to_signature_declaration_helper(
                     signature.clone(),
                     SyntaxKind::FunctionType,
@@ -582,13 +573,8 @@ impl NodeBuilder {
                     .call_signatures()
                     .is_empty()
             {
-                let resolved_ref = self
-                    .type_checker
-                    .type_(resolved);
-                let signature = 
-                    &resolved_ref
-                    .as_resolved_type()
-                    .construct_signatures()[0];
+                let resolved_ref = self.type_checker.type_(resolved);
+                let signature = &resolved_ref.as_resolved_type().construct_signatures()[0];
                 let signature_node = self.signature_to_signature_declaration_helper(
                     signature.clone(),
                     SyntaxKind::ConstructorType,
@@ -889,11 +875,8 @@ impl NodeBuilder {
             {
                 Some(self.create_anonymous_type_node(context, type_)?)
             } else {
-                let type_target_ref = self
-                    .type_checker
-                    .type_(type_target);
-                let outer_type_parameters =
-                    type_target_ref
+                let type_target_ref = self.type_checker.type_(type_target);
+                let outer_type_parameters = type_target_ref
                     .as_interface_type()
                     .maybe_outer_type_parameters();
                 let mut i = 0;

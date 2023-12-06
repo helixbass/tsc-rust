@@ -1055,7 +1055,8 @@ impl TypeChecker {
                         )?;
                     }
                 }
-                object_flags |= get_object_flags(&self.type_(type_)) & ObjectFlags::PropagatingFlags;
+                object_flags |=
+                    get_object_flags(&self.type_(type_)) & ObjectFlags::PropagatingFlags;
                 let name_type = computed_name_type.filter(|&computed_name_type| {
                     self.is_type_usable_as_property_name(computed_name_type)
                 });

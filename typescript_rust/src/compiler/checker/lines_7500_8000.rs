@@ -240,74 +240,76 @@ impl SymbolTableToDeclarationStatements {
         host_symbol: &Symbol,
     ) -> io::Result<bool> {
         let ctx_src = maybe_get_source_file_of_node(self.context().maybe_enclosing_declaration());
-        Ok(get_object_flags(&self.type_checker.type_(type_to_serialize))
-            .intersects(ObjectFlags::Anonymous | ObjectFlags::Mapped)
-            && self
-                .type_checker
-                .get_index_infos_of_type(type_to_serialize)?
-                .is_empty()
-            && !self
-                .type_checker
-                .is_class_instance_side(type_to_serialize)?
-            && (!self
-                .type_checker
-                .get_properties_of_type(type_to_serialize)?
-                .into_iter()
-                .filter(|property| self.is_namespace_member(property))
-                .empty()
-                || !self
+        Ok(
+            get_object_flags(&self.type_checker.type_(type_to_serialize))
+                .intersects(ObjectFlags::Anonymous | ObjectFlags::Mapped)
+                && self
                     .type_checker
-                    .get_signatures_of_type(type_to_serialize, SignatureKind::Call)?
-                    .is_empty())
-            && self
-                .type_checker
-                .get_signatures_of_type(type_to_serialize, SignatureKind::Construct)?
-                .is_empty()
-            && self
-                .node_builder
-                .get_declaration_with_type_annotation(
-                    host_symbol,
-                    Some(&*self.enclosing_declaration),
-                )
-                .is_none()
-            && !matches!(
-                self.type_checker.type_(type_to_serialize).maybe_symbol(),
-                Some(type_to_serialize_symbol) if some(
-                    type_to_serialize_symbol.maybe_declarations().as_deref(),
-                    Some(|d: &Gc<Node>| !are_option_gcs_equal(
-                        maybe_get_source_file_of_node(Some(&**d)).as_ref(),
-                        ctx_src.as_ref()
-                    ))
-                )
-            )
-            && !self
-                .type_checker
-                .get_properties_of_type(type_to_serialize)?
-                .any(|ref p| self.type_checker.is_late_bound_name(p.escaped_name()))
-            && !self
-                .type_checker
-                .get_properties_of_type(type_to_serialize)?
-                .any(|ref p| {
-                    some(
-                        p.maybe_declarations().as_deref(),
-                        Some(|d: &Gc<Node>| {
-                            !are_option_gcs_equal(
-                                maybe_get_source_file_of_node(Some(&**d)).as_ref(),
-                                ctx_src.as_ref(),
-                            )
-                        }),
+                    .get_index_infos_of_type(type_to_serialize)?
+                    .is_empty()
+                && !self
+                    .type_checker
+                    .is_class_instance_side(type_to_serialize)?
+                && (!self
+                    .type_checker
+                    .get_properties_of_type(type_to_serialize)?
+                    .into_iter()
+                    .filter(|property| self.is_namespace_member(property))
+                    .empty()
+                    || !self
+                        .type_checker
+                        .get_signatures_of_type(type_to_serialize, SignatureKind::Call)?
+                        .is_empty())
+                && self
+                    .type_checker
+                    .get_signatures_of_type(type_to_serialize, SignatureKind::Construct)?
+                    .is_empty()
+                && self
+                    .node_builder
+                    .get_declaration_with_type_annotation(
+                        host_symbol,
+                        Some(&*self.enclosing_declaration),
                     )
-                })
-            && self
-                .type_checker
-                .get_properties_of_type(type_to_serialize)?
-                .all(|ref p| {
-                    is_identifier_text(
-                        &symbol_name(p),
-                        Some(self.type_checker.language_version),
-                        None,
+                    .is_none()
+                && !matches!(
+                    self.type_checker.type_(type_to_serialize).maybe_symbol(),
+                    Some(type_to_serialize_symbol) if some(
+                        type_to_serialize_symbol.maybe_declarations().as_deref(),
+                        Some(|d: &Gc<Node>| !are_option_gcs_equal(
+                            maybe_get_source_file_of_node(Some(&**d)).as_ref(),
+                            ctx_src.as_ref()
+                        ))
                     )
-                }))
+                )
+                && !self
+                    .type_checker
+                    .get_properties_of_type(type_to_serialize)?
+                    .any(|ref p| self.type_checker.is_late_bound_name(p.escaped_name()))
+                && !self
+                    .type_checker
+                    .get_properties_of_type(type_to_serialize)?
+                    .any(|ref p| {
+                        some(
+                            p.maybe_declarations().as_deref(),
+                            Some(|d: &Gc<Node>| {
+                                !are_option_gcs_equal(
+                                    maybe_get_source_file_of_node(Some(&**d)).as_ref(),
+                                    ctx_src.as_ref(),
+                                )
+                            }),
+                        )
+                    })
+                && self
+                    .type_checker
+                    .get_properties_of_type(type_to_serialize)?
+                    .all(|ref p| {
+                        is_identifier_text(
+                            &symbol_name(p),
+                            Some(self.type_checker.language_version),
+                            None,
+                        )
+                    }),
+        )
     }
 
     pub(super) fn make_serialize_property_symbol(

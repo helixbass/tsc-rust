@@ -536,14 +536,9 @@ impl GetFlowTypeOfReference {
                     .flags()
                     .intersects(TypeFlags::StringLiteral)
                 {
-                    let left_type_ref = self
-                        .type_checker
-                        .type_(left_type);
-                    let name = escape_leading_underscores(
-                        &left_type_ref
-                            .as_string_literal_type()
-                            .value,
-                    );
+                    let left_type_ref = self.type_checker.type_(left_type);
+                    let name =
+                        escape_leading_underscores(&left_type_ref.as_string_literal_type().value);
                     if self.type_checker.contains_missing_type(type_)
                         && is_access_expression(&self.reference)
                         && self.type_checker.is_matching_reference(

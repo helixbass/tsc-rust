@@ -875,12 +875,8 @@ impl TypeChecker {
             .flags()
             .intersects(TypeFlags::UnionOrIntersection)
         {
-            let t_ref = self
-                .type_(t);
-            let types = 
-                t_ref
-                .as_union_or_intersection_type_interface()
-                .types();
+            let t_ref = self.type_(t);
+            let types = t_ref.as_union_or_intersection_type_interface().types();
             let mut base_types: Vec<Id<Type>> = vec![];
             let mut different = false;
             for &type_ in types {

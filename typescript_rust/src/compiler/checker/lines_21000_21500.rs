@@ -360,7 +360,8 @@ impl TypeChecker {
             if self.is_object_literal_type(type_) {
                 for ref p in self.get_properties_of_object_type(type_)? {
                     let t = self.get_type_of_symbol(p)?;
-                    if get_object_flags(&self.type_(t)).intersects(ObjectFlags::ContainsWideningType)
+                    if get_object_flags(&self.type_(t))
+                        .intersects(ObjectFlags::ContainsWideningType)
                     {
                         if !self.report_widening_errors_in_type(t)? {
                             self.error(
