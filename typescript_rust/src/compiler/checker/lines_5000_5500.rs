@@ -313,10 +313,10 @@ impl NodeBuilder {
         mut transform: impl FnMut(Id<Type>) -> io::Result<Gc<Node>>,
     ) -> io::Result<Gc<Node>> {
         let type_id = self.type_checker.type_(type_).id();
-        let is_constructor_object = get_object_flags(self.type_checker.type_(type_))
+        let is_constructor_object = get_object_flags(&self.type_checker.type_(type_))
             .intersects(ObjectFlags::Anonymous)
             && matches!(self.type_checker.type_(type_).maybe_symbol(), Some(symbol) if symbol.flags().intersects(SymbolFlags::Class));
-        let id = if get_object_flags(self.type_checker.type_(type_))
+        let id = if get_object_flags(&self.type_checker.type_(type_))
             .intersects(ObjectFlags::Reference)
             && self
                 .type_checker
@@ -1221,7 +1221,7 @@ impl NodeBuilder {
                 context.reverse_mapped_stack.borrow().as_ref(),
                 Some(reverse_mapped_stack) if reverse_mapped_stack.get(0).is_some()
             ) && !get_object_flags(
-                self.type_checker.type_(
+                &self.type_checker.type_(
                     last(context.reverse_mapped_stack.borrow().as_deref().unwrap())
                         .as_reverse_mapped_symbol()
                         .property_type,

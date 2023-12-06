@@ -1288,8 +1288,8 @@ impl CheckTypeRelatedTo {
         } else {
             Self::report_incompatible_call_signature_return
         };
-        let source_object_flags = get_object_flags(self.type_checker.type_(source));
-        let target_object_flags = get_object_flags(self.type_checker.type_(target));
+        let source_object_flags = get_object_flags(&self.type_checker.type_(source));
+        let target_object_flags = get_object_flags(&self.type_checker.type_(target));
         if source_object_flags.intersects(ObjectFlags::Instantiated)
             && target_object_flags.intersects(ObjectFlags::Instantiated)
             && are_option_gcs_equal(

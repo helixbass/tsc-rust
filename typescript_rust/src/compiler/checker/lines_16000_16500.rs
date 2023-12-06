@@ -163,7 +163,7 @@ impl TypeChecker {
 
     pub(super) fn get_fresh_type_of_literal_type(&self, type_: Id<Type>) -> Id<Type> {
         if self.type_(type_).flags().intersects(TypeFlags::Literal) {
-            return match self.type_(type_) {
+            return match &*self.type_(type_) {
                 Type::LiteralType(type_) => type_.get_or_initialize_fresh_type(self),
                 Type::IntrinsicType(IntrinsicType::FreshableIntrinsicType(type_)) => {
                     type_.fresh_type()
@@ -178,7 +178,7 @@ impl TypeChecker {
         if self.type_(type_).flags().intersects(TypeFlags::Literal) {
             // TODO: this seems like it should be encapsulated behind an abstraction (also above in
             // get_fresh_type_of_literal_type())?
-            match self.type_(type_) {
+            match &*self.type_(type_) {
                 Type::LiteralType(type_) => type_.regular_type(),
                 Type::IntrinsicType(IntrinsicType::FreshableIntrinsicType(type_)) => {
                     type_.regular_type()
@@ -219,7 +219,7 @@ impl TypeChecker {
         // (same question in is_type_related_to() and get_normalized_type() below, and in
         // remove_redundant_literal_types()) or maybe this looks like it should be a trait that
         // includes `maybe_fresh_type()` that both of these implement?
-        match self.type_(type_) {
+        match &*self.type_(type_) {
             Type::IntrinsicType(intrinsic_type) => {
                 type_
                     == enum_unwrapped!(intrinsic_type, [IntrinsicType, FreshableIntrinsicType])

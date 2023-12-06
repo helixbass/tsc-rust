@@ -361,7 +361,7 @@ impl TypeChecker {
         }
         let index_infos = self.get_applicable_index_infos(type_, prop_name_type)?;
         let interface_declaration =
-            if get_object_flags(self.type_(type_)).intersects(ObjectFlags::Interface) {
+            if get_object_flags(&self.type_(type_)).intersects(ObjectFlags::Interface) {
                 get_declaration_of_kind(
                     &self.type_(type_).symbol(),
                     SyntaxKind::InterfaceDeclaration,
@@ -441,7 +441,7 @@ impl TypeChecker {
         let declaration = check_info.declaration.as_ref();
         let index_infos = self.get_applicable_index_infos(type_, check_info.key_type)?;
         let interface_declaration =
-            if get_object_flags(self.type_(type_)).intersects(ObjectFlags::Interface) {
+            if get_object_flags(&self.type_(type_)).intersects(ObjectFlags::Interface) {
                 get_declaration_of_kind(
                     &self.type_(type_).symbol(),
                     SyntaxKind::InterfaceDeclaration,

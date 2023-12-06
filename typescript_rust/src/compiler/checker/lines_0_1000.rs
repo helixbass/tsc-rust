@@ -1521,7 +1521,7 @@ impl TypeChecker {
         unimplemented!()
     }
 
-    pub fn type_(&self, type_: Id<Type>) -> &Type {
+    pub fn type_(&self, type_: Id<Type>) -> Ref<Type> {
         self.arena().type_(type_)
     }
 

@@ -897,7 +897,7 @@ impl TypeChecker {
     }
 
     pub(super) fn is_const_enum_object_type(&self, type_: Id<Type>) -> bool {
-        get_object_flags(self.type_(type_)).intersects(ObjectFlags::Anonymous)
+        get_object_flags(&self.type_(type_)).intersects(ObjectFlags::Anonymous)
             && matches!(
                 self.type_(type_).maybe_symbol().as_ref(),
                 Some(type_symbol) if self.is_const_enum_symbol(type_symbol)

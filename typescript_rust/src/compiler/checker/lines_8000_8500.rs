@@ -221,7 +221,7 @@ impl TypeChecker {
             .flags()
             .intersects(TypeFlags::StringOrNumberLiteral)
         {
-            let name: String = match self.type_(name_type) {
+            let name: String = match &*self.type_(name_type) {
                 Type::LiteralType(LiteralType::StringLiteralType(name_type)) => {
                     name_type.value.clone()
                 }

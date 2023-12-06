@@ -464,7 +464,7 @@ impl TypeChecker {
                 includes |= TypeFlags::IncludesWildcard;
             }
             if !self.strict_null_checks && flags.intersects(TypeFlags::Nullable) {
-                if !(get_object_flags(self.type_(type_))
+                if !(get_object_flags(&self.type_(type_))
                     .intersects(ObjectFlags::ContainsWideningType))
                 {
                     includes |= TypeFlags::IncludesNonWideningType;
@@ -595,9 +595,9 @@ impl TypeChecker {
                             source,
                             target,
                             self.strict_subtype_relation.clone(),
-                        )? && (!get_object_flags(self.type_(self.get_target_type(source)))
+                        )? && (!get_object_flags(&self.type_(self.get_target_type(source)))
                             .intersects(ObjectFlags::Class)
-                            || !get_object_flags(self.type_(self.get_target_type(target)))
+                            || !get_object_flags(&self.type_(self.get_target_type(target)))
                                 .intersects(ObjectFlags::Class)
                             || self.is_type_derived_from(source, target)?)
                         {
@@ -638,7 +638,7 @@ impl TypeChecker {
                 || self.is_fresh_literal_type(t)
                     && self.contains_type(
                         types,
-                        match self.type_(t) {
+                        match &*self.type_(t) {
                             Type::IntrinsicType(intrinsic_type) => enum_unwrapped!(
                                 intrinsic_type,
                                 [IntrinsicType, FreshableIntrinsicType]

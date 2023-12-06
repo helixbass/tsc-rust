@@ -89,7 +89,7 @@ impl TypeChecker {
             {
                 Some(format!(
                     "{}",
-                    match self.type_(type_) {
+                    match &*self.type_(type_) {
                         Type::LiteralType(LiteralType::NumberLiteralType(type_)) => {
                             type_.value.to_string()
                         }
@@ -1260,7 +1260,7 @@ impl TypeChecker {
             )?;
             self.type_(result).as_object_type().set_object_flags(
                 self.type_(result).as_object_type().object_flags()
-                    | get_object_flags(self.type_(type_)) & ObjectFlags::JSLiteral,
+                    | get_object_flags(&self.type_(type_)) & ObjectFlags::JSLiteral,
             );
             if let Some(result_symbol) = self.type_(result).maybe_symbol() {
                 if result_symbol.flags().intersects(SymbolFlags::Class)

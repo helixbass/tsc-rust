@@ -752,7 +752,7 @@ impl TypeChecker {
         source: Id<Type>,
         union_target: Id<Type>, /*UnionOrIntersectionType*/
     ) -> Option<Id<Type>> {
-        let source_object_flags = get_object_flags(self.type_(source));
+        let source_object_flags = get_object_flags(&self.type_(source));
         if source_object_flags.intersects(ObjectFlags::Reference | ObjectFlags::Anonymous)
             && self
                 .type_(union_target)
@@ -766,7 +766,7 @@ impl TypeChecker {
                 |&target: &Id<Type>, _| {
                     if self.type_(target).flags().intersects(TypeFlags::Object) {
                         let overlap_obj_flags =
-                            source_object_flags & get_object_flags(self.type_(target));
+                            source_object_flags & get_object_flags(&self.type_(target));
                         if overlap_obj_flags.intersects(ObjectFlags::Reference) {
                             return self.type_(source).as_type_reference_interface().target()
                                 == self.type_(target).as_type_reference_interface().target();
@@ -792,7 +792,7 @@ impl TypeChecker {
         source: Id<Type>,
         union_target: Id<Type>, /*UnionOrIntersectionType*/
     ) -> io::Result<Option<Id<Type>>> {
-        if get_object_flags(self.type_(source)).intersects(ObjectFlags::ObjectLiteral)
+        if get_object_flags(&self.type_(source)).intersects(ObjectFlags::ObjectLiteral)
             && self.try_some_type(union_target, |type_: Id<Type>| {
                 self.is_array_like_type(type_)
             })?

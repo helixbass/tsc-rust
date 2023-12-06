@@ -245,7 +245,7 @@ impl TypeChecker {
     }
 
     pub(super) fn is_array_type(&self, type_: Id<Type>) -> bool {
-        get_object_flags(self.type_(type_)).intersects(ObjectFlags::Reference)
+        get_object_flags(&self.type_(type_)).intersects(ObjectFlags::Reference)
             && (self.type_(type_).as_type_reference_interface().target()
                 == self.global_array_type()
                 || self.type_(type_).as_type_reference_interface().target()
@@ -253,7 +253,7 @@ impl TypeChecker {
     }
 
     pub(super) fn is_readonly_array_type(&self, type_: Id<Type>) -> bool {
-        get_object_flags(self.type_(type_)).intersects(ObjectFlags::Reference)
+        get_object_flags(&self.type_(type_)).intersects(ObjectFlags::Reference)
             && self.type_(type_).as_type_reference_interface().target()
                 == self.global_readonly_array_type()
     }
@@ -288,18 +288,18 @@ impl TypeChecker {
         &self,
         type_: Id<Type>,
     ) -> io::Result<Option<Id<Type>>> {
-        if !get_object_flags(self.type_(type_)).intersects(ObjectFlags::Reference)
+        if !get_object_flags(&self.type_(type_)).intersects(ObjectFlags::Reference)
             || !get_object_flags(
-                self.type_(self.type_(type_).as_type_reference_interface().target()),
+                &self.type_(self.type_(type_).as_type_reference_interface().target()),
             )
             .intersects(ObjectFlags::ClassOrInterface)
         {
             return Ok(None);
         }
-        if get_object_flags(self.type_(type_)).intersects(ObjectFlags::IdenticalBaseTypeCalculated)
+        if get_object_flags(&self.type_(type_)).intersects(ObjectFlags::IdenticalBaseTypeCalculated)
         {
             return Ok(
-                if get_object_flags(self.type_(type_))
+                if get_object_flags(&self.type_(type_))
                     .intersects(ObjectFlags::IdenticalBaseTypeExists)
                 {
                     self.type_(type_)
@@ -320,7 +320,7 @@ impl TypeChecker {
                     | ObjectFlags::IdenticalBaseTypeCalculated,
             );
         let target = self.type_(type_).as_type_reference_interface().target();
-        if get_object_flags(self.type_(target)).intersects(ObjectFlags::Class) {
+        if get_object_flags(&self.type_(target)).intersects(ObjectFlags::Class) {
             let base_type_node = self.get_base_type_node_of_class(target);
             if matches!(
                 base_type_node.as_ref(),
@@ -667,7 +667,7 @@ impl TypeChecker {
     }
 
     pub(super) fn is_tuple_type(&self, type_: Id<Type>) -> bool {
-        get_object_flags(self.type_(type_)).intersects(ObjectFlags::Reference)
+        get_object_flags(&self.type_(type_)).intersects(ObjectFlags::Reference)
             && self
                 .type_(self.type_(type_).as_type_reference_interface().target())
                 .as_object_type()
@@ -1130,7 +1130,7 @@ impl TypeChecker {
                     self.type_(type_).maybe_symbol().as_ref(),
                     Some(type_symbol) if type_symbol.flags().intersects(SymbolFlags::ObjectLiteral | SymbolFlags::TypeLiteral | SymbolFlags::Enum | SymbolFlags::ValueModule)
                 ) && !self.type_has_call_or_construct_signatures(type_)?
-                    || get_object_flags(self.type_(type_)).intersects(ObjectFlags::ReverseMapped)
+                    || get_object_flags(&self.type_(type_)).intersects(ObjectFlags::ReverseMapped)
                         && self.is_object_type_with_inferable_index(
                             self.type_(type_).as_reverse_mapped_type().source,
                         )?

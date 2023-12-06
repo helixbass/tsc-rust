@@ -521,7 +521,7 @@ impl NodeBuilder {
             .flags()
             .intersects(TypeFlags::StringOrNumberLiteral)
         {
-            let name = match self.type_checker.type_(name_type) {
+            let name = match &*self.type_checker.type_(name_type) {
                 Type::LiteralType(LiteralType::StringLiteralType(name_type)) => {
                     name_type.value.clone()
                 }
@@ -657,7 +657,7 @@ impl NodeBuilder {
         existing: &Node, /*TypeNode*/
         type_: Id<Type>,
     ) -> bool {
-        !get_object_flags(self.type_checker.type_(type_)).intersects(ObjectFlags::Reference)
+        !get_object_flags(&self.type_checker.type_(type_)).intersects(ObjectFlags::Reference)
             || !is_type_reference_node(existing)
             || length(
                 existing

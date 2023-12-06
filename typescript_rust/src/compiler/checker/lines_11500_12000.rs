@@ -231,7 +231,7 @@ impl TypeChecker {
     }
 
     pub(super) fn is_partial_mapped_type(&self, type_: Id<Type>) -> bool {
-        get_object_flags(self.type_(type_)).intersects(ObjectFlags::Mapped)
+        get_object_flags(&self.type_(type_)).intersects(ObjectFlags::Mapped)
             && self
                 .get_mapped_type_modifiers(type_)
                 .intersects(MappedTypeModifiers::IncludeOptional)
@@ -239,7 +239,7 @@ impl TypeChecker {
 
     pub(super) fn is_generic_mapped_type(&self, type_: Id<Type>) -> io::Result<bool> {
         Ok(
-            get_object_flags(self.type_(type_)).intersects(ObjectFlags::Mapped)
+            get_object_flags(&self.type_(type_)).intersects(ObjectFlags::Mapped)
                 && self.is_generic_index_type(self.get_constraint_type_from_mapped_type(type_)?)?,
         )
     }
@@ -878,11 +878,10 @@ impl TypeChecker {
             let types = self
                 .type_(t)
                 .as_union_or_intersection_type_interface()
-                .types()
-                .to_owned();
+                .types();
             let mut base_types: Vec<Id<Type>> = vec![];
             let mut different = false;
-            for type_ in types {
+            for &type_ in types {
                 let base_type = self.get_base_constraint(stack, type_)?;
                 if let Some(base_type) = base_type {
                     if base_type != type_ {

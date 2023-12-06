@@ -89,13 +89,13 @@ impl GetFlowTypeOfReference {
                 .type_(source)
                 .flags()
                 .intersects(TypeFlags::Object)
-                && get_object_flags(self.type_checker.type_(source)).intersects(ObjectFlags::Class)
+                && get_object_flags(&self.type_checker.type_(source)).intersects(ObjectFlags::Class)
                 || self
                     .type_checker
                     .type_(target)
                     .flags()
                     .intersects(TypeFlags::Object)
-                    && get_object_flags(self.type_checker.type_(target))
+                    && get_object_flags(&self.type_checker.type_(target))
                         .intersects(ObjectFlags::Class)
             {
                 return Ok(are_option_gcs_equal(

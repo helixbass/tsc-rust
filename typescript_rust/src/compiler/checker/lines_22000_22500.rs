@@ -220,7 +220,7 @@ impl InferTypes {
                     self.infer_with_priority(
                         inferred_type,
                         inference.type_parameter,
-                        if get_object_flags(self.type_checker.type_(source))
+                        if get_object_flags(&self.type_checker.type_(source))
                             .intersects(ObjectFlags::NonInferrableType)
                         {
                             InferencePriority::PartialHomomorphicMappedType
@@ -392,8 +392,8 @@ impl InferTypes {
         source: Id<Type>,
         target: Id<Type>,
     ) -> io::Result<()> {
-        if get_object_flags(self.type_checker.type_(source)).intersects(ObjectFlags::Reference)
-            && get_object_flags(self.type_checker.type_(target)).intersects(ObjectFlags::Reference)
+        if get_object_flags(&self.type_checker.type_(source)).intersects(ObjectFlags::Reference)
+            && get_object_flags(&self.type_checker.type_(target)).intersects(ObjectFlags::Reference)
             && (self
                 .type_checker
                 .type_(source)
@@ -442,7 +442,7 @@ impl InferTypes {
                 self.infer_from_types(source_name_type, target_name_type)?;
             }
         }
-        if get_object_flags(self.type_checker.type_(target)).intersects(ObjectFlags::Mapped)
+        if get_object_flags(&self.type_checker.type_(target)).intersects(ObjectFlags::Mapped)
             && self
                 .type_checker
                 .type_(target)
@@ -703,7 +703,7 @@ impl InferTypes {
         } else {
             target_len
         };
-        let skip_parameters = get_object_flags(self.type_checker.type_(source))
+        let skip_parameters = get_object_flags(&self.type_checker.type_(source))
             .intersects(ObjectFlags::NonInferrableType);
         for i in 0..len {
             self.infer_from_signature(
@@ -760,8 +760,8 @@ impl InferTypes {
         source: Id<Type>,
         target: Id<Type>,
     ) -> io::Result<()> {
-        let priority = if (get_object_flags(self.type_checker.type_(source))
-            & get_object_flags(self.type_checker.type_(target)))
+        let priority = if (get_object_flags(&self.type_checker.type_(source))
+            & get_object_flags(&self.type_checker.type_(target)))
         .intersects(ObjectFlags::Mapped)
         {
             InferencePriority::HomomorphicMappedType
@@ -886,11 +886,11 @@ impl TypeChecker {
     }
 
     pub(super) fn is_object_literal_type(&self, type_: Id<Type>) -> bool {
-        get_object_flags(self.type_(type_)).intersects(ObjectFlags::ObjectLiteral)
+        get_object_flags(&self.type_(type_)).intersects(ObjectFlags::ObjectLiteral)
     }
 
     pub(super) fn is_object_or_array_literal_type(&self, type_: Id<Type>) -> bool {
-        get_object_flags(self.type_(type_))
+        get_object_flags(&self.type_(type_))
             .intersects(ObjectFlags::ObjectLiteral | ObjectFlags::ArrayLiteral)
     }
 

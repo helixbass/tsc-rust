@@ -249,11 +249,11 @@ impl CheckTypeRelatedTo {
             .type_checker
             .type_(source)
             .as_union_or_intersection_type_interface()
-            .types()
-            .to_owned();
+            .types();
         let undefined_stripped_target =
             self.get_undefined_stripped_target_if_needed(source, target);
         for (i, source_type) in source_types.into_iter().enumerate() {
+            let source_type = *source_type;
             if self
                 .type_checker
                 .type_(undefined_stripped_target)
@@ -1049,7 +1049,7 @@ impl CheckTypeRelatedTo {
             .flags()
             .intersects(TypeFlags::TypeParameter)
         {
-            if get_object_flags(self.type_checker.type_(source)).intersects(ObjectFlags::Mapped)
+            if get_object_flags(&self.type_checker.type_(source)).intersects(ObjectFlags::Mapped)
                 && self
                     .type_checker
                     .type_(source)
@@ -1994,8 +1994,8 @@ impl CheckTypeRelatedTo {
             } else if self.type_checker.is_generic_mapped_type(source)? {
                 return Ok(Ternary::False);
             }
-            if get_object_flags(self.type_checker.type_(source)).intersects(ObjectFlags::Reference)
-                && get_object_flags(self.type_checker.type_(target))
+            if get_object_flags(&self.type_checker.type_(source)).intersects(ObjectFlags::Reference)
+                && get_object_flags(&self.type_checker.type_(target))
                     .intersects(ObjectFlags::Reference)
                 && self
                     .type_checker
@@ -2008,9 +2008,9 @@ impl CheckTypeRelatedTo {
                         .as_type_reference_interface()
                         .target()
                 && !self.type_checker.is_tuple_type(source)
-                && !(get_object_flags(self.type_checker.type_(source))
+                && !(get_object_flags(&self.type_checker.type_(source))
                     .intersects(ObjectFlags::MarkerType)
-                    || get_object_flags(self.type_checker.type_(target))
+                    || get_object_flags(&self.type_checker.type_(target))
                         .intersects(ObjectFlags::MarkerType))
             {
                 let variances = self.type_checker.get_variances(
@@ -2071,7 +2071,7 @@ impl CheckTypeRelatedTo {
             } else if (Rc::ptr_eq(&self.relation, &self.type_checker.subtype_relation)
                 || Rc::ptr_eq(&self.relation, &self.type_checker.strict_subtype_relation))
                 && self.type_checker.is_empty_object_type(target)?
-                && get_object_flags(self.type_checker.type_(target))
+                && get_object_flags(&self.type_checker.type_(target))
                     .intersects(ObjectFlags::FreshLiteral)
                 && !self.type_checker.is_empty_object_type(source)?
             {

@@ -23,7 +23,7 @@ impl TypeChecker {
         type_: Id<Type>,
     ) -> io::Result<Id<Type>> {
         if !(self.is_object_literal_type(type_)
-            && get_object_flags(self.type_(type_)).intersects(ObjectFlags::FreshLiteral))
+            && get_object_flags(&self.type_(type_)).intersects(ObjectFlags::FreshLiteral))
         {
             return Ok(type_);
         }
@@ -123,7 +123,7 @@ impl TypeChecker {
             let mut names: HashMap<__String, Gc<Symbol>> = HashMap::new();
             for &t in &self.get_siblings_of_context(context.clone())? {
                 if self.is_object_literal_type(t)
-                    && !get_object_flags(self.type_(t)).intersects(ObjectFlags::ContainsSpread)
+                    && !get_object_flags(&self.type_(t)).intersects(ObjectFlags::ContainsSpread)
                 {
                     for prop in self.get_properties_of_type(t)? {
                         names.insert(prop.escaped_name().to_owned(), prop);
@@ -216,7 +216,7 @@ impl TypeChecker {
         )?;
         self.type_(result).as_object_flags_type().set_object_flags(
             self.type_(result).as_object_flags_type().object_flags()
-                | (get_object_flags(self.type_(type_))
+                | (get_object_flags(&self.type_(type_))
                     & (ObjectFlags::JSLiteral | ObjectFlags::NonInferrableType)),
         );
         Ok(result)
@@ -231,7 +231,7 @@ impl TypeChecker {
         type_: Id<Type>,
         context: Option<Rc<RefCell<WideningContext>>>,
     ) -> io::Result<Id<Type>> {
-        if get_object_flags(self.type_(type_)).intersects(ObjectFlags::RequiresWidening) {
+        if get_object_flags(&self.type_(type_)).intersects(ObjectFlags::RequiresWidening) {
             if context.is_none() {
                 if let Some(type_widened) = self.type_(type_).maybe_widened().clone() {
                     return Ok(type_widened);
@@ -326,7 +326,7 @@ impl TypeChecker {
 
     pub(super) fn report_widening_errors_in_type(&self, type_: Id<Type>) -> io::Result<bool> {
         let mut error_reported = false;
-        if get_object_flags(self.type_(type_)).intersects(ObjectFlags::ContainsWideningType) {
+        if get_object_flags(&self.type_(type_)).intersects(ObjectFlags::ContainsWideningType) {
             if self.type_(type_).flags().intersects(TypeFlags::Union) {
                 if try_some(
                     Some(
@@ -360,7 +360,7 @@ impl TypeChecker {
             if self.is_object_literal_type(type_) {
                 for ref p in self.get_properties_of_object_type(type_)? {
                     let t = self.get_type_of_symbol(p)?;
-                    if get_object_flags(self.type_(t)).intersects(ObjectFlags::ContainsWideningType)
+                    if get_object_flags(&self.type_(t)).intersects(ObjectFlags::ContainsWideningType)
                     {
                         if !self.report_widening_errors_in_type(t)? {
                             self.error(
@@ -597,7 +597,7 @@ impl TypeChecker {
     ) -> io::Result<()> {
         if self.produce_diagnostics
             && self.no_implicit_any
-            && get_object_flags(self.type_(type_)).intersects(ObjectFlags::ContainsWideningType)
+            && get_object_flags(&self.type_(type_)).intersects(ObjectFlags::ContainsWideningType)
             && (widening_kind.is_none()
                 || self
                     .get_contextual_signature_for_function_like_declaration(declaration)?
@@ -833,7 +833,7 @@ impl TypeChecker {
     }
 
     pub(super) fn could_contain_type_variables(&self, type_: Id<Type>) -> io::Result<bool> {
-        let object_flags = get_object_flags(self.type_(type_));
+        let object_flags = get_object_flags(&self.type_(type_));
         if object_flags.intersects(ObjectFlags::CouldContainTypeVariablesComputed) {
             return Ok(object_flags.intersects(ObjectFlags::CouldContainTypeVariables));
         }
@@ -1026,7 +1026,7 @@ impl TypeChecker {
 
     pub(super) fn is_partially_inferable_type(&self, type_: Id<Type>) -> io::Result<bool> {
         Ok(
-            !get_object_flags(self.type_(type_)).intersects(ObjectFlags::NonInferrableType)
+            !get_object_flags(&self.type_(type_)).intersects(ObjectFlags::NonInferrableType)
                 || self.is_object_literal_type(type_)
                     && self
                         .get_properties_of_type(type_)?

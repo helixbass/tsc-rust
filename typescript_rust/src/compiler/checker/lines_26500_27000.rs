@@ -716,7 +716,7 @@ impl TypeChecker {
     }
 
     pub(super) fn create_array_literal_type(&self, type_: Id<Type>) -> Id<Type> {
-        if !get_object_flags(self.type_(type_)).intersects(ObjectFlags::Reference) {
+        if !get_object_flags(&self.type_(type_)).intersects(ObjectFlags::Reference) {
             return type_;
         }
         if self
@@ -1055,7 +1055,7 @@ impl TypeChecker {
                         )?;
                     }
                 }
-                object_flags |= get_object_flags(self.type_(type_)) & ObjectFlags::PropagatingFlags;
+                object_flags |= get_object_flags(&self.type_(type_)) & ObjectFlags::PropagatingFlags;
                 let name_type = computed_name_type.filter(|&computed_name_type| {
                     self.is_type_usable_as_property_name(computed_name_type)
                 });
@@ -1098,7 +1098,7 @@ impl TypeChecker {
                         prop.set_flags(prop.flags() | SymbolFlags::Optional);
                     }
                 } else if contextual_type_has_pattern
-                    && !get_object_flags(self.type_(contextual_type.unwrap()))
+                    && !get_object_flags(&self.type_(contextual_type.unwrap()))
                         .intersects(ObjectFlags::ObjectLiteralPatternWithComputedProperties)
                 {
                     let implied_prop = self.get_property_of_type_(

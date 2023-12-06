@@ -663,7 +663,7 @@ impl TypeChecker {
     }
 
     pub(super) fn is_non_deferred_type_reference(&self, type_: Id<Type>) -> bool {
-        get_object_flags(self.type_(type_)).intersects(ObjectFlags::Reference)
+        get_object_flags(&self.type_(type_)).intersects(ObjectFlags::Reference)
             && self
                 .type_(type_)
                 .as_type_reference_interface()
@@ -910,7 +910,7 @@ impl TypeChecker {
         if self.type_(type_).flags().intersects(TypeFlags::Object)
             && !self.is_object_or_array_literal_type(type_)
         {
-            if get_object_flags(self.type_(type_)).intersects(ObjectFlags::Reference) {
+            if get_object_flags(&self.type_(type_)).intersects(ObjectFlags::Reference) {
                 if let Some(type_node) = self
                     .type_(type_)
                     .as_type_reference_interface()
@@ -921,7 +921,7 @@ impl TypeChecker {
                 }
             }
             if let Some(type_symbol) = self.type_(type_).maybe_symbol().filter(|type_symbol| {
-                !(get_object_flags(self.type_(type_)).intersects(ObjectFlags::Anonymous)
+                !(get_object_flags(&self.type_(type_)).intersects(ObjectFlags::Anonymous)
                     && type_symbol.flags().intersects(SymbolFlags::Class))
             }) {
                 return type_symbol.into();

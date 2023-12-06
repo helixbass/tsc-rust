@@ -68,7 +68,7 @@ impl TypeChecker {
             .flags()
             .intersects(TypeFlags::StringLiteral | TypeFlags::NumberLiteral)
         {
-            return match self.type_(type_) {
+            return match &*self.type_(type_) {
                 Type::LiteralType(LiteralType::NumberLiteralType(type_)) => {
                     escape_leading_underscores(&type_.value.to_string()).into_owned()
                 }
@@ -410,7 +410,7 @@ impl TypeChecker {
         this_argument: Option<Id<Type>>,
         need_apparent_type: Option<bool>,
     ) -> io::Result<Id<Type>> {
-        if get_object_flags(self.type_(type_)).intersects(ObjectFlags::Reference) {
+        if get_object_flags(&self.type_(type_)).intersects(ObjectFlags::Reference) {
             let target = self.type_(type_).as_type_reference_interface().target();
             let type_arguments = self.get_type_arguments(type_)?;
             if length(

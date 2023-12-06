@@ -205,7 +205,7 @@ impl GetFlowTypeOfReference {
         );
         self.type_checker
             .set_shared_flow_count(self.shared_flow_start());
-        let result_type = if get_object_flags(self.type_checker.type_(evolved_type))
+        let result_type = if get_object_flags(&self.type_checker.type_(evolved_type))
             .intersects(ObjectFlags::EvolvingArray)
             && self
                 .type_checker
@@ -642,7 +642,7 @@ impl GetFlowTypeOfReference {
                 let flow_type =
                     self.get_type_at_flow_node(flow_as_flow_array_mutation.antecedent.clone())?;
                 let type_ = self.type_checker.get_type_from_flow_type(&flow_type);
-                if get_object_flags(self.type_checker.type_(type_))
+                if get_object_flags(&self.type_checker.type_(type_))
                     .intersects(ObjectFlags::EvolvingArray)
                 {
                     let mut evolved_type = type_.clone();

@@ -830,7 +830,7 @@ impl TypeChecker {
             self.type_(type_).as_reverse_mapped_type().mapped_type,
             Some(mapper.clone()),
         )?;
-        if !get_object_flags(self.type_(inner_mapped_type)).intersects(ObjectFlags::Mapped) {
+        if !get_object_flags(&self.type_(inner_mapped_type)).intersects(ObjectFlags::Mapped) {
             return Ok(type_);
         }
         let inner_index_type = self.instantiate_type(

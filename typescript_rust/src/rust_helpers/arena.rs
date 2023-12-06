@@ -1,4 +1,4 @@
-use std::cell::RefCell;
+use std::cell::{Ref, RefCell, RefMut};
 
 use id_arena::{Arena, Id};
 
@@ -22,12 +22,12 @@ impl AllArenas {
     //     &mut self.nodes.borrow_mut()[node]
     // }
 
-    pub fn type_(&self, type_: Id<Type>) -> &Type {
-        &self.types.borrow()[type_]
+    pub fn type_(&self, type_: Id<Type>) -> Ref<Type> {
+        Ref::map(self.types.borrow(), |types| &types[type_])
     }
 
-    pub fn type_mut(&self, type_: Id<Type>) -> &mut Type {
-        &mut self.types.borrow_mut()[type_]
+    pub fn type_mut(&self, type_: Id<Type>) -> RefMut<Type> {
+        RefMut::map(self.types.borrow_mut(), |types| &mut types[type_])
     }
 
     pub fn create_type(&self, type_: Type) -> Id<Type> {

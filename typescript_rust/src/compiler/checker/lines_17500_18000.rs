@@ -190,7 +190,7 @@ impl TypeChecker {
 
     pub(super) fn is_empty_anonymous_object_type(&self, type_: Id<Type>) -> io::Result<bool> {
         Ok(
-            get_object_flags(self.type_(type_)).intersects(ObjectFlags::Anonymous)
+            get_object_flags(&self.type_(type_)).intersects(ObjectFlags::Anonymous)
                 && (self.type_(type_).as_object_type().maybe_members().is_some()
                     && self.is_empty_resolved_type(type_)
                     || matches!(
@@ -372,7 +372,7 @@ impl TypeChecker {
                 && self
                     .type_(source)
                     .as_literal_type()
-                    .is_value_eq(self.type_(target))
+                    .is_value_eq(&self.type_(target))
                 && self.is_enum_type_related_to(
                     &self
                         .get_parent_of_symbol(&self.type_(source).symbol())?
@@ -425,7 +425,7 @@ impl TypeChecker {
         relation: Rc<RefCell<HashMap<String, RelationComparisonResult>>>,
     ) -> io::Result<bool> {
         if self.is_fresh_literal_type(source) {
-            source = match self.type_(source) {
+            source = match &*self.type_(source) {
                 Type::IntrinsicType(intrinsic_type) => {
                     enum_unwrapped!(intrinsic_type, [IntrinsicType, FreshableIntrinsicType])
                         .regular_type()
@@ -435,7 +435,7 @@ impl TypeChecker {
             };
         }
         if self.is_fresh_literal_type(target) {
-            target = match self.type_(target) {
+            target = match &*self.type_(target) {
                 Type::IntrinsicType(intrinsic_type) => {
                     enum_unwrapped!(intrinsic_type, [IntrinsicType, FreshableIntrinsicType])
                         .regular_type()
@@ -502,7 +502,7 @@ impl TypeChecker {
     }
 
     pub(super) fn is_ignored_jsx_property(&self, source: Id<Type>, source_prop: &Symbol) -> bool {
-        get_object_flags(self.type_(source)).intersects(ObjectFlags::JsxAttributes)
+        get_object_flags(&self.type_(source)).intersects(ObjectFlags::JsxAttributes)
             && self.is_hyphenated_jsx_name(source_prop.escaped_name())
     }
 
@@ -513,7 +513,7 @@ impl TypeChecker {
     ) -> io::Result<Id<Type>> {
         loop {
             let mut t = if self.is_fresh_literal_type(type_) {
-                match self.type_(type_) {
+                match &*self.type_(type_) {
                     Type::IntrinsicType(intrinsic_type) => {
                         enum_unwrapped!(intrinsic_type, [IntrinsicType, FreshableIntrinsicType])
                             .regular_type()
@@ -521,7 +521,7 @@ impl TypeChecker {
                     Type::LiteralType(literal_type) => literal_type.regular_type(),
                     _ => panic!("Expected IntrinsicType or LiteralType"),
                 }
-            } else if get_object_flags(self.type_(type_)).intersects(ObjectFlags::Reference)
+            } else if get_object_flags(&self.type_(type_)).intersects(ObjectFlags::Reference)
                 && self
                     .type_(type_)
                     .as_type_reference_interface()

@@ -161,7 +161,7 @@ impl TypeChecker {
         if self.no_implicit_any {
             return Ok(false);
         }
-        if get_object_flags(self.type_(type_)).intersects(ObjectFlags::JSLiteral) {
+        if get_object_flags(&self.type_(type_)).intersects(ObjectFlags::JSLiteral) {
             return Ok(true);
         }
         if self.type_(type_).flags().intersects(TypeFlags::Union) {
@@ -552,7 +552,7 @@ impl TypeChecker {
                                     access_expression,
                                     &Diagnostics::Property_0_does_not_exist_on_type_1,
                                     Some(vec![
-                                        match self.type_(index_type) {
+                                        match &*self.type_(index_type) {
                                             Type::LiteralType(LiteralType::StringLiteralType(
                                                 index_type,
                                             )) => index_type.value.clone(),
@@ -842,7 +842,7 @@ impl TypeChecker {
                     &Diagnostics::Property_0_does_not_exist_on_type_1,
                     Some(vec![
                         // TODO: put this in a shared helper?
-                        match self.type_(index_type) {
+                        match &*self.type_(index_type) {
                             Type::LiteralType(LiteralType::NumberLiteralType(index_type)) => {
                                 index_type.value.to_string()
                             }

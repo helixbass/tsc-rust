@@ -240,7 +240,7 @@ impl SymbolTableToDeclarationStatements {
         host_symbol: &Symbol,
     ) -> io::Result<bool> {
         let ctx_src = maybe_get_source_file_of_node(self.context().maybe_enclosing_declaration());
-        Ok(get_object_flags(self.type_checker.type_(type_to_serialize))
+        Ok(get_object_flags(&self.type_checker.type_(type_to_serialize))
             .intersects(ObjectFlags::Anonymous | ObjectFlags::Mapped)
             && self
                 .type_checker

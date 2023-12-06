@@ -606,7 +606,7 @@ impl TypeChecker {
         if let Some(enum_result) = enum_result {
             return Ok(enum_result);
         }
-        Ok(match self.type_(type_) {
+        Ok(match &*self.type_(type_) {
             Type::LiteralType(LiteralType::BigIntLiteralType(type_)) => {
                 get_factory().create_big_int_literal(type_.value.clone())
             }

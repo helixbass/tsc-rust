@@ -863,7 +863,7 @@ impl CheckTypeRelatedTo {
                 original_source,
                 original_target,
                 Ternary::False,
-                get_object_flags(self.type_checker.type_(original_source))
+                get_object_flags(&self.type_checker.type_(original_source))
                     .intersects(ObjectFlags::JsxAttributes),
             )?;
             return Ok(Ternary::False);
@@ -962,12 +962,12 @@ impl CheckTypeRelatedTo {
             return Ok(Ternary::True);
         }
 
-        let is_comparing_jsx_attributes = get_object_flags(self.type_checker.type_(source))
+        let is_comparing_jsx_attributes = get_object_flags(&self.type_checker.type_(source))
             .intersects(ObjectFlags::JsxAttributes);
         let is_performing_excess_property_checks = !intersection_state
             .intersects(IntersectionState::Target)
             && (self.type_checker.is_object_literal_type(source)
-                && get_object_flags(self.type_checker.type_(source))
+                && get_object_flags(&self.type_checker.type_(source))
                     .intersects(ObjectFlags::FreshLiteral));
         if is_performing_excess_property_checks {
             if self.has_excess_properties(source, target, report_errors)? {
@@ -1249,7 +1249,7 @@ impl CheckTypeRelatedTo {
                                 .types(),
                         ),
                         Some(|&t: &Id<Type>| {
-                            get_object_flags(self.type_checker.type_(t))
+                            get_object_flags(&self.type_checker.type_(t))
                                 .intersects(ObjectFlags::NonInferrableType)
                         }),
                     ))
@@ -1573,12 +1573,12 @@ impl CheckTypeRelatedTo {
     ) -> io::Result<bool> {
         if !self.type_checker.is_excess_property_check_target(target)
             || !self.type_checker.no_implicit_any
-                && get_object_flags(self.type_checker.type_(target))
+                && get_object_flags(&self.type_checker.type_(target))
                     .intersects(ObjectFlags::JSLiteral)
         {
             return Ok(false);
         }
-        let is_comparing_jsx_attributes = get_object_flags(self.type_checker.type_(source))
+        let is_comparing_jsx_attributes = get_object_flags(&self.type_checker.type_(source))
             .intersects(ObjectFlags::JsxAttributes);
         if (Rc::ptr_eq(&self.relation, &self.type_checker.assignable_relation)
             || Rc::ptr_eq(&self.relation, &self.type_checker.comparable_relation))

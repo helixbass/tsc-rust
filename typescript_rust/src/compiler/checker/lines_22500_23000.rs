@@ -463,7 +463,7 @@ impl TypeChecker {
     ) -> io::Result<Option<__String>> {
         let types = self.type_(union_type).as_union_type().types();
         if types.len() < 10
-            || get_object_flags(self.type_(union_type)).intersects(ObjectFlags::PrimitiveUnion)
+            || get_object_flags(&self.type_(union_type)).intersects(ObjectFlags::PrimitiveUnion)
             || count_where(Some(types), |&t: &Id<Type>, _| {
                 self.type_(t)
                     .flags()
@@ -824,7 +824,7 @@ impl TypeChecker {
         }
         if flags.intersects(TypeFlags::Object) && !ignore_objects {
             return Ok(
-                if get_object_flags(self.type_(type_)).intersects(ObjectFlags::Anonymous)
+                if get_object_flags(&self.type_(type_)).intersects(ObjectFlags::Anonymous)
                     && self.is_empty_object_type(type_)?
                 {
                     if self.strict_null_checks {

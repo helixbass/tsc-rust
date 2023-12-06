@@ -679,7 +679,7 @@ impl TypeChecker {
                 .to_owned()
             {
                 if !mixin_flags[i] {
-                    if get_object_flags(self.type_(intersection_member))
+                    if get_object_flags(&self.type_(intersection_member))
                         .intersects(ObjectFlags::Class | ObjectFlags::Interface)
                     {
                         if matches!(

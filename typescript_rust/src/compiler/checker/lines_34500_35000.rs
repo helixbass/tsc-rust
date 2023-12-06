@@ -340,7 +340,7 @@ impl TypeChecker {
                     None
                 }
                 .or_else(|| {
-                    if get_object_flags(self.type_(type_)).intersects(ObjectFlags::Reference) {
+                    if get_object_flags(&self.type_(type_)).intersects(ObjectFlags::Reference) {
                         self.type_(self.type_(type_).as_type_reference_interface().target())
                             .as_interface_type_interface()
                             .maybe_local_type_parameters()
@@ -628,7 +628,7 @@ impl TypeChecker {
         )? {
             if access_node.kind() == SyntaxKind::ElementAccessExpression
                 && is_assignment_target(access_node)
-                && get_object_flags(self.type_(object_type)).intersects(ObjectFlags::Mapped)
+                && get_object_flags(&self.type_(object_type)).intersects(ObjectFlags::Mapped)
                 && self
                     .get_mapped_type_modifiers(object_type)
                     .intersects(MappedTypeModifiers::IncludeReadonly)

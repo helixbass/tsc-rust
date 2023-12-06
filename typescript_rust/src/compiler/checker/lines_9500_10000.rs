@@ -373,12 +373,12 @@ impl TypeChecker {
 
     pub(super) fn is_reference_to_type(&self, type_: Id<Type>, target: Id<Type>) -> bool {
         /*type !== undefined && target !== undefined &&*/
-        get_object_flags(self.type_(type_)).intersects(ObjectFlags::Reference)
+        get_object_flags(&self.type_(type_)).intersects(ObjectFlags::Reference)
             && self.type_(type_).as_type_reference_interface().target() == target
     }
 
     pub(super) fn get_target_type(&self, type_: Id<Type>) -> Id<Type> {
-        if get_object_flags(self.type_(type_)).intersects(ObjectFlags::Reference) {
+        if get_object_flags(&self.type_(type_)).intersects(ObjectFlags::Reference) {
             self.type_(type_).as_type_reference_interface().target()
         } else {
             type_
@@ -399,7 +399,7 @@ impl TypeChecker {
         type_: Id<Type>,
     ) -> io::Result<bool> {
         Ok(
-            if get_object_flags(self.type_(type_))
+            if get_object_flags(&self.type_(type_))
                 .intersects(ObjectFlags::ClassOrInterface | ObjectFlags::Reference)
             {
                 let target = self.get_target_type(type_);

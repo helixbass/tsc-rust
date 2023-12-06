@@ -535,7 +535,7 @@ impl TypeChecker {
             self.type_(type_).maybe_symbol(),
             Some(type_symbol) if type_symbol.flags().intersects(SymbolFlags::Class) && (
                 type_ == self.get_declared_type_of_class_or_interface(&type_symbol)? ||
-                self.type_(type_).flags().intersects(TypeFlags::Object) && get_object_flags(self.type_(type_)).intersects(ObjectFlags::IsClassInstanceClone)
+                self.type_(type_).flags().intersects(TypeFlags::Object) && get_object_flags(&self.type_(type_)).intersects(ObjectFlags::IsClassInstanceClone)
             )
         ))
     }
@@ -1317,7 +1317,7 @@ impl NodeBuilder {
             }
         }
 
-        let object_flags = get_object_flags(self.type_checker.type_(type_));
+        let object_flags = get_object_flags(&self.type_checker.type_(type_));
 
         if object_flags.intersects(ObjectFlags::Reference) {
             Debug_.assert(

@@ -85,7 +85,7 @@ impl TypeChecker {
 
     pub(super) fn get_this_type_argument(&self, type_: Id<Type>) -> io::Result<Option<Id<Type>>> {
         Ok(
-            if get_object_flags(self.type_(type_)).intersects(ObjectFlags::Reference)
+            if get_object_flags(&self.type_(type_)).intersects(ObjectFlags::Reference)
                 && self.type_(type_).as_type_reference().target == self.global_this_type()
             {
                 self.get_type_arguments(type_)?.get(0).cloned()

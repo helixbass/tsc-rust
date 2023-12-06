@@ -117,7 +117,7 @@ impl TypeChecker {
         let index = find_index(
             types,
             |&t: &Id<Type>, _| {
-                get_object_flags(self.type_(t)).intersects(ObjectFlags::PrimitiveUnion)
+                get_object_flags(&self.type_(t)).intersects(ObjectFlags::PrimitiveUnion)
             },
             None,
         );
@@ -128,7 +128,7 @@ impl TypeChecker {
         let mut i = index + 1;
         while i < types.len() {
             let t = types[i].clone();
-            if get_object_flags(self.type_(t)).intersects(ObjectFlags::PrimitiveUnion) {
+            if get_object_flags(&self.type_(t)).intersects(ObjectFlags::PrimitiveUnion) {
                 if union_types.is_none() {
                     union_types = Some(vec![types[index].clone()]);
                 }
@@ -784,7 +784,7 @@ impl TypeChecker {
         include_origin: bool,
     ) -> io::Result<Id<Type>> {
         let origin = if include_origin
-            && (get_object_flags(self.type_(type_))
+            && (get_object_flags(&self.type_(type_))
                 .intersects(ObjectFlags::ClassOrInterface | ObjectFlags::Reference)
                 || self.type_(type_).maybe_alias_symbol().is_some())
         {
@@ -863,7 +863,7 @@ impl TypeChecker {
             || self.is_generic_mapped_type(type_)? && !self.has_distributive_name_type(type_)?
         {
             self.get_index_type_for_generic_type(type_, strings_only)
-        } else if get_object_flags(self.type_(type_)).intersects(ObjectFlags::Mapped) {
+        } else if get_object_flags(&self.type_(type_)).intersects(ObjectFlags::Mapped) {
             self.get_index_type_for_mapped_type(type_, strings_only, no_index_signatures)?
         } else if type_ == self.wildcard_type() {
             self.wildcard_type()

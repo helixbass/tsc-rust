@@ -34,7 +34,7 @@ impl TypeChecker {
             type_
         };
         Ok(
-            if get_object_flags(self.type_(t)).intersects(ObjectFlags::Mapped) {
+            if get_object_flags(&self.type_(t)).intersects(ObjectFlags::Mapped) {
                 self.get_apparent_type_of_mapped_type(t)?
             } else if self.type_(t).flags().intersects(TypeFlags::Intersection) {
                 self.get_apparent_type_of_intersection_type(t)?
@@ -203,7 +203,7 @@ impl TypeChecker {
                             }),
                         );
                     } else if self.is_object_literal_type(type_)
-                        && !get_object_flags(self.type_(type_))
+                        && !get_object_flags(&self.type_(type_))
                             .intersects(ObjectFlags::ContainsSpread)
                     {
                         check_flags |= CheckFlags::WritePartial;
@@ -545,7 +545,7 @@ impl TypeChecker {
             .type_(type_)
             .flags()
             .intersects(TypeFlags::Intersection)
-            && get_object_flags(self.type_(type_)).intersects(ObjectFlags::IsNeverIntersection)
+            && get_object_flags(&self.type_(type_)).intersects(ObjectFlags::IsNeverIntersection)
         {
             let never_prop = self
                 .get_properties_of_union_or_intersection_type(type_)?

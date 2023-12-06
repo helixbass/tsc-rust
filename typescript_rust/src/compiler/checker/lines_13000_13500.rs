@@ -337,7 +337,7 @@ impl TypeChecker {
         let mut result = ObjectFlags::None;
         for &type_ in types {
             if !self.type_(type_).flags().intersects(exclude_kinds) {
-                result |= get_object_flags(self.type_(type_));
+                result |= get_object_flags(&self.type_(type_));
             }
         }
         result & ObjectFlags::PropagatingFlags

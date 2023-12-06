@@ -759,7 +759,7 @@ impl TypeChecker {
 
     pub(super) fn finalize_evolving_array_type(&self, type_: Id<Type>) -> io::Result<Id<Type>> {
         Ok(
-            if get_object_flags(self.type_(type_)).intersects(ObjectFlags::EvolvingArray) {
+            if get_object_flags(&self.type_(type_)).intersects(ObjectFlags::EvolvingArray) {
                 self.get_final_array_type(type_)?
             } else {
                 type_
@@ -768,7 +768,7 @@ impl TypeChecker {
     }
 
     pub(super) fn get_element_type_of_evolving_array_type(&self, type_: Id<Type>) -> Id<Type> {
-        if get_object_flags(self.type_(type_)).intersects(ObjectFlags::EvolvingArray) {
+        if get_object_flags(&self.type_(type_)).intersects(ObjectFlags::EvolvingArray) {
             self.type_(type_)
                 .as_evolving_array_type()
                 .element_type
@@ -782,7 +782,7 @@ impl TypeChecker {
         let mut has_evolving_array_type = false;
         for &t in types {
             if !self.type_(t).flags().intersects(TypeFlags::Never) {
-                if !get_object_flags(self.type_(t)).intersects(ObjectFlags::EvolvingArray) {
+                if !get_object_flags(&self.type_(t)).intersects(ObjectFlags::EvolvingArray) {
                     return false;
                 }
                 has_evolving_array_type = true;

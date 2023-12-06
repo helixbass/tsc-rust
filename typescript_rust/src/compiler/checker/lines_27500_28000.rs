@@ -538,7 +538,7 @@ impl TypeChecker {
 
     pub(super) fn is_excess_property_check_target(&self, type_: Id<Type>) -> bool {
         (self.type_(type_).flags().intersects(TypeFlags::Object)
-            && !(get_object_flags(self.type_(type_))
+            && !(get_object_flags(&self.type_(type_))
                 .intersects(ObjectFlags::ObjectLiteralPatternWithComputedProperties)))
             || self
                 .type_(type_)

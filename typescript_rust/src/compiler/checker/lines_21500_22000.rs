@@ -840,7 +840,7 @@ impl InferTypes {
             .flags()
             .intersects(TypeFlags::TypeVariable)
         {
-            if get_object_flags(self.type_checker.type_(source))
+            if get_object_flags(&self.type_checker.type_(source))
                 .intersects(ObjectFlags::NonInferrableType)
                 || source == self.type_checker.non_inferrable_any_type()
                 || source == self.type_checker.silent_never_type()
@@ -963,8 +963,8 @@ impl InferTypes {
                 }
             }
         }
-        if get_object_flags(self.type_checker.type_(source)).intersects(ObjectFlags::Reference)
-            && get_object_flags(self.type_checker.type_(target)).intersects(ObjectFlags::Reference)
+        if get_object_flags(&self.type_checker.type_(source)).intersects(ObjectFlags::Reference)
+            && get_object_flags(&self.type_checker.type_(target)).intersects(ObjectFlags::Reference)
             && {
                 (self
                     .type_checker
