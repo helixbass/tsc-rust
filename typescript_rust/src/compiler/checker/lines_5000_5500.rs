@@ -32,17 +32,33 @@ impl NodeBuilder {
         context: &NodeBuilderContext,
         type_: Id<Type>, /*ConditionalType*/
     ) -> io::Result<Gc<Node>> {
-        let type_as_conditional_type = type_.as_conditional_type();
         let check_type_node = self
-            .type_to_type_node_helper(Some(type_as_conditional_type.check_type), context)?
+            .type_to_type_node_helper(
+                Some(
+                    self.type_checker
+                        .type_(type_)
+                        .as_conditional_type()
+                        .check_type,
+                ),
+                context,
+            )?
             .unwrap();
         let save_infer_type_parameters = context.infer_type_parameters.borrow().clone();
-        *context.infer_type_parameters.borrow_mut() = (*type_as_conditional_type.root)
-            .borrow()
-            .infer_type_parameters
-            .clone();
+        *context.infer_type_parameters.borrow_mut() =
+            (*self.type_checker.type_(type_).as_conditional_type().root)
+                .borrow()
+                .infer_type_parameters
+                .clone();
         let extends_type_node = self
-            .type_to_type_node_helper(Some(type_as_conditional_type.extends_type), context)?
+            .type_to_type_node_helper(
+                Some(
+                    self.type_checker
+                        .type_(type_)
+                        .as_conditional_type()
+                        .extends_type,
+                ),
+                context,
+            )?
             .unwrap();
         *context.infer_type_parameters.borrow_mut() = save_infer_type_parameters;
         let true_type_node = self.type_to_type_node_or_circularity_elision(
@@ -69,7 +85,12 @@ impl NodeBuilder {
         context: &NodeBuilderContext,
         type_: Id<Type>,
     ) -> io::Result<Gc<Node>> {
-        if type_.flags().intersects(TypeFlags::Union) {
+        if self
+            .type_checker
+            .type_(type_)
+            .flags()
+            .intersects(TypeFlags::Union)
+        {
             if matches!(context.visited_types.borrow().as_ref(), Some(visited_types) if visited_types.contains(&self.type_checker.get_type_id(type_)))
             {
                 if !context
@@ -97,10 +118,19 @@ impl NodeBuilder {
         context: &NodeBuilderContext,
         type_: Id<Type>, /*MappedType*/
     ) -> io::Result<Gc<Node>> {
-        Debug_.assert(type_.flags().intersects(TypeFlags::Object), None);
-        let type_as_mapped_type = type_.as_mapped_type();
-        let type_declaration_as_mapped_type_node =
-            type_as_mapped_type.declaration.as_mapped_type_node();
+        Debug_.assert(
+            self.type_checker
+                .type_(type_)
+                .flags()
+                .intersects(TypeFlags::Object),
+            None,
+        );
+        let type_declaration_as_mapped_type_node = self
+            .type_checker
+            .type_(type_)
+            .as_mapped_type()
+            .declaration
+            .as_mapped_type_node();
         let readonly_token: Option<Gc<Node>> = type_declaration_as_mapped_type_node
             .readonly_token
             .as_ref()
@@ -182,7 +212,7 @@ impl NodeBuilder {
         type_: Id<Type>, /*ObjectType*/
     ) -> io::Result<Gc<Node>> {
         let type_id = self.type_checker.type_(type_).id();
-        let symbol = type_.maybe_symbol();
+        let symbol = self.type_checker.type_(type_).maybe_symbol();
         Ok(if let Some(symbol) = symbol {
             let is_instance_type = if self.type_checker.is_class_instance_side(type_)? {
                 SymbolFlags::Type
@@ -269,8 +299,8 @@ impl NodeBuilder {
     pub(super) fn visit_and_transform_type(
         &self,
         context: &NodeBuilderContext,
-        type_: &Type,
-        mut transform: impl FnMut(&Type) -> Gc<Node>,
+        type_: Id<Type>,
+        mut transform: impl FnMut(Id<Type>) -> Gc<Node>,
     ) -> Gc<Node> {
         self.try_visit_and_transform_type(context, type_, |type_: &Type| Ok(transform(type_)))
             .unwrap()
@@ -280,27 +310,28 @@ impl NodeBuilder {
         &self,
         context: &NodeBuilderContext,
         type_: Id<Type>,
-        mut transform: impl FnMut(&Type) -> io::Result<Gc<Node>>,
+        mut transform: impl FnMut(Id<Type>) -> io::Result<Gc<Node>>,
     ) -> io::Result<Gc<Node>> {
-        let type_id = type_.id();
-        let is_constructor_object = get_object_flags(type_).intersects(ObjectFlags::Anonymous)
-            && matches!(type_.maybe_symbol(), Some(symbol) if symbol.flags().intersects(SymbolFlags::Class));
-        let id = if get_object_flags(type_).intersects(ObjectFlags::Reference)
-            && type_
-                .maybe_as_type_reference()
+        let type_id = self.type_checker.type_(type_).id();
+        let is_constructor_object = get_object_flags(self.type_checker.type_(type_))
+            .intersects(ObjectFlags::Anonymous)
+            && matches!(self.type_checker.type_(type_).maybe_symbol(), Some(symbol) if symbol.flags().intersects(SymbolFlags::Class));
+        let id = if get_object_flags(self.type_checker.type_(type_)).intersects(ObjectFlags::Reference)
+            && self.type_checker.type_(type_
+                ).maybe_as_type_reference()
                 .and_then(|type_| type_.node.borrow().clone())
                 .is_some()
         {
             Some(format!(
                 "N{}",
-                get_node_id(type_.as_type_reference().node.borrow().as_ref().unwrap())
+                get_node_id(self.type_checker.type_(type_).as_type_reference().node.borrow().as_ref().unwrap())
             ))
-        } else if type_.flags().intersects(TypeFlags::Conditional) {
+        } else if self.type_checker.type_(type_).flags().intersects(TypeFlags::Conditional) {
             Some(format!(
                 "N{}",
-                get_node_id(&(*type_.as_conditional_type().root).borrow().node.clone())
+                get_node_id(&(*self.type_checker.type_(type_).as_conditional_type().root).borrow().node.clone())
             ))
-        } else if let Some(type_symbol) = type_.maybe_symbol() {
+        } else if let Some(type_symbol) = self.type_checker.type_(type_).maybe_symbol() {
             Some(format!(
                 "{}{}",
                 if is_constructor_object { "+" } else { "" },
@@ -435,7 +466,7 @@ impl NodeBuilder {
     pub(super) fn create_type_node_from_object_type(
         &self,
         context: &NodeBuilderContext,
-        type_: &Type, /*ObjectType*/
+        type_: Id<Type>, /*ObjectType*/
     ) -> io::Result<Gc<Node>> {
         if self.type_checker.is_generic_mapped_type(type_)?
             || matches!(
@@ -643,8 +674,11 @@ impl NodeBuilder {
         type_: Id<Type>, /*TypeReference*/
     ) -> io::Result<Option<Gc<Node>>> {
         let type_arguments = self.type_checker.get_type_arguments(type_)?;
-        let type_as_type_reference = type_.as_type_reference_interface();
-        let type_target = type_as_type_reference.target();
+        let type_target = self
+            .type_checker
+            .type_(type_)
+            .as_type_reference_interface()
+            .target();
         Ok(
             if type_target == self.type_checker.global_array_type()
                 || type_target == self.type_checker.global_readonly_array_type()
@@ -684,7 +718,7 @@ impl NodeBuilder {
                 let type_arguments = same_map(&type_arguments, |&t: &Id<Type>, i| {
                     self.type_checker.remove_missing_type(
                         t,
-                        self.type_(type_target).as_tuple_type().element_flags[i]
+                        self.type_checker.type_(type_target).as_tuple_type().element_flags[i]
                             .intersects(ElementFlags::Optional),
                     )
                 });
@@ -694,6 +728,7 @@ impl NodeBuilder {
                         self.map_to_type_nodes(Some(&type_arguments[0..arity]), context, None)?;
                     if let Some(mut tuple_constituent_nodes) = tuple_constituent_nodes {
                         if let Some(type_target_labeled_element_declarations) = self
+                            .type_checker
                             .type_(type_target)
                             .as_tuple_type()
                             .labeled_element_declarations
@@ -702,7 +737,7 @@ impl NodeBuilder {
                             for i in 0..tuple_constituent_nodes.len() {
                                 let tuple_constituent_node = tuple_constituent_nodes[i].clone();
                                 let flags =
-                                    self.type_(type_target).as_tuple_type().element_flags[i];
+                                    self.type_checker.type_(type_target).as_tuple_type().element_flags[i];
                                 tuple_constituent_nodes[i] = get_factory()
                                     .create_named_tuple_member(
                                         if flags.intersects(ElementFlags::Variable) {
@@ -740,7 +775,7 @@ impl NodeBuilder {
                             for i in 0..cmp::min(arity, tuple_constituent_nodes.len()) {
                                 let tuple_constituent_node = tuple_constituent_nodes[i].clone();
                                 let flags =
-                                    self.type_(type_target).as_tuple_type().element_flags[i];
+                                    self.type_checker.type_(type_target).as_tuple_type().element_flags[i];
                                 tuple_constituent_nodes[i] = if flags
                                     .intersects(ElementFlags::Variable)
                                 {
@@ -763,7 +798,7 @@ impl NodeBuilder {
                             get_factory().create_tuple_type_node(Some(tuple_constituent_nodes)),
                             EmitFlags::SingleLine,
                         );
-                        return Ok(Some(if self.type_(type_target).as_tuple_type().readonly {
+                        return Ok(Some(if self.type_checker.type_(type_target).as_tuple_type().readonly {
                             get_factory().create_type_operator_node(
                                 SyntaxKind::ReadonlyKeyword,
                                 tuple_type_node,
@@ -782,7 +817,7 @@ impl NodeBuilder {
                         get_factory().create_tuple_type_node(Some(vec![])),
                         EmitFlags::SingleLine,
                     );
-                    return Ok(Some(if self.type_(type_target).as_tuple_type().readonly {
+                    return Ok(Some(if self.type_checker.type_(type_target).as_tuple_type().readonly {
                         get_factory()
                             .create_type_operator_node(SyntaxKind::ReadonlyKeyword, tuple_type_node)
                     } else {
@@ -794,9 +829,9 @@ impl NodeBuilder {
             } else if context
                 .flags()
                 .intersects(NodeBuilderFlags::WriteClassExpressionAsTypeLiteral)
-                && matches!(type_.symbol().maybe_value_declaration(), Some(value_declaration) if is_class_like(&value_declaration))
+                && matches!(self.type_checker.type_(type_).symbol().maybe_value_declaration(), Some(value_declaration) if is_class_like(&value_declaration))
                 && !self.type_checker.is_value_symbol_accessible(
-                    &type_.symbol(),
+                    &self.type_checker.type_(type_).symbol(),
                     context.maybe_enclosing_declaration().as_deref(),
                 )?
             {
@@ -815,13 +850,13 @@ impl NodeBuilder {
                         let start = i;
                         let parent = self
                             .type_checker
-                            .get_parent_symbol_of_type_parameter(&outer_type_parameters[i])?
+                            .get_parent_symbol_of_type_parameter(outer_type_parameters[i])?
                             .unwrap();
                         while {
                             i += 1;
                             i < length
                                 && matches!(
-                                    self.type_checker.get_parent_symbol_of_type_parameter(&outer_type_parameters[i])?,
+                                    self.type_checker.get_parent_symbol_of_type_parameter(outer_type_parameters[i])?,
                                     Some(parent_symbol) if Gc::ptr_eq(
                                         &parent_symbol,
                                         &parent
@@ -874,7 +909,7 @@ impl NodeBuilder {
                     context.flags() | NodeBuilderFlags::ForbidIndexedAccessSymbolReferences,
                 );
                 let final_ref = self.symbol_to_type_node(
-                    &type_.symbol(),
+                    &self.type_checker.type_(type_).symbol(),
                     context,
                     SymbolFlags::Type,
                     type_argument_nodes.as_deref(),
@@ -988,7 +1023,7 @@ impl NodeBuilder {
     pub(super) fn create_type_nodes_from_resolved_type(
         &self,
         context: &NodeBuilderContext,
-        resolved_type: &Type, /*ResolvedType*/
+        resolved_type: Id<Type>, /*ResolvedType*/
     ) -> io::Result<Option<Vec<Gc<Node /*TypeElement*/>>>> {
         if self.check_truncation_length(context) {
             return Ok(Some(vec![factory.with(|factory_| {
@@ -1220,8 +1255,7 @@ impl NodeBuilder {
             && self
                 .type_checker
                 .get_properties_of_object_type(property_type)?
-                .peekable()
-                .is_empty_()
+                .is_empty()
             && !self.type_checker.is_readonly_symbol(property_symbol)?
         {
             let signatures = self.type_checker.get_signatures_of_type(
@@ -1266,7 +1300,7 @@ impl NodeBuilder {
                 {
                     self.serialize_type_for_declaration(
                         context,
-                        &property_type,
+                        property_type,
                         property_symbol,
                         save_enclosing_declaration.as_deref(),
                         Option::<&fn(&Symbol)>::None,

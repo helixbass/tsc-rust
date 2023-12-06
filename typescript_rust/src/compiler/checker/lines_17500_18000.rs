@@ -369,7 +369,7 @@ impl TypeChecker {
             }
             if s.intersects(TypeFlags::Literal)
                 && t.intersects(TypeFlags::Literal)
-                && self.type_(source).as_literal_type().is_value_eq(target)
+                && self.type_(source).as_literal_type().is_value_eq(self.type_(target))
                 && self.is_enum_type_related_to(
                     &self
                         .get_parent_of_symbol(&self.type_(source).symbol())?
@@ -422,7 +422,7 @@ impl TypeChecker {
         relation: Rc<RefCell<HashMap<String, RelationComparisonResult>>>,
     ) -> io::Result<bool> {
         if self.is_fresh_literal_type(source) {
-            source = match &*source {
+            source = match self.type_(source ){
                 Type::IntrinsicType(intrinsic_type) => {
                     enum_unwrapped!(intrinsic_type, [IntrinsicType, FreshableIntrinsicType])
                         .regular_type()
@@ -432,7 +432,7 @@ impl TypeChecker {
             };
         }
         if self.is_fresh_literal_type(target) {
-            target = match &*target {
+            target = match self.type_(target ){
                 Type::IntrinsicType(intrinsic_type) => {
                     enum_unwrapped!(intrinsic_type, [IntrinsicType, FreshableIntrinsicType])
                         .regular_type()
@@ -446,28 +446,28 @@ impl TypeChecker {
         }
         if !Rc::ptr_eq(&relation, &self.identity_relation) {
             if Rc::ptr_eq(&relation, &self.comparable_relation)
-                && !target.flags().intersects(TypeFlags::Never)
-                && self.is_simple_type_related_to(&target, &source, &(*relation).borrow(), None)?
-                || self.is_simple_type_related_to(&source, &target, &(*relation).borrow(), None)?
+                && !self.type_(target).flags().intersects(TypeFlags::Never)
+                && self.is_simple_type_related_to(target, source, &(*relation).borrow(), None)?
+                || self.is_simple_type_related_to(source, target, &(*relation).borrow(), None)?
             {
                 return Ok(true);
             }
         } else {
-            if source.flags() != target.flags() {
+            if self.type_(source).flags() != self.type_(target).flags() {
                 return Ok(false);
             }
-            if source.flags().intersects(TypeFlags::Singleton) {
+            if self.type_(source).flags().intersects(TypeFlags::Singleton) {
                 return Ok(true);
             }
         }
-        if source.flags().intersects(TypeFlags::Object)
-            && target.flags().intersects(TypeFlags::Object)
+        if self.type_(source).flags().intersects(TypeFlags::Object)
+            && self.type_(target).flags().intersects(TypeFlags::Object)
         {
             let related = (*relation)
                 .borrow()
                 .get(&*self.get_relation_key(
-                    &source,
-                    &target,
+                    source,
+                    target,
                     IntersectionState::None,
                     &(*relation).borrow(),
                 )?)
@@ -476,16 +476,16 @@ impl TypeChecker {
                 return Ok(related.intersects(RelationComparisonResult::Succeeded));
             }
         }
-        if source
-            .flags()
+        if self.type_(source
+            ).flags()
             .intersects(TypeFlags::StructuredOrInstantiable)
-            || target
-                .flags()
+            || self.type_(target
+                ).flags()
                 .intersects(TypeFlags::StructuredOrInstantiable)
         {
             return self.check_type_related_to(
-                &source,
-                &target,
+                source,
+                target,
                 relation,
                 Option::<&Node>::None,
                 None,
@@ -497,7 +497,7 @@ impl TypeChecker {
     }
 
     pub(super) fn is_ignored_jsx_property(&self, source: Id<Type>, source_prop: &Symbol) -> bool {
-        get_object_flags(source).intersects(ObjectFlags::JsxAttributes)
+        get_object_flags(self.type_(source)).intersects(ObjectFlags::JsxAttributes)
             && self.is_hyphenated_jsx_name(source_prop.escaped_name())
     }
 
@@ -507,8 +507,8 @@ impl TypeChecker {
         writing: bool,
     ) -> io::Result<Id<Type>> {
         loop {
-            let mut t: Id<Type> = if self.is_fresh_literal_type(&type_) {
-                match &*type_ {
+            let mut t = if self.is_fresh_literal_type(type_) {
+                match self.type_(type_ ){
                     Type::IntrinsicType(intrinsic_type) => {
                         enum_unwrapped!(intrinsic_type, [IntrinsicType, FreshableIntrinsicType])
                             .regular_type()
@@ -516,31 +516,30 @@ impl TypeChecker {
                     Type::LiteralType(literal_type) => literal_type.regular_type(),
                     _ => panic!("Expected IntrinsicType or LiteralType"),
                 }
-            } else if get_object_flags(&type_).intersects(ObjectFlags::Reference)
-                && type_.as_type_reference_interface().maybe_node().is_some()
+            } else if get_object_flags(self.type_(type_)).intersects(ObjectFlags::Reference)
+                && self.type_(type_).as_type_reference_interface().maybe_node().is_some()
             {
                 self.create_type_reference(
-                    &type_.as_type_reference().target,
-                    Some(self.get_type_arguments(&type_)?),
+                    self.type_(type_).as_type_reference().target,
+                    Some(self.get_type_arguments(type_)?),
                 )
-            } else if type_.flags().intersects(TypeFlags::UnionOrIntersection) {
-                self.get_reduced_type(&type_)?
-            } else if type_.flags().intersects(TypeFlags::Substitution) {
-                let type_as_substitution_type = type_.as_substitution_type();
+            } else if self.type_(type_).flags().intersects(TypeFlags::UnionOrIntersection) {
+                self.get_reduced_type(type_)?
+            } else if self.type_(type_).flags().intersects(TypeFlags::Substitution) {
                 if writing {
-                    type_as_substitution_type.base_type.clone()
+                    self.type_(type_).as_substitution_type().base_type.clone()
                 } else {
-                    type_as_substitution_type.substitute.clone()
+                    self.type_(type_).as_substitution_type().substitute.clone()
                 }
-            } else if type_.flags().intersects(TypeFlags::Simplifiable) {
-                self.get_simplified_type(&type_, writing)?
+            } else if self.type_(type_).flags().intersects(TypeFlags::Simplifiable) {
+                self.get_simplified_type(type_, writing)?
             } else {
-                type_.type_wrapper()
+                type_
             };
             t = self
                 .get_single_base_for_non_augmenting_subtype(&t)?
                 .unwrap_or(t);
-            if Gc::ptr_eq(&t, &type_) {
+            if t == type_ {
                 break;
             }
             type_ = t.clone();

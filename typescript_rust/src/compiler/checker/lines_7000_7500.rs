@@ -288,7 +288,7 @@ impl SymbolTableToDeclarationStatements {
         } else {
             Some(vec![get_factory().create_heritage_clause(
                 SyntaxKind::ExtendsKeyword,
-                try_map_defined(Some(&base_types), |b: &Id<Type>, _| {
+                try_map_defined(Some(&base_types), |&b: &Id<Type>, _| {
                     self.try_serialize_as_type_reference(b, SymbolFlags::Value)
                 })?,
             )])
@@ -855,12 +855,12 @@ impl SymbolTableToDeclarationStatements {
             .try_unwrap_or_else(|| {
                 try_map_defined(
                     Some(&self.type_checker.get_implements_types(class_type)?),
-                    |type_: &Id<Type>, _| self.serialize_implemented_type(type_),
+                    |&type_: &Id<Type>, _| self.serialize_implemented_type(type_),
                 )
             })?;
         let static_type = self.type_checker.get_type_of_symbol(symbol)?;
         let is_class = matches!(
-            self.type_(static_type).maybe_symbol().and_then(|static_type_symbol| static_type_symbol.maybe_value_declaration()).as_ref(),
+            self.type_checker.type_(static_type).maybe_symbol().and_then(|static_type_symbol| static_type_symbol.maybe_value_declaration()).as_ref(),
             Some(static_type_symbol_value_declaration) if is_class_like(static_type_symbol_value_declaration)
         );
         let static_base_type = if is_class {
@@ -875,7 +875,7 @@ impl SymbolTableToDeclarationStatements {
                 if !base_types.is_empty() {
                     heritage_clauses.push(get_factory().create_heritage_clause(
                         SyntaxKind::ExtendsKeyword,
-                        try_map(&base_types, |b: &Id<Type>, _| {
+                        try_map(&base_types, |&b: &Id<Type>, _| {
                             self.serialize_base_type(b, static_base_type, local_name)
                         })?,
                     ));

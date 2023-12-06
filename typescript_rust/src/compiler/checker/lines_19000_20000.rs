@@ -157,7 +157,7 @@ impl CheckTypeRelatedTo {
                 if self.type_checker.maybe_instantiate_type(
                     self.type_checker.get_name_type_from_mapped_type(source)?,
                     Some(mapper.clone()),
-                ) == self.type_checker.maybe_instantiate_type(
+                )? == self.type_checker.maybe_instantiate_type(
                     self.type_checker.get_name_type_from_mapped_type(target)?,
                     Some(mapper.clone()),
                 )? {
@@ -272,7 +272,7 @@ impl CheckTypeRelatedTo {
                         continue 'outer;
                     }
                 }
-                push_if_unique_eq(&mut matching_types, type_);
+                push_if_unique_eq(&mut matching_types, &type_);
                 has_match = true;
             }
             if !has_match {
@@ -749,9 +749,13 @@ impl CheckTypeRelatedTo {
         }
         let mut result = Ternary::True;
         if self.type_checker.is_tuple_type(target) {
-            let target_target = self.type_(target).as_type_reference_interface().target();
+            let target_target = self
+                .type_checker
+                .type_(target)
+                .as_type_reference_interface()
+                .target();
             if self.type_checker.is_array_type(source) || self.type_checker.is_tuple_type(source) {
-                if !self.type_(target_target).as_tuple_type().readonly
+                if !self.type_checker.type_(target_target).as_tuple_type().readonly
                     && (self.type_checker.is_readonly_array_type(source)
                         || self.type_checker.is_tuple_type(source)
                             && self
@@ -784,7 +788,7 @@ impl CheckTypeRelatedTo {
                     ElementFlags::Rest
                 };
                 let target_rest_flag =
-                    self.type_(target_target).as_tuple_type().combined_flags & ElementFlags::Rest;
+                    self.type_checker.type_(target_target).as_tuple_type().combined_flags & ElementFlags::Rest;
                 let source_min_length = if self.type_checker.is_tuple_type(source) {
                     self.type_checker
                         .type_(
@@ -798,7 +802,7 @@ impl CheckTypeRelatedTo {
                 } else {
                     0
                 };
-                let target_min_length = self.type_(target_target).as_tuple_type().min_length;
+                let target_min_length = self.type_checker.type_(target_target).as_tuple_type().min_length;
                 if source_rest_flag == ElementFlags::None && source_arity < target_min_length {
                     if report_errors {
                         self.report_error(
@@ -854,7 +858,7 @@ impl CheckTypeRelatedTo {
                 let start_count = cmp::min(
                     if self.type_checker.is_tuple_type(source) {
                         self.type_checker.get_start_element_count(
-                            &self
+                            self
                                 .type_checker
                                 .type_(source)
                                 .as_type_reference_interface()
@@ -903,7 +907,7 @@ impl CheckTypeRelatedTo {
                     } else {
                         ElementFlags::Rest
                     };
-                    let target_flags = self.type_(target_target).as_tuple_type().element_flags[i];
+                    let target_flags = self.type_checker.type_(target_target).as_tuple_type().element_flags[i];
                     if target_flags.intersects(ElementFlags::Variadic)
                         && !source_flags.intersects(ElementFlags::Variadic)
                     {
@@ -1026,6 +1030,7 @@ impl CheckTypeRelatedTo {
                 return Ok(result);
             }
             if self
+                .type_checker.
                 .type_(target_target)
                 .as_tuple_type()
                 .combined_flags
@@ -1161,15 +1166,13 @@ impl CheckTypeRelatedTo {
         let source_properties = self.exclude_properties(
             &self
                 .type_checker
-                .get_properties_of_object_type(source)?
-                .collect_vec(),
+                .get_properties_of_object_type(source)?,
             excluded_properties,
         );
         let target_properties = self.exclude_properties(
             &self
                 .type_checker
-                .get_properties_of_object_type(target)?
-                .collect_vec(),
+                .get_properties_of_object_type(target)?,
             excluded_properties,
         );
         if source_properties.len() != target_properties.len() {
@@ -1210,11 +1213,11 @@ impl CheckTypeRelatedTo {
         }
 
         let source_is_js_constructor = matches!(
-            source.maybe_symbol().as_ref(),
+            self.type_checker.type_(source).maybe_symbol().as_ref(),
             Some(source_symbol) if self.type_checker.is_js_constructor(source_symbol.maybe_value_declaration())?
         );
         let target_is_js_constructor = matches!(
-            target.maybe_symbol().as_ref(),
+            self.type_checker.type_(target).maybe_symbol().as_ref(),
             Some(target_symbol) if self.type_checker.is_js_constructor(target_symbol.maybe_value_declaration())?
         );
 
@@ -1577,7 +1580,7 @@ impl CheckTypeRelatedTo {
                     .get_properties_of_union_or_intersection_type(source)?,
             )
         } else {
-            Either::Right(self.type_checker.get_properties_of_object_type(source)?)
+            Either::Right(self.type_checker.get_properties_of_object_type(source)?.into_iter())
         };
         for ref prop in props {
             if self.type_checker.is_ignored_jsx_property(source, prop) {

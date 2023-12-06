@@ -53,7 +53,7 @@ impl TypeChecker {
                                 == index_type
                     }
                 {
-                    self.get_conditional_flow_type_of_type(&resolved, node)?
+                    self.get_conditional_flow_type_of_type(resolved, node)?
                 } else {
                     resolved
                 },
@@ -96,15 +96,13 @@ impl TypeChecker {
             .intersects(TypeFlags::IndexedAccess)
         {
             if self
-                .type_(type_)
-                .as_indexed_access_type()
-                .object_type
+                .type_(self.type_(type_).as_indexed_access_type().object_type)
                 .flags()
                 .intersects(TypeFlags::Substitution)
-                || self
+                || self.type_(self
                     .type_(type_)
                     .as_indexed_access_type()
-                    .index_type
+                    .index_type)
                     .flags()
                     .intersects(TypeFlags::Substitution)
             {
@@ -250,8 +248,8 @@ impl TypeChecker {
                 extends_type.clone()
             };
             if !check_type_instantiable && !self.is_generic_type(inferred_extends_type)? {
-                if !iself
-                    .type_(nferred_extends_type)
+                if !self
+                    .type_(inferred_extends_type)
                     .flags()
                     .intersects(TypeFlags::AnyOrUnknown)
                     && (self.type_(check_type).flags().intersects(TypeFlags::Any) && !is_unwrapped
@@ -417,7 +415,7 @@ impl TypeChecker {
                     ));
                     let new_check_type = if (*new_root).borrow().is_distributive {
                         Some(self.get_mapped_type(
-                            &(*new_root).borrow().clone().check_type,
+                            (*new_root).borrow().clone().check_type,
                             &new_root_mapper,
                         )?)
                     } else {
@@ -426,9 +424,9 @@ impl TypeChecker {
                     if match new_check_type.as_ref() {
                         None => true,
                         Some(new_check_type) => {
-                            Gc::ptr_eq(new_check_type, &(*new_root).borrow().check_type)
-                                || !new_check_type
-                                    .flags()
+                            new_check_type == (*new_root).borrow().check_type
+                                || !self.type_(new_check_type
+                                    ).flags()
                                     .intersects(TypeFlags::Union | TypeFlags::Never)
                         }
                     } {
@@ -1086,7 +1084,7 @@ impl TypeChecker {
             });
         }
         let right = self.try_merge_union_of_object_type_and_empty_object(right, readonly)?;
-        if self.type_(right).intersects(TypeFlags::Union) {
+        if self.type_(right).flags().intersects(TypeFlags::Union) {
             return Ok(
                 if self.check_cross_product_union(&[left.clone(), right.clone()]) {
                     self.try_map_type(

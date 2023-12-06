@@ -1098,7 +1098,7 @@ impl TypeChecker {
                     .flags()
                     .intersects(SymbolFlags::Class)
                     && self.are_all_outer_type_parameters_applied(
-                        original_base_type.as_ref().unwrap(),
+                        original_base_type.unwrap(),
                     )?)
             })?
         {

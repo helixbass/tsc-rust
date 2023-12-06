@@ -141,7 +141,7 @@ impl TypeChecker {
                 let declared_type = self.get_type_from_mapped_type_node(
                     &self.type_(type_).as_mapped_type().declaration,
                 )?;
-                let constraint = self.get_constraint_type_from_mapped_type(&declared_type)?;
+                let constraint = self.get_constraint_type_from_mapped_type(declared_type)?;
                 let extended_constraint = /*constraint &&*/ if self.type_(constraint).flags().intersects(TypeFlags::TypeParameter) {
                     self.get_constraint_of_type_parameter(constraint)?
                 } else {
@@ -150,11 +150,13 @@ impl TypeChecker {
                 *self.type_(type_).as_mapped_type().maybe_modifiers_type() = Some(
                     if let Some(extended_constraint) =
                         extended_constraint.filter(|extended_constraint| {
-                            extended_constraint.flags().intersects(TypeFlags::Index)
+                            self.type_(extended_constraint)
+                                .flags()
+                                .intersects(TypeFlags::Index)
                         })
                     {
                         self.instantiate_type(
-                            &extended_constraint.as_index_type().type_,
+                            self.type_(extended_constraint).as_index_type().type_,
                             self.type_(type_).as_mapped_type().maybe_mapper(),
                         )?
                     } else {
@@ -392,7 +394,7 @@ impl TypeChecker {
             {
                 Either::Left(self.get_properties_of_union_or_intersection_type(type_)?)
             } else {
-                Either::Right(self.get_properties_of_object_type(type_)?)
+                Either::Right(self.get_properties_of_object_type(type_)?.into_iter())
             },
         )
     }
@@ -529,7 +531,6 @@ impl TypeChecker {
         &self,
         type_: Id<Type>, /*IndexedAccessType*/
     ) -> io::Result<Option<Id<Type>>> {
-        let type_as_indexed_access_type = type_.as_indexed_access_type();
         let index_constraint = self.get_simplified_type_or_constraint(
             self.type_(type_).as_indexed_access_type().index_type,
         )?;
@@ -557,7 +558,7 @@ impl TypeChecker {
             return self.get_indexed_access_type_or_undefined(
                 object_constraint,
                 self.type_(type_).as_indexed_access_type().index_type,
-                Some(type_as_indexed_access_type.access_flags),
+                Some(self.type_(type_).as_indexed_access_type().access_flags),
                 Option::<&Node>::None,
                 Option::<&Symbol>::None,
                 None,
@@ -629,7 +630,7 @@ impl TypeChecker {
                 let instantiated = self.get_conditional_type_instantiation(
                     type_,
                     &self.prepend_type_mapping(
-                        &(*self.type_(type_).as_conditional_type().root)
+                        (*self.type_(type_).as_conditional_type().root)
                             .borrow()
                             .check_type
                             .clone(),
@@ -755,7 +756,7 @@ impl TypeChecker {
         &self,
         type_: Id<Type>, /*InstantiableType*/
     ) -> io::Result<bool> {
-        Ok(self.get_resolved_base_constraint(type_) != self.circular_constraint_type())
+        Ok(self.get_resolved_base_constraint(type_)? != self.circular_constraint_type())
     }
 
     pub(super) fn get_resolved_base_constraint(
@@ -920,7 +921,7 @@ impl TypeChecker {
         }
         if self.type_(t).flags().intersects(TypeFlags::TemplateLiteral) {
             let types = &self.type_(t).as_template_literal_type().types.clone();
-            let constraints = try_map_defined(Some(types), |type_: Id<Type>, _| {
+            let constraints = try_map_defined(Some(types), |&type_: &Id<Type>, _| {
                 self.get_base_constraint(stack, type_)
             })?;
             return Ok(Some(if constraints.len() == types.len() {
@@ -936,7 +937,7 @@ impl TypeChecker {
             let constraint =
                 self.get_base_constraint(stack, self.type_(t).as_string_mapping_type().type_)?;
             return Ok(Some(if let Some(constraint) = constraint {
-                self.get_string_mapping_type(&self.type_(t).symbol(), &constraint)?
+                self.get_string_mapping_type(&self.type_(t).symbol(), constraint)?
             } else {
                 self.string_type()
             }));
@@ -986,7 +987,7 @@ impl TypeChecker {
             .is_none()
         {
             let resolved = self.get_type_with_this_argument(type_, Some(type_), Some(true))?;
-            *type_as_intersection_type.maybe_resolved_apparent_type() = Some(resolved);
+            *self.type_(type_).as_intersection_type().maybe_resolved_apparent_type() = Some(resolved);
         }
         Ok(self
             .type_(type_)

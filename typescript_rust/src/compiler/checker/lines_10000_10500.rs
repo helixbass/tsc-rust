@@ -31,8 +31,8 @@ impl TypeChecker {
             let last = outer_type_parameters.len() - 1;
             let type_arguments = self.get_type_arguments(type_)?;
             return Ok(!match (
-                outer_type_parameters[last].maybe_symbol(),
-                type_arguments[last].maybe_symbol(),
+                self.type_(outer_type_parameters[last]).maybe_symbol(),
+                self.type_(type_arguments[last]).maybe_symbol(),
             ) {
                 (None, None) => true,
                 (Some(symbol_a), Some(symbol_b)) => Gc::ptr_eq(&symbol_a, &symbol_b),

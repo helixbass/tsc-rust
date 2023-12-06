@@ -1053,33 +1053,27 @@ pub fn create_type_checker(
         ))
         .into(),
     );
-    let false_type_as_freshable_intrinsic_type = false_type.as_freshable_intrinsic_type();
-    false_type_as_freshable_intrinsic_type.set_regular_type(regular_false_type.clone());
-    false_type_as_freshable_intrinsic_type.set_fresh_type(false_type.clone());
+    type_checker.type_(false_type).as_freshable_intrinsic_type().set_regular_type(regular_false_type.clone());
+    type_checker.type_(false_type).as_freshable_intrinsic_type().set_fresh_type(false_type.clone());
     type_checker.false_type = Some(false_type);
-    let regular_false_type_as_freshable_intrinsic_type =
-        regular_false_type.as_freshable_intrinsic_type();
-    regular_false_type_as_freshable_intrinsic_type.set_regular_type(regular_false_type.clone());
-    regular_false_type_as_freshable_intrinsic_type.set_fresh_type(type_checker.false_type());
+    type_checker.type_(regular_false_type).as_freshable_intrinsic_type().set_regular_type(regular_false_type.clone());
+    type_checker.type_(regular_false_type).as_freshable_intrinsic_type().set_fresh_type(type_checker.false_type());
     type_checker.regular_false_type = Some(regular_false_type);
-    let true_type: Id<Type> = FreshableIntrinsicType::new(type_checker.create_intrinsic_type(
+    let true_type = type_checker.alloc_type(FreshableIntrinsicType::new(type_checker.create_intrinsic_type(
         TypeFlags::BooleanLiteral,
         "true",
         None,
     ))
-    .into();
-    let regular_true_type: Id<Type> = FreshableIntrinsicType::new(
+    .into());
+    let regular_true_type = type_checker.alloc_type(FreshableIntrinsicType::new(
         type_checker.create_intrinsic_type(TypeFlags::BooleanLiteral, "true", None),
     )
-    .into();
-    let true_type_as_freshable_intrinsic_type = true_type.as_freshable_intrinsic_type();
-    true_type_as_freshable_intrinsic_type.set_regular_type(regular_true_type.clone());
-    true_type_as_freshable_intrinsic_type.set_fresh_type(true_type.clone());
+    .into());
+    type_checker.type_(true_type).as_freshable_intrinsic_type().set_regular_type(regular_true_type.clone());
+    type_checker.type_(true_type).as_freshable_intrinsic_type().set_fresh_type(true_type.clone());
     type_checker.true_type = Some(true_type);
-    let regular_true_type_as_freshable_intrinsic_type =
-        regular_true_type.as_freshable_intrinsic_type();
-    regular_true_type_as_freshable_intrinsic_type.set_regular_type(regular_true_type.clone());
-    regular_true_type_as_freshable_intrinsic_type.set_fresh_type(type_checker.true_type());
+    type_checker.type_(regular_true_type).as_freshable_intrinsic_type().set_regular_type(regular_true_type.clone());
+    type_checker.type_(regular_true_type).as_freshable_intrinsic_type().set_fresh_type(type_checker.true_type());
     type_checker.regular_true_type = Some(regular_true_type);
     type_checker.boolean_type = Some(type_checker.get_union_type(
         &[
@@ -1092,48 +1086,48 @@ pub fn create_type_checker(
         None,
     )?);
     type_checker.es_symbol_type = Some(
-        type_checker
+        type_checker.alloc_type(type_checker
             .create_intrinsic_type(TypeFlags::ESSymbol, "symbol", None)
-            .into(),
+            .into()),
     );
     type_checker.void_type = Some(
-        type_checker
+        type_checker.alloc_type(type_checker
             .create_intrinsic_type(TypeFlags::Void, "void", None)
-            .into(),
+            .into()),
     );
     type_checker.never_type = Some(
-        type_checker
+        type_checker.alloc_type(type_checker
             .create_intrinsic_type(TypeFlags::Never, "never", None)
-            .into(),
+            .into(),)
     );
     type_checker.silent_never_type = Some(
-        type_checker
+        type_checker.alloc_type(type_checker
             .create_intrinsic_type(TypeFlags::Never, "never", None)
-            .into(),
+            .into(),)
     );
     type_checker.non_inferrable_type = Some(
-        type_checker
+        type_checker.alloc_type(type_checker
             .create_intrinsic_type(
                 TypeFlags::Never,
                 "never",
                 Some(ObjectFlags::NonInferrableType),
             )
-            .into(),
+            .into(),)
     );
     type_checker.implicit_never_type = Some(
-        type_checker
+        type_checker.alloc_type(type_checker
             .create_intrinsic_type(TypeFlags::Never, "never", None)
-            .into(),
+            .into(),)
     );
     type_checker.unreachable_never_type = Some(
-        type_checker
+        type_checker.alloc_type(type_checker
             .create_intrinsic_type(TypeFlags::Never, "never", None)
-            .into(),
+            .into(),)
     );
     type_checker.non_primitive_type = Some(
-        type_checker
+        type_checker.alloc_type(type_checker
             .create_intrinsic_type(TypeFlags::NonPrimitive, "object", None)
-            .into(),
+            .into(),)
     );
     type_checker.string_or_number_type = Some(type_checker.get_union_type(
         &[type_checker.string_type(), type_checker.number_type()],
@@ -1201,9 +1195,8 @@ pub fn create_type_checker(
         vec![],
         vec![],
     )?;
-    let empty_jsx_object_type_as_object_flags_type = empty_jsx_object_type.as_object_flags_type();
-    empty_jsx_object_type_as_object_flags_type.set_object_flags(
-        empty_jsx_object_type_as_object_flags_type.object_flags() | ObjectFlags::JsxAttributes,
+    type_checker.type_(empty_jsx_object_type).as_object_flags_type().set_object_flags(
+        type_checker.type_(empty_jsx_object_type).as_object_flags_type().object_flags() | ObjectFlags::JsxAttributes,
     );
     type_checker.empty_jsx_object_type = Some(empty_jsx_object_type);
 
@@ -1233,7 +1226,7 @@ pub fn create_type_checker(
     )?;
     let empty_generic_type = BaseInterfaceType::new(empty_generic_type, None, None, None, None);
     empty_generic_type.genericize(HashMap::new());
-    type_checker.empty_generic_type = Some(empty_generic_type.into());
+    type_checker.empty_generic_type = Some(type_checker.alloc_type(empty_generic_type.into()));
 
     let any_function_type = type_checker.create_anonymous_type(
         Option::<&Symbol>::None,
@@ -1242,9 +1235,8 @@ pub fn create_type_checker(
         vec![],
         vec![],
     )?;
-    let any_function_type_as_object_flags_type = any_function_type.as_object_flags_type();
-    any_function_type_as_object_flags_type.set_object_flags(
-        any_function_type_as_object_flags_type.object_flags() | ObjectFlags::NonInferrableType,
+    type_checker.type_(any_function_type).as_object_flags_type().set_object_flags(
+        type_checker.type_(any_function_type).as_object_flags_type().object_flags() | ObjectFlags::NonInferrableType,
     );
     type_checker.any_function_type = Some(any_function_type);
 
@@ -1271,17 +1263,17 @@ pub fn create_type_checker(
     )?);
 
     type_checker.marker_super_type = Some(
-        type_checker
+        type_checker.alloc_type(type_checker
             .create_type_parameter(Option::<&Symbol>::None)
-            .into(),
+            .into(),)
     );
     let marker_sub_type = type_checker.create_type_parameter(Option::<&Symbol>::None);
     marker_sub_type.set_constraint(type_checker.marker_super_type());
-    type_checker.marker_sub_type = Some(marker_sub_type.into());
+    type_checker.marker_sub_type = Some(type_checker.alloc_type(marker_sub_type.into()));
     type_checker.marker_other_type = Some(
-        type_checker
+        type_checker.alloc_type(type_checker
             .create_type_parameter(Option::<&Symbol>::None)
-            .into(),
+            .into(),)
     );
 
     type_checker.no_type_predicate = Some(Gc::new(type_checker.create_type_predicate(
@@ -1397,10 +1389,10 @@ struct RestrictiveMapperFunc {}
 
 impl TypeMapperCallback for RestrictiveMapperFunc {
     fn call(&self, type_checker: &TypeChecker, t: Id<Type>) -> io::Result<Id<Type>> {
-        Ok(if t.flags().intersects(TypeFlags::TypeParameter) {
+        Ok(if type_checker.type_(t).flags().intersects(TypeFlags::TypeParameter) {
             type_checker.get_restrictive_type_parameter(t)
         } else {
-            t.type_wrapper()
+            t
         })
     }
 }
@@ -1410,10 +1402,10 @@ struct PermissiveMapperFunc {}
 
 impl TypeMapperCallback for PermissiveMapperFunc {
     fn call(&self, type_checker: &TypeChecker, t: Id<Type>) -> io::Result<Id<Type>> {
-        Ok(if t.flags().intersects(TypeFlags::TypeParameter) {
+        Ok(if type_checker.type_(t).flags().intersects(TypeFlags::TypeParameter) {
             type_checker.wildcard_type()
         } else {
-            t.type_wrapper()
+            t
         })
     }
 }
@@ -1431,7 +1423,7 @@ fn sync_iteration_types_resolver_resolve_iteration_type(
     type_: Id<Type>,
     _error_node: Option<Gc<Node>>,
 ) -> io::Result<Option<Id<Type>>> {
-    Ok(Some(type_.type_wrapper()))
+    Ok(Some(type_))
 }
 
 #[derive(Debug, Trace, Finalize)]
@@ -1768,7 +1760,7 @@ impl TypeChecker {
     ) -> io::Result<Option<Gc<IndexInfo>>> {
         self.get_index_info_of_type_(
             type_,
-            &*if kind == IndexKind::String {
+            if kind == IndexKind::String {
                 self.string_type()
             } else {
                 self.number_type()
@@ -1783,7 +1775,7 @@ impl TypeChecker {
     ) -> io::Result<Option<Id<Type>>> {
         self.get_index_type_of_type_(
             type_,
-            &*if kind == IndexKind::String {
+            if kind == IndexKind::String {
                 self.string_type()
             } else {
                 self.number_type()
@@ -2488,7 +2480,7 @@ impl TypeChecker {
 
     pub fn get_default_from_type_parameter(&self, type_: Id<Type>) -> io::Result<Option<Id<Type>>> {
         /*type &&*/
-        Ok(if type_.flags().intersects(TypeFlags::TypeParameter) {
+        Ok(if self.type_(type_).flags().intersects(TypeFlags::TypeParameter) {
             self.get_default_from_type_parameter_(type_)?
         } else {
             None

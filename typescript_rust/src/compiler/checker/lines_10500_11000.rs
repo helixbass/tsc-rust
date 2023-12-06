@@ -413,16 +413,21 @@ impl TypeChecker {
         if get_object_flags(self.type_(type_)).intersects(ObjectFlags::Reference) {
             let target = self.type_(type_).as_type_reference_interface().target();
             let type_arguments = self.get_type_arguments(type_)?;
-            let target_as_interface_type = target.as_interface_type();
-            if length(target_as_interface_type.maybe_type_parameters())
-                == length(Some(&type_arguments))
+            if length(
+                self.type_(target)
+                    .as_interface_type()
+                    .maybe_type_parameters(),
+            ) == length(Some(&type_arguments))
             {
                 let ref_ = self.create_type_reference(
                     target,
                     Some(concatenate(
                         type_arguments,
                         vec![this_argument.clone().unwrap_or_else(|| {
-                            target_as_interface_type.maybe_this_type().unwrap()
+                            self.type_(target)
+                                .as_interface_type()
+                                .maybe_this_type()
+                                .unwrap()
                         })],
                     )),
                 );
@@ -445,7 +450,7 @@ impl TypeChecker {
                 |t: Id<Type>, _| {
                     self.get_type_with_this_argument(
                         t,
-                        this_argument.as_deref(),
+                        this_argument,
                         need_apparent_type,
                     )
                 },
@@ -632,7 +637,7 @@ impl TypeChecker {
         type_: Id<Type>, /*TypeReference*/
     ) -> io::Result<()> {
         let source =
-            self.resolve_declared_members(&self.type_(type_).as_type_reference().target())?;
+            self.resolve_declared_members(self.type_(type_).as_type_reference().target())?;
         let type_parameters = maybe_concatenate(
             self.type_(source)
                 .as_interface_type()

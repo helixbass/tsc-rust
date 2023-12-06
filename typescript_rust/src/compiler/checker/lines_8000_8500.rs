@@ -139,13 +139,12 @@ impl TypeChecker {
                     } else {
                         self.get_base_type_of_enum_literal_type(t)?
                     };
-                    if base_type.flags().intersects(TypeFlags::Union) {
-                        let base_type_as_union_type = base_type.as_union_type();
-                        let count = base_type_as_union_type.types().len();
+                    if self.type_(base_type).flags().intersects(TypeFlags::Union) {
+                        let count = self.type_(base_type).as_union_type().types().len();
                         if i + count <= types.len()
                             && self.get_regular_type_of_literal_type(types[i + count - 1])
                                 == self.get_regular_type_of_literal_type(
-                                    base_type_as_union_type.types()[count - 1],
+                                    self.type_(base_type).as_union_type().types()[count - 1],
                                 )
                         {
                             result.push(base_type);
@@ -876,7 +875,7 @@ impl TypeChecker {
         } else {
             type_
         };
-        self.get_type_with_facts(&type_or_constraint, TypeFacts::NEUndefined)
+        self.get_type_with_facts(type_or_constraint, TypeFacts::NEUndefined)
     }
 
     pub(super) fn get_flow_type_of_destructuring(

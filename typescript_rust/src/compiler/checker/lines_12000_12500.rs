@@ -35,9 +35,9 @@ impl TypeChecker {
         };
         Ok(
             if get_object_flags(self.type_(t)).intersects(ObjectFlags::Mapped) {
-                self.get_apparent_type_of_mapped_type(&t)?
+                self.get_apparent_type_of_mapped_type(t)?
             } else if self.type_(t).flags().intersects(TypeFlags::Intersection) {
-                self.get_apparent_type_of_intersection_type(&t)?
+                self.get_apparent_type_of_intersection_type(t)?
             } else if self.type_(t).flags().intersects(TypeFlags::StringLike) {
                 self.global_string_type()
             } else if self.type_(t).flags().intersects(TypeFlags::NumberLike) {
@@ -91,7 +91,7 @@ impl TypeChecker {
             CheckFlags::Readonly
         };
         let mut merged_instantiations = false;
-        for current in self
+        for &current in self
             .type_(containing_type)
             .as_union_or_intersection_type_interface()
             .types()
@@ -203,7 +203,7 @@ impl TypeChecker {
                             }),
                         );
                     } else if self.is_object_literal_type(type_)
-                        && !get_object_flags(type_).intersects(ObjectFlags::ContainsSpread)
+                        && !get_object_flags(self.type_(type_)).intersects(ObjectFlags::ContainsSpread)
                     {
                         check_flags |= CheckFlags::WritePartial;
                         if index_types.is_none() {
@@ -499,7 +499,7 @@ impl TypeChecker {
     ) -> io::Result<Id<Type>> {
         let reduced_types = try_map(
             self.type_(union_type).as_union_type().types(),
-            |type_: &Id<Type>, _| self.get_reduced_type(type_),
+            |&type_: &Id<Type>, _| self.get_reduced_type(type_),
         )?;
         if &reduced_types == self.type_(union_type).as_union_type().types() {
             return Ok(union_type);

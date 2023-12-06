@@ -26,7 +26,7 @@ impl TypeChecker {
         union_types: &[Id<Type /*UnionType*/>],
         type_: Id<Type>,
     ) -> bool {
-        for u in union_types {
+        for &u in union_types {
             if !self.contains_type(self.type_(u).as_union_type().types(), type_) {
                 let primitive = if self
                     .type_(type_)
@@ -55,7 +55,7 @@ impl TypeChecker {
                 } else {
                     None
                 };
-                if match primitive.as_ref() {
+                if match primitive {
                     None => true,
                     Some(primitive) => {
                         !self.contains_type(self.type_(u).as_union_type().types(), primitive)
@@ -116,7 +116,7 @@ impl TypeChecker {
         let mut union_types: Option<Vec<Id<Type /*UnionType*/>>> = None;
         let index = find_index(
             types,
-            |t: &Id<Type>, _| get_object_flags(t).intersects(ObjectFlags::PrimitiveUnion),
+            |&t: &Id<Type>, _| get_object_flags(self.type_(t)).intersects(ObjectFlags::PrimitiveUnion),
             None,
         );
         if index.is_none() {
@@ -142,7 +142,7 @@ impl TypeChecker {
         let union_types = union_types.unwrap();
         let mut checked: Vec<Id<Type>> = vec![];
         let mut result: Vec<Id<Type>> = vec![];
-        for u in &union_types {
+        for &u in &union_types {
             for &t in self.type_(u).as_union_type().types() {
                 if self.insert_type(&mut checked, t) {
                     if self.each_union_contains(&union_types, t) {
@@ -515,7 +515,7 @@ impl TypeChecker {
         let type_parameter = self.get_type_parameter_from_mapped_type(type_)?;
         let constraint_type = self.get_constraint_type_from_mapped_type(type_)?;
         let name_type = self.get_name_type_from_mapped_type(
-            &self
+            self
                 .type_(type_)
                 .as_mapped_type()
                 .maybe_target()
@@ -573,7 +573,7 @@ impl TypeChecker {
         let result = if matches!(no_index_signatures, Some(true)) {
             self.filter_type(
                 self.get_union_type(&key_types, None, Option::<&Symbol>::None, None, None)?,
-                |t| !t.flags().intersects(TypeFlags::Any | TypeFlags::String),
+                |t| !self.type_(t).flags().intersects(TypeFlags::Any | TypeFlags::String),
             )
         } else {
             self.get_union_type(&key_types, None, Option::<&Symbol>::None, None, None)?
@@ -673,10 +673,10 @@ impl TypeChecker {
         {
             self.is_distributive(
                 type_variable,
-                &self.type_(type_).as_indexed_access_type().object_type,
+                self.type_(type_).as_indexed_access_type().object_type,
             ) && self.is_distributive(
                 type_variable,
-                &self.type_(type_).as_indexed_access_type().index_type,
+                self.type_(type_).as_indexed_access_type().index_type,
             )
         } else if self
             .type_(type_)
@@ -685,7 +685,7 @@ impl TypeChecker {
         {
             self.is_distributive(
                 type_variable,
-                &self.type_(type_).as_substitution_type().substitute,
+                self.type_(type_).as_substitution_type().substitute,
             )
         } else if self
             .type_(type_)

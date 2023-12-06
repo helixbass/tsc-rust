@@ -1267,7 +1267,7 @@ impl TypeChecker {
 
         let source_this_type = self.get_this_type_of_signature(&source)?;
         if let Some(source_this_type) =
-            source_this_type.filter(|source_this_type| source_this_type != self.void_type())
+            source_this_type.filter(|&source_this_type| source_this_type != self.void_type())
         {
             let target_this_type = self.get_this_type_of_signature(&target)?;
             if let Some(target_this_type) = target_this_type {

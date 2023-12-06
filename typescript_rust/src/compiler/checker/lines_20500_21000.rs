@@ -118,9 +118,9 @@ impl TypeChecker {
         &self,
         source: Option<impl Borrow<TypePredicate>>,
         target: Option<impl Borrow<TypePredicate>>,
-        compare_types: impl FnOnce(&Type, &Type) -> Ternary,
+        compare_types: impl FnOnce(Id<Type>, Id<Type>) -> Ternary,
     ) -> Ternary {
-        self.try_compare_type_predicates_identical(source, target, |a: &Type, b: &Type| {
+        self.try_compare_type_predicates_identical(source, target, |a: Id<Type>, b: Id<Type>| {
             Ok(compare_types(a, b))
         })
         .unwrap()
@@ -210,7 +210,7 @@ impl TypeChecker {
         }
         let mut primary_types = types
             .clone()
-            .filter(|t| !self.type_(t).flags().intersects(TypeFlags::Nullable))
+            .filter(|&&t| !self.type_(t).flags().intersects(TypeFlags::Nullable))
             .cloned()
             .peekable();
         Ok(if !primary_types.is_empty_() {
@@ -319,8 +319,8 @@ impl TypeChecker {
                     .object_flags()
                     | ObjectFlags::IdenticalBaseTypeCalculated,
             );
-        let ref target = self.type_(type_).as_type_reference_interface().target();
-        if get_object_flags(target).intersects(ObjectFlags::Class) {
+        let target = self.type_(type_).as_type_reference_interface().target();
+        if get_object_flags(self.type_(target)).intersects(ObjectFlags::Class) {
             let base_type_node = self.get_base_type_node_of_class(target);
             if matches!(
                 base_type_node.as_ref(),
@@ -342,12 +342,15 @@ impl TypeChecker {
         {
             return Ok(None);
         }
-        let target_as_interface_type = target.as_interface_type();
-        let mut instantiated_base = if length(target_as_interface_type.maybe_type_parameters()) == 0
+        let mut instantiated_base = if length(
+            self.type_(target)
+                .as_interface_type()
+                .maybe_type_parameters(),
+        ) == 0
         {
             bases[0].clone()
         } else {
-            let target_type_parameters = target_as_interface_type
+            let target_type_parameters = self.type_(target).as_interface_type()
                 .maybe_type_parameters()
                 .map(ToOwned::to_owned)
                 .unwrap();
@@ -361,7 +364,11 @@ impl TypeChecker {
             )?
         };
         if length(Some(&self.get_type_arguments(type_)?))
-            > length(target_as_interface_type.maybe_type_parameters())
+            > length(
+                self.type_(target)
+                    .as_interface_type()
+                    .maybe_type_parameters(),
+            )
         {
             instantiated_base = self.get_type_with_this_argument(
                 instantiated_base,
@@ -599,7 +606,7 @@ impl TypeChecker {
         mut type_: Id<Type>,
         contextual_type: Option<Id<Type>>,
     ) -> io::Result<Id<Type>> {
-        if !self.is_literal_of_contextual_type(&type_, contextual_type)? {
+        if !self.is_literal_of_contextual_type(type_, contextual_type)? {
             type_ = self.get_widened_unique_es_symbol_type(self.get_widened_literal_type(type_)?);
         }
         Ok(type_)
@@ -611,7 +618,7 @@ impl TypeChecker {
         contextual_signature_return_type: Option<Id<Type>>,
         is_async: bool,
     ) -> io::Result<Option<Id<Type>>> {
-        if let Some(type_present) = type_.as_ref().filter(|type_| self.is_unit_type(type_)) {
+        if let Some(type_present) = type_.filter(|&type_| self.is_unit_type(type_)) {
             let contextual_type = contextual_signature_return_type.try_and_then(
                 |contextual_signature_return_type| -> io::Result<_> {
                     Ok(if is_async {
@@ -1097,8 +1104,8 @@ impl TypeChecker {
         self.type_(source)
             .flags()
             .intersects(TypeFlags::Number | TypeFlags::String | TypeFlags::BooleanLiteral)
-            && taself
-                .type_(rget)
+            && self
+                .type_(target)
                 .flags()
                 .intersects(TypeFlags::Number | TypeFlags::String | TypeFlags::Boolean)
     }

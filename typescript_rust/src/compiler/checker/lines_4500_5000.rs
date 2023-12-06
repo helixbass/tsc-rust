@@ -848,15 +848,20 @@ impl NodeBuilder {
             .flags()
             .intersects(NodeBuilderFlags::NoTypeReduction)
         {
-            type_ = self.type_checker.get_reduced_type(&type_)?;
+            type_ = self.type_checker.get_reduced_type(type_)?;
         }
 
-        if type_.flags().intersects(TypeFlags::Any) {
+        if self
+            .type_checker
+            .type_(type_)
+            .flags()
+            .intersects(TypeFlags::Any)
+        {
             if let Some(type_alias_symbol) = type_.maybe_alias_symbol() {
                 return Ok(Some(get_factory().create_type_reference_node(
                     self.symbol_to_entity_name_node(&type_alias_symbol),
                     self.map_to_type_nodes(
-                        type_.maybe_alias_type_arguments().as_deref(),
+                        self.type_checker.type_(type_).maybe_alias_type_arguments().as_deref(),
                         context,
                         None,
                     )?,
@@ -887,7 +892,12 @@ impl NodeBuilder {
                 .wrap(),
             ));
         }
-        if type_.flags().intersects(TypeFlags::Unknown) {
+        if self
+            .type_checker
+            .type_(type_)
+            .flags()
+            .intersects(TypeFlags::Unknown)
+        {
             return Ok(Some(
                 Into::<KeywordTypeNode>::into(
                     get_factory().create_keyword_type_node_raw(SyntaxKind::UnknownKeyword),
@@ -895,7 +905,12 @@ impl NodeBuilder {
                 .wrap(),
             ));
         }
-        if type_.flags().intersects(TypeFlags::String) {
+        if self
+            .type_checker
+            .type_(type_)
+            .flags()
+            .intersects(TypeFlags::String)
+        {
             context.increment_approximate_length_by(6);
             return Ok(Some(
                 Into::<KeywordTypeNode>::into(
@@ -904,7 +919,12 @@ impl NodeBuilder {
                 .wrap(),
             ));
         }
-        if type_.flags().intersects(TypeFlags::Number) {
+        if self
+            .type_checker
+            .type_(type_)
+            .flags()
+            .intersects(TypeFlags::Number)
+        {
             context.increment_approximate_length_by(6);
             return Ok(Some(
                 Into::<KeywordTypeNode>::into(
@@ -913,7 +933,12 @@ impl NodeBuilder {
                 .wrap(),
             ));
         }
-        if type_.flags().intersects(TypeFlags::BigInt) {
+        if self
+            .type_checker
+            .type_(type_)
+            .flags()
+            .intersects(TypeFlags::BigInt)
+        {
             context.increment_approximate_length_by(6);
             return Ok(Some(
                 Into::<KeywordTypeNode>::into(
@@ -922,7 +947,13 @@ impl NodeBuilder {
                 .wrap(),
             ));
         }
-        if type_.flags().intersects(TypeFlags::Boolean) && type_.maybe_alias_symbol().is_none() {
+        if self
+            .type_checker
+            .type_(type_)
+            .flags()
+            .intersects(TypeFlags::Boolean)
+            && self.type_checker.type_(type_).maybe_alias_symbol().is_none()
+        {
             context.increment_approximate_length_by(7);
             return Ok(Some(
                 Into::<KeywordTypeNode>::into(
@@ -931,12 +962,20 @@ impl NodeBuilder {
                 .wrap(),
             ));
         }
-        if type_.flags().intersects(TypeFlags::EnumLiteral)
-            && !type_.flags().intersects(TypeFlags::Union)
+        if self
+            .type_checker
+            .type_(type_)
+            .flags()
+            .intersects(TypeFlags::EnumLiteral)
+            && !self
+                .type_checker
+                .type_(type_)
+                .flags()
+                .intersects(TypeFlags::Union)
         {
             let parent_symbol = self
                 .type_checker
-                .get_parent_of_symbol(&type_.symbol())?
+                .get_parent_of_symbol(&self.type_checker.type_(type_).symbol())?
                 .unwrap();
             let parent_name =
                 self.symbol_to_type_node(&parent_symbol, context, SymbolFlags::Type, None)?;
@@ -947,7 +986,7 @@ impl NodeBuilder {
             {
                 return Ok(Some(parent_name));
             }
-            let type_symbol = type_.symbol();
+            let type_symbol = self.type_checker.type_(type_).symbol();
             let member_name = symbol_name(&type_symbol);
             if is_identifier_text(&member_name, Some(ScriptTarget::ES3), None) {
                 return Ok(Some(
@@ -989,15 +1028,25 @@ impl NodeBuilder {
                 ));
             }
         }
-        if type_.flags().intersects(TypeFlags::EnumLike) {
+        if self
+            .type_checker
+            .type_(type_)
+            .flags()
+            .intersects(TypeFlags::EnumLike)
+        {
             return Ok(Some(self.symbol_to_type_node(
-                &type_.symbol(),
+                &self.type_checker.type_(type_).symbol(),
                 context,
                 SymbolFlags::Type,
                 None,
             )?));
         }
-        if type_.flags().intersects(TypeFlags::StringLiteral) {
+        if self
+            .type_checker
+            .type_(type_)
+            .flags()
+            .intersects(TypeFlags::StringLiteral)
+        {
             let value = type_.as_string_literal_type().value.clone();
             context.increment_approximate_length_by(value.len() + 2);
             return Ok(Some(
@@ -1015,7 +1064,12 @@ impl NodeBuilder {
                 )),
             ));
         }
-        if type_.flags().intersects(TypeFlags::NumberLiteral) {
+        if self
+            .type_checker
+            .type_(type_)
+            .flags()
+            .intersects(TypeFlags::NumberLiteral)
+        {
             let value = type_.as_number_literal_type().value.value();
             context.increment_approximate_length_by(value.to_string().len());
             return Ok(Some(get_factory().create_literal_type_node(
@@ -1029,14 +1083,24 @@ impl NodeBuilder {
                 },
             )));
         }
-        if type_.flags().intersects(TypeFlags::BigIntLiteral) {
+        if self
+            .type_checker
+            .type_(type_)
+            .flags()
+            .intersects(TypeFlags::BigIntLiteral)
+        {
             let value = &type_.as_big_int_literal_type().value;
             context.increment_approximate_length_by(pseudo_big_int_to_string(value).len() + 1);
             return Ok(Some(get_factory().create_literal_type_node(
                 get_factory().create_big_int_literal(value.clone()),
             )));
         }
-        if type_.flags().intersects(TypeFlags::BooleanLiteral) {
+        if self
+            .type_checker
+            .type_(type_)
+            .flags()
+            .intersects(TypeFlags::BooleanLiteral)
+        {
             let type_intrinsic_name = type_.as_intrinsic_type().intrinsic_name();
             context.increment_approximate_length_by(type_intrinsic_name.len());
             return Ok(Some(
@@ -1050,18 +1114,23 @@ impl NodeBuilder {
                 ),
             ));
         }
-        if type_.flags().intersects(TypeFlags::UniqueESSymbol) {
+        if self
+            .type_checker
+            .type_(type_)
+            .flags()
+            .intersects(TypeFlags::UniqueESSymbol)
+        {
             if !context
                 .flags()
                 .intersects(NodeBuilderFlags::AllowUniqueESSymbolType)
             {
                 if self.type_checker.is_value_symbol_accessible(
-                    &type_.symbol(),
+                    &self.type_checker.type_(type_).symbol(),
                     context.maybe_enclosing_declaration().as_deref(),
                 )? {
                     context.increment_approximate_length_by(6);
                     return Ok(Some(self.symbol_to_type_node(
-                        &type_.symbol(),
+                        &self.type_checker.type_(type_).symbol(),
                         context,
                         SymbolFlags::Value,
                         None,
@@ -1082,7 +1151,12 @@ impl NodeBuilder {
                 ),
             ));
         }
-        if type_.flags().intersects(TypeFlags::Void) {
+        if self
+            .type_checker
+            .type_(type_)
+            .flags()
+            .intersects(TypeFlags::Void)
+        {
             context.increment_approximate_length_by(4);
             return Ok(Some(
                 Into::<KeywordTypeNode>::into(
@@ -1091,7 +1165,12 @@ impl NodeBuilder {
                 .wrap(),
             ));
         }
-        if type_.flags().intersects(TypeFlags::Undefined) {
+        if self
+            .type_checker
+            .type_(type_)
+            .flags()
+            .intersects(TypeFlags::Undefined)
+        {
             context.increment_approximate_length_by(9);
             return Ok(Some(
                 Into::<KeywordTypeNode>::into(
@@ -1100,13 +1179,23 @@ impl NodeBuilder {
                 .wrap(),
             ));
         }
-        if type_.flags().intersects(TypeFlags::Null) {
+        if self
+            .type_checker
+            .type_(type_)
+            .flags()
+            .intersects(TypeFlags::Null)
+        {
             context.increment_approximate_length_by(9);
             return Ok(Some(
                 get_factory().create_literal_type_node(get_factory().create_null()),
             ));
         }
-        if type_.flags().intersects(TypeFlags::Never) {
+        if self
+            .type_checker
+            .type_(type_)
+            .flags()
+            .intersects(TypeFlags::Never)
+        {
             context.increment_approximate_length_by(5);
             return Ok(Some(
                 Into::<KeywordTypeNode>::into(
@@ -1115,7 +1204,12 @@ impl NodeBuilder {
                 .wrap(),
             ));
         }
-        if type_.flags().intersects(TypeFlags::ESSymbol) {
+        if self
+            .type_checker
+            .type_(type_)
+            .flags()
+            .intersects(TypeFlags::ESSymbol)
+        {
             context.increment_approximate_length_by(6);
             return Ok(Some(
                 Into::<KeywordTypeNode>::into(
@@ -1124,7 +1218,12 @@ impl NodeBuilder {
                 .wrap(),
             ));
         }
-        if type_.flags().intersects(TypeFlags::NonPrimitive) {
+        if self
+            .type_checker
+            .type_(type_)
+            .flags()
+            .intersects(TypeFlags::NonPrimitive)
+        {
             context.increment_approximate_length_by(6);
             return Ok(Some(
                 Into::<KeywordTypeNode>::into(
@@ -1133,7 +1232,7 @@ impl NodeBuilder {
                 .wrap(),
             ));
         }
-        if self.type_checker.is_this_type_parameter(&type_) {
+        if self.type_checker.is_this_type_parameter(type_) {
             if context
                 .flags()
                 .intersects(NodeBuilderFlags::InObjectTypeLiteral)
@@ -1154,7 +1253,7 @@ impl NodeBuilder {
         }
 
         if !in_type_alias {
-            if let Some(type_alias_symbol) = type_.maybe_alias_symbol() {
+            if let Some(type_alias_symbol) = self.type_checker.type_(type_).maybe_alias_symbol() {
                 if context
                     .flags()
                     .intersects(NodeBuilderFlags::UseAliasDefinedOutsideCurrentScope)
@@ -1164,7 +1263,7 @@ impl NodeBuilder {
                     )?
                 {
                     let type_argument_nodes = self.map_to_type_nodes(
-                        type_.maybe_alias_type_arguments().as_deref(),
+                        self.type_checker.type_(type_).maybe_alias_type_arguments().as_deref(),
                         context,
                         None,
                     )?;
@@ -1188,48 +1287,48 @@ impl NodeBuilder {
             }
         }
 
-        let object_flags = get_object_flags(&type_);
+        let object_flags = get_object_flags(self.type_checker.type_(type_));
 
         if object_flags.intersects(ObjectFlags::Reference) {
-            Debug_.assert(type_.flags().intersects(TypeFlags::Object), None);
+            Debug_.assert(self.type_checker.type_(type_).flags().intersects(TypeFlags::Object), None);
             return Ok(Some(
-                if type_.as_type_reference_interface().maybe_node().is_some() {
-                    self.try_visit_and_transform_type(context, &type_, |type_| {
+                if self.type_checker.type_(type_).as_type_reference_interface().maybe_node().is_some() {
+                    self.try_visit_and_transform_type(context, type_, |type_| {
                         Ok(self.type_reference_to_type_node(context, type_)?.unwrap())
                     })?
                 } else {
-                    self.type_reference_to_type_node(context, &type_)?.unwrap()
+                    self.type_reference_to_type_node(context, type_)?.unwrap()
                 },
             ));
         }
-        if type_.flags().intersects(TypeFlags::TypeParameter)
+        if self.type_checker.type_(type_).flags().intersects(TypeFlags::TypeParameter)
             || object_flags.intersects(ObjectFlags::ClassOrInterface)
         {
-            if type_.flags().intersects(TypeFlags::TypeParameter)
+            if self.type_checker.type_(type_).flags().intersects(TypeFlags::TypeParameter)
                 && contains((*context.infer_type_parameters).borrow().as_deref(), &type_)
             {
-                context.increment_approximate_length_by(symbol_name(&type_.symbol()).len() + 6);
+                context.increment_approximate_length_by(symbol_name(&self.type_checker.type_(type_).symbol()).len() + 6);
                 return Ok(Some(get_factory().create_infer_type_node(
-                    self.type_parameter_to_declaration_with_constraint(&type_, context, None)?,
+                    self.type_parameter_to_declaration_with_constraint(type_, context, None)?,
                 )));
             }
             if context
                 .flags()
                 .intersects(NodeBuilderFlags::GenerateNamesForShadowedTypeParams)
-                && type_.flags().intersects(TypeFlags::TypeParameter)
+                && self.type_checker.type_(type_).flags().intersects(TypeFlags::TypeParameter)
                 && !self.type_checker.is_type_symbol_accessible(
-                    &type_.symbol(),
+                    &self.type_checker.type_(type_).symbol(),
                     context.maybe_enclosing_declaration().as_deref(),
                 )?
             {
-                let name = self.type_parameter_to_name(&type_, context)?;
+                let name = self.type_parameter_to_name(type_, context)?;
                 context.increment_approximate_length_by(id_text(&name).len());
                 return Ok(Some(get_factory().create_type_reference_node(
                     get_factory().create_identifier(&id_text(&name)),
                     Option::<Gc<NodeArray>>::None,
                 )));
             }
-            return Ok(Some(if let Some(type_symbol) = type_.maybe_symbol() {
+            return Ok(Some(if let Some(type_symbol) = self.type_checker.type_(type_).maybe_symbol() {
                 self.symbol_to_type_node(&type_symbol, context, SymbolFlags::Type, None)?
             } else {
                 get_factory().create_type_reference_node(
@@ -1238,18 +1337,18 @@ impl NodeBuilder {
                 )
             }));
         }
-        if type_.flags().intersects(TypeFlags::Union) {
-            if let Some(type_origin) = type_.as_union_type().origin.as_ref() {
+        if self.type_checker.type_(type_).flags().intersects(TypeFlags::Union) {
+            if let Some(type_origin) = self.type_checker.type_(type_).as_union_type().origin.as_ref() {
                 type_ = type_origin.clone();
             }
         }
-        if type_
-            .flags()
+        if self.type_checker.type_(type_
+            ).flags()
             .intersects(TypeFlags::Union | TypeFlags::Intersection)
         {
             let types = {
-                let types = type_.as_union_or_intersection_type_interface().types();
-                if type_.flags().intersects(TypeFlags::Union) {
+                let types = self.type_checker.type_(type_).as_union_or_intersection_type_interface().types();
+                if self.type_checker.type_(type_).flags().intersects(TypeFlags::Union) {
                     self.type_checker.format_union_types(types)?
                 } else {
                     types.to_vec()
@@ -1261,7 +1360,7 @@ impl NodeBuilder {
             let type_nodes = self.map_to_type_nodes(Some(&types), context, Some(true))?;
             if let Some(type_nodes) = type_nodes {
                 if !type_nodes.is_empty() {
-                    return Ok(Some(if type_.flags().intersects(TypeFlags::Union) {
+                    return Ok(Some(if self.type_checker.type_(type_).flags().intersects(TypeFlags::Union) {
                         get_factory().create_union_type_node(type_nodes)
                     } else {
                         get_factory().create_intersection_type_node(type_nodes)
@@ -1278,11 +1377,11 @@ impl NodeBuilder {
             return Ok(None);
         }
         if object_flags.intersects(ObjectFlags::Anonymous | ObjectFlags::Mapped) {
-            Debug_.assert(type_.flags().intersects(TypeFlags::Object), None);
-            return Ok(Some(self.create_anonymous_type_node(context, &type_)?));
+            Debug_.assert(self.type_checker.type_(type_).flags().intersects(TypeFlags::Object), None);
+            return Ok(Some(self.create_anonymous_type_node(context, type_)?));
         }
-        if type_.flags().intersects(TypeFlags::Index) {
-            let indexed_type = &type_.as_index_type().type_;
+        if self.type_checker.type_(type_).flags().intersects(TypeFlags::Index) {
+            let indexed_type = self.type_checker.type_(type_).as_index_type().type_;
             context.increment_approximate_length_by(6);
             let index_type_node = self
                 .type_to_type_node_helper(Some(&**indexed_type), context)?
@@ -1292,10 +1391,9 @@ impl NodeBuilder {
                 index_type_node,
             )));
         }
-        if type_.flags().intersects(TypeFlags::TemplateLiteral) {
-            let type_as_template_literal_type = type_.as_template_literal_type();
-            let texts = &type_as_template_literal_type.texts;
-            let types = &type_as_template_literal_type.types;
+        if self.type_checker.type_(type_).flags().intersects(TypeFlags::TemplateLiteral) {
+            let texts = &self.type_checker.type_(type_).as_template_literal_type().texts;
+            let types = &self.type_checker.type_(type_).as_template_literal_type().types;
             let template_head: Gc<Node> =
                 get_factory().create_template_head(Some(texts[0].clone()), None, None);
             let template_spans = get_factory().create_node_array(
@@ -1327,24 +1425,23 @@ impl NodeBuilder {
                 get_factory().create_template_literal_type(template_head, template_spans),
             ));
         }
-        if type_.flags().intersects(TypeFlags::StringMapping) {
+        if self.type_checker.type_(type_).flags().intersects(TypeFlags::StringMapping) {
             let type_node = self
-                .type_to_type_node_helper(Some(&*type_.as_string_mapping_type().type_), context)?
+                .type_to_type_node_helper(Some(self.type_checker.type_(type_).as_string_mapping_type().type_), context)?
                 .unwrap();
             return Ok(Some(self.symbol_to_type_node(
-                &type_.symbol(),
+                &self.type_checker.type_(type_).symbol(),
                 context,
                 SymbolFlags::Type,
                 Some(&vec![type_node]),
             )?));
         }
-        if type_.flags().intersects(TypeFlags::IndexedAccess) {
-            let type_as_indexed_access_type = type_.as_indexed_access_type();
+        if self.type_checker.type_(type_).flags().intersects(TypeFlags::IndexedAccess) {
             let object_type_node = self
-                .type_to_type_node_helper(Some(&*type_as_indexed_access_type.object_type), context)?
+                .type_to_type_node_helper(Some(&*self.type_checker.type_(type_).as_indexed_access_type().object_type), context)?
                 .unwrap();
             let index_type_node = self
-                .type_to_type_node_helper(Some(&*type_as_indexed_access_type.index_type), context)?
+                .type_to_type_node_helper(Some(&*self.type_checker.type_(type_).as_indexed_access_type().index_type), context)?
                 .unwrap();
             context.increment_approximate_length_by(2);
             return Ok(Some(get_factory().create_indexed_access_type_node(
@@ -1352,16 +1449,16 @@ impl NodeBuilder {
                 index_type_node,
             )));
         }
-        if type_.flags().intersects(TypeFlags::Conditional) {
+        if self.type_checker.type_(type_).flags().intersects(TypeFlags::Conditional) {
             return Ok(Some(self.try_visit_and_transform_type(
                 context,
-                &type_,
+                type_,
                 |type_| self.conditional_type_to_type_node(context, type_),
             )?));
         }
-        if type_.flags().intersects(TypeFlags::Substitution) {
+        if self.type_checker.type_(type_).flags().intersects(TypeFlags::Substitution) {
             return self
-                .type_to_type_node_helper(Some(&*type_.as_substitution_type().base_type), context);
+                .type_to_type_node_helper(Some(self.type_checker.type_(type_).as_substitution_type().base_type), context);
         }
 
         Debug_.fail(Some("Should be unreachable."));

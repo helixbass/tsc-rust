@@ -342,14 +342,13 @@ impl TypeChecker {
         type_: Id<Type>, /*TupleTypeReference*/
     ) -> io::Result<Id<Type>> {
         let type_target = self.type_(type_).as_type_reference().target();
-        let type_target_as_tuple_type = type_target.as_tuple_type();
         self.get_union_type(
             &{
-                let mut ret = array_of(type_target_as_tuple_type.fixed_length, |i| {
+                let mut ret = array_of(self.type_(type_target).as_tuple_type().fixed_length, |i| {
                     self.get_string_literal_type(&i.to_string())
                 });
                 ret.push(self.get_index_type(
-                    &*if type_target_as_tuple_type.readonly {
+                    &*if self.type_(type_target).as_tuple_type().readonly {
                         self.global_readonly_array_type()
                     } else {
                         self.global_array_type()
@@ -496,9 +495,10 @@ impl TypeChecker {
         &self,
         type_set: &mut Vec<Id<Type>>,
         mut includes: TypeFlags,
-        types: impl IntoIterator<Item = Id<Type>>,
+        types: impl IntoIterator<Item = impl Borrow<Id<Type>>>,
     ) -> TypeFlags {
         for type_ in types {
+            let type_ = *type_.borrow();
             includes = self.add_type_to_union(type_set, includes, type_);
         }
         includes
@@ -595,7 +595,7 @@ impl TypeChecker {
                             source,
                             target,
                             self.strict_subtype_relation.clone(),
-                        )? && (!get_object_flags(self.get_target_type(source))
+                        )? && (!get_object_flags(self.type_(self.get_target_type(source)))
                             .intersects(ObjectFlags::Class)
                             || !get_object_flags(self.type_(self.get_target_type(target)))
                                 .intersects(ObjectFlags::Class)
@@ -691,18 +691,19 @@ impl TypeChecker {
     pub(super) fn add_named_unions(
         &self,
         named_unions: &mut Vec<Id<Type>>,
-        types: impl IntoIterator<Item = Id<Type>>,
+        types: impl IntoIterator<Item = impl Borrow<Id<Type>>>,
     ) {
         for t in types {
+            let t = *t.borrow();
             if self.type_(t).flags().intersects(TypeFlags::Union) {
                 let origin = self.type_(t).as_union_type().origin.clone();
                 if self.type_(t).maybe_alias_symbol().is_some()
-                    || matches!(origin.as_ref(), Some(origin) if !origin.flags().intersects(TypeFlags::Union))
+                    || matches!(origin, Some(origin) if !self.type_(origin).flags().intersects(TypeFlags::Union))
                 {
                     push_if_unique_eq(named_unions, &t);
-                } else if matches!(origin.as_ref(), Some(origin) if origin.flags().intersects(TypeFlags::Union))
+                } else if matches!(origin, Some(origin) if self.type_(origin).flags().intersects(TypeFlags::Union))
                 {
-                    self.add_named_unions(named_unions, origin.unwrap().as_union_type().types());
+                    self.add_named_unions(named_unions, self.type_(origin.unwrap()).as_union_type().types());
                 }
             }
         }
@@ -751,7 +752,11 @@ impl TypeChecker {
             return Ok(types.next().unwrap().borrow().clone());
         }
         let mut type_set: Vec<Id<Type>> = vec![];
-        let includes = self.add_types_to_union(&mut type_set, TypeFlags::None, types.clone());
+        let includes = self.add_types_to_union(
+            &mut type_set,
+            TypeFlags::None,
+            types.clone(),
+        );
         if union_reduction != UnionReduction::None {
             if includes.intersects(TypeFlags::AnyOrUnknown) {
                 return Ok(if includes.intersects(TypeFlags::Any) {
@@ -931,16 +936,13 @@ impl TypeChecker {
         a.kind == b.kind && a.parameter_index == b.parameter_index
     }
 
-    pub(super) fn get_union_type_from_sorted_list<
-        TAliasSymbol: Borrow<Symbol>,
-        TOrigin: Borrow<Type>,
-    >(
+    pub(super) fn get_union_type_from_sorted_list<TAliasSymbol: Borrow<Symbol>>(
         &self,
         types: Vec<Id<Type>>,
         object_flags: ObjectFlags,
         alias_symbol: Option<TAliasSymbol>,
         alias_type_arguments: Option<&[Id<Type>]>,
-        origin: Option<TOrigin>,
+        origin: Option<Id<Type>>,
     ) -> Id<Type> {
         if types.is_empty() {
             return self.never_type();
@@ -948,23 +950,23 @@ impl TypeChecker {
         if types.len() == 1 {
             return types[0].clone();
         }
-        let type_key = match origin.as_ref() {
+        let type_key = match origin {
             None => self.get_type_list_id(Some(&types)),
             Some(origin) => {
-                if origin.flags().intersects(TypeFlags::Union) {
+                if self.type_(origin).flags().intersects(TypeFlags::Union) {
                     format!(
                         "|{}",
-                        self.get_type_list_id(Some(origin.as_union_type().types()))
+                        self.get_type_list_id(Some(self.type_(origin).as_union_type().types()))
                     )
-                } else if origin.flags().intersects(TypeFlags::Intersection) {
+                } else if self.type_(origin).flags().intersects(TypeFlags::Intersection) {
                     format!(
                         "&{}",
-                        self.get_type_list_id(Some(origin.as_intersection_type().types()))
+                        self.get_type_list_id(Some(self.type_(origin).as_intersection_type().types()))
                     )
                 } else {
                     format!(
                         "#{}|{}",
-                        origin.as_index_type().type_.id(),
+                        self.type_(origin).as_index_type().type_.id(),
                         self.get_type_list_id(Some(&types))
                     )
                 }
@@ -1053,7 +1055,7 @@ impl TypeChecker {
         if self.is_empty_anonymous_object_type(type_)? {
             if !includes.intersects(TypeFlags::IncludesEmptyObject) {
                 includes |= TypeFlags::IncludesEmptyObject;
-                type_set.insert(type_.id(), type_.clone());
+                type_set.insert(self.type_(type_).id(), type_.clone());
             }
         } else {
             if flags.intersects(TypeFlags::AnyOrUnknown) {
@@ -1067,13 +1069,13 @@ impl TypeChecker {
                     includes |= TypeFlags::IncludesMissingType;
                     type_ = self.undefined_type();
                 }
-                if !type_set.contains_key(&type_.id()) {
-                    if type_.flags().intersects(TypeFlags::Unit)
+                if !type_set.contains_key(&self.type_(type_).id()) {
+                    if self.type_(type_).flags().intersects(TypeFlags::Unit)
                         && includes.intersects(TypeFlags::Unit)
                     {
                         includes |= TypeFlags::NonPrimitive;
                     }
-                    type_set.insert(type_.id(), type_);
+                    type_set.insert(self.type_(type_).id(), type_);
                 }
             }
             includes |= flags & TypeFlags::IncludesMask;

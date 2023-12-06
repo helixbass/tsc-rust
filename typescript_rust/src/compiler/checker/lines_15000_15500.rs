@@ -1018,10 +1018,10 @@ impl TypeChecker {
                     self.type_(type_).as_substitution_type().object_flags()
                         | ObjectFlags::IsGenericTypeComputed
                         | self.get_generic_object_flags(
-                            &self.type_(type_).as_substitution_type().substitute,
+                            self.type_(type_).as_substitution_type().substitute,
                         )?
                         | self.get_generic_object_flags(
-                            &self.type_(type_).as_substitution_type().base_type,
+                            self.type_(type_).as_substitution_type().base_type,
                         )?,
                 );
             }
@@ -1198,11 +1198,11 @@ impl TypeChecker {
         }
         write_cache(self.circular_constraint_type());
         let object_type = self.get_simplified_type(
-            &self.type_(type_).as_indexed_access_type().object_type,
+            self.type_(type_).as_indexed_access_type().object_type,
             writing,
         )?;
         let index_type = self.get_simplified_type(
-            &self.type_(type_).as_indexed_access_type().index_type,
+            self.type_(type_).as_indexed_access_type().index_type,
             writing,
         )?;
         let distributed_over_index =
@@ -1269,7 +1269,7 @@ impl TypeChecker {
         type_: Id<Type>, /*ConditionalType*/
         writing: bool,
     ) -> io::Result<Id<Type>> {
-        let check_type = &self.type_(type_).as_conditional_type().check_type;
+        let check_type = self.type_(type_).as_conditional_type().check_type;
         let extends_type = self.type_(type_).as_conditional_type().extends_type;
         let true_type = self.get_true_type_from_conditional_type(type_)?;
         let false_type = self.get_false_type_from_conditional_type(type_)?;
@@ -1277,7 +1277,7 @@ impl TypeChecker {
             && self.get_actual_type_variable(true_type)?
                 == self.get_actual_type_variable(check_type)?
         {
-            if check_type.flags().intersects(TypeFlags::Any)
+            if self.type_(check_type).flags().intersects(TypeFlags::Any)
                 || self.is_type_assignable_to(
                     self.get_restrictive_instantiation(check_type)?,
                     self.get_restrictive_instantiation(extends_type)?,
@@ -1291,14 +1291,14 @@ impl TypeChecker {
             && self.get_actual_type_variable(false_type)?
                 == self.get_actual_type_variable(check_type)?
         {
-            if !check_type.flags().intersects(TypeFlags::Any)
+            if !self.type_(check_type).flags().intersects(TypeFlags::Any)
                 && self.is_type_assignable_to(
                     self.get_restrictive_instantiation(check_type)?,
                     self.get_restrictive_instantiation(extends_type)?,
                 )?
             {
                 return Ok(self.never_type());
-            } else if check_type.flags().intersects(TypeFlags::Any)
+            } else if self.type_(check_type).flags().intersects(TypeFlags::Any)
                 || self.is_intersection_empty(check_type, extends_type)?
             {
                 return self.get_simplified_type(false_type, writing);
@@ -1410,9 +1410,9 @@ impl TypeChecker {
             return Ok(Some(self.wildcard_type()));
         }
         if self.is_string_index_signature_only_type(object_type)?
-            && !index_type.flags().intersects(TypeFlags::Nullable)
+            && !self.type_(index_type).flags().intersects(TypeFlags::Nullable)
             && self.is_type_assignable_to_kind(
-                &index_type,
+                index_type,
                 TypeFlags::String | TypeFlags::Number,
                 None,
             )?
@@ -1428,14 +1428,14 @@ impl TypeChecker {
         }
         let access_node = access_node.map(|access_node| access_node.borrow().node_wrapper());
         let alias_symbol = alias_symbol.map(|alias_symbol| alias_symbol.borrow().symbol_wrapper());
-        if self.is_generic_index_type(&index_type)?
+        if self.is_generic_index_type(index_type)?
             || if matches!(
                 access_node.as_ref(),
                 Some(access_node) if access_node.kind() != SyntaxKind::IndexedAccessType
             ) {
                 self.is_generic_tuple_type(object_type)
                     && !self.index_type_less_than(
-                        &index_type,
+                        index_type,
                         self.type_(self.type_(object_type).as_type_reference().target)
                             .as_tuple_type()
                             .fixed_length
@@ -1446,7 +1446,7 @@ impl TypeChecker {
                 self.is_generic_object_type(object_type)?
                     && !(self.is_tuple_type(object_type)
                         && self.index_type_less_than(
-                            &index_type,
+                            index_type,
                             self.type_(self.type_(object_type).as_type_reference().target)
                                 .as_tuple_type()
                                 .fixed_length
@@ -1474,7 +1474,7 @@ impl TypeChecker {
             if type_.is_none() {
                 type_ = Some(self.create_indexed_access_type(
                     object_type,
-                    &index_type,
+                    index_type,
                     persistent_access_flags,
                     alias_symbol.as_deref(),
                     alias_type_arguments,
@@ -1486,12 +1486,15 @@ impl TypeChecker {
             return Ok(type_);
         }
         let apparent_object_type = self.get_reduced_apparent_type(object_type)?;
-        if index_type.flags().intersects(TypeFlags::Union)
-            && !index_type.flags().intersects(TypeFlags::Boolean)
+        if self.type_(index_type).flags().intersects(TypeFlags::Union)
+            && !self
+                .type_(index_type)
+                .flags()
+                .intersects(TypeFlags::Boolean)
         {
             let mut prop_types: Vec<Id<Type>> = vec![];
             let mut was_missing_prop = false;
-            for t in index_type.as_union_type().types() {
+            for &t in self.type_(index_type).as_union_type().types() {
                 let prop_type = self.get_property_type_for_index_type(
                     object_type,
                     apparent_object_type,
@@ -1535,8 +1538,8 @@ impl TypeChecker {
         self.get_property_type_for_index_type(
             object_type,
             apparent_object_type,
-            &index_type,
-            &index_type,
+            index_type,
+            index_type,
             access_node,
             access_flags | AccessFlags::CacheSymbol | AccessFlags::ReportDeprecated,
         )
