@@ -14,7 +14,7 @@ use crate::{
     try_for_each_return_statement, try_for_each_yield_expression, CheckFlags, Diagnostics,
     FunctionFlags, HasTypeInterface, InferenceContext, NamedDeclarationInterface, Node, NodeFlags,
     NodeInterface, OptionTry, Signature, Symbol, SymbolFlags, SymbolInterface, SyntaxKind,
-    TransientSymbolInterface, Type, TypeChecker, TypeFlags, TypeInterface, UnionReduction,
+    TransientSymbolInterface, Type, TypeChecker, TypeFlags, TypeInterface, UnionReduction, push_if_unique_eq,
 };
 
 impl TypeChecker {
@@ -26,7 +26,7 @@ impl TypeChecker {
         Ok(if !signature.parameters().is_empty() {
             self.get_type_at_position(signature, 0)?
         } else {
-            fallback_type.type_wrapper()
+            fallback_type
         })
     }
 
@@ -53,8 +53,8 @@ impl TypeChecker {
                 if let Some(type_node) = type_node.as_ref() {
                     self.infer_types(
                         &inference_context.inferences(),
-                        &*self.get_type_from_type_node_(type_node)?,
-                        &*self.get_type_at_position(&context, i)?,
+                        self.get_type_from_type_node_(type_node)?,
+                        self.get_type_at_position(&context, i)?,
                         None,
                         None,
                     )?;
@@ -62,10 +62,11 @@ impl TypeChecker {
             }
         }
         let rest_type = self.get_effective_rest_type(&context)?;
-        if let Some(rest_type) = rest_type
-            .as_ref()
-            .filter(|rest_type| rest_type.flags().intersects(TypeFlags::TypeParameter))
-        {
+        if let Some(rest_type) = rest_type.filter(|rest_type| {
+            self.type_(rest_type)
+                .flags()
+                .intersects(TypeFlags::TypeParameter)
+        }) {
             let instantiated_context = self.instantiate_signature(
                 context.clone(),
                 inference_context.non_fixing_mapper(),
@@ -75,7 +76,7 @@ impl TypeChecker {
             let rest_pos = self.get_parameter_count(&context)? - 1;
             self.infer_types(
                 &inference_context.inferences(),
-                &*self.get_rest_type_at_position(signature, rest_pos)?,
+                self.get_rest_type_at_position(signature, rest_pos)?,
                 rest_type,
                 None,
                 None,
@@ -165,7 +166,6 @@ impl TypeChecker {
         type_: Option<Id<Type>>,
     ) -> io::Result<()> {
         let links = self.get_symbol_links(parameter);
-        let type_ = type_.map(|type_| type_.borrow().type_wrapper());
         if (*links).borrow().type_.is_none() {
             let declaration = parameter.maybe_value_declaration().unwrap();
             links.borrow_mut().type_ = Some(type_.try_unwrap_or_else(|| {
@@ -173,10 +173,7 @@ impl TypeChecker {
             })?);
             let declaration_name = declaration.as_named_declaration().name();
             if declaration_name.kind() != SyntaxKind::Identifier {
-                if Gc::ptr_eq(
-                    (*links).borrow().type_.as_ref().unwrap(),
-                    &self.unknown_type(),
-                ) {
+                if (*links).borrow().type_.unwrap() == self.unknown_type() {
                     links.borrow_mut().type_ =
                         Some(self.get_type_from_binding_pattern(&declaration_name, None, None)?);
                 }
@@ -209,16 +206,16 @@ impl TypeChecker {
 
     pub(super) fn create_promise_type(&self, promised_type: Id<Type>) -> io::Result<Id<Type>> {
         let global_promise_type = self.get_global_promise_type(true)?;
-        if !Gc::ptr_eq(&global_promise_type, &self.empty_generic_type()) {
+        if global_promise_type != self.empty_generic_type() {
             let promised_type = self
                 .get_awaited_type_no_alias(
-                    &*self.unwrap_awaited_type(promised_type)?,
+                    self.unwrap_awaited_type(promised_type)?,
                     Option::<&Node>::None,
                     None,
                     None,
                 )?
                 .unwrap_or_else(|| self.unknown_type());
-            return Ok(self.create_type_reference(&global_promise_type, Some(vec![promised_type])));
+            return Ok(self.create_type_reference(global_promise_type, Some(vec![promised_type])));
         }
 
         Ok(self.unknown_type())
@@ -226,17 +223,17 @@ impl TypeChecker {
 
     pub(super) fn create_promise_like_type(&self, promised_type: Id<Type>) -> io::Result<Id<Type>> {
         let global_promise_like_type = self.get_global_promise_like_type(true)?;
-        if !Gc::ptr_eq(&global_promise_like_type, &self.empty_generic_type()) {
+        if global_promise_like_type != self.empty_generic_type() {
             let promised_type = self
                 .get_awaited_type_no_alias(
-                    &*self.unwrap_awaited_type(promised_type)?,
+                    self.unwrap_awaited_type(promised_type)?,
                     Option::<&Node>::None,
                     None,
                     None,
                 )?
                 .unwrap_or_else(|| self.unknown_type());
             return Ok(
-                self.create_type_reference(&global_promise_like_type, Some(vec![promised_type]))
+                self.create_type_reference(global_promise_like_type, Some(vec![promised_type]))
             );
         }
 
@@ -249,7 +246,7 @@ impl TypeChecker {
         promised_type: Id<Type>,
     ) -> io::Result<Id<Type>> {
         let promise_type = self.create_promise_type(promised_type)?;
-        if Gc::ptr_eq(&promise_type, &self.unknown_type()) {
+        if promise_type == self.unknown_type() {
             self.error(
                 Some(func),
                 if is_import_call(func) {
@@ -295,7 +292,7 @@ impl TypeChecker {
             .as_transient_symbol()
             .symbol_links()
             .borrow_mut()
-            .type_ = Some(target_type.type_wrapper());
+            .type_ = Some(target_type);
 
         let members = Gc::new(GcCell::new(create_symbol_table(Some(&[
             target_property_symbol,
@@ -330,8 +327,8 @@ impl TypeChecker {
             )?);
             if is_async {
                 return_type = Some(self.unwrap_awaited_type(
-                    &*self.check_awaited_type(
-                        return_type.as_ref().unwrap(),
+                    self.check_awaited_type(
+                        return_type.unwrap(),
                         false,
                         func,
                         &Diagnostics::The_return_type_of_an_async_function_must_either_be_a_valid_promise_or_must_not_contain_a_callable_then_member,
@@ -382,7 +379,7 @@ impl TypeChecker {
             let types = self.check_and_aggregate_return_expression_types(func, check_mode)?;
             if types.is_none() {
                 return Ok(if function_flags.intersects(FunctionFlags::Async) {
-                    self.create_promise_return_type(func, &self.never_type())?
+                    self.create_promise_return_type(func, self.never_type())?
                 } else {
                     self.never_type()
                 });
@@ -390,7 +387,7 @@ impl TypeChecker {
             let types = types.unwrap();
             if types.is_empty() {
                 return Ok(if function_flags.intersects(FunctionFlags::Async) {
-                    self.create_promise_return_type(func, &self.void_type())?
+                    self.create_promise_return_type(func, self.void_type())?
                 } else {
                     self.void_type()
                 });
@@ -406,21 +403,21 @@ impl TypeChecker {
         }
 
         if return_type.is_some() || yield_type.is_some() || next_type.is_some() {
-            if let Some(yield_type) = yield_type.as_ref() {
+            if let Some(yield_type) = yield_type {
                 self.report_errors_from_widening(
                     func,
                     yield_type,
                     Some(WideningKind::GeneratorYield),
                 )?;
             }
-            if let Some(return_type) = return_type.as_ref() {
+            if let Some(return_type) = return_type {
                 self.report_errors_from_widening(
                     func,
                     return_type,
                     Some(WideningKind::FunctionReturn),
                 )?;
             }
-            if let Some(next_type) = next_type.as_ref() {
+            if let Some(next_type) = next_type {
                 self.report_errors_from_widening(
                     func,
                     next_type,
@@ -428,9 +425,9 @@ impl TypeChecker {
                 )?;
             }
 
-            if matches!(return_type.as_ref(), Some(return_type) if self.is_unit_type(return_type))
-                || matches!(yield_type.as_ref(), Some(yield_type) if self.is_unit_type(yield_type))
-                || matches!(next_type.as_ref(), Some(next_type) if self.is_unit_type(next_type))
+            if matches!(return_type, Some(return_type) if self.is_unit_type(return_type))
+                || matches!(yield_type, Some(yield_type) if self.is_unit_type(yield_type))
+                || matches!(next_type, Some(next_type) if self.is_unit_type(next_type))
             {
                 let contextual_signature =
                     self.get_contextual_signature_for_function_like_declaration(func)?;
@@ -458,51 +455,51 @@ impl TypeChecker {
                 if is_generator {
                     yield_type = self
                         .get_widened_literal_like_type_for_contextual_iteration_type_if_needed(
-                            yield_type.as_deref(),
-                            contextual_type.as_deref(),
+                            yield_type,
+                            contextual_type,
                             IterationTypeKind::Yield,
                             is_async,
                         )?;
                     return_type = self
                         .get_widened_literal_like_type_for_contextual_iteration_type_if_needed(
-                            return_type.as_deref(),
-                            contextual_type.as_deref(),
+                            return_type,
+                            contextual_type,
                             IterationTypeKind::Return,
                             is_async,
                         )?;
                     next_type = self
                         .get_widened_literal_like_type_for_contextual_iteration_type_if_needed(
-                            next_type.as_deref(),
-                            contextual_type.as_deref(),
+                            next_type,
+                            contextual_type,
                             IterationTypeKind::Next,
                             is_async,
                         )?;
                 } else {
                     return_type = self
                         .get_widened_literal_like_type_for_contextual_return_type_if_needed(
-                            return_type.as_deref(),
-                            contextual_type.as_deref(),
+                            return_type,
+                            contextual_type,
                             is_async,
                         )?;
                 }
             }
 
             if let Some(yield_type_present) = yield_type {
-                yield_type = Some(self.get_widened_type(&yield_type_present)?);
+                yield_type = Some(self.get_widened_type(yield_type_present)?);
             }
             if let Some(return_type_present) = return_type {
-                return_type = Some(self.get_widened_type(&return_type_present)?);
+                return_type = Some(self.get_widened_type(return_type_present)?);
             }
             if let Some(next_type_present) = next_type {
-                next_type = Some(self.get_widened_type(&next_type_present)?);
+                next_type = Some(self.get_widened_type(next_type_present)?);
             }
         }
 
         Ok(if is_generator {
             self.create_generator_return_type(
-                &yield_type.unwrap_or_else(|| self.never_type()),
-                &return_type.unwrap_or(fallback_return_type),
-                &next_type
+                yield_type.unwrap_or_else(|| self.never_type()),
+                return_type.unwrap_or(fallback_return_type),
+                next_type
                     .try_or_else(|| {
                         self.get_contextual_iteration_type(IterationTypeKind::Next, func)
                     })?
@@ -511,7 +508,7 @@ impl TypeChecker {
             )?
         } else {
             if is_async {
-                self.create_promise_type(&return_type.unwrap_or(fallback_return_type))?
+                self.create_promise_type(return_type.unwrap_or(fallback_return_type))?
             } else {
                 return_type.unwrap_or(fallback_return_type)
             }
@@ -537,10 +534,10 @@ impl TypeChecker {
             .unwrap_or_else(|| self.unknown_type());
         let next_type = (resolver.resolve_iteration_type)(self, next_type, None)?
             .unwrap_or_else(|| self.unknown_type());
-        if Gc::ptr_eq(&global_generator_type, &self.empty_generic_type()) {
+        if global_generator_type == self.empty_generic_type() {
             let global_type = (resolver.get_global_iterable_iterator_type)(self, false)?;
-            let iteration_types = if !Gc::ptr_eq(&global_type, &self.empty_generic_type()) {
-                Some(self.get_iteration_types_of_global_iterable_type(&global_type, resolver)?)
+            let iteration_types = if global_type != self.empty_generic_type() {
+                Some(self.get_iteration_types_of_global_iterable_type(global_type, resolver)?)
             } else {
                 None
             };
@@ -556,12 +553,12 @@ impl TypeChecker {
                 } else {
                     self.undefined_type()
                 };
-            if self.is_type_assignable_to(&return_type, &iterable_iterator_return_type)?
-                && self.is_type_assignable_to(&iterable_iterator_next_type, &next_type)?
+            if self.is_type_assignable_to(return_type, iterable_iterator_return_type)?
+                && self.is_type_assignable_to(iterable_iterator_next_type, next_type)?
             {
-                if !Gc::ptr_eq(&global_type, &self.empty_generic_type()) {
+                if global_type != self.empty_generic_type() {
                     return Ok(
-                        self.create_type_from_generic_global_type(&global_type, vec![yield_type])
+                        self.create_type_from_generic_global_type(global_type, vec![yield_type])
                     );
                 }
 
@@ -574,7 +571,7 @@ impl TypeChecker {
         }
 
         Ok(self.create_type_from_generic_global_type(
-            &global_generator_type,
+            global_generator_type,
             vec![yield_type, return_type, next_type],
         ))
     }
@@ -600,11 +597,11 @@ impl TypeChecker {
                 };
                 if let Some(ref yielded_type) = self.get_yielded_type_of_yield_expression(
                     yield_expression,
-                    &yield_expression_type,
-                    &self.any_type(),
+                    yield_expression_type,
+                    self.any_type(),
                     is_async,
                 )? {
-                    push_if_unique_gc(&mut yield_types, yielded_type);
+                    push_if_unique_eq(&mut yield_types, yielded_type);
                 }
                 let next_type: Option<Id<Type>>;
                 if yield_expression_as_yield_expression
@@ -612,7 +609,7 @@ impl TypeChecker {
                     .is_some()
                 {
                     let iteration_types = self.get_iteration_types_of_iterable(
-                        &yield_expression_type,
+                        yield_expression_type,
                         if is_async {
                             IterationUse::AsyncYieldStar
                         } else {
@@ -625,7 +622,7 @@ impl TypeChecker {
                     next_type = self.get_contextual_type_(yield_expression, None)?;
                 }
                 if let Some(next_type) = next_type.as_ref() {
-                    push_if_unique_gc(&mut next_types, next_type);
+                    push_if_unique_eq(&mut next_types, next_type);
                 }
 
                 Ok(())
@@ -661,7 +658,7 @@ impl TypeChecker {
                 Some(&*error_node),
             )?
         } else {
-            expression_type.type_wrapper()
+            expression_type
         };
         Ok(if !is_async {
             Some(yielded_type)
@@ -774,35 +771,35 @@ impl TypeChecker {
                 .collect::<Vec<_>>();
             let not_equal_facts = self.get_facts_from_typeof_switch(0, 0, &witnesses, true);
             let type_ = self
-                .get_base_constraint_of_type(&operand_type)?
+                .get_base_constraint_of_type(operand_type)?
                 .unwrap_or(operand_type);
-            if type_.flags().intersects(TypeFlags::AnyOrUnknown) {
+            if self.type_(type_).flags().intersects(TypeFlags::AnyOrUnknown) {
                 return Ok(TypeFacts::AllTypeofNE & not_equal_facts == TypeFacts::AllTypeofNE);
             }
-            return Ok(self
-                .try_filter_type(&type_, |t: Id<Type>| {
+            return Ok(self.type_(self
+                .try_filter_type(type_, |t: Id<Type>| {
                     Ok(self.get_type_facts(t, None)? & not_equal_facts == not_equal_facts)
-                })?
+                })?)
                 .flags()
                 .intersects(TypeFlags::Never));
         }
         let type_ = self.get_type_of_expression(&node_as_switch_statement.expression)?;
-        if !self.is_literal_type(&type_) {
+        if !self.is_literal_type(type_) {
             return Ok(false);
         }
         let switch_types = self.get_switch_clause_types(node)?;
         if switch_types.is_empty()
             || some(
                 Some(&switch_types),
-                Some(|switch_type: &Id<Type>| self.is_neither_unit_type_nor_never(switch_type)),
+                Some(|&switch_type: &Id<Type>| self.is_neither_unit_type_nor_never(switch_type)),
             )
         {
             return Ok(false);
         }
         Ok(self.each_type_contained_in(
-            &self
+            self
                 .map_type(
-                    &type_,
+                    type_,
                     &mut |type_: Id<Type>| Some(self.get_regular_type_of_literal_type(type_)),
                     None,
                 )
@@ -841,8 +838,8 @@ impl TypeChecker {
                     )?;
                     if function_flags.intersects(FunctionFlags::Async) {
                         type_ = self.unwrap_awaited_type(
-                            &*self.check_awaited_type(
-                                &type_,
+                            self.check_awaited_type(
+                                type_,
                                 false,
                                 func,
                                 &Diagnostics::The_return_type_of_an_async_function_must_either_be_a_valid_promise_or_must_not_contain_a_callable_then_member,
@@ -850,10 +847,10 @@ impl TypeChecker {
                             )?
                         )?;
                     }
-                    if type_.flags().intersects(TypeFlags::Never) {
+                    if self.type_(type_).flags().intersects(TypeFlags::Never) {
                         has_return_of_type_never = true;
                     }
-                    push_if_unique_gc(&mut aggregated_types, &type_);
+                    push_if_unique_eq(&mut aggregated_types, &type_);
                 } else {
                     has_return_with_no_expression = true;
                 }
@@ -871,11 +868,11 @@ impl TypeChecker {
             && !aggregated_types.is_empty()
             && has_return_with_no_expression
             && !(self.is_js_constructor(Some(func))?
-                && aggregated_types.iter().any(|t| {
-                    are_option_gcs_equal(t.maybe_symbol().as_ref(), func.maybe_symbol().as_ref())
+                && aggregated_types.iter().any(|&t| {
+                    are_option_gcs_equal(self.type_(t).maybe_symbol().as_ref(), func.maybe_symbol().as_ref())
                 }))
         {
-            push_if_unique_gc(&mut aggregated_types, &self.undefined_type());
+            push_if_unique_eq(&mut aggregated_types, &self.undefined_type());
         }
         Ok(Some(aggregated_types))
     }
@@ -901,12 +898,11 @@ impl TypeChecker {
 
         let function_flags = get_function_flags(Some(func));
         let type_ = return_type.try_map(|return_type| {
-            let return_type = return_type.borrow();
             self.unwrap_return_type(return_type, function_flags)
         })?;
 
         if matches!(
-            type_.as_ref(),
+            type_,
             Some(type_) if self.maybe_type_of_kind(type_, TypeFlags::Any | TypeFlags::Void)
         ) {
             return Ok(());
@@ -930,8 +926,8 @@ impl TypeChecker {
             get_effective_return_type_node(func).unwrap_or_else(|| func.node_wrapper());
 
         if matches!(
-            type_.as_ref(),
-            Some(type_) if type_.flags().intersects(TypeFlags::Never)
+            type_,
+            Some(type_) if self.type_(type_).flags().intersects(TypeFlags::Never)
         ) {
             self.error(
                 Some(&*error_node),
@@ -945,8 +941,8 @@ impl TypeChecker {
                 None,
             );
         } else if matches!(
-            type_.as_ref(),
-            Some(type_) if self.strict_null_checks && !self.is_type_assignable_to(&self.undefined_type(), type_)?
+            type_,
+            Some(type_) if self.strict_null_checks && !self.is_type_assignable_to(self.undefined_type(), type_)?
         ) {
             self.error(
                 Some(&*error_node),
@@ -960,7 +956,7 @@ impl TypeChecker {
                 }
                 let inferred_return_type =
                     self.get_return_type_of_signature(self.get_signature_from_declaration_(func)?)?;
-                if self.is_unwrapped_return_type_void_or_any(func, &inferred_return_type)? {
+                if self.is_unwrapped_return_type_void_or_any(func, inferred_return_type)? {
                     return Ok(());
                 }
             }

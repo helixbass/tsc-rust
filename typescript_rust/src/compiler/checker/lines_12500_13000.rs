@@ -53,20 +53,19 @@ impl TypeChecker {
             let base_default_type =
                 self.get_default_type_argument_type(is_java_script_implicit_any);
             for i in num_type_arguments..num_type_parameters {
-                let mut default_type =
-                    self.get_default_from_type_parameter_(&type_parameters[i])?;
+                let mut default_type = self.get_default_from_type_parameter_(type_parameters[i])?;
                 if is_java_script_implicit_any
                     && matches!(
-                        default_type.as_ref(),
-                        Some(default_type) if self.is_type_identical_to(default_type, &self.unknown_type())?
-                            || self.is_type_identical_to(default_type, &self.empty_object_type())?
+                        default_type,
+                        Some(default_type) if self.is_type_identical_to(default_type, self.unknown_type())?
+                            || self.is_type_identical_to(default_type, self.empty_object_type())?
                     )
                 {
                     default_type = Some(self.any_type());
                 }
                 result[i] = if let Some(default_type) = default_type {
                     self.instantiate_type(
-                        &default_type,
+                        default_type,
                         Some(Gc::new(self.create_type_mapper(
                             type_parameters.to_owned(),
                             Some(result.clone()),
@@ -201,8 +200,8 @@ impl TypeChecker {
                 None
             };
             let type_parameters = match class_type {
-                Some(class_type) => class_type
-                    .as_interface_type()
+                Some(class_type) => self.type_(class_type
+                    ).as_interface_type()
                     .maybe_local_type_parameters()
                     .map(ToOwned::to_owned),
                 None => self.get_type_parameters_from_declaration(declaration),
@@ -276,7 +275,7 @@ impl TypeChecker {
             .type_ = Some(
             if let Some(last_param_variadic_type) = last_param_variadic_type.as_ref() {
                 self.create_array_type(
-                    &*self.get_type_from_type_node_(
+                    self.get_type_from_type_node_(
                         last_param_variadic_type
                             .as_base_jsdoc_unary_type()
                             .type_
@@ -312,7 +311,7 @@ impl TypeChecker {
                     .clone()
             })
             .try_and_then(|type_expression| {
-                self.get_single_call_signature(&*self.get_type_from_type_node_(&type_expression)?)
+                self.get_single_call_signature(self.get_type_from_type_node_(&type_expression)?)
             })
     }
 
@@ -586,14 +585,14 @@ impl TypeChecker {
             }
             let mut type_: Id<Type> = if let Some(signature_target) = signature.target.as_ref() {
                 self.instantiate_type(
-                    &*self.get_return_type_of_signature(signature_target.clone())?,
+                    self.get_return_type_of_signature(signature_target.clone())?,
                     signature.mapper.clone(),
                 )?
             } else if let Some(signature_composite_signatures) =
                 signature.composite_signatures.as_deref()
             {
                 self.instantiate_type(
-                    &*self.get_union_or_intersection_type(
+                    self.get_union_or_intersection_type(
                         &try_map(
                             signature_composite_signatures,
                             |signature: &Gc<Signature>, _| {
@@ -625,9 +624,9 @@ impl TypeChecker {
                     })?
             };
             if signature.flags.intersects(SignatureFlags::IsInnerCallChain) {
-                type_ = self.add_optional_type_marker(&type_)?;
+                type_ = self.add_optional_type_marker(type_)?;
             } else if signature.flags.intersects(SignatureFlags::IsOuterCallChain) {
-                type_ = self.get_optional_type_(&type_, None)?;
+                type_ = self.get_optional_type_(type_, None)?;
             }
             if !self.pop_type_resolution() {
                 if let Some(signature_declaration) = signature.declaration.as_ref() {
@@ -736,13 +735,13 @@ impl TypeChecker {
             let signature_parameters = signature.parameters();
             let sig_rest_type =
                 self.get_type_of_symbol(&signature_parameters[signature_parameters.len() - 1])?;
-            let rest_type = if self.is_tuple_type(&sig_rest_type) {
-                self.get_rest_type_of_tuple_type(&sig_rest_type)?
+            let rest_type = if self.is_tuple_type(sig_rest_type) {
+                self.get_rest_type_of_tuple_type(sig_rest_type)?
             } else {
                 Some(sig_rest_type)
             };
             return rest_type.try_and_then(|rest_type| {
-                self.get_index_type_of_type_(&rest_type, &self.number_type())
+                self.get_index_type_of_type_(rest_type, self.number_type())
             });
         }
         Ok(None)
@@ -768,7 +767,7 @@ impl TypeChecker {
             )?;
         if let Some(inferred_type_parameters) = inferred_type_parameters {
             let return_signature = self.get_single_call_or_construct_signature(
-                &*self.get_return_type_of_signature(instantiated_signature.clone())?,
+                self.get_return_type_of_signature(instantiated_signature.clone())?,
             )?;
             if let Some(return_signature) = return_signature {
                 let new_return_signature = self.clone_signature(&return_signature);
@@ -877,10 +876,9 @@ impl TypeChecker {
             try_maybe_map(
                 signature.maybe_type_parameters().as_deref(),
                 |tp: &Id<Type>, _| -> io::Result<_> {
-                    Ok(tp
-                        .as_type_parameter()
-                        .target
-                        .clone()
+                    Ok(self.type_(self.type_(tp
+                        ).as_type_parameter()
+                        .target)
                         .try_filter(|target| -> io::Result<_> {
                             Ok(self.get_constraint_of_type_parameter(target)?.is_none())
                         })?
@@ -907,7 +905,7 @@ impl TypeChecker {
                 type_parameters.clone(),
                 Some(try_map(
                     type_parameters,
-                    |tp: &Id<Type>, _| -> io::Result<_> {
+                    |&tp: &Id<Type>, _| -> io::Result<_> {
                         Ok(self
                             .get_constraint_of_type_parameter(tp)?
                             .unwrap_or_else(|| self.unknown_type()))
@@ -915,9 +913,9 @@ impl TypeChecker {
                 )?),
             ));
             let mut base_constraints: Vec<Id<Type>> =
-                try_map(type_parameters, |tp: &Id<Type>, _| -> io::Result<_> {
+                try_map(type_parameters, |&tp: &Id<Type>, _| -> io::Result<_> {
                     Ok(self
-                        .maybe_instantiate_type(Some(&**tp), Some(base_constraint_mapper.clone()))?
+                        .maybe_instantiate_type(Some(tp), Some(base_constraint_mapper.clone()))?
                         .unwrap_or_else(|| self.unknown_type()))
                 })?;
             for _i in 0..type_parameters.len() - 1 {
@@ -957,10 +955,10 @@ impl TypeChecker {
                     | SyntaxKind::ConstructSignature
                     | SyntaxKind::ConstructorType
             );
-            let type_: Id<Type> = self
+            let type_ = self.alloc_type(self
                 .create_object_type(ObjectFlags::Anonymous, Option::<&Symbol>::None)
-                .into();
-            type_.as_resolvable_type().resolve(
+                .into());
+            self.type_(type_).as_resolvable_type().resolve(
                 self.empty_symbols(),
                 // TODO: seems doable to hav per-type "empty vec singletons" for GcVec?
                 vec![].into(),
@@ -1040,13 +1038,13 @@ impl TypeChecker {
                     if let Some(parameter_type) = parameter.as_parameter_declaration().maybe_type()
                     {
                         self.try_for_each_type(
-                            &*self.get_type_from_type_node_(&parameter_type)?,
+                            self.get_type_from_type_node_(&parameter_type)?,
                             |key_type| {
                                 if self.is_valid_index_key_type(key_type)?
                                     && self.find_index_info(&index_infos, key_type).is_none()
                                 {
                                     index_infos.push(Gc::new(self.create_index_info(
-                                        key_type.type_wrapper(),
+                                        key_type,
                                         if let Some(declaration_type) =
                                             declaration_as_index_signature_declaration.maybe_type()
                                         {
@@ -1073,15 +1071,15 @@ impl TypeChecker {
     }
 
     pub(super) fn is_valid_index_key_type(&self, type_: Id<Type>) -> io::Result<bool> {
-        Ok(type_
-            .flags()
+        Ok(self.type_(type_
+            ).flags()
             .intersects(TypeFlags::String | TypeFlags::Number | TypeFlags::ESSymbol)
             || self.is_pattern_literal_type(type_)
-            || type_.flags().intersects(TypeFlags::Intersection)
+            || self.type_(type_).flags().intersects(TypeFlags::Intersection)
                 && !self.is_generic_type(type_)?
                 && try_some(
-                    Some(type_.as_union_or_intersection_type_interface().types()),
-                    Some(|type_: &Id<Type>| self.is_valid_index_key_type(type_)),
+                    Some(self.type_(type_).as_union_or_intersection_type_interface().types()),
+                    Some(|&type_: &Id<Type>| self.is_valid_index_key_type(type_)),
                 )?)
     }
 
@@ -1091,8 +1089,8 @@ impl TypeChecker {
     ) -> Option<Gc<Node /*TypeNode*/>> {
         map_defined(
             maybe_filter(
-                type_
-                    .maybe_symbol()
+                self.type_(type_
+                    ).maybe_symbol()
                     .and_then(|symbol| symbol.maybe_declarations().clone())
                     .as_deref(),
                 |node: &Gc<Node>| is_type_parameter_declaration(node),

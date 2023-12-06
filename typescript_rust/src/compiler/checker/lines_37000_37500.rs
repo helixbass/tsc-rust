@@ -84,14 +84,14 @@ impl TypeChecker {
     }
 
     pub(super) fn check_truthiness_of_type(&self, type_: Id<Type>, node: &Node) -> Id<Type> {
-        if type_.flags().intersects(TypeFlags::Void) {
+        if self.type_(type_).flags().intersects(TypeFlags::Void) {
             self.error(
                 Some(node),
                 &Diagnostics::An_expression_of_type_void_cannot_be_tested_for_truthiness,
                 None,
             );
         }
-        type_.type_wrapper()
+        type_
     }
 
     pub(super) fn check_truthiness_expression(
@@ -99,7 +99,7 @@ impl TypeChecker {
         node: &Node, /*Expression*/
         check_mode: Option<CheckMode>,
     ) -> io::Result<Id<Type>> {
-        Ok(self.check_truthiness_of_type(&*self.check_expression(node, check_mode, None)?, node))
+        Ok(self.check_truthiness_of_type(self.check_expression(node, check_mode, None)?, node))
     }
 
     pub(super) fn check_for_statement(&self, node: &Node /*ForStatement*/) -> io::Result<()> {
@@ -193,7 +193,7 @@ impl TypeChecker {
             ) {
                 self.check_destructuring_assignment(
                     var_expr,
-                    &iterated_type, /*|| errorType*/
+                    iterated_type, /*|| errorType*/
                     None,
                     None,
                 )?;
@@ -207,8 +207,8 @@ impl TypeChecker {
 
                 // if (iteratedType) {
                 self.check_type_assignable_to_and_optionally_elaborate(
-                    &iterated_type,
-                    &left_type,
+                    iterated_type,
+                    left_type,
                     Some(&**var_expr),
                     Some(&*node_as_for_of_statement.expression),
                     None,
@@ -233,7 +233,7 @@ impl TypeChecker {
         self.check_grammar_for_in_or_for_of_statement(node);
 
         let node_as_for_in_statement = node.as_for_in_statement();
-        let right_type = self.get_non_nullable_type_if_needed(&*self.check_expression(
+        let right_type = self.get_non_nullable_type_if_needed(self.check_expression(
             &node_as_for_in_statement.expression,
             None,
             None,
@@ -267,7 +267,7 @@ impl TypeChecker {
                     None,
                 );
             } else if !self
-                .is_type_assignable_to(&*self.get_index_type_or_string(&right_type)?, &left_type)?
+                .is_type_assignable_to(self.get_index_type_or_string(right_type)?, left_type)?
             {
                 self.error(
                     Some(&**var_expr),
@@ -283,9 +283,9 @@ impl TypeChecker {
             }
         }
 
-        if Gc::ptr_eq(&right_type, &self.never_type())
+        if right_type == self.never_type()
             || !self.is_type_assignable_to_kind(
-                &right_type,
+                right_type,
                 TypeFlags::NonPrimitive | TypeFlags::InstantiableNonPrimitive,
                 None,
             )?
@@ -295,7 +295,7 @@ impl TypeChecker {
                 &Diagnostics::The_right_hand_side_of_a_for_in_statement_must_be_of_type_any_an_object_type_or_a_type_parameter_but_here_has_type_0,
                 Some(vec![
                     self.type_to_string_(
-                        &right_type,
+                        right_type,
                         Option::<&Node>::None,
                         None,None,
                     )?
@@ -340,8 +340,8 @@ impl TypeChecker {
         };
         self.check_iterated_type_or_element_type(
             use_,
-            &*self.check_non_null_expression(&statement_as_for_of_statement.expression)?,
-            &self.undefined_type(),
+            self.check_non_null_expression(&statement_as_for_of_statement.expression)?,
+            self.undefined_type(),
             Some(&*statement_as_for_of_statement.expression),
         )
     }
@@ -354,7 +354,7 @@ impl TypeChecker {
         error_node: Option<impl Borrow<Node>>,
     ) -> io::Result<Id<Type>> {
         if self.is_type_any(Some(input_type)) {
-            return Ok(input_type.type_wrapper());
+            return Ok(input_type);
         }
         Ok(self
             .get_iterated_type_or_element_type(use_, input_type, sent_type, error_node, true)?
@@ -371,7 +371,7 @@ impl TypeChecker {
     ) -> io::Result<Option<Id<Type>>> {
         let allow_async_iterables = use_.intersects(IterationUse::AllowsAsyncIterablesFlag);
         let error_node = error_node.map(|error_node| error_node.borrow().node_wrapper());
-        if ptr::eq(input_type, &*self.never_type()) {
+        if input_type == self.never_type() {
             self.report_type_not_iterable_error(
                 error_node.as_ref().unwrap(),
                 input_type,
@@ -416,7 +416,7 @@ impl TypeChecker {
                     if let Some(diagnostic) = diagnostic {
                         self.check_type_assignable_to(
                             sent_type,
-                            &iteration_types.next_type(),
+                            iteration_types.next_type(),
                             error_node.as_deref(),
                             Some(diagnostic),
                             None,
@@ -440,15 +440,15 @@ impl TypeChecker {
             }
         }
 
-        let mut array_type = input_type.type_wrapper();
+        let mut array_type = input_type;
         let mut reported_error = false;
         let mut has_string_constituent = false;
 
         if use_.intersects(IterationUse::AllowsStringInputFlag) {
             if array_type.flags().intersects(TypeFlags::Union) {
-                let array_types = input_type.as_union_type().types();
-                let filtered_types = filter(array_types, |t: &Id<Type>| {
-                    !t.flags().intersects(TypeFlags::StringLike)
+                let array_types = self.type_(input_type).as_union_type().types();
+                let filtered_types = filter(array_types, |&t: &Id<Type>| {
+                    !self.type_(t).flags().intersects(TypeFlags::StringLike)
                 });
                 if filtered_types.len() != array_types.len() {
                     array_type = self.get_union_type(
@@ -463,7 +463,7 @@ impl TypeChecker {
                 array_type = self.never_type();
             }
 
-            has_string_constituent = !ptr::eq(&*array_type, input_type);
+            has_string_constituent = array_type != input_type;
             if has_string_constituent {
                 if self.language_version < ScriptTarget::ES5 {
                     if error_node.is_some() {
@@ -530,10 +530,10 @@ impl TypeChecker {
             });
         }
 
-        let array_element_type = self.get_index_type_of_type_(&array_type, &self.number_type())?;
+        let array_element_type = self.get_index_type_of_type_(array_type, self.number_type())?;
         if has_string_constituent {
             if let Some(array_element_type) = array_element_type.as_ref() {
-                if array_element_type.flags().intersects(TypeFlags::StringLike)
+                if self.type_(array_element_type).flags().intersects(TypeFlags::StringLike)
                     && self.compiler_options.no_unchecked_indexed_access != Some(true)
                 {
                     return Ok(Some(self.string_type()));
@@ -594,8 +594,8 @@ impl TypeChecker {
         }
 
         if self.is_es2015_or_later_iterable(
-            input_type
-                .maybe_symbol()
+            self.type_(input_type
+                ).maybe_symbol()
                 .as_ref()
                 .map(|input_type_symbol| input_type_symbol.escaped_name()),
         ) {
@@ -655,15 +655,15 @@ impl TypeChecker {
         let yield_type = yield_type.unwrap_or_else(|| self.never_type());
         let return_type = return_type.unwrap_or_else(|| self.never_type());
         let next_type = next_type.unwrap_or_else(|| self.unknown_type());
-        if yield_type.flags().intersects(TypeFlags::Intrinsic)
-            && return_type.flags().intersects(
+        if self.type_(yield_type).flags().intersects(TypeFlags::Intrinsic)
+            && self.type_(return_type).flags().intersects(
                 TypeFlags::Any
                     | TypeFlags::Never
                     | TypeFlags::Unknown
                     | TypeFlags::Void
                     | TypeFlags::Undefined,
             )
-            && next_type.flags().intersects(
+            && self.type_(next_type).flags().intersects(
                 TypeFlags::Any
                     | TypeFlags::Never
                     | TypeFlags::Unknown
@@ -746,7 +746,7 @@ impl TypeChecker {
         type_: Id<Type>,
         cache_key: IterationTypeCacheKey,
     ) -> Option<Gc<IterationTypes>> {
-        type_.get_by_iteration_type_cache_key(cache_key)
+        self.type_(type_).get_by_iteration_type_cache_key(cache_key)
     }
 
     pub(super) fn set_cached_iteration_types(
@@ -755,7 +755,7 @@ impl TypeChecker {
         cache_key: IterationTypeCacheKey,
         cached_types: Gc<IterationTypes>,
     ) -> Gc<IterationTypes> {
-        type_.set_by_iteration_type_cache_key(cache_key, Some(cached_types.clone()));
+        self.type_(type_).set_by_iteration_type_cache_key(cache_key, Some(cached_types.clone()));
         cached_types
     }
 
@@ -770,7 +770,7 @@ impl TypeChecker {
         }
 
         let error_node = error_node.map(|error_node| error_node.borrow().node_wrapper());
-        if !type_.flags().intersects(TypeFlags::Union) {
+        if !self.type_(type_).flags().intersects(TypeFlags::Union) {
             let iteration_types =
                 self.get_iteration_types_of_iterable_worker(type_, use_, error_node.as_deref())?;
             if Gc::ptr_eq(&iteration_types, &self.no_iteration_types()) {
@@ -801,7 +801,7 @@ impl TypeChecker {
         }
 
         let mut all_iteration_types: Option<Vec<Gc<IterationTypes>>> = None;
-        for constituent in type_.as_union_type().types() {
+        for constituent in self.type_(type_).as_union_type().types() {
             let iteration_types = self.get_iteration_types_of_iterable_worker(
                 constituent,
                 use_,

@@ -383,12 +383,12 @@ impl TypeChecker {
     }
 
     pub(super) fn convert_auto_to_any(&self, type_: Id<Type>) -> Id<Type> {
-        if ptr::eq(type_, &*self.auto_type()) {
+        if type_ == self.auto_type() {
             self.any_type()
-        } else if ptr::eq(type_, &*self.auto_array_type()) {
+        } else if type_ == self.auto_array_type() {
             self.any_array_type()
         } else {
-            type_.type_wrapper()
+            type_
         }
     }
 
@@ -440,11 +440,11 @@ impl TypeChecker {
                 .property_name
                 .clone()
                 .unwrap_or_else(|| node_name.clone());
-            if let Some(parent_type) = parent_type.as_ref() {
+            if let Some(parent_type) = parent_type {
                 if !is_binding_pattern(Some(&*name)) {
                     let expr_type = self.get_literal_type_from_property_name(&name)?;
-                    if self.is_type_usable_as_property_name(&expr_type) {
-                        let name_text = self.get_property_name_from_type(&expr_type);
+                    if self.is_type_usable_as_property_name(expr_type) {
+                        let name_text = self.get_property_name_from_type(expr_type);
                         let property = self.get_property_of_type_(parent_type, &name_text, None)?;
                         if let Some(property) = property.as_ref() {
                             self.mark_property_as_referenced(
@@ -514,11 +514,11 @@ impl TypeChecker {
                         None,
                     )?;
                     if self.strict_null_checks && need_check_widened_type {
-                        self.check_non_null_non_void_type(&initializer_type, node)?;
+                        self.check_non_null_non_void_type(initializer_type, node)?;
                     } else {
                         self.check_type_assignable_to_and_optionally_elaborate(
-                            &initializer_type,
-                            &*self.get_widened_type_for_variable_like_declaration(node, None)?,
+                            initializer_type,
+                            self.get_widened_type_for_variable_like_declaration(node, None)?,
                             Some(node),
                             node_as_has_initializer.maybe_initializer(),
                             None,
@@ -530,12 +530,12 @@ impl TypeChecker {
                     if is_array_binding_pattern(&node_name) {
                         self.check_iterated_type_or_element_type(
                             IterationUse::Destructuring,
-                            &widened_type,
-                            &self.undefined_type(),
+                            widened_type,
+                            self.undefined_type(),
                             Some(node),
                         )?;
                     } else if self.strict_null_checks {
-                        self.check_non_null_non_void_type(&widened_type, node)?;
+                        self.check_non_null_non_void_type(widened_type, node)?;
                     }
                 }
             }
@@ -547,7 +547,7 @@ impl TypeChecker {
             return Ok(());
         }
 
-        let type_ = self.convert_auto_to_any(&*self.get_type_of_symbol(&symbol)?);
+        let type_ = self.convert_auto_to_any(self.get_type_of_symbol(&symbol)?);
         if matches!(
             symbol.maybe_value_declaration().as_ref(),
             Some(symbol_value_declaration) if ptr::eq(
@@ -572,8 +572,8 @@ impl TypeChecker {
                     && node.parent().parent().kind() != SyntaxKind::ForInStatement
                 {
                     self.check_type_assignable_to_and_optionally_elaborate(
-                        &*self.check_expression_cached(initializer, None)?,
-                        &type_,
+                        self.check_expression_cached(initializer, None)?,
+                        type_,
                         Some(node),
                         Some(&**initializer),
                         None,
@@ -605,25 +605,25 @@ impl TypeChecker {
             }
         } else {
             let declaration_type = self.convert_auto_to_any(
-                &*self.get_widened_type_for_variable_like_declaration(node, None)?,
+                self.get_widened_type_for_variable_like_declaration(node, None)?,
             );
 
-            if !self.is_error_type(&type_)
-                && !self.is_error_type(&declaration_type)
-                && !self.is_type_identical_to(&type_, &declaration_type)?
+            if !self.is_error_type(type_)
+                && !self.is_error_type(declaration_type)
+                && !self.is_type_identical_to(type_, declaration_type)?
                 && !symbol.flags().intersects(SymbolFlags::Assignment)
             {
                 self.error_next_variable_or_property_declaration_must_have_same_type(
                     symbol.maybe_value_declaration(),
-                    &type_,
+                    type_,
                     node,
-                    &declaration_type,
+                    declaration_type,
                 )?;
             }
             if let Some(node_initializer) = node_as_has_initializer.maybe_initializer().as_ref() {
                 self.check_type_assignable_to_and_optionally_elaborate(
-                    &*self.check_expression_cached(node_initializer, None)?,
-                    &declaration_type,
+                    self.check_expression_cached(node_initializer, None)?,
+                    declaration_type,
                     Some(node),
                     Some(&**node_initializer),
                     None,
@@ -799,7 +799,7 @@ impl TypeChecker {
         let type_ = self.check_truthiness_expression(&node_as_if_statement.expression, None)?;
         self.check_testing_known_truthy_callable_or_awaitable_type(
             &node_as_if_statement.expression,
-            &type_,
+            type_,
             Some(&*node_as_if_statement.then_statement),
         )?;
         self.check_source_element(Some(&*node_as_if_statement.then_statement))?;

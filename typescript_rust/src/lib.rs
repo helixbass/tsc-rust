@@ -140,7 +140,7 @@ pub use compiler::{
         ParseCommandLineWorkerDiagnostics, ParseConfigFileHost, ReadConfigFileReturn,
     },
     core::{
-        add_range, append, append_if_unique_gc, append_if_unique_rc, array_is_equal_to, array_of,
+        add_range, append, append_if_unique_eq, append_if_unique_gc, append_if_unique_rc, array_is_equal_to, array_of,
         array_to_map, array_to_multi_map, arrays_equal, binary_search, binary_search_copy_key,
         cartesian_product, cast, cast_present, clear, clone, compare_booleans,
         compare_strings_case_insensitive, compare_strings_case_sensitive,
@@ -832,7 +832,7 @@ pub use rust_helpers::{
     default::_d,
     deref::AsDoubleDeref,
     hash_map::{GcHashMap, GcHashMapOwnedValues},
-    index_of, index_of_gc, index_of_rc,
+    index_of, index_of_gc, index_of_eq, index_of_rc,
     io::io_error_from_name,
     is_option_str_empty, is_same_variant,
     iterator::{

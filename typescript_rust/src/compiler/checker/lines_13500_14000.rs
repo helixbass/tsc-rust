@@ -23,7 +23,7 @@ impl TypeChecker {
         let type_ =
             self.get_type_from_type_node_(node.as_base_jsdoc_unary_type().type_.as_ref().unwrap())?;
         Ok(if self.strict_null_checks {
-            self.get_nullable_type(&type_, TypeFlags::Null)?
+            self.get_nullable_type(type_, TypeFlags::Null)?
         } else {
             type_
         })
@@ -101,7 +101,7 @@ impl TypeChecker {
                 self.check_expression(&node_as_type_query_node.expr_name, None, None)?
             };
             links.borrow_mut().resolved_type =
-                Some(self.get_regular_type_of_literal_type(&*self.get_widened_type(&type_)?));
+                Some(self.get_regular_type_of_literal_type(self.get_widened_type(type_)?));
         }
         let ret = (*links).borrow().resolved_type.clone().unwrap();
         Ok(ret)
@@ -122,7 +122,7 @@ impl TypeChecker {
         let symbol = symbol.unwrap();
         let symbol = symbol.borrow();
         let type_ = self.get_declared_type_of_symbol(symbol)?;
-        if !type_.flags().intersects(TypeFlags::Object) {
+        if !self.type_(type_).flags().intersects(TypeFlags::Object) {
             self.error(
                 self.get_type_declaration(symbol),
                 &Diagnostics::Global_type_0_must_be_a_class_or_interface_type,
@@ -135,8 +135,8 @@ impl TypeChecker {
             });
         }
         if length(
-            type_
-                .maybe_as_interface_type()
+            self.type_(type_
+                ).maybe_as_interface_type()
                 .and_then(|type_| type_.maybe_type_parameters()),
         ) != arity
         {
@@ -707,7 +707,7 @@ impl TypeChecker {
         generic_global_type: Id<Type>, /*GenericType*/
         type_arguments: Vec<Id<Type>>,
     ) -> Id<Type /*ObjectType*/> {
-        if !ptr::eq(generic_global_type, &*self.empty_generic_type()) {
+        if generic_global_type != self.empty_generic_type() {
             self.create_type_reference(generic_global_type, Some(type_arguments))
         } else {
             self.empty_object_type()
@@ -719,15 +719,15 @@ impl TypeChecker {
         property_type: Id<Type>,
     ) -> io::Result<Id<Type>> {
         Ok(self.create_type_from_generic_global_type(
-            &*self.get_global_typed_property_descriptor_type()?,
-            vec![property_type.type_wrapper()],
+            self.get_global_typed_property_descriptor_type()?,
+            vec![property_type],
         ))
     }
 
     pub(super) fn create_iterable_type(&self, iterated_type: Id<Type>) -> io::Result<Id<Type>> {
         Ok(self.create_type_from_generic_global_type(
-            &*self.get_global_iterable_type(true)?,
-            vec![iterated_type.type_wrapper()],
+            self.get_global_iterable_type(true)?,
+            vec![iterated_type],
         ))
     }
 
@@ -737,12 +737,12 @@ impl TypeChecker {
         readonly: Option<bool>,
     ) -> Id<Type /*ObjectType*/> {
         self.create_type_from_generic_global_type(
-            &*if matches!(readonly, Some(true)) {
+            if matches!(readonly, Some(true)) {
                 self.global_readonly_array_type()
             } else {
                 self.global_array_type()
             },
-            vec![element_type.type_wrapper()],
+            vec![element_type],
         )
     }
 
@@ -917,7 +917,7 @@ impl TypeChecker {
         let links = self.get_node_links(node);
         if (*links).borrow().resolved_type.is_none() {
             let target = self.get_array_or_tuple_target_type(node)?;
-            if Gc::ptr_eq(&target, &self.empty_generic_type()) {
+            if target == self.empty_generic_type() {
                 links.borrow_mut().resolved_type = Some(self.empty_object_type());
             } else if !(node.kind() == SyntaxKind::TupleType
                 && some(
@@ -936,7 +936,7 @@ impl TypeChecker {
                         target
                     } else {
                         self.create_deferred_type_reference(
-                            &target,
+                            target,
                             node,
                             None,
                             Option::<&Symbol>::None,
@@ -954,7 +954,7 @@ impl TypeChecker {
                     )?
                 };
                 links.borrow_mut().resolved_type =
-                    Some(self.create_normalized_type_reference(&target, Some(element_types))?);
+                    Some(self.create_normalized_type_reference(target, Some(element_types))?);
             }
         }
         let ret = (*links).borrow().resolved_type.clone().unwrap();
@@ -981,10 +981,10 @@ impl TypeChecker {
             readonly,
             named_member_declarations,
         )?;
-        Ok(if Gc::ptr_eq(&tuple_target, &self.empty_generic_type()) {
+        Ok(if tuple_target == self.empty_generic_type() {
             self.empty_object_type()
         } else if !element_types.is_empty() {
-            self.create_normalized_type_reference(&tuple_target, Some(element_types.to_owned()))?
+            self.create_normalized_type_reference(tuple_target, Some(element_types.to_owned()))?
         } else {
             tuple_target
         })
@@ -1065,8 +1065,8 @@ impl TypeChecker {
             type_parameters = Some(vec![]);
             let type_parameters = type_parameters.as_mut().unwrap();
             for i in 0..arity {
-                type_parameters.push(self.create_type_parameter(Option::<&Symbol>::None).into());
-                let type_parameter = &type_parameters[i];
+                type_parameters.push(self.alloc_type(self.create_type_parameter(Option::<&Symbol>::None).into()));
+                let type_parameter = type_parameters[i];
                 let flags = element_flags[i];
                 combined_flags |= flags;
                 if !combined_flags.intersects(ElementFlags::Variable) {
@@ -1131,7 +1131,7 @@ impl TypeChecker {
         );
         let mut this_type = self.create_type_parameter(Option::<&Symbol>::None);
         this_type.is_this_type = Some(true);
-        let this_type: Id<Type> = this_type.into();
+        let this_type = self.alloc_type(this_type.into());
         let type_ = BaseInterfaceType::new(
             type_,
             type_parameters.clone(),
@@ -1139,7 +1139,7 @@ impl TypeChecker {
             type_parameters.clone(),
             Some(this_type.clone()),
         );
-        let type_: Id<Type> = TupleType::new(
+        let type_ = self.alloc_type(TupleType::new(
             type_,
             element_flags.to_owned(),
             min_length,
@@ -1149,21 +1149,37 @@ impl TypeChecker {
             readonly,
             named_member_declarations.map(ToOwned::to_owned),
         )
-        .into();
-        this_type.as_type_parameter().set_constraint(type_.clone());
+        .into());
+        self.type_(this_type)
+            .as_type_parameter()
+            .set_constraint(type_.clone());
         let mut instantiations = HashMap::new();
         instantiations.insert(
             self.get_type_list_id(type_parameters.as_deref()),
             type_.clone(),
         );
-        let type_as_interface_type = type_.as_interface_type();
-        type_as_interface_type.set_target(type_.clone());
-        *type_as_interface_type.maybe_resolved_type_arguments_mut() = type_parameters;
-        type_as_interface_type.set_declared_properties(properties);
-        type_as_interface_type.set_declared_call_signatures(vec![]);
-        type_as_interface_type.set_declared_construct_signatures(vec![]);
-        type_as_interface_type.set_declared_index_infos(vec![]);
-        type_as_interface_type.genericize(instantiations);
+        self.type_(type_)
+            .as_interface_type()
+            .set_target(type_.clone());
+        *self
+            .type_(type_)
+            .as_interface_type()
+            .maybe_resolved_type_arguments_mut() = type_parameters;
+        self.type_(type_)
+            .as_interface_type()
+            .set_declared_properties(properties);
+        self.type_(type_)
+            .as_interface_type()
+            .set_declared_call_signatures(vec![]);
+        self.type_(type_)
+            .as_interface_type()
+            .set_declared_construct_signatures(vec![]);
+        self.type_(type_)
+            .as_interface_type()
+            .set_declared_index_infos(vec![]);
+        self.type_(type_)
+            .as_interface_type()
+            .genericize(instantiations);
         Ok(type_)
     }
 }

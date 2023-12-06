@@ -176,7 +176,7 @@ impl TypeChecker {
                     Option::<&Symbol>::None,
                     None,
                 )?;
-                type_ = Some(self.get_flow_type_of_destructuring(declaration, &declared_type)?);
+                type_ = Some(self.get_flow_type_of_destructuring(declaration, declared_type)?);
             }
         } else {
             let element_type = self.check_iterated_type_or_element_type(
@@ -186,8 +186,8 @@ impl TypeChecker {
                     } else {
                         IterationUse::PossiblyOutOfBounds
                     },
-                &parent_type,
-                &self.undefined_type(),
+                parent_type,
+                self.undefined_type(),
                 Some(&*pattern),
             )?;
             let index: usize = index_of_gc(
@@ -197,18 +197,18 @@ impl TypeChecker {
             .try_into()
             .unwrap();
             if declaration_as_binding_element.dot_dot_dot_token.is_some() {
-                type_ = if self.every_type(&parent_type, |type_| self.is_tuple_type(type_)) {
+                type_ = if self.every_type(parent_type, |type_| self.is_tuple_type(type_)) {
                     self.try_map_type(
-                        &parent_type,
+                        parent_type,
                         &mut |t| -> io::Result<_> {
                             Ok(Some(self.slice_tuple_type(t, index, None)?))
                         },
                         None,
                     )?
                 } else {
-                    Some(self.create_array_type(&element_type, None))
+                    Some(self.create_array_type(element_type, None))
                 };
-            } else if self.is_array_like_type(&parent_type)? {
+            } else if self.is_array_like_type(parent_type)? {
                 let index_type = self.get_number_literal_type(Number::new(index as f64));
                 let access_flags = AccessFlags::ExpressionPosition
                     | if self.has_default_value(declaration) {
@@ -218,15 +218,15 @@ impl TypeChecker {
                     };
                 let declared_type = self
                     .get_indexed_access_type_or_undefined(
-                        &parent_type,
-                        &index_type,
+                        parent_type,
+                        index_type,
                         Some(access_flags),
                         declaration_as_binding_element.maybe_name(),
                         Option::<&Symbol>::None,
                         None,
                     )?
                     .unwrap_or_else(|| self.error_type());
-                type_ = Some(self.get_flow_type_of_destructuring(declaration, &declared_type)?);
+                type_ = Some(self.get_flow_type_of_destructuring(declaration, declared_type)?);
             } else {
                 type_ = Some(element_type);
             }
@@ -241,10 +241,10 @@ impl TypeChecker {
             return Ok(Some(
                 if self.strict_null_checks
                     && !self
-                        .get_falsy_flags(&*self.check_declaration_initializer(declaration, None)?)
+                        .get_falsy_flags(self.check_declaration_initializer(declaration, None)?)
                         .intersects(TypeFlags::Undefined)
                 {
-                    self.get_non_undefined_type(&type_)?
+                    self.get_non_undefined_type(type_)?
                 } else {
                     type_
                 },
@@ -252,9 +252,9 @@ impl TypeChecker {
         }
         Ok(Some(self.widen_type_inferred_from_initializer(
             declaration,
-            &*self.get_union_type(
+            self.get_union_type(
                 &[
-                    self.get_non_undefined_type(&type_)?,
+                    self.get_non_undefined_type(type_)?,
                     self.check_declaration_initializer(declaration, None)?,
                 ],
                 Some(UnionReduction::Subtype),
@@ -301,7 +301,7 @@ impl TypeChecker {
         Ok(if self.strict_null_checks && is_optional {
             self.get_optional_type_(type_, Some(is_property))?
         } else {
-            type_.type_wrapper()
+            type_
         })
     }
 
@@ -314,8 +314,8 @@ impl TypeChecker {
             && declaration.parent().parent().kind() == SyntaxKind::ForInStatement
         {
             let index_type = self.get_index_type(
-                &*self.get_non_nullable_type_if_needed(
-                    &*self.check_expression(
+                self.get_non_nullable_type_if_needed(
+                    self.check_expression(
                         &declaration
                             .parent()
                             .parent()
@@ -329,11 +329,11 @@ impl TypeChecker {
                 None,
             )?;
             return Ok(Some(
-                if index_type
-                    .flags()
+                if self.type_(index_type
+                    ).flags()
                     .intersects(TypeFlags::TypeParameter | TypeFlags::Index)
                 {
-                    self.get_extract_string_type(&index_type)?
+                    self.get_extract_string_type(index_type)?
                 } else {
                     self.string_type()
                 },
@@ -373,7 +373,7 @@ impl TypeChecker {
         let declared_type = self.try_get_type_from_effective_type_node(declaration)?;
         if let Some(declared_type) = declared_type {
             return Ok(Some(self.add_optionality(
-                &declared_type,
+                declared_type,
                 Some(is_property),
                 Some(is_optional),
             )?));
@@ -460,7 +460,7 @@ impl TypeChecker {
             };
             if let Some(type_) = type_ {
                 return Ok(Some(self.add_optionality(
-                    &type_,
+                    type_,
                     Some(false),
                     Some(is_optional),
                 )?));
@@ -485,10 +485,10 @@ impl TypeChecker {
             }
             let type_ = self.widen_type_inferred_from_initializer(
                 declaration,
-                &*self.check_declaration_initializer(declaration, None)?,
+                self.check_declaration_initializer(declaration, None)?,
             )?;
             return Ok(Some(self.add_optionality(
-                &type_,
+                type_,
                 Some(is_property),
                 Some(is_optional),
             )?));
@@ -509,7 +509,7 @@ impl TypeChecker {
                     None
                 };
                 return type_
-                    .try_map(|type_| self.add_optionality(&type_, Some(true), Some(is_optional)));
+                    .try_map(|type_| self.add_optionality(type_, Some(true), Some(is_optional)));
             } else {
                 let static_blocks = filter(
                     &declaration.parent().as_class_like_declaration().members(),
@@ -525,7 +525,7 @@ impl TypeChecker {
                     None
                 };
                 return type_
-                    .try_map(|type_| self.add_optionality(&type_, Some(true), Some(is_optional)));
+                    .try_map(|type_| self.add_optionality(type_, Some(true), Some(is_optional)));
             }
         }
 
@@ -674,7 +674,7 @@ impl TypeChecker {
         reference.set_flow_node(file.as_source_file().maybe_end_flow_node().clone());
         self.get_flow_type_of_reference(
             &reference,
-            &self.auto_type(),
+            self.auto_type(),
             Some(self.undefined_type()),
             Option::<&Node>::None,
         )
@@ -711,22 +711,22 @@ impl TypeChecker {
             );
             let flow_type = self.get_flow_type_of_property(&reference, Some(symbol))?;
             if self.no_implicit_any
-                && (Gc::ptr_eq(&flow_type, &self.auto_type())
-                    || Gc::ptr_eq(&flow_type, &self.auto_array_type()))
+                && (flow_type == self.auto_type()
+                    || flow_type == self.auto_array_type())
             {
                 self.error(
                     symbol.maybe_value_declaration(),
                     &Diagnostics::Member_0_implicitly_has_an_1_type,
                     Some(vec![
                         self.symbol_to_string_(symbol, Option::<&Node>::None, None, None, None)?,
-                        self.type_to_string_(&flow_type, Option::<&Node>::None, None, None)?,
+                        self.type_to_string_(flow_type, Option::<&Node>::None, None, None)?,
                     ]),
                 );
             }
-            if self.every_type(&flow_type, |type_| self.is_nullable_type(type_)) {
+            if self.every_type(flow_type, |type_| self.is_nullable_type(type_)) {
                 continue;
             }
-            return Ok(Some(self.convert_auto_to_any(&flow_type)));
+            return Ok(Some(self.convert_auto_to_any(flow_type)));
         }
         Ok(None)
     }
@@ -760,23 +760,23 @@ impl TypeChecker {
         );
         let flow_type = self.get_flow_type_of_property(&reference, Some(symbol))?;
         if self.no_implicit_any
-            && (Gc::ptr_eq(&flow_type, &self.auto_type())
-                || Gc::ptr_eq(&flow_type, &self.auto_array_type()))
+            && (flow_type == self.auto_type()
+                || flow_type == self.auto_array_type())
         {
             self.error(
                 symbol.maybe_value_declaration(),
                 &Diagnostics::Member_0_implicitly_has_an_1_type,
                 Some(vec![
                     self.symbol_to_string_(symbol, Option::<&Node>::None, None, None, None)?,
-                    self.type_to_string_(&flow_type, Option::<&Node>::None, None, None)?,
+                    self.type_to_string_(flow_type, Option::<&Node>::None, None, None)?,
                 ]),
             );
         }
         Ok(
-            if self.every_type(&flow_type, |type_| self.is_nullable_type(type_)) {
+            if self.every_type(flow_type, |type_| self.is_nullable_type(type_)) {
                 None
             } else {
-                Some(self.convert_auto_to_any(&flow_type))
+                Some(self.convert_auto_to_any(flow_type))
             },
         )
     }
@@ -799,7 +799,7 @@ impl TypeChecker {
         })?.unwrap_or_else(|| self.undefined_type());
         self.get_flow_type_of_reference(
             reference,
-            &self.auto_type(),
+            self.auto_type(),
             Some(initial_type),
             Option::<&Node>::None,
         )
@@ -830,7 +830,7 @@ impl TypeChecker {
                         )
                     })?;
             return container_object_type.try_unwrap_or_else(|| {
-                self.get_widened_literal_type(&*self.check_expression_cached(&container, None)?)
+                self.get_widened_literal_type(self.check_expression_cached(&container, None)?)
             });
         }
         let mut type_: Option<Id<Type>> = None;
@@ -940,7 +940,7 @@ impl TypeChecker {
                 }
                 let source_types = if some(
                     constructor_types.as_deref(),
-                    Some(|t: &Id<Type>| t.flags().intersects(!TypeFlags::Nullable)),
+                    Some(|&t: &Id<Type>| self.type_(t).flags().intersects(!TypeFlags::Nullable)),
                 ) {
                     constructor_types.unwrap()
                 } else {
@@ -956,17 +956,17 @@ impl TypeChecker {
             }
         }
         let type_ = type_.unwrap();
-        let widened = self.get_widened_type(&*self.add_optionality(
-            &type_,
+        let widened = self.get_widened_type(self.add_optionality(
+            type_,
             Some(false),
             Some(defined_in_method && !defined_in_constructor),
         )?)?;
         if let Some(symbol_value_declaration) = symbol.maybe_value_declaration() {
-            if Gc::ptr_eq(
-                &self.filter_type(&widened, |t| t.flags().intersects(!TypeFlags::Nullable)),
-                &self.never_type(),
-            ) {
-                self.report_implicit_any(&symbol_value_declaration, &self.any_type(), None)?;
+            if 
+                self.filter_type(widened, |t| self.type_(t).flags().intersects(!TypeFlags::Nullable)) ==
+                self.never_type()
+             {
+                self.report_implicit_any(&symbol_value_declaration, self.any_type(), None)?;
                 return Ok(self.any_type());
             }
         }
@@ -1019,9 +1019,8 @@ impl TypeChecker {
             }
         }
         let type_ = self.create_anonymous_type(symbol, exports, vec![], vec![], vec![])?;
-        let type_as_object_type = type_.as_object_type();
-        type_as_object_type
-            .set_object_flags(type_as_object_type.object_flags() | ObjectFlags::JSLiteral);
+        self.type_(type_).as_object_type()
+            .set_object_flags(self.type_(type_).as_object_type().object_flags() | ObjectFlags::JSLiteral);
         Ok(Some(type_))
     }
 
@@ -1033,23 +1032,21 @@ impl TypeChecker {
         declaration: &Node, /*Declaration*/
     ) -> io::Result<Option<Id<Type>>> {
         let type_node = get_effective_type_annotation_node(&expression.parent());
-        let declared_type =
-            declared_type.map(|declared_type| declared_type.borrow().type_wrapper());
         if let Some(type_node) = type_node {
-            let type_ = self.get_widened_type(&*self.get_type_from_type_node_(&type_node)?)?;
+            let type_ = self.get_widened_type(self.get_type_from_type_node_(&type_node)?)?;
             if declared_type.is_none() {
                 return Ok(Some(type_));
             }
-            let declared_type = declared_type.as_ref().unwrap();
+            let declared_type = declared_type.unwrap();
             if !self.is_error_type(declared_type)
-                && !self.is_error_type(&type_)
-                && !self.is_type_identical_to(&declared_type, &type_)?
+                && !self.is_error_type(type_)
+                && !self.is_type_identical_to(declared_type, type_)?
             {
                 self.error_next_variable_or_property_declaration_must_have_same_type(
                     Option::<&Node>::None,
-                    &declared_type,
+                    declared_type,
                     declaration,
-                    &type_,
+                    type_,
                 )?;
             }
         }
@@ -1059,7 +1056,7 @@ impl TypeChecker {
                     get_effective_type_annotation_node(&symbol_parent_value_declaration);
                 if let Some(type_node) = type_node {
                     let annotation_symbol = self.get_property_of_type_(
-                        &*self.get_type_from_type_node_(&type_node)?,
+                        self.get_type_from_type_node_(&type_node)?,
                         symbol.escaped_name(),
                         None,
                     )?;
@@ -1090,20 +1087,20 @@ impl TypeChecker {
             }
             let object_lit_type =
                 self.check_expression_cached(&expression.as_call_expression().arguments[2], None)?;
-            let value_type = self.get_type_of_property_of_type_(&object_lit_type, "value")?;
+            let value_type = self.get_type_of_property_of_type_(object_lit_type, "value")?;
             if let Some(value_type) = value_type {
                 return Ok(value_type);
             }
-            let get_func = self.get_type_of_property_of_type_(&object_lit_type, "get")?;
+            let get_func = self.get_type_of_property_of_type_(object_lit_type, "get")?;
             if let Some(get_func) = get_func {
-                let get_sig = self.get_single_call_signature(&get_func)?;
+                let get_sig = self.get_single_call_signature(get_func)?;
                 if let Some(get_sig) = get_sig {
                     return self.get_return_type_of_signature(get_sig);
                 }
             }
-            let set_func = self.get_type_of_property_of_type_(&object_lit_type, "set")?;
+            let set_func = self.get_type_of_property_of_type_(object_lit_type, "set")?;
             if let Some(set_func) = set_func {
-                let set_sig = self.get_single_call_signature(&set_func)?;
+                let set_sig = self.get_single_call_signature(set_func)?;
                 if let Some(set_sig) = set_sig {
                     return self.get_type_of_first_parameter_of_signature(&set_sig);
                 }
@@ -1121,18 +1118,17 @@ impl TypeChecker {
             self.get_type_of_symbol(resolved_symbol)?
         } else {
             self.get_widened_literal_type(
-                &*self.check_expression_cached(&expression_as_binary_expression.right, None)?,
+                self.check_expression_cached(&expression_as_binary_expression.right, None)?,
             )?
         };
-        if type_.flags().intersects(TypeFlags::Object)
+        if self.type_(type_).flags().intersects(TypeFlags::Object)
             && kind == AssignmentDeclarationKind::ModuleExports
             && symbol.escaped_name() == InternalSymbolName::ExportEquals
         {
-            let exported_type = self.resolve_structured_type_members(&type_)?;
+            let exported_type = self.resolve_structured_type_members(type_)?;
             let mut members = create_symbol_table(Option::<&[Gc<Symbol>]>::None);
-            let exported_type_as_resolved_type = exported_type.as_resolved_type();
             copy_entries(
-                &*(*exported_type_as_resolved_type.members()).borrow(),
+                &*(*self.type_(exported_type).as_resolved_type().members()).borrow(),
                 &mut members,
             );
             let initial_size = members.len();
@@ -1242,36 +1238,34 @@ impl TypeChecker {
                 if initial_size != members.len() {
                     None
                 } else {
-                    exported_type.maybe_symbol()
+                    self.type_(exported_type).maybe_symbol()
                 },
                 Gc::new(GcCell::new(members)),
-                exported_type_as_resolved_type.call_signatures().clone(),
-                exported_type_as_resolved_type
+                self.type_(exported_type).as_resolved_type().call_signatures().clone(),
+                self.type_(exported_type).as_resolved_type()
                     .construct_signatures()
                     .clone(),
-                exported_type_as_resolved_type.index_infos().clone(),
+                self.type_(exported_type).as_resolved_type().index_infos().clone(),
             )?;
-            let result_as_object_type = result.as_object_type();
-            result_as_object_type.set_object_flags(
-                result_as_object_type.object_flags()
-                    | get_object_flags(&type_) & ObjectFlags::JSLiteral,
+            self.type_(result).as_object_type().set_object_flags(
+                self.type_(result).as_object_type().object_flags()
+                    | get_object_flags(self.type_(type_)) & ObjectFlags::JSLiteral,
             );
-            if let Some(result_symbol) = result.maybe_symbol() {
+            if let Some(result_symbol) = self.type_(result).maybe_symbol() {
                 if result_symbol.flags().intersects(SymbolFlags::Class)
-                    && Gc::ptr_eq(
-                        &type_,
-                        &self.get_declared_type_of_class_or_interface(&result_symbol)?,
-                    )
+                    && 
+                        type_ ==
+                        self.get_declared_type_of_class_or_interface(&result_symbol)?
                 {
-                    result_as_object_type.set_object_flags(
-                        result_as_object_type.object_flags() | ObjectFlags::IsClassInstanceClone,
+                    self.type_(result).as_object_type().set_object_flags(
+                        self.type_(result).as_object_type().object_flags() | ObjectFlags::IsClassInstanceClone,
                     );
                 }
             }
             return Ok(result);
         }
-        if self.is_empty_array_literal_type(&type_)? {
-            self.report_implicit_any(expression, &self.any_array_type(), None)?;
+        if self.is_empty_array_literal_type(type_)? {
+            self.report_implicit_any(expression, self.any_array_type(), None)?;
             return Ok(self.any_array_type());
         }
         Ok(type_)

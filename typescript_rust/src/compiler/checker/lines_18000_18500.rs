@@ -79,8 +79,8 @@ impl CheckTypeRelatedTo {
         let instance = Self {
             _rc_wrapper: Default::default(),
             type_checker: type_checker.rc_wrapper(),
-            source: source.type_wrapper(),
-            target: target.type_wrapper(),
+            source,
+            target,
             relation,
             error_node: GcCell::new(error_node),
             head_message,
@@ -222,8 +222,8 @@ impl CheckTypeRelatedTo {
         );
 
         let result = self.is_related_to(
-            &self.source,
-            &self.target,
+            self.source,
+            self.target,
             Some(RecursionFlags::Both),
             Some(self.maybe_error_node().is_some()),
             self.head_message.clone(),
@@ -240,13 +240,13 @@ impl CheckTypeRelatedTo {
                 &Diagnostics::Excessive_stack_depth_comparing_types_0_and_1,
                 Some(vec![
                     self.type_checker.type_to_string_(
-                        &self.source,
+                        self.source,
                         Option::<&Node>::None,
                         None,
                         None,
                     )?,
                     self.type_checker.type_to_string_(
-                        &self.target,
+                        self.target,
                         Option::<&Node>::None,
                         None,
                         None,
@@ -273,7 +273,7 @@ impl CheckTypeRelatedTo {
             let mut related_information: Option<Vec<Gc<DiagnosticRelatedInformation>>> = None;
             if self.head_message.is_some() && self.maybe_error_node().is_some() {
                 if result == Ternary::False {
-                    if let Some(source_symbol) = self.source.maybe_symbol() {
+                    if let Some(source_symbol) = self.type_checker.type_(self.source).maybe_symbol() {
                         let links = self.type_checker.get_symbol_links(&source_symbol);
                         if let Some(links_originating_import) =
                             (*links).borrow().originating_import.clone().filter(

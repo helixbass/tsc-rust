@@ -75,6 +75,10 @@ pub fn index_of<TItem, TComparer: FnMut(&TItem, &TItem) -> bool>(
     -1
 }
 
+pub fn index_of_eq<TItem: PartialEq>(slice: &[TItem], item: &TItem) -> isize {
+    index_of(slice, item, |a: &TItem, b: &TItem| a == b)
+}
+
 pub fn index_of_rc<TItem>(slice: &[Rc<TItem>], item: &Rc<TItem>) -> isize {
     index_of(slice, item, |a: &Rc<TItem>, b: &Rc<TItem>| Rc::ptr_eq(a, b))
 }

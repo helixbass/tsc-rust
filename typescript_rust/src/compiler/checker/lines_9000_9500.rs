@@ -95,9 +95,9 @@ impl TypeChecker {
                 self.unknown_type()
             };
             return self.add_optionality(
-                &*self.widen_type_inferred_from_initializer(
+                self.widen_type_inferred_from_initializer(
                     element,
-                    &*self.check_declaration_initializer(element, Some(contextual_type))?,
+                    self.check_declaration_initializer(element, Some(contextual_type))?,
                 )?,
                 None,
                 None,
@@ -113,7 +113,7 @@ impl TypeChecker {
         if matches!(report_errors, Some(true))
             && !self.declaration_belongs_to_private_ambient_member(element)
         {
-            self.report_implicit_any(element, &self.any_type(), None)?;
+            self.report_implicit_any(element, self.any_type(), None)?;
         }
         Ok(if matches!(include_pattern_in_type, Some(true)) {
             self.non_inferrable_any_type()
@@ -151,18 +151,18 @@ impl TypeChecker {
                 }
 
                 let expr_type = self.get_literal_type_from_property_name(&name)?;
-                if !self.is_type_usable_as_property_name(&expr_type) {
+                if !self.is_type_usable_as_property_name(expr_type) {
                     object_flags |= ObjectFlags::ObjectLiteralPatternWithComputedProperties;
                     return Ok(Option::<()>::None);
                 }
-                let text = self.get_property_name_from_type(&expr_type);
+                let text = self.get_property_name_from_type(expr_type);
                 let flags = SymbolFlags::Property
                     | if e_as_binding_element.maybe_initializer().is_some() {
                         SymbolFlags::Optional
                     } else {
                         SymbolFlags::None
                     };
-                let symbol: Gc<Symbol> = self.create_symbol(flags, text.into_owned(), None).into();
+                let symbol: Gc<Symbol> = self.create_symbol(flags, text, None).into();
                 symbol
                     .as_transient_symbol()
                     .symbol_links()
@@ -192,12 +192,13 @@ impl TypeChecker {
                 vec![]
             },
         )?;
-        let result_as_object_type = result.as_object_type();
-        result_as_object_type.set_object_flags(result_as_object_type.object_flags() | object_flags);
+        self.type_(result)
+            .as_object_type()
+            .set_object_flags(self.type_(result).as_object_type().object_flags() | object_flags);
         if include_pattern_in_type {
-            *result.maybe_pattern() = Some(pattern.node_wrapper());
-            result_as_object_type.set_object_flags(
-                result_as_object_type.object_flags() | ObjectFlags::ContainsObjectOrArrayLiteral,
+            *self.type_(result).maybe_pattern() = Some(pattern.node_wrapper());
+            self.type_(result).as_object_type().set_object_flags(
+                self.type_(result).as_object_type().object_flags() | ObjectFlags::ContainsObjectOrArrayLiteral,
             );
         }
         Ok(result)
@@ -220,7 +221,7 @@ impl TypeChecker {
         });
         if elements.is_empty() || elements.len() == 1 && rest_element.is_some() {
             return Ok(if self.language_version >= ScriptTarget::ES2015 {
-                self.create_iterable_type(&self.any_type())?
+                self.create_iterable_type(self.any_type())?
             } else {
                 self.any_array_type()
             });
@@ -259,11 +260,10 @@ impl TypeChecker {
         let mut result: Id<Type> =
             self.create_tuple_type(&element_types, Some(&element_flags), None, None)?;
         if include_pattern_in_type {
-            result = self.clone_type_reference(&result);
-            *result.maybe_pattern() = Some(pattern.node_wrapper());
-            let result_as_object_type = result.as_object_type();
-            result_as_object_type.set_object_flags(
-                result_as_object_type.object_flags() | ObjectFlags::ContainsObjectOrArrayLiteral,
+            result = self.clone_type_reference(result);
+            *self.type_(result).maybe_pattern() = Some(pattern.node_wrapper());
+            self.type_(result).as_object_type().set_object_flags(
+                self.type_(result).as_object_type().object_flags() | ObjectFlags::ContainsObjectOrArrayLiteral,
             );
         }
         Ok(result)
@@ -320,9 +320,8 @@ impl TypeChecker {
         report_errors: Option<bool>,
     ) -> io::Result<Id<Type>> {
         let report_errors = report_errors.unwrap_or(false);
-        if let Some(type_) = type_ {
-            let mut type_ = type_.borrow().type_wrapper();
-            if type_.flags().intersects(TypeFlags::ESSymbol)
+        if let Some(mut type_) = type_ {
+            if self.type_(type_).flags().intersects(TypeFlags::ESSymbol)
                 && self.is_global_symbol_constructor(&declaration.parent())?
             {
                 type_ = self.get_es_symbol_like_type_for_node(declaration)?;
@@ -331,7 +330,7 @@ impl TypeChecker {
                 self.report_errors_from_widening(declaration, &type_, None)?;
             }
 
-            if type_.flags().intersects(TypeFlags::UniqueESSymbol)
+            if self.type_(type_).flags().intersects(TypeFlags::UniqueESSymbol)
                 && (is_binding_element(declaration)
                     || declaration.as_has_type().maybe_type().is_none())
                 && !are_option_gcs_equal(
@@ -342,7 +341,7 @@ impl TypeChecker {
                 type_ = self.es_symbol_type();
             }
 
-            return self.get_widened_type(&type_);
+            return self.get_widened_type(type_);
         }
 
         let type_ = if is_parameter(declaration)
@@ -358,7 +357,7 @@ impl TypeChecker {
 
         if report_errors {
             if !self.declaration_belongs_to_private_ambient_member(declaration) {
-                self.report_implicit_any(declaration, &type_, None)?;
+                self.report_implicit_any(declaration, type_, None)?;
             }
         }
         Ok(type_)
@@ -471,7 +470,7 @@ impl TypeChecker {
             let type_node = type_node.unwrap();
             let type_ = self.get_type_of_node(&type_node)?;
             return Ok(
-                if self.is_type_any(Some(&*type_)) || Gc::ptr_eq(&type_, &self.unknown_type()) {
+                if self.is_type_any(Some(type_)) || type_ == self.unknown_type() {
                     type_
                 } else {
                     self.error_type()
@@ -484,8 +483,8 @@ impl TypeChecker {
                 return Ok(self.empty_object_type());
             }
             return self.get_widened_type(
-                &*self.get_widened_literal_type(
-                    &*self.check_expression(
+                self.get_widened_literal_type(
+                    self.check_expression(
                         &declaration_as_source_file.statements()[0]
                             .as_expression_statement()
                             .expression,
@@ -725,7 +724,7 @@ impl TypeChecker {
         let setter_type = self.get_annotated_accessor_type(setter.as_deref())?;
 
         if writing {
-            if let Some(setter_type) = setter_type.as_ref() {
+            if let Some(setter_type) = setter_type {
                 return Ok(Some(self.instantiate_type_if_needed(setter_type, symbol)?));
             }
         }
@@ -734,13 +733,13 @@ impl TypeChecker {
             if is_in_js_file(Some(getter)) {
                 let js_doc_type = self.get_type_for_declaration_from_jsdoc_comment(getter)?;
                 if let Some(js_doc_type) = js_doc_type {
-                    return Ok(Some(self.instantiate_type_if_needed(&js_doc_type, symbol)?));
+                    return Ok(Some(self.instantiate_type_if_needed(js_doc_type, symbol)?));
                 }
             }
         }
 
         let getter_type = self.get_annotated_accessor_type(getter.as_deref())?;
-        if let Some(getter_type) = getter_type.as_ref() {
+        if let Some(getter_type) = getter_type {
             return Ok(Some(self.instantiate_type_if_needed(getter_type, symbol)?));
         }
 
@@ -752,7 +751,7 @@ impl TypeChecker {
             if getter.as_function_like_declaration().maybe_body().is_some() {
                 let return_type_from_body = self.get_return_type_from_body(getter, None)?;
                 return Ok(Some(
-                    self.instantiate_type_if_needed(&return_type_from_body, symbol)?,
+                    self.instantiate_type_if_needed(return_type_from_body, symbol)?,
                 ));
             }
         }
@@ -796,6 +795,6 @@ impl TypeChecker {
             return self.instantiate_type(type_, (*links).borrow().mapper.clone());
         }
 
-        Ok(type_.type_wrapper())
+        Ok(type_)
     }
 }

@@ -38,18 +38,18 @@ impl TypeChecker {
             let ref object_type = self.get_type_of_expression(
                 &node.parent().as_property_access_expression().expression,
             )?;
-            let object_types = if object_type.flags().intersects(TypeFlags::Union) {
-                object_type.as_union_type().types().to_owned()
+            let object_types = if self.type_(object_type).flags().intersects(TypeFlags::Union) {
+                self.type_(object_type).as_union_type().types().to_owned()
             } else {
                 vec![object_type.clone()]
             };
             return Ok(Some(try_flat_map(
                 Some(&object_types),
-                |t: &Id<Type>, _| {
+                |&t: &Id<Type>, _| {
                     try_filter(
                         &*self.get_index_infos_of_type(t)?,
                         |info: &Gc<IndexInfo>| {
-                            self.is_applicable_index_type(key_type, &info.key_type)
+                            self.is_applicable_index_type(key_type, info.key_type)
                         },
                     )
                 },
@@ -137,11 +137,11 @@ impl TypeChecker {
             )
         })?;
         if is_part_of_type_node(node) {
-            let ref type_from_type_node = self.get_type_from_type_node_(node)?;
+            let type_from_type_node = self.get_type_from_type_node_(node)?;
             return Ok(if let Some(class_type) = class_type.as_ref() {
                 self.get_type_with_this_argument(
                     type_from_type_node,
-                    class_type.as_interface_type().maybe_this_type(),
+                    self.type_(class_type).as_interface_type().maybe_this_type(),
                     None,
                 )?
             } else {
@@ -153,14 +153,14 @@ impl TypeChecker {
             return self.get_regular_type_of_expression(node);
         }
 
-        if let Some(class_type) = class_type.as_ref() {
+        if let Some(class_type) = class_type {
             if !class_decl.as_ref().unwrap().is_implements {
                 let base_types = self.get_base_types(class_type)?;
-                let base_type = first_or_undefined(&base_types);
+                let base_type = first_or_undefined(&base_types).copied();
                 return Ok(if let Some(base_type) = base_type {
                     self.get_type_with_this_argument(
                         base_type,
-                        class_type.as_interface_type().maybe_this_type(),
+                        self.type_(class_type).as_interface_type().maybe_this_type(),
                         None,
                     )?
                 } else {
@@ -205,7 +205,7 @@ impl TypeChecker {
         if self.is_in_right_side_of_import_or_export_assignment(node) {
             let symbol = self.get_symbol_at_location_(node, None)?;
             if let Some(symbol) = symbol.as_ref() {
-                let ref declared_type = self.get_declared_type_of_symbol(symbol)?;
+                let declared_type = self.get_declared_type_of_symbol(symbol)?;
                 return Ok(if !self.is_error_type(declared_type) {
                     declared_type.clone()
                 } else {
@@ -235,7 +235,7 @@ impl TypeChecker {
             None,
         );
         if expr.parent().kind() == SyntaxKind::ForOfStatement {
-            let ref iterated_type = self.check_right_hand_side_of_for_of(&expr.parent())?;
+            let iterated_type = self.check_right_hand_side_of_for_of(&expr.parent())?;
             return Ok(Some(self.check_destructuring_assignment(
                 expr,
                 iterated_type, /*|| errorType*/
@@ -248,7 +248,7 @@ impl TypeChecker {
                 self.get_type_of_expression(&expr.parent().as_binary_expression().right)?;
             return Ok(Some(self.check_destructuring_assignment(
                 expr,
-                &iterated_type, /*|| errorType*/
+                iterated_type, /*|| errorType*/
                 None,
                 None,
             )?));
@@ -257,7 +257,7 @@ impl TypeChecker {
             let ref node = cast_present(expr.parent().parent(), |node: &Gc<Node>| {
                 is_object_literal_expression(node)
             });
-            let ref type_of_parent_object_literal = self
+            let type_of_parent_object_literal = self
                 .get_type_of_assignment_pattern_(node)?
                 .unwrap_or_else(|| self.error_type());
             let property_index = index_of_node(
@@ -275,13 +275,13 @@ impl TypeChecker {
         let node = cast_present(expr.parent(), |node: &Gc<Node>| {
             is_array_literal_expression(node)
         });
-        let ref type_of_array_literal = self
+        let type_of_array_literal = self
             .get_type_of_assignment_pattern_(&node)?
             .unwrap_or_else(|| self.error_type());
-        let ref element_type = self.check_iterated_type_or_element_type(
+        let element_type = self.check_iterated_type_or_element_type(
             IterationUse::Destructuring,
             type_of_array_literal,
-            &self.undefined_type(),
+            self.undefined_type(),
             expr.maybe_parent()
         )? /*|| errorType*/;
         self.check_array_literal_destructuring_element_assignment(
@@ -310,7 +310,6 @@ impl TypeChecker {
             |node: &Gc<Node>| is_assignment_pattern(node),
         ))?;
         type_of_object_literal
-            .as_ref()
             .try_and_then(|type_of_object_literal| {
                 self.get_property_of_type_(
                     type_of_object_literal,
@@ -328,7 +327,7 @@ impl TypeChecker {
         if is_right_side_of_qualified_name_or_property_access(&expr) {
             expr = expr.parent();
         }
-        Ok(self.get_regular_type_of_literal_type(&*self.get_type_of_expression(&expr)?))
+        Ok(self.get_regular_type_of_literal_type(self.get_type_of_expression(&expr)?))
     }
 
     pub(super) fn get_parent_type_of_class_element(
@@ -354,7 +353,7 @@ impl TypeChecker {
                 self.get_string_literal_type(&name.as_literal_like_node().text())
             }
             SyntaxKind::ComputedPropertyName => {
-                let ref name_type = self.check_computed_property_name(name)?;
+                let name_type = self.check_computed_property_name(name)?;
                 if self.is_type_assignable_to_kind(name_type, TypeFlags::ESSymbolLike, None)? {
                     name_type.clone()
                 } else {
@@ -369,7 +368,7 @@ impl TypeChecker {
         &self,
         type_: Id<Type>,
     ) -> io::Result<Vec<Gc<Symbol>>> {
-        let ref type_ = self.get_apparent_type(type_)?;
+        let type_ = self.get_apparent_type(type_)?;
         let mut props_by_name = create_symbol_table(Some(self.get_properties_of_type(type_)?));
         let function_type = if !self
             .get_signatures_of_type(type_, SignatureKind::Call)?
@@ -384,7 +383,7 @@ impl TypeChecker {
         } else {
             None
         };
-        if let Some(function_type) = function_type.as_ref() {
+        if let Some(function_type) = function_type {
             for_each(
                 self.get_properties_of_type(function_type)?,
                 |ref p: Gc<Symbol>, _| -> Option<()> {
@@ -423,15 +422,14 @@ impl TypeChecker {
         if get_check_flags(symbol).intersects(CheckFlags::Synthetic) {
             return Ok(Some(try_map_defined(
                 Some(
-                    (*self.get_symbol_links(symbol))
+                    self.type_((*self.get_symbol_links(symbol))
                         .borrow()
                         .containing_type
-                        .as_ref()
-                        .unwrap()
+                        .unwrap())
                         .as_union_or_intersection_type_interface()
                         .types(),
                 ),
-                |type_: &Id<Type>, _| {
+                |&type_: &Id<Type>, _| {
                     self.get_property_of_type_(type_, symbol.escaped_name(), None)
                 },
             )?));

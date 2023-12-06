@@ -36,7 +36,7 @@ impl TypeChecker {
                 node,
                 offset,
                 &properties_array,
-                &self.string_type(),
+                self.string_type(),
             )?));
         }
         if has_computed_number_property {
@@ -44,7 +44,7 @@ impl TypeChecker {
                 node,
                 offset,
                 &properties_array,
-                &self.number_type(),
+                self.number_type(),
             )?));
         }
         if has_computed_symbol_property {
@@ -52,7 +52,7 @@ impl TypeChecker {
                 node,
                 offset,
                 &properties_array,
-                &self.es_symbol_type(),
+                self.es_symbol_type(),
             )?));
         }
         let result = self.create_anonymous_type(
@@ -62,38 +62,37 @@ impl TypeChecker {
             vec![],
             index_infos,
         )?;
-        let result_as_object_flags_type = result.as_object_flags_type();
-        result_as_object_flags_type.set_object_flags(
-            result_as_object_flags_type.object_flags()
+        self.type_(result).as_object_flags_type().set_object_flags(
+            self.type_(result).as_object_flags_type().object_flags()
                 | object_flags
                 | ObjectFlags::ObjectLiteral
                 | ObjectFlags::ContainsObjectOrArrayLiteral,
         );
         if is_js_object_literal {
-            result_as_object_flags_type.set_object_flags(
-                result_as_object_flags_type.object_flags() | ObjectFlags::JSLiteral,
+            self.type_(result).as_object_flags_type().set_object_flags(
+                self.type_(result).as_object_flags_type().object_flags() | ObjectFlags::JSLiteral,
             );
         }
         if pattern_with_computed_properties {
-            result_as_object_flags_type.set_object_flags(
-                result_as_object_flags_type.object_flags()
+            self.type_(result).as_object_flags_type().set_object_flags(
+                self.type_(result).as_object_flags_type().object_flags()
                     | ObjectFlags::ObjectLiteralPatternWithComputedProperties,
             );
         }
         if in_destructuring_pattern {
-            *result.maybe_pattern() = Some(node.node_wrapper());
+            *self.type_(result).maybe_pattern() = Some(node.node_wrapper());
         }
         Ok(result)
     }
 
     pub(super) fn is_valid_spread_type(&self, type_: Id<Type>) -> io::Result<bool> {
-        if type_.flags().intersects(TypeFlags::Instantiable) {
+        if self.type_(type_).flags().intersects(TypeFlags::Instantiable) {
             let constraint = self.get_base_constraint_of_type(type_)?;
-            if let Some(constraint) = constraint.as_ref() {
+            if let Some(constraint) = constraint {
                 return self.is_valid_spread_type(constraint);
             }
         }
-        Ok(type_.flags().intersects(
+        Ok(self.type_(type_).flags().intersects(
             TypeFlags::Any
                 | TypeFlags::NonPrimitive
                 | TypeFlags::Object
@@ -101,11 +100,11 @@ impl TypeChecker {
         ) || self
             .get_falsy_flags(type_)
             .intersects(TypeFlags::DefinitelyFalsy)
-            && self.is_valid_spread_type(&self.remove_definitely_falsy_types(type_))?
-            || type_.flags().intersects(TypeFlags::UnionOrIntersection)
+            && self.is_valid_spread_type(self.remove_definitely_falsy_types(type_))?
+            || self.type_(type_).flags().intersects(TypeFlags::UnionOrIntersection)
                 && try_every(
-                    &type_.as_union_or_intersection_type_interface().types(),
-                    |type_: &Id<Type>, _| self.is_valid_spread_type(type_),
+                    &self.type_(type_).as_union_or_intersection_type_interface().types(),
+                    |&type_: &Id<Type>, _| self.is_valid_spread_type(type_),
                 )?)
     }
 
@@ -265,7 +264,7 @@ impl TypeChecker {
             let member = attribute_decl.maybe_symbol();
             if is_jsx_attribute(attribute_decl) {
                 let expr_type = self.check_jsx_attribute(attribute_decl, check_mode)?;
-                object_flags |= get_object_flags(&expr_type) & ObjectFlags::PropagatingFlags;
+                object_flags |= get_object_flags(expr_type) & ObjectFlags::PropagatingFlags;
 
                 let member = member.unwrap();
                 let attribute_symbol: Gc<Symbol> = self
@@ -318,8 +317,8 @@ impl TypeChecker {
                 );
                 if !(*attributes_table).borrow().is_empty() {
                     spread = self.get_spread_type(
-                        &spread,
-                        &*self.create_jsx_attributes_type(
+                        spread,
+                        self.create_jsx_attributes_type(
                             &mut object_flags,
                             &attributes,
                             attributes_table.clone(),
@@ -331,24 +330,24 @@ impl TypeChecker {
                     *attributes_table.borrow_mut() =
                         create_symbol_table(Option::<&[Gc<Symbol>]>::None);
                 }
-                let expr_type = self.get_reduced_type(&*self.check_expression_cached(
+                let expr_type = self.get_reduced_type(self.check_expression_cached(
                     &attribute_decl.as_jsx_spread_attribute().expression,
                     check_mode,
                 )?)?;
-                if self.is_type_any(Some(&*expr_type)) {
+                if self.is_type_any(Some(expr_type)) {
                     has_spread_any_type = true;
                 }
-                if self.is_valid_spread_type(&expr_type)? {
+                if self.is_valid_spread_type(expr_type)? {
                     spread = self.get_spread_type(
-                        &spread,
-                        &expr_type,
+                        spread,
+                        expr_type,
                         attributes.maybe_symbol(),
                         object_flags,
                         false,
                     )?;
                     if let Some(all_attributes_table) = all_attributes_table.as_ref() {
                         self.check_spread_prop_overrides(
-                            &expr_type,
+                            expr_type,
                             all_attributes_table,
                             attribute_decl,
                         )?;
@@ -372,8 +371,8 @@ impl TypeChecker {
         if !has_spread_any_type {
             if !(*attributes_table).borrow().is_empty() {
                 spread = self.get_spread_type(
-                    &spread,
-                    &*self.create_jsx_attributes_type(
+                    spread,
+                    self.create_jsx_attributes_type(
                         &mut object_flags,
                         &attributes,
                         attributes_table.clone(),
@@ -419,7 +418,7 @@ impl TypeChecker {
                         None,
                     )?;
                     let children_contextual_type =
-                        contextual_type.as_ref().try_and_then(|contextual_type| {
+                        contextual_type.try_and_then(|contextual_type| {
                             self.get_type_of_property_of_contextual_type(
                                 contextual_type,
                                 jsx_children_property_name,
@@ -439,7 +438,7 @@ impl TypeChecker {
                         .type_ = Some(if children_types.len() == 1 {
                         children_types[0].clone()
                     } else if matches!(
-                        children_contextual_type.as_ref(),
+                        children_contextual_type,
                         Some(children_contextual_type) if self.try_some_type(
                             children_contextual_type,
                             |type_: Id<Type>| self.is_tuple_like_type(type_)
@@ -448,7 +447,7 @@ impl TypeChecker {
                         self.create_tuple_type(&children_types, None, None, None)?
                     } else {
                         self.create_array_type(
-                            &*self.get_union_type(
+                            self.get_union_type(
                                 &children_types,
                                 None,
                                 Option::<&Symbol>::None,
@@ -483,8 +482,8 @@ impl TypeChecker {
                         children_prop_symbol.clone(),
                     );
                     spread = self.get_spread_type(
-                        &spread,
-                        &*self.create_anonymous_type(
+                        spread,
+                        self.create_anonymous_type(
                             attributes.maybe_symbol(),
                             Gc::new(GcCell::new(child_prop_map)),
                             vec![],
@@ -502,8 +501,8 @@ impl TypeChecker {
         if has_spread_any_type {
             return Ok(self.any_type());
         }
-        if let Some(type_to_intersect) = type_to_intersect.as_ref() {
-            if !Gc::ptr_eq(&spread, &self.empty_jsx_object_type()) {
+        if let Some(type_to_intersect) = type_to_intersect {
+            if spread != self.empty_jsx_object_type() {
                 return self.get_intersection_type(
                     &[type_to_intersect.clone(), spread.clone()],
                     Option::<&Symbol>::None,
@@ -512,7 +511,7 @@ impl TypeChecker {
             }
         }
         type_to_intersect.try_unwrap_or_else(|| -> io::Result<_> {
-            Ok(if Gc::ptr_eq(&spread, &self.empty_jsx_object_type()) {
+            Ok(if spread == self.empty_jsx_object_type() {
                 self.create_jsx_attributes_type(
                     &mut object_flags,
                     &attributes,
@@ -538,9 +537,8 @@ impl TypeChecker {
             vec![],
             vec![],
         )?;
-        let result_as_object_flags_type = result.as_object_flags_type();
-        result_as_object_flags_type.set_object_flags(
-            result_as_object_flags_type.object_flags()
+        self.type_(result).as_object_flags_type().set_object_flags(
+            self.type_(result).as_object_flags_type().object_flags()
                 | *object_flags
                 | ObjectFlags::ObjectLiteral
                 | ObjectFlags::ContainsObjectOrArrayLiteral,
@@ -644,12 +642,12 @@ impl TypeChecker {
         if (*links).borrow().resolved_symbol.is_none() {
             let intrinsic_elements_type =
                 self.get_jsx_type(&JsxNames::IntrinsicElements, Some(node))?;
-            if !self.is_error_type(&intrinsic_elements_type) {
+            if !self.is_error_type(intrinsic_elements_type) {
                 if !is_identifier(&node_as_has_tag_name.tag_name()) {
                     Debug_.fail(None);
                 }
                 let intrinsic_prop = self.get_property_of_type_(
-                    &intrinsic_elements_type,
+                    intrinsic_elements_type,
                     &node_as_has_tag_name.tag_name().as_identifier().escaped_text,
                     None,
                 )?;
@@ -660,11 +658,11 @@ impl TypeChecker {
                 }
 
                 let index_signature_type =
-                    self.get_index_type_of_type_(&intrinsic_elements_type, &self.string_type())?;
+                    self.get_index_type_of_type_(intrinsic_elements_type, self.string_type())?;
                 if index_signature_type.is_some() {
                     links.borrow_mut().jsx_flags |= JsxFlags::IntrinsicIndexedElement;
-                    links.borrow_mut().resolved_symbol = Some(intrinsic_elements_type.symbol());
-                    return Ok(intrinsic_elements_type.symbol());
+                    links.borrow_mut().resolved_symbol = Some(self.type_(intrinsic_elements_type).symbol());
+                    return Ok(self.type_(intrinsic_elements_type).symbol());
                 }
 
                 self.error(
