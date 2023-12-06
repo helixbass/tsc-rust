@@ -523,7 +523,7 @@ impl TypeChecker {
             .intersects(TypeFlags::UnionOrIntersection)
             && self.is_excess_property_check_target(target_type)
         {
-            for t in self
+            for &t in self
                 .type_(target_type)
                 .as_union_or_intersection_type_interface()
                 .types()
@@ -808,15 +808,17 @@ impl TypeChecker {
                     .unwrap(),
             )?;
             enclosing_class = Some(
-                if self
-                    .type_(this_type)
-                    .flags()
-                    .intersects(TypeFlags::TypeParameter)
-                {
-                    self.get_constraint_of_type_parameter(this_type)?.unwrap()
-                } else {
-                    this_type
-                }
+                self.type_(
+                    if self
+                        .type_(this_type)
+                        .flags()
+                        .intersects(TypeFlags::TypeParameter)
+                    {
+                        self.get_constraint_of_type_parameter(this_type)?.unwrap()
+                    } else {
+                        this_type
+                    },
+                )
                 .as_type_reference_interface()
                 .target(),
             );
@@ -826,25 +828,23 @@ impl TypeChecker {
             return Ok(true);
         }
         let mut containing_type = Some(containing_type);
-        if containing_type
-            .as_ref()
-            .unwrap()
+        if self.type_(containing_type
+            .unwrap())
             .flags()
             .intersects(TypeFlags::TypeParameter)
         {
-            containing_type = if containing_type
-                .as_ref()
-                .unwrap()
+            containing_type = if self.type_(containing_type
+                .unwrap())
                 .as_type_parameter()
                 .is_this_type
                 == Some(true)
             {
-                self.get_constraint_of_type_parameter(containing_type.as_ref().unwrap())?
+                self.get_constraint_of_type_parameter(containing_type.unwrap())?
             } else {
-                self.get_base_constraint_of_type(containing_type.as_ref().unwrap())?
+                self.get_base_constraint_of_type(containing_type.unwrap())?
             };
         }
-        if match containing_type.as_ref() {
+        if match containing_type {
             None => true,
             Some(containing_type) => !self.has_base_type(containing_type, Some(enclosing_class))?,
         } {
@@ -865,7 +865,7 @@ impl TypeChecker {
                         )?,
                         self.type_to_string_(
                             // TODO: this looks like type_to_string_() actually should accept an Option<Type>
-                            containing_type.as_ref().unwrap(),
+                            containing_type.unwrap(),
                             Option::<&Node>::None,
                             None, None,
                         )?,

@@ -181,7 +181,7 @@ impl NodeBuilder {
         if let Some(result) = result.as_ref() {
             if result.flags().intersects(SymbolFlags::TypeParameter)
                 && matches!(
-                    type_.maybe_symbol().as_ref(),
+                    self.type_checker.type_(type_).maybe_symbol().as_ref(),
                     Some(type_symbol) if Gc::ptr_eq(
                         result,
                         type_symbol,
@@ -215,7 +215,7 @@ impl NodeBuilder {
             }
         }
         let mut result =
-            self.symbol_to_name(&type_.symbol(), context, Some(SymbolFlags::Type), true)?;
+            self.symbol_to_name(&self.type_checker.type_(type_).symbol(), context, Some(SymbolFlags::Type), true)?;
         // TODO: the Typescript version has & SyntaxKind.Identifier which is presumably a bug?
         if result.kind() != SyntaxKind::Identifier {
             return Ok(get_factory().create_identifier("(Missing type parameter)"));
@@ -512,6 +512,7 @@ impl NodeBuilder {
         }
         let name_type = name_type.unwrap();
         if self
+            .type_checker
             .type_(name_type)
             .flags()
             .intersects(TypeFlags::StringOrNumberLiteral)
@@ -652,7 +653,7 @@ impl NodeBuilder {
         existing: &Node, /*TypeNode*/
         type_: Id<Type>,
     ) -> bool {
-        !get_object_flags(type_).intersects(ObjectFlags::Reference)
+        !get_object_flags(self.type_checker.type_(type_)).intersects(ObjectFlags::Reference)
             || !is_type_reference_node(existing)
             || length(
                 existing
@@ -660,9 +661,9 @@ impl NodeBuilder {
                     .maybe_type_arguments()
                     .as_double_deref(),
             ) >= self.type_checker.get_min_type_argument_count(
-                type_
-                    .as_type_reference_interface()
-                    .target()
+                self.type_checker.type_(self.type_checker.type_(type_
+                    ).as_type_reference_interface()
+                    .target())
                     .as_interface_type_interface()
                     .maybe_type_parameters(),
             )
@@ -711,9 +712,9 @@ impl NodeBuilder {
             }
         }
         let old_flags = context.flags();
-        if type_.flags().intersects(TypeFlags::UniqueESSymbol)
+        if self.type_checker.type_(type_).flags().intersects(TypeFlags::UniqueESSymbol)
             && matches!(
-                type_.maybe_symbol().as_ref(), Some(type_symbol) if ptr::eq(
+                self.type_checker.type_(type_).maybe_symbol().as_ref(), Some(type_symbol) if ptr::eq(
                     &**type_symbol,
                     symbol,
                 )

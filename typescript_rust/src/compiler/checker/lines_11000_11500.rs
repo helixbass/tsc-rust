@@ -359,6 +359,7 @@ impl TypeChecker {
         let mixin_flags = self.find_mixins(types)?;
         let mixin_count = count_where(Some(&mixin_flags), |b: &bool, _| *b);
         for (i, t) in types.iter().enumerate() {
+            let t = *t;
             if !mixin_flags[i] {
                 let mut signatures = self.get_signatures_of_type(t, SignatureKind::Construct)?;
                 if !signatures.is_empty() && mixin_count > 0 {
@@ -708,7 +709,7 @@ impl TypeChecker {
             self.string_type(),
         )?;
         let modifiers =
-            self.get_mapped_type_modifiers(&self.type_(type_).as_reverse_mapped_type().mapped_type);
+            self.get_mapped_type_modifiers(self.type_(type_).as_reverse_mapped_type().mapped_type);
         let readonly_mask = if modifiers.intersects(MappedTypeModifiers::IncludeReadonly) {
             false
         } else {
@@ -735,7 +736,7 @@ impl TypeChecker {
         };
         let mut members = create_symbol_table(Option::<&[Gc<Symbol>]>::None);
         for prop in
-            self.get_properties_of_type(&self.type_(type_).as_reverse_mapped_type().source)?
+            self.get_properties_of_type(self.type_(type_).as_reverse_mapped_type().source)?
         {
             let check_flags = CheckFlags::ReverseMapped
                 | if readonly_mask && self.is_readonly_symbol(&prop)? {
@@ -756,10 +757,8 @@ impl TypeChecker {
             let property_type = self.get_type_of_symbol(&prop)?;
             let mapped_type: Id<Type>;
             let constraint_type: Id<Type>;
-            let type_constraint_type_type = &self
-                .type_(type_)
-                .as_reverse_mapped_type()
-                .constraint_type
+            let type_constraint_type_type = self
+                .type_(self.type_(type_).as_reverse_mapped_type().constraint_type)
                 .as_index_type()
                 .type_;
             if type_constraint_type_type
@@ -780,7 +779,7 @@ impl TypeChecker {
                     .as_indexed_access_type()
                     .object_type;
                 let new_mapped_type = self.replace_indexed_access(
-                    &self.type_(type_).as_reverse_mapped_type().mapped_type,
+                    self.type_(type_).as_reverse_mapped_type().mapped_type,
                     type_constraint_type_type,
                     new_type_param,
                 )?;
@@ -816,7 +815,7 @@ impl TypeChecker {
 
     pub(super) fn get_lower_bound_of_key_type(&self, type_: Id<Type>) -> io::Result<Id<Type>> {
         if self.type_(type_).flags().intersects(TypeFlags::Index) {
-            let t = self.get_apparent_type(type_.as_index_type().type_)?;
+            let t = self.get_apparent_type(self.type_(type_).as_index_type().type_)?;
             return Ok(if self.is_generic_tuple_type(t) {
                 self.get_known_keys_of_tuple_type(t)?
             } else {
@@ -941,14 +940,14 @@ impl TypeChecker {
         let type_parameter = self.get_type_parameter_from_mapped_type(type_)?;
         let constraint_type = self.get_constraint_type_from_mapped_type(type_)?;
         let name_type = self.get_name_type_from_mapped_type(
-            &self
+            self
                 .type_(type_)
                 .as_mapped_type()
                 .maybe_target()
                 .unwrap_or_else(|| type_),
         )?;
         let template_type = self.get_template_type_from_mapped_type(
-            &self
+            self
                 .type_(type_)
                 .as_mapped_type()
                 .maybe_target()
@@ -1227,7 +1226,7 @@ impl TypeChecker {
                 return Ok(self.error_type());
             }
             let template_type = self.get_template_type_from_mapped_type(
-                &self
+                self
                     .type_(mapped_type)
                     .as_mapped_type()
                     .maybe_target()

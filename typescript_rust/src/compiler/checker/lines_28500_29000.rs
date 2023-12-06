@@ -740,7 +740,7 @@ impl TypeChecker {
             return Ok(object_type);
         }
 
-        if self.is_const_enum_object_type(&object_type) && !is_string_literal_like(index_expression)
+        if self.is_const_enum_object_type(object_type) && !is_string_literal_like(index_expression)
         {
             self.error(
                 Some(&**index_expression),
@@ -758,8 +758,8 @@ impl TypeChecker {
             };
         let access_flags = if is_assignment_target(node) {
             AccessFlags::Writing
-                | if self.is_generic_object_type(&object_type)?
-                    && !self.is_this_type_parameter(&object_type)
+                | if self.is_generic_object_type(object_type)?
+                    && !self.is_this_type_parameter(object_type)
                 {
                     AccessFlags::NoIndexSignatures
                 } else {

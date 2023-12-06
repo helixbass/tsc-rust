@@ -36,7 +36,7 @@ impl InferTypes {
         types: &[Id<Type>],
     ) -> Option<Id<Type>> {
         let mut type_variable: Option<Id<Type>> = None;
-        for type_ in types {
+        for &type_ in types {
             let t = if self
                 .type_checker
                 .type_(type_)
@@ -48,7 +48,7 @@ impl InferTypes {
                         .type_(type_)
                         .as_union_or_intersection_type_interface()
                         .types(),
-                    |t: &Id<Type>, _| self.get_inference_info_for_type(t).is_some(),
+                    |&t: &Id<Type>, _| self.get_inference_info_for_type(t).is_some(),
                 )
                 .map(Clone::clone)
             } else {
@@ -102,7 +102,7 @@ impl InferTypes {
                     for i in 0..sources.len() {
                         let save_inference_priority = self.inference_priority();
                         self.set_inference_priority(InferencePriority::MaxValue);
-                        self.infer_from_types(&sources[i], t)?;
+                        self.infer_from_types(sources[i], t)?;
                         if self.inference_priority() == self.priority() {
                             matched[i] = true;
                         }
@@ -186,7 +186,7 @@ impl InferTypes {
             .intersects(TypeFlags::Union)
         {
             let mut result = false;
-            for type_ in self
+            for &type_ in self
                 .type_checker
                 .type_(constraint_type)
                 .as_union_or_intersection_type_interface()
@@ -291,24 +291,24 @@ impl InferTypes {
             .intersects(TypeFlags::Conditional)
         {
             self.infer_from_types(
-                &self
+                self
                     .type_checker
                     .type_(source)
                     .as_conditional_type()
                     .check_type,
-                &self
+                self
                     .type_checker
                     .type_(target)
                     .as_conditional_type()
                     .check_type,
             )?;
             self.infer_from_types(
-                &self
+                self
                     .type_checker
                     .type_(source)
                     .as_conditional_type()
                     .extends_type,
-                &self
+                self
                     .type_checker
                     .type_(target)
                     .as_conditional_type()
@@ -383,7 +383,7 @@ impl InferTypes {
                     } else {
                         self.type_checker.never_type()
                     },
-                    &types[i],
+                    types[i],
                 )?;
             }
         }
@@ -556,7 +556,7 @@ impl InferTypes {
                         for i in start_length..target_arity - end_length {
                             self.infer_from_types(
                                 if element_flags[i].intersects(ElementFlags::Variadic) {
-                                    self.type_checker.create_array_type(&rest_type, None)
+                                    self.type_checker.create_array_type(rest_type, None)
                                 } else {
                                     rest_type.clone()
                                 },
@@ -571,7 +571,7 @@ impl InferTypes {
                             && self.type_checker.is_tuple_type(source)
                         {
                             let target_info =
-                                self.get_inference_info_for_type(&element_types[start_length]);
+                                self.get_inference_info_for_type(element_types[start_length]);
                             if let Some(target_info) = target_info
                                 .as_ref()
                                 .filter(|target_info| target_info.maybe_implied_arity().is_some())

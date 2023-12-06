@@ -257,7 +257,7 @@ impl TypeChecker {
     }
 
     pub(super) fn is_function_type(&self, type_: Id<Type>) -> io::Result<bool> {
-        Ok(type_.flags().intersects(TypeFlags::Object)
+        Ok(self.type_(type_).flags().intersects(TypeFlags::Object)
             && !self
                 .get_signatures_of_type(type_, SignatureKind::Call)?
                 .is_empty())
@@ -495,7 +495,7 @@ impl TypeChecker {
             return Ok(Some(get_factory().create_token(SyntaxKind::AnyKeyword)));
         }
         let expr = expr.as_ref().unwrap();
-        let ref type_ = self.get_widened_type(self.get_regular_type_of_expression(expr)?)?;
+        let type_ = self.get_widened_type(self.get_regular_type_of_expression(expr)?)?;
         self.node_builder().type_to_type_node(
             type_,
             Some(enclosing_declaration),
@@ -588,17 +588,17 @@ impl TypeChecker {
         enclosing: &Node,
         tracker: Gc<Box<dyn SymbolTracker>>,
     ) -> io::Result<Gc<Node /*Expression*/>> {
-        let enum_result = if type_.flags().intersects(TypeFlags::EnumLiteral) {
+        let enum_result = if self.type_(type_).flags().intersects(TypeFlags::EnumLiteral) {
             self.node_builder().symbol_to_expression(
-                &type_.symbol(),
+                &self.type_(type_).symbol(),
                 Some(SymbolFlags::Value),
                 Some(enclosing),
                 None,
                 Some(tracker),
             )?
-        } else if ptr::eq(type_, self.true_type()) {
+        } else if type_ == self.true_type() {
             Some(get_factory().create_true())
-        } else if ptr::eq(type_, self.false_type()) {
+        } else if type_ == self.false_type() {
             Some(get_factory().create_false())
         } else {
             None
@@ -606,7 +606,7 @@ impl TypeChecker {
         if let Some(enum_result) = enum_result {
             return Ok(enum_result);
         }
-        Ok(match type_ {
+        Ok(match self.type_(type_ ){
             Type::LiteralType(LiteralType::BigIntLiteralType(type_)) => {
                 get_factory().create_big_int_literal(type_.value.clone())
             }
@@ -625,7 +625,7 @@ impl TypeChecker {
         node: &Node, /*VariableDeclaration | PropertyDeclaration | PropertySignature | ParameterDeclaration*/
         tracker: Gc<Box<dyn SymbolTracker>>,
     ) -> io::Result<Gc<Node>> {
-        let ref type_ = self.get_type_of_symbol(&self.get_symbol_of_node(node)?.unwrap())?;
+        let type_ = self.get_type_of_symbol(&self.get_symbol_of_node(node)?.unwrap())?;
         self.literal_type_to_node(type_, node, tracker)
     }
 
@@ -879,7 +879,7 @@ impl TypeChecker {
             .get_global_type_or_undefined("ReadonlyArray", Some(1))?
             .or_else(|| self.global_array_type.borrow().clone());
         *self.any_readonly_array_type.borrow_mut() = Some(
-            if let Some(global_readonly_array_type) = self.global_readonly_array_type.borrow() {
+            if let Some(global_readonly_array_type) = *self.global_readonly_array_type.borrow() {
                 self.create_type_from_generic_global_type(
                     global_readonly_array_type,
                     vec![self.any_type()],

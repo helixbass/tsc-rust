@@ -204,11 +204,8 @@ impl TypeChecker {
             .maybe_constraint()
             .is_none()
         {
-            if let Some(type_parameter_target) = self
-                .type_(type_parameter)
-                .as_type_parameter()
-                .target
-                .as_ref()
+            if let Some(type_parameter_target) =
+                self.type_(type_parameter).as_type_parameter().target
             {
                 let target_constraint =
                     self.get_constraint_of_type_parameter(type_parameter_target)?;
@@ -340,7 +337,7 @@ impl TypeChecker {
         let mut result = ObjectFlags::None;
         for &type_ in types {
             if !self.type_(type_).flags().intersects(exclude_kinds) {
-                result |= get_object_flags(type_);
+                result |= get_object_flags(self.type_(type_));
             }
         }
         result & ObjectFlags::PropagatingFlags
@@ -446,10 +443,10 @@ impl TypeChecker {
             if !self
                 .push_type_resolution(&type_.into(), TypeSystemPropertyName::ResolvedTypeArguments)
             {
-                return Ok(self
+                return Ok(self.type_(self
                     .type_(type_)
                     .as_type_reference_interface()
-                    .target()
+                    .target())
                     .as_interface_type()
                     .maybe_local_type_parameters()
                     .map_or_else(
@@ -473,14 +470,13 @@ impl TypeChecker {
                 let node = node.unwrap();
                 if node.kind() == SyntaxKind::TypeReference {
                     let target = self.type_(type_).as_type_reference_interface().target();
-                    let target_as_interface_type = target.as_interface_type();
                     concatenate(
-                        target_as_interface_type
+                        self.type_(target).as_interface_type()
                             .maybe_outer_type_parameters()
                             .map_or_else(|| vec![], ToOwned::to_owned),
                         self.get_effective_type_arguments(
                             &node,
-                            target_as_interface_type.maybe_local_type_parameters(),
+                            self.type_(target).as_interface_type().maybe_local_type_parameters(),
                         )?,
                     )
                 } else if node.kind() == SyntaxKind::ArrayType {
@@ -510,9 +506,9 @@ impl TypeChecker {
                     .type_(type_)
                     .as_type_reference_interface()
                     .maybe_resolved_type_arguments_mut() = Some(
-                    self.type_(type_)
+                    self.type_(self.type_(type_)
                         .as_type_reference_interface()
-                        .target()
+                        .target())
                         .as_interface_type()
                         .maybe_local_type_parameters()
                         .map_or_else(
@@ -531,10 +527,10 @@ impl TypeChecker {
                         .maybe_node()
                         .clone()
                         .or_else(|| self.maybe_current_node()),
-                    if self
+                    if self.type_(self
                         .type_(type_)
                         .as_type_reference_interface()
-                        .target()
+                        .target())
                         .maybe_symbol()
                         .is_some()
                     {
@@ -542,10 +538,10 @@ impl TypeChecker {
                     } else {
                         &Diagnostics::Tuple_type_arguments_circularly_reference_themselves
                     },
-                    if let Some(type_target_symbol) = self
+                    if let Some(type_target_symbol) = self.type_(self
                         .type_(type_)
                         .as_type_reference_interface()
-                        .target()
+                        .target())
                         .maybe_symbol()
                     {
                         Some(vec![self.symbol_to_string_(
@@ -1047,7 +1043,7 @@ impl TypeChecker {
                     &check_node.as_tuple_type_node().elements[0],
                     &extends_node.as_tuple_type_node().elements[0],
                 )?
-            } else if self.get_actual_type_variable(&*self.get_type_from_type_node_(check_node)?)?
+            } else if self.get_actual_type_variable(self.get_type_from_type_node_(check_node)?)?
                 == type_
             {
                 Some(self.get_type_from_type_node_(extends_node)?)

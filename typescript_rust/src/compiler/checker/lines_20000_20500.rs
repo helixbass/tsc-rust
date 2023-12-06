@@ -372,7 +372,7 @@ impl TypeChecker {
                 continue;
             }
             let mut i = 0;
-            for type_ in target_types {
+            for &type_ in target_types {
                 let target_type = self.get_type_of_property_of_type_(type_, property_name)?;
                 if matches!(
                     target_type,
@@ -400,9 +400,7 @@ impl TypeChecker {
             .position(|item| *item == Some(true))
             .map(|position| position + match_ + 1);
         while let Some(next_match_present) = next_match {
-            if !self
-                .is_type_identical_to(&target_types[match_], &target_types[next_match_present])?
-            {
+            if !self.is_type_identical_to(target_types[match_], target_types[next_match_present])? {
                 return Ok(default_value);
             }
             next_match = discriminable
@@ -558,9 +556,9 @@ impl TypeChecker {
     ) -> io::Result<Vec<VarianceFlags>> {
         let type_parameters = type_parameters.map_or_else(|| vec![], ToOwned::to_owned);
         let cache = cache.into();
-        if (*cache.maybe_variances()).borrow().is_none() {
+        if (*cache.maybe_variances(self)).borrow().is_none() {
             // tracing?.push(tracing.Phase.CheckTypes, "getVariancesWorker", { arity: typeParameters.length, id: (cache as any).id ?? (cache as any).declaredType?.id ?? -1 });
-            *cache.maybe_variances().borrow_mut() = Some(vec![]);
+            *cache.maybe_variances(self).borrow_mut() = Some(vec![]);
             let mut variances: Vec<VarianceFlags> = vec![];
             for &tp in &type_parameters {
                 let unmeasurable: Rc<Cell<bool>> = Rc::new(Cell::new(false));
@@ -603,10 +601,10 @@ impl TypeChecker {
                 }
                 variances.push(variance);
             }
-            *cache.maybe_variances().borrow_mut() = Some(variances);
+            *cache.maybe_variances(self).borrow_mut() = Some(variances);
             // tracing?.pop();
         }
-        let ret = (*cache.maybe_variances()).borrow().clone().unwrap();
+        let ret = (*cache.maybe_variances(self)).borrow().clone().unwrap();
         Ok(ret)
     }
 
@@ -738,18 +736,23 @@ impl TypeChecker {
         } else {
             "".to_owned()
         };
-        if self.is_type_reference_with_generic_arguments(&source)?
-            && self.is_type_reference_with_generic_arguments(&target)?
+        if self.is_type_reference_with_generic_arguments(source)?
+            && self.is_type_reference_with_generic_arguments(target)?
         {
             let mut type_parameters: Vec<Id<Type>> = vec![];
             return Ok(format!(
                 "{},{}{}",
-                self.get_type_reference_id(&source, &mut type_parameters, None)?,
-                self.get_type_reference_id(&target, &mut type_parameters, None)?,
+                self.get_type_reference_id(source, &mut type_parameters, None)?,
+                self.get_type_reference_id(target, &mut type_parameters, None)?,
                 post_fix
             ));
         }
-        Ok(format!("{},{}{}", source.id(), target.id(), post_fix))
+        Ok(format!(
+            "{},{}{}",
+            self.type_(source).id(),
+            self.type_(target).id(),
+            post_fix
+        ))
     }
 
     pub(super) fn for_each_property<TReturn>(
@@ -825,7 +828,7 @@ impl TypeChecker {
         self.for_each_property_bool(prop, &mut |sp: &Symbol| {
             let source_class = self.get_declaring_class(sp)?;
             Ok(if let Some(source_class) = source_class {
-                self.has_base_type(source_class, base_class.as_deref())?
+                self.has_base_type(source_class, base_class)?
             } else {
                 false
             })
@@ -1048,11 +1051,14 @@ pub(super) enum GetVariancesCache {
 }
 
 impl GetVariancesCache {
-    pub(super) fn maybe_variances(&self) -> Rc<RefCell<Option<Vec<VarianceFlags>>>> {
+    pub(super) fn maybe_variances(
+        &self,
+        type_checker: &TypeChecker,
+    ) -> Rc<RefCell<Option<Vec<VarianceFlags>>>> {
         match self {
             Self::SymbolLinks(symbol_links) => (**symbol_links).borrow().variances.clone(),
             Self::GenericType(generic_type) => {
-                self.type_(generic_type).as_generic_type().maybe_variances()
+                type_checker.type_(generic_type).as_generic_type().maybe_variances()
             }
         }
     }

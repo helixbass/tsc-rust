@@ -178,13 +178,13 @@ impl NodeBuilder {
     }
 
     pub(super) fn types_are_same_reference(&self, a: Id<Type>, b: Id<Type>) -> bool {
-        ptr::eq(a, b)
-            || a.maybe_symbol().is_some()
-                && are_option_gcs_equal(a.maybe_symbol().as_ref(), b.maybe_symbol().as_ref())
-            || a.maybe_alias_symbol().is_some()
+        a == b
+            || self.type_checker.type_(a).maybe_symbol().is_some()
+                && are_option_gcs_equal(self.type_checker.type_(a).maybe_symbol().as_ref(), self.type_checker.type_(b).maybe_symbol().as_ref())
+            || self.type_checker.type_(a).maybe_alias_symbol().is_some()
                 && are_option_gcs_equal(
-                    a.maybe_alias_symbol().as_ref(),
-                    b.maybe_alias_symbol().as_ref(),
+                    self.type_checker.type_(a).maybe_alias_symbol().as_ref(),
+                    self.type_checker.type_(b).maybe_alias_symbol().as_ref(),
                 )
     }
 
@@ -612,7 +612,7 @@ impl NodeBuilder {
         }
         let parameter_type_node = self.serialize_type_for_declaration(
             context,
-            &parameter_type,
+            parameter_type,
             parameter_symbol,
             context.maybe_enclosing_declaration(),
             private_symbol_visitor,

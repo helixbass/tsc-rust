@@ -876,10 +876,12 @@ impl TypeChecker {
             signature.clone(),
             try_maybe_map(
                 signature.maybe_type_parameters().as_deref(),
-                |tp: &Id<Type>, _| -> io::Result<_> {
+                |&tp: &Id<Type>, _| -> io::Result<_> {
                     Ok(self
-                        .type_(self.type_(tp).as_type_parameter().target)
-                        .try_filter(|target| -> io::Result<_> {
+                        .type_(tp)
+                        .as_type_parameter()
+                        .target
+                        .try_filter(|&target| -> io::Result<_> {
                             Ok(self.get_constraint_of_type_parameter(target)?.is_none())
                         })?
                         .unwrap_or_else(|| tp.clone()))

@@ -283,7 +283,7 @@ impl TypeChecker {
             let writable_type = writable_prop
                 .as_ref()
                 .try_map(|writable_prop| self.get_type_of_symbol(writable_prop))?;
-            if match writable_type.as_ref() {
+            if match writable_type {
                 None => true,
                 Some(writable_type) => {
                     writable_type == self.false_type() || writable_type == self.regular_false_type()
@@ -848,7 +848,7 @@ impl TypeChecker {
         kind: TypeFlags,
         strict: Option<bool>,
     ) -> io::Result<bool> {
-        if source.flags().intersects(kind) {
+        if self.type_(source).flags().intersects(kind) {
             return Ok(true);
         }
         if strict == Some(true)
@@ -968,13 +968,13 @@ impl TypeChecker {
                 self.report_nonexistent_property(left, right_type, is_unchecked_js)?;
             }
         } else {
-            left_type = self.check_non_null_type(&left_type, left)?;
+            left_type = self.check_non_null_type(left_type, left)?;
             if !(self.all_types_assignable_to_kind(
-                &left_type,
+                left_type,
                 TypeFlags::StringLike | TypeFlags::NumberLike | TypeFlags::ESSymbolLike,
                 None,
             )? || self.is_type_assignable_to_kind(
-                &left_type,
+                left_type,
                 TypeFlags::Index
                     | TypeFlags::TemplateLiteral
                     | TypeFlags::StringMapping

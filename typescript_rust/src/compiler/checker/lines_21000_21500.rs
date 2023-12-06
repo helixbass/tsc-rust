@@ -41,7 +41,7 @@ impl TypeChecker {
             self.get_regular_type_of_object_literal(type_)
         })?;
         let regular_new = self.create_anonymous_type(
-            resolved.maybe_symbol(),
+            self.type_(resolved).maybe_symbol(),
             Gc::new(GcCell::new(members)),
             self.type_(resolved)
                 .as_resolved_type()
@@ -56,7 +56,8 @@ impl TypeChecker {
                 .index_infos()
                 .clone(),
         )?;
-        self.type_(regular_new).set_flags(resolved.flags());
+        self.type_(regular_new)
+            .set_flags(self.type_(resolved).flags());
         self.type_(regular_new)
             .as_object_flags_type()
             .set_object_flags(
@@ -66,7 +67,10 @@ impl TypeChecker {
                     | self.type_(resolved).as_resolved_type().object_flags()
                         & !ObjectFlags::FreshLiteral,
             );
-        *type_.as_fresh_object_literal_type().maybe_regular_type() = Some(regular_new.clone());
+        *self
+            .type_(type_)
+            .as_fresh_object_literal_type()
+            .maybe_regular_type() = Some(regular_new.clone());
         Ok(regular_new)
     }
 
@@ -212,7 +216,7 @@ impl TypeChecker {
         )?;
         self.type_(result).as_object_flags_type().set_object_flags(
             self.type_(result).as_object_flags_type().object_flags()
-                | (get_object_flags(type_)
+                | (get_object_flags(self.type_(type_))
                     & (ObjectFlags::JSLiteral | ObjectFlags::NonInferrableType)),
         );
         Ok(result)
@@ -872,18 +876,17 @@ impl TypeChecker {
                     Some(
                         self.type_(type_)
                             .as_union_or_intersection_type_interface()
-                            .types()
-                            .to_owned(),
+                            .types(),
                     ),
-                    Some(|type_: Id<Type>| self.could_contain_type_variables(type_)),
+                    Some(|&type_: &Id<Type>| self.could_contain_type_variables(type_)),
                 )?;
         if self
             .type_(type_)
             .flags()
             .intersects(TypeFlags::ObjectFlagsType)
         {
-            self.type_(type_).as_has_object_flags().set_object_flags(
-                self.type_(type_).as_has_object_flags().object_flags()
+            self.type_(type_).as_object_flags_type().set_object_flags(
+                self.type_(type_).as_object_flags_type().object_flags()
                     | ObjectFlags::CouldContainTypeVariablesComputed
                     | if result {
                         ObjectFlags::CouldContainTypeVariables
@@ -934,10 +937,9 @@ impl TypeChecker {
                     Some(
                         self.type_(type_)
                             .as_union_or_intersection_type_interface()
-                            .types()
-                            .to_owned(),
+                            .types(),
                     ),
-                    Some(|t: Id<Type>| self.is_type_parameter_at_top_level(t, type_parameter)),
+                    Some(|&t: &Id<Type>| self.is_type_parameter_at_top_level(t, type_parameter)),
                 )?
             || self.type_(type_).flags().intersects(TypeFlags::Conditional)
                 && (self.get_true_type_from_conditional_type(type_)? == type_parameter

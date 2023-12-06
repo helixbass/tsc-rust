@@ -231,7 +231,7 @@ impl TypeChecker {
                         .as_interface_type()
                         .maybe_this_type()
                         .unwrap();
-                    if self.get_property_of_type(&instance_type, name)?.is_some() {
+                    if self.get_property_of_type(instance_type, name)?.is_some() {
                         self.error(
                             Some(error_location),
                             &Diagnostics::Cannot_find_name_0_Did_you_mean_the_instance_member_this_0,

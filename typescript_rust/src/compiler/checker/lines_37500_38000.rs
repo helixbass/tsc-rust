@@ -603,18 +603,17 @@ impl TypeChecker {
                     );
                 if is_generator_method || is_iterator_method {
                     let global_type = if is_generator_method {
-                        &global_generator_type
+                        global_generator_type
                     } else {
-                        &global_iterator_type
+                        global_iterator_type
                     };
-                    let method_type = method_type.as_ref().unwrap();
+                    let method_type = method_type.unwrap();
                     let mapper = self.type_(method_type).as_object_type().maybe_mapper();
                     return Ok(Some(
                         self.create_iteration_types(
                             Some(
                                 self.get_mapped_type(
-                                    &self
-                                        .type_(global_type)
+                                    self.type_(global_type)
                                         .as_generic_type()
                                         .maybe_type_parameters()
                                         .unwrap()[0],
@@ -623,7 +622,7 @@ impl TypeChecker {
                             ),
                             Some(
                                 self.get_mapped_type(
-                                    &self
+                                    self
                                         .type_(global_type)
                                         .as_generic_type()
                                         .maybe_type_parameters()
@@ -634,7 +633,7 @@ impl TypeChecker {
                             if method_name == "next" {
                                 Some(
                                     self.get_mapped_type(
-                                        &self
+                                        self
                                             .type_(global_type)
                                             .as_generic_type()
                                             .maybe_type_parameters()

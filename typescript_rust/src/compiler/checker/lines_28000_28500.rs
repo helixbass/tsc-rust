@@ -467,7 +467,7 @@ impl TypeChecker {
             .resolved_symbol
             .clone();
         let assignment_kind = get_assignment_target_kind(node);
-        let apparent_type = self.get_apparent_type(&*if assignment_kind != AssignmentKind::None
+        let apparent_type = self.get_apparent_type(if assignment_kind != AssignmentKind::None
             || self.is_method_access_for_call(node)
         {
             self.get_widened_type(left_type)?
@@ -856,7 +856,7 @@ impl TypeChecker {
         if prop_type == self.auto_type() {
             return self.get_flow_type_of_property(node, prop);
         }
-        prop_type = self.get_narrowable_type_for_reference(&prop_type, node, check_mode)?;
+        prop_type = self.get_narrowable_type_for_reference(prop_type, node, check_mode)?;
         let mut assume_uninitialized = false;
         if self.strict_null_checks
             && self.strict_property_initialization
@@ -895,9 +895,9 @@ impl TypeChecker {
         }
         let flow_type = self.get_flow_type_of_reference(
             node,
-            &prop_type,
+            prop_type,
             Some(if assume_uninitialized {
-                self.get_optional_type_(&prop_type, None)?
+                self.get_optional_type_(prop_type, None)?
             } else {
                 prop_type.clone()
             }),
@@ -905,7 +905,7 @@ impl TypeChecker {
         )?;
         if assume_uninitialized
             && !self
-                .get_falsy_flags(&prop_type)
+                .get_falsy_flags(prop_type)
                 .intersects(TypeFlags::Undefined)
             && self
                 .get_falsy_flags(flow_type)
@@ -1049,7 +1049,7 @@ impl TypeChecker {
             if class_type.is_none() {
                 return Ok(false);
             }
-            let class_type_present = class_type.as_ref().unwrap();
+            let class_type_present = class_type.unwrap();
             let super_property =
                 self.get_property_of_type_(class_type_present, prop.escaped_name(), None)?;
             if super_property
@@ -1095,7 +1095,7 @@ impl TypeChecker {
                 .flags()
                 .intersects(TypeFlags::Primitive)
         {
-            for subtype in self.type_(containing_type).as_union_type().types() {
+            for &subtype in self.type_(containing_type).as_union_type().types() {
                 if self
                     .get_property_of_type_(subtype, &prop_node.as_identifier().escaped_text, None)?
                     .is_none()

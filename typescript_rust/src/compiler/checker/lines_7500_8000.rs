@@ -240,7 +240,7 @@ impl SymbolTableToDeclarationStatements {
         host_symbol: &Symbol,
     ) -> io::Result<bool> {
         let ctx_src = maybe_get_source_file_of_node(self.context().maybe_enclosing_declaration());
-        Ok(get_object_flags(type_to_serialize)
+        Ok(get_object_flags(self.type_checker.type_(type_to_serialize))
             .intersects(ObjectFlags::Anonymous | ObjectFlags::Mapped)
             && self
                 .type_checker
@@ -271,7 +271,7 @@ impl SymbolTableToDeclarationStatements {
                 )
                 .is_none()
             && !matches!(
-                type_to_serialize.maybe_symbol(),
+                self.type_checker.type_(type_to_serialize).maybe_symbol(),
                 Some(type_to_serialize_symbol) if some(
                     type_to_serialize_symbol.maybe_declarations().as_deref(),
                     Some(|d: &Gc<Node>| !are_option_gcs_equal(
@@ -335,7 +335,7 @@ impl SymbolTableToDeclarationStatements {
         self.serialize_property_symbol_for_interface_worker().call(
             p,
             false,
-            base_type.type_wrappered().as_deref(),
+            base_type,
         )
     }
 
@@ -352,7 +352,6 @@ impl SymbolTableToDeclarationStatements {
                 return Ok(vec![]);
             }
             if let Some(base_type) = base_type {
-                let base_type = base_type.borrow();
                 let base_sigs = self
                     .type_checker
                     .get_signatures_of_type(base_type, SignatureKind::Construct)?;
@@ -425,7 +424,6 @@ impl SymbolTableToDeclarationStatements {
         base_type: Option<Id<Type>>,
     ) -> io::Result<Vec<Gc<Node>>> {
         let mut results: Vec<Gc<Node /*IndexSignatureDeclaration*/>> = Default::default();
-        let base_type = base_type.type_wrappered();
         for info in &self.type_checker.get_index_infos_of_type(input)? {
             if let Some(base_type) = base_type.as_ref() {
                 let base_info = self
@@ -491,8 +489,8 @@ impl SymbolTableToDeclarationStatements {
         let mut type_args: Option<Vec<Gc<Node /*TypeNode*/>>> = Default::default();
         let mut reference: Option<Gc<Node /*Expression*/>> = Default::default();
 
-        if let Some(t_target) = t
-            .maybe_as_type_reference_interface()
+        if let Some(t_target) = self.type_checker.type_(t
+            ).maybe_as_type_reference_interface()
             .map(|t| t.target())
             .try_filter(|t_target| {
                 self.type_checker.is_symbol_accessible_by_flags(
@@ -519,7 +517,7 @@ impl SymbolTableToDeclarationStatements {
                 &self.context(),
                 Some(SymbolFlags::Type),
             )?);
-        } else if let Some(t_symbol) = t.maybe_symbol().as_ref().try_filter(|t_symbol| {
+        } else if let Some(t_symbol) = self.type_checker.type_(t).maybe_symbol().as_ref().try_filter(|t_symbol| {
             self.type_checker.is_symbol_accessible_by_flags(
                 t_symbol,
                 Some(&*self.enclosing_declaration),
@@ -542,7 +540,7 @@ impl SymbolTableToDeclarationStatements {
         if ref_.is_some() {
             return Ok(ref_);
         }
-        t.maybe_symbol()
+        self.type_checker.type_(t).maybe_symbol()
             .as_ref()
             .try_map(|t_symbol| -> io::Result<_> {
                 Ok(get_factory().create_expression_with_type_arguments(

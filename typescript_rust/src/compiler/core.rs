@@ -1083,10 +1083,7 @@ pub fn push_if_unique_eq<TItem: PartialEq + Clone>(array: &mut Vec<TItem>, to_ad
     }
 }
 
-pub fn append_if_unique_eq<TItem: PartialEq + Clone>(
-    array: &mut Vec<TItem>,
-    to_add: &TItem,
-) -> Vec<TItem> {
+pub fn append_if_unique_eq<TItem: PartialEq + Clone>(array: &mut Vec<TItem>, to_add: &TItem) {
     push_if_unique_eq(array, to_add)
 }
 
@@ -1106,7 +1103,7 @@ pub fn maybe_append_if_unique_eq<TItem: PartialEq + Clone>(
     to_add: &TItem,
 ) -> Vec<TItem> {
     if let Some(mut array) = array {
-        push_if_unique_rc(&mut array, to_add);
+        push_if_unique_eq(&mut array, to_add);
         array
     } else {
         vec![to_add.clone()]

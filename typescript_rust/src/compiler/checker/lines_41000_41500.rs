@@ -34,8 +34,8 @@ impl TypeChecker {
             && is_property_access_expression(&node.parent())
             && ptr::eq(&*node.parent().as_property_access_expression().name, node)
         {
-            let ref key_type = self.get_literal_type_from_property_name(node)?;
-            let ref object_type = self.get_type_of_expression(
+            let key_type = self.get_literal_type_from_property_name(node)?;
+            let object_type = self.get_type_of_expression(
                 &node.parent().as_property_access_expression().expression,
             )?;
             let object_types = if self.type_(object_type).flags().intersects(TypeFlags::Union) {
@@ -138,7 +138,7 @@ impl TypeChecker {
         })?;
         if is_part_of_type_node(node) {
             let type_from_type_node = self.get_type_from_type_node_(node)?;
-            return Ok(if let Some(class_type) = class_type.as_ref() {
+            return Ok(if let Some(class_type) = class_type {
                 self.get_type_with_this_argument(
                     type_from_type_node,
                     self.type_(class_type).as_interface_type().maybe_this_type(),
@@ -244,7 +244,7 @@ impl TypeChecker {
             )?));
         }
         if expr.parent().kind() == SyntaxKind::BinaryExpression {
-            let ref iterated_type =
+            let iterated_type =
                 self.get_type_of_expression(&expr.parent().as_binary_expression().right)?;
             return Ok(Some(self.check_destructuring_assignment(
                 expr,

@@ -239,7 +239,7 @@ impl TypeChecker {
                 if let Some(default_only_type) = default_only_type {
                     return Ok(Some(self.clone_type_as_module_type(
                         &symbol,
-                        &default_only_type,
+                        default_only_type,
                         &reference_parent,
                     )?));
                 }
@@ -268,7 +268,7 @@ impl TypeChecker {
                         )?;
                         return Ok(Some(self.clone_type_as_module_type(
                             &symbol,
-                            &module_type,
+                            module_type,
                             &reference_parent,
                         )?));
                     }
@@ -355,7 +355,7 @@ impl TypeChecker {
             .unwrap();
         if !ptr::eq(&*export_equals, module_symbol) {
             let type_ = self.get_type_of_symbol(&export_equals)?;
-            if self.should_treat_properties_of_external_module_as_exports(&type_) {
+            if self.should_treat_properties_of_external_module_as_exports(type_) {
                 add_range(
                     &mut exports,
                     Some(&*self.get_properties_of_type(type_)?.collect_vec()),
@@ -383,7 +383,7 @@ impl TypeChecker {
             .unwrap();
         if !ptr::eq(&*export_equals, module_symbol) {
             let type_ = self.get_type_of_symbol(&export_equals)?;
-            if self.should_treat_properties_of_external_module_as_exports(&type_) {
+            if self.should_treat_properties_of_external_module_as_exports(type_) {
                 self.for_each_property_of_type(type_, |symbol, escaped_name| {
                     cb(symbol, escaped_name)
                 })?;
@@ -424,7 +424,7 @@ impl TypeChecker {
 
         let type_ = self.get_type_of_symbol(&export_equals)?;
         Ok(
-            if self.should_treat_properties_of_external_module_as_exports(&type_) {
+            if self.should_treat_properties_of_external_module_as_exports(type_) {
                 self.get_property_of_type_(type_, member_name, None)?
             } else {
                 None
@@ -436,10 +436,11 @@ impl TypeChecker {
         &self,
         resolved_external_module_type: Id<Type>,
     ) -> bool {
-        !(resolved_external_module_type
+        !(self
+            .type_(resolved_external_module_type)
             .flags()
             .intersects(TypeFlags::Primitive)
-            || get_object_flags(resolved_external_module_type).intersects(ObjectFlags::Class)
+            || get_object_flags(self.type_(resolved_external_module_type)).intersects(ObjectFlags::Class)
             || self.is_array_type(resolved_external_module_type)
             || self.is_tuple_type(resolved_external_module_type))
     }

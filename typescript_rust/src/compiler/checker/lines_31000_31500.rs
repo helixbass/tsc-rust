@@ -628,14 +628,12 @@ impl TypeChecker {
             .get(param_count)
             .cloned()
             .unwrap_or_else(|| self.unknown_symbol());
-        let override_rest_type =
-            override_rest_type.map(|override_rest_type| override_rest_type.borrow());
         let rest_type =
             override_rest_type.try_unwrap_or_else(|| self.get_type_of_symbol(&rest_parameter))?;
-        if self.is_tuple_type(&rest_type) {
-            let associated_names = rest_type
-                .as_type_reference()
-                .target
+        if self.is_tuple_type(rest_type) {
+            let associated_names = self.type_(self.type_(rest_type
+                ).as_type_reference()
+                .target)
                 .as_tuple_type()
                 .labeled_element_declarations
                 .as_ref();
@@ -822,7 +820,7 @@ impl TypeChecker {
         let parameter_count = self.get_parameter_count(source)?;
         let min_argument_count = self.get_min_argument_count(source, None)?;
         let rest_type = self.get_effective_rest_type(source)?;
-        if let Some(rest_type) = rest_type.as_ref() {
+        if let Some(rest_type) = rest_type {
             if pos >= parameter_count - 1 {
                 return Ok(if pos == parameter_count - 1 {
                     rest_type.clone()

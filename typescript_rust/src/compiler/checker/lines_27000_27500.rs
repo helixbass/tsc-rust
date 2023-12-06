@@ -274,7 +274,8 @@ impl TypeChecker {
             let member = attribute_decl.maybe_symbol();
             if is_jsx_attribute(attribute_decl) {
                 let expr_type = self.check_jsx_attribute(attribute_decl, check_mode)?;
-                object_flags |= get_object_flags(expr_type) & ObjectFlags::PropagatingFlags;
+                object_flags |=
+                    get_object_flags(self.type_(expr_type)) & ObjectFlags::PropagatingFlags;
 
                 let member = member.unwrap();
                 let attribute_symbol: Gc<Symbol> = self

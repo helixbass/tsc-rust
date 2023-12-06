@@ -62,7 +62,7 @@ impl TypeChecker {
             }
         }
         let rest_type = self.get_effective_rest_type(&context)?;
-        if let Some(rest_type) = rest_type.filter(|rest_type| {
+        if let Some(rest_type) = rest_type.filter(|&rest_type| {
             self.type_(rest_type)
                 .flags()
                 .intersects(TypeFlags::TypeParameter)
@@ -664,7 +664,7 @@ impl TypeChecker {
             Some(yielded_type)
         } else {
             self.get_awaited_type_(
-                &yielded_type,
+                yielded_type,
                 Some(error_node),
                 Some(if node_as_yield_expression.asterisk_token.is_some() {
                     &*Diagnostics::Type_of_iterated_elements_of_a_yield_Asterisk_operand_must_either_be_a_valid_promise_or_must_not_contain_a_callable_then_member

@@ -430,7 +430,7 @@ impl TypeChecker {
                     let mut duplicate = false;
                     self.for_each_type(discriminant, |t: Id<Type>| -> Option<()> {
                         let id = self.get_type_id(self.get_regular_type_of_literal_type(t));
-                        let existing = map.get(&id);
+                        let existing = map.get(&id).copied();
                         match existing {
                             None => {
                                 map.insert(id, type_.clone());
@@ -547,7 +547,7 @@ impl TypeChecker {
                     .get(&self.get_type_id(self.get_regular_type_of_literal_type(key_type)))
                     .map(Clone::clone)
             });
-        result.filter(|result| result != self.unknown_type())
+        result.filter(|&result| result != self.unknown_type())
     }
 
     pub(super) fn get_matching_union_constituent_for_type(

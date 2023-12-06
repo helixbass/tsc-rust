@@ -55,7 +55,7 @@ impl TypeChecker {
                             None => true,
                             Some(constructor) => !self.is_property_initialized_in_constructor(
                                 &prop_name,
-                                &type_,
+                                type_,
                                 constructor,
                             )?,
                         } {

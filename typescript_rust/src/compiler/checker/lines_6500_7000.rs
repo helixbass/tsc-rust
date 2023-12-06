@@ -871,7 +871,7 @@ impl SymbolTableToDeclarationStatements {
                         let property_access_require_parent = property_access_require.parent();
                         is_binary_expression(&property_access_require_parent) && is_identifier(&property_access_require_parent.as_binary_expression().right) &&
                             matches!(
-                                self.type_(type_).maybe_symbol().and_then(|type_symbol| type_symbol.maybe_value_declaration()),
+                                self.type_checker.type_(type_).maybe_symbol().and_then(|type_symbol| type_symbol.maybe_value_declaration()),
                                 Some(type_symbol_value_declaration) if is_source_file(&type_symbol_value_declaration)
                             )
                     }) {
@@ -900,7 +900,7 @@ impl SymbolTableToDeclarationStatements {
                             ModifierFlags::None
                         );
                         self.context().tracker().track_symbol(
-                            &self.type_(type_).symbol(),
+                            &self.type_checker.type_(type_).symbol(),
                             self.context().maybe_enclosing_declaration(),
                             SymbolFlags::Value,
                         ).transpose()?;

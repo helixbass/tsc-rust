@@ -474,7 +474,7 @@ impl TypeChecker {
         } else {
             args.len()
         };
-        if let Some(rest_type) = rest_type.filter(|rest_type| {
+        if let Some(rest_type) = rest_type.filter(|&rest_type| {
             self.type_(rest_type)
                 .flags()
                 .intersects(TypeFlags::TypeParameter)
@@ -561,7 +561,7 @@ impl TypeChecker {
                 &*self.get_type_arguments(type_)?,
                 Some(
                     &self
-                        .type_(self.type_(type_.as_type_reference()).target)
+                        .type_(self.type_(type_).as_type_reference().target)
                         .as_tuple_type()
                         .element_flags,
                 ),

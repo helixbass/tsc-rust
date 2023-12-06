@@ -329,7 +329,7 @@ impl TypeChecker {
                 type_ = self.get_es_symbol_like_type_for_node(declaration)?;
             }
             if report_errors {
-                self.report_errors_from_widening(declaration, &type_, None)?;
+                self.report_errors_from_widening(declaration, type_, None)?;
             }
 
             if self
@@ -339,7 +339,7 @@ impl TypeChecker {
                 && (is_binding_element(declaration)
                     || declaration.as_has_type().maybe_type().is_none())
                 && !are_option_gcs_equal(
-                    type_.maybe_symbol().as_ref(),
+                    self.type_(type_).maybe_symbol().as_ref(),
                     self.get_symbol_of_node(declaration)?.as_ref(),
                 )
             {

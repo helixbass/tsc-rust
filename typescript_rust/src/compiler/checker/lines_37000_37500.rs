@@ -445,7 +445,7 @@ impl TypeChecker {
         let mut has_string_constituent = false;
 
         if use_.intersects(IterationUse::AllowsStringInputFlag) {
-            if array_type.flags().intersects(TypeFlags::Union) {
+            if self.type_(array_type).flags().intersects(TypeFlags::Union) {
                 let array_types = self.type_(input_type).as_union_type().types();
                 let filtered_types = filter(array_types, |&t: &Id<Type>| {
                     !self.type_(t).flags().intersects(TypeFlags::StringLike)
@@ -459,7 +459,11 @@ impl TypeChecker {
                         None,
                     )?;
                 }
-            } else if array_type.flags().intersects(TypeFlags::StringLike) {
+            } else if self
+                .type_(array_type)
+                .flags()
+                .intersects(TypeFlags::StringLike)
+            {
                 array_type = self.never_type();
             }
 
@@ -476,7 +480,7 @@ impl TypeChecker {
                     }
                 }
 
-                if array_type.flags().intersects(TypeFlags::Never) {
+                if self.type_(array_type).flags().intersects(TypeFlags::Never) {
                     return Ok(if possible_out_of_bounds {
                         self.include_undefined_in_index_signature(Some(self.string_type()))?
                     } else {
@@ -486,7 +490,7 @@ impl TypeChecker {
             }
         }
 
-        if !self.is_array_like_type(&array_type)? {
+        if !self.is_array_like_type(array_type)? {
             if let Some(error_node) = error_node.as_ref() {
                 if !reported_error {
                     let allows_strings = use_.intersects(IterationUse::AllowsStringInputFlag)
@@ -503,7 +507,7 @@ impl TypeChecker {
                         maybe_missing_await
                             && self
                                 .get_awaited_type_of_promise(
-                                    &array_type,
+                                    array_type,
                                     Option::<&Node>::None,
                                     None,
                                     None,
@@ -511,7 +515,7 @@ impl TypeChecker {
                                 .is_some(),
                         default_diagnostic,
                         Some(vec![self.type_to_string_(
-                            &array_type,
+                            array_type,
                             Option::<&Node>::None,
                             None,
                             None,
@@ -532,7 +536,7 @@ impl TypeChecker {
 
         let array_element_type = self.get_index_type_of_type_(array_type, self.number_type())?;
         if has_string_constituent {
-            if let Some(array_element_type) = array_element_type.as_ref() {
+            if let Some(array_element_type) = array_element_type {
                 if self
                     .type_(array_element_type)
                     .flags()
@@ -808,7 +812,7 @@ impl TypeChecker {
         }
 
         let mut all_iteration_types: Option<Vec<Gc<IterationTypes>>> = None;
-        for constituent in self.type_(type_).as_union_type().types() {
+        for &constituent in self.type_(type_).as_union_type().types() {
             let iteration_types = self.get_iteration_types_of_iterable_worker(
                 constituent,
                 use_,

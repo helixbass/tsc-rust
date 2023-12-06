@@ -247,7 +247,7 @@ impl TypeChecker {
         target: Id<Type>, /*UnionType*/
     ) -> io::Result<bool> {
         if self.type_(source).flags().intersects(TypeFlags::Union) {
-            for t in self
+            for &t in self
                 .type_(source)
                 .as_union_or_intersection_type_interface()
                 .types()
@@ -382,13 +382,12 @@ impl TypeChecker {
             if filtered.len() == types.len() {
                 return Ok(type_);
             }
-            let origin = self.type_(type_).as_union_type().origin.as_ref();
+            let origin = self.type_(type_).as_union_type().origin;
             let mut new_origin: Option<Id<Type>> = None;
-            if let Some(origin) = origin
-                .as_ref()
-                .filter(|origin| origin.flags().intersects(TypeFlags::Union))
+            if let Some(origin) =
+                origin.filter(|&origin| self.type_(origin).flags().intersects(TypeFlags::Union))
             {
-                let origin_types = origin.as_union_type().types();
+                let origin_types = self.type_(origin).as_union_type().types();
                 let origin_filtered = try_filter(origin_types, |&t: &Id<Type>| -> io::Result<_> {
                     Ok(self.type_(t).flags().intersects(TypeFlags::Union) || f(t)?)
                 })?;
@@ -449,10 +448,10 @@ impl TypeChecker {
         }
         let origin = self.type_(type_).as_union_type().origin;
         let types = if let Some(origin) =
-            origin.filter(|origin| origin.flags().intersects(TypeFlags::Union))
+            origin.filter(|&origin| self.type_(origin).flags().intersects(TypeFlags::Union))
         {
-            origin
-                .as_union_or_intersection_type_interface()
+            self.type_(origin
+                ).as_union_or_intersection_type_interface()
                 .types()
                 .to_owned()
         } else {
@@ -749,7 +748,7 @@ impl TypeChecker {
         if final_array_type.is_none() {
             *final_array_type = Some(
                 self.create_final_array_type(
-                    &self
+                    self
                         .type_(evolving_array_type)
                         .as_evolving_array_type()
                         .element_type,

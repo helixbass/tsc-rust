@@ -329,7 +329,7 @@ impl TypeChecker {
                         &Diagnostics::Cannot_extend_a_class_0_Class_constructor_is_marked_as_private,
                         Some(vec![
                             self.get_fully_qualified_name(
-                                &type_.symbol(),
+                                &self.type_(type_).symbol(),
                                 Option::<&Node>::None
                             )?
                         ])

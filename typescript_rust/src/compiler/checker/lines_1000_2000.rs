@@ -1277,7 +1277,7 @@ impl TypeChecker {
                                     .filter(|node| is_class_static_block_declaration(node));
                                 if self.is_property_initialized_in_static_blocks(
                                     &prop_name,
-                                    &type_,
+                                    type_,
                                     static_blocks,
                                     declaration.parent().pos(),
                                     current.pos(),
