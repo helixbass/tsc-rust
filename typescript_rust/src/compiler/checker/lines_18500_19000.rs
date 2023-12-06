@@ -1984,7 +1984,11 @@ impl CheckTypeRelatedTo {
                 }
                 return Ok(Ternary::False);
             }
-            let source_is_primitive = self.type_checker.type_(source).flags().intersects(TypeFlags::Primitive);
+            let source_is_primitive = self
+                .type_checker
+                .type_(source)
+                .flags()
+                .intersects(TypeFlags::Primitive);
             if !Rc::ptr_eq(&self.relation, &self.type_checker.identity_relation) {
                 source = self.type_checker.get_apparent_type(source)?;
             } else if self.type_checker.is_generic_mapped_type(source)? {

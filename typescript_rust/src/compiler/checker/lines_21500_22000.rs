@@ -925,8 +925,7 @@ impl InferTypes {
                     .intersects(TypeFlags::IndexedAccess)
                 {
                     let index_type = self.type_checker.get_simplified_type(
-                        self
-                            .type_checker
+                        self.type_checker
                             .type_(target)
                             .as_indexed_access_type()
                             .index_type,
@@ -940,8 +939,7 @@ impl InferTypes {
                     {
                         let simplified = self.type_checker.distribute_index_over_object_type(
                             self.type_checker.get_simplified_type(
-                                self
-                                    .type_checker
+                                self.type_checker
                                     .type_(target)
                                     .as_indexed_access_type()
                                     .object_type,

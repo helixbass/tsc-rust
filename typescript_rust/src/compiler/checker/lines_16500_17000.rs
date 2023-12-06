@@ -338,8 +338,10 @@ impl TypeChecker {
         } else {
             element_flags.clone()
         };
-        let new_readonly =
-            self.get_modified_readonly_state(self.type_(tuple_type_target).as_tuple_type().readonly, modifiers);
+        let new_readonly = self.get_modified_readonly_state(
+            self.type_(tuple_type_target).as_tuple_type().readonly,
+            modifiers,
+        );
         Ok(if contains(Some(&element_types), &self.error_type()) {
             self.error_type()
         } else {
@@ -347,8 +349,8 @@ impl TypeChecker {
                 &element_types,
                 Some(&new_tuple_modifiers),
                 Some(new_readonly),
-                self.type_(tuple_type_target
-                    ).as_tuple_type()
+                self.type_(tuple_type_target)
+                    .as_tuple_type()
                     .labeled_element_declarations
                     .as_deref(),
             )?

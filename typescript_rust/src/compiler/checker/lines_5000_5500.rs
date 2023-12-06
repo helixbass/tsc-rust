@@ -491,8 +491,9 @@ impl NodeBuilder {
     ) -> io::Result<Gc<Node>> {
         if self.type_checker.is_generic_mapped_type(type_)?
             || matches!(
-                self.type_checker.type_(type_
-                    ).maybe_as_mapped_type()
+                self.type_checker
+                    .type_(type_)
+                    .maybe_as_mapped_type()
                     .and_then(|type_| type_.maybe_contains_error()),
                 Some(true)
             )
@@ -1116,7 +1117,10 @@ impl NodeBuilder {
                 self.index_info_to_index_signature_declaration_helper(
                     info,
                     context,
-                    if self.type_checker.type_(resolved_type).as_resolved_type()
+                    if self
+                        .type_checker
+                        .type_(resolved_type)
+                        .as_resolved_type()
                         .object_flags()
                         .intersects(ObjectFlags::ReverseMapped)
                     {
