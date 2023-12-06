@@ -20,7 +20,7 @@ use super::{
     TypeFlags, TypeMapper, __String,
 };
 use crate::{
-    CheckBinaryExpression, Diagnostic, DuplicateInfoForFiles, FlowNode, FlowType, IndexInfo,
+    AllArenas, CheckBinaryExpression, Diagnostic, DuplicateInfoForFiles, FlowNode, FlowType, IndexInfo,
     IterationTypes, IterationTypesResolver, MappedSymbol, MultiMap, NodeBuilder, Number,
     PatternAmbientModule, ResolvedTypeReferenceDirective, ReverseMappedSymbol, StringOrNumber,
     TypeId, TypeSystemEntity, TypeSystemPropertyName, VarianceFlags, _d,
@@ -164,6 +164,8 @@ pub trait TypeCheckerHostDebuggable: TypeCheckerHost + fmt::Debug + Trace + Fina
 #[allow(non_snake_case)]
 #[derive(Trace, Finalize)]
 pub struct TypeChecker {
+    #[unsafe_ignore_trace]
+    pub(crate) arena: *const AllArenas,
     pub(crate) host: Gc<Box<dyn TypeCheckerHostDebuggable>>,
     pub(crate) produce_diagnostics: bool,
     pub(crate) _rc_wrapper: GcCell<Option<Gc<TypeChecker>>>,

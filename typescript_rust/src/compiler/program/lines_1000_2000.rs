@@ -32,7 +32,7 @@ use crate::{
     RedirectTargetsMap, ResolveModuleNameResolutionHost, ResolvedModuleFull,
     ResolvedProjectReference, ResolvedTypeReferenceDirective, ScriptReferenceHost, SourceFileLike,
     SourceFileMayBeEmittedHost, SourceOfProjectReferenceRedirect, StringOrRcNode,
-    StructureIsReused, SymlinkCache, TypeChecker, WriteFileCallback,
+    StructureIsReused, SymlinkCache, TypeChecker, WriteFileCallback, static_arena,
 };
 
 impl Program {
@@ -1233,6 +1233,7 @@ impl Program {
             self.diagnostics_producing_type_checker.borrow_mut();
         if diagnostics_producing_type_checker.is_none() {
             *diagnostics_producing_type_checker = Some(create_type_checker(
+                &*static_arena(),
                 self.as_dyn_type_checker_host_debuggable(),
                 true,
             )?);

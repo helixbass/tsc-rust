@@ -1,9 +1,11 @@
-use std::cell::{Ref, RefCell, RefMut};
+use std::{cell::{Ref, RefCell, RefMut}, rc::Rc};
 
 use id_arena::{Arena, Id};
+use once_cell::unsync::Lazy;
 
 use crate::{Type, TypeInterface};
 
+#[derive(Default)]
 pub struct AllArenas {
     // pub nodes: RefCell<Arena<Node>>,
     // pub node_arrays: RefCell<Arena<NodeArray>>,
@@ -35,4 +37,12 @@ impl AllArenas {
         self.type_(id).set_arena_id(id);
         id
     }
+}
+
+thread_local! {
+    static ARENA: Lazy<Rc<AllArenas>> = Lazy::new(Default::default);
+}
+
+pub fn static_arena() -> Rc<AllArenas> {
+    ARENA.with(|arena| (**arena).clone())
 }

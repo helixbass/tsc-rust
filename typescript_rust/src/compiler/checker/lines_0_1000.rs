@@ -520,11 +520,13 @@ pub fn is_instantiated_module(
 }
 
 pub fn create_type_checker(
+    arena: *const AllArenas,
     host: Gc<Box<dyn TypeCheckerHostDebuggable>>,
     produce_diagnostics: bool,
 ) -> io::Result<Gc<TypeChecker>> {
     let compiler_options = host.get_compiler_options();
     let mut type_checker = TypeChecker {
+        arena,
         host,
         produce_diagnostics,
         _rc_wrapper: Default::default(),
@@ -1518,7 +1520,9 @@ pub(crate) struct DuplicateInfoForFiles {
 
 impl TypeChecker {
     pub fn arena(&self) -> &AllArenas {
-        unimplemented!()
+        unsafe {
+            &*self.arena
+        }
     }
 
     pub fn type_(&self, type_: Id<Type>) -> Ref<Type> {
