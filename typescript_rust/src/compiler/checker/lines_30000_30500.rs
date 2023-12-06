@@ -632,7 +632,7 @@ impl TypeChecker {
                     );
                 }
                 if matches!(
-                    self.get_this_type_of_signature(&signature)?.as_ref(),
+                    self.get_this_type_of_signature(&signature)?,
                     Some(this_type) if this_type == self.void_type()
                 ) {
                     self.error(
@@ -669,7 +669,7 @@ impl TypeChecker {
             .flags()
             .intersects(TypeFlags::Intersection)
         {
-            let types = first_base.as_intersection_type().types();
+            let types = self.type_(first_base).as_intersection_type().types();
             let mixin_flags = self.find_mixins(types)?;
             let mut i = 0;
             for intersection_member in self
@@ -683,7 +683,7 @@ impl TypeChecker {
                         .intersects(ObjectFlags::Class | ObjectFlags::Interface)
                     {
                         if matches!(
-                            intersection_member.maybe_symbol().as_ref(),
+                            self.type_(intersection_member).maybe_symbol().as_ref(),
                             Some(intersection_member_symbol) if ptr::eq(
                                 &**intersection_member_symbol,
                                 target

@@ -292,7 +292,7 @@ impl TypeChecker {
         let mut result = true;
         for i in 0..type_parameters.len() {
             let constraint = self.get_constraint_of_type_parameter(type_parameters[i])?;
-            if let Some(constraint) = constraint.as_ref() {
+            if let Some(constraint) = constraint {
                 if type_arguments.is_none() {
                     type_arguments =
                         Some(self.get_effective_type_arguments(node, Some(type_parameters))?);
@@ -628,7 +628,7 @@ impl TypeChecker {
         )? {
             if access_node.kind() == SyntaxKind::ElementAccessExpression
                 && is_assignment_target(access_node)
-                && get_object_flags(object_type).intersects(ObjectFlags::Mapped)
+                && get_object_flags(self.type_(object_type)).intersects(ObjectFlags::Mapped)
                 && self
                     .get_mapped_type_modifiers(object_type)
                     .intersects(MappedTypeModifiers::IncludeReadonly)
@@ -718,7 +718,7 @@ impl TypeChecker {
 
         let type_ = self.get_type_from_mapped_type_node(node)?;
         let name_type = self.get_name_type_from_mapped_type(type_)?;
-        if let Some(name_type) = name_type.as_ref() {
+        if let Some(name_type) = name_type {
             self.check_type_assignable_to(
                 name_type,
                 self.keyof_constraint_type(),

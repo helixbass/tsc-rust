@@ -41,7 +41,7 @@ impl TypeChecker {
             self.every_contained_type(
                 containing_type,
                 |type_: Id<Type>| matches!(
-                    type_.maybe_symbol(),
+                    self.type_(type_).maybe_symbol(),
                     Some(type_symbol) if {
                         lazy_static! {
                             static ref element_regex: Regex = Regex::new("^(EventTarget|Node|((HTML[a-zA-Z]*)?Element))$").unwrap();
@@ -59,12 +59,12 @@ impl TypeChecker {
         containing_type: Id<Type>,
     ) -> io::Result<bool> {
         let prop =
-            containing_type
-                .maybe_symbol()
+            self.type_(containing_type
+                ).maybe_symbol()
                 .as_ref()
                 .try_and_then(|containing_type_symbol| {
                     self.get_property_of_type_(
-                        &*self.get_type_of_symbol(containing_type_symbol)?,
+                        self.get_type_of_symbol(containing_type_symbol)?,
                         prop_name,
                         None,
                     )
@@ -100,7 +100,7 @@ impl TypeChecker {
         containing_type: Id<Type>,
     ) -> io::Result<Option<String>> {
         let container =
-            return_ok_default_if_none!(self.get_apparent_type(containing_type)?.maybe_symbol());
+            return_ok_default_if_none!(self.type_(self.get_apparent_type(containing_type)?).maybe_symbol());
         let all_features = get_script_target_features();
         let lib_targets = all_features.keys();
         for lib_target in lib_targets {
@@ -339,11 +339,11 @@ impl TypeChecker {
     ) -> io::Result<bool> {
         let prop = self.get_property_of_object_type(object_type, name)?;
         if let Some(prop) = prop.as_ref() {
-            let s = self.get_single_call_signature(&*self.get_type_of_symbol(prop)?)?;
+            let s = self.get_single_call_signature(self.get_type_of_symbol(prop)?)?;
             return Ok(matches!(
                 s.as_ref(),
                 Some(s) if self.get_min_argument_count(s, None)? >= 1 &&
-                    self.is_type_assignable_to(keyed_type, &*self.get_type_at_position(s, 0)?)?
+                    self.is_type_assignable_to(keyed_type, self.get_type_at_position(s, 0)?)?
             ));
         }
         Ok(false)
@@ -354,17 +354,17 @@ impl TypeChecker {
         source: Id<Type>, /*StringLiteralType*/
         target: Id<Type>, /*UnionType*/
     ) -> Option<Id<Type /*StringLiteralType*/>> {
-        let candidates = target
-            .as_union_type()
+        let candidates = self.type_(target
+            ).as_union_type()
             .types()
             .into_iter()
-            .filter(|type_| type_.flags().intersects(TypeFlags::StringLiteral))
+            .filter(|&&type_| self.type_(type_).flags().intersects(TypeFlags::StringLiteral))
             .cloned()
             .collect::<Vec<_>>();
         get_spelling_suggestion(
-            &source.as_string_literal_type().value,
+            &self.type_(source).as_string_literal_type().value,
             &candidates,
-            |type_: &Id<Type>| Some(type_.as_string_literal_type().value.clone()),
+            |&type_: &Id<Type>| Some(self.type_(type_).as_string_literal_type().value.clone()),
         )
     }
 
@@ -496,7 +496,7 @@ impl TypeChecker {
                     node_as_property_access_expression.expression.kind()
                         == SyntaxKind::SuperKeyword,
                     property_name,
-                    &*self.get_widened_type(&*self.check_expression(
+                    self.get_widened_type(self.check_expression(
                         &node_as_property_access_expression.expression,
                         None,
                         None,
@@ -507,7 +507,7 @@ impl TypeChecker {
                 node,
                 false,
                 property_name,
-                &*self.get_widened_type(&*self.check_expression(
+                self.get_widened_type(self.check_expression(
                     &node.as_qualified_name().left,
                     None,
                     None,
@@ -517,7 +517,7 @@ impl TypeChecker {
                 node,
                 false,
                 property_name,
-                &*self.get_type_from_type_node_(node)?,
+                self.get_type_from_type_node_(node)?,
             )?,
             _ => unreachable!(),
         })
@@ -632,7 +632,7 @@ impl TypeChecker {
     pub(super) fn has_numeric_property_names(&self, type_: Id<Type>) -> io::Result<bool> {
         Ok(self.get_index_infos_of_type(type_)?.len() == 1
             && self
-                .get_index_info_of_type_(type_, &self.number_type())?
+                .get_index_info_of_type_(type_, self.number_type())?
                 .is_some())
     }
 
@@ -658,7 +658,7 @@ impl TypeChecker {
                                 )
                             )
                             && self
-                                .has_numeric_property_names(&*self.get_type_of_expression(
+                                .has_numeric_property_names(self.get_type_of_expression(
                                     &node_as_for_in_statement.expression,
                                 )?)?
                     } {
@@ -682,7 +682,7 @@ impl TypeChecker {
         } else {
             self.check_element_access_expression(
                 node,
-                &*self
+                self
                     .check_non_null_expression(&node.as_element_access_expression().expression)?,
                 check_mode,
             )?
@@ -698,20 +698,20 @@ impl TypeChecker {
         let expr_type =
             self.check_expression(&node_as_element_access_expression.expression, None, None)?;
         let non_optional_type = self.get_optional_expression_type(
-            &expr_type,
+            expr_type,
             &node_as_element_access_expression.expression,
         )?;
         self.propagate_optional_type_marker(
-            &*self.check_element_access_expression(
+            self.check_element_access_expression(
                 node,
-                &*self.check_non_null_type(
-                    &non_optional_type,
+                self.check_non_null_type(
+                    non_optional_type,
                     &node_as_element_access_expression.expression,
                 )?,
                 check_mode,
             )?,
             node,
-            !Gc::ptr_eq(&non_optional_type, &expr_type),
+            non_optional_type != expr_type,
         )
     }
 
@@ -726,13 +726,13 @@ impl TypeChecker {
         {
             self.get_widened_type(expr_type)?
         } else {
-            expr_type.type_wrapper()
+            expr_type
         };
         let node_as_element_access_expression = node.as_element_access_expression();
         let index_expression = &node_as_element_access_expression.argument_expression;
         let index_type = self.check_expression(index_expression, None, None)?;
 
-        if self.is_error_type(&object_type) || Gc::ptr_eq(&object_type, &self.silent_never_type()) {
+        if self.is_error_type(object_type) || object_type == self.silent_never_type() {
             return Ok(object_type);
         }
 
@@ -766,8 +766,8 @@ impl TypeChecker {
         };
         let indexed_access_type = self
             .get_indexed_access_type_or_undefined(
-                &object_type,
-                &effective_index_type,
+                object_type,
+                effective_index_type,
                 Some(access_flags),
                 Some(node),
                 Option::<&Symbol>::None,
@@ -775,13 +775,13 @@ impl TypeChecker {
             )?
             .unwrap_or_else(|| self.error_type());
         self.check_indexed_access_index_type(
-            &*self.get_flow_type_of_access_expression(
+            self.get_flow_type_of_access_expression(
                 node,
                 (*self.get_node_links(node))
                     .borrow()
                     .resolved_symbol
                     .clone(),
-                &indexed_access_type,
+                indexed_access_type,
                 index_expression,
                 check_mode,
             )?,

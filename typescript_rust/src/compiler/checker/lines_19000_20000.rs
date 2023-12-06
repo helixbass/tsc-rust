@@ -23,7 +23,7 @@ use crate::{
     ModifierFlags, Node, NodeInterface, ObjectFlags, Signature, SignatureFlags, SignatureKind,
     Symbol, SymbolFlags, SymbolInterface, SyntaxKind, Ternary, Type, TypeFlags, TypeFormatFlags,
     TypeInterface, VarianceFlags, __String, get_check_flags, get_object_flags,
-    return_ok_default_if_none,
+    return_ok_default_if_none, push_if_unique_eq,
 };
 
 impl CheckTypeRelatedTo {
@@ -121,8 +121,7 @@ impl CheckTypeRelatedTo {
                 .type_checker
                 .get_constraint_type_from_mapped_type(target)?;
             let source_constraint = self.type_checker.instantiate_type(
-                &*self
-                    .type_checker
+                self.type_checker
                     .get_constraint_type_from_mapped_type(source)?,
                 Some(Gc::new(
                     if self
@@ -139,8 +138,8 @@ impl CheckTypeRelatedTo {
                 )),
             )?;
             result = self.is_related_to(
-                &target_constraint,
-                &source_constraint,
+                target_constraint,
+                source_constraint,
                 Some(RecursionFlags::Both),
                 Some(report_errors),
                 None,
@@ -155,29 +154,22 @@ impl CheckTypeRelatedTo {
                         .type_checker
                         .get_type_parameter_from_mapped_type(target)?]),
                 ));
-                if are_option_gcs_equal(
-                    self.type_checker
-                        .maybe_instantiate_type(
-                            self.type_checker.get_name_type_from_mapped_type(source)?,
-                            Some(mapper.clone()),
-                        )?
-                        .as_ref(),
-                    self.type_checker
-                        .maybe_instantiate_type(
-                            self.type_checker.get_name_type_from_mapped_type(target)?,
-                            Some(mapper.clone()),
-                        )?
-                        .as_ref(),
-                ) {
+                if self.type_checker.maybe_instantiate_type(
+                    self.type_checker.get_name_type_from_mapped_type(source)?,
+                    Some(mapper.clone()),
+                ) == self.type_checker.maybe_instantiate_type(
+                    self.type_checker.get_name_type_from_mapped_type(target)?,
+                    Some(mapper.clone()),
+                )? {
                     return Ok(result
                         & self.is_related_to(
-                            &*self.type_checker.instantiate_type(
-                                &*self
+                            self.type_checker.instantiate_type(
+                                self
                                     .type_checker
                                     .get_template_type_from_mapped_type(source)?,
                                 Some(mapper),
                             )?,
-                            &*self
+                            self
                                 .type_checker
                                 .get_template_type_from_mapped_type(target)?,
                             Some(RecursionFlags::Both),
@@ -208,7 +200,7 @@ impl CheckTypeRelatedTo {
         let mut num_combinations = 1;
         for source_property in &source_properties_filtered {
             num_combinations *= self.type_checker.count_types(
-                &*self
+                self
                     .type_checker
                     .get_non_missing_type_of_symbol(source_property)?,
             );
@@ -226,9 +218,9 @@ impl CheckTypeRelatedTo {
                 .type_checker
                 .get_non_missing_type_of_symbol(source_property)?;
             source_discriminant_types.push(
-                if source_property_type.flags().intersects(TypeFlags::Union) {
-                    source_property_type
-                        .as_union_or_intersection_type_interface()
+                if self.type_checker.type_(source_property_type).flags().intersects(TypeFlags::Union) {
+                    self.type_checker.type_(source_property_type
+                        ).as_union_or_intersection_type_interface()
                         .types()
                         .to_owned()
                 } else {
@@ -242,7 +234,7 @@ impl CheckTypeRelatedTo {
         let mut matching_types: Vec<Id<Type>> = vec![];
         for combination in &discriminant_combinations {
             let mut has_match = false;
-            'outer: for type_ in target.as_union_or_intersection_type_interface().types() {
+            'outer: for &type_ in self.type_checker.type_(target).as_union_or_intersection_type_interface().types() {
                 for (i, source_property) in source_properties_filtered.iter().enumerate() {
                     let target_property = self.type_checker.get_property_of_type_(
                         type_,
@@ -272,7 +264,7 @@ impl CheckTypeRelatedTo {
                         continue 'outer;
                     }
                 }
-                push_if_unique_gc(&mut matching_types, type_);
+                push_if_unique_eq(&mut matching_types, type_);
                 has_match = true;
             }
             if !has_match {
@@ -281,7 +273,7 @@ impl CheckTypeRelatedTo {
         }
 
         let mut result = Ternary::True;
-        for type_ in &matching_types {
+        for &type_ in &matching_types {
             result &= self.properties_related_to(
                 source,
                 type_,
@@ -348,7 +340,7 @@ impl CheckTypeRelatedTo {
         let target_is_optional = self.type_checker.strict_null_checks
             && get_check_flags(target_prop).intersects(CheckFlags::Partial);
         let effective_target = self.type_checker.add_optionality(
-            &*self
+            self
                 .type_checker
                 .get_non_missing_type_of_symbol(target_prop)?,
             Some(false),
@@ -356,8 +348,8 @@ impl CheckTypeRelatedTo {
         )?;
         let effective_source = get_type_of_source_property(source_prop)?;
         self.is_related_to(
-            &effective_source,
-            &effective_target,
+            effective_source,
+            effective_target,
             Some(RecursionFlags::Both),
             Some(report_errors),
             None,
@@ -453,12 +445,12 @@ impl CheckTypeRelatedTo {
                                 None, None, None
                             )?,
                             self.type_checker.type_to_string_(
-                                &self.type_checker.get_declaring_class(source_prop)?.unwrap_or_else(|| source.type_wrapper()),
+                                self.type_checker.get_declaring_class(source_prop)?.unwrap_or_else(|| source),
                                 Option::<&Node>::None,
                                 None, None,
                             )?,
                             self.type_checker.type_to_string_(
-                                &self.type_checker.get_declaring_class(target_prop)?.unwrap_or_else(|| target.type_wrapper()),
+                                self.type_checker.get_declaring_class(target_prop)?.unwrap_or_else(|| target),
                                 Option::<&Node>::None,
                                 None, None,
                             )?,
@@ -577,8 +569,8 @@ impl CheckTypeRelatedTo {
                     )
             })
         {
-            if let Some(source_symbol) = source
-                .maybe_symbol()
+            if let Some(source_symbol) = self.type_checker.type_(source
+                ).maybe_symbol()
                 .as_ref()
                 .filter(|source_symbol| source_symbol.flags().intersects(SymbolFlags::Class))
             {
@@ -609,7 +601,7 @@ impl CheckTypeRelatedTo {
                     });
                     let target_name = factory.with(|factory_| {
                         factory_.get_declaration_name(
-                            target.symbol().maybe_value_declaration(),
+                            self.type_checker.type_(target).symbol().maybe_value_declaration(),
                             None,
                             None,
                         )
@@ -745,16 +737,14 @@ impl CheckTypeRelatedTo {
         }
         let mut result = Ternary::True;
         if self.type_checker.is_tuple_type(target) {
-            let target_as_type_reference = target.as_type_reference_interface();
-            let target_target = target_as_type_reference.target();
-            let target_target_as_tuple_type = target_target.as_tuple_type();
+            let target_target = self.type_(target).as_type_reference_interface().target();
             if self.type_checker.is_array_type(source) || self.type_checker.is_tuple_type(source) {
-                if !target_target_as_tuple_type.readonly
+                if !self.type_(target_target).as_tuple_type().readonly
                     && (self.type_checker.is_readonly_array_type(source)
                         || self.type_checker.is_tuple_type(source)
-                            && source
-                                .as_type_reference_interface()
-                                .target()
+                            && self.type_checker.type_(self.type_checker.type_(source
+                                ).as_type_reference_interface()
+                                .target())
                                 .as_tuple_type()
                                 .readonly)
                 {
@@ -763,9 +753,9 @@ impl CheckTypeRelatedTo {
                 let source_arity = self.type_checker.get_type_reference_arity(source);
                 let target_arity = self.type_checker.get_type_reference_arity(target);
                 let source_rest_flag = if self.type_checker.is_tuple_type(source) {
-                    source
-                        .as_type_reference_interface()
-                        .target()
+                    self.type_checker.type_(self.type_checker.type_(source
+                        ).as_type_reference_interface()
+                        .target())
                         .as_tuple_type()
                         .combined_flags
                         & ElementFlags::Rest
@@ -773,17 +763,17 @@ impl CheckTypeRelatedTo {
                     ElementFlags::Rest
                 };
                 let target_rest_flag =
-                    target_target_as_tuple_type.combined_flags & ElementFlags::Rest;
+                    self.type_(target_target).as_tuple_type().combined_flags & ElementFlags::Rest;
                 let source_min_length = if self.type_checker.is_tuple_type(source) {
-                    source
-                        .as_type_reference_interface()
-                        .target()
+                    self.type_checker.type_(self.type_checker.type_(source
+                        ).as_type_reference_interface()
+                        .target())
                         .as_tuple_type()
                         .min_length
                 } else {
                     0
                 };
-                let target_min_length = target_target_as_tuple_type.min_length;
+                let target_min_length = self.type_(target_target).as_tuple_type().min_length;
                 if source_rest_flag == ElementFlags::None && source_arity < target_min_length {
                     if report_errors {
                         self.report_error(
@@ -839,7 +829,7 @@ impl CheckTypeRelatedTo {
                 let start_count = cmp::min(
                     if self.type_checker.is_tuple_type(source) {
                         self.type_checker.get_start_element_count(
-                            &source.as_type_reference_interface().target(),
+                            &self.type_checker.type_(source).as_type_reference_interface().target(),
                             ElementFlags::NonRest,
                         )
                     } else {
@@ -851,7 +841,7 @@ impl CheckTypeRelatedTo {
                 let end_count = cmp::min(
                     if self.type_checker.is_tuple_type(source) {
                         self.type_checker.get_end_element_count(
-                            &source.as_type_reference_interface().target(),
+                            self.type_checker.type_(source).as_type_reference_interface().target(),
                             ElementFlags::NonRest,
                         )
                     } else {
@@ -874,15 +864,15 @@ impl CheckTypeRelatedTo {
                     let source_flags = if self.type_checker.is_tuple_type(source)
                         && (i < start_count || i >= target_arity - end_count)
                     {
-                        source
-                            .as_type_reference()
-                            .target
+                        self.type_checker.type_(self.type_checker.type_(source
+                            ).as_type_reference()
+                            .target)
                             .as_tuple_type()
                             .element_flags[source_index]
                     } else {
                         ElementFlags::Rest
                     };
-                    let target_flags = target_target_as_tuple_type.element_flags[i];
+                    let target_flags = self.type_(target_target).as_tuple_type().element_flags[i];
                     if target_flags.intersects(ElementFlags::Variadic)
                         && !source_flags.intersects(ElementFlags::Variadic)
                     {
@@ -942,7 +932,7 @@ impl CheckTypeRelatedTo {
                         source_type_arguments[0].clone()
                     } else if i < start_count || i >= target_arity - end_count {
                         self.type_checker.remove_missing_type(
-                            &source_type_arguments[source_index],
+                            source_type_arguments[source_index],
                             (source_flags & target_flags).intersects(ElementFlags::Optional),
                         )
                     } else {
@@ -955,7 +945,7 @@ impl CheckTypeRelatedTo {
                             )?
                             .unwrap_or_else(|| self.type_checker.never_type())
                     };
-                    let target_type = &target_type_arguments[i];
+                    let target_type = target_type_arguments[i];
                     let target_check_type = if source_flags.intersects(ElementFlags::Variadic)
                         && target_flags.intersects(ElementFlags::Rest)
                     {
@@ -967,8 +957,8 @@ impl CheckTypeRelatedTo {
                         )
                     };
                     let related = self.is_related_to(
-                        &source_type,
-                        &target_check_type,
+                        source_type,
+                        target_check_type,
                         Some(RecursionFlags::Both),
                         Some(report_errors),
                         None,
@@ -1004,7 +994,7 @@ impl CheckTypeRelatedTo {
                 }
                 return Ok(result);
             }
-            if target_target_as_tuple_type
+            if self.type_(target_target).as_tuple_type()
                 .combined_flags
                 .intersects(ElementFlags::Variable)
             {
@@ -1048,7 +1038,7 @@ impl CheckTypeRelatedTo {
                     .is_none()
                 {
                     let source_type = self.type_checker.get_type_of_symbol(source_prop)?;
-                    if !source_type.flags().intersects(TypeFlags::Undefined) {
+                    if !self.type_checker.type_(source_type).flags().intersects(TypeFlags::Undefined) {
                         if report_errors {
                             self.report_error(
                                 Cow::Borrowed(&Diagnostics::Property_0_does_not_exist_on_type_1),
@@ -1117,8 +1107,8 @@ impl CheckTypeRelatedTo {
         target: Id<Type>,
         excluded_properties: Option<&HashSet<__String>>,
     ) -> io::Result<Ternary> {
-        if !(source.flags().intersects(TypeFlags::Object)
-            && target.flags().intersects(TypeFlags::Object))
+        if !(self.type_checker.type_(source).flags().intersects(TypeFlags::Object)
+            && self.type_checker.type_(target).flags().intersects(TypeFlags::Object))
         {
             return Ok(Ternary::False);
         }
@@ -1167,8 +1157,8 @@ impl CheckTypeRelatedTo {
         if Rc::ptr_eq(&self.relation, &self.type_checker.identity_relation) {
             return self.signatures_identical_to(source, target, kind);
         }
-        if ptr::eq(target, &*self.type_checker.any_function_type())
-            || ptr::eq(source, &*self.type_checker.any_function_type())
+        if target == self.type_checker.any_function_type()
+            || source == self.type_checker.any_function_type()
         {
             return Ok(Ternary::True);
         }
@@ -1238,13 +1228,13 @@ impl CheckTypeRelatedTo {
         } else {
             Self::report_incompatible_call_signature_return
         };
-        let source_object_flags = get_object_flags(source);
-        let target_object_flags = get_object_flags(target);
+        let source_object_flags = get_object_flags(self.type_checker.type_(source));
+        let target_object_flags = get_object_flags(self.type_checker.type_(target));
         if source_object_flags.intersects(ObjectFlags::Instantiated)
             && target_object_flags.intersects(ObjectFlags::Instantiated)
             && are_option_gcs_equal(
-                source.maybe_symbol().as_ref(),
-                target.maybe_symbol().as_ref(),
+                self.type_checker.type_(source).maybe_symbol().as_ref(),
+                self.type_checker.type_(target).maybe_symbol().as_ref(),
             )
         {
             for i in 0..target_signatures.len() {
@@ -1529,8 +1519,8 @@ impl CheckTypeRelatedTo {
         report_errors: bool,
     ) -> io::Result<Ternary> {
         let mut result = Ternary::True;
-        let key_type = &target_info.key_type;
-        let props = if source.flags().intersects(TypeFlags::Intersection) {
+        let key_type = target_info.key_type;
+        let props = if self.type_checker.type_(source).flags().intersects(TypeFlags::Intersection) {
             Either::Left(
                 self.type_checker
                     .get_properties_of_union_or_intersection_type(source)?,
@@ -1543,7 +1533,7 @@ impl CheckTypeRelatedTo {
                 continue;
             }
             if self.type_checker.is_applicable_index_type(
-                &*self.type_checker.get_literal_type_from_property(
+                self.type_checker.get_literal_type_from_property(
                     prop,
                     TypeFlags::StringOrNumberLiteralOrUnique,
                     None,
@@ -1552,18 +1542,18 @@ impl CheckTypeRelatedTo {
             )? {
                 let prop_type = self.type_checker.get_non_missing_type_of_symbol(prop)?;
                 let type_ = if self.type_checker.exact_optional_property_types == Some(true)
-                    || prop_type.flags().intersects(TypeFlags::Undefined)
-                    || Gc::ptr_eq(key_type, &self.type_checker.number_type())
+                    || self.type_checker.type_(prop_type).flags().intersects(TypeFlags::Undefined)
+                    || key_type == self.type_checker.number_type()
                     || !prop.flags().intersects(SymbolFlags::Optional)
                 {
                     prop_type
                 } else {
                     self.type_checker
-                        .get_type_with_facts(&prop_type, TypeFacts::NEUndefined)?
+                        .get_type_with_facts(prop_type, TypeFacts::NEUndefined)?
                 };
                 let related = self.is_related_to(
-                    &type_,
-                    &target_info.type_,
+                    type_,
+                    target_info.type_,
                     Some(RecursionFlags::Both),
                     Some(report_errors),
                     None,
@@ -1592,7 +1582,7 @@ impl CheckTypeRelatedTo {
         for info in &self.type_checker.get_index_infos_of_type(source)? {
             if self
                 .type_checker
-                .is_applicable_index_type(&info.key_type, key_type)?
+                .is_applicable_index_type(info.key_type, key_type)?
             {
                 let related = self.index_info_related_to(info, target_info, report_errors)?;
                 if related == Ternary::False {

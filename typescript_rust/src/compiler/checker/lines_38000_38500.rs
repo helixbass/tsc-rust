@@ -485,10 +485,10 @@ impl TypeChecker {
                                 Some(&self.get_base_types(type_)?),
                                 Some(|&base: &Id<Type>| -> io::Result<_> {
                                     Ok(self
-                                        .get_index_info_of_type_(base, &check_info.key_type)?
+                                        .get_index_info_of_type_(base, check_info.key_type)?
                                         .is_some()
                                         && self
-                                            .get_index_type_of_type_(base, &info.key_type)?
+                                            .get_index_type_of_type_(base, info.key_type)?
                                             .is_some())
                                 }),
                             )?)

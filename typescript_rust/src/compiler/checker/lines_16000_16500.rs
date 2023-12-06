@@ -144,7 +144,7 @@ impl TypeChecker {
         flags: TypeFlags,
         value: PseudoBigInt,
         symbol: Option<TSymbol>,
-        regular_type: Option<TRegularType>,
+        regular_type: Option<Id<Type>>,
     ) -> Id<Type> {
         let type_ = self.create_type(flags);
         let type_ = BaseLiteralType::new(type_);

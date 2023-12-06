@@ -123,10 +123,10 @@ impl TypeChecker {
             self.get_widened_literal_type(type_)?
         };
         if is_in_js_file(Some(declaration)) {
-            if self.is_empty_literal_type(&widened) {
+            if self.is_empty_literal_type(widened) {
                 self.report_implicit_any(declaration, self.any_type(), None)?;
                 return Ok(self.any_type());
-            } else if self.is_empty_array_literal_type(&widened)? {
+            } else if self.is_empty_array_literal_type(widened)? {
                 self.report_implicit_any(declaration, self.any_array_type(), None)?;
                 return Ok(self.any_array_type());
             }
@@ -151,8 +151,10 @@ impl TypeChecker {
                     .types()
                     .to_owned();
                 return try_some(
-                    Some(types),
-                    Some(|t: Id<Type>| self.is_literal_of_contextual_type(candidate_type, Some(t))),
+                    Some(&types),
+                    Some(|&t: &Id<Type>| {
+                        self.is_literal_of_contextual_type(candidate_type, Some(t))
+                    }),
                 );
             }
             if self
@@ -308,7 +310,7 @@ impl TypeChecker {
                     node,
                     Some(ContextFlags::NoConstraints),
                 )?;
-                if let Some(contextual_type) = contextual_type.as_ref() {
+                if let Some(contextual_type) = contextual_type {
                     let contextual_signature = self.get_single_signature(
                         self.get_non_nullable_type(contextual_type)?,
                         if call_signature.is_some() {
@@ -471,7 +473,7 @@ impl TypeChecker {
         let mut result: Vec<Id<Type /*TypeParameter*/>> = vec![];
         let mut old_type_parameters: Option<Vec<Id<Type /*TypeParameter*/>>> = None;
         let mut new_type_parameters: Option<Vec<Id<Type /*TypeParameter*/>>> = None;
-        for tp in type_parameters {
+        for &tp in type_parameters {
             let tp_symbol = self.type_(tp).symbol();
             let name = tp_symbol.escaped_name();
             if self.has_type_parameter_by_name(
@@ -516,7 +518,7 @@ impl TypeChecker {
                 old_type_parameters.unwrap(),
                 Some(new_type_parameters.clone()),
             ));
-            for tp in new_type_parameters {
+            for &tp in new_type_parameters {
                 self.type_(tp)
                     .as_type_parameter()
                     .set_mapper(mapper.clone());

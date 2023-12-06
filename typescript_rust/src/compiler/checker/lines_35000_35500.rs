@@ -292,7 +292,7 @@ impl TypeChecker {
     ) -> io::Result<Option<Id<Type>>> {
         let error_node = error_node.map(|error_node| error_node.borrow().node_wrapper());
         let promised_type = self.get_promised_type_of_promise(type_, error_node.as_deref())?;
-        promised_type.as_ref().try_and_then(|promised_type| {
+        promised_type.try_and_then(|promised_type| {
             self.get_awaited_type_(promised_type, error_node, diagnostic_message, args)
         })
     }
@@ -308,14 +308,14 @@ impl TypeChecker {
 
         let type_as_promise = type_;
         if let Some(type_as_promise_promised_type_of_promise) =
-            type_as_promise.maybe_promised_type_of_promise().as_ref()
+            *self.type_(type_as_promise).maybe_promised_type_of_promise()
         {
             return Ok(Some(type_as_promise_promised_type_of_promise.clone()));
         }
 
-        if self.is_reference_to_type(type_, &*self.get_global_promise_type(false)?) {
+        if self.is_reference_to_type(type_, self.get_global_promise_type(false)?) {
             let ret = self.get_type_arguments(type_)?[0].clone();
-            *type_as_promise.maybe_promised_type_of_promise() = Some(ret.clone());
+            *self.type_(type_as_promise).maybe_promised_type_of_promise() = Some(ret.clone());
             return Ok(Some(ret));
         }
 
@@ -328,11 +328,11 @@ impl TypeChecker {
         }
 
         let then_function = self.get_type_of_property_of_type_(type_, "then")?;
-        if self.is_type_any(then_function.as_deref()) {
+        if self.is_type_any(then_function) {
             return Ok(None);
         }
 
-        let then_signatures = if let Some(then_function) = then_function.as_ref() {
+        let then_signatures = if let Some(then_function) = then_function {
             self.get_signatures_of_type(then_function, SignatureKind::Call)?
         } else {
             vec![]
@@ -349,7 +349,7 @@ impl TypeChecker {
         }
 
         let onfulfilled_parameter_type = self.get_type_with_facts(
-            &*self.get_union_type(
+            self.get_union_type(
                 &try_map(&then_signatures, |then_signature: &Gc<Signature>, _| {
                     self.get_type_of_first_parameter_of_signature(then_signature)
                 })?,
@@ -360,12 +360,12 @@ impl TypeChecker {
             )?,
             TypeFacts::NEUndefinedOrNull,
         )?;
-        if self.is_type_any(Some(&*onfulfilled_parameter_type)) {
+        if self.is_type_any(Some(onfulfilled_parameter_type)) {
             return Ok(None);
         }
 
         let onfulfilled_parameter_signatures =
-            self.get_signatures_of_type(&onfulfilled_parameter_type, SignatureKind::Call)?;
+            self.get_signatures_of_type(onfulfilled_parameter_type, SignatureKind::Call)?;
         if onfulfilled_parameter_signatures.is_empty() {
             if error_node.is_some() {
                 self.error(
@@ -389,7 +389,7 @@ impl TypeChecker {
             None,
             None,
         )?;
-        *type_as_promise.maybe_promised_type_of_promise() = Some(ret.clone());
+        *self.type_(type_as_promise).maybe_promised_type_of_promise() = Some(ret.clone());
         Ok(Some(ret))
     }
 
@@ -420,28 +420,28 @@ impl TypeChecker {
 
         let then_function = self.get_type_of_property_of_type_(type_, "then")?;
         Ok(matches!(
-            then_function.as_ref(),
+            then_function,
             Some(then_function) if !self.get_signatures_of_type(
-                &*self.get_type_with_facts(then_function, TypeFacts::NEUndefinedOrNull)?,
+                self.get_type_with_facts(then_function, TypeFacts::NEUndefinedOrNull)?,
                 SignatureKind::Call
             )?.is_empty()
         ))
     }
 
     pub(super) fn is_awaited_type_instantiation(&self, type_: Id<Type>) -> io::Result<bool> {
-        if type_.flags().intersects(TypeFlags::Conditional) {
+        if self.type_(type_).flags().intersects(TypeFlags::Conditional) {
             let awaited_symbol = self.get_global_awaited_symbol(false)?;
             return Ok(matches!(
                 awaited_symbol.as_ref(),
                 Some(awaited_symbol) if matches!(
-                    type_.maybe_alias_symbol().as_ref(),
+                    self.type_(type_).maybe_alias_symbol().as_ref(),
                     Some(type_alias_symbol) if Gc::ptr_eq(
                         type_alias_symbol,
                         awaited_symbol
                     )
                 )
             ) && matches!(
-                type_.maybe_alias_type_arguments().as_ref(),
+                self.type_(type_).maybe_alias_type_arguments().as_ref(),
                 Some(type_alias_type_arguments) if type_alias_type_arguments.len() == 1
             ));
         }
@@ -449,7 +449,7 @@ impl TypeChecker {
     }
 
     pub(super) fn unwrap_awaited_type(&self, type_: Id<Type>) -> io::Result<Id<Type>> {
-        Ok(if type_.flags().intersects(TypeFlags::Union) {
+        Ok(if self.type_(type_).flags().intersects(TypeFlags::Union) {
             self.try_map_type(
                 type_,
                 &mut |type_| Ok(Some(self.unwrap_awaited_type(type_)?)),
@@ -457,27 +457,27 @@ impl TypeChecker {
             )?
             .unwrap()
         } else if self.is_awaited_type_instantiation(type_)? {
-            type_.maybe_alias_type_arguments().as_ref().unwrap()[0].clone()
+            self.type_(type_).maybe_alias_type_arguments().as_ref().unwrap()[0].clone()
         } else {
-            type_.type_wrapper()
+            type_
         })
     }
 
     pub(super) fn create_awaited_type_if_needed(&self, type_: Id<Type>) -> io::Result<Id<Type>> {
         if self.is_type_any(Some(type_)) {
-            return Ok(type_.type_wrapper());
+            return Ok(type_);
         }
 
         if self.is_awaited_type_instantiation(type_)? {
-            return Ok(type_.type_wrapper());
+            return Ok(type_);
         }
 
         if self.is_generic_object_type(type_)? {
             let base_constraint = self.get_base_constraint_of_type(type_)?;
-            if match base_constraint.as_ref() {
+            if match base_constraint {
                 None => true,
                 Some(base_constraint) => {
-                    base_constraint.flags().intersects(TypeFlags::AnyOrUnknown)
+                    self.type_(base_constraint).flags().intersects(TypeFlags::AnyOrUnknown)
                         || self.is_empty_object_type(base_constraint)?
                         || self.is_thenable_type(base_constraint)?
                 }
@@ -499,7 +499,7 @@ impl TypeChecker {
                 .is_none(),
             Some("type provided should not be a non-generic 'promise'-like."),
         );
-        Ok(type_.type_wrapper())
+        Ok(type_)
     }
 
     pub(super) fn get_awaited_type_(
@@ -512,7 +512,6 @@ impl TypeChecker {
         let awaited_type =
             self.get_awaited_type_no_alias(type_, error_node, diagnostic_message, args)?;
         awaited_type
-            .as_ref()
             .try_map(|awaited_type| self.create_awaited_type_if_needed(awaited_type))
     }
 
@@ -524,22 +523,22 @@ impl TypeChecker {
         args: Option<Vec<String>>,
     ) -> io::Result<Option<Id<Type>>> {
         if self.is_type_any(Some(type_)) {
-            return Ok(Some(type_.type_wrapper()));
+            return Ok(Some(type_));
         }
 
         if self.is_awaited_type_instantiation(type_)? {
-            return Ok(Some(type_.type_wrapper()));
+            return Ok(Some(type_));
         }
 
         let type_as_awaitable = type_;
         if let Some(type_as_awaitable_awaited_type_of_type) =
-            type_as_awaitable.maybe_awaited_type_of_type().as_ref()
+            *self.type_(type_as_awaitable).maybe_awaited_type_of_type()
         {
             return Ok(Some(type_as_awaitable_awaited_type_of_type.clone()));
         }
 
         let error_node = error_node.map(|error_node| error_node.borrow().node_wrapper());
-        if type_.flags().intersects(TypeFlags::Union) {
+        if self.type_(type_).flags().intersects(TypeFlags::Union) {
             let mut mapper = |constituent_type: Id<Type>| {
                 if error_node.is_some() {
                     self.get_awaited_type_no_alias(
@@ -558,18 +557,18 @@ impl TypeChecker {
                 }
             };
             let ret = self.try_map_type(type_, &mut mapper, None)?;
-            *type_as_awaitable.maybe_awaited_type_of_type() = ret.clone();
+            *self.type_(type_as_awaitable).maybe_awaited_type_of_type() = ret.clone();
             return Ok(ret);
         }
 
         let promised_type = self.get_promised_type_of_promise(type_, Option::<&Node>::None)?;
-        if let Some(promised_type) = promised_type.as_ref() {
-            if type_.id() == promised_type.id()
+        if let Some(promised_type) = promised_type {
+            if self.type_(type_).id() == self.type_(promised_type).id()
                 || self
                     .awaited_type_stack()
                     .iter()
                     .rev()
-                    .position(|awaited_type_id| *awaited_type_id == promised_type.id())
+                    .position(|awaited_type_id| *awaited_type_id == self.type_(promised_type).id())
                     .is_some()
             {
                 if error_node.is_some() {
@@ -582,7 +581,7 @@ impl TypeChecker {
                 return Ok(None);
             }
 
-            self.awaited_type_stack().push(type_.id());
+            self.awaited_type_stack().push(self.type_(type_).id());
             let awaited_type = self.get_awaited_type_no_alias(
                 promised_type,
                 error_node.as_deref(),
@@ -593,7 +592,7 @@ impl TypeChecker {
 
             let awaited_type = return_ok_none_if_none!(awaited_type);
 
-            *type_as_awaitable.maybe_awaited_type_of_type() = Some(awaited_type.clone());
+            *self.type_(type_as_awaitable).maybe_awaited_type_of_type() = Some(awaited_type.clone());
             return Ok(Some(awaited_type));
         }
 
@@ -605,8 +604,8 @@ impl TypeChecker {
             }
         }
 
-        let ret = type_.type_wrapper();
-        *type_as_awaitable.maybe_awaited_type_of_type() = Some(ret.clone());
+        let ret = type_;
+        *self.type_(type_as_awaitable).maybe_awaited_type_of_type() = Some(ret.clone());
         Ok(Some(ret))
     }
 }

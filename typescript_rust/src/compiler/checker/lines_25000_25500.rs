@@ -468,9 +468,8 @@ impl TypeChecker {
                     }) {
                         this_type = self
                             .type_(
-                                self.get_declared_type_of_symbol(class_symbol)?
-                                    .maybe_as_interface_type(),
-                            )
+                                self.get_declared_type_of_symbol(class_symbol)?)
+                                    .maybe_as_interface_type()
                             .and_then(|interface_type| interface_type.maybe_this_type());
                     }
                 } else if self.is_js_constructor(Some(&*container))? {
