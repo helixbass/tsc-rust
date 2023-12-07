@@ -1,5 +1,6 @@
-use std::{cell::{Ref, RefCell, RefMut}, rc::Rc};
+use std::{rc::Rc};
 
+use debug_cell::{Ref, RefCell, RefMut};
 use id_arena::{Arena, Id};
 use once_cell::unsync::Lazy;
 
@@ -29,10 +30,10 @@ impl AllArenas {
         Ref::map(self.types.borrow(), |types| &types[type_])
     }
 
-    #[track_caller]
-    pub fn type_mut(&self, type_: Id<Type>) -> RefMut<Type> {
-        RefMut::map(self.types.borrow_mut(), |types| &mut types[type_])
-    }
+    // #[track_caller]
+    // pub fn type_mut(&self, type_: Id<Type>) -> RefMut<Type> {
+    //     RefMut::map(self.types.borrow_mut(), |types| &mut types[type_])
+    // }
 
     pub fn create_type(&self, type_: Type) -> Id<Type> {
         let id = self.types.borrow_mut().alloc(type_);

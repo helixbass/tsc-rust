@@ -380,8 +380,7 @@ impl TypeChecker {
         mut f: impl FnMut(Id<Type>) -> io::Result<bool>,
     ) -> io::Result<Id<Type>> {
         if self.type_(type_).flags().intersects(TypeFlags::Union) {
-            let type_ref = self.type_(type_);
-            let types = type_ref.as_union_type().types();
+            let types = &self.type_(type_).as_union_type().types().to_owned();
             let filtered = try_filter(types, |&type_: &Id<Type>| f(type_))?;
             if filtered.len() == types.len() {
                 return Ok(type_);
@@ -408,7 +407,10 @@ impl TypeChecker {
             }
             return Ok(self.get_union_type_from_sorted_list(
                 filtered,
-                self.type_(type_).as_union_type().object_flags(),
+                {
+                    let object_flags = self.type_(type_).as_union_type().object_flags();
+                    object_flags
+                },
                 Option::<&Symbol>::None,
                 None,
                 new_origin,

@@ -785,16 +785,16 @@ impl TypeChecker {
                 .as_interface_type()
                 .set_declared_index_infos(vec![]);
 
+            let signatures =
+                self.get_signatures_of_symbol(members.get(InternalSymbolName::Call).cloned())?;
             self.type_(type_)
                 .as_interface_type()
-                .set_declared_call_signatures(
-                    self.get_signatures_of_symbol(members.get(InternalSymbolName::Call).cloned())?,
-                );
+                .set_declared_call_signatures(signatures);
+            let signatures =
+                self.get_signatures_of_symbol(members.get(InternalSymbolName::New).cloned())?;
             self.type_(type_)
                 .as_interface_type()
-                .set_declared_construct_signatures(
-                    self.get_signatures_of_symbol(members.get(InternalSymbolName::New).cloned())?,
-                );
+                .set_declared_construct_signatures(signatures);
             let index_infos = self.get_index_infos_of_symbol(&symbol)?;
             self.type_(type_)
                 .as_interface_type()

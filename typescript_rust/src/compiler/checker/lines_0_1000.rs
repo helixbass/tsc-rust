@@ -1526,7 +1526,7 @@ impl TypeChecker {
     }
 
     #[track_caller]
-    pub fn type_(&self, type_: Id<Type>) -> Ref<Type> {
+    pub fn type_(&self, type_: Id<Type>) -> debug_cell::Ref<Type> {
         self.arena().type_(type_)
     }
 

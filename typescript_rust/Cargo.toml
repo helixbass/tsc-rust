@@ -28,6 +28,7 @@ base64 = "0.21.0"
 peekmore = { version = "1.2.1", features = ["smallvec"] }
 either_n = "0.2.0"
 id-arena = "2.2.1"
+debug-cell = { git = "https://github.com/helixbass/debug-cell", rev = "a034c977" }
 
 [dev-dependencies]
 rstest = "0.15.0"
