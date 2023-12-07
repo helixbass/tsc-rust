@@ -524,11 +524,14 @@ impl TypeChecker {
             .intersects(TypeFlags::UnionOrIntersection)
             && self.is_excess_property_check_target(target_type)
         {
-            for &t in self
-                .type_(target_type)
-                .as_union_or_intersection_type_interface()
-                .types()
-            {
+            for &t in &{
+                let types = self
+                    .type_(target_type)
+                    .as_union_or_intersection_type_interface()
+                    .types()
+                    .to_owned();
+                types
+            } {
                 if self.is_known_property(t, name, is_comparing_jsx_attributes)? {
                     return Ok(true);
                 }

@@ -41,20 +41,35 @@ impl TypeChecker {
             self.get_regular_type_of_object_literal(type_)
         })?;
         let regular_new = self.create_anonymous_type(
-            self.type_(resolved).maybe_symbol(),
+            {
+                let symbol = self.type_(resolved).maybe_symbol();
+                symbol
+            },
             Gc::new(GcCell::new(members)),
-            self.type_(resolved)
-                .as_resolved_type()
-                .call_signatures()
-                .clone(),
-            self.type_(resolved)
-                .as_resolved_type()
-                .construct_signatures()
-                .clone(),
-            self.type_(resolved)
-                .as_resolved_type()
-                .index_infos()
-                .clone(),
+            {
+                let call_signatures = self
+                    .type_(resolved)
+                    .as_resolved_type()
+                    .call_signatures()
+                    .clone();
+                call_signatures
+            },
+            {
+                let construct_signatures = self
+                    .type_(resolved)
+                    .as_resolved_type()
+                    .construct_signatures()
+                    .clone();
+                construct_signatures
+            },
+            {
+                let index_infos = self
+                    .type_(resolved)
+                    .as_resolved_type()
+                    .index_infos()
+                    .clone();
+                index_infos
+            },
         )?;
         self.type_(regular_new)
             .set_flags(self.type_(resolved).flags());

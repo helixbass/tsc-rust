@@ -358,8 +358,7 @@ impl TypeChecker {
         let mut call_signatures: Vec<Gc<Signature>> = vec![];
         let mut construct_signatures: Vec<Gc<Signature>> = vec![];
         let mut index_infos: Vec<Gc<IndexInfo>> = vec![];
-        let type_ref = self.type_(type_);
-        let types = type_ref.as_intersection_type().types();
+        let types = &self.type_(type_).as_intersection_type().types().to_owned();
         let mixin_flags = self.find_mixins(types)?;
         let mixin_count = count_where(Some(&mixin_flags), |b: &bool, _| *b);
         for (i, t) in types.iter().enumerate() {
