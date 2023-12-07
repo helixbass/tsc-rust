@@ -795,9 +795,10 @@ impl TypeChecker {
                 .set_declared_construct_signatures(
                     self.get_signatures_of_symbol(members.get(InternalSymbolName::New).cloned())?,
                 );
+            let index_infos = self.get_index_infos_of_symbol(&symbol)?;
             self.type_(type_)
                 .as_interface_type()
-                .set_declared_index_infos(self.get_index_infos_of_symbol(&symbol)?);
+                .set_declared_index_infos(index_infos);
         }
         Ok(type_)
     }

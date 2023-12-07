@@ -513,11 +513,13 @@ impl TypeChecker {
                 *self
                     .type_(type_)
                     .as_type_reference_interface()
-                    .maybe_resolved_type_arguments_mut() = if let Some(type_mapper) = self
-                    .type_(type_)
-                    .as_type_reference_interface()
-                    .maybe_mapper()
-                {
+                    .maybe_resolved_type_arguments_mut() = if let Some(type_mapper) = {
+                    let mapper = self
+                        .type_(type_)
+                        .as_type_reference_interface()
+                        .maybe_mapper();
+                    mapper
+                } {
                     self.instantiate_types(Some(&type_arguments), Some(type_mapper))?
                 } else {
                     Some(type_arguments)

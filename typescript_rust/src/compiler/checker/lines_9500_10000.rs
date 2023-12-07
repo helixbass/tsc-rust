@@ -1089,17 +1089,17 @@ impl TypeChecker {
             .maybe_symbol()
             .map(|symbol| self.get_declared_type_of_symbol(&symbol))
             .transpose()?;
-        if let Some(base_constructor_type_symbol) = self
-            .type_(base_constructor_type)
-            .maybe_symbol()
-            .as_ref()
-            .try_filter(|base_constructor_type_symbol| -> io::Result<_> {
-                Ok(base_constructor_type_symbol
-                    .flags()
-                    .intersects(SymbolFlags::Class)
-                    && self.are_all_outer_type_parameters_applied(original_base_type.unwrap())?)
-            })?
-        {
+        if let Some(base_constructor_type_symbol) = {
+            let symbol = self.type_(base_constructor_type).maybe_symbol();
+            symbol
+        }
+        .as_ref()
+        .try_filter(|base_constructor_type_symbol| -> io::Result<_> {
+            Ok(base_constructor_type_symbol
+                .flags()
+                .intersects(SymbolFlags::Class)
+                && self.are_all_outer_type_parameters_applied(original_base_type.unwrap())?)
+        })? {
             base_type = self.get_type_from_class_or_interface_reference(
                 &base_type_node,
                 base_constructor_type_symbol,

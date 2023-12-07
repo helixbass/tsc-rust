@@ -636,8 +636,10 @@ impl TypeChecker {
         &self,
         type_: Id<Type>, /*TypeReference*/
     ) -> io::Result<()> {
-        let source = self
-            .resolve_declared_members(self.type_(type_).as_type_reference_interface().target())?;
+        let source = self.resolve_declared_members({
+            let target = self.type_(type_).as_type_reference_interface().target();
+            target
+        })?;
         let type_parameters = maybe_concatenate(
             self.type_(source)
                 .as_interface_type()

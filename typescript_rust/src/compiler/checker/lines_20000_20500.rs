@@ -479,7 +479,15 @@ impl TypeChecker {
         let result = self.create_type_reference(
             type_,
             maybe_map(
-                self.type_(type_).as_generic_type().maybe_type_parameters(),
+                {
+                    let type_parameters = self
+                        .type_(type_)
+                        .as_generic_type()
+                        .maybe_type_parameters()
+                        .map(ToOwned::to_owned);
+                    type_parameters
+                }
+                .as_deref(),
                 |&t: &Id<Type>, _| {
                     if t == source {
                         target
@@ -621,7 +629,15 @@ impl TypeChecker {
             return self.array_variances();
         }
         self.get_variances_worker(
-            self.type_(type_).as_generic_type().maybe_type_parameters(),
+            {
+                let type_parameters = self
+                    .type_(type_)
+                    .as_generic_type()
+                    .maybe_type_parameters()
+                    .map(ToOwned::to_owned);
+                type_parameters
+            }
+            .as_deref(),
             type_,
             |input: &GetVariancesCache, param: Id<Type>, marker: Id<Type>| {
                 self.get_marker_type_reference(

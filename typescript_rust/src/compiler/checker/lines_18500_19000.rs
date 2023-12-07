@@ -2008,12 +2008,14 @@ impl CheckTypeRelatedTo {
                     || get_object_flags(&self.type_checker.type_(target))
                         .intersects(ObjectFlags::MarkerType))
             {
-                let variances = self.type_checker.get_variances(
-                    self.type_checker
+                let variances = self.type_checker.get_variances({
+                    let target = self
+                        .type_checker
                         .type_(source)
                         .as_type_reference_interface()
-                        .target(),
-                );
+                        .target();
+                    target
+                });
                 if variances.is_empty() {
                     return Ok(Ternary::Unknown);
                 }

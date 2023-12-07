@@ -529,7 +529,10 @@ impl TypeChecker {
                     .is_some()
             {
                 self.create_type_reference(
-                    self.type_(type_).as_type_reference().target,
+                    {
+                        let target = self.type_(type_).as_type_reference().target;
+                        target
+                    },
                     Some(self.get_type_arguments(type_)?),
                 )
             } else if self

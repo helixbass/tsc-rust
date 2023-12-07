@@ -747,7 +747,10 @@ impl TypeChecker {
         for &base in &base_types {
             let properties = self.get_properties_of_type(self.get_type_with_this_argument(
                 base,
-                self.type_(type_).as_interface_type().maybe_this_type(),
+                {
+                    let this_type = self.type_(type_).as_interface_type().maybe_this_type();
+                    this_type
+                },
                 None,
             )?)?;
             for ref prop in properties {
