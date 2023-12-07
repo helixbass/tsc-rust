@@ -501,12 +501,14 @@ impl TypeChecker {
             }
             type_resolved_string_index_type.clone().unwrap()
         } else {
-            let type_ref = self.type_(type_);
-            let mut type_resolved_index_type = type_ref.maybe_resolved_index_type();
-            if type_resolved_index_type.is_none() {
-                *type_resolved_index_type = Some(self.create_index_type(type_, false));
+            if self.type_(type_).maybe_resolved_index_type().is_none() {
+                *self.type_(type_).maybe_resolved_index_type() =
+                    Some(self.create_index_type(type_, false));
             }
-            type_resolved_index_type.clone().unwrap()
+            self.type_(type_)
+                .maybe_resolved_index_type()
+                .clone()
+                .unwrap()
         }
     }
 
