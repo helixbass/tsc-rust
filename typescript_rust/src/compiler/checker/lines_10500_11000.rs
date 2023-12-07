@@ -443,10 +443,14 @@ impl TypeChecker {
             .intersects(TypeFlags::Intersection)
         {
             let types = try_map(
-                self.type_(type_)
-                    .as_union_or_intersection_type_interface()
-                    .types()
-                    .to_owned(),
+                {
+                    let types = self
+                        .type_(type_)
+                        .as_union_or_intersection_type_interface()
+                        .types()
+                        .to_owned();
+                    types
+                },
                 |t: Id<Type>, _| {
                     self.get_type_with_this_argument(t, this_argument, need_apparent_type)
                 },

@@ -395,10 +395,14 @@ impl TypeChecker {
                     let target = self.type_(source).as_type_reference_interface().target();
                     target
                 },
-                self.type_(source)
-                    .as_type_reference_interface()
-                    .maybe_resolved_type_arguments()
-                    .clone(),
+                {
+                    let resolved_type_arguments = self
+                        .type_(source)
+                        .as_type_reference_interface()
+                        .maybe_resolved_type_arguments()
+                        .clone();
+                    resolved_type_arguments
+                },
             )
             .into(),
         );
@@ -656,10 +660,14 @@ impl TypeChecker {
                 );
             }
             let type_arguments = maybe_concatenate(
-                self.type_(type_)
-                    .as_interface_type()
-                    .maybe_outer_type_parameters()
-                    .map(ToOwned::to_owned),
+                {
+                    let outer_type_parameters = self
+                        .type_(type_)
+                        .as_interface_type()
+                        .maybe_outer_type_parameters()
+                        .map(ToOwned::to_owned);
+                    outer_type_parameters
+                },
                 self.fill_missing_type_arguments(
                     self.type_arguments_from_type_reference_node(node)?,
                     Some(type_parameters),

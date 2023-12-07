@@ -91,8 +91,11 @@ impl TypeChecker {
                 .as_interface_type()
                 .maybe_resolved_base_types() = Some(Gc::new(vec![]));
         }
-        if let Some(type_symbol_declarations) =
-            self.type_(type_).symbol().maybe_declarations().as_deref()
+        if let Some(type_symbol_declarations) = {
+            let type_symbol_declarations = self.type_(type_).symbol().maybe_declarations().clone();
+            type_symbol_declarations
+        }
+        .as_deref()
         {
             for declaration in type_symbol_declarations {
                 if declaration.kind() == SyntaxKind::InterfaceDeclaration

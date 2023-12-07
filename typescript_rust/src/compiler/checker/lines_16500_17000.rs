@@ -616,10 +616,14 @@ impl TypeChecker {
                         .maybe_node()
                         .is_none()
                 {
-                    let type_ref = self.type_(type_);
-                    let resolved_type_arguments = type_ref
-                        .as_type_reference_interface()
-                        .maybe_resolved_type_arguments();
+                    let resolved_type_arguments = {
+                        let resolved_type_arguments = self
+                            .type_(type_)
+                            .as_type_reference_interface()
+                            .maybe_resolved_type_arguments()
+                            .clone();
+                        resolved_type_arguments
+                    };
                     let resolved_type_arguments = resolved_type_arguments.as_deref();
                     let new_type_arguments =
                         self.instantiate_types(resolved_type_arguments, Some(mapper))?;
@@ -632,7 +636,11 @@ impl TypeChecker {
                             _ => false,
                         } {
                             self.create_normalized_type_reference(
-                                self.type_(type_).as_type_reference_interface().target(),
+                                {
+                                    let target =
+                                        self.type_(type_).as_type_reference_interface().target();
+                                    target
+                                },
                                 new_type_arguments,
                             )?
                         } else {
