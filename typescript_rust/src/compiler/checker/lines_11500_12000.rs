@@ -57,13 +57,17 @@ impl TypeChecker {
             .maybe_template_type()
             .is_none()
         {
-            let template_type = if let Some(type_declaration_type) = self
-                .type_(type_)
-                .as_mapped_type()
-                .declaration
-                .as_mapped_type_node()
-                .type_
-                .as_ref()
+            let template_type = if let Some(type_declaration_type) = {
+                let type_ = self
+                    .type_(type_)
+                    .as_mapped_type()
+                    .declaration
+                    .as_mapped_type_node()
+                    .type_
+                    .clone();
+                type_
+            }
+            .as_ref()
             {
                 self.instantiate_type(
                     self.add_optionality(

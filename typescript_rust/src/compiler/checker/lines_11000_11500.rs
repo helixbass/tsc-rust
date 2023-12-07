@@ -957,12 +957,14 @@ impl TypeChecker {
                 .maybe_target()
                 .unwrap_or_else(|| type_),
         )?;
-        let template_type = self.get_template_type_from_mapped_type(
-            self.type_(type_)
+        let template_type = self.get_template_type_from_mapped_type({
+            let type_ = self
+                .type_(type_)
                 .as_mapped_type()
                 .maybe_target()
-                .unwrap_or_else(|| type_),
-        )?;
+                .unwrap_or_else(|| type_);
+            type_
+        })?;
         let modifiers_type =
             self.get_apparent_type(self.get_modifiers_type_from_mapped_type(type_)?)?;
         let template_modifiers = self.get_mapped_type_modifiers(type_);

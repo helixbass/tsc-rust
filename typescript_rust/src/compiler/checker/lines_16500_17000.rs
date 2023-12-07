@@ -721,7 +721,13 @@ impl TypeChecker {
         }
         if flags.intersects(TypeFlags::Index) {
             return self.get_index_type(
-                self.instantiate_type(self.type_(type_).as_index_type().type_, Some(mapper))?,
+                self.instantiate_type(
+                    {
+                        let type_ = self.type_(type_).as_index_type().type_;
+                        type_
+                    },
+                    Some(mapper),
+                )?,
                 None,
                 None,
             );
@@ -777,7 +783,10 @@ impl TypeChecker {
             return self.get_conditional_type_instantiation(
                 type_,
                 &self.combine_type_mappers(
-                    self.type_(type_).as_conditional_type().mapper.clone(),
+                    {
+                        let mapper = self.type_(type_).as_conditional_type().mapper.clone();
+                        mapper
+                    },
                     mapper.clone(),
                 ),
                 alias_symbol,
