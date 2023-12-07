@@ -848,12 +848,14 @@ impl TypeChecker {
     ) -> io::Result<Option<Id<Type>>> {
         let mut best_match: Option<Id<Type>> = None;
         let mut matching_count = 0;
-        for target in self
-            .type_(union_target)
-            .as_union_or_intersection_type_interface()
-            .types()
-            .to_owned()
-        {
+        for target in {
+            let types = self
+                .type_(union_target)
+                .as_union_or_intersection_type_interface()
+                .types()
+                .to_owned();
+            types
+        } {
             let overlap = self.get_intersection_type(
                 &vec![
                     self.get_index_type(source, None, None)?,

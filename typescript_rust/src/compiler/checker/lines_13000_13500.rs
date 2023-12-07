@@ -210,17 +210,19 @@ impl TypeChecker {
             } {
                 let target_constraint =
                     self.get_constraint_of_type_parameter(type_parameter_target)?;
+                let constraint = match target_constraint {
+                    Some(target_constraint) => self.instantiate_type(target_constraint, {
+                        let mapper = self
+                            .type_(type_parameter)
+                            .as_type_parameter()
+                            .maybe_mapper();
+                        mapper
+                    })?,
+                    None => self.no_constraint_type(),
+                };
                 self.type_(type_parameter)
                     .as_type_parameter()
-                    .set_constraint(match target_constraint {
-                        Some(target_constraint) => self.instantiate_type(
-                            target_constraint,
-                            self.type_(type_parameter)
-                                .as_type_parameter()
-                                .maybe_mapper(),
-                        )?,
-                        None => self.no_constraint_type(),
-                    });
+                    .set_constraint(constraint);
             } else {
                 let constraint_declaration = self.get_constraint_declaration(type_parameter);
                 match constraint_declaration {
@@ -579,7 +581,11 @@ impl TypeChecker {
     ) -> io::Result<Id<Type>> {
         let type_ =
             self.get_declared_type_of_symbol(&self.get_merged_symbol(Some(symbol)).unwrap())?;
-        let type_parameters = self.type_(type_).as_interface_type().maybe_local_type_parameters().map(ToOwned::to_owned);
+        let type_parameters = self
+            .type_(type_)
+            .as_interface_type()
+            .maybe_local_type_parameters()
+            .map(ToOwned::to_owned);
         if let Some(type_parameters) = type_parameters.as_deref() {
             let num_type_arguments = length(
                 node.as_has_type_arguments()

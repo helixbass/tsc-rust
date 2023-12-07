@@ -91,11 +91,14 @@ impl TypeChecker {
             CheckFlags::Readonly
         };
         let mut merged_instantiations = false;
-        for &current in self
-            .type_(containing_type)
-            .as_union_or_intersection_type_interface()
-            .types()
-        {
+        for &current in &{
+            let types = self
+                .type_(containing_type)
+                .as_union_or_intersection_type_interface()
+                .types()
+                .to_owned();
+            types
+        } {
             let type_ = self.get_apparent_type(current)?;
             if !(self.is_error_type(type_)
                 || self.type_(type_).flags().intersects(TypeFlags::Never))

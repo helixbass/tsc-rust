@@ -344,12 +344,14 @@ impl TypeChecker {
             .is_none()
         {
             let mut members = create_symbol_table(Option::<&[Gc<Symbol>]>::None);
-            for current in self
-                .type_(type_)
-                .as_union_or_intersection_type_interface()
-                .types()
-                .to_owned()
-            {
+            for current in {
+                let types = self
+                    .type_(type_)
+                    .as_union_or_intersection_type_interface()
+                    .types()
+                    .to_owned();
+                types
+            } {
                 for prop in self.get_properties_of_type(current)? {
                     if !members.contains_key(prop.escaped_name()) {
                         let combined_prop = self.get_property_of_union_or_intersection_type(
