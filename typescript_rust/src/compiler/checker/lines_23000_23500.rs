@@ -307,11 +307,14 @@ impl TypeChecker {
     ) -> io::Result<bool> {
         Ok(if self.type_(type_).flags().intersects(TypeFlags::Union) {
             try_some(
-                Some(
-                    self.type_(type_)
+                Some(&{
+                    let types = self
+                        .type_(type_)
                         .as_union_or_intersection_type_interface()
-                        .types(),
-                ),
+                        .types()
+                        .to_owned();
+                    types
+                }),
                 Some(|&type_: &Id<Type>| f(type_)),
             )?
         } else {

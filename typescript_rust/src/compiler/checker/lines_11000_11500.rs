@@ -483,7 +483,10 @@ impl TypeChecker {
         let symbol = self
             .get_merged_symbol(self.type_(type_).maybe_symbol())
             .unwrap();
-        if let Some(type_target) = self.type_(type_).as_object_type().maybe_target() {
+        if let Some(type_target) = {
+            let target = self.type_(type_).as_object_type().maybe_target();
+            target
+        } {
             self.set_structured_type_members(
                 self.type_(type_).as_object_type(),
                 self.empty_symbols(),
@@ -624,9 +627,10 @@ impl TypeChecker {
                 .flags()
                 .intersects(SymbolFlags::Function | SymbolFlags::Method)
             {
+                let signatures = self.get_signatures_of_symbol(Some(&*symbol))?;
                 self.type_(type_)
                     .as_object_type()
-                    .set_call_signatures(self.get_signatures_of_symbol(Some(&*symbol))?);
+                    .set_call_signatures(signatures);
             }
             if symbol.flags().intersects(SymbolFlags::Class) {
                 let class_type = self.get_declared_type_of_class_or_interface(&symbol)?;

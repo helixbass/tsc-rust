@@ -13,12 +13,12 @@ use crate::{
     pseudo_big_int_to_string, return_ok_none_if_none, some, try_map, try_maybe_filter, try_some,
     AssignmentDeclarationKind, BaseLiteralType, BigIntLiteralType, CheckFlags, Diagnostics,
     FunctionLikeDeclarationInterface, IndexInfo, InferenceContext, InferenceInfo,
-    InterfaceTypeInterface, IntrinsicType, LiteralTypeInterface, Node, NodeFlags, NodeInterface,
-    Number, NumberLiteralType, ObjectFlags, ObjectFlagsTypeInterface, ObjectTypeInterface,
-    OptionTry, PseudoBigInt, Signature, SignatureFlags, StringLiteralType, StringOrNumber, Symbol,
-    SymbolFlags, SymbolInterface, SyntaxKind, TransientSymbolInterface, Type, TypeChecker,
-    TypeFlags, TypeInterface, TypeMapper, TypeMapperCallback, TypePredicate,
-    TypeReferenceInterface, UniqueESSymbolType, LiteralType,
+    InterfaceTypeInterface, IntrinsicType, LiteralType, LiteralTypeInterface, Node, NodeFlags,
+    NodeInterface, Number, NumberLiteralType, ObjectFlags, ObjectFlagsTypeInterface,
+    ObjectTypeInterface, OptionTry, PseudoBigInt, Signature, SignatureFlags, StringLiteralType,
+    StringOrNumber, Symbol, SymbolFlags, SymbolInterface, SyntaxKind, TransientSymbolInterface,
+    Type, TypeChecker, TypeFlags, TypeInterface, TypeMapper, TypeMapperCallback, TypePredicate,
+    TypeReferenceInterface, UniqueESSymbolType,
 };
 
 impl TypeChecker {
@@ -163,13 +163,12 @@ impl TypeChecker {
 
     pub(super) fn get_fresh_type_of_literal_type(&self, type_: Id<Type>) -> Id<Type> {
         if self.type_(type_).flags().intersects(TypeFlags::Literal) {
-            if let Type::IntrinsicType(IntrinsicType::FreshableIntrinsicType(type_)) = &*self.type_(type_) {
+            if let Type::IntrinsicType(IntrinsicType::FreshableIntrinsicType(type_)) =
+                &*self.type_(type_)
+            {
                 return type_.fresh_type();
             }
-            assert!(matches!(
-                &*self.type_(type_),
-                Type::LiteralType(_)
-            ));
+            assert!(matches!(&*self.type_(type_), Type::LiteralType(_)));
             return LiteralType::get_or_initialize_fresh_type(type_, self);
         }
         type_
@@ -1235,13 +1234,19 @@ impl TypeChecker {
                         .intersects(ObjectFlags::Reference)
                     {
                         self.create_deferred_type_reference(
-                            self.type_(type_).as_type_reference().target,
-                            &self
-                                .type_(type_)
-                                .as_type_reference()
-                                .maybe_node()
-                                .as_ref()
-                                .unwrap(),
+                            {
+                                let target = self.type_(type_).as_type_reference().target;
+                                target
+                            },
+                            &*{
+                                let node = self
+                                    .type_(type_)
+                                    .as_type_reference()
+                                    .maybe_node()
+                                    .clone()
+                                    .unwrap();
+                                node
+                            },
                             Some(new_mapper),
                             new_alias_symbol,
                             new_alias_type_arguments.as_deref(),

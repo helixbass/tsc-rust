@@ -479,15 +479,25 @@ impl TypeChecker {
                 if node.kind() == SyntaxKind::TypeReference {
                     let target = self.type_(type_).as_type_reference_interface().target();
                     concatenate(
-                        self.type_(target)
-                            .as_interface_type()
-                            .maybe_outer_type_parameters()
-                            .map_or_else(|| vec![], ToOwned::to_owned),
+                        {
+                            let outer_type_parameters = self
+                                .type_(target)
+                                .as_interface_type()
+                                .maybe_outer_type_parameters()
+                                .map_or_else(|| vec![], ToOwned::to_owned);
+                            outer_type_parameters
+                        },
                         self.get_effective_type_arguments(
                             &node,
-                            self.type_(target)
-                                .as_interface_type()
-                                .maybe_local_type_parameters(),
+                            {
+                                let local_type_parameters = self
+                                    .type_(target)
+                                    .as_interface_type()
+                                    .maybe_local_type_parameters()
+                                    .map(ToOwned::to_owned);
+                                local_type_parameters
+                            }
+                            .as_deref(),
                         )?,
                     )
                 } else if node.kind() == SyntaxKind::ArrayType {
