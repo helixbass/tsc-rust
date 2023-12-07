@@ -1525,10 +1525,12 @@ impl TypeChecker {
         }
     }
 
+    #[track_caller]
     pub fn type_(&self, type_: Id<Type>) -> Ref<Type> {
         self.arena().type_(type_)
     }
 
+    #[track_caller]
     pub fn alloc_type(&self, type_: Type) -> Id<Type> {
         self.arena().create_type(type_)
     }

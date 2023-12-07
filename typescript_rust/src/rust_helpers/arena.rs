@@ -24,10 +24,12 @@ impl AllArenas {
     //     &mut self.nodes.borrow_mut()[node]
     // }
 
+    #[track_caller]
     pub fn type_(&self, type_: Id<Type>) -> Ref<Type> {
         Ref::map(self.types.borrow(), |types| &types[type_])
     }
 
+    #[track_caller]
     pub fn type_mut(&self, type_: Id<Type>) -> RefMut<Type> {
         RefMut::map(self.types.borrow_mut(), |types| &mut types[type_])
     }

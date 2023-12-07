@@ -15,7 +15,7 @@ clap = { version = "4.0.29", features = ["derive"] }
 tokio = { version = "1.23.0", features = ["full"] }
 # gc = { git = "https://github.com/manishearth/rust-gc", rev = "6c5f754", features = ["derive", "serde"] }
 # gc = { path = "../../rust-gc/gc", features = ["derive", "serde", "unstable-config"] }
-gc = { git = "https://github.com/helixbass/rust-gc", rev = "2214d68", features = ["derive", "serde"] }
+gc = { git = "https://github.com/helixbass/rust-gc", rev = "07e9c2a", features = ["derive", "serde"] }
 itertools = "0.10.5"
 once_cell = "1.17.1"
 derive_builder = "0.10.2"

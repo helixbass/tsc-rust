@@ -383,17 +383,8 @@ name = "gc"
 version = "0.4.1"
 source = "git+https://github.com/helixbass/rust-gc?rev=07e9c2a#07e9c2a97474fe69ebc1633e365aad4aa4b1d617"
 dependencies = [
- "gc_derive 0.4.1 (git+https://github.com/helixbass/rust-gc?rev=07e9c2a)",
+ "gc_derive",
  "id-arena",
- "serde",
-]
-
-[[package]]
-name = "gc"
-version = "0.4.1"
-source = "git+https://github.com/helixbass/rust-gc?rev=2214d68#2214d68d2eeacdffae2f8859b31a158bf0413eff"
-dependencies = [
- "gc_derive 0.4.1 (git+https://github.com/helixbass/rust-gc?rev=2214d68)",
  "serde",
 ]
 
@@ -401,17 +392,6 @@ dependencies = [
 name = "gc_derive"
 version = "0.4.1"
 source = "git+https://github.com/helixbass/rust-gc?rev=07e9c2a#07e9c2a97474fe69ebc1633e365aad4aa4b1d617"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn",
- "synstructure",
-]
-
-[[package]]
-name = "gc_derive"
-version = "0.4.1"
-source = "git+https://github.com/helixbass/rust-gc?rev=2214d68#2214d68d2eeacdffae2f8859b31a158bf0413eff"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -437,7 +417,7 @@ dependencies = [
  "derive_builder",
  "fancy-regex",
  "futures",
- "gc 0.4.1 (git+https://github.com/helixbass/rust-gc?rev=2214d68)",
+ "gc",
  "itertools",
  "lazy_static",
  "local-macros",
@@ -497,7 +477,7 @@ checksum = "b9e0384b61958566e926dc50660321d12159025e767c18e043daf26b70104c39"
 name = "indexmap"
 version = "2.0.0-pre"
 dependencies = [
- "gc 0.4.1 (git+https://github.com/helixbass/rust-gc?rev=07e9c2a)",
+ "gc",
  "hashbrown",
 ]
 
@@ -803,18 +783,18 @@ dependencies = [
 
 [[package]]
 name = "proc-macro2"
-version = "1.0.47"
+version = "1.0.70"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5ea3d908b0e36316caf9e9e2c4625cdde190a7e6f440d794667ed17a1855e725"
+checksum = "39278fbbf5fb4f646ce651690877f89d1c5811a3d4acb27700c1cb3cdb78fd3b"
 dependencies = [
  "unicode-ident",
 ]
 
 [[package]]
 name = "quote"
-version = "1.0.10"
+version = "1.0.33"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "38bc8cc6a5f2e3655e0899c1b848643b2562f853f114bfec7be120678e3ace05"
+checksum = "5267fca4496028628a95160fc423a33e8b2e6af8a5302579e322e4b520293cae"
 dependencies = [
  "proc-macro2",
 ]
@@ -993,13 +973,13 @@ checksum = "73473c0e59e6d5812c5dfe2a064a6444949f089e20eec9a2e5506596494e4623"
 
 [[package]]
 name = "syn"
-version = "1.0.83"
+version = "1.0.109"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "23a1dfb999630e338648c83e91c59a4e9fb7620f520c3194b6b89e276f2f1959"
+checksum = "72b64191b275b66ffe2469e8af2c1cfe3bafa67b529ead792a6d0160888b4237"
 dependencies = [
  "proc-macro2",
  "quote",
- "unicode-xid",
+ "unicode-ident",
 ]
 
 [[package]]
@@ -1029,7 +1009,7 @@ version = "0.1.0"
 dependencies = [
  "clap",
  "derive_builder",
- "gc 0.4.1 (git+https://github.com/helixbass/rust-gc?rev=2214d68)",
+ "gc",
  "harness",
  "indexmap",
  "itertools",
@@ -1095,7 +1075,7 @@ dependencies = [
  "encoding_rs",
  "encoding_rs_io",
  "fancy-regex",
- "gc 0.4.1 (git+https://github.com/helixbass/rust-gc?rev=07e9c2a)",
+ "gc",
  "id-arena",
  "indexmap",
  "itertools",
@@ -1115,7 +1095,7 @@ dependencies = [
 name = "typescript_services_rust"
 version = "0.1.0"
 dependencies = [
- "gc 0.4.1 (git+https://github.com/helixbass/rust-gc?rev=2214d68)",
+ "gc",
  "typescript_rust",
 ]
 

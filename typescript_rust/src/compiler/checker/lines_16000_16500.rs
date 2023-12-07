@@ -18,7 +18,7 @@ use crate::{
     OptionTry, PseudoBigInt, Signature, SignatureFlags, StringLiteralType, StringOrNumber, Symbol,
     SymbolFlags, SymbolInterface, SyntaxKind, TransientSymbolInterface, Type, TypeChecker,
     TypeFlags, TypeInterface, TypeMapper, TypeMapperCallback, TypePredicate,
-    TypeReferenceInterface, UniqueESSymbolType,
+    TypeReferenceInterface, UniqueESSymbolType, LiteralType,
 };
 
 impl TypeChecker {
@@ -163,13 +163,14 @@ impl TypeChecker {
 
     pub(super) fn get_fresh_type_of_literal_type(&self, type_: Id<Type>) -> Id<Type> {
         if self.type_(type_).flags().intersects(TypeFlags::Literal) {
-            return match &*self.type_(type_) {
-                Type::LiteralType(type_) => type_.get_or_initialize_fresh_type(self),
-                Type::IntrinsicType(IntrinsicType::FreshableIntrinsicType(type_)) => {
-                    type_.fresh_type()
-                }
-                _ => unreachable!(),
-            };
+            if let Type::IntrinsicType(IntrinsicType::FreshableIntrinsicType(type_)) = &*self.type_(type_) {
+                return type_.fresh_type();
+            }
+            assert!(matches!(
+                &*self.type_(type_),
+                Type::LiteralType(_)
+            ));
+            return LiteralType::get_or_initialize_fresh_type(type_, self);
         }
         type_
     }

@@ -1464,13 +1464,6 @@ fn get_type_struct_interface_impl(
                         self.#first_field_name.set_fresh_type(fresh_type)
                     }
 
-                    fn get_or_initialize_fresh_type(
-                        &self,
-                        type_checker: &crate::TypeChecker,
-                    ) -> ::id_arena::Id<crate::Type> {
-                        self.#first_field_name.get_or_initialize_fresh_type(type_checker)
-                    }
-
                     fn regular_type(&self) -> ::id_arena::Id<crate::Type> {
                         self.#first_field_name.regular_type()
                     }
@@ -2040,15 +2033,6 @@ fn get_type_enum_interface_impl(
                     fn set_fresh_type(&self, fresh_type: ::id_arena::Id<crate::Type>) {
                         match self {
                             #(#type_type_name::#variant_names(nested) => nested.set_fresh_type(fresh_type)),*
-                        }
-                    }
-
-                    fn get_or_initialize_fresh_type(
-                        &self,
-                        type_checker: &crate::TypeChecker,
-                    ) -> ::id_arena::Id<crate::Type> {
-                        match self {
-                            #(#type_type_name::#variant_names(nested) => nested.get_or_initialize_fresh_type(type_checker)),*
                         }
                     }
 
