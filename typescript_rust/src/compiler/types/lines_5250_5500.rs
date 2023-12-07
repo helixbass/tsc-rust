@@ -137,16 +137,14 @@ impl StringLiteralType {
     }
 
     fn create_fresh_type_from_self(self_: Id<Type>, type_checker: &TypeChecker) -> Id<Type> {
-        let fresh_type = type_checker.create_string_literal_type(
-            type_checker.type_(self_).flags(),
-            type_checker
-                .type_(self_)
-                .as_string_literal_type()
-                .value
-                .clone(),
-            type_checker.type_(self_).maybe_symbol(),
-            Some(self_),
-        );
+        let flags = type_checker.type_(self_).flags();
+        let value = type_checker
+            .type_(self_)
+            .as_string_literal_type()
+            .value
+            .clone();
+        let symbol = type_checker.type_(self_).maybe_symbol();
+        let fresh_type = type_checker.create_string_literal_type(flags, value, symbol, Some(self_));
         type_checker
             .type_(fresh_type)
             .as_literal_type()
@@ -215,12 +213,10 @@ impl NumberLiteralType {
     }
 
     fn create_fresh_type_from_self(self_: Id<Type>, type_checker: &TypeChecker) -> Id<Type> {
-        let fresh_type = type_checker.create_number_literal_type(
-            type_checker.type_(self_).flags(),
-            type_checker.type_(self_).as_number_literal_type().value,
-            type_checker.type_(self_).maybe_symbol(),
-            Some(self_),
-        );
+        let flags = type_checker.type_(self_).flags();
+        let value = type_checker.type_(self_).as_number_literal_type().value;
+        let symbol = type_checker.type_(self_).maybe_symbol();
+        let fresh_type = type_checker.create_number_literal_type(flags, value, symbol, Some(self_));
         type_checker
             .type_(fresh_type)
             .as_literal_type()
@@ -289,16 +285,15 @@ impl BigIntLiteralType {
     }
 
     fn create_fresh_type_from_self(self_: Id<Type>, type_checker: &TypeChecker) -> Id<Type> {
-        let fresh_type = type_checker.create_big_int_literal_type(
-            type_checker.type_(self_).flags(),
-            type_checker
-                .type_(self_)
-                .as_big_int_literal_type()
-                .value
-                .clone(),
-            type_checker.type_(self_).maybe_symbol(),
-            Some(self_),
-        );
+        let flags = type_checker.type_(self_).flags();
+        let value = type_checker
+            .type_(self_)
+            .as_big_int_literal_type()
+            .value
+            .clone();
+        let symbol = type_checker.type_(self_).maybe_symbol();
+        let fresh_type =
+            type_checker.create_big_int_literal_type(flags, value, symbol, Some(self_));
         type_checker
             .type_(fresh_type)
             .as_literal_type()
