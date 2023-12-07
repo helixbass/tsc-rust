@@ -465,8 +465,8 @@ impl TypeChecker {
                 .object_flags()
                 .intersects(ObjectFlags::IsNeverIntersectionComputed)
             {
-                self.type_(type_).as_intersection_type().set_object_flags(
-                    self.type_(type_).as_intersection_type().object_flags()
+                self.type_(type_).as_intersection_type().set_object_flags({
+                    let object_flags = self.type_(type_).as_intersection_type().object_flags()
                         | ObjectFlags::IsNeverIntersectionComputed
                         | if self
                             .get_properties_of_union_or_intersection_type(type_)?
@@ -475,8 +475,9 @@ impl TypeChecker {
                             ObjectFlags::IsNeverIntersection
                         } else {
                             ObjectFlags::None
-                        },
-                );
+                        };
+                    object_flags
+                });
             }
             return Ok(
                 if self

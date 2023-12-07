@@ -204,9 +204,10 @@ impl TypeChecker {
             .maybe_constraint()
             .is_none()
         {
-            if let Some(type_parameter_target) =
-                self.type_(type_parameter).as_type_parameter().target
-            {
+            if let Some(type_parameter_target) = {
+                let type_parameter_target = self.type_(type_parameter).as_type_parameter().target;
+                type_parameter_target
+            } {
                 let target_constraint =
                     self.get_constraint_of_type_parameter(type_parameter_target)?;
                 self.type_(type_parameter)
@@ -388,7 +389,10 @@ impl TypeChecker {
         let type_ = self.alloc_type(
             TypeReference::new(
                 type_,
-                self.type_(source).as_type_reference_interface().target(),
+                {
+                    let target = self.type_(source).as_type_reference_interface().target();
+                    target
+                },
                 self.type_(source)
                     .as_type_reference_interface()
                     .maybe_resolved_type_arguments()

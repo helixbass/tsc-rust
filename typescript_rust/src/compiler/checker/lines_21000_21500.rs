@@ -198,7 +198,10 @@ impl TypeChecker {
             }
         }
         let result = self.create_anonymous_type(
-            self.type_(type_).maybe_symbol(),
+            {
+                let symbol = self.type_(type_).maybe_symbol();
+                symbol
+            },
             Gc::new(GcCell::new(members)),
             vec![],
             vec![],
