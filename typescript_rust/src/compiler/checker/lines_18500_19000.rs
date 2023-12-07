@@ -61,8 +61,12 @@ impl CheckTypeRelatedTo {
         target: Id<Type>, /*UnionOrIntersectionType*/
         report_errors: bool,
     ) -> io::Result<Ternary> {
-        let target_ref = self.type_checker.type_(target);
-        let target_types = target_ref.as_union_or_intersection_type_interface().types();
+        let ref target_types = self
+            .type_checker
+            .type_(target)
+            .as_union_or_intersection_type_interface()
+            .types()
+            .to_owned();
         if self
             .type_checker
             .type_(target)

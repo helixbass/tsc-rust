@@ -265,7 +265,10 @@ impl TypeChecker {
         type_: Id<Type>, /*UnionType*/
     ) -> io::Result<()> {
         let call_signatures = self.get_union_signatures(&try_map(
-            self.type_(type_).as_union_type().types(),
+            &{
+                let types = self.type_(type_).as_union_type().types().to_owned();
+                types
+            },
             |&t: &Id<Type>, _| -> io::Result<_> {
                 Ok(if t == self.global_function_type() {
                     vec![self.unknown_signature()]
