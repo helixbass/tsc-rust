@@ -4,7 +4,7 @@ use debug_cell::{Ref, RefCell, RefMut};
 use id_arena::{Arena, Id};
 use once_cell::unsync::Lazy;
 
-use crate::{Type, TypeInterface};
+use crate::{Type, TypeInterface, TypeMapper};
 
 #[derive(Default)]
 pub struct AllArenas {
@@ -14,6 +14,7 @@ pub struct AllArenas {
     // pub symbols: RefCell<Arena<Symbol>>,
     // pub symbol_tables: RefCell<Arena<SymbolTable>>,
     pub types: RefCell<Arena<Type>>,
+    pub type_mappers: RefCell<Arena<TypeMapper>>,
 }
 
 impl AllArenas {
@@ -38,6 +39,19 @@ impl AllArenas {
     pub fn create_type(&self, type_: Type) -> Id<Type> {
         let id = self.types.borrow_mut().alloc(type_);
         self.type_(id).set_arena_id(id);
+        id
+    }
+
+    #[track_caller]
+    pub fn type_mapper(&self, type_mapper: Id<TypeMapper>) -> Ref<TypeMapper> {
+        Ref::map(self.type_mappers.borrow(), |type_mappers| {
+            &type_mappers[type_mapper]
+        })
+    }
+
+    pub fn create_type_mapper(&self, type_mapper: TypeMapper) -> Id<TypeMapper> {
+        let id = self.type_mappers.borrow_mut().alloc(type_mapper);
+        // self.type_mapper(id).set_arena_id(id);
         id
     }
 }

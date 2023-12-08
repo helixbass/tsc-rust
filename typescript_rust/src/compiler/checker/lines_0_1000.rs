@@ -37,7 +37,7 @@ use crate::{
     SymbolFlags, SymbolFormatFlags, SymbolId, SymbolInterface, SymbolTable, SymbolTracker,
     SymbolWalker, SyntaxKind, Type, TypeChecker, TypeCheckerHost, TypeCheckerHostDebuggable,
     TypeFlags, TypeFormatFlags, TypeId, TypeInterface, TypeMapperCallback, TypePredicate,
-    TypePredicateKind, VarianceFlags,
+    TypePredicateKind, VarianceFlags, TypeMapper,
 };
 
 lazy_static! {
@@ -1533,6 +1533,16 @@ impl TypeChecker {
     #[track_caller]
     pub fn alloc_type(&self, type_: Type) -> Id<Type> {
         self.arena().create_type(type_)
+    }
+
+    #[track_caller]
+    pub fn type_mapper(&self, type_mapper: Id<TypeMapper>) -> debug_cell::Ref<TypeMapper> {
+        self.arena().type_mapper(type_mapper)
+    }
+
+    #[track_caller]
+    pub fn alloc_type_mapper(&self, type_mapper: TypeMapper) -> Id<TypeMapper> {
+        self.arena().create_type_mapper(type_mapper)
     }
 
     pub fn rc_wrapper(&self) -> Gc<TypeChecker> {

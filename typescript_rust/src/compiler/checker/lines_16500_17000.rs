@@ -457,7 +457,7 @@ impl TypeChecker {
     pub(super) fn get_conditional_type_instantiation(
         &self,
         type_: Id<Type>, /*ConditionalType*/
-        mapper: &TypeMapper,
+        mapper: Id<TypeMapper>,
         alias_symbol: Option<impl Borrow<Symbol>>,
         alias_type_arguments: Option<&[Id<Type>]>,
     ) -> io::Result<Id<Type>> {

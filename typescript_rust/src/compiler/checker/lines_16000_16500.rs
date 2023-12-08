@@ -768,7 +768,7 @@ impl TypeChecker {
     pub(super) fn get_mapped_type(
         &self,
         type_: Id<Type>,
-        mapper: &TypeMapper,
+        mapper: Id<TypeMapper>,
     ) -> io::Result<Id<Type>> {
         Ok(match mapper {
             TypeMapper::Simple(mapper) => {
