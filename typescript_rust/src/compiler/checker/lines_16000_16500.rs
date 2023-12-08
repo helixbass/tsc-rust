@@ -919,8 +919,11 @@ impl TypeChecker {
         } else {
             if self.type_(tp).maybe_restrictive_instantiation().is_none() {
                 let restrictive_instantiation = self.alloc_type(
-                    self.create_type_parameter(self.type_(tp).maybe_symbol())
-                        .into(),
+                    self.create_type_parameter({
+                        let symbol = self.type_(tp).maybe_symbol();
+                        symbol
+                    })
+                    .into(),
                 );
                 *self.type_(tp).maybe_restrictive_instantiation() =
                     Some(restrictive_instantiation.clone());

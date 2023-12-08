@@ -500,7 +500,10 @@ impl TypeChecker {
             )?;
             let call_signatures = self.instantiate_signatures(
                 &*self.get_signatures_of_type(type_target, SignatureKind::Call)?,
-                self.type_(type_).as_object_type().maybe_mapper().unwrap(),
+                {
+                    let mapper = self.type_(type_).as_object_type().maybe_mapper().unwrap();
+                    mapper
+                },
             )?;
             let construct_signatures = self.instantiate_signatures(
                 &*self.get_signatures_of_type(type_target, SignatureKind::Construct)?,
@@ -1300,14 +1303,16 @@ impl TypeChecker {
         .try_unwrap_or_else(|| -> io::Result<_> {
             let ret = self.get_declared_type_of_type_parameter(
                 &self
-                    .get_symbol_of_node(
-                        &self
+                    .get_symbol_of_node(&*{
+                        let type_parameter = self
                             .type_(type_)
                             .as_mapped_type()
                             .declaration
                             .as_mapped_type_node()
-                            .type_parameter,
-                    )?
+                            .type_parameter
+                            .clone();
+                        type_parameter
+                    })?
                     .unwrap(),
             );
             *self.type_(type_).as_mapped_type().maybe_type_parameter() = Some(ret.clone());

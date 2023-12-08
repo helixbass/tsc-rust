@@ -680,16 +680,25 @@ impl InferTypes {
             *self.maybe_propagation_type() = save_propagation_type;
             return Ok(());
         }
-        if let Some(ref source_alias_symbol) = self.type_checker.type_(source).maybe_alias_symbol().clone().filter(|source_alias_symbol| {
+        if let Some(ref source_alias_symbol) = {
+            let alias_symbol = self.type_checker.type_(source).maybe_alias_symbol();
+            alias_symbol
+        }.filter(|source_alias_symbol| {
             matches!(
                 self.type_checker.type_(target).maybe_alias_symbol().as_ref(),
                 Some(target_alias_symbol) if Gc::ptr_eq(source_alias_symbol, target_alias_symbol)
             )
         }) {
-            if let Some(source_alias_type_arguments) = self.type_checker.type_(source).maybe_alias_type_arguments().as_ref() {
+            if let Some(source_alias_type_arguments) = {
+                let alias_type_arguments = self.type_checker.type_(source).maybe_alias_type_arguments();
+                alias_type_arguments
+            }.as_ref() {
                 self.infer_from_type_arguments(
                     source_alias_type_arguments,
-                    self.type_checker.type_(target).maybe_alias_type_arguments().as_ref().unwrap(),
+                    {
+                        let alias_type_arguments = self.type_checker.type_(target).maybe_alias_type_arguments();
+                        alias_type_arguments
+                    }.as_ref().unwrap(),
                     &*self.type_checker.get_alias_variances(source_alias_symbol)?,
                 )?;
                 return Ok(());

@@ -312,19 +312,21 @@ impl TypeChecker {
                 .flags()
                 .intersects(TypeFlags::Intersection)
             {
-                result = Some(
-                    self.get_intersection_type(
-                        &try_map(
-                            self.type_(type_)
+                result = Some(self.get_intersection_type(
+                    &try_map(
+                        {
+                            let types = self
+                                .type_(type_)
                                 .as_union_or_intersection_type_interface()
                                 .types()
-                                .to_owned(),
-                            |type_: Id<Type>, _| self.get_widened_type(type_),
-                        )?,
-                        Option::<&Symbol>::None,
-                        None,
+                                .to_owned();
+                            types
+                        },
+                        |type_: Id<Type>, _| self.get_widened_type(type_),
                     )?,
-                );
+                    Option::<&Symbol>::None,
+                    None,
+                )?);
             } else if self.is_array_type(type_) || self.is_tuple_type(type_) {
                 result = Some(self.create_type_reference(
                     self.type_(type_).as_type_reference().target,
