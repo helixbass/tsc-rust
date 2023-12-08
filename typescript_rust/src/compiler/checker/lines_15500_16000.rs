@@ -170,7 +170,7 @@ impl TypeChecker {
     pub(super) fn get_conditional_type(
         &self,
         root: Gc<GcCell<ConditionalRoot>>,
-        mut mapper: Option<Gc<TypeMapper>>,
+        mut mapper: Option<Id<TypeMapper>>,
         alias_symbol: Option<impl Borrow<Symbol>>,
         mut alias_type_arguments: Option<&[Id<Type>]>,
     ) -> io::Result<Id<Type>> {
@@ -209,7 +209,7 @@ impl TypeChecker {
             if check_type == self.wildcard_type() || extends_type == self.wildcard_type() {
                 return Ok(self.wildcard_type());
             }
-            let mut combined_mapper: Option<Gc<TypeMapper>> = None;
+            let mut combined_mapper: Option<Id<TypeMapper>> = None;
             if let Some(root_infer_type_parameters) =
                 (*root).borrow().infer_type_parameters.clone().as_ref()
             {
@@ -380,12 +380,12 @@ impl TypeChecker {
     pub(super) fn can_tail_recurse(
         &self,
         root: &mut Gc<GcCell<ConditionalRoot>>,
-        mapper: &mut Option<Gc<TypeMapper>>,
+        mapper: &mut Option<Id<TypeMapper>>,
         alias_symbol: &mut Option<Gc<Symbol>>,
         alias_type_arguments: &mut Option<&[Id<Type>]>,
         tail_count: &mut usize,
         new_type: Id<Type>,
-        new_mapper: Option<Gc<TypeMapper>>,
+        new_mapper: Option<Id<TypeMapper>>,
     ) -> io::Result<bool> {
         if self
             .type_(new_type)

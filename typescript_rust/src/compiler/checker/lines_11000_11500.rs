@@ -18,7 +18,7 @@ impl TypeChecker {
         &self,
         left: Option<impl Borrow<Symbol>>,
         right: Option<impl Borrow<Symbol>>,
-        mapper: Option<Gc<TypeMapper>>,
+        mapper: Option<Id<TypeMapper>>,
     ) -> io::Result<Option<Gc<Symbol>>> {
         let left = left.map(|left| left.borrow().symbol_wrapper());
         let right = right.map(|right| right.borrow().symbol_wrapper());
@@ -42,7 +42,7 @@ impl TypeChecker {
         &self,
         left: &Signature,
         right: &Signature,
-        mapper: Option<Gc<TypeMapper>>,
+        mapper: Option<Id<TypeMapper>>,
     ) -> io::Result<Vec<Gc<Symbol>>> {
         let left_count = self.get_parameter_count(left)?;
         let right_count = self.get_parameter_count(right)?;
@@ -164,7 +164,7 @@ impl TypeChecker {
             .maybe_type_parameters()
             .clone()
             .or_else(|| right.maybe_type_parameters().clone());
-        let mut param_mapper: Option<Gc<TypeMapper>> = None;
+        let mut param_mapper: Option<Id<TypeMapper>> = None;
         if left.maybe_type_parameters().is_some() && right.maybe_type_parameters().is_some() {
             param_mapper = Some(Gc::new(self.create_type_mapper(
                 right.maybe_type_parameters().clone().unwrap(),

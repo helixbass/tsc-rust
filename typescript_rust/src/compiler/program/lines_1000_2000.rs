@@ -21,7 +21,7 @@ use crate::{
     is_trace_enabled, libs, map_defined, module_resolution_is_equal_to, no_transformers,
     node_modules_path_part, not_implemented_resolver, out_file, package_id_to_string,
     project_reference_is_equal_to, ref_unwrapped, remove_prefix, remove_suffix, skip_type_checking,
-    sort_and_deduplicate_diagnostics, source_file_may_be_emitted, string_contains,
+    sort_and_deduplicate_diagnostics, source_file_may_be_emitted, static_arena, string_contains,
     to_file_name_lower_case, to_path as to_path_helper, trace, try_flat_map,
     type_directive_is_equal_to, zip_to_mode_aware_cache, AsDoubleDeref,
     CancellationTokenDebuggable, Comparison, CompilerHost, CompilerOptions, CustomTransformers,
@@ -32,7 +32,7 @@ use crate::{
     RedirectTargetsMap, ResolveModuleNameResolutionHost, ResolvedModuleFull,
     ResolvedProjectReference, ResolvedTypeReferenceDirective, ScriptReferenceHost, SourceFileLike,
     SourceFileMayBeEmittedHost, SourceOfProjectReferenceRedirect, StringOrRcNode,
-    StructureIsReused, SymlinkCache, TypeChecker, WriteFileCallback, static_arena,
+    StructureIsReused, SymlinkCache, TypeChecker, WriteFileCallback,
 };
 
 impl Program {

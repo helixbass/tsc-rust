@@ -1197,7 +1197,7 @@ impl TypeChecker {
         error_reporter: &mut Option<ErrorReporter>,
         incompatible_error_reporter: Option<&impl Fn(Id<Type>, Id<Type>) -> io::Result<()>>,
         compare_types: Gc<Box<dyn TypeComparer>>,
-        report_unreliable_markers: Option<Gc<TypeMapper>>,
+        report_unreliable_markers: Option<Id<TypeMapper>>,
     ) -> io::Result<Ternary> {
         if Gc::ptr_eq(&source, &target) {
             return Ok(Ternary::True);

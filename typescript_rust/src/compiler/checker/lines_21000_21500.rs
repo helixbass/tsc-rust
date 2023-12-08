@@ -849,7 +849,7 @@ impl TypeChecker {
     pub(super) fn get_mapper_from_context(
         &self,
         context: Option<&InferenceContext>,
-    ) -> Option<Gc<TypeMapper>> {
+    ) -> Option<Id<TypeMapper>> {
         context.map(|context| context.mapper().clone())
     }
 

@@ -20,8 +20,8 @@ use super::{
     TypeFlags, TypeMapper, __String,
 };
 use crate::{
-    AllArenas, CheckBinaryExpression, Diagnostic, DuplicateInfoForFiles, FlowNode, FlowType, IndexInfo,
-    IterationTypes, IterationTypesResolver, MappedSymbol, MultiMap, NodeBuilder, Number,
+    AllArenas, CheckBinaryExpression, Diagnostic, DuplicateInfoForFiles, FlowNode, FlowType,
+    IndexInfo, IterationTypes, IterationTypesResolver, MappedSymbol, MultiMap, NodeBuilder, Number,
     PatternAmbientModule, ResolvedTypeReferenceDirective, ReverseMappedSymbol, StringOrNumber,
     TypeId, TypeSystemEntity, TypeSystemPropertyName, VarianceFlags, _d,
 };
@@ -280,8 +280,8 @@ pub struct TypeChecker {
     pub(crate) number_or_big_int_type: Option<Id<Type>>,
     pub(crate) template_constraint_type: Option<Id<Type>>,
 
-    pub(crate) restrictive_mapper: Option<Gc<TypeMapper>>,
-    pub(crate) permissive_mapper: Option<Gc<TypeMapper>>,
+    pub(crate) restrictive_mapper: Option<Id<TypeMapper>>,
+    pub(crate) permissive_mapper: Option<Id<TypeMapper>>,
 
     pub(crate) empty_object_type: Option<Id<Type>>,
     pub(crate) empty_jsx_object_type: Option<Id<Type>>,
@@ -1227,7 +1227,7 @@ pub struct SymbolLinks {
     pub type_parameters: Option<Vec<Id<Type /*TypeParameter*/>>>,
     pub instantiations: Option<HashMap<String, Id<Type>>>,
     pub inferred_class_symbol: Option<HashMap<SymbolId, Gc<Symbol /*TransientSymbol*/>>>,
-    pub mapper: Option<Gc<TypeMapper>>,
+    pub mapper: Option<Id<TypeMapper>>,
     pub referenced: Option<bool>,
     pub const_enum_referenced: Option<bool>,
     pub containing_type: Option<Id<Type>>,

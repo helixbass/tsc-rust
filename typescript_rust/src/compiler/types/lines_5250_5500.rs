@@ -408,7 +408,7 @@ pub trait ObjectTypeInterface: ObjectFlagsTypeInterface {
     // fn properties(&self) -> &[Gc<Symbol>];
     // fn set_properties(&self, properties: Vec<Gc<Symbol>>);
     fn maybe_target(&self) -> Option<Id<Type>>;
-    fn maybe_mapper(&self) -> Option<Gc<TypeMapper>>;
+    fn maybe_mapper(&self) -> Option<Id<TypeMapper>>;
     fn maybe_instantiations(&self) -> GcCellRefMut<Option<HashMap<String, Id<Type>>>>;
 }
 
@@ -439,7 +439,7 @@ pub struct BaseObjectType {
     object_type_without_abstract_construct_signatures: GcCell<Option<Id<Type>>>,
     // AnonymousType fields
     pub target: Option<Id<Type>>,
-    pub mapper: Option<Gc<TypeMapper>>,
+    pub mapper: Option<Id<TypeMapper>>,
     instantiations: GcCell<Option<HashMap<String, Id<Type>>>>,
     // FreshObjectLiteralType fields
     regular_type: GcCell<Option<Id<Type /*ResolvedType*/>>>,
@@ -529,7 +529,7 @@ impl ObjectTypeInterface for BaseObjectType {
         self.target.clone()
     }
 
-    fn maybe_mapper(&self) -> Option<Gc<TypeMapper>> {
+    fn maybe_mapper(&self) -> Option<Id<TypeMapper>> {
         self.mapper.clone()
     }
 
@@ -1303,7 +1303,7 @@ impl ObjectTypeInterface for BaseUnionOrIntersectionType {
         panic!("Shouldn't call maybe_target() on BaseUnionOrIntersectionType?")
     }
 
-    fn maybe_mapper(&self) -> Option<Gc<TypeMapper>> {
+    fn maybe_mapper(&self) -> Option<Id<TypeMapper>> {
         panic!("Shouldn't call maybe_mapper() on BaseUnionOrIntersectionType?")
     }
 

@@ -161,7 +161,7 @@ impl TypeChecker {
     pub(super) fn instantiate_mapped_type(
         &self,
         type_: Id<Type>, /*MappedType*/
-        mapper: Gc<TypeMapper>,
+        mapper: Id<TypeMapper>,
         alias_symbol: Option<impl Borrow<Symbol>>,
         alias_type_arguments: Option<&[Id<Type>]>,
     ) -> io::Result<Id<Type>> {
@@ -243,7 +243,7 @@ impl TypeChecker {
         tuple_type: Id<Type>,    /*TupleTypeReference*/
         mapped_type: Id<Type>,   /*MappedType*/
         type_variable: Id<Type>, /*TypeVariable*/
-        mapper: Gc<TypeMapper>,
+        mapper: Id<TypeMapper>,
     ) -> io::Result<Id<Type>> {
         let tuple_type_target = self.type_(self.type_(tuple_type).as_type_reference().target);
         let element_flags = &tuple_type_target.as_tuple_type().element_flags;
@@ -280,7 +280,7 @@ impl TypeChecker {
         &self,
         array_type: Id<Type>,
         mapped_type: Id<Type>, /*MappedType*/
-        mapper: Gc<TypeMapper>,
+        mapper: Id<TypeMapper>,
     ) -> io::Result<Id<Type>> {
         let element_type =
             self.instantiate_mapped_type_template(mapped_type, self.number_type(), true, mapper)?;
@@ -301,7 +301,7 @@ impl TypeChecker {
         &self,
         tuple_type: Id<Type>,  /*TupleTypeReference*/
         mapped_type: Id<Type>, /*MappedType*/
-        mapper: Gc<TypeMapper>,
+        mapper: Id<TypeMapper>,
     ) -> io::Result<Id<Type>> {
         let tuple_type_target = self
             .type_(tuple_type)
@@ -361,7 +361,7 @@ impl TypeChecker {
         type_: Id<Type>, /*MappedType*/
         key: Id<Type>,
         is_optional: bool,
-        mapper: Gc<TypeMapper>,
+        mapper: Id<TypeMapper>,
     ) -> io::Result<Id<Type>> {
         let template_mapper = Gc::new(self.append_type_mapping(
             Some(mapper),
@@ -398,7 +398,7 @@ impl TypeChecker {
     pub(super) fn instantiate_anonymous_type(
         &self,
         type_: Id<Type>, /*AnonymousType*/
-        mut mapper: Gc<TypeMapper>,
+        mut mapper: Id<TypeMapper>,
         alias_symbol: Option<impl Borrow<Symbol>>,
         alias_type_arguments: Option<&[Id<Type>]>,
     ) -> io::Result<Id<Type /*AnonymousType*/>> {
@@ -544,7 +544,7 @@ impl TypeChecker {
     pub(super) fn instantiate_type(
         &self,
         type_: Id<Type>,
-        mapper: Option<Gc<TypeMapper>>,
+        mapper: Option<Id<TypeMapper>>,
     ) -> io::Result<Id<Type>> {
         Ok(self.maybe_instantiate_type(Some(type_), mapper)?.unwrap())
     }
@@ -552,7 +552,7 @@ impl TypeChecker {
     pub(super) fn maybe_instantiate_type(
         &self,
         type_: Option<Id<Type>>,
-        mapper: Option<Gc<TypeMapper>>,
+        mapper: Option<Id<TypeMapper>>,
     ) -> io::Result<Option<Id<Type>>> {
         Ok(match (type_, mapper) {
             (Some(type_), Some(mapper)) => Some(self.instantiate_type_with_alias(
@@ -568,7 +568,7 @@ impl TypeChecker {
     pub(super) fn instantiate_type_with_alias(
         &self,
         type_: Id<Type>,
-        mapper: Gc<TypeMapper>,
+        mapper: Id<TypeMapper>,
         alias_symbol: Option<impl Borrow<Symbol>>,
         alias_type_arguments: Option<&[Id<Type>]>,
     ) -> io::Result<Id<Type>> {
@@ -596,7 +596,7 @@ impl TypeChecker {
     pub(super) fn instantiate_type_worker(
         &self,
         type_: Id<Type>,
-        mapper: Gc<TypeMapper>,
+        mapper: Id<TypeMapper>,
         alias_symbol: Option<impl Borrow<Symbol>>,
         alias_type_arguments: Option<&[Id<Type>]>,
     ) -> io::Result<Id<Type>> {
@@ -849,7 +849,7 @@ impl TypeChecker {
     pub(super) fn instantiate_reverse_mapped_type(
         &self,
         type_: Id<Type>, /*ReverseMappedType*/
-        mapper: Gc<TypeMapper>,
+        mapper: Id<TypeMapper>,
     ) -> io::Result<Id<Type>> {
         let inner_mapped_type = self.instantiate_type(
             self.type_(type_).as_reverse_mapped_type().mapped_type,
@@ -926,7 +926,7 @@ impl TypeChecker {
     pub(super) fn instantiate_index_info(
         &self,
         info: &IndexInfo,
-        mapper: Gc<TypeMapper>,
+        mapper: Id<TypeMapper>,
     ) -> io::Result<Gc<IndexInfo>> {
         Ok(Gc::new(self.create_index_info(
             info.key_type.clone(),

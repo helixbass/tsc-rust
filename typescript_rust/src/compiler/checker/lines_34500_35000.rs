@@ -288,7 +288,7 @@ impl TypeChecker {
         type_parameters: &[Id<Type /*TypeParameter*/>],
     ) -> io::Result<bool> {
         let mut type_arguments: Option<Vec<Id<Type>>> = None;
-        let mut mapper: Option<Gc<TypeMapper>> = None;
+        let mut mapper: Option<Id<TypeMapper>> = None;
         let mut result = true;
         for i in 0..type_parameters.len() {
             let constraint = self.get_constraint_of_type_parameter(type_parameters[i])?;

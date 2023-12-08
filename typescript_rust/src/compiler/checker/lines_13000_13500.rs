@@ -413,7 +413,7 @@ impl TypeChecker {
         &self,
         target: Id<Type>, /*GenericType*/
         node: &Node,      /*TypeReferenceNode | ArrayTypeNode | TupleTypeNode*/
-        mapper: Option<Gc<TypeMapper>>,
+        mapper: Option<Id<TypeMapper>>,
         alias_symbol: Option<impl Borrow<Symbol>>,
         alias_type_arguments: Option<&[Id<Type>]>,
     ) -> io::Result<Id<Type /*DeferredTypeReference*/>> {

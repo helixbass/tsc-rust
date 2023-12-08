@@ -719,7 +719,7 @@ impl TypeChecker {
     pub(super) fn create_instantiated_symbol_table(
         &self,
         symbols: impl IntoIterator<Item = impl Borrow<Gc<Symbol>>>,
-        mapper: Gc<TypeMapper>,
+        mapper: Id<TypeMapper>,
         mapping_this_only: bool,
     ) -> io::Result<SymbolTable> {
         let mut result = create_symbol_table(Option::<&[Gc<Symbol>]>::None);

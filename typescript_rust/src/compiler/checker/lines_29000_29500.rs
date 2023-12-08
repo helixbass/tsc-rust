@@ -697,7 +697,7 @@ impl TypeChecker {
                 is_javascript,
             )?
             .unwrap();
-        let mut mapper: Option<Gc<TypeMapper>> = None;
+        let mut mapper: Option<Id<TypeMapper>> = None;
         for i in 0..type_argument_nodes.len() {
             Debug_.assert(
                 type_parameters.get(i).is_some(),

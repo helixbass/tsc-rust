@@ -482,7 +482,7 @@ impl TypeChecker {
         type_parameters: Vec<Id<Type /*TypeParameter*/>>,
         type_arguments: Vec<Id<Type>>,
     ) -> io::Result<()> {
-        let mut mapper: Option<Gc<TypeMapper>> = None;
+        let mut mapper: Option<Id<TypeMapper>> = None;
         let mut members: Gc<GcCell<SymbolTable>>;
         let mut call_signatures: Vec<Gc<Signature>>;
         let mut construct_signatures: Vec<Gc<Signature>>;

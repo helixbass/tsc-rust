@@ -1,4 +1,4 @@
-use std::{rc::Rc};
+use std::rc::Rc;
 
 use debug_cell::{Ref, RefCell, RefMut};
 use id_arena::{Arena, Id};

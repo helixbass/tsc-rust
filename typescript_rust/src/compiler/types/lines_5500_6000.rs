@@ -270,7 +270,7 @@ pub struct TypeParameter {
     pub constraint: GcCell<Option<Id<Type>>>,
     pub default: GcCell<Option<Id<Type>>>,
     pub target: Option<Id<Type /*TypeParameter*/>>,
-    pub mapper: GcCell<Option<Gc<TypeMapper>>>,
+    pub mapper: GcCell<Option<Id<TypeMapper>>>,
     pub is_this_type: Option<bool>,
 }
 
@@ -298,11 +298,11 @@ impl TypeParameter {
         self.default.borrow_mut()
     }
 
-    pub fn maybe_mapper(&self) -> Option<Gc<TypeMapper>> {
+    pub fn maybe_mapper(&self) -> Option<Id<TypeMapper>> {
         self.mapper.borrow().clone()
     }
 
-    pub fn set_mapper(&self, mapper: Gc<TypeMapper>) {
+    pub fn set_mapper(&self, mapper: Id<TypeMapper>) {
         *self.mapper.borrow_mut() = Some(mapper);
     }
 }
@@ -434,8 +434,8 @@ pub struct ConditionalType {
     resolved_false_type: GcCell<Option<Id<Type>>>,
     resolved_inferred_true_type: GcCell<Option<Id<Type>>>,
     resolved_default_constraint: GcCell<Option<Id<Type>>>,
-    pub(crate) mapper: Option<Gc<TypeMapper>>,
-    pub(crate) combined_mapper: Option<Gc<TypeMapper>>,
+    pub(crate) mapper: Option<Id<TypeMapper>>,
+    pub(crate) combined_mapper: Option<Id<TypeMapper>>,
 }
 
 impl ConditionalType {
@@ -444,8 +444,8 @@ impl ConditionalType {
         root: Gc<GcCell<ConditionalRoot>>,
         check_type: Id<Type>,
         extends_type: Id<Type>,
-        mapper: Option<Gc<TypeMapper>>,
-        combined_mapper: Option<Gc<TypeMapper>>,
+        mapper: Option<Id<TypeMapper>>,
+        combined_mapper: Option<Id<TypeMapper>>,
     ) -> Self {
         Self {
             _type: base_type,
@@ -590,7 +590,7 @@ pub struct Signature {
     #[unsafe_ignore_trace]
     resolved_min_argument_count: Cell<Option<usize>>,
     pub target: Option<Gc<Signature>>,
-    pub mapper: Option<Gc<TypeMapper>>,
+    pub mapper: Option<Id<TypeMapper>>,
     pub composite_signatures: Option<Vec<Gc<Signature>>>,
     #[unsafe_ignore_trace]
     pub composite_kind: Option<TypeFlags>,
@@ -792,8 +792,8 @@ impl fmt::Debug for TypeMapperFunction {
 
 #[derive(Clone, Debug, Finalize, Trace)]
 pub struct TypeMapperCompositeOrMerged {
-    pub mapper1: Gc<TypeMapper>,
-    pub mapper2: Gc<TypeMapper>,
+    pub mapper1: Id<TypeMapper>,
+    pub mapper2: Id<TypeMapper>,
 }
 
 impl TypeMapper {
@@ -811,11 +811,11 @@ impl TypeMapper {
         })
     }
 
-    pub fn new_composite(mapper1: Gc<TypeMapper>, mapper2: Gc<TypeMapper>) -> Self {
+    pub fn new_composite(mapper1: Id<TypeMapper>, mapper2: Id<TypeMapper>) -> Self {
         Self::Composite(TypeMapperCompositeOrMerged { mapper1, mapper2 })
     }
 
-    pub fn new_merged(mapper1: Gc<TypeMapper>, mapper2: Gc<TypeMapper>) -> Self {
+    pub fn new_merged(mapper1: Id<TypeMapper>, mapper2: Id<TypeMapper>) -> Self {
         Self::Merged(TypeMapperCompositeOrMerged { mapper1, mapper2 })
     }
 }
@@ -999,9 +999,9 @@ pub struct InferenceContext {
     #[unsafe_ignore_trace]
     flags: Cell<InferenceFlags>,
     pub compare_types: Gc<Box<dyn TypeComparer>>,
-    mapper: GcCell<Option<Gc<TypeMapper>>>,
-    non_fixing_mapper: GcCell<Option<Gc<TypeMapper>>>,
-    return_mapper: GcCell<Option<Gc<TypeMapper>>>,
+    mapper: GcCell<Option<Id<TypeMapper>>>,
+    non_fixing_mapper: GcCell<Option<Id<TypeMapper>>>,
+    return_mapper: GcCell<Option<Id<TypeMapper>>>,
     inferred_type_parameters: GcCell<Option<Vec<Id<Type /*TypeParameter*/>>>>,
 }
 
@@ -1011,9 +1011,9 @@ impl InferenceContext {
         signature: Option<Gc<Signature>>,
         flags: InferenceFlags,
         compare_types: Gc<Box<dyn TypeComparer>>,
-        mapper: Option<Gc<TypeMapper>>,
-        non_fixing_mapper: Option<Gc<TypeMapper>>,
-        return_mapper: Option<Gc<TypeMapper>>,
+        mapper: Option<Id<TypeMapper>>,
+        non_fixing_mapper: Option<Id<TypeMapper>>,
+        return_mapper: Option<Id<TypeMapper>>,
         inferred_type_parameters: Option<Vec<Id<Type>>>,
     ) -> Self {
         Self {
@@ -1044,27 +1044,27 @@ impl InferenceContext {
         self.flags.set(flags);
     }
 
-    pub fn mapper(&self) -> Gc<TypeMapper> {
+    pub fn mapper(&self) -> Id<TypeMapper> {
         self.mapper.borrow().clone().unwrap()
     }
 
-    pub fn set_mapper(&self, mapper: Gc<TypeMapper>) {
+    pub fn set_mapper(&self, mapper: Id<TypeMapper>) {
         *self.mapper.borrow_mut() = Some(mapper);
     }
 
-    pub fn non_fixing_mapper(&self) -> Gc<TypeMapper> {
+    pub fn non_fixing_mapper(&self) -> Id<TypeMapper> {
         self.non_fixing_mapper.borrow().clone().unwrap()
     }
 
-    pub fn set_non_fixing_mapper(&self, non_fixing_mapper: Gc<TypeMapper>) {
+    pub fn set_non_fixing_mapper(&self, non_fixing_mapper: Id<TypeMapper>) {
         *self.non_fixing_mapper.borrow_mut() = Some(non_fixing_mapper);
     }
 
-    pub fn maybe_return_mapper(&self) -> Option<Gc<TypeMapper>> {
+    pub fn maybe_return_mapper(&self) -> Option<Id<TypeMapper>> {
         self.return_mapper.borrow().clone()
     }
 
-    pub fn set_return_mapper(&self, return_mapper: Option<Gc<TypeMapper>>) {
+    pub fn set_return_mapper(&self, return_mapper: Option<Id<TypeMapper>>) {
         *self.return_mapper.borrow_mut() = return_mapper;
     }
 

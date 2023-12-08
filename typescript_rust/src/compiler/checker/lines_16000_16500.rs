@@ -629,10 +629,10 @@ impl TypeChecker {
     pub(super) fn instantiate_list<TItem: Trace + Finalize>(
         &self,
         items: Option<&[Gc<TItem>]>,
-        mapper: Option<Gc<TypeMapper>>,
-        mut instantiator: impl FnMut(&Gc<TItem>, Option<Gc<TypeMapper>>) -> Gc<TItem>,
+        mapper: Option<Id<TypeMapper>>,
+        mut instantiator: impl FnMut(&Gc<TItem>, Option<Id<TypeMapper>>) -> Gc<TItem>,
     ) -> Option<Vec<Gc<TItem>>> {
-        self.try_instantiate_list(items, mapper, |a: &Gc<TItem>, b: Option<Gc<TypeMapper>>| {
+        self.try_instantiate_list(items, mapper, |a: &Gc<TItem>, b: Option<Id<TypeMapper>>| {
             Ok(instantiator(a, b))
         })
         .unwrap()
@@ -641,8 +641,8 @@ impl TypeChecker {
     pub(super) fn try_instantiate_list<TItem: Trace + Finalize>(
         &self,
         items: Option<&[Gc<TItem>]>,
-        mapper: Option<Gc<TypeMapper>>,
-        mut instantiator: impl FnMut(&Gc<TItem>, Option<Gc<TypeMapper>>) -> io::Result<Gc<TItem>>,
+        mapper: Option<Id<TypeMapper>>,
+        mut instantiator: impl FnMut(&Gc<TItem>, Option<Id<TypeMapper>>) -> io::Result<Gc<TItem>>,
     ) -> io::Result<Option<Vec<Gc<TItem>>>> {
         let items = return_ok_none_if_none!(items);
         if !items.is_empty() {
@@ -674,8 +674,8 @@ impl TypeChecker {
     pub(super) fn try_instantiate_list_non_gc<TItem: PartialEq + Clone>(
         &self,
         items: Option<&[TItem]>,
-        mapper: Option<Gc<TypeMapper>>,
-        mut instantiator: impl FnMut(&TItem, Option<Gc<TypeMapper>>) -> io::Result<TItem>,
+        mapper: Option<Id<TypeMapper>>,
+        mut instantiator: impl FnMut(&TItem, Option<Id<TypeMapper>>) -> io::Result<TItem>,
     ) -> io::Result<Option<Vec<TItem>>> {
         let items = return_ok_none_if_none!(items);
         if !items.is_empty() {
@@ -707,7 +707,7 @@ impl TypeChecker {
     pub(super) fn instantiate_types(
         &self,
         types: Option<&[Id<Type>]>,
-        mapper: Option<Gc<TypeMapper>>,
+        mapper: Option<Id<TypeMapper>>,
     ) -> io::Result<Option<Vec<Id<Type>>>> {
         self.try_instantiate_list_non_gc(types, mapper, |&type_: &Id<Type>, mapper| {
             self.instantiate_type(type_, mapper)
@@ -717,7 +717,7 @@ impl TypeChecker {
     pub(super) fn instantiate_signatures(
         &self,
         signatures: &[Gc<Signature>],
-        mapper: Gc<TypeMapper>,
+        mapper: Id<TypeMapper>,
     ) -> io::Result<Vec<Gc<Signature>>> {
         Ok(self
             .try_instantiate_list(
@@ -737,7 +737,7 @@ impl TypeChecker {
     pub(super) fn instantiate_index_infos(
         &self,
         index_infos: &[Gc<IndexInfo>],
-        mapper: Gc<TypeMapper>,
+        mapper: Id<TypeMapper>,
     ) -> io::Result<Vec<Gc<IndexInfo>>> {
         Ok(self
             .try_instantiate_list(
@@ -824,16 +824,16 @@ impl TypeChecker {
 
     pub(super) fn make_composite_type_mapper(
         &self,
-        mapper1: Gc<TypeMapper>,
-        mapper2: Gc<TypeMapper>,
+        mapper1: Id<TypeMapper>,
+        mapper2: Id<TypeMapper>,
     ) -> TypeMapper {
         TypeMapper::new_composite(mapper1, mapper2)
     }
 
     pub(super) fn make_merged_type_mapper(
         &self,
-        mapper1: Gc<TypeMapper>,
-        mapper2: Gc<TypeMapper>,
+        mapper1: Id<TypeMapper>,
+        mapper2: Id<TypeMapper>,
     ) -> TypeMapper {
         TypeMapper::new_merged(mapper1, mapper2)
     }
@@ -855,9 +855,9 @@ impl TypeChecker {
 
     pub(super) fn combine_type_mappers(
         &self,
-        mapper1: Option<Gc<TypeMapper>>,
-        mapper2: Gc<TypeMapper>,
-    ) -> Gc<TypeMapper> {
+        mapper1: Option<Id<TypeMapper>>,
+        mapper2: Id<TypeMapper>,
+    ) -> Id<TypeMapper> {
         if let Some(mapper1) = mapper1 {
             Gc::new(self.make_composite_type_mapper(mapper1, mapper2))
         } else {
@@ -867,9 +867,9 @@ impl TypeChecker {
 
     pub(super) fn merge_type_mappers(
         &self,
-        mapper1: Option<Gc<TypeMapper>>,
-        mapper2: Gc<TypeMapper>,
-    ) -> Gc<TypeMapper> {
+        mapper1: Option<Id<TypeMapper>>,
+        mapper2: Id<TypeMapper>,
+    ) -> Id<TypeMapper> {
         if let Some(mapper1) = mapper1 {
             Gc::new(self.make_merged_type_mapper(mapper1, mapper2))
         } else {
@@ -881,7 +881,7 @@ impl TypeChecker {
         &self,
         source: Id<Type>,
         target: Id<Type>,
-        mapper: Option<Gc<TypeMapper>>,
+        mapper: Option<Id<TypeMapper>>,
     ) -> TypeMapper {
         match mapper {
             None => self.make_unary_type_mapper(source, target),
@@ -894,7 +894,7 @@ impl TypeChecker {
 
     pub(super) fn append_type_mapping(
         &self,
-        mapper: Option<Gc<TypeMapper>>,
+        mapper: Option<Id<TypeMapper>>,
         source: Id<Type>,
         target: Id<Type>,
     ) -> TypeMapper {
@@ -950,7 +950,7 @@ impl TypeChecker {
     pub(super) fn instantiate_type_predicate(
         &self,
         predicate: &TypePredicate,
-        mapper: Gc<TypeMapper>,
+        mapper: Id<TypeMapper>,
     ) -> io::Result<TypePredicate> {
         Ok(self.create_type_predicate(
             predicate.kind,
@@ -963,7 +963,7 @@ impl TypeChecker {
     pub(super) fn instantiate_signature(
         &self,
         signature: Gc<Signature>,
-        mut mapper: Gc<TypeMapper>,
+        mut mapper: Id<TypeMapper>,
         erase_type_parameters: Option<bool>,
     ) -> io::Result<Signature> {
         let erase_type_parameters = erase_type_parameters.unwrap_or(false);
@@ -1016,7 +1016,7 @@ impl TypeChecker {
     pub(super) fn instantiate_symbol(
         &self,
         symbol: &Symbol,
-        mut mapper: Gc<TypeMapper>,
+        mut mapper: Id<TypeMapper>,
     ) -> io::Result<Gc<Symbol>> {
         let mut symbol = symbol.symbol_wrapper();
         let links = self.get_symbol_links(&symbol);
@@ -1065,7 +1065,7 @@ impl TypeChecker {
     pub(super) fn get_object_type_instantiation(
         &self,
         type_: Id<Type>, /*AnonymousType | DeferredTypeReference*/
-        mapper: Gc<TypeMapper>,
+        mapper: Id<TypeMapper>,
         alias_symbol: Option<impl Borrow<Symbol>>,
         alias_type_arguments: Option<&[Id<Type>]>,
     ) -> io::Result<Id<Type>> {

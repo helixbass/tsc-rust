@@ -469,8 +469,7 @@ impl TypeChecker {
                 .intersects(ObjectFlags::IsNeverIntersectionComputed)
             {
                 let mut object_flags = self.type_(type_).as_intersection_type().object_flags();
-                object_flags |=
-                    ObjectFlags::IsNeverIntersectionComputed
+                object_flags |= ObjectFlags::IsNeverIntersectionComputed
                     | if self
                         .get_properties_of_union_or_intersection_type(type_)?
                         .try_any(|ref symbol| self.is_never_reduced_property(symbol))?

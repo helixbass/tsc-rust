@@ -6,7 +6,7 @@ use gc::{Finalize, Gc, Trace};
 use crate::{
     create_node_factory, maybe_text_char_at_index, object_allocator, BaseNode, BaseNodeFactory,
     CharacterCodes, Node, NodeArray, NodeFactory, NodeFactoryFlags, OptionTry, SourceTextAsChars,
-    SyntaxKind,
+    SyntaxKind, Type,
 };
 
 bitflags! {
