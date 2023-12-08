@@ -774,14 +774,23 @@ impl TypeChecker {
             };
             return self.get_indexed_access_type(
                 self.instantiate_type(
-                    self.type_(type_).as_indexed_access_type().object_type,
+                    {
+                        let object_type = self.type_(type_).as_indexed_access_type().object_type;
+                        object_type
+                    },
                     Some(mapper.clone()),
                 )?,
                 self.instantiate_type(
-                    self.type_(type_).as_indexed_access_type().index_type,
+                    {
+                        let index_type = self.type_(type_).as_indexed_access_type().index_type;
+                        index_type
+                    },
                     Some(mapper),
                 )?,
-                Some(self.type_(type_).as_indexed_access_type().access_flags),
+                Some({
+                    let access_flags = self.type_(type_).as_indexed_access_type().access_flags;
+                    access_flags
+                }),
                 Option::<&Node>::None,
                 new_alias_symbol,
                 new_alias_type_arguments.as_deref(),

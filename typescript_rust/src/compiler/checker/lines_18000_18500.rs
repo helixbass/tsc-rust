@@ -1186,10 +1186,14 @@ impl CheckTypeRelatedTo {
                 } else {
                     vec![source.clone()]
                 },
-                self.type_checker
-                    .type_(target)
-                    .flags()
-                    .intersects(TypeFlags::Union),
+                {
+                    let intersects = self
+                        .type_checker
+                        .type_(target)
+                        .flags()
+                        .intersects(TypeFlags::Union);
+                    intersects
+                },
             )?;
             if let Some(constraint) = constraint {
                 if self

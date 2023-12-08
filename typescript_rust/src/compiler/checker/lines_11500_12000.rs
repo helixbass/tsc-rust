@@ -78,7 +78,10 @@ impl TypeChecker {
                                 .intersects(MappedTypeModifiers::IncludeOptional),
                         ),
                     )?,
-                    self.type_(type_).as_mapped_type().maybe_mapper(),
+                    {
+                        let mapper = self.type_(type_).as_mapped_type().maybe_mapper();
+                        mapper
+                    },
                 )?
             } else {
                 self.error_type()

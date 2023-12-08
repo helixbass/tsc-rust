@@ -619,9 +619,13 @@ impl TypeChecker {
                 node.node_wrapper(),
                 check_type.clone(),
                 self.get_type_from_type_node_(&node_as_conditional_type_node.extends_type)?,
-                self.type_(check_type)
-                    .flags()
-                    .intersects(TypeFlags::TypeParameter),
+                {
+                    let intersects = self
+                        .type_(check_type)
+                        .flags()
+                        .intersects(TypeFlags::TypeParameter);
+                    intersects
+                },
                 self.get_infer_type_parameters(node)?,
                 outer_type_parameters.clone(),
                 alias_symbol,
