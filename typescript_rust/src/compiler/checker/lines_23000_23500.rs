@@ -544,7 +544,10 @@ impl TypeChecker {
             if self.type_(type_).flags().intersects(TypeFlags::Union) && alias_symbol.is_some() {
                 self.get_union_type(
                     &try_map(
-                        self.type_(type_).as_union_type().types(),
+                        &{
+                            let types = self.type_(type_).as_union_type().types().to_owned();
+                            types
+                        },
                         |&type_: &Id<Type>, _| mapper(type_),
                     )?,
                     Some(UnionReduction::Literal),
