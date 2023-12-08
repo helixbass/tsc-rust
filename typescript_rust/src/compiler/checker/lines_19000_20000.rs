@@ -123,7 +123,7 @@ impl CheckTypeRelatedTo {
             let source_constraint = self.type_checker.instantiate_type(
                 self.type_checker
                     .get_constraint_type_from_mapped_type(source)?,
-                Some(Gc::new(
+                Some(
                     if self
                         .type_checker
                         .get_combined_mapped_type_optionality(source)?
@@ -135,7 +135,7 @@ impl CheckTypeRelatedTo {
                         self.type_checker
                             .make_function_type_mapper(ReportUnreliableMarkers)
                     },
-                )),
+                ),
             )?;
             result = self.is_related_to(
                 target_constraint,
@@ -146,14 +146,14 @@ impl CheckTypeRelatedTo {
                 None,
             )?;
             if result != Ternary::False {
-                let mapper = Gc::new(self.type_checker.create_type_mapper(
+                let mapper = self.type_checker.create_type_mapper(
                     vec![self
                         .type_checker
                         .get_type_parameter_from_mapped_type(source)?],
                     Some(vec![self
                         .type_checker
                         .get_type_parameter_from_mapped_type(target)?]),
-                ));
+                );
                 if self.type_checker.maybe_instantiate_type(
                     self.type_checker.get_name_type_from_mapped_type(source)?,
                     Some(mapper.clone()),
@@ -1534,10 +1534,10 @@ impl CheckTypeRelatedTo {
             Gc::new(Box::new(TypeComparerIsRelatedToWorker::new(
                 self.rc_wrapper(),
             ))),
-            Some(Gc::new(
+            Some(
                 self.type_checker
                     .make_function_type_mapper(ReportUnreliableMarkers),
-            )),
+            ),
         )
     }
 

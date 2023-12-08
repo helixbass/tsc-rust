@@ -638,7 +638,7 @@ impl TypeChecker {
             }) {
                 let instantiated = self.get_conditional_type_instantiation(
                     type_,
-                    &self.prepend_type_mapping(
+                    self.prepend_type_mapping(
                         (*self.type_(type_).as_conditional_type().root)
                             .borrow()
                             .check_type
@@ -1165,11 +1165,11 @@ impl TypeChecker {
                 }) {
                     return self.instantiate_type(
                         type_,
-                        Some(Gc::new(self.prepend_type_mapping(
+                        Some(self.prepend_type_mapping(
                             type_variable,
                             constraint,
                             self.type_(type_).as_mapped_type().maybe_mapper(),
-                        ))),
+                        )),
                     );
                 }
             }

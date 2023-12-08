@@ -768,12 +768,12 @@ impl TypeChecker {
             None,
             None,
         ));
-        context.set_mapper(Gc::new(self.make_function_type_mapper(
+        context.set_mapper(self.make_function_type_mapper(
             CreateInferenceContextWorkerMapperCallback::new(context.clone()),
-        )));
-        context.set_non_fixing_mapper(Gc::new(self.make_function_type_mapper(
+        ));
+        context.set_non_fixing_mapper(self.make_function_type_mapper(
             CreateInferenceContextWorkerNonFixingMapperCallback::new(context.clone()),
-        )));
+        ));
         context
     }
 

@@ -1332,10 +1332,10 @@ impl TypeChecker {
         object_type: Id<Type>, /*MappedType*/
         index: Id<Type>,
     ) -> io::Result<Id<Type>> {
-        let mapper = Gc::new(self.create_type_mapper(
+        let mapper = self.create_type_mapper(
             vec![self.get_type_parameter_from_mapped_type(object_type)?],
             Some(vec![index]),
-        ));
+        );
         let template_mapper = self.combine_type_mappers(
             self.type_(object_type).as_mapped_type().maybe_mapper(),
             mapper,

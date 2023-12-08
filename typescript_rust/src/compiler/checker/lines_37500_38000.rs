@@ -617,7 +617,7 @@ impl TypeChecker {
                                         .as_generic_type()
                                         .maybe_type_parameters()
                                         .unwrap()[0],
-                                    &mapper.clone().unwrap(),
+                                    mapper.clone().unwrap(),
                                 )?,
                             ),
                             Some(
@@ -626,7 +626,7 @@ impl TypeChecker {
                                         .as_generic_type()
                                         .maybe_type_parameters()
                                         .unwrap()[1],
-                                    &mapper.clone().unwrap(),
+                                    mapper.clone().unwrap(),
                                 )?,
                             ),
                             if method_name == "next" {
@@ -636,7 +636,7 @@ impl TypeChecker {
                                             .as_generic_type()
                                             .maybe_type_parameters()
                                             .unwrap()[2],
-                                        &mapper.unwrap(),
+                                        mapper.unwrap(),
                                     )?,
                                 )
                             } else {

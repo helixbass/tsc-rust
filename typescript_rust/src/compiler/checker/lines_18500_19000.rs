@@ -444,19 +444,19 @@ impl CheckTypeRelatedTo {
                     if saved.intersects(RelationComparisonResult::ReportsUnmeasurable) {
                         self.type_checker.instantiate_type(
                             source,
-                            Some(Gc::new(
+                            Some(
                                 self.type_checker
                                     .make_function_type_mapper(ReportUnmeasurableMarkers),
-                            )),
+                            ),
                         )?;
                     }
                     if saved.intersects(RelationComparisonResult::ReportsUnreliable) {
                         self.type_checker.instantiate_type(
                             source,
-                            Some(Gc::new(
+                            Some(
                                 self.type_checker
                                     .make_function_type_mapper(ReportUnreliableMarkers),
-                            )),
+                            ),
                         )?;
                     }
                 }
@@ -1177,7 +1177,7 @@ impl CheckTypeRelatedTo {
                                     mapped_keys.push(
                                         self.type_checker.instantiate_type(
                                             name_type,
-                                            Some(Gc::new(
+                                            Some(
                                                 self.type_checker.append_type_mapping(
                                                     self.type_checker.type_(target_type).as_mapped_type().maybe_mapper(),
                                                     self
@@ -1187,7 +1187,7 @@ impl CheckTypeRelatedTo {
                                                         )?,
                                                     t,
                                                 ),
-                                            )),
+                                            ),
                                         )?,
                                     );
 
@@ -1597,10 +1597,10 @@ impl CheckTypeRelatedTo {
                 }
                 self.type_checker.instantiate_type(
                     source,
-                    Some(Gc::new(
+                    Some(
                         self.type_checker
                             .make_function_type_mapper(ReportUnreliableMarkers),
-                    )),
+                    ),
                 )?;
             }
             if self

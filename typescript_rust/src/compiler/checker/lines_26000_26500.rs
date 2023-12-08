@@ -810,7 +810,7 @@ impl TypeChecker {
     pub(super) fn instantiate_instantiable_types(
         &self,
         type_: Id<Type>,
-        mapper: Gc<TypeMapper>,
+        mapper: Id<TypeMapper>,
     ) -> io::Result<Id<Type>> {
         if self
             .type_(type_)

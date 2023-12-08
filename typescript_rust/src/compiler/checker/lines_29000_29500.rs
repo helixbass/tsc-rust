@@ -714,10 +714,10 @@ impl TypeChecker {
                 let type_argument_head_message =
                     head_message.unwrap_or(&*Diagnostics::Type_0_does_not_satisfy_the_constraint_1);
                 if mapper.is_none() {
-                    mapper = Some(Gc::new(self.create_type_mapper(
+                    mapper = Some(self.create_type_mapper(
                         type_parameters.clone(),
                         Some(type_argument_types.clone()),
-                    )));
+                    ));
                 }
                 let type_argument = type_argument_types[i];
                 if !self.check_type_assignable_to(

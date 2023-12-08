@@ -356,10 +356,10 @@ impl TypeChecker {
             .or_else(|| right.maybe_type_parameters().clone());
         let mut param_mapper: Option<Id<TypeMapper>> = None;
         if left.maybe_type_parameters().is_some() && right.maybe_type_parameters().is_some() {
-            param_mapper = Some(Gc::new(self.create_type_mapper(
+            param_mapper = Some(self.create_type_mapper(
                 right.maybe_type_parameters().clone().unwrap(),
                 left.maybe_type_parameters().clone(),
-            )));
+            ));
         }
         let declaration = left.declaration.as_ref();
         let params = self.combine_intersection_parameters(&left, &right, param_mapper.clone())?;

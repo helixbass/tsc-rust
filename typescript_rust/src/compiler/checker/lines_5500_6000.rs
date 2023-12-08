@@ -1085,7 +1085,6 @@ impl NodeBuilder {
                             (*next_symbol.as_transient_symbol().symbol_links())
                                 .borrow()
                                 .mapper
-                                .as_ref()
                                 .unwrap(),
                         )
                     })

@@ -63,17 +63,18 @@ impl TypeChecker {
                 {
                     default_type = Some(self.any_type());
                 }
-                result[i] = if let Some(default_type) = default_type {
-                    self.instantiate_type(
-                        default_type,
-                        Some(Gc::new(self.create_type_mapper(
-                            type_parameters.to_owned(),
-                            Some(result.clone()),
-                        ))),
-                    )?
-                } else {
-                    base_default_type.clone()
-                };
+                result[i] =
+                    if let Some(default_type) = default_type {
+                        self.instantiate_type(
+                            default_type,
+                            Some(self.create_type_mapper(
+                                type_parameters.to_owned(),
+                                Some(result.clone()),
+                            )),
+                        )?
+                    } else {
+                        base_default_type.clone()
+                    };
             }
             result.truncate(type_parameters.len());
             return Ok(Some(result));
@@ -811,7 +812,7 @@ impl TypeChecker {
     ) -> io::Result<Signature> {
         self.instantiate_signature(
             signature.clone(),
-            Gc::new(self.create_signature_type_mapper(&signature, type_arguments)),
+            self.create_signature_type_mapper(&signature, type_arguments),
             Some(true),
         )
     }
@@ -820,7 +821,7 @@ impl TypeChecker {
         &self,
         signature: &Signature,
         type_arguments: Option<&[Id<Type>]>,
-    ) -> TypeMapper {
+    ) -> Id<TypeMapper> {
         self.create_type_mapper(
             signature.maybe_type_parameters().clone().unwrap(),
             type_arguments.map(ToOwned::to_owned),
@@ -848,7 +849,7 @@ impl TypeChecker {
     ) -> io::Result<Signature> {
         self.instantiate_signature(
             signature.clone(),
-            Gc::new(self.create_type_eraser(signature.maybe_type_parameters().clone().unwrap())),
+            self.create_type_eraser(signature.maybe_type_parameters().clone().unwrap()),
             Some(true),
         )
     }
@@ -902,8 +903,8 @@ impl TypeChecker {
             {
                 return Ok(signature_base_signature_cache);
             }
-            let type_eraser = Gc::new(self.create_type_eraser(type_parameters.clone()));
-            let base_constraint_mapper = Gc::new(self.create_type_mapper(
+            let type_eraser = self.create_type_eraser(type_parameters.clone());
+            let base_constraint_mapper = self.create_type_mapper(
                 type_parameters.clone(),
                 Some(try_map(
                     type_parameters,
@@ -913,7 +914,7 @@ impl TypeChecker {
                             .unwrap_or_else(|| self.unknown_type()))
                     },
                 )?),
-            ));
+            );
             let mut base_constraints: Vec<Id<Type>> =
                 try_map(type_parameters, |&tp: &Id<Type>, _| -> io::Result<_> {
                     Ok(self
@@ -933,7 +934,7 @@ impl TypeChecker {
                 .unwrap();
             let ret = Gc::new(self.instantiate_signature(
                 signature.clone(),
-                Gc::new(self.create_type_mapper(type_parameters.clone(), Some(base_constraints))),
+                self.create_type_mapper(type_parameters.clone(), Some(base_constraints)),
                 Some(true),
             )?);
             *signature.maybe_base_signature_cache() = Some(ret.clone());

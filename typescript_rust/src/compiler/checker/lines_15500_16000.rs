@@ -405,16 +405,16 @@ impl TypeChecker {
                     );
                     let type_arguments =
                         try_map(new_root_outer_type_parameters, |&t: &Id<Type>, _| {
-                            self.get_mapped_type(t, &type_param_mapper)
+                            self.get_mapped_type(t, type_param_mapper)
                         })?;
-                    let new_root_mapper = Gc::new(self.create_type_mapper(
+                    let new_root_mapper = self.create_type_mapper(
                         new_root_outer_type_parameters.clone(),
                         Some(type_arguments),
-                    ));
+                    );
                     let new_check_type = if (*new_root).borrow().is_distributive {
                         Some(self.get_mapped_type(
                             (*new_root).borrow().clone().check_type,
-                            &new_root_mapper,
+                            new_root_mapper,
                         )?)
                     } else {
                         None

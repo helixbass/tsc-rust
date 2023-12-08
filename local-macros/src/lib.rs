@@ -1510,7 +1510,7 @@ fn get_type_struct_interface_impl(
                         self.#first_field_name.maybe_target()
                     }
 
-                    fn maybe_mapper(&self) -> ::std::option::Option<::gc::Gc<crate::TypeMapper>> {
+                    fn maybe_mapper(&self) -> ::std::option::Option<::id_arena::Id<crate::TypeMapper>> {
                         self.#first_field_name.maybe_mapper()
                     }
 
@@ -2100,7 +2100,7 @@ fn get_type_enum_interface_impl(
                         }
                     }
 
-                    fn maybe_mapper(&self) -> ::std::option::Option<::gc::Gc<crate::TypeMapper>> {
+                    fn maybe_mapper(&self) -> ::std::option::Option<::id_arena::Id<crate::TypeMapper>> {
                         match self {
                             #(#type_type_name::#variant_names(nested) => nested.maybe_mapper()),*
                         }

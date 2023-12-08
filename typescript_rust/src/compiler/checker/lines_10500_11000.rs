@@ -515,9 +515,9 @@ impl TypeChecker {
                 .clone();
         } else {
             let type_parameters_len_is_1 = type_parameters.len() == 1;
-            mapper = Some(Gc::new(
+            mapper = Some(
                 self.create_type_mapper(type_parameters, Some(type_arguments.clone())),
-            ));
+            );
             members = Gc::new(GcCell::new(
                 self.create_instantiated_symbol_table(
                     self.type_(source)
@@ -1146,9 +1146,8 @@ impl TypeChecker {
         let source_params = source_params.unwrap();
         let target_params = target_params.unwrap();
 
-        let mapper = Gc::new(
-            self.create_type_mapper(target_params.to_owned(), Some(source_params.to_owned())),
-        );
+        let mapper =
+            self.create_type_mapper(target_params.to_owned(), Some(source_params.to_owned()));
         for (i, source) in source_params.iter().enumerate() {
             let target = target_params[i];
             if *source == target {

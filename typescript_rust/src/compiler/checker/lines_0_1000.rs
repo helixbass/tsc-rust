@@ -1222,12 +1222,12 @@ pub fn create_type_checker(
         None,
     )?);
 
-    type_checker.restrictive_mapper = Some(Gc::new(
+    type_checker.restrictive_mapper = Some(
         type_checker.make_function_type_mapper(RestrictiveMapperFunc::default()),
-    ));
-    type_checker.permissive_mapper = Some(Gc::new(
+    );
+    type_checker.permissive_mapper = Some(
         type_checker.make_function_type_mapper(PermissiveMapperFunc::default()),
-    ));
+    );
 
     type_checker.empty_object_type = Some(type_checker.create_anonymous_type(
         Option::<&Symbol>::None,

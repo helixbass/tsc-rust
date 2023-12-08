@@ -192,17 +192,17 @@ impl TypeChecker {
                                     return self.instantiate_mapped_array_type(
                                         t,
                                         type_,
-                                        Gc::new(self.prepend_type_mapping(type_variable, t, Some(mapper.clone())))
+                                        self.prepend_type_mapping(type_variable, t, Some(mapper.clone()))
                                     );
                                 }
                                 if self.is_generic_tuple_type(t) {
                                     return self.instantiate_mapped_generic_tuple_type(t, type_, type_variable, mapper.clone());
                                 }
                                 if self.is_tuple_type(t) {
-                                    return self.instantiate_mapped_tuple_type(t, type_, Gc::new(self.prepend_type_mapping(type_variable, t, Some(mapper.clone()))));
+                                    return self.instantiate_mapped_tuple_type(t, type_, self.prepend_type_mapping(type_variable, t, Some(mapper.clone())));
                                 }
                             }
-                            return self.instantiate_anonymous_type(type_, Gc::new(self.prepend_type_mapping(type_variable, t, Some(mapper.clone()))), Option::<&Symbol>::None, None);
+                            return self.instantiate_anonymous_type(type_, self.prepend_type_mapping(type_variable, t, Some(mapper.clone())), Option::<&Symbol>::None, None);
                         }
                         Ok(t)
                     },
@@ -257,7 +257,7 @@ impl TypeChecker {
             };
             self.instantiate_mapped_type(
                 mapped_type,
-                Gc::new(self.prepend_type_mapping(type_variable, singleton, Some(mapper.clone()))),
+                self.prepend_type_mapping(type_variable, singleton, Some(mapper.clone())),
                 Option::<&Symbol>::None,
                 None,
             )
@@ -363,11 +363,11 @@ impl TypeChecker {
         is_optional: bool,
         mapper: Id<TypeMapper>,
     ) -> io::Result<Id<Type>> {
-        let template_mapper = Gc::new(self.append_type_mapping(
+        let template_mapper = self.append_type_mapping(
             Some(mapper),
             self.get_type_parameter_from_mapped_type(type_)?,
             key,
-        ));
+        );
         let prop_type = self.instantiate_type(
             self.get_template_type_from_mapped_type(
                 self.type_(type_)
@@ -417,10 +417,10 @@ impl TypeChecker {
             let fresh_type_parameter = self.clone_type_parameter(orig_type_parameter);
             mapped_type_type_parameter = Some(fresh_type_parameter.clone());
             mapper = self.combine_type_mappers(
-                Some(Gc::new(self.make_unary_type_mapper(
+                Some(self.make_unary_type_mapper(
                     orig_type_parameter,
                     fresh_type_parameter,
-                ))),
+                )),
                 mapper,
             );
             self.type_(fresh_type_parameter)
@@ -483,13 +483,13 @@ impl TypeChecker {
                 .get(&id)
                 .map(Clone::clone);
             if result.is_none() {
-                let new_mapper = Gc::new(self.create_type_mapper(
+                let new_mapper = self.create_type_mapper(
                     root_outer_type_parameters.to_owned(),
                     Some(type_arguments),
-                ));
+                );
                 let check_type = (*root).borrow().check_type.clone();
                 let distribution_type = if (*root).borrow().is_distributive {
-                    Some(self.get_mapped_type(check_type, &new_mapper)?)
+                    Some(self.get_mapped_type(check_type, new_mapper)?)
                 } else {
                     None
                 };
@@ -508,11 +508,11 @@ impl TypeChecker {
                             &mut |t| {
                                 self.get_conditional_type(
                                     root.clone(),
-                                    Some(Gc::new(self.prepend_type_mapping(
+                                    Some(self.prepend_type_mapping(
                                         check_type,
                                         t,
                                         Some(new_mapper.clone()),
-                                    ))),
+                                    )),
                                     Option::<&Symbol>::None,
                                     None,
                                 )
@@ -602,7 +602,7 @@ impl TypeChecker {
     ) -> io::Result<Id<Type>> {
         let flags = self.type_(type_).flags();
         if flags.intersects(TypeFlags::TypeParameter) {
-            return self.get_mapped_type(type_, &mapper);
+            return self.get_mapped_type(type_, mapper);
         }
         if flags.intersects(TypeFlags::Object) {
             let object_flags = self.type_(type_).as_object_flags_type().object_flags();
@@ -799,7 +799,7 @@ impl TypeChecker {
         if flags.intersects(TypeFlags::Conditional) {
             return self.get_conditional_type_instantiation(
                 type_,
-                &self.combine_type_mappers(
+                self.combine_type_mappers(
                     {
                         let mapper = self.type_(type_).as_conditional_type().mapper.clone();
                         mapper

@@ -166,10 +166,10 @@ impl TypeChecker {
             .or_else(|| right.maybe_type_parameters().clone());
         let mut param_mapper: Option<Id<TypeMapper>> = None;
         if left.maybe_type_parameters().is_some() && right.maybe_type_parameters().is_some() {
-            param_mapper = Some(Gc::new(self.create_type_mapper(
+            param_mapper = Some(self.create_type_mapper(
                 right.maybe_type_parameters().clone().unwrap(),
                 left.maybe_type_parameters().clone(),
-            )));
+            ));
         }
         let declaration = left.declaration.clone();
         let params = self.combine_union_parameters(&left, &right, param_mapper.clone())?;
@@ -697,7 +697,7 @@ impl TypeChecker {
     ) -> io::Result<Id<Type>> {
         self.instantiate_type(
             instantiable,
-            Some(Gc::new(self.create_type_mapper(
+            Some(self.create_type_mapper(
                 vec![
                     self.type_(type_).as_indexed_access_type().index_type.clone(),
                     self.type_(type_).as_indexed_access_type().object_type.clone(),
@@ -706,7 +706,7 @@ impl TypeChecker {
                     self.get_number_literal_type(Number::new(0.0)),
                     self.create_tuple_type(&[replacement], None, None, None)?,
                 ]),
-            ))),
+            )),
         )
     }
 
@@ -850,7 +850,7 @@ impl TypeChecker {
                 if constraint != check_type {
                     return self.get_conditional_type_instantiation(
                         type_,
-                        &self.prepend_type_mapping(
+                        self.prepend_type_mapping(
                             (*self.type_(type_).as_conditional_type().root)
                                 .borrow()
                                 .check_type
@@ -1043,11 +1043,11 @@ impl TypeChecker {
         let prop_name_type = if let Some(name_type) = name_type {
             self.instantiate_type(
                 name_type,
-                Some(Gc::new(self.append_type_mapping(
+                Some(self.append_type_mapping(
                     self.type_(type_).as_mapped_type().maybe_mapper(),
                     type_parameter,
                     key_type,
-                ))),
+                )),
             )?
         } else {
             key_type
@@ -1205,11 +1205,11 @@ impl TypeChecker {
             };
             let prop_type = self.instantiate_type(
                 template_type,
-                Some(Gc::new(self.append_type_mapping(
+                Some(self.append_type_mapping(
                     self.type_(type_).as_mapped_type().maybe_mapper(),
                     type_parameter,
                     key_type,
-                ))),
+                )),
             )?;
             let index_info = Gc::new(self.create_index_info(
                 index_key_type,
@@ -1249,11 +1249,11 @@ impl TypeChecker {
                     .maybe_target()
                     .unwrap_or_else(|| mapped_type),
             )?;
-            let mapper = Gc::new(self.append_type_mapping(
+            let mapper = self.append_type_mapping(
                 self.type_(mapped_type).as_mapped_type().maybe_mapper(),
                 self.get_type_parameter_from_mapped_type(mapped_type)?,
                 symbol_as_mapped_symbol.key_type(),
-            ));
+            );
             let prop_type = self.instantiate_type(template_type, Some(mapper))?;
             let mut type_ = if self.strict_null_checks
                 && symbol.flags().intersects(SymbolFlags::Optional)

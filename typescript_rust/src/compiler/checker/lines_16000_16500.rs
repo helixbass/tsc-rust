@@ -754,7 +754,7 @@ impl TypeChecker {
         &self,
         sources: Vec<Id<Type /*TypeParameter*/>>,
         targets: Option<Vec<Id<Type>>>,
-    ) -> TypeMapper {
+    ) -> Id<TypeMapper> {
         if sources.len() == 1 {
             self.make_unary_type_mapper(
                 sources[0],
@@ -770,7 +770,7 @@ impl TypeChecker {
         type_: Id<Type>,
         mapper: Id<TypeMapper>,
     ) -> io::Result<Id<Type>> {
-        Ok(match mapper {
+        Ok(match &*self.type_mapper(mapper) {
             TypeMapper::Simple(mapper) => {
                 if type_ == mapper.source {
                     mapper.target.clone()
@@ -793,55 +793,59 @@ impl TypeChecker {
             TypeMapper::Function(mapper) => mapper.func.call(self, type_)?,
             TypeMapper::Composite(composite_or_merged_mapper)
             | TypeMapper::Merged(composite_or_merged_mapper) => {
-                let t1 = self.get_mapped_type(type_, &composite_or_merged_mapper.mapper1)?;
-                if t1 != type_ && matches!(mapper, TypeMapper::Composite(_)) {
+                let t1 = self.get_mapped_type(type_, composite_or_merged_mapper.mapper1)?;
+                if t1 != type_ && matches!(&*self.type_mapper(mapper), TypeMapper::Composite(_)) {
                     self.instantiate_type(t1, Some(composite_or_merged_mapper.mapper2.clone()))?
                 } else {
-                    self.get_mapped_type(t1, &composite_or_merged_mapper.mapper2)?
+                    self.get_mapped_type(t1, composite_or_merged_mapper.mapper2)?
                 }
             }
         })
     }
 
-    pub(super) fn make_unary_type_mapper(&self, source: Id<Type>, target: Id<Type>) -> TypeMapper {
-        TypeMapper::new_simple(source, target)
+    pub(super) fn make_unary_type_mapper(
+        &self,
+        source: Id<Type>,
+        target: Id<Type>,
+    ) -> Id<TypeMapper> {
+        self.alloc_type_mapper(TypeMapper::new_simple(source, target))
     }
 
     pub(super) fn make_array_type_mapper(
         &self,
         sources: Vec<Id<Type /*TypeParameter*/>>,
         targets: Option<Vec<Id<Type>>>,
-    ) -> TypeMapper {
-        TypeMapper::new_array(sources, targets)
+    ) -> Id<TypeMapper> {
+        self.alloc_type_mapper(TypeMapper::new_array(sources, targets))
     }
 
     pub(super) fn make_function_type_mapper(
         &self,
         func: impl TypeMapperCallback + 'static,
-    ) -> TypeMapper {
-        TypeMapper::new_function(func)
+    ) -> Id<TypeMapper> {
+        self.alloc_type_mapper(TypeMapper::new_function(func))
     }
 
     pub(super) fn make_composite_type_mapper(
         &self,
         mapper1: Id<TypeMapper>,
         mapper2: Id<TypeMapper>,
-    ) -> TypeMapper {
-        TypeMapper::new_composite(mapper1, mapper2)
+    ) -> Id<TypeMapper> {
+        self.alloc_type_mapper(TypeMapper::new_composite(mapper1, mapper2))
     }
 
     pub(super) fn make_merged_type_mapper(
         &self,
         mapper1: Id<TypeMapper>,
         mapper2: Id<TypeMapper>,
-    ) -> TypeMapper {
-        TypeMapper::new_merged(mapper1, mapper2)
+    ) -> Id<TypeMapper> {
+        self.alloc_type_mapper(TypeMapper::new_merged(mapper1, mapper2))
     }
 
     pub(super) fn create_type_eraser(
         &self,
         sources: Vec<Id<Type /*TypeParameter*/>>,
-    ) -> TypeMapper {
+    ) -> Id<TypeMapper> {
         self.create_type_mapper(sources, None)
     }
 
@@ -849,7 +853,7 @@ impl TypeChecker {
         &self,
         context: &InferenceContext,
         index: usize,
-    ) -> TypeMapper {
+    ) -> Id<TypeMapper> {
         self.make_function_type_mapper(BackreferenceMapperCallback::new(context, index))
     }
 
@@ -859,7 +863,7 @@ impl TypeChecker {
         mapper2: Id<TypeMapper>,
     ) -> Id<TypeMapper> {
         if let Some(mapper1) = mapper1 {
-            Gc::new(self.make_composite_type_mapper(mapper1, mapper2))
+            self.make_composite_type_mapper(mapper1, mapper2)
         } else {
             mapper2
         }
@@ -871,7 +875,7 @@ impl TypeChecker {
         mapper2: Id<TypeMapper>,
     ) -> Id<TypeMapper> {
         if let Some(mapper1) = mapper1 {
-            Gc::new(self.make_merged_type_mapper(mapper1, mapper2))
+            self.make_merged_type_mapper(mapper1, mapper2)
         } else {
             mapper2
         }
@@ -882,11 +886,11 @@ impl TypeChecker {
         source: Id<Type>,
         target: Id<Type>,
         mapper: Option<Id<TypeMapper>>,
-    ) -> TypeMapper {
+    ) -> Id<TypeMapper> {
         match mapper {
             None => self.make_unary_type_mapper(source, target),
             Some(mapper) => self.make_merged_type_mapper(
-                Gc::new(self.make_unary_type_mapper(source, target)),
+                self.make_unary_type_mapper(source, target),
                 mapper,
             ),
         }
@@ -897,12 +901,12 @@ impl TypeChecker {
         mapper: Option<Id<TypeMapper>>,
         source: Id<Type>,
         target: Id<Type>,
-    ) -> TypeMapper {
+    ) -> Id<TypeMapper> {
         match mapper {
             None => self.make_unary_type_mapper(source, target),
             Some(mapper) => self.make_merged_type_mapper(
                 mapper,
-                Gc::new(self.make_unary_type_mapper(source, target)),
+                self.make_unary_type_mapper(source, target),
             ),
         }
     }
@@ -975,10 +979,10 @@ impl TypeChecker {
                         self.clone_type_parameter(type_parameter)
                     }));
                 mapper = self.combine_type_mappers(
-                    Some(Gc::new(self.create_type_mapper(
+                    Some(self.create_type_mapper(
                         signature_type_parameters,
                         fresh_type_parameters.clone(),
-                    ))),
+                    )),
                     mapper,
                 );
                 for &tp in fresh_type_parameters.as_ref().unwrap() {
@@ -1171,7 +1175,7 @@ impl TypeChecker {
                 mapper.clone(),
             );
             let type_arguments = try_map(&type_parameters, |&t: &Id<Type>, _| {
-                self.get_mapped_type(t, &combined_mapper)
+                self.get_mapped_type(t, combined_mapper)
             })?;
             let alias_symbol =
                 alias_symbol.map(|alias_symbol| alias_symbol.borrow().symbol_wrapper());
@@ -1228,7 +1232,7 @@ impl TypeChecker {
                 .map(Clone::clone);
             if result.is_none() {
                 let new_mapper =
-                    Gc::new(self.create_type_mapper(type_parameters, Some(type_arguments)));
+                    self.create_type_mapper(type_parameters, Some(type_arguments));
                 result = Some(
                     if self
                         .type_(target)

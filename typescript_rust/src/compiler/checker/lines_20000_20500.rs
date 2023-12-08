@@ -521,7 +521,7 @@ impl TypeChecker {
                             value
                         }
                         .as_deref(),
-                        Some(Gc::new(self.make_unary_type_mapper(param, marker))),
+                        Some(self.make_unary_type_mapper(param, marker)),
                     )?
                     .as_deref(),
                     Option::<&Symbol>::None,

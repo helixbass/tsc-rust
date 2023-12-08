@@ -38,10 +38,10 @@ impl TypeChecker {
         }
         if let Some(ref target_type_parameters) = target.maybe_type_parameters().clone() {
             let source_type_parameters = source.maybe_type_parameters().clone().unwrap();
-            let mapper = Gc::new(self.create_type_mapper(
+            let mapper = self.create_type_mapper(
                 source_type_parameters.clone(),
                 Some(target_type_parameters.clone()),
-            ));
+            );
             for (i, t) in target_type_parameters.iter().enumerate() {
                 let t = *t;
                 let s = source_type_parameters[i];
@@ -359,10 +359,10 @@ impl TypeChecker {
             let target_type_parameters_len = target_type_parameters.len();
             self.instantiate_type(
                 bases[0],
-                Some(Gc::new(self.create_type_mapper(
+                Some(self.create_type_mapper(
                     target_type_parameters,
                     Some(self.get_type_arguments(type_)?[0..target_type_parameters_len].to_owned()),
-                ))),
+                )),
             )?
         };
         if length(Some(&self.get_type_arguments(type_)?))

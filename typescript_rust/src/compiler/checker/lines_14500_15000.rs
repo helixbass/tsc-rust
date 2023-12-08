@@ -612,11 +612,11 @@ impl TypeChecker {
         let prop_name_type = if let Some(name_type) = name_type {
             self.instantiate_type(
                 name_type,
-                Some(Gc::new(self.append_type_mapping(
+                Some(self.append_type_mapping(
                     self.type_(type_).as_mapped_type().maybe_mapper(),
                     type_parameter,
                     key_type,
-                ))),
+                )),
             )?
         } else {
             key_type

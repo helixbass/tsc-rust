@@ -296,10 +296,10 @@ impl TypeChecker {
                 if type_arguments.is_none() {
                     type_arguments =
                         Some(self.get_effective_type_arguments(node, Some(type_parameters))?);
-                    mapper = Some(Gc::new(self.create_type_mapper(
+                    mapper = Some(self.create_type_mapper(
                         type_parameters.to_owned(),
                         type_arguments.clone(),
-                    )));
+                    ));
                 }
                 result = result
                     && self.check_type_assignable_to(
@@ -459,7 +459,7 @@ impl TypeChecker {
         )?);
         Ok(Some(self.instantiate_type(
             constraint,
-            Some(Gc::new(self.create_type_mapper(
+            Some(self.create_type_mapper(
                 type_parameters.clone(),
                 Some(
                     self.get_effective_type_arguments(
@@ -467,7 +467,7 @@ impl TypeChecker {
                         Some(&type_parameters),
                     )?,
                 ),
-            ))),
+            )),
         )?))
     }
 

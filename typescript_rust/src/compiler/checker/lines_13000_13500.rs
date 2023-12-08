@@ -60,13 +60,13 @@ impl TypeChecker {
                                     let declared_constraint = self
                                         .get_constraint_of_type_parameter(type_parameters[index])?;
                                     if let Some(declared_constraint) = declared_constraint {
-                                        let mapper = Gc::new(self.create_type_mapper(
+                                        let mapper = self.create_type_mapper(
                                             type_parameters.clone(),
                                             Some(self.get_effective_type_arguments(
                                                 type_reference,
                                                 Some(&type_parameters),
                                             )?),
-                                        ));
+                                        );
                                         let constraint = self
                                             .instantiate_type(declared_constraint, Some(mapper))?;
                                         if constraint != type_parameter {
@@ -156,7 +156,7 @@ impl TypeChecker {
                                 Some(
                                     self.instantiate_type(
                                         node_type,
-                                        Some(Gc::new(
+                                        Some(
                                             self.make_unary_type_mapper(
                                                 self.get_declared_type_of_type_parameter(
                                                     &self
@@ -180,7 +180,7 @@ impl TypeChecker {
                                                     self.keyof_constraint_type()
                                                 },
                                             ),
-                                        )),
+                                        ),
                                     )?,
                                 ),
                             );
@@ -728,7 +728,7 @@ impl TypeChecker {
         if instantiation.is_none() {
             instantiation = Some(self.instantiate_type_with_alias(
                 type_,
-                Gc::new(self.create_type_mapper(
+                self.create_type_mapper(
                     type_parameters.clone(),
                     self.fill_missing_type_arguments(
                         type_arguments.map(ToOwned::to_owned),
@@ -736,7 +736,7 @@ impl TypeChecker {
                         self.get_min_type_argument_count(Some(&type_parameters)),
                         is_in_js_file(symbol.maybe_value_declaration()),
                     )?,
-                )),
+                ),
                 alias_symbol.as_deref(),
                 alias_type_arguments,
             )?);
