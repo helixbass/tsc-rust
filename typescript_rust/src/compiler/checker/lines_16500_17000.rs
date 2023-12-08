@@ -417,10 +417,7 @@ impl TypeChecker {
             let fresh_type_parameter = self.clone_type_parameter(orig_type_parameter);
             mapped_type_type_parameter = Some(fresh_type_parameter.clone());
             mapper = self.combine_type_mappers(
-                Some(self.make_unary_type_mapper(
-                    orig_type_parameter,
-                    fresh_type_parameter,
-                )),
+                Some(self.make_unary_type_mapper(orig_type_parameter, fresh_type_parameter)),
                 mapper,
             );
             self.type_(fresh_type_parameter)
@@ -742,10 +739,16 @@ impl TypeChecker {
         }
         if flags.intersects(TypeFlags::TemplateLiteral) {
             return self.get_template_literal_type(
-                &self.type_(type_).as_template_literal_type().texts,
+                &{
+                    let texts = self.type_(type_).as_template_literal_type().texts.clone();
+                    texts
+                },
                 &self
                     .instantiate_types(
-                        Some(&self.type_(type_).as_template_literal_type().types),
+                        Some(&{
+                            let types = self.type_(type_).as_template_literal_type().types.clone();
+                            types
+                        }),
                         Some(mapper),
                     )?
                     .unwrap(),

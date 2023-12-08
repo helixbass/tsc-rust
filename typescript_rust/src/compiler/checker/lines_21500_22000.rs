@@ -287,7 +287,10 @@ impl TypeChecker {
                 .intersects(TypeFlags::StringLiteral)
             {
                 self.infer_from_literal_parts_to_template_literal(
-                    &vec![self.type_(source).as_string_literal_type().value.clone()],
+                    &vec![{
+                        let value = self.type_(source).as_string_literal_type().value.clone();
+                        value
+                    }],
                     &vec![],
                     target,
                 )?
@@ -301,7 +304,10 @@ impl TypeChecker {
                     &self.type_(target).as_template_literal_type().texts,
                 ) {
                     Some(try_map(
-                        &self.type_(source).as_template_literal_type().types,
+                        &{
+                            let types = self.type_(source).as_template_literal_type().types.clone();
+                            types
+                        },
                         |&type_: &Id<Type>, _| self.get_string_like_type_for_type(type_),
                     )?)
                 } else {
@@ -361,8 +367,7 @@ impl TypeChecker {
         let source_start_text = &source_texts[0];
         // TODO: should be using chars for any of this instead?
         let source_end_text = &source_texts[last_source_index];
-        let target_ref = self.type_(target);
-        let target_texts = &target_ref.as_template_literal_type().texts;
+        let target_texts = &self.type_(target).as_template_literal_type().texts.clone();
         let last_target_index = target_texts.len() - 1;
         let target_start_text = &target_texts[0];
         let target_end_text = &target_texts[last_target_index];

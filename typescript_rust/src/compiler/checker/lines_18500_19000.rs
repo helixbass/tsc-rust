@@ -243,8 +243,12 @@ impl CheckTypeRelatedTo {
         intersection_state: IntersectionState,
     ) -> io::Result<Ternary> {
         let mut result = Ternary::True;
-        let source_ref = self.type_checker.type_(source);
-        let source_types = source_ref.as_union_or_intersection_type_interface().types();
+        let source_types = &self
+            .type_checker
+            .type_(source)
+            .as_union_or_intersection_type_interface()
+            .types()
+            .to_owned();
         let undefined_stripped_target =
             self.get_undefined_stripped_target_if_needed(source, target);
         for (i, source_type) in source_types.into_iter().enumerate() {
@@ -931,17 +935,18 @@ impl CheckTypeRelatedTo {
             .flags()
             .intersects(TypeFlags::Object | TypeFlags::Conditional)
         {
-            if let Some(source_alias_symbol) = self
-                .type_checker
-                .type_(source)
-                .maybe_alias_symbol()
-                .as_ref()
+            if let Some(source_alias_symbol) = {
+                let alias_symbol = self.type_checker.type_(source).maybe_alias_symbol();
+                alias_symbol
+            }
+            .as_ref()
             {
-                if let Some(source_alias_type_arguments) = self
-                    .type_checker
-                    .type_(source)
-                    .maybe_alias_type_arguments()
-                    .as_ref()
+                if let Some(source_alias_type_arguments) = {
+                    let alias_type_arguments =
+                        self.type_checker.type_(source).maybe_alias_type_arguments();
+                    alias_type_arguments
+                }
+                .as_ref()
                 {
                     if matches!(
                         self.type_checker.type_(target).maybe_alias_symbol().as_ref(),
