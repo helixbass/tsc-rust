@@ -848,7 +848,10 @@ impl TypeChecker {
         {
             self.get_union_type(
                 &try_map(
-                    self.type_(type_).as_intersection_type().types(),
+                    &{
+                        let types = self.type_(type_).as_intersection_type().types().to_owned();
+                        types
+                    },
                     |&t: &Id<Type>, _| {
                         self.get_index_type(t, Some(strings_only), no_index_signatures)
                     },

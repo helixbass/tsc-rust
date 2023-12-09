@@ -566,8 +566,14 @@ impl TypeChecker {
         }) {
             return self.get_indexed_access_type_or_undefined(
                 object_constraint,
-                self.type_(type_).as_indexed_access_type().index_type,
-                Some(self.type_(type_).as_indexed_access_type().access_flags),
+                {
+                    let index_type = self.type_(type_).as_indexed_access_type().index_type;
+                    index_type
+                },
+                Some({
+                    let access_flags = self.type_(type_).as_indexed_access_type().access_flags;
+                    access_flags
+                }),
                 Option::<&Node>::None,
                 Option::<&Symbol>::None,
                 None,
@@ -639,12 +645,18 @@ impl TypeChecker {
                 let instantiated = self.get_conditional_type_instantiation(
                     type_,
                     self.prepend_type_mapping(
-                        (*self.type_(type_).as_conditional_type().root)
-                            .borrow()
-                            .check_type
-                            .clone(),
+                        (*{
+                            let root = self.type_(type_).as_conditional_type().root.clone();
+                            root
+                        })
+                        .borrow()
+                        .check_type
+                        .clone(),
                         constraint,
-                        self.type_(type_).as_conditional_type().mapper.clone(),
+                        {
+                            let mapper = self.type_(type_).as_conditional_type().mapper.clone();
+                            mapper
+                        },
                     ),
                     Option::<&Symbol>::None,
                     None,
@@ -884,8 +896,11 @@ impl TypeChecker {
             .flags()
             .intersects(TypeFlags::UnionOrIntersection)
         {
-            let t_ref = self.type_(t);
-            let types = t_ref.as_union_or_intersection_type_interface().types();
+            let types = &self
+                .type_(t)
+                .as_union_or_intersection_type_interface()
+                .types()
+                .to_owned();
             let mut base_types: Vec<Id<Type>> = vec![];
             let mut different = false;
             for &type_ in types {
@@ -946,7 +961,13 @@ impl TypeChecker {
             let constraint =
                 self.get_base_constraint(stack, self.type_(t).as_string_mapping_type().type_)?;
             return Ok(Some(if let Some(constraint) = constraint {
-                self.get_string_mapping_type(&self.type_(t).symbol(), constraint)?
+                self.get_string_mapping_type(
+                    &*{
+                        let symbol = self.type_(t).symbol();
+                        symbol
+                    },
+                    constraint,
+                )?
             } else {
                 self.string_type()
             }));
@@ -962,7 +983,10 @@ impl TypeChecker {
                 self.get_indexed_access_type_or_undefined(
                     base_object_type,
                     base_index_type,
-                    Some(self.type_(t).as_indexed_access_type().access_flags),
+                    Some({
+                        let access_flags = self.type_(t).as_indexed_access_type().access_flags;
+                        access_flags
+                    }),
                     Option::<&Node>::None,
                     Option::<&Symbol>::None,
                     None,
@@ -979,8 +1003,10 @@ impl TypeChecker {
             return /*constraint &&*/ self.get_base_constraint(stack, constraint);
         }
         if self.type_(t).flags().intersects(TypeFlags::Substitution) {
-            return self
-                .get_base_constraint(stack, self.type_(t).as_substitution_type().substitute);
+            return self.get_base_constraint(stack, {
+                let substitute = self.type_(t).as_substitution_type().substitute;
+                substitute
+            });
         }
         Ok(Some(t))
     }

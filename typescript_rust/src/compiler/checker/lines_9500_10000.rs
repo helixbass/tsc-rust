@@ -1027,7 +1027,10 @@ impl TypeChecker {
         type_: Id<Type>, /*TupleType*/
     ) -> io::Result<Id<Type>> {
         let element_types = try_maybe_map(
-            self.type_(type_).as_tuple_type().maybe_type_parameters(),
+            {
+                let type_parameters = self.type_(type_).as_tuple_type().maybe_type_parameters().map(ToOwned::to_owned);
+                type_parameters
+            }.as_deref(),
             |&t: &Id<Type>, i| -> io::Result<_> {
                 Ok(
                     if self.type_(type_).as_tuple_type().element_flags[i]

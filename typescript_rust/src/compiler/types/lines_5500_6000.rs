@@ -760,6 +760,13 @@ impl TypeMapper {
             _ => unreachable!(),
         }
     }
+
+    pub fn as_function(&self) -> &TypeMapperFunction {
+        match self {
+            Self::Function(value) => value,
+            _ => unreachable!(),
+        }
+    }
 }
 
 #[derive(Clone, Debug, Finalize, Trace)]

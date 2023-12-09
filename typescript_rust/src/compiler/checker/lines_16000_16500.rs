@@ -770,35 +770,42 @@ impl TypeChecker {
         type_: Id<Type>,
         mapper: Id<TypeMapper>,
     ) -> io::Result<Id<Type>> {
-        Ok(match &*self.type_mapper(mapper) {
-            TypeMapper::Simple(mapper) => {
-                if type_ == mapper.source {
-                    mapper.target.clone()
-                } else {
-                    type_
-                }
-            }
-            TypeMapper::Array(mapper) => {
-                let sources = &mapper.sources;
-                let targets = &mapper.targets;
-                for (i, source) in sources.iter().enumerate() {
-                    if type_ == *source {
-                        return Ok(targets
-                            .as_ref()
-                            .map_or_else(|| self.any_type(), |targets| targets[i].clone()));
-                    }
-                }
+        Ok(if let TypeMapper::Simple(mapper) = &*self.type_mapper(mapper) {
+            if type_ == mapper.source {
+                mapper.target.clone()
+            } else {
                 type_
             }
-            TypeMapper::Function(mapper) => mapper.func.call(self, type_)?,
-            TypeMapper::Composite(composite_or_merged_mapper)
-            | TypeMapper::Merged(composite_or_merged_mapper) => {
-                let t1 = self.get_mapped_type(type_, composite_or_merged_mapper.mapper1)?;
-                if t1 != type_ && matches!(&*self.type_mapper(mapper), TypeMapper::Composite(_)) {
-                    self.instantiate_type(t1, Some(composite_or_merged_mapper.mapper2.clone()))?
-                } else {
-                    self.get_mapped_type(t1, composite_or_merged_mapper.mapper2)?
+        } else if let TypeMapper::Array(mapper) = &*self.type_mapper(mapper) {
+            let sources = &mapper.sources;
+            let targets = &mapper.targets;
+            for (i, source) in sources.iter().enumerate() {
+                if type_ == *source {
+                    return Ok(targets
+                        .as_ref()
+                        .map_or_else(|| self.any_type(), |targets| targets[i].clone()));
                 }
+            }
+            type_
+        } else if matches!(
+            &*self.type_mapper(mapper),
+            TypeMapper::Function(mapper)
+        ) {
+            let func = self.type_mapper(mapper).as_function().func.clone();
+            func.call(self, type_)?
+        } else {
+            let (mapper_mapper1, mapper_mapper2) = match &*self.type_mapper(mapper) {
+                TypeMapper::Composite(composite_or_merged_mapper)
+                | TypeMapper::Merged(composite_or_merged_mapper) => {
+                    (composite_or_merged_mapper.mapper1, composite_or_merged_mapper.mapper2)
+                }
+                _ => unreachable!(),
+            };
+            let t1 = self.get_mapped_type(type_, mapper_mapper1)?;
+            if t1 != type_ && matches!(&*self.type_mapper(mapper), TypeMapper::Composite(_)) {
+                self.instantiate_type(t1, Some(mapper_mapper2.clone()))?
+            } else {
+                self.get_mapped_type(t1, mapper_mapper2)?
             }
         })
     }

@@ -1145,7 +1145,10 @@ impl CheckTypeRelatedTo {
                         source,
                         self.type_checker.get_index_type(
                             constraint,
-                            Some(self.type_checker.type_(target).as_index_type().strings_only),
+                            Some({
+                                let strings_only = self.type_checker.type_(target).as_index_type().strings_only;
+                                strings_only
+                            }),
                             None,
                         )?,
                         Some(RecursionFlags::Target),

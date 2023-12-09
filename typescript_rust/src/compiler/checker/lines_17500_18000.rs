@@ -214,9 +214,14 @@ impl TypeChecker {
                 .flags()
                 .intersects(TypeFlags::UnionOrIntersection)
                 && try_every(
-                    self.type_(type_)
-                        .as_union_or_intersection_type_interface()
-                        .types(),
+                    &{
+                        let types = self
+                            .type_(type_)
+                            .as_union_or_intersection_type_interface()
+                            .types()
+                            .to_owned();
+                        types
+                    },
                     |&type_: &Id<Type>, _| self.is_string_index_signature_only_type(type_),
                 )?
             || false)
