@@ -1056,7 +1056,10 @@ impl TypeChecker {
                 None,
                 None,
             )?,
-            Some(self.type_(type_).as_tuple_type().readonly),
+            Some({
+                let readonly = self.type_(type_).as_tuple_type().readonly;
+                readonly
+            }),
         ))
     }
 

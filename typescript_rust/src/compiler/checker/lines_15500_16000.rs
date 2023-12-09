@@ -460,12 +460,15 @@ impl TypeChecker {
                 .maybe_resolved_true_type() = Some(
                 self.instantiate_type(
                     self.get_type_from_type_node_(
-                        &(*self.type_(type_).as_conditional_type().root)
-                            .borrow()
-                            .node
-                            .clone()
-                            .as_conditional_type_node()
-                            .true_type,
+                        &(*{
+                            let root = self.type_(type_).as_conditional_type().root.clone();
+                            root
+                        })
+                        .borrow()
+                        .node
+                        .clone()
+                        .as_conditional_type_node()
+                        .true_type,
                     )?,
                     self.type_(type_).as_conditional_type().mapper.clone(),
                 )?,
@@ -495,14 +498,20 @@ impl TypeChecker {
                 .maybe_resolved_false_type() = Some(
                 self.instantiate_type(
                     self.get_type_from_type_node_(
-                        &(*self.type_(type_).as_conditional_type().root)
-                            .borrow()
-                            .node
-                            .clone()
-                            .as_conditional_type_node()
-                            .false_type,
+                        &(*{
+                            let root = self.type_(type_).as_conditional_type().root.clone();
+                            root
+                        })
+                        .borrow()
+                        .node
+                        .clone()
+                        .as_conditional_type_node()
+                        .false_type,
                     )?,
-                    self.type_(type_).as_conditional_type().mapper.clone(),
+                    {
+                        let mapper = self.type_(type_).as_conditional_type().mapper.clone();
+                        mapper
+                    },
                 )?,
             );
         }

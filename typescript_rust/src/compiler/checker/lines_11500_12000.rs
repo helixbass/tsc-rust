@@ -932,7 +932,10 @@ impl TypeChecker {
             })?;
             return Ok(Some(if constraints.len() == types.len() {
                 self.get_template_literal_type(
-                    &self.type_(t).as_template_literal_type().texts,
+                    &{
+                        let texts = self.type_(t).as_template_literal_type().texts.clone();
+                        texts
+                    },
                     &constraints,
                 )?
             } else {

@@ -98,7 +98,10 @@ impl TypeChecker {
             {
                 self.get_string_literal_type(&self.apply_string_mapping(
                     symbol,
-                    &self.type_(type_).as_string_literal_type().value,
+                    &{
+                        let value = self.type_(type_).as_string_literal_type().value.clone();
+                        value
+                    },
                 ))
             } else {
                 type_

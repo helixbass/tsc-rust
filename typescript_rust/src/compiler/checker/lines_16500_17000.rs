@@ -756,9 +756,15 @@ impl TypeChecker {
         }
         if flags.intersects(TypeFlags::StringMapping) {
             return self.get_string_mapping_type(
-                &self.type_(type_).symbol(),
+                &*{
+                    let symbol = self.type_(type_).symbol();
+                    symbol
+                },
                 self.instantiate_type(
-                    self.type_(type_).as_string_mapping_type().type_,
+                    {
+                        let type_ = self.type_(type_).as_string_mapping_type().type_;
+                        type_
+                    },
                     Some(mapper),
                 )?,
             );

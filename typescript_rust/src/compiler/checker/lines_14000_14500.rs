@@ -263,7 +263,10 @@ impl TypeChecker {
         }
         let tuple_target = self.get_tuple_target_type(
             &expanded_flags,
-            self.type_(target).as_tuple_type().readonly,
+            {
+                let readonly = self.type_(target).as_tuple_type().readonly;
+                readonly
+            },
             expanded_declarations.as_deref(),
         )?;
         Ok(if tuple_target == self.empty_generic_type() {
