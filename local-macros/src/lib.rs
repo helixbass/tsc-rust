@@ -2623,14 +2623,6 @@ fn get_symbol_struct_interface_impl(
         "SymbolInterface" => {
             quote! {
                 impl crate::SymbolInterface for #symbol_type_name {
-                    fn symbol_wrapper(&self) -> ::id_arena::Id<crate::Symbol> {
-                        self.#first_field_name.symbol_wrapper()
-                    }
-
-                    fn set_symbol_wrapper(&self, wrapper: ::id_arena::Id<crate::Symbol>) {
-                        self.#first_field_name.set_symbol_wrapper(wrapper)
-                    }
-
                     fn flags(&self) -> crate::SymbolFlags {
                         self.#first_field_name.flags()
                     }
@@ -2795,18 +2787,6 @@ fn get_symbol_enum_interface_impl(
         "SymbolInterface" => {
             quote! {
                 impl crate::SymbolInterface for #symbol_type_name {
-                    fn symbol_wrapper(&self) -> ::id_arena::Id<crate::Symbol> {
-                        match self {
-                            #(#symbol_type_name::#variant_names(nested) => nested.symbol_wrapper()),*
-                        }
-                    }
-
-                    fn set_symbol_wrapper(&self, wrapper: ::id_arena::Id<crate::Symbol>) {
-                        match self {
-                            #(#symbol_type_name::#variant_names(nested) => nested.set_symbol_wrapper(wrapper)),*
-                        }
-                    }
-
                     fn flags(&self) -> crate::SymbolFlags {
                         match self {
                             #(#symbol_type_name::#variant_names(nested) => nested.flags()),*
@@ -3127,14 +3107,6 @@ pub fn symbol_type(attr: TokenStream, item: TokenStream) -> TokenStream {
 
         quote! {
             #into_implementations
-
-            impl ::std::convert::From<#symbol_type_name> for ::id_arena::Id<crate::Symbol> {
-                fn from(concrete: #symbol_type_name) -> Self {
-                    let rc = ::gc::Gc::new(#construct_variant);
-                    crate::SymbolInterface::set_symbol_wrapper(&*rc, rc.clone());
-                    rc
-                }
-            }
         }
     } else {
         quote! {}

@@ -35,7 +35,7 @@ impl TypeChecker {
                 self.type_(type_arguments[last]).maybe_symbol(),
             ) {
                 (None, None) => true,
-                (Some(symbol_a), Some(symbol_b)) => Gc::ptr_eq(&symbol_a, &symbol_b),
+                (Some(symbol_a), Some(symbol_b)) => symbol_a == symbol_b,
                 _ => false,
             });
         }
@@ -92,7 +92,10 @@ impl TypeChecker {
                 .maybe_resolved_base_types() = Some(Gc::new(vec![]));
         }
         if let Some(type_symbol_declarations) = {
-            let type_symbol_declarations = self.type_(type_).symbol().maybe_declarations().clone();
+            let type_symbol_declarations = self
+                .symbol(self.type_(type_).symbol())
+                .maybe_declarations()
+                .clone();
             type_symbol_declarations
         }
         .as_deref()
@@ -145,7 +148,7 @@ impl TypeChecker {
     }
 
     pub(super) fn is_thisless_interface(&self, symbol: Id<Symbol>) -> io::Result<bool> {
-        let symbol_declarations = symbol.maybe_declarations();
+        let symbol_declarations = self.symbol(symbol).maybe_declarations();
         if symbol_declarations.is_none() {
             return Ok(true);
         }
@@ -173,10 +176,10 @@ impl TypeChecker {
                             if match base_symbol {
                                 None => true,
                                 Some(base_symbol) => {
-                                    !base_symbol.flags().intersects(SymbolFlags::Interface)
+                                    !self.symbol(base_symbol).flags().intersects(SymbolFlags::Interface)
                                         || self
                                             .type_(self.get_declared_type_of_class_or_interface(
-                                                &base_symbol,
+                                                base_symbol,
                                             )?)
                                             .as_interface_type()
                                             .maybe_this_type()
@@ -195,11 +198,10 @@ impl TypeChecker {
 
     pub(super) fn get_declared_type_of_class_or_interface(
         &self,
-        symbol: Id<Symbol>,
+        mut symbol: Id<Symbol>,
     ) -> io::Result<Id<Type /*InterfaceType*/>> {
         let mut links = self.get_symbol_links(symbol);
         let original_links = links.clone();
-        let mut symbol = symbol.symbol_wrapper();
         if (*links).borrow().declared_type.is_none() {
             let kind = if symbol.flags().intersects(SymbolFlags::Class) {
                 ObjectFlags::Class
@@ -215,7 +217,7 @@ impl TypeChecker {
                 )?;
             if let Some(merged) = merged {
                 symbol = merged.clone();
-                links = merged.as_transient_symbol().symbol_links();
+                links = self.symbol(merged).as_transient_symbol().symbol_links();
             }
 
             let temporary_type_to_avoid_infinite_recursion_in_is_thisless_interface =
@@ -315,14 +317,14 @@ impl TypeChecker {
         let links = self.get_symbol_links(symbol);
         if (*links).borrow().declared_type.is_none() {
             if !self.push_type_resolution(
-                &symbol.symbol_wrapper().into(),
+                &symbol.into(),
                 TypeSystemPropertyName::DeclaredType,
             ) {
                 return Ok(self.error_type());
             }
 
             let declaration = Debug_.check_defined(
-                symbol
+                self.symbol(symbol)
                     .maybe_declarations()
                     .as_ref()
                     .and_then(|declarations| {
@@ -435,9 +437,9 @@ impl TypeChecker {
             }
             SyntaxKind::Identifier => {
                 node_is_missing(Some(expr))
-                    || (*self
+                    || (*self.symbol(self
                         .get_symbol_of_node(&member.parent())?
-                        .unwrap()
+                        .unwrap())
                         .exports())
                     .borrow()
                     .get(&expr.as_identifier().escaped_text)
@@ -454,7 +456,7 @@ impl TypeChecker {
             return Ok(links_enum_kind);
         }
         let mut has_non_literal_member = false;
-        if let Some(symbol_declarations) = symbol.maybe_declarations().as_deref() {
+        if let Some(symbol_declarations) = self.symbol(symbol).maybe_declarations().as_deref() {
             for declaration in symbol_declarations {
                 if declaration.kind() == SyntaxKind::EnumDeclaration {
                     for member in &declaration.as_enum_declaration().members {
@@ -489,8 +491,8 @@ impl TypeChecker {
                 && !self.type_(type_).flags().intersects(TypeFlags::Union)
             {
                 self.get_declared_type_of_symbol(
-                    &self
-                        .get_parent_of_symbol(&self.type_(type_).symbol())?
+                    self
+                        .get_parent_of_symbol(self.type_(type_).symbol())?
                         .unwrap(),
                 )?
             } else {
@@ -507,7 +509,7 @@ impl TypeChecker {
         if self.get_enum_kind(symbol)? == EnumKind::Literal {
             self.increment_enum_count();
             let mut member_type_list: Vec<Id<Type>> = vec![];
-            if let Some(symbol_declarations) = symbol.maybe_declarations().as_deref() {
+            if let Some(symbol_declarations) = self.symbol(symbol).maybe_declarations().as_deref() {
                 for declaration in symbol_declarations {
                     if declaration.kind() == SyntaxKind::EnumDeclaration {
                         for member in &declaration.as_enum_declaration().members {
@@ -516,7 +518,7 @@ impl TypeChecker {
                                 self.get_fresh_type_of_literal_type(self.get_enum_literal_type(
                                     value.unwrap_or_else(|| Number::new(0.0).into()),
                                     self.enum_count(),
-                                    &self.get_symbol_of_node(member)?.unwrap(),
+                                    self.get_symbol_of_node(member)?.unwrap(),
                                 ));
                             self.get_symbol_links(&self.get_symbol_of_node(member)?.unwrap())
                                 .borrow_mut()
@@ -539,15 +541,14 @@ impl TypeChecker {
                     self.type_(enum_type)
                         .set_flags(self.type_(enum_type).flags() | TypeFlags::EnumLiteral);
                     self.type_(enum_type)
-                        .set_symbol(Some(symbol.symbol_wrapper()));
+                        .set_symbol(Some(symbol));
                 }
                 links.borrow_mut().declared_type = Some(enum_type.clone());
                 return Ok(enum_type);
             }
         }
         let enum_type = self.alloc_type(self.create_type(TypeFlags::Enum).into());
-        self.type_(enum_type)
-            .set_symbol(Some(symbol.symbol_wrapper()));
+        self.type_(enum_type).set_symbol(Some(symbol));
         links.borrow_mut().declared_type = Some(enum_type.clone());
         Ok(enum_type)
     }
@@ -559,7 +560,7 @@ impl TypeChecker {
         let links = self.get_symbol_links(symbol);
         if (*links).borrow().declared_type.is_none() {
             let enum_type =
-                self.get_declared_type_of_enum(&self.get_parent_of_symbol(symbol)?.unwrap())?;
+                self.get_declared_type_of_enum(self.get_parent_of_symbol(symbol)?.unwrap())?;
             let mut links = links.borrow_mut();
             if links.declared_type.is_none() {
                 links.declared_type = Some(enum_type);
@@ -587,7 +588,7 @@ impl TypeChecker {
         if let Some(links_declared_type) = (*links).borrow().declared_type.clone() {
             return Ok(links_declared_type);
         }
-        let declared_type = self.get_declared_type_of_symbol(&*self.resolve_alias(symbol)?)?;
+        let declared_type = self.get_declared_type_of_symbol(self.resolve_alias(symbol)?)?;
         links.borrow_mut().declared_type = Some(declared_type.clone());
         Ok(declared_type)
     }
@@ -602,25 +603,37 @@ impl TypeChecker {
         &self,
         symbol: Id<Symbol>,
     ) -> io::Result<Option<Id<Type>>> {
-        if symbol
+        if self.symbol(symbol)
             .flags()
             .intersects(SymbolFlags::Class | SymbolFlags::Interface)
         {
             return Ok(Some(self.get_declared_type_of_class_or_interface(symbol)?));
         }
-        if symbol.flags().intersects(SymbolFlags::TypeAlias) {
+        if self
+            .symbol(symbol)
+            .flags()
+            .intersects(SymbolFlags::TypeAlias)
+        {
             return Ok(Some(self.get_declared_type_of_type_alias(symbol)?));
         }
-        if symbol.flags().intersects(SymbolFlags::TypeParameter) {
+        if self
+            .symbol(symbol)
+            .flags()
+            .intersects(SymbolFlags::TypeParameter)
+        {
             return Ok(Some(self.get_declared_type_of_type_parameter(symbol)));
         }
-        if symbol.flags().intersects(SymbolFlags::Enum) {
+        if self.symbol(symbol).flags().intersects(SymbolFlags::Enum) {
             return Ok(Some(self.get_declared_type_of_enum(symbol)?));
         }
-        if symbol.flags().intersects(SymbolFlags::EnumMember) {
+        if self
+            .symbol(symbol)
+            .flags()
+            .intersects(SymbolFlags::EnumMember)
+        {
             return Ok(Some(self.get_declared_type_of_enum_member(symbol)?));
         }
-        if symbol.flags().intersects(SymbolFlags::Alias) {
+        if self.symbol(symbol).flags().intersects(SymbolFlags::Alias) {
             return Ok(Some(self.get_declared_type_of_alias(symbol)?));
         }
         Ok(None)
@@ -699,7 +712,7 @@ impl TypeChecker {
     }
 
     pub(super) fn is_thisless(&self, symbol: Id<Symbol>) -> bool {
-        if let Some(symbol_declarations) = symbol.maybe_declarations().as_deref() {
+        if let Some(symbol_declarations) = self.symbol(symbol).maybe_declarations().as_deref() {
             if symbol_declarations.len() == 1 {
                 let declaration = &symbol_declarations[0];
                 // if (declaration) {
@@ -730,9 +743,8 @@ impl TypeChecker {
     ) -> io::Result<SymbolTable> {
         let mut result = create_symbol_table(Option::<&[Id<Symbol>]>::None);
         for symbol in symbols {
-            let symbol: &Id<Symbol> = symbol.borrow();
             result.insert(
-                symbol.escaped_name().to_owned(),
+                self.symbol(symbol).escaped_name().to_owned(),
                 if mapping_this_only && self.is_thisless(symbol) {
                     symbol.clone()
                 } else {
@@ -746,21 +758,20 @@ impl TypeChecker {
     pub(super) fn add_inherited_members(
         &self,
         symbols: &mut SymbolTable,
-        base_symbols: impl IntoIterator<Item = impl Borrow<Id<Symbol>>>,
+        base_symbols: impl IntoIterator<Item = Id<Symbol>>,
     ) {
         for s in base_symbols {
-            let s: &Id<Symbol> = s.borrow();
-            if !symbols.contains_key(s.escaped_name())
+            if !symbols.contains_key(self.symbol(s).escaped_name())
                 && !self.is_static_private_identifier_property(s)
             {
-                symbols.insert(s.escaped_name().to_owned(), s.clone());
+                symbols.insert(self.symbol(s).escaped_name().to_owned(), s.clone());
             }
         }
     }
 
     pub(super) fn is_static_private_identifier_property(&self, s: Id<Symbol>) -> bool {
         matches!(
-            s.maybe_value_declaration().as_ref(),
+            self.symbol(s).maybe_value_declaration().as_ref(),
             Some(value_declaration) if is_private_identifier_class_element_declaration(value_declaration) && is_static(value_declaration)
         )
     }
@@ -776,7 +787,7 @@ impl TypeChecker {
             .is_none()
         {
             let symbol = self.type_(type_).symbol();
-            let members = self.get_members_of_symbol(&symbol)?;
+            let members = self.get_members_of_symbol(symbol)?;
             let members = (*members).borrow();
             self.type_(type_)
                 .as_interface_type()
@@ -801,7 +812,7 @@ impl TypeChecker {
             self.type_(type_)
                 .as_interface_type()
                 .set_declared_construct_signatures(signatures);
-            let index_infos = self.get_index_infos_of_symbol(&symbol)?;
+            let index_infos = self.get_index_infos_of_symbol(symbol)?;
             self.type_(type_)
                 .as_interface_type()
                 .set_declared_index_infos(index_infos);

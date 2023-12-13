@@ -605,7 +605,7 @@ impl TypeChecker {
 
     pub(super) fn get_declaring_constructor(
         &self,
-        symbol: &Symbol,
+        symbol: Id<Symbol>,
     ) -> io::Result<Option<Gc<Node>>> {
         let symbol_declarations = symbol.maybe_declarations();
         let symbol_declarations = return_ok_default_if_none!(symbol_declarations.as_deref());
@@ -624,7 +624,7 @@ impl TypeChecker {
 
     pub(super) fn get_flow_type_from_common_js_export(
         &self,
-        symbol: &Symbol,
+        symbol: Id<Symbol>,
     ) -> io::Result<Id<Type>> {
         let file = get_source_file_of_node(
             symbol
@@ -687,7 +687,7 @@ impl TypeChecker {
 
     pub(super) fn get_flow_type_in_static_blocks(
         &self,
-        symbol: &Symbol,
+        symbol: Id<Symbol>,
         static_blocks: &[Gc<Node /*ClassStaticBlockDeclaration*/>],
     ) -> io::Result<Option<Id<Type>>> {
         let access_name: StrOrRcNode<'_> = if starts_with(symbol.escaped_name(), "__#") {
@@ -737,7 +737,7 @@ impl TypeChecker {
 
     pub(super) fn get_flow_type_in_constructor(
         &self,
-        symbol: &Symbol,
+        symbol: Id<Symbol>,
         constructor: &Node, /*ConstructorDeclaration*/
     ) -> io::Result<Option<Id<Type>>> {
         let access_name: StrOrRcNode<'_> = if starts_with(symbol.escaped_name(), "__#") {
@@ -810,8 +810,8 @@ impl TypeChecker {
 
     pub(super) fn get_widened_type_for_assignment_declaration(
         &self,
-        symbol: &Symbol,
-        resolved_symbol: Option<impl Borrow<Symbol>>,
+        symbol: Id<Symbol>,
+        resolved_symbol: Option<Id<Symbol>>,
     ) -> io::Result<Id<Type>> {
         let container = get_assigned_expando_initializer(symbol.maybe_value_declaration());
         if let Some(container) = container {
@@ -1032,7 +1032,7 @@ impl TypeChecker {
         &self,
         declared_type: Option<Id<Type>>,
         expression: &Node, /*Expression*/
-        symbol: &Symbol,
+        symbol: Id<Symbol>,
         declaration: &Node, /*Declaration*/
     ) -> io::Result<Option<Id<Type>>> {
         let type_node = get_effective_type_annotation_node(&expression.parent());
@@ -1078,7 +1078,7 @@ impl TypeChecker {
 
     pub(super) fn get_initializer_type_from_assignment_declaration(
         &self,
-        symbol: &Symbol,
+        symbol: Id<Symbol>,
         resolved_symbol: Option<Id<Symbol>>,
         expression: &Node, /*BinaryExpression | CallExpression*/
         kind: AssignmentDeclarationKind,

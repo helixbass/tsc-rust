@@ -939,8 +939,6 @@ bitflags! {
 pub type SymbolId = u32;
 
 pub trait SymbolInterface {
-    fn symbol_wrapper(&self) -> Id<Symbol>;
-    fn set_symbol_wrapper(&self, wrapper: Id<Symbol>);
     fn flags(&self) -> SymbolFlags;
     fn set_flags(&self, flags: SymbolFlags);
     fn escaped_name(&self) -> &str /*__String*/;
@@ -1014,7 +1012,6 @@ impl Symbol {
 
 #[derive(Debug, Finalize, Trace)]
 pub struct BaseSymbol {
-    _symbol_wrapper: GcCell<Option<Id<Symbol>>>,
     #[unsafe_ignore_trace]
     flags: Cell<SymbolFlags>,
     #[unsafe_ignore_trace]
@@ -1066,14 +1063,6 @@ impl BaseSymbol {
 }
 
 impl SymbolInterface for BaseSymbol {
-    fn symbol_wrapper(&self) -> Id<Symbol> {
-        self._symbol_wrapper.borrow().clone().unwrap()
-    }
-
-    fn set_symbol_wrapper(&self, wrapper: Id<Symbol>) {
-        *self._symbol_wrapper.borrow_mut() = Some(wrapper);
-    }
-
     fn flags(&self) -> SymbolFlags {
         self.flags.get()
     }

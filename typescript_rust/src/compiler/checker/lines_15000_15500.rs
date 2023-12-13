@@ -107,7 +107,7 @@ impl TypeChecker {
     }
 
     pub(super) fn apply_string_mapping(&self, symbol: Id<Symbol>, str_: &str) -> String {
-        match intrinsic_type_kinds.get(symbol.escaped_name()) {
+        match intrinsic_type_kinds.get(self.symbol(symbol).escaped_name()) {
             Some(IntrinsicTypeKind::Uppercase) => str_.to_uppercase(),
             Some(IntrinsicTypeKind::Lowercase) => str_.to_lowercase(),
             Some(IntrinsicTypeKind::Capitalize) => capitalize(str_),
@@ -121,7 +121,11 @@ impl TypeChecker {
         symbol: Id<Symbol>,
         type_: Id<Type>,
     ) -> Id<Type> {
-        let id = format!("{},{}", get_symbol_id(symbol), self.get_type_id(type_));
+        let id = format!(
+            "{},{}",
+            get_symbol_id(&self.symbol(symbol)),
+            self.get_type_id(type_)
+        );
         let mut result = self.string_mapping_types().get(&id).map(Clone::clone);
         if result.is_none() {
             result = Some(self.create_string_mapping_type(symbol, type_));

@@ -173,8 +173,7 @@ impl TypeChecker {
         let object_flags = self.get_propagating_flags_of_types(&types, TypeFlags::Nullable);
         let result = BaseUnionOrIntersectionType::new(result, types, object_flags);
         let result = self.alloc_type(IntersectionType::new(result).into());
-        *self.type_(result).maybe_alias_symbol_mut() =
-            alias_symbol.map(|alias_symbol| alias_symbol.borrow().symbol_wrapper());
+        *self.type_(result).maybe_alias_symbol_mut() = alias_symbol;
         *self.type_(result).maybe_alias_type_arguments_mut() =
             alias_type_arguments.map(ToOwned::to_owned);
         result
@@ -270,7 +269,6 @@ impl TypeChecker {
         if type_set.len() == 1 {
             return Ok(type_set[0].clone());
         }
-        let alias_symbol = alias_symbol.map(|alias_symbol| alias_symbol.borrow().symbol_wrapper());
         let id = format!(
             "{}{}",
             self.get_type_list_id(Some(&type_set)),
@@ -749,13 +747,13 @@ impl TypeChecker {
             || !get_declaration_modifier_flags_from_symbol(prop, None)
                 .intersects(ModifierFlags::NonPublicAccessibilityModifier)
         {
-            let mut type_ = (*self.get_symbol_links(&*self.get_late_bound_symbol(prop)?))
+            let mut type_ = (*self.get_symbol_links(self.get_late_bound_symbol(prop)?))
                 .borrow()
                 .name_type
                 .clone();
             if type_.is_none() {
-                let name = get_name_of_declaration(prop.maybe_value_declaration());
-                type_ = if prop.escaped_name() == InternalSymbolName::Default {
+                let name = get_name_of_declaration(self.symbol(prop).maybe_value_declaration());
+                type_ = if self.symbol(prop).escaped_name() == InternalSymbolName::Default {
                     Some(self.get_string_literal_type("default"))
                 } else if let Some(name) = name {
                     Some(self.get_literal_type_from_property_name(&name)?)
@@ -805,7 +803,7 @@ impl TypeChecker {
         };
         let property_types = self
             .get_properties_of_type(type_)?
-            .map(|ref prop| self.get_literal_type_from_property(prop, include, None))
+            .map(|prop| self.get_literal_type_from_property(prop, include, None))
             .collect::<Result<Vec<_>, _>>()?;
         let index_infos = self.get_index_infos_of_type(type_)?;
         let index_key_types = index_infos.iter().map(|info| {
@@ -914,7 +912,7 @@ impl TypeChecker {
         let extract_type_alias = self.get_global_extract_symbol()?;
         Ok(if let Some(extract_type_alias) = extract_type_alias {
             self.get_type_alias_instantiation(
-                &extract_type_alias,
+                extract_type_alias,
                 Some(&[type_, self.string_type()]),
                 Option::<Id<Symbol>>::None,
                 None,

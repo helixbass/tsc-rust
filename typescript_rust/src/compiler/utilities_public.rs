@@ -542,7 +542,7 @@ pub fn id_text(identifier_or_private_name: &Node /*Identifier | PrivateIdentifie
     unescape_leading_underscores(identifier_or_private_name.as_member_name().escaped_text())
 }
 
-pub fn symbol_name<'symbol>(symbol: Id<Symbol>) -> Cow<'symbol, str> {
+pub fn symbol_name<'a>(symbol: &'a Symbol) -> Cow<'a, str> {
     match symbol.maybe_value_declaration().as_ref() {
         Some(symbol_value_declaration)
             if is_private_identifier_class_element_declaration(&symbol_value_declaration) =>

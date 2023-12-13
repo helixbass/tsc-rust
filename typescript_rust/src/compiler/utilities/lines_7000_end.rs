@@ -424,7 +424,7 @@ pub fn is_catch_clause_variable_declaration(node: &Node) -> bool {
         && node.parent().kind() == SyntaxKind::CatchClause
 }
 
-pub fn is_parameter_or_catch_clause_variable(symbol: Id<Symbol>) -> bool {
+pub fn is_parameter_or_catch_clause_variable(symbol: &Symbol) -> bool {
     let declaration = symbol
         .maybe_value_declaration()
         .as_ref()

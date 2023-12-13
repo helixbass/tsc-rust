@@ -21,7 +21,7 @@ use crate::{
     unescape_leading_underscores, BoolExt, Debug_, InternalSymbolName, IteratorExt, Matches,
     ModifierFlags, Node, NodeArray, NodeArrayOrVec, NodeBuilder, NodeBuilderFlags, NodeFlags,
     NodeInterface, NodeWrappered, ObjectFlags, OptionTry, SignatureKind, StrOrRcNode, Symbol,
-    SymbolFlags, SymbolInterface, SymbolWrappered, SyntaxKind, Ternary, Type, TypeChecker,
+    SymbolFlags, SymbolInterface, SyntaxKind, Ternary, Type, TypeChecker,
     TypeInterface,
 };
 
@@ -52,15 +52,15 @@ impl SymbolTableToDeclarationStatements {
     }
 
     pub(super) fn serialize_maybe_alias_assignment(&self, symbol: Id<Symbol>) -> io::Result<bool> {
-        if symbol.flags().intersects(SymbolFlags::Prototype) {
+        if self.type_checker.symbol(symbol).flags().intersects(SymbolFlags::Prototype) {
             return Ok(false);
         }
-        let name = unescape_leading_underscores(symbol.escaped_name());
+        let name = unescape_leading_underscores(self.type_checker.symbol(symbol).escaped_name());
         let is_export_equals = name == InternalSymbolName::ExportEquals;
         let is_default = name == InternalSymbolName::Default;
         let is_export_assignment_compatible_symbol_name = is_export_equals || is_default;
-        let alias_decl = symbol
-            .maybe_declarations()
+        let alias_decl = self.type_checker.symbol(symbol
+        ).maybe_declarations()
             .is_some()
             .try_then_and(|| self.type_checker.get_declaration_of_alias_symbol(symbol))?;
         let target = alias_decl.as_ref().try_and_then(|alias_decl| {
@@ -164,7 +164,7 @@ impl SymbolTableToDeclarationStatements {
                 let type_to_serialize =
                     self.type_checker
                         .get_widened_type(self.type_checker.get_type_of_symbol(
-                            &self.type_checker.get_merged_symbol(Some(symbol)).unwrap(),
+                            self.type_checker.get_merged_symbol(Some(symbol)).unwrap(),
                         )?)?;
                 if self
                     .is_type_representable_as_function_namespace_merge(type_to_serialize, symbol)?
@@ -254,7 +254,7 @@ impl SymbolTableToDeclarationStatements {
                     .type_checker
                     .get_properties_of_type(type_to_serialize)?
                     .into_iter()
-                    .filter(|property| self.is_namespace_member(property))
+                    .filter(|&property| self.is_namespace_member(property))
                     .empty()
                     || !self
                         .type_checker
@@ -274,7 +274,7 @@ impl SymbolTableToDeclarationStatements {
                 && !matches!(
                     self.type_checker.type_(type_to_serialize).maybe_symbol(),
                     Some(type_to_serialize_symbol) if some(
-                        type_to_serialize_symbol.maybe_declarations().as_deref(),
+                        self.type_checker.symbol(type_to_serialize_symbol).maybe_declarations().as_deref(),
                         Some(|d: &Gc<Node>| !are_option_gcs_equal(
                             maybe_get_source_file_of_node(Some(&**d)).as_ref(),
                             ctx_src.as_ref()
@@ -284,13 +284,13 @@ impl SymbolTableToDeclarationStatements {
                 && !self
                     .type_checker
                     .get_properties_of_type(type_to_serialize)?
-                    .any(|ref p| self.type_checker.is_late_bound_name(p.escaped_name()))
+                    .any(|p| self.type_checker.is_late_bound_name(self.type_checker.symbol(p).escaped_name()))
                 && !self
                     .type_checker
                     .get_properties_of_type(type_to_serialize)?
-                    .any(|ref p| {
+                    .any(|p| {
                         some(
-                            p.maybe_declarations().as_deref(),
+                            self.type_checker.symbol(p).maybe_declarations().as_deref(),
                             Some(|d: &Gc<Node>| {
                                 !are_option_gcs_equal(
                                     maybe_get_source_file_of_node(Some(&**d)).as_ref(),
@@ -302,9 +302,9 @@ impl SymbolTableToDeclarationStatements {
                 && self
                     .type_checker
                     .get_properties_of_type(type_to_serialize)?
-                    .all(|ref p| {
+                    .all(|p| {
                         is_identifier_text(
-                            &symbol_name(p),
+                            &symbol_name(self.type_checker.symbol(p)),
                             Some(self.type_checker.language_version),
                             None,
                         )
@@ -331,7 +331,7 @@ impl SymbolTableToDeclarationStatements {
 
     pub(super) fn serialize_property_symbol_for_interface(
         &self,
-        p: &Symbol,
+        p: Id<Symbol>,
         base_type: Option<Id<Type>>,
     ) -> io::Result<Vec<Gc<Node>>> {
         self.serialize_property_symbol_for_interface_worker()
@@ -495,7 +495,7 @@ impl SymbolTableToDeclarationStatements {
             .map(|t| t.target())
             .try_filter(|&t_target| {
                 self.type_checker.is_symbol_accessible_by_flags(
-                    &self.type_checker.type_(t_target).symbol(),
+                    self.type_checker.type_(t_target).symbol(),
                     Some(&*self.enclosing_declaration),
                     flags,
                 )
@@ -514,7 +514,7 @@ impl SymbolTableToDeclarationStatements {
                     .collect::<Result<Vec<_>, _>>()?,
             );
             reference = Some(self.node_builder.symbol_to_expression_(
-                &self.type_checker.type_(t_target).symbol(),
+                self.type_checker.type_(t_target).symbol(),
                 &self.context(),
                 Some(SymbolFlags::Type),
             )?);
@@ -522,8 +522,7 @@ impl SymbolTableToDeclarationStatements {
             .type_checker
             .type_(t)
             .maybe_symbol()
-            .as_ref()
-            .try_filter(|t_symbol| {
+            .try_filter(|&t_symbol| {
                 self.type_checker.is_symbol_accessible_by_flags(
                     t_symbol,
                     Some(&*self.enclosing_declaration),
@@ -550,8 +549,7 @@ impl SymbolTableToDeclarationStatements {
         self.type_checker
             .type_(t)
             .maybe_symbol()
-            .as_ref()
-            .try_map(|t_symbol| -> io::Result<_> {
+            .try_map(|&t_symbol| -> io::Result<_> {
                 Ok(get_factory().create_expression_with_type_arguments(
                     self.node_builder.symbol_to_expression_(
                         t_symbol,
@@ -568,8 +566,7 @@ impl SymbolTableToDeclarationStatements {
         input: &str,
         symbol: Option<Id<Symbol>>,
     ) -> String {
-        let symbol = symbol.symbol_wrappered();
-        let id = symbol.as_ref().map(|symbol| get_symbol_id(symbol));
+        let id = symbol.map(|symbol| get_symbol_id(&self.type_checker.symbol(symbol)));
         if let Some(id) = id {
             if self.context().remapped_symbol_names().contains_key(&id) {
                 return self
@@ -608,7 +605,7 @@ impl SymbolTableToDeclarationStatements {
         input
     }
 
-    pub(super) fn get_name_candidate_worker(&self, symbol: &Symbol, local_name: &str) -> String {
+    pub(super) fn get_name_candidate_worker(&self, symbol: Id<Symbol>, local_name: &str) -> String {
         let mut local_name = local_name.to_owned();
         if matches!(
             &*local_name,
@@ -651,7 +648,7 @@ impl SymbolTableToDeclarationStatements {
         local_name
     }
 
-    pub(super) fn get_internal_symbol_name(&self, symbol: &Symbol, local_name: &str) -> String {
+    pub(super) fn get_internal_symbol_name(&self, symbol: Id<Symbol>, local_name: &str) -> String {
         let id = get_symbol_id(symbol);
         if self.context().remapped_symbol_names().contains_key(&id) {
             return self
@@ -703,7 +700,7 @@ impl MakeSerializePropertySymbol {
 
     pub(super) fn call(
         &self,
-        p: &Symbol,
+        p: Id<Symbol>,
         is_static: bool,
         base_type: Option<Id<Type>>,
     ) -> io::Result<Vec<Gc<Node>>> {

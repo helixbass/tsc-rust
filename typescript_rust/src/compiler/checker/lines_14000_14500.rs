@@ -555,7 +555,7 @@ impl TypeChecker {
                         | TypeFlags::InstantiableNonPrimitive,
                 ) {
                     self.get_properties_of_type(source)?
-                        .try_find_(|p| -> io::Result<_> {
+                        .try_find_(|&p| -> io::Result<_> {
                             Ok(self.is_unit_type(self.get_type_of_symbol(p)?))
                         })?
                 } else {
@@ -563,7 +563,6 @@ impl TypeChecker {
                 };
                 let key_property_type =
                     key_property
-                        .as_ref()
                         .try_map(|key_property| -> io::Result<_> {
                             Ok(self.get_regular_type_of_literal_type(
                                 self.get_type_of_symbol(key_property)?,
@@ -584,7 +583,7 @@ impl TypeChecker {
                             }
                         }
                         count += 1;
-                        if let Some(key_property) = key_property.as_ref() {
+                        if let Some(key_property) = key_property {
                             if self.type_(target).flags().intersects(
                                 TypeFlags::Object
                                     | TypeFlags::Intersection
@@ -592,7 +591,7 @@ impl TypeChecker {
                             ) {
                                 let t = self.get_type_of_property_of_type_(
                                     target,
-                                    key_property.escaped_name(),
+                                    self.symbol(key_property).escaped_name(),
                                 )?;
                                 if matches!(
                                     t,
@@ -991,7 +990,6 @@ impl TypeChecker {
                 }
             }
         };
-        let alias_symbol = alias_symbol.map(|alias_symbol| alias_symbol.borrow().symbol_wrapper());
         let id = format!(
             "{}{}",
             type_key,

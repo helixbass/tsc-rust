@@ -58,7 +58,7 @@ pub const default_maximum_truncation_length: usize = 160;
 pub const no_truncation_maximum_truncation_length: usize = 1_000_000;
 
 pub fn get_declaration_of_kind(
-    symbol: Id<Symbol>,
+    symbol: &Symbol,
     kind: SyntaxKind,
 ) -> Option<Gc<Node /*T extends Declaration*/>> {
     let maybe_declarations = symbol.maybe_declarations();
@@ -1572,7 +1572,7 @@ pub fn is_effective_module_declaration(node: &Node) -> bool {
     is_module_declaration(node) || is_identifier(node)
 }
 
-pub fn is_shorthand_ambient_module_symbol(module_symbol: Id<Symbol>) -> bool {
+pub fn is_shorthand_ambient_module_symbol(module_symbol: &Symbol) -> bool {
     is_shorthand_ambient_module(module_symbol.maybe_value_declaration())
 }
 

@@ -105,25 +105,25 @@ impl TypeChecker {
             {
                 let prop =
                     self.get_property_of_type_(type_, name, skip_object_function_property_augment)?;
-                let modifiers = if let Some(prop) = prop.as_ref() {
+                let modifiers = if let Some(prop) = prop {
                     get_declaration_modifier_flags_from_symbol(prop, None)
                 } else {
                     ModifierFlags::None
                 };
                 if let Some(prop) = prop {
                     if is_union {
-                        optional_flag |= prop.flags() & SymbolFlags::Optional;
+                        optional_flag |= self.symbol(prop).flags() & SymbolFlags::Optional;
                     } else {
-                        optional_flag &= prop.flags();
+                        optional_flag &= self.symbol(prop).flags();
                     }
                     if single_prop.is_none() {
                         single_prop = Some(prop.clone());
-                    } else if !Gc::ptr_eq(&prop, single_prop.as_ref().unwrap()) {
-                        let single_prop = single_prop.as_ref().unwrap();
-                        let is_instantiation = Gc::ptr_eq(
-                            &self.get_target_symbol(&prop),       /*|| prop*/
-                            &self.get_target_symbol(single_prop), /*|| singleProp*/
-                        );
+                    } else if prop != single_prop.unwrap() {
+                        let single_prop = single_prop.unwrap();
+                        let is_instantiation = 
+                            self.get_target_symbol(prop) ==       /*|| prop*/
+                            self.get_target_symbol(single_prop) /*|| singleProp*/
+                        ;
                         if is_instantiation
                             && self.compare_properties(single_prop, &prop, |a, b| {
                                 Ok(if a == b {
@@ -134,9 +134,9 @@ impl TypeChecker {
                             })? == Ternary::True
                         {
                             merged_instantiations = matches!(
-                                single_prop.maybe_parent(),
+                                self.symbol(single_prop).maybe_parent(),
                                 Some(parent) if length(
-                                    self.get_local_type_parameters_of_class_or_interface_or_type_alias(&parent)?.as_deref()
+                                    self.get_local_type_parameters_of_class_or_interface_or_type_alias(parent)?.as_deref()
                                 ) != 0
                             );
                         } else {
@@ -145,7 +145,7 @@ impl TypeChecker {
                                 prop_set
                                     .as_mut()
                                     .unwrap()
-                                    .insert(get_symbol_id(single_prop), single_prop.clone());
+                                    .insert(get_symbol_id(&self.symbol(single_prop)), single_prop.clone());
                             }
                             let prop_set = prop_set.as_mut().unwrap();
                             let id = get_symbol_id(&prop);
@@ -154,9 +154,9 @@ impl TypeChecker {
                             }
                         }
                     }
-                    if is_union && self.is_readonly_symbol(&prop)? {
+                    if is_union && self.is_readonly_symbol(prop)? {
                         check_flags |= CheckFlags::Readonly;
-                    } else if !is_union && !self.is_readonly_symbol(&prop)? {
+                    } else if !is_union && !self.is_readonly_symbol(prop)? {
                         check_flags &= !CheckFlags::Readonly;
                     }
                     check_flags |=
@@ -177,7 +177,7 @@ impl TypeChecker {
                         } else {
                             CheckFlags::None
                         };
-                    if !self.is_prototype_property(&prop) {
+                    if !self.is_prototype_property(prop) {
                         synthetic_flag = CheckFlags::SyntheticProperty;
                     }
                 } else if is_union {
@@ -235,24 +235,24 @@ impl TypeChecker {
         {
             if merged_instantiations {
                 let clone = self.create_symbol_with_type(
-                    &single_prop,
-                    single_prop
-                        .maybe_as_transient_symbol()
+                    single_prop,
+                    self.symbol(single_prop
+                        ).maybe_as_transient_symbol()
                         .and_then(|single_prop| {
                             (*single_prop.symbol_links()).borrow().type_.clone()
                         }),
                 );
-                clone.set_parent(
-                    single_prop
-                        .maybe_value_declaration()
+                self.symbol(clone).set_parent(
+                    self.symbol(single_prop
+                        ).maybe_value_declaration()
                         .and_then(|value_declaration| value_declaration.maybe_symbol())
                         .and_then(|symbol| symbol.maybe_parent()),
                 );
-                let clone_symbol_links = clone.as_transient_symbol().symbol_links();
+                let clone_symbol_links = self.symbol(clone).as_transient_symbol().symbol_links();
                 let mut clone_symbol_links = clone_symbol_links.borrow_mut();
                 clone_symbol_links.containing_type = Some(containing_type);
-                clone_symbol_links.mapper = single_prop
-                    .maybe_as_transient_symbol()
+                clone_symbol_links.mapper = self.symbol(single_prop
+                    ).maybe_as_transient_symbol()
                     .and_then(|single_prop| (*single_prop.symbol_links()).borrow().mapper.clone());
                 return Ok(Some(clone));
             } else {
@@ -272,14 +272,14 @@ impl TypeChecker {
         let mut has_non_uniform_value_declaration = false;
         for prop in props {
             if first_value_declaration.is_none() {
-                first_value_declaration = prop.maybe_value_declaration();
+                first_value_declaration = self.symbol(prop).maybe_value_declaration();
             } else if matches!(
-                prop.maybe_value_declaration(),
+                self.symbol(prop).maybe_value_declaration(),
                 Some(value_declaration) if !Gc::ptr_eq(&value_declaration, first_value_declaration.as_ref().unwrap())
             ) {
                 has_non_uniform_value_declaration = true;
             }
-            if let Some(prop_declarations) = prop.maybe_declarations().as_deref() {
+            if let Some(prop_declarations) = self.symbol(prop).maybe_declarations().as_deref() {
                 if !prop_declarations.is_empty() {
                     if declarations.is_none() {
                         declarations = Some(vec![]);
@@ -292,7 +292,7 @@ impl TypeChecker {
                     );
                 }
             }
-            let type_ = self.get_type_of_symbol(&prop)?;
+            let type_ = self.get_type_of_symbol(prop)?;
             if first_type.is_none() {
                 first_type = Some(type_.clone());
                 name_type = (*self.get_symbol_links(&prop)).borrow().name_type.clone();
@@ -308,34 +308,34 @@ impl TypeChecker {
             prop_types.push(type_);
         }
         add_range(&mut prop_types, index_types.as_deref(), None, None);
-        let result: Id<Symbol> = self
+        let result = self.alloc_symbol(self
             .create_symbol(
                 SymbolFlags::Property | optional_flag,
                 name.to_owned(),
                 Some(synthetic_flag | check_flags),
             )
-            .into();
-        let result_links = result.as_transient_symbol().symbol_links();
+            .into());
+        let result_links = self.symbol(result).as_transient_symbol().symbol_links();
         let mut result_links = result_links.borrow_mut();
         result_links.containing_type = Some(containing_type);
         if !has_non_uniform_value_declaration {
             if let Some(first_value_declaration) = first_value_declaration {
-                result.set_value_declaration(first_value_declaration.clone());
+                self.symbol(result).set_value_declaration(first_value_declaration.clone());
 
                 if let Some(first_value_declaration_symbol_parent) =
-                    first_value_declaration.symbol().maybe_parent()
+                    self.symbol(first_value_declaration.symbol()).maybe_parent()
                 {
-                    result.set_parent(Some(first_value_declaration_symbol_parent));
+                    self.symbol(result).set_parent(Some(first_value_declaration_symbol_parent));
                 }
             }
         }
 
         if let Some(declarations) = declarations {
-            result.set_declarations(declarations);
+            self.symbol(result).set_declarations(declarations);
         }
         result_links.name_type = name_type;
         if prop_types.len() > 2 {
-            let result_as_transient_symbol = result.as_transient_symbol();
+            let result_as_transient_symbol = self.symbol(result).as_transient_symbol();
             result_as_transient_symbol.set_check_flags(
                 result_as_transient_symbol.check_flags() | CheckFlags::DeferredType,
             );
@@ -428,7 +428,7 @@ impl TypeChecker {
             skip_object_function_property_augment,
         )?;
         Ok(property
-            .filter(|property| !get_check_flags(property).intersects(CheckFlags::ReadPartial)))
+            .filter(|&property| !get_check_flags(&self.symbol(property)).intersects(CheckFlags::ReadPartial)))
     }
 
     pub(super) fn get_reduced_type(&self, type_: Id<Type>) -> io::Result<Id<Type>> {
@@ -472,7 +472,7 @@ impl TypeChecker {
                 object_flags |= ObjectFlags::IsNeverIntersectionComputed
                     | if self
                         .get_properties_of_union_or_intersection_type(type_)?
-                        .try_any(|ref symbol| self.is_never_reduced_property(symbol))?
+                        .try_any(|symbol| self.is_never_reduced_property(symbol))?
                     {
                         ObjectFlags::IsNeverIntersection
                     } else {
@@ -510,7 +510,7 @@ impl TypeChecker {
             return Ok(union_type);
         }
         let reduced =
-            self.get_union_type(&reduced_types, None, Option::<Symbol>::None, None, None)?;
+            self.get_union_type(&reduced_types, None, None, None, None)?;
         if self.type_(reduced).flags().intersects(TypeFlags::Union) {
             *self
                 .type_(reduced)
@@ -526,7 +526,7 @@ impl TypeChecker {
     }
 
     pub(super) fn is_discriminant_with_never_type(&self, prop: Id<Symbol>) -> io::Result<bool> {
-        Ok(!prop.flags().intersects(SymbolFlags::Optional)
+        Ok(!self.symbol(prop).flags().intersects(SymbolFlags::Optional)
             && get_check_flags(prop) & (CheckFlags::Discriminant | CheckFlags::HasNeverType)
                 == CheckFlags::Discriminant
             && self
@@ -536,8 +536,8 @@ impl TypeChecker {
     }
 
     pub(super) fn is_conflicting_private_property(&self, prop: Id<Symbol>) -> bool {
-        prop.maybe_value_declaration().is_none()
-            && get_check_flags(prop).intersects(CheckFlags::ContainsPrivate)
+        self.symbol(prop).maybe_value_declaration().is_none()
+            && get_check_flags(&self.symbol(prop)).intersects(CheckFlags::ContainsPrivate)
     }
 
     pub(super) fn elaborate_never_intersection(
@@ -553,7 +553,7 @@ impl TypeChecker {
         {
             let never_prop = self
                 .get_properties_of_union_or_intersection_type(type_)?
-                .try_find_(|property| self.is_discriminant_with_never_type(property))?;
+                .try_find_(|&property| self.is_discriminant_with_never_type(property))?;
             if let Some(never_prop) = never_prop {
                 return Ok(Some(
                     chain_diagnostic_messages(
@@ -561,14 +561,14 @@ impl TypeChecker {
                         &Diagnostics::The_intersection_0_was_reduced_to_never_because_property_1_has_conflicting_types_in_some_constituents,
                         Some(vec![
                             self.type_to_string_(type_, Option::<&Node>::None, Some(TypeFormatFlags::NoTypeReduction), None)?,
-                            self.symbol_to_string_(&never_prop, Option::<&Node>::None, None, None, None)?
+                            self.symbol_to_string_(never_prop, Option::<&Node>::None, None, None, None)?
                         ])
                     )
                 ));
             }
             let private_prop = self
                 .get_properties_of_union_or_intersection_type(type_)?
-                .find(|property| self.is_conflicting_private_property(property));
+                .find(|&property| self.is_conflicting_private_property(property));
             if let Some(private_prop) = private_prop {
                 return Ok(Some(
                     chain_diagnostic_messages(
@@ -576,7 +576,7 @@ impl TypeChecker {
                         &Diagnostics::The_intersection_0_was_reduced_to_never_because_property_1_exists_in_multiple_constituents_and_is_private_in_some,
                         Some(vec![
                             self.type_to_string_(type_, Option::<&Node>::None, Some(TypeFormatFlags::NoTypeReduction), None)?,
-                            self.symbol_to_string_(&private_prop, Option::<&Node>::None, None, None, None)?
+                            self.symbol_to_string_(private_prop, Option::<&Node>::None, None, None, None)?
                         ])
                     )
                 ));
@@ -599,7 +599,7 @@ impl TypeChecker {
                 .get(name)
                 .map(Clone::clone);
             if let Some(symbol) = symbol {
-                if self.symbol_is_value(&symbol)? {
+                if self.symbol_is_value(symbol)? {
                     return Ok(Some(symbol));
                 }
             }
@@ -846,7 +846,7 @@ impl TypeChecker {
         for node in get_effective_type_parameter_declarations(declaration) {
             result = Some(maybe_append_if_unique_eq(
                 result,
-                &self.get_declared_type_of_type_parameter(&node.symbol()),
+                &self.get_declared_type_of_type_parameter(node.symbol()),
             ));
         }
         result

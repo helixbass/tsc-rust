@@ -533,7 +533,7 @@ impl TypeChecker {
         &self,
         node: &Node, /*PropertyAccessExpression | ImportTypeNode | QualifiedName*/
         type_: Id<Type>,
-        property: &Symbol,
+        property: Id<Symbol>,
     ) -> io::Result<bool> {
         self.is_property_accessible(
             node,
@@ -576,7 +576,7 @@ impl TypeChecker {
         is_super: bool,
         is_write: bool,
         containing_type: Id<Type>,
-        property: &Symbol,
+        property: Id<Symbol>,
     ) -> io::Result<bool> {
         if self.is_type_any(Some(containing_type)) {
             return Ok(true);

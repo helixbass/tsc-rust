@@ -51,7 +51,7 @@ impl TypeChecker {
             Option<Vec<Gc<Node /*LateVisibilityPaintedStatement*/>>>,
         > = RefCell::new(None);
         if !every(
-            &maybe_filter(symbol.maybe_declarations().as_deref(), |d: &Gc<Node>| {
+            &maybe_filter(self.symbol(symbol).maybe_declarations().as_deref(), |d: &Gc<Node>| {
                 d.kind() != SyntaxKind::Identifier
             })
             .unwrap_or_else(|| vec![]),
@@ -114,7 +114,7 @@ impl TypeChecker {
                     declaration,
                     declaration,
                 );
-            } else if symbol.flags().intersects(SymbolFlags::Alias)
+            } else if self.symbol(symbol).flags().intersects(SymbolFlags::Alias)
                 && is_binding_element(declaration)
                 && is_in_js_file(Some(declaration))
             {
@@ -226,7 +226,7 @@ impl TypeChecker {
         }
 
         Ok(symbol
-            .and_then(|symbol| self.has_visible_declarations(&symbol, true))
+            .and_then(|symbol| self.has_visible_declarations(symbol, true))
             .unwrap_or_else(|| SymbolVisibilityResult {
                 accessibility: SymbolAccessibility::NotAccessible,
                 aliases_to_make_visible: None,
@@ -476,8 +476,8 @@ impl TypeChecker {
         right: Id<Type>,
     ) -> io::Result<(String, String)> {
         let mut left_str = if let Some(symbol) = self.type_(left).maybe_symbol() {
-            if self.symbol_value_declaration_is_context_sensitive(Some(&symbol))? {
-                let enclosing_declaration = (*symbol.maybe_value_declaration().borrow()).clone();
+            if self.symbol_value_declaration_is_context_sensitive(Some(symbol))? {
+                let enclosing_declaration = (*self.symbol(symbol).maybe_value_declaration().borrow()).clone();
                 self.type_to_string_(left, enclosing_declaration, None, None)?
             } else {
                 self.type_to_string_(left, Option::<&Node>::None, None, None)?
@@ -486,8 +486,8 @@ impl TypeChecker {
             self.type_to_string_(left, Option::<&Node>::None, None, None)?
         };
         let mut right_str = if let Some(symbol) = self.type_(right).maybe_symbol() {
-            if self.symbol_value_declaration_is_context_sensitive(Some(&symbol))? {
-                let enclosing_declaration = (*symbol.maybe_value_declaration().borrow()).clone();
+            if self.symbol_value_declaration_is_context_sensitive(Some(symbol))? {
+                let enclosing_declaration = (*self.symbol(symbol).maybe_value_declaration().borrow()).clone();
                 self.type_to_string_(right, enclosing_declaration, None, None)?
             } else {
                 self.type_to_string_(right, Option::<&Node>::None, None, None)?
@@ -520,7 +520,7 @@ impl TypeChecker {
         }
         let symbol = symbol.unwrap();
         Ok(matches!(
-            symbol.maybe_value_declaration(),
+            self.symbol(symbol).maybe_value_declaration(),
             Some(value_declaration) if is_expression(&value_declaration) && !self.is_context_sensitive(&value_declaration)?
         ))
     }
@@ -533,8 +533,8 @@ impl TypeChecker {
     pub(super) fn is_class_instance_side(&self, type_: Id<Type>) -> io::Result<bool> {
         Ok(matches!(
             self.type_(type_).maybe_symbol(),
-            Some(type_symbol) if type_symbol.flags().intersects(SymbolFlags::Class) && (
-                type_ == self.get_declared_type_of_class_or_interface(&type_symbol)? ||
+            Some(type_symbol) if self.symbol(type_symbol).flags().intersects(SymbolFlags::Class) && (
+                type_ == self.get_declared_type_of_class_or_interface(type_symbol)? ||
                 self.type_(type_).flags().intersects(TypeFlags::Object) && get_object_flags(&self.type_(type_)).intersects(ObjectFlags::IsClassInstanceClone)
             )
         ))
@@ -860,7 +860,7 @@ impl NodeBuilder {
             if let Some(type_alias_symbol) = self.type_checker.type_(type_).maybe_alias_symbol() {
                 return Ok(Some(
                     get_factory().create_type_reference_node(
-                        self.symbol_to_entity_name_node(&type_alias_symbol),
+                        self.symbol_to_entity_name_node(type_alias_symbol),
                         self.map_to_type_nodes(
                             self.type_checker
                                 .type_(type_)
@@ -984,19 +984,19 @@ impl NodeBuilder {
         {
             let parent_symbol = self
                 .type_checker
-                .get_parent_of_symbol(&self.type_checker.type_(type_).symbol())?
+                .get_parent_of_symbol(self.type_checker.type_(type_).symbol())?
                 .unwrap();
             let parent_name =
-                self.symbol_to_type_node(&parent_symbol, context, SymbolFlags::Type, None)?;
+                self.symbol_to_type_node(parent_symbol, context, SymbolFlags::Type, None)?;
             if self
                 .type_checker
-                .get_declared_type_of_symbol(&parent_symbol)?
+                .get_declared_type_of_symbol(parent_symbol)?
                 == type_
             {
                 return Ok(Some(parent_name));
             }
             let type_symbol = self.type_checker.type_(type_).symbol();
-            let member_name = symbol_name(&type_symbol);
+            let member_name = symbol_name(&self.type_checker.symbol(type_symbol));
             if is_identifier_text(&member_name, Some(ScriptTarget::ES3), None) {
                 return Ok(Some(
                     self.append_reference_to_type(
@@ -1044,7 +1044,7 @@ impl NodeBuilder {
             .intersects(TypeFlags::EnumLike)
         {
             return Ok(Some(self.symbol_to_type_node(
-                &self.type_checker.type_(type_).symbol(),
+                self.type_checker.type_(type_).symbol(),
                 context,
                 SymbolFlags::Type,
                 None,
@@ -1146,12 +1146,12 @@ impl NodeBuilder {
                 .intersects(NodeBuilderFlags::AllowUniqueESSymbolType)
             {
                 if self.type_checker.is_value_symbol_accessible(
-                    &self.type_checker.type_(type_).symbol(),
+                    self.type_checker.type_(type_).symbol(),
                     context.maybe_enclosing_declaration().as_deref(),
                 )? {
                     context.increment_approximate_length_by(6);
                     return Ok(Some(self.symbol_to_type_node(
-                        &self.type_checker.type_(type_).symbol(),
+                        self.type_checker.type_(type_).symbol(),
                         context,
                         SymbolFlags::Value,
                         None,
@@ -1279,7 +1279,7 @@ impl NodeBuilder {
                     .flags()
                     .intersects(NodeBuilderFlags::UseAliasDefinedOutsideCurrentScope)
                     || self.type_checker.is_type_symbol_accessible(
-                        &type_alias_symbol,
+                        type_alias_symbol,
                         context.maybe_enclosing_declaration().as_deref(),
                     )?
                 {
@@ -1293,8 +1293,8 @@ impl NodeBuilder {
                     )?;
                     if self
                         .type_checker
-                        .is_reserved_member_name(type_alias_symbol.escaped_name())
-                        && !type_alias_symbol.flags().intersects(SymbolFlags::Class)
+                        .is_reserved_member_name(self.type_checker.symbol(type_alias_symbol).escaped_name())
+                        && !self.type_checker.symbol(type_alias_symbol).flags().intersects(SymbolFlags::Class)
                     {
                         return Ok(Some(get_factory().create_type_reference_node(
                             get_factory().create_identifier(""),
@@ -1302,7 +1302,7 @@ impl NodeBuilder {
                         )));
                     }
                     return Ok(Some(self.symbol_to_type_node(
-                        &type_alias_symbol,
+                        type_alias_symbol,
                         context,
                         SymbolFlags::Type,
                         type_argument_nodes.as_deref(),
@@ -1352,7 +1352,7 @@ impl NodeBuilder {
                 && contains((*context.infer_type_parameters).borrow().as_deref(), &type_)
             {
                 context.increment_approximate_length_by(
-                    symbol_name(&self.type_checker.type_(type_).symbol()).len() + 6,
+                    symbol_name(self.type_checker.type_(type_).symbol()).len() + 6,
                 );
                 return Ok(Some(get_factory().create_infer_type_node(
                     self.type_parameter_to_declaration_with_constraint(type_, context, None)?,
@@ -1367,7 +1367,7 @@ impl NodeBuilder {
                     .flags()
                     .intersects(TypeFlags::TypeParameter)
                 && !self.type_checker.is_type_symbol_accessible(
-                    &self.type_checker.type_(type_).symbol(),
+                    self.type_checker.type_(type_).symbol(),
                     context.maybe_enclosing_declaration().as_deref(),
                 )?
             {
@@ -1380,7 +1380,7 @@ impl NodeBuilder {
             }
             return Ok(Some(
                 if let Some(type_symbol) = self.type_checker.type_(type_).maybe_symbol() {
-                    self.symbol_to_type_node(&type_symbol, context, SymbolFlags::Type, None)?
+                    self.symbol_to_type_node(type_symbol, context, SymbolFlags::Type, None)?
                 } else {
                     get_factory().create_type_reference_node(
                         get_factory().create_identifier("?"),
@@ -1538,7 +1538,7 @@ impl NodeBuilder {
                 )?
                 .unwrap();
             return Ok(Some(self.symbol_to_type_node(
-                &self.type_checker.type_(type_).symbol(),
+                self.type_checker.type_(type_).symbol(),
                 context,
                 SymbolFlags::Type,
                 Some(&vec![type_node]),

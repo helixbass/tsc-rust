@@ -60,7 +60,7 @@ impl AllArenas {
         Ref::map(self.symbols.borrow(), |symbols| &symbols[symbol])
     }
 
-    pub fn create_symbol(&self, symbol: TypeMapper) -> Id<TypeMapper> {
+    pub fn create_symbol(&self, symbol: Symbol) -> Id<Symbol> {
         let id = self.symbols.borrow_mut().alloc(symbol);
         id
     }

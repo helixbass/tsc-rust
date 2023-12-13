@@ -910,7 +910,7 @@ impl TypeChecker {
         flags & flags_to_check
     }
 
-    pub(super) fn check_function_or_constructor_symbol(&self, symbol: &Symbol) -> io::Result<()> {
+    pub(super) fn check_function_or_constructor_symbol(&self, symbol: Id<Symbol>) -> io::Result<()> {
         if !self.produce_diagnostics {
             return Ok(());
         }

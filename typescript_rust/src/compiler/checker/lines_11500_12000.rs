@@ -332,7 +332,7 @@ impl TypeChecker {
                 .get(name)
                 .map(Clone::clone);
             if let Some(symbol) = symbol {
-                if self.symbol_is_value(&symbol)? {
+                if self.symbol_is_value(symbol)? {
                     return Ok(Some(symbol));
                 }
             }
@@ -360,14 +360,15 @@ impl TypeChecker {
                 types
             } {
                 for prop in self.get_properties_of_type(current)? {
-                    if !members.contains_key(prop.escaped_name()) {
+                    if !members.contains_key(self.symbol(prop).escaped_name()) {
                         let combined_prop = self.get_property_of_union_or_intersection_type(
                             type_,
-                            prop.escaped_name(),
+                            self.symbol(prop).escaped_name(),
                             None,
                         )?;
                         if let Some(combined_prop) = combined_prop {
-                            members.insert(prop.escaped_name().to_owned(), combined_prop);
+                            members
+                                .insert(self.symbol(prop).escaped_name().to_owned(), combined_prop);
                         }
                     }
                 }
@@ -419,7 +420,7 @@ impl TypeChecker {
             .flags()
             .intersects(TypeFlags::StructuredType)
         {
-            for (escaped_name, symbol) in &*(*self
+            for (escaped_name, &symbol) in &*(*self
                 .type_(self.resolve_structured_type_members(type_)?)
                 .as_resolved_type()
                 .members())
@@ -465,7 +466,7 @@ impl TypeChecker {
         let mut props = create_symbol_table(Option::<&[Id<Symbol>]>::None);
         for &member_type in types {
             for augmented_property in self.get_augmented_properties_of_type(member_type)? {
-                let escaped_name = augmented_property.escaped_name();
+                let escaped_name = self.symbol(augmented_property).escaped_name();
                 if !props.contains_key(escaped_name) {
                     let prop =
                         self.create_union_or_intersection_property(union_type, escaped_name, None)?;
@@ -973,7 +974,7 @@ impl TypeChecker {
                 self.get_base_constraint(stack, self.type_(t).as_string_mapping_type().type_)?;
             return Ok(Some(if let Some(constraint) = constraint {
                 self.get_string_mapping_type(
-                    &*{
+                    {
                         let symbol = self.type_(t).symbol();
                         symbol
                     },
@@ -1084,7 +1085,7 @@ impl TypeChecker {
                         .maybe_symbol()
                         .and_then(|symbol| {
                             maybe_for_each(
-                                symbol.maybe_declarations().as_deref(),
+                                self.symbol(symbol).maybe_declarations().as_deref(),
                                 |decl: &Gc<Node>, _| {
                                     if is_type_parameter_declaration(decl) {
                                         decl.as_type_parameter_declaration().default.clone()
@@ -1155,7 +1156,7 @@ impl TypeChecker {
     ) -> bool {
         matches!(
             self.type_(type_parameter).maybe_symbol(),
-            Some(symbol) if maybe_for_each_bool(symbol.maybe_declarations().as_deref(), |decl: &Gc<Node>, _| {
+            Some(symbol) if maybe_for_each_bool(self.symbol(symbol).maybe_declarations().as_deref(), |decl: &Gc<Node>, _| {
                 is_type_parameter_declaration(decl) && decl.as_type_parameter_declaration().default.is_some()
             })
         )

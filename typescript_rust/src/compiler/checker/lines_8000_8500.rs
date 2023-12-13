@@ -181,8 +181,13 @@ impl TypeChecker {
         type_: Id<Type>,
     ) -> io::Result<Option<Id<Symbol>>> {
         if let Some(type_symbol) = self.type_(type_).maybe_symbol() {
-            if type_symbol.flags().intersects(SymbolFlags::TypeLiteral) {
-                if let Some(type_symbol_declarations) = type_symbol.maybe_declarations().as_deref()
+            if self
+                .symbol(type_symbol)
+                .flags()
+                .intersects(SymbolFlags::TypeLiteral)
+            {
+                if let Some(type_symbol_declarations) =
+                    self.symbol(type_symbol).maybe_declarations().as_deref()
                 {
                     let node =
                         walk_up_parenthesized_types(&type_symbol_declarations[0].parent()).unwrap();
@@ -253,7 +258,7 @@ impl TypeChecker {
         {
             return Some(format!(
                 "[{}]",
-                self.get_name_of_symbol_as_written(&self.type_(name_type).symbol(), context)
+                self.get_name_of_symbol_as_written(self.type_(name_type).symbol(), context)
             ));
         }
         None
@@ -265,14 +270,14 @@ impl TypeChecker {
         context: Option<&NodeBuilderContext>,
     ) -> Cow<'symbol, str> {
         if let Some(context) = context {
-            if symbol.escaped_name() == InternalSymbolName::Default
+            if self.symbol(symbol).escaped_name() == InternalSymbolName::Default
                 && !context
                     .flags()
                     .intersects(NodeBuilderFlags::UseAliasDefinedOutsideCurrentScope)
                 && (!context
                     .flags()
                     .intersects(NodeBuilderFlags::InInitialEntityName)
-                    || match symbol.maybe_declarations().as_deref() {
+                    || match self.symbol(symbol).maybe_declarations().as_deref() {
                         None => true,
                         Some(symbol_declarations) => matches!(
                             context.maybe_enclosing_declaration().as_deref(),
@@ -286,7 +291,7 @@ impl TypeChecker {
                 return "default".into();
             }
         }
-        if let Some(symbol_declarations) = symbol.maybe_declarations().as_deref() {
+        if let Some(symbol_declarations) = self.symbol(symbol).maybe_declarations().as_deref() {
             if !symbol_declarations.is_empty() {
                 let mut declaration = first_defined(symbol_declarations, |d: &Gc<Node>, _| {
                     if get_name_of_declaration(Some(&**d)).is_some() {
@@ -500,12 +505,12 @@ impl TypeChecker {
         let result: RefCell<Option<Vec<Gc<Node>>>> = RefCell::new(None);
         if let Some(export_symbol) = export_symbol {
             let mut visited: HashSet<SymbolId> = HashSet::new();
-            visited.insert(get_symbol_id(&export_symbol));
+            visited.insert(get_symbol_id(&self.symbol(export_symbol));
             self.build_visible_node_list(
                 set_visibility.unwrap_or(false),
                 &result,
                 &mut visited,
-                export_symbol.maybe_declarations().as_deref(),
+                self.symbol(export_symbol).maybe_declarations().as_deref(),
             )?;
         }
         Ok(result.into_inner())
@@ -683,7 +688,7 @@ impl TypeChecker {
         prototype: Id<Symbol>,
     ) -> io::Result<Id<Type>> {
         let class_type =
-            self.get_declared_type_of_symbol(&self.get_parent_of_symbol(prototype)?.unwrap())?;
+            self.get_declared_type_of_symbol(self.get_parent_of_symbol(prototype)?.unwrap())?;
         Ok(
             if let Some(class_type_type_parameters) = self
                 .type_(class_type)
@@ -707,7 +712,7 @@ impl TypeChecker {
         name: &str, /*__String*/
     ) -> io::Result<Option<Id<Type>>> {
         let prop = return_ok_none_if_none!(self.get_property_of_type_(type_, name, None)?);
-        Ok(Some(self.get_type_of_symbol(&prop)?))
+        Ok(Some(self.get_type_of_symbol(prop)?))
     }
 
     pub(super) fn get_type_of_property_or_index_signature(
@@ -761,7 +766,6 @@ impl TypeChecker {
         if self.type_(source).flags().intersects(TypeFlags::Never) {
             return Ok(self.empty_object_type());
         }
-        let symbol = symbol.map(|symbol| symbol.borrow().symbol_wrapper());
         if self.type_(source).flags().intersects(TypeFlags::Union) {
             return Ok(self
                 .try_map_type(
@@ -801,7 +805,7 @@ impl TypeChecker {
             }
             let omit_type_alias = omit_type_alias.unwrap();
             return self.get_type_alias_instantiation(
-                &omit_type_alias,
+                omit_type_alias,
                 Some(&vec![source, omit_key_type]),
                 Option::<Id<Symbol>>::None,
                 None,
@@ -811,18 +815,18 @@ impl TypeChecker {
         for prop in self.get_properties_of_type(source)? {
             if !self.is_type_assignable_to(
                 self.get_literal_type_from_property(
-                    &prop,
+                    prop,
                     TypeFlags::StringOrNumberLiteralOrUnique,
                     None,
                 )?,
                 omit_key_type,
-            )? && !get_declaration_modifier_flags_from_symbol(&prop, None)
+            )? && !get_declaration_modifier_flags_from_symbol(&self.symbol(prop), None)
                 .intersects(ModifierFlags::Private | ModifierFlags::Protected)
                 && self.is_spreadable_property(&prop)
             {
                 members.insert(
-                    prop.escaped_name().to_owned(),
-                    self.get_spread_symbol(&prop, false)?,
+                    self.symbol(prop).escaped_name().to_owned(),
+                    self.get_spread_symbol(prop, false)?,
                 );
             }
         }

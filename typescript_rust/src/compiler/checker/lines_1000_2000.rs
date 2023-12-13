@@ -1,6 +1,7 @@
 use std::{borrow::Borrow, collections::HashMap, io, ptr};
 
 use gc::{Gc, GcCell};
+use id_arena::Id;
 use indexmap::IndexMap;
 
 use super::{

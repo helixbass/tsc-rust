@@ -293,7 +293,7 @@ impl TypeSystemEntity {
 
     pub fn as_symbol(&self) -> Id<Symbol> {
         match self {
-            Self::Symbol(symbol) => &*symbol,
+            Self::Symbol(symbol) => *symbol,
             _ => panic!("Expected symbol"),
         }
     }
@@ -317,7 +317,7 @@ impl PartialEq for TypeSystemEntity {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
             (Self::Node(a), Self::Node(b)) => Gc::ptr_eq(a, b),
-            (Self::Symbol(a), Self::Symbol(b)) => Gc::ptr_eq(a, b),
+            (Self::Symbol(a), Self::Symbol(b)) => a == b,
             (Self::Type(a), Self::Type(b)) => a == b,
             (Self::Signature(a), Self::Signature(b)) => Gc::ptr_eq(a, b),
             _ => false,
@@ -501,7 +501,7 @@ pub fn get_node_id(node: &Node) -> NodeId {
     node.id()
 }
 
-pub fn get_symbol_id(symbol: Id<Symbol>) -> SymbolId {
+pub fn get_symbol_id(symbol: &Symbol) -> SymbolId {
     if symbol.maybe_id().is_none() {
         symbol.set_id(get_next_symbol_id());
         increment_next_symbol_id();
@@ -840,57 +840,57 @@ pub fn create_type_checker(
         ],
     };
     type_checker.undefined_symbol = Some(
-        type_checker
+        type_checker.alloc_symbol(type_checker
             .create_symbol(SymbolFlags::Property, "undefined".to_owned(), None)
-            .into(),
+            .into()),
     );
-    type_checker
+    type_checker.symbol(type_checker
         .undefined_symbol
-        .as_ref()
-        .unwrap()
+        .unwrap())
         .set_declarations(vec![]);
     type_checker.global_this_symbol = Some(
-        type_checker
+        type_checker.alloc_symbol(type_checker
             .create_symbol(
                 SymbolFlags::Module,
                 "globalThis".to_owned(),
                 Some(CheckFlags::Readonly),
             )
-            .into(),
+            .into()),
     );
     let global_this_symbol = type_checker.global_this_symbol();
     {
-        let mut global_this_symbol_exports = global_this_symbol.maybe_exports_mut();
+        let global_this_symbol_ref = type_checker.symbol(global_this_symbol);
+        let mut global_this_symbol_exports = global_this_symbol_ref.maybe_exports_mut();
         *global_this_symbol_exports = Some(type_checker.globals_rc());
     }
-    global_this_symbol.set_declarations(vec![]);
+    type_checker.symbol(global_this_symbol).set_declarations(vec![]);
     type_checker.globals_mut().insert(
-        global_this_symbol.escaped_name().to_owned(),
+        type_checker.symbol(global_this_symbol).escaped_name().to_owned(),
         global_this_symbol,
     );
     type_checker.arguments_symbol = Some(
-        type_checker
+        type_checker.alloc_symbol(type_checker
             .create_symbol(SymbolFlags::Property, "arguments".to_owned(), None)
-            .into(),
+            .into()),
     );
     type_checker.require_symbol = Some(
-        type_checker
+        type_checker.alloc_symbol(type_checker
             .create_symbol(SymbolFlags::Property, "require".to_owned(), None)
-            .into(),
+            .into()),
     );
     type_checker.unknown_symbol = Some(
-        type_checker
+        type_checker.alloc_symbol(type_checker
             .create_symbol(SymbolFlags::Property, "unknown".to_owned(), None)
-            .into(),
+            .into()),
     );
     type_checker.resolving_symbol = Some(
-        type_checker
+        type_checker.alloc_symbol(type_checker
             .create_symbol(
                 SymbolFlags::None,
                 InternalSymbolName::Resolving.to_owned(),
                 None,
             )
-            .into(),
+            .into()),
     );
 
     type_checker.any_type = Some(
@@ -1263,7 +1263,7 @@ pub fn create_type_checker(
     *empty_type_literal_symbol.maybe_members_mut() = Some(Gc::new(GcCell::new(
         create_symbol_table(Option::<&[Id<Symbol>]>::None),
     )));
-    type_checker.empty_type_literal_symbol = Some(empty_type_literal_symbol.into());
+    type_checker.empty_type_literal_symbol = Some(type_checker.alloc_symbol(empty_type_literal_symbol.into()));
     type_checker.empty_type_literal_type = Some(type_checker.create_anonymous_type(
         Some(type_checker.empty_type_literal_symbol()),
         type_checker.empty_symbols(),
@@ -1431,7 +1431,7 @@ pub fn create_type_checker(
 
     let mut builtin_globals: SymbolTable = SymbolTable::new();
     builtin_globals.insert(
-        type_checker.undefined_symbol().escaped_name().to_owned(),
+        type_checker.symbol(type_checker.undefined_symbol()).escaped_name().to_owned(),
         type_checker.undefined_symbol(),
     );
     *type_checker.builtin_globals.borrow_mut() = Some(builtin_globals);
@@ -1543,6 +1543,16 @@ impl TypeChecker {
     #[track_caller]
     pub fn alloc_type_mapper(&self, type_mapper: TypeMapper) -> Id<TypeMapper> {
         self.arena().create_type_mapper(type_mapper)
+    }
+
+    #[track_caller]
+    pub fn symbol(&self, symbol: Id<Symbol>) -> debug_cell::Ref<Symbol> {
+        self.arena().symbol(symbol)
+    }
+
+    #[track_caller]
+    pub fn alloc_symbol(&self, symbol: Symbol) -> Id<Symbol> {
+        self.arena().create_symbol(symbol)
     }
 
     pub fn rc_wrapper(&self) -> Gc<TypeChecker> {
@@ -1771,15 +1781,15 @@ impl TypeChecker {
     }
 
     pub fn is_undefined_symbol(&self, symbol: Id<Symbol>) -> bool {
-        ptr::eq(symbol, &*self.undefined_symbol())
+        symbol == self.undefined_symbol()
     }
 
     pub fn is_arguments_symbol(&self, symbol: Id<Symbol>) -> bool {
-        ptr::eq(symbol, &*self.arguments_symbol())
+        symbol == self.arguments_symbol()
     }
 
     pub fn is_unknown_symbol(&self, symbol: Id<Symbol>) -> bool {
-        ptr::eq(symbol, &*self.unknown_symbol())
+        symbol == self.unknown_symbol()
     }
 
     pub fn get_type_of_symbol_at_location(
@@ -1833,7 +1843,7 @@ impl TypeChecker {
         let lexically_scoped_identifier =
             self.lookup_symbol_for_private_identifier_declaration(&prop_name, &node);
         lexically_scoped_identifier.try_and_then(|lexically_scoped_identifier| {
-            self.get_private_identifier_property_of_type_(left_type, &lexically_scoped_identifier)
+            self.get_private_identifier_property_of_type_(left_type, lexically_scoped_identifier)
         })
     }
 
@@ -2077,9 +2087,9 @@ impl TypeChecker {
 
     pub fn get_export_symbol_of_symbol(&self, symbol: Id<Symbol>) -> Id<Symbol> {
         self.get_merged_symbol(Some(
-            symbol
+            self.symbol(symbol)
                 .maybe_export_symbol()
-                .unwrap_or_else(|| symbol.symbol_wrapper()),
+                .unwrap_or_else(|| symbol),
         ))
         .unwrap()
     }

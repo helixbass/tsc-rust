@@ -438,7 +438,7 @@ pub fn is_watch_set(options: &CompilerOptions) -> bool {
     matches!(options.watch, Some(true))
 }
 
-pub fn get_check_flags(symbol: Id<Symbol>) -> CheckFlags {
+pub fn get_check_flags(symbol: &Symbol) -> CheckFlags {
     match symbol {
         Symbol::TransientSymbol(transient_symbol) => transient_symbol.check_flags(),
         _ => CheckFlags::None,
@@ -446,7 +446,7 @@ pub fn get_check_flags(symbol: Id<Symbol>) -> CheckFlags {
 }
 
 pub fn get_declaration_modifier_flags_from_symbol(
-    s: Id<Symbol>,
+    s: &Symbol,
     is_write: Option<bool>,
 ) -> ModifierFlags {
     let is_write = is_write.unwrap_or(false);
@@ -603,7 +603,7 @@ fn reverse_access_kind(a: AccessKind) -> AccessKind {
 }
 
 pub fn get_class_like_declaration_of_symbol(
-    symbol: Id<Symbol>,
+    symbol: &Symbol,
 ) -> Option<Gc<Node /*ClassLikeDeclaration*/>> {
     symbol
         .maybe_declarations()

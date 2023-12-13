@@ -51,7 +51,7 @@ impl TypeChecker {
                 type_ = self.get_intended_type_from_jsdoc_type_reference(node)?;
                 if type_.is_none() {
                     symbol = Some(self.resolve_type_reference_name(node, meaning, Some(true))?);
-                    if Gc::ptr_eq(symbol.as_ref().unwrap(), &self.unknown_symbol()) {
+                    if symbol.unwrap() == self.unknown_symbol() {
                         symbol = Some(self.resolve_type_reference_name(
                             node,
                             meaning | SymbolFlags::Value,
@@ -60,12 +60,12 @@ impl TypeChecker {
                     } else {
                         self.resolve_type_reference_name(node, meaning, None)?;
                     }
-                    type_ = Some(self.get_type_reference_type(node, symbol.as_ref().unwrap())?);
+                    type_ = Some(self.get_type_reference_type(node, symbol.unwrap())?);
                 }
             }
             if type_.is_none() {
                 symbol = Some(self.resolve_type_reference_name(node, meaning, None)?);
-                type_ = Some(self.get_type_reference_type(node, symbol.as_ref().unwrap())?);
+                type_ = Some(self.get_type_reference_type(node, symbol.unwrap())?);
             }
             {
                 let mut links = links.borrow_mut();
@@ -120,13 +120,12 @@ impl TypeChecker {
             });
         }
         let symbol = symbol.unwrap();
-        let symbol = symbol.borrow();
         let type_ = self.get_declared_type_of_symbol(symbol)?;
         if !self.type_(type_).flags().intersects(TypeFlags::Object) {
             self.error(
                 self.get_type_declaration(symbol),
                 &Diagnostics::Global_type_0_must_be_a_class_or_interface_type,
-                Some(vec![symbol_name(symbol).into_owned()]),
+                Some(vec![symbol_name(&self.symbol(symbol)).into_owned()]),
             );
             return Ok(if arity != 0 {
                 self.empty_generic_type()
@@ -143,7 +142,7 @@ impl TypeChecker {
             self.error(
                 self.get_type_declaration(symbol),
                 &Diagnostics::Global_type_0_must_have_1_type_parameter_s,
-                Some(vec![symbol_name(symbol).into_owned(), arity.to_string()]),
+                Some(vec![symbol_name(&self.symbol(symbol)).into_owned(), arity.to_string()]),
             );
             return Ok(if arity != 0 {
                 self.empty_generic_type()
@@ -158,7 +157,7 @@ impl TypeChecker {
         &self,
         symbol: Id<Symbol>,
     ) -> Option<Gc<Node /*Declaration*/>> {
-        let declarations = symbol.maybe_declarations();
+        let declarations = self.symbol(symbol).maybe_declarations();
         declarations.as_ref().and_then(|declarations| {
             for declaration in declarations {
                 match declaration.kind() {
@@ -221,7 +220,7 @@ impl TypeChecker {
                 None
             },
         )?;
-        if let Some(symbol) = symbol.as_ref() {
+        if let Some(symbol) = symbol {
             self.get_declared_type_of_symbol(symbol)?;
             if length(
                 (*self.get_symbol_links(symbol))
@@ -230,7 +229,7 @@ impl TypeChecker {
                     .as_deref(),
             ) != arity
             {
-                let symbol_declarations = symbol.maybe_declarations();
+                let symbol_declarations = self.symbol(symbol).maybe_declarations();
                 let decl = symbol_declarations
                     .as_deref()
                     .and_then(|symbol_declarations| {
@@ -242,7 +241,7 @@ impl TypeChecker {
                 self.error(
                     decl,
                     &Diagnostics::Global_type_0_must_have_1_type_parameter_s,
-                    Some(vec![symbol_name(symbol).into_owned(), arity.to_string()]),
+                    Some(vec![symbol_name(&self.symbol(symbol)).into_owned(), arity.to_string()]),
                 );
                 return Ok(None);
             }
@@ -331,21 +330,21 @@ impl TypeChecker {
             .maybe_deferred_global_import_meta_expression_type()
             .is_none()
         {
-            let symbol: Id<Symbol> = self
+            let symbol = self.alloc_symbol(self
                 .create_symbol(SymbolFlags::None, "ImportMetaExpression".to_owned(), None)
-                .into();
+                .into());
             let import_meta_type = self.get_global_import_meta_type()?;
 
-            let meta_property_symbol: Id<Symbol> = self
+            let meta_property_symbol = self.alloc_symbol(self
                 .create_symbol(
                     SymbolFlags::Property,
                     "meta".to_owned(),
                     Some(CheckFlags::Readonly),
                 )
-                .into();
-            meta_property_symbol.set_parent(Some(symbol.clone()));
-            meta_property_symbol
-                .as_transient_symbol()
+                .into());
+            self.symbol(meta_property_symbol).set_parent(Some(symbol.clone()));
+            self.symbol(meta_property_symbol
+                ).as_transient_symbol()
                 .symbol_links()
                 .borrow_mut()
                 .type_ = Some(import_meta_type);
@@ -353,7 +352,7 @@ impl TypeChecker {
             let members = Gc::new(GcCell::new(create_symbol_table(Some(&vec![
                 meta_property_symbol,
             ]))));
-            *symbol.maybe_members_mut() = Some(members.clone());
+            *self.symbol(symbol).maybe_members_mut() = Some(members.clone());
 
             *self.maybe_deferred_global_import_meta_expression_type() =
                 Some(self.create_anonymous_type(Some(symbol), members, vec![], vec![], vec![])?);
@@ -649,8 +648,8 @@ impl TypeChecker {
             .maybe_deferred_global_extract_symbol()
             .as_ref()
             .map(Clone::clone)
-            .filter(|deferred_global_extract_symbol| {
-                !Gc::ptr_eq(deferred_global_extract_symbol, &self.unknown_symbol())
+            .filter(|&deferred_global_extract_symbol| {
+                deferred_global_extract_symbol != self.unknown_symbol()
             }))
     }
 
@@ -665,8 +664,8 @@ impl TypeChecker {
             .maybe_deferred_global_omit_symbol()
             .as_ref()
             .map(Clone::clone)
-            .filter(|deferred_global_omit_symbol| {
-                !Gc::ptr_eq(deferred_global_omit_symbol, &self.unknown_symbol())
+            .filter(|&deferred_global_omit_symbol| {
+                deferred_global_omit_symbol != self.unknown_symbol()
             }))
     }
 
@@ -690,7 +689,7 @@ impl TypeChecker {
             .as_ref()
             .map(Clone::clone)
             .filter(|deferred_global_awaited_symbol| {
-                !Gc::ptr_eq(deferred_global_awaited_symbol, &self.unknown_symbol())
+                deferred_global_awaited_symbol != self.unknown_symbol()
             }))
     }
 
@@ -863,8 +862,8 @@ impl TypeChecker {
         Ok(match node.kind() {
             SyntaxKind::TypeReference => {
                 self.is_jsdoc_type_reference(node)
-                    || self
-                        .resolve_type_reference_name(node, SymbolFlags::Type, None)?
+                    || self.symbol(self
+                        .resolve_type_reference_name(node, SymbolFlags::Type, None)?)
                         .flags()
                         .intersects(SymbolFlags::TypeAlias)
             }
@@ -1078,7 +1077,7 @@ impl TypeChecker {
                 let flags = element_flags[i];
                 combined_flags |= flags;
                 if !combined_flags.intersects(ElementFlags::Variable) {
-                    let property: Id<Symbol> = self
+                    let property = self.alloc_symbol(self
                         .create_symbol(
                             SymbolFlags::Property
                                 | if flags.intersects(ElementFlags::Optional) {
@@ -1093,8 +1092,8 @@ impl TypeChecker {
                                 CheckFlags::None
                             }),
                         )
-                        .into();
-                    let property_links = property.as_transient_symbol().symbol_links();
+                        .into());
+                    let property_links = self.symbol(property).as_transient_symbol().symbol_links();
                     let mut property_links = property_links.borrow_mut();
                     property_links.tuple_label_declaration =
                         named_member_declarations.and_then(|named_member_declarations| {
@@ -1106,12 +1105,13 @@ impl TypeChecker {
             }
         }
         let fixed_length = properties.len();
-        let length_symbol: Id<Symbol> = self
-            .create_symbol(SymbolFlags::Property, "length".to_owned(), None)
-            .into();
+        let length_symbol = self.alloc_symbol(
+            self.create_symbol(SymbolFlags::Property, "length".to_owned(), None)
+                .into(),
+        );
         if combined_flags.intersects(ElementFlags::Variable) {
-            length_symbol
-                .as_transient_symbol()
+            self.symbol(length_symbol
+                ).as_transient_symbol()
                 .symbol_links()
                 .borrow_mut()
                 .type_ = Some(self.number_type());
@@ -1120,8 +1120,8 @@ impl TypeChecker {
             for i in min_length..=arity {
                 literal_types.push(self.get_number_literal_type(Number::new(i as f64)));
             }
-            length_symbol
-                .as_transient_symbol()
+            self.symbol(length_symbol
+                ).as_transient_symbol()
                 .symbol_links()
                 .borrow_mut()
                 .type_ = Some(self.get_union_type(

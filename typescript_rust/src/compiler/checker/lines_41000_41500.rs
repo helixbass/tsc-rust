@@ -657,7 +657,7 @@ impl TypeChecker {
 
     pub(super) fn is_symbol_of_declaration_with_colliding_name(
         &self,
-        symbol: &Symbol,
+        symbol: Id<Symbol>,
     ) -> io::Result<bool> {
         if symbol.flags().intersects(SymbolFlags::BlockScoped) {
             if let Some(symbol_value_declaration) = symbol

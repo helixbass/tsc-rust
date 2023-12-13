@@ -23,7 +23,7 @@ use crate::{
     HasTypeArgumentsInterface, InterfaceTypeInterface, KeywordTypeNode, ModifierFlags, Node,
     NodeArray, NodeBuilder, NodeBuilderFlags, NodeInterface, NodeLinksSerializedType, ObjectFlags,
     ObjectFlagsTypeInterface, PeekableExt, Signature, SignatureFlags, SignatureKind, Symbol,
-    SymbolFlags, SymbolInterface, SyntaxKind, Type, TypeFlags, TypeId, TypeInterface,
+    SymbolFlags, SymbolInterface, SyntaxKind, Type, TypeFlags, TypeId, TypeInterface, contains,
 };
 
 impl NodeBuilder {
@@ -218,29 +218,29 @@ impl NodeBuilder {
             };
             if self
                 .type_checker
-                .is_js_constructor(symbol.maybe_value_declaration())?
+                .is_js_constructor(self.type_checker.symbol(symbol).maybe_value_declaration())?
             {
-                self.symbol_to_type_node(&symbol, context, is_instance_type, None)?
-            } else if symbol.flags().intersects(SymbolFlags::Class)
+                self.symbol_to_type_node(symbol, context, is_instance_type, None)?
+            } else if self.type_checker.symbol(symbol).flags().intersects(SymbolFlags::Class)
                 && self
                     .type_checker
-                    .get_base_type_variable_of_class(&symbol)?
+                    .get_base_type_variable_of_class(symbol)?
                     .is_none()
-                && !(matches!(symbol.maybe_value_declaration(), Some(value_declaration) if value_declaration.kind() == SyntaxKind::ClassExpression)
+                && !(matches!(self.type_checker.symbol(symbol).maybe_value_declaration(), Some(value_declaration) if value_declaration.kind() == SyntaxKind::ClassExpression)
                     && context
                         .flags()
                         .intersects(NodeBuilderFlags::WriteClassExpressionAsTypeLiteral))
-                || symbol
+                || self.type_checker.symbol(symbol)
                     .flags()
                     .intersects(SymbolFlags::Enum | SymbolFlags::ValueModule)
-                || self.should_write_type_of_function_symbol(&symbol, context, type_id)?
+                || self.should_write_type_of_function_symbol(symbol, context, type_id)?
             {
-                self.symbol_to_type_node(&symbol, context, is_instance_type, None)?
+                self.symbol_to_type_node(symbol, context, is_instance_type, None)?
             } else if matches!(context.visited_types.borrow().as_ref(), Some(visited_types) if visited_types.contains(&type_id))
             {
                 let type_alias = self.type_checker.get_type_alias_for_type_literal(type_)?;
                 if let Some(type_alias) = type_alias {
-                    self.symbol_to_type_node(&type_alias, context, SymbolFlags::Type, None)?
+                    self.symbol_to_type_node(type_alias, context, SymbolFlags::Type, None)?
                 } else {
                     self.create_elided_information_placeholder(context)
                 }
@@ -260,15 +260,15 @@ impl NodeBuilder {
         context: &NodeBuilderContext,
         type_id: TypeId,
     ) -> io::Result<bool> {
-        let is_static_method_symbol = symbol.flags().intersects(SymbolFlags::Method)
+        let is_static_method_symbol = self.type_checker.symbol(symbol).flags().intersects(SymbolFlags::Method)
             && some(
-                symbol.maybe_declarations().as_deref(),
+                self.type_checker.symbol(symbol).maybe_declarations().as_deref(),
                 Some(|declaration: &Gc<Node>| is_static(declaration)),
             );
-        let is_non_local_function_symbol = symbol.flags().intersects(SymbolFlags::Function)
-            && (symbol.maybe_parent().is_some()
+        let is_non_local_function_symbol = self.type_checker.symbol(symbol).flags().intersects(SymbolFlags::Function)
+            && (self.type_checker.symbol(symbol).maybe_parent().is_some()
                 || maybe_for_each_bool(
-                    symbol.maybe_declarations().as_deref(),
+                    self.type_checker.symbol(symbol).maybe_declarations().as_deref(),
                     |declaration: &Gc<Node>, _| {
                         matches!(
                             declaration.parent().kind(),
@@ -312,7 +312,7 @@ impl NodeBuilder {
         let type_id = self.type_checker.type_(type_).id();
         let is_constructor_object = get_object_flags(&self.type_checker.type_(type_))
             .intersects(ObjectFlags::Anonymous)
-            && matches!(self.type_checker.type_(type_).maybe_symbol(), Some(symbol) if symbol.flags().intersects(SymbolFlags::Class));
+            && matches!(self.type_checker.type_(type_).maybe_symbol(), Some(symbol) if self.type_checker.symbol(symbol).flags().intersects(SymbolFlags::Class));
         let id = if get_object_flags(&self.type_checker.type_(type_))
             .intersects(ObjectFlags::Reference)
             && self
@@ -353,7 +353,7 @@ impl NodeBuilder {
             Some(format!(
                 "{}{}",
                 if is_constructor_object { "+" } else { "" },
-                get_symbol_id(&type_symbol)
+                get_symbol_id(&self.type_checker.symbol(type_symbol))
             ))
         } else {
             None
@@ -632,7 +632,7 @@ impl NodeBuilder {
                                 .as_resolved_type()
                                 .properties(),
                         ),
-                        |p: &Id<Symbol>, _| !p.flags().intersects(SymbolFlags::Prototype),
+                        |&p: &Id<Symbol>, _| !self.type_checker.symbol(p).flags().intersects(SymbolFlags::Prototype),
                     )
                 } else {
                     length(Some(
@@ -867,9 +867,9 @@ impl NodeBuilder {
             } else if context
                 .flags()
                 .intersects(NodeBuilderFlags::WriteClassExpressionAsTypeLiteral)
-                && matches!(self.type_checker.type_(type_).symbol().maybe_value_declaration(), Some(value_declaration) if is_class_like(&value_declaration))
+                && matches!(self.type_checker.symbol(self.type_checker.type_(type_).symbol()).maybe_value_declaration(), Some(value_declaration) if is_class_like(&value_declaration))
                 && !self.type_checker.is_value_symbol_accessible(
-                    &self.type_checker.type_(type_).symbol(),
+                    self.type_checker.type_(type_).symbol(),
                     context.maybe_enclosing_declaration().as_deref(),
                 )?
             {
@@ -894,10 +894,7 @@ impl NodeBuilder {
                             i < length
                                 && matches!(
                                     self.type_checker.get_parent_symbol_of_type_parameter(outer_type_parameters[i])?,
-                                    Some(parent_symbol) if Gc::ptr_eq(
-                                        &parent_symbol,
-                                        &parent
-                                    )
+                                    Some(parent_symbol) if parent_symbol == parent
                                 )
                         } {}
                         if !range_equals(outer_type_parameters, &type_arguments, start, i) {
@@ -912,7 +909,7 @@ impl NodeBuilder {
                                     | NodeBuilderFlags::ForbidIndexedAccessSymbolReferences,
                             );
                             let ref_ = self.symbol_to_type_node(
-                                &parent,
+                                parent,
                                 context,
                                 SymbolFlags::Type,
                                 type_argument_slice.as_deref(),
@@ -946,7 +943,7 @@ impl NodeBuilder {
                     context.flags() | NodeBuilderFlags::ForbidIndexedAccessSymbolReferences,
                 );
                 let final_ref = self.symbol_to_type_node(
-                    &self.type_checker.type_(type_).symbol(),
+                    self.type_checker.type_(type_).symbol(),
                     context,
                     SymbolFlags::Type,
                     type_argument_nodes.as_deref(),
@@ -1132,13 +1129,13 @@ impl NodeBuilder {
         // }
 
         let mut i = 0;
-        for property_symbol in &*properties {
+        for &property_symbol in &*properties {
             i += 1;
             if context
                 .flags()
                 .intersects(NodeBuilderFlags::WriteClassExpressionAsTypeLiteral)
             {
-                if property_symbol.flags().intersects(SymbolFlags::Prototype) {
+                if self.type_checker.symbol(property_symbol).flags().intersects(SymbolFlags::Prototype) {
                     continue;
                 }
                 if get_declaration_modifier_flags_from_symbol(property_symbol, None)
@@ -1148,7 +1145,7 @@ impl NodeBuilder {
                     context
                         .tracker()
                         .report_private_in_base_of_class_expression(&unescape_leading_underscores(
-                            property_symbol.escaped_name(),
+                            self.type_checker.symbol(property_symbol).escaped_name(),
                         ));
                 }
             }
@@ -1162,7 +1159,7 @@ impl NodeBuilder {
                     )
                 }));
                 self.add_property_to_element_list(
-                    &properties[properties.len() - 1],
+                    properties[properties.len() - 1],
                     context,
                     &mut type_elements,
                 )?;
@@ -1204,15 +1201,15 @@ impl NodeBuilder {
         context: &NodeBuilderContext,
     ) -> bool {
         get_check_flags(property_symbol).intersects(CheckFlags::ReverseMapped)
-            && (contains_gc(
+            && (contains(
                 context.reverse_mapped_stack.borrow().as_deref(),
-                &property_symbol.symbol_wrapper(),
+                &property_symbol,
             ) || matches!(
                 context.reverse_mapped_stack.borrow().as_ref(),
                 Some(reverse_mapped_stack) if reverse_mapped_stack.get(0).is_some()
             ) && !get_object_flags(
                 &self.type_checker.type_(
-                    last(context.reverse_mapped_stack.borrow().as_deref().unwrap())
+                    self.type_checker.symbol(last(context.reverse_mapped_stack.borrow().as_deref().unwrap()))
                         .as_reverse_mapped_symbol()
                         .property_type,
                 ),
@@ -1240,10 +1237,10 @@ impl NodeBuilder {
             && get_check_flags(property_symbol).intersects(CheckFlags::Late)
             && self
                 .type_checker
-                .is_late_bound_name(property_symbol.escaped_name())
+                .is_late_bound_name(self.type_checker.symbol(property_symbol).escaped_name())
         {
             if let Some(property_symbol_declarations) =
-                property_symbol.maybe_declarations().as_ref()
+                self.type_checker.symbol(property_symbol).maybe_declarations().as_ref()
             {
                 let decl: &Gc<Node> = first(property_symbol_declarations);
                 if self.type_checker.has_late_bindable_name(decl)? {

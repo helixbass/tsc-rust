@@ -1,6 +1,7 @@
 use std::{borrow::Borrow, collections::HashSet, convert::TryInto, io};
 
 use gc::Gc;
+use id_arena::Id;
 
 use super::{
     get_closing_bracket, get_opening_bracket,
@@ -802,7 +803,7 @@ impl Printer {
         self.writer().write(s);
     }
 
-    pub(super) fn write_symbol(&self, s: &str, sym: &Symbol) {
+    pub(super) fn write_symbol(&self, s: &str, sym: Id<Symbol>) {
         self.writer().write_symbol(s, sym);
     }
 

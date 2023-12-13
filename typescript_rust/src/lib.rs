@@ -842,7 +842,7 @@ pub use rust_helpers::{
     number::{is_finite, is_nan, Number},
     option::{
         BoolExt, GetOrInsertDefault, MapOrDefault, Matches, NodeWrappered, NonEmpty, OptionTry,
-        SymbolWrappered, UnwrapOrEmpty,
+        UnwrapOrEmpty,
     },
     push_or_replace,
     sys::{

@@ -1005,7 +1005,7 @@ impl EmitResolverCreateResolver {
         )
     }
 
-    pub(super) fn is_symbol_from_type_declaration_file(&self, symbol: &Symbol) -> io::Result<bool> {
+    pub(super) fn is_symbol_from_type_declaration_file(&self, symbol: Id<Symbol>) -> io::Result<bool> {
         let symbol_declarations = symbol.maybe_declarations();
         if symbol_declarations.is_none() {
             return Ok(false);
