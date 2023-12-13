@@ -24,15 +24,15 @@ use crate::{
 impl TypeChecker {
     pub(super) fn is_spreadable_property(&self, prop: Id<Symbol>) -> bool {
         !some(
-            prop.maybe_declarations().as_deref(),
+            self.symbol(prop).maybe_declarations().as_deref(),
             Some(|declaration: &Gc<Node>| {
                 is_private_identifier_class_element_declaration(declaration)
             }),
-        ) && (!prop
-            .flags()
+        ) && (!self.symbol(prop
+            ).flags()
             .intersects(SymbolFlags::Method | SymbolFlags::GetAccessor | SymbolFlags::SetAccessor)
             || !matches!(
-                prop.maybe_declarations().as_ref(),
+                self.symbol(prop).maybe_declarations().as_ref(),
                 Some(prop_declarations) if prop_declarations.iter().any(|decl: &Gc<Node>| maybe_is_class_like(decl.maybe_parent()))
             ))
     }
@@ -42,16 +42,16 @@ impl TypeChecker {
         prop: Id<Symbol>,
         readonly: bool,
     ) -> io::Result<Id<Symbol>> {
-        let is_setonly_accessor = prop.flags().intersects(SymbolFlags::SetAccessor)
-            && !prop.flags().intersects(SymbolFlags::GetAccessor);
+        let is_setonly_accessor = self.symbol(prop).flags().intersects(SymbolFlags::SetAccessor)
+            && !self.symbol(prop).flags().intersects(SymbolFlags::GetAccessor);
         if !is_setonly_accessor && readonly == self.is_readonly_symbol(prop)? {
-            return Ok(prop.symbol_wrapper());
+            return Ok(prop);
         }
-        let flags = SymbolFlags::Property | (prop.flags() & SymbolFlags::Optional);
-        let result: Id<Symbol> = self
+        let flags = SymbolFlags::Property | (self.symbol(prop).flags() & SymbolFlags::Optional);
+        let result = self.alloc_symbol(self
             .create_symbol(
                 flags,
-                prop.escaped_name().to_owned(),
+                self.symbol(prop).escaped_name().to_owned(),
                 Some(
                     self.get_is_late_check_flag(prop)
                         | if readonly {
@@ -61,19 +61,19 @@ impl TypeChecker {
                         },
                 ),
             )
-            .into();
-        let result_links = result.as_transient_symbol().symbol_links();
+            .into());
+        let result_links = self.symbol(result).as_transient_symbol().symbol_links();
         let mut result_links = result_links.borrow_mut();
         result_links.type_ = Some(if is_setonly_accessor {
             self.undefined_type()
         } else {
             self.get_type_of_symbol(prop)?
         });
-        if let Some(prop_declarations) = prop.maybe_declarations().clone() {
-            result.set_declarations(prop_declarations);
+        if let Some(prop_declarations) = self.symbol(prop).maybe_declarations().clone() {
+            self.symbol(result).set_declarations(prop_declarations);
         }
         result_links.name_type = (*self.get_symbol_links(prop)).borrow().name_type.clone();
-        result_links.synthetic_origin = Some(prop.symbol_wrapper());
+        result_links.synthetic_origin = Some(prop);
         Ok(result)
     }
 
@@ -106,7 +106,7 @@ impl TypeChecker {
         let type_ = BaseLiteralType::new(type_);
         let type_ = self.alloc_type(StringLiteralType::new(type_, value).into());
         self.type_(type_)
-            .set_symbol(symbol.map(|symbol| symbol.borrow().symbol_wrapper()));
+            .set_symbol(symbol);
         self.type_(type_).as_literal_type().set_regular_type(
             if let Some(regular_type) = regular_type {
                 regular_type
@@ -128,7 +128,7 @@ impl TypeChecker {
         let type_ = BaseLiteralType::new(type_);
         let type_ = self.alloc_type(NumberLiteralType::new(type_, value).into());
         self.type_(type_)
-            .set_symbol(symbol.map(|symbol| symbol.borrow().symbol_wrapper()));
+            .set_symbol(symbol);
         self.type_(type_).as_literal_type().set_regular_type(
             if let Some(regular_type) = regular_type {
                 regular_type
@@ -150,7 +150,7 @@ impl TypeChecker {
         let type_ = BaseLiteralType::new(type_);
         let type_ = self.alloc_type(BigIntLiteralType::new(type_, value).into());
         self.type_(type_)
-            .set_symbol(symbol.map(|symbol| symbol.borrow().symbol_wrapper()));
+            .set_symbol(symbol);
         self.type_(type_).as_literal_type().set_regular_type(
             if let Some(regular_type) = regular_type {
                 regular_type
@@ -343,8 +343,8 @@ impl TypeChecker {
         let type_ = self.alloc_type(
             UniqueESSymbolType::new(
                 type_,
-                symbol.symbol_wrapper(),
-                format!("__@{}@{}", symbol.escaped_name(), get_symbol_id(symbol)),
+                symbol,
+                format!("__@{}@{}", self.symbol(symbol).escaped_name(), get_symbol_id(&self.symbol(symbol))),
             )
             .into(),
         );
@@ -357,7 +357,7 @@ impl TypeChecker {
             let links = self.get_symbol_links(&symbol);
             if (*links).borrow().unique_es_symbol_type.is_none() {
                 links.borrow_mut().unique_es_symbol_type =
-                    Some(self.create_unique_es_symbol_type(&symbol));
+                    Some(self.create_unique_es_symbol_type(symbol));
             }
             return Ok((*links).borrow().unique_es_symbol_type.clone().unwrap());
         }
@@ -379,7 +379,7 @@ impl TypeChecker {
             {
                 return Ok(self
                     .type_(self.get_declared_type_of_class_or_interface(
-                        &self.get_symbol_of_node(parent)?.unwrap(),
+                        self.get_symbol_of_node(parent)?.unwrap(),
                     )?)
                     .as_interface_type()
                     .maybe_this_type()
@@ -396,9 +396,9 @@ impl TypeChecker {
             return Ok(self
                 .type_(
                     self.get_declared_type_of_class_or_interface(
-                        &self
+                        &self.symbol(self
                             .get_symbol_of_node(&parent.parent().as_binary_expression().left)?
-                            .unwrap()
+                            .unwrap())
                             .maybe_parent()
                             .unwrap(),
                     )?,
@@ -421,9 +421,9 @@ impl TypeChecker {
             return Ok(self
                 .type_(
                     self.get_declared_type_of_class_or_interface(
-                        &self
-                            .get_symbol_of_node(&host.parent().as_binary_expression().left)?
-                            .unwrap()
+                        &self.symbol(self
+                            ).get_symbol_of_node(&host.parent().as_binary_expression().left)?
+                            .unwrap())
                             .maybe_parent()
                             .unwrap(),
                     )?,
@@ -437,7 +437,7 @@ impl TypeChecker {
         {
             return Ok(self
                 .type_(self.get_declared_type_of_class_or_interface(
-                    &self.get_symbol_of_node(&container)?.unwrap(),
+                    self.get_symbol_of_node(&container)?.unwrap(),
                 )?)
                 .as_interface_type()
                 .maybe_this_type()
@@ -615,7 +615,7 @@ impl TypeChecker {
             | SyntaxKind::QualifiedName
             | SyntaxKind::PropertyAccessExpression => {
                 let symbol = self.get_symbol_at_location_(node, None)?;
-                if let Some(symbol) = symbol.as_ref() {
+                if let Some(symbol) = symbol {
                     self.get_declared_type_of_symbol(symbol)?
                 } else {
                     self.error_type()
@@ -1004,11 +1004,10 @@ impl TypeChecker {
             fresh_type_parameters,
             signature
                 .maybe_this_parameter()
-                .as_ref()
                 .try_map(|this_parameter| {
                     self.instantiate_symbol(this_parameter, mapper.clone())
                 })?,
-            self.try_instantiate_list(
+            self.try_instantiate_list_non_gc(
                 Some(signature.parameters()),
                 Some(mapper.clone()),
                 |parameter, mapper| self.instantiate_symbol(parameter, mapper.unwrap()),
@@ -1026,10 +1025,9 @@ impl TypeChecker {
 
     pub(super) fn instantiate_symbol(
         &self,
-        symbol: Id<Symbol>,
+        mut symbol: Id<Symbol>,
         mut mapper: Id<TypeMapper>,
     ) -> io::Result<Id<Symbol>> {
-        let mut symbol = symbol.symbol_wrapper();
         let links = self.get_symbol_links(&symbol);
         {
             let links = (*links).borrow();
@@ -1070,7 +1068,7 @@ impl TypeChecker {
         if let Some(links_name_type) = (*links).borrow().name_type.clone() {
             result_links.name_type = Some(links_name_type);
         }
-        Ok(result.into())
+        Ok(self.alloc_symbol(result.into()))
     }
 
     pub(super) fn get_object_type_instantiation(
@@ -1092,8 +1090,8 @@ impl TypeChecker {
                 .clone()
                 .unwrap()
         } else {
-            self.type_(type_)
-                .symbol()
+            self.symbol(self.type_(type_)
+                .symbol())
                 .maybe_declarations()
                 .clone()
                 .unwrap()[0]
@@ -1140,8 +1138,8 @@ impl TypeChecker {
             {
                 vec![declaration.clone()]
             } else {
-                self.type_(type_)
-                    .symbol()
+                self.symbol(self.type_(type_)
+                    .symbol())
                     .maybe_declarations()
                     .clone()
                     .unwrap()
@@ -1151,14 +1149,14 @@ impl TypeChecker {
                 .as_object_type()
                 .object_flags()
                 .intersects(ObjectFlags::Reference)
-                || self
+                || self.symbol(self
                     .type_(target)
-                    .symbol()
+                    .symbol())
                     .flags()
                     .intersects(SymbolFlags::Method)
-                || self
+                || self.symbol(self
                     .type_(target)
-                    .symbol()
+                    .symbol())
                     .flags()
                     .intersects(SymbolFlags::TypeLiteral))
                 && self.type_(target).maybe_alias_type_arguments().is_none()
@@ -1184,8 +1182,6 @@ impl TypeChecker {
             let type_arguments = try_map(&type_parameters, |&t: &Id<Type>, _| {
                 self.get_mapped_type(t, combined_mapper)
             })?;
-            let alias_symbol =
-                alias_symbol.map(|alias_symbol| alias_symbol.borrow().symbol_wrapper());
             let new_alias_symbol = alias_symbol
                 .clone()
                 .or_else(|| self.type_(type_).maybe_alias_symbol().clone());
@@ -1222,7 +1218,7 @@ impl TypeChecker {
                             "{}{}",
                             self.get_type_list_id(Some(&*type_parameters)),
                             self.get_alias_id(
-                                self.type_(target).maybe_alias_symbol().as_deref(),
+                                self.type_(target).maybe_alias_symbol(),
                                 self.type_(target).maybe_alias_type_arguments().as_deref()
                             )
                         ),

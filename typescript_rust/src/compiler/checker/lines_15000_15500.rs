@@ -142,7 +142,7 @@ impl TypeChecker {
     ) -> Id<Type> {
         let result = self.create_type(TypeFlags::StringMapping);
         let result = self.alloc_type(StringMappingType::new(result, type_).into());
-        self.type_(result).set_symbol(Some(symbol.symbol_wrapper()));
+        self.type_(result).set_symbol(Some(symbol));
         result
     }
 
@@ -159,7 +159,7 @@ impl TypeChecker {
             IndexedAccessType::new(type_, object_type, index_type, access_flags).into(),
         );
         *self.type_(type_).maybe_alias_symbol_mut() =
-            alias_symbol.map(|alias_symbol| alias_symbol.borrow().symbol_wrapper());
+            alias_symbol;
         *self.type_(type_).maybe_alias_type_arguments_mut() =
             alias_type_arguments.map(ToOwned::to_owned);
         type_
@@ -222,8 +222,8 @@ impl TypeChecker {
         node: &Node,
         symbol: Id<Symbol>,
     ) -> io::Result<bool> {
-        if symbol
-            .flags()
+        if self.symbol(symbol
+            ).flags()
             .intersects(SymbolFlags::Function | SymbolFlags::Method)
         {
             let parent = find_ancestor(node.maybe_parent(), |n| !is_access_expression(n))
@@ -234,7 +234,7 @@ impl TypeChecker {
                     && self.has_matching_argument(&parent, node)?);
             }
             return Ok(maybe_every(
-                symbol.maybe_declarations().as_deref(),
+                self.symbol(symbol).maybe_declarations().as_deref(),
                 |d: &Gc<Node>, _| {
                     !is_function_like(Some(&**d))
                         || get_combined_node_flags(d).intersects(NodeFlags::Deprecated)
@@ -277,12 +277,12 @@ impl TypeChecker {
             if let Some(prop) = prop {
                 if access_flags.intersects(AccessFlags::ReportDeprecated) {
                     if let Some(access_node) = access_node.as_ref() {
-                        let prop_declarations = prop.maybe_declarations();
+                        let prop_declarations = self.symbol(prop).maybe_declarations();
                         if let Some(prop_declarations) = prop_declarations.as_deref() {
                             if self
-                                .get_declaration_node_flags_from_symbol(&prop)
+                                .get_declaration_node_flags_from_symbol(prop)
                                 .intersects(NodeFlags::Deprecated)
-                                && self.is_uncalled_function_reference(access_node, &prop)?
+                                && self.is_uncalled_function_reference(access_node, prop)?
                             {
                                 let deprecated_node = access_expression
                                     .map(|access_expression| {
@@ -314,7 +314,7 @@ impl TypeChecker {
                     let access_expression_as_element_access_expression =
                         access_expression.as_element_access_expression();
                     self.mark_property_as_referenced(
-                        &prop,
+                        prop,
                         Some(access_expression),
                         self.is_self_type_access(
                             &access_expression_as_element_access_expression.expression,
@@ -323,7 +323,7 @@ impl TypeChecker {
                     );
                     if self.is_assignment_to_readonly_entity(
                         access_expression,
-                        &prop,
+                        prop,
                         get_assignment_target_kind(access_expression),
                     )? {
                         self.error(
@@ -333,7 +333,7 @@ impl TypeChecker {
                             ),
                             &Diagnostics::Cannot_assign_to_0_because_it_is_a_read_only_property,
                             Some(vec![self.symbol_to_string_(
-                                &prop,
+                                prop,
                                 Option::<&Node>::None,
                                 None,
                                 None,
@@ -347,11 +347,11 @@ impl TypeChecker {
                             .borrow_mut()
                             .resolved_symbol = Some(prop.clone());
                     }
-                    if self.is_this_property_access_in_constructor(access_expression, &prop)? {
+                    if self.is_this_property_access_in_constructor(access_expression, prop)? {
                         return Ok(Some(self.auto_type()));
                     }
                 }
-                let prop_type = self.get_type_of_symbol(&prop)?;
+                let prop_type = self.get_type_of_symbol(prop)?;
                 return Ok(Some(
                     if let Some(access_expression) = access_expression.filter(|access_expression| {
                         get_assignment_target_kind(access_expression) != AssignmentKind::Definite
@@ -587,7 +587,7 @@ impl TypeChecker {
                         {
                             let mut types = try_map(
                                 &*self.type_(object_type).as_resolved_type().properties(),
-                                |property: &Id<Symbol>, _| self.get_type_of_symbol(property),
+                                |&property: &Id<Symbol>, _| self.get_type_of_symbol(property),
                             )?;
                             append(&mut types, Some(self.undefined_type()));
                             return Ok(Some(self.get_union_type(
@@ -603,11 +603,11 @@ impl TypeChecker {
                     let mut took_if_branch = false;
                     if matches!(
                         self.type_(object_type).maybe_symbol(),
-                        Some(symbol) if Gc::ptr_eq(&symbol, &self.global_this_symbol())
+                        Some(symbol) if symbol == self.global_this_symbol()
                     ) {
                         if let Some(prop_name) = prop_name.as_ref() {
                             let global_this_symbol_exports =
-                                self.global_this_symbol().maybe_exports().clone().unwrap();
+                                self.symbol(self.global_this_symbol()).maybe_exports().clone().unwrap();
                             let global_this_symbol_exports = (*global_this_symbol_exports).borrow();
                             if global_this_symbol_exports.contains_key(&**prop_name)
                                 && global_this_symbol_exports
@@ -738,7 +738,7 @@ impl TypeChecker {
                                         .intersects(TypeFlags::UniqueESSymbol)
                                     {
                                         let symbol_name = self.get_fully_qualified_name(
-                                            &self.type_(index_type).symbol(),
+                                            self.type_(index_type).symbol(),
                                             Some(access_expression),
                                         )?;
                                         error_info = Some(chain_diagnostic_messages(
@@ -1438,7 +1438,6 @@ impl TypeChecker {
             access_flags |= AccessFlags::IncludeUndefined;
         }
         let access_node = access_node.map(|access_node| access_node.borrow().node_wrapper());
-        let alias_symbol = alias_symbol.map(|alias_symbol| alias_symbol.borrow().symbol_wrapper());
         if self.is_generic_index_type(index_type)?
             || if matches!(
                 access_node.as_ref(),

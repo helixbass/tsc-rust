@@ -336,7 +336,7 @@ impl TypeChecker {
         if bases.len() != 1 {
             return Ok(None);
         }
-        if !(*self.get_members_of_symbol(&self.type_(type_).symbol())?)
+        if !(*self.get_members_of_symbol(self.type_(type_).symbol())?)
             .borrow()
             .is_empty()
         {
@@ -989,12 +989,8 @@ impl TypeChecker {
             if let Some(deferred_global_non_nullable_type_alias) = self
                 .maybe_deferred_global_non_nullable_type_alias()
                 .clone()
-                .as_ref()
-                .filter(|deferred_global_non_nullable_type_alias| {
-                    !Gc::ptr_eq(
-                        deferred_global_non_nullable_type_alias,
-                        &self.unknown_symbol(),
-                    )
+                .filter(|&deferred_global_non_nullable_type_alias| {
+                    deferred_global_non_nullable_type_alias != self.unknown_symbol()
                 })
             {
                 self.get_type_alias_instantiation(
@@ -1127,8 +1123,8 @@ impl TypeChecker {
                 )?
             } else {
                 matches!(
-                    self.type_(type_).maybe_symbol().as_ref(),
-                    Some(type_symbol) if type_symbol.flags().intersects(SymbolFlags::ObjectLiteral | SymbolFlags::TypeLiteral | SymbolFlags::Enum | SymbolFlags::ValueModule)
+                    self.type_(type_).maybe_symbol(),
+                    Some(type_symbol) if self.symbol(type_symbol).flags().intersects(SymbolFlags::ObjectLiteral | SymbolFlags::TypeLiteral | SymbolFlags::Enum | SymbolFlags::ValueModule)
                 ) && !self.type_has_call_or_construct_signatures(type_)?
                     || get_object_flags(&self.type_(type_)).intersects(ObjectFlags::ReverseMapped)
                         && self.is_object_type_with_inferable_index(
@@ -1143,21 +1139,24 @@ impl TypeChecker {
         source: Id<Symbol>,
         type_: Option<Id<Type>>,
     ) -> Id<Symbol> {
-        let symbol: Id<Symbol> = self
+        let symbol = self.alloc_symbol(self
             .create_symbol(
-                source.flags(),
-                source.escaped_name().to_owned(),
-                Some(get_check_flags(source) & CheckFlags::Readonly),
+                self.symbol(source).flags(),
+                self.symbol(source).escaped_name().to_owned(),
+                Some(get_check_flags(&self.symbol(source)) & CheckFlags::Readonly),
             )
-            .into();
-        *symbol.maybe_declarations_mut() = source.maybe_declarations().clone();
-        symbol.set_parent(source.maybe_parent());
-        let symbol_links = symbol.as_transient_symbol().symbol_links();
+            .into());
+        *self.symbol(symbol).maybe_declarations_mut() =
+            self.symbol(source).maybe_declarations().clone();
+        self.symbol(symbol)
+            .set_parent(self.symbol(source).maybe_parent());
+        let symbol_links = self.symbol(symbol).as_transient_symbol().symbol_links();
         let mut symbol_links = symbol_links.borrow_mut();
         symbol_links.type_ = type_;
-        symbol_links.target = Some(source.symbol_wrapper());
-        if let Some(source_value_declaration) = source.maybe_value_declaration() {
-            symbol.set_value_declaration(source_value_declaration);
+        symbol_links.target = Some(source);
+        if let Some(source_value_declaration) = self.symbol(source).maybe_value_declaration() {
+            self.symbol(symbol)
+                .set_value_declaration(source_value_declaration);
         }
         let name_type = (*self.get_symbol_links(source)).borrow().name_type.clone();
         if let Some(name_type) = name_type {
@@ -1172,11 +1171,11 @@ impl TypeChecker {
         mut f: impl FnMut(Id<Type>) -> io::Result<Id<Type>>,
     ) -> io::Result<SymbolTable> {
         let mut members = create_symbol_table(Option::<&[Id<Symbol>]>::None);
-        for ref property in self.get_properties_of_object_type(type_)? {
+        for property in self.get_properties_of_object_type(type_)? {
             let original = self.get_type_of_symbol(property)?;
             let updated = f(original)?;
             members.insert(
-                property.escaped_name().to_owned(),
+                self.symbol(property).escaped_name().to_owned(),
                 if updated == original {
                     property.clone()
                 } else {

@@ -195,8 +195,8 @@ impl TypeChecker {
                     && self.is_empty_resolved_type(type_)
                     || matches!(
                         self.type_(type_).maybe_symbol(),
-                        Some(type_symbol) if type_symbol.flags().intersects(SymbolFlags::TypeLiteral)
-                            && (*self.get_members_of_symbol(&type_symbol)?).borrow().len() == 0
+                        Some(type_symbol) if self.symbol(type_symbol).flags().intersects(SymbolFlags::TypeLiteral)
+                            && (*self.get_members_of_symbol(type_symbol)?).borrow().len() == 0
                     )),
         )
     }
@@ -233,13 +233,13 @@ impl TypeChecker {
         target_symbol: Id<Symbol>,
         error_reporter: &mut Option<ErrorReporter>,
     ) -> io::Result<bool> {
-        if ptr::eq(source_symbol, target_symbol) {
+        if source_symbol == target_symbol {
             return Ok(true);
         }
         let id = format!(
             "{},{}",
-            get_symbol_id(source_symbol),
-            get_symbol_id(target_symbol)
+            get_symbol_id(&self.symbol(source_symbol)),
+            get_symbol_id(&self.symbol(target_symbol))
         );
         let entry = self.enum_relation().get(&id).map(Clone::clone);
         if let Some(entry) = entry.filter(|entry| {
@@ -249,9 +249,9 @@ impl TypeChecker {
         }) {
             return Ok(entry.intersects(RelationComparisonResult::Succeeded));
         }
-        if source_symbol.escaped_name() != target_symbol.escaped_name()
-            || !source_symbol.flags().intersects(SymbolFlags::RegularEnum)
-            || !target_symbol.flags().intersects(SymbolFlags::RegularEnum)
+        if self.symbol(source_symbol).escaped_name() != self.symbol(target_symbol).escaped_name()
+            || !self.symbol(source_symbol).flags().intersects(SymbolFlags::RegularEnum)
+            || !self.symbol(target_symbol).flags().intersects(SymbolFlags::RegularEnum)
         {
             self.enum_relation().insert(
                 id,
@@ -261,20 +261,20 @@ impl TypeChecker {
         }
         let target_enum_type = self.get_type_of_symbol(target_symbol)?;
         for property in self.get_properties_of_type(self.get_type_of_symbol(source_symbol)?)? {
-            if property.flags().intersects(SymbolFlags::EnumMember) {
+            if self.symbol(property).flags().intersects(SymbolFlags::EnumMember) {
                 let target_property =
-                    self.get_property_of_type_(target_enum_type, property.escaped_name(), None)?;
+                    self.get_property_of_type_(target_enum_type, self.symbol(property).escaped_name(), None)?;
                 if match target_property {
                     None => true,
                     Some(target_property) => {
-                        !target_property.flags().intersects(SymbolFlags::EnumMember)
+                        !self.symbol(target_property).flags().intersects(SymbolFlags::EnumMember)
                     }
                 } {
                     if let Some(error_reporter) = error_reporter.as_mut() {
                         error_reporter(
                             Cow::Borrowed(&Diagnostics::Property_0_is_missing_in_type_1),
                             Some(vec![
-                                symbol_name(&property).into_owned(),
+                                symbol_name(property).into_owned(),
                                 self.type_to_string_(
                                     self.get_declared_type_of_symbol(target_symbol)?,
                                     Option::<&Node>::None,
@@ -354,8 +354,8 @@ impl TypeChecker {
         if s.intersects(TypeFlags::Enum)
             && t.intersects(TypeFlags::Enum)
             && self.is_enum_type_related_to(
-                &self.type_(source).symbol(),
-                &self.type_(target).symbol(),
+                self.type_(source).symbol(),
+                self.type_(target).symbol(),
                 &mut error_reporter,
             )?
         {
@@ -365,8 +365,8 @@ impl TypeChecker {
             if s.intersects(TypeFlags::Union)
                 && t.intersects(TypeFlags::Union)
                 && self.is_enum_type_related_to(
-                    &self.type_(source).symbol(),
-                    &self.type_(target).symbol(),
+                    self.type_(source).symbol(),
+                    self.type_(target).symbol(),
                     &mut error_reporter,
                 )?
             {
@@ -379,11 +379,11 @@ impl TypeChecker {
                     .as_literal_type()
                     .is_value_eq(&self.type_(target))
                 && self.is_enum_type_related_to(
-                    &self
-                        .get_parent_of_symbol(&self.type_(source).symbol())?
+                    self
+                        .get_parent_of_symbol(self.type_(source).symbol())?
                         .unwrap(),
-                    &self
-                        .get_parent_of_symbol(&self.type_(target).symbol())?
+                    self
+                        .get_parent_of_symbol(self.type_(target).symbol())?
                         .unwrap(),
                     &mut error_reporter,
                 )?
@@ -512,7 +512,7 @@ impl TypeChecker {
         source_prop: Id<Symbol>,
     ) -> bool {
         get_object_flags(&self.type_(source)).intersects(ObjectFlags::JsxAttributes)
-            && self.is_hyphenated_jsx_name(source_prop.escaped_name())
+            && self.is_hyphenated_jsx_name(self.symbol(source_prop).escaped_name())
     }
 
     pub(super) fn get_normalized_type(

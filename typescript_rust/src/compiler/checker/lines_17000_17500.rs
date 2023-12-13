@@ -349,7 +349,7 @@ impl TypeChecker {
             )?;
             if result_obj.errors_len() > 0 {
                 if let Some(target_symbol) = self.type_(target).maybe_symbol() {
-                    let target_symbol_declarations = target_symbol.maybe_declarations();
+                    let target_symbol_declarations = self.symbol(target_symbol).maybe_declarations();
                     if let Some(target_symbol_declarations) = target_symbol_declarations
                         .as_ref()
                         .filter(|target_symbol_declarations| !target_symbol_declarations.is_empty())
@@ -546,11 +546,23 @@ impl TypeChecker {
                     } else {
                         let target_is_optional = matches!(
                             prop_name.as_ref(),
-                            Some(prop_name) if self.get_property_of_type_(target, prop_name, None)?.unwrap_or_else(|| self.unknown_symbol()).flags().intersects(SymbolFlags::Optional)
+                            Some(prop_name) if self.symbol(
+                                self.get_property_of_type_(
+                                    target,
+                                    prop_name,
+                                    None,
+                                )?.unwrap_or_else(|| self.unknown_symbol())
+                            ).flags().intersects(SymbolFlags::Optional)
                         );
                         let source_is_optional = matches!(
                             prop_name.as_ref(),
-                            Some(prop_name) if self.get_property_of_type_(source, prop_name, None)?.unwrap_or_else(|| self.unknown_symbol()).flags().intersects(SymbolFlags::Optional)
+                            Some(prop_name) if self.symbol(
+                                self.get_property_of_type_(
+                                    source,
+                                    prop_name,
+                                    None,
+                                )?.unwrap_or_else(|| self.unknown_symbol())
+                            ).flags().intersects(SymbolFlags::Optional)
                         );
                         target_prop_type =
                             self.remove_missing_type(target_prop_type, target_is_optional);
@@ -616,20 +628,20 @@ impl TypeChecker {
                         if !issued_elaboration
                             && (matches!(
                                 target_prop.as_ref(),
-                                Some(target_prop) if length(target_prop.maybe_declarations().as_deref()) > 0
+                                Some(target_prop) if length(self.symbol(target_prop).maybe_declarations().as_deref()) > 0
                             ) || matches!(
                                 self.type_(target).maybe_symbol(),
-                                Some(target_symbol) if length(target_symbol.maybe_declarations().as_deref()) > 0
+                                Some(target_symbol) if length(self.symbol(target_symbol).maybe_declarations().as_deref()) > 0
                             ))
                         {
                             let target_node = if let Some(target_prop) =
-                                target_prop.as_ref().filter(|target_prop| {
-                                    length(target_prop.maybe_declarations().as_deref()) > 0
+                                target_prop.filter(|&target_prop| {
+                                    length(self.symbol(target_prop).maybe_declarations().as_deref()) > 0
                                 }) {
-                                target_prop.maybe_declarations().as_ref().unwrap()[0].clone()
+                                self.symbol(target_prop).maybe_declarations().as_ref().unwrap()[0].clone()
                             } else {
-                                self.type_(target)
-                                    .symbol()
+                                self.symbol(self.type_(target)
+                                    .symbol())
                                     .maybe_declarations()
                                     .as_ref()
                                     .unwrap()[0]
@@ -1065,7 +1077,7 @@ impl TypeChecker {
                     return Ok(vec![]);
                 }
                 let type_ = self.get_literal_type_from_property(
-                    &self.get_symbol_of_node(prop)?.unwrap(),
+                    self.get_symbol_of_node(prop)?.unwrap(),
                     TypeFlags::StringOrNumberLiteralOrUnique,
                     None,
                 )?;
@@ -1175,7 +1187,7 @@ impl TypeChecker {
     pub(super) fn is_any_signature(&self, s: Gc<Signature>) -> io::Result<bool> {
         let s_type_parameters_is_none = s.maybe_type_parameters().is_none();
         Ok(s_type_parameters_is_none
-            && match s.maybe_this_parameter().as_ref() {
+            && match s.maybe_this_parameter() {
                 None => true,
                 Some(s_this_parameter) => {
                     self.is_type_any(Some(self.get_type_of_parameter(s_this_parameter)?))
@@ -1183,8 +1195,8 @@ impl TypeChecker {
             }
             && s.parameters().len() == 1
             && signature_has_rest_parameter(&s)
-            && (self.get_type_of_parameter(&s.parameters()[0])? == self.any_array_type()
-                || self.is_type_any(Some(self.get_type_of_parameter(&s.parameters()[0])?)))
+            && (self.get_type_of_parameter(s.parameters()[0])? == self.any_array_type()
+                || self.is_type_any(Some(self.get_type_of_parameter(s.parameters()[0])?)))
             && self.is_type_any(Some(self.get_return_type_of_signature(s)?)))
     }
 
@@ -1427,7 +1439,7 @@ impl TypeChecker {
                     })?
             {
                 self.get_declared_type_of_class_or_interface(
-                    &self
+                    self
                         .get_merged_symbol(target_declaration.maybe_symbol())
                         .unwrap(),
                 )?
@@ -1448,7 +1460,7 @@ impl TypeChecker {
                     })?
             {
                 self.get_declared_type_of_class_or_interface(
-                    &self
+                    self
                         .get_merged_symbol(source_declaration.maybe_symbol())
                         .unwrap(),
                 )?

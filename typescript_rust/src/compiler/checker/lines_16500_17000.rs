@@ -53,7 +53,7 @@ impl TypeChecker {
         node: &Node,
     ) -> io::Result<bool> {
         if let Some(tp_symbol) = self.type_(tp).maybe_symbol() {
-            let tp_symbol_declarations = tp_symbol.maybe_declarations();
+            let tp_symbol_declarations = self.symbol(tp_symbol).maybe_declarations();
             if let Some(tp_symbol_declarations) = tp_symbol_declarations.as_ref() {
                 if tp_symbol_declarations.len() == 1 {
                     let container = tp_symbol_declarations[0].parent();
@@ -436,7 +436,6 @@ impl TypeChecker {
         } else {
             self.alloc_type(result.into())
         };
-        let alias_symbol = alias_symbol.map(|alias_symbol| alias_symbol.borrow().symbol_wrapper());
         *self.type_(result).maybe_alias_symbol_mut() = alias_symbol
             .clone()
             .or_else(|| self.type_(type_).maybe_alias_symbol().clone());
@@ -465,8 +464,6 @@ impl TypeChecker {
             let type_arguments = try_map(root_outer_type_parameters, |&t: &Id<Type>, _| {
                 self.get_mapped_type(t, mapper)
             })?;
-            let alias_symbol =
-                alias_symbol.map(|alias_symbol| alias_symbol.borrow().symbol_wrapper());
             let id = format!(
                 "{}{}",
                 self.get_type_list_id(Some(&type_arguments)),
@@ -657,7 +654,6 @@ impl TypeChecker {
             }
             return Ok(type_);
         }
-        let alias_symbol = alias_symbol.map(|alias_symbol| alias_symbol.borrow().symbol_wrapper());
         if flags.intersects(TypeFlags::UnionOrIntersection) {
             let origin = if self.type_(type_).flags().intersects(TypeFlags::Union) {
                 self.type_(type_).as_union_type().origin.clone()
@@ -683,10 +679,9 @@ impl TypeChecker {
                 .instantiate_types(Some(&types), Some(mapper.clone()))?
                 .unwrap();
             if &new_types == &types
-                && are_option_gcs_equal(
-                    alias_symbol.as_ref(),
-                    self.type_(type_).maybe_alias_symbol().as_ref(),
-                )
+                && 
+                    alias_symbol ==
+                    self.type_(type_).maybe_alias_symbol()
             {
                 return Ok(type_);
             }
@@ -756,7 +751,7 @@ impl TypeChecker {
         }
         if flags.intersects(TypeFlags::StringMapping) {
             return self.get_string_mapping_type(
-                &*{
+                {
                     let symbol = self.type_(type_).symbol();
                     symbol
                 },

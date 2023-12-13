@@ -196,7 +196,7 @@ impl CheckTypeRelatedTo {
         let source_properties_filtered = source_properties_filtered.unwrap();
 
         let mut num_combinations = 1;
-        for source_property in &source_properties_filtered {
+        for &source_property in &source_properties_filtered {
             num_combinations *= self.type_checker.count_types(
                 self.type_checker
                     .get_non_missing_type_of_symbol(source_property)?,
@@ -210,7 +210,7 @@ impl CheckTypeRelatedTo {
         let mut source_discriminant_types: Vec<Vec<Id<Type>>> =
             Vec::with_capacity(source_properties_filtered.len());
         let mut excluded_properties: HashSet<__String> = HashSet::new();
-        for source_property in source_properties_filtered.iter() {
+        for &source_property in source_properties_filtered.iter() {
             let source_property_type = self
                 .type_checker
                 .get_non_missing_type_of_symbol(source_property)?;
@@ -230,7 +230,12 @@ impl CheckTypeRelatedTo {
                     vec![source_property_type]
                 },
             );
-            excluded_properties.insert(source_property.escaped_name().to_owned());
+            excluded_properties.insert(
+                self.type_checker
+                    .symbol(source_property)
+                    .escaped_name()
+                    .to_owned(),
+            );
         }
 
         let discriminant_combinations = cartesian_product(&source_discriminant_types);
@@ -243,24 +248,24 @@ impl CheckTypeRelatedTo {
                 .as_union_or_intersection_type_interface()
                 .types()
             {
-                for (i, source_property) in source_properties_filtered.iter().enumerate() {
+                for (i, &source_property) in source_properties_filtered.iter().enumerate() {
                     let target_property = self.type_checker.get_property_of_type_(
                         type_,
-                        source_property.escaped_name(),
+                        self.type_checker.symbol(source_property).escaped_name(),
                         None,
                     )?;
                     if target_property.is_none() {
                         continue 'outer;
                     }
                     let target_property = target_property.unwrap();
-                    if Gc::ptr_eq(source_property, &target_property) {
+                    if source_property == target_property {
                         continue;
                     }
                     let related = self.property_related_to(
                         source,
                         target,
                         source_property,
-                        &target_property,
+                        target_property,
                         |_| Ok(combination[i].clone()),
                         false,
                         IntersectionState::None,
@@ -326,7 +331,8 @@ impl CheckTypeRelatedTo {
         let excluded_properties = excluded_properties.unwrap();
         let mut result: Option<Vec<Id<Symbol>>> = None;
         for i in 0..properties.len() {
-            if !excluded_properties.contains(properties[i].escaped_name()) {
+            if !excluded_properties.contains(self.type_checker.symbol(properties[i]).escaped_name())
+            {
                 if let Some(result) = result.as_mut() {
                     result.push(properties[i].clone());
                 }
@@ -381,8 +387,14 @@ impl CheckTypeRelatedTo {
             || target_prop_flags.intersects(ModifierFlags::Private)
         {
             if !are_option_gcs_equal(
-                source_prop.maybe_value_declaration().as_ref(),
-                target_prop.maybe_value_declaration().as_ref(),
+                self.type_checker
+                    .symbol(source_prop)
+                    .maybe_value_declaration()
+                    .as_ref(),
+                self.type_checker
+                    .symbol(target_prop)
+                    .maybe_value_declaration()
+                    .as_ref(),
             ) {
                 if report_errors {
                     if source_prop_flags.intersects(ModifierFlags::Private)
@@ -520,8 +532,16 @@ impl CheckTypeRelatedTo {
             return Ok(Ternary::False);
         }
         if !skip_optional
-            && source_prop.flags().intersects(SymbolFlags::Optional)
-            && !target_prop.flags().intersects(SymbolFlags::Optional)
+            && self
+                .type_checker
+                .symbol(source_prop)
+                .flags()
+                .intersects(SymbolFlags::Optional)
+            && !self
+                .type_checker
+                .symbol(target_prop)
+                .flags()
+                .intersects(SymbolFlags::Optional)
         {
             if report_errors {
                 self.report_error(
@@ -564,7 +584,9 @@ impl CheckTypeRelatedTo {
         require_optional_properties: bool,
     ) -> io::Result<()> {
         let mut should_skip_elaboration = false;
-        if let Some(unmatched_property_value_declaration) = unmatched_property
+        if let Some(unmatched_property_value_declaration) = self
+            .type_checker
+            .symbol(unmatched_property)
             .maybe_value_declaration()
             .as_ref()
             .filter(|unmatched_property_value_declaration| {
@@ -576,12 +598,16 @@ impl CheckTypeRelatedTo {
                     )
             })
         {
-            if let Some(source_symbol) = self
-                .type_checker
-                .type_(source)
-                .maybe_symbol()
-                .as_ref()
-                .filter(|source_symbol| source_symbol.flags().intersects(SymbolFlags::Class))
+            if let Some(source_symbol) =
+                self.type_checker
+                    .type_(source)
+                    .maybe_symbol()
+                    .filter(|&source_symbol| {
+                        self.type_checker
+                            .symbol(source_symbol)
+                            .flags()
+                            .intersects(SymbolFlags::Class)
+                    })
             {
                 let unmatched_property_value_declaration_name =
                     unmatched_property_value_declaration
@@ -603,7 +629,9 @@ impl CheckTypeRelatedTo {
                 {
                     let source_name = factory.with(|factory_| {
                         factory_.get_declaration_name(
-                            source_symbol.maybe_value_declaration(),
+                            self.type_checker
+                                .symbol(source_symbol)
+                                .maybe_value_declaration(),
                             None,
                             None,
                         )
@@ -611,8 +639,7 @@ impl CheckTypeRelatedTo {
                     let target_name = factory.with(|factory_| {
                         factory_.get_declaration_name(
                             self.type_checker
-                                .type_(target)
-                                .symbol()
+                                .symbol(self.type_checker.type_(target).symbol())
                                 .maybe_value_declaration(),
                             None,
                             None,
@@ -666,10 +693,21 @@ impl CheckTypeRelatedTo {
                 Cow::Borrowed(&Diagnostics::Property_0_is_missing_in_type_1_but_required_in_type_2),
                 Some(vec![prop_name.clone(), source_string, target_string]),
             )?;
-            if length(unmatched_property.maybe_declarations().as_deref()) > 0 {
+            if length(
+                self.type_checker
+                    .symbol(unmatched_property)
+                    .maybe_declarations()
+                    .as_deref(),
+            ) > 0
+            {
                 self.associate_related_info(
                     create_diagnostic_for_node(
-                        &unmatched_property.maybe_declarations().as_ref().unwrap()[0],
+                        &self
+                            .type_checker
+                            .symbol(unmatched_property)
+                            .maybe_declarations()
+                            .as_ref()
+                            .unwrap()[0],
                         &Diagnostics::_0_is_declared_here,
                         Some(vec![prop_name]),
                     )
@@ -694,7 +732,7 @@ impl CheckTypeRelatedTo {
                             Option::<&Node>::None,
                             None, None,
                         )?,
-                        (&props[0..4]).into_iter().map(|p: &Id<Symbol>|
+                        (&props[0..4]).into_iter().map(|&p: &Id<Symbol>|
                             self.type_checker.symbol_to_string_(
                                 p,
                                 Option::<&Node>::None,
@@ -718,7 +756,7 @@ impl CheckTypeRelatedTo {
                             Option::<&Node>::None,
                             None, None,
                         )?,
-                        props.iter().map(|p: &Id<Symbol>|
+                        props.iter().map(|&p: &Id<Symbol>|
                             self.type_checker.symbol_to_string_(
                                 p,
                                 Option::<&Node>::None,
@@ -1066,7 +1104,7 @@ impl CheckTypeRelatedTo {
             require_optional_properties,
             false,
         )?;
-        if let Some(unmatched_property) = unmatched_property.as_ref() {
+        if let Some(unmatched_property) = unmatched_property {
             if report_errors {
                 self.report_unmatched_property(
                     source,
@@ -1078,7 +1116,7 @@ impl CheckTypeRelatedTo {
             return Ok(Ternary::False);
         }
         if self.type_checker.is_object_literal_type(target) {
-            for source_prop in &self.exclude_properties(
+            for &source_prop in &self.exclude_properties(
                 &self
                     .type_checker
                     .get_properties_of_type(source)?
@@ -1087,7 +1125,10 @@ impl CheckTypeRelatedTo {
             ) {
                 if self
                     .type_checker
-                    .get_property_of_object_type(target, source_prop.escaped_name())?
+                    .get_property_of_object_type(
+                        target,
+                        self.type_checker.symbol(source_prop).escaped_name(),
+                    )?
                     .is_none()
                 {
                     let source_type = self.type_checker.get_type_of_symbol(source_prop)?;
@@ -1125,10 +1166,14 @@ impl CheckTypeRelatedTo {
         let properties = self.type_checker.get_properties_of_type(target)?;
         let numeric_names_only =
             self.type_checker.is_tuple_type(source) && self.type_checker.is_tuple_type(target);
-        for target_prop in &self.exclude_properties(&properties.collect_vec(), excluded_properties)
+        for &target_prop in &self.exclude_properties(&properties.collect_vec(), excluded_properties)
         {
-            let name = target_prop.escaped_name();
-            if !target_prop.flags().intersects(SymbolFlags::Prototype)
+            let name = self.type_checker.symbol(target_prop).escaped_name();
+            if !self
+                .type_checker
+                .symbol(target_prop)
+                .flags()
+                .intersects(SymbolFlags::Prototype)
                 && (!numeric_names_only
                     || self.type_checker.is_numeric_literal_name(name)
                     || name == "length")
@@ -1137,12 +1182,12 @@ impl CheckTypeRelatedTo {
                     .type_checker
                     .get_property_of_type_(source, name, None)?;
                 if let Some(source_prop) = source_prop {
-                    if !Gc::ptr_eq(&source_prop, &target_prop) {
+                    if source_prop != target_prop {
                         let related = self.property_related_to(
                             source,
                             target,
-                            &source_prop,
-                            &target_prop,
+                            source_prop,
+                            target_prop,
                             |symbol| self.type_checker.get_non_missing_type_of_symbol(symbol),
                             report_errors,
                             intersection_state,
@@ -1190,13 +1235,15 @@ impl CheckTypeRelatedTo {
             return Ok(Ternary::False);
         }
         let mut result = Ternary::True;
-        for source_prop in &source_properties {
-            let target_prop = return_ok_default_if_none!(self
-                .type_checker
-                .get_property_of_object_type(target, source_prop.escaped_name())?);
+        for &source_prop in &source_properties {
+            let target_prop =
+                return_ok_default_if_none!(self.type_checker.get_property_of_object_type(
+                    target,
+                    self.type_checker.symbol(source_prop).escaped_name()
+                )?);
             let related = self.type_checker.compare_properties(
                 source_prop,
-                &target_prop,
+                target_prop,
                 |source, target| self.is_related_to(source, target, None, None, None, None),
             )?;
             if related == Ternary::False {
@@ -1224,12 +1271,12 @@ impl CheckTypeRelatedTo {
         }
 
         let source_is_js_constructor = matches!(
-            self.type_checker.type_(source).maybe_symbol().as_ref(),
-            Some(source_symbol) if self.type_checker.is_js_constructor(source_symbol.maybe_value_declaration())?
+            self.type_checker.type_(source).maybe_symbol(),
+            Some(source_symbol) if self.type_checker.is_js_constructor(self.type_checker.symbol(source_symbol).maybe_value_declaration())?
         );
         let target_is_js_constructor = matches!(
-            self.type_checker.type_(target).maybe_symbol().as_ref(),
-            Some(target_symbol) if self.type_checker.is_js_constructor(target_symbol.maybe_value_declaration())?
+            self.type_checker.type_(target).maybe_symbol(),
+            Some(target_symbol) if self.type_checker.is_js_constructor(self.type_checker.symbol(target_symbol).maybe_value_declaration())?
         );
 
         let source_signatures = self.type_checker.get_signatures_of_type(
@@ -1292,10 +1339,8 @@ impl CheckTypeRelatedTo {
         let target_object_flags = get_object_flags(&self.type_checker.type_(target));
         if source_object_flags.intersects(ObjectFlags::Instantiated)
             && target_object_flags.intersects(ObjectFlags::Instantiated)
-            && are_option_gcs_equal(
-                self.type_checker.type_(source).maybe_symbol().as_ref(),
-                self.type_checker.type_(target).maybe_symbol().as_ref(),
-            )
+            && self.type_checker.type_(source).maybe_symbol()
+                == self.type_checker.type_(target).maybe_symbol()
         {
             for i in 0..target_signatures.len() {
                 let related = self.signature_related_to(
@@ -1597,7 +1642,7 @@ impl CheckTypeRelatedTo {
                     .into_iter(),
             )
         };
-        for ref prop in props {
+        for prop in props {
             if self.type_checker.is_ignored_jsx_property(source, prop) {
                 continue;
             }
@@ -1617,7 +1662,7 @@ impl CheckTypeRelatedTo {
                         .flags()
                         .intersects(TypeFlags::Undefined)
                     || key_type == self.type_checker.number_type()
-                    || !prop.flags().intersects(SymbolFlags::Optional)
+                    || !self.type_checker.symbol(prop).flags().intersects(SymbolFlags::Optional)
                 {
                     prop_type
                 } else {

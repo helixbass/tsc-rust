@@ -21,8 +21,8 @@ impl CheckTypeRelatedTo {
         prop: Id<Symbol>,
         container: Id<Symbol>,
     ) -> bool {
-        if let Some(prop_value_declaration) = prop.maybe_value_declaration().as_ref() {
-            if let Some(container_value_declaration) = container.maybe_value_declaration().as_ref()
+        if let Some(prop_value_declaration) = self.type_checker.symbol(prop).maybe_value_declaration().as_ref() {
+            if let Some(container_value_declaration) = self.type_checker.symbol(container).maybe_value_declaration().as_ref()
             {
                 return Gc::ptr_eq(
                     &prop_value_declaration.parent(),
@@ -939,7 +939,6 @@ impl CheckTypeRelatedTo {
                 let alias_symbol = self.type_checker.type_(source).maybe_alias_symbol();
                 alias_symbol
             }
-            .as_ref()
             {
                 if let Some(source_alias_type_arguments) = {
                     let alias_type_arguments =
@@ -949,11 +948,10 @@ impl CheckTypeRelatedTo {
                 .as_ref()
                 {
                     if matches!(
-                        self.type_checker.type_(target).maybe_alias_symbol().as_ref(),
-                        Some(target_alias_symbol) if Gc::ptr_eq(
-                            &source_alias_symbol,
-                            &target_alias_symbol,
-                        )
+                        self.type_checker.type_(target).maybe_alias_symbol(),
+                        Some(target_alias_symbol) if
+                            source_alias_symbol ==
+                            target_alias_symbol
                     ) {
                         if !(matches!(
                             self.type_checker
@@ -968,7 +966,7 @@ impl CheckTypeRelatedTo {
                         )) {
                             let variances = self
                                 .type_checker
-                                .get_alias_variances(&source_alias_symbol)?;
+                                .get_alias_variances(source_alias_symbol)?;
                             if variances.is_empty() {
                                 return Ok(Ternary::Unknown);
                             }
@@ -1764,18 +1762,17 @@ impl CheckTypeRelatedTo {
                 .type_(target)
                 .flags()
                 .intersects(TypeFlags::StringMapping)
-                && Gc::ptr_eq(
-                    &self
+                && 
+                    self
                         .type_checker
                         .type_(source)
                         .as_string_mapping_type()
-                        .symbol(),
-                    &self
+                        .symbol() ==
+                    self
                         .type_checker
                         .type_(target)
                         .as_string_mapping_type()
-                        .symbol(),
-                )
+                        .symbol()
             {
                 result = self.is_related_to(
                     self.type_checker
