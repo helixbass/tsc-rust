@@ -55,21 +55,27 @@ impl TypeChecker {
     ) -> io::Result<Vec<Id<Symbol>>> {
         let properties = self.get_properties_of_type(target)?;
         let mut ret: Vec<Id<Symbol>> = vec![];
-        for ref target_prop in properties {
+        for target_prop in properties {
             if self.is_static_private_identifier_property(target_prop) {
                 continue;
             }
             if require_optional_properties
-                || !(target_prop.flags().intersects(SymbolFlags::Optional)
-                    || get_check_flags(target_prop).intersects(CheckFlags::Partial))
+                || !(self
+                    .symbol(target_prop)
+                    .flags()
+                    .intersects(SymbolFlags::Optional)
+                    || get_check_flags(&self.symbol(target_prop)).intersects(CheckFlags::Partial))
             {
-                let source_prop =
-                    self.get_property_of_type_(source, target_prop.escaped_name(), None)?;
+                let source_prop = self.get_property_of_type_(
+                    source,
+                    self.symbol(target_prop).escaped_name(),
+                    None,
+                )?;
                 match source_prop {
                     None => {
                         ret.push(target_prop.clone());
                     }
-                    Some(ref source_prop) => {
+                    Some(source_prop) => {
                         if match_discriminant_properties {
                             let target_type = self.get_type_of_symbol(target_prop)?;
                             if self.type_(target_type).flags().intersects(TypeFlags::Unit) {
@@ -178,7 +184,7 @@ impl TypeChecker {
         matches!(
             self.type_(type_).maybe_symbol().as_ref(),
             Some(type_symbol) if some(
-                type_symbol.maybe_declarations().as_deref(),
+                self.symbol(type_symbol).maybe_declarations().as_deref(),
                 Some(|declaration: &Gc<Node>| self.has_skip_direct_inference_flag(declaration))
             )
         )
@@ -691,14 +697,14 @@ impl InferTypes {
             *self.maybe_propagation_type() = save_propagation_type;
             return Ok(());
         }
-        if let Some(ref source_alias_symbol) = {
+        if let Some(source_alias_symbol) = {
             let alias_symbol = self.type_checker.type_(source).maybe_alias_symbol();
             alias_symbol
         }
-        .filter(|source_alias_symbol| {
+        .filter(|&source_alias_symbol| {
             matches!(
-                self.type_checker.type_(target).maybe_alias_symbol().as_ref(),
-                Some(target_alias_symbol) if Gc::ptr_eq(source_alias_symbol, target_alias_symbol)
+                self.type_checker.type_(target).maybe_alias_symbol(),
+                Some(target_alias_symbol) if source_alias_symbol == target_alias_symbol
             )
         }) {
             if let Some(source_alias_type_arguments) = {
@@ -1115,10 +1121,8 @@ impl InferTypes {
                 .flags()
                 .intersects(TypeFlags::StringMapping)
         {
-            if Gc::ptr_eq(
-                &self.type_checker.type_(source).symbol(),
-                &self.type_checker.type_(target).symbol(),
-            ) {
+            if self.type_checker.type_(source).symbol() == self.type_checker.type_(target).symbol()
+            {
                 self.infer_from_types(
                     self.type_checker
                         .type_(source)
@@ -1182,7 +1186,12 @@ impl InferTypes {
             .flags()
             .intersects(TypeFlags::Union)
         {
-            let source_types = &self.type_checker.type_(source).as_union_or_intersection_type_interface().types().to_owned();
+            let source_types = &self
+                .type_checker
+                .type_(source)
+                .as_union_or_intersection_type_interface()
+                .types()
+                .to_owned();
             for &source_type in source_types {
                 self.infer_from_types(source_type, target)?;
             }

@@ -861,7 +861,7 @@ impl TypeChecker {
         symbol: Id<Symbol>,
         diagnostic: Option<&Diagnostic>,
     ) -> io::Result<Option<Id<Type>>> {
-        if symbol.flags().intersects(
+        if self.symbol(symbol).flags().intersects(
             SymbolFlags::Function
                 | SymbolFlags::Method
                 | SymbolFlags::Class
@@ -869,12 +869,12 @@ impl TypeChecker {
         ) {
             return Ok(Some(self.get_type_of_symbol(symbol)?));
         }
-        if symbol
-            .flags()
+        if self.symbol(symbol
+            ).flags()
             .intersects(SymbolFlags::Variable | SymbolFlags::Property)
         {
             if get_check_flags(symbol).intersects(CheckFlags::Mapped) {
-                let origin = (*symbol.as_mapped_symbol().symbol_links())
+                let origin = (*self.symbol(symbol).as_mapped_symbol().symbol_links())
                     .borrow()
                     .synthetic_origin
                     .clone();
@@ -885,7 +885,7 @@ impl TypeChecker {
                     return Ok(Some(self.get_type_of_symbol(symbol)?));
                 }
             }
-            let declaration = symbol.maybe_value_declaration();
+            let declaration = self.symbol(symbol).maybe_value_declaration();
             if let Some(declaration) = declaration.as_ref() {
                 if self.is_declaration_with_explicit_type_annotation(declaration) {
                     return Ok(Some(self.get_type_of_symbol(symbol)?));
@@ -949,8 +949,8 @@ impl TypeChecker {
                         ))
                         .unwrap();
                     return Ok(self.get_explicit_type_of_symbol(
-                        &*if symbol.flags().intersects(SymbolFlags::Alias) {
-                            self.resolve_alias(&symbol)?
+                        &*if self.symbol(symbol).flags().intersects(SymbolFlags::Alias) {
+                            self.resolve_alias(symbol)?
                         } else {
                             symbol
                         },
@@ -979,7 +979,7 @@ impl TypeChecker {
                             prop = self.get_property_of_type_(
                                 type_,
                                 &get_symbol_name_for_private_identifier(
-                                    &self.type_(type_).symbol(),
+                                    self.type_(type_).symbol(),
                                     &name.as_private_identifier().escaped_text,
                                 ),
                                 None,
@@ -991,7 +991,7 @@ impl TypeChecker {
                                 None,
                             )?;
                         }
-                        return prop.as_ref().try_and_then(|prop| {
+                        return prop.try_and_then(|prop| {
                             self.get_explicit_type_of_symbol(prop, diagnostic)
                         });
                     }

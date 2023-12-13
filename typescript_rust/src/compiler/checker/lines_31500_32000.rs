@@ -43,7 +43,10 @@ impl TypeChecker {
                 0
             };
         for i in 0..len {
-            let declaration = signature.parameters()[i].maybe_value_declaration().unwrap();
+            let declaration = self
+                .symbol(signature.parameters()[i])
+                .maybe_value_declaration()
+                .unwrap();
             if declaration
                 .as_parameter_declaration()
                 .maybe_type()
@@ -98,12 +101,12 @@ impl TypeChecker {
                 return Ok(());
             }
         }
-        if let Some(context_this_parameter) = context.maybe_this_parameter().as_ref() {
+        if let Some(context_this_parameter) = context.maybe_this_parameter() {
             let parameter = signature.maybe_this_parameter().clone();
             if match parameter.as_ref() {
                 None => true,
                 Some(parameter) => matches!(
-                    parameter.maybe_value_declaration().as_ref(),
+                    self.symbol(parameter).maybe_value_declaration().as_ref(),
                     Some(parameter_value_declaration) if parameter_value_declaration.as_has_type().maybe_type().is_none()
                 ),
             } {
@@ -112,7 +115,7 @@ impl TypeChecker {
                         Some(self.create_symbol_with_type(context_this_parameter, None));
                 }
                 self.assign_parameter_type(
-                    signature.maybe_this_parameter().as_ref().unwrap(),
+                    signature.maybe_this_parameter().unwrap(),
                     Some(self.get_type_of_symbol(context_this_parameter)?),
                 )?;
             }
@@ -124,19 +127,23 @@ impl TypeChecker {
                 0
             };
         for i in 0..len {
-            let parameter = &signature.parameters()[i];
-            if get_effective_type_annotation_node(&parameter.maybe_value_declaration().unwrap())
-                .is_none()
+            let parameter = signature.parameters()[i];
+            if get_effective_type_annotation_node(
+                &self.symbol(parameter).maybe_value_declaration().unwrap(),
+            )
+            .is_none()
             {
                 let contextual_parameter_type = self.try_get_type_at_position(context, i)?;
                 self.assign_parameter_type(parameter, contextual_parameter_type)?;
             }
         }
         if signature_has_rest_parameter(signature) {
-            let parameter = last(signature.parameters());
+            let parameter = *last(signature.parameters());
             if is_transient_symbol(parameter)
-                || get_effective_type_annotation_node(&parameter.maybe_value_declaration().unwrap())
-                    .is_none()
+                || get_effective_type_annotation_node(
+                    &self.symbol(parameter).maybe_value_declaration().unwrap(),
+                )
+                .is_none()
             {
                 let contextual_parameter_type = self.get_rest_type_at_position(context, len)?;
                 self.assign_parameter_type(parameter, Some(contextual_parameter_type))?;
@@ -150,10 +157,10 @@ impl TypeChecker {
         &self,
         signature: &Signature,
     ) -> io::Result<()> {
-        if let Some(signature_this_parameter) = signature.maybe_this_parameter().as_ref() {
+        if let Some(signature_this_parameter) = signature.maybe_this_parameter() {
             self.assign_parameter_type(signature_this_parameter, None)?;
         }
-        for parameter in signature.parameters() {
+        for &parameter in signature.parameters() {
             self.assign_parameter_type(parameter, None)?;
         }
 
@@ -167,7 +174,7 @@ impl TypeChecker {
     ) -> io::Result<()> {
         let links = self.get_symbol_links(parameter);
         if (*links).borrow().type_.is_none() {
-            let declaration = parameter.maybe_value_declaration().unwrap();
+            let declaration = self.symbol(parameter).maybe_value_declaration().unwrap();
             links.borrow_mut().type_ = Some(type_.try_unwrap_or_else(|| {
                 self.get_widened_type_for_variable_like_declaration(&declaration, Some(true))
             })?);
@@ -276,20 +283,21 @@ impl TypeChecker {
         &self,
         target_type: Id<Type>,
     ) -> io::Result<Id<Type>> {
-        let symbol: Id<Symbol> = self
+        let symbol = self.alloc_symbol(self
             .create_symbol(SymbolFlags::None, "NewTargetExpression".to_owned(), None)
-            .into();
+            .into());
 
-        let target_property_symbol: Id<Symbol> = self
+        let target_property_symbol = self.alloc_symbol(self
             .create_symbol(
                 SymbolFlags::Property,
                 "target".to_owned(),
                 Some(CheckFlags::Readonly),
             )
-            .into();
-        target_property_symbol.set_parent(Some(symbol.clone()));
-        target_property_symbol
-            .as_transient_symbol()
+            .into());
+        self.symbol(target_property_symbol)
+            .set_parent(Some(symbol.clone()));
+        self.symbol(target_property_symbol
+            ).as_transient_symbol()
             .symbol_links()
             .borrow_mut()
             .type_ = Some(target_type);
@@ -297,7 +305,7 @@ impl TypeChecker {
         let members = Gc::new(GcCell::new(create_symbol_table(Some(&[
             target_property_symbol,
         ]))));
-        *symbol.maybe_members_mut() = Some(members.clone());
+        *self.symbol(symbol).maybe_members_mut() = Some(members.clone());
         self.create_anonymous_type(Some(symbol), members, vec![], vec![], vec![])
     }
 
@@ -872,10 +880,8 @@ impl TypeChecker {
             && has_return_with_no_expression
             && !(self.is_js_constructor(Some(func))?
                 && aggregated_types.iter().any(|&t| {
-                    are_option_gcs_equal(
-                        self.type_(t).maybe_symbol().as_ref(),
-                        func.maybe_symbol().as_ref(),
-                    )
+                    self.type_(t).maybe_symbol() ==
+                    func.maybe_symbol()
                 }))
         {
             push_if_unique_eq(&mut aggregated_types, &self.undefined_type());

@@ -89,15 +89,15 @@ impl TypeChecker {
         match node.kind() {
             SyntaxKind::Identifier => {
                 let symbol = self.get_resolved_symbol(node)?;
-                return Ok(self.is_const_variable(&symbol)
+                return Ok(self.is_const_variable(symbol)
                     || is_parameter_or_catch_clause_variable(&symbol)
-                        && !self.is_symbol_assigned(&symbol)?);
+                        && !self.is_symbol_assigned(symbol)?);
             }
             SyntaxKind::PropertyAccessExpression | SyntaxKind::ElementAccessExpression => {
                 return Ok(
                     self.is_constant_reference(&node.as_has_expression().expression())?
                         && self.is_readonly_symbol(
-                            &(*self.get_node_links(node))
+                            (*self.get_node_links(node))
                                 .borrow()
                                 .resolved_symbol
                                 .clone()

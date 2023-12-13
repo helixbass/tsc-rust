@@ -500,7 +500,7 @@ pub fn get_next_jsdoc_comment_location(node: &Node) -> Option<Gc<Node>> {
     None
 }
 
-pub fn get_parameter_symbol_from_jsdoc(node: &Node, /*JSDocParameterTag*/) -> Option<Gc<Symbol>> {
+pub fn get_parameter_symbol_from_jsdoc(node: &Node, /*JSDocParameterTag*/) -> Option<Id<Symbol>> {
     if node.maybe_symbol().is_some() {
         return node.maybe_symbol();
     }

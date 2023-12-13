@@ -125,7 +125,7 @@ impl TypeChecker {
             has_abstract_modifier(member),
             is_static(member),
             member_is_parameter_property,
-            &symbol_name(&declared_prop),
+            &symbol_name(&self.symbol(declared_prop)),
             if report_errors { Some(member) } else { None },
         )
     }
@@ -174,8 +174,7 @@ impl TypeChecker {
             } else if let (Some(_prop), Some(base_prop_declarations)) = (
                 prop.as_ref(),
                 base_prop
-                    .as_ref()
-                    .and_then(|base_prop| base_prop.maybe_declarations().clone())
+                    .and_then(|base_prop| self.symbol(base_prop).maybe_declarations().clone())
                     .as_ref()
                     .filter(|_| {
                         self.compiler_options.no_implicit_override == Some(true)
@@ -261,12 +260,18 @@ impl TypeChecker {
                 .as_ref()
                 .try_and_then(|member_name| self.get_symbol_at_location_(member_name, None))?
                 .try_or_else(|| self.get_symbol_at_location_(member, None))?;
-            if let Some(declared_prop) = declared_prop.as_ref() {
-                let prop =
-                    self.get_property_of_type_(type_with_this, declared_prop.escaped_name(), None)?;
-                let base_prop =
-                    self.get_property_of_type_(base_with_this, declared_prop.escaped_name(), None)?;
-                if let (Some(prop), Some(base_prop)) = (prop.as_ref(), base_prop.as_ref()) {
+            if let Some(declared_prop) = declared_prop {
+                let prop = self.get_property_of_type_(
+                    type_with_this,
+                    self.symbol(declared_prop).escaped_name(),
+                    None,
+                )?;
+                let base_prop = self.get_property_of_type_(
+                    base_with_this,
+                    self.symbol(declared_prop).escaped_name(),
+                    None,
+                )?;
+                if let (Some(prop), Some(base_prop)) = (prop, base_prop) {
                     if !self.check_type_assignable_to(
                         self.get_type_of_symbol(prop)?,
                         self.get_type_of_symbol(base_prop)?,
@@ -322,14 +327,14 @@ impl TypeChecker {
                 Some(declaration) if has_effective_modifier(declaration, ModifierFlags::Private)
             ) {
                 let type_class_declaration =
-                    get_class_like_declaration_of_symbol(&self.type_(type_).symbol()).unwrap();
+                    get_class_like_declaration_of_symbol(self.type_(type_).symbol()).unwrap();
                 if !self.is_node_within_class(node, &type_class_declaration) {
                     self.error(
                         Some(node),
                         &Diagnostics::Cannot_extend_a_class_0_Class_constructor_is_marked_as_private,
                         Some(vec![
                             self.get_fully_qualified_name(
-                                &self.type_(type_).symbol(),
+                                self.type_(type_).symbol(),
                                 Option::<&Node>::None
                             )?
                         ])
@@ -353,9 +358,9 @@ impl TypeChecker {
         let member_name = member_name.unwrap();
 
         let symbol = self.get_symbol_of_node(node)?.unwrap();
-        let type_ = self.get_declared_type_of_symbol(&symbol)?;
+        let type_ = self.get_declared_type_of_symbol(symbol)?;
         let type_with_this = self.get_type_with_this_argument(type_, None, None)?;
-        let static_type = self.get_type_of_symbol(&symbol)?;
+        let static_type = self.get_type_of_symbol(symbol)?;
 
         let base_type_node = get_effective_base_type_node(node);
         let base_types = if base_type_node.is_some() {
@@ -402,13 +407,13 @@ impl TypeChecker {
 
     pub(super) fn get_target_symbol(&self, s: Id<Symbol>) -> Id<Symbol> {
         if get_check_flags(s).intersects(CheckFlags::Instantiated) {
-            (*s.as_transient_symbol().symbol_links())
+            (*self.symbol(s).as_transient_symbol().symbol_links())
                 .borrow()
                 .target
                 .clone()
                 .unwrap()
         } else {
-            s.symbol_wrapper()
+            s
         }
     }
 
@@ -416,12 +421,15 @@ impl TypeChecker {
         &self,
         symbol: Id<Symbol>,
     ) -> Option<Vec<Gc<Node>>> {
-        maybe_filter(symbol.maybe_declarations().as_deref(), |d: &Gc<Node>| {
-            matches!(
-                d.kind(),
-                SyntaxKind::ClassDeclaration | SyntaxKind::InterfaceDeclaration
-            )
-        })
+        maybe_filter(
+            self.symbol(symbol).maybe_declarations().as_deref(),
+            |d: &Gc<Node>| {
+                matches!(
+                    d.kind(),
+                    SyntaxKind::ClassDeclaration | SyntaxKind::InterfaceDeclaration
+                )
+            },
+        )
     }
 
     pub(super) fn check_kinds_of_property_member_overrides(
@@ -430,22 +438,23 @@ impl TypeChecker {
         base_type: Id<Type>, /*BaseType*/
     ) -> io::Result<()> {
         let base_properties = self.get_properties_of_type(base_type)?;
-        'base_property_check: for ref base_property in base_properties {
+        'base_property_check: for base_property in base_properties {
             let base = self.get_target_symbol(base_property);
 
-            if base.flags().intersects(SymbolFlags::Prototype) {
+            if self.symbol(base).flags().intersects(SymbolFlags::Prototype) {
                 continue;
             }
-            let base_symbol =
-                continue_if_none!(self.get_property_of_object_type(type_, base.escaped_name())?);
-            let derived = self.get_target_symbol(&base_symbol);
-            let base_declaration_flags = get_declaration_modifier_flags_from_symbol(&base, None);
+            let base_symbol = continue_if_none!(
+                self.get_property_of_object_type(type_, self.symbol(base).escaped_name())?
+            );
+            let derived = self.get_target_symbol(base_symbol);
+            let base_declaration_flags = get_declaration_modifier_flags_from_symbol(base, None);
 
             // Debug.assert(!!derived, "derived should point at something, even if it is the base class' declaration.");
 
-            if Gc::ptr_eq(&derived, &base) {
+            if derived == base {
                 let derived_class_decl =
-                    get_class_like_declaration_of_symbol(&self.type_(type_).symbol()).unwrap();
+                    get_class_like_declaration_of_symbol(self.type_(type_).symbol()).unwrap();
 
                 if base_declaration_flags.intersects(ModifierFlags::Abstract) && /* !derivedClassDecl ||*/ !has_syntactic_modifier(&derived_class_decl, ModifierFlags::Abstract)
                 {
@@ -453,14 +462,15 @@ impl TypeChecker {
                         if other_base_type == base_type {
                             continue;
                         }
-                        let base_symbol =
-                            self.get_property_of_object_type(other_base_type, base.escaped_name())?;
-                        let derived_elsewhere = base_symbol
-                            .as_ref()
-                            .map(|base_symbol| self.get_target_symbol(base_symbol));
+                        let base_symbol = self.get_property_of_object_type(
+                            other_base_type,
+                            self.symbol(base).escaped_name(),
+                        )?;
+                        let derived_elsewhere =
+                            base_symbol.map(|base_symbol| self.get_target_symbol(base_symbol));
                         if matches!(
-                            derived_elsewhere.as_ref(),
-                            Some(derived_elsewhere) if !Gc::ptr_eq(derived_elsewhere, &base)
+                            derived_elsewhere,
+                            Some(derived_elsewhere) if derived_elsewhere != base
                         ) {
                             continue 'base_property_check;
                         }
@@ -509,7 +519,7 @@ impl TypeChecker {
                 }
             } else {
                 let derived_declaration_flags =
-                    get_declaration_modifier_flags_from_symbol(&derived, None);
+                    get_declaration_modifier_flags_from_symbol(derived, None);
                 if base_declaration_flags.intersects(ModifierFlags::Private)
                     || derived_declaration_flags.intersects(ModifierFlags::Private)
                 {
@@ -517,23 +527,23 @@ impl TypeChecker {
                 }
 
                 let error_message: &DiagnosticMessage;
-                let base_property_flags = base.flags() & SymbolFlags::PropertyOrAccessor;
-                let derived_property_flags = derived.flags() & SymbolFlags::PropertyOrAccessor;
+                let base_property_flags = self.symbol(base).flags() & SymbolFlags::PropertyOrAccessor;
+                let derived_property_flags = self.symbol(derived).flags() & SymbolFlags::PropertyOrAccessor;
                 if base_property_flags != SymbolFlags::None
                     && derived_property_flags != SymbolFlags::None
                 {
                     if base_declaration_flags.intersects(ModifierFlags::Abstract)
                         && !matches!(
-                            base.maybe_value_declaration().as_ref(),
+                            self.symbol(base).maybe_value_declaration().as_ref(),
                             Some(base_value_declaration) if is_property_declaration(base_value_declaration) &&
                                 base_value_declaration.as_property_declaration().maybe_initializer().is_some()
                         )
                         || matches!(
-                            base.maybe_value_declaration().as_ref(),
+                            self.symbol(base).maybe_value_declaration().as_ref(),
                             Some(base_value_declaration) if base_value_declaration.parent().kind() == SyntaxKind::InterfaceDeclaration
                         )
                         || matches!(
-                            derived.maybe_value_declaration().as_ref(),
+                            self.symbol(derived).maybe_value_declaration().as_ref(),
                             Some(derived_value_declaration) if is_binary_expression(derived_value_declaration)
                         )
                     {
@@ -551,12 +561,12 @@ impl TypeChecker {
                             &*Diagnostics::_0_is_defined_as_a_property_in_class_1_but_is_overridden_here_in_2_as_an_accessor
                         };
                         self.error(
-                            get_name_of_declaration(derived.maybe_value_declaration())
-                                .or_else(|| derived.maybe_value_declaration()),
+                            get_name_of_declaration(self.symbol(derived).maybe_value_declaration())
+                                .or_else(|| self.symbol(derived).maybe_value_declaration()),
                             error_message,
                             Some(vec![
                                 self.symbol_to_string_(
-                                    &base,
+                                    base,
                                     Option::<&Node>::None,
                                     None,
                                     None,
@@ -567,7 +577,7 @@ impl TypeChecker {
                             ]),
                         );
                     } else if self.use_define_for_class_fields {
-                        let uninitialized = derived.maybe_declarations().as_ref().and_then(
+                        let uninitialized = self.symbol(derived).maybe_declarations().as_ref().and_then(
                             |derived_declarations| {
                                 derived_declarations
                                     .into_iter()
@@ -581,17 +591,17 @@ impl TypeChecker {
                             },
                         );
                         if let Some(uninitialized) = uninitialized.as_ref() {
-                            if !derived.flags().intersects(SymbolFlags::Transient)
+                            if !self.symbol(derived).flags().intersects(SymbolFlags::Transient)
                                 && !base_declaration_flags.intersects(ModifierFlags::Abstract)
                                 && !derived_declaration_flags.intersects(ModifierFlags::Abstract)
                                 && !matches!(
-                                    derived.maybe_declarations().as_ref(),
+                                    self.symbol(derived).maybe_declarations().as_ref(),
                                     Some(derived_declarations) if derived_declarations.into_iter().any(|d| d.flags().intersects(NodeFlags::Ambient))
                                 )
                             {
                                 let constructor = self.find_constructor_declaration(
                                     &get_class_like_declaration_of_symbol(
-                                        &self.type_(type_).symbol(),
+                                        self.type_(type_).symbol(),
                                     )
                                     .unwrap(),
                                 );
@@ -612,12 +622,12 @@ impl TypeChecker {
                                 {
                                     let error_message = &Diagnostics::Property_0_will_overwrite_the_base_property_in_1_If_this_is_intentional_add_an_initializer_Otherwise_add_a_declare_modifier_or_remove_the_redundant_declaration;
                                     self.error(
-                                        get_name_of_declaration(derived.maybe_value_declaration())
-                                            .or_else(|| derived.maybe_value_declaration()),
+                                        get_name_of_declaration(self.symbol(derived).maybe_value_declaration())
+                                            .or_else(|| self.symbol(derived).maybe_value_declaration()),
                                         error_message,
                                         Some(vec![
                                             self.symbol_to_string_(
-                                                &base,
+                                                base,
                                                 Option::<&Node>::None,
                                                 None,
                                                 None,
@@ -637,28 +647,28 @@ impl TypeChecker {
                     }
 
                     continue;
-                } else if self.is_prototype_property(&base) {
-                    if self.is_prototype_property(&derived)
-                        || derived.flags().intersects(SymbolFlags::Property)
+                } else if self.is_prototype_property(base) {
+                    if self.is_prototype_property(derived)
+                        || self.symbol(derived).flags().intersects(SymbolFlags::Property)
                     {
                         continue;
                     } else {
-                        Debug_.assert(derived.flags().intersects(SymbolFlags::Accessor), None);
+                        Debug_.assert(self.symbol(derived).flags().intersects(SymbolFlags::Accessor), None);
                         error_message = &Diagnostics::Class_0_defines_instance_member_function_1_but_extended_class_2_defines_it_as_instance_member_accessor;
                     }
-                } else if base.flags().intersects(SymbolFlags::Accessor) {
+                } else if self.symbol(base).flags().intersects(SymbolFlags::Accessor) {
                     error_message = &Diagnostics::Class_0_defines_instance_member_accessor_1_but_extended_class_2_defines_it_as_instance_member_function;
                 } else {
                     error_message = &Diagnostics::Class_0_defines_instance_member_property_1_but_extended_class_2_defines_it_as_instance_member_function;
                 }
 
                 self.error(
-                    get_name_of_declaration(derived.maybe_value_declaration())
-                        .or_else(|| derived.maybe_value_declaration()),
+                    get_name_of_declaration(self.symbol(derived).maybe_value_declaration())
+                        .or_else(|| self.symbol(derived).maybe_value_declaration()),
                     error_message,
                     Some(vec![
                         self.type_to_string_(base_type, Option::<&Node>::None, None, None)?,
-                        self.symbol_to_string_(&base, Option::<&Node>::None, None, None, None)?,
+                        self.symbol_to_string_(base, Option::<&Node>::None, None, None, None)?,
                         self.type_to_string_(type_, Option::<&Node>::None, None, None)?,
                     ]),
                 );
@@ -687,8 +697,7 @@ impl TypeChecker {
         }
         let mut seen: HashMap<__String, Id<Symbol>> = Default::default();
         for_each(properties, |p, _| -> Option<()> {
-            let p = p.borrow();
-            seen.insert(p.escaped_name().to_owned(), p.clone());
+            seen.insert(self.symbol(p).escaped_name().to_owned(), p.clone());
             None
         });
 
@@ -698,16 +707,16 @@ impl TypeChecker {
                 self.type_(type_).as_interface_type().maybe_this_type(),
                 None,
             )?)?;
-            for ref prop in properties {
-                let existing = seen.get(prop.escaped_name());
+            for prop in properties {
+                let existing = seen.get(self.symbol(prop).escaped_name());
                 if matches!(
                     existing,
-                    Some(existing) if !self.is_property_identical_to(
+                    Some(&existing) if !self.is_property_identical_to(
                         existing,
                         prop
                     )?
                 ) {
-                    seen.remove(prop.escaped_name());
+                    seen.remove(self.symbol(prop).escaped_name());
                 }
             }
         }
@@ -731,9 +740,9 @@ impl TypeChecker {
                 .as_interface_type_with_declared_members()
                 .maybe_declared_properties()
                 .as_ref(),
-            |p: &Id<Symbol>, _| -> Option<()> {
+            |&p: &Id<Symbol>, _| -> Option<()> {
                 seen.insert(
-                    p.escaped_name().to_owned(),
+                    self.symbol(p).escaped_name().to_owned(),
                     InheritanceInfoMap {
                         prop: p.clone(),
                         containing_type: type_,
@@ -753,12 +762,12 @@ impl TypeChecker {
                 },
                 None,
             )?)?;
-            for ref prop in properties {
-                let existing = seen.get(prop.escaped_name());
+            for prop in properties {
+                let existing = seen.get(self.symbol(prop).escaped_name());
                 match existing {
                     None => {
                         seen.insert(
-                            prop.escaped_name().to_owned(),
+                            self.symbol(prop).escaped_name().to_owned(),
                             InheritanceInfoMap {
                                 prop: prop.clone(),
                                 containing_type: base.clone(),
@@ -768,7 +777,7 @@ impl TypeChecker {
                     Some(existing) => {
                         let is_inherited_property = existing.containing_type != type_;
                         if is_inherited_property
-                            && !self.is_property_identical_to(&existing.prop, prop)?
+                            && !self.is_property_identical_to(existing.prop, prop)?
                         {
                             ok = false;
 
@@ -857,7 +866,7 @@ impl CheckTypeContainingMessageChain for IssueMemberSpecificErrorContainingMessa
                 &Diagnostics::Property_0_in_type_1_is_not_assignable_to_the_same_property_in_base_type_2,
                 Some(vec![
                     self.type_checker.symbol_to_string_(
-                        &self.declared_prop,
+                        self.declared_prop,
                         Option::<&Node>::None,
                         None, None, None,
                     )?,

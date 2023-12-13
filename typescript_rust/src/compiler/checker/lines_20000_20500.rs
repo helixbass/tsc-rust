@@ -297,9 +297,12 @@ impl TypeChecker {
         }
         try_filter(
             &self.get_properties_of_type(target)?.collect_vec(),
-            |target_prop: &Id<Symbol>| -> io::Result<_> {
+            |&target_prop: &Id<Symbol>| -> io::Result<_> {
                 Ok(self.is_exact_optional_property_mismatch(
-                    self.get_type_of_property_of_type_(source, target_prop.escaped_name())?,
+                    self.get_type_of_property_of_type_(
+                        source,
+                        self.symbol(target_prop).escaped_name(),
+                    )?,
                     Some(self.get_type_of_symbol(target_prop)?),
                 ))
             },
@@ -322,7 +325,7 @@ impl TypeChecker {
     pub fn get_exact_optional_properties(&self, type_: Id<Type>) -> io::Result<Vec<Id<Symbol>>> {
         try_filter(
             &self.get_properties_of_type(type_)?.collect_vec(),
-            |target_prop: &Id<Symbol>| -> io::Result<_> {
+            |&target_prop: &Id<Symbol>| -> io::Result<_> {
                 Ok(self.contains_missing_type(self.get_type_of_symbol(target_prop)?))
             },
         )
@@ -366,8 +369,8 @@ impl TypeChecker {
                 self.get_union_or_intersection_property(target, property_name, None)?;
             if matches!(skip_partial, Some(true))
                 && matches!(
-                    target_prop.as_ref(),
-                    Some(target_prop) if get_check_flags(target_prop).intersects(CheckFlags::ReadPartial)
+                    target_prop,
+                    Some(target_prop) if get_check_flags(&self.symbol(target_prop)).intersects(CheckFlags::ReadPartial)
                 )
             {
                 continue;
@@ -438,7 +441,7 @@ impl TypeChecker {
                     .is_empty()
                 && every(
                     &*self.type_(resolved).as_resolved_type().properties(),
-                    |p: &Id<Symbol>, _| p.flags().intersects(SymbolFlags::Optional),
+                    |&p: &Id<Symbol>, _| self.symbol(p).flags().intersects(SymbolFlags::Optional),
                 ));
         }
         if self
@@ -462,8 +465,12 @@ impl TypeChecker {
         target: Id<Type>,
         is_comparing_jsx_attributes: bool,
     ) -> io::Result<bool> {
-        for ref prop in self.get_properties_of_type(source)? {
-            if self.is_known_property(target, prop.escaped_name(), is_comparing_jsx_attributes)? {
+        for prop in self.get_properties_of_type(source)? {
+            if self.is_known_property(
+                target,
+                self.symbol(prop).escaped_name(),
+                is_comparing_jsx_attributes,
+            )? {
                 return Ok(true);
             }
         }
@@ -777,10 +784,10 @@ impl TypeChecker {
         prop: Id<Symbol>,
         callback: &mut impl FnMut(Id<Symbol>) -> io::Result<Option<TReturn>>,
     ) -> io::Result<Option<TReturn>> {
-        if get_check_flags(prop).intersects(CheckFlags::Synthetic) {
+        if get_check_flags(&self.symbol(prop)).intersects(CheckFlags::Synthetic) {
             for &t in self
                 .type_(
-                    (*prop.as_transient_symbol().symbol_links())
+                    (*self.symbol(prop).as_transient_symbol().symbol_links())
                         .borrow()
                         .containing_type
                         .unwrap(),
@@ -788,10 +795,8 @@ impl TypeChecker {
                 .as_union_or_intersection_type_interface()
                 .types()
             {
-                let p = self.get_property_of_type_(t, prop.escaped_name(), None)?;
-                let result = p
-                    .as_ref()
-                    .try_and_then(|p| self.for_each_property(p, callback))?;
+                let p = self.get_property_of_type_(t, self.symbol(prop).escaped_name(), None)?;
+                let result = p.try_and_then(|p| self.for_each_property(p, callback))?;
                 if result.is_some() {
                     return Ok(result);
                 }
@@ -817,10 +822,11 @@ impl TypeChecker {
         &self,
         prop: Id<Symbol>,
     ) -> io::Result<Option<Id<Type /*InterfaceType*/>>> {
-        prop.maybe_parent()
+        self.symbol(prop)
+            .maybe_parent()
             .filter(|prop_parent| prop_parent.flags().intersects(SymbolFlags::Class))
             .try_map(|_prop_parent| {
-                self.get_declared_type_of_symbol(&self.get_parent_of_symbol(prop)?.unwrap())
+                self.get_declared_type_of_symbol(self.get_parent_of_symbol(prop)?.unwrap())
             })
     }
 
@@ -833,7 +839,10 @@ impl TypeChecker {
             Ok(self.get_base_types(class_type)?.get(0).cloned())
         })?;
         base_class_type.try_and_then(|base_class_type| {
-            self.get_type_of_property_of_type_(base_class_type, property.escaped_name())
+            self.get_type_of_property_of_type_(
+                base_class_type,
+                self.symbol(property).escaped_name(),
+            )
         })
     }
 
@@ -937,9 +946,12 @@ impl TypeChecker {
                     return type_node.into();
                 }
             }
-            if let Some(type_symbol) = self.type_(type_).maybe_symbol().filter(|type_symbol| {
+            if let Some(type_symbol) = self.type_(type_).maybe_symbol().filter(|&type_symbol| {
                 !(get_object_flags(&self.type_(type_)).intersects(ObjectFlags::Anonymous)
-                    && type_symbol.flags().intersects(SymbolFlags::Class))
+                    && self
+                        .symbol(type_symbol)
+                        .flags()
+                        .intersects(SymbolFlags::Class))
             }) {
                 return type_symbol.into();
             }
@@ -1002,7 +1014,7 @@ impl TypeChecker {
         target_prop: Id<Symbol>,
         mut compare_types: impl FnMut(Id<Type>, Id<Type>) -> io::Result<Ternary>,
     ) -> io::Result<Ternary> {
-        if ptr::eq(source_prop, target_prop) {
+        if source_prop == target_prop {
             return Ok(Ternary::True);
         }
         let source_prop_accessibility =
@@ -1015,15 +1027,15 @@ impl TypeChecker {
             return Ok(Ternary::False);
         }
         if source_prop_accessibility != ModifierFlags::None {
-            if !Gc::ptr_eq(
-                &self.get_target_symbol(source_prop),
-                &self.get_target_symbol(target_prop),
-            ) {
+            if 
+                self.get_target_symbol(source_prop) !=
+                self.get_target_symbol(target_prop)
+            {
                 return Ok(Ternary::False);
             }
         } else {
-            if source_prop.flags() & SymbolFlags::Optional
-                != target_prop.flags() & SymbolFlags::Optional
+            if self.symbol(source_prop).flags() & SymbolFlags::Optional
+                != self.symbol(target_prop).flags() & SymbolFlags::Optional
             {
                 return Ok(Ternary::False);
             }
@@ -1107,7 +1119,7 @@ impl PartialEq for RecursionIdentity {
     fn eq(&self, other: &RecursionIdentity) -> bool {
         match (self, other) {
             (Self::Node(a), Self::Node(b)) => Gc::ptr_eq(a, b),
-            (Self::Symbol(a), Self::Symbol(b)) => Gc::ptr_eq(a, b),
+            (Self::Symbol(a), Self::Symbol(b)) => a == b,
             (Self::Type(a), Self::Type(b)) => a == b,
             (Self::ConditionalRoot(a), Self::ConditionalRoot(b)) => Gc::ptr_eq(a, b),
             (Self::None, Self::None) => true,

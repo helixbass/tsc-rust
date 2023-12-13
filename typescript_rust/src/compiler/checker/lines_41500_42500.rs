@@ -38,18 +38,17 @@ impl TypeChecker {
             return Ok(false);
         }
         let symbol = symbol.unwrap();
-        let symbol = symbol.borrow();
-        let ref target = self.resolve_alias(symbol)?;
-        if Gc::ptr_eq(target, &self.unknown_symbol()) {
+        let target = self.resolve_alias(symbol)?;
+        if target == self.unknown_symbol() {
             return Ok(true);
         }
-        Ok(target.flags().intersects(SymbolFlags::Value)
+        Ok(self.symbol(target).flags().intersects(SymbolFlags::Value)
             && (should_preserve_const_enums(&self.compiler_options)
                 || !self.is_const_enum_or_const_enum_only_module(target)))
     }
 
     pub(super) fn is_const_enum_or_const_enum_only_module(&self, s: Id<Symbol>) -> bool {
-        self.is_const_enum_symbol(s) || s.maybe_const_enum_only_module() == Some(true)
+        self.is_const_enum_symbol(s) || self.symbol(s).maybe_const_enum_only_module() == Some(true)
     }
 
     pub(super) fn is_referenced_alias_declaration(
@@ -104,7 +103,7 @@ impl TypeChecker {
                 return Ok(false);
             }
             let symbol = self.get_symbol_of_node(node)?;
-            let signatures_of_symbol = self.get_signatures_of_symbol(symbol.as_deref())?;
+            let signatures_of_symbol = self.get_signatures_of_symbol(symbol)?;
             return Ok(signatures_of_symbol.len() > 1
                 || signatures_of_symbol.len() == 1
                     && !matches!(
@@ -165,16 +164,20 @@ impl TypeChecker {
             Some(node),
             Some(is_function_declaration)
         ));
-        let ref symbol = return_ok_default_if_none!(self.get_symbol_of_node(declaration)?);
-        if !symbol.flags().intersects(SymbolFlags::Function) {
+        let symbol = return_ok_default_if_none!(self.get_symbol_of_node(declaration)?);
+        if !self
+            .symbol(symbol)
+            .flags()
+            .intersects(SymbolFlags::Function)
+        {
             return Ok(false);
         }
         Ok(for_each_entry_bool(
             &*(*self.get_exports_of_symbol(symbol)?).borrow(),
-            |p: &Id<Symbol>, _| {
-                p.flags().intersects(SymbolFlags::Value)
+            |&p: &Id<Symbol>, _| {
+                self.symbol(p).flags().intersects(SymbolFlags::Value)
                     && matches!(
-                        p.maybe_value_declaration().as_ref(),
+                        self.symbol(p).maybe_value_declaration().as_ref(),
                         Some(p_value_declaration) if is_property_access_expression(p_value_declaration)
                     )
             },
@@ -191,7 +194,7 @@ impl TypeChecker {
         }
         let declaration = declaration.as_ref().unwrap();
         let symbol = self.get_symbol_of_node(declaration)?;
-        Ok(if let Some(symbol) = symbol.as_ref() {
+        Ok(if let Some(symbol) = symbol {
             Some(self.get_properties_of_type(self.get_type_of_symbol(symbol)?)?)
         } else {
             None
@@ -243,11 +246,12 @@ impl TypeChecker {
             .borrow()
             .resolved_symbol
             .clone();
-        if let Some(symbol) = symbol
-            .as_ref()
-            .filter(|symbol| symbol.flags().intersects(SymbolFlags::EnumMember))
-        {
-            let ref member = symbol.maybe_value_declaration().unwrap();
+        if let Some(symbol) = symbol.filter(|&symbol| {
+            self.symbol(symbol)
+                .flags()
+                .intersects(SymbolFlags::EnumMember)
+        }) {
+            let ref member = self.symbol(symbol).maybe_value_declaration().unwrap();
             if is_enum_const(&member.parent()) {
                 return self.get_enum_member_value(member);
             }
@@ -294,7 +298,7 @@ impl TypeChecker {
             is_type_only = matches!(
                 root_value_symbol.as_ref(),
                 Some(root_value_symbol) if matches!(
-                    root_value_symbol.maybe_declarations().as_ref(),
+                    self.symbol(root_value_symbol).maybe_declarations().as_ref(),
                     Some(root_value_symbol_declarations) if root_value_symbol_declarations.into_iter().all(
                         |declaration| is_type_only_import_or_export_declaration(declaration)
                     )
@@ -308,19 +312,20 @@ impl TypeChecker {
             Some(true),
             location.as_deref(),
         )?;
-        let resolved_symbol = if let Some(value_symbol) = value_symbol
-            .as_ref()
-            .filter(|value_symbol| value_symbol.flags().intersects(SymbolFlags::Alias))
-        {
+        let resolved_symbol = if let Some(value_symbol) = value_symbol.filter(|value_symbol| {
+            self.symbol(value_symbol)
+                .flags()
+                .intersects(SymbolFlags::Alias)
+        }) {
             Some(self.resolve_alias(value_symbol)?)
         } else {
             value_symbol.clone()
         };
         is_type_only = is_type_only
             || matches!(
-                value_symbol.as_ref(),
+                value_symbol,
                 Some(value_symbol) if matches!(
-                    value_symbol.maybe_declarations().as_ref(),
+                    self.symbol(value_symbol).maybe_declarations().as_ref(),
                     Some(value_symbol_declarations) if value_symbol_declarations.into_iter().all(
                         |declaration| is_type_only_import_or_export_declaration(declaration)
                     )
@@ -334,22 +339,16 @@ impl TypeChecker {
             Some(false),
             location.as_deref(),
         )?;
-        if let Some(resolved_symbol) = resolved_symbol.as_ref().filter(|resolved_symbol| {
+        if let Some(resolved_symbol) = resolved_symbol.filter(|&resolved_symbol| {
             matches!(
-                type_symbol.as_ref(),
-                Some(type_symbol) if Gc::ptr_eq(
-                    *resolved_symbol,
-                    type_symbol
-                )
+                type_symbol,
+                Some(type_symbol) if resolved_symbol == type_symbol
             )
         }) {
             let global_promise_symbol = self.get_global_promise_constructor_symbol(false)?;
             if matches!(
-                global_promise_symbol.as_ref(),
-                Some(global_promise_symbol) if Gc::ptr_eq(
-                    resolved_symbol,
-                    global_promise_symbol
-                )
+                global_promise_symbol,
+                Some(global_promise_symbol) if resolved_symbol == global_promise_symbol
             ) {
                 return Ok(TypeReferenceSerializationKind::Promise);
             }
@@ -373,7 +372,7 @@ impl TypeChecker {
                 TypeReferenceSerializationKind::Unknown
             });
         }
-        let type_symbol = type_symbol.as_ref().unwrap();
+        let type_symbol = type_symbol.unwrap();
         let type_ = self.get_declared_type_of_symbol(type_symbol)?;
         Ok(if self.is_error_type(type_) {
             if is_type_only {
@@ -431,9 +430,9 @@ impl TypeChecker {
         }
         let declaration = declaration.as_ref().unwrap();
         let symbol = self.get_symbol_of_node(declaration)?;
-        let mut type_ = if let Some(symbol) = symbol.as_ref().filter(|symbol| {
-            !symbol
-                .flags()
+        let mut type_ = if let Some(symbol) = symbol.filter(|symbol| {
+            !self.symbol(symbol
+                ).flags()
                 .intersects(SymbolFlags::TypeLiteral | SymbolFlags::Signature)
         }) {
             self.get_widened_literal_type(self.get_type_of_symbol(symbol)?)?
@@ -444,7 +443,7 @@ impl TypeChecker {
             .type_(type_)
             .flags()
             .intersects(TypeFlags::UniqueESSymbol)
-            && are_option_gcs_equal(self.type_(type_).maybe_symbol().as_ref(), symbol.as_ref())
+            && self.type_(type_).maybe_symbol() == symbol
         {
             flags |= NodeBuilderFlags::AllowUniqueESSymbolType;
         }
@@ -513,7 +512,7 @@ impl TypeChecker {
         &self,
         reference: &Node, /*Identifier*/
         start_in_declaration_container: Option<bool>,
-    ) -> io::Result<Option<Gc<Symbol>>> {
+    ) -> io::Result<Option<Id<Symbol>>> {
         let resolved_symbol = (*self.get_node_links(reference))
             .borrow()
             .resolved_symbol
@@ -558,11 +557,10 @@ impl TypeChecker {
                 get_parse_tree_node(Some(reference_in), Some(|node: &Node| is_identifier(node)));
             if let Some(reference) = reference.as_ref() {
                 let symbol = self.get_referenced_value_symbol(reference, None)?;
-                if let Some(symbol) = symbol.as_ref() {
+                if let Some(symbol) = symbol {
                     return Ok(self
-                        .get_export_symbol_of_value_symbol_if_exported(Some(&**symbol))
-                        .as_ref()
-                        .and_then(|export_symbol| export_symbol.maybe_value_declaration()));
+                        .get_export_symbol_of_value_symbol_if_exported(Some(symbol))
+                        .and_then(|export_symbol| self.symbol(export_symbol).maybe_value_declaration()));
                 }
             }
         }
@@ -576,7 +574,7 @@ impl TypeChecker {
     ) -> io::Result<bool> {
         if is_declaration_readonly(node) || is_variable_declaration(node) && is_var_const(node) {
             return Ok(self.is_fresh_literal_type(
-                self.get_type_of_symbol(&self.get_symbol_of_node(node)?.unwrap())?,
+                self.get_type_of_symbol(self.get_symbol_of_node(node)?.unwrap())?,
             ));
         }
         Ok(false)
@@ -590,7 +588,7 @@ impl TypeChecker {
     ) -> io::Result<Gc<Node /*Expression*/>> {
         let enum_result = if self.type_(type_).flags().intersects(TypeFlags::EnumLiteral) {
             self.node_builder().symbol_to_expression(
-                &self.type_(type_).symbol(),
+                self.type_(type_).symbol(),
                 Some(SymbolFlags::Value),
                 Some(enclosing),
                 None,
@@ -625,7 +623,7 @@ impl TypeChecker {
         node: &Node, /*VariableDeclaration | PropertyDeclaration | PropertySignature | ParameterDeclaration*/
         tracker: Gc<Box<dyn SymbolTracker>>,
     ) -> io::Result<Gc<Node>> {
-        let type_ = self.get_type_of_symbol(&self.get_symbol_of_node(node)?.unwrap())?;
+        let type_ = self.get_type_of_symbol(self.get_symbol_of_node(node)?.unwrap())?;
         self.literal_type_to_node(type_, node, tracker)
     }
 
@@ -711,7 +709,7 @@ impl TypeChecker {
             None,
         )?);
         Ok(get_declaration_of_kind(
-            &module_symbol,
+            module_symbol,
             SyntaxKind::SourceFile,
         ))
     }
@@ -733,9 +731,8 @@ impl TypeChecker {
             if !is_external_or_common_js_module(file) {
                 let file_global_this_symbol = (*file.locals()).borrow().get("globalThis").cloned();
                 if let Some(ref file_global_this_symbol_declarations) = file_global_this_symbol
-                    .as_ref()
                     .and_then(|file_global_this_symbol| {
-                        file_global_this_symbol.maybe_declarations().clone()
+                        self.symbol(file_global_this_symbol).maybe_declarations().clone()
                     })
                 {
                     for declaration in file_global_this_symbol_declarations {
@@ -791,8 +788,7 @@ impl TypeChecker {
             }
             if let Some(file_symbol_global_exports) = file
                 .maybe_symbol()
-                .as_ref()
-                .and_then(|file_symbol| file_symbol.maybe_global_exports().clone())
+                .and_then(|file_symbol| self.symbol(file_symbol).maybe_global_exports().clone())
             {
                 let source = file_symbol_global_exports;
                 let mut globals = self.globals_mut();
@@ -1016,7 +1012,7 @@ impl TypeChecker {
                 && !location.flags().intersects(NodeFlags::Ambient)
             {
                 let helpers_module = self.resolve_helpers_module(&source_file, location)?;
-                if !Gc::ptr_eq(&helpers_module, &self.unknown_symbol()) {
+                if helpers_module != self.unknown_symbol() {
                     let unchecked_helpers = helpers & !self.requested_external_emit_helpers();
                     let mut helper = ExternalEmitHelpers::FirstEmitHelper;
                     while helper <= ExternalEmitHelpers::LastEmitHelper {
@@ -1147,7 +1143,7 @@ impl TypeChecker {
         &self,
         node: &Node, /*SourceFile*/
         error_node: &Node,
-    ) -> io::Result<Gc<Symbol>> {
+    ) -> io::Result<Id<Symbol>> {
         let mut external_helpers_module = self.maybe_external_helpers_module();
         if external_helpers_module.is_none() {
             *external_helpers_module = Some(

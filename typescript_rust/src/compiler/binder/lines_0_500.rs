@@ -27,7 +27,7 @@ use crate::{
     create_symbol_table, get_escaped_text_of_identifier_or_literal, get_name_of_declaration,
     is_property_name_literal, object_allocator, set_parent, set_value_declaration, BaseSymbol,
     InternalSymbolName, NamedDeclarationInterface, Node, NodeArray, NodeInterface, SymbolFlags,
-    SymbolInterface,
+    SymbolInterface, AllArenas,
 };
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
@@ -297,6 +297,8 @@ pub fn bind_source_file(file: &Node /*SourceFile*/, options: Gc<CompilerOptions>
 #[allow(non_snake_case)]
 #[derive(Trace, Finalize)]
 pub(crate) struct BinderType {
+    #[unsafe_ignore_trace]
+    pub(crate) arena: *const AllArenas,
     pub(super) _rc_wrapper: GcCell<Option<Gc<BinderType>>>,
     pub(super) file: GcCell<Option<Gc</*SourceFile*/ Node>>>,
     pub(super) options: GcCell<Option<Gc<CompilerOptions>>>,
@@ -346,8 +348,11 @@ pub(crate) struct BinderType {
     pub(super) bind_binary_expression_flow: GcCell<Option<Gc<BindBinaryExpressionFlow>>>,
 }
 
-pub(super) fn create_binder() -> Gc<BinderType> {
+pub(super) fn create_binder(
+    arena: *const AllArenas,
+) -> Gc<BinderType> {
     let wrapped = Gc::new(BinderType {
+        arena,
         _rc_wrapper: Default::default(),
         file: Default::default(),
         options: Default::default(),
@@ -391,6 +396,22 @@ pub(super) fn create_binder() -> Gc<BinderType> {
 impl BinderType {
     pub(super) fn call(&self, f: &Node, opts: Gc<CompilerOptions>) {
         self.bind_source_file(f, opts);
+    }
+
+    pub fn arena(&self) -> &AllArenas {
+        unsafe {
+            &*self.arena
+        }
+    }
+
+    #[track_caller]
+    pub fn symbol(&self, symbol: Id<Symbol>) -> debug_cell::Ref<Symbol> {
+        self.arena().symbol(symbol)
+    }
+
+    #[track_caller]
+    pub fn alloc_symbol(&self, symbol: Symbol) -> Id<Symbol> {
+        self.arena().create_symbol(symbol)
     }
 
     pub(super) fn rc_wrapper(&self) -> Gc<Self> {
@@ -769,7 +790,7 @@ impl BinderType {
         node: &Node, /*Declaration*/
         symbol_flags: SymbolFlags,
     ) {
-        symbol.set_flags(symbol.flags() | symbol_flags);
+        self.symbol(symbol).set_flags(self.symbol(symbol).flags() | symbol_flags);
 
         node.set_symbol(symbol.symbol_wrapper());
         let mut symbol_declarations = symbol.maybe_declarations_mut();

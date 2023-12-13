@@ -59,7 +59,7 @@ impl TypeChecker {
                 if self.is_type_usable_as_property_name(expr_type) {
                     let text = self.get_property_name_from_type(expr_type);
                     let prop = self.get_property_of_type_(object_literal_type, &text, None)?;
-                    if let Some(prop) = prop.as_ref() {
+                    if let Some(prop) = prop {
                         self.mark_property_as_referenced(prop, Some(&**property), right_is_this);
                         self.check_property_accessibility(
                             property,

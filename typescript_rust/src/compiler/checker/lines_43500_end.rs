@@ -773,10 +773,8 @@ impl TypeChecker {
                         }
                         if overlap_obj_flags.intersects(ObjectFlags::Anonymous) {
                             return self.type_(source).maybe_alias_symbol().is_some()
-                                && are_option_gcs_equal(
-                                    self.type_(source).maybe_alias_symbol().as_ref(),
-                                    self.type_(target).maybe_alias_symbol().as_ref(),
-                                );
+                                && self.type_(source).maybe_alias_symbol() ==
+                                    self.type_(target).maybe_alias_symbol();
                         }
                     }
                     false
@@ -931,9 +929,9 @@ impl TypeChecker {
                         let p_clone = p.clone();
                         let type_checker = self.rc_wrapper();
                         (
-                            Box::new(move || type_checker.get_type_of_symbol(&p_clone))
+                            Box::new(move || type_checker.get_type_of_symbol(p_clone))
                                 as Box<dyn Fn() -> io::Result<Id<Type>>>,
-                            p.escaped_name().to_owned(),
+                            self.symbol(p).escaped_name().to_owned(),
                         )
                     }),
                     |source: Id<Type>, target: Id<Type>| {
@@ -1006,13 +1004,13 @@ impl EmitResolverCreateResolver {
     }
 
     pub(super) fn is_symbol_from_type_declaration_file(&self, symbol: Id<Symbol>) -> io::Result<bool> {
-        let symbol_declarations = symbol.maybe_declarations();
+        let symbol_declarations = self.symbol(symbol).maybe_declarations();
         if symbol_declarations.is_none() {
             return Ok(false);
         }
         let symbol_declarations = symbol_declarations.as_ref().unwrap();
 
-        let mut current = symbol.symbol_wrapper();
+        let mut current = symbol;
         loop {
             let parent = self.type_checker.get_parent_of_symbol(&current)?;
             if let Some(parent) = parent {
@@ -1154,8 +1152,8 @@ impl EmitResolver for EmitResolverCreateResolver {
             .as_ref()
             .try_and_then(|node| self.type_checker.get_symbol_of_node(node))?;
         Ok(matches!(
-            symbol.as_ref(),
-            Some(symbol) if get_check_flags(symbol).intersects(CheckFlags::Late)
+            symbol,
+            Some(symbol) if get_check_flags(&self.type_checker.symbol(symbol)).intersects(CheckFlags::Late)
         ))
     }
 
@@ -1365,8 +1363,8 @@ impl EmitResolver for EmitResolverCreateResolver {
             Option::<&Node>::None,
         )?;
         symbol
-            .filter(|symbol| !Gc::ptr_eq(symbol, &self.type_checker.unknown_symbol()))
-            .try_and_then(|ref symbol| -> io::Result<_> {
+            .filter(|&symbol| symbol != self.type_checker.unknown_symbol())
+            .try_and_then(|symbol| -> io::Result<_> {
                 self.get_type_reference_directives_for_symbol(symbol, Some(meaning))
             })
     }
@@ -1381,7 +1379,7 @@ impl EmitResolver for EmitResolverCreateResolver {
             return Ok(None);
         }
         let mut type_reference_directives: Option<Vec<String>> = Default::default();
-        for decl in symbol.maybe_declarations().as_ref().unwrap() {
+        for decl in self.type_checker.symbol(symbol).maybe_declarations().as_ref().unwrap() {
             if decl
                 .maybe_symbol()
                 .filter(|decl_symbol| {
@@ -1438,7 +1436,7 @@ impl EmitResolver for EmitResolverCreateResolver {
             SyntaxKind::SetAccessor
         };
         let other_accessor = get_declaration_of_kind(
-            &self.type_checker.get_symbol_of_node(accessor)?.unwrap(),
+            &self.type_checker.symbol(self.type_checker.get_symbol_of_node(accessor)?.unwrap()),
             other_kind,
         );
         let first_accessor = other_accessor
@@ -1474,7 +1472,7 @@ impl EmitResolver for EmitResolverCreateResolver {
     fn get_symbol_of_external_module_specifier(
         &self,
         module_name: &Node, /*StringLiteralLike*/
-    ) -> io::Result<Option<Gc<Symbol>>> {
+    ) -> io::Result<Option<Id<Symbol>>> {
         self.type_checker
             .resolve_external_module_name_worker(module_name, module_name, None, None)
     }
@@ -1527,7 +1525,7 @@ impl EmitResolver for EmitResolverCreateResolver {
             });
         }
         let sym = sym.unwrap();
-        let ret = match sym.maybe_exports().as_ref() {
+        let ret = match self.type_checker.symbol(sym).maybe_exports().as_ref() {
             None => Some(vec![]),
             Some(sym_exports) => self
                 .type_checker
@@ -1552,7 +1550,7 @@ impl EmitResolver for EmitResolverCreateResolver {
         if file_symbol.is_none() {
             return Ok(false);
         }
-        let ref file_symbol = file_symbol.unwrap();
+        let file_symbol = file_symbol.unwrap();
         let ref import_target = return_ok_default_if_none!(self
             .type_checker
             .get_external_module_file_from_declaration(node)?);
@@ -1560,10 +1558,10 @@ impl EmitResolver for EmitResolverCreateResolver {
             return Ok(false);
         }
         let exports = self.type_checker.get_exports_of_module_(file_symbol)?;
-        for s in (*exports).borrow().values() {
-            if s.maybe_merge_id().is_some() {
-                let merged = self.type_checker.get_merged_symbol(Some(&**s)).unwrap();
-                if let Some(merged_declarations) = merged.maybe_declarations().as_ref() {
+        for &s in (*exports).borrow().values() {
+            if self.type_checker.symbol(s).maybe_merge_id().is_some() {
+                let merged = self.type_checker.get_merged_symbol(Some(s)).unwrap();
+                if let Some(merged_declarations) = self.type_checker.symbol(merged).maybe_declarations().as_ref() {
                     for d in merged_declarations {
                         let ref decl_file = get_source_file_of_node(d);
                         if Gc::ptr_eq(decl_file, import_target) {

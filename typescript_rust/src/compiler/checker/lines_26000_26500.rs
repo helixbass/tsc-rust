@@ -606,7 +606,7 @@ impl TypeChecker {
                                     )?)
                             }
                         )?,
-                        |s: &Gc<Symbol>, _| {
+                        |s: &Id<Symbol>, _| {
                             (
                                 Box::new({
                                     let type_checker = self.rc_wrapper();
@@ -687,7 +687,7 @@ impl TypeChecker {
                                     )?)
                             }
                         )?,
-                        |s: &Gc<Symbol>, _| {
+                        |s: &Id<Symbol>, _| {
                             (
                                 Box::new({
                                     let type_checker = self.rc_wrapper();

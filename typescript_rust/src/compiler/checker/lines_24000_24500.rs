@@ -350,12 +350,19 @@ impl GetFlowTypeOfReference {
         let prop = self
             .type_checker
             .get_property_of_type_(type_, prop_name, None)?;
-        if let Some(prop) = prop.as_ref() {
-            return Ok(if prop.flags().intersects(SymbolFlags::Optional) {
-                true
-            } else {
-                assume_true
-            });
+        if let Some(prop) = prop {
+            return Ok(
+                if self
+                    .type_checker
+                    .symbol(prop)
+                    .flags()
+                    .intersects(SymbolFlags::Optional)
+                {
+                    true
+                } else {
+                    assume_true
+                },
+            );
         }
         Ok(
             if self
@@ -400,11 +407,10 @@ impl GetFlowTypeOfReference {
                         .types(),
                     |&t: &Id<Type>, _| {
                         !matches!(
-                            self.type_checker.type_(t).maybe_symbol().as_ref(),
-                            Some(t_symbol) if Gc::ptr_eq(
-                                t_symbol,
-                                &self.type_checker.global_this_symbol()
-                            )
+                            self.type_checker.type_(t).maybe_symbol(),
+                            Some(t_symbol) if 
+                                t_symbol ==
+                                self.type_checker.global_this_symbol()
                         )
                     },
                 )
@@ -646,9 +652,9 @@ impl GetFlowTypeOfReference {
             return Ok(type_);
         }
         let symbol = symbol.unwrap();
-        let class_symbol = symbol.maybe_parent().unwrap();
+        let class_symbol = self.type_checker.symbol(symbol).maybe_parent().unwrap();
         let target_type = if has_static_modifier(Debug_.check_defined::<&Gc<Node>>(
-            symbol.maybe_value_declaration().as_ref(),
+            self.type_checker.symbol(symbol).maybe_value_declaration().as_ref(),
             Some("should always have a declaration"),
         )) {
             self.type_checker.get_type_of_symbol(&class_symbol)?

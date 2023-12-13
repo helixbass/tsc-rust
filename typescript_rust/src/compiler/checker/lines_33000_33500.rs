@@ -33,15 +33,15 @@ impl TypeChecker {
         right_type: Id<Type>,
     ) -> io::Result<()> {
         if kind == AssignmentDeclarationKind::ModuleExports {
-            for ref prop in self.get_properties_of_object_type(right_type)? {
+            for prop in self.get_properties_of_object_type(right_type)? {
                 let prop_type = self.get_type_of_symbol(prop)?;
                 if matches!(
-                    self.type_(prop_type).maybe_symbol().as_ref(),
-                    Some(prop_type_symbol) if prop_type_symbol.flags().intersects(SymbolFlags::Class)
+                    self.type_(prop_type).maybe_symbol(),
+                    Some(prop_type_symbol) if self.symbol(prop_type_symbol).flags().intersects(SymbolFlags::Class)
                 ) {
-                    let name = prop.escaped_name();
+                    let name = self.symbol(prop).escaped_name();
                     let symbol = self.resolve_name_(
-                        prop.maybe_value_declaration(),
+                        self.symbol(prop).maybe_value_declaration(),
                         name,
                         SymbolFlags::Type,
                         None,
@@ -189,7 +189,7 @@ impl TypeChecker {
                     init.as_ref(),
                     Some(init) if is_object_literal_expression(init)
                 ) && matches!(
-                    symbol.as_ref().and_then(|symbol| symbol.maybe_exports().clone()),
+                    symbol.and_then(|symbol| self.symbol(symbol).maybe_exports().clone()),
                     Some(symbol_exports) if !(*symbol_exports).borrow().is_empty()
                 )
             }

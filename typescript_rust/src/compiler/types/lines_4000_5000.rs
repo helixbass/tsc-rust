@@ -984,12 +984,6 @@ pub enum Symbol {
 }
 
 impl Symbol {
-    pub fn wrap(self) -> Id<Symbol> {
-        let rc = Gc::new(self);
-        rc.set_symbol_wrapper(rc.clone());
-        rc
-    }
-
     pub fn maybe_as_transient_symbol(&self) -> Option<&TransientSymbol> {
         match self {
             Self::TransientSymbol(value) => Some(value),
@@ -1041,7 +1035,6 @@ pub struct BaseSymbol {
 impl BaseSymbol {
     pub fn new(flags: SymbolFlags, name: __String) -> Self {
         Self {
-            _symbol_wrapper: GcCell::new(None),
             flags: Cell::new(flags),
             escaped_name: name,
             declarations: GcCell::new(None),

@@ -404,9 +404,9 @@ pub trait ObjectTypeInterface: ObjectFlagsTypeInterface {
     fn set_members(&self, members: Option<Gc<GcCell<SymbolTable>>>);
     fn maybe_properties(&self) -> Option<GcVec<Id<Symbol>>>;
     fn maybe_call_signatures(&self) -> GcCellRef<Option<Vec<Gc<Signature>>>>;
-    // fn maybe_properties(&self) -> Option<&[Gc<Symbol>]>;
-    // fn properties(&self) -> &[Gc<Symbol>];
-    // fn set_properties(&self, properties: Vec<Gc<Symbol>>);
+    // fn maybe_properties(&self) -> Option<&[Id<Symbol>]>;
+    // fn properties(&self) -> &[Id<Symbol>];
+    // fn set_properties(&self, properties: Vec<Id<Symbol>>);
     fn maybe_target(&self) -> Option<Id<Type>>;
     fn maybe_mapper(&self) -> Option<Id<TypeMapper>>;
     fn maybe_instantiations(&self) -> GcCellRefMut<Option<HashMap<String, Id<Type>>>>;

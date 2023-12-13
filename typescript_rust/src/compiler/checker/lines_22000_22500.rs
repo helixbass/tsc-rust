@@ -253,7 +253,7 @@ impl InferTypes {
             let prop_types = self
                 .type_checker
                 .get_properties_of_type(source)?
-                .map(|ref property| self.type_checker.get_type_of_symbol(property))
+                .map(|property| self.type_checker.get_type_of_symbol(property))
                 .collect::<Result<Vec<_>, _>>()?;
             let index_infos = self.type_checker.get_index_infos_of_type(source)?;
             let index_types = index_infos.iter().map(|info| {
@@ -672,13 +672,13 @@ impl InferTypes {
         target: Id<Type>,
     ) -> io::Result<()> {
         let properties = self.type_checker.get_properties_of_object_type(target)?;
-        for ref target_prop in properties {
+        for target_prop in properties {
             let source_prop = self.type_checker.get_property_of_type_(
                 source,
-                target_prop.escaped_name(),
+                self.type_checker.symbol(target_prop).escaped_name(),
                 None,
             )?;
-            if let Some(source_prop) = source_prop.as_ref() {
+            if let Some(source_prop) = source_prop {
                 self.infer_from_types(
                     self.type_checker.get_type_of_symbol(source_prop)?,
                     self.type_checker.get_type_of_symbol(target_prop)?,
@@ -776,7 +776,7 @@ impl InferTypes {
         {
             for target_info in &index_infos {
                 let mut prop_types: Vec<Id<Type>> = vec![];
-                for ref prop in self.type_checker.get_properties_of_type(source)? {
+                for prop in self.type_checker.get_properties_of_type(source)? {
                     if self.type_checker.is_applicable_index_type(
                         self.type_checker.get_literal_type_from_property(
                             prop,
@@ -786,12 +786,19 @@ impl InferTypes {
                         target_info.key_type,
                     )? {
                         let prop_type = self.type_checker.get_type_of_symbol(prop)?;
-                        prop_types.push(if prop.flags().intersects(SymbolFlags::Optional) {
-                            self.type_checker
-                                .remove_missing_or_undefined_type(prop_type)?
-                        } else {
-                            prop_type
-                        });
+                        prop_types.push(
+                            if self
+                                .type_checker
+                                .symbol(prop)
+                                .flags()
+                                .intersects(SymbolFlags::Optional)
+                            {
+                                self.type_checker
+                                    .remove_missing_or_undefined_type(prop_type)?
+                            } else {
+                                prop_type
+                            },
+                        );
                     }
                 }
                 for info in &self.type_checker.get_index_infos_of_type(source)? {
@@ -853,17 +860,17 @@ impl TypeChecker {
         self.type_(s).flags().intersects(TypeFlags::Object)
             && self.type_(t).flags().intersects(TypeFlags::Object)
             && matches!(
-                self.type_(s).maybe_symbol().as_ref(),
+                self.type_(s).maybe_symbol(),
                 Some(s_symbol) if matches!(
-                    self.type_(t).maybe_symbol().as_ref(),
-                    Some(t_symbol) if Gc::ptr_eq(s_symbol, t_symbol)
+                    self.type_(t).maybe_symbol(),
+                    Some(t_symbol) if s_symbol == t_symbol
                 )
             )
             || matches!(
-                self.type_(s).maybe_alias_symbol().as_ref(),
+                self.type_(s).maybe_alias_symbol(),
                 Some(s_alias_symbol) if matches!(
-                    self.type_(t).maybe_alias_symbol().as_ref(),
-                    Some(t_alias_symbol) if Gc::ptr_eq(s_alias_symbol, t_alias_symbol)
+                    self.type_(t).maybe_alias_symbol(),
+                    Some(t_alias_symbol) if s_alias_symbol == t_alias_symbol
                 )
             ) && self.type_(s).maybe_alias_type_arguments().is_some()
     }

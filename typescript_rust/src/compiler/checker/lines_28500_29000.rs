@@ -616,7 +616,7 @@ impl TypeChecker {
     pub(super) fn get_for_in_variable_symbol(
         &self,
         node: &Node, /*ForInStatement*/
-    ) -> io::Result<Option<Gc<Symbol>>> {
+    ) -> io::Result<Option<Id<Symbol>>> {
         let initializer = &node.as_for_in_statement().initializer;
         if initializer.kind() == SyntaxKind::VariableDeclarationList {
             let variable = initializer
