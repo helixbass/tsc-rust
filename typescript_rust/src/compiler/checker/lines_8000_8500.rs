@@ -811,7 +811,7 @@ impl TypeChecker {
                 None,
             );
         }
-        let mut members = create_symbol_table(Option::<&[Id<Symbol>]>::None);
+        let mut members = create_symbol_table(self.arena(), Option::<&[Id<Symbol>]>::None);
         for prop in self.get_properties_of_type(source)? {
             if !self.is_type_assignable_to(
                 self.get_literal_type_from_property(
@@ -820,7 +820,7 @@ impl TypeChecker {
                     None,
                 )?,
                 omit_key_type,
-            )? && !get_declaration_modifier_flags_from_symbol(&self.symbol(prop), None)
+            )? && !get_declaration_modifier_flags_from_symbol(self.arena(), &self.symbol(prop), None)
                 .intersects(ModifierFlags::Private | ModifierFlags::Protected)
                 && self.is_spreadable_property(&prop)
             {

@@ -350,7 +350,7 @@ impl TypeChecker {
             .maybe_resolved_properties()
             .is_none()
         {
-            let mut members = create_symbol_table(Option::<&[Id<Symbol>]>::None);
+            let mut members = create_symbol_table(self.arena(), Option::<&[Id<Symbol>]>::None);
             for current in {
                 let types = self
                     .type_(type_)
@@ -463,7 +463,7 @@ impl TypeChecker {
             return self.get_augmented_properties_of_type(union_type);
         }
 
-        let mut props = create_symbol_table(Option::<&[Id<Symbol>]>::None);
+        let mut props = create_symbol_table(self.arena(), Option::<&[Id<Symbol>]>::None);
         for &member_type in types {
             for augmented_property in self.get_augmented_properties_of_type(member_type)? {
                 let escaped_name = self.symbol(augmented_property).escaped_name();

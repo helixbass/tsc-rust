@@ -168,7 +168,7 @@ impl BinderType {
             if container_flags.intersects(ContainerFlags::HasLocals) {
                 self.container()
                     .set_locals(Some(Gc::new(GcCell::new(create_symbol_table(
-                        Option::<&[Id<Symbol>]>::None,
+                        self.arena(), Option::<&[Id<Symbol>]>::None,
                     )))));
             }
             self.add_to_container_chain(&self.container());

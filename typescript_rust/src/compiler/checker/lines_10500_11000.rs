@@ -261,7 +261,7 @@ impl TypeChecker {
                 ),
             );
 
-            let mut late_symbols = create_symbol_table(Option::<&[Id<Symbol>]>::None);
+            let mut late_symbols = create_symbol_table(self.arena(), Option::<&[Id<Symbol>]>::None);
             let early_symbols_ref = early_symbols
                 .as_ref()
                 .map(|early_symbols| (**early_symbols).borrow());
@@ -505,7 +505,7 @@ impl TypeChecker {
                 self.get_members_of_symbol(source_symbol)?
             } else {
                 Gc::new(GcCell::new(create_symbol_table(
-                    self.type_(source)
+                    self.arena(), self.type_(source)
                         .as_interface_type_with_declared_members()
                         .maybe_declared_properties()
                         .as_deref(),
@@ -567,7 +567,7 @@ impl TypeChecker {
             if matches!(self.type_(source).maybe_symbol(), Some(symbol) if Gc::ptr_eq(&members, &self.get_members_of_symbol(symbol)?))
             {
                 members = Gc::new(GcCell::new(create_symbol_table(
-                    self.type_(source)
+                    self.arena(), self.type_(source)
                         .as_interface_type_with_declared_members()
                         .maybe_declared_properties()
                         .as_deref(),

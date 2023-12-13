@@ -935,11 +935,11 @@ impl TypeChecker {
 
         let node_as_object_literal_expression = node.as_object_literal_expression();
         let mut all_properties_table = if self.strict_null_checks {
-            Some(create_symbol_table(Option::<&[Id<Symbol>]>::None))
+            Some(create_symbol_table(self.arena(), Option::<&[Id<Symbol>]>::None))
         } else {
             None
         };
-        let mut properties_table = create_symbol_table(Option::<&[Id<Symbol>]>::None);
+        let mut properties_table = create_symbol_table(self.arena(), Option::<&[Id<Symbol>]>::None);
         let mut properties_array: Vec<Id<Symbol>> = vec![];
         let mut spread: Id<Type> = self.empty_object_type();
 
@@ -1178,7 +1178,7 @@ impl TypeChecker {
                         in_const_context,
                     )?;
                     properties_array = vec![];
-                    properties_table = create_symbol_table(Option::<&[Id<Symbol>]>::None);
+                    properties_table = create_symbol_table(self.arena(), Option::<&[Id<Symbol>]>::None);
                     has_computed_string_property = false;
                     has_computed_number_property = false;
                     has_computed_symbol_property = false;
@@ -1306,7 +1306,7 @@ impl TypeChecker {
                     in_const_context,
                 )?;
                 properties_array = vec![];
-                properties_table = create_symbol_table(Option::<&[Id<Symbol>]>::None);
+                properties_table = create_symbol_table(self.arena(), Option::<&[Id<Symbol>]>::None);
                 has_computed_string_property = false;
                 has_computed_number_property = false;
             }

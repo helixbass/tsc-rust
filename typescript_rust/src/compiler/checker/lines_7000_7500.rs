@@ -649,7 +649,7 @@ impl SymbolTableToDeclarationStatements {
                 Some(NodeFlags::Namespace),
             );
             set_parent(&fakespace, Some(&*self.enclosing_declaration));
-            fakespace.set_locals(Some(Gc::new(GcCell::new(create_symbol_table(Some(props))))));
+            fakespace.set_locals(Some(Gc::new(GcCell::new(create_symbol_table(self.arena(), Some(props))))));
             if let Some(props_0_parent) = self.type_checker.symbol(props[0]).maybe_parent() {
                 fakespace.set_symbol(props_0_parent);
             }
@@ -664,7 +664,7 @@ impl SymbolTableToDeclarationStatements {
             let old_context = self.context();
             self.set_context(subcontext);
             self.visit_symbol_table(
-                Gc::new(GcCell::new(create_symbol_table(Some(&local_props)))),
+                Gc::new(GcCell::new(create_symbol_table(self.arena(), Some(&local_props)))),
                 Some(suppress_new_private_context),
                 Some(true),
             )?;

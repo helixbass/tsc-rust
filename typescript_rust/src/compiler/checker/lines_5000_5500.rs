@@ -1138,7 +1138,7 @@ impl NodeBuilder {
                 if self.type_checker.symbol(property_symbol).flags().intersects(SymbolFlags::Prototype) {
                     continue;
                 }
-                if get_declaration_modifier_flags_from_symbol(property_symbol, None)
+                if get_declaration_modifier_flags_from_symbol(self.arena(), property_symbol, None)
                     .intersects(ModifierFlags::Private | ModifierFlags::Protected)
                 /*&& context.tracker.reportPrivateInBaseOfClassExpression*/
                 {

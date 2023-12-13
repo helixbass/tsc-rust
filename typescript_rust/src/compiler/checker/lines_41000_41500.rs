@@ -368,7 +368,7 @@ impl TypeChecker {
         type_: Id<Type>,
     ) -> io::Result<Vec<Id<Symbol>>> {
         let type_ = self.get_apparent_type(type_)?;
-        let mut props_by_name = create_symbol_table(Some(self.get_properties_of_type(type_)?));
+        let mut props_by_name = create_symbol_table(self.arena(), Some(self.get_properties_of_type(type_)?));
         let function_type = if !self
             .get_signatures_of_type(type_, SignatureKind::Call)?
             .is_empty()

@@ -195,7 +195,7 @@ impl TypeChecker {
         type_: Id<Type>,
         context: Option<Rc<RefCell<WideningContext>>>,
     ) -> io::Result<Id<Type>> {
-        let mut members = create_symbol_table(Option::<&[Id<Symbol>]>::None);
+        let mut members = create_symbol_table(self.arena(), Option::<&[Id<Symbol>]>::None);
         for ref prop in self.get_properties_of_object_type(type_)? {
             members.insert(
                 prop.escaped_name().to_owned(),
@@ -971,7 +971,7 @@ impl TypeChecker {
         &self,
         type_: Id<Type>,
     ) -> io::Result<Id<Type>> {
-        let mut members = create_symbol_table(Option::<&[Id<Symbol>]>::None);
+        let mut members = create_symbol_table(self.arena(), Option::<&[Id<Symbol>]>::None);
         self.for_each_type(type_, |t: Id<Type>| -> Option<()> {
             if !self.type_(t).flags().intersects(TypeFlags::StringLiteral) {
                 return None;

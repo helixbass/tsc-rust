@@ -25,29 +25,29 @@ impl TypeChecker {
     ) -> io::Result<Option<Id<Symbol>>> {
         if matches!(
             self.get_parent_of_symbol(symbol)?,
-            Some(parent) if ptr::eq(container, &*parent)
+            Some(parent) if container == parent
         ) {
-            return Ok(Some(symbol.symbol_wrapper()));
+            return Ok(Some(symbol));
         }
-        let export_equals = container.maybe_exports().as_ref().and_then(|exports| {
+        let export_equals = self.symbol(container).maybe_exports().as_ref().and_then(|exports| {
             (**exports)
                 .borrow()
                 .get(InternalSymbolName::ExportEquals)
                 .cloned()
         });
-        if matches!(export_equals, Some(export_equals) if self.get_symbol_if_same_reference(&export_equals, symbol)?.is_some())
+        if matches!(export_equals, Some(export_equals) if self.get_symbol_if_same_reference(export_equals, symbol)?.is_some())
         {
-            return Ok(Some(container.symbol_wrapper()));
+            return Ok(Some(container));
         }
         let exports = self.get_exports_of_symbol(container)?;
         let exports = (*exports).borrow();
-        let quick = exports.get(symbol.escaped_name());
-        if let Some(quick) = quick {
+        let quick = exports.get(self.symbol(symbol).escaped_name());
+        if let Some(&quick) = quick {
             if self.get_symbol_if_same_reference(quick, symbol)?.is_some() {
                 return Ok(Some(quick.clone()));
             }
         }
-        try_for_each_entry(&*exports, |exported: &Id<Symbol>, _| {
+        try_for_each_entry(&*exports, |&exported: &Id<Symbol>, _| {
             if self
                 .get_symbol_if_same_reference(exported, symbol)?
                 .is_some()
@@ -63,15 +63,13 @@ impl TypeChecker {
         s1: Id<Symbol>,
         s2: Id<Symbol>,
     ) -> io::Result<Option<Id<Symbol>>> {
-        if Gc::ptr_eq(
-            &self
+        if self
                 .get_merged_symbol(self.resolve_symbol(self.get_merged_symbol(Some(s1)), None)?)
-                .unwrap(),
-            &self
+                .unwrap() ==
+            self
                 .get_merged_symbol(self.resolve_symbol(self.get_merged_symbol(Some(s2)), None)?)
-                .unwrap(),
-        ) {
-            return Ok(Some(s1.symbol_wrapper()));
+                .unwrap() {
+            return Ok(Some(s1));
         }
         Ok(None)
     }
@@ -433,7 +431,7 @@ impl TypeChecker {
                             .intersects(SymbolFlags::Type & !SymbolFlags::Assignment)
                         {
                             if table.is_none() {
-                                table = Some(create_symbol_table(Option::<&[Id<Symbol>]>::None));
+                                table = Some(create_symbol_table(self.arena(), Option::<&[Id<Symbol>]>::None));
                             }
                             table
                                 .as_mut()

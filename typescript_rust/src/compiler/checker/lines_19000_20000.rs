@@ -381,8 +381,8 @@ impl CheckTypeRelatedTo {
         intersection_state: IntersectionState,
         skip_optional: bool,
     ) -> io::Result<Ternary> {
-        let source_prop_flags = get_declaration_modifier_flags_from_symbol(source_prop, None);
-        let target_prop_flags = get_declaration_modifier_flags_from_symbol(target_prop, None);
+        let source_prop_flags = get_declaration_modifier_flags_from_symbol(self.arena(), source_prop, None);
+        let target_prop_flags = get_declaration_modifier_flags_from_symbol(self.arena(), target_prop, None);
         if source_prop_flags.intersects(ModifierFlags::Private)
             || target_prop_flags.intersects(ModifierFlags::Private)
         {

@@ -50,7 +50,7 @@ impl TypeChecker {
             return Ok(vec![]);
         }
 
-        let mut symbols = create_symbol_table(Option::<&[Id<Symbol>]>::None);
+        let mut symbols = create_symbol_table(self.arena(), Option::<&[Id<Symbol>]>::None);
         let mut is_static_symbol = false;
 
         let mut location = Some(location.node_wrapper());

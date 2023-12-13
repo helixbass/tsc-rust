@@ -153,7 +153,7 @@ impl TypeChecker {
         original_symbol: Id<Symbol>,
         anonymous_symbol: Option<Id<Symbol>>,
     ) -> io::Result<Id<Type>> {
-        let mut member_table = create_symbol_table(Option::<&[Id<Symbol>]>::None);
+        let mut member_table = create_symbol_table(self.arena(), Option::<&[Id<Symbol>]>::None);
         let new_symbol = self.alloc_symbol(self
             .create_symbol(
                 SymbolFlags::Alias,

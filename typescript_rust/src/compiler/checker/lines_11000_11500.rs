@@ -576,7 +576,7 @@ impl TypeChecker {
                 if self.type_(base_constructor_type).flags().intersects(
                     TypeFlags::Object | TypeFlags::Intersection | TypeFlags::TypeVariable,
                 ) {
-                    let members_new = Gc::new(GcCell::new(create_symbol_table(Some(
+                    let members_new = Gc::new(GcCell::new(create_symbol_table(self.arena(), Some(
                         &*self.get_named_or_index_signature_members(&*(*members).borrow())?,
                     ))));
                     members = members_new;
@@ -748,7 +748,7 @@ impl TypeChecker {
         } else {
             vec![]
         };
-        let mut members = create_symbol_table(Option::<&[Id<Symbol>]>::None);
+        let mut members = create_symbol_table(self.arena(), Option::<&[Id<Symbol>]>::None);
         for prop in
             self.get_properties_of_type(self.type_(type_).as_reverse_mapped_type().source)?
         {
@@ -950,7 +950,7 @@ impl TypeChecker {
         &self,
         type_: Id<Type>, /*MappedType*/
     ) -> io::Result<()> {
-        let mut members = create_symbol_table(Option::<&[Id<Symbol>]>::None);
+        let mut members = create_symbol_table(self.arena(), Option::<&[Id<Symbol>]>::None);
         let mut index_infos: Vec<Gc<IndexInfo>> = vec![];
         self.set_structured_type_members(
             self.type_(type_).as_mapped_type(),

@@ -315,7 +315,7 @@ impl TypeChecker {
     pub(super) fn is_readonly_symbol(&self, symbol: Id<Symbol>) -> io::Result<bool> {
         Ok(get_check_flags(symbol).intersects(CheckFlags::Readonly)
             || self.symbol(symbol).flags().intersects(SymbolFlags::Property)
-                && get_declaration_modifier_flags_from_symbol(symbol, None)
+                && get_declaration_modifier_flags_from_symbol(self.arena(), symbol, None)
                     .intersects(ModifierFlags::Readonly)
             || self.symbol(symbol).flags().intersects(SymbolFlags::Variable)
                 && self

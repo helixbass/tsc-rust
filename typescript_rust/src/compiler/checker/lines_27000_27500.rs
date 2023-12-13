@@ -254,12 +254,12 @@ impl TypeChecker {
             opening_like_element.as_jsx_opening_like_element();
         let attributes = opening_like_element_as_jsx_opening_like_element.attributes();
         let mut all_attributes_table = if self.strict_null_checks {
-            Some(create_symbol_table(Option::<&[Id<Symbol>]>::None))
+            Some(create_symbol_table(self.arena(), Option::<&[Id<Symbol>]>::None))
         } else {
             None
         };
         let attributes_table = Gc::new(GcCell::new(create_symbol_table(
-            Option::<&[Id<Symbol>]>::None,
+            self.arena(), Option::<&[Id<Symbol>]>::None,
         )));
         let mut spread = self.empty_jsx_object_type();
         let mut has_spread_any_type = false;
@@ -339,7 +339,7 @@ impl TypeChecker {
                         false,
                     )?;
                     *attributes_table.borrow_mut() =
-                        create_symbol_table(Option::<&[Id<Symbol>]>::None);
+                        create_symbol_table(self.arena(), Option::<&[Id<Symbol>]>::None);
                 }
                 let expr_type = self.get_reduced_type(self.check_expression_cached(
                     &attribute_decl.as_jsx_spread_attribute().expression,
@@ -487,7 +487,7 @@ impl TypeChecker {
                         .maybe_value_declaration()
                         .unwrap()
                         .set_symbol(children_prop_symbol.clone());
-                    let mut child_prop_map = create_symbol_table(Option::<&[Id<Symbol>]>::None);
+                    let mut child_prop_map = create_symbol_table(self.arena(), Option::<&[Id<Symbol>]>::None);
                     child_prop_map.insert(
                         jsx_children_property_name.clone(),
                         children_prop_symbol.clone(),

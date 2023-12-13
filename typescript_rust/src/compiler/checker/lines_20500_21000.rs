@@ -1170,7 +1170,7 @@ impl TypeChecker {
         type_: Id<Type>,
         mut f: impl FnMut(Id<Type>) -> io::Result<Id<Type>>,
     ) -> io::Result<SymbolTable> {
-        let mut members = create_symbol_table(Option::<&[Id<Symbol>]>::None);
+        let mut members = create_symbol_table(self.arena(), Option::<&[Id<Symbol>]>::None);
         for property in self.get_properties_of_object_type(type_)? {
             let original = self.get_type_of_symbol(property)?;
             let updated = f(original)?;

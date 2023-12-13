@@ -584,7 +584,7 @@ impl NodeBuilder {
         let mut parameter_declaration: Option<
             Gc<Node /*ParameterDeclaration | JSDocParameterTag*/>,
         > = get_declaration_of_kind(parameter_symbol, SyntaxKind::Parameter);
-        if parameter_declaration.is_none() && !is_transient_symbol(parameter_symbol) {
+        if parameter_declaration.is_none() && !is_transient_symbol(&self.symbol(parameter_symbol)) {
             parameter_declaration =
                 get_declaration_of_kind(parameter_symbol, SyntaxKind::JSDocParameterTag);
         }
@@ -1162,7 +1162,7 @@ impl NodeBuilder {
                 return Ok(self.type_checker.symbol(symbol).escaped_name()[1..self.type_checker.symbol(symbol).escaped_name().len() - 1].to_owned());
             }
             return Ok(
-                get_source_file_of_node(&get_non_augmentation_declaration(symbol).unwrap())
+                get_source_file_of_node(&get_non_augmentation_declaration(&self.symbol(symbol)).unwrap())
                     .as_source_file()
                     .file_name()
                     .clone(),

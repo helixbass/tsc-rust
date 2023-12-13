@@ -133,6 +133,7 @@ impl BinderType {
         if is_identifier(&root_expr)
             && matches!(
                 lookup_symbol_for_name(
+                    self,
                     &self.container(),
                     &root_expr.as_identifier().escaped_text
                 ),
@@ -150,6 +151,7 @@ impl BinderType {
                 .expression(),
         ) && matches!(self.maybe_container(), Some(container) if Gc::ptr_eq(&container, &self.file()))
             && is_exports_or_module_exports_or_alias(
+                self,
                 &self.file(),
                 &node_as_binary_expression
                     .left
@@ -235,7 +237,7 @@ impl BinderType {
                                 file.as_source_file().maybe_js_global_augmentations();
                             if file_js_global_augmentations.is_none() {
                                 *file_js_global_augmentations = Some(Gc::new(GcCell::new(
-                                    create_symbol_table(Option::<&[Id<Symbol>]>::None),
+                                    create_symbol_table(self.arena(), Option::<&[Id<Symbol>]>::None),
                                 )));
                             }
                             Some(self.declare_symbol(
@@ -287,7 +289,7 @@ impl BinderType {
                 let mut namespace_symbol_members = namespace_symbol.maybe_members_mut();
                 if namespace_symbol_members.is_none() {
                     *namespace_symbol_members = Some(Gc::new(GcCell::new(create_symbol_table(
-                        Option::<&[Id<Symbol>]>::None,
+                        self.arena(), Option::<&[Id<Symbol>]>::None,
                     ))));
                 }
                 namespace_symbol_members
@@ -295,7 +297,7 @@ impl BinderType {
                 let mut namespace_symbol_exports = namespace_symbol.maybe_exports_mut();
                 if namespace_symbol_exports.is_none() {
                     *namespace_symbol_exports = Some(Gc::new(GcCell::new(create_symbol_table(
-                        Option::<&[Id<Symbol>]>::None,
+                        self.arena(), Option::<&[Id<Symbol>]>::None,
                     ))));
                 }
                 namespace_symbol_exports
@@ -472,7 +474,7 @@ impl BinderType {
             lookup_container.map(|lookup_container| lookup_container.borrow().node_wrapper());
         let lookup_container = lookup_container.unwrap_or_else(|| self.container());
         if is_identifier(node) {
-            lookup_symbol_for_name(&lookup_container, &node.as_identifier().escaped_text)
+            lookup_symbol_for_name(self, &lookup_container, &node.as_identifier().escaped_text)
         } else {
             let symbol = self.lookup_symbol_for_property_access(
                 &node.as_has_expression().expression(),
@@ -499,7 +501,7 @@ impl BinderType {
         parent: Option<Id<Symbol>>,
         action: &mut TAction,
     ) -> Option<Id<Symbol>> {
-        if is_exports_or_module_exports_or_alias(&self.file(), e) {
+        if is_exports_or_module_exports_or_alias(self, &self.file(), e) {
             self.file().maybe_symbol()
         } else if is_identifier(e) {
             action(
@@ -805,7 +807,7 @@ impl BinderType {
                 let mut container_locals = container.maybe_locals_mut();
                 if container_locals.is_none() {
                     *container_locals = Some(Gc::new(GcCell::new(create_symbol_table(
-                        Option::<&[Id<Symbol>]>::None,
+                        self.arena(), Option::<&[Id<Symbol>]>::None,
                     ))));
                 }
                 self.declare_symbol(
@@ -830,7 +832,7 @@ impl BinderType {
                 let mut container_locals = container.maybe_locals_mut();
                 if container_locals.is_none() {
                     *container_locals = Some(Gc::new(GcCell::new(create_symbol_table(
-                        Option::<&[Id<Symbol>]>::None,
+                        self.arena(), Option::<&[Id<Symbol>]>::None,
                     ))));
                 }
                 self.declare_symbol(
@@ -960,6 +962,7 @@ fn is_purely_type_declaration(s: &Node /*Statement*/) -> bool {
 }
 
 pub fn is_exports_or_module_exports_or_alias(
+    binder: &BinderType,
     source_file: &Node, /*SourceFile*/
     node: &Node,        /*Expression*/
 ) -> bool {
@@ -972,10 +975,10 @@ pub fn is_exports_or_module_exports_or_alias(
         if is_exports_identifier(&node) || is_module_exports_access_expression(&node) {
             return true;
         } else if is_identifier(&node) {
-            let symbol = lookup_symbol_for_name(source_file, &node.as_identifier().escaped_text);
+            let symbol = lookup_symbol_for_name(binder, source_file, &node.as_identifier().escaped_text);
             if let Some(symbol) = symbol {
                 if let Some(symbol_value_declaration) =
-                    symbol
+                    binder.symbol(symbol)
                         .maybe_value_declaration()
                         .filter(|value_declaration| {
                             is_variable_declaration(value_declaration)
@@ -1003,6 +1006,7 @@ pub fn is_exports_or_module_exports_or_alias(
 }
 
 pub(super) fn lookup_symbol_for_name(
+    binder: &BinderType,
     container: &Node,
     name: &str, /*__String*/
 ) -> Option<Id<Symbol>> {
@@ -1011,7 +1015,12 @@ pub(super) fn lookup_symbol_for_name(
         .as_ref()
         .and_then(|locals| (**locals).borrow().get(name).cloned());
     if let Some(local) = local {
-        return Some(local.maybe_export_symbol().unwrap_or_else(|| local.clone()));
+        return Some(
+            binder
+                .symbol(local)
+                .maybe_export_symbol()
+                .unwrap_or_else(|| local.clone()),
+        );
     }
     if is_source_file(container) {
         let container_as_source_file = container.as_source_file();
@@ -1027,6 +1036,6 @@ pub(super) fn lookup_symbol_for_name(
     }
     container
         .maybe_symbol()
-        .and_then(|symbol| symbol.maybe_exports().clone())
+        .and_then(|symbol| binder.symbol(symbol).maybe_exports().clone())
         .and_then(|exports| (*exports).borrow().get(name).cloned())
 }

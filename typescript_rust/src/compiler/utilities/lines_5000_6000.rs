@@ -28,7 +28,7 @@ use crate::{
     Extension, HasInitializerInterface, MapLike, ModifierFlags, NamedDeclarationInterface,
     NewLineKind, Node, NodeFlags, NodeInterface, ObjectFlags, ReadonlyTextRange, Signature,
     SignatureFlags, SignatureKind, SourceFileLike, Symbol, SymbolFlags, SymbolInterface,
-    SyntaxKind,
+    SyntaxKind, AllArenas,
 };
 
 pub fn get_first_identifier(node: &Node) -> Gc<Node /*Identifier*/> {
@@ -158,7 +158,7 @@ pub fn is_empty_array_literal(expression: &Node) -> bool {
         && expression.as_array_literal_expression().elements.is_empty()
 }
 
-pub fn get_local_symbol_for_export_default(symbol: Id<Symbol>) -> Option<Id<Symbol>> {
+pub fn get_local_symbol_for_export_default(symbol: &Symbol) -> Option<Id<Symbol>> {
     if !is_export_default_symbol(symbol) || symbol.maybe_declarations().is_none() {
         return None;
     }
@@ -170,7 +170,7 @@ pub fn get_local_symbol_for_export_default(symbol: Id<Symbol>) -> Option<Id<Symb
     None
 }
 
-fn is_export_default_symbol(symbol: Id<Symbol>) -> bool {
+fn is_export_default_symbol(symbol: &Symbol) -> bool {
     /*symbol &&*/
     match symbol
         .maybe_declarations()
@@ -446,6 +446,7 @@ pub fn get_check_flags(symbol: &Symbol) -> CheckFlags {
 }
 
 pub fn get_declaration_modifier_flags_from_symbol(
+    arena: &AllArenas,
     s: &Symbol,
     is_write: Option<bool>,
 ) -> ModifierFlags {
@@ -465,7 +466,7 @@ pub fn get_declaration_modifier_flags_from_symbol(
         let flags = get_combined_modifier_flags(&declaration);
         return if matches!(
             s.maybe_parent(),
-            Some(s_parent) if s_parent.flags().intersects(SymbolFlags::Class)
+            Some(s_parent) if arena.symbol(s_parent).flags().intersects(SymbolFlags::Class)
         ) {
             flags
         } else {
@@ -636,11 +637,11 @@ pub fn type_has_call_or_construct_signatures(
             .is_empty())
 }
 
-pub fn is_umd_export_symbol(symbol: Option<Id<Symbol>>) -> bool {
+pub fn is_umd_export_symbol(symbol: Option<&Symbol>) -> bool {
     matches!(
         symbol,
         Some(symbol) if matches!(
-            symbol.borrow().maybe_declarations().as_ref(),
+            symbol.maybe_declarations().as_ref(),
             Some(symbol_declarations) if matches!(
                 symbol_declarations.get(0),
                 Some(symbol_declarations_0) if is_namespace_export_declaration(symbol_declarations_0)

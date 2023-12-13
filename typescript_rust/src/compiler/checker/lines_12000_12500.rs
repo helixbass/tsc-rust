@@ -106,7 +106,7 @@ impl TypeChecker {
                 let prop =
                     self.get_property_of_type_(type_, name, skip_object_function_property_augment)?;
                 let modifiers = if let Some(prop) = prop {
-                    get_declaration_modifier_flags_from_symbol(prop, None)
+                    get_declaration_modifier_flags_from_symbol(self.arena(), prop, None)
                 } else {
                     ModifierFlags::None
                 };
@@ -392,7 +392,7 @@ impl TypeChecker {
                         .maybe_property_cache_without_object_function_property_augment();
                     if property_cache_without_object_function_property_augment.is_none() {
                         *property_cache_without_object_function_property_augment =
-                            Some(create_symbol_table(Option::<&[Id<Symbol>]>::None));
+                            Some(create_symbol_table(self.arena(), Option::<&[Id<Symbol>]>::None));
                     }
                     property_cache_without_object_function_property_augment
                         .as_mut()
@@ -404,7 +404,7 @@ impl TypeChecker {
                         .as_union_or_intersection_type_interface()
                         .maybe_property_cache();
                     if property_cache.is_none() {
-                        *property_cache = Some(create_symbol_table(Option::<&[Id<Symbol>]>::None));
+                        *property_cache = Some(create_symbol_table(self.arena(), Option::<&[Id<Symbol>]>::None));
                     }
                     property_cache
                         .as_mut()

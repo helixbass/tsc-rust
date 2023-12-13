@@ -349,7 +349,7 @@ impl TypeChecker {
                 .borrow_mut()
                 .type_ = Some(import_meta_type);
 
-            let members = Gc::new(GcCell::new(create_symbol_table(Some(&vec![
+            let members = Gc::new(GcCell::new(create_symbol_table(self.arena(), Some(&vec![
                 meta_property_symbol,
             ]))));
             *self.symbol(symbol).maybe_members_mut() = Some(members.clone());

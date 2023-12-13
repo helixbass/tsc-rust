@@ -229,7 +229,7 @@ impl SymbolTableToDeclarationStatements {
                 && export_equals.flags().intersects(SymbolFlags::Alias)
         }) {
             self.set_symbol_table(Gc::new(GcCell::new(create_symbol_table(
-                Option::<&[Id<Symbol>]>::None,
+                self.arena(), Option::<&[Id<Symbol>]>::None,
             ))));
             self.symbol_table()
                 .borrow_mut()

@@ -563,7 +563,7 @@ impl TypeChecker {
                 let mut target_members = target.maybe_members_mut();
                 if target_members.is_none() {
                     *target_members = Some(Gc::new(GcCell::new(create_symbol_table(
-                        Option::<&[Id<Symbol>]>::None,
+                        self.arena(), Option::<&[Id<Symbol>]>::None,
                     ))));
                 }
                 self.merge_symbol_table(
@@ -576,7 +576,7 @@ impl TypeChecker {
                 let mut target_exports = target.maybe_exports_mut();
                 if target_exports.is_none() {
                     *target_exports = Some(Gc::new(GcCell::new(create_symbol_table(
-                        Option::<&[Id<Symbol>]>::None,
+                        self.arena(), Option::<&[Id<Symbol>]>::None,
                     ))));
                 }
                 self.merge_symbol_table(
@@ -820,7 +820,7 @@ impl TypeChecker {
             return Ok(Some(first));
         }
         let combined = Gc::new(GcCell::new(create_symbol_table(
-            Option::<&[Id<Symbol>]>::None,
+            self.arena(), Option::<&[Id<Symbol>]>::None,
         )));
         self.merge_symbol_table(combined.clone(), &(*first).borrow(), None)?;
         self.merge_symbol_table(combined.clone(), &(*second).borrow(), None)?;
@@ -1604,9 +1604,9 @@ impl TypeChecker {
                                 && !is_global_scope_augmentation(&location_unwrapped))
                         {
                             result = module_exports.get(InternalSymbolName::Default).cloned();
-                            if let Some(result_unwrapped) = result.as_ref() {
+                            if let Some(result_unwrapped) = result {
                                 let local_symbol =
-                                    get_local_symbol_for_export_default(result_unwrapped);
+                                    get_local_symbol_for_export_default(&self.symbol(result_unwrapped));
                                 if local_symbol.is_some()
                                     && result_unwrapped.flags().intersects(meaning)
                                     && local_symbol.unwrap().escaped_name() == name

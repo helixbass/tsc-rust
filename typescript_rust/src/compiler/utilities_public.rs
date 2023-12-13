@@ -9,7 +9,6 @@ use std::{
 
 use either_n::Either3;
 use gc::Gc;
-use id_arena::Id;
 use regex::Regex;
 use serde_json;
 

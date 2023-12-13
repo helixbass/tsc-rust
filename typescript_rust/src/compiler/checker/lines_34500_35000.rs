@@ -664,7 +664,7 @@ impl TypeChecker {
                 if matches!(
                     property_symbol.as_ref(),
                     Some(property_symbol) if get_declaration_modifier_flags_from_symbol(
-                        property_symbol,
+                        self.arena(), property_symbol,
                         None,
                     ).intersects(ModifierFlags::NonPublicAccessibilityModifier)
                 ) {

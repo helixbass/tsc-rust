@@ -653,7 +653,7 @@ impl TypeChecker {
         prop: Id<Symbol>,
         error_node: Option<impl Borrow<Node>>,
     ) -> io::Result<bool> {
-        let flags = get_declaration_modifier_flags_from_symbol(prop, Some(writing));
+        let flags = get_declaration_modifier_flags_from_symbol(self.arena(), prop, Some(writing));
 
         let error_node = error_node.map(|error_node| error_node.borrow().node_wrapper());
         if is_super {

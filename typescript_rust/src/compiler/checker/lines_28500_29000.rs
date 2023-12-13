@@ -46,7 +46,7 @@ impl TypeChecker {
                         lazy_static! {
                             static ref element_regex: Regex = Regex::new("^(EventTarget|Node|((HTML[a-zA-Z]*)?Element))$").unwrap();
                         }
-                        element_regex.is_match(&unescape_leading_underscores(type_symbol.escaped_name()))
+                        element_regex.is_match(&unescape_leading_underscores(self.symbol(type_symbol).escaped_name()))
                     }
                 )
             ) &&
@@ -61,7 +61,6 @@ impl TypeChecker {
         let prop = self
             .type_(containing_type)
             .maybe_symbol()
-            .as_ref()
             .try_and_then(|containing_type_symbol| {
                 self.get_property_of_type_(
                     self.get_type_of_symbol(containing_type_symbol)?,
@@ -70,7 +69,7 @@ impl TypeChecker {
                 )
             })?;
         Ok(matches!(
-            prop.as_ref().and_then(|prop| prop.maybe_value_declaration()).as_ref(),
+            prop.and_then(|prop| self.symbol(prop).maybe_value_declaration()).as_ref(),
             Some(prop_value_declaration) if is_static(prop_value_declaration)
         ))
     }
@@ -106,7 +105,7 @@ impl TypeChecker {
         let lib_targets = all_features.keys();
         for lib_target in lib_targets {
             let features_of_lib = all_features.get(lib_target).unwrap();
-            let container_name = symbol_name(&container);
+            let container_name = symbol_name(&self.symbol(container));
             let features_of_containing_type = features_of_lib.get(&&*container_name);
             if matches!(
                 features_of_containing_type,
@@ -148,7 +147,7 @@ impl TypeChecker {
             if is_property_access_expression(&parent) {
                 did_set_props = true;
                 props_ = Some(Either::Right(
-                    try_filter(&props.clone().collect_vec(), |prop: &Id<Symbol>| {
+                    try_filter(&props.clone().collect_vec(), |&prop: &Id<Symbol>| {
                         self.is_valid_property_access_for_completions_(
                             &parent,
                             containing_type,
@@ -180,9 +179,9 @@ impl TypeChecker {
         };
         let mut properties = self.get_properties_of_type(containing_type)?;
         let jsx_specific = if str_name == "for" {
-            properties.find(|x| symbol_name(x) == "htmlFor")
+            properties.find(|&x| symbol_name(&self.symbol(x)) == "htmlFor")
         } else if str_name == "class" {
-            properties.find(|x| symbol_name(x) == "className")
+            properties.find(|&x| symbol_name(&self.symbol(x)) == "className")
         } else {
             None
         };
@@ -199,7 +198,6 @@ impl TypeChecker {
         let suggestion =
             self.get_suggested_symbol_for_nonexistent_property(name, containing_type)?;
         Ok(suggestion
-            .as_ref()
             .map(|suggestion| symbol_name(suggestion).into_owned()))
     }
 
@@ -236,8 +234,8 @@ impl TypeChecker {
                         |s: &str, _| {
                             if symbols.contains_key(&capitalize(s)) {
                                 Some(
-                                    self.create_symbol(SymbolFlags::TypeAlias, s.to_owned(), None)
-                                        .into(),
+                                    self.alloc_symbol(self.create_symbol(SymbolFlags::TypeAlias, s.to_owned(), None)
+                                        .into()),
                                 )
                             } else {
                                 None
@@ -270,8 +268,7 @@ impl TypeChecker {
         let symbol_result =
             self.get_suggested_symbol_for_nonexistent_symbol_(location, outer_name, meaning)?;
         Ok(symbol_result
-            .as_ref()
-            .map(|symbol_result| symbol_name(symbol_result).into_owned()))
+            .map(|symbol_result| symbol_name(&self.symbol(symbol_result)).into_owned()))
     }
 
     pub(super) fn get_suggested_symbol_for_nonexistent_module(
@@ -279,7 +276,7 @@ impl TypeChecker {
         name: &Node, /*Identifier*/
         target_module: Id<Symbol>,
     ) -> io::Result<Option<Id<Symbol>>> {
-        Ok(if target_module.maybe_exports().is_some() {
+        Ok(if self.symbol(target_module).maybe_exports().is_some() {
             self.get_spelling_suggestion_for_name(
                 &id_text(name),
                 &*self.get_exports_of_module_as_array(target_module)?,
@@ -297,8 +294,7 @@ impl TypeChecker {
     ) -> io::Result<Option<String>> {
         let suggestion = self.get_suggested_symbol_for_nonexistent_module(name, target_module)?;
         Ok(suggestion
-            .as_ref()
-            .map(|suggestion| symbol_name(suggestion).into_owned()))
+            .map(|suggestion| symbol_name(&self.symbol(suggestion)).into_owned()))
     }
 
     pub(super) fn get_suggestion_for_nonexistent_index_signature(
@@ -339,7 +335,7 @@ impl TypeChecker {
         name: &str, /*"set | "get"*/
     ) -> io::Result<bool> {
         let prop = self.get_property_of_object_type(object_type, name)?;
-        if let Some(prop) = prop.as_ref() {
+        if let Some(prop) = prop {
             let s = self.get_single_call_signature(self.get_type_of_symbol(prop)?)?;
             return Ok(matches!(
                 s.as_ref(),
@@ -380,21 +376,21 @@ impl TypeChecker {
         symbols: impl IntoIterator<Item = impl Borrow<Id<Symbol>>>,
         meaning: SymbolFlags,
     ) -> io::Result<Option<Id<Symbol>>> {
-        let get_candidate_name = |candidate: &Id<Symbol>| -> io::Result<_> {
-            let candidate_name = symbol_name(candidate);
+        let get_candidate_name = |&candidate: &Id<Symbol>| -> io::Result<_> {
+            let candidate_name = symbol_name(&self.symbol(candidate));
             if starts_with(&candidate_name, "\"") {
                 return Ok(None);
             }
 
-            if candidate.flags().intersects(meaning) {
+            if self.symbol(candidate).flags().intersects(meaning) {
                 return Ok(Some(candidate_name.into_owned()));
             }
 
-            if candidate.flags().intersects(SymbolFlags::Alias) {
+            if self.symbol(candidate).flags().intersects(SymbolFlags::Alias) {
                 let alias = self.try_resolve_alias(candidate)?;
                 if matches!(
-                    alias.as_ref(),
-                    Some(alias) if alias.flags().intersects(meaning)
+                    alias,
+                    Some(alias) if self.symbol(alias).flags().intersects(meaning)
                 ) {
                     return Ok(Some(candidate_name.into_owned()));
                 }
@@ -411,8 +407,8 @@ impl TypeChecker {
         node_for_check_write_only: Option<impl Borrow<Node>>,
         is_self_type_access: bool,
     ) {
-        let value_declaration = /*prop &&*/ if prop.flags().intersects(SymbolFlags::ClassMember) {
-            prop.maybe_value_declaration()
+        let value_declaration = /*prop &&*/ if self.symbol(prop).flags().intersects(SymbolFlags::ClassMember) {
+            self.symbol(prop).maybe_value_declaration()
         } else {
             None
         };
@@ -423,7 +419,7 @@ impl TypeChecker {
         let has_private_modifier =
             has_effective_modifier(&value_declaration, ModifierFlags::Private);
         let has_private_identifier = matches!(
-            prop.maybe_value_declaration().as_ref(),
+            self.symbol(prop).maybe_value_declaration().as_ref(),
             Some(prop_value_declaration) if is_named_declaration(prop_value_declaration) &&
                 is_private_identifier(&prop_value_declaration.as_named_declaration().name())
         );
@@ -435,7 +431,7 @@ impl TypeChecker {
         if matches!(
             node_for_check_write_only.as_ref(),
             Some(node_for_check_write_only) if is_write_only_access(node_for_check_write_only)
-        ) && !prop.flags().intersects(SymbolFlags::SetAccessor)
+        ) && !self.symbol(prop).flags().intersects(SymbolFlags::SetAccessor)
         {
             return;
         }
@@ -447,11 +443,8 @@ impl TypeChecker {
             if matches!(
                 containing_method.as_ref(),
                 Some(containing_method) if matches!(
-                    containing_method.maybe_symbol().as_ref(),
-                    Some(containing_method_symbol) if ptr::eq(
-                        &**containing_method_symbol,
-                        prop
-                    )
+                    containing_method.maybe_symbol(),
+                    Some(containing_method_symbol) if containing_method_symbol == prop
                 )
             ) {
                 return;
@@ -465,7 +458,7 @@ impl TypeChecker {
                 .clone()
                 .unwrap()
         } else {
-            prop.symbol_wrapper()
+            prop
         }
         .set_is_referenced(Some(SymbolFlags::All));
     }
@@ -475,17 +468,13 @@ impl TypeChecker {
         name: &Node, /*Expression | QualifiedName*/
         parent: Option<Id<Symbol>>,
     ) -> io::Result<bool> {
-        let parent = parent.map(|parent| parent.borrow().symbol_wrapper());
         Ok(name.kind() == SyntaxKind::ThisKeyword
             || matches!(
-                parent.as_ref(),
+                parent,
                 Some(parent) if is_entity_name_expression(name) &&
-                    Gc::ptr_eq(
-                        parent,
-                        &self.get_resolved_symbol(
-                            &get_first_identifier(name)
-                        )?,
-                    )
+                    parent == self.get_resolved_symbol(
+                        &get_first_identifier(name)
+                    )?
             ))
     }
 
@@ -559,7 +548,7 @@ impl TypeChecker {
 
         let prop = self.get_property_of_type_(type_, property_name, None)?;
         Ok(matches!(
-            prop.as_ref(),
+            prop,
             Some(prop) if self.is_property_accessible(
                 node,
                 is_super,
@@ -582,8 +571,8 @@ impl TypeChecker {
             return Ok(true);
         }
 
-        if let Some(property_value_declaration) = property
-            .maybe_value_declaration()
+        if let Some(property_value_declaration) = self.symbol(property
+            ).maybe_value_declaration()
             .as_ref()
             .filter(|property_value_declaration| {
                 is_private_identifier_class_element_declaration(property_value_declaration)
@@ -649,7 +638,7 @@ impl TypeChecker {
         let e = skip_parentheses(expr, None);
         if e.kind() == SyntaxKind::Identifier {
             let symbol = self.get_resolved_symbol(&e)?;
-            if symbol.flags().intersects(SymbolFlags::Variable) {
+            if self.symbol(symbol).flags().intersects(SymbolFlags::Variable) {
                 let mut child = expr.node_wrapper();
                 let mut node = expr.maybe_parent();
                 while let Some(node_present) = node.as_ref() {
@@ -657,11 +646,8 @@ impl TypeChecker {
                         let node_as_for_in_statement = node_present.as_for_in_statement();
                         Gc::ptr_eq(&child, &node_as_for_in_statement.statement)
                             && matches!(
-                                self.get_for_in_variable_symbol(node_present)?.as_ref(),
-                                Some(for_in_variable_symbol) if Gc::ptr_eq(
-                                    for_in_variable_symbol,
-                                    &symbol
-                                )
+                                self.get_for_in_variable_symbol(node_present)?,
+                                Some(for_in_variable_symbol) if for_in_variable_symbol == symbol
                             )
                             && self.has_numeric_property_names(
                                 self.get_type_of_expression(&node_as_for_in_statement.expression)?,
@@ -864,14 +850,11 @@ impl TypeChecker {
                 .declaration
                 .as_ref()
                 .and_then(|signature_declaration| signature_declaration.maybe_parent());
-            if match last_symbol.as_ref() {
+            if match last_symbol {
                 None => true,
                 Some(last_symbol) => matches!(
-                    symbol.as_ref(),
-                    Some(symbol) if Gc::ptr_eq(
-                        symbol,
-                        last_symbol,
-                    )
+                    symbol,
+                    Some(symbol) if symbol == last_symbol
                 ),
             } {
                 if matches!(

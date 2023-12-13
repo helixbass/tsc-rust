@@ -42,7 +42,7 @@ use crate::{
     ProjectReference, ReadonlyCollection, ReadonlyTextRange, ResolvedModuleFull,
     ResolvedTypeReferenceDirective, ScriptKind, SignatureDeclarationInterface, SourceFileLike,
     SourceTextAsChars, StringOrNumber, Symbol, SymbolFlags, SymbolInterface, SymbolTable,
-    SymbolTracker, SymbolWriter, SyntaxKind, TextRange, TokenFlags, Type, UnderscoreEscapedMap,
+    SymbolTracker, SymbolWriter, SyntaxKind, TextRange, TokenFlags, Type, UnderscoreEscapedMap, AllArenas,
 };
 
 thread_local! {
@@ -81,19 +81,20 @@ pub fn create_underscore_escaped_map<TValue>() -> UnderscoreEscapedMap<TValue> {
 // function hasEntries
 
 pub fn create_symbol_table(
+    arena: &AllArenas,
     symbols: Option<impl IntoIterator<Item = impl Borrow<Id<Symbol>>>>,
 ) -> SymbolTable {
     let mut result = SymbolTable::new();
     if let Some(symbols) = symbols {
         for symbol in symbols {
             let symbol: &Id<Symbol> = symbol.borrow();
-            result.insert(symbol.escaped_name().to_owned(), symbol.clone());
+            result.insert(arena.symbol(symbol).escaped_name().to_owned(), symbol.clone());
         }
     }
     result
 }
 
-pub fn is_transient_symbol(symbol: Id<Symbol>) -> bool {
+pub fn is_transient_symbol(symbol: &Symbol) -> bool {
     symbol.flags().intersects(SymbolFlags::Transient)
 }
 
@@ -802,7 +803,7 @@ pub fn maybe_get_source_file_of_node(
     node
 }
 
-pub fn get_source_file_of_module(module: Id<Symbol>) -> Option<Gc<Node /*SourceFile*/>> {
+pub fn get_source_file_of_module(module: &Symbol) -> Option<Gc<Node /*SourceFile*/>> {
     maybe_get_source_file_of_node(
         module
             .maybe_value_declaration()
@@ -1614,7 +1615,7 @@ pub fn is_module_augmentation_external(node: &Node /*AmbientModuleDeclaration*/)
     }
 }
 
-pub fn get_non_augmentation_declaration(symbol: Id<Symbol>) -> Option<Gc<Node /*Declaration*/>> {
+pub fn get_non_augmentation_declaration(symbol: &Symbol) -> Option<Gc<Node /*Declaration*/>> {
     symbol
         .maybe_declarations()
         .as_ref()

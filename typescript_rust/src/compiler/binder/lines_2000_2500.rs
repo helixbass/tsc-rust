@@ -75,6 +75,7 @@ impl BinderType {
         self.add_declaration_to_symbol(type_literal_symbol, node, SymbolFlags::TypeLiteral);
         let mut type_literal_symbol_members = self.symbol(type_literal_symbol).maybe_members_mut();
         *type_literal_symbol_members = Some(Gc::new(GcCell::new(create_symbol_table(
+            self.arena(),
             Option::<&[Id<Symbol>]>::None,
         ))));
         type_literal_symbol_members
@@ -196,7 +197,7 @@ impl BinderType {
                             block_scope_container.maybe_locals_mut();
                         if block_scope_container_locals.is_none() {
                             *block_scope_container_locals = Some(Gc::new(GcCell::new(
-                                create_symbol_table(Option::<&[Id<Symbol>]>::None),
+                                create_symbol_table(self.arena(), Option::<&[Id<Symbol>]>::None),
                             )));
                             self.add_to_container_chain(&block_scope_container);
                         }
@@ -217,7 +218,7 @@ impl BinderType {
                     let mut block_scope_container_locals = block_scope_container.maybe_locals_mut();
                     if block_scope_container_locals.is_none() {
                         *block_scope_container_locals = Some(Gc::new(GcCell::new(
-                            create_symbol_table(Option::<&[Id<Symbol>]>::None),
+                            create_symbol_table(self.arena(), Option::<&[Id<Symbol>]>::None),
                         )));
                         self.add_to_container_chain(&block_scope_container);
                     }
@@ -319,6 +320,7 @@ impl BinderType {
                         AssignmentDeclarationKind::Property => {
                             self.set_container(Some(
                                 if is_exports_or_module_exports_or_alias(
+                                    self,
                                     &self.file(),
                                     &decl_name.parent().as_has_expression().expression(),
                                 ) {

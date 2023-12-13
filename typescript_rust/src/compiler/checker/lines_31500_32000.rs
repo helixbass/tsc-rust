@@ -139,7 +139,7 @@ impl TypeChecker {
         }
         if signature_has_rest_parameter(signature) {
             let parameter = *last(signature.parameters());
-            if is_transient_symbol(parameter)
+            if is_transient_symbol(&self.symbol(parameter))
                 || get_effective_type_annotation_node(
                     &self.symbol(parameter).maybe_value_declaration().unwrap(),
                 )
@@ -302,7 +302,7 @@ impl TypeChecker {
             .borrow_mut()
             .type_ = Some(target_type);
 
-        let members = Gc::new(GcCell::new(create_symbol_table(Some(&[
+        let members = Gc::new(GcCell::new(create_symbol_table(self.arena(), Some(&[
             target_property_symbol,
         ]))));
         *self.symbol(symbol).maybe_members_mut() = Some(members.clone());

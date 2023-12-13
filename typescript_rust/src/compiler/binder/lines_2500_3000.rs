@@ -90,7 +90,7 @@ impl BinderType {
                         .maybe_common_js_module_indicator()
                         .is_some()
                     && is_module_exports_access_expression(expr)
-                    && lookup_symbol_for_name(&self.block_scope_container(), "module").is_none()
+                    && lookup_symbol_for_name(self, &self.block_scope_container(), "module").is_none()
                 {
                     self.declare_symbol(
                         &mut self.file().locals().borrow_mut(),
@@ -132,6 +132,7 @@ impl BinderType {
                             .expression();
                         if is_in_js_file(Some(node)) && is_identifier(&expression) {
                             let symbol = lookup_symbol_for_name(
+                                self,
                                 &self.block_scope_container(),
                                 &expression.as_identifier().escaped_text,
                             );
@@ -550,7 +551,7 @@ impl BinderType {
             let mut global_exports = self.symbol(file_symbol).maybe_global_exports();
             if global_exports.is_none() {
                 *global_exports = Some(Gc::new(GcCell::new(create_symbol_table(
-                    Option::<&[Id<Symbol>]>::None,
+                    self.arena(), Option::<&[Id<Symbol>]>::None,
                 ))));
             }
             self.declare_symbol(
@@ -728,7 +729,7 @@ impl BinderType {
             get_right_most_assigned_expression(&node_as_binary_expression.right);
         if is_empty_object_literal(&assigned_expression)
             || Gc::ptr_eq(&self.container(), &self.file())
-                && is_exports_or_module_exports_or_alias(&self.file(), &assigned_expression)
+                && is_exports_or_module_exports_or_alias(self, &self.file(), &assigned_expression)
         {
             return;
         }
@@ -839,7 +840,7 @@ impl BinderType {
                                 self.symbol(constructor_symbol).maybe_members_mut();
                             if constructor_symbol_members.is_none() {
                                 *constructor_symbol_members = Some(Gc::new(GcCell::new(
-                                    create_symbol_table(Option::<&[Id<Symbol>]>::None),
+                                    create_symbol_table(self.arena(), Option::<&[Id<Symbol>]>::None),
                                 )));
                             }
                             let constructor_symbol_members =

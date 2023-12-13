@@ -578,7 +578,7 @@ impl TypeChecker {
             (*links).borrow().inferred_class_symbol.as_ref(),
             Some(links_inferred_class_symbol) if links_inferred_class_symbol.contains_key(&get_symbol_id(target))
         ) {
-            let inferred = if is_transient_symbol(target) {
+            let inferred = if is_transient_symbol(self.symbol(target)) {
                 target.symbol_wrapper()
             } else {
                 self.clone_symbol(target)
@@ -587,6 +587,7 @@ impl TypeChecker {
                 let mut inferred_exports = inferred.maybe_exports_mut();
                 if inferred_exports.is_none() {
                     *inferred_exports = Some(Gc::new(GcCell::new(create_symbol_table(
+                        self.arena(),
                         Option::<&[Id<Symbol>]>::None,
                     ))));
                 }
@@ -595,6 +596,7 @@ impl TypeChecker {
                 let mut inferred_members = inferred.maybe_members_mut();
                 if inferred_members.is_none() {
                     *inferred_members = Some(Gc::new(GcCell::new(create_symbol_table(
+                        self.arena(),
                         Option::<&[Id<Symbol>]>::None,
                     ))));
                 }

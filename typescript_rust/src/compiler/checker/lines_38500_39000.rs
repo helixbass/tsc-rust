@@ -448,7 +448,7 @@ impl TypeChecker {
                 self.get_property_of_object_type(type_, self.symbol(base).escaped_name())?
             );
             let derived = self.get_target_symbol(base_symbol);
-            let base_declaration_flags = get_declaration_modifier_flags_from_symbol(base, None);
+            let base_declaration_flags = get_declaration_modifier_flags_from_symbol(self.arena(), base, None);
 
             // Debug.assert(!!derived, "derived should point at something, even if it is the base class' declaration.");
 
@@ -519,7 +519,7 @@ impl TypeChecker {
                 }
             } else {
                 let derived_declaration_flags =
-                    get_declaration_modifier_flags_from_symbol(derived, None);
+                    get_declaration_modifier_flags_from_symbol(self.arena(), derived, None);
                 if base_declaration_flags.intersects(ModifierFlags::Private)
                     || derived_declaration_flags.intersects(ModifierFlags::Private)
                 {
