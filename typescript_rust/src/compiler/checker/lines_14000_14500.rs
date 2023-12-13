@@ -326,11 +326,17 @@ impl TypeChecker {
         } else {
             self.create_tuple_type(
                 &self.get_type_arguments(type_)?[index..end_index],
-                Some(&self.type_(target).as_tuple_type().element_flags[index..end_index]),
+                Some(&{
+                    let element_flags = self.type_(target).as_tuple_type().element_flags.clone();
+                    element_flags
+                }[index..end_index]),
                 Some(false),
-                self.type_(target)
+                {
+                    let labeled_element_declarations = self.type_(target)
                     .as_tuple_type()
-                    .labeled_element_declarations
+                    .labeled_element_declarations.clone();
+                    labeled_element_declarations
+                }
                     .as_ref()
                     .map(|labeled_element_declarations| {
                         labeled_element_declarations[index..end_index].to_owned()

@@ -470,7 +470,10 @@ impl TypeChecker {
                         .as_conditional_type_node()
                         .true_type,
                     )?,
-                    self.type_(type_).as_conditional_type().mapper.clone(),
+                    {
+                        let mapper = self.type_(type_).as_conditional_type().mapper.clone();
+                        mapper
+                    },
                 )?,
             );
         }

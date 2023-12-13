@@ -547,9 +547,15 @@ impl TypeChecker {
             index_constraint != self.type_(type_).as_indexed_access_type().index_type
         }) {
             let indexed_access = self.get_indexed_access_type_or_undefined(
-                self.type_(type_).as_indexed_access_type().object_type,
+                {
+                    let object_type = self.type_(type_).as_indexed_access_type().object_type;
+                    object_type
+                },
                 index_constraint,
-                Some(self.type_(type_).as_indexed_access_type().access_flags),
+                Some({
+                    let access_flags = self.type_(type_).as_indexed_access_type().access_flags;
+                    access_flags
+                }),
                 Option::<&Node>::None,
                 Option::<&Symbol>::None,
                 None,

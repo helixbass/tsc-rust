@@ -770,15 +770,23 @@ impl TypeChecker {
         type_: Id<Type>,
         mapper: Id<TypeMapper>,
     ) -> io::Result<Id<Type>> {
-        Ok(if let TypeMapper::Simple(mapper) = &*self.type_mapper(mapper) {
-            if type_ == mapper.source {
-                mapper.target.clone()
+        Ok(if matches!(
+            &*self.type_mapper(mapper),
+            TypeMapper::Simple(mapper)
+        ) {
+            let mapper_ref = self.type_mapper(mapper);
+            if type_ == mapper_ref.as_simple().source {
+                mapper_ref.as_simple().target.clone()
             } else {
                 type_
             }
-        } else if let TypeMapper::Array(mapper) = &*self.type_mapper(mapper) {
-            let sources = &mapper.sources;
-            let targets = &mapper.targets;
+        } else if matches!(
+            &*self.type_mapper(mapper),
+            TypeMapper::Array(mapper)
+        ) {
+            let mapper_ref = self.type_mapper(mapper);
+            let sources = &mapper_ref.as_array().sources;
+            let targets = &mapper_ref.as_array().targets;
             for (i, source) in sources.iter().enumerate() {
                 if type_ == *source {
                     return Ok(targets

@@ -466,8 +466,10 @@ impl InferTypes {
                     let target_arity = self.type_checker.get_type_reference_arity(target);
                     let element_types = self.type_checker.get_type_arguments(target)?;
                     let target_target = self.type_checker.type_(target).as_type_reference().target;
-                    let target_target_ref = self.type_checker.type_(target_target);
-                    let element_flags = &target_target_ref.as_tuple_type().element_flags;
+                    let element_flags = &{
+                        let element_flags = self.type_checker.type_(target_target).as_tuple_type().element_flags.clone();
+                        element_flags
+                    };
                     if self.type_checker.is_tuple_type(source)
                         && self
                             .type_checker

@@ -838,7 +838,10 @@ impl TypeChecker {
                 ));
             } else {
                 let sub = self.instantiate_type(
-                    self.type_(type_).as_substitution_type().substitute,
+                    {
+                        let substitute = self.type_(type_).as_substitution_type().substitute;
+                        substitute
+                    },
                     Some(mapper),
                 )?;
                 if self.type_(sub).flags().intersects(TypeFlags::AnyOrUnknown)

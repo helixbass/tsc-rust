@@ -767,6 +767,13 @@ impl TypeMapper {
             _ => unreachable!(),
         }
     }
+
+    pub fn as_array(&self) -> &TypeMapperArray {
+        match self {
+            Self::Array(value) => value,
+            _ => unreachable!(),
+        }
+    }
 }
 
 #[derive(Clone, Debug, Finalize, Trace)]
