@@ -64,7 +64,7 @@ impl BinderType {
                 self.get_declaration_name(node).unwrap().into_owned(),
             )
             .wrap();
-        self.add_declaration_to_symbol(&symbol, node, SymbolFlags::Signature);
+        self.add_declaration_to_symbol(symbol, node, SymbolFlags::Signature);
 
         let type_literal_symbol = self
             .create_symbol(
@@ -72,8 +72,8 @@ impl BinderType {
                 InternalSymbolName::Type.to_owned(),
             )
             .wrap();
-        self.add_declaration_to_symbol(&type_literal_symbol, node, SymbolFlags::TypeLiteral);
-        let mut type_literal_symbol_members = type_literal_symbol.maybe_members_mut();
+        self.add_declaration_to_symbol(type_literal_symbol, node, SymbolFlags::TypeLiteral);
+        let mut type_literal_symbol_members = self.symbol(type_literal_symbol).maybe_members_mut();
         *type_literal_symbol_members = Some(Gc::new(GcCell::new(create_symbol_table(
             Option::<&[Id<Symbol>]>::None,
         ))));
@@ -81,7 +81,7 @@ impl BinderType {
             .as_ref()
             .unwrap()
             .borrow_mut()
-            .insert(symbol.escaped_name().to_owned(), symbol);
+            .insert(self.symbol(symbol).escaped_name().to_owned(), symbol);
     }
 
     pub(super) fn bind_object_literal_expression(
@@ -170,9 +170,9 @@ impl BinderType {
     ) -> Id<Symbol> {
         let symbol = self.create_symbol(symbol_flags, name).wrap();
         if symbol_flags.intersects(SymbolFlags::EnumMember | SymbolFlags::ClassMember) {
-            symbol.set_parent(self.container().maybe_symbol());
+            self.symbol(symbol).set_parent(self.container().maybe_symbol());
         }
-        self.add_declaration_to_symbol(&symbol, node, symbol_flags);
+        self.add_declaration_to_symbol(symbol, node, symbol_flags);
         symbol
     }
 

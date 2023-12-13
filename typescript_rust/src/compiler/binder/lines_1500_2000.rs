@@ -129,7 +129,7 @@ impl BinderType {
         self.bind_each_child(node);
         let host = get_host_signature_from_jsdoc(node);
         if let Some(host) = host.filter(|host| host.kind() != SyntaxKind::MethodDeclaration) {
-            self.add_declaration_to_symbol(&host.symbol(), &host, SymbolFlags::Class);
+            self.add_declaration_to_symbol(host.symbol(), &host, SymbolFlags::Class);
         }
     }
 
@@ -446,22 +446,27 @@ impl BinderType {
                 Some(self.declare_class_member(node, symbol_flags, symbol_excludes))
             }
 
-            SyntaxKind::EnumDeclaration => Some(self.declare_symbol(
-                &mut *self.container().symbol().exports().borrow_mut(),
-                Some(self.container().symbol()),
-                node,
-                symbol_flags,
-                symbol_excludes,
-                None,
-                None,
-            )),
+            SyntaxKind::EnumDeclaration => Some(
+                self.declare_symbol(
+                    &mut *self
+                        .symbol(self.container().symbol())
+                        .exports()
+                        .borrow_mut(),
+                    Some(self.container().symbol()),
+                    node,
+                    symbol_flags,
+                    symbol_excludes,
+                    None,
+                    None,
+                ),
+            ),
 
             SyntaxKind::TypeLiteral
             | SyntaxKind::JSDocTypeLiteral
             | SyntaxKind::ObjectLiteralExpression
             | SyntaxKind::InterfaceDeclaration
             | SyntaxKind::JsxAttributes => Some(self.declare_symbol(
-                &mut *self.container().symbol().members().borrow_mut(),
+                &mut *self.symbol(self.container().symbol()).members().borrow_mut(),
                 Some(self.container().symbol()),
                 node,
                 symbol_flags,
@@ -510,7 +515,7 @@ impl BinderType {
     ) -> Id<Symbol> {
         if is_static(node) {
             self.declare_symbol(
-                &mut *self.container().symbol().exports().borrow_mut(),
+                &mut *self.symbol(self.container().symbol()).exports().borrow_mut(),
                 Some(self.container().symbol()),
                 node,
                 symbol_flags,
@@ -520,7 +525,7 @@ impl BinderType {
             )
         } else {
             self.declare_symbol(
-                &mut *self.container().symbol().members().borrow_mut(),
+                &mut *self.symbol(self.container().symbol()).members().borrow_mut(),
                 Some(self.container().symbol()),
                 node,
                 symbol_flags,
@@ -639,11 +644,11 @@ impl BinderType {
             let state = self.declare_module_symbol(node);
             if state != ModuleInstanceState::NonInstantiated {
                 let symbol = node.symbol();
-                symbol.set_const_enum_only_module(Some(
-                    !symbol.flags().intersects(
+                self.symbol(symbol).set_const_enum_only_module(Some(
+                    !self.symbol(symbol).flags().intersects(
                         SymbolFlags::Function | SymbolFlags::Class | SymbolFlags::RegularEnum,
                     ) && state == ModuleInstanceState::ConstEnumOnly
-                        && !matches!(symbol.maybe_const_enum_only_module(), Some(false)),
+                        && !matches!(self.symbol(symbol).maybe_const_enum_only_module(), Some(false)),
                 ));
             }
         }

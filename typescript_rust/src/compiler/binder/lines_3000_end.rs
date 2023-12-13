@@ -55,12 +55,12 @@ impl BinderType {
                 .expression,
             Option::<&Node>::None,
         );
-        if let Some(namespace_symbol) = namespace_symbol.as_ref() {
+        if let Some(namespace_symbol) = namespace_symbol {
             if let Some(namespace_symbol_value_declaration) =
-                namespace_symbol.maybe_value_declaration()
+                self.symbol(namespace_symbol).maybe_value_declaration()
             {
                 self.add_declaration_to_symbol(
-                    &namespace_symbol,
+                    namespace_symbol,
                     &namespace_symbol_value_declaration,
                     SymbolFlags::Class,
                 );
@@ -131,7 +131,13 @@ impl BinderType {
         }
         let root_expr = get_leftmost_access_expression(&node_as_binary_expression.left);
         if is_identifier(&root_expr)
-            && matches!(lookup_symbol_for_name(&self.container(), &root_expr.as_identifier().escaped_text), Some(symbol) if symbol.flags().intersects(SymbolFlags::Alias))
+            && matches!(
+                lookup_symbol_for_name(
+                    &self.container(),
+                    &root_expr.as_identifier().escaped_text
+                ),
+                Some(symbol) if self.symbol(symbol).flags().intersects(SymbolFlags::Alias)
+            )
         {
             return;
         }
@@ -189,16 +195,16 @@ impl BinderType {
 
     pub(super) fn bind_potentially_missing_namespaces(
         &self,
-        namespace_symbol: Option<Id<Symbol>>,
+        mut namespace_symbol: Option<Id<Symbol>>,
         entity_name: &Node, /*BindableStaticNameExpression*/
         is_toplevel: bool,
         is_prototype_property: bool,
         container_is_class: bool,
     ) -> Option<Id<Symbol>> {
-        let mut namespace_symbol =
-            namespace_symbol.map(|namespace_symbol| namespace_symbol.borrow().symbol_wrapper());
-        if matches!(namespace_symbol.as_ref(), Some(namespace_symbol) if namespace_symbol.flags().intersects(SymbolFlags::Alias))
-        {
+        if matches!(
+            namespace_symbol,
+            Some(namespace_symbol) if namespace_symbol.flags().intersects(SymbolFlags::Alias)
+        ) {
             return Some(namespace_symbol.unwrap());
         }
         if is_toplevel && !is_prototype_property {
@@ -209,13 +215,13 @@ impl BinderType {
                 namespace_symbol,
                 &mut |id, symbol, parent| {
                     if let Some(symbol) = symbol {
-                        self.add_declaration_to_symbol(&symbol, id, flags);
+                        self.add_declaration_to_symbol(symbol, id, flags);
                         Some(symbol)
                     } else {
                         /*let table =*/
                         if let Some(parent) = parent {
                             Some(self.declare_symbol(
-                                &mut parent.exports().borrow_mut(),
+                                &mut self.symbol(parent).exports().borrow_mut(),
                                 Some(parent),
                                 id,
                                 flags,
@@ -268,11 +274,9 @@ impl BinderType {
         namespace_symbol: Option<Id<Symbol>>,
         is_prototype_property: bool,
     ) {
-        let namespace_symbol =
-            namespace_symbol.map(|namespace_symbol| namespace_symbol.borrow().symbol_wrapper());
-        if match namespace_symbol.as_ref() {
+        if match namespace_symbol {
             None => true,
-            Some(namespace_symbol) => !self.is_expando_symbol(&namespace_symbol),
+            Some(namespace_symbol) => !self.is_expando_symbol(namespace_symbol),
         } {
             return;
         }
@@ -399,13 +403,13 @@ impl BinderType {
     }
 
     pub(super) fn is_expando_symbol(&self, symbol: Id<Symbol>) -> bool {
-        if symbol
-            .flags()
+        if self.symbol(symbol
+            ).flags()
             .intersects(SymbolFlags::Function | SymbolFlags::Class | SymbolFlags::NamespaceModule)
         {
             return true;
         }
-        let node = symbol.maybe_value_declaration();
+        let node = self.symbol(symbol).maybe_value_declaration();
         if let Some(node) = node.as_ref() {
             if is_call_expression(node) {
                 return get_assigned_expando_initializer(Some(&**node)).is_some();
@@ -475,7 +479,7 @@ impl BinderType {
                 Option::<&Node>::None,
             );
             symbol
-                .and_then(|symbol| symbol.maybe_exports().clone())
+                .and_then(|symbol| self.symbol(symbol).maybe_exports().clone())
                 .and_then(|exports| {
                     get_element_or_property_access_name(node)
                         .and_then(|name| (*exports).borrow().get(&*name).cloned())
@@ -495,7 +499,6 @@ impl BinderType {
         parent: Option<Id<Symbol>>,
         action: &mut TAction,
     ) -> Option<Id<Symbol>> {
-        let parent = parent.map(|parent| parent.borrow().symbol_wrapper());
         if is_exports_or_module_exports_or_alias(&self.file(), e) {
             self.file().maybe_symbol()
         } else if is_identifier(e) {
@@ -516,8 +519,8 @@ impl BinderType {
             }
             action(
                 &name,
-                s.as_ref()
-                    .and_then(|s| s.maybe_exports().clone())
+                s
+                    .and_then(|s| self.symbol(s).maybe_exports().clone())
                     .and_then(|exports| {
                         get_element_or_property_access_name(e)
                             .and_then(|name| (*exports).borrow().get(&*name).cloned())
@@ -562,15 +565,14 @@ impl BinderType {
 
         let symbol = node.symbol();
 
-        let prototype_symbol = self
+        let prototype_symbol = self.alloc_symbol(self
             .create_symbol(
                 SymbolFlags::Property | SymbolFlags::Prototype,
                 "prototype".to_owned(),
-            )
-            .wrap();
-        let symbol_exports = symbol.exports();
+            ));
+        let symbol_exports = self.symbol(symbol).exports();
         let mut symbol_exports = symbol_exports.borrow_mut();
-        let symbol_export = symbol_exports.get(prototype_symbol.escaped_name());
+        let symbol_export = symbol_exports.get(self.symbol(prototype_symbol).escaped_name());
         if let Some(symbol_export) = symbol_export {
             if let Some(name) = node.as_named_declaration().maybe_name() {
                 set_parent(&name, Some(node));
@@ -582,16 +584,16 @@ impl BinderType {
                     self.create_diagnostic_for_node(
                         &symbol_export.maybe_declarations().as_ref().unwrap()[0],
                         &Diagnostics::Duplicate_identifier_0,
-                        Some(vec![symbol_name(&prototype_symbol).into_owned()]),
+                        Some(vec![symbol_name(&self.symbol(prototype_symbol)).into_owned()]),
                     )
                     .into(),
                 ));
         }
         symbol_exports.insert(
-            prototype_symbol.escaped_name().to_owned(),
+            self.symbol(prototype_symbol).escaped_name().to_owned(),
             prototype_symbol.clone(),
         );
-        prototype_symbol.set_parent(Some(symbol));
+        self.symbol(prototype_symbol).set_parent(Some(symbol));
     }
 
     pub(super) fn bind_enum_declaration(&self, node: &Node /*EnumDeclaration*/) {
@@ -691,7 +693,7 @@ impl BinderType {
         if is_parameter_property_declaration(node, &node.parent()) {
             let class_declaration = node.parent().parent();
             self.declare_symbol(
-                &mut class_declaration.symbol().members().borrow_mut(),
+                &mut self.symbol(class_declaration.symbol()).members().borrow_mut(),
                 Some(class_declaration.symbol()),
                 node,
                 SymbolFlags::Property

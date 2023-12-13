@@ -11,7 +11,6 @@ use std::{
 
 use bitflags::bitflags;
 use gc::Gc;
-use id_arena::Id;
 use regex::{Captures, Regex};
 
 use super::is_quote_or_backtick;
@@ -479,12 +478,12 @@ pub fn get_escaped_text_of_identifier_or_literal<'node>(node: &'node Node) -> Co
     }
 }
 
-pub fn get_property_name_for_unique_es_symbol(symbol: Id<Symbol>) -> __String {
+pub fn get_property_name_for_unique_es_symbol(symbol: &Symbol) -> __String {
     format!("__@{}@{}", get_symbol_id(symbol), symbol.escaped_name())
 }
 
 pub fn get_symbol_name_for_private_identifier(
-    containing_class_symbol: Id<Symbol>,
+    containing_class_symbol: &Symbol,
     description: &str, /*__String*/
 ) -> __String {
     format!(
@@ -494,11 +493,11 @@ pub fn get_symbol_name_for_private_identifier(
     )
 }
 
-pub fn is_known_symbol(symbol: Id<Symbol>) -> bool {
+pub fn is_known_symbol(symbol: &Symbol) -> bool {
     starts_with(symbol.escaped_name(), "__@")
 }
 
-pub fn is_private_identifier_symbol(symbol: Id<Symbol>) -> bool {
+pub fn is_private_identifier_symbol(symbol: &Symbol) -> bool {
     starts_with(symbol.escaped_name(), "__#")
 }
 

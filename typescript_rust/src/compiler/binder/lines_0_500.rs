@@ -792,8 +792,8 @@ impl BinderType {
     ) {
         self.symbol(symbol).set_flags(self.symbol(symbol).flags() | symbol_flags);
 
-        node.set_symbol(symbol.symbol_wrapper());
-        let mut symbol_declarations = symbol.maybe_declarations_mut();
+        node.set_symbol(symbol);
+        let mut symbol_declarations = self.symbol(symbol).maybe_declarations_mut();
         if symbol_declarations.is_none() {
             *symbol_declarations = Some(vec![]);
         }
@@ -802,7 +802,7 @@ impl BinderType {
         if symbol_flags.intersects(
             SymbolFlags::Class | SymbolFlags::Enum | SymbolFlags::Module | SymbolFlags::Variable,
         ) {
-            let mut exports = symbol.maybe_exports_mut();
+            let mut exports = self.symbol(symbol).maybe_exports_mut();
             if exports.is_none() {
                 *exports = Some(Gc::new(GcCell::new(create_symbol_table(
                     Option::<&[Id<Symbol>]>::None,
@@ -816,7 +816,7 @@ impl BinderType {
                 | SymbolFlags::TypeLiteral
                 | SymbolFlags::ObjectLiteral,
         ) {
-            let mut members = symbol.maybe_members_mut();
+            let mut members = self.symbol(symbol).maybe_members_mut();
             if members.is_none() {
                 *members = Some(Gc::new(GcCell::new(create_symbol_table(
                     Option::<&[Id<Symbol>]>::None,
@@ -824,11 +824,11 @@ impl BinderType {
             }
         }
 
-        if matches!(symbol.maybe_const_enum_only_module(), Some(true))
+        if matches!(self.symbol(symbol).maybe_const_enum_only_module(), Some(true))
             && symbol_flags
                 .intersects(SymbolFlags::Function | SymbolFlags::Class | SymbolFlags::RegularEnum)
         {
-            symbol.set_const_enum_only_module(Some(false));
+            self.symbol(symbol).set_const_enum_only_module(Some(false));
         }
 
         if symbol_flags.intersects(SymbolFlags::Value) {
@@ -895,7 +895,7 @@ impl BinderType {
                 let containing_class_symbol = containing_class.symbol();
                 return Some(
                     get_symbol_name_for_private_identifier(
-                        &containing_class_symbol,
+                        containing_class_symbol,
                         &name.as_private_identifier().escaped_text,
                     )
                     .into(),
@@ -1010,7 +1010,7 @@ impl BinderType {
                         .insert((*name).to_owned());
                 }
 
-                match symbol.as_ref() {
+                match symbol {
                     None => {
                         symbol = Some(
                             self.create_symbol(SymbolFlags::None, (*name).to_owned())
@@ -1018,20 +1018,19 @@ impl BinderType {
                         );
                         symbol_table.insert(name.into_owned(), symbol.as_ref().unwrap().clone());
                         if is_replaceable_by_method {
-                            symbol
-                                .as_ref()
-                                .unwrap()
+                            self.symbol(symbol
+                                .unwrap())
                                 .set_is_replaceable_by_method(Some(true));
                         }
                     }
                     Some(symbol)
                         if is_replaceable_by_method
-                            && !matches!(symbol.maybe_is_replaceable_by_method(), Some(true)) =>
+                            && !matches!(self.symbol(symbol).maybe_is_replaceable_by_method(), Some(true)) =>
                     {
                         return symbol.clone();
                     }
-                    Some(symbol_present) if symbol_present.flags().intersects(excludes) => {
-                        if matches!(symbol_present.maybe_is_replaceable_by_method(), Some(true)) {
+                    Some(symbol_present) if self.symbol(symbol_present).flags().intersects(excludes) => {
+                        if matches!(self.symbol(symbol_present).maybe_is_replaceable_by_method(), Some(true)) {
                             symbol = Some(
                                 self.create_symbol(SymbolFlags::None, (*name).to_owned())
                                     .wrap(),
@@ -1039,7 +1038,7 @@ impl BinderType {
                             symbol_table
                                 .insert(name.into_owned(), symbol.as_ref().unwrap().clone());
                         } else if !(includes.intersects(SymbolFlags::Variable)
-                            && symbol_present.flags().intersects(SymbolFlags::Assignment))
+                            && self.symbol(symbol_present).flags().intersects(SymbolFlags::Assignment))
                         {
                             if is_named_declaration(node) {
                                 maybe_set_parent(
@@ -1047,8 +1046,8 @@ impl BinderType {
                                     Some(node.node_wrapper()),
                                 );
                             }
-                            let mut message = if symbol_present
-                                .flags()
+                            let mut message = if self.symbol(symbol_present
+                                ).flags()
                                 .intersects(SymbolFlags::BlockScopedVariable)
                             {
                                 &Diagnostics::Cannot_redeclare_block_scoped_variable_0
@@ -1057,7 +1056,7 @@ impl BinderType {
                             };
                             let mut message_needs_name = true;
 
-                            if symbol_present.flags().intersects(SymbolFlags::Enum)
+                            if self.symbol(symbol_present).flags().intersects(SymbolFlags::Enum)
                                 || includes.intersects(SymbolFlags::Enum)
                             {
                                 message = &Diagnostics::Enum_declarations_can_only_merge_with_namespace_or_other_enum_declarations;
@@ -1065,14 +1064,14 @@ impl BinderType {
                             }
 
                             let mut multiple_default_exports = false;
-                            if length(symbol_present.maybe_declarations().as_deref()) > 0 {
+                            if length(self.symbol(symbol_present).maybe_declarations().as_deref()) > 0 {
                                 if is_default_export {
                                     message =
                                         &*Diagnostics::A_module_cannot_have_multiple_default_exports;
                                     message_needs_name = false;
                                     multiple_default_exports = true;
                                 } else {
-                                    if matches!(symbol_present.maybe_declarations().as_ref(), Some(declarations) if !declarations.is_empty())
+                                    if matches!(self.symbol(symbol_present).maybe_declarations().as_ref(), Some(declarations) if !declarations.is_empty())
                                         && (node.kind() == SyntaxKind::ExportAssignment
                                             && !matches!(
                                                 node.as_export_assignment().is_export_equals,
@@ -1091,7 +1090,7 @@ impl BinderType {
                             if is_type_alias_declaration(node)
                                 && node_is_missing(Some(&*node.as_type_alias_declaration().type_))
                                 && has_syntactic_modifier(node, ModifierFlags::Export)
-                                && symbol_present.flags().intersects(
+                                && self.symbol(symbol_present).flags().intersects(
                                     SymbolFlags::Alias | SymbolFlags::Type | SymbolFlags::Namespace,
                                 )
                             {
@@ -1117,7 +1116,7 @@ impl BinderType {
                             let declaration_name: Gc<Node> = get_name_of_declaration(Some(node))
                                 .unwrap_or_else(|| node.node_wrapper());
                             maybe_for_each(
-                                symbol_present.maybe_declarations().as_ref(),
+                                self.symbol(symbol_present).maybe_declarations().as_ref(),
                                 |declaration: &Gc<Node>, index| {
                                     let decl = get_name_of_declaration(Some(&**declaration))
                                         .unwrap_or_else(|| declaration.node_wrapper());
@@ -1201,11 +1200,17 @@ impl BinderType {
         }
         let symbol = symbol.unwrap();
 
-        self.add_declaration_to_symbol(&symbol, node, includes);
-        if let Some(symbol_parent) = symbol.maybe_parent() {
-            Debug_.assert(matches!(parent, Some(parent) if Gc::ptr_eq(&symbol_parent, &parent.borrow().symbol_wrapper())), Some("Existing symbol parent should match new one"));
+        self.add_declaration_to_symbol(symbol, node, includes);
+        if let Some(symbol_parent) = self.symbol(symbol).maybe_parent() {
+            Debug_.assert(
+                matches!(
+                    parent,
+                    Some(parent) if symbol_parent == parent
+                ),
+                Some("Existing symbol parent should match new one")
+            );
         } else {
-            symbol.set_parent(parent.map(|parent| parent.borrow().symbol_wrapper()));
+            self.symbol(symbol).set_parent(parent);
         }
 
         symbol
