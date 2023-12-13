@@ -88,10 +88,10 @@ impl TypeChecker {
     ) -> io::Result<Gc<Signature>> {
         let links = self.get_node_links(declaration);
         if (*links).borrow().resolved_signature.is_none() {
-            let mut parameters: Vec<Gc<Symbol>> = vec![];
+            let mut parameters: Vec<Id<Symbol>> = vec![];
             let mut flags = SignatureFlags::None;
             let mut min_argument_count = 0;
-            let mut this_parameter: Option<Gc<Symbol>> = None;
+            let mut this_parameter: Option<Id<Symbol>> = None;
             let mut has_this_parameter = false;
             let iife = get_immediately_invoked_function_expression(declaration);
             let is_js_construct_signature = is_jsdoc_construct_signature(declaration);
@@ -240,7 +240,7 @@ impl TypeChecker {
     pub(super) fn maybe_add_js_synthetic_rest_parameter(
         &self,
         declaration: &Node, /*SignatureDeclaration | JSDocSignature*/
-        parameters: &mut Vec<Gc<Symbol>>,
+        parameters: &mut Vec<Id<Symbol>>,
     ) -> io::Result<bool> {
         if is_jsdoc_signature(declaration) || !self.contains_arguments_reference(declaration)? {
             return Ok(false);
@@ -263,7 +263,7 @@ impl TypeChecker {
                 })
                 .map(|type_expression| type_expression.as_jsdoc_type_expression().type_.clone())
         });
-        let synthetic_args_symbol: Gc<Symbol> = self
+        let synthetic_args_symbol: Id<Symbol> = self
             .create_symbol(
                 SymbolFlags::Variable,
                 "args".to_owned(),
@@ -551,7 +551,7 @@ impl TypeChecker {
                 Some(parameter_name_as_identifier.escaped_text.to_owned()),
                 find_index(
                     signature.parameters(),
-                    |p: &Gc<Symbol>, _| {
+                    |p: &Id<Symbol>, _| {
                         p.escaped_name() == &parameter_name_as_identifier.escaped_text
                     },
                     None,
@@ -983,7 +983,7 @@ impl TypeChecker {
         signature.maybe_isolated_signature_type().clone().unwrap()
     }
 
-    pub(super) fn get_index_symbol(&self, symbol: &Symbol) -> Option<Gc<Symbol>> {
+    pub(super) fn get_index_symbol(&self, symbol: &Symbol) -> Option<Id<Symbol>> {
         symbol
             .maybe_members()
             .clone()
@@ -993,7 +993,7 @@ impl TypeChecker {
     pub(super) fn get_index_symbol_from_symbol_table(
         &self,
         symbol_table: &SymbolTable,
-    ) -> Option<Gc<Symbol>> {
+    ) -> Option<Id<Symbol>> {
         symbol_table.get(InternalSymbolName::Index).cloned()
     }
 

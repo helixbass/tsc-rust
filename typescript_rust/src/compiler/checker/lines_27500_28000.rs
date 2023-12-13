@@ -91,7 +91,7 @@ impl TypeChecker {
     pub(super) fn get_jsx_library_managed_attributes(
         &self,
         jsx_namespace: Option<impl Borrow<Symbol>>,
-    ) -> io::Result<Option<Gc<Symbol>>> {
+    ) -> io::Result<Option<Id<Symbol>>> {
         if jsx_namespace.is_none() {
             return Ok(None);
         }
@@ -385,7 +385,7 @@ impl TypeChecker {
     pub fn get_jsx_intrinsic_tag_names_at(
         &self,
         location: &Node,
-    ) -> io::Result<impl Iterator<Item = Gc<Symbol>>> {
+    ) -> io::Result<impl Iterator<Item = Id<Symbol>>> {
         let intrinsics = self.get_jsx_type(&JsxNames::IntrinsicElements, Some(location))?;
         /*intrinsics ?*/
         self.get_properties_of_type(intrinsics) /*: emptyArray*/
@@ -437,7 +437,7 @@ impl TypeChecker {
                 node.node_wrapper()
             };
 
-            let mut jsx_factory_sym: Option<Gc<Symbol>> = None;
+            let mut jsx_factory_sym: Option<Id<Symbol>> = None;
             if !(is_jsx_opening_fragment(node) && jsx_factory_namespace == "null") {
                 jsx_factory_sym = self.resolve_name_(
                     Some(&*jsx_factory_location),

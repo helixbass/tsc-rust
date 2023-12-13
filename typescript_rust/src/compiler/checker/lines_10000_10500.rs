@@ -718,13 +718,13 @@ impl TypeChecker {
 
     pub(super) fn create_instantiated_symbol_table(
         &self,
-        symbols: impl IntoIterator<Item = impl Borrow<Gc<Symbol>>>,
+        symbols: impl IntoIterator<Item = impl Borrow<Id<Symbol>>>,
         mapper: Id<TypeMapper>,
         mapping_this_only: bool,
     ) -> io::Result<SymbolTable> {
-        let mut result = create_symbol_table(Option::<&[Gc<Symbol>]>::None);
+        let mut result = create_symbol_table(Option::<&[Id<Symbol>]>::None);
         for symbol in symbols {
-            let symbol: &Gc<Symbol> = symbol.borrow();
+            let symbol: &Id<Symbol> = symbol.borrow();
             result.insert(
                 symbol.escaped_name().to_owned(),
                 if mapping_this_only && self.is_thisless(symbol) {
@@ -740,10 +740,10 @@ impl TypeChecker {
     pub(super) fn add_inherited_members(
         &self,
         symbols: &mut SymbolTable,
-        base_symbols: impl IntoIterator<Item = impl Borrow<Gc<Symbol>>>,
+        base_symbols: impl IntoIterator<Item = impl Borrow<Id<Symbol>>>,
     ) {
         for s in base_symbols {
-            let s: &Gc<Symbol> = s.borrow();
+            let s: &Id<Symbol> = s.borrow();
             if !symbols.contains_key(s.escaped_name())
                 && !self.is_static_private_identifier_property(s)
             {

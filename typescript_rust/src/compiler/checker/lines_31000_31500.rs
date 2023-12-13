@@ -156,8 +156,8 @@ impl TypeChecker {
         original_symbol: &Symbol,
         anonymous_symbol: Option<impl Borrow<Symbol>>,
     ) -> io::Result<Id<Type>> {
-        let mut member_table = create_symbol_table(Option::<&[Gc<Symbol>]>::None);
-        let new_symbol: Gc<Symbol> = self
+        let mut member_table = create_symbol_table(Option::<&[Id<Symbol>]>::None);
+        let new_symbol: Id<Symbol> = self
             .create_symbol(
                 SymbolFlags::Alias,
                 InternalSymbolName::Default.to_owned(),
@@ -233,7 +233,7 @@ impl TypeChecker {
                     module_specifier,
                 )?;
                 if has_synthetic_default {
-                    let anonymous_symbol: Gc<Symbol> = self
+                    let anonymous_symbol: Id<Symbol> = self
                         .create_symbol(
                             SymbolFlags::TypeLiteral,
                             InternalSymbolName::Type.to_owned(),

@@ -71,9 +71,9 @@ impl TypeChecker {
         containing_type: Id<Type>, /*UnionOrIntersectionType*/
         name: &str,                /*__String*/
         skip_object_function_property_augment: Option<bool>,
-    ) -> io::Result<Option<Gc<Symbol>>> {
-        let mut single_prop: Option<Gc<Symbol>> = None;
-        let mut prop_set: Option<IndexMap<SymbolId, Gc<Symbol>>> = None;
+    ) -> io::Result<Option<Id<Symbol>>> {
+        let mut single_prop: Option<Id<Symbol>> = None;
+        let mut prop_set: Option<IndexMap<SymbolId, Id<Symbol>>> = None;
         let mut index_types: Option<Vec<Id<Type>>> = None;
         let is_union = self
             .type_(containing_type)
@@ -308,7 +308,7 @@ impl TypeChecker {
             prop_types.push(type_);
         }
         add_range(&mut prop_types, index_types.as_deref(), None, None);
-        let result: Gc<Symbol> = self
+        let result: Id<Symbol> = self
             .create_symbol(
                 SymbolFlags::Property | optional_flag,
                 name.to_owned(),
@@ -356,7 +356,7 @@ impl TypeChecker {
         type_: Id<Type>, /*UnionOrIntersectionType*/
         name: &str,      /*__String*/
         skip_object_function_property_augment: Option<bool>,
-    ) -> io::Result<Option<Gc<Symbol>>> {
+    ) -> io::Result<Option<Id<Symbol>>> {
         let mut property = self
             .type_(type_)
             .as_union_or_intersection_type_interface()
@@ -392,7 +392,7 @@ impl TypeChecker {
                         .maybe_property_cache_without_object_function_property_augment();
                     if property_cache_without_object_function_property_augment.is_none() {
                         *property_cache_without_object_function_property_augment =
-                            Some(create_symbol_table(Option::<&[Gc<Symbol>]>::None));
+                            Some(create_symbol_table(Option::<&[Id<Symbol>]>::None));
                     }
                     property_cache_without_object_function_property_augment
                         .as_mut()
@@ -404,7 +404,7 @@ impl TypeChecker {
                         .as_union_or_intersection_type_interface()
                         .maybe_property_cache();
                     if property_cache.is_none() {
-                        *property_cache = Some(create_symbol_table(Option::<&[Gc<Symbol>]>::None));
+                        *property_cache = Some(create_symbol_table(Option::<&[Id<Symbol>]>::None));
                     }
                     property_cache
                         .as_mut()
@@ -421,7 +421,7 @@ impl TypeChecker {
         type_: Id<Type>, /*UnionOrIntersectionType*/
         name: &str,      /*__String*/
         skip_object_function_property_augment: Option<bool>,
-    ) -> io::Result<Option<Gc<Symbol>>> {
+    ) -> io::Result<Option<Id<Symbol>>> {
         let property = self.get_union_or_intersection_property(
             type_,
             name,
@@ -590,7 +590,7 @@ impl TypeChecker {
         type_: Id<Type>,
         name: &str, /*__String*/
         skip_object_function_property_augment: Option<bool>,
-    ) -> io::Result<Option<Gc<Symbol>>> {
+    ) -> io::Result<Option<Id<Symbol>>> {
         let type_ = self.get_reduced_apparent_type(type_)?;
         if self.type_(type_).flags().intersects(TypeFlags::Object) {
             let resolved = self.resolve_structured_type_members(type_)?;
@@ -852,8 +852,8 @@ impl TypeChecker {
         result
     }
 
-    pub(super) fn symbols_to_array(&self, symbols: &SymbolTable) -> Vec<Gc<Symbol>> {
-        let mut result: Vec<Gc<Symbol>> = vec![];
+    pub(super) fn symbols_to_array(&self, symbols: &SymbolTable) -> Vec<Id<Symbol>> {
+        let mut result: Vec<Id<Symbol>> = vec![];
         for (id, symbol) in symbols {
             if !self.is_reserved_member_name(id) {
                 result.push(symbol.clone());
@@ -884,7 +884,7 @@ impl TypeChecker {
         &self,
         module_name: &str,
         with_augmentations: bool,
-    ) -> io::Result<Option<Gc<Symbol>>> {
+    ) -> io::Result<Option<Id<Symbol>>> {
         if is_external_module_name_relative(module_name) {
             return Ok(None);
         }

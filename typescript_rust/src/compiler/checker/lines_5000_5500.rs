@@ -632,7 +632,7 @@ impl NodeBuilder {
                                 .as_resolved_type()
                                 .properties(),
                         ),
-                        |p: &Gc<Symbol>, _| !p.flags().intersects(SymbolFlags::Prototype),
+                        |p: &Id<Symbol>, _| !p.flags().intersects(SymbolFlags::Prototype),
                     )
                 } else {
                     length(Some(

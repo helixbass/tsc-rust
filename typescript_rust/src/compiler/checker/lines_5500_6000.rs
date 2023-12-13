@@ -299,7 +299,7 @@ impl NodeBuilder {
             .unwrap();
         let mut parameters = if some(
             Some(&*expanded_params),
-            Some(|p: &Gc<Symbol>| {
+            Some(|p: &Id<Symbol>| {
                 !Gc::ptr_eq(p, &expanded_params[expanded_params.len() - 1])
                     && get_check_flags(p).intersects(CheckFlags::RestParameter)
             }),
@@ -792,7 +792,7 @@ impl NodeBuilder {
         context: &NodeBuilderContext,
         meaning: /*SymbolFlags*/ Option<SymbolFlags>,
         yield_module_symbol: Option<bool>,
-    ) -> io::Result<Vec<Gc<Symbol>>> {
+    ) -> io::Result<Vec<Id<Symbol>>> {
         context.tracker().track_symbol(
             symbol,
             context.maybe_enclosing_declaration(),
@@ -810,8 +810,8 @@ impl NodeBuilder {
         context: &NodeBuilderContext,
         meaning: /*SymbolFlags*/ Option<SymbolFlags>,
         yield_module_symbol: Option<bool>,
-    ) -> io::Result<Vec<Gc<Symbol>>> {
-        let chain: Vec<Gc<Symbol>>;
+    ) -> io::Result<Vec<Id<Symbol>>> {
+        let chain: Vec<Id<Symbol>>;
         let is_type_parameter = symbol.flags().intersects(SymbolFlags::TypeParameter);
         if !is_type_parameter
             && (context.maybe_enclosing_declaration().is_some()
@@ -840,7 +840,7 @@ impl NodeBuilder {
         symbol: &Symbol,
         meaning: Option<SymbolFlags>,
         end_of_chain: bool,
-    ) -> io::Result<Option<Vec<Gc<Symbol>>>> {
+    ) -> io::Result<Option<Vec<Id<Symbol>>>> {
         let mut accessible_symbol_chain = self.type_checker.get_accessible_symbol_chain(
             Some(symbol),
             context.maybe_enclosing_declaration(),
@@ -1037,7 +1037,7 @@ impl NodeBuilder {
 
     pub(super) fn lookup_type_parameter_nodes(
         &self,
-        chain: &[Gc<Symbol>],
+        chain: &[Id<Symbol>],
         index: usize,
         context: &NodeBuilderContext,
     ) -> io::Result<Option<Vec<Gc<Node>>>> {

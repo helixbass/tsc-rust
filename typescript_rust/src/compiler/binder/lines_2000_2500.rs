@@ -1,6 +1,7 @@
 use std::{borrow::Borrow, collections::HashMap, convert::TryInto};
 
 use gc::{Gc, GcCell};
+use id_arena::Id;
 
 use super::{
     get_module_instance_state, init_flow_node, is_exports_or_module_exports_or_alias, BinderType,
@@ -74,7 +75,7 @@ impl BinderType {
         self.add_declaration_to_symbol(&type_literal_symbol, node, SymbolFlags::TypeLiteral);
         let mut type_literal_symbol_members = type_literal_symbol.maybe_members_mut();
         *type_literal_symbol_members = Some(Gc::new(GcCell::new(create_symbol_table(
-            Option::<&[Gc<Symbol>]>::None,
+            Option::<&[Id<Symbol>]>::None,
         ))));
         type_literal_symbol_members
             .as_ref()
@@ -144,7 +145,7 @@ impl BinderType {
         );
     }
 
-    pub(super) fn bind_jsx_attributes(&self, node: &Node /*JsxAttributes*/) -> Gc<Symbol> {
+    pub(super) fn bind_jsx_attributes(&self, node: &Node /*JsxAttributes*/) -> Id<Symbol> {
         self.bind_anonymous_declaration(
             node,
             SymbolFlags::ObjectLiteral,
@@ -157,7 +158,7 @@ impl BinderType {
         node: &Node, /*JsxAttribute*/
         symbol_flags: SymbolFlags,
         symbol_excludes: SymbolFlags,
-    ) -> Option<Gc<Symbol>> {
+    ) -> Option<Id<Symbol>> {
         self.declare_symbol_and_add_to_symbol_table(node, symbol_flags, symbol_excludes)
     }
 
@@ -166,7 +167,7 @@ impl BinderType {
         node: &Node,
         symbol_flags: SymbolFlags,
         name: __String,
-    ) -> Gc<Symbol> {
+    ) -> Id<Symbol> {
         let symbol = self.create_symbol(symbol_flags, name).wrap();
         if symbol_flags.intersects(SymbolFlags::EnumMember | SymbolFlags::ClassMember) {
             symbol.set_parent(self.container().maybe_symbol());
@@ -195,7 +196,7 @@ impl BinderType {
                             block_scope_container.maybe_locals_mut();
                         if block_scope_container_locals.is_none() {
                             *block_scope_container_locals = Some(Gc::new(GcCell::new(
-                                create_symbol_table(Option::<&[Gc<Symbol>]>::None),
+                                create_symbol_table(Option::<&[Id<Symbol>]>::None),
                             )));
                             self.add_to_container_chain(&block_scope_container);
                         }
@@ -216,7 +217,7 @@ impl BinderType {
                     let mut block_scope_container_locals = block_scope_container.maybe_locals_mut();
                     if block_scope_container_locals.is_none() {
                         *block_scope_container_locals = Some(Gc::new(GcCell::new(
-                            create_symbol_table(Option::<&[Gc<Symbol>]>::None),
+                            create_symbol_table(Option::<&[Id<Symbol>]>::None),
                         )));
                         self.add_to_container_chain(&block_scope_container);
                     }

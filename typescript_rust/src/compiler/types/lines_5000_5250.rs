@@ -100,17 +100,17 @@ pub type __String = String;
 
 pub type UnderscoreEscapedMap<TValue> = HashMap<__String, TValue>;
 
-pub type SymbolTable = IndexMap<__String, Gc<Symbol>>;
+pub type SymbolTable = IndexMap<__String, Id<Symbol>>;
 
 #[derive(Clone, Debug, Trace, Finalize)]
 pub struct PatternAmbientModule {
     #[unsafe_ignore_trace]
     pub pattern: Rc<Pattern>,
-    pub symbol: Gc<Symbol>,
+    pub symbol: Id<Symbol>,
 }
 
 impl PatternAmbientModule {
-    pub fn new(pattern: Rc<Pattern>, symbol: Gc<Symbol>) -> Self {
+    pub fn new(pattern: Rc<Pattern>, symbol: Id<Symbol>) -> Self {
         Self { pattern, symbol }
     }
 }
@@ -160,7 +160,7 @@ pub struct NodeLinks {
     pub resolved_type: Option<Id<Type>>,
     pub resolved_enum_type: Option<Id<Type>>,
     pub resolved_signature: Option<Gc<Signature>>,
-    pub resolved_symbol: Option<Gc<Symbol>>,
+    pub resolved_symbol: Option<Id<Symbol>>,
     pub effects_signature: Option<Gc<Signature>>,
     #[unsafe_ignore_trace]
     pub enum_member_value: Option<StringOrNumber>,
@@ -172,11 +172,11 @@ pub struct NodeLinks {
     pub resolved_jsx_element_attributes_type: Option<Id<Type>>,
     pub resolved_jsdoc_type: Option<Id<Type>>,
     pub switch_types: Option<Vec<Id<Type>>>,
-    pub jsx_namespace: Option<Option<Gc<Symbol>>>,
-    pub jsx_implicit_import_container: Option<Option<Gc<Symbol>>>,
+    pub jsx_namespace: Option<Option<Id<Symbol>>>,
+    pub jsx_implicit_import_container: Option<Option<Id<Symbol>>>,
     pub context_free_type: Option<Id<Type>>,
     pub deferred_nodes: Option<IndexMap<NodeId, Gc<Node>>>,
-    pub captured_block_scope_bindings: Option<Vec<Gc<Symbol>>>,
+    pub captured_block_scope_bindings: Option<Vec<Id<Symbol>>>,
     pub outer_type_parameters: Option<Vec<Id<Type /*TypeParameter*/>>>,
     pub is_exhaustive: Option<bool>,
     pub skip_direct_inference: Option<bool /*true*/>,
@@ -541,12 +541,12 @@ pub trait TypeInterface {
     fn flags(&self) -> TypeFlags;
     fn set_flags(&self, flags: TypeFlags);
     fn id(&self) -> TypeId;
-    fn maybe_symbol(&self) -> Option<Gc<Symbol>>;
-    fn symbol(&self) -> Gc<Symbol>;
-    fn set_symbol(&self, symbol: Option<Gc<Symbol>>);
+    fn maybe_symbol(&self) -> Option<Id<Symbol>>;
+    fn symbol(&self) -> Id<Symbol>;
+    fn set_symbol(&self, symbol: Option<Id<Symbol>>);
     fn maybe_pattern(&self) -> GcCellRefMut<Option<Gc<Node /*DestructuringPattern*/>>>;
-    fn maybe_alias_symbol(&self) -> Option<Gc<Symbol>>;
-    fn maybe_alias_symbol_mut(&self) -> GcCellRefMut<Option<Gc<Symbol>>>;
+    fn maybe_alias_symbol(&self) -> Option<Id<Symbol>>;
+    fn maybe_alias_symbol_mut(&self) -> GcCellRefMut<Option<Id<Symbol>>>;
     fn maybe_alias_type_arguments(&self) -> Option<Vec<Id<Type>>>;
     fn maybe_alias_type_arguments_mut(&self) -> GcCellRefMut<Option<Vec<Id<Type>>>>;
     fn maybe_alias_type_arguments_contains_marker(&self) -> Option<bool>;
@@ -599,9 +599,9 @@ pub struct BaseType {
     flags: Cell<TypeFlags>,
     #[unsafe_ignore_trace]
     pub id: Option<TypeId>,
-    symbol: GcCell<Option<Gc<Symbol>>>,
+    symbol: GcCell<Option<Id<Symbol>>>,
     pattern: GcCell<Option<Gc<Node>>>,
-    alias_symbol: GcCell<Option<Gc<Symbol>>>,
+    alias_symbol: GcCell<Option<Id<Symbol>>>,
     alias_type_arguments: GcCell<Option<Vec<Id<Type>>>>,
     #[unsafe_ignore_trace]
     alias_type_arguments_contains_marker: Cell<Option<bool>>,
@@ -685,15 +685,15 @@ impl TypeInterface for BaseType {
         self.id.unwrap()
     }
 
-    fn maybe_symbol(&self) -> Option<Gc<Symbol>> {
+    fn maybe_symbol(&self) -> Option<Id<Symbol>> {
         self.symbol.borrow().as_ref().map(Clone::clone)
     }
 
-    fn symbol(&self) -> Gc<Symbol> {
+    fn symbol(&self) -> Id<Symbol> {
         self.symbol.borrow().as_ref().unwrap().clone()
     }
 
-    fn set_symbol(&self, symbol: Option<Gc<Symbol>>) {
+    fn set_symbol(&self, symbol: Option<Id<Symbol>>) {
         *self.symbol.borrow_mut() = symbol;
     }
 
@@ -701,11 +701,11 @@ impl TypeInterface for BaseType {
         self.pattern.borrow_mut()
     }
 
-    fn maybe_alias_symbol(&self) -> Option<Gc<Symbol>> {
+    fn maybe_alias_symbol(&self) -> Option<Id<Symbol>> {
         self.alias_symbol.borrow().clone()
     }
 
-    fn maybe_alias_symbol_mut(&self) -> GcCellRefMut<Option<Gc<Symbol>>> {
+    fn maybe_alias_symbol_mut(&self) -> GcCellRefMut<Option<Id<Symbol>>> {
         self.alias_symbol.borrow_mut()
     }
 

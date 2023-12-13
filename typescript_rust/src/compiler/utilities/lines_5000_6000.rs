@@ -158,7 +158,7 @@ pub fn is_empty_array_literal(expression: &Node) -> bool {
         && expression.as_array_literal_expression().elements.is_empty()
 }
 
-pub fn get_local_symbol_for_export_default(symbol: &Symbol) -> Option<Gc<Symbol>> {
+pub fn get_local_symbol_for_export_default(symbol: &Symbol) -> Option<Id<Symbol>> {
     if !is_export_default_symbol(symbol) || symbol.maybe_declarations().is_none() {
         return None;
     }

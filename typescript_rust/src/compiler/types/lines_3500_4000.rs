@@ -746,7 +746,7 @@ impl SourceFile {
 
     pub fn maybe_exported_modules_from_declaration_emit(
         &self,
-    ) -> GcCellRefMut<Option<Vec<Gc<Symbol>>>> {
+    ) -> GcCellRefMut<Option<Vec<Id<Symbol>>>> {
         self.contents
             .exported_modules_from_declaration_emit
             .borrow_mut()
@@ -856,7 +856,7 @@ pub enum CommentDirectiveType {
     Ignore,
 }
 
-pub(crate) type ExportedModulesFromDeclarationEmit = Vec<Gc<Symbol>>;
+pub(crate) type ExportedModulesFromDeclarationEmit = Vec<Id<Symbol>>;
 
 #[derive(Debug, Trace, Finalize)]
 #[ast_type]

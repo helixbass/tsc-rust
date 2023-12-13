@@ -7,6 +7,7 @@ use std::{
 };
 
 use gc::{Finalize, Gc, GcCell, GcCellRef, GcCellRefMut, Trace};
+use id_arena::Id;
 
 use super::{
     wrap_symbol_tracker_to_report_for_context, MakeSerializePropertySymbol,
@@ -77,7 +78,7 @@ pub(super) struct SymbolTableToDeclarationStatements {
     pub(super) enclosing_declaration: Gc<Node>,
     pub(super) results: GcCell<Vec<Gc<Node>>>,
     pub(super) visited_symbols: GcCell<HashSet<SymbolId>>,
-    pub(super) deferred_privates_stack: GcCell<Vec<HashMap<SymbolId, Gc<Symbol>>>>,
+    pub(super) deferred_privates_stack: GcCell<Vec<HashMap<SymbolId, Id<Symbol>>>>,
     pub(super) oldcontext: Gc<NodeBuilderContext>,
     pub(super) symbol_table: GcCell<Gc<GcCell<SymbolTable>>>,
     #[unsafe_ignore_trace]
@@ -186,11 +187,11 @@ impl SymbolTableToDeclarationStatements {
         self.visited_symbols.borrow_mut()
     }
 
-    pub fn deferred_privates_stack(&self) -> GcCellRef<Vec<HashMap<SymbolId, Gc<Symbol>>>> {
+    pub fn deferred_privates_stack(&self) -> GcCellRef<Vec<HashMap<SymbolId, Id<Symbol>>>> {
         self.deferred_privates_stack.borrow()
     }
 
-    pub fn deferred_privates_stack_mut(&self) -> GcCellRefMut<Vec<HashMap<SymbolId, Gc<Symbol>>>> {
+    pub fn deferred_privates_stack_mut(&self) -> GcCellRefMut<Vec<HashMap<SymbolId, Id<Symbol>>>> {
         self.deferred_privates_stack.borrow_mut()
     }
 
@@ -213,7 +214,7 @@ impl SymbolTableToDeclarationStatements {
     pub fn call(&self) -> io::Result<Vec<Gc<Node>>> {
         for_each_entry(
             &*(*self.symbol_table()).borrow(),
-            |symbol: &Gc<Symbol>, name: &String| -> Option<()> {
+            |symbol: &Id<Symbol>, name: &String| -> Option<()> {
                 let base_name = unescape_leading_underscores(name);
                 self.get_internal_symbol_name(symbol, base_name);
                 None
@@ -228,7 +229,7 @@ impl SymbolTableToDeclarationStatements {
                 && export_equals.flags().intersects(SymbolFlags::Alias)
         }) {
             self.set_symbol_table(Gc::new(GcCell::new(create_symbol_table(
-                Option::<&[Gc<Symbol>]>::None,
+                Option::<&[Id<Symbol>]>::None,
             ))));
             self.symbol_table()
                 .borrow_mut()

@@ -1,6 +1,7 @@
 use std::{borrow::Borrow, io, ptr};
 
 use gc::Gc;
+use id_arena::Id;
 
 use super::{is_declaration_name_or_import_property_name, CheckMode};
 use crate::{
@@ -44,12 +45,12 @@ impl TypeChecker {
         &self,
         location: &Node,
         meaning: SymbolFlags,
-    ) -> io::Result<Vec<Gc<Symbol>>> {
+    ) -> io::Result<Vec<Id<Symbol>>> {
         if location.flags().intersects(NodeFlags::InWithStatement) {
             return Ok(vec![]);
         }
 
-        let mut symbols = create_symbol_table(Option::<&[Gc<Symbol>]>::None);
+        let mut symbols = create_symbol_table(Option::<&[Id<Symbol>]>::None);
         let mut is_static_symbol = false;
 
         let mut location = Some(location.node_wrapper());
@@ -383,7 +384,7 @@ impl TypeChecker {
     pub(super) fn get_special_property_assignment_symbol_from_entity_name(
         &self,
         entity_name: &Node, /*EntityName | PropertyAccessExpression*/
-    ) -> io::Result<Option<Gc<Symbol>>> {
+    ) -> io::Result<Option<Id<Symbol>>> {
         let special_property_assignment_kind =
             get_assignment_declaration_kind(&entity_name.parent().parent());
         Ok(match special_property_assignment_kind {
@@ -429,7 +430,7 @@ impl TypeChecker {
     pub(super) fn get_symbol_of_name_or_property_access_expression(
         &self,
         name: &Node, /*EntityName | PrivateIdentifier | PropertyAccessExpression | JSDocMemberName*/
-    ) -> io::Result<Option<Gc<Symbol>>> {
+    ) -> io::Result<Option<Id<Symbol>>> {
         if is_declaration_name(name) {
             return self.get_symbol_of_node(&name.parent());
         }
@@ -644,7 +645,7 @@ impl TypeChecker {
         &self,
         name: &Node, /*EntityName | JSDocMemberName*/
         container: Option<impl Borrow<Symbol>>,
-    ) -> io::Result<Option<Gc<Symbol>>> {
+    ) -> io::Result<Option<Id<Symbol>>> {
         let container = container.map(|container| container.borrow().symbol_wrapper());
         if is_entity_name(name) {
             let meaning = SymbolFlags::Type | SymbolFlags::Namespace | SymbolFlags::Value;
@@ -705,7 +706,7 @@ impl TypeChecker {
         &self,
         node: &Node,
         ignore_errors: Option<bool>,
-    ) -> io::Result<Option<Gc<Symbol>>> {
+    ) -> io::Result<Option<Id<Symbol>>> {
         if node.kind() == SyntaxKind::SourceFile {
             return Ok(if is_external_module(node) {
                 self.get_merged_symbol(node.maybe_symbol())

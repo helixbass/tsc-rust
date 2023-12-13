@@ -718,7 +718,7 @@ impl TypeChecker {
     pub(super) fn get_symbol_for_expression(
         &self,
         e: &Node, /*Expression*/
-    ) -> io::Result<Option<Gc<Symbol>>> {
+    ) -> io::Result<Option<Id<Symbol>>> {
         if e.maybe_symbol().is_some() {
             return Ok(e.maybe_symbol());
         }
@@ -754,7 +754,7 @@ impl TypeChecker {
         &self,
         type_: Id<Type>,
         id: &Node, /*PrivateIdentifier*/
-    ) -> io::Result<Option<Gc<Symbol>>> {
+    ) -> io::Result<Option<Id<Symbol>>> {
         let lexically_scoped_symbol = self.lookup_symbol_for_private_identifier_declaration(
             &id.as_private_identifier().escaped_text,
             id,

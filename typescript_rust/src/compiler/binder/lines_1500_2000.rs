@@ -1,6 +1,7 @@
 use std::{cell::RefCell, io, rc::Rc};
 
 use gc::{Finalize, Gc, Trace};
+use id_arena::Id;
 
 use super::{BinderType, ContainerFlags, ModuleInstanceState};
 use crate::{
@@ -431,7 +432,7 @@ impl BinderType {
         node: &Node, /*Declaration*/
         symbol_flags: SymbolFlags,
         symbol_excludes: SymbolFlags,
-    ) -> Option<Gc<Symbol>> {
+    ) -> Option<Id<Symbol>> {
         match self.container().kind() {
             SyntaxKind::ModuleDeclaration => {
                 Some(self.declare_module_member(node, symbol_flags, symbol_excludes))
@@ -506,7 +507,7 @@ impl BinderType {
         node: &Node, /*Declaration*/
         symbol_flags: SymbolFlags,
         symbol_excludes: SymbolFlags,
-    ) -> Gc<Symbol> {
+    ) -> Id<Symbol> {
         if is_static(node) {
             self.declare_symbol(
                 &mut *self.container().symbol().exports().borrow_mut(),
@@ -535,7 +536,7 @@ impl BinderType {
         node: &Node, /*Declaration*/
         symbol_flags: SymbolFlags,
         symbol_excludes: SymbolFlags,
-    ) -> Gc<Symbol> {
+    ) -> Id<Symbol> {
         if is_external_module(&self.file()) {
             self.declare_module_member(node, symbol_flags, symbol_excludes)
         } else {

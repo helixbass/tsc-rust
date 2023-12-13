@@ -49,14 +49,14 @@ impl TypeChecker {
         let this_parameters = map_defined(Some(candidates), |c: &Gc<Signature>, _| {
             c.maybe_this_parameter().clone()
         });
-        let mut this_parameter: Option<Gc<Symbol>> = None;
+        let mut this_parameter: Option<Id<Symbol>> = None;
         if !this_parameters.is_empty() {
             this_parameter = Some(
                 self.create_combined_symbol_from_types(
                     &this_parameters,
                     &this_parameters
                         .iter()
-                        .map(|parameter: &Gc<Symbol>| self.get_type_of_parameter(parameter))
+                        .map(|parameter: &Id<Symbol>| self.get_type_of_parameter(parameter))
                         .collect::<Result<Vec<_>, _>>()?,
                 )?,
             );
@@ -67,7 +67,7 @@ impl TypeChecker {
         } = min_and_max(candidates, |candidate: &Gc<Signature>| {
             self.get_num_non_rest_parameters(candidate)
         });
-        let mut parameters: Vec<Gc<Symbol>> = vec![];
+        let mut parameters: Vec<Id<Symbol>> = vec![];
         for i in 0..max_non_rest_param {
             let symbols = map_defined(Some(candidates), |s: &Gc<Signature>, _| {
                 if signature_has_rest_parameter(s) {
@@ -158,9 +158,9 @@ impl TypeChecker {
 
     pub(super) fn create_combined_symbol_from_types(
         &self,
-        sources: &[Gc<Symbol>],
+        sources: &[Id<Symbol>],
         types: &[Id<Type>],
-    ) -> io::Result<Gc<Symbol>> {
+    ) -> io::Result<Id<Symbol>> {
         Ok(self.create_combined_symbol_for_overload_failure(
             sources,
             self.get_union_type(
@@ -175,9 +175,9 @@ impl TypeChecker {
 
     pub(super) fn create_combined_symbol_for_overload_failure(
         &self,
-        sources: &[Gc<Symbol>],
+        sources: &[Id<Symbol>],
         type_: Id<Type>,
-    ) -> Gc<Symbol> {
+    ) -> Id<Symbol> {
         self.create_symbol_with_type(&*first(sources), Some(type_))
     }
 

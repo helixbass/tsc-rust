@@ -7,6 +7,7 @@ use std::{
 };
 
 use gc::{Finalize, Gc, GcCell, GcCellRef, GcCellRefMut, Trace};
+use id_arena::Id;
 
 use super::{can_have_literal_initializer, mask_modifiers};
 use crate::{
@@ -179,7 +180,7 @@ pub(super) struct TransformDeclarations {
     >,
     #[unsafe_ignore_trace]
     pub(super) suppress_new_diagnostic_contexts: Cell<Option<bool>>,
-    pub(super) exported_modules_from_declaration_emit: GcCell<Option<Vec<Gc<Symbol>>>>,
+    pub(super) exported_modules_from_declaration_emit: GcCell<Option<Vec<Id<Symbol>>>>,
     pub(super) factory: Gc<NodeFactory<BaseNodeFactorySynthetic>>,
     pub(super) host: Gc<Box<dyn EmitHost>>,
     pub(super) symbol_tracker: GcCell<Option<Gc<Box<dyn SymbolTracker>>>>,
@@ -372,13 +373,13 @@ impl TransformDeclarations {
 
     pub(super) fn maybe_exported_modules_from_declaration_emit(
         &self,
-    ) -> GcCellRef<Option<Vec<Gc<Symbol>>>> {
+    ) -> GcCellRef<Option<Vec<Id<Symbol>>>> {
         self.exported_modules_from_declaration_emit.borrow()
     }
 
     pub(super) fn maybe_exported_modules_from_declaration_emit_mut(
         &self,
-    ) -> GcCellRefMut<Option<Vec<Gc<Symbol>>>> {
+    ) -> GcCellRefMut<Option<Vec<Id<Symbol>>>> {
         self.exported_modules_from_declaration_emit.borrow_mut()
     }
 

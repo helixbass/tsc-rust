@@ -128,7 +128,7 @@ impl TypeChecker {
         include_pattern_in_type: bool,
         report_errors: bool,
     ) -> io::Result<Id<Type>> {
-        let mut members = create_symbol_table(Option::<&[Gc<Symbol>]>::None);
+        let mut members = create_symbol_table(Option::<&[Id<Symbol>]>::None);
         let mut string_index_info: Option<Gc<IndexInfo>> = None;
         let mut object_flags =
             ObjectFlags::ObjectLiteral | ObjectFlags::ContainsObjectOrArrayLiteral;
@@ -162,7 +162,7 @@ impl TypeChecker {
                     } else {
                         SymbolFlags::None
                     };
-                let symbol: Gc<Symbol> = self.create_symbol(flags, text, None).into();
+                let symbol: Id<Symbol> = self.create_symbol(flags, text, None).into();
                 symbol
                     .as_transient_symbol()
                     .symbol_links()
@@ -421,7 +421,7 @@ impl TypeChecker {
                 let file_symbol = self
                     .get_symbol_of_node(&get_source_file_of_node(&symbol_value_declaration))?
                     .unwrap();
-                let result: Gc<Symbol> = self
+                let result: Id<Symbol> = self
                     .create_symbol(file_symbol.flags(), "exports".to_owned(), None)
                     .into();
                 result.set_declarations(
@@ -449,7 +449,7 @@ impl TypeChecker {
                         (**file_symbol_exports).borrow().clone(),
                     )));
                 }
-                let mut members = create_symbol_table(Option::<&[Gc<Symbol>]>::None);
+                let mut members = create_symbol_table(Option::<&[Id<Symbol>]>::None);
                 members.insert("exports".to_owned(), result);
                 return self.create_anonymous_type(
                     Some(symbol),
@@ -651,7 +651,7 @@ impl TypeChecker {
     pub(super) fn get_annotated_accessor_this_parameter(
         &self,
         accessor: &Node, /*AccessorDeclaration*/
-    ) -> Option<Gc<Symbol>> {
+    ) -> Option<Id<Symbol>> {
         let parameter = self.get_accessor_this_parameter(accessor)?;
         parameter.maybe_symbol()
     }

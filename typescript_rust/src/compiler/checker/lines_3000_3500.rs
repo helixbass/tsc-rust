@@ -1,6 +1,7 @@
 use std::{borrow::Borrow, io, ptr};
 
 use gc::{Gc, GcCell};
+use id_arena::Id;
 
 use crate::{
     declaration_name_to_string, entity_name_to_string, file_extension_is, find, find_ancestor,
@@ -33,7 +34,7 @@ impl TypeChecker {
         &self,
         node: &Node, /*PropertyAssignment*/
         dont_recursively_resolve: bool,
-    ) -> io::Result<Option<Gc<Symbol>>> {
+    ) -> io::Result<Option<Id<Symbol>>> {
         let expression = &node.as_property_assignment().initializer;
         self.get_target_of_alias_like_expression(expression, dont_recursively_resolve)
     }
@@ -42,7 +43,7 @@ impl TypeChecker {
         &self,
         node: &Node, /*AccessExpression*/
         dont_recursively_resolve: bool,
-    ) -> io::Result<Option<Gc<Symbol>>> {
+    ) -> io::Result<Option<Id<Symbol>>> {
         let node_parent = node.parent();
         if !(is_binary_expression(&node_parent)) {
             return Ok(None);
@@ -64,7 +65,7 @@ impl TypeChecker {
         &self,
         node: &Node, /*Declaration*/
         dont_recursively_resolve: Option<bool>,
-    ) -> io::Result<Option<Gc<Symbol>>> {
+    ) -> io::Result<Option<Id<Symbol>>> {
         let dont_recursively_resolve = dont_recursively_resolve.unwrap_or(false);
         Ok(match node.kind() {
             SyntaxKind::ImportEqualsDeclaration | SyntaxKind::VariableDeclaration => {
@@ -131,7 +132,7 @@ impl TypeChecker {
         &self,
         symbol: Option<impl Borrow<Symbol> + Clone>,
         dont_resolve_alias: Option<bool>,
-    ) -> io::Result<Option<Gc<Symbol>>> {
+    ) -> io::Result<Option<Id<Symbol>>> {
         Ok(
             if !matches!(dont_resolve_alias, Some(true))
                 && self.is_non_local_alias(symbol.clone(), None)
@@ -143,7 +144,7 @@ impl TypeChecker {
         )
     }
 
-    pub(super) fn resolve_alias(&self, symbol: &Symbol) -> io::Result<Gc<Symbol>> {
+    pub(super) fn resolve_alias(&self, symbol: &Symbol) -> io::Result<Id<Symbol>> {
         Debug_.assert(
             symbol.flags().intersects(SymbolFlags::Alias),
             Some("Should only get Alias here."),
@@ -185,7 +186,7 @@ impl TypeChecker {
         Ok(ret)
     }
 
-    pub(super) fn try_resolve_alias(&self, symbol: &Symbol) -> io::Result<Option<Gc<Symbol>>> {
+    pub(super) fn try_resolve_alias(&self, symbol: &Symbol) -> io::Result<Option<Id<Symbol>>> {
         let links = self.get_symbol_links(symbol);
         if !matches!(
             (*links).borrow().target.as_ref(),
@@ -363,7 +364,7 @@ impl TypeChecker {
         &self,
         entity_name: &Node, /*EntityName*/
         dont_resolve_alias: Option<bool>,
-    ) -> io::Result<Option<Gc<Symbol>>> {
+    ) -> io::Result<Option<Id<Symbol>>> {
         let mut entity_name = entity_name.node_wrapper();
         if entity_name.kind() == SyntaxKind::Identifier
             && is_right_side_of_qualified_name_or_property_access(&entity_name)
@@ -436,7 +437,7 @@ impl TypeChecker {
     pub(super) fn try_get_qualified_name_as_value(
         &self,
         node: &Node, /*QualifiedName*/
-    ) -> io::Result<Option<Gc<Symbol>>> {
+    ) -> io::Result<Option<Id<Symbol>>> {
         let mut left = get_first_identifier(node);
         let mut symbol = return_ok_none_if_none!(self.resolve_name_(
             Some(&*left),
@@ -471,7 +472,7 @@ impl TypeChecker {
         ignore_errors: Option<bool>,
         dont_resolve_alias: Option<bool>,
         location: Option<impl Borrow<Node>>,
-    ) -> io::Result<Option<Gc<Symbol>>> {
+    ) -> io::Result<Option<Id<Symbol>>> {
         let ignore_errors_unwrapped = ignore_errors.unwrap_or(false);
         let dont_resolve_alias = dont_resolve_alias.unwrap_or(false);
         if node_is_missing(Some(name)) {
@@ -484,7 +485,7 @@ impl TypeChecker {
             } else {
                 SymbolFlags::None
             };
-        let symbol: Option<Gc<Symbol>>;
+        let symbol: Option<Id<Symbol>>;
         let location = location.map(|location| location.borrow().node_wrapper());
         if name.kind() == SyntaxKind::Identifier {
             let message = if meaning == namespace_meaning || node_is_synthesized(name) {
@@ -689,7 +690,7 @@ impl TypeChecker {
         &self,
         name: &Node, /*Identifier*/
         meaning: SymbolFlags,
-    ) -> io::Result<Option<Gc<Symbol>>> {
+    ) -> io::Result<Option<Id<Symbol>>> {
         if self.is_jsdoc_type_reference(&name.parent()) {
             let secondary_location = self.get_assignment_declaration_location(&name.parent())?;
             if let Some(secondary_location) = secondary_location {
@@ -779,7 +780,7 @@ impl TypeChecker {
         Some(initializer.unwrap_or(decl))
     }
 
-    pub(super) fn get_expando_symbol(&self, symbol: &Symbol) -> io::Result<Option<Gc<Symbol>>> {
+    pub(super) fn get_expando_symbol(&self, symbol: &Symbol) -> io::Result<Option<Id<Symbol>>> {
         let decl = return_ok_default_if_none!(symbol.maybe_value_declaration());
         if !is_in_js_file(Some(&*decl))
             || symbol.flags().intersects(SymbolFlags::TypeAlias)
@@ -806,7 +807,7 @@ impl TypeChecker {
         location: &Node,
         module_reference_expression: &Node, /*Expression*/
         ignore_errors: Option<bool>,
-    ) -> io::Result<Option<Gc<Symbol>>> {
+    ) -> io::Result<Option<Id<Symbol>>> {
         let is_classic = get_emit_module_resolution_kind(&self.compiler_options)
             == ModuleResolutionKind::Classic;
         let error_message = if is_classic {
@@ -832,7 +833,7 @@ impl TypeChecker {
         module_reference_expression: &Node, /*Expression*/
         module_not_found_error: Option<&DiagnosticMessage>,
         is_for_augmentation: Option<bool>,
-    ) -> io::Result<Option<Gc<Symbol>>> {
+    ) -> io::Result<Option<Id<Symbol>>> {
         let is_for_augmentation = is_for_augmentation.unwrap_or(false);
         Ok(if is_string_literal_like(module_reference_expression) {
             self.resolve_external_module(
@@ -854,7 +855,7 @@ impl TypeChecker {
         module_not_found_error: Option<&DiagnosticMessage>,
         error_node: &Node,
         is_for_augmentation: Option<bool>,
-    ) -> io::Result<Option<Gc<Symbol>>> {
+    ) -> io::Result<Option<Id<Symbol>>> {
         let is_for_augmentation = is_for_augmentation.unwrap_or(false);
         if starts_with(module_reference, "@types/") {
             let diag = &Diagnostics::Cannot_import_type_declaration_files_Consider_importing_0_instead_of_1;

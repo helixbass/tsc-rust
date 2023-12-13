@@ -1,6 +1,7 @@
 use std::borrow::Borrow;
 
 use gc::{Gc, GcCell};
+use id_arena::Id;
 
 use super::{init_flow_node, BinderType, ContainerFlags};
 use crate::{
@@ -23,7 +24,7 @@ impl BinderType {
         node: &Node, /*Declaration*/
         symbol_flags: SymbolFlags,
         symbol_excludes: SymbolFlags,
-    ) -> Gc<Symbol> {
+    ) -> Id<Symbol> {
         let has_export_modifier = get_combined_modifier_flags(node)
             .intersects(ModifierFlags::Export)
             || self.jsdoc_treat_as_exported(node);
@@ -164,7 +165,7 @@ impl BinderType {
             if container_flags.intersects(ContainerFlags::HasLocals) {
                 self.container()
                     .set_locals(Some(Gc::new(GcCell::new(create_symbol_table(
-                        Option::<&[Gc<Symbol>]>::None,
+                        Option::<&[Id<Symbol>]>::None,
                     )))));
             }
             self.add_to_container_chain(&self.container());

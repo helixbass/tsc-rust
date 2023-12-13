@@ -44,7 +44,7 @@ impl TypeChecker {
                 links.borrow_mut().resolved_type = Some(ret.clone());
                 return Ok(ret);
             }
-            let mut symbol: Option<Gc<Symbol>> = None;
+            let mut symbol: Option<Id<Symbol>> = None;
             let mut type_: Option<Id<Type>> = None;
             let meaning = SymbolFlags::Type;
             if self.is_jsdoc_type_reference(node) {
@@ -175,7 +175,7 @@ impl TypeChecker {
         &self,
         name: &str, /*__String*/
         report_errors: bool,
-    ) -> io::Result<Option<Gc<Symbol>>> {
+    ) -> io::Result<Option<Id<Symbol>>> {
         self.get_global_symbol(
             name,
             SymbolFlags::Value,
@@ -191,7 +191,7 @@ impl TypeChecker {
         &self,
         name: &str, /*__String*/
         report_errors: bool,
-    ) -> io::Result<Option<Gc<Symbol>>> {
+    ) -> io::Result<Option<Id<Symbol>>> {
         self.get_global_symbol(
             name,
             SymbolFlags::Type,
@@ -208,7 +208,7 @@ impl TypeChecker {
         name: &str, /*__String*/
         arity: usize,
         report_errors: bool,
-    ) -> io::Result<Option<Gc<Symbol>>> {
+    ) -> io::Result<Option<Id<Symbol>>> {
         let symbol = self.get_global_symbol(
             name,
             SymbolFlags::Type,
@@ -252,7 +252,7 @@ impl TypeChecker {
         name: &str, /*__String*/
         meaning: SymbolFlags,
         diagnostic: Option<&DiagnosticMessage>,
-    ) -> io::Result<Option<Gc<Symbol>>> {
+    ) -> io::Result<Option<Id<Symbol>>> {
         self.resolve_name_(
             Option::<&Node>::None,
             name,
@@ -328,12 +328,12 @@ impl TypeChecker {
             .maybe_deferred_global_import_meta_expression_type()
             .is_none()
         {
-            let symbol: Gc<Symbol> = self
+            let symbol: Id<Symbol> = self
                 .create_symbol(SymbolFlags::None, "ImportMetaExpression".to_owned(), None)
                 .into();
             let import_meta_type = self.get_global_import_meta_type()?;
 
-            let meta_property_symbol: Gc<Symbol> = self
+            let meta_property_symbol: Id<Symbol> = self
                 .create_symbol(
                     SymbolFlags::Property,
                     "meta".to_owned(),
@@ -381,7 +381,7 @@ impl TypeChecker {
     pub(super) fn get_global_es_symbol_constructor_symbol(
         &self,
         report_errors: bool,
-    ) -> io::Result<Option<Gc<Symbol>>> {
+    ) -> io::Result<Option<Id<Symbol>>> {
         if self
             .maybe_deferred_global_es_symbol_constructor_symbol()
             .is_none()
@@ -397,7 +397,7 @@ impl TypeChecker {
     pub(super) fn get_global_es_symbol_constructor_type_symbol(
         &self,
         report_errors: bool,
-    ) -> io::Result<Option<Gc<Symbol>>> {
+    ) -> io::Result<Option<Id<Symbol>>> {
         if self
             .maybe_deferred_global_es_symbol_constructor_type_symbol()
             .is_none()
@@ -452,7 +452,7 @@ impl TypeChecker {
     pub(super) fn get_global_promise_constructor_symbol(
         &self,
         report_errors: bool,
-    ) -> io::Result<Option<Gc<Symbol>>> {
+    ) -> io::Result<Option<Id<Symbol>>> {
         if self
             .maybe_deferred_global_promise_constructor_symbol()
             .is_none()
@@ -635,7 +635,7 @@ impl TypeChecker {
         symbol.try_map(|symbol| self.get_type_of_global_symbol(Some(symbol), arity))
     }
 
-    pub(super) fn get_global_extract_symbol(&self) -> io::Result<Option<Gc<Symbol>>> {
+    pub(super) fn get_global_extract_symbol(&self) -> io::Result<Option<Id<Symbol>>> {
         if self.maybe_deferred_global_extract_symbol().is_none() {
             *self.maybe_deferred_global_extract_symbol() = Some(
                 self.get_global_type_alias_symbol("Extract", 2, true)?
@@ -651,7 +651,7 @@ impl TypeChecker {
             }))
     }
 
-    pub(super) fn get_global_omit_symbol(&self) -> io::Result<Option<Gc<Symbol>>> {
+    pub(super) fn get_global_omit_symbol(&self) -> io::Result<Option<Id<Symbol>>> {
         if self.maybe_deferred_global_omit_symbol().is_none() {
             *self.maybe_deferred_global_omit_symbol() = Some(
                 self.get_global_type_alias_symbol("Omit", 2, true)?
@@ -670,7 +670,7 @@ impl TypeChecker {
     pub(super) fn get_global_awaited_symbol(
         &self,
         report_errors: bool,
-    ) -> io::Result<Option<Gc<Symbol>>> {
+    ) -> io::Result<Option<Id<Symbol>>> {
         if self.maybe_deferred_global_awaited_symbol().is_none() {
             *self.maybe_deferred_global_awaited_symbol() = self
                 .get_global_type_alias_symbol("Awaited", 1, report_errors)?
@@ -1059,7 +1059,7 @@ impl TypeChecker {
             f.intersects(ElementFlags::Required | ElementFlags::Variadic)
         });
         let mut type_parameters: Option<Vec<Id<Type /*TypeParameter*/>>> = None;
-        let mut properties: Vec<Gc<Symbol>> = vec![];
+        let mut properties: Vec<Id<Symbol>> = vec![];
         let mut combined_flags = ElementFlags::None;
         if arity > 0 {
             type_parameters = Some(vec![]);
@@ -1072,7 +1072,7 @@ impl TypeChecker {
                 let flags = element_flags[i];
                 combined_flags |= flags;
                 if !combined_flags.intersects(ElementFlags::Variable) {
-                    let property: Gc<Symbol> = self
+                    let property: Id<Symbol> = self
                         .create_symbol(
                             SymbolFlags::Property
                                 | if flags.intersects(ElementFlags::Optional) {
@@ -1100,7 +1100,7 @@ impl TypeChecker {
             }
         }
         let fixed_length = properties.len();
-        let length_symbol: Gc<Symbol> = self
+        let length_symbol: Id<Symbol> = self
             .create_symbol(SymbolFlags::Property, "length".to_owned(), None)
             .into();
         if combined_flags.intersects(ElementFlags::Variable) {

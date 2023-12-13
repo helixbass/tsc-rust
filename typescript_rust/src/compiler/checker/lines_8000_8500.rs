@@ -179,7 +179,7 @@ impl TypeChecker {
     pub(super) fn get_type_alias_for_type_literal(
         &self,
         type_: Id<Type>,
-    ) -> io::Result<Option<Gc<Symbol>>> {
+    ) -> io::Result<Option<Id<Symbol>>> {
         if let Some(type_symbol) = self.type_(type_).maybe_symbol() {
             if type_symbol.flags().intersects(SymbolFlags::TypeLiteral) {
                 if let Some(type_symbol_declarations) = type_symbol.maybe_declarations().as_deref()
@@ -471,7 +471,7 @@ impl TypeChecker {
         node: &Node, /*Identifier*/
         set_visibility: Option<bool>,
     ) -> io::Result<Option<Vec<Gc<Node>>>> {
-        let mut export_symbol: Option<Gc<Symbol>> = None;
+        let mut export_symbol: Option<Id<Symbol>> = None;
         if
         /*node.parent &&*/
         node.parent().kind() == SyntaxKind::ExportAssignment {
@@ -807,7 +807,7 @@ impl TypeChecker {
                 None,
             );
         }
-        let mut members = create_symbol_table(Option::<&[Gc<Symbol>]>::None);
+        let mut members = create_symbol_table(Option::<&[Id<Symbol>]>::None);
         for prop in self.get_properties_of_type(source)? {
             if !self.is_type_assignable_to(
                 self.get_literal_type_from_property(

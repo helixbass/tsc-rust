@@ -491,7 +491,7 @@ impl TypeChecker {
                     ),
                     name,
                 );
-                let symbol: Gc<Symbol> = self
+                let symbol: Id<Symbol> = self
                     .create_symbol(SymbolFlags::TypeParameter, new_name, None)
                     .into();
                 let mut new_type_parameter = self.create_type_parameter(Some(&*symbol));

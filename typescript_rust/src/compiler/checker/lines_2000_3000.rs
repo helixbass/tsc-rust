@@ -4,6 +4,7 @@ use std::{
 };
 
 use gc::{Gc, GcCell};
+use id_arena::Id;
 
 use super::ResolveNameNameArg;
 use crate::{
@@ -737,7 +738,7 @@ impl TypeChecker {
         &self,
         node: &Node, /*ImportEqualsDeclaration | VariableDeclaration*/
         dont_resolve_alias: bool,
-    ) -> io::Result<Option<Gc<Symbol>>> {
+    ) -> io::Result<Option<Id<Symbol>>> {
         let common_js_property_access = self.get_common_js_property_access(node);
         if let Some(common_js_property_access) = common_js_property_access {
             let common_js_property_access_as_property_access_expression =
@@ -850,7 +851,7 @@ impl TypeChecker {
         name: &str, /*__String*/
         source_node: Option<impl Borrow<Node> /*TypeOnlyCompatibleAliasDeclaration*/>,
         dont_resolve_alias: bool,
-    ) -> io::Result<Option<Gc<Symbol>>> {
+    ) -> io::Result<Option<Id<Symbol>>> {
         let module_symbol_exports = module_symbol.exports();
         let module_symbol_exports = (*module_symbol_exports).borrow();
         let export_value = module_symbol_exports.get(InternalSymbolName::ExportEquals);
@@ -989,7 +990,7 @@ impl TypeChecker {
         &self,
         node: &Node, /*ImportClause*/
         dont_resolve_alias: bool,
-    ) -> io::Result<Option<Gc<Symbol>>> {
+    ) -> io::Result<Option<Id<Symbol>>> {
         let node_parent = node.parent();
         let node_parent_as_import_declaration = node_parent.as_import_declaration();
         let module_symbol = return_ok_default_if_none!(self.resolve_external_module_name_(
@@ -997,7 +998,7 @@ impl TypeChecker {
             &node_parent_as_import_declaration.module_specifier,
             None,
         )?);
-        let export_default_symbol: Option<Gc<Symbol>>;
+        let export_default_symbol: Option<Id<Symbol>>;
         if is_shorthand_ambient_module_symbol(&module_symbol) {
             export_default_symbol = Some(module_symbol.clone());
         } else {
@@ -1171,7 +1172,7 @@ impl TypeChecker {
         &self,
         node: &Node, /*NamespaceImport*/
         dont_resolve_alias: bool,
-    ) -> io::Result<Option<Gc<Symbol>>> {
+    ) -> io::Result<Option<Id<Symbol>>> {
         let module_specifier = node
             .parent()
             .parent()
@@ -1198,7 +1199,7 @@ impl TypeChecker {
         &self,
         node: &Node, /*NamespaceExport*/
         dont_resolve_alias: bool,
-    ) -> io::Result<Option<Gc<Symbol>>> {
+    ) -> io::Result<Option<Id<Symbol>>> {
         let module_specifier = node
             .parent()
             .as_export_declaration()
@@ -1228,7 +1229,7 @@ impl TypeChecker {
         &self,
         value_symbol: &Symbol,
         type_symbol: &Symbol,
-    ) -> Gc<Symbol> {
+    ) -> Id<Symbol> {
         if ptr::eq(value_symbol, &*self.unknown_symbol())
             && ptr::eq(type_symbol, &*self.unknown_symbol())
         {
@@ -1240,7 +1241,7 @@ impl TypeChecker {
         {
             return value_symbol.symbol_wrapper();
         }
-        let result: Gc<Symbol> = self
+        let result: Id<Symbol> = self
             .create_symbol(
                 value_symbol.flags() | type_symbol.flags(),
                 value_symbol.escaped_name().to_owned(),
@@ -1284,7 +1285,7 @@ impl TypeChecker {
         name: &Node,      /*Identifier*/
         specifier: &Node, /*Declaration*/
         dont_resolve_alias: bool,
-    ) -> io::Result<Option<Gc<Symbol>>> {
+    ) -> io::Result<Option<Id<Symbol>>> {
         if symbol.flags().intersects(SymbolFlags::Module) {
             let export_symbol = (*self.get_exports_of_symbol(symbol)?)
                 .borrow()
@@ -1307,7 +1308,7 @@ impl TypeChecker {
         &self,
         symbol: &Symbol,
         name: &str, /*__String*/
-    ) -> io::Result<Option<Gc<Symbol>>> {
+    ) -> io::Result<Option<Id<Symbol>>> {
         if symbol.flags().intersects(SymbolFlags::Variable) {
             let type_annotation = symbol
                 .maybe_value_declaration()
@@ -1333,7 +1334,7 @@ impl TypeChecker {
         node: &Node,      /*ImportDeclaration | ExportDeclaration | VariableDeclaration*/
         specifier: &Node, /*ImportOrExportSpecifier | BindingElement | PropertyAccessExpression*/
         dont_resolve_alias: Option<bool>,
-    ) -> io::Result<Option<Gc<Symbol>>> {
+    ) -> io::Result<Option<Id<Symbol>>> {
         let dont_resolve_alias = dont_resolve_alias.unwrap_or(false);
         let module_specifier =
             get_external_module_require_argument(node).unwrap_or_else(|| match node {
@@ -1373,7 +1374,7 @@ impl TypeChecker {
                 return Ok(Some(module_symbol));
             }
 
-            let mut symbol_from_variable: Option<Gc<Symbol>>;
+            let mut symbol_from_variable: Option<Id<Symbol>>;
             if
             /*moduleSymbol &&*/
             module_symbol
@@ -1558,7 +1559,7 @@ impl TypeChecker {
                     exports.as_ref().try_and_then(|exports| -> io::Result<_> {
                         Ok(try_find(
                             &self.symbols_to_array(&(**exports).borrow()),
-                            |symbol: &Gc<Symbol>, _| -> io::Result<_> {
+                            |symbol: &Id<Symbol>, _| -> io::Result<_> {
                                 Ok(self
                                     .get_symbol_if_same_reference(symbol, &local_symbol)?
                                     .is_some())
@@ -1667,7 +1668,7 @@ impl TypeChecker {
         &self,
         node: &Node, /*ImportSpecifier | BindingElement*/
         dont_resolve_alias: bool,
-    ) -> io::Result<Option<Gc<Symbol>>> {
+    ) -> io::Result<Option<Id<Symbol>>> {
         let root = if is_binding_element(node) {
             get_root_declaration(node)
         } else {
@@ -1725,7 +1726,7 @@ impl TypeChecker {
         &self,
         node: &Node, /*NamespaceExportDeclaration*/
         dont_resolve_alias: bool,
-    ) -> io::Result<Gc<Symbol>> {
+    ) -> io::Result<Id<Symbol>> {
         let resolved = self
             .resolve_external_module_symbol(Some(node.parent().symbol()), Some(dont_resolve_alias))?
             .unwrap();
@@ -1743,7 +1744,7 @@ impl TypeChecker {
         node: &Node, /*ExportSpecifier*/
         meaning: SymbolFlags,
         dont_resolve_alias: Option<bool>,
-    ) -> io::Result<Option<Gc<Symbol>>> {
+    ) -> io::Result<Option<Id<Symbol>>> {
         let resolved = if node
             .parent()
             .parent()
@@ -1778,7 +1779,7 @@ impl TypeChecker {
         &self,
         node: &Node, /*ExportAssignment | BinaryExpression*/
         dont_resolve_alias: bool,
-    ) -> io::Result<Option<Gc<Symbol>>> {
+    ) -> io::Result<Option<Id<Symbol>>> {
         let expression = if is_export_assignment(node) {
             node.as_export_assignment().expression.clone()
         } else {
@@ -1798,7 +1799,7 @@ impl TypeChecker {
         &self,
         expression: &Node, /*Expression*/
         dont_resolve_alias: bool,
-    ) -> io::Result<Option<Gc<Symbol>>> {
+    ) -> io::Result<Option<Id<Symbol>>> {
         if is_class_expression(expression) {
             return Ok(self
                 .type_(self.check_expression_cached(expression, None)?)

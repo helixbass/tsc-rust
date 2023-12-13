@@ -133,9 +133,9 @@ impl TypeChecker {
     pub(super) fn get_properties_of_context(
         &self,
         context: Rc<RefCell<WideningContext>>,
-    ) -> io::Result<Vec<Gc<Symbol>>> {
+    ) -> io::Result<Vec<Id<Symbol>>> {
         if (*context).borrow().resolved_properties.is_none() {
-            let mut names: HashMap<__String, Gc<Symbol>> = HashMap::new();
+            let mut names: HashMap<__String, Id<Symbol>> = HashMap::new();
             for &t in &self.get_siblings_of_context(context.clone())? {
                 if self.is_object_literal_type(t)
                     && !get_object_flags(&self.type_(t)).intersects(ObjectFlags::ContainsSpread)
@@ -155,7 +155,7 @@ impl TypeChecker {
         &self,
         prop: &Symbol,
         context: Option<Rc<RefCell<WideningContext>>>,
-    ) -> io::Result<Gc<Symbol>> {
+    ) -> io::Result<Id<Symbol>> {
         if !prop.flags().intersects(SymbolFlags::Property) {
             return Ok(prop.symbol_wrapper());
         }
@@ -175,7 +175,7 @@ impl TypeChecker {
         })
     }
 
-    pub(super) fn get_undefined_property(&self, prop: &Symbol) -> Gc<Symbol> {
+    pub(super) fn get_undefined_property(&self, prop: &Symbol) -> Id<Symbol> {
         let cached = self
             .undefined_properties()
             .get(prop.escaped_name())
@@ -195,7 +195,7 @@ impl TypeChecker {
         type_: Id<Type>,
         context: Option<Rc<RefCell<WideningContext>>>,
     ) -> io::Result<Id<Type>> {
-        let mut members = create_symbol_table(Option::<&[Gc<Symbol>]>::None);
+        let mut members = create_symbol_table(Option::<&[Id<Symbol>]>::None);
         for ref prop in self.get_properties_of_object_type(type_)? {
             members.insert(
                 prop.escaped_name().to_owned(),
@@ -971,14 +971,14 @@ impl TypeChecker {
         &self,
         type_: Id<Type>,
     ) -> io::Result<Id<Type>> {
-        let mut members = create_symbol_table(Option::<&[Gc<Symbol>]>::None);
+        let mut members = create_symbol_table(Option::<&[Id<Symbol>]>::None);
         self.for_each_type(type_, |t: Id<Type>| -> Option<()> {
             if !self.type_(t).flags().intersects(TypeFlags::StringLiteral) {
                 return None;
             }
             let name = escape_leading_underscores(&self.type_(t).as_string_literal_type().value)
                 .into_owned();
-            let literal_prop: Gc<Symbol> = self
+            let literal_prop: Id<Symbol> = self
                 .create_symbol(SymbolFlags::Property, name.clone(), None)
                 .into();
             literal_prop
@@ -1051,7 +1051,7 @@ impl TypeChecker {
                 || self.is_object_literal_type(type_)
                     && self
                         .get_properties_of_type(type_)?
-                        .try_any(|ref prop: Gc<Symbol>| {
+                        .try_any(|ref prop: Id<Symbol>| {
                             self.is_partially_inferable_type(self.get_type_of_symbol(prop)?)
                         })?
                 || self.is_tuple_type(type_)

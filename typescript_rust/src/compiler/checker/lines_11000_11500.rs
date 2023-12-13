@@ -19,7 +19,7 @@ impl TypeChecker {
         left: Option<impl Borrow<Symbol>>,
         right: Option<impl Borrow<Symbol>>,
         mapper: Option<Id<TypeMapper>>,
-    ) -> io::Result<Option<Gc<Symbol>>> {
+    ) -> io::Result<Option<Id<Symbol>>> {
         let left = left.map(|left| left.borrow().symbol_wrapper());
         let right = right.map(|right| right.borrow().symbol_wrapper());
         if left.is_none() || right.is_none() {
@@ -43,7 +43,7 @@ impl TypeChecker {
         left: &Signature,
         right: &Signature,
         mapper: Option<Id<TypeMapper>>,
-    ) -> io::Result<Vec<Gc<Symbol>>> {
+    ) -> io::Result<Vec<Id<Symbol>>> {
         let left_count = self.get_parameter_count(left)?;
         let right_count = self.get_parameter_count(right)?;
         let longest = if left_count >= right_count {
@@ -61,7 +61,7 @@ impl TypeChecker {
             self.has_effective_rest_parameter(left)? || self.has_effective_rest_parameter(right)?;
         let needs_extra_rest_element =
             either_has_effective_rest && !self.has_effective_rest_parameter(longest)?;
-        let mut params: Vec<Gc<Symbol>> =
+        let mut params: Vec<Id<Symbol>> =
             Vec::with_capacity(longest_count + if needs_extra_rest_element { 1 } else { 0 });
         for i in 0..longest_count {
             let mut longest_param_type = self.try_get_type_at_position(longest, i)?.unwrap();
@@ -103,7 +103,7 @@ impl TypeChecker {
             } else {
                 None
             };
-            let param_symbol: Gc<Symbol> = self
+            let param_symbol: Id<Symbol> = self
                 .create_symbol(
                     SymbolFlags::FunctionScopedVariable
                         | if is_optional && !is_rest_param {
@@ -127,7 +127,7 @@ impl TypeChecker {
             params.push(param_symbol);
         }
         if needs_extra_rest_element {
-            let rest_param_symbol: Gc<Symbol> = self
+            let rest_param_symbol: Id<Symbol> = self
                 .create_symbol(SymbolFlags::FunctionScopedVariable, "args".to_owned(), None)
                 .into();
             rest_param_symbol
@@ -607,7 +607,7 @@ impl TypeChecker {
                                 .as_object_type()
                                 .maybe_properties()
                                 .as_deref(),
-                            Some(|prop: &Gc<Symbol>| -> io::Result<_> {
+                            Some(|prop: &Id<Symbol>| -> io::Result<_> {
                                 Ok(self
                                     .type_(self.get_type_of_symbol(prop)?)
                                     .flags()
@@ -744,7 +744,7 @@ impl TypeChecker {
         } else {
             vec![]
         };
-        let mut members = create_symbol_table(Option::<&[Gc<Symbol>]>::None);
+        let mut members = create_symbol_table(Option::<&[Id<Symbol>]>::None);
         for prop in
             self.get_properties_of_type(self.type_(type_).as_reverse_mapped_type().source)?
         {
@@ -815,7 +815,7 @@ impl TypeChecker {
                     .constraint_type
                     .clone();
             }
-            let inferred_prop: Gc<Symbol> = inferred_prop
+            let inferred_prop: Id<Symbol> = inferred_prop
                 .into_reverse_mapped_symbol(property_type, mapped_type, constraint_type)
                 .into();
             members.insert(prop.escaped_name().to_owned(), inferred_prop);
@@ -946,7 +946,7 @@ impl TypeChecker {
         &self,
         type_: Id<Type>, /*MappedType*/
     ) -> io::Result<()> {
-        let mut members = create_symbol_table(Option::<&[Gc<Symbol>]>::None);
+        let mut members = create_symbol_table(Option::<&[Id<Symbol>]>::None);
         let mut index_infos: Vec<Gc<IndexInfo>> = vec![];
         self.set_structured_type_members(
             self.type_(type_).as_mapped_type(),
@@ -1166,7 +1166,7 @@ impl TypeChecker {
                             },
                     ),
                 );
-                let prop: Gc<Symbol> = prop.into_mapped_symbol(type_, key_type).into();
+                let prop: Id<Symbol> = prop.into_mapped_symbol(type_, key_type).into();
                 let prop_as_mapped_symbol = prop.as_mapped_symbol();
                 prop_as_mapped_symbol.symbol_links().borrow_mut().name_type = Some(prop_name_type);
                 if let Some(modifiers_prop) = modifiers_prop {

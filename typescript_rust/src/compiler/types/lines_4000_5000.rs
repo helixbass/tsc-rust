@@ -174,7 +174,7 @@ pub struct TypeChecker {
     pub(crate) cancellation_token: GcCell<Option<Gc<Box<dyn CancellationTokenDebuggable>>>>,
     #[unsafe_ignore_trace]
     pub(crate) requested_external_emit_helpers: Cell<ExternalEmitHelpers>,
-    pub(crate) external_helpers_module: GcCell<Option<Gc<Symbol>>>,
+    pub(crate) external_helpers_module: GcCell<Option<Id<Symbol>>>,
     pub(crate) Symbol: fn(SymbolFlags, __String) -> BaseSymbol,
     pub(crate) Type: fn(TypeFlags) -> BaseType,
     pub(crate) Signature: fn(SignatureFlags) -> Signature,
@@ -216,10 +216,10 @@ pub struct TypeChecker {
     pub(crate) emit_resolver: GcCell<Option<Gc<Box<dyn EmitResolver>>>>,
     pub(crate) node_builder: GcCell<Option<Gc<NodeBuilder>>>,
     pub(crate) globals: Gc<GcCell<SymbolTable>>,
-    pub(crate) undefined_symbol: Option<Gc<Symbol>>,
-    pub(crate) global_this_symbol: Option<Gc<Symbol>>,
-    pub(crate) arguments_symbol: Option<Gc<Symbol>>,
-    pub(crate) require_symbol: Option<Gc<Symbol>>,
+    pub(crate) undefined_symbol: Option<Id<Symbol>>,
+    pub(crate) global_this_symbol: Option<Id<Symbol>>,
+    pub(crate) arguments_symbol: Option<Id<Symbol>>,
+    pub(crate) require_symbol: Option<Id<Symbol>>,
     #[unsafe_ignore_trace]
     pub(crate) apparent_argument_count: Cell<Option<usize>>,
 
@@ -238,9 +238,9 @@ pub struct TypeChecker {
     pub(crate) evolving_array_types: GcCell<HashMap<TypeId, Id<Type /*EvolvingArrayType*/>>>,
     pub(crate) undefined_properties: GcCell<SymbolTable>,
 
-    pub(crate) unknown_symbol: Option<Gc<Symbol>>,
-    pub(crate) resolving_symbol: Option<Gc<Symbol>>,
-    pub(crate) unresolved_symbols: GcCell<HashMap<String, Gc<Symbol /*TransientSymbol*/>>>,
+    pub(crate) unknown_symbol: Option<Id<Symbol>>,
+    pub(crate) resolving_symbol: Option<Id<Symbol>>,
+    pub(crate) unresolved_symbols: GcCell<HashMap<String, Id<Symbol /*TransientSymbol*/>>>,
     pub(crate) error_types: GcCell<HashMap<String, Id<Type>>>,
 
     pub(crate) any_type: Option<Id<Type>>,
@@ -285,7 +285,7 @@ pub struct TypeChecker {
 
     pub(crate) empty_object_type: Option<Id<Type>>,
     pub(crate) empty_jsx_object_type: Option<Id<Type>>,
-    pub(crate) empty_type_literal_symbol: Option<Gc<Symbol>>,
+    pub(crate) empty_type_literal_symbol: Option<Id<Symbol>>,
     pub(crate) empty_type_literal_type: Option<Id<Type>>,
 
     pub(crate) empty_generic_type: Option<Id<Type /*GenericType*/>>,
@@ -326,10 +326,10 @@ pub struct TypeChecker {
     pub(crate) reverse_mapped_cache: GcCell<HashMap<String, Option<Id<Type>>>>,
     #[unsafe_ignore_trace]
     pub(crate) in_infer_type_for_homomorphic_mapped_type: Cell<bool>,
-    pub(crate) ambient_modules_cache: GcCell<Option<Vec<Gc<Symbol>>>>,
+    pub(crate) ambient_modules_cache: GcCell<Option<Vec<Id<Symbol>>>>,
 
     pub(crate) pattern_ambient_modules: GcCell<Option<Vec<Gc<PatternAmbientModule>>>>,
-    pub(crate) pattern_ambient_module_augmentations: GcCell<Option<HashMap<String, Gc<Symbol>>>>,
+    pub(crate) pattern_ambient_module_augmentations: GcCell<Option<HashMap<String, Id<Symbol>>>>,
 
     pub(crate) global_object_type: GcCell<Option<Id<Type /*ObjectType*/>>>,
     pub(crate) global_function_type: GcCell<Option<Id<Type /*ObjectType*/>>>,
@@ -345,16 +345,16 @@ pub struct TypeChecker {
     pub(crate) any_array_type: GcCell<Option<Id<Type>>>,
     pub(crate) auto_array_type: GcCell<Option<Id<Type>>>,
     pub(crate) any_readonly_array_type: GcCell<Option<Id<Type>>>,
-    pub(crate) deferred_global_non_nullable_type_alias: GcCell<Option<Gc<Symbol>>>,
+    pub(crate) deferred_global_non_nullable_type_alias: GcCell<Option<Id<Symbol>>>,
 
-    pub(crate) deferred_global_es_symbol_constructor_symbol: GcCell<Option<Gc<Symbol>>>,
-    pub(crate) deferred_global_es_symbol_constructor_type_symbol: GcCell<Option<Gc<Symbol>>>,
+    pub(crate) deferred_global_es_symbol_constructor_symbol: GcCell<Option<Id<Symbol>>>,
+    pub(crate) deferred_global_es_symbol_constructor_type_symbol: GcCell<Option<Id<Symbol>>>,
     pub(crate) deferred_global_es_symbol_type: GcCell<Option<Id<Type /*ObjectType*/>>>,
     pub(crate) deferred_global_typed_property_descriptor_type:
         GcCell<Option<Id<Type /*GenericType*/>>>,
     pub(crate) deferred_global_promise_type: GcCell<Option<Id<Type /*GenericType*/>>>,
     pub(crate) deferred_global_promise_like_type: GcCell<Option<Id<Type /*GenericType*/>>>,
-    pub(crate) deferred_global_promise_constructor_symbol: GcCell<Option<Gc<Symbol>>>,
+    pub(crate) deferred_global_promise_constructor_symbol: GcCell<Option<Id<Symbol>>>,
     pub(crate) deferred_global_promise_constructor_like_type:
         GcCell<Option<Id<Type /*ObjectType*/>>>,
     pub(crate) deferred_global_iterable_type: GcCell<Option<Id<Type /*GenericType*/>>>,
@@ -373,9 +373,9 @@ pub struct TypeChecker {
     pub(crate) deferred_global_import_meta_type: GcCell<Option<Id<Type /*ObjectType*/>>>,
     pub(crate) deferred_global_import_meta_expression_type: GcCell<Option<Id<Type /*ObjectType*/>>>,
     pub(crate) deferred_global_import_call_options_type: GcCell<Option<Id<Type /*ObjectType*/>>>,
-    pub(crate) deferred_global_extract_symbol: GcCell<Option<Gc<Symbol>>>,
-    pub(crate) deferred_global_omit_symbol: GcCell<Option<Gc<Symbol>>>,
-    pub(crate) deferred_global_awaited_symbol: GcCell<Option<Gc<Symbol>>>,
+    pub(crate) deferred_global_extract_symbol: GcCell<Option<Id<Symbol>>>,
+    pub(crate) deferred_global_omit_symbol: GcCell<Option<Id<Symbol>>>,
+    pub(crate) deferred_global_awaited_symbol: GcCell<Option<Id<Symbol>>>,
     pub(crate) deferred_global_big_int_type: GcCell<Option<Id<Type /*ObjectType*/>>>,
 
     pub(crate) all_potentially_unused_identifiers:
@@ -409,7 +409,7 @@ pub struct TypeChecker {
     #[unsafe_ignore_trace]
     pub(crate) suggestion_count: Cell<usize>,
     pub(crate) maximum_suggestion_count: usize,
-    pub(crate) merged_symbols: GcCell<HashMap<u32, Gc<Symbol>>>,
+    pub(crate) merged_symbols: GcCell<HashMap<u32, Id<Symbol>>>,
     pub(crate) symbol_links: GcCell<HashMap<SymbolId, Gc<GcCell<SymbolLinks>>>>,
     pub(crate) node_links: GcCell<HashMap<NodeId, Gc<GcCell<NodeLinks>>>>,
     pub(crate) flow_loop_caches: GcCell<HashMap<usize, Gc<GcCell<HashMap<String, Id<Type>>>>>>,
@@ -746,7 +746,7 @@ pub trait EmitResolver: Trace + Finalize {
     fn get_properties_of_container_function(
         &self,
         node: &Node, /*Declaration*/
-    ) -> io::Result<Vec<Gc<Symbol>>>;
+    ) -> io::Result<Vec<Id<Symbol>>>;
     fn create_type_of_declaration(
         &self,
         declaration: &Node, /*AccessorDeclaration | VariableLikeDeclaration | PropertyAccessExpression*/
@@ -834,7 +834,7 @@ pub trait EmitResolver: Trace + Finalize {
     fn get_symbol_of_external_module_specifier(
         &self,
         node: &Node, /*StringLiteralLike*/
-    ) -> io::Result<Option<Gc<Symbol>>>;
+    ) -> io::Result<Option<Id<Symbol>>>;
     fn is_binding_captured_by_node(
         &self,
         node: &Node,
@@ -939,8 +939,8 @@ bitflags! {
 pub type SymbolId = u32;
 
 pub trait SymbolInterface {
-    fn symbol_wrapper(&self) -> Gc<Symbol>;
-    fn set_symbol_wrapper(&self, wrapper: Gc<Symbol>);
+    fn symbol_wrapper(&self) -> Id<Symbol>;
+    fn set_symbol_wrapper(&self, wrapper: Id<Symbol>);
     fn flags(&self) -> SymbolFlags;
     fn set_flags(&self, flags: SymbolFlags);
     fn escaped_name(&self) -> &str /*__String*/;
@@ -961,10 +961,10 @@ pub trait SymbolInterface {
     fn set_id(&self, id: SymbolId);
     fn maybe_merge_id(&self) -> Option<u32>;
     fn set_merge_id(&self, merge_id: u32);
-    fn maybe_parent(&self) -> Option<Gc<Symbol>>;
-    fn set_parent(&self, parent: Option<Gc<Symbol>>);
-    fn maybe_export_symbol(&self) -> Option<Gc<Symbol>>;
-    fn set_export_symbol(&self, export_symbol: Option<Gc<Symbol>>);
+    fn maybe_parent(&self) -> Option<Id<Symbol>>;
+    fn set_parent(&self, parent: Option<Id<Symbol>>);
+    fn maybe_export_symbol(&self) -> Option<Id<Symbol>>;
+    fn set_export_symbol(&self, export_symbol: Option<Id<Symbol>>);
     fn maybe_const_enum_only_module(&self) -> Option<bool>;
     fn set_const_enum_only_module(&self, const_enum_only_module: Option<bool>);
     fn maybe_is_referenced(&self) -> Option<SymbolFlags>;
@@ -986,7 +986,7 @@ pub enum Symbol {
 }
 
 impl Symbol {
-    pub fn wrap(self) -> Gc<Symbol> {
+    pub fn wrap(self) -> Id<Symbol> {
         let rc = Gc::new(self);
         rc.set_symbol_wrapper(rc.clone());
         rc
@@ -1014,7 +1014,7 @@ impl Symbol {
 
 #[derive(Debug, Finalize, Trace)]
 pub struct BaseSymbol {
-    _symbol_wrapper: GcCell<Option<Gc<Symbol>>>,
+    _symbol_wrapper: GcCell<Option<Id<Symbol>>>,
     #[unsafe_ignore_trace]
     flags: Cell<SymbolFlags>,
     #[unsafe_ignore_trace]
@@ -1028,8 +1028,8 @@ pub struct BaseSymbol {
     id: Cell<Option<SymbolId>>,
     #[unsafe_ignore_trace]
     merge_id: Cell<Option<u32>>,
-    parent: GcCell<Option<Gc<Symbol>>>,
-    export_symbol: GcCell<Option<Gc<Symbol>>>,
+    parent: GcCell<Option<Id<Symbol>>>,
+    export_symbol: GcCell<Option<Id<Symbol>>>,
     #[unsafe_ignore_trace]
     const_enum_only_module: Cell<Option<bool>>,
     #[unsafe_ignore_trace]
@@ -1066,11 +1066,11 @@ impl BaseSymbol {
 }
 
 impl SymbolInterface for BaseSymbol {
-    fn symbol_wrapper(&self) -> Gc<Symbol> {
+    fn symbol_wrapper(&self) -> Id<Symbol> {
         self._symbol_wrapper.borrow().clone().unwrap()
     }
 
-    fn set_symbol_wrapper(&self, wrapper: Gc<Symbol>) {
+    fn set_symbol_wrapper(&self, wrapper: Id<Symbol>) {
         *self._symbol_wrapper.borrow_mut() = Some(wrapper);
     }
 
@@ -1154,19 +1154,19 @@ impl SymbolInterface for BaseSymbol {
         self.merge_id.set(Some(merge_id));
     }
 
-    fn maybe_parent(&self) -> Option<Gc<Symbol>> {
+    fn maybe_parent(&self) -> Option<Id<Symbol>> {
         self.parent.borrow().as_ref().map(Clone::clone)
     }
 
-    fn set_parent(&self, parent: Option<Gc<Symbol>>) {
+    fn set_parent(&self, parent: Option<Id<Symbol>>) {
         *self.parent.borrow_mut() = parent;
     }
 
-    fn maybe_export_symbol(&self) -> Option<Gc<Symbol>> {
+    fn maybe_export_symbol(&self) -> Option<Id<Symbol>> {
         self.export_symbol.borrow().as_ref().map(Clone::clone)
     }
 
-    fn set_export_symbol(&self, export_symbol: Option<Gc<Symbol>>) {
+    fn set_export_symbol(&self, export_symbol: Option<Id<Symbol>>) {
         *self.export_symbol.borrow_mut() = export_symbol;
     }
 
@@ -1217,8 +1217,8 @@ impl From<BaseSymbol> for Symbol {
 
 #[derive(Debug, Finalize, Trace)]
 pub struct SymbolLinks {
-    pub immediate_target: Option<Gc<Symbol>>,
-    pub target: Option<Gc<Symbol>>,
+    pub immediate_target: Option<Id<Symbol>>,
+    pub target: Option<Id<Symbol>>,
     pub type_: Option<Id<Type>>,
     pub write_type: Option<Id<Type>>,
     pub name_type: Option<Id<Type>>,
@@ -1226,14 +1226,14 @@ pub struct SymbolLinks {
     pub declared_type: Option<Id<Type>>,
     pub type_parameters: Option<Vec<Id<Type /*TypeParameter*/>>>,
     pub instantiations: Option<HashMap<String, Id<Type>>>,
-    pub inferred_class_symbol: Option<HashMap<SymbolId, Gc<Symbol /*TransientSymbol*/>>>,
+    pub inferred_class_symbol: Option<HashMap<SymbolId, Id<Symbol /*TransientSymbol*/>>>,
     pub mapper: Option<Id<TypeMapper>>,
     pub referenced: Option<bool>,
     pub const_enum_referenced: Option<bool>,
     pub containing_type: Option<Id<Type>>,
-    pub left_spread: Option<Gc<Symbol>>,
-    pub right_spread: Option<Gc<Symbol>>,
-    pub synthetic_origin: Option<Gc<Symbol>>,
+    pub left_spread: Option<Id<Symbol>>,
+    pub right_spread: Option<Id<Symbol>>,
+    pub synthetic_origin: Option<Id<Symbol>>,
     pub is_discriminant_property: Option<bool>,
     pub resolved_exports: Option<Gc<GcCell<SymbolTable>>>,
     pub resolved_members: Option<Gc<GcCell<SymbolTable>>>,
@@ -1245,20 +1245,20 @@ pub struct SymbolLinks {
     #[unsafe_ignore_trace]
     pub enum_kind: Option<EnumKind>,
     pub originating_import: Option<Gc<Node /*ImportDeclaration | ImportCall*/>>,
-    pub late_symbol: Option<Gc<Symbol>>,
+    pub late_symbol: Option<Id<Symbol>>,
     #[unsafe_ignore_trace]
     pub specifier_cache: Option<HashMap<String, String>>,
-    pub extended_containers: Option<Vec<Gc<Symbol>>>,
-    pub extended_containers_by_file: Option<HashMap<NodeId, Vec<Gc<Symbol>>>>,
+    pub extended_containers: Option<Vec<Id<Symbol>>>,
+    pub extended_containers_by_file: Option<HashMap<NodeId, Vec<Id<Symbol>>>>,
     #[unsafe_ignore_trace]
     pub variances: Rc<RefCell<Option<Vec<VarianceFlags>>>>,
     pub deferral_constituents: Option<Vec<Id<Type>>>,
     pub deferral_parent: Option<Id<Type>>,
-    pub cjs_export_merged: Option<Gc<Symbol>>,
+    pub cjs_export_merged: Option<Id<Symbol>>,
     pub type_only_declaration: Option<Option<Gc<Node /*TypeOnlyAliasDeclaration | false*/>>>,
     pub is_constructor_declared_property: Option<bool>,
     pub tuple_label_declaration: Option<Gc<Node /*NamedTupleMember | ParameterDeclaration*/>>,
-    pub accessible_chain_cache: Option<HashMap<String, Option<Vec<Gc<Symbol>>>>>,
+    pub accessible_chain_cache: Option<HashMap<String, Option<Vec<Id<Symbol>>>>>,
 }
 
 impl Default for SymbolLinks {

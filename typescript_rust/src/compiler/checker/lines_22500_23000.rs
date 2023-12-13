@@ -20,7 +20,7 @@ impl TypeChecker {
     pub(super) fn get_resolved_symbol(
         &self,
         node: &Node, /*Identifier*/
-    ) -> io::Result<Gc<Symbol>> {
+    ) -> io::Result<Id<Symbol>> {
         let links = self.get_node_links(node);
         if (*links).borrow().resolved_symbol.is_none() {
             links.borrow_mut().resolved_symbol = Some(if !node_is_missing(Some(node)) {
@@ -394,12 +394,12 @@ impl TypeChecker {
 
     pub(super) fn find_discriminant_properties(
         &self,
-        source_properties: impl IntoIterator<Item = impl Borrow<Gc<Symbol>>>,
+        source_properties: impl IntoIterator<Item = impl Borrow<Id<Symbol>>>,
         target: Id<Type>,
-    ) -> io::Result<Option<Vec<Gc<Symbol>>>> {
-        let mut result: Option<Vec<Gc<Symbol>>> = None;
+    ) -> io::Result<Option<Vec<Id<Symbol>>>> {
+        let mut result: Option<Vec<Id<Symbol>>> = None;
         for source_property in source_properties {
-            let source_property: &Gc<Symbol> = source_property.borrow();
+            let source_property: &Id<Symbol> = source_property.borrow();
             if self.is_discriminant_property(Some(target), source_property.escaped_name())? {
                 if result.is_some() {
                     result.as_mut().unwrap().push(source_property.clone());
@@ -488,7 +488,7 @@ impl TypeChecker {
                     {
                         try_for_each(
                             self.get_properties_of_type(t)?,
-                            |ref p: Gc<Symbol>, _| -> io::Result<_> {
+                            |ref p: Id<Symbol>, _| -> io::Result<_> {
                                 Ok(if self.is_unit_type(self.get_type_of_symbol(p)?) {
                                     Some(p.escaped_name().to_owned())
                                 } else {

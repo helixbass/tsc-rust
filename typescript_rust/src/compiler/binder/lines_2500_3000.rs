@@ -1,6 +1,7 @@
 use std::{borrow::Borrow, collections::HashMap};
 
 use gc::{Gc, GcCell};
+use id_arena::Id;
 
 use super::{is_exports_or_module_exports_or_alias, lookup_symbol_for_name, BinderType};
 use crate::{
@@ -419,7 +420,7 @@ impl BinderType {
     pub(super) fn bind_property_worker(
         &self,
         node: &Node, /*PropertyDeclaration | PropertySignature*/
-    ) -> Option<Gc<Symbol>> {
+    ) -> Option<Id<Symbol>> {
         self.bind_property_or_method_or_accessor(
             node,
             SymbolFlags::Property
@@ -439,7 +440,7 @@ impl BinderType {
     pub(super) fn bind_anonymous_type_worker(
         &self,
         node: &Node, /*TypeLiteralNode | MappedTypeNode | JSDocTypeLiteral*/
-    ) -> Gc<Symbol> {
+    ) -> Id<Symbol> {
         self.bind_anonymous_declaration(
             node,
             SymbolFlags::TypeLiteral,
@@ -547,7 +548,7 @@ impl BinderType {
             let mut global_exports = file_symbol.maybe_global_exports();
             if global_exports.is_none() {
                 *global_exports = Some(Gc::new(GcCell::new(create_symbol_table(
-                    Option::<&[Gc<Symbol>]>::None,
+                    Option::<&[Id<Symbol>]>::None,
                 ))));
             }
             self.declare_symbol(
@@ -836,7 +837,7 @@ impl BinderType {
                                 constructor_symbol.maybe_members_mut();
                             if constructor_symbol_members.is_none() {
                                 *constructor_symbol_members = Some(Gc::new(GcCell::new(
-                                    create_symbol_table(Option::<&[Gc<Symbol>]>::None),
+                                    create_symbol_table(Option::<&[Id<Symbol>]>::None),
                                 )));
                             }
                             let constructor_symbol_members =

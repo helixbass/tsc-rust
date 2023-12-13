@@ -21,7 +21,7 @@ impl TypeChecker {
         has_computed_string_property: bool,
         node: &Node,
         offset: usize,
-        properties_array: &[Gc<Symbol>],
+        properties_array: &[Id<Symbol>],
         has_computed_number_property: bool,
         has_computed_symbol_property: bool,
         properties_table: &SymbolTable,
@@ -254,12 +254,12 @@ impl TypeChecker {
             opening_like_element.as_jsx_opening_like_element();
         let attributes = opening_like_element_as_jsx_opening_like_element.attributes();
         let mut all_attributes_table = if self.strict_null_checks {
-            Some(create_symbol_table(Option::<&[Gc<Symbol>]>::None))
+            Some(create_symbol_table(Option::<&[Id<Symbol>]>::None))
         } else {
             None
         };
         let attributes_table = Gc::new(GcCell::new(create_symbol_table(
-            Option::<&[Gc<Symbol>]>::None,
+            Option::<&[Id<Symbol>]>::None,
         )));
         let mut spread = self.empty_jsx_object_type();
         let mut has_spread_any_type = false;
@@ -278,7 +278,7 @@ impl TypeChecker {
                     get_object_flags(&self.type_(expr_type)) & ObjectFlags::PropagatingFlags;
 
                 let member = member.unwrap();
-                let attribute_symbol: Gc<Symbol> = self
+                let attribute_symbol: Id<Symbol> = self
                     .create_symbol(
                         SymbolFlags::Property | member.flags(),
                         member.escaped_name().to_owned(),
@@ -339,7 +339,7 @@ impl TypeChecker {
                         false,
                     )?;
                     *attributes_table.borrow_mut() =
-                        create_symbol_table(Option::<&[Gc<Symbol>]>::None);
+                        create_symbol_table(Option::<&[Id<Symbol>]>::None);
                 }
                 let expr_type = self.get_reduced_type(self.check_expression_cached(
                     &attribute_decl.as_jsx_spread_attribute().expression,
@@ -435,7 +435,7 @@ impl TypeChecker {
                                 jsx_children_property_name,
                             )
                         })?;
-                    let children_prop_symbol: Gc<Symbol> = self
+                    let children_prop_symbol: Id<Symbol> = self
                         .create_symbol(
                             SymbolFlags::Property,
                             jsx_children_property_name.clone(),
@@ -487,7 +487,7 @@ impl TypeChecker {
                         .maybe_value_declaration()
                         .unwrap()
                         .set_symbol(children_prop_symbol.clone());
-                    let mut child_prop_map = create_symbol_table(Option::<&[Gc<Symbol>]>::None);
+                    let mut child_prop_map = create_symbol_table(Option::<&[Id<Symbol>]>::None);
                     child_prop_map.insert(
                         jsx_children_property_name.clone(),
                         children_prop_symbol.clone(),
@@ -647,7 +647,7 @@ impl TypeChecker {
     pub(super) fn get_intrinsic_tag_symbol(
         &self,
         node: &Node, /*JsxOpeningLikeElement | JsxClosingElement*/
-    ) -> io::Result<Gc<Symbol>> {
+    ) -> io::Result<Id<Symbol>> {
         let links = self.get_node_links(node);
         let node_as_has_tag_name = node.as_has_tag_name();
         if (*links).borrow().resolved_symbol.is_none() {
@@ -710,7 +710,7 @@ impl TypeChecker {
     pub(super) fn get_jsx_namespace_container_for_implicit_import(
         &self,
         location: Option<impl Borrow<Node>>,
-    ) -> io::Result<Option<Gc<Symbol>>> {
+    ) -> io::Result<Option<Id<Symbol>>> {
         let location = location.map(|location| location.borrow().node_wrapper());
         let file = location
             .as_ref()
@@ -770,7 +770,7 @@ impl TypeChecker {
     pub(super) fn get_jsx_namespace_at(
         &self,
         location: Option<impl Borrow<Node>>,
-    ) -> io::Result<Option<Gc<Symbol>>> {
+    ) -> io::Result<Option<Id<Symbol>>> {
         let location = location.map(|location| location.borrow().node_wrapper());
         let links = location
             .as_ref()

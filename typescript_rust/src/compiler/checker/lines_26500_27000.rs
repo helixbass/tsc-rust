@@ -211,7 +211,7 @@ impl TypeChecker {
         left: Option<impl Borrow<Symbol>>,
         right: Option<impl Borrow<Symbol>>,
         mapper: Option<Id<TypeMapper>>,
-    ) -> io::Result<Option<Gc<Symbol>>> {
+    ) -> io::Result<Option<Id<Symbol>>> {
         let left = left.map(|left| left.borrow().symbol_wrapper());
         let right = right.map(|right| right.borrow().symbol_wrapper());
         if left.is_none() || right.is_none() {
@@ -237,7 +237,7 @@ impl TypeChecker {
         left: &Signature,
         right: &Signature,
         mapper: Option<Id<TypeMapper>>,
-    ) -> io::Result<Vec<Gc<Symbol>>> {
+    ) -> io::Result<Vec<Id<Symbol>>> {
         let left_count = self.get_parameter_count(left)?;
         let right_count = self.get_parameter_count(right)?;
         let longest = if left_count >= right_count {
@@ -255,7 +255,7 @@ impl TypeChecker {
             self.has_effective_rest_parameter(left)? || self.has_effective_rest_parameter(right)?;
         let needs_extra_rest_element =
             either_has_effective_rest && !self.has_effective_rest_parameter(longest)?;
-        let mut params: Vec<Gc<Symbol>> =
+        let mut params: Vec<Id<Symbol>> =
             Vec::with_capacity(longest_count + if needs_extra_rest_element { 1 } else { 0 });
         for i in 0..longest_count {
             let mut longest_param_type = self.try_get_type_at_position(longest, i)?.unwrap();
@@ -299,7 +299,7 @@ impl TypeChecker {
             } else {
                 None
             };
-            let param_symbol: Gc<Symbol> = self
+            let param_symbol: Id<Symbol> = self
                 .create_symbol(
                     SymbolFlags::FunctionScopedVariable
                         | if is_optional && !is_rest_param {
@@ -323,7 +323,7 @@ impl TypeChecker {
             params.push(param_symbol);
         }
         if needs_extra_rest_element {
-            let rest_param_symbol: Gc<Symbol> = self
+            let rest_param_symbol: Id<Symbol> = self
                 .create_symbol(SymbolFlags::FunctionScopedVariable, "args".to_owned(), None)
                 .into();
             let rest_param_symbol_type =
@@ -879,7 +879,7 @@ impl TypeChecker {
         &self,
         node: &Node, /*ObjectLiteralExpression*/
         offset: usize,
-        properties: &[Gc<Symbol>],
+        properties: &[Id<Symbol>],
         key_type: Id<Type>,
     ) -> io::Result<IndexInfo> {
         let mut prop_types: Vec<Id<Type>> = vec![];
@@ -909,7 +909,7 @@ impl TypeChecker {
     pub(super) fn get_immediate_aliased_symbol(
         &self,
         symbol: &Symbol,
-    ) -> io::Result<Option<Gc<Symbol>>> {
+    ) -> io::Result<Option<Id<Symbol>>> {
         Debug_.assert(
             symbol.flags().intersects(SymbolFlags::Alias),
             Some("Should only get Alias here."),
@@ -935,12 +935,12 @@ impl TypeChecker {
 
         let node_as_object_literal_expression = node.as_object_literal_expression();
         let mut all_properties_table = if self.strict_null_checks {
-            Some(create_symbol_table(Option::<&[Gc<Symbol>]>::None))
+            Some(create_symbol_table(Option::<&[Id<Symbol>]>::None))
         } else {
             None
         };
-        let mut properties_table = create_symbol_table(Option::<&[Gc<Symbol>]>::None);
-        let mut properties_array: Vec<Gc<Symbol>> = vec![];
+        let mut properties_table = create_symbol_table(Option::<&[Id<Symbol>]>::None);
+        let mut properties_array: Vec<Id<Symbol>> = vec![];
         let mut spread: Id<Type> = self.empty_object_type();
 
         let contextual_type = self.get_apparent_type_of_contextual_type(node, None)?;
@@ -1060,7 +1060,7 @@ impl TypeChecker {
                 let name_type = computed_name_type.filter(|&computed_name_type| {
                     self.is_type_usable_as_property_name(computed_name_type)
                 });
-                let prop: Gc<Symbol> = if let Some(name_type) = name_type {
+                let prop: Id<Symbol> = if let Some(name_type) = name_type {
                     self.create_symbol(
                         SymbolFlags::Property | member_present.flags(),
                         self.get_property_name_from_type(name_type),
@@ -1178,7 +1178,7 @@ impl TypeChecker {
                         in_const_context,
                     )?;
                     properties_array = vec![];
-                    properties_table = create_symbol_table(Option::<&[Gc<Symbol>]>::None);
+                    properties_table = create_symbol_table(Option::<&[Id<Symbol>]>::None);
                     has_computed_string_property = false;
                     has_computed_number_property = false;
                     has_computed_symbol_property = false;
@@ -1306,7 +1306,7 @@ impl TypeChecker {
                     in_const_context,
                 )?;
                 properties_array = vec![];
-                properties_table = create_symbol_table(Option::<&[Gc<Symbol>]>::None);
+                properties_table = create_symbol_table(Option::<&[Id<Symbol>]>::None);
                 has_computed_string_property = false;
                 has_computed_number_property = false;
             }

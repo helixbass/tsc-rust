@@ -2014,7 +2014,7 @@ pub struct NodeBuilderContext {
     pub used_symbol_names: Rc<RefCell<Option<HashSet<String>>>>,
     #[unsafe_ignore_trace]
     pub remapped_symbol_names: Rc<RefCell<Option<HashMap<SymbolId, String>>>>,
-    pub reverse_mapped_stack: Gc<GcCell<Option<Vec<Gc<Symbol /*ReverseMappedSymbol*/>>>>>,
+    pub reverse_mapped_stack: Gc<GcCell<Option<Vec<Id<Symbol /*ReverseMappedSymbol*/>>>>>,
 }
 
 impl NodeBuilderContext {

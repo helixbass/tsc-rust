@@ -198,9 +198,9 @@ pub trait NodeInterface: ReadonlyTextRange {
     fn set_parent(&self, parent: Option<Gc<Node>>);
     fn maybe_original(&self) -> Option<Gc<Node>>;
     fn set_original(&self, original: Option<Gc<Node>>);
-    fn maybe_symbol(&self) -> Option<Gc<Symbol>>;
-    fn symbol(&self) -> Gc<Symbol>;
-    fn set_symbol(&self, symbol: Gc<Symbol>);
+    fn maybe_symbol(&self) -> Option<Id<Symbol>>;
+    fn symbol(&self) -> Id<Symbol>;
+    fn set_symbol(&self, symbol: Id<Symbol>);
     fn set_symbol_override(&self, symbol_override: Gc<Box<dyn NodeSymbolOverride>>);
     fn maybe_locals(&self) -> Option<Gc<GcCell<SymbolTable>>>;
     fn maybe_locals_mut(&self) -> GcCellRefMut<Option<Gc<GcCell<SymbolTable>>>>;
@@ -209,8 +209,8 @@ pub trait NodeInterface: ReadonlyTextRange {
     fn set_locals(&self, locals: Option<Gc<GcCell<SymbolTable>>>);
     fn maybe_next_container(&self) -> Option<Gc<Node>>;
     fn set_next_container(&self, next_container: Option<Gc<Node>>);
-    fn maybe_local_symbol(&self) -> Option<Gc<Symbol>>;
-    fn set_local_symbol(&self, local_symbol: Option<Gc<Symbol>>);
+    fn maybe_local_symbol(&self) -> Option<Id<Symbol>>;
+    fn set_local_symbol(&self, local_symbol: Option<Id<Symbol>>);
     fn maybe_flow_node(&self) -> GcCellRef<Option<Gc<FlowNode>>>;
     fn maybe_flow_node_mut(&self) -> GcCellRefMut<Option<Gc<FlowNode>>>;
     fn set_flow_node(&self, emit_node: Option<Gc<FlowNode>>);
@@ -239,8 +239,8 @@ pub trait NodeIdOverride: fmt::Debug + Trace + Finalize {
 }
 
 pub trait NodeSymbolOverride: fmt::Debug + Trace + Finalize {
-    fn maybe_symbol(&self) -> Option<Gc<Symbol>>;
-    fn set_symbol(&self, symbol: Gc<Symbol>);
+    fn maybe_symbol(&self) -> Option<Id<Symbol>>;
+    fn set_symbol(&self, symbol: Id<Symbol>);
 }
 
 #[derive(Debug, Finalize, Trace)]
@@ -1727,10 +1727,10 @@ pub struct BaseNode {
     pub pos: Cell<isize>,
     #[unsafe_ignore_trace]
     pub end: Cell<isize>,
-    pub symbol: GcCell<Option<Gc<Symbol>>>,
+    pub symbol: GcCell<Option<Id<Symbol>>>,
     pub locals: Gc<GcCell<Option<Gc<GcCell<SymbolTable>>>>>,
     next_container: GcCell<Option<Gc<Node>>>,
-    local_symbol: GcCell<Option<Gc<Symbol>>>,
+    local_symbol: GcCell<Option<Id<Symbol>>>,
     emit_node: GcCell<Option<Gc<GcCell<EmitNode>>>>,
     contextual_type: GcCell<Option<Id<Type>>>,
     inference_context: GcCell<Option<Gc<InferenceContext>>>,
@@ -1922,18 +1922,18 @@ impl NodeInterface for BaseNode {
         *self.original.borrow_mut() = original;
     }
 
-    fn maybe_symbol(&self) -> Option<Gc<Symbol>> {
+    fn maybe_symbol(&self) -> Option<Id<Symbol>> {
         match self._symbol_override.borrow().as_ref() {
             Some(symbol_override) => symbol_override.maybe_symbol(),
             None => self.symbol.borrow().clone(),
         }
     }
 
-    fn symbol(&self) -> Gc<Symbol> {
+    fn symbol(&self) -> Id<Symbol> {
         self.maybe_symbol().unwrap()
     }
 
-    fn set_symbol(&self, symbol: Gc<Symbol>) {
+    fn set_symbol(&self, symbol: Id<Symbol>) {
         match self._symbol_override.borrow().as_ref() {
             Some(symbol_override) => {
                 symbol_override.set_symbol(symbol);
@@ -1976,11 +1976,11 @@ impl NodeInterface for BaseNode {
         *self.next_container.borrow_mut() = next_container;
     }
 
-    fn maybe_local_symbol(&self) -> Option<Gc<Symbol>> {
+    fn maybe_local_symbol(&self) -> Option<Id<Symbol>> {
         self.local_symbol.borrow().clone()
     }
 
-    fn set_local_symbol(&self, local_symbol: Option<Gc<Symbol>>) {
+    fn set_local_symbol(&self, local_symbol: Option<Id<Symbol>>) {
         *self.local_symbol.borrow_mut() = local_symbol;
     }
 

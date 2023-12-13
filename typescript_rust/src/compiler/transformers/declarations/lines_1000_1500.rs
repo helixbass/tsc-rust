@@ -1,6 +1,7 @@
 use std::{io, ptr};
 
 use gc::{Finalize, Gc, GcCell, Trace};
+use id_arena::Id;
 
 use super::{
     declaration_emit_node_builder_flags, is_preserved_declaration_statement, TransformDeclarations,
@@ -368,7 +369,7 @@ impl TransformDeclarations {
                         Default::default();
                     let mut declarations = try_map_defined(
                         Some(&props),
-                        |p: &Gc<Symbol>, _| -> io::Result<Option<Gc<Node>>> {
+                        |p: &Id<Symbol>, _| -> io::Result<Option<Gc<Node>>> {
                             let ref p_value_declaration = return_ok_default_if_none!(p
                                 .maybe_value_declaration()
                                 .filter(|p_value_declaration| {

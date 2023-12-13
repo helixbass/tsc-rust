@@ -482,8 +482,8 @@ impl TypeChecker {
             .insert(source.maybe_merge_id().unwrap(), target.symbol_wrapper());
     }
 
-    pub(super) fn clone_symbol(&self, symbol: &Symbol) -> Gc<Symbol> {
-        let result: Gc<Symbol> = self
+    pub(super) fn clone_symbol(&self, symbol: &Symbol) -> Id<Symbol> {
+        let result: Id<Symbol> = self
             .create_symbol(symbol.flags(), symbol.escaped_name().to_owned(), None)
             .into();
         result.set_declarations(
@@ -517,7 +517,7 @@ impl TypeChecker {
         target: &Symbol,
         source: &Symbol,
         unidirectional: Option<bool>,
-    ) -> io::Result<Gc<Symbol>> {
+    ) -> io::Result<Id<Symbol>> {
         let unidirectional = unidirectional.unwrap_or(false);
         let mut target = target.symbol_wrapper();
         if !target
@@ -562,7 +562,7 @@ impl TypeChecker {
                 let mut target_members = target.maybe_members_mut();
                 if target_members.is_none() {
                     *target_members = Some(Gc::new(GcCell::new(create_symbol_table(
-                        Option::<&[Gc<Symbol>]>::None,
+                        Option::<&[Id<Symbol>]>::None,
                     ))));
                 }
                 self.merge_symbol_table(
@@ -575,7 +575,7 @@ impl TypeChecker {
                 let mut target_exports = target.maybe_exports_mut();
                 if target_exports.is_none() {
                     *target_exports = Some(Gc::new(GcCell::new(create_symbol_table(
-                        Option::<&[Gc<Symbol>]>::None,
+                        Option::<&[Id<Symbol>]>::None,
                     ))));
                 }
                 self.merge_symbol_table(
@@ -819,7 +819,7 @@ impl TypeChecker {
             return Ok(Some(first));
         }
         let combined = Gc::new(GcCell::new(create_symbol_table(
-            Option::<&[Gc<Symbol>]>::None,
+            Option::<&[Id<Symbol>]>::None,
         )));
         self.merge_symbol_table(combined.clone(), &(*first).borrow(), None)?;
         self.merge_symbol_table(combined.clone(), &(*second).borrow(), None)?;
@@ -1015,7 +1015,7 @@ impl TypeChecker {
         symbols: &SymbolTable,
         name: &str, /*__String*/
         meaning: SymbolFlags,
-    ) -> io::Result<Option<Gc<Symbol>>> {
+    ) -> io::Result<Option<Id<Symbol>>> {
         if meaning != SymbolFlags::None {
             let symbol = self.get_merged_symbol(symbols.get(name).map(Clone::clone));
             if let Some(symbol) = symbol {
@@ -1043,7 +1043,7 @@ impl TypeChecker {
         &self,
         parameter: &Node,     /*ParameterDeclaration*/
         parameter_name: &str, /*__String*/
-    ) -> io::Result<Vec<Gc<Symbol>>> {
+    ) -> io::Result<Vec<Id<Symbol>>> {
         let constructor_declaration = parameter.parent();
         let class_declaration = parameter.parent().parent();
 
@@ -1447,7 +1447,7 @@ impl TypeChecker {
         name_arg: Option<impl Into<ResolveNameNameArg<'name_arg>> + Clone>,
         is_use: bool,
         exclude_globals: Option<bool>,
-    ) -> io::Result<Option<Gc<Symbol>>> {
+    ) -> io::Result<Option<Id<Symbol>>> {
         let exclude_globals = exclude_globals.unwrap_or(false);
         self.resolve_name_helper(
             location,
@@ -1476,11 +1476,11 @@ impl TypeChecker {
             &SymbolTable,
             &str, /*__String*/
             SymbolFlags,
-        ) -> io::Result<Option<Gc<Symbol>>>,
-    ) -> io::Result<Option<Gc<Symbol>>> {
+        ) -> io::Result<Option<Id<Symbol>>>,
+    ) -> io::Result<Option<Id<Symbol>>> {
         let mut location: Option<Gc<Node>> = location.map(|node| node.borrow().node_wrapper());
         let original_location = location.clone();
-        let mut result: Option<Gc<Symbol>> = None;
+        let mut result: Option<Id<Symbol>> = None;
         let mut last_location: Option<Gc<Node>> = None;
         let mut last_self_reference_location: Option<Gc<Node>> = None;
         let mut property_with_invalid_initializer: Option<Gc<Node>> = None;
@@ -1966,7 +1966,7 @@ impl TypeChecker {
                             meaning,
                         )?
                 } {
-                    let mut suggestion: Option<Gc<Symbol>> = None;
+                    let mut suggestion: Option<Id<Symbol>> = None;
                     if self.suggestion_count() < self.maximum_suggestion_count {
                         suggestion = self.get_suggested_symbol_for_nonexistent_symbol_(
                             original_location.as_deref(),

@@ -169,9 +169,9 @@ pub trait ResolvedTypeInterface:
     ObjectFlagsTypeInterface + ObjectTypeInterface + ResolvableTypeInterface
 {
     fn members(&self) -> Gc<GcCell<SymbolTable>>;
-    fn properties(&self) -> GcVec<Gc<Symbol>>;
-    fn properties_mut(&self) -> GcCellRefMut<Option<GcVec<Gc<Symbol>>>, GcVec<Gc<Symbol>>>;
-    fn set_properties(&self, properties: GcVec<Gc<Symbol>>);
+    fn properties(&self) -> GcVec<Id<Symbol>>;
+    fn properties_mut(&self) -> GcCellRefMut<Option<GcVec<Id<Symbol>>>, GcVec<Id<Symbol>>>;
+    fn set_properties(&self, properties: GcVec<Id<Symbol>>);
     fn call_signatures(&self) -> GcCellRef<Vec<Gc<Signature>>>;
     fn set_call_signatures(&self, call_signatures: Vec<Gc<Signature>>);
     fn construct_signatures(&self) -> GcCellRef<Vec<Gc<Signature>>>;
@@ -390,7 +390,7 @@ pub struct ConditionalRoot {
     pub infer_type_parameters: Option<Vec<Id<Type /*TypeParameter*/>>>,
     pub outer_type_parameters: Option<Vec<Id<Type /*TypeParameter*/>>>,
     instantiations: GcCell<Option<HashMap<String, Id<Type>>>>,
-    pub alias_symbol: Option<Gc<Symbol>>,
+    pub alias_symbol: Option<Id<Symbol>>,
     pub alias_type_arguments: Option<Vec<Id<Type>>>,
 }
 
@@ -402,7 +402,7 @@ impl ConditionalRoot {
         is_distributive: bool,
         infer_type_parameters: Option<Vec<Id<Type>>>,
         outer_type_parameters: Option<Vec<Id<Type>>>,
-        alias_symbol: Option<Gc<Symbol>>,
+        alias_symbol: Option<Id<Symbol>>,
         alias_type_arguments: Option<Vec<Id<Type>>>,
     ) -> Self {
         Self {
@@ -582,8 +582,8 @@ pub struct Signature {
     pub flags: SignatureFlags,
     pub declaration: Option<Gc<Node /*SignatureDeclaration | JSDocSignature*/>>,
     type_parameters: GcCell<Option<Vec<Id<Type /*TypeParameter*/>>>>,
-    parameters: Option<Vec<Gc<Symbol>>>,
-    this_parameter: GcCell<Option<Gc<Symbol>>>,
+    parameters: Option<Vec<Id<Symbol>>>,
+    this_parameter: GcCell<Option<Id<Symbol>>>,
     resolved_return_type: GcCell<Option<Id<Type>>>,
     resolved_type_predicate: GcCell<Option<Gc<TypePredicate>>>,
     min_argument_count: Option<usize>,
@@ -635,19 +635,19 @@ impl Signature {
         self.type_parameters.borrow_mut()
     }
 
-    pub fn parameters(&self) -> &[Gc<Symbol>] {
+    pub fn parameters(&self) -> &[Id<Symbol>] {
         self.parameters.as_ref().unwrap()
     }
 
-    pub fn set_parameters(&mut self, parameters: Vec<Gc<Symbol>>) {
+    pub fn set_parameters(&mut self, parameters: Vec<Id<Symbol>>) {
         self.parameters = Some(parameters);
     }
 
-    pub fn maybe_this_parameter(&self) -> GcCellRef<Option<Gc<Symbol>>> {
+    pub fn maybe_this_parameter(&self) -> GcCellRef<Option<Id<Symbol>>> {
         self.this_parameter.borrow()
     }
 
-    pub fn maybe_this_parameter_mut(&self) -> GcCellRefMut<Option<Gc<Symbol>>> {
+    pub fn maybe_this_parameter_mut(&self) -> GcCellRefMut<Option<Id<Symbol>>> {
         self.this_parameter.borrow_mut()
     }
 
@@ -1109,7 +1109,7 @@ pub(crate) struct WideningContext {
     pub parent: Option<Rc<RefCell<WideningContext>>>,
     pub property_name: Option<__String>,
     pub siblings: Option<Vec<Id<Type>>>,
-    pub resolved_properties: Option<Vec<Gc<Symbol>>>,
+    pub resolved_properties: Option<Vec<Id<Symbol>>>,
 }
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]

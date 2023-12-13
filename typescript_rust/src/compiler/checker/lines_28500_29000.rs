@@ -122,7 +122,7 @@ impl TypeChecker {
         &self,
         name: &str,
         base_type: Id<Type>,
-    ) -> io::Result<Option<Gc<Symbol>>> {
+    ) -> io::Result<Option<Id<Symbol>>> {
         self.get_spelling_suggestion_for_name(
             name,
             self.get_properties_of_type(base_type)?,
@@ -134,7 +134,7 @@ impl TypeChecker {
         &self,
         name: impl Into<StrOrRcNode<'name>>, /*Identifier | PrivateIdentifier*/
         containing_type: Id<Type>,
-    ) -> io::Result<Option<Gc<Symbol>>> {
+    ) -> io::Result<Option<Id<Symbol>>> {
         let props = self.get_properties_of_type(containing_type)?;
         let mut name = name.into();
         let name_inner_rc_node = match name.clone() {
@@ -148,7 +148,7 @@ impl TypeChecker {
             if is_property_access_expression(&parent) {
                 did_set_props = true;
                 props_ = Some(Either::Right(
-                    try_filter(&props.clone().collect_vec(), |prop: &Gc<Symbol>| {
+                    try_filter(&props.clone().collect_vec(), |prop: &Id<Symbol>| {
                         self.is_valid_property_access_for_completions_(
                             &parent,
                             containing_type,
@@ -172,7 +172,7 @@ impl TypeChecker {
         &self,
         name: impl Into<StrOrRcNode<'name>>, /*Identifier | PrivateIdentifier*/
         containing_type: Id<Type>,
-    ) -> io::Result<Option<Gc<Symbol>>> {
+    ) -> io::Result<Option<Id<Symbol>>> {
         let name = name.into();
         let str_name = match &name {
             StrOrRcNode::Str(name) => *name,
@@ -208,7 +208,7 @@ impl TypeChecker {
         location: Option<impl Borrow<Node>>,
         outer_name: &str, /*__String*/
         meaning: SymbolFlags,
-    ) -> io::Result<Option<Gc<Symbol>>> {
+    ) -> io::Result<Option<Id<Symbol>>> {
         // Debug.assert(outerName !== undefined, "outername should always be defined");
         let result = self.resolve_name_helper(
             location,
@@ -229,7 +229,7 @@ impl TypeChecker {
                 if symbol.is_some() {
                     return Ok(symbol);
                 }
-                let candidates: Vec<Gc<Symbol>>;
+                let candidates: Vec<Id<Symbol>>;
                 if ptr::eq(symbols, &*self.globals()) {
                     let primitives = map_defined(
                         Some(["string", "number", "boolean", "object", "bigint", "symbol"]),
@@ -278,7 +278,7 @@ impl TypeChecker {
         &self,
         name: &Node, /*Identifier*/
         target_module: &Symbol,
-    ) -> io::Result<Option<Gc<Symbol>>> {
+    ) -> io::Result<Option<Id<Symbol>>> {
         Ok(if target_module.maybe_exports().is_some() {
             self.get_spelling_suggestion_for_name(
                 &id_text(name),
@@ -377,10 +377,10 @@ impl TypeChecker {
     pub(super) fn get_spelling_suggestion_for_name(
         &self,
         name: &str,
-        symbols: impl IntoIterator<Item = impl Borrow<Gc<Symbol>>>,
+        symbols: impl IntoIterator<Item = impl Borrow<Id<Symbol>>>,
         meaning: SymbolFlags,
-    ) -> io::Result<Option<Gc<Symbol>>> {
-        let get_candidate_name = |candidate: &Gc<Symbol>| -> io::Result<_> {
+    ) -> io::Result<Option<Id<Symbol>>> {
+        let get_candidate_name = |candidate: &Id<Symbol>| -> io::Result<_> {
             let candidate_name = symbol_name(candidate);
             if starts_with(&candidate_name, "\"") {
                 return Ok(None);
@@ -847,7 +847,7 @@ impl TypeChecker {
         call_chain_flags: SignatureFlags,
     ) -> io::Result<()> {
         let mut last_parent: Option<Gc<Node>> = None;
-        let mut last_symbol: Option<Gc<Symbol>> = None;
+        let mut last_symbol: Option<Id<Symbol>> = None;
         let mut cutoff_index = 0;
         let mut index: Option<usize> = None;
         let mut specialized_index: isize = -1;

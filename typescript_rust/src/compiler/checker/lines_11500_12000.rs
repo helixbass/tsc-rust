@@ -309,7 +309,7 @@ impl TypeChecker {
     pub(super) fn get_properties_of_object_type(
         &self,
         type_: Id<Type>,
-    ) -> io::Result<Vec<Gc<Symbol>>> {
+    ) -> io::Result<Vec<Id<Symbol>>> {
         if self.type_(type_).flags().intersects(TypeFlags::Object) {
             return Ok((*self
                 .type_(self.resolve_structured_type_members(type_)?)
@@ -324,7 +324,7 @@ impl TypeChecker {
         &self,
         type_: Id<Type>,
         name: &str, /*__String*/
-    ) -> io::Result<Option<Gc<Symbol>>> {
+    ) -> io::Result<Option<Id<Symbol>>> {
         if self.type_(type_).flags().intersects(TypeFlags::Object) {
             let resolved = self.resolve_structured_type_members(type_)?;
             let symbol = (*self.type_(resolved).as_resolved_type().members())
@@ -343,14 +343,14 @@ impl TypeChecker {
     pub(super) fn get_properties_of_union_or_intersection_type(
         &self,
         type_: Id<Type>, /*UnionOrIntersectionType*/
-    ) -> io::Result<impl ExactSizeIterator<Item = Gc<Symbol>> + Clone> {
+    ) -> io::Result<impl ExactSizeIterator<Item = Id<Symbol>> + Clone> {
         if self
             .type_(type_)
             .as_union_or_intersection_type_interface()
             .maybe_resolved_properties()
             .is_none()
         {
-            let mut members = create_symbol_table(Option::<&[Gc<Symbol>]>::None);
+            let mut members = create_symbol_table(Option::<&[Id<Symbol>]>::None);
             for current in {
                 let types = self
                     .type_(type_)
@@ -393,7 +393,7 @@ impl TypeChecker {
     pub(super) fn get_properties_of_type(
         &self,
         type_: Id<Type>,
-    ) -> io::Result<impl ExactSizeIterator<Item = Gc<Symbol>> + Clone> {
+    ) -> io::Result<impl ExactSizeIterator<Item = Id<Symbol>> + Clone> {
         let type_ = self.get_reduced_apparent_type(type_)?;
         Ok(
             if self
@@ -455,13 +455,13 @@ impl TypeChecker {
     pub fn get_all_possible_properties_of_types(
         &self,
         types: &[Id<Type>],
-    ) -> io::Result<Vec<Gc<Symbol>>> {
+    ) -> io::Result<Vec<Id<Symbol>>> {
         let union_type = self.get_union_type(types, None, Option::<&Symbol>::None, None, None)?;
         if !self.type_(union_type).flags().intersects(TypeFlags::Union) {
             return self.get_augmented_properties_of_type(union_type);
         }
 
-        let mut props = create_symbol_table(Option::<&[Gc<Symbol>]>::None);
+        let mut props = create_symbol_table(Option::<&[Id<Symbol>]>::None);
         for &member_type in types {
             for augmented_property in self.get_augmented_properties_of_type(member_type)? {
                 let escaped_name = augmented_property.escaped_name();

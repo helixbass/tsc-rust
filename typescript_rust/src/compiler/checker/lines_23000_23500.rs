@@ -970,7 +970,7 @@ impl TypeChecker {
                     )?;
                     if let Some(type_) = type_ {
                         let name = &node_as_property_access_expression.name;
-                        let prop: Option<Gc<Symbol>>;
+                        let prop: Option<Id<Symbol>>;
                         if is_private_identifier(name) {
                             if self.type_(type_).maybe_symbol().is_none() {
                                 return Ok(None);

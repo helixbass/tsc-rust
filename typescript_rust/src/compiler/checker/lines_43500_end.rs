@@ -627,7 +627,7 @@ impl TypeChecker {
         false
     }
 
-    pub fn get_ambient_modules(&self) -> Vec<Gc<Symbol>> {
+    pub fn get_ambient_modules(&self) -> Vec<Id<Symbol>> {
         if self.ambient_modules_cache.borrow().is_none() {
             let mut ambient_modules_cache = self.ambient_modules_cache.borrow_mut();
             *ambient_modules_cache = Some(vec![]);
@@ -1200,7 +1200,7 @@ impl EmitResolver for EmitResolverCreateResolver {
     fn get_properties_of_container_function(
         &self,
         node: &Node, /*Declaration*/
-    ) -> io::Result<Vec<Gc<Symbol>>> {
+    ) -> io::Result<Vec<Id<Symbol>>> {
         Ok(self
             .type_checker
             .get_properties_of_container_function(node)?

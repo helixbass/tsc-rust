@@ -276,11 +276,11 @@ impl TypeChecker {
         &self,
         target_type: Id<Type>,
     ) -> io::Result<Id<Type>> {
-        let symbol: Gc<Symbol> = self
+        let symbol: Id<Symbol> = self
             .create_symbol(SymbolFlags::None, "NewTargetExpression".to_owned(), None)
             .into();
 
-        let target_property_symbol: Gc<Symbol> = self
+        let target_property_symbol: Id<Symbol> = self
             .create_symbol(
                 SymbolFlags::Property,
                 "target".to_owned(),

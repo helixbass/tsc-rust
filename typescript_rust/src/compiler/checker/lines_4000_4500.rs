@@ -22,7 +22,7 @@ impl TypeChecker {
         &self,
         container: &Symbol,
         symbol: &Symbol,
-    ) -> io::Result<Option<Gc<Symbol>>> {
+    ) -> io::Result<Option<Id<Symbol>>> {
         if matches!(
             self.get_parent_of_symbol(symbol)?,
             Some(parent) if ptr::eq(container, &*parent)
@@ -47,7 +47,7 @@ impl TypeChecker {
                 return Ok(Some(quick.clone()));
             }
         }
-        try_for_each_entry(&*exports, |exported: &Gc<Symbol>, _| {
+        try_for_each_entry(&*exports, |exported: &Id<Symbol>, _| {
             if self
                 .get_symbol_if_same_reference(exported, symbol)?
                 .is_some()
@@ -62,7 +62,7 @@ impl TypeChecker {
         &self,
         s1: &Symbol,
         s2: &Symbol,
-    ) -> io::Result<Option<Gc<Symbol>>> {
+    ) -> io::Result<Option<Id<Symbol>>> {
         if Gc::ptr_eq(
             &self
                 .get_merged_symbol(self.resolve_symbol(self.get_merged_symbol(Some(s1)), None)?)
@@ -79,7 +79,7 @@ impl TypeChecker {
     pub(super) fn get_export_symbol_of_value_symbol_if_exported(
         &self,
         symbol: Option<impl Borrow<Symbol>>,
-    ) -> Option<Gc<Symbol>> {
+    ) -> Option<Id<Symbol>> {
         self.get_merged_symbol(symbol.and_then(|symbol| {
             let symbol = symbol.borrow();
             if symbol.flags().intersects(SymbolFlags::ExportValue) {
@@ -210,7 +210,7 @@ impl TypeChecker {
         true
     }
 
-    pub(super) fn get_named_members(&self, members: &SymbolTable) -> io::Result<Vec<Gc<Symbol>>> {
+    pub(super) fn get_named_members(&self, members: &SymbolTable) -> io::Result<Vec<Id<Symbol>>> {
         let mut results = vec![];
         for (id, symbol) in members {
             if self.is_named_member(symbol, id)? {
@@ -231,7 +231,7 @@ impl TypeChecker {
     pub(super) fn get_named_or_index_signature_members(
         &self,
         members: &SymbolTable,
-    ) -> io::Result<Vec<Gc<Symbol>>> {
+    ) -> io::Result<Vec<Id<Symbol>>> {
         let result = self.get_named_members(members)?;
         let index = self.get_index_symbol_from_symbol_table(members);
         Ok(if let Some(index) = index {
@@ -436,7 +436,7 @@ impl TypeChecker {
                             .intersects(SymbolFlags::Type & !SymbolFlags::Assignment)
                         {
                             if table.is_none() {
-                                table = Some(create_symbol_table(Option::<&[Gc<Symbol>]>::None));
+                                table = Some(create_symbol_table(Option::<&[Id<Symbol>]>::None));
                             }
                             table
                                 .as_mut()
@@ -482,7 +482,7 @@ impl TypeChecker {
         visited_symbol_tables_map: Option<
             &mut HashMap<SymbolId, Gc<GcCell<Vec<Gc<GcCell<SymbolTable>>>>>>,
         >,
-    ) -> io::Result<Option<Vec<Gc<Symbol>>>> {
+    ) -> io::Result<Option<Vec<Id<Symbol>>>> {
         let mut visited_symbol_tables_map_default = HashMap::new();
         let visited_symbol_tables_map =
             visited_symbol_tables_map.unwrap_or(&mut visited_symbol_tables_map_default);
@@ -563,7 +563,7 @@ impl TypeChecker {
         symbols: Gc<GcCell<SymbolTable>>,
         ignore_qualification: Option<bool>,
         is_local_name_lookup: Option<bool>,
-    ) -> io::Result<Option<Vec<Gc<Symbol>>>> {
+    ) -> io::Result<Option<Vec<Id<Symbol>>>> {
         if !push_if_unique_gc(&mut visited_symbol_tables.borrow_mut(), &symbols) {
             return Ok(None);
         }
@@ -669,7 +669,7 @@ impl TypeChecker {
         symbols: Gc<GcCell<SymbolTable>>,
         ignore_qualification: Option<bool>,
         is_local_name_lookup: Option<bool>,
-    ) -> io::Result<Option<Vec<Gc<Symbol>>>> {
+    ) -> io::Result<Option<Vec<Id<Symbol>>>> {
         if self.is_accessible(
             symbol,
             meaning,
@@ -683,7 +683,7 @@ impl TypeChecker {
             return Ok(Some(vec![symbol.symbol_wrapper()]));
         }
 
-        let result: Option<Vec<Gc<Symbol>>> = try_for_each_entry(
+        let result: Option<Vec<Id<Symbol>>> = try_for_each_entry(
             &*(*symbols).borrow(),
             |symbol_from_symbol_table, _| -> io::Result<_> {
                 if symbol_from_symbol_table
@@ -785,7 +785,7 @@ impl TypeChecker {
         symbol_from_symbol_table: &Symbol,
         resolved_import_symbol: &Symbol,
         ignore_qualification: Option<bool>,
-    ) -> io::Result<Option<Vec<Gc<Symbol>>>> {
+    ) -> io::Result<Option<Vec<Id<Symbol>>>> {
         if self.is_accessible(
             symbol,
             meaning,
@@ -946,7 +946,7 @@ impl TypeChecker {
 
     pub(super) fn is_any_symbol_accessible(
         &self,
-        symbols: Option<&[Gc<Symbol>]>,
+        symbols: Option<&[Id<Symbol>]>,
         enclosing_declaration: Option<impl Borrow<Node>>,
         initial_symbol: &Symbol,
         meaning: SymbolFlags,
@@ -958,7 +958,7 @@ impl TypeChecker {
         }
         let symbols = symbols.unwrap();
 
-        let mut had_accessible_chain: Option<Gc<Symbol>> = None;
+        let mut had_accessible_chain: Option<Id<Symbol>> = None;
         let mut early_module_bail = false;
         let enclosing_declaration = enclosing_declaration
             .map(|enclosing_declaration| enclosing_declaration.borrow().node_wrapper());
@@ -1169,7 +1169,7 @@ impl TypeChecker {
     pub(super) fn get_external_module_container(
         &self,
         declaration: &Node,
-    ) -> io::Result<Option<Gc<Symbol>>> {
+    ) -> io::Result<Option<Id<Symbol>>> {
         let node = find_ancestor(Some(declaration), |node| {
             self.has_external_module_symbol(node)
         });

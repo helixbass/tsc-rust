@@ -61,7 +61,7 @@ impl TypeChecker {
     pub(super) fn get_shorthand_assignment_value_symbol_(
         &self,
         location: Option<impl Borrow<Node>>,
-    ) -> io::Result<Option<Gc<Symbol>>> {
+    ) -> io::Result<Option<Id<Symbol>>> {
         if let Some(location) = location {
             let location: &Node = location.borrow();
             if location.kind() == SyntaxKind::ShorthandPropertyAssignment {
@@ -80,7 +80,7 @@ impl TypeChecker {
     pub(super) fn get_export_specifier_local_target_symbol_(
         &self,
         node: &Node, /*Identifier | ExportSpecifier*/
-    ) -> io::Result<Option<Gc<Symbol>>> {
+    ) -> io::Result<Option<Id<Symbol>>> {
         Ok(if is_export_specifier(node) {
             let node_as_export_specifier = node.as_export_specifier();
             if node
@@ -304,7 +304,7 @@ impl TypeChecker {
     pub(super) fn get_property_symbol_of_destructuring_assignment_(
         &self,
         location: &Node, /*Identifier*/
-    ) -> io::Result<Option<Gc<Symbol>>> {
+    ) -> io::Result<Option<Id<Symbol>>> {
         let type_of_object_literal = self.get_type_of_assignment_pattern_(&*cast_present(
             location.parent().parent(),
             |node: &Gc<Node>| is_assignment_pattern(node),
@@ -366,7 +366,7 @@ impl TypeChecker {
     pub(super) fn get_augmented_properties_of_type(
         &self,
         type_: Id<Type>,
-    ) -> io::Result<Vec<Gc<Symbol>>> {
+    ) -> io::Result<Vec<Id<Symbol>>> {
         let type_ = self.get_apparent_type(type_)?;
         let mut props_by_name = create_symbol_table(Some(self.get_properties_of_type(type_)?));
         let function_type = if !self
@@ -385,7 +385,7 @@ impl TypeChecker {
         if let Some(function_type) = function_type {
             for_each(
                 self.get_properties_of_type(function_type)?,
-                |ref p: Gc<Symbol>, _| -> Option<()> {
+                |ref p: Id<Symbol>, _| -> Option<()> {
                     if !props_by_name.contains_key(p.escaped_name()) {
                         props_by_name.insert(p.escaped_name().to_owned(), p.clone());
                     }
@@ -403,10 +403,10 @@ impl TypeChecker {
         type_has_call_or_construct_signatures(type_, self)
     }
 
-    pub fn get_root_symbols(&self, symbol: &Symbol) -> io::Result<Vec<Gc<Symbol>>> {
+    pub fn get_root_symbols(&self, symbol: &Symbol) -> io::Result<Vec<Id<Symbol>>> {
         let roots = self.get_immediate_root_symbols(symbol)?;
         Ok(if let Some(roots) = roots.as_ref() {
-            try_flat_map(Some(roots), |root: &Gc<Symbol>, _| {
+            try_flat_map(Some(roots), |root: &Id<Symbol>, _| {
                 self.get_root_symbols(root)
             })?
         } else {
@@ -417,7 +417,7 @@ impl TypeChecker {
     pub(super) fn get_immediate_root_symbols(
         &self,
         symbol: &Symbol,
-    ) -> io::Result<Option<Vec<Gc<Symbol>>>> {
+    ) -> io::Result<Option<Vec<Id<Symbol>>>> {
         if get_check_flags(symbol).intersects(CheckFlags::Synthetic) {
             return Ok(Some(try_map_defined(
                 Some(
@@ -455,9 +455,9 @@ impl TypeChecker {
         Ok(None)
     }
 
-    pub(super) fn try_get_alias_target(&self, symbol: &Symbol) -> Option<Gc<Symbol>> {
-        let mut target: Option<Gc<Symbol>> = None;
-        let mut next: Option<Gc<Symbol>> = Some(symbol.symbol_wrapper());
+    pub(super) fn try_get_alias_target(&self, symbol: &Symbol) -> Option<Id<Symbol>> {
+        let mut target: Option<Id<Symbol>> = None;
+        let mut next: Option<Id<Symbol>> = Some(symbol.symbol_wrapper());
         while {
             next = (*self.get_symbol_links(next.as_ref().unwrap()))
                 .borrow()
@@ -532,7 +532,7 @@ impl TypeChecker {
             } else {
                 try_for_each_entry_bool(
                     &*(*self.get_exports_of_module_(module_symbol)?).borrow(),
-                    |s: &Gc<Symbol>, _| self.is_value(s),
+                    |s: &Id<Symbol>, _| self.is_value(s),
                 )?
             });
         }

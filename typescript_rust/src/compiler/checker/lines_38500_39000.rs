@@ -400,7 +400,7 @@ impl TypeChecker {
         )
     }
 
-    pub(super) fn get_target_symbol(&self, s: &Symbol) -> Gc<Symbol> {
+    pub(super) fn get_target_symbol(&self, s: &Symbol) -> Id<Symbol> {
         if get_check_flags(s).intersects(CheckFlags::Instantiated) {
             (*s.as_transient_symbol().symbol_links())
                 .borrow()
@@ -673,10 +673,10 @@ impl TypeChecker {
         type_: Id<Type>, /*InterfaceType*/
         base_types: &[Id<Type /*BaseType*/>],
         properties: TProperties,
-    ) -> io::Result<impl Iterator<Item = Gc<Symbol>> + Clone>
+    ) -> io::Result<impl Iterator<Item = Id<Symbol>> + Clone>
     where
         TProperties: IntoIterator<Item = TPropertiesItem> + Clone,
-        TPropertiesItem: Borrow<Gc<Symbol>>,
+        TPropertiesItem: Borrow<Id<Symbol>>,
         TProperties::IntoIter: Clone,
     {
         let properties = properties.into_iter();
@@ -685,7 +685,7 @@ impl TypeChecker {
                 properties.map(|property| property.borrow().clone()),
             ));
         }
-        let mut seen: HashMap<__String, Gc<Symbol>> = Default::default();
+        let mut seen: HashMap<__String, Id<Symbol>> = Default::default();
         for_each(properties, |p, _| -> Option<()> {
             let p = p.borrow();
             seen.insert(p.escaped_name().to_owned(), p.clone());
@@ -731,7 +731,7 @@ impl TypeChecker {
                 .as_interface_type_with_declared_members()
                 .maybe_declared_properties()
                 .as_ref(),
-            |p: &Gc<Symbol>, _| -> Option<()> {
+            |p: &Id<Symbol>, _| -> Option<()> {
                 seen.insert(
                     p.escaped_name().to_owned(),
                     InheritanceInfoMap {
@@ -828,7 +828,7 @@ impl TypeChecker {
 #[derive(Trace, Finalize)]
 struct IssueMemberSpecificErrorContainingMessageChain {
     type_checker: Gc<TypeChecker>,
-    declared_prop: Gc<Symbol>,
+    declared_prop: Id<Symbol>,
     type_with_this: Id<Type>,
     base_with_this: Id<Type>,
 }
@@ -836,7 +836,7 @@ struct IssueMemberSpecificErrorContainingMessageChain {
 impl IssueMemberSpecificErrorContainingMessageChain {
     pub fn new(
         type_checker: Gc<TypeChecker>,
-        declared_prop: Gc<Symbol>,
+        declared_prop: Id<Symbol>,
         type_with_this: Id<Type>,
         base_with_this: Id<Type>,
     ) -> Self {
@@ -878,6 +878,6 @@ impl CheckTypeContainingMessageChain for IssueMemberSpecificErrorContainingMessa
 }
 
 struct InheritanceInfoMap {
-    pub prop: Gc<Symbol>,
+    pub prop: Id<Symbol>,
     pub containing_type: Id<Type>,
 }

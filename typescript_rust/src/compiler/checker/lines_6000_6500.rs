@@ -35,7 +35,7 @@ impl NodeBuilder {
         &self,
         context: &NodeBuilderContext,
         override_type_arguments: Option<&[Gc<Node /*TypeNode*/>]>,
-        chain: &[Gc<Symbol>],
+        chain: &[Id<Symbol>],
         index: usize,
         stopper: usize,
     ) -> io::Result<Gc<Node>> {
@@ -73,7 +73,7 @@ impl NodeBuilder {
                 let exports = self.type_checker.get_exports_of_symbol(parent)?;
                 try_for_each_entry_bool(
                     &*(*exports).borrow(),
-                    |ex: &Gc<Symbol>, name: &__String| -> io::Result<_> {
+                    |ex: &Id<Symbol>, name: &__String| -> io::Result<_> {
                         if self
                             .type_checker
                             .get_symbol_if_same_reference(ex, symbol)?
@@ -297,7 +297,7 @@ impl NodeBuilder {
     pub(super) fn create_entity_name_from_symbol_chain(
         &self,
         context: &NodeBuilderContext,
-        chain: &[Gc<Symbol>],
+        chain: &[Id<Symbol>],
         index: usize,
     ) -> io::Result<Gc<Node /*EntityName*/>> {
         let type_parameter_nodes = self.lookup_type_parameter_nodes(chain, index, context)?;
@@ -343,7 +343,7 @@ impl NodeBuilder {
     pub(super) fn create_expression_from_symbol_chain(
         &self,
         context: &NodeBuilderContext,
-        chain: &[Gc<Symbol>],
+        chain: &[Id<Symbol>],
         index: usize,
     ) -> io::Result<Gc<Node /*Expression*/>> {
         let type_parameter_nodes = self.lookup_type_parameter_nodes(chain, index, context)?;

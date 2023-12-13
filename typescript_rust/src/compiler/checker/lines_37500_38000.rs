@@ -654,7 +654,7 @@ impl TypeChecker {
             if method_name != "throw"
                 && some(
                     Some(signature.parameters()),
-                    Option::<fn(&Gc<Symbol>) -> bool>::None,
+                    Option::<fn(&Id<Symbol>) -> bool>::None,
                 )
             {
                 if method_parameter_types.is_none() {

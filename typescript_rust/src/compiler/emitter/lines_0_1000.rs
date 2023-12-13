@@ -6,6 +6,7 @@ use std::{
 };
 
 use gc::{Finalize, Gc, GcCell, Trace};
+use id_arena::Id;
 
 use super::{create_brackets_map, TempFlags};
 use crate::{
@@ -1548,7 +1549,7 @@ impl EmitResolver for NotImplementedResolver {
     fn get_properties_of_container_function(
         &self,
         _node: &Node, /*Declaration*/
-    ) -> io::Result<Vec<Gc<Symbol>>> {
+    ) -> io::Result<Vec<Id<Symbol>>> {
         unimplemented!()
     }
 
@@ -1699,7 +1700,7 @@ impl EmitResolver for NotImplementedResolver {
     fn get_symbol_of_external_module_specifier(
         &self,
         _node: &Node, /*StringLiteralLike*/
-    ) -> io::Result<Option<Gc<Symbol>>> {
+    ) -> io::Result<Option<Id<Symbol>>> {
         unimplemented!()
     }
 

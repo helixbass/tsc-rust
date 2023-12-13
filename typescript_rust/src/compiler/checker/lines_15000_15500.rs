@@ -96,13 +96,10 @@ impl TypeChecker {
                 .flags()
                 .intersects(TypeFlags::StringLiteral)
             {
-                self.get_string_literal_type(&self.apply_string_mapping(
-                    symbol,
-                    &{
-                        let value = self.type_(type_).as_string_literal_type().value.clone();
-                        value
-                    },
-                ))
+                self.get_string_literal_type(&self.apply_string_mapping(symbol, &{
+                    let value = self.type_(type_).as_string_literal_type().value.clone();
+                    value
+                }))
             } else {
                 type_
             },
@@ -582,7 +579,7 @@ impl TypeChecker {
                         {
                             let mut types = try_map(
                                 &*self.type_(object_type).as_resolved_type().properties(),
-                                |property: &Gc<Symbol>, _| self.get_type_of_symbol(property),
+                                |property: &Id<Symbol>, _| self.get_type_of_symbol(property),
                             )?;
                             append(&mut types, Some(self.undefined_type()));
                             return Ok(Some(self.get_union_type(

@@ -381,7 +381,7 @@ impl TypeChecker {
         &self,
         root: &mut Gc<GcCell<ConditionalRoot>>,
         mapper: &mut Option<Id<TypeMapper>>,
-        alias_symbol: &mut Option<Gc<Symbol>>,
+        alias_symbol: &mut Option<Id<Symbol>>,
         alias_type_arguments: &mut Option<&[Id<Type>]>,
         tail_count: &mut usize,
         new_type: Id<Type>,
@@ -577,7 +577,7 @@ impl TypeChecker {
         let mut result: Option<Vec<Id<Type>>> = None;
         if let Some(node_locals) = node.maybe_locals().clone() {
             (*node_locals).borrow().values().try_for_each(
-                |symbol: &Gc<Symbol>| -> io::Result<_> {
+                |symbol: &Id<Symbol>| -> io::Result<_> {
                     if symbol.flags().intersects(SymbolFlags::TypeParameter) {
                         if result.is_none() {
                             result = Some(vec![]);
@@ -901,7 +901,7 @@ impl TypeChecker {
     pub(super) fn get_alias_symbol_for_type_node(
         &self,
         node: &Node,
-    ) -> io::Result<Option<Gc<Symbol>>> {
+    ) -> io::Result<Option<Id<Symbol>>> {
         let mut host = node.parent();
         while is_parenthesized_type_node(&host)
             || is_jsdoc_type_expression(&host)
@@ -998,7 +998,7 @@ impl TypeChecker {
         readonly: bool,
         type_: Id<Type>,
     ) -> io::Result<Id<Type>> {
-        let mut members = create_symbol_table(Option::<&[Gc<Symbol>]>::None);
+        let mut members = create_symbol_table(Option::<&[Id<Symbol>]>::None);
         for prop in self.get_properties_of_type(type_)? {
             if get_declaration_modifier_flags_from_symbol(&prop, None)
                 .intersects(ModifierFlags::Private | ModifierFlags::Protected)
@@ -1007,7 +1007,7 @@ impl TypeChecker {
                 let is_setonly_accessor = prop.flags().intersects(SymbolFlags::SetAccessor)
                     && !prop.flags().intersects(SymbolFlags::GetAccessor);
                 let flags = SymbolFlags::Property | SymbolFlags::Optional;
-                let result: Gc<Symbol> = self
+                let result: Id<Symbol> = self
                     .create_symbol(
                         flags,
                         prop.escaped_name().to_owned(),
@@ -1163,7 +1163,7 @@ impl TypeChecker {
             return self.get_intersection_type(&vec![left, right], Option::<&Symbol>::None, None);
         }
 
-        let mut members = create_symbol_table(Option::<&[Gc<Symbol>]>::None);
+        let mut members = create_symbol_table(Option::<&[Id<Symbol>]>::None);
         let mut skipped_private_members: HashSet<__String> = HashSet::new();
         let index_infos = if left == self.empty_object_type() {
             self.get_index_infos_of_type(right)?
@@ -1199,7 +1199,7 @@ impl TypeChecker {
                         right_prop.maybe_declarations().clone(),
                     );
                     let flags = SymbolFlags::Property | (left_prop.flags() & SymbolFlags::Optional);
-                    let result: Gc<Symbol> = self
+                    let result: Id<Symbol> = self
                         .create_symbol(flags, left_prop.escaped_name().to_owned(), None)
                         .into();
                     let result_links = result.as_transient_symbol().symbol_links();

@@ -267,7 +267,7 @@ impl SymbolTableToDeclarationStatements {
                     .get_properties_of_type(interface_type)?
                     .collect_vec(),
             ),
-            |p: &Gc<Symbol>, _| self.serialize_property_symbol_for_interface(p, base_type),
+            |p: &Id<Symbol>, _| self.serialize_property_symbol_for_interface(p, base_type),
         )?;
         let call_signatures = self.serialize_signatures(
             SignatureKind::Call,
@@ -319,7 +319,7 @@ impl SymbolTableToDeclarationStatements {
     pub(super) fn get_namespace_members_for_serialization(
         &self,
         symbol: &Symbol,
-    ) -> Vec<Gc<Symbol>> {
+    ) -> Vec<Id<Symbol>> {
         symbol
             .maybe_exports()
             .as_ref()
@@ -355,7 +355,7 @@ impl SymbolTableToDeclarationStatements {
         let members = self.get_namespace_members_for_serialization(symbol);
         let location_map = array_to_multi_map(
             &members,
-            |m: &Gc<Symbol>| -> &'static str {
+            |m: &Id<Symbol>| -> &'static str {
                 if matches!(
                     m.maybe_parent(),
                     Some(m_parent) if ptr::eq(
@@ -368,7 +368,7 @@ impl SymbolTableToDeclarationStatements {
                     "merged"
                 }
             },
-            |value: &Gc<Symbol>| value.clone(),
+            |value: &Id<Symbol>| value.clone(),
         );
         let real_members = location_map.get(&"real").cloned().unwrap_or_default();
         let merged_members = location_map.get(&"merged").cloned().unwrap_or_default();
@@ -393,10 +393,10 @@ impl SymbolTableToDeclarationStatements {
                     Option::<Gc<NodeArray>>::None,
                     false,
                     Some(get_factory().create_named_exports(try_map_defined(
-                        Some(&filter(&merged_members, |n: &Gc<Symbol>| {
+                        Some(&filter(&merged_members, |n: &Id<Symbol>| {
                             n.escaped_name() != InternalSymbolName::ExportEquals
                         })),
-                        |s: &Gc<Symbol>, _| -> io::Result<Option<Gc<Node>>> {
+                        |s: &Id<Symbol>, _| -> io::Result<Option<Gc<Node>>> {
                             let name = unescape_leading_underscores(s.escaped_name());
                             let local_name = self.get_internal_symbol_name(s, name);
                             let alias_decl =
@@ -610,7 +610,7 @@ impl SymbolTableToDeclarationStatements {
 
     pub(super) fn serialize_as_namespace_declaration(
         &self,
-        props: &[Gc<Symbol>],
+        props: &[Id<Symbol>],
         local_name: &str,
         modifier_flags: ModifierFlags,
         suppress_new_private_context: bool,
@@ -618,7 +618,7 @@ impl SymbolTableToDeclarationStatements {
         if !props.is_empty() {
             let local_vs_remote_map = array_to_multi_map(
                 props,
-                |p: &Gc<Symbol>| -> &'static str {
+                |p: &Id<Symbol>| -> &'static str {
                     if length(p.maybe_declarations().as_deref()) == 0
                         || some(
                             p.maybe_declarations().as_deref(),
@@ -925,7 +925,7 @@ impl SymbolTableToDeclarationStatements {
         };
         let public_properties = try_flat_map(
             Some(&public_symbol_props.collect_vec()),
-            |p: &Gc<Symbol>, _| {
+            |p: &Id<Symbol>, _| {
                 self.serialize_property_symbol_for_class().call(
                     p,
                     false,
@@ -939,13 +939,13 @@ impl SymbolTableToDeclarationStatements {
                     .type_checker
                     .get_properties_of_type(static_type)?
                     .collect_vec(),
-                |p: &Gc<Symbol>| {
+                |p: &Id<Symbol>| {
                     !p.flags().intersects(SymbolFlags::Prototype)
                         && p.escaped_name() != "prototype"
                         && !self.is_namespace_member(p)
                 },
             )),
-            |p: &Gc<Symbol>, _| {
+            |p: &Id<Symbol>, _| {
                 self.serialize_property_symbol_for_class()
                     .call(p, true, Some(static_base_type))
             },

@@ -41,14 +41,14 @@ impl TypeChecker {
         &self,
         prop: &Symbol,
         readonly: bool,
-    ) -> io::Result<Gc<Symbol>> {
+    ) -> io::Result<Id<Symbol>> {
         let is_setonly_accessor = prop.flags().intersects(SymbolFlags::SetAccessor)
             && !prop.flags().intersects(SymbolFlags::GetAccessor);
         if !is_setonly_accessor && readonly == self.is_readonly_symbol(prop)? {
             return Ok(prop.symbol_wrapper());
         }
         let flags = SymbolFlags::Property | (prop.flags() & SymbolFlags::Optional);
-        let result: Gc<Symbol> = self
+        let result: Id<Symbol> = self
             .create_symbol(
                 flags,
                 prop.escaped_name().to_owned(),
@@ -770,52 +770,46 @@ impl TypeChecker {
         type_: Id<Type>,
         mapper: Id<TypeMapper>,
     ) -> io::Result<Id<Type>> {
-        Ok(if matches!(
-            &*self.type_mapper(mapper),
-            TypeMapper::Simple(mapper)
-        ) {
-            let mapper_ref = self.type_mapper(mapper);
-            if type_ == mapper_ref.as_simple().source {
-                mapper_ref.as_simple().target.clone()
-            } else {
+        Ok(
+            if matches!(&*self.type_mapper(mapper), TypeMapper::Simple(mapper)) {
+                let mapper_ref = self.type_mapper(mapper);
+                if type_ == mapper_ref.as_simple().source {
+                    mapper_ref.as_simple().target.clone()
+                } else {
+                    type_
+                }
+            } else if matches!(&*self.type_mapper(mapper), TypeMapper::Array(mapper)) {
+                let mapper_ref = self.type_mapper(mapper);
+                let sources = &mapper_ref.as_array().sources;
+                let targets = &mapper_ref.as_array().targets;
+                for (i, source) in sources.iter().enumerate() {
+                    if type_ == *source {
+                        return Ok(targets
+                            .as_ref()
+                            .map_or_else(|| self.any_type(), |targets| targets[i].clone()));
+                    }
+                }
                 type_
-            }
-        } else if matches!(
-            &*self.type_mapper(mapper),
-            TypeMapper::Array(mapper)
-        ) {
-            let mapper_ref = self.type_mapper(mapper);
-            let sources = &mapper_ref.as_array().sources;
-            let targets = &mapper_ref.as_array().targets;
-            for (i, source) in sources.iter().enumerate() {
-                if type_ == *source {
-                    return Ok(targets
-                        .as_ref()
-                        .map_or_else(|| self.any_type(), |targets| targets[i].clone()));
-                }
-            }
-            type_
-        } else if matches!(
-            &*self.type_mapper(mapper),
-            TypeMapper::Function(mapper)
-        ) {
-            let func = self.type_mapper(mapper).as_function().func.clone();
-            func.call(self, type_)?
-        } else {
-            let (mapper_mapper1, mapper_mapper2) = match &*self.type_mapper(mapper) {
-                TypeMapper::Composite(composite_or_merged_mapper)
-                | TypeMapper::Merged(composite_or_merged_mapper) => {
-                    (composite_or_merged_mapper.mapper1, composite_or_merged_mapper.mapper2)
-                }
-                _ => unreachable!(),
-            };
-            let t1 = self.get_mapped_type(type_, mapper_mapper1)?;
-            if t1 != type_ && matches!(&*self.type_mapper(mapper), TypeMapper::Composite(_)) {
-                self.instantiate_type(t1, Some(mapper_mapper2.clone()))?
+            } else if matches!(&*self.type_mapper(mapper), TypeMapper::Function(mapper)) {
+                let func = self.type_mapper(mapper).as_function().func.clone();
+                func.call(self, type_)?
             } else {
-                self.get_mapped_type(t1, mapper_mapper2)?
-            }
-        })
+                let (mapper_mapper1, mapper_mapper2) = match &*self.type_mapper(mapper) {
+                    TypeMapper::Composite(composite_or_merged_mapper)
+                    | TypeMapper::Merged(composite_or_merged_mapper) => (
+                        composite_or_merged_mapper.mapper1,
+                        composite_or_merged_mapper.mapper2,
+                    ),
+                    _ => unreachable!(),
+                };
+                let t1 = self.get_mapped_type(type_, mapper_mapper1)?;
+                if t1 != type_ && matches!(&*self.type_mapper(mapper), TypeMapper::Composite(_)) {
+                    self.instantiate_type(t1, Some(mapper_mapper2.clone()))?
+                } else {
+                    self.get_mapped_type(t1, mapper_mapper2)?
+                }
+            },
+        )
     }
 
     pub(super) fn make_unary_type_mapper(
@@ -904,10 +898,9 @@ impl TypeChecker {
     ) -> Id<TypeMapper> {
         match mapper {
             None => self.make_unary_type_mapper(source, target),
-            Some(mapper) => self.make_merged_type_mapper(
-                self.make_unary_type_mapper(source, target),
-                mapper,
-            ),
+            Some(mapper) => {
+                self.make_merged_type_mapper(self.make_unary_type_mapper(source, target), mapper)
+            }
         }
     }
 
@@ -919,10 +912,9 @@ impl TypeChecker {
     ) -> Id<TypeMapper> {
         match mapper {
             None => self.make_unary_type_mapper(source, target),
-            Some(mapper) => self.make_merged_type_mapper(
-                mapper,
-                self.make_unary_type_mapper(source, target),
-            ),
+            Some(mapper) => {
+                self.make_merged_type_mapper(mapper, self.make_unary_type_mapper(source, target))
+            }
         }
     }
 
@@ -1036,7 +1028,7 @@ impl TypeChecker {
         &self,
         symbol: &Symbol,
         mut mapper: Id<TypeMapper>,
-    ) -> io::Result<Gc<Symbol>> {
+    ) -> io::Result<Id<Symbol>> {
         let mut symbol = symbol.symbol_wrapper();
         let links = self.get_symbol_links(&symbol);
         {
@@ -1246,8 +1238,7 @@ impl TypeChecker {
                 .get(&id)
                 .map(Clone::clone);
             if result.is_none() {
-                let new_mapper =
-                    self.create_type_mapper(type_parameters, Some(type_arguments));
+                let new_mapper = self.create_type_mapper(type_parameters, Some(type_arguments));
                 result = Some(
                     if self
                         .type_(target)

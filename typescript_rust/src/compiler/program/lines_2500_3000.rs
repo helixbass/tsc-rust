@@ -1,6 +1,7 @@
 use std::{borrow::Borrow, collections::HashMap, io};
 
 use gc::{Finalize, Gc, Trace};
+use id_arena::Id;
 
 use super::{
     for_each_resolved_project_reference, get_implied_node_format_for_file, is_referenced_file,
@@ -1118,7 +1119,7 @@ impl RedirectSourceFileSymbolOverride {
 }
 
 impl NodeSymbolOverride for RedirectSourceFileSymbolOverride {
-    fn maybe_symbol(&self) -> Option<Gc<Symbol>> {
+    fn maybe_symbol(&self) -> Option<Id<Symbol>> {
         self.redirect_source_file
             .as_source_file()
             .maybe_redirect_info()
@@ -1128,7 +1129,7 @@ impl NodeSymbolOverride for RedirectSourceFileSymbolOverride {
             .maybe_symbol()
     }
 
-    fn set_symbol(&self, value: Gc<Symbol>) {
+    fn set_symbol(&self, value: Id<Symbol>) {
         self.redirect_source_file
             .as_source_file()
             .maybe_redirect_info()

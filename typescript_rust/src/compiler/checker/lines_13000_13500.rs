@@ -270,7 +270,7 @@ impl TypeChecker {
     pub(super) fn get_parent_symbol_of_type_parameter(
         &self,
         type_parameter: Id<Type>, /*TypeParameter*/
-    ) -> io::Result<Option<Gc<Symbol>>> {
+    ) -> io::Result<Option<Id<Symbol>>> {
         let tp = get_declaration_of_kind(
             &self.type_(type_parameter).symbol(),
             SyntaxKind::TypeParameter,
@@ -870,7 +870,7 @@ impl TypeChecker {
     pub(super) fn get_unresolved_symbol_for_entity_name(
         &self,
         name: &Node, /*EntityNameOrEntityNameExpression*/
-    ) -> Gc<Symbol /*TransientSymbol*/> {
+    ) -> Id<Symbol /*TransientSymbol*/> {
         let identifier = if name.kind() == SyntaxKind::QualifiedName {
             name.as_qualified_name().right.clone()
         } else if name.kind() == SyntaxKind::PropertyAccessExpression {
@@ -923,7 +923,7 @@ impl TypeChecker {
         type_reference: &Node, /*TypeReferenceType*/
         meaning: SymbolFlags,
         ignore_errors: Option<bool>,
-    ) -> io::Result<Gc<Symbol>> {
+    ) -> io::Result<Id<Symbol>> {
         let ignore_errors = ignore_errors.unwrap_or(false);
         let name = self.get_type_reference_name(type_reference);
         let name = match name {

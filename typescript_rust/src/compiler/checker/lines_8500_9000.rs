@@ -993,7 +993,7 @@ impl TypeChecker {
             return Ok(None);
         }
         let exports = Gc::new(GcCell::new(create_symbol_table(
-            Option::<&[Gc<Symbol>]>::None,
+            Option::<&[Id<Symbol>]>::None,
         )));
         let mut decl = decl.node_wrapper();
         while is_binary_expression(&decl) || is_property_access_expression(&decl) {
@@ -1130,7 +1130,7 @@ impl TypeChecker {
             && symbol.escaped_name() == InternalSymbolName::ExportEquals
         {
             let exported_type = self.resolve_structured_type_members(type_)?;
-            let mut members = create_symbol_table(Option::<&[Gc<Symbol>]>::None);
+            let mut members = create_symbol_table(Option::<&[Id<Symbol>]>::None);
             copy_entries(
                 &*(*self.type_(exported_type).as_resolved_type().members()).borrow(),
                 &mut members,
@@ -1140,7 +1140,7 @@ impl TypeChecker {
                 let mut resolved_symbol_exports = resolved_symbol.maybe_exports_mut();
                 if resolved_symbol_exports.is_none() {
                     *resolved_symbol_exports = Some(Gc::new(GcCell::new(create_symbol_table(
-                        Option::<&[Gc<Symbol>]>::None,
+                        Option::<&[Id<Symbol>]>::None,
                     ))));
                 }
             }
@@ -1199,7 +1199,7 @@ impl TypeChecker {
                                 }
                             }
                         }
-                        let union: Gc<Symbol> = self
+                        let union: Id<Symbol> = self
                             .create_symbol(s.flags() | exported_member.flags(), name.clone(), None)
                             .into();
                         union

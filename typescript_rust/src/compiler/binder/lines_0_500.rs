@@ -7,6 +7,7 @@ use std::{
 
 use bitflags::bitflags;
 use gc::{Finalize, Gc, GcCell, GcCellRefMut, Trace};
+use id_arena::Id;
 
 use crate::{
     add_related_info, create_diagnostic_for_node_in_source_file, declaration_name_to_string,
@@ -783,7 +784,7 @@ impl BinderType {
             let mut exports = symbol.maybe_exports_mut();
             if exports.is_none() {
                 *exports = Some(Gc::new(GcCell::new(create_symbol_table(
-                    Option::<&[Gc<Symbol>]>::None,
+                    Option::<&[Id<Symbol>]>::None,
                 ))));
             }
         }
@@ -797,7 +798,7 @@ impl BinderType {
             let mut members = symbol.maybe_members_mut();
             if members.is_none() {
                 *members = Some(Gc::new(GcCell::new(create_symbol_table(
-                    Option::<&[Gc<Symbol>]>::None,
+                    Option::<&[Id<Symbol>]>::None,
                 ))));
             }
         }
@@ -954,7 +955,7 @@ impl BinderType {
         excludes: SymbolFlags,
         is_replaceable_by_method: Option<bool>,
         is_computed_name: Option<bool>,
-    ) -> Gc<Symbol> {
+    ) -> Id<Symbol> {
         let is_replaceable_by_method = is_replaceable_by_method.unwrap_or(false);
         let is_computed_name = is_computed_name.unwrap_or(false);
         Debug_.assert(is_computed_name || !has_dynamic_name(node), None);
@@ -971,7 +972,7 @@ impl BinderType {
             self.get_declaration_name(node)
         };
 
-        let mut symbol: Option<Gc<Symbol>>;
+        let mut symbol: Option<Id<Symbol>>;
         match name {
             None => {
                 symbol = Some(

@@ -120,7 +120,7 @@ impl TypeChecker {
         early_symbols: Option<&SymbolTable>,
         late_symbols: &mut SymbolTable,
         decl: &Node, /*LateBoundDeclaration | LateBoundBinaryExpressionDeclaration*/
-    ) -> io::Result<Gc<Symbol>> {
+    ) -> io::Result<Id<Symbol>> {
         Debug_.assert(
             decl.maybe_symbol().is_some(),
             Some("The member is expected to have a symbol."),
@@ -145,7 +145,7 @@ impl TypeChecker {
                 let member_name = self.get_property_name_from_type(type_);
                 let symbol_flags = decl.symbol().flags();
 
-                let mut late_symbol: Option<Gc<Symbol>> =
+                let mut late_symbol: Option<Id<Symbol>> =
                     late_symbols.get(&*member_name).map(Clone::clone);
                 if late_symbol.is_none() {
                     late_symbol = Some(
@@ -255,7 +255,7 @@ impl TypeChecker {
                 ),
             );
 
-            let mut late_symbols = create_symbol_table(Option::<&[Gc<Symbol>]>::None);
+            let mut late_symbols = create_symbol_table(Option::<&[Id<Symbol>]>::None);
             let early_symbols_ref = early_symbols
                 .as_ref()
                 .map(|early_symbols| (**early_symbols).borrow());
@@ -373,7 +373,7 @@ impl TypeChecker {
         )
     }
 
-    pub(super) fn get_late_bound_symbol(&self, symbol: &Symbol) -> io::Result<Gc<Symbol>> {
+    pub(super) fn get_late_bound_symbol(&self, symbol: &Symbol) -> io::Result<Id<Symbol>> {
         if symbol.flags().intersects(SymbolFlags::ClassMember)
             && symbol.escaped_name() == InternalSymbolName::Computed
         {
@@ -515,9 +515,7 @@ impl TypeChecker {
                 .clone();
         } else {
             let type_parameters_len_is_1 = type_parameters.len() == 1;
-            mapper = Some(
-                self.create_type_mapper(type_parameters, Some(type_arguments.clone())),
-            );
+            mapper = Some(self.create_type_mapper(type_parameters, Some(type_arguments.clone())));
             members = Gc::new(GcCell::new(
                 self.create_instantiated_symbol_table(
                     self.type_(source)
@@ -667,8 +665,8 @@ impl TypeChecker {
         &self,
         declaration: Option<Gc<Node>>,
         type_parameters: Option<Vec<Id<Type>>>,
-        this_parameter: Option<Gc<Symbol>>,
-        parameters: Vec<Gc<Symbol>>,
+        this_parameter: Option<Id<Symbol>>,
+        parameters: Vec<Id<Symbol>>,
         resolved_return_type: Option<Id<Type>>,
         resolved_type_predicate: Option<Gc<TypePredicate>>,
         min_argument_count: usize,
@@ -786,7 +784,7 @@ impl TypeChecker {
         &self,
         sig: &Signature,
         skip_union_expanding: Option<bool>,
-    ) -> io::Result<Vec<Vec<Gc<Symbol>>>> {
+    ) -> io::Result<Vec<Vec<Id<Symbol>>>> {
         let skip_union_expanding = skip_union_expanding.unwrap_or(false);
         if signature_has_rest_parameter(sig) {
             let rest_index = sig.parameters().len() - 1;
@@ -823,7 +821,7 @@ impl TypeChecker {
         sig: &Signature,
         rest_type: Id<Type>, /*TupleTypeReference*/
         rest_index: usize,
-    ) -> io::Result<Vec<Gc<Symbol>>> {
+    ) -> io::Result<Vec<Id<Symbol>>> {
         let element_types = self.get_type_arguments(rest_type)?;
         let rest_type_target = self.type_(rest_type).as_type_reference().target;
         let rest_type_target_ref = self.type_(rest_type_target);
@@ -845,7 +843,7 @@ impl TypeChecker {
             } else {
                 CheckFlags::None
             };
-            let symbol: Gc<Symbol> = self
+            let symbol: Id<Symbol> = self
                 .create_symbol(SymbolFlags::FunctionScopedVariable, name, Some(check_flags))
                 .into();
             symbol

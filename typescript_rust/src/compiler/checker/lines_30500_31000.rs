@@ -331,7 +331,7 @@ impl TypeChecker {
                 get_factory().create_keyword_type_node(SyntaxKind::AnyKeyword)
             }),
         );
-        let parameter_symbol: Gc<Symbol> = self
+        let parameter_symbol: Id<Symbol> = self
             .create_symbol(
                 SymbolFlags::FunctionScopedVariable,
                 "props".to_owned(),
@@ -570,7 +570,7 @@ impl TypeChecker {
         &self,
         target: &Symbol,
         source: Option<impl Borrow<Symbol>>,
-    ) -> io::Result<Option<Gc<Symbol>>> {
+    ) -> io::Result<Option<Id<Symbol>>> {
         let source = return_ok_default_if_none!(source);
         let source = source.borrow();
         let links = self.get_symbol_links(source);
@@ -587,7 +587,7 @@ impl TypeChecker {
                 let mut inferred_exports = inferred.maybe_exports_mut();
                 if inferred_exports.is_none() {
                     *inferred_exports = Some(Gc::new(GcCell::new(create_symbol_table(
-                        Option::<&[Gc<Symbol>]>::None,
+                        Option::<&[Id<Symbol>]>::None,
                     ))));
                 }
             }
@@ -595,7 +595,7 @@ impl TypeChecker {
                 let mut inferred_members = inferred.maybe_members_mut();
                 if inferred_members.is_none() {
                     *inferred_members = Some(Gc::new(GcCell::new(create_symbol_table(
-                        Option::<&[Gc<Symbol>]>::None,
+                        Option::<&[Id<Symbol>]>::None,
                     ))));
                 }
             }
@@ -646,7 +646,7 @@ impl TypeChecker {
     pub(super) fn get_assigned_class_symbol(
         &self,
         decl: &Node, /*Declaration*/
-    ) -> io::Result<Option<Gc<Symbol>>> {
+    ) -> io::Result<Option<Id<Symbol>>> {
         let assignment_symbol = /*decl &&*/ self.get_symbol_of_expando(decl, true)?;
         let prototype = assignment_symbol
             .as_ref()
@@ -671,7 +671,7 @@ impl TypeChecker {
         &self,
         node: &Node,
         allow_declaration: bool,
-    ) -> io::Result<Option<Gc<Symbol>>> {
+    ) -> io::Result<Option<Id<Symbol>>> {
         if node.maybe_parent().is_none() {
             return Ok(None);
         }

@@ -591,7 +591,7 @@ impl TypeChecker {
                     map(
                         &try_filter(
                             &self.get_properties_of_type(contextual_type)?.collect_vec(),
-                            |s: &Gc<Symbol>| -> io::Result<_> {
+                            |s: &Id<Symbol>| -> io::Result<_> {
                                 Ok(s.flags().intersects(SymbolFlags::Optional) &&
                                     matches!(
                                         node.maybe_symbol().as_ref(),
@@ -672,7 +672,7 @@ impl TypeChecker {
                     map(
                         &try_filter(
                             &self.get_properties_of_type(contextual_type)?.collect_vec(),
-                            |s: &Gc<Symbol>| -> io::Result<_> {
+                            |s: &Id<Symbol>| -> io::Result<_> {
                                 Ok(s.flags().intersects(SymbolFlags::Optional) &&
                                     matches!(
                                         node.maybe_symbol().as_ref(),

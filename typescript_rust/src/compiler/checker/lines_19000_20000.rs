@@ -317,14 +317,14 @@ impl CheckTypeRelatedTo {
 
     pub(super) fn exclude_properties(
         &self,
-        properties: &[Gc<Symbol>],
+        properties: &[Id<Symbol>],
         excluded_properties: Option<&HashSet<__String>>,
-    ) -> Vec<Gc<Symbol>> {
+    ) -> Vec<Id<Symbol>> {
         if excluded_properties.is_none() || properties.is_empty() {
             return properties.to_owned();
         }
         let excluded_properties = excluded_properties.unwrap();
-        let mut result: Option<Vec<Gc<Symbol>>> = None;
+        let mut result: Option<Vec<Id<Symbol>>> = None;
         for i in 0..properties.len() {
             if !excluded_properties.contains(properties[i].escaped_name()) {
                 if let Some(result) = result.as_mut() {
@@ -694,7 +694,7 @@ impl CheckTypeRelatedTo {
                             Option::<&Node>::None,
                             None, None,
                         )?,
-                        (&props[0..4]).into_iter().map(|p: &Gc<Symbol>|
+                        (&props[0..4]).into_iter().map(|p: &Id<Symbol>|
                             self.type_checker.symbol_to_string_(
                                 p,
                                 Option::<&Node>::None,
@@ -718,7 +718,7 @@ impl CheckTypeRelatedTo {
                             Option::<&Node>::None,
                             None, None,
                         )?,
-                        props.iter().map(|p: &Gc<Symbol>|
+                        props.iter().map(|p: &Id<Symbol>|
                             self.type_checker.symbol_to_string_(
                                 p,
                                 Option::<&Node>::None,

@@ -1,6 +1,7 @@
 use std::{borrow::Borrow, ptr};
 
 use gc::{Gc, GcCell};
+use id_arena::Id;
 
 use super::{get_module_instance_state, BinderType, ModuleInstanceState};
 use crate::{
@@ -193,7 +194,7 @@ impl BinderType {
         is_toplevel: bool,
         is_prototype_property: bool,
         container_is_class: bool,
-    ) -> Option<Gc<Symbol>> {
+    ) -> Option<Id<Symbol>> {
         let mut namespace_symbol =
             namespace_symbol.map(|namespace_symbol| namespace_symbol.borrow().symbol_wrapper());
         if matches!(namespace_symbol.as_ref(), Some(namespace_symbol) if namespace_symbol.flags().intersects(SymbolFlags::Alias))
@@ -228,7 +229,7 @@ impl BinderType {
                                 file.as_source_file().maybe_js_global_augmentations();
                             if file_js_global_augmentations.is_none() {
                                 *file_js_global_augmentations = Some(Gc::new(GcCell::new(
-                                    create_symbol_table(Option::<&[Gc<Symbol>]>::None),
+                                    create_symbol_table(Option::<&[Id<Symbol>]>::None),
                                 )));
                             }
                             Some(self.declare_symbol(
@@ -284,7 +285,7 @@ impl BinderType {
                 let mut namespace_symbol_members = namespace_symbol.maybe_members_mut();
                 if namespace_symbol_members.is_none() {
                     *namespace_symbol_members = Some(Gc::new(GcCell::new(create_symbol_table(
-                        Option::<&[Gc<Symbol>]>::None,
+                        Option::<&[Id<Symbol>]>::None,
                     ))));
                 }
                 namespace_symbol_members
@@ -292,7 +293,7 @@ impl BinderType {
                 let mut namespace_symbol_exports = namespace_symbol.maybe_exports_mut();
                 if namespace_symbol_exports.is_none() {
                     *namespace_symbol_exports = Some(Gc::new(GcCell::new(create_symbol_table(
-                        Option::<&[Gc<Symbol>]>::None,
+                        Option::<&[Id<Symbol>]>::None,
                     ))));
                 }
                 namespace_symbol_exports
@@ -464,7 +465,7 @@ impl BinderType {
         &self,
         node: &Node, /*BindableStaticNameExpression*/
         lookup_container: Option<TLookupContainer>,
-    ) -> Option<Gc<Symbol>> {
+    ) -> Option<Id<Symbol>> {
         let lookup_container =
             lookup_container.map(|lookup_container| lookup_container.borrow().node_wrapper());
         let lookup_container = lookup_container.unwrap_or_else(|| self.container());
@@ -488,15 +489,15 @@ impl BinderType {
         TParent: Borrow<Symbol>,
         TAction: FnMut(
             &Node, /*Declaration*/
-            Option<Gc<Symbol>>,
-            Option<Gc<Symbol>>,
-        ) -> Option<Gc<Symbol>>,
+            Option<Id<Symbol>>,
+            Option<Id<Symbol>>,
+        ) -> Option<Id<Symbol>>,
     >(
         &self,
         e: &Node, /*BindableStaticNameExpression*/
         parent: Option<TParent>,
         action: &mut TAction,
-    ) -> Option<Gc<Symbol>> {
+    ) -> Option<Id<Symbol>> {
         let parent = parent.map(|parent| parent.borrow().symbol_wrapper());
         if is_exports_or_module_exports_or_alias(&self.file(), e) {
             self.file().maybe_symbol()
@@ -738,7 +739,7 @@ impl BinderType {
     pub(super) fn bind_function_expression(
         &self,
         node: &Node, /*FunctionExpression (actually also ArrowFunction)*/
-    ) -> Gc<Symbol> {
+    ) -> Id<Symbol> {
         if !self.file().as_source_file().is_declaration_file()
             && !node.flags().intersects(NodeFlags::Ambient)
         {
@@ -762,7 +763,7 @@ impl BinderType {
         node: &Node,
         symbol_flags: SymbolFlags,
         symbol_excludes: SymbolFlags,
-    ) -> Option<Gc<Symbol>> {
+    ) -> Option<Id<Symbol>> {
         if !self.file().as_source_file().is_declaration_file()
             && !node.flags().intersects(NodeFlags::Ambient)
             && is_async_function(node)
@@ -805,7 +806,7 @@ impl BinderType {
                 let mut container_locals = container.maybe_locals_mut();
                 if container_locals.is_none() {
                     *container_locals = Some(Gc::new(GcCell::new(create_symbol_table(
-                        Option::<&[Gc<Symbol>]>::None,
+                        Option::<&[Id<Symbol>]>::None,
                     ))));
                 }
                 self.declare_symbol(
@@ -830,7 +831,7 @@ impl BinderType {
                 let mut container_locals = container.maybe_locals_mut();
                 if container_locals.is_none() {
                     *container_locals = Some(Gc::new(GcCell::new(create_symbol_table(
-                        Option::<&[Gc<Symbol>]>::None,
+                        Option::<&[Id<Symbol>]>::None,
                     ))));
                 }
                 self.declare_symbol(
@@ -1005,7 +1006,7 @@ pub fn is_exports_or_module_exports_or_alias(
 pub(super) fn lookup_symbol_for_name(
     container: &Node,
     name: &str, /*__String*/
-) -> Option<Gc<Symbol>> {
+) -> Option<Id<Symbol>> {
     let container_locals = container.maybe_locals();
     let local = container_locals
         .as_ref()

@@ -278,7 +278,7 @@ lazy_static! {
 #[derive(Clone, Debug, Trace, Finalize)]
 pub(crate) enum TypeSystemEntity {
     Node(Gc<Node>),
-    Symbol(Gc<Symbol>),
+    Symbol(Id<Symbol>),
     Type(Id<Type>),
     Signature(Gc<Signature>),
 }
@@ -333,8 +333,8 @@ impl From<Gc<Node>> for TypeSystemEntity {
     }
 }
 
-impl From<Gc<Symbol>> for TypeSystemEntity {
-    fn from(value: Gc<Symbol>) -> Self {
+impl From<Id<Symbol>> for TypeSystemEntity {
+    fn from(value: Id<Symbol>) -> Self {
         Self::Symbol(value)
     }
 }
@@ -548,7 +548,7 @@ pub fn create_type_checker(
         inline_level: Default::default(),
         current_node: Default::default(),
 
-        empty_symbols: Gc::new(GcCell::new(create_symbol_table(Option::<&[Gc<Symbol>]>::None))),
+        empty_symbols: Gc::new(GcCell::new(create_symbol_table(Option::<&[Id<Symbol>]>::None))),
 
         compiler_options: compiler_options.clone(),
         language_version: get_emit_script_target(&compiler_options),
@@ -583,7 +583,7 @@ pub fn create_type_checker(
         emit_resolver: Default::default(),
         node_builder: Default::default(),
 
-        globals: Gc::new(GcCell::new(create_symbol_table(Option::<&[Gc<Symbol>]>::None))),
+        globals: Gc::new(GcCell::new(create_symbol_table(Option::<&[Id<Symbol>]>::None))),
         undefined_symbol: Default::default(),
         global_this_symbol: Default::default(),
 
@@ -1261,7 +1261,7 @@ pub fn create_type_checker(
         None,
     );
     *empty_type_literal_symbol.maybe_members_mut() = Some(Gc::new(GcCell::new(
-        create_symbol_table(Option::<&[Gc<Symbol>]>::None),
+        create_symbol_table(Option::<&[Id<Symbol>]>::None),
     )));
     type_checker.empty_type_literal_symbol = Some(empty_type_literal_symbol.into());
     type_checker.empty_type_literal_type = Some(type_checker.create_anonymous_type(
@@ -1610,7 +1610,7 @@ impl TypeChecker {
             .set(requested_external_emit_helpers);
     }
 
-    pub(super) fn maybe_external_helpers_module(&self) -> GcCellRefMut<Option<Gc<Symbol>>> {
+    pub(super) fn maybe_external_helpers_module(&self) -> GcCellRefMut<Option<Id<Symbol>>> {
         self.external_helpers_module.borrow_mut()
     }
 
@@ -1711,19 +1711,19 @@ impl TypeChecker {
         self.globals.clone()
     }
 
-    pub(super) fn undefined_symbol(&self) -> Gc<Symbol> {
+    pub(super) fn undefined_symbol(&self) -> Id<Symbol> {
         self.undefined_symbol.clone().unwrap()
     }
 
-    pub(super) fn global_this_symbol(&self) -> Gc<Symbol> {
+    pub(super) fn global_this_symbol(&self) -> Id<Symbol> {
         self.global_this_symbol.clone().unwrap()
     }
 
-    pub(super) fn require_symbol(&self) -> Gc<Symbol> {
+    pub(super) fn require_symbol(&self) -> Id<Symbol> {
         self.require_symbol.clone().unwrap()
     }
 
-    pub(super) fn arguments_symbol(&self) -> Gc<Symbol> {
+    pub(super) fn arguments_symbol(&self) -> Id<Symbol> {
         self.arguments_symbol.clone().unwrap()
     }
 
@@ -1798,7 +1798,7 @@ impl TypeChecker {
         &self,
         parameter_in: &Node, /*ParameterDeclaration*/
         parameter_name: &str,
-    ) -> io::Result<Vec<Gc<Symbol>>> {
+    ) -> io::Result<Vec<Id<Symbol>>> {
         let parameter =
             get_parse_tree_node(Some(parameter_in), Some(|node: &Node| is_parameter(node)));
         if parameter.is_none() {
@@ -1815,7 +1815,7 @@ impl TypeChecker {
         &self,
         type_: Id<Type>,
         name: &str,
-    ) -> io::Result<Option<Gc<Symbol>>> {
+    ) -> io::Result<Option<Id<Symbol>>> {
         self.get_property_of_type_(type_, &escape_leading_underscores(name), None)
     }
 
@@ -1824,7 +1824,7 @@ impl TypeChecker {
         left_type: Id<Type>,
         name: &str,
         location: &Node,
-    ) -> io::Result<Option<Gc<Symbol>>> {
+    ) -> io::Result<Option<Id<Symbol>>> {
         let node = return_ok_none_if_none!(get_parse_tree_node(
             Some(location),
             Option::<fn(&Node) -> bool>::None
@@ -2026,7 +2026,7 @@ impl TypeChecker {
         &self,
         location_in: &Node,
         meaning: SymbolFlags,
-    ) -> io::Result<Vec<Gc<Symbol>>> {
+    ) -> io::Result<Vec<Id<Symbol>>> {
         let location = get_parse_tree_node(Some(location_in), Option::<fn(&Node) -> bool>::None);
         location.try_map_or_else(
             || Ok(Default::default()),
@@ -2034,7 +2034,7 @@ impl TypeChecker {
         )
     }
 
-    pub fn get_symbol_at_location(&self, node_in: &Node) -> io::Result<Option<Gc<Symbol>>> {
+    pub fn get_symbol_at_location(&self, node_in: &Node) -> io::Result<Option<Id<Symbol>>> {
         let node = return_ok_none_if_none!(get_parse_tree_node(
             Some(node_in),
             Option::<fn(&Node) -> bool>::None
@@ -2056,7 +2056,7 @@ impl TypeChecker {
     pub fn get_shorthand_assignment_value_symbol(
         &self,
         node_in: Option<impl Borrow<Node>>,
-    ) -> io::Result<Option<Gc<Symbol>>> {
+    ) -> io::Result<Option<Id<Symbol>>> {
         let node = return_ok_none_if_none!(get_parse_tree_node(
             node_in,
             Option::<fn(&Node) -> bool>::None
@@ -2067,7 +2067,7 @@ impl TypeChecker {
     pub fn get_export_specifier_local_target_symbol(
         &self,
         node_in: &Node, /*Identifier | ExportSpecifier*/
-    ) -> io::Result<Option<Gc<Symbol>>> {
+    ) -> io::Result<Option<Id<Symbol>>> {
         let node = return_ok_none_if_none!(get_parse_tree_node(
             Some(node_in),
             Some(|node: &Node| is_export_specifier(node))
@@ -2075,7 +2075,7 @@ impl TypeChecker {
         self.get_export_specifier_local_target_symbol_(&node)
     }
 
-    pub fn get_export_symbol_of_symbol(&self, symbol: &Symbol) -> Gc<Symbol> {
+    pub fn get_export_symbol_of_symbol(&self, symbol: &Symbol) -> Id<Symbol> {
         self.get_merged_symbol(Some(
             symbol
                 .maybe_export_symbol()
@@ -2109,7 +2109,7 @@ impl TypeChecker {
     pub fn get_property_symbol_of_destructuring_assignment(
         &self,
         location_in: &Node, /*Identifier*/
-    ) -> io::Result<Option<Gc<Symbol>>> {
+    ) -> io::Result<Option<Id<Symbol>>> {
         let location = return_ok_none_if_none!(get_parse_tree_node(
             Some(location_in),
             Some(|node: &Node| is_identifier(node))
@@ -2427,11 +2427,11 @@ impl TypeChecker {
         Ok(Some(self.is_implementation_of_overload_(&node)?))
     }
 
-    pub fn get_aliased_symbol(&self, symbol: &Symbol) -> io::Result<Gc<Symbol>> {
+    pub fn get_aliased_symbol(&self, symbol: &Symbol) -> io::Result<Id<Symbol>> {
         self.resolve_alias(symbol)
     }
 
-    pub fn get_exports_of_module(&self, module_symbol: &Symbol) -> io::Result<Vec<Gc<Symbol>>> {
+    pub fn get_exports_of_module(&self, module_symbol: &Symbol) -> io::Result<Vec<Id<Symbol>>> {
         self.get_exports_of_module_as_array(module_symbol)
     }
 
@@ -2454,7 +2454,7 @@ impl TypeChecker {
         &self,
         name: &str,
         symbol: &Symbol,
-    ) -> io::Result<Option<Gc<Symbol>>> {
+    ) -> io::Result<Option<Id<Symbol>>> {
         self.try_get_member_in_module_exports_(&escape_leading_underscores(name), symbol)
     }
 
@@ -2462,21 +2462,21 @@ impl TypeChecker {
         &self,
         name: &str,
         symbol: &Symbol,
-    ) -> io::Result<Option<Gc<Symbol>>> {
+    ) -> io::Result<Option<Id<Symbol>>> {
         self.try_get_member_in_module_exports_and_properties_(
             &escape_leading_underscores(name),
             symbol,
         )
     }
 
-    pub fn try_find_ambient_module(&self, module_name: &str) -> io::Result<Option<Gc<Symbol>>> {
+    pub fn try_find_ambient_module(&self, module_name: &str) -> io::Result<Option<Id<Symbol>>> {
         self.try_find_ambient_module_(module_name, true)
     }
 
     pub fn try_find_ambient_module_without_augmentations(
         &self,
         module_name: &str,
-    ) -> io::Result<Option<Gc<Symbol>>> {
+    ) -> io::Result<Option<Id<Symbol>>> {
         self.try_find_ambient_module_(module_name, false)
     }
 
@@ -2549,7 +2549,7 @@ impl TypeChecker {
         location: &Node,
         name: &str,
         meaning: SymbolFlags,
-    ) -> io::Result<Option<Gc<Symbol>>> {
+    ) -> io::Result<Option<Id<Symbol>>> {
         self.get_suggested_symbol_for_nonexistent_symbol_(
             Some(location),
             &escape_leading_underscores(name),
@@ -2591,7 +2591,7 @@ impl TypeChecker {
         location: Option<impl Borrow<Node>>,
         meaning: SymbolFlags,
         exclude_globals: bool,
-    ) -> io::Result<Option<Gc<Symbol>>> {
+    ) -> io::Result<Option<Id<Symbol>>> {
         self.resolve_name_(
             location,
             &escape_leading_underscores(name),
@@ -2622,7 +2622,7 @@ impl TypeChecker {
     pub fn resolve_external_module_name(
         &self,
         module_specifier_in: &Node, /*Expression*/
-    ) -> io::Result<Option<Gc<Symbol>>> {
+    ) -> io::Result<Option<Id<Symbol>>> {
         let module_specifier = return_ok_default_if_none!(get_parse_tree_node(
             Some(module_specifier_in),
             Some(|node: &Node| is_expression(node)),
@@ -2811,15 +2811,15 @@ impl TypeChecker {
         self.undefined_properties.borrow_mut()
     }
 
-    pub(super) fn unknown_symbol(&self) -> Gc<Symbol> {
+    pub(super) fn unknown_symbol(&self) -> Id<Symbol> {
         self.unknown_symbol.as_ref().unwrap().clone()
     }
 
-    pub(super) fn resolving_symbol(&self) -> Gc<Symbol> {
+    pub(super) fn resolving_symbol(&self) -> Id<Symbol> {
         self.resolving_symbol.as_ref().unwrap().clone()
     }
 
-    pub(super) fn unresolved_symbols(&self) -> GcCellRefMut<HashMap<String, Gc<Symbol>>> {
+    pub(super) fn unresolved_symbols(&self) -> GcCellRefMut<HashMap<String, Id<Symbol>>> {
         self.unresolved_symbols.borrow_mut()
     }
 
@@ -2971,7 +2971,7 @@ impl TypeChecker {
         self.template_constraint_type.as_ref().unwrap().clone()
     }
 
-    pub(super) fn empty_type_literal_symbol(&self) -> Gc<Symbol> {
+    pub(super) fn empty_type_literal_symbol(&self) -> Id<Symbol> {
         self.empty_type_literal_symbol.as_ref().unwrap().clone()
     }
 
@@ -3095,7 +3095,7 @@ impl TypeChecker {
 
     pub(super) fn maybe_pattern_ambient_module_augmentations(
         &self,
-    ) -> GcCellRefMut<Option<HashMap<String, Gc<Symbol>>>> {
+    ) -> GcCellRefMut<Option<HashMap<String, Id<Symbol>>>> {
         self.pattern_ambient_module_augmentations.borrow_mut()
     }
 
@@ -3177,20 +3177,20 @@ impl TypeChecker {
 
     pub(super) fn maybe_deferred_global_non_nullable_type_alias(
         &self,
-    ) -> GcCellRefMut<Option<Gc<Symbol>>> {
+    ) -> GcCellRefMut<Option<Id<Symbol>>> {
         self.deferred_global_non_nullable_type_alias.borrow_mut()
     }
 
     pub(super) fn maybe_deferred_global_es_symbol_constructor_symbol(
         &self,
-    ) -> GcCellRefMut<Option<Gc<Symbol>>> {
+    ) -> GcCellRefMut<Option<Id<Symbol>>> {
         self.deferred_global_es_symbol_constructor_symbol
             .borrow_mut()
     }
 
     pub(super) fn maybe_deferred_global_es_symbol_constructor_type_symbol(
         &self,
-    ) -> GcCellRefMut<Option<Gc<Symbol>>> {
+    ) -> GcCellRefMut<Option<Id<Symbol>>> {
         self.deferred_global_es_symbol_constructor_type_symbol
             .borrow_mut()
     }
@@ -3216,7 +3216,7 @@ impl TypeChecker {
 
     pub(super) fn maybe_deferred_global_promise_constructor_symbol(
         &self,
-    ) -> GcCellRefMut<Option<Gc<Symbol>>> {
+    ) -> GcCellRefMut<Option<Id<Symbol>>> {
         self.deferred_global_promise_constructor_symbol.borrow_mut()
     }
 
@@ -3307,15 +3307,15 @@ impl TypeChecker {
         self.deferred_global_import_call_options_type.borrow_mut()
     }
 
-    pub(super) fn maybe_deferred_global_extract_symbol(&self) -> GcCellRefMut<Option<Gc<Symbol>>> {
+    pub(super) fn maybe_deferred_global_extract_symbol(&self) -> GcCellRefMut<Option<Id<Symbol>>> {
         self.deferred_global_extract_symbol.borrow_mut()
     }
 
-    pub(super) fn maybe_deferred_global_omit_symbol(&self) -> GcCellRefMut<Option<Gc<Symbol>>> {
+    pub(super) fn maybe_deferred_global_omit_symbol(&self) -> GcCellRefMut<Option<Id<Symbol>>> {
         self.deferred_global_omit_symbol.borrow_mut()
     }
 
-    pub(super) fn maybe_deferred_global_awaited_symbol(&self) -> GcCellRefMut<Option<Gc<Symbol>>> {
+    pub(super) fn maybe_deferred_global_awaited_symbol(&self) -> GcCellRefMut<Option<Id<Symbol>>> {
         self.deferred_global_awaited_symbol.borrow_mut()
     }
 
@@ -3417,7 +3417,7 @@ impl TypeChecker {
         self.suggestion_count.set(self.suggestion_count.get() + 1)
     }
 
-    pub(super) fn merged_symbols(&self) -> GcCellRefMut<HashMap<u32, Gc<Symbol>>> {
+    pub(super) fn merged_symbols(&self) -> GcCellRefMut<HashMap<u32, Id<Symbol>>> {
         self.merged_symbols.borrow_mut()
     }
 

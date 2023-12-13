@@ -243,7 +243,7 @@ impl TypeChecker {
         &self,
         prop_name: &str, /*__String*/
         location: &Node,
-    ) -> Option<Gc<Symbol>> {
+    ) -> Option<Id<Symbol>> {
         let mut containing_class = get_containing_class(location);
         while let Some(containing_class_present) = containing_class.as_ref() {
             let symbol = containing_class_present.symbol();
@@ -312,7 +312,7 @@ impl TypeChecker {
     pub(super) fn get_symbol_for_private_identifier_expression(
         &self,
         priv_id: &Node, /*PrivateIdentifier*/
-    ) -> Option<Gc<Symbol>> {
+    ) -> Option<Id<Symbol>> {
         if !is_expression_node(priv_id) {
             return None;
         }
@@ -333,7 +333,7 @@ impl TypeChecker {
         &self,
         left_type: Id<Type>,
         lexically_scoped_identifier: &Symbol,
-    ) -> io::Result<Option<Gc<Symbol>>> {
+    ) -> io::Result<Option<Id<Symbol>>> {
         self.get_property_of_type_(left_type, lexically_scoped_identifier.escaped_name(), None)
     }
 
@@ -343,11 +343,11 @@ impl TypeChecker {
         right: &Node, /*PrivateIdentifier*/
         lexically_scoped_identifier: Option<impl Borrow<Symbol>>,
     ) -> io::Result<bool> {
-        let mut property_on_type: Option<Gc<Symbol>> = None;
+        let mut property_on_type: Option<Id<Symbol>> = None;
         let properties = self.get_properties_of_type(left_type)?;
         // if (properties) {
         let right_as_private_identifier = right.as_private_identifier();
-        for_each(properties, |ref symbol: Gc<Symbol>, _| {
+        for_each(properties, |ref symbol: Id<Symbol>, _| {
             let decl = symbol.maybe_value_declaration();
             if matches!(
                 decl.as_ref(),
@@ -476,7 +476,7 @@ impl TypeChecker {
         )?;
         let is_any_like =
             self.is_type_any(Some(apparent_type)) || apparent_type == self.silent_never_type();
-        let prop: Option<Gc<Symbol>>;
+        let prop: Option<Id<Symbol>>;
         if is_private_identifier(right) {
             if self.language_version < ScriptTarget::ESNext {
                 if assignment_kind != AssignmentKind::None {

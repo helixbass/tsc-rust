@@ -291,13 +291,13 @@ impl TypeChecker {
         &self,
         source: Id<Type>,
         target: Id<Type>,
-    ) -> io::Result<Vec<Gc<Symbol>>> {
+    ) -> io::Result<Vec<Id<Symbol>>> {
         if self.is_tuple_type(source) && self.is_tuple_type(target) {
             return Ok(vec![]);
         }
         try_filter(
             &self.get_properties_of_type(target)?.collect_vec(),
-            |target_prop: &Gc<Symbol>| -> io::Result<_> {
+            |target_prop: &Id<Symbol>| -> io::Result<_> {
                 Ok(self.is_exact_optional_property_mismatch(
                     self.get_type_of_property_of_type_(source, target_prop.escaped_name())?,
                     Some(self.get_type_of_symbol(target_prop)?),
@@ -319,10 +319,10 @@ impl TypeChecker {
         self.maybe_type_of_kind(source, TypeFlags::Undefined) && self.contains_missing_type(target)
     }
 
-    pub fn get_exact_optional_properties(&self, type_: Id<Type>) -> io::Result<Vec<Gc<Symbol>>> {
+    pub fn get_exact_optional_properties(&self, type_: Id<Type>) -> io::Result<Vec<Id<Symbol>>> {
         try_filter(
             &self.get_properties_of_type(type_)?.collect_vec(),
-            |target_prop: &Gc<Symbol>| -> io::Result<_> {
+            |target_prop: &Id<Symbol>| -> io::Result<_> {
                 Ok(self.contains_missing_type(self.get_type_of_symbol(target_prop)?))
             },
         )
@@ -438,7 +438,7 @@ impl TypeChecker {
                     .is_empty()
                 && every(
                     &*self.type_(resolved).as_resolved_type().properties(),
-                    |p: &Gc<Symbol>, _| p.flags().intersects(SymbolFlags::Optional),
+                    |p: &Id<Symbol>, _| p.flags().intersects(SymbolFlags::Optional),
                 ));
         }
         if self
@@ -1097,7 +1097,7 @@ impl From<Id<Type>> for GetVariancesCache {
 #[derive(Trace, Finalize)]
 pub(super) enum RecursionIdentity {
     Node(Gc<Node>),
-    Symbol(Gc<Symbol>),
+    Symbol(Id<Symbol>),
     Type(Id<Type>),
     ConditionalRoot(Gc<GcCell<ConditionalRoot>>),
     None,
@@ -1124,8 +1124,8 @@ impl From<Gc<Node>> for RecursionIdentity {
     }
 }
 
-impl From<Gc<Symbol>> for RecursionIdentity {
-    fn from(value: Gc<Symbol>) -> Self {
+impl From<Id<Symbol>> for RecursionIdentity {
+    fn from(value: Id<Symbol>) -> Self {
         Self::Symbol(value)
     }
 }

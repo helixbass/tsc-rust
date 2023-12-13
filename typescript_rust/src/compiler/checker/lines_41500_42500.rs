@@ -171,7 +171,7 @@ impl TypeChecker {
         }
         Ok(for_each_entry_bool(
             &*(*self.get_exports_of_symbol(symbol)?).borrow(),
-            |p: &Gc<Symbol>, _| {
+            |p: &Id<Symbol>, _| {
                 p.flags().intersects(SymbolFlags::Value)
                     && matches!(
                         p.maybe_value_declaration().as_ref(),
@@ -184,7 +184,7 @@ impl TypeChecker {
     pub(super) fn get_properties_of_container_function(
         &self,
         node: &Node, /*Declaration*/
-    ) -> io::Result<impl Iterator<Item = Gc<Symbol>>> {
+    ) -> io::Result<impl Iterator<Item = Id<Symbol>>> {
         let declaration = get_parse_tree_node(Some(node), Some(is_function_declaration));
         if declaration.is_none() {
             return Ok(Either::Right(iter::empty()));
