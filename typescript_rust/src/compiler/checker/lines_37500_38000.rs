@@ -295,7 +295,7 @@ impl TypeChecker {
             &try_map(&signatures, |signature: &Gc<Signature>, _| {
                 self.get_return_type_of_signature(signature.clone())
             })?,
-            Option::<&Symbol>::None,
+            Option::<Id<Symbol>>::None,
             None,
         )?;
         let iteration_types = self
@@ -683,7 +683,7 @@ impl TypeChecker {
                 self.get_union_type(
                     &method_parameter_types,
                     None,
-                    Option::<&Symbol>::None,
+                    Option::<Id<Symbol>>::None,
                     None,
                     None,
                 )?
@@ -712,7 +712,7 @@ impl TypeChecker {
 
         let yield_type: Id<Type>;
         let method_return_type = if let Some(method_return_types) = method_return_types.as_ref() {
-            self.get_intersection_type(method_return_types, Option::<&Symbol>::None, None)?
+            self.get_intersection_type(method_return_types, Option::<Id<Symbol>>::None, None)?
         } else {
             self.never_type()
         };
@@ -750,7 +750,7 @@ impl TypeChecker {
             Some(self.get_union_type(
                 &return_types.unwrap(),
                 None,
-                Option::<&Symbol>::None,
+                Option::<Id<Symbol>>::None,
                 None,
                 None,
             )?),

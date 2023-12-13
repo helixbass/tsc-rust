@@ -32,7 +32,7 @@ use crate::{
 impl TypeChecker {
     pub(super) fn is_alias_resolved_to_value(
         &self,
-        symbol: Option<impl Borrow<Symbol>>,
+        symbol: Option<Id<Symbol>>,
     ) -> io::Result<bool> {
         if symbol.is_none() {
             return Ok(false);
@@ -48,7 +48,7 @@ impl TypeChecker {
                 || !self.is_const_enum_or_const_enum_only_module(target)))
     }
 
-    pub(super) fn is_const_enum_or_const_enum_only_module(&self, s: &Symbol) -> bool {
+    pub(super) fn is_const_enum_or_const_enum_only_module(&self, s: Id<Symbol>) -> bool {
         self.is_const_enum_symbol(s) || s.maybe_const_enum_only_module() == Some(true)
     }
 
@@ -867,7 +867,7 @@ impl TypeChecker {
         *self.auto_array_type.borrow_mut() = Some(self.create_array_type(self.auto_type(), None));
         if self.auto_array_type() == self.empty_object_type() {
             *self.auto_array_type.borrow_mut() = Some(self.create_anonymous_type(
-                Option::<&Symbol>::None,
+                Option::<Id<Symbol>>::None,
                 self.empty_symbols(),
                 vec![],
                 vec![],

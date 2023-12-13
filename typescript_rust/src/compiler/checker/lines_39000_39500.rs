@@ -594,7 +594,7 @@ impl TypeChecker {
         &self,
         member: &Node,
         expr: &Node, /*Expression*/
-        enum_symbol: &Symbol,
+        enum_symbol: Id<Symbol>,
         name: &str, /*__String*/
     ) -> io::Result<Option<StringOrNumber>> {
         let member_symbol = (*enum_symbol.maybe_exports().clone().unwrap())
@@ -742,7 +742,7 @@ impl TypeChecker {
 
     pub(super) fn get_first_non_ambient_class_or_function_declaration(
         &self,
-        symbol: &Symbol,
+        symbol: Id<Symbol>,
     ) -> Option<Gc<Node /*Declaration*/>> {
         let declarations = symbol.maybe_declarations();
         if let Some(declarations) = declarations.as_ref() {

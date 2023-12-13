@@ -400,7 +400,7 @@ impl TypeChecker {
         )
     }
 
-    pub(super) fn get_target_symbol(&self, s: &Symbol) -> Id<Symbol> {
+    pub(super) fn get_target_symbol(&self, s: Id<Symbol>) -> Id<Symbol> {
         if get_check_flags(s).intersects(CheckFlags::Instantiated) {
             (*s.as_transient_symbol().symbol_links())
                 .borrow()
@@ -414,7 +414,7 @@ impl TypeChecker {
 
     pub(super) fn get_class_or_interface_declarations_of_symbol(
         &self,
-        symbol: &Symbol,
+        symbol: Id<Symbol>,
     ) -> Option<Vec<Gc<Node>>> {
         maybe_filter(symbol.maybe_declarations().as_deref(), |d: &Gc<Node>| {
             matches!(

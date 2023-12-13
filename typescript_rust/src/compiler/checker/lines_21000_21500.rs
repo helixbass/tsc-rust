@@ -153,7 +153,7 @@ impl TypeChecker {
 
     pub(super) fn get_widened_property(
         &self,
-        prop: &Symbol,
+        prop: Id<Symbol>,
         context: Option<Rc<RefCell<WideningContext>>>,
     ) -> io::Result<Id<Symbol>> {
         if !prop.flags().intersects(SymbolFlags::Property) {
@@ -175,7 +175,7 @@ impl TypeChecker {
         })
     }
 
-    pub(super) fn get_undefined_property(&self, prop: &Symbol) -> Id<Symbol> {
+    pub(super) fn get_undefined_property(&self, prop: Id<Symbol>) -> Id<Symbol> {
         let cached = self
             .undefined_properties()
             .get(prop.escaped_name())
@@ -303,7 +303,7 @@ impl TypeChecker {
                 result = Some(self.get_union_type(
                     &widened_types,
                     Some(union_reduction),
-                    Option::<&Symbol>::None,
+                    Option::<Id<Symbol>>::None,
                     None,
                     None,
                 )?);
@@ -324,7 +324,7 @@ impl TypeChecker {
                         },
                         |type_: Id<Type>, _| self.get_widened_type(type_),
                     )?,
-                    Option::<&Symbol>::None,
+                    Option::<Id<Symbol>>::None,
                     None,
                 )?);
             } else if self.is_array_type(type_) || self.is_tuple_type(type_) {
@@ -1008,7 +1008,7 @@ impl TypeChecker {
             vec![]
         };
         self.create_anonymous_type(
-            Option::<&Symbol>::None,
+            Option::<Id<Symbol>>::None,
             Gc::new(GcCell::new(members)),
             vec![],
             vec![],
@@ -1133,7 +1133,7 @@ impl TypeChecker {
         }
         let reversed = self.create_object_type(
             ObjectFlags::ReverseMapped | ObjectFlags::Anonymous,
-            Option::<&Symbol>::None,
+            Option::<Id<Symbol>>::None,
         );
         Ok(Some(self.alloc_type(
             ReverseMappedType::new(reversed, source, target, constraint).into(),
@@ -1142,7 +1142,7 @@ impl TypeChecker {
 
     pub(super) fn get_type_of_reverse_mapped_symbol(
         &self,
-        symbol: &Symbol, /*ReverseMappedSymbol*/
+        symbol: Id<Symbol>, /*ReverseMappedSymbol*/
     ) -> io::Result<Id<Type>> {
         let links = self.get_symbol_links(symbol);
         if (*links).borrow().type_.is_none() {

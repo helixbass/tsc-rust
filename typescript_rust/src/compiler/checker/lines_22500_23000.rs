@@ -936,7 +936,7 @@ impl TypeChecker {
                 self.get_type_of_expression(default_expression)?,
             ],
             None,
-            Option::<&Symbol>::None,
+            Option::<Id<Symbol>>::None,
             None,
             None,
         )
@@ -999,7 +999,7 @@ impl TypeChecker {
                 self.get_union_type(
                     &[type_, self.undefined_type()],
                     None,
-                    Option::<&Symbol>::None,
+                    Option::<Id<Symbol>>::None,
                     None,
                     None,
                 )?

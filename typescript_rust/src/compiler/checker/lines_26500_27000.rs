@@ -25,7 +25,7 @@ impl TypeChecker {
     pub(super) fn get_jsx_managed_attributes_from_located_attributes(
         &self,
         context: &Node, /*JsxOpeningLikeElement*/
-        ns: Option<impl Borrow<Symbol>>,
+        ns: Option<Id<Symbol>>,
         attributes_type: Id<Type>,
     ) -> io::Result<Id<Type>> {
         let managed_sym = self.get_jsx_library_managed_attributes(ns)?;
@@ -47,7 +47,7 @@ impl TypeChecker {
                     return self.get_type_alias_instantiation(
                         managed_sym,
                         args.as_deref(),
-                        Option::<&Symbol>::None,
+                        Option::<Id<Symbol>>::None,
                         None,
                     );
                 }
@@ -208,8 +208,8 @@ impl TypeChecker {
 
     pub(super) fn combine_intersection_this_param(
         &self,
-        left: Option<impl Borrow<Symbol>>,
-        right: Option<impl Borrow<Symbol>>,
+        left: Option<Id<Symbol>>,
+        right: Option<Id<Symbol>>,
         mapper: Option<Id<TypeMapper>>,
     ) -> io::Result<Option<Id<Symbol>>> {
         let left = left.map(|left| left.borrow().symbol_wrapper());
@@ -225,7 +225,7 @@ impl TypeChecker {
                 self.instantiate_type(self.get_type_of_symbol(&right)?, mapper)?,
             ],
             None,
-            Option::<&Symbol>::None,
+            Option::<Id<Symbol>>::None,
             None,
             None,
         )?;
@@ -271,7 +271,7 @@ impl TypeChecker {
             let union_param_type = self.get_union_type(
                 &[longest_param_type, shorter_param_type],
                 None,
-                Option::<&Symbol>::None,
+                Option::<Id<Symbol>>::None,
                 None,
                 None,
             )?;
@@ -557,7 +557,7 @@ impl TypeChecker {
                 self.number_type(),
                 None,
                 Option::<&Node>::None,
-                Option::<&Symbol>::None,
+                Option::<Id<Symbol>>::None,
                 None,
             )?
         } else {
@@ -693,7 +693,7 @@ impl TypeChecker {
                                 self.number_type(),
                                 None,
                                 Option::<&Node>::None,
-                                Option::<&Symbol>::None,
+                                Option::<Id<Symbol>>::None,
                                 None,
                             )?
                             .unwrap_or_else(|| self.any_type())
@@ -702,7 +702,7 @@ impl TypeChecker {
                         })
                     })?,
                     Some(UnionReduction::Subtype),
-                    Option::<&Symbol>::None,
+                    Option::<Id<Symbol>>::None,
                     None,
                     None,
                 )?
@@ -845,7 +845,7 @@ impl TypeChecker {
         Ok(ret)
     }
 
-    pub(super) fn is_symbol_with_numeric_name(&self, symbol: &Symbol) -> io::Result<bool> {
+    pub(super) fn is_symbol_with_numeric_name(&self, symbol: Id<Symbol>) -> io::Result<bool> {
         let first_decl = symbol
             .maybe_declarations()
             .as_ref()
@@ -858,7 +858,7 @@ impl TypeChecker {
             ))
     }
 
-    pub(super) fn is_symbol_with_symbol_name(&self, symbol: &Symbol) -> io::Result<bool> {
+    pub(super) fn is_symbol_with_symbol_name(&self, symbol: Id<Symbol>) -> io::Result<bool> {
         let first_decl = symbol
             .maybe_declarations()
             .as_ref()
@@ -896,7 +896,7 @@ impl TypeChecker {
             self.get_union_type(
                 &prop_types,
                 Some(UnionReduction::Subtype),
-                Option::<&Symbol>::None,
+                Option::<Id<Symbol>>::None,
                 None,
                 None,
             )?
@@ -908,7 +908,7 @@ impl TypeChecker {
 
     pub(super) fn get_immediate_aliased_symbol(
         &self,
-        symbol: &Symbol,
+        symbol: Id<Symbol>,
     ) -> io::Result<Option<Id<Symbol>>> {
         Debug_.assert(
             symbol.flags().intersects(SymbolFlags::Alias),

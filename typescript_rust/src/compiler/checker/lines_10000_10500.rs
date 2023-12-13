@@ -144,7 +144,7 @@ impl TypeChecker {
         Ok(())
     }
 
-    pub(super) fn is_thisless_interface(&self, symbol: &Symbol) -> io::Result<bool> {
+    pub(super) fn is_thisless_interface(&self, symbol: Id<Symbol>) -> io::Result<bool> {
         let symbol_declarations = symbol.maybe_declarations();
         if symbol_declarations.is_none() {
             return Ok(true);
@@ -195,7 +195,7 @@ impl TypeChecker {
 
     pub(super) fn get_declared_type_of_class_or_interface(
         &self,
-        symbol: &Symbol,
+        symbol: Id<Symbol>,
     ) -> io::Result<Id<Type /*InterfaceType*/>> {
         let mut links = self.get_symbol_links(symbol);
         let original_links = links.clone();
@@ -308,7 +308,10 @@ impl TypeChecker {
         Ok(ret)
     }
 
-    pub(super) fn get_declared_type_of_type_alias(&self, symbol: &Symbol) -> io::Result<Id<Type>> {
+    pub(super) fn get_declared_type_of_type_alias(
+        &self,
+        symbol: Id<Symbol>,
+    ) -> io::Result<Id<Type>> {
         let links = self.get_symbol_links(symbol);
         if (*links).borrow().declared_type.is_none() {
             if !self.push_type_resolution(
@@ -445,7 +448,7 @@ impl TypeChecker {
         })
     }
 
-    pub(super) fn get_enum_kind(&self, symbol: &Symbol) -> io::Result<EnumKind> {
+    pub(super) fn get_enum_kind(&self, symbol: Id<Symbol>) -> io::Result<EnumKind> {
         let links = self.get_symbol_links(symbol);
         if let Some(links_enum_kind) = (*links).borrow().enum_kind {
             return Ok(links_enum_kind);
@@ -496,7 +499,7 @@ impl TypeChecker {
         )
     }
 
-    pub(super) fn get_declared_type_of_enum(&self, symbol: &Symbol) -> io::Result<Id<Type>> {
+    pub(super) fn get_declared_type_of_enum(&self, symbol: Id<Symbol>) -> io::Result<Id<Type>> {
         let links = self.get_symbol_links(symbol);
         if let Some(links_declared_type) = (*links).borrow().declared_type.clone() {
             return Ok(links_declared_type);
@@ -549,7 +552,10 @@ impl TypeChecker {
         Ok(enum_type)
     }
 
-    pub(super) fn get_declared_type_of_enum_member(&self, symbol: &Symbol) -> io::Result<Id<Type>> {
+    pub(super) fn get_declared_type_of_enum_member(
+        &self,
+        symbol: Id<Symbol>,
+    ) -> io::Result<Id<Type>> {
         let links = self.get_symbol_links(symbol);
         if (*links).borrow().declared_type.is_none() {
             let enum_type =
@@ -565,7 +571,7 @@ impl TypeChecker {
 
     pub(super) fn get_declared_type_of_type_parameter(
         &self,
-        symbol: &Symbol,
+        symbol: Id<Symbol>,
     ) -> Id<Type /*TypeParameter*/> {
         let links = self.get_symbol_links(symbol);
         let mut links = links.borrow_mut();
@@ -576,7 +582,7 @@ impl TypeChecker {
         links.declared_type.clone().unwrap()
     }
 
-    pub(super) fn get_declared_type_of_alias(&self, symbol: &Symbol) -> io::Result<Id<Type>> {
+    pub(super) fn get_declared_type_of_alias(&self, symbol: Id<Symbol>) -> io::Result<Id<Type>> {
         let links = self.get_symbol_links(symbol);
         if let Some(links_declared_type) = (*links).borrow().declared_type.clone() {
             return Ok(links_declared_type);
@@ -586,7 +592,7 @@ impl TypeChecker {
         Ok(declared_type)
     }
 
-    pub(super) fn get_declared_type_of_symbol(&self, symbol: &Symbol) -> io::Result<Id<Type>> {
+    pub(super) fn get_declared_type_of_symbol(&self, symbol: Id<Symbol>) -> io::Result<Id<Type>> {
         Ok(self
             .try_get_declared_type_of_symbol(symbol)?
             .unwrap_or_else(|| self.error_type()))
@@ -594,7 +600,7 @@ impl TypeChecker {
 
     pub(super) fn try_get_declared_type_of_symbol(
         &self,
-        symbol: &Symbol,
+        symbol: Id<Symbol>,
     ) -> io::Result<Option<Id<Type>>> {
         if symbol
             .flags()
@@ -692,7 +698,7 @@ impl TypeChecker {
                 .all(|type_parameter: &Gc<Node>| self.is_thisless_type_parameter(type_parameter))
     }
 
-    pub(super) fn is_thisless(&self, symbol: &Symbol) -> bool {
+    pub(super) fn is_thisless(&self, symbol: Id<Symbol>) -> bool {
         if let Some(symbol_declarations) = symbol.maybe_declarations().as_deref() {
             if symbol_declarations.len() == 1 {
                 let declaration = &symbol_declarations[0];
@@ -752,7 +758,7 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn is_static_private_identifier_property(&self, s: &Symbol) -> bool {
+    pub(super) fn is_static_private_identifier_property(&self, s: Id<Symbol>) -> bool {
         matches!(
             s.maybe_value_declaration().as_ref(),
             Some(value_declaration) if is_private_identifier_class_element_declaration(value_declaration) && is_static(value_declaration)

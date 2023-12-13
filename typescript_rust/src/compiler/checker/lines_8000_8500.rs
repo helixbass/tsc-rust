@@ -209,7 +209,7 @@ impl TypeChecker {
 
     pub(super) fn get_name_of_symbol_from_name_type(
         &self,
-        symbol: &Symbol,
+        symbol: Id<Symbol>,
         context: Option<&NodeBuilderContext>,
     ) -> Option<String> {
         let name_type = (*self.get_symbol_links(symbol))
@@ -261,7 +261,7 @@ impl TypeChecker {
 
     pub(super) fn get_name_of_symbol_as_written<'symbol>(
         &self,
-        symbol: &'symbol Symbol,
+        symbol: Id<Symbol>,
         context: Option<&NodeBuilderContext>,
     ) -> Cow<'symbol, str> {
         if let Some(context) = context {
@@ -680,7 +680,7 @@ impl TypeChecker {
 
     pub(super) fn get_type_of_prototype_property(
         &self,
-        prototype: &Symbol,
+        prototype: Id<Symbol>,
     ) -> io::Result<Id<Type>> {
         let class_type =
             self.get_declared_type_of_symbol(&self.get_parent_of_symbol(prototype)?.unwrap())?;
@@ -753,7 +753,7 @@ impl TypeChecker {
         &self,
         source: Id<Type>,
         properties: &[Gc<Node /*PropertyName*/>],
-        symbol: Option<impl Borrow<Symbol>>,
+        symbol: Option<Id<Symbol>>,
     ) -> io::Result<Id<Type>> {
         let source = self.filter_type(source, |t| {
             !self.type_(t).flags().intersects(TypeFlags::Nullable)
@@ -782,7 +782,7 @@ impl TypeChecker {
                 self.get_literal_type_from_property_name(property)
             })?,
             None,
-            Option::<&Symbol>::None,
+            Option::<Id<Symbol>>::None,
             None,
             None,
         )?;
@@ -803,7 +803,7 @@ impl TypeChecker {
             return self.get_type_alias_instantiation(
                 &omit_type_alias,
                 Some(&vec![source, omit_key_type]),
-                Option::<&Symbol>::None,
+                Option::<Id<Symbol>>::None,
                 None,
             );
         }

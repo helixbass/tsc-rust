@@ -74,7 +74,7 @@ impl TypeChecker {
 
     pub(super) fn get_string_mapping_type(
         &self,
-        symbol: &Symbol,
+        symbol: Id<Symbol>,
         type_: Id<Type>,
     ) -> io::Result<Id<Type>> {
         Ok(
@@ -106,7 +106,7 @@ impl TypeChecker {
         )
     }
 
-    pub(super) fn apply_string_mapping(&self, symbol: &Symbol, str_: &str) -> String {
+    pub(super) fn apply_string_mapping(&self, symbol: Id<Symbol>, str_: &str) -> String {
         match intrinsic_type_kinds.get(symbol.escaped_name()) {
             Some(IntrinsicTypeKind::Uppercase) => str_.to_uppercase(),
             Some(IntrinsicTypeKind::Lowercase) => str_.to_lowercase(),
@@ -118,7 +118,7 @@ impl TypeChecker {
 
     pub(super) fn get_string_mapping_type_for_generic_type(
         &self,
-        symbol: &Symbol,
+        symbol: Id<Symbol>,
         type_: Id<Type>,
     ) -> Id<Type> {
         let id = format!("{},{}", get_symbol_id(symbol), self.get_type_id(type_));
@@ -131,7 +131,11 @@ impl TypeChecker {
         result.unwrap()
     }
 
-    pub(super) fn create_string_mapping_type(&self, symbol: &Symbol, type_: Id<Type>) -> Id<Type> {
+    pub(super) fn create_string_mapping_type(
+        &self,
+        symbol: Id<Symbol>,
+        type_: Id<Type>,
+    ) -> Id<Type> {
         let result = self.create_type(TypeFlags::StringMapping);
         let result = self.alloc_type(StringMappingType::new(result, type_).into());
         self.type_(result).set_symbol(Some(symbol.symbol_wrapper()));
@@ -143,7 +147,7 @@ impl TypeChecker {
         object_type: Id<Type>,
         index_type: Id<Type>,
         access_flags: AccessFlags,
-        alias_symbol: Option<impl Borrow<Symbol>>,
+        alias_symbol: Option<Id<Symbol>>,
         alias_type_arguments: Option<&[Id<Type>]>,
     ) -> Id<Type> {
         let type_ = self.create_type(TypeFlags::IndexedAccess);
@@ -212,7 +216,7 @@ impl TypeChecker {
     pub(super) fn is_uncalled_function_reference(
         &self,
         node: &Node,
-        symbol: &Symbol,
+        symbol: Id<Symbol>,
     ) -> io::Result<bool> {
         if symbol
             .flags()
@@ -420,7 +424,7 @@ impl TypeChecker {
                                 self.get_union_type(
                                     &[rest_type, self.undefined_type()],
                                     None,
-                                    Option::<&Symbol>::None,
+                                    Option::<Id<Symbol>>::None,
                                     None,
                                     None,
                                 )?
@@ -503,7 +507,7 @@ impl TypeChecker {
                                 self.get_union_type(
                                     &[index_info.type_.clone(), self.undefined_type()],
                                     None,
-                                    Option::<&Symbol>::None,
+                                    Option::<Id<Symbol>>::None,
                                     None,
                                     None,
                                 )?
@@ -523,7 +527,7 @@ impl TypeChecker {
                         self.get_union_type(
                             &[index_info.type_.clone(), self.undefined_type()],
                             None,
-                            Option::<&Symbol>::None,
+                            Option::<Id<Symbol>>::None,
                             None,
                             None,
                         )?
@@ -585,7 +589,7 @@ impl TypeChecker {
                             return Ok(Some(self.get_union_type(
                                 &types,
                                 None,
-                                Option::<&Symbol>::None,
+                                Option::<Id<Symbol>>::None,
                                 None,
                                 None,
                             )?));
@@ -1103,7 +1107,7 @@ impl TypeChecker {
                             index_type,
                             None,
                             Option::<&Node>::None,
-                            Option::<&Symbol>::None,
+                            Option::<Id<Symbol>>::None,
                             None,
                         )?,
                         writing,
@@ -1117,9 +1121,9 @@ impl TypeChecker {
                     .intersects(TypeFlags::Intersection)
                     || writing
                 {
-                    self.get_intersection_type(&types, Option::<&Symbol>::None, None)?
+                    self.get_intersection_type(&types, Option::<Id<Symbol>>::None, None)?
                 } else {
-                    self.get_union_type(&types, None, Option::<&Symbol>::None, None, None)?
+                    self.get_union_type(&types, None, Option::<Id<Symbol>>::None, None, None)?
                 },
             ));
         }
@@ -1142,7 +1146,7 @@ impl TypeChecker {
                             t,
                             None,
                             Option::<&Node>::None,
-                            Option::<&Symbol>::None,
+                            Option::<Id<Symbol>>::None,
                             None,
                         )?,
                         writing,
@@ -1150,9 +1154,9 @@ impl TypeChecker {
                 },
             )?;
             return Ok(Some(if writing {
-                self.get_intersection_type(&types, Option::<&Symbol>::None, None)?
+                self.get_intersection_type(&types, Option::<Id<Symbol>>::None, None)?
             } else {
-                self.get_union_type(&types, None, Option::<&Symbol>::None, None, None)?
+                self.get_union_type(&types, None, Option::<Id<Symbol>>::None, None, None)?
             }));
         }
         Ok(None)
@@ -1319,7 +1323,7 @@ impl TypeChecker {
                     self.never_type(),
                 ],
                 None,
-                Option::<&Symbol>::None,
+                Option::<Id<Symbol>>::None,
                 None,
                 None,
             )?)
@@ -1354,7 +1358,7 @@ impl TypeChecker {
         access_node: Option<
             impl Borrow<Node>, /*ElementAccessExpression | IndexedAccessTypeNode | PropertyName | BindingName | SyntheticExpression*/
         >,
-        alias_symbol: Option<impl Borrow<Symbol>>,
+        alias_symbol: Option<Id<Symbol>>,
         alias_type_arguments: Option<&[Id<Type>]>,
     ) -> io::Result<Id<Type>> {
         let access_flags = access_flags.unwrap_or(AccessFlags::None);
@@ -1402,7 +1406,7 @@ impl TypeChecker {
         access_node: Option<
             impl Borrow<Node>, /*ElementAccessExpression | IndexedAccessTypeNode | PropertyName | BindingName | SyntheticExpression*/
         >,
-        alias_symbol: Option<impl Borrow<Symbol>>,
+        alias_symbol: Option<Id<Symbol>>,
         alias_type_arguments: Option<&[Id<Type>]>,
     ) -> io::Result<Option<Id<Type>>> {
         let mut access_flags = access_flags.unwrap_or(AccessFlags::None);

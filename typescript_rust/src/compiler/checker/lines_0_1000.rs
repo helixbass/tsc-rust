@@ -291,7 +291,7 @@ impl TypeSystemEntity {
         }
     }
 
-    pub fn as_symbol(&self) -> &Symbol {
+    pub fn as_symbol(&self) -> Id<Symbol> {
         match self {
             Self::Symbol(symbol) => &*symbol,
             _ => panic!("Expected symbol"),
@@ -501,7 +501,7 @@ pub fn get_node_id(node: &Node) -> NodeId {
     node.id()
 }
 
-pub fn get_symbol_id(symbol: &Symbol) -> SymbolId {
+pub fn get_symbol_id(symbol: Id<Symbol>) -> SymbolId {
     if symbol.maybe_id().is_none() {
         symbol.set_id(get_next_symbol_id());
         increment_next_symbol_id();
@@ -1113,7 +1113,7 @@ pub fn create_type_checker(
             type_checker.regular_true_type(),
         ],
         None,
-        Option::<&Symbol>::None,
+        Option::<Id<Symbol>>::None,
         None,
         None,
     )?);
@@ -1180,7 +1180,7 @@ pub fn create_type_checker(
     type_checker.string_or_number_type = Some(type_checker.get_union_type(
         &[type_checker.string_type(), type_checker.number_type()],
         None,
-        Option::<&Symbol>::None,
+        Option::<Id<Symbol>>::None,
         None,
         None,
     )?);
@@ -1191,7 +1191,7 @@ pub fn create_type_checker(
             type_checker.es_symbol_type(),
         ],
         None,
-        Option::<&Symbol>::None,
+        Option::<Id<Symbol>>::None,
         None,
         None,
     )?);
@@ -1203,7 +1203,7 @@ pub fn create_type_checker(
     type_checker.number_or_big_int_type = Some(type_checker.get_union_type(
         &[type_checker.number_type(), type_checker.bigint_type()],
         None,
-        Option::<&Symbol>::None,
+        Option::<Id<Symbol>>::None,
         None,
         None,
     )?);
@@ -1217,7 +1217,7 @@ pub fn create_type_checker(
             type_checker.undefined_type(),
         ],
         None,
-        Option::<&Symbol>::None,
+        Option::<Id<Symbol>>::None,
         None,
         None,
     )?);
@@ -1230,14 +1230,14 @@ pub fn create_type_checker(
     );
 
     type_checker.empty_object_type = Some(type_checker.create_anonymous_type(
-        Option::<&Symbol>::None,
+        Option::<Id<Symbol>>::None,
         type_checker.empty_symbols(),
         vec![],
         vec![],
         vec![],
     )?);
     let empty_jsx_object_type = type_checker.create_anonymous_type(
-        Option::<&Symbol>::None,
+        Option::<Id<Symbol>>::None,
         type_checker.empty_symbols(),
         vec![],
         vec![],
@@ -1273,7 +1273,7 @@ pub fn create_type_checker(
     )?);
 
     let empty_generic_type = type_checker.create_anonymous_type_returning_base_object_type(
-        Option::<&Symbol>::None,
+        Option::<Id<Symbol>>::None,
         type_checker.empty_symbols(),
         vec![],
         vec![],
@@ -1284,7 +1284,7 @@ pub fn create_type_checker(
     type_checker.empty_generic_type = Some(type_checker.alloc_type(empty_generic_type.into()));
 
     let any_function_type = type_checker.create_anonymous_type(
-        Option::<&Symbol>::None,
+        Option::<Id<Symbol>>::None,
         type_checker.empty_symbols(),
         vec![],
         vec![],
@@ -1303,21 +1303,21 @@ pub fn create_type_checker(
     type_checker.any_function_type = Some(any_function_type);
 
     type_checker.no_constraint_type = Some(type_checker.create_anonymous_type(
-        Option::<&Symbol>::None,
+        Option::<Id<Symbol>>::None,
         type_checker.empty_symbols(),
         vec![],
         vec![],
         vec![],
     )?);
     type_checker.circular_constraint_type = Some(type_checker.create_anonymous_type(
-        Option::<&Symbol>::None,
+        Option::<Id<Symbol>>::None,
         type_checker.empty_symbols(),
         vec![],
         vec![],
         vec![],
     )?);
     type_checker.resolving_default_type = Some(type_checker.create_anonymous_type(
-        Option::<&Symbol>::None,
+        Option::<Id<Symbol>>::None,
         type_checker.empty_symbols(),
         vec![],
         vec![],
@@ -1327,17 +1327,17 @@ pub fn create_type_checker(
     type_checker.marker_super_type = Some(
         type_checker.alloc_type(
             type_checker
-                .create_type_parameter(Option::<&Symbol>::None)
+                .create_type_parameter(Option::<Id<Symbol>>::None)
                 .into(),
         ),
     );
-    let marker_sub_type = type_checker.create_type_parameter(Option::<&Symbol>::None);
+    let marker_sub_type = type_checker.create_type_parameter(Option::<Id<Symbol>>::None);
     marker_sub_type.set_constraint(type_checker.marker_super_type());
     type_checker.marker_sub_type = Some(type_checker.alloc_type(marker_sub_type.into()));
     type_checker.marker_other_type = Some(
         type_checker.alloc_type(
             type_checker
-                .create_type_parameter(Option::<&Symbol>::None)
+                .create_type_parameter(Option::<Id<Symbol>>::None)
                 .into(),
         ),
     );
@@ -1770,21 +1770,21 @@ impl TypeChecker {
         }
     }
 
-    pub fn is_undefined_symbol(&self, symbol: &Symbol) -> bool {
+    pub fn is_undefined_symbol(&self, symbol: Id<Symbol>) -> bool {
         ptr::eq(symbol, &*self.undefined_symbol())
     }
 
-    pub fn is_arguments_symbol(&self, symbol: &Symbol) -> bool {
+    pub fn is_arguments_symbol(&self, symbol: Id<Symbol>) -> bool {
         ptr::eq(symbol, &*self.arguments_symbol())
     }
 
-    pub fn is_unknown_symbol(&self, symbol: &Symbol) -> bool {
+    pub fn is_unknown_symbol(&self, symbol: Id<Symbol>) -> bool {
         ptr::eq(symbol, &*self.unknown_symbol())
     }
 
     pub fn get_type_of_symbol_at_location(
         &self,
-        symbol: &Symbol,
+        symbol: Id<Symbol>,
         location_in: &Node,
     ) -> io::Result<Id<Type>> {
         let location = get_parse_tree_node(Some(location_in), Option::<fn(&Node) -> bool>::None);
@@ -1950,7 +1950,7 @@ impl TypeChecker {
 
     pub fn symbol_to_entity_name(
         &self,
-        symbol: &Symbol,
+        symbol: Id<Symbol>,
         meaning: SymbolFlags,
         enclosing_declaration: Option<impl Borrow<Node>>,
         flags: Option<NodeBuilderFlags>,
@@ -1966,7 +1966,7 @@ impl TypeChecker {
 
     pub fn symbol_to_expression(
         &self,
-        symbol: &Symbol,
+        symbol: Id<Symbol>,
         meaning: SymbolFlags,
         enclosing_declaration: Option<impl Borrow<Node>>,
         flags: Option<NodeBuilderFlags>,
@@ -1982,7 +1982,7 @@ impl TypeChecker {
 
     pub fn symbol_to_type_parameter_declarations(
         &self,
-        symbol: &Symbol,
+        symbol: Id<Symbol>,
         enclosing_declaration: Option<impl Borrow<Node>>,
         flags: Option<NodeBuilderFlags>,
     ) -> io::Result<Option<Gc<NodeArray> /*<TypeParameterDeclaration>*/>> {
@@ -1996,7 +1996,7 @@ impl TypeChecker {
 
     pub fn symbol_to_parameter_declaration(
         &self,
-        symbol: &Symbol,
+        symbol: Id<Symbol>,
         enclosing_declaration: Option<impl Borrow<Node>>,
         flags: Option<NodeBuilderFlags>,
     ) -> io::Result<Option<Gc<Node /*ParameterDeclaration*/>>> {
@@ -2075,7 +2075,7 @@ impl TypeChecker {
         self.get_export_specifier_local_target_symbol_(&node)
     }
 
-    pub fn get_export_symbol_of_symbol(&self, symbol: &Symbol) -> Id<Symbol> {
+    pub fn get_export_symbol_of_symbol(&self, symbol: Id<Symbol>) -> Id<Symbol> {
         self.get_merged_symbol(Some(
             symbol
                 .maybe_export_symbol()
@@ -2149,7 +2149,7 @@ impl TypeChecker {
 
     pub fn symbol_to_string(
         &self,
-        symbol: &Symbol,
+        symbol: Id<Symbol>,
         enclosing_declaration: Option<impl Borrow<Node>>,
         meaning: Option<SymbolFlags>,
         flags: Option<SymbolFormatFlags>,
@@ -2211,7 +2211,7 @@ impl TypeChecker {
 
     pub fn write_symbol(
         &self,
-        symbol: &Symbol,
+        symbol: Id<Symbol>,
         enclosing_declaration: Option<impl Borrow<Node>>,
         meaning: Option<SymbolFlags>,
         flags: Option<SymbolFormatFlags>,
@@ -2393,7 +2393,7 @@ impl TypeChecker {
         &self,
         node_in: &Node, /*PropertyAccessExpression | QualifiedName | ImportTypeNode*/
         type_: Id<Type>,
-        property: &Symbol,
+        property: Id<Symbol>,
     ) -> io::Result<bool> {
         let node = get_parse_tree_node(
             Some(node_in),
@@ -2427,15 +2427,15 @@ impl TypeChecker {
         Ok(Some(self.is_implementation_of_overload_(&node)?))
     }
 
-    pub fn get_aliased_symbol(&self, symbol: &Symbol) -> io::Result<Id<Symbol>> {
+    pub fn get_aliased_symbol(&self, symbol: Id<Symbol>) -> io::Result<Id<Symbol>> {
         self.resolve_alias(symbol)
     }
 
-    pub fn get_exports_of_module(&self, module_symbol: &Symbol) -> io::Result<Vec<Id<Symbol>>> {
+    pub fn get_exports_of_module(&self, module_symbol: Id<Symbol>) -> io::Result<Vec<Id<Symbol>>> {
         self.get_exports_of_module_as_array(module_symbol)
     }
 
-    pub fn get_symbol_walker(&self, _accept: Option<impl FnMut(&Symbol) -> bool>) -> SymbolWalker {
+    pub fn get_symbol_walker(&self, _accept: Option<impl FnMut(Id<Symbol>) -> bool>) -> SymbolWalker {
         unimplemented!() // TODO: figure out how to implement this
     }
 
@@ -2453,7 +2453,7 @@ impl TypeChecker {
     pub fn try_get_member_in_module_exports(
         &self,
         name: &str,
-        symbol: &Symbol,
+        symbol: Id<Symbol>,
     ) -> io::Result<Option<Id<Symbol>>> {
         self.try_get_member_in_module_exports_(&escape_leading_underscores(name), symbol)
     }
@@ -2461,7 +2461,7 @@ impl TypeChecker {
     pub fn try_get_member_in_module_exports_and_properties(
         &self,
         name: &str,
-        symbol: &Symbol,
+        symbol: Id<Symbol>,
     ) -> io::Result<Option<Id<Symbol>>> {
         self.try_get_member_in_module_exports_and_properties_(
             &escape_leading_underscores(name),

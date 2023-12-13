@@ -450,7 +450,7 @@ impl TypeChecker {
                                 self.create_promise_like_type(contextual_awaited_type)?,
                             ],
                             None,
-                            Option::<&Symbol>::None,
+                            Option::<Id<Symbol>>::None,
                             None,
                             None,
                         )
@@ -479,7 +479,7 @@ impl TypeChecker {
                         self.create_promise_like_type(contextual_awaited_type)?,
                     ],
                     None,
-                    Option::<&Symbol>::None,
+                    Option::<Id<Symbol>>::None,
                     None,
                     None,
                 )
@@ -648,7 +648,7 @@ impl TypeChecker {
                     self.get_number_literal_type(Number::new((arg_index - rest_index) as f64)),
                     Some(AccessFlags::Contextual),
                     Option::<&Node>::None,
-                    Option::<&Symbol>::None,
+                    Option::<Id<Symbol>>::None,
                     None,
                 )?
             } else {

@@ -162,7 +162,7 @@ impl TypeChecker {
         &self,
         type_: Id<Type>, /*MappedType*/
         mapper: Id<TypeMapper>,
-        alias_symbol: Option<impl Borrow<Symbol>>,
+        alias_symbol: Option<Id<Symbol>>,
         alias_type_arguments: Option<&[Id<Type>]>,
     ) -> io::Result<Id<Type>> {
         let type_variable = self.get_homomorphic_type_variable(type_)?;
@@ -202,7 +202,7 @@ impl TypeChecker {
                                     return self.instantiate_mapped_tuple_type(t, type_, self.prepend_type_mapping(type_variable, t, Some(mapper.clone())));
                                 }
                             }
-                            return self.instantiate_anonymous_type(type_, self.prepend_type_mapping(type_variable, t, Some(mapper.clone())), Option::<&Symbol>::None, None);
+                            return self.instantiate_anonymous_type(type_, self.prepend_type_mapping(type_variable, t, Some(mapper.clone())), Option::<Id<Symbol>>::None, None);
                         }
                         Ok(t)
                     },
@@ -258,7 +258,7 @@ impl TypeChecker {
             self.instantiate_mapped_type(
                 mapped_type,
                 self.prepend_type_mapping(type_variable, singleton, Some(mapper.clone())),
-                Option::<&Symbol>::None,
+                Option::<Id<Symbol>>::None,
                 None,
             )
         })?;
@@ -399,7 +399,7 @@ impl TypeChecker {
         &self,
         type_: Id<Type>, /*AnonymousType*/
         mut mapper: Id<TypeMapper>,
-        alias_symbol: Option<impl Borrow<Symbol>>,
+        alias_symbol: Option<Id<Symbol>>,
         alias_type_arguments: Option<&[Id<Type>]>,
     ) -> io::Result<Id<Type /*AnonymousType*/>> {
         let mut result = self.create_object_type(
@@ -455,7 +455,7 @@ impl TypeChecker {
         &self,
         type_: Id<Type>, /*ConditionalType*/
         mapper: Id<TypeMapper>,
-        alias_symbol: Option<impl Borrow<Symbol>>,
+        alias_symbol: Option<Id<Symbol>>,
         alias_type_arguments: Option<&[Id<Type>]>,
     ) -> io::Result<Id<Type>> {
         let root = self.type_(type_).as_conditional_type().root.clone();
@@ -510,7 +510,7 @@ impl TypeChecker {
                                         t,
                                         Some(new_mapper.clone()),
                                     )),
-                                    Option::<&Symbol>::None,
+                                    Option::<Id<Symbol>>::None,
                                     None,
                                 )
                             },
@@ -555,7 +555,7 @@ impl TypeChecker {
             (Some(type_), Some(mapper)) => Some(self.instantiate_type_with_alias(
                 type_,
                 mapper,
-                Option::<&Symbol>::None,
+                Option::<Id<Symbol>>::None,
                 None,
             )?),
             _ => type_,
@@ -566,7 +566,7 @@ impl TypeChecker {
         &self,
         type_: Id<Type>,
         mapper: Id<TypeMapper>,
-        alias_symbol: Option<impl Borrow<Symbol>>,
+        alias_symbol: Option<Id<Symbol>>,
         alias_type_arguments: Option<&[Id<Type>]>,
     ) -> io::Result<Id<Type>> {
         if !self.could_contain_type_variables(type_)? {
@@ -594,7 +594,7 @@ impl TypeChecker {
         &self,
         type_: Id<Type>,
         mapper: Id<TypeMapper>,
-        alias_symbol: Option<impl Borrow<Symbol>>,
+        alias_symbol: Option<Id<Symbol>>,
         alias_type_arguments: Option<&[Id<Type>]>,
     ) -> io::Result<Id<Type>> {
         let flags = self.type_(type_).flags();
@@ -1091,7 +1091,7 @@ impl TypeChecker {
                     self.type_(type_).as_intersection_type().types(),
                     |&type_: &Id<Type>, _| self.get_type_without_signatures(type_),
                 )?,
-                Option::<&Symbol>::None,
+                Option::<Id<Symbol>>::None,
                 None,
             );
         }

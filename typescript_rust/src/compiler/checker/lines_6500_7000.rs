@@ -682,7 +682,7 @@ impl SymbolTableToDeclarationStatements {
 
     pub(super) fn serialize_symbol(
         &self,
-        symbol: &Symbol,
+        symbol: Id<Symbol>,
         is_private: bool,
         property_as_alias: bool,
     ) -> io::Result<()> {
@@ -724,7 +724,7 @@ impl SymbolTableToDeclarationStatements {
 
     pub(super) fn serialize_symbol_worker(
         &self,
-        symbol: &Symbol,
+        symbol: Id<Symbol>,
         mut is_private: bool,
         property_as_alias: bool,
     ) -> io::Result<()> {
@@ -919,7 +919,7 @@ impl SymbolTableToDeclarationStatements {
                                                     type_,
                                                     symbol,
                                                     Some(&*self.enclosing_declaration),
-                                                    Some(&|symbol: &Symbol| self.include_private_symbol(symbol)),
+                                                    Some(&|symbol: Id<Symbol>| self.include_private_symbol(symbol)),
                                                     self.bundled,
                                                 )?),
                                                 None,
@@ -1118,7 +1118,7 @@ impl SymbolTracker for SymbolTableToDeclarationStatementsSymbolTracker {
 
     fn track_symbol(
         &self,
-        sym: &Symbol,
+        sym: Id<Symbol>,
         decl: Option<Gc<Node>>,
         meaning: SymbolFlags,
     ) -> Option<io::Result<bool>> {
@@ -1242,13 +1242,13 @@ impl SymbolTracker for SymbolTableToDeclarationStatementsSymbolTracker {
     fn track_referenced_ambient_module(
         &self,
         decl: &Node, /*ModuleDeclaration*/
-        symbol: &Symbol,
+        symbol: Id<Symbol>,
     ) -> io::Result<()> {
         self.oldcontext_tracker
             .track_referenced_ambient_module(decl, symbol)
     }
 
-    fn track_external_module_symbol_of_import_type_node(&self, symbol: &Symbol) {
+    fn track_external_module_symbol_of_import_type_node(&self, symbol: Id<Symbol>) {
         self.oldcontext_tracker
             .track_external_module_symbol_of_import_type_node(symbol)
     }
@@ -1256,8 +1256,8 @@ impl SymbolTracker for SymbolTableToDeclarationStatementsSymbolTracker {
     fn report_nonlocal_augmentation(
         &self,
         containing_file: &Node, /*SourceFile*/
-        parent_symbol: &Symbol,
-        augmenting_symbol: &Symbol,
+        parent_symbol: Id<Symbol>,
+        augmenting_symbol: Id<Symbol>,
     ) {
         self.oldcontext_tracker.report_nonlocal_augmentation(
             containing_file,

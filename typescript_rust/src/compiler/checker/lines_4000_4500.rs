@@ -20,8 +20,8 @@ use crate::{
 impl TypeChecker {
     pub(super) fn get_alias_for_symbol_in_container(
         &self,
-        container: &Symbol,
-        symbol: &Symbol,
+        container: Id<Symbol>,
+        symbol: Id<Symbol>,
     ) -> io::Result<Option<Id<Symbol>>> {
         if matches!(
             self.get_parent_of_symbol(symbol)?,
@@ -60,8 +60,8 @@ impl TypeChecker {
 
     pub(super) fn get_symbol_if_same_reference(
         &self,
-        s1: &Symbol,
-        s2: &Symbol,
+        s1: Id<Symbol>,
+        s2: Id<Symbol>,
     ) -> io::Result<Option<Id<Symbol>>> {
         if Gc::ptr_eq(
             &self
@@ -78,7 +78,7 @@ impl TypeChecker {
 
     pub(super) fn get_export_symbol_of_value_symbol_if_exported(
         &self,
-        symbol: Option<impl Borrow<Symbol>>,
+        symbol: Option<Id<Symbol>>,
     ) -> Option<Id<Symbol>> {
         self.get_merged_symbol(symbol.and_then(|symbol| {
             let symbol = symbol.borrow();
@@ -90,7 +90,7 @@ impl TypeChecker {
         }))
     }
 
-    pub(super) fn symbol_is_value(&self, symbol: &Symbol) -> io::Result<bool> {
+    pub(super) fn symbol_is_value(&self, symbol: Id<Symbol>) -> io::Result<bool> {
         Ok(symbol.flags().intersects(SymbolFlags::Value)
             || symbol.flags().intersects(SymbolFlags::Alias)
                 && self
@@ -141,10 +141,10 @@ impl TypeChecker {
         type_
     }
 
-    pub(super) fn create_object_type<TSymbol: Borrow<Symbol>>(
+    pub(super) fn create_object_type(
         &self,
         object_flags: ObjectFlags,
-        symbol: Option<TSymbol>,
+        symbol: Option<Id<Symbol>>,
     ) -> BaseObjectType {
         let type_ = self.create_type(TypeFlags::Object);
         type_.set_symbol(symbol.map(|symbol| symbol.borrow().symbol_wrapper()));
@@ -159,16 +159,13 @@ impl TypeChecker {
                 .map(|key| -> Id<Type> { self.get_string_literal_type(key).into() })
                 .collect::<Vec<_>>(),
             None,
-            Option::<&Symbol>::None,
+            Option::<Id<Symbol>>::None,
             None,
             None,
         )
     }
 
-    pub(super) fn create_type_parameter(
-        &self,
-        symbol: Option<impl Borrow<Symbol>>,
-    ) -> TypeParameter {
+    pub(super) fn create_type_parameter(&self, symbol: Option<Id<Symbol>>) -> TypeParameter {
         let type_ = self.create_type(TypeFlags::TypeParameter);
         if let Some(symbol) = symbol {
             let symbol = symbol.borrow();
@@ -222,7 +219,7 @@ impl TypeChecker {
 
     pub(super) fn is_named_member(
         &self,
-        member: &Symbol,
+        member: Id<Symbol>,
         escaped_name: &str, /*__String*/
     ) -> io::Result<bool> {
         Ok(!self.is_reserved_member_name(escaped_name) && self.symbol_is_value(member)?)
@@ -270,7 +267,7 @@ impl TypeChecker {
     // wrapping for you)
     pub(super) fn create_anonymous_type_returning_base_object_type(
         &self,
-        symbol: Option<impl Borrow<Symbol>>,
+        symbol: Option<Id<Symbol>>,
         members: Gc<GcCell<SymbolTable>>,
         call_signatures: Vec<Gc<Signature>>,
         construct_signatures: Vec<Gc<Signature>>,
@@ -289,7 +286,7 @@ impl TypeChecker {
 
     pub(super) fn create_anonymous_type(
         &self,
-        symbol: Option<impl Borrow<Symbol>>,
+        symbol: Option<Id<Symbol>>,
         members: Gc<GcCell<SymbolTable>>,
         call_signatures: Vec<Gc<Signature>>,
         construct_signatures: Vec<Gc<Signature>>,
@@ -475,7 +472,7 @@ impl TypeChecker {
 
     pub(super) fn get_accessible_symbol_chain(
         &self,
-        symbol: Option<impl Borrow<Symbol>>,
+        symbol: Option<Id<Symbol>>,
         enclosing_declaration: Option<impl Borrow<Node>>,
         meaning: SymbolFlags,
         use_only_external_aliasing: bool,
@@ -556,7 +553,7 @@ impl TypeChecker {
         &self,
         visited_symbol_tables: Gc<GcCell<Vec<Gc<GcCell<SymbolTable>>>>>,
         meaning: SymbolFlags,
-        symbol: &Symbol,
+        symbol: Id<Symbol>,
         enclosing_declaration: Option<&Node>,
         use_only_external_aliasing: bool,
         visited_symbol_tables_map: &mut HashMap<SymbolId, Gc<GcCell<Vec<Gc<GcCell<SymbolTable>>>>>>,
@@ -588,7 +585,7 @@ impl TypeChecker {
         enclosing_declaration: Option<&Node>,
         use_only_external_aliasing: bool,
         visited_symbol_tables_map: &mut HashMap<SymbolId, Gc<GcCell<Vec<Gc<GcCell<SymbolTable>>>>>>,
-        symbol_from_symbol_table: &Symbol,
+        symbol_from_symbol_table: Id<Symbol>,
         meaning: SymbolFlags,
     ) -> io::Result<bool> {
         Ok(
@@ -607,13 +604,13 @@ impl TypeChecker {
 
     pub(super) fn is_accessible(
         &self,
-        symbol: &Symbol,
+        symbol: Id<Symbol>,
         meaning: SymbolFlags,
         enclosing_declaration: Option<&Node>,
         use_only_external_aliasing: bool,
         visited_symbol_tables_map: &mut HashMap<SymbolId, Gc<GcCell<Vec<Gc<GcCell<SymbolTable>>>>>>,
-        symbol_from_symbol_table: Option<impl Borrow<Symbol>>,
-        resolved_alias_symbol: Option<impl Borrow<Symbol>>,
+        symbol_from_symbol_table: Option<Id<Symbol>>,
+        resolved_alias_symbol: Option<Id<Symbol>>,
         ignore_qualification: Option<bool>,
     ) -> io::Result<bool> {
         let symbol_from_symbol_table = symbol_from_symbol_table
@@ -660,7 +657,7 @@ impl TypeChecker {
 
     pub(super) fn try_symbol_table(
         &self,
-        symbol: &Symbol,
+        symbol: Id<Symbol>,
         meaning: SymbolFlags,
         enclosing_declaration: Option<&Node>,
         use_only_external_aliasing: bool,
@@ -677,7 +674,7 @@ impl TypeChecker {
             use_only_external_aliasing,
             visited_symbol_tables_map,
             (*symbols).borrow().get(symbol.escaped_name()).cloned(),
-            Option::<&Symbol>::None,
+            Option::<Id<Symbol>>::None,
             ignore_qualification,
         )? {
             return Ok(Some(vec![symbol.symbol_wrapper()]));
@@ -744,7 +741,7 @@ impl TypeChecker {
                             use_only_external_aliasing,
                             visited_symbol_tables_map,
                             self.get_merged_symbol(Some(&*symbol_from_symbol_table_export_symbol)),
-                            Option::<&Symbol>::None,
+                            Option::<Id<Symbol>>::None,
                             ignore_qualification,
                         )? {
                             return Ok(Some(vec![symbol.symbol_wrapper()]));
@@ -776,14 +773,14 @@ impl TypeChecker {
 
     pub(super) fn get_candidate_list_for_symbol(
         &self,
-        symbol: &Symbol,
+        symbol: Id<Symbol>,
         meaning: SymbolFlags,
         enclosing_declaration: Option<&Node>,
         use_only_external_aliasing: bool,
         visited_symbol_tables_map: &mut HashMap<SymbolId, Gc<GcCell<Vec<Gc<GcCell<SymbolTable>>>>>>,
         visited_symbol_tables: Gc<GcCell<Vec<Gc<GcCell<SymbolTable>>>>>,
-        symbol_from_symbol_table: &Symbol,
-        resolved_import_symbol: &Symbol,
+        symbol_from_symbol_table: Id<Symbol>,
+        resolved_import_symbol: Id<Symbol>,
         ignore_qualification: Option<bool>,
     ) -> io::Result<Option<Vec<Id<Symbol>>>> {
         if self.is_accessible(
@@ -830,7 +827,7 @@ impl TypeChecker {
 
     pub(super) fn needs_qualification(
         &self,
-        symbol: &Symbol,
+        symbol: Id<Symbol>,
         enclosing_declaration: Option<impl Borrow<Node>>,
         meaning: SymbolFlags,
     ) -> io::Result<bool> {
@@ -874,7 +871,7 @@ impl TypeChecker {
         Ok(qualify)
     }
 
-    pub(super) fn is_property_or_method_declaration_symbol(&self, symbol: &Symbol) -> bool {
+    pub(super) fn is_property_or_method_declaration_symbol(&self, symbol: Id<Symbol>) -> bool {
         if let Some(symbol_declarations) = symbol.maybe_declarations().as_deref() {
             if !symbol_declarations.is_empty() {
                 for declaration in symbol_declarations {
@@ -898,7 +895,7 @@ impl TypeChecker {
 
     pub(super) fn is_type_symbol_accessible(
         &self,
-        type_symbol: &Symbol,
+        type_symbol: Id<Symbol>,
         enclosing_declaration: Option<impl Borrow<Node>>,
     ) -> io::Result<bool> {
         let enclosing_declaration = enclosing_declaration
@@ -915,7 +912,7 @@ impl TypeChecker {
 
     pub(super) fn is_value_symbol_accessible(
         &self,
-        type_symbol: &Symbol,
+        type_symbol: Id<Symbol>,
         enclosing_declaration: Option<impl Borrow<Node>>,
     ) -> io::Result<bool> {
         let access = self.is_symbol_accessible_worker(
@@ -930,7 +927,7 @@ impl TypeChecker {
 
     pub(super) fn is_symbol_accessible_by_flags(
         &self,
-        type_symbol: &Symbol,
+        type_symbol: Id<Symbol>,
         enclosing_declaration: Option<impl Borrow<Node>>,
         flags: SymbolFlags,
     ) -> io::Result<bool> {
@@ -948,7 +945,7 @@ impl TypeChecker {
         &self,
         symbols: Option<&[Id<Symbol>]>,
         enclosing_declaration: Option<impl Borrow<Node>>,
-        initial_symbol: &Symbol,
+        initial_symbol: Id<Symbol>,
         meaning: SymbolFlags,
         should_compute_aliases_to_make_visible: bool,
         allow_modules: bool,
@@ -1063,7 +1060,7 @@ impl TypeChecker {
 
     pub(super) fn is_symbol_accessible(
         &self,
-        symbol: Option<impl Borrow<Symbol>>,
+        symbol: Option<Id<Symbol>>,
         enclosing_declaration: Option<impl Borrow<Node>>,
         meaning: SymbolFlags,
         should_compute_aliases_to_make_visible: bool,
@@ -1079,7 +1076,7 @@ impl TypeChecker {
 
     pub(super) fn is_symbol_accessible_worker(
         &self,
-        symbol: Option<impl Borrow<Symbol>>,
+        symbol: Option<Id<Symbol>>,
         enclosing_declaration: Option<impl Borrow<Node>>,
         meaning: SymbolFlags,
         should_compute_aliases_to_make_visible: bool,

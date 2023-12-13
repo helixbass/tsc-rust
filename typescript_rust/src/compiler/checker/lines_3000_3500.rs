@@ -113,7 +113,7 @@ impl TypeChecker {
 
     pub(super) fn is_non_local_alias(
         &self,
-        symbol: Option<impl Borrow<Symbol>>,
+        symbol: Option<Id<Symbol>>,
         excludes: Option<SymbolFlags>,
     ) -> bool {
         let excludes =
@@ -130,7 +130,7 @@ impl TypeChecker {
 
     pub(super) fn resolve_symbol(
         &self,
-        symbol: Option<impl Borrow<Symbol> + Clone>,
+        symbol: Option<Id<Symbol>>,
         dont_resolve_alias: Option<bool>,
     ) -> io::Result<Option<Id<Symbol>>> {
         Ok(
@@ -144,7 +144,7 @@ impl TypeChecker {
         )
     }
 
-    pub(super) fn resolve_alias(&self, symbol: &Symbol) -> io::Result<Id<Symbol>> {
+    pub(super) fn resolve_alias(&self, symbol: Id<Symbol>) -> io::Result<Id<Symbol>> {
         Debug_.assert(
             symbol.flags().intersects(SymbolFlags::Alias),
             Some("Should only get Alias here."),
@@ -186,7 +186,7 @@ impl TypeChecker {
         Ok(ret)
     }
 
-    pub(super) fn try_resolve_alias(&self, symbol: &Symbol) -> io::Result<Option<Id<Symbol>>> {
+    pub(super) fn try_resolve_alias(&self, symbol: Id<Symbol>) -> io::Result<Option<Id<Symbol>>> {
         let links = self.get_symbol_links(symbol);
         if !matches!(
             (*links).borrow().target.as_ref(),
@@ -201,8 +201,8 @@ impl TypeChecker {
     pub(super) fn mark_symbol_of_alias_declaration_if_type_only(
         &self,
         alias_declaration: Option<impl Borrow<Node> /*Declaration*/>,
-        immediate_target: Option<impl Borrow<Symbol>>,
-        final_target: Option<impl Borrow<Symbol>>,
+        immediate_target: Option<Id<Symbol>>,
+        final_target: Option<Id<Symbol>>,
         overwrite_empty: bool,
     ) -> io::Result<bool> {
         if alias_declaration.is_none() {
@@ -233,10 +233,10 @@ impl TypeChecker {
         ))
     }
 
-    pub(super) fn mark_symbol_of_alias_declaration_if_type_only_worker<TTarget: Borrow<Symbol>>(
+    pub(super) fn mark_symbol_of_alias_declaration_if_type_only_worker(
         &self,
         alias_declaration_links: &GcCell<SymbolLinks>,
-        target: Option<TTarget>,
+        target: Option<Id<Symbol>>,
         overwrite_empty: bool,
     ) -> bool {
         if let Some(target) = target {
@@ -295,7 +295,7 @@ impl TypeChecker {
 
     pub(super) fn get_type_only_alias_declaration(
         &self,
-        symbol: &Symbol,
+        symbol: Id<Symbol>,
     ) -> Option<Gc<Node /*TypeOnlyAliasDeclaration*/>> {
         if !symbol.flags().intersects(SymbolFlags::Alias) {
             return None;
@@ -328,7 +328,7 @@ impl TypeChecker {
         Ok(())
     }
 
-    pub(super) fn mark_alias_symbol_as_referenced(&self, symbol: &Symbol) -> io::Result<()> {
+    pub(super) fn mark_alias_symbol_as_referenced(&self, symbol: Id<Symbol>) -> io::Result<()> {
         let links = self.get_symbol_links(symbol);
         if !matches!((*links).borrow().referenced, Some(true)) {
             links.borrow_mut().referenced = Some(true);
@@ -353,7 +353,7 @@ impl TypeChecker {
         Ok(())
     }
 
-    pub(super) fn mark_const_enum_alias_as_referenced(&self, symbol: &Symbol) {
+    pub(super) fn mark_const_enum_alias_as_referenced(&self, symbol: Id<Symbol>) {
         let links = self.get_symbol_links(symbol);
         if !matches!((*links).borrow().const_enum_referenced, Some(true)) {
             links.borrow_mut().const_enum_referenced = Some(true);
@@ -400,7 +400,7 @@ impl TypeChecker {
 
     pub(super) fn get_fully_qualified_name(
         &self,
-        symbol: &Symbol,
+        symbol: Id<Symbol>,
         containing_location: Option<impl Borrow<Node>>,
     ) -> io::Result<String> {
         Ok(if let Some(symbol_parent) = symbol.maybe_parent() {
@@ -673,7 +673,7 @@ impl TypeChecker {
             self.mark_symbol_of_alias_declaration_if_type_only(
                 get_alias_declaration_from_name(name),
                 Some(&*symbol),
-                Option::<&Symbol>::None,
+                Option::<Id<Symbol>>::None,
                 true,
             )?;
         }
@@ -767,7 +767,7 @@ impl TypeChecker {
 
     pub(super) fn get_declaration_of_js_prototype_container(
         &self,
-        symbol: &Symbol,
+        symbol: Id<Symbol>,
     ) -> Option<Gc<Node>> {
         let decl = symbol.maybe_parent().unwrap().maybe_value_declaration()?;
         let initializer = if is_assignment_declaration(&decl) {
@@ -780,7 +780,7 @@ impl TypeChecker {
         Some(initializer.unwrap_or(decl))
     }
 
-    pub(super) fn get_expando_symbol(&self, symbol: &Symbol) -> io::Result<Option<Id<Symbol>>> {
+    pub(super) fn get_expando_symbol(&self, symbol: Id<Symbol>) -> io::Result<Option<Id<Symbol>>> {
         let decl = return_ok_default_if_none!(symbol.maybe_value_declaration());
         if !is_in_js_file(Some(&*decl))
             || symbol.flags().intersects(SymbolFlags::TypeAlias)

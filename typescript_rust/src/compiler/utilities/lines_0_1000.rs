@@ -58,7 +58,7 @@ pub const default_maximum_truncation_length: usize = 160;
 pub const no_truncation_maximum_truncation_length: usize = 1_000_000;
 
 pub fn get_declaration_of_kind(
-    symbol: &Symbol,
+    symbol: Id<Symbol>,
     kind: SyntaxKind,
 ) -> Option<Gc<Node /*T extends Declaration*/>> {
     let maybe_declarations = symbol.maybe_declarations();
@@ -93,7 +93,7 @@ pub fn create_symbol_table(
     result
 }
 
-pub fn is_transient_symbol(symbol: &Symbol) -> bool {
+pub fn is_transient_symbol(symbol: Id<Symbol>) -> bool {
     symbol.flags().intersects(SymbolFlags::Transient)
 }
 
@@ -242,7 +242,7 @@ impl SymbolWriter for SingleLineStringWriter {
         self.write_text(s);
     }
 
-    fn write_symbol(&self, s: &str, _: &Symbol) {
+    fn write_symbol(&self, s: &str, _: Id<Symbol>) {
         self.write_text(s);
     }
 
@@ -266,7 +266,7 @@ impl SymbolWriter for SingleLineStringWriter {
 impl SymbolTracker for SingleLineStringWriter {
     fn track_symbol(
         &self,
-        symbol: &Symbol,
+        symbol: Id<Symbol>,
         enclosing_declaration: Option<Gc<Node>>,
         meaning: SymbolFlags,
     ) -> Option<io::Result<bool>> {
@@ -353,7 +353,7 @@ struct SingleLineStringWriterSymbolTracker;
 impl SymbolTracker for SingleLineStringWriterSymbolTracker {
     fn track_symbol(
         &self,
-        _symbol: &Symbol,
+        _symbol: Id<Symbol>,
         _enclosing_declaration: Option<Gc<Node>>,
         _meaning: SymbolFlags,
     ) -> Option<io::Result<bool>> {
@@ -802,7 +802,7 @@ pub fn maybe_get_source_file_of_node(
     node
 }
 
-pub fn get_source_file_of_module(module: &Symbol) -> Option<Gc<Node /*SourceFile*/>> {
+pub fn get_source_file_of_module(module: Id<Symbol>) -> Option<Gc<Node /*SourceFile*/>> {
     maybe_get_source_file_of_node(
         module
             .maybe_value_declaration()
@@ -1572,7 +1572,7 @@ pub fn is_effective_module_declaration(node: &Node) -> bool {
     is_module_declaration(node) || is_identifier(node)
 }
 
-pub fn is_shorthand_ambient_module_symbol(module_symbol: &Symbol) -> bool {
+pub fn is_shorthand_ambient_module_symbol(module_symbol: Id<Symbol>) -> bool {
     is_shorthand_ambient_module(module_symbol.maybe_value_declaration())
 }
 
@@ -1614,7 +1614,7 @@ pub fn is_module_augmentation_external(node: &Node /*AmbientModuleDeclaration*/)
     }
 }
 
-pub fn get_non_augmentation_declaration(symbol: &Symbol) -> Option<Gc<Node /*Declaration*/>> {
+pub fn get_non_augmentation_declaration(symbol: Id<Symbol>) -> Option<Gc<Node /*Declaration*/>> {
     symbol
         .maybe_declarations()
         .as_ref()

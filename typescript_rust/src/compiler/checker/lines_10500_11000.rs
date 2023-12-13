@@ -83,7 +83,7 @@ impl TypeChecker {
 
     pub(super) fn add_declaration_to_late_bound_symbol(
         &self,
-        symbol: &Symbol,
+        symbol: Id<Symbol>,
         member: &Node, /*LateBoundDeclaration | BinaryExpression*/
         symbol_flags: SymbolFlags,
     ) {
@@ -116,7 +116,7 @@ impl TypeChecker {
 
     pub(super) fn late_bind_member(
         &self,
-        parent: &Symbol,
+        parent: Id<Symbol>,
         early_symbols: Option<&SymbolTable>,
         late_symbols: &mut SymbolTable,
         decl: &Node, /*LateBoundDeclaration | LateBoundBinaryExpressionDeclaration*/
@@ -228,7 +228,7 @@ impl TypeChecker {
 
     pub(super) fn get_resolved_members_or_exports_of_symbol(
         &self,
-        symbol: &Symbol,
+        symbol: Id<Symbol>,
         resolution_kind: MembersOrExportsResolutionKind,
     ) -> io::Result<Gc<GcCell<SymbolTable>>> {
         let links = self.get_symbol_links(symbol);
@@ -356,7 +356,7 @@ impl TypeChecker {
 
     pub(super) fn get_members_of_symbol(
         &self,
-        symbol: &Symbol,
+        symbol: Id<Symbol>,
     ) -> io::Result<Gc<GcCell<SymbolTable>>> {
         Ok(
             if symbol.flags().intersects(SymbolFlags::LateBindingContainer) {
@@ -373,7 +373,7 @@ impl TypeChecker {
         )
     }
 
-    pub(super) fn get_late_bound_symbol(&self, symbol: &Symbol) -> io::Result<Id<Symbol>> {
+    pub(super) fn get_late_bound_symbol(&self, symbol: Id<Symbol>) -> io::Result<Id<Symbol>> {
         if symbol.flags().intersects(SymbolFlags::ClassMember)
             && symbol.escaped_name() == InternalSymbolName::Computed
         {
@@ -462,7 +462,7 @@ impl TypeChecker {
                         .as_union_or_intersection_type_interface()
                         .types()
                 {
-                    self.get_intersection_type(&types, Option::<&Symbol>::None, None)?
+                    self.get_intersection_type(&types, Option::<Id<Symbol>>::None, None)?
                 } else {
                     type_
                 },
@@ -1055,7 +1055,7 @@ impl TypeChecker {
                                             )
                                         },
                                     )?,
-                                    Option::<&Symbol>::None,
+                                    Option::<Id<Symbol>>::None,
                                     None,
                                 )?;
                                 this_parameter = Some(self.create_symbol_with_type(

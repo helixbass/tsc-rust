@@ -310,7 +310,7 @@ impl TypeChecker {
                 self.get_return_type_of_signature(signature.clone())
             })?,
             None,
-            Option::<&Symbol>::None,
+            Option::<Id<Symbol>>::None,
             None,
             None,
         )?;
@@ -403,7 +403,7 @@ impl TypeChecker {
             name_type,
             None,
             Option::<&Node>::None,
-            Option::<&Symbol>::None,
+            Option::<Id<Symbol>>::None,
             None,
         )?;
         if idx.is_some() {
@@ -421,7 +421,7 @@ impl TypeChecker {
                     name_type,
                     None,
                     Option::<&Node>::None,
-                    Option::<&Symbol>::None,
+                    Option::<Id<Symbol>>::None,
                     None,
                 );
             }
@@ -478,7 +478,7 @@ impl TypeChecker {
                     name_type,
                     None,
                     Option::<&Node>::None,
-                    Option::<&Symbol>::None,
+                    Option::<Id<Symbol>>::None,
                     None,
                 )?);
             let prop_name = self.get_property_name_from_index(name_type, Option::<&Node>::None);
@@ -804,7 +804,7 @@ impl TypeChecker {
                 children_name_type,
                 None,
                 Option::<&Node>::None,
-                Option::<&Symbol>::None,
+                Option::<Id<Symbol>>::None,
                 None,
             )?;
             let valid_children =
@@ -841,7 +841,7 @@ impl TypeChecker {
                             self.get_string_literal_type(&children_prop_name),
                             None,
                             Option::<&Node>::None,
-                            Option::<&Symbol>::None,
+                            Option::<Id<Symbol>>::None,
                             None,
                         )?;
                         let diagnostic = &Diagnostics::_0_components_don_t_accept_text_as_child_elements_Text_in_JSX_has_the_type_string_but_the_expected_type_of_1_is_2;
@@ -897,7 +897,7 @@ impl TypeChecker {
                         children_name_type,
                         None,
                         Option::<&Node>::None,
-                        Option::<&Symbol>::None,
+                        Option::<Id<Symbol>>::None,
                         None,
                     )?,
                     children_target_type,
@@ -946,7 +946,7 @@ impl TypeChecker {
                         children_name_type,
                         None,
                         Option::<&Node>::None,
-                        Option::<&Symbol>::None,
+                        Option::<Id<Symbol>>::None,
                         None,
                     )?,
                     children_target_type,

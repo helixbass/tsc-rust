@@ -178,15 +178,15 @@ fn get_ast_struct_interface_impl(
                         self.#first_field_name.set_original(original)
                     }
 
-                    fn maybe_symbol(&self) -> ::std::option::Option<::gc::Gc<crate::Symbol>> {
+                    fn maybe_symbol(&self) -> ::std::option::Option<::id_arena::Id<crate::Symbol>> {
                         self.#first_field_name.maybe_symbol()
                     }
 
-                    fn symbol(&self) -> ::gc::Gc<crate::Symbol> {
+                    fn symbol(&self) -> ::id_arena::Id<crate::Symbol> {
                         self.#first_field_name.symbol()
                     }
 
-                    fn set_symbol(&self, symbol: ::gc::Gc<crate::Symbol>) {
+                    fn set_symbol(&self, symbol: ::id_arena::Id<crate::Symbol>) {
                         self.#first_field_name.set_symbol(symbol);
                     }
 
@@ -222,11 +222,11 @@ fn get_ast_struct_interface_impl(
                         self.#first_field_name.set_next_container(next_container)
                     }
 
-                    fn maybe_local_symbol(&self) -> ::std::option::Option<::gc::Gc<crate::Symbol>> {
+                    fn maybe_local_symbol(&self) -> ::std::option::Option<::id_arena::Id<crate::Symbol>> {
                         self.#first_field_name.maybe_local_symbol()
                     }
 
-                    fn set_local_symbol(&self, local_symbol: ::std::option::Option<::gc::Gc<crate::Symbol>>) {
+                    fn set_local_symbol(&self, local_symbol: ::std::option::Option<::id_arena::Id<crate::Symbol>>) {
                         self.#first_field_name.set_local_symbol(local_symbol)
                     }
 
@@ -682,19 +682,19 @@ fn get_ast_enum_interface_impl(
                         }
                     }
 
-                    fn maybe_symbol(&self) -> ::std::option::Option<::gc::Gc<crate::Symbol>> {
+                    fn maybe_symbol(&self) -> ::std::option::Option<::id_arena::Id<crate::Symbol>> {
                         match self {
                             #(#ast_type_name::#variant_names(nested) => nested.maybe_symbol()),*
                         }
                     }
 
-                    fn symbol(&self) -> ::gc::Gc<crate::Symbol> {
+                    fn symbol(&self) -> ::id_arena::Id<crate::Symbol> {
                         match self {
                             #(#ast_type_name::#variant_names(nested) => nested.symbol()),*
                         }
                     }
 
-                    fn set_symbol(&self, symbol: ::gc::Gc<crate::Symbol>) {
+                    fn set_symbol(&self, symbol: ::id_arena::Id<crate::Symbol>) {
                         match self {
                             #(#ast_type_name::#variant_names(nested) => nested.set_symbol(symbol)),*
                         }
@@ -748,13 +748,13 @@ fn get_ast_enum_interface_impl(
                         }
                     }
 
-                    fn maybe_local_symbol(&self) -> ::std::option::Option<::gc::Gc<crate::Symbol>> {
+                    fn maybe_local_symbol(&self) -> ::std::option::Option<::id_arena::Id<crate::Symbol>> {
                         match self {
                             #(#ast_type_name::#variant_names(nested) => nested.maybe_local_symbol()),*
                         }
                     }
 
-                    fn set_local_symbol(&self, local_symbol: ::std::option::Option<::gc::Gc<crate::Symbol>>) {
+                    fn set_local_symbol(&self, local_symbol: ::std::option::Option<::id_arena::Id<crate::Symbol>>) {
                         match self {
                             #(#ast_type_name::#variant_names(nested) => nested.set_local_symbol(local_symbol)),*
                         }
@@ -1306,15 +1306,15 @@ fn get_type_struct_interface_impl(
                         self.#first_field_name.id()
                     }
 
-                    fn maybe_symbol(&self) -> ::std::option::Option<::gc::Gc<crate::Symbol>> {
+                    fn maybe_symbol(&self) -> ::std::option::Option<::id_arena::Id<crate::Symbol>> {
                         self.#first_field_name.maybe_symbol()
                     }
 
-                    fn symbol(&self) -> ::gc::Gc<crate::Symbol> {
+                    fn symbol(&self) -> ::id_arena::Id<crate::Symbol> {
                         self.#first_field_name.symbol()
                     }
 
-                    fn set_symbol(&self, symbol: ::std::option::Option<::gc::Gc<crate::Symbol>>) {
+                    fn set_symbol(&self, symbol: ::std::option::Option<::id_arena::Id<crate::Symbol>>) {
                         self.#first_field_name.set_symbol(symbol)
                     }
 
@@ -1322,11 +1322,11 @@ fn get_type_struct_interface_impl(
                         self.#first_field_name.maybe_pattern()
                     }
 
-                    fn maybe_alias_symbol(&self) -> ::std::option::Option<::gc::Gc<crate::Symbol>> {
+                    fn maybe_alias_symbol(&self) -> ::std::option::Option<::id_arena::Id<crate::Symbol>> {
                         self.#first_field_name.maybe_alias_symbol()
                     }
 
-                    fn maybe_alias_symbol_mut(&self) -> ::gc::GcCellRefMut<::std::option::Option<::gc::Gc<crate::Symbol>>> {
+                    fn maybe_alias_symbol_mut(&self) -> ::gc::GcCellRefMut<::std::option::Option<::id_arena::Id<crate::Symbol>>> {
                         self.#first_field_name.maybe_alias_symbol_mut()
                     }
 
@@ -1498,7 +1498,7 @@ fn get_type_struct_interface_impl(
                         self.#first_field_name.set_members(members)
                     }
 
-                    fn maybe_properties(&self) -> ::std::option::Option<crate::GcVec<::gc::Gc<crate::Symbol>>> {
+                    fn maybe_properties(&self) -> ::std::option::Option<crate::GcVec<::id_arena::Id<crate::Symbol>>> {
                         self.#first_field_name.maybe_properties()
                     }
 
@@ -1523,7 +1523,7 @@ fn get_type_struct_interface_impl(
         "ResolvableTypeInterface" => {
             quote! {
                 impl crate::ResolvableTypeInterface for #type_type_name {
-                    fn resolve(&self, members: ::gc::Gc<::gc::GcCell<crate::SymbolTable>>, properties: crate::GcVec<::gc::Gc<crate::Symbol>>, call_signatures: ::std::vec::Vec<::gc::Gc<crate::Signature>>, construct_signatures: ::std::vec::Vec<::gc::Gc<crate::Signature>>, index_infos: ::std::vec::Vec<::gc::Gc<crate::IndexInfo>>) {
+                    fn resolve(&self, members: ::gc::Gc<::gc::GcCell<crate::SymbolTable>>, properties: crate::GcVec<::id_arena::Id<crate::Symbol>>, call_signatures: ::std::vec::Vec<::gc::Gc<crate::Signature>>, construct_signatures: ::std::vec::Vec<::gc::Gc<crate::Signature>>, index_infos: ::std::vec::Vec<::gc::Gc<crate::IndexInfo>>) {
                         self.#first_field_name.resolve(members, properties, call_signatures, construct_signatures, index_infos)
                     }
 
@@ -1540,15 +1540,15 @@ fn get_type_struct_interface_impl(
                         self.#first_field_name.members()
                     }
 
-                    fn properties(&self) -> crate::GcVec<::gc::Gc<crate::Symbol>> {
+                    fn properties(&self) -> crate::GcVec<::id_arena::Id<crate::Symbol>> {
                         self.#first_field_name.properties()
                     }
 
-                    fn properties_mut(&self) -> ::gc::GcCellRefMut<::std::option::Option<crate::GcVec<::gc::Gc<crate::Symbol>>>, crate::GcVec<::gc::Gc<crate::Symbol>>> {
+                    fn properties_mut(&self) -> ::gc::GcCellRefMut<::std::option::Option<crate::GcVec<::id_arena::Id<crate::Symbol>>>, crate::GcVec<::id_arena::Id<crate::Symbol>>> {
                         self.#first_field_name.properties_mut()
                     }
 
-                    fn set_properties(&self, properties: crate::GcVec<::gc::Gc<crate::Symbol>>) {
+                    fn set_properties(&self, properties: crate::GcVec<::id_arena::Id<crate::Symbol>>) {
                         self.#first_field_name.set_properties(properties)
                     }
 
@@ -1611,11 +1611,11 @@ fn get_type_struct_interface_impl(
                         self.#first_field_name.maybe_property_cache_without_object_function_property_augment()
                     }
 
-                    fn maybe_resolved_properties(&self) -> ::std::option::Option<crate::GcVec<::gc::Gc<crate::Symbol>>> {
+                    fn maybe_resolved_properties(&self) -> ::std::option::Option<crate::GcVec<::id_arena::Id<crate::Symbol>>> {
                         self.#first_field_name.maybe_resolved_properties()
                     }
 
-                    fn maybe_resolved_properties_mut(&self) -> ::gc::GcCellRefMut<::std::option::Option<crate::GcVec<::gc::Gc<crate::Symbol>>>> {
+                    fn maybe_resolved_properties_mut(&self) -> ::gc::GcCellRefMut<::std::option::Option<crate::GcVec<::id_arena::Id<crate::Symbol>>>> {
                         self.#first_field_name.maybe_resolved_properties_mut()
                     }
                 }
@@ -1624,11 +1624,11 @@ fn get_type_struct_interface_impl(
         "InterfaceTypeWithDeclaredMembersInterface" => {
             quote! {
                 impl crate::InterfaceTypeWithDeclaredMembersInterface for #type_type_name {
-                    fn maybe_declared_properties(&self) -> ::gc::GcCellRef<::std::option::Option<::std::vec::Vec<::gc::Gc<crate::Symbol>>>> {
+                    fn maybe_declared_properties(&self) -> ::gc::GcCellRef<::std::option::Option<::std::vec::Vec<::id_arena::Id<crate::Symbol>>>> {
                         self.#first_field_name.maybe_declared_properties()
                     }
 
-                    fn set_declared_properties(&self, declared_properties: ::std::vec::Vec<::gc::Gc<crate::Symbol>>) {
+                    fn set_declared_properties(&self, declared_properties: ::std::vec::Vec<::id_arena::Id<crate::Symbol>>) {
                         self.#first_field_name.set_declared_properties(declared_properties)
                     }
 
@@ -1810,19 +1810,19 @@ fn get_type_enum_interface_impl(
                         }
                     }
 
-                    fn maybe_symbol(&self) -> ::std::option::Option<::gc::Gc<crate::Symbol>> {
+                    fn maybe_symbol(&self) -> ::std::option::Option<::id_arena::Id<crate::Symbol>> {
                         match self {
                             #(#type_type_name::#variant_names(nested) => nested.maybe_symbol()),*
                         }
                     }
 
-                    fn symbol(&self) -> ::gc::Gc<crate::Symbol> {
+                    fn symbol(&self) -> ::id_arena::Id<crate::Symbol> {
                         match self {
                             #(#type_type_name::#variant_names(nested) => nested.symbol()),*
                         }
                     }
 
-                    fn set_symbol(&self, symbol: ::std::option::Option<::gc::Gc<crate::Symbol>>) {
+                    fn set_symbol(&self, symbol: ::std::option::Option<::id_arena::Id<crate::Symbol>>) {
                         match self {
                             #(#type_type_name::#variant_names(nested) => nested.set_symbol(symbol)),*
                         }
@@ -1834,13 +1834,13 @@ fn get_type_enum_interface_impl(
                         }
                     }
 
-                    fn maybe_alias_symbol(&self) -> ::std::option::Option<::gc::Gc<crate::Symbol>> {
+                    fn maybe_alias_symbol(&self) -> ::std::option::Option<::id_arena::Id<crate::Symbol>> {
                         match self {
                             #(#type_type_name::#variant_names(nested) => nested.maybe_alias_symbol()),*
                         }
                     }
 
-                    fn maybe_alias_symbol_mut(&self) -> ::gc::GcCellRefMut<::std::option::Option<::gc::Gc<crate::Symbol>>> {
+                    fn maybe_alias_symbol_mut(&self) -> ::gc::GcCellRefMut<::std::option::Option<::id_arena::Id<crate::Symbol>>> {
                         match self {
                             #(#type_type_name::#variant_names(nested) => nested.maybe_alias_symbol_mut()),*
                         }
@@ -2082,7 +2082,7 @@ fn get_type_enum_interface_impl(
                         }
                     }
 
-                    fn maybe_properties(&self) -> ::std::option::Option<crate::GcVec<::gc::Gc<crate::Symbol>>> {
+                    fn maybe_properties(&self) -> ::std::option::Option<crate::GcVec<::id_arena::Id<crate::Symbol>>> {
                         match self {
                             #(#type_type_name::#variant_names(nested) => nested.maybe_properties()),*
                         }
@@ -2117,7 +2117,7 @@ fn get_type_enum_interface_impl(
         "ResolvableTypeInterface" => {
             quote! {
                 impl crate::ResolvableTypeInterface for #type_type_name {
-                    fn resolve(&self, members: ::gc::Gc<::gc::GcCell<crate::SymbolTable>>, properties: crate::GcVec<::gc::Gc<crate::Symbol>>, call_signatures: ::std::vec::Vec<::gc::Gc<crate::Signature>>, construct_signatures: ::std::vec::Vec<::gc::Gc<crate::Signature>>, index_infos: ::std::vec::Vec<::gc::Gc<crate::IndexInfo>>) {
+                    fn resolve(&self, members: ::gc::Gc<::gc::GcCell<crate::SymbolTable>>, properties: crate::GcVec<::id_arena::Id<crate::Symbol>>, call_signatures: ::std::vec::Vec<::gc::Gc<crate::Signature>>, construct_signatures: ::std::vec::Vec<::gc::Gc<crate::Signature>>, index_infos: ::std::vec::Vec<::gc::Gc<crate::IndexInfo>>) {
                         match self {
                             #(#type_type_name::#variant_names(nested) => nested.resolve(members, properties, call_signatures, construct_signatures, index_infos)),*
                         }
@@ -2140,19 +2140,19 @@ fn get_type_enum_interface_impl(
                         }
                     }
 
-                    fn properties(&self) -> crate::GcVec<::gc::Gc<crate::Symbol>> {
+                    fn properties(&self) -> crate::GcVec<::id_arena::Id<crate::Symbol>> {
                         match self {
                             #(#type_type_name::#variant_names(nested) => nested.properties()),*
                         }
                     }
 
-                    fn properties_mut(&self) -> ::gc::GcCellRefMut<::std::option::Option<crate::GcVec<::gc::Gc<crate::Symbol>>>, crate::GcVec<::gc::Gc<crate::Symbol>>> {
+                    fn properties_mut(&self) -> ::gc::GcCellRefMut<::std::option::Option<crate::GcVec<::id_arena::Id<crate::Symbol>>>, crate::GcVec<::id_arena::Id<crate::Symbol>>> {
                         match self {
                             #(#type_type_name::#variant_names(nested) => nested.properties_mut()),*
                         }
                     }
 
-                    fn set_properties(&self, properties: crate::GcVec<::gc::Gc<crate::Symbol>>) {
+                    fn set_properties(&self, properties: crate::GcVec<::id_arena::Id<crate::Symbol>>) {
                         match self {
                             #(#type_type_name::#variant_names(nested) => nested.set_properties(properties)),*
                         }
@@ -2239,13 +2239,13 @@ fn get_type_enum_interface_impl(
                         }
                     }
 
-                    fn maybe_resolved_properties(&self) -> ::std::option::Option<crate::GcVec<::gc::Gc<crate::Symbol>>> {
+                    fn maybe_resolved_properties(&self) -> ::std::option::Option<crate::GcVec<::id_arena::Id<crate::Symbol>>> {
                         match self {
                             #(#type_type_name::#variant_names(nested) => nested.maybe_resolved_properties()),*
                         }
                     }
 
-                    fn maybe_resolved_properties_mut(&self) -> ::gc::GcCellRefMut<::std::option::Option<crate::GcVec<::gc::Gc<crate::Symbol>>>> {
+                    fn maybe_resolved_properties_mut(&self) -> ::gc::GcCellRefMut<::std::option::Option<crate::GcVec<::id_arena::Id<crate::Symbol>>>> {
                         match self {
                             #(#type_type_name::#variant_names(nested) => nested.maybe_resolved_properties_mut()),*
                         }
@@ -2256,13 +2256,13 @@ fn get_type_enum_interface_impl(
         "InterfaceTypeWithDeclaredMembersInterface" => {
             quote! {
                 impl crate::InterfaceTypeWithDeclaredMembersInterface for #type_type_name {
-                    fn maybe_declared_properties(&self) -> ::gc::GcCellRef<::std::option::Option<::std::vec::Vec<::gc::Gc<crate::Symbol>>>> {
+                    fn maybe_declared_properties(&self) -> ::gc::GcCellRef<::std::option::Option<::std::vec::Vec<::id_arena::Id<crate::Symbol>>>> {
                         match self {
                             #(#type_type_name::#variant_names(nested) => nested.maybe_declared_properties()),*
                         }
                     }
 
-                    fn set_declared_properties(&self, declared_properties: ::std::vec::Vec<::gc::Gc<crate::Symbol>>) {
+                    fn set_declared_properties(&self, declared_properties: ::std::vec::Vec<::id_arena::Id<crate::Symbol>>) {
                         match self {
                             #(#type_type_name::#variant_names(nested) => nested.set_declared_properties(declared_properties)),*
                         }
@@ -2623,11 +2623,11 @@ fn get_symbol_struct_interface_impl(
         "SymbolInterface" => {
             quote! {
                 impl crate::SymbolInterface for #symbol_type_name {
-                    fn symbol_wrapper(&self) -> ::gc::Gc<crate::Symbol> {
+                    fn symbol_wrapper(&self) -> ::id_arena::Id<crate::Symbol> {
                         self.#first_field_name.symbol_wrapper()
                     }
 
-                    fn set_symbol_wrapper(&self, wrapper: ::gc::Gc<crate::Symbol>) {
+                    fn set_symbol_wrapper(&self, wrapper: ::id_arena::Id<crate::Symbol>) {
                         self.#first_field_name.set_symbol_wrapper(wrapper)
                     }
 
@@ -2711,19 +2711,19 @@ fn get_symbol_struct_interface_impl(
                         self.#first_field_name.set_merge_id(merge_id)
                     }
 
-                    fn maybe_parent(&self) -> ::std::option::Option<::gc::Gc<crate::Symbol>> {
+                    fn maybe_parent(&self) -> ::std::option::Option<::id_arena::Id<crate::Symbol>> {
                         self.#first_field_name.maybe_parent()
                     }
 
-                    fn set_parent(&self, parent: ::std::option::Option<::gc::Gc<crate::Symbol>>) {
+                    fn set_parent(&self, parent: ::std::option::Option<::id_arena::Id<crate::Symbol>>) {
                         self.#first_field_name.set_parent(parent)
                     }
 
-                    fn maybe_export_symbol(&self) -> ::std::option::Option<::gc::Gc<crate::Symbol>> {
+                    fn maybe_export_symbol(&self) -> ::std::option::Option<::id_arena::Id<crate::Symbol>> {
                         self.#first_field_name.maybe_export_symbol()
                     }
 
-                    fn set_export_symbol(&self, export_symbol: ::std::option::Option<::gc::Gc<crate::Symbol>>) {
+                    fn set_export_symbol(&self, export_symbol: ::std::option::Option<::id_arena::Id<crate::Symbol>>) {
                         self.#first_field_name.set_export_symbol(export_symbol)
                     }
 
@@ -2795,13 +2795,13 @@ fn get_symbol_enum_interface_impl(
         "SymbolInterface" => {
             quote! {
                 impl crate::SymbolInterface for #symbol_type_name {
-                    fn symbol_wrapper(&self) -> ::gc::Gc<crate::Symbol> {
+                    fn symbol_wrapper(&self) -> ::id_arena::Id<crate::Symbol> {
                         match self {
                             #(#symbol_type_name::#variant_names(nested) => nested.symbol_wrapper()),*
                         }
                     }
 
-                    fn set_symbol_wrapper(&self, wrapper: ::gc::Gc<crate::Symbol>) {
+                    fn set_symbol_wrapper(&self, wrapper: ::id_arena::Id<crate::Symbol>) {
                         match self {
                             #(#symbol_type_name::#variant_names(nested) => nested.set_symbol_wrapper(wrapper)),*
                         }
@@ -2927,25 +2927,25 @@ fn get_symbol_enum_interface_impl(
                         }
                     }
 
-                    fn maybe_parent(&self) -> ::std::option::Option<::gc::Gc<crate::Symbol>> {
+                    fn maybe_parent(&self) -> ::std::option::Option<::id_arena::Id<crate::Symbol>> {
                         match self {
                             #(#symbol_type_name::#variant_names(nested) => nested.maybe_parent()),*
                         }
                     }
 
-                    fn set_parent(&self, parent: ::std::option::Option<::gc::Gc<crate::Symbol>>) {
+                    fn set_parent(&self, parent: ::std::option::Option<::id_arena::Id<crate::Symbol>>) {
                         match self {
                             #(#symbol_type_name::#variant_names(nested) => nested.set_parent(parent)),*
                         }
                     }
 
-                    fn maybe_export_symbol(&self) -> ::std::option::Option<::gc::Gc<crate::Symbol>> {
+                    fn maybe_export_symbol(&self) -> ::std::option::Option<::id_arena::Id<crate::Symbol>> {
                         match self {
                             #(#symbol_type_name::#variant_names(nested) => nested.maybe_export_symbol()),*
                         }
                     }
 
-                    fn set_export_symbol(&self, export_symbol: ::std::option::Option<::gc::Gc<crate::Symbol>>) {
+                    fn set_export_symbol(&self, export_symbol: ::std::option::Option<::id_arena::Id<crate::Symbol>>) {
                         match self {
                             #(#symbol_type_name::#variant_names(nested) => nested.set_export_symbol(export_symbol)),*
                         }
@@ -3128,7 +3128,7 @@ pub fn symbol_type(attr: TokenStream, item: TokenStream) -> TokenStream {
         quote! {
             #into_implementations
 
-            impl ::std::convert::From<#symbol_type_name> for ::gc::Gc<crate::Symbol> {
+            impl ::std::convert::From<#symbol_type_name> for ::id_arena::Id<crate::Symbol> {
                 fn from(concrete: #symbol_type_name) -> Self {
                     let rc = ::gc::Gc::new(#construct_variant);
                     crate::SymbolInterface::set_symbol_wrapper(&*rc, rc.clone());

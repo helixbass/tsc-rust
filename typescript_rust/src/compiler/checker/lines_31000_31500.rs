@@ -152,9 +152,9 @@ impl TypeChecker {
 
     pub(super) fn create_default_property_wrapper_for_module(
         &self,
-        symbol: &Symbol,
-        original_symbol: &Symbol,
-        anonymous_symbol: Option<impl Borrow<Symbol>>,
+        symbol: Id<Symbol>,
+        original_symbol: Id<Symbol>,
+        anonymous_symbol: Option<Id<Symbol>>,
     ) -> io::Result<Id<Type>> {
         let mut member_table = create_symbol_table(Option::<&[Id<Symbol>]>::None);
         let new_symbol: Id<Symbol> = self
@@ -184,8 +184,8 @@ impl TypeChecker {
     pub(super) fn get_type_with_synthetic_default_only(
         &self,
         type_: Id<Type>,
-        symbol: &Symbol,
-        original_symbol: &Symbol,
+        symbol: Id<Symbol>,
+        original_symbol: Id<Symbol>,
         module_specifier: &Node, /*Expression*/
     ) -> io::Result<Option<Id<Type>>> {
         let has_default_only = self.is_only_imported_as_default(module_specifier);
@@ -198,7 +198,7 @@ impl TypeChecker {
                     let type_ = self.create_default_property_wrapper_for_module(
                         symbol,
                         original_symbol,
-                        Option::<&Symbol>::None,
+                        Option::<Id<Symbol>>::None,
                     )?;
                     *self.type_(synth_type).maybe_default_only_type() = Some(type_);
                 }
@@ -211,8 +211,8 @@ impl TypeChecker {
     pub(super) fn get_type_with_synthetic_default_import_type(
         &self,
         type_: Id<Type>,
-        symbol: &Symbol,
-        original_symbol: &Symbol,
+        symbol: Id<Symbol>,
+        original_symbol: Id<Symbol>,
         module_specifier: &Node, /*Expression*/
     ) -> io::Result<Id<Type>> {
         if self.allow_synthetic_default_imports && /*type &&*/ !self.is_error_type(type_) {
@@ -585,7 +585,7 @@ impl TypeChecker {
         )
     }
 
-    pub(super) fn get_type_of_parameter(&self, symbol: &Symbol) -> io::Result<Id<Type>> {
+    pub(super) fn get_type_of_parameter(&self, symbol: Id<Symbol>) -> io::Result<Id<Type>> {
         let type_ = self.get_type_of_symbol(symbol)?;
         if self.strict_null_checks {
             let declaration = symbol.maybe_value_declaration();
@@ -703,7 +703,7 @@ impl TypeChecker {
         Ok(None)
     }
 
-    pub(super) fn is_parameter_declaration_with_identifier_name(&self, symbol: &Symbol) -> bool {
+    pub(super) fn is_parameter_declaration_with_identifier_name(&self, symbol: Id<Symbol>) -> bool {
         matches!(
             symbol.maybe_value_declaration().as_ref(),
             Some(symbol_value_declaration) if is_parameter(symbol_value_declaration) &&
@@ -803,7 +803,7 @@ impl TypeChecker {
                     self.get_number_literal_type(Number::new(index as f64)),
                     None,
                     Option::<&Node>::None,
-                    Option::<&Symbol>::None,
+                    Option::<Id<Symbol>>::None,
                     None,
                 )?));
             }
@@ -830,7 +830,7 @@ impl TypeChecker {
                             self.number_type(),
                             None,
                             Option::<&Node>::None,
-                            Option::<&Symbol>::None,
+                            Option::<Id<Symbol>>::None,
                             None,
                         )?,
                         None,

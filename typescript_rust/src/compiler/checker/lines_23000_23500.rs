@@ -411,7 +411,7 @@ impl TypeChecker {
                     let object_flags = self.type_(type_).as_union_type().object_flags();
                     object_flags
                 },
-                Option::<&Symbol>::None,
+                Option::<Id<Symbol>>::None,
                 None,
                 new_origin,
             ));
@@ -490,7 +490,7 @@ impl TypeChecker {
                     } else {
                         UnionReduction::Literal
                     }),
-                    Option::<&Symbol>::None,
+                    Option::<Id<Symbol>>::None,
                     None,
                     None,
                 )?)
@@ -521,7 +521,7 @@ impl TypeChecker {
         &self,
         type_: Id<Type>,
         mapper: &mut impl FnMut(Id<Type>) -> Id<Type>,
-        alias_symbol: Option<impl Borrow<Symbol>>,
+        alias_symbol: Option<Id<Symbol>>,
         alias_type_arguments: Option<&[Id<Type>]>,
     ) -> Id<Type> {
         self.try_map_type_with_alias(
@@ -537,7 +537,7 @@ impl TypeChecker {
         &self,
         type_: Id<Type>,
         mapper: &mut impl FnMut(Id<Type>) -> io::Result<Id<Type>>,
-        alias_symbol: Option<impl Borrow<Symbol>>,
+        alias_symbol: Option<Id<Symbol>>,
         alias_type_arguments: Option<&[Id<Type>]>,
     ) -> io::Result<Id<Type>> {
         Ok(
@@ -666,7 +666,8 @@ impl TypeChecker {
         &self,
         element_type: Id<Type>,
     ) -> Id<Type /*EvolvingArrayType*/> {
-        let result = self.create_object_type(ObjectFlags::EvolvingArray, Option::<&Symbol>::None);
+        let result =
+            self.create_object_type(ObjectFlags::EvolvingArray, Option::<Id<Symbol>>::None);
         self.alloc_type(EvolvingArrayType::new(result, element_type).into())
     }
 
@@ -707,7 +708,7 @@ impl TypeChecker {
                             element_type,
                         ],
                         None,
-                        Option::<&Symbol>::None,
+                        Option::<Id<Symbol>>::None,
                         None,
                         None,
                     )?,
@@ -734,7 +735,7 @@ impl TypeChecker {
                         self.get_union_type(
                             self.type_(element_type).as_union_type().types(),
                             Some(UnionReduction::Subtype),
-                            Option::<&Symbol>::None,
+                            Option::<Id<Symbol>>::None,
                             None,
                             None,
                         )?
@@ -857,7 +858,7 @@ impl TypeChecker {
 
     pub(super) fn get_explicit_type_of_symbol(
         &self,
-        symbol: &Symbol,
+        symbol: Id<Symbol>,
         diagnostic: Option<&Diagnostic>,
     ) -> io::Result<Option<Id<Type>>> {
         if symbol.flags().intersects(

@@ -28,7 +28,7 @@ impl TypeChecker {
     pub(super) fn get_name_from_jsx_element_attributes_container(
         &self,
         name_of_attrib_prop_container: &str, /*__String*/
-        jsx_namespace: Option<impl Borrow<Symbol>>,
+        jsx_namespace: Option<Id<Symbol>>,
     ) -> io::Result<Option<__String>> {
         let jsx_namespace =
             jsx_namespace.map(|jsx_namespace| jsx_namespace.borrow().symbol_wrapper());
@@ -90,7 +90,7 @@ impl TypeChecker {
 
     pub(super) fn get_jsx_library_managed_attributes(
         &self,
-        jsx_namespace: Option<impl Borrow<Symbol>>,
+        jsx_namespace: Option<Id<Symbol>>,
     ) -> io::Result<Option<Id<Symbol>>> {
         if jsx_namespace.is_none() {
             return Ok(None);
@@ -107,7 +107,7 @@ impl TypeChecker {
 
     pub(super) fn get_jsx_element_properties_name(
         &self,
-        jsx_namespace: Option<impl Borrow<Symbol>>,
+        jsx_namespace: Option<Id<Symbol>>,
     ) -> io::Result<Option<__String>> {
         self.get_name_from_jsx_element_attributes_container(
             &JsxNames::ElementAttributesPropertyNameContainer,
@@ -117,7 +117,7 @@ impl TypeChecker {
 
     pub(super) fn get_jsx_element_children_property_name(
         &self,
-        jsx_namespace: Option<impl Borrow<Symbol>>,
+        jsx_namespace: Option<Id<Symbol>>,
     ) -> io::Result<Option<__String>> {
         self.get_name_from_jsx_element_attributes_container(
             &JsxNames::ElementChildrenAttributeNameContainer,
@@ -274,7 +274,7 @@ impl TypeChecker {
             let combined = self.get_union_type(
                 &[sfc_return_constraint, class_constraint],
                 None,
-                Option::<&Symbol>::None,
+                Option::<Id<Symbol>>::None,
                 None,
                 None,
             )?;
@@ -375,7 +375,7 @@ impl TypeChecker {
         Ok(Some(self.get_union_type(
             &[jsx_element_type, self.null_type()],
             None,
-            Option::<&Symbol>::None,
+            Option::<Id<Symbol>>::None,
             None,
             None,
         )?))
@@ -590,7 +590,7 @@ impl TypeChecker {
         )
     }
 
-    pub(super) fn get_declaration_node_flags_from_symbol(&self, s: &Symbol) -> NodeFlags {
+    pub(super) fn get_declaration_node_flags_from_symbol(&self, s: Id<Symbol>) -> NodeFlags {
         if let Some(s_value_declaration) = s.maybe_value_declaration() {
             get_combined_node_flags(&s_value_declaration)
         } else {
@@ -598,7 +598,7 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn is_prototype_property(&self, symbol: &Symbol) -> bool {
+    pub(super) fn is_prototype_property(&self, symbol: Id<Symbol>) -> bool {
         if symbol.flags().intersects(SymbolFlags::Method)
             || get_check_flags(symbol).intersects(CheckFlags::SyntheticMethod)
         {
@@ -621,7 +621,7 @@ impl TypeChecker {
         is_super: bool,
         writing: bool,
         type_: Id<Type>,
-        prop: &Symbol,
+        prop: Id<Symbol>,
         report_error: Option<bool>,
     ) -> io::Result<bool> {
         let report_error = report_error.unwrap_or(true);
@@ -650,7 +650,7 @@ impl TypeChecker {
         is_super: bool,
         writing: bool,
         containing_type: Id<Type>,
-        prop: &Symbol,
+        prop: Id<Symbol>,
         error_node: Option<impl Borrow<Node>>,
     ) -> io::Result<bool> {
         let flags = get_declaration_modifier_flags_from_symbol(prop, Some(writing));

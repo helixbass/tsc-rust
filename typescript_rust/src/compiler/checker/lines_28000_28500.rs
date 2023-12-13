@@ -33,8 +33,8 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn symbol_has_non_method_declaration(&self, symbol: &Symbol) -> io::Result<bool> {
-        self.for_each_property_bool(symbol, &mut |prop: &Symbol| {
+    pub(super) fn symbol_has_non_method_declaration(&self, symbol: Id<Symbol>) -> io::Result<bool> {
+        self.for_each_property_bool(symbol, &mut |prop: Id<Symbol>| {
             Ok(!prop.flags().intersects(SymbolFlags::Method))
         })
     }
@@ -332,7 +332,7 @@ impl TypeChecker {
     pub(super) fn get_private_identifier_property_of_type_(
         &self,
         left_type: Id<Type>,
-        lexically_scoped_identifier: &Symbol,
+        lexically_scoped_identifier: Id<Symbol>,
     ) -> io::Result<Option<Id<Symbol>>> {
         self.get_property_of_type_(left_type, lexically_scoped_identifier.escaped_name(), None)
     }
@@ -341,7 +341,7 @@ impl TypeChecker {
         &self,
         left_type: Id<Type>,
         right: &Node, /*PrivateIdentifier*/
-        lexically_scoped_identifier: Option<impl Borrow<Symbol>>,
+        lexically_scoped_identifier: Option<Id<Symbol>>,
     ) -> io::Result<bool> {
         let mut property_on_type: Option<Id<Symbol>> = None;
         let properties = self.get_properties_of_type(left_type)?;
@@ -441,7 +441,7 @@ impl TypeChecker {
     pub(super) fn is_this_property_access_in_constructor(
         &self,
         node: &Node, /*ElementAccessExpression | PropertyAccessExpression | QualifiedName*/
-        prop: &Symbol,
+        prop: Id<Symbol>,
     ) -> io::Result<bool> {
         Ok((self.is_constructor_declared_property(prop)?
             || is_this_property(node) && self.is_auto_typed_property(prop))
@@ -705,7 +705,7 @@ impl TypeChecker {
                     self.get_union_type(
                         &[index_info.type_.clone(), self.undefined_type()],
                         None,
-                        Option::<&Symbol>::None,
+                        Option::<Id<Symbol>>::None,
                         None,
                         None,
                     )?
@@ -782,7 +782,7 @@ impl TypeChecker {
     pub(super) fn is_unchecked_js_suggestion(
         &self,
         node: Option<impl Borrow<Node>>,
-        suggestion: Option<impl Borrow<Symbol>>,
+        suggestion: Option<Id<Symbol>>,
         exclude_classes: bool,
     ) -> bool {
         let node = node.map(|node| node.borrow().node_wrapper());
@@ -829,7 +829,7 @@ impl TypeChecker {
     pub(super) fn get_flow_type_of_access_expression(
         &self,
         node: &Node, /*ElementAccessExpression | PropertyAccessExpression | QualifiedName*/
-        prop: Option<impl Borrow<Symbol>>,
+        prop: Option<Id<Symbol>>,
         mut prop_type: Id<Type>,
         error_node: &Node,
         check_mode: Option<CheckMode>,
@@ -933,7 +933,7 @@ impl TypeChecker {
 
     pub(super) fn check_property_not_used_before_declaration(
         &self,
-        prop: &Symbol,
+        prop: Id<Symbol>,
         node: &Node,  /*PropertyAccessExpression | QualifiedName*/
         right: &Node, /*Identifier | PrivateIdentifier*/
     ) -> io::Result<()> {
@@ -1028,7 +1028,10 @@ impl TypeChecker {
         .is_some()
     }
 
-    pub(super) fn is_property_declared_in_ancestor_class(&self, prop: &Symbol) -> io::Result<bool> {
+    pub(super) fn is_property_declared_in_ancestor_class(
+        &self,
+        prop: Id<Symbol>,
+    ) -> io::Result<bool> {
         if !prop
             .maybe_parent()
             .unwrap()
@@ -1072,7 +1075,7 @@ impl TypeChecker {
         }
         Ok(Some(self.get_intersection_type(
             &x,
-            Option::<&Symbol>::None,
+            Option::<Id<Symbol>>::None,
             None,
         )?))
     }

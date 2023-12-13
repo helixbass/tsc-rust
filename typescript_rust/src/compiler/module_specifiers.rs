@@ -1,6 +1,7 @@
 use std::{collections::HashMap, convert::TryInto, io, rc::Rc};
 
 use gc::Gc;
+use id_arena::Id;
 
 use crate::{
     append, combine_paths, compare_booleans, compare_number_of_directory_separators,
@@ -297,7 +298,7 @@ fn get_module_specifier_worker(
 }
 
 fn try_get_module_specifiers_from_cache_worker(
-    module_symbol: &Symbol,
+    module_symbol: Id<Symbol>,
     importing_source_file: &Node, /*SourceFile*/
     host: &dyn ModuleSpecifierResolutionHost,
     user_preferences: &UserPreferences,
@@ -334,7 +335,7 @@ fn try_get_module_specifiers_from_cache_worker(
 }
 
 pub fn get_module_specifiers(
-    module_symbol: &Symbol,
+    module_symbol: Id<Symbol>,
     checker: &TypeChecker,
     compiler_options: Gc<CompilerOptions>,
     importing_source_file: &Node, /*SourceFile*/
@@ -353,7 +354,7 @@ pub fn get_module_specifiers(
 }
 
 pub fn get_module_specifiers_with_cache_info(
-    module_symbol: &Symbol,
+    module_symbol: Id<Symbol>,
     checker: &TypeChecker,
     compiler_options: Gc<CompilerOptions>,
     importing_source_file: &Node, /*SourceFile*/
@@ -1006,7 +1007,7 @@ fn get_all_module_paths_worker(
 }
 
 fn try_get_module_name_from_ambient_module(
-    module_symbol: &Symbol,
+    module_symbol: Id<Symbol>,
     checker: &TypeChecker,
 ) -> io::Result<Option<String>> {
     let decl = module_symbol

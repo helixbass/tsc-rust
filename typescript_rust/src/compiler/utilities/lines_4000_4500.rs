@@ -5,6 +5,7 @@ use std::{
 };
 
 use gc::{Finalize, Gc, GcCell, Trace};
+use id_arena::Id;
 
 use super::is_static;
 use crate::{
@@ -351,7 +352,7 @@ impl SymbolWriter for TextWriter {
         self.write(s);
     }
 
-    fn write_symbol(&self, s: &str, _: &Symbol) {
+    fn write_symbol(&self, s: &str, _: Id<Symbol>) {
         self.write(s);
     }
 
@@ -367,7 +368,7 @@ impl SymbolWriter for TextWriter {
 impl SymbolTracker for TextWriter {
     fn track_symbol(
         &self,
-        symbol: &Symbol,
+        symbol: Id<Symbol>,
         enclosing_declaration: Option<Gc<Node>>,
         meaning: SymbolFlags,
     ) -> Option<io::Result<bool>> {
@@ -440,7 +441,7 @@ struct TextWriterSymbolTracker;
 impl SymbolTracker for TextWriterSymbolTracker {
     fn track_symbol(
         &self,
-        _symbol: &Symbol,
+        _symbol: Id<Symbol>,
         _enclosing_declaration: Option<Gc<Node>>,
         _meaning: SymbolFlags,
     ) -> Option<io::Result<bool>> {
@@ -663,7 +664,7 @@ impl SymbolWriter for TrailingSemicolonDeferringWriter {
         self.writer.write_property(s)
     }
 
-    fn write_symbol(&self, s: &str, sym: &Symbol) {
+    fn write_symbol(&self, s: &str, sym: Id<Symbol>) {
         self.commit_pending_trailing_semicolon();
         self.writer.write_symbol(s, sym)
     }

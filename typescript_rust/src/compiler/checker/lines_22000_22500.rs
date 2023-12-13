@@ -140,7 +140,7 @@ impl InferTypes {
                         self.type_checker.get_union_type(
                             &unmatched,
                             None,
-                            Option::<&Symbol>::None,
+                            Option::<Id<Symbol>>::None,
                             None,
                             None,
                         )?,
@@ -267,7 +267,7 @@ impl InferTypes {
                 self.type_checker.get_union_type(
                     prop_types.and_extend(index_types),
                     None,
-                    Option::<&Symbol>::None,
+                    Option::<Id<Symbol>>::None,
                     None,
                     None,
                 )?,
@@ -807,7 +807,7 @@ impl InferTypes {
                         self.type_checker.get_union_type(
                             &prop_types,
                             None,
-                            Option::<&Symbol>::None,
+                            Option::<Id<Symbol>>::None,
                             None,
                             None,
                         )?,
@@ -913,7 +913,7 @@ impl TypeChecker {
                 let literals_type = self.get_union_type(
                     object_literals,
                     Some(UnionReduction::Subtype),
-                    Option::<&Symbol>::None,
+                    Option::<Id<Symbol>>::None,
                     None,
                     None,
                 )?;
@@ -939,7 +939,7 @@ impl TypeChecker {
             ) {
                 self.get_intersection_type(
                     inference.maybe_contra_candidates().as_deref().unwrap(),
-                    Option::<&Symbol>::None,
+                    Option::<Id<Symbol>>::None,
                     None,
                 )?
             } else {
@@ -982,7 +982,7 @@ impl TypeChecker {
             self.get_union_type(
                 &base_candidates,
                 Some(UnionReduction::Subtype),
-                Option::<&Symbol>::None,
+                Option::<Id<Symbol>>::None,
                 None,
                 None,
             )?

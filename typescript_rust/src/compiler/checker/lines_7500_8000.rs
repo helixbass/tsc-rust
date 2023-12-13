@@ -51,7 +51,7 @@ impl SymbolTableToDeclarationStatements {
         );
     }
 
-    pub(super) fn serialize_maybe_alias_assignment(&self, symbol: &Symbol) -> io::Result<bool> {
+    pub(super) fn serialize_maybe_alias_assignment(&self, symbol: Id<Symbol>) -> io::Result<bool> {
         if symbol.flags().intersects(SymbolFlags::Prototype) {
             return Ok(false);
         }
@@ -191,7 +191,7 @@ impl SymbolTableToDeclarationStatements {
                                     type_to_serialize,
                                     symbol,
                                     Some(&*self.enclosing_declaration),
-                                    Some(&|symbol: &Symbol| {
+                                    Some(&|symbol: Id<Symbol>| {
                                         self.include_private_symbol(symbol);
                                     }),
                                     self.bundled,
@@ -237,7 +237,7 @@ impl SymbolTableToDeclarationStatements {
     pub(super) fn is_type_representable_as_function_namespace_merge(
         &self,
         type_to_serialize: Id<Type>,
-        host_symbol: &Symbol,
+        host_symbol: Id<Symbol>,
     ) -> io::Result<bool> {
         let ctx_src = maybe_get_source_file_of_node(self.context().maybe_enclosing_declaration());
         Ok(
@@ -410,7 +410,7 @@ impl SymbolTableToDeclarationStatements {
                     sig.clone(),
                     output_kind,
                     &self.context(),
-                    Option::<SignatureToSignatureDeclarationOptions<fn(&Symbol)>>::None,
+                    Option::<SignatureToSignatureDeclarationOptions<fn(Id<Symbol>)>>::None,
                 )?;
             results.push(set_text_range_rc_node(decl, sig.declaration.as_deref()));
         }
@@ -459,7 +459,7 @@ impl SymbolTableToDeclarationStatements {
         if let Some(ref_) = ref_ {
             return Ok(ref_);
         }
-        let temp_name = self.get_unused_name(&format!("{root_name}_base"), Option::<&Symbol>::None);
+        let temp_name = self.get_unused_name(&format!("{root_name}_base"), Option::<Id<Symbol>>::None);
         let statement = get_factory().create_variable_statement(
             Option::<Gc<NodeArray>>::None,
             get_factory().create_variable_declaration_list(
@@ -566,7 +566,7 @@ impl SymbolTableToDeclarationStatements {
     pub(super) fn get_unused_name(
         &self,
         input: &str,
-        symbol: Option<impl Borrow<Symbol>>,
+        symbol: Option<Id<Symbol>>,
     ) -> String {
         let symbol = symbol.symbol_wrappered();
         let id = symbol.as_ref().map(|symbol| get_symbol_id(symbol));
@@ -788,7 +788,7 @@ impl MakeSerializePropertySymbol {
                                                 .symbol_table_to_declaration_statements
                                                 .enclosing_declaration,
                                         ),
-                                        Some(&|symbol: &Symbol| {
+                                        Some(&|symbol: Id<Symbol>| {
                                             self.symbol_table_to_declaration_statements
                                                 .include_private_symbol(symbol);
                                         }),
@@ -833,7 +833,7 @@ impl MakeSerializePropertySymbol {
                                             .symbol_table_to_declaration_statements
                                             .enclosing_declaration,
                                     ),
-                                    Some(&|symbol: &Symbol| {
+                                    Some(&|symbol: Id<Symbol>| {
                                         self.symbol_table_to_declaration_statements
                                             .include_private_symbol(symbol);
                                     }),
@@ -889,7 +889,7 @@ impl MakeSerializePropertySymbol {
                                         .symbol_table_to_declaration_statements
                                         .enclosing_declaration,
                                 ),
-                                Some(&|symbol: &Symbol| {
+                                Some(&|symbol: Id<Symbol>| {
                                     self.symbol_table_to_declaration_statements
                                         .include_private_symbol(symbol);
                                 }),
@@ -983,7 +983,7 @@ impl MakeSerializePropertySymbol {
                                 .then(|| get_factory().create_token(SyntaxKind::QuestionToken)),
                             modifiers: (flag != ModifierFlags::None)
                                 .then(|| get_factory().create_modifiers_from_modifier_flags(flag)),
-                            private_symbol_visitor: Option::<fn(&Symbol)>::None,
+                            private_symbol_visitor: Option::<fn(Id<Symbol>)>::None,
                             bundled_imports: None,
                         }),
                     )?;

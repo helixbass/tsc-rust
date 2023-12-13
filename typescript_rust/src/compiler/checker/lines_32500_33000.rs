@@ -76,7 +76,7 @@ impl TypeChecker {
                     expr_type,
                     Some(AccessFlags::ExpressionPosition),
                     Some(&*name),
-                    Option::<&Symbol>::None,
+                    Option::<Id<Symbol>>::None,
                     None,
                 )?;
                 let type_ = self.get_flow_type_of_destructuring(property, element_type)?;
@@ -220,7 +220,7 @@ impl TypeChecker {
                                 None,
                                 Option::<&Node>::None,
                             )),
-                            Option::<&Symbol>::None,
+                            Option::<Id<Symbol>>::None,
                             None,
                         )?
                         .unwrap_or_else(|| self.error_type());
@@ -837,7 +837,7 @@ impl TypeChecker {
                             right_type,
                         ],
                         None,
-                        Option::<&Symbol>::None,
+                        Option::<Id<Symbol>>::None,
                         None,
                         None,
                     )?
@@ -857,7 +857,7 @@ impl TypeChecker {
                     self.get_union_type(
                         &[self.remove_definitely_falsy_types(left_type), right_type],
                         Some(UnionReduction::Subtype),
-                        Option::<&Symbol>::None,
+                        Option::<Id<Symbol>>::None,
                         None,
                         None,
                     )?
@@ -877,7 +877,7 @@ impl TypeChecker {
                     self.get_union_type(
                         &[self.get_non_nullable_type(left_type)?, right_type],
                         Some(UnionReduction::Subtype),
-                        Option::<&Symbol>::None,
+                        Option::<Id<Symbol>>::None,
                         None,
                         None,
                     )?

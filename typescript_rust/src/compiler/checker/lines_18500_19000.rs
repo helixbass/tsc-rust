@@ -18,8 +18,8 @@ use crate::{
 impl CheckTypeRelatedTo {
     pub(super) fn should_check_as_excess_property(
         &self,
-        prop: &Symbol,
-        container: &Symbol,
+        prop: Id<Symbol>,
+        container: Id<Symbol>,
     ) -> bool {
         if let Some(prop_value_declaration) = prop.maybe_value_declaration().as_ref() {
             if let Some(container_value_declaration) = container.maybe_value_declaration().as_ref()
@@ -759,7 +759,7 @@ impl CheckTypeRelatedTo {
                 {
                     source = self.type_checker.get_intersection_type(
                         &constraints,
-                        Option::<&Symbol>::None,
+                        Option::<Id<Symbol>>::None,
                         None,
                     )?;
                     if !self
@@ -1082,7 +1082,7 @@ impl CheckTypeRelatedTo {
                             .get_type_parameter_from_mapped_type(source)?,
                         None,
                         Option::<&Node>::None,
-                        Option::<&Symbol>::None,
+                        Option::<Id<Symbol>>::None,
                         None,
                     )?;
                     result = self.is_related_to(
@@ -1207,7 +1207,7 @@ impl CheckTypeRelatedTo {
                         target_keys = self.type_checker.get_union_type(
                             &mapped_keys,
                             None,
-                            Option::<&Symbol>::None,
+                            Option::<Id<Symbol>>::None,
                             None,
                             None,
                         )?;
@@ -1312,7 +1312,7 @@ impl CheckTypeRelatedTo {
                         base_index_type,
                         Some(access_flags),
                         Option::<&Node>::None,
-                        Option::<&Symbol>::None,
+                        Option::<Id<Symbol>>::None,
                         None,
                     )?;
                     if let Some(constraint) = constraint {
@@ -1471,7 +1471,7 @@ impl CheckTypeRelatedTo {
                             {
                                 self.type_checker.get_intersection_type(
                                     &vec![filtered_by_applicability, type_parameter],
-                                    Option::<&Symbol>::None,
+                                    Option::<Id<Symbol>>::None,
                                     None,
                                 )?
                             } else {
@@ -1482,7 +1482,7 @@ impl CheckTypeRelatedTo {
                                 indexing_type,
                                 None,
                                 Option::<&Node>::None,
-                                Option::<&Symbol>::None,
+                                Option::<Id<Symbol>>::None,
                                 None,
                             )?;
                             result = self.is_related_to(

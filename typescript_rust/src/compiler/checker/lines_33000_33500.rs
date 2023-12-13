@@ -495,7 +495,7 @@ impl TypeChecker {
         self.get_union_type(
             &[type1, type2],
             Some(UnionReduction::Subtype),
-            Option::<&Symbol>::None,
+            Option::<Id<Symbol>>::None,
             None,
             None,
         )

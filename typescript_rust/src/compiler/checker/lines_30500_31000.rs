@@ -568,8 +568,8 @@ impl TypeChecker {
 
     pub(super) fn merge_js_symbols(
         &self,
-        target: &Symbol,
-        source: Option<impl Borrow<Symbol>>,
+        target: Id<Symbol>,
+        source: Option<Id<Symbol>>,
     ) -> io::Result<Option<Id<Symbol>>> {
         let source = return_ok_default_if_none!(source);
         let source = source.borrow();
@@ -902,7 +902,7 @@ impl TypeChecker {
                 }
                 return self.get_intersection_type(
                     &[return_type, js_assignment_type],
-                    Option::<&Symbol>::None,
+                    Option::<Id<Symbol>>::None,
                     None,
                 );
             }

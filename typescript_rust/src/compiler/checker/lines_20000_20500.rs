@@ -503,7 +503,7 @@ impl TypeChecker {
         result
     }
 
-    pub(super) fn get_alias_variances(&self, symbol: &Symbol) -> io::Result<Vec<VarianceFlags>> {
+    pub(super) fn get_alias_variances(&self, symbol: Id<Symbol>) -> io::Result<Vec<VarianceFlags>> {
         let links = self.get_symbol_links(symbol);
         let links_type_parameters = (*links).borrow().type_parameters.clone();
         let ret = self.try_get_variances_worker(
@@ -524,7 +524,7 @@ impl TypeChecker {
                         Some(self.make_unary_type_mapper(param, marker)),
                     )?
                     .as_deref(),
-                    Option::<&Symbol>::None,
+                    Option::<Id<Symbol>>::None,
                     None,
                 )?;
                 self.type_(type_)
@@ -774,8 +774,8 @@ impl TypeChecker {
 
     pub(super) fn for_each_property<TReturn>(
         &self,
-        prop: &Symbol,
-        callback: &mut impl FnMut(&Symbol) -> io::Result<Option<TReturn>>,
+        prop: Id<Symbol>,
+        callback: &mut impl FnMut(Id<Symbol>) -> io::Result<Option<TReturn>>,
     ) -> io::Result<Option<TReturn>> {
         if get_check_flags(prop).intersects(CheckFlags::Synthetic) {
             for &t in self
@@ -803,11 +803,11 @@ impl TypeChecker {
 
     pub(super) fn for_each_property_bool(
         &self,
-        prop: &Symbol,
-        callback: &mut impl FnMut(&Symbol) -> io::Result<bool>,
+        prop: Id<Symbol>,
+        callback: &mut impl FnMut(Id<Symbol>) -> io::Result<bool>,
     ) -> io::Result<bool> {
         Ok(self
-            .for_each_property(prop, &mut |symbol: &Symbol| {
+            .for_each_property(prop, &mut |symbol: Id<Symbol>| {
                 Ok(if callback(symbol)? { Some(()) } else { None })
             })?
             .is_some())
@@ -815,7 +815,7 @@ impl TypeChecker {
 
     pub(super) fn get_declaring_class(
         &self,
-        prop: &Symbol,
+        prop: Id<Symbol>,
     ) -> io::Result<Option<Id<Type /*InterfaceType*/>>> {
         prop.maybe_parent()
             .filter(|prop_parent| prop_parent.flags().intersects(SymbolFlags::Class))
@@ -826,7 +826,7 @@ impl TypeChecker {
 
     pub(super) fn get_type_of_property_in_base_class(
         &self,
-        property: &Symbol,
+        property: Id<Symbol>,
     ) -> io::Result<Option<Id<Type>>> {
         let class_type = self.get_declaring_class(property)?;
         let base_class_type = class_type.try_and_then(|class_type| -> io::Result<_> {
@@ -839,10 +839,10 @@ impl TypeChecker {
 
     pub(super) fn is_property_in_class_derived_from(
         &self,
-        prop: &Symbol,
+        prop: Id<Symbol>,
         base_class: Option<Id<Type>>,
     ) -> io::Result<bool> {
-        self.for_each_property_bool(prop, &mut |sp: &Symbol| {
+        self.for_each_property_bool(prop, &mut |sp: Id<Symbol>| {
             let source_class = self.get_declaring_class(sp)?;
             Ok(if let Some(source_class) = source_class {
                 self.has_base_type(source_class, base_class)?
@@ -854,11 +854,11 @@ impl TypeChecker {
 
     pub(super) fn is_valid_override_of(
         &self,
-        source_prop: &Symbol,
-        target_prop: &Symbol,
+        source_prop: Id<Symbol>,
+        target_prop: Id<Symbol>,
     ) -> io::Result<bool> {
         Ok(
-            !self.for_each_property_bool(target_prop, &mut |tp: &Symbol| {
+            !self.for_each_property_bool(target_prop, &mut |tp: Id<Symbol>| {
                 Ok(
                     if get_declaration_modifier_flags_from_symbol(tp, None)
                         .intersects(ModifierFlags::Protected)
@@ -878,11 +878,11 @@ impl TypeChecker {
     pub(super) fn is_class_derived_from_declaring_classes(
         &self,
         check_class: Id<Type>,
-        prop: &Symbol,
+        prop: Id<Symbol>,
         writing: bool,
     ) -> io::Result<Option<Id<Type>>> {
         Ok(
-            if self.for_each_property_bool(prop, &mut |p: &Symbol| {
+            if self.for_each_property_bool(prop, &mut |p: Id<Symbol>| {
                 Ok(
                     if get_declaration_modifier_flags_from_symbol(p, Some(writing))
                         .intersects(ModifierFlags::Protected)
@@ -986,8 +986,8 @@ impl TypeChecker {
 
     pub(super) fn is_property_identical_to(
         &self,
-        source_prop: &Symbol,
-        target_prop: &Symbol,
+        source_prop: Id<Symbol>,
+        target_prop: Id<Symbol>,
     ) -> io::Result<bool> {
         Ok(
             self.compare_properties(source_prop, target_prop, |a: Id<Type>, b: Id<Type>| {
@@ -998,8 +998,8 @@ impl TypeChecker {
 
     pub(super) fn compare_properties(
         &self,
-        source_prop: &Symbol,
-        target_prop: &Symbol,
+        source_prop: Id<Symbol>,
+        target_prop: Id<Symbol>,
         mut compare_types: impl FnMut(Id<Type>, Id<Type>) -> io::Result<Ternary>,
     ) -> io::Result<Ternary> {
         if ptr::eq(source_prop, target_prop) {

@@ -354,7 +354,7 @@ impl TypeChecker {
                     self.get_type_of_first_parameter_of_signature(then_signature)
                 })?,
                 None,
-                Option::<&Symbol>::None,
+                Option::<Id<Symbol>>::None,
                 None,
                 None,
             )?,
@@ -385,7 +385,7 @@ impl TypeChecker {
                 },
             )?,
             Some(UnionReduction::Subtype),
-            Option::<&Symbol>::None,
+            Option::<Id<Symbol>>::None,
             None,
             None,
         )?;
@@ -493,7 +493,7 @@ impl TypeChecker {
                     return self.get_type_alias_instantiation(
                         awaited_symbol,
                         Some(&[self.unwrap_awaited_type(type_)?]),
-                        Option::<&Symbol>::None,
+                        Option::<Id<Symbol>>::None,
                         None,
                     );
                 }

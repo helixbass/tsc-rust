@@ -36,7 +36,7 @@ use crate::{
 impl TypeChecker {
     pub(super) fn check_symbol_usage_in_expression_context(
         &self,
-        symbol: &Symbol,
+        symbol: Id<Symbol>,
         name: &str, /*__String*/
         use_site: &Node,
     ) {
@@ -158,7 +158,7 @@ impl TypeChecker {
 
     pub(super) fn is_type_parameter_symbol_declared_in_container(
         &self,
-        symbol: &Symbol,
+        symbol: Id<Symbol>,
         container: &Node,
     ) -> bool {
         if let Some(symbol_declarations) = symbol.maybe_declarations().as_deref() {
@@ -471,7 +471,7 @@ impl TypeChecker {
         Ok(false)
     }
 
-    pub(super) fn maybe_mapped_type(&self, node: &Node, symbol: &Symbol) -> io::Result<bool> {
+    pub(super) fn maybe_mapped_type(&self, node: &Node, symbol: Id<Symbol>) -> io::Result<bool> {
         let container = find_ancestor(node.maybe_parent(), |n| {
             if is_computed_property_name(n) || is_property_signature(n) {
                 false.into()
@@ -561,7 +561,7 @@ impl TypeChecker {
 
     pub(super) fn check_resolved_block_scoped_variable(
         &self,
-        result: &Symbol,
+        result: Id<Symbol>,
         error_location: &Node,
     ) -> io::Result<()> {
         Debug_.assert(
@@ -680,7 +680,7 @@ impl TypeChecker {
 
     pub(super) fn get_declaration_of_alias_symbol(
         &self,
-        symbol: &Symbol,
+        symbol: Id<Symbol>,
     ) -> io::Result<Option<Gc<Node /*Declaration*/>>> {
         Ok(symbol
             .maybe_declarations()
@@ -798,12 +798,12 @@ impl TypeChecker {
     pub(super) fn check_and_report_error_for_resolving_import_alias_to_type_only_symbol(
         &self,
         node: &Node, /*ImportEqualsDeclaration*/
-        resolved: Option<impl Borrow<Symbol>>,
+        resolved: Option<Id<Symbol>>,
     ) -> io::Result<()> {
         let node_as_import_equals_declaration = node.as_import_equals_declaration();
         if self.mark_symbol_of_alias_declaration_if_type_only(
             Some(node),
-            Option::<&Symbol>::None,
+            Option::<Id<Symbol>>::None,
             resolved,
             false,
         )? && !node_as_import_equals_declaration.is_type_only
@@ -847,7 +847,7 @@ impl TypeChecker {
 
     pub(super) fn resolve_export_by_name(
         &self,
-        module_symbol: &Symbol,
+        module_symbol: Id<Symbol>,
         name: &str, /*__String*/
         source_node: Option<impl Borrow<Node> /*TypeOnlyCompatibleAliasDeclaration*/>,
         dont_resolve_alias: bool,
@@ -914,7 +914,7 @@ impl TypeChecker {
     pub(super) fn can_have_synthetic_default(
         &self,
         file: Option<impl Borrow<Node> /*SourceFile*/>,
-        module_symbol: &Symbol,
+        module_symbol: Id<Symbol>,
         dont_resolve_alias: bool,
         usage: &Node, /*Expression*/
     ) -> io::Result<bool> {
@@ -1091,7 +1091,7 @@ impl TypeChecker {
         self.mark_symbol_of_alias_declaration_if_type_only(
             Some(node),
             export_default_symbol.as_deref(),
-            Option::<&Symbol>::None,
+            Option::<Id<Symbol>>::None,
             false,
         )?;
         Ok(export_default_symbol)
@@ -1099,7 +1099,7 @@ impl TypeChecker {
 
     pub(super) fn report_non_default_export(
         &self,
-        module_symbol: &Symbol,
+        module_symbol: Id<Symbol>,
         node: &Node, /*ImportClause*/
     ) -> io::Result<()> {
         let node_as_import_clause = node.as_import_clause();
@@ -1227,8 +1227,8 @@ impl TypeChecker {
 
     pub(super) fn combine_value_and_type_symbols(
         &self,
-        value_symbol: &Symbol,
-        type_symbol: &Symbol,
+        value_symbol: Id<Symbol>,
+        type_symbol: Id<Symbol>,
     ) -> Id<Symbol> {
         if ptr::eq(value_symbol, &*self.unknown_symbol())
             && ptr::eq(type_symbol, &*self.unknown_symbol())
@@ -1281,7 +1281,7 @@ impl TypeChecker {
 
     pub(super) fn get_export_of_module(
         &self,
-        symbol: &Symbol,
+        symbol: Id<Symbol>,
         name: &Node,      /*Identifier*/
         specifier: &Node, /*Declaration*/
         dont_resolve_alias: bool,
@@ -1306,7 +1306,7 @@ impl TypeChecker {
 
     pub(super) fn get_property_of_variable(
         &self,
-        symbol: &Symbol,
+        symbol: Id<Symbol>,
         name: &str, /*__String*/
     ) -> io::Result<Option<Id<Symbol>>> {
         if symbol.flags().intersects(SymbolFlags::Variable) {
@@ -1512,7 +1512,7 @@ impl TypeChecker {
         node: &Node, /*ImportDeclaration | ExportDeclaration | VariableDeclaration*/
         name: &Node, /*Identifier*/
         declaration_name: String,
-        module_symbol: &Symbol,
+        module_symbol: Id<Symbol>,
         module_name: String,
     ) -> io::Result<()> {
         let local_symbol = module_symbol
@@ -1701,7 +1701,7 @@ impl TypeChecker {
         }
         self.mark_symbol_of_alias_declaration_if_type_only(
             Some(node),
-            Option::<&Symbol>::None,
+            Option::<Id<Symbol>>::None,
             resolved.as_deref(),
             false,
         )?;
@@ -1732,7 +1732,7 @@ impl TypeChecker {
             .unwrap();
         self.mark_symbol_of_alias_declaration_if_type_only(
             Some(node),
-            Option::<&Symbol>::None,
+            Option::<Id<Symbol>>::None,
             Some(&*resolved),
             false,
         )?;
@@ -1768,7 +1768,7 @@ impl TypeChecker {
         };
         self.mark_symbol_of_alias_declaration_if_type_only(
             Some(node),
-            Option::<&Symbol>::None,
+            Option::<Id<Symbol>>::None,
             resolved.as_deref(),
             false,
         )?;
@@ -1788,7 +1788,7 @@ impl TypeChecker {
         let resolved = self.get_target_of_alias_like_expression(&expression, dont_resolve_alias)?;
         self.mark_symbol_of_alias_declaration_if_type_only(
             Some(node),
-            Option::<&Symbol>::None,
+            Option::<Id<Symbol>>::None,
             resolved.as_deref(),
             false,
         )?;

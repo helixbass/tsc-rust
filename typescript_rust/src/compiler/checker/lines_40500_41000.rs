@@ -164,7 +164,7 @@ impl TypeChecker {
     pub(super) fn copy_symbol(
         &self,
         symbols: &mut SymbolTable,
-        symbol: &Symbol,
+        symbol: Id<Symbol>,
         meaning: SymbolFlags,
     ) {
         if get_combined_local_and_export_symbol_flags(symbol).intersects(meaning) {
@@ -595,11 +595,11 @@ impl TypeChecker {
                     && is_jsdoc
                     && is_qualified_name(name)
                 {
-                    return self.resolve_jsdoc_member_name(name, Option::<&Symbol>::None);
+                    return self.resolve_jsdoc_member_name(name, Option::<Id<Symbol>>::None);
                 }
                 return Ok((*links).borrow().resolved_symbol.clone());
             } else if is_jsdoc_member_name(name) {
-                return self.resolve_jsdoc_member_name(name, Option::<&Symbol>::None);
+                return self.resolve_jsdoc_member_name(name, Option::<Id<Symbol>>::None);
             }
         } else if self.is_type_reference_identifier(name) {
             let meaning = if name.parent().kind() == SyntaxKind::TypeReference {
@@ -644,7 +644,7 @@ impl TypeChecker {
     pub(super) fn resolve_jsdoc_member_name(
         &self,
         name: &Node, /*EntityName | JSDocMemberName*/
-        container: Option<impl Borrow<Symbol>>,
+        container: Option<Id<Symbol>>,
     ) -> io::Result<Option<Id<Symbol>>> {
         let container = container.map(|container| container.borrow().symbol_wrapper());
         if is_entity_name(name) {
@@ -674,7 +674,7 @@ impl TypeChecker {
         } else {
             self.resolve_jsdoc_member_name(
                 &name.as_has_left_and_right().left(),
-                Option::<&Symbol>::None,
+                Option::<Id<Symbol>>::None,
             )?
         };
         let right = if is_identifier(name) {

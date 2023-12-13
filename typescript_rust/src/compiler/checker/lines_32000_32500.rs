@@ -314,7 +314,7 @@ impl TypeChecker {
         Ok(set_prop.is_none())
     }
 
-    pub(super) fn is_readonly_symbol(&self, symbol: &Symbol) -> io::Result<bool> {
+    pub(super) fn is_readonly_symbol(&self, symbol: Id<Symbol>) -> io::Result<bool> {
         Ok(get_check_flags(symbol).intersects(CheckFlags::Readonly)
             || symbol.flags().intersects(SymbolFlags::Property)
                 && get_declaration_modifier_flags_from_symbol(symbol, None)
@@ -335,7 +335,7 @@ impl TypeChecker {
     pub(super) fn is_assignment_to_readonly_entity(
         &self,
         expr: &Node, /*Expression*/
-        symbol: &Symbol,
+        symbol: Id<Symbol>,
         assignment_kind: AssignmentKind,
     ) -> io::Result<bool> {
         if assignment_kind == AssignmentKind::None {
@@ -477,7 +477,7 @@ impl TypeChecker {
     pub(super) fn check_delete_expression_must_be_optional(
         &self,
         expr: &Node, /*AccessExpression*/
-        symbol: &Symbol,
+        symbol: Id<Symbol>,
     ) -> io::Result<()> {
         let type_ = self.get_type_of_symbol(symbol)?;
         if self.strict_null_checks
@@ -902,7 +902,7 @@ impl TypeChecker {
             )
     }
 
-    pub(super) fn is_const_enum_symbol(&self, symbol: &Symbol) -> bool {
+    pub(super) fn is_const_enum_symbol(&self, symbol: Id<Symbol>) -> bool {
         symbol.flags().intersects(SymbolFlags::ConstEnum)
     }
 

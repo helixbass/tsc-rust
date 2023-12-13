@@ -909,7 +909,7 @@ impl TypeChecker {
         expr: &Node, /*Expression*/
         body: &Node, /*Statement | Expression*/
         tested_node: &Node,
-        tested_symbol: &Symbol,
+        tested_symbol: Id<Symbol>,
     ) -> io::Result<bool> {
         try_for_each_child_bool(
             body,
@@ -929,7 +929,7 @@ impl TypeChecker {
         &self,
         expr: &Node,
         tested_node: &Node,
-        tested_symbol: &Symbol,
+        tested_symbol: Id<Symbol>,
         child_node: &Node,
     ) -> io::Result<bool> {
         if is_identifier(child_node) {

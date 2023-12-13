@@ -156,17 +156,17 @@ impl TypeChecker {
         types[index] = self.get_union_type_from_sorted_list(
             result,
             ObjectFlags::PrimitiveUnion,
-            Option::<&Symbol>::None,
+            Option::<Id<Symbol>>::None,
             None,
             None,
         );
         true
     }
 
-    pub(super) fn create_intersection_type<TAliasSymbol: Borrow<Symbol>>(
+    pub(super) fn create_intersection_type(
         &self,
         types: Vec<Id<Type>>,
-        alias_symbol: Option<TAliasSymbol>,
+        alias_symbol: Option<Id<Symbol>>,
         alias_type_arguments: Option<&[Id<Type>]>,
     ) -> Id<Type> {
         let result = self.create_type(TypeFlags::Intersection);
@@ -183,7 +183,7 @@ impl TypeChecker {
     pub(super) fn get_intersection_type(
         &self,
         types: &[Id<Type>],
-        alias_symbol: Option<impl Borrow<Symbol>>,
+        alias_symbol: Option<Id<Symbol>>,
         alias_type_arguments: Option<&[Id<Type>]>,
     ) -> io::Result<Id<Type>> {
         let mut type_membership_map: IndexMap<TypeId, Id<Type>> = IndexMap::new();
@@ -305,7 +305,11 @@ impl TypeChecker {
                     self.remove_from_each(&mut type_set, TypeFlags::Undefined);
                     result = Some(self.get_union_type(
                         &[
-                            self.get_intersection_type(&type_set, Option::<&Symbol>::None, None)?,
+                            self.get_intersection_type(
+                                &type_set,
+                                Option::<Id<Symbol>>::None,
+                                None,
+                            )?,
                             undefined_or_missing_type,
                         ],
                         Some(UnionReduction::Literal),
@@ -317,7 +321,11 @@ impl TypeChecker {
                     self.remove_from_each(&mut type_set, TypeFlags::Null);
                     result = Some(self.get_union_type(
                         &[
-                            self.get_intersection_type(&type_set, Option::<&Symbol>::None, None)?,
+                            self.get_intersection_type(
+                                &type_set,
+                                Option::<Id<Symbol>>::None,
+                                None,
+                            )?,
                             self.null_type(),
                         ],
                         Some(UnionReduction::Literal),
@@ -422,7 +430,7 @@ impl TypeChecker {
                 }
                 j -= 1;
             }
-            let t = self.get_intersection_type(&constituents, Option::<&Symbol>::None, None)?;
+            let t = self.get_intersection_type(&constituents, Option::<Id<Symbol>>::None, None)?;
             if !self.type_(t).flags().intersects(TypeFlags::Never) {
                 // in one project it looked like often the length of intersections either ends up
                 // being 1 or a number close to or equal to `count`, so defer allocating space for
@@ -577,7 +585,7 @@ impl TypeChecker {
         }
         let result = if matches!(no_index_signatures, Some(true)) {
             self.filter_type(
-                self.get_union_type(&key_types, None, Option::<&Symbol>::None, None, None)?,
+                self.get_union_type(&key_types, None, Option::<Id<Symbol>>::None, None, None)?,
                 |t| {
                     !self
                         .type_(t)
@@ -586,7 +594,7 @@ impl TypeChecker {
                 },
             )
         } else {
-            self.get_union_type(&key_types, None, Option::<&Symbol>::None, None, None)?
+            self.get_union_type(&key_types, None, Option::<Id<Symbol>>::None, None, None)?
         };
         if self.type_(result).flags().intersects(TypeFlags::Union)
             && self
@@ -732,7 +740,7 @@ impl TypeChecker {
 
     pub(super) fn get_literal_type_from_property(
         &self,
-        prop: &Symbol,
+        prop: Id<Symbol>,
         include: TypeFlags,
         include_non_public: Option<bool>,
     ) -> io::Result<Id<Type>> {
@@ -816,7 +824,7 @@ impl TypeChecker {
         self.get_union_type(
             &property_types.and_extend(index_key_types),
             Some(UnionReduction::Literal),
-            Option::<&Symbol>::None,
+            Option::<Id<Symbol>>::None,
             None,
             origin,
         )
@@ -838,7 +846,7 @@ impl TypeChecker {
                         self.get_index_type(t, Some(strings_only), no_index_signatures)
                     },
                 )?,
-                Option::<&Symbol>::None,
+                Option::<Id<Symbol>>::None,
                 None,
             )?
         } else if self
@@ -857,7 +865,7 @@ impl TypeChecker {
                     },
                 )?,
                 None,
-                Option::<&Symbol>::None,
+                Option::<Id<Symbol>>::None,
                 None,
                 None,
             )?
@@ -908,7 +916,7 @@ impl TypeChecker {
             self.get_type_alias_instantiation(
                 &extract_type_alias,
                 Some(&[type_, self.string_type()]),
-                Option::<&Symbol>::None,
+                Option::<Id<Symbol>>::None,
                 None,
             )?
         } else {

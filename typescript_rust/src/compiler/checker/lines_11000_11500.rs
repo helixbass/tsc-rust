@@ -16,8 +16,8 @@ use crate::{
 impl TypeChecker {
     pub(super) fn combine_union_this_param(
         &self,
-        left: Option<impl Borrow<Symbol>>,
-        right: Option<impl Borrow<Symbol>>,
+        left: Option<Id<Symbol>>,
+        right: Option<Id<Symbol>>,
         mapper: Option<Id<TypeMapper>>,
     ) -> io::Result<Option<Id<Symbol>>> {
         let left = left.map(|left| left.borrow().symbol_wrapper());
@@ -32,7 +32,7 @@ impl TypeChecker {
                 self.get_type_of_symbol(&left)?,
                 self.instantiate_type(self.get_type_of_symbol(&right)?, mapper)?,
             ],
-            Option::<&Symbol>::None,
+            Option::<Id<Symbol>>::None,
             None,
         )?;
         Ok(Some(self.create_symbol_with_type(&left, Some(this_type))))
@@ -76,7 +76,7 @@ impl TypeChecker {
             }
             let union_param_type = self.get_intersection_type(
                 &vec![longest_param_type, shorter_param_type],
-                Option::<&Symbol>::None,
+                Option::<Id<Symbol>>::None,
                 None,
             )?;
             let is_rest_param =
@@ -237,7 +237,7 @@ impl TypeChecker {
                                 })
                                 .collect::<Result<Vec<_>, _>>()?,
                             None,
-                            Option::<&Symbol>::None,
+                            Option::<Id<Symbol>>::None,
                             None,
                             None,
                         )?,
@@ -307,7 +307,11 @@ impl TypeChecker {
         } else {
             let type1 = type1.unwrap();
             let type2 = type2.unwrap();
-            Some(self.get_intersection_type(&vec![type1, type2], Option::<&Symbol>::None, None)?)
+            Some(self.get_intersection_type(
+                &vec![type1, type2],
+                Option::<Id<Symbol>>::None,
+                None,
+            )?)
         })
     }
 
@@ -348,7 +352,7 @@ impl TypeChecker {
                 )?);
             }
         }
-        self.get_intersection_type(&mixed_types, Option::<&Symbol>::None, None)
+        self.get_intersection_type(&mixed_types, Option::<Id<Symbol>>::None, None)
     }
 
     pub(super) fn resolve_intersection_type_members(
@@ -447,14 +451,14 @@ impl TypeChecker {
                         self.get_union_type(
                             &[info.type_.clone(), new_info.type_.clone()],
                             None,
-                            Option::<&Symbol>::None,
+                            Option::<Id<Symbol>>::None,
                             None,
                             None,
                         )?
                     } else {
                         self.get_intersection_type(
                             &vec![info.type_.clone(), new_info.type_.clone()],
-                            Option::<&Symbol>::None,
+                            Option::<Id<Symbol>>::None,
                             None,
                         )?
                     },
@@ -858,7 +862,7 @@ impl TypeChecker {
                             constraint,
                             self.type_(type_).as_conditional_type().mapper.clone(),
                         ),
-                        Option::<&Symbol>::None,
+                        Option::<Id<Symbol>>::None,
                         None,
                     );
                 }
@@ -886,14 +890,14 @@ impl TypeChecker {
                         .types(),
                     |&type_: &Id<Type>, _| self.get_lower_bound_of_key_type(type_),
                 )?,
-                Option::<&Symbol>::None,
+                Option::<Id<Symbol>>::None,
                 None,
             );
         }
         Ok(type_)
     }
 
-    pub(super) fn get_is_late_check_flag(&self, s: &Symbol) -> CheckFlags {
+    pub(super) fn get_is_late_check_flag(&self, s: Id<Symbol>) -> CheckFlags {
         get_check_flags(s) & CheckFlags::Late
     }
 
@@ -1103,14 +1107,14 @@ impl TypeChecker {
                     .name_type = Some(self.get_union_type(
                     &[existing_prop_name_type, prop_name_type],
                     None,
-                    Option::<&Symbol>::None,
+                    Option::<Id<Symbol>>::None,
                     None,
                     None,
                 )?);
                 existing_prop_as_mapped_symbol.set_key_type(self.get_union_type(
                     &[existing_prop_as_mapped_symbol.key_type(), key_type],
                     None,
-                    Option::<&Symbol>::None,
+                    Option::<Id<Symbol>>::None,
                     None,
                     None,
                 )?);
@@ -1228,7 +1232,7 @@ impl TypeChecker {
 
     pub(super) fn get_type_of_mapped_symbol(
         &self,
-        symbol: &Symbol, /*MappedSymbol*/
+        symbol: Id<Symbol>, /*MappedSymbol*/
     ) -> io::Result<Id<Type>> {
         let symbol_as_mapped_symbol = symbol.as_mapped_symbol();
         if (*symbol_as_mapped_symbol.symbol_links())

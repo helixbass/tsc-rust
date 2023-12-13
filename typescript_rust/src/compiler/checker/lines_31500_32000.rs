@@ -162,7 +162,7 @@ impl TypeChecker {
 
     pub(super) fn assign_parameter_type(
         &self,
-        parameter: &Symbol,
+        parameter: Id<Symbol>,
         type_: Option<Id<Type>>,
     ) -> io::Result<()> {
         let links = self.get_symbol_links(parameter);
@@ -348,7 +348,7 @@ impl TypeChecker {
                         return_type = Some(self.get_union_type(
                             &return_types,
                             Some(UnionReduction::Subtype),
-                            Option::<&Symbol>::None,
+                            Option::<Id<Symbol>>::None,
                             None,
                             None,
                         )?);
@@ -363,7 +363,7 @@ impl TypeChecker {
                 Some(self.get_union_type(
                     &yield_types,
                     Some(UnionReduction::Subtype),
-                    Option::<&Symbol>::None,
+                    Option::<Id<Symbol>>::None,
                     None,
                     None,
                 )?)
@@ -371,7 +371,7 @@ impl TypeChecker {
                 None
             };
             next_type = if some(Some(&next_types), Option::<fn(&Id<Type>) -> bool>::None) {
-                Some(self.get_intersection_type(&next_types, Option::<&Symbol>::None, None)?)
+                Some(self.get_intersection_type(&next_types, Option::<Id<Symbol>>::None, None)?)
             } else {
                 None
             };
@@ -396,7 +396,7 @@ impl TypeChecker {
             return_type = Some(self.get_union_type(
                 &types,
                 Some(UnionReduction::Subtype),
-                Option::<&Symbol>::None,
+                Option::<Id<Symbol>>::None,
                 None,
                 None,
             )?);

@@ -229,8 +229,8 @@ impl TypeChecker {
 
     pub(super) fn is_enum_type_related_to(
         &self,
-        source_symbol: &Symbol,
-        target_symbol: &Symbol,
+        source_symbol: Id<Symbol>,
+        target_symbol: Id<Symbol>,
         error_reporter: &mut Option<ErrorReporter>,
     ) -> io::Result<bool> {
         if ptr::eq(source_symbol, target_symbol) {
@@ -506,7 +506,11 @@ impl TypeChecker {
         Ok(false)
     }
 
-    pub(super) fn is_ignored_jsx_property(&self, source: Id<Type>, source_prop: &Symbol) -> bool {
+    pub(super) fn is_ignored_jsx_property(
+        &self,
+        source: Id<Type>,
+        source_prop: Id<Symbol>,
+    ) -> bool {
         get_object_flags(&self.type_(source)).intersects(ObjectFlags::JsxAttributes)
             && self.is_hyphenated_jsx_name(source_prop.escaped_name())
     }

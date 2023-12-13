@@ -24,7 +24,7 @@ use crate::{
 impl TypeChecker {
     pub(super) fn get_base_type_variable_of_class(
         &self,
-        symbol: &Symbol,
+        symbol: Id<Symbol>,
     ) -> io::Result<Option<Id<Type>>> {
         let base_constructor_type = self.get_base_constructor_type_of_class(
             self.get_declared_type_of_class_or_interface(symbol)?,
@@ -56,7 +56,7 @@ impl TypeChecker {
 
     pub(super) fn get_type_of_func_class_enum_module(
         &self,
-        symbol: &Symbol,
+        symbol: Id<Symbol>,
     ) -> io::Result<Id<Type>> {
         let mut links = self.get_symbol_links(symbol);
         let original_links = links.clone();
@@ -84,7 +84,7 @@ impl TypeChecker {
 
     pub(super) fn get_type_of_func_class_enum_module_worker(
         &self,
-        symbol: &Symbol,
+        symbol: Id<Symbol>,
     ) -> io::Result<Id<Type>> {
         let declaration = symbol.maybe_value_declaration();
         if symbol.flags().intersects(SymbolFlags::Module)
@@ -98,7 +98,7 @@ impl TypeChecker {
                 declaration.parent().kind() == SyntaxKind::BinaryExpression
         ) {
             return self
-                .get_widened_type_for_assignment_declaration(symbol, Option::<&Symbol>::None);
+                .get_widened_type_for_assignment_declaration(symbol, Option::<Id<Symbol>>::None);
         } else if symbol.flags().intersects(SymbolFlags::ValueModule)
             && matches!(
                 declaration.as_ref(),
@@ -146,7 +146,7 @@ impl TypeChecker {
             if let Some(base_type_variable) = base_type_variable {
                 self.get_intersection_type(
                     &vec![type_, base_type_variable],
-                    Option::<&Symbol>::None,
+                    Option::<Id<Symbol>>::None,
                     None,
                 )?
             } else {
@@ -161,7 +161,7 @@ impl TypeChecker {
         })
     }
 
-    pub(super) fn get_type_of_enum_member(&self, symbol: &Symbol) -> io::Result<Id<Type>> {
+    pub(super) fn get_type_of_enum_member(&self, symbol: Id<Symbol>) -> io::Result<Id<Type>> {
         let links = self.get_symbol_links(symbol);
         if let Some(links_type) = (*links).borrow().type_.clone() {
             return Ok(links_type);
@@ -171,7 +171,7 @@ impl TypeChecker {
         Ok(ret)
     }
 
-    pub(super) fn get_type_of_alias(&self, symbol: &Symbol) -> io::Result<Id<Type>> {
+    pub(super) fn get_type_of_alias(&self, symbol: Id<Symbol>) -> io::Result<Id<Type>> {
         let links = self.get_symbol_links(symbol);
         if (*links).borrow().type_.is_none() {
             let target_symbol = self.resolve_alias(symbol)?;
@@ -297,14 +297,14 @@ impl TypeChecker {
                     self.get_union_type(
                         links.deferral_constituents.as_ref().unwrap(),
                         None,
-                        Option::<&Symbol>::None,
+                        Option::<Id<Symbol>>::None,
                         None,
                         None,
                     )?
                 } else {
                     self.get_intersection_type(
                         links.deferral_constituents.as_deref().unwrap(),
-                        Option::<&Symbol>::None,
+                        Option::<Id<Symbol>>::None,
                         None,
                     )?
                 },
@@ -1041,7 +1041,7 @@ impl TypeChecker {
                             self.number_type(),
                             None,
                             Option::<&Node>::None,
-                            Option::<&Symbol>::None,
+                            Option::<Id<Symbol>>::None,
                             None,
                         )?
                     } else {
@@ -1055,7 +1055,7 @@ impl TypeChecker {
             self.get_union_type(
                 &element_types.unwrap_or_else(|| vec![]),
                 None,
-                Option::<&Symbol>::None,
+                Option::<Id<Symbol>>::None,
                 None,
                 None,
             )?,

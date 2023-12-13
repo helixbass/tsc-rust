@@ -113,7 +113,7 @@ impl TypeChecker {
                     )?,
                     None,
                     Option::<&Node>::None,
-                    Option::<&Symbol>::None,
+                    Option::<Id<Symbol>>::None,
                     None,
                 );
             }
@@ -171,7 +171,7 @@ impl TypeChecker {
         &self,
         root: Gc<GcCell<ConditionalRoot>>,
         mut mapper: Option<Id<TypeMapper>>,
-        alias_symbol: Option<impl Borrow<Symbol>>,
+        alias_symbol: Option<Id<Symbol>>,
         mut alias_type_arguments: Option<&[Id<Type>]>,
     ) -> io::Result<Id<Type>> {
         let result: Id<Type>;
@@ -371,7 +371,7 @@ impl TypeChecker {
         }
         Ok(if let Some(mut extra_types) = extra_types {
             append(&mut extra_types, Some(result));
-            self.get_union_type(&extra_types, None, Option::<&Symbol>::None, None, None)?
+            self.get_union_type(&extra_types, None, Option::<Id<Symbol>>::None, None, None)?
         } else {
             result
         })
@@ -644,7 +644,7 @@ impl TypeChecker {
                 alias_type_arguments,
             )));
             let resolved_type =
-                self.get_conditional_type(root.clone(), None, Option::<&Symbol>::None, None)?;
+                self.get_conditional_type(root.clone(), None, Option::<Id<Symbol>>::None, None)?;
             links.borrow_mut().resolved_type = Some(resolved_type.clone());
             if let Some(outer_type_parameters) = outer_type_parameters {
                 let mut instantiations: HashMap<String, Id<Type>> = HashMap::new();
@@ -855,7 +855,7 @@ impl TypeChecker {
         &self,
         node: &Node, /*ImportTypeNode*/
         links: &GcCell<NodeLinks>,
-        symbol: &Symbol,
+        symbol: Id<Symbol>,
         meaning: SymbolFlags,
     ) -> io::Result<Id<Type>> {
         let resolved_symbol = self.resolve_symbol(Some(symbol), None)?.unwrap();
@@ -919,7 +919,7 @@ impl TypeChecker {
 
     pub(super) fn get_type_arguments_for_alias_symbol(
         &self,
-        symbol: Option<impl Borrow<Symbol>>,
+        symbol: Option<Id<Symbol>>,
     ) -> io::Result<Option<Vec<Id<Type>>>> {
         symbol.try_and_then(|symbol| {
             self.get_local_type_parameters_of_class_or_interface_or_type_alias(symbol.borrow())
@@ -1056,7 +1056,7 @@ impl TypeChecker {
         &self,
         left: Id<Type>,
         right: Id<Type>,
-        symbol: Option<impl Borrow<Symbol>>,
+        symbol: Option<Id<Symbol>>,
         object_flags: ObjectFlags,
         readonly: bool,
     ) -> io::Result<Id<Type>> {
@@ -1155,12 +1155,16 @@ impl TypeChecker {
                                 readonly,
                             )?],
                         ),
-                        Option::<&Symbol>::None,
+                        Option::<Id<Symbol>>::None,
                         None,
                     );
                 }
             }
-            return self.get_intersection_type(&vec![left, right], Option::<&Symbol>::None, None);
+            return self.get_intersection_type(
+                &vec![left, right],
+                Option::<Id<Symbol>>::None,
+                None,
+            );
         }
 
         let mut members = create_symbol_table(Option::<&[Id<Symbol>]>::None);
@@ -1210,7 +1214,7 @@ impl TypeChecker {
                             self.remove_missing_or_undefined_type(right_type)?,
                         ],
                         None,
-                        Option::<&Symbol>::None,
+                        Option::<Id<Symbol>>::None,
                         None,
                         None,
                     )?);

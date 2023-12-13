@@ -635,7 +635,7 @@ impl TypeChecker {
                     self.get_number_literal_type(Number::new((i - index) as f64)),
                     Some(AccessFlags::Contextual),
                     Option::<&Node>::None,
-                    Option::<&Symbol>::None,
+                    Option::<Id<Symbol>>::None,
                     None,
                 )?;
                 let arg_type = self.check_expression_with_contextual_type(

@@ -44,7 +44,7 @@ impl TypeChecker {
 
     pub(super) fn has_visible_declarations(
         &self,
-        symbol: &Symbol,
+        symbol: Id<Symbol>,
         should_compute_aliases_to_make_visible: bool,
     ) -> Option<SymbolVisibilityResult> {
         let aliases_to_make_visible: RefCell<
@@ -76,7 +76,7 @@ impl TypeChecker {
 
     pub(super) fn get_is_declaration_visible(
         &self,
-        symbol: &Symbol,
+        symbol: Id<Symbol>,
         should_compute_aliases_to_make_visible: bool,
         aliases_to_make_visible: &RefCell<Option<Vec<Gc<Node>>>>,
         declaration: &Node, /*Declaration*/
@@ -237,7 +237,7 @@ impl TypeChecker {
 
     pub(super) fn symbol_to_string_(
         &self,
-        symbol: &Symbol,
+        symbol: Id<Symbol>,
         enclosing_declaration: Option<impl Borrow<Node>>,
         meaning: Option<SymbolFlags>,
         flags: Option<SymbolFormatFlags>,
@@ -513,7 +513,7 @@ impl TypeChecker {
 
     pub(super) fn symbol_value_declaration_is_context_sensitive(
         &self,
-        symbol: Option<&Symbol>,
+        symbol: Option<Id<Symbol>>,
     ) -> io::Result<bool> {
         if symbol.is_none() {
             return Ok(false);
@@ -609,14 +609,14 @@ impl NodeBuilder {
                 signature,
                 kind,
                 context,
-                Option::<SignatureToSignatureDeclarationOptions<fn(&Symbol)>>::None,
+                Option::<SignatureToSignatureDeclarationOptions<fn(Id<Symbol>)>>::None,
             )?))
         })
     }
 
     pub fn symbol_to_entity_name(
         &self,
-        symbol: &Symbol,
+        symbol: Id<Symbol>,
         meaning: /*SymbolFlags*/ Option<SymbolFlags>,
         enclosing_declaration: Option<impl Borrow<Node>>,
         flags: Option<NodeBuilderFlags>,
@@ -629,7 +629,7 @@ impl NodeBuilder {
 
     pub fn symbol_to_expression(
         &self,
-        symbol: &Symbol,
+        symbol: Id<Symbol>,
         meaning: /*SymbolFlags*/ Option<SymbolFlags>,
         enclosing_declaration: Option<impl Borrow<Node>>,
         flags: Option<NodeBuilderFlags>,
@@ -642,7 +642,7 @@ impl NodeBuilder {
 
     pub fn symbol_to_type_parameter_declarations(
         &self,
-        symbol: &Symbol,
+        symbol: Id<Symbol>,
         enclosing_declaration: Option<impl Borrow<Node>>,
         flags: Option<NodeBuilderFlags>,
         tracker: Option<Gc<Box<dyn SymbolTracker>>>,
@@ -654,7 +654,7 @@ impl NodeBuilder {
 
     pub fn symbol_to_parameter_declaration(
         &self,
-        symbol: &Symbol,
+        symbol: Id<Symbol>,
         enclosing_declaration: Option<impl Borrow<Node>>,
         flags: Option<NodeBuilderFlags>,
         tracker: Option<Gc<Box<dyn SymbolTracker>>>,
@@ -664,7 +664,7 @@ impl NodeBuilder {
                 symbol,
                 context,
                 None,
-                Option::<&fn(&Symbol)>::None,
+                Option::<&fn(Id<Symbol>)>::None,
                 None,
             )?))
         })
@@ -1649,7 +1649,7 @@ impl DefaultNodeBuilderContextSymbolTracker {
 impl SymbolTracker for DefaultNodeBuilderContextSymbolTracker {
     fn track_symbol(
         &self,
-        _symbol: &Symbol,
+        _symbol: Id<Symbol>,
         _enclosing_declaration: Option<Gc<Node>>,
         _meaning: SymbolFlags,
     ) -> Option<io::Result<bool>> {
@@ -1873,8 +1873,8 @@ impl SymbolTracker for NodeBuilderContextWrappedSymbolTracker {
     fn report_nonlocal_augmentation(
         &self,
         containing_file: &Node, /*SourceFile*/
-        parent_symbol: &Symbol,
-        augmenting_symbol: &Symbol,
+        parent_symbol: Id<Symbol>,
+        augmenting_symbol: Id<Symbol>,
     ) {
         if self.tracker.is_report_nonlocal_augmentation_supported() {
             self.mark_context_reported_diagnostic();
@@ -1916,7 +1916,7 @@ impl SymbolTracker for NodeBuilderContextWrappedSymbolTracker {
 
     fn track_symbol(
         &self,
-        symbol: &Symbol,
+        symbol: Id<Symbol>,
         enclosing_declaration: Option<Gc<Node>>,
         meaning: SymbolFlags,
     ) -> Option<io::Result<bool>> {
@@ -1967,7 +1967,7 @@ impl SymbolTracker for NodeBuilderContextWrappedSymbolTracker {
     fn track_referenced_ambient_module(
         &self,
         decl: &Node, /*ModuleDeclaration*/
-        symbol: &Symbol,
+        symbol: Id<Symbol>,
     ) -> io::Result<()> {
         self.tracker.track_referenced_ambient_module(decl, symbol)
     }
@@ -1976,7 +1976,7 @@ impl SymbolTracker for NodeBuilderContextWrappedSymbolTracker {
         self.tracker.is_track_referenced_ambient_module_supported()
     }
 
-    fn track_external_module_symbol_of_import_type_node(&self, symbol: &Symbol) {
+    fn track_external_module_symbol_of_import_type_node(&self, symbol: Id<Symbol>) {
         self.tracker
             .track_external_module_symbol_of_import_type_node(symbol)
     }

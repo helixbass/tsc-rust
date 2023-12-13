@@ -91,7 +91,7 @@ impl TypeChecker {
     pub(super) fn check_nested_block_scoped_binding(
         &self,
         node: &Node, /*Identifier*/
-        symbol: &Symbol,
+        symbol: Id<Symbol>,
     ) {
         if self.language_version >= ScriptTarget::ES2015
             || !symbol

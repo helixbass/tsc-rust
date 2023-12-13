@@ -19,7 +19,7 @@ impl TypeChecker {
     pub(super) fn is_symbol_used_in_binary_expression_chain(
         &self,
         node: &Node,
-        tested_symbol: &Symbol,
+        tested_symbol: Id<Symbol>,
     ) -> io::Result<bool> {
         let mut node = node.node_wrapper();
         while is_binary_expression(&node)
@@ -41,7 +41,7 @@ impl TypeChecker {
 
     pub(super) fn is_symbol_used_in_binary_expression_chain_visit(
         &self,
-        tested_symbol: &Symbol,
+        tested_symbol: Id<Symbol>,
         child: &Node,
     ) -> io::Result<bool> {
         if is_identifier(child) {
@@ -455,7 +455,7 @@ impl TypeChecker {
                     array_type = self.get_union_type(
                         &filtered_types,
                         Some(UnionReduction::Subtype),
-                        Option::<&Symbol>::None,
+                        Option::<Id<Symbol>>::None,
                         None,
                         None,
                     )?;
@@ -558,7 +558,7 @@ impl TypeChecker {
                         vec![array_element_type.clone(), self.string_type()]
                     },
                     Some(UnionReduction::Subtype),
-                    Option::<&Symbol>::None,
+                    Option::<Id<Symbol>>::None,
                     None,
                     None,
                 )?));
@@ -739,13 +739,13 @@ impl TypeChecker {
         if yield_types.is_some() || return_types.is_some() || next_types.is_some() {
             return Ok(self.create_iteration_types(
                 yield_types.try_map(|yield_types| {
-                    self.get_union_type(&yield_types, None, Option::<&Symbol>::None, None, None)
+                    self.get_union_type(&yield_types, None, Option::<Id<Symbol>>::None, None, None)
                 })?,
                 return_types.try_map(|return_types| {
-                    self.get_union_type(&return_types, None, Option::<&Symbol>::None, None, None)
+                    self.get_union_type(&return_types, None, Option::<Id<Symbol>>::None, None, None)
                 })?,
                 next_types.try_map(|next_types| {
-                    self.get_intersection_type(&next_types, Option::<&Symbol>::None, None)
+                    self.get_intersection_type(&next_types, Option::<Id<Symbol>>::None, None)
                 })?,
             ));
         }

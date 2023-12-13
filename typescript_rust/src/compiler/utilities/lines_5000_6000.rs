@@ -158,7 +158,7 @@ pub fn is_empty_array_literal(expression: &Node) -> bool {
         && expression.as_array_literal_expression().elements.is_empty()
 }
 
-pub fn get_local_symbol_for_export_default(symbol: &Symbol) -> Option<Id<Symbol>> {
+pub fn get_local_symbol_for_export_default(symbol: Id<Symbol>) -> Option<Id<Symbol>> {
     if !is_export_default_symbol(symbol) || symbol.maybe_declarations().is_none() {
         return None;
     }
@@ -170,7 +170,7 @@ pub fn get_local_symbol_for_export_default(symbol: &Symbol) -> Option<Id<Symbol>
     None
 }
 
-fn is_export_default_symbol(symbol: &Symbol) -> bool {
+fn is_export_default_symbol(symbol: Id<Symbol>) -> bool {
     /*symbol &&*/
     match symbol
         .maybe_declarations()
@@ -438,7 +438,7 @@ pub fn is_watch_set(options: &CompilerOptions) -> bool {
     matches!(options.watch, Some(true))
 }
 
-pub fn get_check_flags(symbol: &Symbol) -> CheckFlags {
+pub fn get_check_flags(symbol: Id<Symbol>) -> CheckFlags {
     match symbol {
         Symbol::TransientSymbol(transient_symbol) => transient_symbol.check_flags(),
         _ => CheckFlags::None,
@@ -446,7 +446,7 @@ pub fn get_check_flags(symbol: &Symbol) -> CheckFlags {
 }
 
 pub fn get_declaration_modifier_flags_from_symbol(
-    s: &Symbol,
+    s: Id<Symbol>,
     is_write: Option<bool>,
 ) -> ModifierFlags {
     let is_write = is_write.unwrap_or(false);
@@ -494,7 +494,7 @@ pub fn get_declaration_modifier_flags_from_symbol(
     ModifierFlags::None
 }
 
-pub fn get_combined_local_and_export_symbol_flags(_symbol: &Symbol) -> SymbolFlags {
+pub fn get_combined_local_and_export_symbol_flags(_symbol: Id<Symbol>) -> SymbolFlags {
     unimplemented!()
 }
 
@@ -603,7 +603,7 @@ fn reverse_access_kind(a: AccessKind) -> AccessKind {
 }
 
 pub fn get_class_like_declaration_of_symbol(
-    symbol: &Symbol,
+    symbol: Id<Symbol>,
 ) -> Option<Gc<Node /*ClassLikeDeclaration*/>> {
     symbol
         .maybe_declarations()
@@ -636,7 +636,7 @@ pub fn type_has_call_or_construct_signatures(
             .is_empty())
 }
 
-pub fn is_umd_export_symbol(symbol: Option<impl Borrow<Symbol>>) -> bool {
+pub fn is_umd_export_symbol(symbol: Option<Id<Symbol>>) -> bool {
     matches!(
         symbol,
         Some(symbol) if matches!(

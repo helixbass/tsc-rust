@@ -861,7 +861,7 @@ impl TypeChecker {
                     self.get_index_type(source, None, None)?,
                     self.get_index_type(target, None, None)?,
                 ],
-                Option::<&Symbol>::None,
+                Option::<Id<Symbol>>::None,
                 None,
             )?;
             if self.type_(overlap).flags().intersects(TypeFlags::Index) {
@@ -1261,7 +1261,7 @@ impl EmitResolver for EmitResolverCreateResolver {
 
     fn is_symbol_accessible(
         &self,
-        symbol: &Symbol,
+        symbol: Id<Symbol>,
         enclosing_declaration: Option<&Node>,
         meaning: Option<SymbolFlags>,
         should_compute_alias_to_mark_visible: bool,
@@ -1373,7 +1373,7 @@ impl EmitResolver for EmitResolverCreateResolver {
 
     fn get_type_reference_directives_for_symbol(
         &self,
-        symbol: &Symbol,
+        symbol: Id<Symbol>,
         meaning: Option<SymbolFlags>,
     ) -> io::Result<Option<Vec<String>>> {
         let file_to_directive = return_ok_default_if_none!(self.file_to_directive.as_ref());

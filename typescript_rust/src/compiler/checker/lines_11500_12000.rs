@@ -411,7 +411,7 @@ impl TypeChecker {
     pub(super) fn for_each_property_of_type(
         &self,
         type_: Id<Type>,
-        mut action: impl FnMut(&Symbol, &__String),
+        mut action: impl FnMut(Id<Symbol>, &__String),
     ) -> io::Result<()> {
         let type_ = self.get_reduced_apparent_type(type_)?;
         if self
@@ -456,7 +456,8 @@ impl TypeChecker {
         &self,
         types: &[Id<Type>],
     ) -> io::Result<Vec<Id<Symbol>>> {
-        let union_type = self.get_union_type(types, None, Option::<&Symbol>::None, None, None)?;
+        let union_type =
+            self.get_union_type(types, None, Option::<Id<Symbol>>::None, None, None)?;
         if !self.type_(union_type).flags().intersects(TypeFlags::Union) {
             return self.get_augmented_properties_of_type(union_type);
         }
@@ -557,7 +558,7 @@ impl TypeChecker {
                     access_flags
                 }),
                 Option::<&Node>::None,
-                Option::<&Symbol>::None,
+                Option::<Id<Symbol>>::None,
                 None,
             )?;
             if indexed_access.is_some() {
@@ -581,7 +582,7 @@ impl TypeChecker {
                     access_flags
                 }),
                 Option::<&Node>::None,
-                Option::<&Symbol>::None,
+                Option::<Id<Symbol>>::None,
                 None,
             );
         }
@@ -612,7 +613,7 @@ impl TypeChecker {
                     self.get_union_type(
                         &[true_constraint, false_constraint],
                         None,
-                        Option::<&Symbol>::None,
+                        Option::<Id<Symbol>>::None,
                         None,
                         None,
                     )?
@@ -664,7 +665,7 @@ impl TypeChecker {
                             mapper
                         },
                     ),
-                    Option::<&Symbol>::None,
+                    Option::<Id<Symbol>>::None,
                     None,
                 )?;
                 if !self
@@ -739,7 +740,7 @@ impl TypeChecker {
                 }
                 return Ok(Some(self.get_intersection_type(
                     &constraints,
-                    Option::<&Symbol>::None,
+                    Option::<Id<Symbol>>::None,
                     None,
                 )?));
             }
@@ -930,14 +931,18 @@ impl TypeChecker {
                     Some(self.get_union_type(
                         &base_types,
                         None,
-                        Option::<&Symbol>::None,
+                        Option::<Id<Symbol>>::None,
                         None,
                         None,
                     )?)
                 } else if self.type_(t).flags().intersects(TypeFlags::Intersection)
                     && !base_types.is_empty()
                 {
-                    Some(self.get_intersection_type(&base_types, Option::<&Symbol>::None, None)?)
+                    Some(self.get_intersection_type(
+                        &base_types,
+                        Option::<Id<Symbol>>::None,
+                        None,
+                    )?)
                 } else {
                     None
                 },
@@ -994,7 +999,7 @@ impl TypeChecker {
                         access_flags
                     }),
                     Option::<&Node>::None,
-                    Option::<&Symbol>::None,
+                    Option::<Id<Symbol>>::None,
                     None,
                 )?
             } else {

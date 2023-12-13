@@ -343,9 +343,9 @@ impl TypeChecker {
             result_links.deferral_constituents = Some(prop_types);
         } else {
             result_links.type_ = Some(if is_union {
-                self.get_union_type(&prop_types, None, Option::<&Symbol>::None, None, None)?
+                self.get_union_type(&prop_types, None, Option::<Id<Symbol>>::None, None, None)?
             } else {
-                self.get_intersection_type(&prop_types, Option::<&Symbol>::None, None)?
+                self.get_intersection_type(&prop_types, Option::<Id<Symbol>>::None, None)?
             });
         }
         Ok(Some(result))
@@ -520,12 +520,12 @@ impl TypeChecker {
         Ok(reduced)
     }
 
-    pub(super) fn is_never_reduced_property(&self, prop: &Symbol) -> io::Result<bool> {
+    pub(super) fn is_never_reduced_property(&self, prop: Id<Symbol>) -> io::Result<bool> {
         Ok(self.is_discriminant_with_never_type(prop)?
             || self.is_conflicting_private_property(prop))
     }
 
-    pub(super) fn is_discriminant_with_never_type(&self, prop: &Symbol) -> io::Result<bool> {
+    pub(super) fn is_discriminant_with_never_type(&self, prop: Id<Symbol>) -> io::Result<bool> {
         Ok(!prop.flags().intersects(SymbolFlags::Optional)
             && get_check_flags(prop) & (CheckFlags::Discriminant | CheckFlags::HasNeverType)
                 == CheckFlags::Discriminant
@@ -535,7 +535,7 @@ impl TypeChecker {
                 .intersects(TypeFlags::Never))
     }
 
-    pub(super) fn is_conflicting_private_property(&self, prop: &Symbol) -> bool {
+    pub(super) fn is_conflicting_private_property(&self, prop: Id<Symbol>) -> bool {
         prop.maybe_value_declaration().is_none()
             && get_check_flags(prop).intersects(CheckFlags::ContainsPrivate)
     }
@@ -721,7 +721,7 @@ impl TypeChecker {
                     &map(&applicable_infos, |info: &Gc<IndexInfo>, _| {
                         info.type_.clone()
                     }),
-                    Option::<&Symbol>::None,
+                    Option::<Id<Symbol>>::None,
                     None,
                 )?,
                 reduce_left(

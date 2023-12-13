@@ -368,7 +368,7 @@ impl TypeChecker {
                         if let Some(type_to_intersect) = type_to_intersect.as_ref() {
                             self.get_intersection_type(
                                 &[type_to_intersect.clone(), expr_type],
-                                Option::<&Symbol>::None,
+                                Option::<Id<Symbol>>::None,
                                 None,
                             )?
                         } else {
@@ -461,7 +461,7 @@ impl TypeChecker {
                             self.get_union_type(
                                 &children_types,
                                 None,
-                                Option::<&Symbol>::None,
+                                Option::<Id<Symbol>>::None,
                                 None,
                                 None,
                             )?,
@@ -516,7 +516,7 @@ impl TypeChecker {
             if spread != self.empty_jsx_object_type() {
                 return self.get_intersection_type(
                     &[type_to_intersect.clone(), spread.clone()],
-                    Option::<&Symbol>::None,
+                    Option::<Id<Symbol>>::None,
                     None,
                 );
             }

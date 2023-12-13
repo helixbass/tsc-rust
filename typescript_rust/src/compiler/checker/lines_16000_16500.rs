@@ -22,7 +22,7 @@ use crate::{
 };
 
 impl TypeChecker {
-    pub(super) fn is_spreadable_property(&self, prop: &Symbol) -> bool {
+    pub(super) fn is_spreadable_property(&self, prop: Id<Symbol>) -> bool {
         !some(
             prop.maybe_declarations().as_deref(),
             Some(|declaration: &Gc<Node>| {
@@ -39,7 +39,7 @@ impl TypeChecker {
 
     pub(super) fn get_spread_symbol(
         &self,
-        prop: &Symbol,
+        prop: Id<Symbol>,
         readonly: bool,
     ) -> io::Result<Id<Symbol>> {
         let is_setonly_accessor = prop.flags().intersects(SymbolFlags::SetAccessor)
@@ -95,11 +95,11 @@ impl TypeChecker {
     }
 
     // pub fn create_literal_type(
-    pub fn create_string_literal_type<TSymbol: Borrow<Symbol>>(
+    pub fn create_string_literal_type(
         &self,
         flags: TypeFlags,
         value: String,
-        symbol: Option<TSymbol>,
+        symbol: Option<Id<Symbol>>,
         regular_type: Option<Id<Type>>,
     ) -> Id<Type> {
         let type_ = self.create_type(flags);
@@ -117,11 +117,11 @@ impl TypeChecker {
         type_
     }
 
-    pub fn create_number_literal_type<TSymbol: Borrow<Symbol>>(
+    pub fn create_number_literal_type(
         &self,
         flags: TypeFlags,
         value: Number,
-        symbol: Option<TSymbol>,
+        symbol: Option<Id<Symbol>>,
         regular_type: Option<Id<Type>>,
     ) -> Id<Type> {
         let type_ = self.create_type(flags);
@@ -139,11 +139,11 @@ impl TypeChecker {
         type_
     }
 
-    pub fn create_big_int_literal_type<TSymbol: Borrow<Symbol>>(
+    pub fn create_big_int_literal_type(
         &self,
         flags: TypeFlags,
         value: PseudoBigInt,
-        symbol: Option<TSymbol>,
+        symbol: Option<Id<Symbol>>,
         regular_type: Option<Id<Type>>,
     ) -> Id<Type> {
         let type_ = self.create_type(flags);
@@ -243,7 +243,7 @@ impl TypeChecker {
         let type_ = self.create_string_literal_type(
             TypeFlags::StringLiteral,
             value.to_owned(),
-            Option::<&Symbol>::None,
+            Option::<Id<Symbol>>::None,
             None,
         );
         string_literal_types.insert(value.to_owned(), type_.clone());
@@ -258,7 +258,7 @@ impl TypeChecker {
         let type_ = self.create_number_literal_type(
             TypeFlags::NumberLiteral,
             value,
-            Option::<&Symbol>::None,
+            Option::<Id<Symbol>>::None,
             None,
         );
         number_literal_types.insert(value, type_.clone());
@@ -274,7 +274,7 @@ impl TypeChecker {
         let type_ = self.create_big_int_literal_type(
             TypeFlags::BigIntLiteral,
             value,
-            Option::<&Symbol>::None,
+            Option::<Id<Symbol>>::None,
             None,
         );
         big_int_literal_types.insert(key, type_.clone());
@@ -285,7 +285,7 @@ impl TypeChecker {
         &self,
         value: StringOrNumber,
         enum_id: usize,
-        symbol: &Symbol,
+        symbol: Id<Symbol>,
     ) -> Id<Type /*LiteralType*/> {
         let key = match value.clone() {
             StringOrNumber::String(value) => {
@@ -337,7 +337,7 @@ impl TypeChecker {
 
     pub(super) fn create_unique_es_symbol_type(
         &self,
-        symbol: &Symbol,
+        symbol: Id<Symbol>,
     ) -> Id<Type /*UniqueESSymbolType*/> {
         let type_ = self.create_type(TypeFlags::UniqueESSymbol);
         let type_ = self.alloc_type(
@@ -1026,7 +1026,7 @@ impl TypeChecker {
 
     pub(super) fn instantiate_symbol(
         &self,
-        symbol: &Symbol,
+        symbol: Id<Symbol>,
         mut mapper: Id<TypeMapper>,
     ) -> io::Result<Id<Symbol>> {
         let mut symbol = symbol.symbol_wrapper();
@@ -1077,7 +1077,7 @@ impl TypeChecker {
         &self,
         type_: Id<Type>, /*AnonymousType | DeferredTypeReference*/
         mapper: Id<TypeMapper>,
-        alias_symbol: Option<impl Borrow<Symbol>>,
+        alias_symbol: Option<Id<Symbol>>,
         alias_type_arguments: Option<&[Id<Type>]>,
     ) -> io::Result<Id<Type>> {
         let declaration = if self

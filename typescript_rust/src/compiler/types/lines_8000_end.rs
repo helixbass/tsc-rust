@@ -718,6 +718,7 @@ mod _PrinterOptionsDeriveTraceScope {
     }
 }
 pub use _PrinterOptionsDeriveTraceScope::{PrinterOptions, PrinterOptionsBuilder};
+use id_arena::Id;
 
 pub trait RelativeToBuildInfo: Trace + Finalize {
     fn call(&self, file_name: &str) -> String;
@@ -862,7 +863,7 @@ pub trait ModuleSpecifierCache {
 pub trait SymbolTracker: Trace + Finalize {
     fn track_symbol(
         &self,
-        _symbol: &Symbol,
+        _symbol: Id<Symbol>,
         _enclosing_declaration: Option<Gc<Node>>,
         _meaning: SymbolFlags,
     ) -> Option<io::Result<bool>> {
@@ -891,17 +892,17 @@ pub trait SymbolTracker: Trace + Finalize {
     fn track_referenced_ambient_module(
         &self,
         _decl: &Node, /*ModuleDeclaration*/
-        _symbol: &Symbol,
+        _symbol: Id<Symbol>,
     ) -> io::Result<()> {
         Ok(())
     }
     fn is_track_referenced_ambient_module_supported(&self) -> bool;
-    fn track_external_module_symbol_of_import_type_node(&self, _symbol: &Symbol) {}
+    fn track_external_module_symbol_of_import_type_node(&self, _symbol: Id<Symbol>) {}
     fn report_nonlocal_augmentation(
         &self,
         _containing_file: &Node, /*SourceFile*/
-        _parent_symbol: &Symbol,
-        _augmenting_symbol: &Symbol,
+        _parent_symbol: Id<Symbol>,
+        _augmenting_symbol: Id<Symbol>,
     ) {
     }
     fn is_report_nonlocal_augmentation_supported(&self) -> bool;

@@ -240,7 +240,7 @@ impl TypeChecker {
                                     self.number_type(),
                                     None,
                                     Option::<&Node>::None,
-                                    Option::<&Symbol>::None,
+                                    Option::<Id<Symbol>>::None,
                                     None,
                                 )?
                             } else {
@@ -250,7 +250,7 @@ impl TypeChecker {
                     },
                 )?,
                 None,
-                Option::<&Symbol>::None,
+                Option::<Id<Symbol>>::None,
                 None,
                 None,
             )?;
@@ -373,7 +373,7 @@ impl TypeChecker {
                 ret
             },
             None,
-            Option::<&Symbol>::None,
+            Option::<Id<Symbol>>::None,
             None,
             None,
         )
@@ -750,7 +750,7 @@ impl TypeChecker {
         &self,
         types: TTypes,
         union_reduction: Option<UnionReduction>,
-        alias_symbol: Option<impl Borrow<Symbol>>,
+        alias_symbol: Option<Id<Symbol>>,
         alias_type_arguments: Option<&[Id<Type>]>,
         mut origin: Option<Id<Type>>,
     ) -> io::Result<Id<Type>>
@@ -949,11 +949,11 @@ impl TypeChecker {
         a.kind == b.kind && a.parameter_index == b.parameter_index
     }
 
-    pub(super) fn get_union_type_from_sorted_list<TAliasSymbol: Borrow<Symbol>>(
+    pub(super) fn get_union_type_from_sorted_list(
         &self,
         types: Vec<Id<Type>>,
         object_flags: ObjectFlags,
-        alias_symbol: Option<TAliasSymbol>,
+        alias_symbol: Option<Id<Symbol>>,
         alias_type_arguments: Option<&[Id<Type>]>,
         origin: Option<Id<Type>>,
     ) -> Id<Type> {

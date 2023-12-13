@@ -183,7 +183,7 @@ impl GetFlowTypeOfReference {
                         )
                     })?,
                     None,
-                    Option::<&Symbol>::None,
+                    Option::<Id<Symbol>>::None,
                     None,
                     None,
                 )?
@@ -262,7 +262,7 @@ impl GetFlowTypeOfReference {
         } else {
             self.type_checker.get_intersection_type(
                 &vec![type_, candidate],
-                Option::<&Symbol>::None,
+                Option::<Id<Symbol>>::None,
                 None,
             )?
         })
@@ -538,7 +538,7 @@ impl GetFlowTypeOfReference {
 impl TypeChecker {
     pub(super) fn get_type_of_symbol_at_location_(
         &self,
-        symbol: &Symbol,
+        symbol: Id<Symbol>,
         location: &Node,
     ) -> io::Result<Id<Type>> {
         let symbol = symbol
@@ -600,7 +600,7 @@ impl TypeChecker {
         self.maybe_get_control_flow_container(node).unwrap()
     }
 
-    pub(super) fn is_symbol_assigned(&self, symbol: &Symbol) -> io::Result<bool> {
+    pub(super) fn is_symbol_assigned(&self, symbol: Id<Symbol>) -> io::Result<bool> {
         let symbol_value_declaration = symbol.maybe_value_declaration();
         if symbol_value_declaration.is_none() {
             return Ok(false);
@@ -654,7 +654,7 @@ impl TypeChecker {
         Ok(())
     }
 
-    pub(super) fn is_const_variable(&self, symbol: &Symbol) -> bool {
+    pub(super) fn is_const_variable(&self, symbol: Id<Symbol>) -> bool {
         symbol.flags().intersects(SymbolFlags::Variable)
             && self
                 .get_declaration_node_flags_from_symbol(symbol)
@@ -820,7 +820,7 @@ impl TypeChecker {
         .is_some()
     }
 
-    pub(super) fn mark_alias_referenced(&self, symbol: &Symbol, location: &Node) -> io::Result<()> {
+    pub(super) fn mark_alias_referenced(&self, symbol: Id<Symbol>, location: &Node) -> io::Result<()> {
         if self.is_non_local_alias(Some(symbol), Some(SymbolFlags::Value))
             && !self.is_in_type_query(location)
             && self.get_type_only_alias_declaration(symbol).is_none()

@@ -291,7 +291,7 @@ impl TypeChecker {
     pub(super) fn check_index_constraints(
         &self,
         type_: Id<Type>,
-        symbol: &Symbol,
+        symbol: Id<Symbol>,
         is_static_index: Option<bool>,
     ) -> io::Result<()> {
         let index_infos = self.get_index_infos_of_type(type_)?;
@@ -347,7 +347,7 @@ impl TypeChecker {
     pub(super) fn check_index_constraint_for_property(
         &self,
         type_: Id<Type>,
-        prop: &Symbol,
+        prop: Id<Symbol>,
         prop_name_type: Id<Type>,
         prop_type: Id<Type>,
     ) -> io::Result<()> {
@@ -648,7 +648,10 @@ impl TypeChecker {
         Ok(())
     }
 
-    pub(super) fn check_type_parameter_lists_identical(&self, symbol: &Symbol) -> io::Result<()> {
+    pub(super) fn check_type_parameter_lists_identical(
+        &self,
+        symbol: Id<Symbol>,
+    ) -> io::Result<()> {
         if matches!(
             symbol.maybe_declarations().as_ref(),
             Some(symbol_declarations) if symbol_declarations.len() == 1

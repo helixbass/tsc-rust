@@ -179,7 +179,7 @@ impl TypeChecker {
                 expected_return_type = self.get_union_type(
                     &[class_constructor_type, self.void_type()],
                     None,
-                    Option::<&Symbol>::None,
+                    Option::<Id<Symbol>>::None,
                     None,
                     None,
                 )?;
@@ -213,7 +213,7 @@ impl TypeChecker {
                 expected_return_type = self.get_union_type(
                     &[descriptor_type, self.void_type()],
                     None,
-                    Option::<&Symbol>::None,
+                    Option::<Id<Symbol>>::None,
                     None,
                     None,
                 )?;

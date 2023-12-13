@@ -272,7 +272,7 @@ impl TypeChecker {
         })
     }
 
-    pub(super) fn is_circular_mapped_property(&self, symbol: &Symbol) -> bool {
+    pub(super) fn is_circular_mapped_property(&self, symbol: Id<Symbol>) -> bool {
         get_check_flags(symbol).intersects(CheckFlags::Mapped)
             && (*symbol.as_mapped_symbol().symbol_links())
                 .borrow()
@@ -481,7 +481,7 @@ impl TypeChecker {
                                 self.get_number_literal_type(Number::new(child_index as f64)),
                                 None,
                                 Option::<&Node>::None,
-                                Option::<&Symbol>::None,
+                                Option::<Id<Symbol>>::None,
                                 None,
                             )?)
                         } else {
@@ -826,7 +826,7 @@ impl TypeChecker {
                     |t: Id<Type>, _| self.instantiate_instantiable_types(t, mapper.clone()),
                 )?,
                 Some(UnionReduction::None),
-                Option::<&Symbol>::None,
+                Option::<Id<Symbol>>::None,
                 None,
                 None,
             );
@@ -841,7 +841,7 @@ impl TypeChecker {
                     self.type_(type_).as_intersection_type().types().to_owned(),
                     |t: Id<Type>, _| self.instantiate_instantiable_types(t, mapper.clone()),
                 )?,
-                Option::<&Symbol>::None,
+                Option::<Id<Symbol>>::None,
                 None,
             );
         }
@@ -1043,7 +1043,7 @@ impl TypeChecker {
             }
             return Ok(Some(self.get_intersection_type(
                 &results,
-                Option::<&Symbol>::None,
+                Option::<Id<Symbol>>::None,
                 None,
             )?));
         }

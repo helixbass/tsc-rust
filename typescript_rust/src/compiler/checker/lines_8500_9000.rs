@@ -177,7 +177,7 @@ impl TypeChecker {
                     index_type,
                     Some(AccessFlags::ExpressionPosition),
                     Some(&*name),
-                    Option::<&Symbol>::None,
+                    Option::<Id<Symbol>>::None,
                     None,
                 )?;
                 type_ = Some(self.get_flow_type_of_destructuring(declaration, declared_type)?);
@@ -226,7 +226,7 @@ impl TypeChecker {
                         index_type,
                         Some(access_flags),
                         declaration_as_binding_element.maybe_name(),
-                        Option::<&Symbol>::None,
+                        Option::<Id<Symbol>>::None,
                         None,
                     )?
                     .unwrap_or_else(|| self.error_type());
@@ -262,7 +262,7 @@ impl TypeChecker {
                     self.check_declaration_initializer(declaration, None)?,
                 ],
                 Some(UnionReduction::Subtype),
-                Option::<&Symbol>::None,
+                Option::<Id<Symbol>>::None,
                 None,
                 None,
             )?,
@@ -549,7 +549,7 @@ impl TypeChecker {
         Ok(None)
     }
 
-    pub(super) fn is_constructor_declared_property(&self, symbol: &Symbol) -> io::Result<bool> {
+    pub(super) fn is_constructor_declared_property(&self, symbol: Id<Symbol>) -> io::Result<bool> {
         if matches!(
             symbol.maybe_value_declaration(),
             Some(value_declaration) if is_binary_expression(&value_declaration)
@@ -594,7 +594,7 @@ impl TypeChecker {
         Ok(false)
     }
 
-    pub(super) fn is_auto_typed_property(&self, symbol: &Symbol) -> bool {
+    pub(super) fn is_auto_typed_property(&self, symbol: Id<Symbol>) -> bool {
         let declaration = symbol.maybe_value_declaration();
         matches!(
             declaration,
@@ -787,7 +787,7 @@ impl TypeChecker {
     pub(super) fn get_flow_type_of_property(
         &self,
         reference: &Node,
-        prop: Option<impl Borrow<Symbol>>,
+        prop: Option<Id<Symbol>>,
     ) -> io::Result<Id<Type>> {
         let initial_type = prop.try_and_then(|prop| -> io::Result<_> {
             let prop = prop.borrow();
@@ -952,7 +952,7 @@ impl TypeChecker {
                 type_ = Some(self.get_union_type(
                     &source_types,
                     Some(UnionReduction::Subtype),
-                    Option::<&Symbol>::None,
+                    Option::<Id<Symbol>>::None,
                     None,
                     None,
                 )?);
@@ -979,7 +979,7 @@ impl TypeChecker {
     pub(super) fn get_js_container_object_type(
         &self,
         decl: &Node,
-        symbol: Option<impl Borrow<Symbol>>,
+        symbol: Option<Id<Symbol>>,
         init: Option<impl Borrow<Node>>,
     ) -> io::Result<Option<Id<Type>>> {
         if !is_in_js_file(Some(decl)) {
@@ -1079,7 +1079,7 @@ impl TypeChecker {
     pub(super) fn get_initializer_type_from_assignment_declaration(
         &self,
         symbol: &Symbol,
-        resolved_symbol: Option<impl Borrow<Symbol>>,
+        resolved_symbol: Option<Id<Symbol>>,
         expression: &Node, /*BinaryExpression | CallExpression*/
         kind: AssignmentDeclarationKind,
     ) -> io::Result<Id<Type>> {
@@ -1212,7 +1212,7 @@ impl TypeChecker {
                                 self.get_type_of_symbol(&exported_member)?,
                             ],
                             None,
-                            Option::<&Symbol>::None,
+                            Option::<Id<Symbol>>::None,
                             None,
                             None,
                         )?);

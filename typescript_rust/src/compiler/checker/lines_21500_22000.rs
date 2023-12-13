@@ -29,7 +29,7 @@ impl TypeChecker {
             self.get_type_parameter_from_mapped_type(target)?,
             None,
             Option::<&Node>::None,
-            Option::<&Symbol>::None,
+            Option::<Id<Symbol>>::None,
             None,
         )?;
         let template_type = self.get_template_type_from_mapped_type(target)?;
@@ -152,7 +152,7 @@ impl TypeChecker {
                 Some(self.get_union_type(
                     inference_candidates,
                     Some(UnionReduction::Subtype),
-                    Option::<&Symbol>::None,
+                    Option::<Id<Symbol>>::None,
                     None,
                     None,
                 )?)
@@ -161,7 +161,7 @@ impl TypeChecker {
             {
                 Some(self.get_intersection_type(
                     inference_contra_candidates,
-                    Option::<&Symbol>::None,
+                    Option::<Id<Symbol>>::None,
                     None,
                 )?)
             } else {
@@ -777,7 +777,7 @@ impl InferTypes {
             target = self.type_checker.get_union_type(
                 &targets,
                 None,
-                Option::<&Symbol>::None,
+                Option::<Id<Symbol>>::None,
                 None,
                 None,
             )?;
@@ -788,7 +788,7 @@ impl InferTypes {
             source = self.type_checker.get_union_type(
                 &sources,
                 None,
-                Option::<&Symbol>::None,
+                Option::<Id<Symbol>>::None,
                 None,
                 None,
             )?;
@@ -849,12 +849,12 @@ impl InferTypes {
                 }
                 source = self.type_checker.get_intersection_type(
                     &sources,
-                    Option::<&Symbol>::None,
+                    Option::<Id<Symbol>>::None,
                     None,
                 )?;
                 target = self.type_checker.get_intersection_type(
                     &targets,
-                    Option::<&Symbol>::None,
+                    Option::<Id<Symbol>>::None,
                     None,
                 )?;
             }

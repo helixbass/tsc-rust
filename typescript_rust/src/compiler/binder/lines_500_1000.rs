@@ -44,7 +44,7 @@ impl BinderType {
             } else {
                 self.declare_symbol(
                     &mut self.container().locals().borrow_mut(),
-                    Option::<&Symbol>::None,
+                    Option::<Id<Symbol>>::None,
                     node,
                     symbol_flags,
                     symbol_excludes,
@@ -84,7 +84,7 @@ impl BinderType {
                 };
                 let local = self.declare_symbol(
                     &mut self.container().locals().borrow_mut(),
-                    Option::<&Symbol>::None,
+                    Option::<Id<Symbol>>::None,
                     node,
                     export_kind,
                     symbol_excludes,
@@ -105,7 +105,7 @@ impl BinderType {
             } else {
                 self.declare_symbol(
                     &mut self.container().locals().borrow_mut(),
-                    Option::<&Symbol>::None,
+                    Option::<Id<Symbol>>::None,
                     node,
                     symbol_flags,
                     symbol_excludes,

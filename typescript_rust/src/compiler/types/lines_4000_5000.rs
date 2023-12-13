@@ -591,7 +591,7 @@ pub trait SymbolWriter: SymbolTracker {
     fn write_string_literal(&self, text: &str);
     fn write_parameter(&self, text: &str);
     fn write_property(&self, text: &str);
-    fn write_symbol(&self, text: &str, symbol: &Symbol);
+    fn write_symbol(&self, text: &str, symbol: Id<Symbol>);
     fn write_line(&self, force: Option<bool>);
     fn increase_indent(&self);
     fn decrease_indent(&self);
@@ -776,7 +776,7 @@ pub trait EmitResolver: Trace + Finalize {
     ) -> io::Result<Gc<Node /*Expression*/>>;
     fn is_symbol_accessible(
         &self,
-        symbol: &Symbol,
+        symbol: Id<Symbol>,
         enclosing_declaration: Option<&Node>,
         meaning: Option<SymbolFlags>,
         should_compute_alias_to_mark_visible: bool,
@@ -815,7 +815,7 @@ pub trait EmitResolver: Trace + Finalize {
     ) -> io::Result<Option<Vec<String>>>;
     fn get_type_reference_directives_for_symbol(
         &self,
-        symbol: &Symbol,
+        symbol: Id<Symbol>,
         meaning: Option<SymbolFlags>,
     ) -> io::Result<Option<Vec<String>>>;
     fn is_literal_const_declaration(

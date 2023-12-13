@@ -187,9 +187,9 @@ impl BinderType {
         self.bind_property_assignment(&node_as_has_expression.expression(), node, false, false);
     }
 
-    pub(super) fn bind_potentially_missing_namespaces<TNamespaceSymbol: Borrow<Symbol>>(
+    pub(super) fn bind_potentially_missing_namespaces(
         &self,
-        namespace_symbol: Option<TNamespaceSymbol>,
+        namespace_symbol: Option<Id<Symbol>>,
         entity_name: &Node, /*BindableStaticNameExpression*/
         is_toplevel: bool,
         is_prototype_property: bool,
@@ -262,12 +262,10 @@ impl BinderType {
         namespace_symbol
     }
 
-    pub(super) fn bind_potentially_new_expando_member_to_namespace<
-        TNamespaceSymbol: Borrow<Symbol>,
-    >(
+    pub(super) fn bind_potentially_new_expando_member_to_namespace(
         &self,
         declaration: &Node, /*BindableStaticAccessExpression | CallExpression*/
-        namespace_symbol: Option<TNamespaceSymbol>,
+        namespace_symbol: Option<Id<Symbol>>,
         is_prototype_property: bool,
     ) {
         let namespace_symbol =
@@ -400,7 +398,7 @@ impl BinderType {
         );
     }
 
-    pub(super) fn is_expando_symbol(&self, symbol: &Symbol) -> bool {
+    pub(super) fn is_expando_symbol(&self, symbol: Id<Symbol>) -> bool {
         if symbol
             .flags()
             .intersects(SymbolFlags::Function | SymbolFlags::Class | SymbolFlags::NamespaceModule)
@@ -486,7 +484,6 @@ impl BinderType {
     }
 
     pub(super) fn for_each_identifier_in_entity_name<
-        TParent: Borrow<Symbol>,
         TAction: FnMut(
             &Node, /*Declaration*/
             Option<Id<Symbol>>,
@@ -495,7 +492,7 @@ impl BinderType {
     >(
         &self,
         e: &Node, /*BindableStaticNameExpression*/
-        parent: Option<TParent>,
+        parent: Option<Id<Symbol>>,
         action: &mut TAction,
     ) -> Option<Id<Symbol>> {
         let parent = parent.map(|parent| parent.borrow().symbol_wrapper());
@@ -811,7 +808,7 @@ impl BinderType {
                 }
                 self.declare_symbol(
                     &mut container_locals.as_ref().unwrap().borrow_mut(),
-                    Option::<&Symbol>::None,
+                    Option::<Id<Symbol>>::None,
                     node,
                     SymbolFlags::TypeParameter,
                     SymbolFlags::TypeParameterExcludes,
@@ -836,7 +833,7 @@ impl BinderType {
                 }
                 self.declare_symbol(
                     &mut container_locals.as_ref().unwrap().borrow_mut(),
-                    Option::<&Symbol>::None,
+                    Option::<Id<Symbol>>::None,
                     node,
                     SymbolFlags::TypeParameter,
                     SymbolFlags::TypeParameterExcludes,

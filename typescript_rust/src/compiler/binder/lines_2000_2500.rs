@@ -203,7 +203,7 @@ impl BinderType {
                     }
                     self.declare_symbol(
                         &mut *block_scope_container.locals().borrow_mut(),
-                        Option::<&Symbol>::None,
+                        Option::<Id<Symbol>>::None,
                         node,
                         symbol_flags,
                         symbol_excludes,
@@ -224,7 +224,7 @@ impl BinderType {
                 }
                 self.declare_symbol(
                     &mut block_scope_container.locals().borrow_mut(),
-                    Option::<&Symbol>::None,
+                    Option::<Id<Symbol>>::None,
                     node,
                     symbol_flags,
                     symbol_excludes,

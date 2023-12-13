@@ -1560,7 +1560,7 @@ impl CheckTypeRelatedTo {
         self.type_checker.get_union_type(
             &try_reduce_left(types, append_prop_type, None, None, None)?.unwrap_or_else(|| vec![]),
             None,
-            Option::<&Symbol>::None,
+            Option::<Id<Symbol>>::None,
             None,
             None,
         )

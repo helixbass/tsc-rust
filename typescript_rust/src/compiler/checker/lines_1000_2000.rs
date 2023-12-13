@@ -473,7 +473,7 @@ impl TypeChecker {
         result
     }
 
-    pub(super) fn record_merged_symbol(&self, target: &Symbol, source: &Symbol) {
+    pub(super) fn record_merged_symbol(&self, target: Id<Symbol>, source: Id<Symbol>) {
         if source.maybe_merge_id().is_none() {
             source.set_merge_id(get_next_merge_id());
             increment_next_merge_id();
@@ -482,7 +482,7 @@ impl TypeChecker {
             .insert(source.maybe_merge_id().unwrap(), target.symbol_wrapper());
     }
 
-    pub(super) fn clone_symbol(&self, symbol: &Symbol) -> Id<Symbol> {
+    pub(super) fn clone_symbol(&self, symbol: Id<Symbol>) -> Id<Symbol> {
         let result: Id<Symbol> = self
             .create_symbol(symbol.flags(), symbol.escaped_name().to_owned(), None)
             .into();
@@ -514,8 +514,8 @@ impl TypeChecker {
 
     pub(super) fn merge_symbol(
         &self,
-        target: &Symbol,
-        source: &Symbol,
+        target: Id<Symbol>,
+        source: Id<Symbol>,
         unidirectional: Option<bool>,
     ) -> io::Result<Id<Symbol>> {
         let unidirectional = unidirectional.unwrap_or(false);
@@ -705,7 +705,7 @@ impl TypeChecker {
     pub(super) fn add_duplicate_locations(
         &self,
         locs: &mut Vec<Gc<Node /*Declaration*/>>,
-        symbol: &Symbol,
+        symbol: Id<Symbol>,
     ) {
         if let Some(symbol_declarations) = symbol.maybe_declarations().as_ref() {
             for decl in symbol_declarations {
@@ -716,10 +716,10 @@ impl TypeChecker {
 
     pub(super) fn add_duplicate_declaration_errors_for_symbols(
         &self,
-        target: &Symbol,
+        target: Id<Symbol>,
         message: &DiagnosticMessage,
         symbol_name: &str,
-        source: &Symbol,
+        source: Id<Symbol>,
     ) {
         maybe_for_each(target.maybe_declarations().as_deref(), |node, _| {
             self.add_duplicate_declaration_error(
@@ -981,7 +981,7 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn get_symbol_links(&self, symbol: &Symbol) -> Gc<GcCell<SymbolLinks>> {
+    pub(super) fn get_symbol_links(&self, symbol: Id<Symbol>) -> Gc<GcCell<SymbolLinks>> {
         if let Symbol::TransientSymbol(symbol) = symbol {
             return symbol.symbol_links();
         }
@@ -1353,7 +1353,7 @@ impl TypeChecker {
 
     pub(super) fn use_outer_variable_scope_in_parameter(
         &self,
-        result: &Symbol,
+        result: Id<Symbol>,
         location: &Node,
         last_location: &Node,
     ) -> bool {

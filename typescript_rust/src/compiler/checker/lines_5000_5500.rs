@@ -256,7 +256,7 @@ impl NodeBuilder {
 
     pub(super) fn should_write_type_of_function_symbol(
         &self,
-        symbol: &Symbol,
+        symbol: Id<Symbol>,
         context: &NodeBuilderContext,
         type_id: TypeId,
     ) -> io::Result<bool> {
@@ -554,7 +554,7 @@ impl NodeBuilder {
                     signature.clone(),
                     SyntaxKind::FunctionType,
                     context,
-                    Option::<SignatureToSignatureDeclarationOptions<fn(&Symbol)>>::None,
+                    Option::<SignatureToSignatureDeclarationOptions<fn(Id<Symbol>)>>::None,
                 );
                 return signature_node;
             }
@@ -579,7 +579,7 @@ impl NodeBuilder {
                     signature.clone(),
                     SyntaxKind::ConstructorType,
                     context,
-                    Option::<SignatureToSignatureDeclarationOptions<fn(&Symbol)>>::None,
+                    Option::<SignatureToSignatureDeclarationOptions<fn(Id<Symbol>)>>::None,
                 );
                 return signature_node;
             }
@@ -653,7 +653,7 @@ impl NodeBuilder {
                 .type_to_type_node_helper(
                     Some(self.type_checker.get_intersection_type(
                         &types,
-                        Option::<&Symbol>::None,
+                        Option::<Id<Symbol>>::None,
                         None,
                     )?),
                     context,
@@ -1078,7 +1078,7 @@ impl NodeBuilder {
                 signature.clone(),
                 SyntaxKind::CallSignature,
                 context,
-                Option::<SignatureToSignatureDeclarationOptions<fn(&Symbol)>>::None,
+                Option::<SignatureToSignatureDeclarationOptions<fn(Id<Symbol>)>>::None,
             )?);
         }
         for signature in &*self
@@ -1094,7 +1094,7 @@ impl NodeBuilder {
                 signature.clone(),
                 SyntaxKind::ConstructSignature,
                 context,
-                Option::<SignatureToSignatureDeclarationOptions<fn(&Symbol)>>::None,
+                Option::<SignatureToSignatureDeclarationOptions<fn(Id<Symbol>)>>::None,
             )?);
         }
         for info in &*self
@@ -1200,7 +1200,7 @@ impl NodeBuilder {
 
     pub(super) fn should_use_placeholder_for_property(
         &self,
-        property_symbol: &Symbol,
+        property_symbol: Id<Symbol>,
         context: &NodeBuilderContext,
     ) -> bool {
         get_check_flags(property_symbol).intersects(CheckFlags::ReverseMapped)
@@ -1222,7 +1222,7 @@ impl NodeBuilder {
 
     pub(super) fn add_property_to_element_list(
         &self,
-        property_symbol: &Symbol,
+        property_symbol: Id<Symbol>,
         context: &NodeBuilderContext,
         type_elements: &mut Vec<Gc<Node /*TypeElement*/>>,
     ) -> io::Result<()> {
@@ -1336,7 +1336,7 @@ impl NodeBuilder {
                         name: Some(property_name.clone()),
                         question_token: optional_token.clone(),
                         bundled_imports: None,
-                        private_symbol_visitor: Option::<fn(&Symbol)>::None,
+                        private_symbol_visitor: Option::<fn(Id<Symbol>)>::None,
                     }),
                 )?;
                 type_elements.push(self.preserve_comments_on(property_symbol, method_declaration));
@@ -1361,7 +1361,7 @@ impl NodeBuilder {
                         property_type,
                         property_symbol,
                         save_enclosing_declaration.as_deref(),
-                        Option::<&fn(&Symbol)>::None,
+                        Option::<&fn(Id<Symbol>)>::None,
                         None,
                     )?
                 } else {

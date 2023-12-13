@@ -182,7 +182,7 @@ impl TypeChecker {
             },
         )?;
         let result = self.create_anonymous_type(
-            Option::<&Symbol>::None,
+            Option::<Id<Symbol>>::None,
             Gc::new(GcCell::new(members)),
             vec![],
             vec![],
@@ -391,7 +391,7 @@ impl TypeChecker {
 
     pub(super) fn get_type_of_variable_or_parameter_or_property(
         &self,
-        symbol: &Symbol,
+        symbol: Id<Symbol>,
     ) -> io::Result<Id<Type>> {
         let links = self.get_symbol_links(symbol);
         let links_type_is_none = { (*links).borrow().type_.is_none() };
@@ -408,7 +408,7 @@ impl TypeChecker {
 
     pub(super) fn get_type_of_variable_or_parameter_or_property_worker(
         &self,
-        symbol: &Symbol,
+        symbol: Id<Symbol>,
     ) -> io::Result<Id<Type>> {
         if symbol.flags().intersects(SymbolFlags::Prototype) {
             return self.get_type_of_prototype_property(symbol);
@@ -533,8 +533,8 @@ impl TypeChecker {
                         || is_bindable_static_element_access_expression(declaration, None))
                         && is_binary_expression(&declaration.parent()))
         {
-            type_ =
-                self.get_widened_type_for_assignment_declaration(symbol, Option::<&Symbol>::None)?;
+            type_ = self
+                .get_widened_type_for_assignment_declaration(symbol, Option::<Id<Symbol>>::None)?;
         } else if is_property_access_expression(declaration)
             || is_element_access_expression(declaration)
             || is_identifier(declaration)
@@ -556,7 +556,10 @@ impl TypeChecker {
                 return self.get_type_of_func_class_enum_module(symbol);
             }
             type_ = if is_binary_expression(&declaration.parent()) {
-                self.get_widened_type_for_assignment_declaration(symbol, Option::<&Symbol>::None)?
+                self.get_widened_type_for_assignment_declaration(
+                    symbol,
+                    Option::<Id<Symbol>>::None,
+                )?
             } else {
                 self.try_get_type_from_effective_type_node(declaration)?
                     .unwrap_or_else(|| self.any_type())
@@ -663,7 +666,7 @@ impl TypeChecker {
         self.get_this_type_of_signature(&*self.get_signature_from_declaration_(declaration)?)
     }
 
-    pub(super) fn get_type_of_accessors(&self, symbol: &Symbol) -> io::Result<Id<Type>> {
+    pub(super) fn get_type_of_accessors(&self, symbol: Id<Symbol>) -> io::Result<Id<Type>> {
         let links = self.get_symbol_links(symbol);
         if let Some(links_type) = (*links).borrow().type_.clone() {
             return Ok(links_type);
@@ -677,7 +680,10 @@ impl TypeChecker {
         Ok(ret)
     }
 
-    pub(super) fn get_type_of_set_accessor(&self, symbol: &Symbol) -> io::Result<Option<Id<Type>>> {
+    pub(super) fn get_type_of_set_accessor(
+        &self,
+        symbol: Id<Symbol>,
+    ) -> io::Result<Option<Id<Type>>> {
         let links = self.get_symbol_links(symbol);
         if let Some(links_write_type) = (*links).borrow().write_type.clone() {
             return Ok(Some(links_write_type));
@@ -689,7 +695,7 @@ impl TypeChecker {
 
     pub(super) fn get_type_of_accessors_worker(
         &self,
-        symbol: &Symbol,
+        symbol: Id<Symbol>,
         writing: Option<bool>,
     ) -> io::Result<Option<Id<Type>>> {
         if !self.push_type_resolution(
@@ -719,7 +725,7 @@ impl TypeChecker {
 
     pub(super) fn resolve_type_of_accessors(
         &self,
-        symbol: &Symbol,
+        symbol: Id<Symbol>,
         writing: Option<bool>,
     ) -> io::Result<Option<Id<Type>>> {
         let writing = writing.unwrap_or(false);
@@ -793,7 +799,7 @@ impl TypeChecker {
     pub(super) fn instantiate_type_if_needed(
         &self,
         type_: Id<Type>,
-        symbol: &Symbol,
+        symbol: Id<Symbol>,
     ) -> io::Result<Id<Type>> {
         if get_check_flags(symbol).intersects(CheckFlags::Instantiated) {
             let links = self.get_symbol_links(symbol);

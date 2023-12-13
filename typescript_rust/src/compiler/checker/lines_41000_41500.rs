@@ -403,7 +403,7 @@ impl TypeChecker {
         type_has_call_or_construct_signatures(type_, self)
     }
 
-    pub fn get_root_symbols(&self, symbol: &Symbol) -> io::Result<Vec<Id<Symbol>>> {
+    pub fn get_root_symbols(&self, symbol: Id<Symbol>) -> io::Result<Vec<Id<Symbol>>> {
         let roots = self.get_immediate_root_symbols(symbol)?;
         Ok(if let Some(roots) = roots.as_ref() {
             try_flat_map(Some(roots), |root: &Id<Symbol>, _| {
@@ -416,7 +416,7 @@ impl TypeChecker {
 
     pub(super) fn get_immediate_root_symbols(
         &self,
-        symbol: &Symbol,
+        symbol: Id<Symbol>,
     ) -> io::Result<Option<Vec<Id<Symbol>>>> {
         if get_check_flags(symbol).intersects(CheckFlags::Synthetic) {
             return Ok(Some(try_map_defined(
@@ -455,7 +455,7 @@ impl TypeChecker {
         Ok(None)
     }
 
-    pub(super) fn try_get_alias_target(&self, symbol: &Symbol) -> Option<Id<Symbol>> {
+    pub(super) fn try_get_alias_target(&self, symbol: Id<Symbol>) -> Option<Id<Symbol>> {
         let mut target: Option<Id<Symbol>> = None;
         let mut next: Option<Id<Symbol>> = Some(symbol.symbol_wrapper());
         while {
@@ -540,7 +540,7 @@ impl TypeChecker {
         Ok(ret)
     }
 
-    pub(super) fn is_value(&self, s: &Symbol) -> io::Result<bool> {
+    pub(super) fn is_value(&self, s: Id<Symbol>) -> io::Result<bool> {
         let s = self.resolve_symbol(Some(s), None)?;
         Ok(matches!(
             s.as_ref(),
@@ -646,7 +646,7 @@ impl TypeChecker {
 
     pub(super) fn is_symbol_of_destructured_element_of_catch_binding(
         &self,
-        symbol: &Symbol,
+        symbol: Id<Symbol>,
     ) -> bool {
         matches!(
             symbol.maybe_value_declaration().as_ref(),

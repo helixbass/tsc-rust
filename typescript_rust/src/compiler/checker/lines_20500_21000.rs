@@ -182,7 +182,7 @@ impl TypeChecker {
             return Ok(types.next().unwrap().clone());
         }
         Ok(if self.literal_types_with_same_base_type(types.clone())? {
-            self.get_union_type(types, None, Option::<&Symbol>::None, None, None)?
+            self.get_union_type(types, None, Option::<Id<Symbol>>::None, None, None)?
         } else {
             try_reduce_left_no_initial_value(
                 &types.cloned().collect::<Vec<_>>(),
@@ -222,7 +222,7 @@ impl TypeChecker {
             self.get_union_type(
                 types,
                 Some(UnionReduction::Subtype),
-                Option::<&Symbol>::None,
+                Option::<Id<Symbol>>::None,
                 None,
                 None,
             )?
@@ -743,7 +743,7 @@ impl TypeChecker {
                             self.number_type(),
                             None,
                             Option::<&Node>::None,
-                            Option::<&Symbol>::None,
+                            Option::<Id<Symbol>>::None,
                             None,
                         )?
                     } else {
@@ -752,9 +752,9 @@ impl TypeChecker {
                 );
             }
             return Ok(Some(if writing {
-                self.get_intersection_type(&element_types, Option::<&Symbol>::None, None)?
+                self.get_intersection_type(&element_types, Option::<Id<Symbol>>::None, None)?
             } else {
-                self.get_union_type(&element_types, None, Option::<&Symbol>::None, None, None)?
+                self.get_union_type(&element_types, None, Option::<Id<Symbol>>::None, None, None)?
             }));
         }
         Ok(None)
@@ -919,7 +919,7 @@ impl TypeChecker {
             self.get_union_type(
                 &[type_, self.undefined_type()],
                 None,
-                Option::<&Symbol>::None,
+                Option::<Id<Symbol>>::None,
                 None,
                 None,
             )?
@@ -927,7 +927,7 @@ impl TypeChecker {
             self.get_union_type(
                 &[type_, self.null_type()],
                 None,
-                Option::<&Symbol>::None,
+                Option::<Id<Symbol>>::None,
                 None,
                 None,
             )?
@@ -935,7 +935,7 @@ impl TypeChecker {
             self.get_union_type(
                 &[type_, self.undefined_type(), self.null_type()],
                 None,
-                Option::<&Symbol>::None,
+                Option::<Id<Symbol>>::None,
                 None,
                 None,
             )?
@@ -963,7 +963,7 @@ impl TypeChecker {
                         },
                     ],
                     None,
-                    Option::<&Symbol>::None,
+                    Option::<Id<Symbol>>::None,
                     None,
                     None,
                 )?
@@ -1000,7 +1000,7 @@ impl TypeChecker {
                 self.get_type_alias_instantiation(
                     deferred_global_non_nullable_type_alias,
                     Some(&vec![reduced_type]),
-                    Option::<&Symbol>::None,
+                    Option::<Id<Symbol>>::None,
                     None,
                 )?
             } else {
@@ -1022,7 +1022,7 @@ impl TypeChecker {
             self.get_union_type(
                 &[type_, self.optional_type()],
                 None,
-                Option::<&Symbol>::None,
+                Option::<Id<Symbol>>::None,
                 None,
                 None,
             )?
@@ -1140,7 +1140,7 @@ impl TypeChecker {
 
     pub(super) fn create_symbol_with_type(
         &self,
-        source: &Symbol,
+        source: Id<Symbol>,
         type_: Option<Id<Type>>,
     ) -> Id<Symbol> {
         let symbol: Id<Symbol> = self

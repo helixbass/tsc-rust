@@ -393,7 +393,7 @@ impl TypeChecker {
 
     pub(super) fn get_signatures_of_symbol(
         &self,
-        symbol: Option<impl Borrow<Symbol>>,
+        symbol: Option<Id<Symbol>>,
     ) -> io::Result<Vec<Gc<Signature>>> {
         let symbol = return_ok_default_if_none!(symbol);
         let symbol = symbol.borrow();
@@ -568,9 +568,15 @@ impl TypeChecker {
         union_reduction: Option<UnionReduction>,
     ) -> io::Result<Id<Type>> {
         Ok(if !matches!(kind, Some(TypeFlags::Intersection)) {
-            self.get_union_type(types, union_reduction, Option::<&Symbol>::None, None, None)?
+            self.get_union_type(
+                types,
+                union_reduction,
+                Option::<Id<Symbol>>::None,
+                None,
+                None,
+            )?
         } else {
-            self.get_intersection_type(types, Option::<&Symbol>::None, None)?
+            self.get_intersection_type(types, Option::<Id<Symbol>>::None, None)?
         })
     }
 
@@ -959,7 +965,7 @@ impl TypeChecker {
                     | SyntaxKind::ConstructorType
             );
             let type_ = self.alloc_type(
-                self.create_object_type(ObjectFlags::Anonymous, Option::<&Symbol>::None)
+                self.create_object_type(ObjectFlags::Anonymous, Option::<Id<Symbol>>::None)
                     .into(),
             );
             self.type_(type_).as_resolvable_type().resolve(
@@ -983,7 +989,7 @@ impl TypeChecker {
         signature.maybe_isolated_signature_type().clone().unwrap()
     }
 
-    pub(super) fn get_index_symbol(&self, symbol: &Symbol) -> Option<Id<Symbol>> {
+    pub(super) fn get_index_symbol(&self, symbol: Id<Symbol>) -> Option<Id<Symbol>> {
         symbol
             .maybe_members()
             .clone()
@@ -1014,7 +1020,7 @@ impl TypeChecker {
 
     pub(super) fn get_index_infos_of_symbol(
         &self,
-        symbol: &Symbol,
+        symbol: Id<Symbol>,
     ) -> io::Result<Vec<Gc<IndexInfo>>> {
         let index_symbol = self.get_index_symbol(symbol);
         Ok(if let Some(index_symbol) = index_symbol {
@@ -1026,7 +1032,7 @@ impl TypeChecker {
 
     pub(super) fn get_index_infos_of_index_symbol(
         &self,
-        index_symbol: &Symbol,
+        index_symbol: Id<Symbol>,
     ) -> io::Result<Vec<Gc<IndexInfo>>> {
         if let Some(index_symbol_declarations) = index_symbol.maybe_declarations().as_ref() {
             let mut index_infos: Vec<Gc<IndexInfo>> = vec![];

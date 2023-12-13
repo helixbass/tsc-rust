@@ -537,7 +537,7 @@ impl GetFlowTypeOfReference {
                         self.narrow_type_by_assertion(type_, &node_as_binary_expression.right)?,
                     ],
                     None,
-                    Option::<&Symbol>::None,
+                    Option::<Id<Symbol>>::None,
                     None,
                     None,
                 );

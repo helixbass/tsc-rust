@@ -275,7 +275,7 @@ impl NodeBuilder {
 
     pub(super) fn symbol_to_name(
         &self,
-        symbol: &Symbol,
+        symbol: Id<Symbol>,
         context: &NodeBuilderContext,
         meaning: /*SymbolFlags*/ Option<SymbolFlags>,
         expects_identifier: bool,
@@ -331,7 +331,7 @@ impl NodeBuilder {
 
     pub(super) fn symbol_to_expression_(
         &self,
-        symbol: &Symbol,
+        symbol: Id<Symbol>,
         context: &NodeBuilderContext,
         meaning: /*SymbolFlags*/ Option<SymbolFlags>,
     ) -> io::Result<Gc<Node>> {
@@ -472,7 +472,7 @@ impl NodeBuilder {
 
     pub(super) fn get_property_name_node_for_symbol(
         &self,
-        symbol: &Symbol,
+        symbol: Id<Symbol>,
         context: &NodeBuilderContext,
     ) -> io::Result<Gc<Node>> {
         let single_quote = length(symbol.maybe_declarations().as_deref()) > 0
@@ -503,7 +503,7 @@ impl NodeBuilder {
 
     pub(super) fn get_property_name_node_for_symbol_from_name_type(
         &self,
-        symbol: &Symbol,
+        symbol: Id<Symbol>,
         context: &NodeBuilderContext,
         single_quote: Option<bool>,
     ) -> io::Result<Option<Gc<Node>>> {
@@ -629,7 +629,7 @@ impl NodeBuilder {
 
     pub(super) fn get_declaration_with_type_annotation(
         &self,
-        symbol: &Symbol,
+        symbol: Id<Symbol>,
         enclosing_declaration: Option<impl Borrow<Node>>,
     ) -> Option<Gc<Node>> {
         let enclosing_declaration = enclosing_declaration
@@ -681,9 +681,9 @@ impl NodeBuilder {
         &self,
         context: &NodeBuilderContext,
         type_: Id<Type>,
-        symbol: &Symbol,
+        symbol: Id<Symbol>,
         enclosing_declaration: Option<impl Borrow<Node>>,
-        include_private_symbol: Option<&impl Fn(&Symbol)>,
+        include_private_symbol: Option<&impl Fn(Id<Symbol>)>,
         bundled: Option<bool>,
     ) -> io::Result<Gc<Node>> {
         if !self.type_checker.is_error_type(type_) {
@@ -758,7 +758,7 @@ impl NodeBuilder {
         context: &NodeBuilderContext,
         type_: Id<Type>,
         signature: &Signature,
-        include_private_symbol: Option<&impl Fn(&Symbol)>,
+        include_private_symbol: Option<&impl Fn(Id<Symbol>)>,
         bundled: Option<bool>,
     ) -> io::Result<Gc<Node>> {
         if !self.type_checker.is_error_type(type_) {
@@ -823,7 +823,7 @@ impl NodeBuilder {
         &self,
         node: &Node, /*EntityNameOrEntityNameExpression*/
         context: &NodeBuilderContext,
-        include_private_symbol: Option<&impl Fn(&Symbol)>,
+        include_private_symbol: Option<&impl Fn(Id<Symbol>)>,
     ) -> io::Result<TrackExistingEntityNameReturn> {
         let mut introduces_error = false;
         let ref leftmost = get_first_identifier(node);
@@ -903,7 +903,7 @@ impl NodeBuilder {
         &self,
         context: &NodeBuilderContext,
         existing: &Node, /*TypeNode*/
-        include_private_symbol: Option<&impl Fn(&Symbol)>,
+        include_private_symbol: Option<&impl Fn(Id<Symbol>)>,
         _bundled: Option<bool>,
     ) -> io::Result<Option<Gc<Node>>> {
         if let Some(cancellation_token) = self.type_checker.maybe_cancellation_token() {
@@ -941,7 +941,7 @@ impl NodeBuilder {
         &self,
         context: &NodeBuilderContext,
         had_error: &mut bool,
-        include_private_symbol: Option<&impl Fn(&Symbol)>,
+        include_private_symbol: Option<&impl Fn(Id<Symbol>)>,
         file: Option<&Node>,
         node: &Node,
     ) -> io::Result<VisitResult> {

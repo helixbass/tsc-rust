@@ -33,7 +33,7 @@ use crate::{
 impl NodeBuilder {
     pub(super) fn preserve_comments_on(
         &self,
-        property_symbol: &Symbol,
+        property_symbol: Id<Symbol>,
         node: Gc<Node>,
     ) -> Gc<Node> {
         if some(
@@ -236,7 +236,7 @@ impl NodeBuilder {
         signature: Gc<Signature>,
         kind: SyntaxKind,
         context: &NodeBuilderContext,
-        options: Option<SignatureToSignatureDeclarationOptions<impl Fn(&Symbol)>>,
+        options: Option<SignatureToSignatureDeclarationOptions<impl Fn(Id<Symbol>)>>,
     ) -> io::Result<Gc<Node /*SignatureDeclaration*/>> {
         let suppress_any = context
             .flags()
@@ -326,7 +326,7 @@ impl NodeBuilder {
                 signature_this_parameter,
                 context,
                 None,
-                Option::<&fn(&Symbol)>::None,
+                Option::<&fn(Id<Symbol>)>::None,
                 None,
             )?;
             parameters.insert(0, this_parameter);
@@ -579,10 +579,10 @@ impl NodeBuilder {
 
     pub(super) fn symbol_to_parameter_declaration_(
         &self,
-        parameter_symbol: &Symbol,
+        parameter_symbol: Id<Symbol>,
         context: &NodeBuilderContext,
         preserve_modifier_flags: Option<bool>,
-        private_symbol_visitor: Option<&impl Fn(&Symbol)>,
+        private_symbol_visitor: Option<&impl Fn(Id<Symbol>)>,
         bundled_imports: Option<bool>,
     ) -> io::Result<Gc<Node /*ParameterDeclaration*/>> {
         let mut parameter_declaration: Option<
@@ -788,7 +788,7 @@ impl NodeBuilder {
 
     pub(super) fn lookup_symbol_chain(
         &self,
-        symbol: &Symbol,
+        symbol: Id<Symbol>,
         context: &NodeBuilderContext,
         meaning: /*SymbolFlags*/ Option<SymbolFlags>,
         yield_module_symbol: Option<bool>,
@@ -806,7 +806,7 @@ impl NodeBuilder {
 
     pub(super) fn lookup_symbol_chain_worker(
         &self,
-        symbol: &Symbol,
+        symbol: Id<Symbol>,
         context: &NodeBuilderContext,
         meaning: /*SymbolFlags*/ Option<SymbolFlags>,
         yield_module_symbol: Option<bool>,
@@ -837,7 +837,7 @@ impl NodeBuilder {
         &self,
         context: &NodeBuilderContext,
         yield_module_symbol: Option<bool>,
-        symbol: &Symbol,
+        symbol: Id<Symbol>,
         meaning: Option<SymbolFlags>,
         end_of_chain: bool,
     ) -> io::Result<Option<Vec<Id<Symbol>>>> {
@@ -1010,7 +1010,7 @@ impl NodeBuilder {
 
     pub(super) fn type_parameters_to_type_parameter_declarations(
         &self,
-        symbol: &Symbol,
+        symbol: Id<Symbol>,
         context: &NodeBuilderContext,
     ) -> io::Result<Option<Gc<NodeArray> /*<TypeParameterDeclaration>*/>> {
         let mut type_parameter_nodes: Option<Gc<NodeArray> /*TypeParameterDeclaration*/> = None;
@@ -1116,7 +1116,7 @@ impl NodeBuilder {
 
     pub(super) fn get_specifier_for_module_symbol(
         &self,
-        symbol: &Symbol,
+        symbol: Id<Symbol>,
         context: &NodeBuilderContext,
     ) -> io::Result<String> {
         let mut file = get_declaration_of_kind(symbol, SyntaxKind::SourceFile);
@@ -1235,7 +1235,7 @@ impl NodeBuilder {
         Ok(specifier.unwrap())
     }
 
-    pub(super) fn symbol_to_entity_name_node(&self, symbol: &Symbol) -> Gc<Node /*EntityName*/> {
+    pub(super) fn symbol_to_entity_name_node(&self, symbol: Id<Symbol>) -> Gc<Node /*EntityName*/> {
         let identifier =
             get_factory().create_identifier(&unescape_leading_underscores(symbol.escaped_name()));
         if let Some(symbol_parent) = symbol.maybe_parent().as_ref() {
@@ -1248,7 +1248,7 @@ impl NodeBuilder {
 
     pub(super) fn symbol_to_type_node(
         &self,
-        symbol: &Symbol,
+        symbol: Id<Symbol>,
         context: &NodeBuilderContext,
         meaning: SymbolFlags,
         override_type_arguments: Option<&[Gc<Node /*TypeNode*/>]>,
@@ -1368,7 +1368,7 @@ impl NodeBuilder {
     }
 }
 
-pub(super) struct SignatureToSignatureDeclarationOptions<TPrivateSymbolVisitor: Fn(&Symbol)> {
+pub(super) struct SignatureToSignatureDeclarationOptions<TPrivateSymbolVisitor: Fn(Id<Symbol>)> {
     pub modifiers: Option<Vec<Gc<Node /*Modifier*/>>>,
     pub name: Option<Gc<Node /*PropertyName*/>>,
     pub question_token: Option<Gc<Node /*QuestionToken*/>>,

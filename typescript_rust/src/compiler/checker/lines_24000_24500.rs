@@ -27,7 +27,7 @@ impl GetFlowTypeOfReference {
                             .get_element_type_of_evolving_array_type(type_)
                     }),
                     None,
-                    Option::<&Symbol>::None,
+                    Option::<Id<Symbol>>::None,
                     None,
                     None,
                 )?,
@@ -38,7 +38,7 @@ impl GetFlowTypeOfReference {
                 self.type_checker.finalize_evolving_array_type(type_)
             })?,
             Some(subtype_reduction),
-            Option::<&Symbol>::None,
+            Option::<Id<Symbol>>::None,
             None,
             None,
         )?;
@@ -266,7 +266,7 @@ impl GetFlowTypeOfReference {
                         .unwrap_or_else(|| self.type_checker.unknown_type())
                 }),
                 None,
-                Option::<&Symbol>::None,
+                Option::<Id<Symbol>>::None,
                 None,
                 None,
             )?;
@@ -586,7 +586,7 @@ impl GetFlowTypeOfReference {
                             self.narrow_type(type_, &expr_as_binary_expression.right, false)?,
                         ],
                         None,
-                        Option::<&Symbol>::None,
+                        Option::<Id<Symbol>>::None,
                         None,
                         None,
                     )?
@@ -600,7 +600,7 @@ impl GetFlowTypeOfReference {
                             self.narrow_type(type_, &expr_as_binary_expression.right, true)?,
                         ],
                         None,
-                        Option::<&Symbol>::None,
+                        Option::<Id<Symbol>>::None,
                         None,
                         None,
                     )?
@@ -753,7 +753,7 @@ impl GetFlowTypeOfReference {
                     self.type_checker.undefined_type(),
                 ],
                 None,
-                Option::<&Symbol>::None,
+                Option::<Id<Symbol>>::None,
                 None,
                 None,
             );
@@ -924,7 +924,7 @@ impl GetFlowTypeOfReference {
                         self.type_checker.null_type(),
                     ],
                     None,
-                    Option::<&Symbol>::None,
+                    Option::<Id<Symbol>>::None,
                     None,
                     None,
                 )?
@@ -1044,7 +1044,7 @@ impl GetFlowTypeOfReference {
                     Some(ground_clause_types) => ground_clause_types,
                 },
                 None,
-                Option::<&Symbol>::None,
+                Option::<Id<Symbol>>::None,
                 None,
                 None,
             );
@@ -1052,7 +1052,7 @@ impl GetFlowTypeOfReference {
         let discriminant_type = self.type_checker.get_union_type(
             clause_types,
             None,
-            Option::<&Symbol>::None,
+            Option::<Id<Symbol>>::None,
             None,
             None,
         )?;
@@ -1095,7 +1095,7 @@ impl GetFlowTypeOfReference {
                 self.type_checker.get_union_type(
                     &[case_type, default_type],
                     None,
-                    Option::<&Symbol>::None,
+                    Option::<Id<Symbol>>::None,
                     None,
                     None,
                 )?
@@ -1134,7 +1134,7 @@ impl GetFlowTypeOfReference {
                             self.type_checker.null_type(),
                         ],
                         None,
-                        Option::<&Symbol>::None,
+                        Option::<Id<Symbol>>::None,
                         None,
                         None,
                     )?)
@@ -1169,7 +1169,7 @@ impl GetFlowTypeOfReference {
                 if type_checker.is_type_subtype_of(candidate, constraint)? {
                     return type_checker.get_intersection_type(
                         &vec![type_, candidate.clone()],
-                        Option::<&Symbol>::None,
+                        Option::<Id<Symbol>>::None,
                         None,
                     );
                 }
@@ -1256,7 +1256,7 @@ impl GetFlowTypeOfReference {
                     })
                     .collect::<Result<Vec<_>, _>>()?,
                 None,
-                Option::<&Symbol>::None,
+                Option::<Id<Symbol>>::None,
                 None,
                 None,
             )?,

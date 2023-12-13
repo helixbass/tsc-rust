@@ -765,7 +765,7 @@ impl BinderType {
 
     pub(super) fn add_declaration_to_symbol(
         &self,
-        symbol: &Symbol,
+        symbol: Id<Symbol>,
         node: &Node, /*Declaration*/
         symbol_flags: SymbolFlags,
     ) {
@@ -949,7 +949,7 @@ impl BinderType {
     pub(super) fn declare_symbol(
         &self,
         symbol_table: &mut SymbolTable,
-        parent: Option<impl Borrow<Symbol>>,
+        parent: Option<Id<Symbol>>,
         node: &Node, /*Declaration*/
         includes: SymbolFlags,
         excludes: SymbolFlags,

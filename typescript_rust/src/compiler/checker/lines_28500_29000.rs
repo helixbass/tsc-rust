@@ -277,7 +277,7 @@ impl TypeChecker {
     pub(super) fn get_suggested_symbol_for_nonexistent_module(
         &self,
         name: &Node, /*Identifier*/
-        target_module: &Symbol,
+        target_module: Id<Symbol>,
     ) -> io::Result<Option<Id<Symbol>>> {
         Ok(if target_module.maybe_exports().is_some() {
             self.get_spelling_suggestion_for_name(
@@ -293,7 +293,7 @@ impl TypeChecker {
     pub fn get_suggestion_for_nonexistent_export(
         &self,
         name: &Node, /*Identifier*/
-        target_module: &Symbol,
+        target_module: Id<Symbol>,
     ) -> io::Result<Option<String>> {
         let suggestion = self.get_suggested_symbol_for_nonexistent_module(name, target_module)?;
         Ok(suggestion
@@ -407,7 +407,7 @@ impl TypeChecker {
 
     pub(super) fn mark_property_as_referenced(
         &self,
-        prop: &Symbol,
+        prop: Id<Symbol>,
         node_for_check_write_only: Option<impl Borrow<Node>>,
         is_self_type_access: bool,
     ) {
@@ -473,7 +473,7 @@ impl TypeChecker {
     pub(super) fn is_self_type_access(
         &self,
         name: &Node, /*Expression | QualifiedName*/
-        parent: Option<impl Borrow<Symbol>>,
+        parent: Option<Id<Symbol>>,
     ) -> io::Result<bool> {
         let parent = parent.map(|parent| parent.borrow().symbol_wrapper());
         Ok(name.kind() == SyntaxKind::ThisKeyword
@@ -774,7 +774,7 @@ impl TypeChecker {
                 effective_index_type,
                 Some(access_flags),
                 Some(node),
-                Option::<&Symbol>::None,
+                Option::<Id<Symbol>>::None,
                 None,
             )?
             .unwrap_or_else(|| self.error_type());

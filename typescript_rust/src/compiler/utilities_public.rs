@@ -9,6 +9,7 @@ use std::{
 
 use either_n::Either3;
 use gc::Gc;
+use id_arena::Id;
 use regex::Regex;
 use serde_json;
 
@@ -541,7 +542,7 @@ pub fn id_text(identifier_or_private_name: &Node /*Identifier | PrivateIdentifie
     unescape_leading_underscores(identifier_or_private_name.as_member_name().escaped_text())
 }
 
-pub fn symbol_name<'symbol>(symbol: &'symbol Symbol) -> Cow<'symbol, str> {
+pub fn symbol_name<'symbol>(symbol: Id<Symbol>) -> Cow<'symbol, str> {
     match symbol.maybe_value_declaration().as_ref() {
         Some(symbol_value_declaration)
             if is_private_identifier_class_element_declaration(&symbol_value_declaration) =>

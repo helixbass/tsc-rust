@@ -109,7 +109,7 @@ impl TypeChecker {
 
     pub(super) fn get_type_of_global_symbol(
         &self,
-        symbol: Option<impl Borrow<Symbol>>,
+        symbol: Option<Id<Symbol>>,
         arity: usize,
     ) -> io::Result<Id<Type /*ObjectType*/>> {
         if symbol.is_none() {
@@ -154,7 +154,10 @@ impl TypeChecker {
         Ok(type_)
     }
 
-    pub(super) fn get_type_declaration(&self, symbol: &Symbol) -> Option<Gc<Node /*Declaration*/>> {
+    pub(super) fn get_type_declaration(
+        &self,
+        symbol: Id<Symbol>,
+    ) -> Option<Gc<Node /*Declaration*/>> {
         let declarations = symbol.maybe_declarations();
         declarations.as_ref().and_then(|declarations| {
             for declaration in declarations {
@@ -939,7 +942,7 @@ impl TypeChecker {
                             target,
                             node,
                             None,
-                            Option::<&Symbol>::None,
+                            Option::<Id<Symbol>>::None,
                             None,
                         )?
                     },
@@ -1066,7 +1069,10 @@ impl TypeChecker {
             let type_parameters = type_parameters.as_mut().unwrap();
             for i in 0..arity {
                 type_parameters.push(
-                    self.alloc_type(self.create_type_parameter(Option::<&Symbol>::None).into()),
+                    self.alloc_type(
+                        self.create_type_parameter(Option::<Id<Symbol>>::None)
+                            .into(),
+                    ),
                 );
                 let type_parameter = type_parameters[i];
                 let flags = element_flags[i];
@@ -1121,7 +1127,7 @@ impl TypeChecker {
                 .type_ = Some(self.get_union_type(
                 &literal_types,
                 None,
-                Option::<&Symbol>::None,
+                Option::<Id<Symbol>>::None,
                 None,
                 None,
             )?);
@@ -1129,9 +1135,9 @@ impl TypeChecker {
         properties.push(length_symbol);
         let type_ = self.create_object_type(
             ObjectFlags::Tuple | ObjectFlags::Reference,
-            Option::<&Symbol>::None,
+            Option::<Id<Symbol>>::None,
         );
-        let mut this_type = self.create_type_parameter(Option::<&Symbol>::None);
+        let mut this_type = self.create_type_parameter(Option::<Id<Symbol>>::None);
         this_type.is_this_type = Some(true);
         let this_type = self.alloc_type(this_type.into());
         let type_ = BaseInterfaceType::new(

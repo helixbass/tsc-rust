@@ -1279,7 +1279,7 @@ impl TransformDeclarationsSymbolTracker {
 impl SymbolTracker for TransformDeclarationsSymbolTracker {
     fn track_symbol(
         &self,
-        symbol: &Symbol,
+        symbol: Id<Symbol>,
         enclosing_declaration: Option<Gc<Node>>,
         meaning: SymbolFlags,
     ) -> Option<io::Result<bool>> {
@@ -1461,7 +1461,7 @@ impl SymbolTracker for TransformDeclarationsSymbolTracker {
     fn track_referenced_ambient_module(
         &self,
         node: &Node, /*ModuleDeclaration*/
-        symbol: &Symbol,
+        symbol: Id<Symbol>,
     ) -> io::Result<()> {
         let directives = self
             .transform_declarations
@@ -1484,7 +1484,7 @@ impl SymbolTracker for TransformDeclarationsSymbolTracker {
         true
     }
 
-    fn track_external_module_symbol_of_import_type_node(&self, symbol: &Symbol) {
+    fn track_external_module_symbol_of_import_type_node(&self, symbol: Id<Symbol>) {
         if !self.transform_declarations.is_bundled_emit() {
             self.transform_declarations
                 .maybe_exported_modules_from_declaration_emit_mut()
@@ -1496,8 +1496,8 @@ impl SymbolTracker for TransformDeclarationsSymbolTracker {
     fn report_nonlocal_augmentation(
         &self,
         containing_file: &Node, /*SourceFile*/
-        parent_symbol: &Symbol,
-        symbol: &Symbol,
+        parent_symbol: Id<Symbol>,
+        symbol: Id<Symbol>,
     ) {
         let primary_declaration =
             parent_symbol

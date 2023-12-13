@@ -34,7 +34,7 @@ use crate::{
 };
 
 impl SymbolTableToDeclarationStatements {
-    pub(super) fn include_private_symbol(&self, symbol: &Symbol) {
+    pub(super) fn include_private_symbol(&self, symbol: Id<Symbol>) {
         if some(
             symbol.maybe_declarations().as_deref(),
             Some(|declaration: &Gc<Node>| is_parameter_declaration(declaration)),
@@ -139,7 +139,7 @@ impl SymbolTableToDeclarationStatements {
 
     pub(super) fn serialize_type_alias(
         &self,
-        symbol: &Symbol,
+        symbol: Id<Symbol>,
         symbol_name: &str,
         modifier_flags: ModifierFlags,
     ) -> io::Result<()> {
@@ -193,7 +193,7 @@ impl SymbolTableToDeclarationStatements {
                     &jsdoc_alias_decl_type_expression
                         .as_jsdoc_type_expression()
                         .type_,
-                    Some(&|symbol: &Symbol| {
+                    Some(&|symbol: Id<Symbol>| {
                         self.include_private_symbol(symbol);
                     }),
                     self.bundled,
@@ -235,7 +235,7 @@ impl SymbolTableToDeclarationStatements {
 
     pub(super) fn serialize_interface(
         &self,
-        symbol: &Symbol,
+        symbol: Id<Symbol>,
         symbol_name: &str,
         modifier_flags: ModifierFlags,
     ) -> io::Result<()> {
@@ -254,7 +254,7 @@ impl SymbolTableToDeclarationStatements {
         let base_type = if !base_types.is_empty() {
             Some(self.type_checker.get_intersection_type(
                 &base_types,
-                Option::<&Symbol>::None,
+                Option::<Id<Symbol>>::None,
                 None,
             )?)
         } else {
@@ -318,7 +318,7 @@ impl SymbolTableToDeclarationStatements {
 
     pub(super) fn get_namespace_members_for_serialization(
         &self,
-        symbol: &Symbol,
+        symbol: Id<Symbol>,
     ) -> Vec<Id<Symbol>> {
         symbol
             .maybe_exports()
@@ -333,7 +333,7 @@ impl SymbolTableToDeclarationStatements {
             })
     }
 
-    pub(super) fn is_type_only_namespace(&self, symbol: &Symbol) -> io::Result<bool> {
+    pub(super) fn is_type_only_namespace(&self, symbol: Id<Symbol>) -> io::Result<bool> {
         self.get_namespace_members_for_serialization(symbol)
             .iter()
             .try_all(|m| {
@@ -348,7 +348,7 @@ impl SymbolTableToDeclarationStatements {
 
     pub(super) fn serialize_module(
         &self,
-        symbol: &Symbol,
+        symbol: Id<Symbol>,
         symbol_name: &str,
         modifier_flags: ModifierFlags,
     ) -> io::Result<()> {
@@ -475,7 +475,7 @@ impl SymbolTableToDeclarationStatements {
 
     pub(super) fn serialize_enum(
         &self,
-        symbol: &Symbol,
+        symbol: Id<Symbol>,
         symbol_name: &str,
         modifier_flags: ModifierFlags,
     ) -> io::Result<()> {
@@ -528,7 +528,7 @@ impl SymbolTableToDeclarationStatements {
     pub(super) fn serialize_as_function_namespace_merge(
         &self,
         type_: Id<Type>,
-        symbol: &Symbol,
+        symbol: Id<Symbol>,
         local_name: &str,
         modifier_flags: ModifierFlags,
     ) -> io::Result<()> {
@@ -544,7 +544,7 @@ impl SymbolTableToDeclarationStatements {
                     &self.context(),
                     Some(SignatureToSignatureDeclarationOptions {
                         name: Some(get_factory().create_identifier(local_name)),
-                        private_symbol_visitor: Some(|symbol: &Symbol| {
+                        private_symbol_visitor: Some(|symbol: Id<Symbol>| {
                             self.include_private_symbol(symbol);
                         }),
                         bundled_imports: self.bundled,
@@ -722,7 +722,7 @@ impl SymbolTableToDeclarationStatements {
         Ok(())
     }
 
-    pub(super) fn is_namespace_member(&self, p: &Symbol) -> bool {
+    pub(super) fn is_namespace_member(&self, p: Id<Symbol>) -> bool {
         p.flags()
             .intersects(SymbolFlags::Type | SymbolFlags::Namespace | SymbolFlags::Alias)
             || !(p.flags().intersects(SymbolFlags::Prototype)
@@ -752,7 +752,7 @@ impl SymbolTableToDeclarationStatements {
                 } = self.node_builder.track_existing_entity_name(
                     &expr,
                     &self.context(),
-                    Some(&|symbol: &Symbol| {
+                    Some(&|symbol: Id<Symbol>| {
                         self.include_private_symbol(symbol);
                     }),
                 )?;
@@ -775,7 +775,7 @@ impl SymbolTableToDeclarationStatements {
                                     .serialize_existing_type_node(
                                         &self.context(),
                                         a,
-                                        Some(&|symbol: &Symbol| {
+                                        Some(&|symbol: Id<Symbol>| {
                                             self.include_private_symbol(symbol);
                                         }),
                                         self.bundled,
@@ -816,7 +816,7 @@ impl SymbolTableToDeclarationStatements {
 
     pub(super) fn serialize_as_class(
         &self,
-        symbol: &Symbol,
+        symbol: Id<Symbol>,
         local_name: &str,
         modifier_flags: ModifierFlags,
     ) -> io::Result<()> {

@@ -95,7 +95,7 @@ impl TypeChecker {
 
     pub(super) fn resolve_external_module_symbol(
         &self,
-        module_symbol: Option<impl Borrow<Symbol>>,
+        module_symbol: Option<Id<Symbol>>,
         dont_resolve_alias: Option<bool>,
     ) -> io::Result<Option<Id<Symbol>>> {
         if module_symbol.is_none() {
@@ -128,8 +128,8 @@ impl TypeChecker {
 
     pub(super) fn get_common_js_export_equals(
         &self,
-        exported: Option<impl Borrow<Symbol>>,
-        module_symbol: &Symbol,
+        exported: Option<Id<Symbol>>,
+        module_symbol: Id<Symbol>,
     ) -> io::Result<Option<Id<Symbol>>> {
         let exported = return_ok_none_if_none!(exported);
         let exported = exported.borrow();
@@ -183,7 +183,7 @@ impl TypeChecker {
 
     pub(super) fn resolve_es_module_symbol(
         &self,
-        module_symbol: Option<impl Borrow<Symbol>>,
+        module_symbol: Option<Id<Symbol>>,
         referencing_location: &Node,
         dont_resolve_alias: bool,
         suppress_interop_error: bool,
@@ -280,7 +280,7 @@ impl TypeChecker {
 
     pub(super) fn clone_type_as_module_type(
         &self,
-        symbol: &Symbol,
+        symbol: Id<Symbol>,
         module_type: Id<Type>,
         reference_parent: &Node, /*ImportDeclaration | ImportCall*/
     ) -> io::Result<Id<Symbol>> {
@@ -331,7 +331,7 @@ impl TypeChecker {
         Ok(result)
     }
 
-    pub(super) fn has_export_assignment_symbol(&self, module_symbol: &Symbol) -> bool {
+    pub(super) fn has_export_assignment_symbol(&self, module_symbol: Id<Symbol>) -> bool {
         (*module_symbol.exports())
             .borrow()
             .get(InternalSymbolName::ExportEquals)
@@ -340,14 +340,14 @@ impl TypeChecker {
 
     pub(super) fn get_exports_of_module_as_array(
         &self,
-        module_symbol: &Symbol,
+        module_symbol: Id<Symbol>,
     ) -> io::Result<Vec<Id<Symbol>>> {
         Ok(self.symbols_to_array(&(*self.get_exports_of_module_(module_symbol)?).borrow()))
     }
 
     pub fn get_exports_and_properties_of_module(
         &self,
-        module_symbol: &Symbol,
+        module_symbol: Id<Symbol>,
     ) -> io::Result<Vec<Id<Symbol>>> {
         let mut exports = self.get_exports_of_module_as_array(module_symbol)?;
         let export_equals = self
@@ -369,8 +369,8 @@ impl TypeChecker {
 
     pub fn for_each_export_and_property_of_module(
         &self,
-        module_symbol: &Symbol,
-        mut cb: impl FnMut(&Symbol, &__String),
+        module_symbol: Id<Symbol>,
+        mut cb: impl FnMut(Id<Symbol>, &__String),
     ) -> io::Result<()> {
         let exports = self.get_exports_of_module_(module_symbol)?;
         for (key, symbol) in &*(*exports).borrow() {
@@ -396,7 +396,7 @@ impl TypeChecker {
     pub(super) fn try_get_member_in_module_exports_(
         &self,
         member_name: &str, /*__String*/
-        module_symbol: &Symbol,
+        module_symbol: Id<Symbol>,
     ) -> io::Result<Option<Id<Symbol>>> {
         let symbol_table = self.get_exports_of_module_(module_symbol)?;
         // if (symbolTable) {
@@ -408,7 +408,7 @@ impl TypeChecker {
     pub(super) fn try_get_member_in_module_exports_and_properties_(
         &self,
         member_name: &str, /*__String*/
-        module_symbol: &Symbol,
+        module_symbol: Id<Symbol>,
     ) -> io::Result<Option<Id<Symbol>>> {
         let symbol = self.try_get_member_in_module_exports_(member_name, module_symbol)?;
         if symbol.is_some() {
@@ -448,7 +448,7 @@ impl TypeChecker {
 
     pub(super) fn get_exports_of_symbol(
         &self,
-        symbol: &Symbol,
+        symbol: Id<Symbol>,
     ) -> io::Result<Gc<GcCell<SymbolTable>>> {
         Ok(
             if symbol.flags().intersects(SymbolFlags::LateBindingContainer) {
@@ -469,7 +469,7 @@ impl TypeChecker {
 
     pub(super) fn get_exports_of_module_(
         &self,
-        module_symbol: &Symbol,
+        module_symbol: Id<Symbol>,
     ) -> io::Result<Gc<GcCell<SymbolTable>>> {
         let links = self.get_symbol_links(module_symbol);
         let resolved_exports = (*links).borrow().resolved_exports.clone();
@@ -551,7 +551,7 @@ impl TypeChecker {
 
     pub(super) fn get_exports_of_module_worker(
         &self,
-        module_symbol: &Symbol,
+        module_symbol: Id<Symbol>,
     ) -> io::Result<Gc<GcCell<SymbolTable>>> {
         let mut visited_symbols: Vec<Id<Symbol>> = vec![];
 
@@ -629,10 +629,7 @@ impl TypeChecker {
         Ok(Some(symbols))
     }
 
-    pub(super) fn get_merged_symbol(
-        &self,
-        symbol: Option<impl Borrow<Symbol>>,
-    ) -> Option<Id<Symbol>> {
+    pub(super) fn get_merged_symbol(&self, symbol: Option<Id<Symbol>>) -> Option<Id<Symbol>> {
         let symbol = symbol?;
         let symbol = symbol.borrow();
         if let Some(symbol_merge_id) = symbol.maybe_merge_id() {
@@ -650,7 +647,10 @@ impl TypeChecker {
         ))
     }
 
-    pub(super) fn get_parent_of_symbol(&self, symbol: &Symbol) -> io::Result<Option<Id<Symbol>>> {
+    pub(super) fn get_parent_of_symbol(
+        &self,
+        symbol: Id<Symbol>,
+    ) -> io::Result<Option<Id<Symbol>>> {
         Ok(self.get_merged_symbol(
             symbol
                 .maybe_parent()
@@ -660,7 +660,7 @@ impl TypeChecker {
 
     pub(super) fn get_alternative_containing_modules(
         &self,
-        symbol: &Symbol,
+        symbol: Id<Symbol>,
         enclosing_declaration: &Node,
     ) -> io::Result<Vec<Id<Symbol>>> {
         let containing_file = get_source_file_of_node(enclosing_declaration);
@@ -740,7 +740,7 @@ impl TypeChecker {
 
     pub(super) fn get_containers_of_symbol(
         &self,
-        symbol: &Symbol,
+        symbol: Id<Symbol>,
         enclosing_declaration: Option<impl Borrow<Node>>,
         meaning: SymbolFlags,
     ) -> io::Result<Option<Vec<Id<Symbol>>>> {
@@ -898,7 +898,7 @@ impl TypeChecker {
 
     pub(super) fn get_variable_declaration_of_object_literal(
         &self,
-        symbol: &Symbol,
+        symbol: Id<Symbol>,
         meaning: SymbolFlags,
     ) -> io::Result<Option<Id<Symbol>>> {
         let first_decl: Option<Gc<Node>> = if length(symbol.maybe_declarations().as_deref()) > 0 {
@@ -935,7 +935,7 @@ impl TypeChecker {
     pub(super) fn get_file_symbol_if_file_symbol_export_equals_container(
         &self,
         d: &Node, /*Declaration*/
-        container: &Symbol,
+        container: Id<Symbol>,
     ) -> io::Result<Option<Id<Symbol>>> {
         let file_symbol = self.get_external_module_container(d)?;
         let exported = return_ok_none_if_none!(file_symbol

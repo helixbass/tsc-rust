@@ -339,9 +339,9 @@ impl CheckTypeRelatedTo {
 
     pub(super) fn is_property_symbol_type_related(
         &self,
-        source_prop: &Symbol,
-        target_prop: &Symbol,
-        mut get_type_of_source_property: impl FnMut(&Symbol) -> io::Result<Id<Type>>,
+        source_prop: Id<Symbol>,
+        target_prop: Id<Symbol>,
+        mut get_type_of_source_property: impl FnMut(Id<Symbol>) -> io::Result<Id<Type>>,
         report_errors: bool,
         intersection_state: IntersectionState,
     ) -> io::Result<Ternary> {
@@ -368,9 +368,9 @@ impl CheckTypeRelatedTo {
         &self,
         source: Id<Type>,
         target: Id<Type>,
-        source_prop: &Symbol,
-        target_prop: &Symbol,
-        get_type_of_source_property: impl FnMut(&Symbol) -> io::Result<Id<Type>>,
+        source_prop: Id<Symbol>,
+        target_prop: Id<Symbol>,
+        get_type_of_source_property: impl FnMut(Id<Symbol>) -> io::Result<Id<Type>>,
         report_errors: bool,
         intersection_state: IntersectionState,
         skip_optional: bool,
@@ -560,7 +560,7 @@ impl CheckTypeRelatedTo {
         &self,
         source: Id<Type>,
         target: Id<Type>,
-        unmatched_property: &Symbol,
+        unmatched_property: Id<Symbol>,
         require_optional_properties: bool,
     ) -> io::Result<()> {
         let mut should_skip_elaboration = false;

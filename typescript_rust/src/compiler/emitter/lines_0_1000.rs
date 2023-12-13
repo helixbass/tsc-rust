@@ -1594,7 +1594,7 @@ impl EmitResolver for NotImplementedResolver {
 
     fn is_symbol_accessible(
         &self,
-        _symbol: &Symbol,
+        _symbol: Id<Symbol>,
         _enclosing_declaration: Option<&Node>,
         _meaning: Option<crate::SymbolFlags>,
         _should_compute_alias_to_mark_visible: bool,
@@ -1666,7 +1666,7 @@ impl EmitResolver for NotImplementedResolver {
 
     fn get_type_reference_directives_for_symbol(
         &self,
-        _symbol: &Symbol,
+        _symbol: Id<Symbol>,
         _meaning: Option<crate::SymbolFlags>,
     ) -> io::Result<Option<Vec<String>>> {
         unimplemented!()

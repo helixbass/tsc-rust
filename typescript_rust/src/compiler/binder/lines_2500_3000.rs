@@ -94,7 +94,7 @@ impl BinderType {
                 {
                     self.declare_symbol(
                         &mut self.file().locals().borrow_mut(),
-                        Option::<&Symbol>::None,
+                        Option::<Id<Symbol>>::None,
                         &expr.as_has_expression().expression(),
                         SymbolFlags::FunctionScopedVariable | SymbolFlags::ModuleExports,
                         SymbolFlags::FunctionScopedVariableExcludes,
@@ -632,7 +632,7 @@ impl BinderType {
         }
         let symbol = self.for_each_identifier_in_entity_name(
             &node.as_call_expression().arguments[0],
-            Option::<&Symbol>::None,
+            Option::<Id<Symbol>>::None,
             &mut |id, symbol, _| {
                 if let Some(symbol) = symbol.as_ref() {
                     self.add_declaration_to_symbol(
@@ -671,7 +671,7 @@ impl BinderType {
                 .left
                 .as_has_expression()
                 .expression(),
-            Option::<&Symbol>::None,
+            Option::<Id<Symbol>>::None,
             &mut |id, symbol, _| {
                 if let Some(symbol) = symbol.as_ref() {
                     self.add_declaration_to_symbol(
@@ -936,7 +936,7 @@ impl BinderType {
     pub(super) fn bind_dynamically_named_this_property_assignment(
         &self,
         node: &Node, /*BinaryExpression | DynamicNamedDeclaration*/
-        symbol: &Symbol,
+        symbol: Id<Symbol>,
         symbol_table: &mut SymbolTable,
     ) {
         self.declare_symbol(
@@ -951,10 +951,10 @@ impl BinderType {
         self.add_late_bound_assignment_declaration_to_symbol(node, Some(symbol));
     }
 
-    pub(super) fn add_late_bound_assignment_declaration_to_symbol<TSymbol: Borrow<Symbol>>(
+    pub(super) fn add_late_bound_assignment_declaration_to_symbol(
         &self,
         node: &Node, /*BinaryExpression | DynamicNamedDeclaration*/
-        symbol: Option<TSymbol>,
+        symbol: Option<Id<Symbol>>,
     ) {
         if let Some(symbol) = symbol {
             let symbol = symbol.borrow();

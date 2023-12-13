@@ -1,6 +1,7 @@
 use std::{borrow::Borrow, ops::Deref};
 
 use gc::Gc;
+use id_arena::Id;
 
 use crate::{
     get_jsdoc_type_tag, get_text_of_identifier_or_literal, is_effective_module_declaration,
@@ -747,7 +748,7 @@ pub fn is_special_property_declaration(
         && get_jsdoc_type_tag(&expr.parent()).is_some()
 }
 
-pub fn set_value_declaration(symbol: &Symbol, node: &Node) {
+pub fn set_value_declaration(symbol: Id<Symbol>, node: &Node) {
     match symbol.maybe_value_declaration() {
         None => {
             symbol.set_value_declaration(node.node_wrapper());
@@ -766,7 +767,7 @@ pub fn set_value_declaration(symbol: &Symbol, node: &Node) {
     }
 }
 
-pub fn is_function_symbol(symbol: Option<impl Borrow<Symbol>>) -> bool {
+pub fn is_function_symbol(symbol: Option<Id<Symbol>>) -> bool {
     if symbol.is_none() {
         return false;
     }

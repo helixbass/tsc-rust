@@ -491,7 +491,7 @@ impl BinderType {
             | SyntaxKind::TypeAliasDeclaration
             | SyntaxKind::MappedType => Some(self.declare_symbol(
                 &mut self.container().locals().borrow_mut(),
-                Option::<&Symbol>::None,
+                Option::<Id<Symbol>>::None,
                 node,
                 symbol_flags,
                 symbol_excludes,
@@ -542,7 +542,7 @@ impl BinderType {
         } else {
             self.declare_symbol(
                 &mut *self.file().locals().borrow_mut(),
-                Option::<&Symbol>::None,
+                Option::<Id<Symbol>>::None,
                 node,
                 symbol_flags,
                 symbol_excludes,

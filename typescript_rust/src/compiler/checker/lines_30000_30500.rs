@@ -107,7 +107,7 @@ impl TypeChecker {
                         self.try_get_rest_type_of_signature(candidate)
                     })?,
                     Some(UnionReduction::Subtype),
-                    Option::<&Symbol>::None,
+                    Option::<Id<Symbol>>::None,
                     None,
                     None,
                 )?,
@@ -136,7 +136,7 @@ impl TypeChecker {
                             .into_iter()
                             .map(|candidate| self.get_return_type_of_signature(candidate.clone()))
                             .collect::<Result<Vec<_>, _>>()?,
-                        Option::<&Symbol>::None,
+                        Option::<Id<Symbol>>::None,
                         None,
                     )?,
                 ),
@@ -166,7 +166,7 @@ impl TypeChecker {
             self.get_union_type(
                 types,
                 Some(UnionReduction::Subtype),
-                Option::<&Symbol>::None,
+                Option::<Id<Symbol>>::None,
                 None,
                 None,
             )?,
@@ -656,7 +656,7 @@ impl TypeChecker {
 
     pub(super) fn type_has_protected_accessible_base(
         &self,
-        target: &Symbol,
+        target: Id<Symbol>,
         type_: Id<Type>, /*InterfaceType*/
     ) -> io::Result<bool> {
         let base_types = self.get_base_types(type_)?;
