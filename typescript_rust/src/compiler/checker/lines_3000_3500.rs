@@ -257,16 +257,16 @@ impl TypeChecker {
                             .cloned()
                     })
                     .unwrap_or_else(|| target);
-                let type_only =
-                    self.symbol(export_symbol
-                        ).maybe_declarations()
-                        .as_deref()
-                        .and_then(|declarations| {
-                            find(declarations, |declaration: &Gc<Node>, _| {
-                                is_type_only_import_or_export_declaration(declaration)
-                            })
-                            .map(Clone::clone)
-                        });
+                let type_only = self
+                    .symbol(export_symbol)
+                    .maybe_declarations()
+                    .as_deref()
+                    .and_then(|declarations| {
+                        find(declarations, |declaration: &Gc<Node>, _| {
+                            is_type_only_import_or_export_declaration(declaration)
+                        })
+                        .map(Clone::clone)
+                    });
                 alias_declaration_links.borrow_mut().type_only_declaration =
                     Some(type_only.or_else(|| {
                         match (*self.get_symbol_links(export_symbol))

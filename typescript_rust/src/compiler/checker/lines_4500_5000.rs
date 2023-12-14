@@ -1360,7 +1360,13 @@ impl NodeBuilder {
                 && contains((*context.infer_type_parameters).borrow().as_deref(), &type_)
             {
                 context.increment_approximate_length_by(
-                    symbol_name(&self.type_checker.symbol(self.type_checker.type_(type_).symbol())).len() + 6,
+                    symbol_name(
+                        &self
+                            .type_checker
+                            .symbol(self.type_checker.type_(type_).symbol()),
+                    )
+                    .len()
+                        + 6,
                 );
                 return Ok(Some(get_factory().create_infer_type_node(
                     self.type_parameter_to_declaration_with_constraint(type_, context, None)?,

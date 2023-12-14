@@ -456,7 +456,8 @@ impl TypeChecker {
 
             if derived == base {
                 let derived_class_decl =
-                    get_class_like_declaration_of_symbol(&self.symbol(self.type_(type_).symbol())).unwrap();
+                    get_class_like_declaration_of_symbol(&self.symbol(self.type_(type_).symbol()))
+                        .unwrap();
 
                 if base_declaration_flags.intersects(ModifierFlags::Abstract) && /* !derivedClassDecl ||*/ !has_syntactic_modifier(&derived_class_decl, ModifierFlags::Abstract)
                 {
@@ -520,8 +521,11 @@ impl TypeChecker {
                     }
                 }
             } else {
-                let derived_declaration_flags =
-                    get_declaration_modifier_flags_from_symbol(self.arena(), &self.symbol(derived), None);
+                let derived_declaration_flags = get_declaration_modifier_flags_from_symbol(
+                    self.arena(),
+                    &self.symbol(derived),
+                    None,
+                );
                 if base_declaration_flags.intersects(ModifierFlags::Private)
                     || derived_declaration_flags.intersects(ModifierFlags::Private)
                 {

@@ -592,10 +592,17 @@ impl NodeBuilder {
     ) -> io::Result<Gc<Node /*ParameterDeclaration*/>> {
         let mut parameter_declaration: Option<
             Gc<Node /*ParameterDeclaration | JSDocParameterTag*/>,
-        > = get_declaration_of_kind(&self.type_checker.symbol(parameter_symbol), SyntaxKind::Parameter);
-        if parameter_declaration.is_none() && !is_transient_symbol(&self.type_checker.symbol(parameter_symbol)) {
-            parameter_declaration =
-                get_declaration_of_kind(&self.type_checker.symbol(parameter_symbol), SyntaxKind::JSDocParameterTag);
+        > = get_declaration_of_kind(
+            &self.type_checker.symbol(parameter_symbol),
+            SyntaxKind::Parameter,
+        );
+        if parameter_declaration.is_none()
+            && !is_transient_symbol(&self.type_checker.symbol(parameter_symbol))
+        {
+            parameter_declaration = get_declaration_of_kind(
+                &self.type_checker.symbol(parameter_symbol),
+                SyntaxKind::JSDocParameterTag,
+            );
         }
 
         let mut parameter_type = self.type_checker.get_type_of_symbol(parameter_symbol)?;
@@ -650,41 +657,44 @@ impl NodeBuilder {
         let is_rest = matches!(
             parameter_declaration.as_ref(),
             Some(parameter_declaration) if is_rest_parameter(parameter_declaration)
-        ) || get_check_flags(&self.type_checker.symbol(parameter_symbol)).intersects(CheckFlags::RestParameter);
+        ) || get_check_flags(&self.type_checker.symbol(parameter_symbol))
+            .intersects(CheckFlags::RestParameter);
         let dot_dot_dot_token: Option<Gc<Node>> = if is_rest {
             Some(get_factory().create_token(SyntaxKind::DotDotDotToken))
         } else {
             None
         };
         let parameter_symbol_name: Option<Cow<'_, str>>;
-        let name: StrOrRcNode<'_> =
-            if let Some(parameter_declaration) = parameter_declaration.as_ref() {
-                if let Some(parameter_declaration_name) = parameter_declaration
-                    .as_named_declaration()
-                    .maybe_name()
-                    .as_ref()
-                {
-                    match parameter_declaration_name.kind() {
-                        SyntaxKind::Identifier => set_emit_flags(
-                            get_factory().clone_node(parameter_declaration_name),
-                            EmitFlags::NoAsciiEscaping,
-                        ),
-                        SyntaxKind::QualifiedName => set_emit_flags(
-                            get_factory()
-                                .clone_node(&parameter_declaration_name.as_qualified_name().right),
-                            EmitFlags::NoAsciiEscaping,
-                        ),
-                        _ => self.clone_binding_name(context, parameter_declaration_name)?,
-                    }
-                    .into()
-                } else {
-                    parameter_symbol_name = Some(symbol_name(&self.type_checker.symbol(parameter_symbol)));
-                    parameter_symbol_name.as_deref().unwrap().into()
+        let name: StrOrRcNode<'_> = if let Some(parameter_declaration) =
+            parameter_declaration.as_ref()
+        {
+            if let Some(parameter_declaration_name) = parameter_declaration
+                .as_named_declaration()
+                .maybe_name()
+                .as_ref()
+            {
+                match parameter_declaration_name.kind() {
+                    SyntaxKind::Identifier => set_emit_flags(
+                        get_factory().clone_node(parameter_declaration_name),
+                        EmitFlags::NoAsciiEscaping,
+                    ),
+                    SyntaxKind::QualifiedName => set_emit_flags(
+                        get_factory()
+                            .clone_node(&parameter_declaration_name.as_qualified_name().right),
+                        EmitFlags::NoAsciiEscaping,
+                    ),
+                    _ => self.clone_binding_name(context, parameter_declaration_name)?,
                 }
+                .into()
             } else {
-                parameter_symbol_name = Some(symbol_name(&self.type_checker.symbol(parameter_symbol)));
+                parameter_symbol_name =
+                    Some(symbol_name(&self.type_checker.symbol(parameter_symbol)));
                 parameter_symbol_name.as_deref().unwrap().into()
-            };
+            }
+        } else {
+            parameter_symbol_name = Some(symbol_name(&self.type_checker.symbol(parameter_symbol)));
+            parameter_symbol_name.as_deref().unwrap().into()
+        };
         let is_optional = matches!(
             parameter_declaration.as_ref(),
             Some(parameter_declaration) if self.type_checker.is_optional_parameter_(parameter_declaration)?
@@ -704,7 +714,9 @@ impl NodeBuilder {
             Some(parameter_type_node),
             None,
         );
-        context.increment_approximate_length_by(symbol_name(&self.type_checker.symbol(parameter_symbol)).len() + 3);
+        context.increment_approximate_length_by(
+            symbol_name(&self.type_checker.symbol(parameter_symbol)).len() + 3,
+        );
         Ok(parameter_node)
     }
 
@@ -1089,16 +1101,18 @@ impl NodeBuilder {
             {
                 let params = self
                     .type_checker
-                    .get_type_parameters_of_class_or_interface(if self
-                        .type_checker
-                        .symbol(parent_symbol)
-                        .flags()
-                        .intersects(SymbolFlags::Alias)
-                    {
-                        self.type_checker.resolve_alias(parent_symbol)?
-                    } else {
-                        parent_symbol.clone()
-                    })?;
+                    .get_type_parameters_of_class_or_interface(
+                        if self
+                            .type_checker
+                            .symbol(parent_symbol)
+                            .flags()
+                            .intersects(SymbolFlags::Alias)
+                        {
+                            self.type_checker.resolve_alias(parent_symbol)?
+                        } else {
+                            parent_symbol.clone()
+                        },
+                    )?;
                 type_parameter_nodes = self.map_to_type_nodes(
                     try_maybe_map(params.as_ref(), |&t: &Id<Type>, _| {
                         self.type_checker.get_mapped_type(
@@ -1144,7 +1158,8 @@ impl NodeBuilder {
         symbol: Id<Symbol>,
         context: &NodeBuilderContext,
     ) -> io::Result<String> {
-        let mut file = get_declaration_of_kind(&self.type_checker.symbol(symbol), SyntaxKind::SourceFile);
+        let mut file =
+            get_declaration_of_kind(&self.type_checker.symbol(symbol), SyntaxKind::SourceFile);
         if file.is_none() {
             let equivalent_file_symbol = try_maybe_first_defined(
                 self.type_checker

@@ -873,8 +873,12 @@ impl TypeChecker {
         Ok(
             !self.for_each_property_bool(target_prop, &mut |tp: Id<Symbol>| {
                 Ok(
-                    if get_declaration_modifier_flags_from_symbol(self.arena(), &self.symbol(tp), None)
-                        .intersects(ModifierFlags::Protected)
+                    if get_declaration_modifier_flags_from_symbol(
+                        self.arena(),
+                        &self.symbol(tp),
+                        None,
+                    )
+                    .intersects(ModifierFlags::Protected)
                     {
                         !self.is_property_in_class_derived_from(
                             source_prop,
@@ -897,8 +901,12 @@ impl TypeChecker {
         Ok(
             if self.for_each_property_bool(prop, &mut |p: Id<Symbol>| {
                 Ok(
-                    if get_declaration_modifier_flags_from_symbol(self.arena(), &self.symbol(p), Some(writing))
-                        .intersects(ModifierFlags::Protected)
+                    if get_declaration_modifier_flags_from_symbol(
+                        self.arena(),
+                        &self.symbol(p),
+                        Some(writing),
+                    )
+                    .intersects(ModifierFlags::Protected)
                     {
                         !self.has_base_type(check_class, self.get_declaring_class(p)?)?
                     } else {
@@ -1021,12 +1029,16 @@ impl TypeChecker {
         if source_prop == target_prop {
             return Ok(Ternary::True);
         }
-        let source_prop_accessibility =
-            get_declaration_modifier_flags_from_symbol(self.arena(), &self.symbol(source_prop), None)
-                & ModifierFlags::NonPublicAccessibilityModifier;
-        let target_prop_accessibility =
-            get_declaration_modifier_flags_from_symbol(self.arena(), &self.symbol(target_prop), None)
-                & ModifierFlags::NonPublicAccessibilityModifier;
+        let source_prop_accessibility = get_declaration_modifier_flags_from_symbol(
+            self.arena(),
+            &self.symbol(source_prop),
+            None,
+        ) & ModifierFlags::NonPublicAccessibilityModifier;
+        let target_prop_accessibility = get_declaration_modifier_flags_from_symbol(
+            self.arena(),
+            &self.symbol(target_prop),
+            None,
+        ) & ModifierFlags::NonPublicAccessibilityModifier;
         if source_prop_accessibility != target_prop_accessibility {
             return Ok(Ternary::False);
         }

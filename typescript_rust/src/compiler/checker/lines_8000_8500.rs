@@ -769,13 +769,7 @@ impl TypeChecker {
             return Ok(self
                 .try_map_type(
                     source,
-                    &mut |t| {
-                        Ok(Some(self.get_rest_type(
-                            t,
-                            properties,
-                            symbol,
-                        )?))
-                    },
+                    &mut |t| Ok(Some(self.get_rest_type(t, properties, symbol)?)),
                     None,
                 )?
                 .unwrap());

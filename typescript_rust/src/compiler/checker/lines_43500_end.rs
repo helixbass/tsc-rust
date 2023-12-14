@@ -1026,7 +1026,11 @@ impl EmitResolverCreateResolver {
         if matches!(
             self.type_checker.symbol(current).maybe_value_declaration(),
             Some(current_value_declaration) if current_value_declaration.kind() == SyntaxKind::SourceFile
-        ) && self.type_checker.symbol(current).flags().intersects(SymbolFlags::ValueModule)
+        ) && self
+            .type_checker
+            .symbol(current)
+            .flags()
+            .intersects(SymbolFlags::ValueModule)
         {
             return Ok(false);
         }

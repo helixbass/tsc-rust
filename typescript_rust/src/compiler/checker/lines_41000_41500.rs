@@ -572,7 +572,11 @@ impl TypeChecker {
                 Some(self.is_name_of_module_or_enum_declaration(node)),
             )?;
             if let Some(mut symbol) = symbol {
-                if self.symbol(symbol).flags().intersects(SymbolFlags::ExportValue) {
+                if self
+                    .symbol(symbol)
+                    .flags()
+                    .intersects(SymbolFlags::ExportValue)
+                {
                     let export_symbol = self
                         .get_merged_symbol(self.symbol(symbol).maybe_export_symbol())
                         .unwrap();

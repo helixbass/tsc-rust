@@ -1068,7 +1068,9 @@ impl TypeChecker {
             }
         }
         if let Some(symbol_parent) = self.symbol(symbol).maybe_parent() {
-            if let Some(symbol_parent_value_declaration) = self.symbol(symbol_parent).maybe_value_declaration() {
+            if let Some(symbol_parent_value_declaration) =
+                self.symbol(symbol_parent).maybe_value_declaration()
+            {
                 let type_node =
                     get_effective_type_annotation_node(&symbol_parent_value_declaration);
                 if let Some(type_node) = type_node {
@@ -1249,7 +1251,8 @@ impl TypeChecker {
                                 .maybe_declarations()
                                 .as_ref()
                                 .map_or_else(|| vec![], |declarations| declarations.clone()),
-                            self.symbol(s).maybe_declarations()
+                            self.symbol(s)
+                                .maybe_declarations()
                                 .as_ref()
                                 .map_or_else(|| vec![], |declarations| declarations.clone()),
                         ));

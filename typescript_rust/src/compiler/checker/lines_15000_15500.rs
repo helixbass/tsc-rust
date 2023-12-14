@@ -1532,11 +1532,7 @@ impl TypeChecker {
                 return Ok(None);
             }
             return Ok(Some(if access_flags.intersects(AccessFlags::Writing) {
-                self.get_intersection_type(
-                    &prop_types,
-                    alias_symbol,
-                    alias_type_arguments,
-                )?
+                self.get_intersection_type(&prop_types, alias_symbol, alias_type_arguments)?
             } else {
                 self.get_union_type(
                     &prop_types,

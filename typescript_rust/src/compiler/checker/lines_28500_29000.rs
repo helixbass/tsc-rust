@@ -464,15 +464,17 @@ impl TypeChecker {
             }
         }
 
-        self.symbol(if get_check_flags(&self.symbol(prop)).intersects(CheckFlags::Instantiated) {
-            (*self.get_symbol_links(prop))
-                .borrow()
-                .target
-                .clone()
-                .unwrap()
-        } else {
-            prop
-        })
+        self.symbol(
+            if get_check_flags(&self.symbol(prop)).intersects(CheckFlags::Instantiated) {
+                (*self.get_symbol_links(prop))
+                    .borrow()
+                    .target
+                    .clone()
+                    .unwrap()
+            } else {
+                prop
+            },
+        )
         .set_is_referenced(Some(SymbolFlags::All));
     }
 

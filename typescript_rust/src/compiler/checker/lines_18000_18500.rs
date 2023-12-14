@@ -284,9 +284,8 @@ impl CheckTypeRelatedTo {
                             )
                         {
                             let helpful_retry = self.type_checker.check_type_related_to(
-                                self.type_checker.get_type_of_symbol(
-                                    (*links).borrow().target.unwrap(),
-                                )?,
+                                self.type_checker
+                                    .get_type_of_symbol((*links).borrow().target.unwrap())?,
                                 self.target,
                                 self.relation.clone(),
                                 Option::<&Node>::None,

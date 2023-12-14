@@ -54,19 +54,21 @@ impl TypeChecker {
                     return Some("".to_owned());
                 } else if properties_of_jsx_element_attrib_prop_interface.len() == 1 {
                     return Some(
-                        self.symbol(properties_of_jsx_element_attrib_prop_interface
-                            .next()
-                            .unwrap())
-                            .escaped_name()
-                            .to_owned(),
+                        self.symbol(
+                            properties_of_jsx_element_attrib_prop_interface
+                                .next()
+                                .unwrap(),
+                        )
+                        .escaped_name()
+                        .to_owned(),
                     );
                 } else if properties_of_jsx_element_attrib_prop_interface.len() > 1 {
                     let jsx_element_attrib_prop_interface_sym =
                         jsx_element_attrib_prop_interface_sym.unwrap();
-                    if let Some(jsx_element_attrib_prop_interface_sym_declarations) =
-                        self.symbol(jsx_element_attrib_prop_interface_sym
-                            ).maybe_declarations()
-                            .as_ref()
+                    if let Some(jsx_element_attrib_prop_interface_sym_declarations) = self
+                        .symbol(jsx_element_attrib_prop_interface_sym)
+                        .maybe_declarations()
+                        .as_ref()
                     {
                         self.error(
                             jsx_element_attrib_prop_interface_sym_declarations
@@ -735,9 +737,10 @@ impl TypeChecker {
         }
 
         if flags.intersects(ModifierFlags::Private) {
-            let declaring_class_declaration =
-                get_class_like_declaration_of_symbol(&self.symbol(self.get_parent_of_symbol(prop)?.unwrap()))
-                    .unwrap();
+            let declaring_class_declaration = get_class_like_declaration_of_symbol(
+                &self.symbol(self.get_parent_of_symbol(prop)?.unwrap()),
+            )
+            .unwrap();
             if !self.is_node_within_class(location, &declaring_class_declaration) {
                 if error_node.is_some() {
                     self.error(

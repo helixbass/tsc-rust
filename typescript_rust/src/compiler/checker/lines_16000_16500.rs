@@ -405,15 +405,12 @@ impl TypeChecker {
             return Ok(self
                 .type_(
                     self.get_declared_type_of_class_or_interface(
-                        self
-                            .symbol(
-                                self.get_symbol_of_node(
-                                    &parent.parent().as_binary_expression().left,
-                                )?
+                        self.symbol(
+                            self.get_symbol_of_node(&parent.parent().as_binary_expression().left)?
                                 .unwrap(),
-                            )
-                            .maybe_parent()
-                            .unwrap(),
+                        )
+                        .maybe_parent()
+                        .unwrap(),
                     )?,
                 )
                 .as_interface_type()
@@ -434,15 +431,12 @@ impl TypeChecker {
             return Ok(self
                 .type_(
                     self.get_declared_type_of_class_or_interface(
-                        self
-                            .symbol(
-                                self.get_symbol_of_node(
-                                    &host.parent().as_binary_expression().left,
-                                )?
+                        self.symbol(
+                            self.get_symbol_of_node(&host.parent().as_binary_expression().left)?
                                 .unwrap(),
-                            )
-                            .maybe_parent()
-                            .unwrap(),
+                        )
+                        .maybe_parent()
+                        .unwrap(),
                     )?,
                 )
                 .as_interface_type()
@@ -1207,10 +1201,7 @@ impl TypeChecker {
             let id = format!(
                 "{}{}",
                 self.get_type_list_id(Some(&*type_arguments)),
-                self.get_alias_id(
-                    new_alias_symbol,
-                    new_alias_type_arguments.as_deref()
-                )
+                self.get_alias_id(new_alias_symbol, new_alias_type_arguments.as_deref())
             );
             if self
                 .type_(target)

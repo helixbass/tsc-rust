@@ -158,8 +158,9 @@ impl TypeChecker {
         };
         self.symbol(merged)
             .set_flags(self.symbol(merged).flags() | SymbolFlags::ValueModule);
-        let merged_exports = self.symbol(merged
-            ).maybe_exports_mut()
+        let merged_exports = self
+            .symbol(merged)
+            .maybe_exports_mut()
             .get_or_insert_with(|| {
                 Gc::new(GcCell::new(create_symbol_table(
                     self.arena(),
@@ -178,9 +179,7 @@ impl TypeChecker {
             };
             merged_exports.borrow_mut().insert(name.clone(), value);
         }
-        self.get_symbol_links(merged)
-            .borrow_mut()
-            .cjs_export_merged = Some(merged.clone());
+        self.get_symbol_links(merged).borrow_mut().cjs_export_merged = Some(merged.clone());
         links.borrow_mut().cjs_export_merged = Some(merged.clone());
         Ok(Some(merged.clone()))
     }

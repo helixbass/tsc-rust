@@ -23,7 +23,7 @@ use crate::{
     project_reference_is_equal_to, ref_unwrapped, remove_prefix, remove_suffix, skip_type_checking,
     sort_and_deduplicate_diagnostics, source_file_may_be_emitted, static_arena, string_contains,
     to_file_name_lower_case, to_path as to_path_helper, trace, try_flat_map,
-    type_directive_is_equal_to, zip_to_mode_aware_cache, AsDoubleDeref,
+    type_directive_is_equal_to, zip_to_mode_aware_cache, AllArenas, AsDoubleDeref,
     CancellationTokenDebuggable, Comparison, CompilerHost, CompilerOptions, CustomTransformers,
     Debug_, Diagnostic, Diagnostics, EmitHost, EmitResult, Extension, FileIncludeReason,
     FileReference, FilesByNameValue, GetOrInsertDefault, ModuleSpecifierResolutionHost,
@@ -32,7 +32,7 @@ use crate::{
     RedirectTargetsMap, ResolveModuleNameResolutionHost, ResolvedModuleFull,
     ResolvedProjectReference, ResolvedTypeReferenceDirective, ScriptReferenceHost, SourceFileLike,
     SourceFileMayBeEmittedHost, SourceOfProjectReferenceRedirect, StringOrRcNode,
-    StructureIsReused, SymlinkCache, TypeChecker, WriteFileCallback, AllArenas,
+    StructureIsReused, SymlinkCache, TypeChecker, WriteFileCallback,
 };
 
 impl Program {

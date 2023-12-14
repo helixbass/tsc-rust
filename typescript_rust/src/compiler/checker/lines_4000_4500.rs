@@ -630,8 +630,7 @@ impl TypeChecker {
                 ),
             Some(value) if self.get_merged_symbol(Some(symbol)).unwrap() == value
         )) && !some(
-            self.symbol(symbol_from_symbol_table
-                .unwrap())
+            self.symbol(symbol_from_symbol_table.unwrap())
                 .maybe_declarations()
                 .as_deref(),
             Some(|declaration: &Gc<Node>| {

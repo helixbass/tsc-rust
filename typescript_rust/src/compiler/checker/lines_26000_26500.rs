@@ -103,8 +103,9 @@ impl TypeChecker {
                             None,
                         )?;
                         if let Some(parent_symbol) = parent_symbol.as_ref() {
-                            let annotated = self.symbol(parent_symbol
-                                ).maybe_value_declaration()
+                            let annotated = self
+                                .symbol(parent_symbol)
+                                .maybe_value_declaration()
                                 .as_ref()
                                 .and_then(|parent_symbol_value_declaration| {
                                     get_effective_type_annotation_node(
@@ -222,8 +223,7 @@ impl TypeChecker {
             Some(true),
         )?;
         Ok(is_this_initialized_declaration(
-            symbol
-                .and_then(|symbol| symbol.maybe_value_declaration()),
+            symbol.and_then(|symbol| symbol.maybe_value_declaration()),
         ))
     }
 

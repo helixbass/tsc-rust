@@ -404,8 +404,7 @@ impl TypeChecker {
             false,
             None,
         )?;
-        let decl = symbol
-            .and_then(|symbol| self.symbol(symbol).maybe_value_declaration());
+        let decl = symbol.and_then(|symbol| self.symbol(symbol).maybe_value_declaration());
         if decl.is_none() {
             return Ok(false);
         }

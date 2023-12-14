@@ -61,11 +61,9 @@ impl TypeChecker {
         let mut links = self.get_symbol_links(symbol);
         let original_links = links.clone();
         if (*links).borrow().type_.is_none() {
-            let expando = self.symbol(symbol
-                ).maybe_value_declaration()
-                .try_and_then(|value_declaration| {
-                    self.get_symbol_of_expando(&value_declaration, false)
-                })?;
+            let expando = self.symbol(symbol).maybe_value_declaration().try_and_then(
+                |value_declaration| self.get_symbol_of_expando(&value_declaration, false),
+            )?;
             if let Some(expando) = expando {
                 let merged = self.merge_js_symbols(symbol, Some(expando))?;
                 if let Some(merged) = merged {
@@ -494,9 +492,10 @@ impl TypeChecker {
                             self.get_symbol_of_node(&node_present.as_binary_expression().left)?;
                         if let Some(symbol) = symbol {
                             if let Some(symbol_parent) = self.symbol(symbol).maybe_parent() {
-                                if find_ancestor(self.symbol(symbol_parent).maybe_value_declaration(), |d| {
-                                    ptr::eq(&**node_present, d)
-                                })
+                                if find_ancestor(
+                                    self.symbol(symbol_parent).maybe_value_declaration(),
+                                    |d| ptr::eq(&**node_present, d),
+                                )
                                 .is_none()
                                 {
                                     node = self.symbol(symbol_parent).maybe_value_declaration();

@@ -777,11 +777,13 @@ impl TypeChecker {
             } else {
                 self.mark_export_as_referenced(node)?;
                 let target = symbol.try_map(|symbol| -> io::Result<_> {
-                    Ok(if self.symbol(symbol).flags().intersects(SymbolFlags::Alias) {
-                        self.resolve_alias(symbol)?
-                    } else {
-                        symbol.clone()
-                    })
+                    Ok(
+                        if self.symbol(symbol).flags().intersects(SymbolFlags::Alias) {
+                            self.resolve_alias(symbol)?
+                        } else {
+                            symbol.clone()
+                        },
+                    )
                 })?;
                 if match target {
                     None => true,
@@ -943,9 +945,10 @@ impl TypeChecker {
     }
 
     pub(super) fn has_exported_members(&self, module_symbol: Id<Symbol>) -> bool {
-        for_each_entry_bool(&*(*self.symbol(module_symbol).exports()).borrow(), |_, id| {
-            id != "export="
-        })
+        for_each_entry_bool(
+            &*(*self.symbol(module_symbol).exports()).borrow(),
+            |_, id| id != "export=",
+        )
     }
 
     pub(super) fn check_external_module_exports(

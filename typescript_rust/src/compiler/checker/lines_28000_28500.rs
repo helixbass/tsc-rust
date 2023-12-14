@@ -864,8 +864,7 @@ impl TypeChecker {
             && is_access_expression(node)
             && node.as_has_expression().expression().kind() == SyntaxKind::ThisKeyword
         {
-            let declaration = prop
-                .and_then(|prop| self.symbol(prop).maybe_value_declaration());
+            let declaration = prop.and_then(|prop| self.symbol(prop).maybe_value_declaration());
             if let Some(declaration) = declaration
                 .as_ref()
                 .filter(|declaration| self.is_property_without_initializer(declaration))
@@ -1032,10 +1031,8 @@ impl TypeChecker {
         &self,
         prop: Id<Symbol>,
     ) -> io::Result<bool> {
-        if !self.symbol(self
-            .symbol(prop)
-            .maybe_parent()
-            .unwrap())
+        if !self
+            .symbol(self.symbol(prop).maybe_parent().unwrap())
             .flags()
             .intersects(SymbolFlags::Class)
         {

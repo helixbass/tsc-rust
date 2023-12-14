@@ -64,11 +64,10 @@ impl BinderType {
         ));
         self.add_declaration_to_symbol(symbol, node, SymbolFlags::Signature);
 
-        let type_literal_symbol = self.alloc_symbol(self
-            .create_symbol(
-                SymbolFlags::TypeLiteral,
-                InternalSymbolName::Type.to_owned(),
-            ));
+        let type_literal_symbol = self.alloc_symbol(self.create_symbol(
+            SymbolFlags::TypeLiteral,
+            InternalSymbolName::Type.to_owned(),
+        ));
         self.add_declaration_to_symbol(type_literal_symbol, node, SymbolFlags::TypeLiteral);
         let mut type_literal_symbol_members = self.symbol(type_literal_symbol).maybe_members_mut();
         *type_literal_symbol_members = Some(Gc::new(GcCell::new(create_symbol_table(

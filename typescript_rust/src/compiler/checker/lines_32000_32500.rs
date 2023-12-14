@@ -313,36 +313,44 @@ impl TypeChecker {
     }
 
     pub(super) fn is_readonly_symbol(&self, symbol: Id<Symbol>) -> io::Result<bool> {
-        Ok(get_check_flags(&self.symbol(symbol)).intersects(CheckFlags::Readonly)
-            || self
-                .symbol(symbol)
-                .flags()
-                .intersects(SymbolFlags::Property)
-                && get_declaration_modifier_flags_from_symbol(self.arena(), &self.symbol(symbol), None)
-                    .intersects(ModifierFlags::Readonly)
-            || self
-                .symbol(symbol)
-                .flags()
-                .intersects(SymbolFlags::Variable)
-                && self
-                    .get_declaration_node_flags_from_symbol(symbol)
-                    .intersects(NodeFlags::Const)
-            || self
-                .symbol(symbol)
-                .flags()
-                .intersects(SymbolFlags::Accessor)
-                && !self
+        Ok(
+            get_check_flags(&self.symbol(symbol)).intersects(CheckFlags::Readonly)
+                || self
                     .symbol(symbol)
                     .flags()
-                    .intersects(SymbolFlags::SetAccessor)
-            || self
-                .symbol(symbol)
-                .flags()
-                .intersects(SymbolFlags::EnumMember)
-            || try_some(
-                self.symbol(symbol).maybe_declarations().as_deref(),
-                Some(|declaration: &Gc<Node>| self.is_readonly_assignment_declaration(declaration)),
-            )?)
+                    .intersects(SymbolFlags::Property)
+                    && get_declaration_modifier_flags_from_symbol(
+                        self.arena(),
+                        &self.symbol(symbol),
+                        None,
+                    )
+                    .intersects(ModifierFlags::Readonly)
+                || self
+                    .symbol(symbol)
+                    .flags()
+                    .intersects(SymbolFlags::Variable)
+                    && self
+                        .get_declaration_node_flags_from_symbol(symbol)
+                        .intersects(NodeFlags::Const)
+                || self
+                    .symbol(symbol)
+                    .flags()
+                    .intersects(SymbolFlags::Accessor)
+                    && !self
+                        .symbol(symbol)
+                        .flags()
+                        .intersects(SymbolFlags::SetAccessor)
+                || self
+                    .symbol(symbol)
+                    .flags()
+                    .intersects(SymbolFlags::EnumMember)
+                || try_some(
+                    self.symbol(symbol).maybe_declarations().as_deref(),
+                    Some(|declaration: &Gc<Node>| {
+                        self.is_readonly_assignment_declaration(declaration)
+                    }),
+                )?,
+        )
     }
 
     pub(super) fn is_assignment_to_readonly_entity(
@@ -389,7 +397,9 @@ impl TypeChecker {
                         && are_option_gcs_equal(
                             self.symbol(symbol)
                                 .maybe_parent()
-                                .and_then(|symbol_parent| self.symbol(symbol_parent).maybe_value_declaration())
+                                .and_then(|symbol_parent| {
+                                    self.symbol(symbol_parent).maybe_value_declaration()
+                                })
                                 .as_ref(),
                             ctor.maybe_parent().as_ref(),
                         );

@@ -692,7 +692,10 @@ impl SymbolTableToDeclarationStatements {
         property_as_alias: bool,
     ) -> io::Result<()> {
         let visited_sym = self.type_checker.get_merged_symbol(Some(symbol)).unwrap();
-        if self.visited_symbols().contains(&get_symbol_id(&self.type_checker.symbol(visited_sym))) {
+        if self
+            .visited_symbols()
+            .contains(&get_symbol_id(&self.type_checker.symbol(visited_sym)))
+        {
             return Ok(());
         }
         self.visited_symbols_mut()

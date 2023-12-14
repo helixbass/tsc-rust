@@ -1067,7 +1067,9 @@ fn try_get_module_name_from_ambient_module(
                         .cloned()
                 })
                 .and_then(|top_namespace_parent_parent_symbol_exports_got| {
-                    checker.symbol(top_namespace_parent_parent_symbol_exports_got).maybe_value_declaration()
+                    checker
+                        .symbol(top_namespace_parent_parent_symbol_exports_got)
+                        .maybe_value_declaration()
                 })
                 .map(
                     |top_namespace_parent_parent_symbol_exports_got_value_declaration| {

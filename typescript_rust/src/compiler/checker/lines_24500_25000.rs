@@ -908,7 +908,9 @@ impl TypeChecker {
         } else {
             local_or_export_symbol.clone()
         };
-        if let Some(source_symbol_declarations) = self.symbol(source_symbol).maybe_declarations().as_ref() {
+        if let Some(source_symbol_declarations) =
+            self.symbol(source_symbol).maybe_declarations().as_ref()
+        {
             if self
                 .get_declaration_node_flags_from_symbol(source_symbol)
                 .intersects(NodeFlags::Deprecated)

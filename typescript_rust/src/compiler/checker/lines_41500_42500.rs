@@ -1024,7 +1024,8 @@ impl TypeChecker {
                         if unchecked_helpers.intersects(helper) {
                             let name = self.get_helper_name(helper);
                             let symbol = self.get_symbol(
-                                &(*self.symbol(helpers_module).maybe_exports().clone().unwrap()).borrow(),
+                                &(*self.symbol(helpers_module).maybe_exports().clone().unwrap())
+                                    .borrow(),
                                 &escape_leading_underscores(name),
                                 SymbolFlags::Value,
                             )?;

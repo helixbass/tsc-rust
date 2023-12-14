@@ -539,7 +539,8 @@ impl TypeChecker {
 
     pub(super) fn is_discriminant_with_never_type(&self, prop: Id<Symbol>) -> io::Result<bool> {
         Ok(!self.symbol(prop).flags().intersects(SymbolFlags::Optional)
-            && get_check_flags(&self.symbol(prop)) & (CheckFlags::Discriminant | CheckFlags::HasNeverType)
+            && get_check_flags(&self.symbol(prop))
+                & (CheckFlags::Discriminant | CheckFlags::HasNeverType)
                 == CheckFlags::Discriminant
             && self
                 .type_(self.get_type_of_symbol(prop)?)

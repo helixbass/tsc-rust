@@ -25,9 +25,9 @@ use crate::{
     FlowFlags, FlowNode, FlowStart, ModifierFlags, NodeFlags, NodeId, ScriptTarget,
     SignatureDeclarationInterface, Symbol, SymbolTable, SyntaxKind, __String, append_if_unique_gc,
     create_symbol_table, get_escaped_text_of_identifier_or_literal, get_name_of_declaration,
-    is_property_name_literal, object_allocator, set_parent, set_value_declaration, AllArenas,
-    BaseSymbol, InternalSymbolName, NamedDeclarationInterface, Node, NodeArray, NodeInterface,
-    SymbolFlags, SymbolInterface, static_arena,
+    is_property_name_literal, object_allocator, set_parent, set_value_declaration, static_arena,
+    AllArenas, BaseSymbol, InternalSymbolName, NamedDeclarationInterface, Node, NodeArray,
+    NodeInterface, SymbolFlags, SymbolInterface,
 };
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
@@ -997,9 +997,9 @@ impl BinderType {
         let mut symbol: Option<Id<Symbol>>;
         match name {
             None => {
-                symbol = Some(
-                    self.alloc_symbol(self.create_symbol(SymbolFlags::None, InternalSymbolName::Missing.to_owned()))
-                );
+                symbol = Some(self.alloc_symbol(
+                    self.create_symbol(SymbolFlags::None, InternalSymbolName::Missing.to_owned()),
+                ));
             }
             Some(name) => {
                 symbol = symbol_table.get(&*name).cloned();
@@ -1012,9 +1012,9 @@ impl BinderType {
 
                 match symbol {
                     None => {
-                        symbol = Some(
-                            self.alloc_symbol(self.create_symbol(SymbolFlags::None, (*name).to_owned()))
-                        );
+                        symbol = Some(self.alloc_symbol(
+                            self.create_symbol(SymbolFlags::None, (*name).to_owned()),
+                        ));
                         symbol_table.insert(name.into_owned(), symbol.as_ref().unwrap().clone());
                         if is_replaceable_by_method {
                             self.symbol(symbol.unwrap())
@@ -1037,9 +1037,9 @@ impl BinderType {
                             self.symbol(symbol_present).maybe_is_replaceable_by_method(),
                             Some(true)
                         ) {
-                            symbol = Some(
-                                self.alloc_symbol(self.create_symbol(SymbolFlags::None, (*name).to_owned()))
-                            );
+                            symbol = Some(self.alloc_symbol(
+                                self.create_symbol(SymbolFlags::None, (*name).to_owned()),
+                            ));
                             symbol_table
                                 .insert(name.into_owned(), symbol.as_ref().unwrap().clone());
                         } else if !(includes.intersects(SymbolFlags::Variable)
@@ -1202,9 +1202,9 @@ impl BinderType {
                                 .bind_diagnostics_mut()
                                 .push(diag);
 
-                            symbol = Some(
-                                self.alloc_symbol(self.create_symbol(SymbolFlags::None, name.into_owned()))
-                            );
+                            symbol = Some(self.alloc_symbol(
+                                self.create_symbol(SymbolFlags::None, name.into_owned()),
+                            ));
                         }
                     }
                     _ => (),

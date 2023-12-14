@@ -1235,7 +1235,8 @@ impl NodeBuilder {
         property_symbol: Id<Symbol>,
         context: &NodeBuilderContext,
     ) -> bool {
-        get_check_flags(&self.type_checker.symbol(property_symbol)).intersects(CheckFlags::ReverseMapped)
+        get_check_flags(&self.type_checker.symbol(property_symbol))
+            .intersects(CheckFlags::ReverseMapped)
             && (contains(
                 context.reverse_mapped_stack.borrow().as_deref(),
                 &property_symbol,
@@ -1273,7 +1274,8 @@ impl NodeBuilder {
         let save_enclosing_declaration = context.maybe_enclosing_declaration();
         context.set_enclosing_declaration(None);
         if context.tracker().is_track_symbol_supported()
-            && get_check_flags(&self.type_checker.symbol(property_symbol)).intersects(CheckFlags::Late)
+            && get_check_flags(&self.type_checker.symbol(property_symbol))
+                .intersects(CheckFlags::Late)
             && self
                 .type_checker
                 .is_late_bound_name(self.type_checker.symbol(property_symbol).escaped_name())
@@ -1328,12 +1330,17 @@ impl NodeBuilder {
             }
         }
         context.set_enclosing_declaration(
-            self.type_checker.symbol(property_symbol)
+            self.type_checker
+                .symbol(property_symbol)
                 .maybe_value_declaration()
                 .or_else(|| {
-                    self.type_checker.symbol(property_symbol).maybe_declarations().as_ref().and_then(
-                        |property_symbol_declarations| property_symbol_declarations.get(0).cloned(),
-                    )
+                    self.type_checker
+                        .symbol(property_symbol)
+                        .maybe_declarations()
+                        .as_ref()
+                        .and_then(|property_symbol_declarations| {
+                            property_symbol_declarations.get(0).cloned()
+                        })
                 })
                 .or_else(|| save_enclosing_declaration.clone()),
         );
@@ -1342,13 +1349,19 @@ impl NodeBuilder {
         context.increment_approximate_length_by(
             symbol_name(&self.type_checker.symbol(property_symbol)).len() + 1,
         );
-        let optional_token: Option<Gc<Node>> =
-            if self.type_checker.symbol(property_symbol).flags().intersects(SymbolFlags::Optional) {
-                Some(get_factory().create_token(SyntaxKind::QuestionToken))
-            } else {
-                None
-            };
-        if self.type_checker.symbol(property_symbol)
+        let optional_token: Option<Gc<Node>> = if self
+            .type_checker
+            .symbol(property_symbol)
+            .flags()
+            .intersects(SymbolFlags::Optional)
+        {
+            Some(get_factory().create_token(SyntaxKind::QuestionToken))
+        } else {
+            None
+        };
+        if self
+            .type_checker
+            .symbol(property_symbol)
             .flags()
             .intersects(SymbolFlags::Function | SymbolFlags::Method)
             && self
