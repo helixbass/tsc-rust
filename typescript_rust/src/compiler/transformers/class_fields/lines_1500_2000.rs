@@ -1,4 +1,5 @@
 use gc::{Gc, GcCell, GcCellRefMut};
+use id_arena::Id;
 
 use super::{
     is_reserved_private_name, ClassFacts, ClassLexicalEnvironment, PrivateIdentifierAccessorInfo,
@@ -26,7 +27,7 @@ impl TransformClassFields {
     pub(super) fn visit_invalid_super_property(
         &self,
         node: &Node, /*SuperProperty*/
-    ) -> Gc<Node> {
+    ) -> Id<Node> {
         if is_property_access_expression(node) {
             self.factory.update_property_access_expression(
                 node,
@@ -41,7 +42,7 @@ impl TransformClassFields {
                     &node.as_element_access_expression().argument_expression,
                     Some(|node: &Node| self.visitor(node)),
                     Some(is_expression),
-                    Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                    Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                 ),
             )
         }
@@ -51,13 +52,13 @@ impl TransformClassFields {
         &self,
         name: &Node, /*PropertyName*/
         should_hoist: bool,
-    ) -> Option<Gc<Node /*Expression*/>> {
+    ) -> Option<Id<Node /*Expression*/>> {
         if is_computed_property_name(name) {
             let expression = visit_node(
                 &name.as_computed_property_name().expression,
                 Some(|node: &Node| self.visitor(node)),
                 Some(is_expression),
-                Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
             );
             let ref inner_expression = skip_partially_emitted_expressions(&expression);
             let inlinable = is_simple_inlineable_expression(inner_expression);
@@ -113,7 +114,7 @@ impl TransformClassFields {
 
     pub(super) fn get_pending_expressions(
         &self,
-    ) -> GcCellRefMut<Option<Vec<Gc<Node>>>, Vec<Gc<Node>>> {
+    ) -> GcCellRefMut<Option<Vec<Id<Node>>>, Vec<Id<Node>>> {
         self.maybe_pending_expressions_mut()
             .get_or_insert_default_();
         self.pending_expressions_mut()
@@ -134,7 +135,7 @@ impl TransformClassFields {
         let private_env = self.get_private_identifier_environment();
         let weak_set_name = (*private_env).borrow().weak_set_name.clone();
 
-        let mut assignment_expressions: Vec<Gc<Node /*Expression*/>> = _d();
+        let mut assignment_expressions: Vec<Id<Node /*Expression*/>> = _d();
 
         let private_name = &node_name_as_private_identifier.escaped_text;
         let previous_info = (*private_env)
@@ -345,7 +346,7 @@ impl TransformClassFields {
         &self,
         name: &str,
         node: &Node, /*PrivateIdentifier | ClassStaticBlockDeclaration*/
-    ) -> Gc<Node /*Identifier*/> {
+    ) -> Id<Node /*Identifier*/> {
         let private_identifier_environment = self.get_private_identifier_environment();
         let private_identifier_environment = (*private_identifier_environment).borrow();
         let class_name = &private_identifier_environment.class_name;
@@ -376,7 +377,7 @@ impl TransformClassFields {
         &self,
         private_name: &str,
         node: &Node, /*PrivateClassElementDeclaration*/
-    ) -> Gc<Node /*Identifier*/> {
+    ) -> Id<Node /*Identifier*/> {
         self.create_hoisted_variable_for_class(
             &private_name[1..],
             &node.as_named_declaration().name(),
@@ -429,7 +430,7 @@ impl TransformClassFields {
     pub(super) fn wrap_private_identifier_for_destructuring_target(
         &self,
         node: &Node, /*PrivateIdentifierPropertyAccessExpression*/
-    ) -> Gc<Node> {
+    ) -> Id<Node> {
         let node_as_property_access_expression = node.as_property_access_expression();
         let parameter = self.factory.get_generated_name_for_node(Some(node), None);
         let info = self.access_private_identifier(&node_as_property_access_expression.name());
@@ -456,7 +457,7 @@ impl TransformClassFields {
                         &node_as_property_access_expression.expression,
                         Some(|node: &Node| self.visitor(node)),
                         Some(is_expression),
-                        Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                        Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                     ),
                 ));
         }
@@ -478,7 +479,7 @@ impl TransformClassFields {
     ) -> VisitResult {
         let target = get_target_of_binding_or_assignment_element(node);
         if let Some(ref target) = target {
-            let mut wrapped: Option<Gc<Node /*LeftHandSideExpression*/>> = _d();
+            let mut wrapped: Option<Id<Node /*LeftHandSideExpression*/>> = _d();
             if is_private_identifier_property_access_expression(target) {
                 wrapped = Some(self.wrap_private_identifier_for_destructuring_target(target));
             } else if self.should_transform_super_in_static_initializers
@@ -508,7 +509,7 @@ impl TransformClassFields {
                                 &target.as_element_access_expression().argument_expression,
                                 Some(|node: &Node| self.visitor(node)),
                                 Some(is_expression),
-                                Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                                Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                             ))
                         } else if is_identifier(&target.as_property_access_expression().name()) {
                             Some(self.factory.create_string_literal_from_node(
@@ -546,7 +547,7 @@ impl TransformClassFields {
                                 &node_as_binary_expression.right,
                                 Some(|node: &Node| self.visitor(node)),
                                 Some(is_expression),
-                                Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                                Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                             ),
                         )
                     } else if is_spread_element(node) {
@@ -563,7 +564,7 @@ impl TransformClassFields {
                 node,
                 Some(|node: &Node| self.visitor_destructuring_target(node)),
                 Option::<fn(&Node) -> bool>::None,
-                Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
             )
             .into(),
         )
@@ -576,7 +577,7 @@ impl TransformClassFields {
         if is_object_binding_or_assignment_element(node) && !is_shorthand_property_assignment(node)
         {
             let target = get_target_of_binding_or_assignment_element(node);
-            let mut wrapped: Option<Gc<Node /*LeftHandSideExpression*/>> = _d();
+            let mut wrapped: Option<Id<Node /*LeftHandSideExpression*/>> = _d();
             if let Some(ref target) = target {
                 if is_private_identifier_property_access_expression(target) {
                     wrapped = Some(self.wrap_private_identifier_for_destructuring_target(target));
@@ -607,7 +608,7 @@ impl TransformClassFields {
                                     &target.as_element_access_expression().argument_expression,
                                     Some(|node: &Node| self.visitor(node)),
                                     Some(is_expression),
-                                    Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                                    Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                                 ))
                             } else if is_identifier(&target.as_property_access_expression().name())
                             {
@@ -646,7 +647,7 @@ impl TransformClassFields {
                                 &node_as_property_assignment.name(),
                                 Some(|node: &Node| self.visitor(node)),
                                 Some(is_property_name),
-                                Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                                Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                             ),
                             if let Some(wrapped) = wrapped {
                                 if let Some(initializer) = initializer {
@@ -656,7 +657,7 @@ impl TransformClassFields {
                                             &initializer,
                                             Some(|node: &Node| self.visitor(node)),
                                             Option::<fn(&Node) -> bool>::None,
-                                            Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                                            Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                                         ),
                                     )
                                 } else {
@@ -667,7 +668,7 @@ impl TransformClassFields {
                                     &node_as_property_assignment.initializer,
                                     Some(|node: &Node| self.visitor_destructuring_target(node)),
                                     Some(is_expression),
-                                    Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                                    Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                                 )
                             },
                         )
@@ -685,7 +686,7 @@ impl TransformClassFields {
                                     &node_as_spread_assignment.expression,
                                     Some(|node: &Node| self.visitor_destructuring_target(node)),
                                     Some(is_expression),
-                                    Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                                    Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                                 )
                             }),
                         )
@@ -702,7 +703,7 @@ impl TransformClassFields {
                 node,
                 Some(|node: &Node| self.visitor(node)),
                 Option::<fn(&Node) -> bool>::None,
-                Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
             )
             .into(),
         )

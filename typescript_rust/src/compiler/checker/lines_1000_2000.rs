@@ -77,7 +77,7 @@ impl TypeChecker {
                             file_local_jsx_fragment_factory.as_deref(),
                             Some(|node: &Node| self.mark_as_synthetic(node)),
                             Option::<fn(&Node) -> bool>::None,
-                            Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                            Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                         );
                         if let Some(file_local_jsx_fragment_factory) =
                             file_local_jsx_fragment_factory.as_ref()
@@ -126,7 +126,7 @@ impl TypeChecker {
                     _jsx_factory_entity.as_deref(),
                     Some(|node: &Node| self.mark_as_synthetic(node)),
                     Option::<fn(&Node) -> bool>::None,
-                    Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                    Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                 );
                 if let Some(_jsx_factory_entity) = _jsx_factory_entity.as_ref() {
                     *_jsx_namespace = Some(
@@ -184,7 +184,7 @@ impl TypeChecker {
                 file_local_jsx_factory.as_deref(),
                 Some(|node: &Node| self.mark_as_synthetic(node)),
                 Option::<fn(&Node) -> bool>::None,
-                Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
             );
             if let Some(file_local_jsx_factory) = file_local_jsx_factory.as_ref() {
                 let ret = get_first_identifier(file_local_jsx_factory)
@@ -344,7 +344,7 @@ impl TypeChecker {
 
     pub(super) fn add_deprecated_suggestion_worker(
         &self,
-        declarations: &[Gc<Node>],
+        declarations: &[Id<Node>],
         diagnostic: Gc<Diagnostic /*DiagnosticWithLocation*/>,
     ) -> Gc<Diagnostic> {
         let deprecated_tag = for_each(declarations, |declaration, _| {
@@ -368,7 +368,7 @@ impl TypeChecker {
     pub(super) fn add_deprecated_suggestion(
         &self,
         location: &Node,
-        declarations: &[Gc<Node>],
+        declarations: &[Id<Node>],
         deprecated_entity: &str,
     ) -> Gc<Diagnostic> {
         let diagnostic: Gc<Diagnostic> = create_diagnostic_for_node(
@@ -744,7 +744,7 @@ impl TypeChecker {
 
     pub(super) fn add_duplicate_locations(
         &self,
-        locs: &mut Vec<Gc<Node /*Declaration*/>>,
+        locs: &mut Vec<Id<Node /*Declaration*/>>,
         symbol: Id<Symbol>,
     ) {
         if let Some(symbol_declarations) = symbol.ref_(self).maybe_declarations().as_ref() {
@@ -780,7 +780,7 @@ impl TypeChecker {
         node: &Node, /*Declaration*/
         message: &DiagnosticMessage,
         symbol_name: &str,
-        related_nodes: Option<&[Gc<Node /*Declaration*/>]>,
+        related_nodes: Option<&[Id<Node /*Declaration*/>]>,
     ) {
         let error_node = (if get_expando_initializer(node, false).is_some() {
             get_name_of_expando(node)
@@ -1016,7 +1016,7 @@ impl TypeChecker {
             if let Some(&target_symbol) = target_symbol {
                 maybe_for_each(
                     target_symbol.ref_(self).maybe_declarations().as_deref(),
-                    |declaration: &Gc<Node /*Declaration*/>, _| {
+                    |declaration: &Id<Node /*Declaration*/>, _| {
                         self.diagnostics().add(
                             create_diagnostic_for_node(
                                 declaration,
@@ -1299,7 +1299,7 @@ impl TypeChecker {
             }
 
             let property_declaration = current.maybe_parent().and_then(|parent| {
-                try_cast(parent, |node: &Gc<Node>| is_property_declaration(node))
+                try_cast(parent, |node: &Id<Node>| is_property_declaration(node))
             });
             if let Some(property_declaration) = property_declaration {
                 let initializer_of_property = matches!(
@@ -1431,7 +1431,7 @@ impl TypeChecker {
                     links.declaration_requires_scope_change = Some(
                         for_each_bool(
                             &function_location.unwrap().parameters(),
-                            |node: &Gc<Node>, _| self.requires_scope_change(target, node),
+                            |node: &Id<Node>, _| self.requires_scope_change(target, node),
                         ) || false,
                     );
                 }
@@ -1531,18 +1531,18 @@ impl TypeChecker {
             SymbolFlags,
         ) -> io::Result<Option<Id<Symbol>>>,
     ) -> io::Result<Option<Id<Symbol>>> {
-        let mut location: Option<Gc<Node>> = location.map(|node| node.borrow().node_wrapper());
+        let mut location: Option<Id<Node>> = location.map(|node| node.borrow().node_wrapper());
         let original_location = location.clone();
         let mut result: Option<Id<Symbol>> = None;
-        let mut last_location: Option<Gc<Node>> = None;
-        let mut last_self_reference_location: Option<Gc<Node>> = None;
-        let mut property_with_invalid_initializer: Option<Gc<Node>> = None;
+        let mut last_location: Option<Id<Node>> = None;
+        let mut last_self_reference_location: Option<Id<Node>> = None;
+        let mut property_with_invalid_initializer: Option<Id<Node>> = None;
         let mut associated_declaration_for_containing_initializer_or_binding_name: Option<
-            Gc<Node /*ParameterDeclaration | BindingElement*/>,
+            Id<Node /*ParameterDeclaration | BindingElement*/>,
         > = None;
         let mut within_deferred_context = false;
         let error_location = location.clone();
-        let mut grandparent: Gc<Node>;
+        let mut grandparent: Id<Node>;
         let mut is_in_external_module = false;
 
         while let Some(mut location_unwrapped) = location {
@@ -1701,7 +1701,7 @@ impl TypeChecker {
                                             result_unwrapped.ref_(self)
                                                 .maybe_declarations()
                                                 .as_deref(),
-                                            Some(|node: &Gc<Node>| is_jsdoc_type_alias(node)),
+                                            Some(|node: &Id<Node>| is_jsdoc_type_alias(node)),
                                         )
                                     {
                                         result = None;
@@ -2291,12 +2291,12 @@ impl From<DiagnosticMessageChain> for DiagnosticMessageOrDiagnosticMessageChain 
 
 #[derive(Clone)]
 pub(super) enum ResolveNameNameArg<'str> {
-    Node(Gc<Node>),
+    Node(Id<Node>),
     Str(&'str str),
 }
 
-impl<'str> From<Gc<Node>> for ResolveNameNameArg<'str> {
-    fn from(value: Gc<Node>) -> Self {
+impl<'str> From<Id<Node>> for ResolveNameNameArg<'str> {
+    fn from(value: Id<Node>) -> Self {
         ResolveNameNameArg::Node(value)
     }
 }

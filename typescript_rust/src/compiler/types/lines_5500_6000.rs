@@ -53,7 +53,7 @@ impl IntersectionType {
 )]
 pub struct MappedType {
     _object_type: BaseObjectType,
-    pub declaration: Gc<Node /*MappedTypeNode*/>,
+    pub declaration: Id<Node /*MappedTypeNode*/>,
     type_parameter: GcCell<Option<Id<Type /*TypeParameter*/>>>,
     constraint_type: GcCell<Option<Id<Type>>>,
     name_type: GcCell<Option<Id<Type>>>,
@@ -65,7 +65,7 @@ pub struct MappedType {
 }
 
 impl MappedType {
-    pub fn new(object_type: BaseObjectType, declaration: Gc<Node>) -> Self {
+    pub fn new(object_type: BaseObjectType, declaration: Id<Node>) -> Self {
         Self {
             _object_type: object_type,
             declaration,
@@ -383,7 +383,7 @@ impl IndexType {
 
 #[derive(Clone, Debug, Trace, Finalize)]
 pub struct ConditionalRoot {
-    pub node: Gc<Node /*ConditionalTypeNode*/>,
+    pub node: Id<Node /*ConditionalTypeNode*/>,
     pub check_type: Id<Type>,
     pub extends_type: Id<Type>,
     pub is_distributive: bool,
@@ -396,7 +396,7 @@ pub struct ConditionalRoot {
 
 impl ConditionalRoot {
     pub fn new(
-        node: Gc<Node>,
+        node: Id<Node>,
         check_type: Id<Type>,
         extends_type: Id<Type>,
         is_distributive: bool,
@@ -580,7 +580,7 @@ bitflags! {
 pub struct Signature {
     #[unsafe_ignore_trace]
     pub flags: SignatureFlags,
-    pub declaration: Option<Gc<Node /*SignatureDeclaration | JSDocSignature*/>>,
+    pub declaration: Option<Id<Node /*SignatureDeclaration | JSDocSignature*/>>,
     type_parameters: GcCell<Option<Vec<Id<Type /*TypeParameter*/>>>>,
     parameters: Option<Vec<Id<Symbol>>>,
     this_parameter: GcCell<Option<Id<Symbol>>>,
@@ -741,7 +741,7 @@ pub struct IndexInfo {
     pub key_type: Id<Type>,
     pub type_: Id<Type>,
     pub is_readonly: bool,
-    pub declaration: Option<Gc<Node /*IndexSignatureDeclaration*/>>,
+    pub declaration: Option<Id<Node /*IndexSignatureDeclaration*/>>,
 }
 
 #[derive(Debug, Finalize, Trace)]
@@ -1263,7 +1263,7 @@ impl DiagnosticRelatedInformationInterface for BaseDiagnostic {
         self._diagnostic_related_information.code()
     }
 
-    fn maybe_file(&self) -> Option<Gc<Node>> {
+    fn maybe_file(&self) -> Option<Id<Node>> {
         self._diagnostic_related_information.maybe_file()
     }
 
@@ -1367,7 +1367,7 @@ impl DiagnosticRelatedInformationInterface for Diagnostic {
         }
     }
 
-    fn maybe_file(&self) -> Option<Gc<Node>> {
+    fn maybe_file(&self) -> Option<Id<Node>> {
         match self {
             Diagnostic::DiagnosticWithLocation(diagnostic) => diagnostic.maybe_file(),
             Diagnostic::DiagnosticWithDetachedLocation(diagnostic) => diagnostic.maybe_file(),
@@ -1503,7 +1503,7 @@ pub trait DiagnosticRelatedInformationInterface {
     fn category(&self) -> DiagnosticCategory;
     fn set_category(&self, category: DiagnosticCategory);
     fn code(&self) -> u32;
-    fn maybe_file(&self) -> Option<Gc<Node>>;
+    fn maybe_file(&self) -> Option<Id<Node>>;
     fn maybe_start(&self) -> Option<isize>;
     fn start(&self) -> isize;
     fn set_start(&self, start: Option<isize>);
@@ -1573,7 +1573,7 @@ impl DiagnosticRelatedInformationInterface for DiagnosticRelatedInformation {
         }
     }
 
-    fn maybe_file(&self) -> Option<Gc<Node>> {
+    fn maybe_file(&self) -> Option<Id<Node>> {
         match self {
             DiagnosticRelatedInformation::BaseDiagnosticRelatedInformation(
                 base_diagnostic_related_information,
@@ -1659,7 +1659,7 @@ pub struct BaseDiagnosticRelatedInformation {
     category: Cell<DiagnosticCategory>,
     code: u32,
     #[builder(default)]
-    file: Option<Gc<Node /*SourceFile*/>>,
+    file: Option<Id<Node /*SourceFile*/>>,
     #[builder(default, setter(custom))]
     #[unsafe_ignore_trace]
     start: Cell<Option<isize>>,
@@ -1687,7 +1687,7 @@ impl BaseDiagnosticRelatedInformation {
     pub fn new(
         category: DiagnosticCategory,
         code: u32,
-        file: Option<Gc<Node>>,
+        file: Option<Id<Node>>,
         start: Option<isize>,
         length: Option<isize>,
         message_text: impl Into<DiagnosticMessageText>,
@@ -1720,7 +1720,7 @@ impl DiagnosticRelatedInformationInterface for BaseDiagnosticRelatedInformation 
         self.code
     }
 
-    fn maybe_file(&self) -> Option<Gc<Node>> {
+    fn maybe_file(&self) -> Option<Id<Node>> {
         self.file.clone()
     }
 
@@ -1779,7 +1779,7 @@ impl DiagnosticWithLocation {
         }
     }
 
-    pub fn file(&self) -> Gc<Node> {
+    pub fn file(&self) -> Id<Node> {
         self.maybe_file().unwrap()
     }
 }
@@ -1801,7 +1801,7 @@ impl DiagnosticRelatedInformationInterface for DiagnosticWithLocation {
         self._diagnostic.code()
     }
 
-    fn maybe_file(&self) -> Option<Gc<Node>> {
+    fn maybe_file(&self) -> Option<Id<Node>> {
         self._diagnostic.maybe_file()
     }
 
@@ -1914,7 +1914,7 @@ impl DiagnosticRelatedInformationInterface for DiagnosticWithDetachedLocation {
         self._diagnostic.code()
     }
 
-    fn maybe_file(&self) -> Option<Gc<Node>> {
+    fn maybe_file(&self) -> Option<Id<Node>> {
         self._diagnostic.maybe_file()
     }
 

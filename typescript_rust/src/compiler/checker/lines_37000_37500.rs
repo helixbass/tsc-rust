@@ -122,7 +122,7 @@ impl TypeChecker {
             if node_initializer.kind() == SyntaxKind::VariableDeclarationList {
                 try_for_each(
                     &node_initializer.as_variable_declaration_list().declarations,
-                    |declaration: &Gc<Node>, _| -> io::Result<Option<()>> {
+                    |declaration: &Id<Node>, _| -> io::Result<Option<()>> {
                         self.check_variable_declaration(declaration)?;
                         Ok(None)
                     },

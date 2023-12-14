@@ -462,7 +462,7 @@ impl TypeChecker {
                 self.get_intersection_type(
                     &try_map(
                         &*node.as_intersection_type_node().types,
-                        |type_: &Gc<Node>, _| self.get_type_from_type_node_(type_),
+                        |type_: &Id<Node>, _| self.get_type_from_type_node_(type_),
                     )?,
                     alias_symbol.clone(),
                     self.get_type_arguments_for_alias_symbol(alias_symbol)?
@@ -980,7 +980,7 @@ impl TypeChecker {
             texts.extend(
                 map(
                     &*node_as_template_literal_type_node.template_spans,
-                    |span: &Gc<Node>, _| {
+                    |span: &Id<Node>, _| {
                         span.as_template_literal_type_span()
                             .literal
                             .as_literal_like_node()
@@ -994,7 +994,7 @@ impl TypeChecker {
                 &texts,
                 &try_map(
                     &*node_as_template_literal_type_node.template_spans,
-                    |span: &Gc<Node>, _| {
+                    |span: &Id<Node>, _| {
                         self.get_type_from_type_node_(&span.as_template_literal_type_span().type_)
                     },
                 )?,

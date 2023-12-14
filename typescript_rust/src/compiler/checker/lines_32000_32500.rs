@@ -339,7 +339,7 @@ impl TypeChecker {
                     .intersects(SymbolFlags::EnumMember)
                 || try_some(
                     symbol.ref_(self).maybe_declarations().as_deref(),
-                    Some(|declaration: &Gc<Node>| {
+                    Some(|declaration: &Id<Node>| {
                         self.is_readonly_assignment_declaration(declaration)
                     }),
                 )?,

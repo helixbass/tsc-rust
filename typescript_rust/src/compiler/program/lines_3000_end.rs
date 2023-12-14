@@ -9,6 +9,7 @@ use std::{
 };
 
 use gc::{Finalize, Gc, Trace};
+use id_arena::Id;
 
 use super::{
     for_each_project_reference, get_mode_for_resolution_at_index, SourceFileImportsList, ToPath,
@@ -222,7 +223,7 @@ impl Program {
 
     pub fn check_source_files_belong_to_path(
         &self,
-        source_files: &[Gc<Node /*SourceFile*/>],
+        source_files: &[Id<Node /*SourceFile*/>],
         root_directory: &str,
     ) -> bool {
         let mut all_files_belong_to_path = true;
@@ -279,7 +280,7 @@ impl Program {
         }
 
         let command_line: Option<ParsedCommandLine>;
-        let source_file: Option<Gc<Node /*JsonSourceFile*/>>;
+        let source_file: Option<Id<Node /*JsonSourceFile*/>>;
         if self.host().is_get_parsed_command_line_supported() {
             command_line = self.host().get_parsed_command_line(&ref_path);
             if command_line.is_none() {
@@ -685,7 +686,7 @@ impl Program {
         let language_version = get_emit_script_target(&self.options);
 
         let first_non_ambient_external_module_source_file =
-            find(&**self.files(), |f: &Gc<Node>, _| {
+            find(&**self.files(), |f: &Id<Node>, _| {
                 is_external_module(f) && !f.as_source_file().is_declaration_file()
             })
             .cloned();
@@ -710,7 +711,7 @@ impl Program {
                 );
             }
 
-            let first_non_external_module_source_file = find(&**self.files(), |f: &Gc<Node>, _| {
+            let first_non_external_module_source_file = find(&**self.files(), |f: &Id<Node>, _| {
                 !is_external_module(f)
                     && !is_source_file_js(f)
                     && !f.as_source_file().is_declaration_file()
@@ -1077,7 +1078,7 @@ impl Program {
                         &mut emit_files_seen,
                     );
                 },
-                Option::<Gc<Node>>::None,
+                Option::<Id<Node>>::None,
                 None,
                 None,
                 None,
@@ -1353,7 +1354,7 @@ impl Program {
         }
 
         let options_config_file = self.options.config_file.as_ref()?;
-        let config_file_node: Option<Gc<Node>>;
+        let config_file_node: Option<Id<Node>>;
         let message: &DiagnosticMessage;
         match reason.kind() {
             FileIncludeKind::RootFile => {
@@ -1434,7 +1435,7 @@ impl Program {
                 let (source_file, index) = reference_info;
                 let references_syntax = first_defined(
                     get_ts_config_prop_array(Some(&*source_file), "references"),
-                    |property: Gc<Node>, _| {
+                    |property: Id<Node>, _| {
                         property.as_has_initializer().maybe_initializer().filter(
                             |property_initializer| {
                                 is_array_literal_expression(property_initializer)
@@ -1706,7 +1707,7 @@ impl Program {
     pub fn get_options_syntax_by_name<'name>(
         &self,
         name: &'name str,
-    ) -> Option<impl Iterator<Item = Gc<Node>> + 'name> {
+    ) -> Option<impl Iterator<Item = Id<Node>> + 'name> {
         let compiler_options_object_literal_syntax =
             self.get_compiler_options_object_literal_syntax();
         compiler_options_object_literal_syntax.as_ref().map(
@@ -1716,11 +1717,11 @@ impl Program {
         )
     }
 
-    pub fn get_options_paths_syntax(&self) -> impl Iterator<Item = Gc<Node>> {
+    pub fn get_options_paths_syntax(&self) -> impl Iterator<Item = Id<Node>> {
         self.get_options_syntax_by_name("paths").unwrap_or_empty()
     }
 
-    pub fn get_options_syntax_by_value(&self, _name: &str, _value: &str) -> Option<Gc<Node>> {
+    pub fn get_options_syntax_by_value(&self, _name: &str, _value: &str) -> Option<Id<Node>> {
         unimplemented!()
     }
 
@@ -1728,7 +1729,7 @@ impl Program {
         &self,
         _name: &str,
         _value: &str,
-    ) -> Option<Gc<Node>> {
+    ) -> Option<Id<Node>> {
         unimplemented!()
     }
 
@@ -1773,7 +1774,7 @@ impl Program {
                     .or_else(|| self.options.config_file.clone()),
                 "references",
             ),
-            |ref property: Gc<Node>, _| {
+            |ref property: Id<Node>, _| {
                 let property_as_property_assignment = property.as_property_assignment();
                 is_array_literal_expression(&property_as_property_assignment.initializer)
                     .then(|| property_as_property_assignment.initializer.clone())
@@ -1833,7 +1834,7 @@ impl Program {
         }
     }
 
-    pub fn get_compiler_options_object_literal_syntax(&self) -> Option<Gc<Node>> {
+    pub fn get_compiler_options_object_literal_syntax(&self) -> Option<Id<Node>> {
         if self
             .maybe_compiler_options_object_literal_syntax()
             .is_none()
@@ -2227,7 +2228,7 @@ impl ModuleResolutionHostOverrider for UpdateHostForUseSourceOfProjectReferenceR
         _data: &str,
         _write_byte_order_mark: bool,
         _on_error: Option<&mut dyn FnMut(&str)>,
-        _source_files: Option<&[Gc<Node /*SourceFile*/>]>,
+        _source_files: Option<&[Id<Node /*SourceFile*/>]>,
     ) -> io::Result<()> {
         unreachable!()
     }
@@ -2610,12 +2611,12 @@ pub(crate) fn create_prepend_nodes(
     project_references: Option<&[Rc<ProjectReference>]>,
     mut get_command_line: impl FnMut(&ProjectReference, usize) -> Option<Gc<ParsedCommandLine>>,
     read_file: Gc<Box<dyn ReadFileCallback>>,
-) -> Vec<Gc<Node /*InputFiles*/>> {
+) -> Vec<Id<Node /*InputFiles*/>> {
     if project_references.is_none() {
         return vec![];
     }
     let project_references = project_references.unwrap();
-    let mut nodes: Vec<Gc<Node /*InputFiles*/>> = vec![];
+    let mut nodes: Vec<Id<Node /*InputFiles*/>> = vec![];
     for (i, ref_) in project_references.into_iter().enumerate() {
         let resolved_ref_opts = get_command_line(ref_, i);
         if ref_.prepend == Some(true) {
@@ -2722,7 +2723,7 @@ pub(super) fn get_module_names(file: &Node /*SourceFile*/) -> Vec<String> {
 pub(crate) fn get_module_name_string_literal_at(
     file: &impl SourceFileImportsList,
     index: usize,
-) -> Gc<Node /*StringLiteralLike*/> {
+) -> Id<Node /*StringLiteralLike*/> {
     let imports = file.imports();
     let module_augmentations = file.module_augmentations();
     if index < imports.len() {

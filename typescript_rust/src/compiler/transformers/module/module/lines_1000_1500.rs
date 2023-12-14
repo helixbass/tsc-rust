@@ -1,6 +1,7 @@
 use std::io;
 
 use gc::Gc;
+use id_arena::Id;
 
 use super::TransformModule;
 use crate::{
@@ -30,7 +31,7 @@ impl TransformModule {
             Some("import= for internal module references should be handled in an earlier transformer.")
         );
 
-        let mut statements: Option<Vec<Gc<Node /*Statement*/>>> = _d();
+        let mut statements: Option<Vec<Id<Node /*Statement*/>>> = _d();
         if self.module_kind != ModuleKind::AMD {
             if has_syntactic_modifier(node, ModifierFlags::Export) {
                 statements.get_or_insert_default_().push(
@@ -114,7 +115,7 @@ impl TransformModule {
                 .as_ref()
                 .filter(|node_export_clause| is_named_exports(node_export_clause))
             {
-                let mut statements: Vec<Gc<Node /*Statement*/>> = _d();
+                let mut statements: Vec<Id<Node /*Statement*/>> = _d();
                 if self.module_kind != ModuleKind::AMD {
                     statements.push(
                         self.factory
@@ -203,7 +204,7 @@ impl TransformModule {
             {
                 let node_export_clause_as_namespace_export =
                     node_export_clause.as_namespace_export();
-                let mut statements: Vec<Gc<Node /*Statement*/>> = _d();
+                let mut statements: Vec<Id<Node /*Statement*/>> = _d();
                 statements.push(
                     self.factory
                         .create_expression_statement(
@@ -260,7 +261,7 @@ impl TransformModule {
             return Ok(None);
         }
 
-        let mut statements: Option<Vec<Gc<Node /*Statement*/>>> = _d();
+        let mut statements: Option<Vec<Id<Node /*Statement*/>>> = _d();
         let original = node.maybe_original();
         if original
             .as_ref()
@@ -274,7 +275,7 @@ impl TransformModule {
                     &node_as_export_assignment.expression,
                     Some(|node: &Node| self.visitor(node)),
                     Option::<fn(&Node) -> bool>::None,
-                    Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                    Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                 )?,
                 Some(node),
                 Some(true),
@@ -288,7 +289,7 @@ impl TransformModule {
                     &node_as_export_assignment.expression,
                     Some(|node: &Node| self.visitor(node)),
                     Option::<fn(&Node) -> bool>::None,
-                    Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                    Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                 )?,
                 Some(node),
                 Some(true),
@@ -304,7 +305,7 @@ impl TransformModule {
         node: &Node, /*FunctionDeclaration*/
     ) -> io::Result<VisitResult> /*<Statement>*/ {
         let node_as_function_declaration = node.as_function_declaration();
-        let mut statements: Option<Vec<Gc<Node /*Statement*/>>> = _d();
+        let mut statements: Option<Vec<Id<Node /*Statement*/>>> = _d();
         if has_syntactic_modifier(node, ModifierFlags::Export) {
             statements.get_or_insert_default_().push(
                 self.factory
@@ -368,7 +369,7 @@ impl TransformModule {
         node: &Node, /*ClassDeclaration*/
     ) -> io::Result<VisitResult> /*<Statement>*/ {
         let node_as_class_declaration = node.as_class_declaration();
-        let mut statements: Option<Vec<Gc<Node /*Statement*/>>> = _d();
+        let mut statements: Option<Vec<Id<Node /*Statement*/>>> = _d();
         if has_syntactic_modifier(node, ModifierFlags::Export) {
             statements.get_or_insert_default_().push(
                 self.factory
@@ -434,9 +435,9 @@ impl TransformModule {
         node: &Node, /*VariableStatement*/
     ) -> io::Result<VisitResult> /*<Statement>*/ {
         let node_as_variable_statement = node.as_variable_statement();
-        let mut statements: Option<Vec<Gc<Node /*Statement*/>>> = _d();
-        let mut variables: Option<Vec<Gc<Node /*VariableDeclaration*/>>> = _d();
-        let mut expressions: Option<Vec<Gc<Node /*Expression*/>>> = _d();
+        let mut statements: Option<Vec<Id<Node /*Statement*/>>> = _d();
+        let mut variables: Option<Vec<Id<Node /*VariableDeclaration*/>>> = _d();
+        let mut expressions: Option<Vec<Id<Node /*Expression*/>>> = _d();
 
         if has_syntactic_modifier(node, ModifierFlags::Export) {
             let mut modifiers: Option<Gc<NodeArray /*Modifier*/>> = _d();
@@ -489,7 +490,7 @@ impl TransformModule {
                                 variable_initializer,
                                 Some(|node: &Node| self.visitor(node)),
                                 Option::<fn(&Node) -> bool>::None,
-                                Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                                Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                             )?),
                         );
 
@@ -554,9 +555,9 @@ impl TransformModule {
     pub(super) fn create_all_export_expressions(
         &self,
         name: &Node, /*Identifier*/
-        value: Gc<Node /*Expression*/>,
+        value: Id<Node /*Expression*/>,
         location: Option<&(impl ReadonlyTextRange + ?Sized)>,
-    ) -> io::Result<Gc<Node>> {
+    ) -> io::Result<Id<Node>> {
         let exported_names = self.get_exports(name)?;
         if let Some(exported_names) = exported_names {
             let mut expression/*: Expression*/ = if is_export_name(name) {
@@ -581,7 +582,7 @@ impl TransformModule {
     pub(super) fn transform_initialized_variable(
         &self,
         node: &Node, /*InitializedVariableDeclaration*/
-    ) -> io::Result<Gc<Node /*Expression*/>> {
+    ) -> io::Result<Id<Node /*Expression*/>> {
         let node_as_variable_declaration = node.as_variable_declaration();
         Ok(
             if is_binding_pattern(node_as_variable_declaration.maybe_name()) {
@@ -590,7 +591,7 @@ impl TransformModule {
                         node,
                         Some(|node: &Node| self.visitor(node)),
                         Option::<fn(&Node) -> bool>::None,
-                        Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                        Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                     )?,
                     Option::<fn(&Node) -> io::Result<VisitResult>>::None,
                     self.context.clone(),
@@ -619,7 +620,7 @@ impl TransformModule {
                                     node_initializer,
                                     Some(|node: &Node| self.visitor(node)),
                                     Option::<fn(&Node) -> bool>::None,
-                                    Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                                    Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                                 )
                             },
                         )?,
@@ -666,7 +667,7 @@ impl TransformModule {
 
     pub(super) fn append_exports_of_import_declaration(
         &self,
-        statements: &mut Option<Vec<Gc<Node /*Statement*/>>>,
+        statements: &mut Option<Vec<Id<Node /*Statement*/>>>,
         decl: &Node, /*ImportDeclaration*/
     ) /*: Statement[] | undefined */
     {

@@ -263,7 +263,7 @@ impl TypeChecker {
                     .maybe_declarations()
                     .as_deref()
                     .and_then(|declarations| {
-                        find(declarations, |declaration: &Gc<Node>, _| {
+                        find(declarations, |declaration: &Id<Node>, _| {
                             is_type_only_import_or_export_declaration(declaration)
                         })
                         .map(Clone::clone)
@@ -293,7 +293,7 @@ impl TypeChecker {
     pub(super) fn get_type_only_alias_declaration(
         &self,
         symbol: Id<Symbol>,
-    ) -> Option<Gc<Node /*TypeOnlyAliasDeclaration*/>> {
+    ) -> Option<Id<Node /*TypeOnlyAliasDeclaration*/>> {
         if !symbol.ref_(self).flags().intersects(SymbolFlags::Alias) {
             return None;
         }
@@ -425,7 +425,7 @@ impl TypeChecker {
     pub(super) fn get_containing_qualified_name_node(
         &self,
         node: &Node, /*QualifiedName*/
-    ) -> Gc<Node> {
+    ) -> Id<Node> {
         let mut node = node.node_wrapper();
         while is_qualified_name(&node.parent()) {
             node = node.parent();
@@ -712,7 +712,7 @@ impl TypeChecker {
     pub(super) fn get_assignment_declaration_location(
         &self,
         node: &Node, /*TypeReferenceNode*/
-    ) -> io::Result<Option<Gc<Node>>> {
+    ) -> io::Result<Option<Id<Node>>> {
         let type_alias = find_ancestor(Some(node), |node| {
             if !(is_jsdoc_node(node) || node.flags().intersects(NodeFlags::JSDoc)) {
                 FindAncestorCallbackReturn::Quit
@@ -769,7 +769,7 @@ impl TypeChecker {
     pub(super) fn get_declaration_of_js_prototype_container(
         &self,
         symbol: Id<Symbol>,
-    ) -> Option<Gc<Node>> {
+    ) -> Option<Id<Node>> {
         let decl = symbol
             .ref_(self)
             .maybe_parent()

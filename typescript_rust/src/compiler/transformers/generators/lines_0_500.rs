@@ -5,6 +5,7 @@ use std::{
 };
 
 use gc::{Finalize, Gc, GcCell, GcCellRef, GcCellRefMut, Trace};
+use id_arena::Id;
 use local_macros::enum_unwrapped;
 
 use crate::{
@@ -40,10 +41,10 @@ pub(super) enum OpCode {
 #[derive(Clone, Trace, Finalize)]
 pub(super) enum OperationArguments {
     Label(Label),
-    LabelAndNode((Label, Gc<Node /*Expression*/>)),
-    Node(Gc<Node /*Statement*/>),
-    OptionNode(Option<Gc<Node /*Expression*/>>),
-    NodeAndNode((Gc<Node /*Expression*/>, Gc<Node /*Expression*/>)),
+    LabelAndNode((Label, Id<Node /*Expression*/>)),
+    Node(Id<Node /*Statement*/>),
+    OptionNode(Option<Id<Node /*Expression*/>>),
+    NodeAndNode((Id<Node /*Expression*/>, Id<Node /*Expression*/>)),
 }
 
 impl OperationArguments {
@@ -51,20 +52,20 @@ impl OperationArguments {
         *enum_unwrapped!(self, [OperationArguments, Label])
     }
 
-    pub fn as_label_and_node(&self) -> (Label, Gc<Node>) {
+    pub fn as_label_and_node(&self) -> (Label, Id<Node>) {
         enum_unwrapped!(self, [OperationArguments, LabelAndNode]).clone()
     }
 
-    pub fn as_node(&self) -> Gc<Node> {
+    pub fn as_node(&self) -> Id<Node> {
         enum_unwrapped!(self, [OperationArguments, Node]).clone()
     }
 
     #[allow(dead_code)]
-    pub fn as_option_node(&self) -> Option<Gc<Node>> {
+    pub fn as_option_node(&self) -> Option<Id<Node>> {
         enum_unwrapped!(self, [OperationArguments, OptionNode]).clone()
     }
 
-    pub fn as_node_and_node(&self) -> (Gc<Node>, Gc<Node>) {
+    pub fn as_node_and_node(&self) -> (Id<Node>, Id<Node>) {
         enum_unwrapped!(self, [OperationArguments, NodeAndNode]).clone()
     }
 }
@@ -75,26 +76,26 @@ impl From<Label> for OperationArguments {
     }
 }
 
-impl From<(Label, Gc<Node /*Expression*/>)> for OperationArguments {
-    fn from(value: (Label, Gc<Node /*Expression*/>)) -> Self {
+impl From<(Label, Id<Node /*Expression*/>)> for OperationArguments {
+    fn from(value: (Label, Id<Node /*Expression*/>)) -> Self {
         Self::LabelAndNode(value)
     }
 }
 
-impl From<Gc<Node /*Statement*/>> for OperationArguments {
-    fn from(value: Gc<Node /*Statement*/>) -> Self {
+impl From<Id<Node /*Statement*/>> for OperationArguments {
+    fn from(value: Id<Node /*Statement*/>) -> Self {
         Self::Node(value)
     }
 }
 
-impl From<Option<Gc<Node /*Expression*/>>> for OperationArguments {
-    fn from(value: Option<Gc<Node /*Expression*/>>) -> Self {
+impl From<Option<Id<Node /*Expression*/>>> for OperationArguments {
+    fn from(value: Option<Id<Node /*Expression*/>>) -> Self {
         Self::OptionNode(value)
     }
 }
 
-impl From<(Gc<Node /*Expression*/>, Gc<Node /*Expression*/>)> for OperationArguments {
-    fn from(value: (Gc<Node /*Expression*/>, Gc<Node /*Expression*/>)) -> Self {
+impl From<(Id<Node /*Expression*/>, Id<Node /*Expression*/>)> for OperationArguments {
+    fn from(value: (Id<Node /*Expression*/>, Id<Node /*Expression*/>)) -> Self {
         Self::NodeAndNode(value)
     }
 }
@@ -244,7 +245,7 @@ pub(super) struct ExceptionBlock {
     #[unsafe_ignore_trace]
     pub state: ExceptionBlockState,
     pub start_label: Label,
-    pub catch_variable: Option<Gc<Node /*Identifier*/>>,
+    pub catch_variable: Option<Id<Node /*Identifier*/>>,
     pub catch_label: Option<Label>,
     pub finally_label: Option<Label>,
     pub end_label: Label,
@@ -254,7 +255,7 @@ impl ExceptionBlock {
     pub(super) fn new(
         state: ExceptionBlockState,
         start_label: Label,
-        catch_variable: Option<Gc<Node /*Identifier*/>>,
+        catch_variable: Option<Id<Node /*Identifier*/>>,
         catch_label: Option<Label>,
         finally_label: Option<Label>,
         end_label: Label,
@@ -333,13 +334,13 @@ impl LoopBlock {
 pub(super) struct WithBlock {
     #[unsafe_ignore_trace]
     pub kind: CodeBlockKind, /*CodeBlockKind.With*/
-    pub expression: Gc<Node /*Identifier*/>,
+    pub expression: Id<Node /*Identifier*/>,
     pub start_label: Label,
     pub end_label: Label,
 }
 
 impl WithBlock {
-    pub fn new(expression: Gc<Node /*Identifier*/>, start_label: Label, end_label: Label) -> Self {
+    pub fn new(expression: Id<Node /*Identifier*/>, start_label: Label, end_label: Label) -> Self {
         Self {
             kind: CodeBlockKind::With,
             expression,
@@ -386,7 +387,7 @@ pub(super) struct TransformGenerators {
     pub(super) resolver: Gc<Box<dyn EmitResolver>>,
     pub(super) renamed_catch_variables: GcCell<Option<HashMap<String, bool>>>,
     pub(super) renamed_catch_variable_declarations:
-        GcCell<HashMap<NodeId, Gc<Node /*Identifier*/>>>,
+        GcCell<HashMap<NodeId, Id<Node /*Identifier*/>>>,
     #[unsafe_ignore_trace]
     pub(super) in_generator_function_body: Cell<Option<bool>>,
     #[unsafe_ignore_trace]
@@ -400,7 +401,7 @@ pub(super) struct TransformGenerators {
     #[unsafe_ignore_trace]
     pub(super) label_offsets: RefCell<Option<HashMap<Label, Option<usize>>>>,
     pub(super) label_expressions:
-        GcCell<Option<HashMap<Label, Vec<Gc<Node /*Mutable<LiteralExpression>*/>>>>>,
+        GcCell<Option<HashMap<Label, Vec<Id<Node /*Mutable<LiteralExpression>*/>>>>>,
     #[unsafe_ignore_trace]
     pub(super) next_label_id: Cell<Label>,
     #[unsafe_ignore_trace]
@@ -408,7 +409,7 @@ pub(super) struct TransformGenerators {
     pub(super) operation_arguments: GcCell<Option<Vec<Option<OperationArguments>>>>,
     #[unsafe_ignore_trace]
     pub(super) operation_locations: RefCell<Option<Vec<Option<ReadonlyTextRangeConcrete>>>>,
-    pub(super) state: GcCell<Option<Gc<Node /*Identifier*/>>>,
+    pub(super) state: GcCell<Option<Id<Node /*Identifier*/>>>,
     #[unsafe_ignore_trace]
     pub(super) block_index: Cell<usize>,
     #[unsafe_ignore_trace]
@@ -419,8 +420,8 @@ pub(super) struct TransformGenerators {
     pub(super) last_operation_was_abrupt: Cell<bool>,
     #[unsafe_ignore_trace]
     pub(super) last_operation_was_completion: Cell<bool>,
-    pub(super) clauses: GcCell<Option<Vec<Gc<Node /*CaseClause*/>>>>,
-    pub(super) statements: GcCell<Option<Vec<Gc<Node /*Statement*/>>>>,
+    pub(super) clauses: GcCell<Option<Vec<Id<Node /*CaseClause*/>>>>,
+    pub(super) statements: GcCell<Option<Vec<Id<Node /*Statement*/>>>>,
     pub(super) exception_block_stack: GcCell<Option<Vec<Gc<GcCell<CodeBlock /*ExceptionBlock*/>>>>>,
     pub(super) current_exception_block: GcCell<Option<Gc<GcCell<CodeBlock /*ExceptionBlock*/>>>>,
     pub(super) with_block_stack: GcCell<Option<Vec<Gc<GcCell<CodeBlock /*WithBlock*/>>>>>,
@@ -496,19 +497,19 @@ impl TransformGenerators {
 
     pub(super) fn renamed_catch_variable_declarations(
         &self,
-    ) -> GcCellRef<HashMap<NodeId, Gc<Node /*Identifier*/>>> {
+    ) -> GcCellRef<HashMap<NodeId, Id<Node /*Identifier*/>>> {
         self.renamed_catch_variable_declarations.borrow()
     }
 
     pub(super) fn renamed_catch_variable_declarations_mut(
         &self,
-    ) -> GcCellRefMut<HashMap<NodeId, Gc<Node /*Identifier*/>>> {
+    ) -> GcCellRefMut<HashMap<NodeId, Id<Node /*Identifier*/>>> {
         self.renamed_catch_variable_declarations.borrow_mut()
     }
 
     pub(super) fn set_renamed_catch_variable_declarations(
         &self,
-        renamed_catch_variable_declarations: HashMap<NodeId, Gc<Node /*Identifier*/>>,
+        renamed_catch_variable_declarations: HashMap<NodeId, Id<Node /*Identifier*/>>,
     ) {
         *self.renamed_catch_variable_declarations.borrow_mut() =
             renamed_catch_variable_declarations;
@@ -617,25 +618,25 @@ impl TransformGenerators {
 
     pub(super) fn maybe_label_expressions(
         &self,
-    ) -> GcCellRef<Option<HashMap<Label, Vec<Gc<Node /*Mutable<LiteralExpression>*/>>>>> {
+    ) -> GcCellRef<Option<HashMap<Label, Vec<Id<Node /*Mutable<LiteralExpression>*/>>>>> {
         self.label_expressions.borrow()
     }
 
     pub(super) fn label_expressions(
         &self,
-    ) -> GcCellRef<HashMap<Label, Vec<Gc<Node /*Mutable<LiteralExpression>*/>>>> {
+    ) -> GcCellRef<HashMap<Label, Vec<Id<Node /*Mutable<LiteralExpression>*/>>>> {
         gc_cell_ref_unwrapped(&self.label_expressions)
     }
 
     pub(super) fn maybe_label_expressions_mut(
         &self,
-    ) -> GcCellRefMut<Option<HashMap<Label, Vec<Gc<Node /*Mutable<LiteralExpression>*/>>>>> {
+    ) -> GcCellRefMut<Option<HashMap<Label, Vec<Id<Node /*Mutable<LiteralExpression>*/>>>>> {
         self.label_expressions.borrow_mut()
     }
 
     pub(super) fn set_label_expressions(
         &self,
-        label_expressions: Option<HashMap<Label, Vec<Gc<Node /*Mutable<LiteralExpression>*/>>>>,
+        label_expressions: Option<HashMap<Label, Vec<Id<Node /*Mutable<LiteralExpression>*/>>>>,
     ) {
         *self.label_expressions.borrow_mut() = label_expressions;
     }
@@ -709,15 +710,15 @@ impl TransformGenerators {
         *self.operation_locations.borrow_mut() = operation_locations;
     }
 
-    pub(super) fn maybe_state(&self) -> Option<Gc<Node /*Identifier*/>> {
+    pub(super) fn maybe_state(&self) -> Option<Id<Node /*Identifier*/>> {
         self.state.borrow().clone()
     }
 
-    pub(super) fn state(&self) -> Gc<Node /*Identifier*/> {
+    pub(super) fn state(&self) -> Id<Node /*Identifier*/> {
         self.state.borrow().clone().unwrap()
     }
 
-    pub(super) fn set_state(&self, state: Option<Gc<Node /*Identifier*/>>) {
+    pub(super) fn set_state(&self, state: Option<Id<Node /*Identifier*/>>) {
         *self.state.borrow_mut() = state;
     }
 
@@ -767,27 +768,27 @@ impl TransformGenerators {
             .set(last_operation_was_completion);
     }
 
-    pub(super) fn maybe_clauses(&self) -> GcCellRef<Option<Vec<Gc<Node /*CaseClause*/>>>> {
+    pub(super) fn maybe_clauses(&self) -> GcCellRef<Option<Vec<Id<Node /*CaseClause*/>>>> {
         self.clauses.borrow()
     }
 
-    pub(super) fn maybe_clauses_mut(&self) -> GcCellRefMut<Option<Vec<Gc<Node /*CaseClause*/>>>> {
+    pub(super) fn maybe_clauses_mut(&self) -> GcCellRefMut<Option<Vec<Id<Node /*CaseClause*/>>>> {
         self.clauses.borrow_mut()
     }
 
-    pub(super) fn set_clauses(&self, clauses: Option<Vec<Gc<Node /*CaseClause*/>>>) {
+    pub(super) fn set_clauses(&self, clauses: Option<Vec<Id<Node /*CaseClause*/>>>) {
         *self.clauses.borrow_mut() = clauses;
     }
 
-    pub(super) fn maybe_statements(&self) -> GcCellRef<Option<Vec<Gc<Node /*Statement*/>>>> {
+    pub(super) fn maybe_statements(&self) -> GcCellRef<Option<Vec<Id<Node /*Statement*/>>>> {
         self.statements.borrow()
     }
 
-    pub(super) fn maybe_statements_mut(&self) -> GcCellRefMut<Option<Vec<Gc<Node /*Statement*/>>>> {
+    pub(super) fn maybe_statements_mut(&self) -> GcCellRefMut<Option<Vec<Id<Node /*Statement*/>>>> {
         self.statements.borrow_mut()
     }
 
-    pub(super) fn set_statements(&self, statements: Option<Vec<Gc<Node /*Statement*/>>>) {
+    pub(super) fn set_statements(&self, statements: Option<Vec<Id<Node /*Statement*/>>>) {
         *self.statements.borrow_mut() = statements;
     }
 
@@ -862,7 +863,7 @@ impl TransformGenerators {
         self.context.get_emit_helper_factory()
     }
 
-    pub(super) fn transform_source_file(&self, node: &Node /*SourceFile*/) -> Gc<Node> {
+    pub(super) fn transform_source_file(&self, node: &Node /*SourceFile*/) -> Id<Node> {
         let node_as_source_file = node.as_source_file();
         if node_as_source_file.is_declaration_file()
             || !node
@@ -978,7 +979,7 @@ impl TransformGenerators {
     pub(super) fn visit_function_declaration(
         &self,
         node: &Node, /*FunctionDeclaration*/
-    ) -> Option<Gc<Node /*Statement*/>> {
+    ) -> Option<Id<Node /*Statement*/>> {
         let mut node = node.node_wrapper();
         if node
             .as_function_declaration()
@@ -1027,7 +1028,7 @@ impl TransformGenerators {
     pub(super) fn visit_function_expression(
         &self,
         node: &Node, /*FunctionExpression*/
-    ) -> Gc<Node /*Expression*/> {
+    ) -> Id<Node /*Expression*/> {
         let mut node = node.node_wrapper();
         if node
             .as_function_expression()
@@ -1068,7 +1069,7 @@ impl TransformGenerators {
 }
 
 impl TransformerInterface for TransformGenerators {
-    fn call(&self, node: &Node) -> io::Result<Gc<Node>> {
+    fn call(&self, node: &Node) -> io::Result<Id<Node>> {
         Ok(self.transform_source_file(node))
     }
 }
@@ -1093,7 +1094,7 @@ impl TransformGeneratorsOnSubstituteNodeOverrider {
     fn substitute_expression(
         &self,
         node: &Node, /*Expression*/
-    ) -> io::Result<Gc<Node /*Expression*/>> {
+    ) -> io::Result<Id<Node /*Expression*/>> {
         if is_identifier(node) {
             return self.substitute_expression_identifier(node);
         }
@@ -1103,7 +1104,7 @@ impl TransformGeneratorsOnSubstituteNodeOverrider {
     fn substitute_expression_identifier(
         &self,
         node: &Node, /*Identifier*/
-    ) -> io::Result<Gc<Node>> {
+    ) -> io::Result<Id<Node>> {
         if !is_generated_identifier(node)
             && self
                 .transform_generators
@@ -1146,7 +1147,7 @@ impl TransformGeneratorsOnSubstituteNodeOverrider {
 impl TransformationContextOnSubstituteNodeOverrider
     for TransformGeneratorsOnSubstituteNodeOverrider
 {
-    fn on_substitute_node(&self, hint: EmitHint, node: &Node) -> io::Result<Gc<Node>> {
+    fn on_substitute_node(&self, hint: EmitHint, node: &Node) -> io::Result<Id<Node>> {
         let node = self
             .previous_on_substitute_node
             .on_substitute_node(hint, node)?;

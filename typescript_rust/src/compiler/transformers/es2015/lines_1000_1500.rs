@@ -1,6 +1,7 @@
 use std::{borrow::Borrow, io};
 
 use gc::Gc;
+use id_arena::Id;
 
 use super::TransformES2015;
 use crate::{
@@ -39,13 +40,13 @@ impl TransformES2015 {
         false
     }
 
-    pub(super) fn create_actual_this(&self) -> Gc<Node> {
+    pub(super) fn create_actual_this(&self) -> Id<Node> {
         self.factory
             .create_this()
             .set_emit_flags(EmitFlags::NoSubstitution)
     }
 
-    pub(super) fn create_default_super_call_or_this(&self) -> Gc<Node> {
+    pub(super) fn create_default_super_call_or_this(&self) -> Id<Node> {
         self.factory.create_logical_or(
             self.factory.create_logical_and(
                 self.factory.create_strict_inequality(
@@ -77,7 +78,7 @@ impl TransformES2015 {
     pub(super) fn visit_parameter(
         &self,
         node: &Node, /*ParameterDeclaration*/
-    ) -> Option<Gc<Node /*ParameterDeclaration*/>> {
+    ) -> Option<Id<Node /*ParameterDeclaration*/>> {
         let node_as_parameter_declaration = node.as_parameter_declaration();
         if node_as_parameter_declaration.dot_dot_dot_token.is_some() {
             None
@@ -127,13 +128,13 @@ impl TransformES2015 {
 
     pub(super) fn add_default_value_assignments_if_needed(
         &self,
-        statements: &mut Vec<Gc<Node /*Statement*/>>,
+        statements: &mut Vec<Id<Node /*Statement*/>>,
         node: &Node, /*FunctionLikeDeclaration*/
     ) -> io::Result<bool> {
         let node_as_function_like_declaration = node.as_function_like_declaration();
         if !some(
             Some(&node_as_function_like_declaration.parameters()),
-            Some(|parameter: &Gc<Node>| self.has_default_value_or_binding_pattern(parameter)),
+            Some(|parameter: &Id<Node>| self.has_default_value_or_binding_pattern(parameter)),
         ) {
             return Ok(false);
         }
@@ -173,7 +174,7 @@ impl TransformES2015 {
 
     pub(super) fn insert_default_value_assignment_for_binding_pattern(
         &self,
-        statements: &mut Vec<Gc<Node /*Statement*/>>,
+        statements: &mut Vec<Id<Node /*Statement*/>>,
         parameter: &Node,                       /*ParameterDeclaration*/
         name: &Node,                            /*BindingPattern*/
         initializer: Option<impl Borrow<Node>>, /*Expression*/
@@ -220,7 +221,7 @@ impl TransformES2015 {
                                     initializer,
                                     Some(|node: &Node| self.visitor(node)),
                                     Some(is_expression),
-                                    Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                                    Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                                 )?,
                             ),
                         )
@@ -234,7 +235,7 @@ impl TransformES2015 {
 
     pub(super) fn insert_default_value_assignment_for_initializer(
         &self,
-        statements: &mut Vec<Gc<Node /*Statement*/>>,
+        statements: &mut Vec<Id<Node /*Statement*/>>,
         parameter: &Node,   /*ParameterDeclaration*/
         name: &Node,        /*Identifier*/
         initializer: &Node, /*Expression*/
@@ -243,7 +244,7 @@ impl TransformES2015 {
             initializer,
             Some(|node: &Node| self.visitor(node)),
             Some(is_expression),
-            Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+            Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
         )?;
         let statement = self
             .factory
@@ -306,12 +307,12 @@ impl TransformES2015 {
 
     pub(super) fn add_rest_parameter_if_needed(
         &self,
-        statements: &mut Vec<Gc<Node /*Statement*/>>,
+        statements: &mut Vec<Id<Node /*Statement*/>>,
         node: &Node, /*FunctionLikeDeclaration*/
         in_constructor_with_synthesized_super: bool,
     ) -> io::Result<bool> {
         let node_as_function_like_declaration = node.as_function_like_declaration();
-        let mut prologue_statements: Vec<Gc<Node /*Statement*/>> = Default::default();
+        let mut prologue_statements: Vec<Id<Node /*Statement*/>> = Default::default();
         let parameter = last_or_undefined(&node_as_function_like_declaration.parameters()).cloned();
         if !self
             .should_add_rest_parameter(parameter.as_deref(), in_constructor_with_synthesized_super)

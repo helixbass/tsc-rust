@@ -1,6 +1,7 @@
 use std::{borrow::Borrow, io};
 
 use gc::{Gc, GcCell};
+use id_arena::Id;
 
 use super::{
     ConvertedLoopState, ConvertedLoopStateBuilder, HierarchyFacts, IterationStatementPartFunction,
@@ -20,15 +21,15 @@ impl TransformES2015 {
         &self,
         node: &Node, /*ForOfStatement*/
         outermost_labeled_statement: Option<&Node /*LabeledStatement*/>,
-        converted_loop_body_statements: Option<&[Gc<Node /*Statement*/>]>,
+        converted_loop_body_statements: Option<&[Id<Node /*Statement*/>]>,
         ancestor_facts: Option<HierarchyFacts>,
-    ) -> io::Result<Gc<Node /*Statement*/>> {
+    ) -> io::Result<Id<Node /*Statement*/>> {
         let node_as_for_of_statement = node.as_for_of_statement();
         let ref expression = try_visit_node(
             &node_as_for_of_statement.expression,
             Some(|node: &Node| self.visitor(node)),
             Some(is_expression),
-            Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+            Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
         )?;
         let iterator = if is_identifier(expression) {
             self.factory
@@ -227,7 +228,7 @@ impl TransformES2015 {
     pub(super) fn visit_object_literal_expression(
         &self,
         node: &Node, /*ObjectLiteralExpression*/
-    ) -> io::Result<Gc<Node /*Expression*/>> {
+    ) -> io::Result<Id<Node /*Expression*/>> {
         let node_as_object_literal_expression = node.as_object_literal_expression();
         let properties = &node_as_object_literal_expression.properties;
 
@@ -266,7 +267,7 @@ impl TransformES2015 {
             None,
         );
 
-        let mut expressions: Vec<Gc<Node /*Expression*/>> = _d();
+        let mut expressions: Vec<Id<Node /*Expression*/>> = _d();
         let assignment = self.factory.create_assignment(
             temp.clone(),
             self.factory
@@ -422,9 +423,9 @@ impl TransformES2015 {
             impl FnMut(
                 &Node,         /*IterationStatement*/
                 Option<&Node>, /*LabeledStatement*/
-                Option<&[Gc<Node /*Statement*/>]>,
+                Option<&[Id<Node /*Statement*/>]>,
                 Option<HierarchyFacts>,
-            ) -> Gc<Node /*Statement*/>, /*LoopConverter*/
+            ) -> Id<Node /*Statement*/>, /*LoopConverter*/
         >,
     ) -> VisitResult /*<Statement>*/ {
         self.try_convert_iteration_statement_body_if_necessary(
@@ -434,7 +435,7 @@ impl TransformES2015 {
             convert.map(|mut convert| {
                 move |a: &Node,
                       b: Option<&Node>,
-                      c: Option<&[Gc<Node>]>,
+                      c: Option<&[Id<Node>]>,
                       d: Option<HierarchyFacts>| Ok(convert(a, b, c, d))
             }),
         )
@@ -450,9 +451,9 @@ impl TransformES2015 {
             impl FnMut(
                 &Node,         /*IterationStatement*/
                 Option<&Node>, /*LabeledStatement*/
-                Option<&[Gc<Node /*Statement*/>]>,
+                Option<&[Id<Node /*Statement*/>]>,
                 Option<HierarchyFacts>,
-            ) -> io::Result<Gc<Node /*Statement*/>>, /*LoopConverter*/
+            ) -> io::Result<Id<Node /*Statement*/>>, /*LoopConverter*/
         >,
     ) -> io::Result<VisitResult /*<Statement>*/> {
         if !self.should_convert_iteration_statement(node) {
@@ -502,7 +503,7 @@ impl TransformES2015 {
         }
 
         let current_state = self.create_converted_loop_state(node)?;
-        let mut statements: Vec<Gc<Node /*Statement*/>> = _d();
+        let mut statements: Vec<Id<Node /*Statement*/>> = _d();
 
         let outer_converted_loop_state = self.maybe_converted_loop_state();
         self.set_converted_loop_state(Some(current_state.clone()));
@@ -544,7 +545,7 @@ impl TransformES2015 {
             ));
         }
 
-        let loop_: Gc<Node /*Statement*/>;
+        let loop_: Id<Node /*Statement*/>;
         if let Some(body_function) = body_function.as_ref() {
             if let Some(mut convert) = convert {
                 loop_ = convert(
@@ -579,7 +580,7 @@ impl TransformES2015 {
                     &node.as_has_statement().statement(),
                     Some(|node: &Node| self.visitor(node)),
                     Some(is_statement),
-                    Some(&|nodes: &[Gc<Node>]| self.factory.lift_to_block(nodes)),
+                    Some(&|nodes: &[Id<Node>]| self.factory.lift_to_block(nodes)),
                 )?,
             )?;
             loop_ = self.factory.restore_enclosing_label(
@@ -601,10 +602,10 @@ impl TransformES2015 {
         &self,
         node: &Node, /*IterationStatement*/
         initializer_function: Option<
-            &IterationStatementPartFunction<Gc<Node /*VariableDeclarationList*/>>,
+            &IterationStatementPartFunction<Id<Node /*VariableDeclarationList*/>>,
         >,
         converted_loop_body: &Node, /*Statement*/
-    ) -> io::Result<Gc<Node>> {
+    ) -> io::Result<Id<Node>> {
         Ok(match node.kind() {
             SyntaxKind::ForStatement => {
                 self.convert_for_statement(node, initializer_function, converted_loop_body)?
@@ -627,10 +628,10 @@ impl TransformES2015 {
         &self,
         node: &Node, /*ForStatement*/
         initializer_function: Option<
-            &IterationStatementPartFunction<Gc<Node /*VariableDeclarationList*/>>,
+            &IterationStatementPartFunction<Id<Node /*VariableDeclarationList*/>>,
         >,
         converted_loop_body: &Node, /*Statement*/
-    ) -> io::Result<Gc<Node>> {
+    ) -> io::Result<Id<Node>> {
         let node_as_for_statement = node.as_for_statement();
         let should_convert_condition =
             node_as_for_statement
@@ -656,7 +657,7 @@ impl TransformES2015 {
                 },
                 Some(|node: &Node| self.visitor_with_unused_expression_result(node)),
                 Some(is_for_initializer),
-                Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
             )?,
             try_maybe_visit_node(
                 if should_convert_condition {
@@ -666,7 +667,7 @@ impl TransformES2015 {
                 },
                 Some(|node: &Node| self.visitor(node)),
                 Some(is_expression),
-                Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
             )?,
             try_maybe_visit_node(
                 if should_convert_incrementor {
@@ -676,7 +677,7 @@ impl TransformES2015 {
                 },
                 Some(|node: &Node| self.visitor_with_unused_expression_result(node)),
                 Some(is_expression),
-                Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
             )?,
             converted_loop_body.node_wrapper(),
         ))
@@ -686,7 +687,7 @@ impl TransformES2015 {
         &self,
         node: &Node,                /*ForOfStatement*/
         converted_loop_body: &Node, /*Statement*/
-    ) -> io::Result<Gc<Node>> {
+    ) -> io::Result<Id<Node>> {
         let node_as_for_of_statement = node.as_for_of_statement();
         Ok(self.factory.update_for_of_statement(
             node,
@@ -695,13 +696,13 @@ impl TransformES2015 {
                 &node_as_for_of_statement.initializer,
                 Some(|node: &Node| self.visitor(node)),
                 Some(is_for_initializer),
-                Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
             )?,
             try_visit_node(
                 &node_as_for_of_statement.expression,
                 Some(|node: &Node| self.visitor(node)),
                 Some(is_expression),
-                Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
             )?,
             converted_loop_body.node_wrapper(),
         ))
@@ -711,7 +712,7 @@ impl TransformES2015 {
         &self,
         node: &Node,                /*ForInStatement*/
         converted_loop_body: &Node, /*Statement*/
-    ) -> io::Result<Gc<Node>> {
+    ) -> io::Result<Id<Node>> {
         let node_as_for_in_statement = node.as_for_in_statement();
         Ok(self.factory.update_for_in_statement(
             node,
@@ -719,13 +720,13 @@ impl TransformES2015 {
                 &node_as_for_in_statement.initializer,
                 Some(|node: &Node| self.visitor(node)),
                 Some(is_for_initializer),
-                Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
             )?,
             try_visit_node(
                 &node_as_for_in_statement.expression,
                 Some(|node: &Node| self.visitor(node)),
                 Some(is_expression),
-                Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
             )?,
             converted_loop_body.node_wrapper(),
         ))
@@ -735,7 +736,7 @@ impl TransformES2015 {
         &self,
         node: &Node,                /*DoStatement*/
         converted_loop_body: &Node, /*Statement*/
-    ) -> io::Result<Gc<Node>> {
+    ) -> io::Result<Id<Node>> {
         let node_as_do_statement = node.as_do_statement();
         Ok(self.factory.update_do_statement(
             node,
@@ -744,7 +745,7 @@ impl TransformES2015 {
                 &node_as_do_statement.expression,
                 Some(|node: &Node| self.visitor(node)),
                 Some(is_expression),
-                Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
             )?,
         ))
     }
@@ -753,7 +754,7 @@ impl TransformES2015 {
         &self,
         node: &Node,                /*WhileStatement*/
         converted_loop_body: &Node, /*Statement*/
-    ) -> io::Result<Gc<Node>> {
+    ) -> io::Result<Id<Node>> {
         let node_as_while_statement = node.as_while_statement();
         Ok(self.factory.update_while_statement(
             node,
@@ -761,7 +762,7 @@ impl TransformES2015 {
                 &node_as_while_statement.expression,
                 Some(|node: &Node| self.visitor(node)),
                 Some(is_expression),
-                Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
             )?,
             converted_loop_body.node_wrapper(),
         ))
@@ -771,7 +772,7 @@ impl TransformES2015 {
         &self,
         node: &Node, /*IterationStatement*/
     ) -> io::Result<Gc<GcCell<ConvertedLoopState>>> {
-        let mut loop_initializer: Option<Gc<Node /*VariableDeclarationList*/>> = _d();
+        let mut loop_initializer: Option<Id<Node /*VariableDeclarationList*/>> = _d();
         match node.kind() {
             SyntaxKind::ForStatement | SyntaxKind::ForInStatement | SyntaxKind::ForOfStatement => {
                 let initializer = node.as_has_initializer().maybe_initializer();
@@ -784,7 +785,7 @@ impl TransformES2015 {
             _ => (),
         }
 
-        let mut loop_parameters: Vec<Gc<Node /*ParameterDeclaration*/>> = _d();
+        let mut loop_parameters: Vec<Id<Node /*ParameterDeclaration*/>> = _d();
         let mut loop_out_parameters: Vec<LoopOutParameter> = _d();
         if let Some(loop_initializer) = loop_initializer.filter(|loop_initializer| {
             get_combined_node_flags(loop_initializer).intersects(NodeFlags::BlockScoped)
@@ -829,11 +830,11 @@ impl TransformES2015 {
 
     pub(super) fn add_extra_declarations_for_converted_loop(
         &self,
-        statements: &mut Vec<Gc<Node /*Statement*/>>,
+        statements: &mut Vec<Id<Node /*Statement*/>>,
         state: &ConvertedLoopState,
         outer_state: Option<Gc<GcCell<ConvertedLoopState>>>,
     ) {
-        let mut extra_variable_declarations: Option<Vec<Gc<Node /*VariableDeclaration*/>>> = _d();
+        let mut extra_variable_declarations: Option<Vec<Id<Node /*VariableDeclaration*/>>> = _d();
         if let Some(state_arguments_name) = state.arguments_name.as_ref() {
             if let Some(outer_state) = outer_state.as_ref() {
                 outer_state.borrow_mut().arguments_name = Some(state_arguments_name.clone());

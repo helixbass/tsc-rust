@@ -1,6 +1,7 @@
 use std::{borrow::Cow, cell::RefCell, collections::HashSet, convert::TryInto, ptr, rc::Rc};
 
 use gc::Gc;
+use id_arena::Id;
 use regex::Regex;
 
 use super::TempFlags;
@@ -148,7 +149,7 @@ impl Printer {
     pub(super) fn get_leading_line_terminator_count(
         &self,
         parent_node: Option<&Node>,
-        children: &[Gc<Node>],
+        children: &[Id<Node>],
         format: ListFormat,
     ) -> usize {
         if format.intersects(ListFormat::PreserveLines)
@@ -475,7 +476,7 @@ impl Printer {
             && range_end_is_on_same_line_as_range_start(block, block, &self.current_source_file())
     }
 
-    pub(super) fn skip_synthesized_parentheses(&self, node: &Node) -> Gc<Node> {
+    pub(super) fn skip_synthesized_parentheses(&self, node: &Node) -> Id<Node> {
         let mut node = node.node_wrapper();
         while node.kind() == SyntaxKind::ParenthesizedExpression && node_is_synthesized(&*node) {
             node = node.as_parenthesized_expression().expression.clone();
@@ -632,7 +633,7 @@ impl Printer {
             SyntaxKind::Block => {
                 for_each(
                     &node.as_block().statements,
-                    |statement: &Gc<Node>, _| -> Option<()> {
+                    |statement: &Id<Node>, _| -> Option<()> {
                         self.generate_names(Some(statement));
                         None
                     },
@@ -659,7 +660,7 @@ impl Printer {
             SyntaxKind::CaseBlock => {
                 for_each(
                     &node.as_case_block().clauses,
-                    |clause: &Gc<Node>, _| -> Option<()> {
+                    |clause: &Id<Node>, _| -> Option<()> {
                         self.generate_names(Some(clause));
                         None
                     },
@@ -668,7 +669,7 @@ impl Printer {
             SyntaxKind::CaseClause | SyntaxKind::DefaultClause => {
                 for_each(
                     &node.as_has_statements().statements(),
-                    |statement: &Gc<Node>, _| -> Option<()> {
+                    |statement: &Id<Node>, _| -> Option<()> {
                         self.generate_names(Some(statement));
                         None
                     },
@@ -691,7 +692,7 @@ impl Printer {
             SyntaxKind::VariableDeclarationList => {
                 for_each(
                     &node.as_variable_declaration_list().declarations,
-                    |declaration: &Gc<Node>, _| -> Option<()> {
+                    |declaration: &Id<Node>, _| -> Option<()> {
                         self.generate_names(Some(declaration));
                         None
                     },
@@ -709,7 +710,7 @@ impl Printer {
                 if get_emit_flags(node).intersects(EmitFlags::ReuseTempVariableScope) {
                     for_each(
                         &node_as_function_declaration.parameters(),
-                        |parameter: &Gc<Node>, _| -> Option<()> {
+                        |parameter: &Id<Node>, _| -> Option<()> {
                             self.generate_names(Some(parameter));
                             None
                         },
@@ -720,7 +721,7 @@ impl Printer {
             SyntaxKind::ObjectBindingPattern | SyntaxKind::ArrayBindingPattern => {
                 for_each(
                     &node.as_has_elements().elements(),
-                    |element: &Gc<Node>, _| -> Option<()> {
+                    |element: &Id<Node>, _| -> Option<()> {
                         self.generate_names(Some(element));
                         None
                     },
@@ -743,7 +744,7 @@ impl Printer {
             SyntaxKind::NamedImports => {
                 for_each(
                     &node.as_named_imports().elements,
-                    |element: &Gc<Node>, _| -> Option<()> {
+                    |element: &Id<Node>, _| -> Option<()> {
                         self.generate_names(Some(element));
                         None
                     },
@@ -815,11 +816,11 @@ impl Printer {
 #[derive(Clone)]
 pub enum NodeArrayOrSlice<'a> {
     NodeArray(Gc<NodeArray>),
-    Slice(&'a [Gc<Node>]),
+    Slice(&'a [Id<Node>]),
 }
 
 impl<'a> NodeArrayOrSlice<'a> {
-    pub fn as_slice(&'a self) -> &'a [Gc<Node>] {
+    pub fn as_slice(&'a self) -> &'a [Id<Node>] {
         match self {
             Self::NodeArray(value) => &**value,
             Self::Slice(value) => *value,
@@ -833,8 +834,8 @@ impl<'a> From<Gc<NodeArray>> for NodeArrayOrSlice<'a> {
     }
 }
 
-impl<'a> From<&'a [Gc<Node>]> for NodeArrayOrSlice<'a> {
-    fn from(value: &'a [Gc<Node>]) -> Self {
+impl<'a> From<&'a [Id<Node>]> for NodeArrayOrSlice<'a> {
+    fn from(value: &'a [Id<Node>]) -> Self {
         Self::Slice(value)
     }
 }

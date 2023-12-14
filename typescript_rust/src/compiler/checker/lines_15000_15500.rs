@@ -228,7 +228,7 @@ impl TypeChecker {
             }
             return Ok(maybe_every(
                 symbol.ref_(self).maybe_declarations().as_deref(),
-                |d: &Gc<Node>, _| {
+                |d: &Id<Node>, _| {
                     !is_function_like(Some(&**d))
                         || get_combined_node_flags(d).intersects(NodeFlags::Deprecated)
                 },
@@ -932,7 +932,7 @@ impl TypeChecker {
     pub(super) fn get_index_node_for_access_expression(
         &self,
         access_node: &Node, /*ElementAccessExpression | IndexedAccessTypeNode | PropertyName | BindingName | SyntheticExpression*/
-    ) -> Gc<Node> {
+    ) -> Id<Node> {
         if access_node.kind() == SyntaxKind::ElementAccessExpression {
             access_node
                 .as_element_access_expression()

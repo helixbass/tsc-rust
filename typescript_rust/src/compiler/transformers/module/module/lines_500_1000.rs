@@ -1,6 +1,7 @@
 use std::io;
 
 use gc::Gc;
+use id_arena::Id;
 
 use super::TransformModule;
 use crate::{
@@ -151,7 +152,7 @@ impl TransformModule {
         &self,
         node: &Node, /*DestructuringAssignment*/
         value_is_discarded: bool,
-    ) -> io::Result<Gc<Node /*Expression*/>> {
+    ) -> io::Result<Id<Node /*Expression*/>> {
         if self.destructuring_needs_flattening(&node.as_binary_expression().left)? {
             return try_flatten_destructuring_assignment(
                 node,
@@ -180,19 +181,19 @@ impl TransformModule {
                         node_as_for_statement.initializer.as_deref(),
                         Some(|node: &Node| self.discarded_value_visitor(node)),
                         Some(is_for_initializer),
-                        Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                        Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                     )?,
                     try_maybe_visit_node(
                         node_as_for_statement.condition.as_deref(),
                         Some(|node: &Node| self.visitor(node)),
                         Some(is_expression),
-                        Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                        Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                     )?,
                     try_maybe_visit_node(
                         node_as_for_statement.incrementor.as_deref(),
                         Some(|node: &Node| self.discarded_value_visitor(node)),
                         Some(is_expression),
-                        Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                        Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                     )?,
                     try_visit_iteration_body(
                         &node_as_for_statement.statement,
@@ -217,7 +218,7 @@ impl TransformModule {
                         &node_as_expression_statement.expression,
                         Some(|node: &Node| self.discarded_value_visitor(node)),
                         Some(is_expression),
-                        Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                        Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                     )?,
                 )
                 .into(),
@@ -244,7 +245,7 @@ impl TransformModule {
                             }
                         }),
                         Some(is_expression),
-                        Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                        Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                     )?,
                 )
                 .into(),
@@ -271,7 +272,7 @@ impl TransformModule {
                             }
                         }),
                         Some(is_expression),
-                        Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                        Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                     )?,
                 )
                 .into(),
@@ -294,12 +295,12 @@ impl TransformModule {
         {
             let exported_names = self.get_exports(&node_as_unary_expression.operand())?;
             if let Some(exported_names) = exported_names {
-                let mut temp: Option<Gc<Node /*Identifier*/>> = _d();
+                let mut temp: Option<Id<Node /*Identifier*/>> = _d();
                 let mut expression/*: Expression*/ = try_visit_node(
                     &node_as_unary_expression.operand(),
                     Some(|node: &Node| self.visitor(node)),
                     Some(is_expression),
-                    Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                    Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                 )?;
                 if is_prefix_unary_expression(node) {
                     expression = self
@@ -356,7 +357,7 @@ impl TransformModule {
     pub(super) fn visit_import_call_expression(
         &self,
         node: &Node, /*ImportCall*/
-    ) -> io::Result<Gc<Node /*Expression*/>> {
+    ) -> io::Result<Id<Node /*Expression*/>> {
         let node_as_call_expression = node.as_call_expression();
         let external_module_name = get_external_module_name_literal(
             &self.factory,
@@ -370,7 +371,7 @@ impl TransformModule {
             first_or_undefined(&node_as_call_expression.arguments).cloned(),
             Some(|node: &Node| self.visitor(node)),
             Option::<fn(&Node) -> bool>::None,
-            Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+            Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
         )?;
         let argument = external_module_name
             .filter(|external_module_name| match first_argument.as_ref() {
@@ -399,9 +400,9 @@ impl TransformModule {
 
     pub(super) fn create_import_call_expression_umd(
         &self,
-        arg: Gc<Node /*Expression*/>,
+        arg: Id<Node /*Expression*/>,
         contains_lexical_this: bool,
-    ) -> Gc<Node /*Expression*/> {
+    ) -> Id<Node /*Expression*/> {
         self.set_need_umd_dynamic_import_helper(true);
         if is_simple_copiable_expression(&arg) {
             let arg_clone = if is_generated_identifier(&arg) {
@@ -446,9 +447,9 @@ impl TransformModule {
 
     pub(super) fn create_import_call_expression_amd(
         &self,
-        arg: Option<Gc<Node /*Expression*/>>,
+        arg: Option<Id<Node /*Expression*/>>,
         contains_lexical_this: bool,
-    ) -> Gc<Node /*Expression*/> {
+    ) -> Id<Node /*Expression*/> {
         let resolve = self.factory.create_unique_name("resolve", None);
         let reject = self.factory.create_unique_name("reject", None);
         let parameters = vec![
@@ -491,7 +492,7 @@ impl TransformModule {
             None,
         );
 
-        let func: Gc<Node /*FunctionExpression | ArrowFunction*/>;
+        let func: Id<Node /*FunctionExpression | ArrowFunction*/>;
         if self.language_version >= ScriptTarget::ES2015 {
             func = self.factory.create_arrow_function(
                 Option::<Gc<NodeArray>>::None,
@@ -505,7 +506,7 @@ impl TransformModule {
             func = self.factory.create_function_expression(
                 Option::<Gc<NodeArray>>::None,
                 None,
-                Option::<Gc<Node>>::None,
+                Option::<Id<Node>>::None,
                 Option::<Gc<NodeArray>>::None,
                 Some(parameters),
                 None,
@@ -539,9 +540,9 @@ impl TransformModule {
 
     pub(super) fn create_import_call_expression_common_js(
         &self,
-        arg: Option<Gc<Node /*Expression*/>>,
+        arg: Option<Id<Node /*Expression*/>>,
         contains_lexical_this: bool,
-    ) -> Gc<Node /*Expression*/> {
+    ) -> Id<Node /*Expression*/> {
         let promise_resolve_call = self.factory.create_call_expression(
             self.factory.create_property_access_expression(
                 self.factory.create_identifier("Promise"),
@@ -559,7 +560,7 @@ impl TransformModule {
             require_call = self.emit_helpers().create_import_star_helper(require_call);
         }
 
-        let func: Gc<Node /*FunctionExpression | ArrowFunction*/>;
+        let func: Id<Node /*FunctionExpression | ArrowFunction*/>;
         if self.language_version >= ScriptTarget::ES2015 {
             func = self.factory.create_arrow_function(
                 Option::<Gc<NodeArray>>::None,
@@ -573,7 +574,7 @@ impl TransformModule {
             func = self.factory.create_function_expression(
                 Option::<Gc<NodeArray>>::None,
                 None,
-                Option::<Gc<Node>>::None,
+                Option::<Id<Node>>::None,
                 Option::<Gc<NodeArray>>::None,
                 Some(vec![]),
                 None,
@@ -599,8 +600,8 @@ impl TransformModule {
     pub(super) fn get_helper_expression_for_export(
         &self,
         node: &Node, /*ExportDeclaration*/
-        inner_expr: Gc<Node /*Expression*/>,
-    ) -> Gc<Node> {
+        inner_expr: Id<Node /*Expression*/>,
+    ) -> Id<Node> {
         if get_es_module_interop(&self.compiler_options) != Some(true)
             || get_emit_flags(node).intersects(EmitFlags::NeverApplyImportHelper)
         {
@@ -615,8 +616,8 @@ impl TransformModule {
     pub(super) fn get_helper_expression_for_import(
         &self,
         node: &Node, /*ImportDeclaration*/
-        inner_expr: Gc<Node /*Expression*/>,
-    ) -> Gc<Node> {
+        inner_expr: Id<Node /*Expression*/>,
+    ) -> Id<Node> {
         if get_es_module_interop(&self.compiler_options) != Some(true)
             || get_emit_flags(node).intersects(EmitFlags::NeverApplyImportHelper)
         {
@@ -636,7 +637,7 @@ impl TransformModule {
         node: &Node, /*ImportDeclaration*/
     ) -> io::Result<VisitResult> /*<Statement>*/ {
         let node_as_import_declaration = node.as_import_declaration();
-        let mut statements: Option<Vec<Gc<Node /*Statement*/>>> = _d();
+        let mut statements: Option<Vec<Id<Node /*Statement*/>>> = _d();
         let namespace_declaration = get_namespace_declaration_node(node);
         if self.module_kind != ModuleKind::AMD {
             if node_as_import_declaration.import_clause.is_none() {
@@ -648,7 +649,7 @@ impl TransformModule {
                         .into(),
                 ));
             } else {
-                let mut variables: Vec<Gc<Node /*VariableDeclaration*/>> = _d();
+                let mut variables: Vec<Id<Node /*VariableDeclaration*/>> = _d();
                 if let Some(namespace_declaration) = namespace_declaration
                     .as_ref()
                     .filter(|_| !is_default_import(node))
@@ -758,7 +759,7 @@ impl TransformModule {
     pub(super) fn create_require_call(
         &self,
         import_node: &Node, /*ImportDeclaration | ImportEqualsDeclaration | ExportDeclaration*/
-    ) -> io::Result<Gc<Node>> {
+    ) -> io::Result<Id<Node>> {
         let module_name = get_external_module_name_literal(
             &self.factory,
             import_node,
@@ -767,7 +768,7 @@ impl TransformModule {
             &**self.resolver,
             &self.compiler_options,
         )?;
-        let mut args: Vec<Gc<Node /*Expression*/>> = _d();
+        let mut args: Vec<Id<Node /*Expression*/>> = _d();
         if let Some(module_name) = module_name {
             args.push(module_name);
         }

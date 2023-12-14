@@ -113,13 +113,13 @@ impl TypeChecker {
                         node_as_signature_declaration
                             .maybe_type_parameters()
                             .as_double_deref(),
-                        Some(|type_parameter: &Gc<Node>| {
+                        Some(|type_parameter: &Id<Node>| {
                             self.contains_reference(tp, type_parameter)
                         }),
                     )?
                     || try_some(
                         Some(&node_as_signature_declaration.parameters()),
-                        Some(|parameter: &Gc<Node>| self.contains_reference(tp, parameter)),
+                        Some(|parameter: &Id<Node>| self.contains_reference(tp, parameter)),
                     )?
                     || matches!(
                         node_as_signature_declaration.maybe_type(),
@@ -945,11 +945,11 @@ impl TypeChecker {
             }
             SyntaxKind::ObjectLiteralExpression => try_some(
                 Some(&node.as_object_literal_expression().properties),
-                Some(|property: &Gc<Node>| self.is_context_sensitive(property)),
+                Some(|property: &Id<Node>| self.is_context_sensitive(property)),
             )?,
             SyntaxKind::ArrayLiteralExpression => try_some(
                 Some(&node.as_array_literal_expression().elements),
-                Some(|element: &Gc<Node>| self.is_context_sensitive(element)),
+                Some(|element: &Id<Node>| self.is_context_sensitive(element)),
             )?,
             SyntaxKind::ConditionalExpression => {
                 let node_as_conditional_expression = node.as_conditional_expression();
@@ -973,11 +973,11 @@ impl TypeChecker {
             SyntaxKind::JsxAttributes => {
                 try_some(
                     Some(&node.as_jsx_attributes().properties),
-                    Some(|property: &Gc<Node>| self.is_context_sensitive(property)),
+                    Some(|property: &Id<Node>| self.is_context_sensitive(property)),
                 )? || is_jsx_opening_element(&node.parent())
                     && try_some(
                         Some(&node.parent().parent().as_jsx_element().children),
-                        Some(|child: &Gc<Node>| self.is_context_sensitive(child)),
+                        Some(|child: &Id<Node>| self.is_context_sensitive(child)),
                     )?
             }
             SyntaxKind::JsxAttribute => {

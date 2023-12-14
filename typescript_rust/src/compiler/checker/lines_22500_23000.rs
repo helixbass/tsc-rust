@@ -237,7 +237,7 @@ impl TypeChecker {
     pub(super) fn get_property_access(
         &self,
         expr: &Node, /*Expression*/
-    ) -> io::Result<Option<Gc<Node>>> {
+    ) -> io::Result<Option<Id<Node>>> {
         if is_access_expression(expr) {
             return Ok(Some(expr.node_wrapper()));
         }
@@ -570,7 +570,7 @@ impl TypeChecker {
         let prop_node = key_property_name.as_ref().and_then(|key_property_name| {
             find(
                 &node.as_object_literal_expression().properties,
-                |p: &Gc<Node>, _| {
+                |p: &Id<Node>, _| {
                     let p_symbol = p.maybe_symbol();
                     if p_symbol.is_none() {
                         return false;

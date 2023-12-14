@@ -51,18 +51,18 @@ pub(crate) fn is_build_info_file(file: &str) -> bool {
 }
 
 pub enum NodeOrVecNode {
-    Node(Gc<Node>),
-    VecNode(Vec<Gc<Node>>),
+    Node(Id<Node>),
+    VecNode(Vec<Id<Node>>),
 }
 
-impl From<Vec<Gc<Node>>> for NodeOrVecNode {
-    fn from(value: Vec<Gc<Node>>) -> Self {
+impl From<Vec<Id<Node>>> for NodeOrVecNode {
+    fn from(value: Vec<Id<Node>>) -> Self {
         Self::VecNode(value)
     }
 }
 
-impl From<Gc<Node>> for NodeOrVecNode {
-    fn from(value: Gc<Node>) -> Self {
+impl From<Id<Node>> for NodeOrVecNode {
+    fn from(value: Id<Node>) -> Self {
         Self::Node(value)
     }
 }
@@ -116,7 +116,7 @@ pub fn try_for_each_emitted_file_returns<TReturn>(
     {
         let prepends = host.get_prepend_nodes();
         if !source_files.is_empty() || !prepends.is_empty() {
-            let bundle: Gc<Node> = get_factory().create_bundle(
+            let bundle: Id<Node> = get_factory().create_bundle(
                 source_files.into_iter().map(Option::Some).collect(),
                 Some(prepends),
             );
@@ -629,7 +629,7 @@ fn emit_source_file_or_bundle(
                     .as_bundle()
                     .source_files
                     .iter()
-                    .map(|file: &Option<Gc<Node>>| {
+                    .map(|file: &Option<Id<Node>>| {
                         let file = file.as_ref().unwrap();
                         relative_to_build_info(
                             build_info_directory.as_ref().unwrap(),
@@ -944,7 +944,7 @@ impl PrintHandlers for EmitJsFileOrBundlePrintHandlers {
         true
     }
 
-    fn substitute_node(&self, hint: EmitHint, node: &Node) -> io::Result<Option<Gc<Node>>> {
+    fn substitute_node(&self, hint: EmitHint, node: &Node) -> io::Result<Option<Id<Node>>> {
         Ok(Some(self.transform.substitute_node(hint, node)?))
     }
 }
@@ -994,7 +994,7 @@ fn emit_declaration_file_or_bundle(
     let files_for_emit = if force_dts_emit == Some(true) {
         source_files
     } else {
-        filter(&source_files, |source_file: &Gc<Node>| {
+        filter(&source_files, |source_file: &Id<Node>| {
             is_source_file_not_json(source_file)
         })
     };
@@ -1160,7 +1160,7 @@ impl PrintHandlers for EmitDeclarationFileOrBundlePrintHandlers {
         true
     }
 
-    fn substitute_node(&self, hint: EmitHint, node: &Node) -> io::Result<Option<Gc<Node>>> {
+    fn substitute_node(&self, hint: EmitHint, node: &Node) -> io::Result<Option<Id<Node>>> {
         Ok(Some(
             self.declaration_transform.substitute_node(hint, node)?,
         ))
@@ -1454,21 +1454,21 @@ impl EmitResolver for NotImplementedResolver {
         &self,
         _node: &Node, /*Identifier*/
         _prefix_locals: Option<bool>,
-    ) -> io::Result<Option<Gc<Node /*SourceFile | ModuleDeclaration | EnumDeclaration*/>>> {
+    ) -> io::Result<Option<Id<Node /*SourceFile | ModuleDeclaration | EnumDeclaration*/>>> {
         unimplemented!()
     }
 
     fn get_referenced_import_declaration(
         &self,
         _node: &Node, /*Identifier*/
-    ) -> io::Result<Option<Gc<Node /*Declaration*/>>> {
+    ) -> io::Result<Option<Id<Node /*Declaration*/>>> {
         unimplemented!()
     }
 
     fn get_referenced_declaration_with_colliding_name(
         &self,
         _node: &Node, /*Identifier*/
-    ) -> io::Result<Option<Gc<Node /*Declaration*/>>> {
+    ) -> io::Result<Option<Id<Node /*Declaration*/>>> {
         unimplemented!()
     }
 
@@ -1514,7 +1514,7 @@ impl EmitResolver for NotImplementedResolver {
         &self,
         _node: &Node, /*Identifier*/
         _set_visibility: Option<bool>,
-    ) -> io::Result<Option<Vec<Gc<Node>>>> {
+    ) -> io::Result<Option<Vec<Id<Node>>>> {
         unimplemented!()
     }
 
@@ -1560,7 +1560,7 @@ impl EmitResolver for NotImplementedResolver {
         _flags: crate::NodeBuilderFlags,
         _tracker: Gc<Box<dyn crate::SymbolTracker>>,
         _add_undefined: Option<bool>,
-    ) -> io::Result<Option<Gc<Node /*TypeNode*/>>> {
+    ) -> io::Result<Option<Id<Node /*TypeNode*/>>> {
         unimplemented!()
     }
 
@@ -1570,7 +1570,7 @@ impl EmitResolver for NotImplementedResolver {
         _enclosing_declaration: &Node,
         _flags: crate::NodeBuilderFlags,
         _tracker: Gc<Box<dyn crate::SymbolTracker>>,
-    ) -> io::Result<Option<Gc<Node /*TypeNode*/>>> {
+    ) -> io::Result<Option<Id<Node /*TypeNode*/>>> {
         unimplemented!()
     }
 
@@ -1580,7 +1580,7 @@ impl EmitResolver for NotImplementedResolver {
         _enclosing_declaration: &Node,
         _flags: crate::NodeBuilderFlags,
         _tracker: Gc<Box<dyn crate::SymbolTracker>>,
-    ) -> io::Result<Option<Gc<Node /*TypeNode*/>>> {
+    ) -> io::Result<Option<Id<Node /*TypeNode*/>>> {
         unimplemented!()
     }
 
@@ -1588,7 +1588,7 @@ impl EmitResolver for NotImplementedResolver {
         &self,
         _node: &Node, /*VariableDeclaration | PropertyDeclaration | PropertySignature | ParameterDeclaration*/
         _tracker: Gc<Box<dyn crate::SymbolTracker>>,
-    ) -> io::Result<Gc<Node /*Expression*/>> {
+    ) -> io::Result<Id<Node /*Expression*/>> {
         unimplemented!()
     }
 
@@ -1620,7 +1620,7 @@ impl EmitResolver for NotImplementedResolver {
     fn get_referenced_value_declaration(
         &self,
         _reference: &Node, /*Identifier*/
-    ) -> io::Result<Option<Gc<Node /*Declaration*/>>> {
+    ) -> io::Result<Option<Id<Node /*Declaration*/>>> {
         unimplemented!()
     }
 
@@ -1653,7 +1653,7 @@ impl EmitResolver for NotImplementedResolver {
     fn get_external_module_file_from_declaration(
         &self,
         _declaration: &Node, /*ImportEqualsDeclaration | ImportDeclaration | ExportDeclaration | ModuleDeclaration | ImportTypeNode | ImportCall*/
-    ) -> io::Result<Option<Gc<Node /*SourceFile*/>>> {
+    ) -> io::Result<Option<Id<Node /*SourceFile*/>>> {
         unimplemented!()
     }
 
@@ -1679,14 +1679,14 @@ impl EmitResolver for NotImplementedResolver {
         unimplemented!()
     }
 
-    fn get_jsx_factory_entity(&self, _location: Option<&Node>) -> Option<Gc<Node /*EntityName*/>> {
+    fn get_jsx_factory_entity(&self, _location: Option<&Node>) -> Option<Id<Node /*EntityName*/>> {
         unimplemented!()
     }
 
     fn get_jsx_fragment_factory_entity(
         &self,
         _location: Option<&Node>,
-    ) -> Option<Gc<Node /*EntityName*/>> {
+    ) -> Option<Id<Node /*EntityName*/>> {
         unimplemented!()
     }
 
@@ -1718,7 +1718,7 @@ impl EmitResolver for NotImplementedResolver {
         _flags: crate::NodeBuilderFlags,
         _tracker: Gc<Box<dyn crate::SymbolTracker>>,
         _bundled: Option<bool>,
-    ) -> io::Result<Option<Vec<Gc<Node /*Statement*/>>>> {
+    ) -> io::Result<Option<Vec<Id<Node /*Statement*/>>>> {
         unimplemented!()
     }
 
@@ -1864,15 +1864,15 @@ impl Printer {
         self._rc_wrapper.borrow().clone().unwrap()
     }
 
-    pub(super) fn maybe_current_source_file(&self) -> Option<Gc<Node>> {
+    pub(super) fn maybe_current_source_file(&self) -> Option<Id<Node>> {
         self.current_source_file.borrow().clone()
     }
 
-    pub(super) fn current_source_file(&self) -> Gc<Node> {
+    pub(super) fn current_source_file(&self) -> Id<Node> {
         self.current_source_file.borrow().clone().unwrap()
     }
 
-    pub(super) fn set_current_source_file(&self, current_source_file: Option<Gc<Node>>) {
+    pub(super) fn set_current_source_file(&self, current_source_file: Option<Id<Node>>) {
         *self.current_source_file.borrow_mut() = current_source_file;
     }
 
@@ -2017,7 +2017,7 @@ impl Printer {
         &self,
         hint: EmitHint,
         node: &Node,
-    ) -> io::Result<Option<Gc<Node>>> {
+    ) -> io::Result<Option<Id<Node>>> {
         Ok(Some(if self.handlers.is_substitute_node_supported() {
             self.handlers.substitute_node(hint, node)?.unwrap()
         } else {
@@ -2248,11 +2248,11 @@ impl Printer {
         self.comments_disabled.set(comments_disabled);
     }
 
-    pub(super) fn maybe_last_substitution(&self) -> Option<Gc<Node>> {
+    pub(super) fn maybe_last_substitution(&self) -> Option<Id<Node>> {
         self.last_substitution.borrow().clone()
     }
 
-    pub(super) fn set_last_substitution(&self, last_substitution: Option<Gc<Node>>) {
+    pub(super) fn set_last_substitution(&self, last_substitution: Option<Id<Node>>) {
         *self.last_substitution.borrow_mut() = last_substitution;
     }
 

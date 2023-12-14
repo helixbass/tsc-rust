@@ -287,7 +287,7 @@ impl TypeChecker {
         }
         if some(
             Some(&node_as_arrow_function.parameters()),
-            Some(|parameter: &Gc<Node>| has_type(parameter)),
+            Some(|parameter: &Id<Node>| has_type(parameter)),
         ) {
             return Ok(false);
         }
@@ -1074,7 +1074,7 @@ impl TypeChecker {
         }
         try_flat_map(
             Some(&node_as_object_literal_expression.properties),
-            |prop: &Gc<Node>, _| -> io::Result<_> {
+            |prop: &Id<Node>, _| -> io::Result<_> {
                 if is_spread_assignment(prop) {
                     return Ok(vec![]);
                 }
@@ -1529,8 +1529,8 @@ impl TypeChecker {
 
 #[derive(Clone, Debug)]
 pub(super) struct ElaborationIteratorItem {
-    pub error_node: Gc<Node>,
-    pub inner_expression: Option<Gc<Node /*Expression*/>>,
+    pub error_node: Id<Node>,
+    pub inner_expression: Option<Id<Node /*Expression*/>>,
     name_type: Id<Type>,
     error_message: Option<Cow<'static, DiagnosticMessage>>,
 }

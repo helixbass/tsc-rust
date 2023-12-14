@@ -123,8 +123,8 @@ pub trait SourceFileLike {
 
 #[derive(Clone, Debug, Trace, Finalize)]
 pub struct RedirectInfo {
-    pub redirect_target: Gc<Node /*SourceFile*/>,
-    pub unredirected: Gc<Node /*SourceFile*/>,
+    pub redirect_target: Id<Node /*SourceFile*/>,
+    pub unredirected: Id<Node /*SourceFile*/>,
 }
 
 pub trait HasStatementsInterface {
@@ -141,7 +141,7 @@ pub struct SourceFile {
 #[derive(Clone, Debug, Trace, Finalize)]
 pub struct SourceFileContents {
     statements: Gc<NodeArray>,
-    end_of_file_token: Gc<Node /*Token<SyntaxFile.EndOfFileToken>*/>,
+    end_of_file_token: Id<Node /*Token<SyntaxFile.EndOfFileToken>*/>,
 
     #[unsafe_ignore_trace]
     file_name: RefCell<String>,
@@ -187,8 +187,8 @@ pub struct SourceFileContents {
     #[unsafe_ignore_trace]
     script_kind: Cell<ScriptKind>,
 
-    external_module_indicator: GcCell<Option<Gc<Node>>>,
-    common_js_module_indicator: GcCell<Option<Gc<Node>>>,
+    external_module_indicator: GcCell<Option<Id<Node>>>,
+    common_js_module_indicator: GcCell<Option<Id<Node>>>,
     js_global_augmentations: GcCell<Option<Gc<GcCell<SymbolTable>>>>,
 
     #[unsafe_ignore_trace]
@@ -220,8 +220,8 @@ pub struct SourceFileContents {
         GcCell<Option<ModeAwareCache<Option<Gc<ResolvedModuleFull /*| undefined*/>>>>>,
     resolved_type_reference_directive_names:
         GcCell<Option<ModeAwareCache<Option<Gc<ResolvedTypeReferenceDirective>>>>>,
-    imports: GcCell<Option<Vec<Gc<Node /*StringLiteralLike*/>>>>,
-    module_augmentations: GcCell<Option<Vec<Gc<Node /*StringLiteral | Identifier*/>>>>,
+    imports: GcCell<Option<Vec<Id<Node /*StringLiteralLike*/>>>>,
+    module_augmentations: GcCell<Option<Vec<Id<Node /*StringLiteral | Identifier*/>>>>,
     pattern_ambient_modules: GcCell<Option<Vec<Gc<PatternAmbientModule>>>>,
     #[unsafe_ignore_trace]
     ambient_module_names: RefCell<Option<Vec<String>>>,
@@ -233,8 +233,8 @@ pub struct SourceFileContents {
     local_jsx_namespace: RefCell<Option<__String>>,
     #[unsafe_ignore_trace]
     local_jsx_fragment_namespace: RefCell<Option<__String>>,
-    local_jsx_factory: GcCell<Option<Gc<Node>>>,
-    local_jsx_fragment_factory: GcCell<Option<Gc<Node>>>,
+    local_jsx_factory: GcCell<Option<Id<Node>>>,
+    local_jsx_fragment_factory: GcCell<Option<Id<Node>>>,
 
     exported_modules_from_declaration_emit: GcCell<Option<ExportedModulesFromDeclarationEmit>>,
     end_flow_node: GcCell<Option<Gc<FlowNode>>>,
@@ -250,7 +250,7 @@ impl SourceFile {
     pub fn new(
         base_node: BaseNode,
         statements: Gc<NodeArray>,
-        end_of_file_token: Gc<Node>,
+        end_of_file_token: Id<Node>,
         file_name: String,
         text: String,
         language_version: ScriptTarget,
@@ -323,11 +323,11 @@ impl SourceFile {
         self.contents.statements = statements;
     }
 
-    pub fn end_of_file_token(&self) -> Gc<Node> {
+    pub fn end_of_file_token(&self) -> Id<Node> {
         self.contents.end_of_file_token.clone()
     }
 
-    pub fn set_end_of_file_token(&mut self, end_of_file_token: Gc<Node>) {
+    pub fn set_end_of_file_token(&mut self, end_of_file_token: Id<Node>) {
         self.contents.end_of_file_token = end_of_file_token;
     }
 
@@ -508,22 +508,22 @@ impl SourceFile {
         self.contents.implied_node_format.set(implied_node_format);
     }
 
-    pub(crate) fn maybe_external_module_indicator(&self) -> Option<Gc<Node>> {
+    pub(crate) fn maybe_external_module_indicator(&self) -> Option<Id<Node>> {
         self.contents.external_module_indicator.borrow().clone()
     }
 
     pub(crate) fn set_external_module_indicator(
         &self,
-        external_module_indicator: Option<Gc<Node>>,
+        external_module_indicator: Option<Id<Node>>,
     ) {
         *self.contents.external_module_indicator.borrow_mut() = external_module_indicator;
     }
 
-    pub(crate) fn maybe_common_js_module_indicator(&self) -> Option<Gc<Node>> {
+    pub(crate) fn maybe_common_js_module_indicator(&self) -> Option<Id<Node>> {
         self.contents.common_js_module_indicator.borrow().clone()
     }
 
-    pub(crate) fn maybe_common_js_module_indicator_mut(&self) -> GcCellRefMut<Option<Gc<Node>>> {
+    pub(crate) fn maybe_common_js_module_indicator_mut(&self) -> GcCellRefMut<Option<Id<Node>>> {
         self.contents.common_js_module_indicator.borrow_mut()
     }
 
@@ -656,32 +656,32 @@ impl SourceFile {
             .borrow_mut()
     }
 
-    pub fn maybe_imports(&self) -> GcCellRef<Option<Vec<Gc<Node>>>> {
+    pub fn maybe_imports(&self) -> GcCellRef<Option<Vec<Id<Node>>>> {
         self.contents.imports.borrow()
     }
 
-    pub fn imports(&self) -> GcCellRef<Vec<Gc<Node>>> {
+    pub fn imports(&self) -> GcCellRef<Vec<Id<Node>>> {
         GcCellRef::map(self.contents.imports.borrow(), |imports| {
             imports.as_ref().unwrap()
         })
     }
 
-    pub fn maybe_imports_mut(&self) -> GcCellRefMut<Option<Vec<Gc<Node>>>> {
+    pub fn maybe_imports_mut(&self) -> GcCellRefMut<Option<Vec<Id<Node>>>> {
         self.contents.imports.borrow_mut()
     }
 
-    pub fn maybe_module_augmentations(&self) -> GcCellRef<Option<Vec<Gc<Node>>>> {
+    pub fn maybe_module_augmentations(&self) -> GcCellRef<Option<Vec<Id<Node>>>> {
         self.contents.module_augmentations.borrow()
     }
 
-    pub fn module_augmentations(&self) -> GcCellRef<Vec<Gc<Node>>> {
+    pub fn module_augmentations(&self) -> GcCellRef<Vec<Id<Node>>> {
         GcCellRef::map(
             self.contents.module_augmentations.borrow(),
             |module_augmentations| module_augmentations.as_ref().unwrap(),
         )
     }
 
-    pub fn maybe_module_augmentations_mut(&self) -> GcCellRefMut<Option<Vec<Gc<Node>>>> {
+    pub fn maybe_module_augmentations_mut(&self) -> GcCellRefMut<Option<Vec<Id<Node>>>> {
         self.contents.module_augmentations.borrow_mut()
     }
 
@@ -721,11 +721,11 @@ impl SourceFile {
         self.contents.local_jsx_fragment_namespace.borrow_mut()
     }
 
-    pub fn maybe_local_jsx_factory(&self) -> GcCellRefMut<Option<Gc<Node>>> {
+    pub fn maybe_local_jsx_factory(&self) -> GcCellRefMut<Option<Id<Node>>> {
         self.contents.local_jsx_factory.borrow_mut()
     }
 
-    pub fn maybe_local_jsx_fragment_factory(&self) -> GcCellRefMut<Option<Gc<Node>>> {
+    pub fn maybe_local_jsx_fragment_factory(&self) -> GcCellRefMut<Option<Id<Node>>> {
         self.contents.local_jsx_fragment_factory.borrow_mut()
     }
 
@@ -863,8 +863,8 @@ pub(crate) type ExportedModulesFromDeclarationEmit = Vec<Id<Symbol>>;
 #[ast_type]
 pub struct Bundle {
     _node: BaseNode,
-    pub prepends: Vec<Gc<Node /*InputFiles | UnparsedSource*/>>,
-    pub source_files: Vec<Option<Gc<Node /*SourceFile*/>>>,
+    pub prepends: Vec<Id<Node /*InputFiles | UnparsedSource*/>>,
+    pub source_files: Vec<Option<Id<Node /*SourceFile*/>>>,
     #[unsafe_ignore_trace]
     pub(crate) synthetic_file_references: Option<Vec<FileReference>>,
     #[unsafe_ignore_trace]
@@ -877,8 +877,8 @@ pub struct Bundle {
 impl Bundle {
     pub fn new(
         base_node: BaseNode,
-        prepends: Vec<Gc<Node>>,
-        source_files: Vec<Option<Gc<Node>>>,
+        prepends: Vec<Id<Node>>,
+        source_files: Vec<Option<Id<Node>>>,
     ) -> Self {
         Self {
             _node: base_node,
@@ -1200,7 +1200,7 @@ pub struct UnparsedSource {
     text: RefCell<String>,
     #[unsafe_ignore_trace]
     text_as_chars: RefCell<SourceTextAsChars>,
-    pub prologues: Vec<Gc<Node /*UnparsedPrologue*/>>,
+    pub prologues: Vec<Id<Node /*UnparsedPrologue*/>>,
     pub helpers: Option<Vec<Gc<EmitHelper /*UnscopedEmitHelper*/>>>,
 
     #[unsafe_ignore_trace]
@@ -1213,8 +1213,8 @@ pub struct UnparsedSource {
 
     pub source_map_path: Option<String>,
     pub source_map_text: Option<String>,
-    pub synthetic_references: Option<Vec<Gc<Node /*UnparsedSyntheticReference*/>>>,
-    pub texts: Vec<Gc<Node /*UnparsedSourceText*/>>,
+    pub synthetic_references: Option<Vec<Id<Node /*UnparsedSyntheticReference*/>>>,
+    pub texts: Vec<Id<Node /*UnparsedSourceText*/>>,
     pub(crate) old_file_of_current_emit: Option<bool>,
     #[unsafe_ignore_trace]
     pub(crate) parsed_source_map: RefCell<Option<Option<Rc<RawSourceMap>>>>,
@@ -1223,9 +1223,9 @@ pub struct UnparsedSource {
 impl UnparsedSource {
     pub fn new(
         base_node: BaseNode,
-        prologues: Vec<Gc<Node>>,
-        synthetic_references: Option<Vec<Gc<Node>>>,
-        texts: Vec<Gc<Node>>,
+        prologues: Vec<Id<Node>>,
+        synthetic_references: Option<Vec<Id<Node>>>,
+        texts: Vec<Id<Node>>,
         file_name: String,
         text: String,
         referenced_files: Vec<FileReference>,
@@ -1258,7 +1258,7 @@ impl UnparsedSource {
 }
 
 impl HasTextsInterface for UnparsedSource {
-    fn texts(&self) -> &[Gc<Node>] {
+    fn texts(&self) -> &[Id<Node>] {
         &self.texts
     }
 }
@@ -1350,11 +1350,11 @@ impl UnparsedPrologue {
 #[ast_type(interfaces = "UnparsedSectionInterface")]
 pub struct UnparsedPrepend {
     _unparsed_node: BaseUnparsedNode,
-    texts: Vec<Gc<Node /*UnparsedTextLike*/>>,
+    texts: Vec<Id<Node /*UnparsedTextLike*/>>,
 }
 
 impl UnparsedPrepend {
-    pub fn new(base_unparsed_node: BaseUnparsedNode, texts: Vec<Gc<Node>>) -> Self {
+    pub fn new(base_unparsed_node: BaseUnparsedNode, texts: Vec<Id<Node>>) -> Self {
         Self {
             _unparsed_node: base_unparsed_node,
             texts,
@@ -1363,11 +1363,11 @@ impl UnparsedPrepend {
 }
 
 pub trait HasTextsInterface {
-    fn texts(&self) -> &[Gc<Node>];
+    fn texts(&self) -> &[Id<Node>];
 }
 
 impl HasTextsInterface for UnparsedPrepend {
-    fn texts(&self) -> &[Gc<Node>] {
+    fn texts(&self) -> &[Id<Node>] {
         &self.texts
     }
 }
@@ -1404,8 +1404,8 @@ impl UnparsedSyntheticReference {
 
 pub trait ScriptReferenceHost {
     fn get_compiler_options(&self) -> Gc<CompilerOptions>;
-    fn get_source_file(&self, file_name: &str) -> Option<Gc<Node /*SourceFile*/>>;
-    fn get_source_file_by_path(&self, path: &Path) -> Option<Gc<Node /*SourceFile*/>>;
+    fn get_source_file(&self, file_name: &str) -> Option<Id<Node /*SourceFile*/>>;
+    fn get_source_file_by_path(&self, path: &Path) -> Option<Id<Node /*SourceFile*/>>;
     fn get_current_directory(&self) -> String;
 }
 
@@ -1436,7 +1436,7 @@ pub trait WriteFileCallback: Trace + Finalize {
         data: &str,
         write_byte_order_mark: bool,
         on_error: Option<&mut dyn FnMut(&str)>,
-        source_files: Option<&[Gc<Node /*SourceFile*/>]>,
+        source_files: Option<&[Id<Node /*SourceFile*/>]>,
     ) -> io::Result<()>;
 }
 
@@ -1614,9 +1614,9 @@ pub struct Program {
     pub(crate) config_file_parsing_diagnostics: GcCell<Option<Vec<Gc<Diagnostic>>>>,
     #[unsafe_ignore_trace]
     pub(crate) project_references: RefCell<Option<Vec<Rc<ProjectReference>>>>,
-    pub(crate) processing_default_lib_files: GcCell<Option<Vec<Gc</*SourceFile*/ Node>>>>,
-    pub(crate) processing_other_files: GcCell<Option<Vec<Gc</*SourceFile*/ Node>>>>,
-    pub(crate) files: GcCell<Option<Vec<Gc</*SourceFile*/ Node>>>>,
+    pub(crate) processing_default_lib_files: GcCell<Option<Vec<Id</*SourceFile*/ Node>>>>,
+    pub(crate) processing_other_files: GcCell<Option<Vec<Id</*SourceFile*/ Node>>>>,
+    pub(crate) files: GcCell<Option<Vec<Id</*SourceFile*/ Node>>>>,
     pub(crate) symlinks: GcCell<Option<Gc<SymlinkCache>>>,
     #[unsafe_ignore_trace]
     pub(crate) common_source_directory: RefCell<Option<String>>,
@@ -1667,7 +1667,7 @@ pub struct Program {
     #[unsafe_ignore_trace]
     pub(crate) has_emit_blocking_diagnostics: RefCell<Option<HashMap<Path, bool>>>,
     pub(crate) _compiler_options_object_literal_syntax:
-        GcCell<Option<Option<Gc<Node /*ObjectLiteralExpression*/>>>>,
+        GcCell<Option<Option<Id<Node /*ObjectLiteralExpression*/>>>>,
     pub(crate) module_resolution_cache: GcCell<Option<Gc<ModuleResolutionCache>>>,
     pub(crate) type_reference_directive_resolution_cache:
         GcCell<Option<Gc<TypeReferenceDirectiveResolutionCache>>>,
@@ -1676,7 +1676,7 @@ pub struct Program {
     pub(crate) actual_resolve_type_reference_directive_names_worker:
         GcCell<Option<Gc<Box<dyn ActualResolveTypeReferenceDirectiveNamesWorker>>>>,
 
-    pub(crate) package_id_to_source_file: GcCell<Option<HashMap<String, Gc<Node /*SourceFile*/>>>>,
+    pub(crate) package_id_to_source_file: GcCell<Option<HashMap<String, Id<Node /*SourceFile*/>>>>,
     #[unsafe_ignore_trace]
     pub(crate) source_file_to_package_name: RefCell<Option<HashMap<Path, String>>>,
     #[unsafe_ignore_trace]
@@ -1687,7 +1687,7 @@ pub struct Program {
     pub(crate) files_by_name: GcCell<Option<HashMap<String, FilesByNameValue>>>,
     #[unsafe_ignore_trace]
     pub(crate) missing_file_paths: RefCell<Option<Vec<Path>>>,
-    pub(crate) files_by_name_ignore_case: GcCell<Option<HashMap<String, Gc<Node /*SourceFile*/>>>>,
+    pub(crate) files_by_name_ignore_case: GcCell<Option<HashMap<String, Id<Node /*SourceFile*/>>>>,
 
     pub(crate) resolved_project_references:
         GcCell<Option<Vec<Option<Gc<ResolvedProjectReference>>>>>,

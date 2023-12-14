@@ -22,7 +22,7 @@ mod _NodeArrayDeriveTraceScope {
     #[derive(Clone, Trace, Finalize)]
     pub struct NodeArray {
         _rc_wrapper: GcCell<Option<Gc<NodeArray>>>,
-        _nodes: Vec<Gc<Node>>,
+        _nodes: Vec<Id<Node>>,
         #[unsafe_ignore_trace]
         pos: Cell<isize>,
         #[unsafe_ignore_trace]
@@ -50,7 +50,7 @@ mod _NodeArrayDeriveTraceScope {
 
     impl NodeArray {
         pub fn new(
-            nodes: Vec<Gc<Node>>,
+            nodes: Vec<Id<Node>>,
             pos: isize,
             end: isize,
             has_trailing_comma: bool,
@@ -81,7 +81,7 @@ mod _NodeArrayDeriveTraceScope {
             self.rc_wrapper().into()
         }
 
-        pub fn to_vec(&self) -> Vec<Gc<Node>> {
+        pub fn to_vec(&self) -> Vec<Id<Node>> {
             self._nodes.clone()
         }
 
@@ -126,23 +126,23 @@ mod _NodeArrayDeriveTraceScope {
     //     }
     // }
 
-    impl From<&NodeArray> for Vec<Gc<Node>> {
+    impl From<&NodeArray> for Vec<Id<Node>> {
         fn from(node_array: &NodeArray) -> Self {
             node_array._nodes.clone()
         }
     }
 
-    impl<'node_array> From<&'node_array NodeArray> for &'node_array [Gc<Node>] {
+    impl<'node_array> From<&'node_array NodeArray> for &'node_array [Id<Node>] {
         fn from(node_array: &'node_array NodeArray) -> Self {
             &node_array._nodes
         }
     }
 
     #[derive(Clone)]
-    pub struct NodeArrayIter<'node_array>(slice::Iter<'node_array, Gc<Node>>);
+    pub struct NodeArrayIter<'node_array>(slice::Iter<'node_array, Id<Node>>);
 
     impl<'node_array> Iterator for NodeArrayIter<'node_array> {
-        type Item = &'node_array Gc<Node>;
+        type Item = &'node_array Id<Node>;
 
         fn next(&mut self) -> Option<Self::Item> {
             self.0.next()
@@ -150,7 +150,7 @@ mod _NodeArrayDeriveTraceScope {
     }
 
     impl<'node_array> IntoIterator for &'node_array NodeArray {
-        type Item = &'node_array Gc<Node>;
+        type Item = &'node_array Id<Node>;
         type IntoIter = NodeArrayIter<'node_array>;
 
         fn into_iter(self) -> Self::IntoIter {
@@ -174,7 +174,7 @@ mod _NodeArrayDeriveTraceScope {
     }
 
     impl Iterator for NodeArrayOwnedIter {
-        type Item = Gc<Node>;
+        type Item = Id<Node>;
 
         fn next(&mut self) -> Option<Self::Item> {
             if self.index >= self.node_array.len() {
@@ -188,7 +188,7 @@ mod _NodeArrayDeriveTraceScope {
     }
 
     impl Deref for NodeArray {
-        type Target = [Gc<Node>];
+        type Target = [Id<Node>];
 
         fn deref(&self) -> &Self::Target {
             &self._nodes
@@ -215,11 +215,11 @@ mod _NodeArrayOrVecDeriveTraceScope {
     #[derive(Clone, Debug, Trace, Finalize)]
     pub enum NodeArrayOrVec {
         NodeArray(Gc<NodeArray>),
-        Vec(Vec<Gc<Node>>),
+        Vec(Vec<Id<Node>>),
     }
 
     impl NodeArrayOrVec {
-        pub fn as_vec_owned(self) -> Vec<Gc<Node>> {
+        pub fn as_vec_owned(self) -> Vec<Id<Node>> {
             enum_unwrapped!(self, [NodeArrayOrVec, Vec])
         }
 
@@ -231,6 +231,7 @@ mod _NodeArrayOrVecDeriveTraceScope {
 
 pub use _NodeArrayOrVecDeriveTraceScope::NodeArrayOrVec;
 use gc::GcCellRef;
+use id_arena::Id;
 
 impl From<Gc<NodeArray>> for NodeArrayOrVec {
     fn from(node_array: Gc<NodeArray>) -> Self {
@@ -238,14 +239,14 @@ impl From<Gc<NodeArray>> for NodeArrayOrVec {
     }
 }
 
-impl From<Vec<Gc<Node>>> for NodeArrayOrVec {
-    fn from(vec: Vec<Gc<Node>>) -> Self {
+impl From<Vec<Id<Node>>> for NodeArrayOrVec {
+    fn from(vec: Vec<Id<Node>>) -> Self {
         NodeArrayOrVec::Vec(vec)
     }
 }
 
 impl Deref for NodeArrayOrVec {
-    type Target = [Gc<Node>];
+    type Target = [Id<Node>];
 
     fn deref(&self) -> &Self::Target {
         match self {
@@ -255,8 +256,8 @@ impl Deref for NodeArrayOrVec {
     }
 }
 
-impl From<&NodeArrayOrVec> for Vec<Gc<Node>> {
-    fn from(value: &NodeArrayOrVec) -> Vec<Gc<Node>> {
+impl From<&NodeArrayOrVec> for Vec<Id<Node>> {
+    fn from(value: &NodeArrayOrVec) -> Vec<Id<Node>> {
         match value {
             NodeArrayOrVec::NodeArray(value) => value.to_vec(),
             NodeArrayOrVec::Vec(value) => value.clone(),
@@ -265,8 +266,8 @@ impl From<&NodeArrayOrVec> for Vec<Gc<Node>> {
 }
 
 impl IntoIterator for NodeArrayOrVec {
-    type Item = Gc<Node>;
-    type IntoIter = <Vec<Gc<Node>> as IntoIterator>::IntoIter;
+    type Item = Id<Node>;
+    type IntoIter = <Vec<Id<Node>> as IntoIterator>::IntoIter;
 
     fn into_iter(self) -> Self::IntoIter {
         match self {
@@ -278,13 +279,13 @@ impl IntoIterator for NodeArrayOrVec {
 
 #[derive(Clone, Debug)]
 pub enum RcNodeOrNodeArrayOrVec {
-    RcNode(Gc<Node>),
+    RcNode(Id<Node>),
     NodeArray(Gc<NodeArray>),
-    Vec(Vec<Gc<Node>>),
+    Vec(Vec<Id<Node>>),
 }
 
-impl From<Gc<Node>> for RcNodeOrNodeArrayOrVec {
-    fn from(value: Gc<Node>) -> Self {
+impl From<Id<Node>> for RcNodeOrNodeArrayOrVec {
+    fn from(value: Id<Node>) -> Self {
         Self::RcNode(value)
     }
 }
@@ -295,8 +296,8 @@ impl From<Gc<NodeArray>> for RcNodeOrNodeArrayOrVec {
     }
 }
 
-impl From<Vec<Gc<Node>>> for RcNodeOrNodeArrayOrVec {
-    fn from(value: Vec<Gc<Node>>) -> Self {
+impl From<Vec<Id<Node>>> for RcNodeOrNodeArrayOrVec {
+    fn from(value: Vec<Id<Node>>) -> Self {
         Self::Vec(value)
     }
 }
@@ -329,7 +330,7 @@ pub struct Identifier {
     #[unsafe_ignore_trace]
     pub(crate) auto_generate_flags: Cell<Option<GeneratedIdentifierFlags>>,
     pub(crate) auto_generate_id: Option<usize>,
-    generated_import_reference: GcCell<Option<Gc<Node /*ImportSpecifier*/>>>,
+    generated_import_reference: GcCell<Option<Id<Node /*ImportSpecifier*/>>>,
     #[unsafe_ignore_trace]
     is_in_jsdoc_namespace: Cell<Option<bool>>,
     type_arguments: GcCell<Option<Gc<NodeArray> /*<TypeNode | TypeParameterDeclaration>*/>>,
@@ -364,11 +365,11 @@ impl Identifier {
         self.auto_generate_flags.set(auto_generate_flags);
     }
 
-    pub fn maybe_generated_import_reference(&self) -> GcCellRef<Option<Gc<Node>>> {
+    pub fn maybe_generated_import_reference(&self) -> GcCellRef<Option<Id<Node>>> {
         self.generated_import_reference.borrow()
     }
 
-    pub fn set_generated_import_reference(&self, generated_import_reference: Option<Gc<Node>>) {
+    pub fn set_generated_import_reference(&self, generated_import_reference: Option<Id<Node>>) {
         *self.generated_import_reference.borrow_mut() = generated_import_reference;
     }
 
@@ -418,14 +419,14 @@ pub type ModifiersArray = Gc<NodeArray>; /*<Modifier>*/
 #[ast_type]
 pub struct QualifiedName {
     _node: BaseNode,
-    pub left: Gc<Node /*EntityName*/>,
-    pub right: Gc<Node /*Identifier*/>,
+    pub left: Id<Node /*EntityName*/>,
+    pub right: Id<Node /*Identifier*/>,
     #[unsafe_ignore_trace]
     jsdoc_dot_pos: Cell<Option<isize>>,
 }
 
 impl QualifiedName {
-    pub fn new(base_node: BaseNode, left: Gc<Node>, right: Gc<Node>) -> Self {
+    pub fn new(base_node: BaseNode, left: Id<Node>, right: Id<Node>) -> Self {
         Self {
             _node: base_node,
             left,
@@ -446,11 +447,11 @@ impl HasJSDocDotPosInterface for QualifiedName {
 }
 
 impl HasLeftAndRightInterface for QualifiedName {
-    fn left(&self) -> Gc<Node> {
+    fn left(&self) -> Id<Node> {
         self.left.clone()
     }
 
-    fn right(&self) -> Gc<Node> {
+    fn right(&self) -> Id<Node> {
         self.right.clone()
     }
 }
@@ -460,20 +461,20 @@ pub trait MemberNameInterface: NodeInterface {
 }
 
 pub trait NamedDeclarationInterface: NodeInterface {
-    fn maybe_name(&self) -> Option<Gc<Node>>;
-    fn name(&self) -> Gc<Node>;
-    fn set_name(&mut self, name: Gc<Node>);
+    fn maybe_name(&self) -> Option<Id<Node>>;
+    fn name(&self) -> Id<Node>;
+    fn set_name(&mut self, name: Id<Node>);
 }
 
 #[derive(Debug, Trace, Finalize)]
 #[ast_type(impl_from = false)]
 pub struct BaseNamedDeclaration {
     _node: BaseNode,
-    name: Option<Gc<Node>>,
+    name: Option<Id<Node>>,
 }
 
 impl BaseNamedDeclaration {
-    pub fn new(base_node: BaseNode, name: Option<Gc<Node>>) -> Self {
+    pub fn new(base_node: BaseNode, name: Option<Id<Node>>) -> Self {
         Self {
             _node: base_node,
             name,
@@ -482,15 +483,15 @@ impl BaseNamedDeclaration {
 }
 
 impl NamedDeclarationInterface for BaseNamedDeclaration {
-    fn maybe_name(&self) -> Option<Gc<Node>> {
+    fn maybe_name(&self) -> Option<Id<Node>> {
         self.name.clone()
     }
 
-    fn name(&self) -> Gc<Node> {
+    fn name(&self) -> Id<Node> {
         self.name.as_ref().unwrap().clone()
     }
 
-    fn set_name(&mut self, name: Gc<Node>) {
+    fn set_name(&mut self, name: Id<Node>) {
         self.name = Some(name);
     }
 }
@@ -504,13 +505,13 @@ pub trait BindingLikeDeclarationInterface:
 #[ast_type(impl_from = false, interfaces = "NamedDeclarationInterface")]
 pub struct BaseBindingLikeDeclaration {
     _named_declaration: BaseNamedDeclaration,
-    initializer: Option<Gc<Node>>,
+    initializer: Option<Id<Node>>,
 }
 
 impl BaseBindingLikeDeclaration {
     pub fn new(
         base_named_declaration: BaseNamedDeclaration,
-        initializer: Option<Gc<Node>>,
+        initializer: Option<Id<Node>>,
     ) -> Self {
         Self {
             _named_declaration: base_named_declaration,
@@ -520,11 +521,11 @@ impl BaseBindingLikeDeclaration {
 }
 
 impl HasInitializerInterface for BaseBindingLikeDeclaration {
-    fn maybe_initializer(&self) -> Option<Gc<Node>> {
+    fn maybe_initializer(&self) -> Option<Id<Node>> {
         self.initializer.as_ref().map(Clone::clone)
     }
 
-    fn set_initializer(&mut self, initializer: Gc<Node>) {
+    fn set_initializer(&mut self, initializer: Id<Node>) {
         self.initializer = Some(initializer);
     }
 }
@@ -543,13 +544,13 @@ pub trait VariableLikeDeclarationInterface:
 )]
 pub struct BaseVariableLikeDeclaration {
     _binding_like_declaration: BaseBindingLikeDeclaration,
-    type_: Option<Gc<Node>>,
+    type_: Option<Id<Node>>,
 }
 
 impl BaseVariableLikeDeclaration {
     pub fn new(
         base_binding_like_declaration: BaseBindingLikeDeclaration,
-        type_: Option<Gc<Node>>,
+        type_: Option<Id<Node>>,
     ) -> Self {
         Self {
             _binding_like_declaration: base_binding_like_declaration,
@@ -559,11 +560,11 @@ impl BaseVariableLikeDeclaration {
 }
 
 impl HasTypeInterface for BaseVariableLikeDeclaration {
-    fn maybe_type(&self) -> Option<Gc<Node>> {
+    fn maybe_type(&self) -> Option<Id<Node>> {
         self.type_.as_ref().map(Clone::clone)
     }
 
-    fn set_type(&mut self, type_: Option<Gc<Node>>) {
+    fn set_type(&mut self, type_: Option<Id<Node>>) {
         self.type_ = type_;
     }
 }
@@ -574,11 +575,11 @@ impl VariableLikeDeclarationInterface for BaseVariableLikeDeclaration {}
 #[ast_type]
 pub struct ComputedPropertyName {
     _node: BaseNode,
-    pub expression: Gc<Node /*Expression*/>,
+    pub expression: Id<Node /*Expression*/>,
 }
 
 impl ComputedPropertyName {
-    pub fn new(base_node: BaseNode, expression: Gc<Node>) -> Self {
+    pub fn new(base_node: BaseNode, expression: Id<Node>) -> Self {
         Self {
             _node: base_node,
             expression,
@@ -587,7 +588,7 @@ impl ComputedPropertyName {
 }
 
 impl HasExpressionInterface for ComputedPropertyName {
-    fn expression(&self) -> Gc<Node> {
+    fn expression(&self) -> Id<Node> {
         self.expression.clone()
     }
 }
@@ -619,11 +620,11 @@ impl MemberNameInterface for PrivateIdentifier {
 #[ast_type]
 pub struct Decorator {
     _node: BaseNode,
-    pub expression: Gc<Node /*LeftHandSideExpression*/>,
+    pub expression: Id<Node /*LeftHandSideExpression*/>,
 }
 
 impl Decorator {
-    pub fn new(base_node: BaseNode, expression: Gc<Node>) -> Self {
+    pub fn new(base_node: BaseNode, expression: Id<Node>) -> Self {
         Self {
             _node: base_node,
             expression,
@@ -632,7 +633,7 @@ impl Decorator {
 }
 
 impl HasExpressionInterface for Decorator {
-    fn expression(&self) -> Gc<Node> {
+    fn expression(&self) -> Id<Node> {
         self.expression.clone()
     }
 }
@@ -641,16 +642,16 @@ impl HasExpressionInterface for Decorator {
 #[ast_type(interfaces = "NamedDeclarationInterface")]
 pub struct TypeParameterDeclaration {
     _named_declaration: BaseNamedDeclaration,
-    pub constraint: Option<Gc<Node /*TypeNode*/>>,
-    pub default: Option<Gc<Node /*TypeNode*/>>,
-    pub expression: Option<Gc<Node /*Expression*/>>,
+    pub constraint: Option<Id<Node /*TypeNode*/>>,
+    pub default: Option<Id<Node /*TypeNode*/>>,
+    pub expression: Option<Id<Node /*Expression*/>>,
 }
 
 impl TypeParameterDeclaration {
     pub fn new(
         base_named_declaration: BaseNamedDeclaration,
-        constraint: Option<Gc<Node>>,
-        default: Option<Gc<Node>>,
+        constraint: Option<Id<Node>>,
+        default: Option<Id<Node>>,
     ) -> Self {
         Self {
             _named_declaration: base_named_declaration,
@@ -662,11 +663,11 @@ impl TypeParameterDeclaration {
 }
 
 impl HasExpressionInterface for TypeParameterDeclaration {
-    fn expression(&self) -> Gc<Node> {
+    fn expression(&self) -> Id<Node> {
         self.expression.clone().unwrap()
     }
 
-    fn maybe_expression(&self) -> Option<Gc<Node>> {
+    fn maybe_expression(&self) -> Option<Id<Node>> {
         self.expression.clone()
     }
 }
@@ -693,7 +694,7 @@ pub trait SignatureDeclarationInterface:
 pub struct BaseSignatureDeclaration {
     _generic_named_declaration: BaseGenericNamedDeclaration,
     parameters: Gc<NodeArray>, /*<ParameterDeclaration>*/
-    type_: Option<Gc<Node /*TypeNode*/>>,
+    type_: Option<Id<Node /*TypeNode*/>>,
     // TODO
     // /* @internal */ typeArguments?: NodeArray<TypeNode>;
 }
@@ -702,7 +703,7 @@ impl BaseSignatureDeclaration {
     pub fn new(
         generic_named_declaration: BaseGenericNamedDeclaration,
         parameters: Gc<NodeArray>,
-        type_: Option<Gc<Node>>,
+        type_: Option<Id<Node>>,
     ) -> Self {
         Self {
             _generic_named_declaration: generic_named_declaration,
@@ -713,11 +714,11 @@ impl BaseSignatureDeclaration {
 }
 
 impl HasTypeInterface for BaseSignatureDeclaration {
-    fn maybe_type(&self) -> Option<Gc<Node>> {
+    fn maybe_type(&self) -> Option<Id<Node>> {
         self.type_.clone()
     }
 
-    fn set_type(&mut self, type_: Option<Gc<Node>>) {
+    fn set_type(&mut self, type_: Option<Id<Node>>) {
         self.type_ = type_;
     }
 }
@@ -772,9 +773,9 @@ pub enum FunctionLikeDeclarationBase {
 pub trait FunctionLikeDeclarationInterface:
     SignatureDeclarationInterface + HasQuestionTokenInterface
 {
-    fn maybe_body(&self) -> Option<Gc<Node>>;
-    fn maybe_asterisk_token(&self) -> Option<Gc<Node>>;
-    fn maybe_exclamation_token(&self) -> GcCellRefMut<Option<Gc<Node>>>;
+    fn maybe_body(&self) -> Option<Id<Node>>;
+    fn maybe_asterisk_token(&self) -> Option<Id<Node>>;
+    fn maybe_exclamation_token(&self) -> GcCellRefMut<Option<Id<Node>>>;
     fn maybe_end_flow_node(&self) -> Option<Gc<FlowNode>>;
     fn set_end_flow_node(&self, end_flow_node: Option<Gc<FlowNode>>);
     fn maybe_return_flow_node(&self) -> Option<Gc<FlowNode>>;
@@ -788,16 +789,16 @@ pub trait FunctionLikeDeclarationInterface:
 )]
 pub struct BaseFunctionLikeDeclaration {
     _signature_declaration: BaseSignatureDeclaration,
-    pub asterisk_token: Option<Gc<Node /*AsteriskToken*/>>,
-    pub question_token: Option<Gc<Node /*QuestionToken*/>>,
-    pub exclamation_token: GcCell<Option<Gc<Node /*ExclamationToken*/>>>,
-    body: Option<Gc<Node /*Block | Expression*/>>,
+    pub asterisk_token: Option<Id<Node /*AsteriskToken*/>>,
+    pub question_token: Option<Id<Node /*QuestionToken*/>>,
+    pub exclamation_token: GcCell<Option<Id<Node /*ExclamationToken*/>>>,
+    body: Option<Id<Node /*Block | Expression*/>>,
     end_flow_node: GcCell<Option<Gc<FlowNode>>>,
     return_flow_node: GcCell<Option<Gc<FlowNode>>>,
 }
 
 impl BaseFunctionLikeDeclaration {
-    pub fn new(signature_declaration: BaseSignatureDeclaration, body: Option<Gc<Node>>) -> Self {
+    pub fn new(signature_declaration: BaseSignatureDeclaration, body: Option<Id<Node>>) -> Self {
         Self {
             _signature_declaration: signature_declaration,
             body,
@@ -811,15 +812,15 @@ impl BaseFunctionLikeDeclaration {
 }
 
 impl FunctionLikeDeclarationInterface for BaseFunctionLikeDeclaration {
-    fn maybe_body(&self) -> Option<Gc<Node>> {
+    fn maybe_body(&self) -> Option<Id<Node>> {
         self.body.clone()
     }
 
-    fn maybe_asterisk_token(&self) -> Option<Gc<Node>> {
+    fn maybe_asterisk_token(&self) -> Option<Id<Node>> {
         self.asterisk_token.clone()
     }
 
-    fn maybe_exclamation_token(&self) -> GcCellRefMut<Option<Gc<Node>>> {
+    fn maybe_exclamation_token(&self) -> GcCellRefMut<Option<Id<Node>>> {
         self.exclamation_token.borrow_mut()
     }
 
@@ -841,7 +842,7 @@ impl FunctionLikeDeclarationInterface for BaseFunctionLikeDeclaration {
 }
 
 impl HasQuestionTokenInterface for BaseFunctionLikeDeclaration {
-    fn maybe_question_token(&self) -> Option<Gc<Node>> {
+    fn maybe_question_token(&self) -> Option<Id<Node>> {
         self.question_token.clone()
     }
 }
@@ -868,13 +869,13 @@ impl FunctionDeclaration {
 )]
 pub struct MethodSignature {
     _signature_declaration: BaseSignatureDeclaration,
-    pub question_token: Option<Gc<Node /*QuestionToken*/>>,
+    pub question_token: Option<Id<Node /*QuestionToken*/>>,
 }
 
 impl MethodSignature {
     pub fn new(
         signature_declaration: BaseSignatureDeclaration,
-        question_token: Option<Gc<Node>>,
+        question_token: Option<Id<Node>>,
     ) -> Self {
         Self {
             _signature_declaration: signature_declaration,
@@ -884,7 +885,7 @@ impl MethodSignature {
 }
 
 impl HasQuestionTokenInterface for MethodSignature {
-    fn maybe_question_token(&self) -> Option<Gc<Node>> {
+    fn maybe_question_token(&self) -> Option<Id<Node>> {
         self.question_token.clone()
     }
 }

@@ -1,6 +1,7 @@
 use std::{borrow::Borrow, io};
 
 use gc::{Finalize, Gc, Trace};
+use id_arena::Id;
 
 use super::{ClassFacts, TransformTypeScript};
 use crate::{
@@ -24,7 +25,7 @@ impl TransformTypeScript {
     pub(super) fn visit_source_file(
         &self,
         node: &Node, /*SourceFile*/
-    ) -> io::Result<Gc<Node>> {
+    ) -> io::Result<Id<Node>> {
         let always_strict = get_strict_option_value(&self.compiler_options, "alwaysStrict")
             && !(is_external_module(node) && self.module_kind >= ModuleKind::ES2015)
             && !is_json_source_file(node);
@@ -58,7 +59,7 @@ impl TransformTypeScript {
     pub(super) fn get_class_facts(
         &self,
         node: &Node, /*ClassDeclaration*/
-        static_properties: &[Gc<Node /*PropertyDeclaration*/>],
+        static_properties: &[Id<Node /*PropertyDeclaration*/>],
     ) -> ClassFacts {
         let mut facts = ClassFacts::None;
         if !static_properties.is_empty() {
@@ -110,20 +111,20 @@ impl TransformTypeScript {
         let node_as_class_like_declaration = node.as_class_like_declaration();
         some(
             node.maybe_decorators().as_double_deref(),
-            Option::<fn(&Gc<Node>) -> bool>::None,
+            Option::<fn(&Id<Node>) -> bool>::None,
         ) || some(
             node_as_class_like_declaration
                 .maybe_type_parameters()
                 .as_double_deref(),
-            Option::<fn(&Gc<Node>) -> bool>::None,
+            Option::<fn(&Id<Node>) -> bool>::None,
         ) || some(
             node_as_class_like_declaration
                 .maybe_heritage_clauses()
                 .as_double_deref(),
-            Some(|heritage_clause: &Gc<Node>| self.has_type_script_class_syntax(heritage_clause)),
+            Some(|heritage_clause: &Id<Node>| self.has_type_script_class_syntax(heritage_clause)),
         ) || some(
             Some(&**node_as_class_like_declaration.members()),
-            Some(|member: &Gc<Node>| self.has_type_script_class_syntax(member)),
+            Some(|member: &Id<Node>| self.has_type_script_class_syntax(member)),
         )
     }
 
@@ -165,7 +166,7 @@ impl TransformTypeScript {
             self.create_class_declaration_head_without_decorators(node, name.as_deref(), facts)?
         };
 
-        let mut statements: Vec<Gc<Node /*Stateent*/>> = vec![class_statement.clone()];
+        let mut statements: Vec<Id<Node /*Stateent*/>> = vec![class_statement.clone()];
 
         self.add_class_element_decoration_statements(&mut statements, node, false)?;
         self.add_class_element_decoration_statements(&mut statements, node, true)?;
@@ -272,7 +273,7 @@ impl TransformTypeScript {
         node: &Node, /*ClassDeclaration*/
         name: Option<impl Borrow<Node /*Identifier*/>>,
         facts: ClassFacts,
-    ) -> io::Result<Gc<Node>> {
+    ) -> io::Result<Id<Node>> {
         let node_as_class_declaration = node.as_class_declaration();
         let modifiers = (!(facts.intersects(ClassFacts::UseImmediatelyInvokedFunctionExpression)))
             .then_and(|| {
@@ -317,7 +318,7 @@ impl TransformTypeScript {
         &self,
         node: &Node, /*ClassDeclaration*/
         name: Option<impl Borrow<Node /*Identifier*/>>,
-    ) -> io::Result<Gc<Node>> {
+    ) -> io::Result<Id<Node>> {
         let node_as_class_declaration = node.as_class_declaration();
         let location = move_range_past_decorators(node);
         let class_alias = self.get_class_alias_if_needed(node);
@@ -379,7 +380,7 @@ impl TransformTypeScript {
     pub(super) fn visit_class_expression(
         &self,
         node: &Node, /*ClassExpression*/
-    ) -> io::Result<Gc<Node /*<Expression>*/>> {
+    ) -> io::Result<Id<Node /*<Expression>*/>> {
         let node_as_class_expression = node.as_class_expression();
         if !self.is_class_like_declaration_with_type_script_syntax(node) {
             return try_visit_each_child(node, |node: &Node| self.visitor(node), &**self.context);
@@ -409,7 +410,7 @@ impl TransformTypeScript {
         &self,
         node: &Node, /*ClassDeclaration | ClassExpression*/
     ) -> io::Result<Gc<NodeArray>> {
-        let mut members: Vec<Gc<Node /*ClassElement*/>> = Default::default();
+        let mut members: Vec<Id<Node /*ClassElement*/>> = Default::default();
         let constructor = get_first_constructor_with_body(node);
         let parameters_with_property_assignments = constructor.as_ref().map(|constructor| {
             constructor
@@ -461,7 +462,7 @@ impl TransformTypeScript {
         &'self_and_node self,
         node: &'self_and_node Node, /*ClassExpression | ClassDeclaration*/
         is_static: bool,
-    ) -> impl Iterator<Item = Gc<Node /*ClassElement*/>> + 'self_and_node {
+    ) -> impl Iterator<Item = Id<Node /*ClassElement*/>> + 'self_and_node {
         node.as_class_like_declaration()
             .members()
             .owned_iter()

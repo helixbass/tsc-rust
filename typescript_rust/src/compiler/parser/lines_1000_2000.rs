@@ -1,6 +1,7 @@
 use std::{borrow::Borrow, convert::TryInto};
 
 use gc::{Finalize, Gc, GcCell, Trace};
+use id_arena::Id;
 
 use super::{ParserType, ParsingContext, SpeculationKind};
 use crate::{
@@ -46,7 +47,7 @@ impl ParserType {
         language_version: ScriptTarget,
         set_parent_nodes: bool,
         script_kind: ScriptKind,
-    ) -> Gc<Node /*SourceFile*/> {
+    ) -> Id<Node /*SourceFile*/> {
         let is_declaration_file = is_declaration_file_name(&self.file_name());
         if is_declaration_file {
             self.set_context_flags(self.context_flags() | NodeFlags::Ambient);
@@ -105,7 +106,7 @@ impl ParserType {
         source_file
     }
 
-    pub(super) fn with_jsdoc(&self, node: Gc<Node>, has_jsdoc: bool) -> Gc<Node> {
+    pub(super) fn with_jsdoc(&self, node: Id<Node>, has_jsdoc: bool) -> Id<Node> {
         if has_jsdoc {
             self.add_jsdoc_comment(node)
         } else {
@@ -113,7 +114,7 @@ impl ParserType {
         }
     }
 
-    pub(super) fn add_jsdoc_comment(&self, node: Gc<Node>) -> Gc<Node> {
+    pub(super) fn add_jsdoc_comment(&self, node: Id<Node>) -> Id<Node> {
         Debug_.assert(node.maybe_js_doc().is_none(), None);
         let js_doc = map_defined(
             get_jsdoc_comment_ranges(&*node, &self.source_text_as_chars()),
@@ -138,7 +139,7 @@ impl ParserType {
     pub(super) fn reparse_top_level_await(
         &self,
         source_file: &Node, /*SourceFile*/
-    ) -> Gc<Node> {
+    ) -> Id<Node> {
         let saved_syntax_cursor = self.take_syntax_cursor();
         let base_syntax_cursor = IncrementalParser().create_syntax_cursor(source_file);
         self.set_syntax_cursor(Some(
@@ -146,7 +147,7 @@ impl ParserType {
                 .into(),
         ));
 
-        let mut statements: Vec<Gc<Node>> = vec![];
+        let mut statements: Vec<Id<Node>> = vec![];
         let mut parse_diagnostics_ref = self.parse_diagnostics();
         let saved_parse_diagnostics = parse_diagnostics_ref.clone();
 
@@ -198,7 +199,7 @@ impl ParserType {
 
                     while self.token() != SyntaxKind::EndOfFileToken {
                         let start_pos = self.scanner().get_start_pos();
-                        let statement: Gc<Node> = self
+                        let statement: Id<Node> = self
                             .parse_list_element(ParsingContext::SourceElements, &mut || {
                                 self.parse_statement()
                             });
@@ -271,7 +272,7 @@ impl ParserType {
 
     pub(super) fn find_next_statement_with_await(
         &self,
-        statements: &[Gc<Node /*Statement*/>],
+        statements: &[Id<Node /*Statement*/>],
         start: usize,
     ) -> Option<usize> {
         for (i, statement) in statements.iter().enumerate().skip(start) {
@@ -285,7 +286,7 @@ impl ParserType {
 
     pub(super) fn find_next_statement_without_await(
         &self,
-        statements: &[Gc<Node /*Statement*/>],
+        statements: &[Id<Node /*Statement*/>],
         start: usize,
     ) -> Option<usize> {
         for (i, statement) in statements.iter().enumerate().skip(start) {
@@ -308,9 +309,9 @@ impl ParserType {
         script_kind: ScriptKind,
         is_declaration_file: bool,
         statements: TNodes,
-        end_of_file_token: Gc<Node /*EndOfFileToken*/>,
+        end_of_file_token: Id<Node /*EndOfFileToken*/>,
         flags: NodeFlags,
-    ) -> Gc<Node> {
+    ) -> Id<Node> {
         let mut source_file =
             self.factory()
                 .create_source_file(statements, end_of_file_token, flags);
@@ -1073,7 +1074,7 @@ impl ParserType {
 
     pub(super) fn create_node_array(
         &self,
-        elements: Vec<Gc<Node>>,
+        elements: Vec<Id<Node>>,
         pos: isize,
         end: Option<isize>,
         has_trailing_comma: Option<bool>,
@@ -1431,7 +1432,7 @@ impl IncrementalParserSyntaxCursorReparseTopLevelAwait {
 }
 
 impl IncrementalParserSyntaxCursorInterface for IncrementalParserSyntaxCursorReparseTopLevelAwait {
-    fn current_node(&self, parser: &ParserType, position: usize) -> Option<Gc<Node>> {
+    fn current_node(&self, parser: &ParserType, position: usize) -> Option<Id<Node>> {
         let node = self.base_syntax_cursor.current_node(parser, position);
         if parser.top_level() {
             if let Some(node) = node.as_ref() {

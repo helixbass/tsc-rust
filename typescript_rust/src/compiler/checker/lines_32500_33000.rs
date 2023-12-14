@@ -103,7 +103,7 @@ impl TypeChecker {
                     if self.language_version < ScriptTarget::ESNext {
                         self.check_external_emit_helpers(property, ExternalEmitHelpers::Rest)?;
                     }
-                    let mut non_rest_names: Vec<Gc<Node /*PropertyName*/>> = vec![];
+                    let mut non_rest_names: Vec<Id<Node /*PropertyName*/>> = vec![];
                     if let Some(all_properties) = all_properties {
                         for other_property in all_properties {
                             if !is_spread_assignment(other_property) {
@@ -296,7 +296,7 @@ impl TypeChecker {
         check_mode: Option<CheckMode>,
         right_is_this: Option<bool>,
     ) -> io::Result<Id<Type>> {
-        let mut target: Gc<Node>;
+        let mut target: Id<Node>;
         if expr_or_assignment.kind() == SyntaxKind::ShorthandPropertyAssignment {
             let prop = expr_or_assignment.as_shorthand_property_assignment();
             if let Some(prop_object_assignment_initializer) =
@@ -1001,7 +1001,7 @@ impl CheckBinaryExpressionStateMachine {
         &self,
         state: Rc<RefCell<WorkArea>>,
         node: &Node, /*Expression*/
-    ) -> io::Result<Option<Gc<Node /*BinaryExpression*/>>> {
+    ) -> io::Result<Option<Id<Node /*BinaryExpression*/>>> {
         if is_binary_expression(node) {
             return Ok(Some(node.node_wrapper()));
         }
@@ -1129,7 +1129,7 @@ impl BinaryExpressionStateMachine for CheckBinaryExpressionStateMachine {
         left: &Node, /*Expression*/
         state: Rc<RefCell<WorkArea>>,
         _node: &Node, /*BinaryExpression*/
-    ) -> io::Result<Option<Gc<Node /*BinaryExpression*/>>> {
+    ) -> io::Result<Option<Id<Node /*BinaryExpression*/>>> {
         if !(*state).borrow().skip {
             return self.maybe_check_expression(state, left);
         }
@@ -1182,7 +1182,7 @@ impl BinaryExpressionStateMachine for CheckBinaryExpressionStateMachine {
         right: &Node, /*Expression*/
         state: Rc<RefCell<WorkArea>>,
         _node: &Node, /*BinaryExpression*/
-    ) -> io::Result<Option<Gc<Node /*BinaryExpression*/>>> {
+    ) -> io::Result<Option<Id<Node /*BinaryExpression*/>>> {
         if !(*state).borrow().skip {
             return self.maybe_check_expression(state, right);
         }

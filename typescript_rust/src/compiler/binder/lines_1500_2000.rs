@@ -65,7 +65,7 @@ impl BinderType {
         &self,
         node: &Node, /*VariableDeclaration | ArrayBindingElement*/
     ) {
-        let name: Option<Gc<Node>> = if !is_omitted_expression(node) {
+        let name: Option<Id<Node>> = if !is_omitted_expression(node) {
             node.as_named_declaration().maybe_name()
         } else {
             None
@@ -556,7 +556,7 @@ impl BinderType {
         &self,
         node: &Node, /*ModuleDeclaration | SourceFile*/
     ) -> bool {
-        let body: Option<Gc<Node>> = if is_source_file(node) {
+        let body: Option<Id<Node>> = if is_source_file(node) {
             Some(node.node_wrapper())
         } else {
             node.as_module_declaration()
@@ -674,7 +674,7 @@ pub struct WorkArea {
     pub stack_index: isize,
     pub skip: bool,
     pub in_strict_mode_stack: Vec<Option<bool>>,
-    pub parent_stack: Vec<Option<Gc<Node>>>,
+    pub parent_stack: Vec<Option<Id<Node>>>,
 }
 
 #[derive(Trace, Finalize)]
@@ -690,7 +690,7 @@ impl BindBinaryExpressionFlowStateMachine {
     pub fn maybe_bind(
         &self,
         node: &Node, /*Expression*/
-    ) -> Option<Gc<Node /*BinaryExpression*/>> {
+    ) -> Option<Id<Node /*BinaryExpression*/>> {
         if
         /*node &&*/
         is_binary_expression(node) && !is_destructuring_assignment(node) {
@@ -767,7 +767,7 @@ impl BinaryExpressionStateMachine for BindBinaryExpressionFlowStateMachine {
         left: &Node, /*Expression*/
         state: Rc<RefCell<WorkArea>>,
         _node: &Node, /*BinaryExpression*/
-    ) -> io::Result<Option<Gc<Node /*BinaryExpression*/>>> {
+    ) -> io::Result<Option<Id<Node /*BinaryExpression*/>>> {
         if !(*state).borrow().skip {
             return Ok(self.maybe_bind(left));
         }
@@ -796,7 +796,7 @@ impl BinaryExpressionStateMachine for BindBinaryExpressionFlowStateMachine {
         right: &Node, /*Expression*/
         state: Rc<RefCell<WorkArea>>,
         _node: &Node, /*BinaryExpression*/
-    ) -> io::Result<Option<Gc<Node /*BinaryExpression*/>>> {
+    ) -> io::Result<Option<Id<Node /*BinaryExpression*/>>> {
         if !(*state).borrow().skip {
             return Ok(self.maybe_bind(right));
         }

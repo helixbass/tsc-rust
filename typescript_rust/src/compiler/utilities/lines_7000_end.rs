@@ -228,7 +228,7 @@ pub fn set_text_range_pos_width(range: &impl ReadonlyTextRange, pos: isize, widt
     set_text_range_pos_end(range, pos, pos + width);
 }
 
-pub fn set_node_flags(node: Option<impl Borrow<Node>>, new_flags: NodeFlags) -> Option<Gc<Node>> {
+pub fn set_node_flags(node: Option<impl Borrow<Node>>, new_flags: NodeFlags) -> Option<Id<Node>> {
     node.map(|node| {
         let node = node.borrow();
         node.set_flags(new_flags);
@@ -246,7 +246,7 @@ pub fn set_parent(child: &Node, parent: Option<impl Borrow<Node>>) -> &Node {
 
 pub fn maybe_set_parent<TChild: Borrow<Node>>(
     child: Option<TChild>,
-    parent: Option<Gc<Node>>,
+    parent: Option<Id<Node>>,
 ) -> Option<TChild> {
     if let Some(child) = child.as_ref() {
         let child = child.borrow();
@@ -397,7 +397,7 @@ pub fn has_context_sensitive_parameters(node: &Node /*FunctionLikeDeclaration*/)
     {
         if some(
             Some(&**node_as_function_like_declaration.parameters()),
-            Some(|p: &Gc<Node>| get_effective_type_annotation_node(p).is_none()),
+            Some(|p: &Id<Node>| get_effective_type_annotation_node(p).is_none()),
         ) {
             return true;
         }

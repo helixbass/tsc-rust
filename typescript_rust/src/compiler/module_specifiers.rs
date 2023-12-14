@@ -305,7 +305,7 @@ fn try_get_module_specifiers_from_cache_worker(
     user_preferences: &UserPreferences,
 ) -> (
     Option<Vec<String>>,
-    Option<Gc<Node>>,
+    Option<Id<Node>>,
     Option<Vec<ModulePath>>,
     Option<Rc<dyn ModuleSpecifierCache>>,
 ) {
@@ -711,7 +711,7 @@ fn uses_js_extensions_on_imports(node: &Node /*SourceFile*/) -> bool {
     imports
         .as_ref()
         .and_then(|imports| {
-            first_defined(imports, |node: &Gc<Node>, _| {
+            first_defined(imports, |node: &Id<Node>, _| {
                 let text = node.as_literal_like_node().text();
                 if path_is_relative(&text) {
                     Some(has_js_file_extension(&text))
@@ -1040,7 +1040,7 @@ fn try_get_module_name_from_ambient_module(
 
     let ambient_module_declare_candidates = try_map_defined(
         checker.symbol(module_symbol).maybe_declarations().as_ref(),
-        |d: &Gc<Node>, _| -> io::Result<Option<Gc<Node>>> {
+        |d: &Id<Node>, _| -> io::Result<Option<Id<Node>>> {
             if !is_module_declaration(d) {
                 return Ok(None);
             }
@@ -1145,7 +1145,7 @@ fn try_get_module_name_from_paths(
     None
 }
 
-fn get_top_namespace(namespace_declaration: &Node /*ModuleDeclaration*/) -> Gc<Node> {
+fn get_top_namespace(namespace_declaration: &Node /*ModuleDeclaration*/) -> Id<Node> {
     let mut namespace_declaration = namespace_declaration.node_wrapper();
     while namespace_declaration
         .flags()

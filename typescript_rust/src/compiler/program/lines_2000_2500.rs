@@ -1,6 +1,7 @@
 use std::{convert::TryInto, io, ptr, rc::Rc};
 
 use gc::{Gc, GcCell};
+use id_arena::Id;
 use regex::Regex;
 
 use super::DiagnosticCache;
@@ -886,7 +887,7 @@ impl Program {
         }
     }
 
-    pub fn create_synthetic_import(&self, text: &str, file: &Node /*SourceFile*/) -> Gc<Node> {
+    pub fn create_synthetic_import(&self, text: &str, file: &Node /*SourceFile*/) -> Id<Node> {
         let external_helpers_module_reference =
             get_factory().create_string_literal(text.to_owned(), None, None);
         let import_decl = get_factory().create_import_declaration(
@@ -914,8 +915,8 @@ impl Program {
         let is_java_script_file = is_source_file_js(file);
         let is_external_module_file = is_external_module(file);
 
-        let mut imports: Option<Vec<Gc<Node /*StringLiteralLike*/>>> = None;
-        let mut module_augmentations: Option<Vec<Gc<Node /*StringLiteral | Identifier*/>>> = None;
+        let mut imports: Option<Vec<Id<Node /*StringLiteralLike*/>>> = None;
+        let mut module_augmentations: Option<Vec<Id<Node /*StringLiteral | Identifier*/>>> = None;
         let mut ambient_modules: Option<Vec<String>> = None;
 
         if (self.options.isolated_modules == Some(true) || is_external_module_file)
@@ -970,10 +971,10 @@ impl Program {
 
     pub(super) fn collect_module_references(
         &self,
-        imports: &mut Option<Vec<Gc<Node>>>,
+        imports: &mut Option<Vec<Id<Node>>>,
         file: &Node,
         is_external_module_file: bool,
-        module_augmentations: &mut Option<Vec<Gc<Node>>>,
+        module_augmentations: &mut Option<Vec<Id<Node>>>,
         ambient_modules: &mut Option<Vec<String>>,
         node: &Node, /*Statement*/
         in_ambient_module: bool,
@@ -1046,7 +1047,7 @@ impl Program {
     pub(super) fn collect_dynamic_import_or_require_calls(
         &self,
         is_java_script_file: bool,
-        imports: &mut Option<Vec<Gc<Node>>>,
+        imports: &mut Option<Vec<Id<Node>>>,
         file: &Node, /*SourceFile*/
     ) {
         lazy_static! {
@@ -1090,7 +1091,7 @@ impl Program {
         }
     }
 
-    pub(super) fn get_containing_child(&self, position: isize, child: &Node) -> Option<Gc<Node>> {
+    pub(super) fn get_containing_child(&self, position: isize, child: &Node) -> Option<Id<Node>> {
         if child.pos() <= position
             && (position < child.end()
                 || position == child.end() && child.kind() == SyntaxKind::EndOfFileToken)

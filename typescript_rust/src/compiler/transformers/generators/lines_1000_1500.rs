@@ -1,4 +1,5 @@
 use gc::Gc;
+use id_arena::Id;
 
 use super::TransformGenerators;
 use crate::{
@@ -14,12 +15,12 @@ use crate::{
 impl TransformGenerators {
     pub(super) fn reduce_element(
         &self,
-        temp: &mut Option<Gc<Node>>,
+        temp: &mut Option<Id<Node>>,
         multi_line: Option<bool>,
-        leading_element: &mut Option<Gc<Node>>,
-        mut expressions: Vec<Gc<Node>>,
+        leading_element: &mut Option<Id<Node>>,
+        mut expressions: Vec<Id<Node>>,
         element: &Node,
-    ) -> Vec<Gc<Node>> {
+    ) -> Vec<Id<Node>> {
         if self.contains_yield(Some(element)) && !expressions.is_empty() {
             let has_assigned_temp = temp.is_some();
             if temp.is_none() {
@@ -55,7 +56,7 @@ impl TransformGenerators {
             element,
             Some(|node: &Node| self.visitor(node)),
             Some(is_expression),
-            Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+            Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
         ));
         expressions
     }
@@ -93,7 +94,7 @@ impl TransformGenerators {
 
         let mut expressions = reduce_left(
             properties,
-            |expressions: Vec<Gc<Node>>, property: &Gc<Node>, _| {
+            |expressions: Vec<Id<Node>>, property: &Id<Node>, _| {
                 self.reduce_property(&temp, multi_line, node, expressions, property)
             },
             _d(), /*as Expression[]*/
@@ -117,9 +118,9 @@ impl TransformGenerators {
         temp: &Node,
         multi_line: Option<bool>,
         node: &Node,
-        mut expressions: Vec<Gc<Node>>,
+        mut expressions: Vec<Id<Node>>,
         property: &Node,
-    ) -> Vec<Gc<Node>> {
+    ) -> Vec<Id<Node>> {
         if self.contains_yield(Some(property)) && !expressions.is_empty() {
             self.emit_statement(
                 self.factory
@@ -134,7 +135,7 @@ impl TransformGenerators {
             expression.as_deref(),
             Some(|node: &Node| self.visitor(node)),
             Some(is_expression),
-            Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+            Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
         );
         if let Some(visited) = visited {
             if multi_line == Some(true) {
@@ -161,13 +162,13 @@ impl TransformGenerators {
                             &node_as_element_access_expression.expression,
                             Some(|node: &Node| self.visitor(node)),
                             Some(is_left_hand_side_expression),
-                            Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                            Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                         )),
                         visit_node(
                             &node_as_element_access_expression.argument_expression,
                             Some(|node: &Node| self.visitor(node)),
                             Some(is_expression),
-                            Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                            Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                         ),
                     )
                     .into(),
@@ -182,7 +183,7 @@ impl TransformGenerators {
         if !is_import_call(node)
             && for_each_bool(
                 &node_as_call_expression.arguments,
-                |argument: &Gc<Node>, _| self.contains_yield(Some(&**argument)),
+                |argument: &Id<Node>, _| self.contains_yield(Some(&**argument)),
             )
         {
             let CallBinding { target, this_arg } = self.factory.create_call_binding(
@@ -200,7 +201,7 @@ impl TransformGenerators {
                             &target,
                             Some(|node: &Node| self.visitor(node)),
                             Some(is_left_hand_side_expression),
-                            Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                            Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                         )),
                         this_arg,
                         self.visit_elements(
@@ -223,7 +224,7 @@ impl TransformGenerators {
         let node_as_new_expression = node.as_new_expression();
         if maybe_for_each_bool(
             node_as_new_expression.arguments.as_deref(),
-            |argument: &Gc<Node>, _| self.contains_yield(Some(&**argument)),
+            |argument: &Id<Node>, _| self.contains_yield(Some(&**argument)),
         ) {
             let CallBinding { target, this_arg } = self.factory.create_call_binding(
                 &self.factory.create_property_access_expression(
@@ -244,7 +245,7 @@ impl TransformGenerators {
                                 &target,
                                 Some(|node: &Node| self.visitor(node)),
                                 Some(is_expression),
-                                Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                                Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                             )),
                             this_arg,
                             self.visit_elements(
@@ -268,7 +269,7 @@ impl TransformGenerators {
 
     pub(super) fn transform_and_emit_statements(
         &self,
-        statements: &[Gc<Node /*Statement*/>],
+        statements: &[Id<Node /*Statement*/>],
         start: Option<usize>,
     ) {
         let start = start.unwrap_or(0);
@@ -316,7 +317,7 @@ impl TransformGenerators {
                 node,
                 Some(|node: &Node| self.visitor(node)),
                 Some(is_statement),
-                Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
             )),
         }
     }
@@ -330,7 +331,7 @@ impl TransformGenerators {
                 node,
                 Some(|node: &Node| self.visitor(node)),
                 Some(is_statement),
-                Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
             ));
         }
     }
@@ -343,14 +344,14 @@ impl TransformGenerators {
             node,
             Some(|node: &Node| self.visitor(node)),
             Some(is_statement),
-            Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+            Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
         ));
     }
 
     pub(super) fn transform_and_emit_variable_declaration_list(
         &self,
         node: &Node, /*VariableDeclarationList*/
-    ) -> Option<Gc<Node /*VariableDeclarationList*/>> {
+    ) -> Option<Id<Node /*VariableDeclarationList*/>> {
         let node_as_variable_declaration_list = node.as_variable_declaration_list();
         for variable in &node_as_variable_declaration_list.declarations {
             let variable_as_variable_declaration = variable.as_variable_declaration();
@@ -364,7 +365,7 @@ impl TransformGenerators {
         let variables = get_initialized_variables(node);
         let num_variables = variables.len();
         let mut variables_written = 0;
-        let mut pending_expressions: Vec<Gc<Node /*Expression*/>> = _d();
+        let mut pending_expressions: Vec<Id<Node /*Expression*/>> = _d();
         while variables_written < num_variables {
             for variable in variables
                 .iter()
@@ -396,7 +397,7 @@ impl TransformGenerators {
     pub(super) fn transform_initialized_variable(
         &self,
         node: &Node, /*InitializedVariableDeclaration*/
-    ) -> Gc<Node> {
+    ) -> Id<Node> {
         let node_as_variable_declaration = node.as_variable_declaration();
         self.factory
             .create_assignment(
@@ -407,7 +408,7 @@ impl TransformGenerators {
                     &node_as_variable_declaration.maybe_initializer().unwrap(),
                     Some(|node: &Node| self.visitor(node)),
                     Some(is_expression),
-                    Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                    Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                 ),
             )
             .set_source_map_range(Some(node.into()))
@@ -433,7 +434,7 @@ impl TransformGenerators {
                         &node_as_if_statement.expression,
                         Some(|node: &Node| self.visitor(node)),
                         Some(is_expression),
-                        Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                        Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                     ),
                     Some(&*node_as_if_statement.expression),
                 );
@@ -449,7 +450,7 @@ impl TransformGenerators {
                     node,
                     Some(|node: &Node| self.visitor(node)),
                     Some(is_statement),
-                    Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                    Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                 ));
             }
         } else {
@@ -457,7 +458,7 @@ impl TransformGenerators {
                 node,
                 Some(|node: &Node| self.visitor(node)),
                 Some(is_statement),
-                Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
             ));
         }
     }
@@ -477,7 +478,7 @@ impl TransformGenerators {
                     &node_as_do_statement.expression,
                     Some(|node: &Node| self.visitor(node)),
                     Some(is_expression),
-                    Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                    Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                 ),
                 Option::<&Node>::None,
             );
@@ -487,7 +488,7 @@ impl TransformGenerators {
                 node,
                 Some(|node: &Node| self.visitor(node)),
                 Some(is_statement),
-                Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
             ));
         }
     }
@@ -516,7 +517,7 @@ impl TransformGenerators {
                     &node_as_while_statement.expression,
                     Some(|node: &Node| self.visitor(node)),
                     Some(is_expression),
-                    Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                    Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                 ),
                 Option::<&Node>::None,
             );
@@ -528,7 +529,7 @@ impl TransformGenerators {
                 node,
                 Some(|node: &Node| self.visitor(node)),
                 Some(is_statement),
-                Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
             ));
         }
     }
@@ -562,7 +563,7 @@ impl TransformGenerators {
                                 initializer,
                                 Some(|node: &Node| self.visitor(node)),
                                 Some(is_expression),
-                                Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                                Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                             ))
                             .set_text_range(Some(&**initializer)),
                     );
@@ -577,7 +578,7 @@ impl TransformGenerators {
                         node_condition,
                         Some(|node: &Node| self.visitor(node)),
                         Some(is_expression),
-                        Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                        Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                     ),
                     Option::<&Node>::None,
                 );
@@ -593,7 +594,7 @@ impl TransformGenerators {
                             node_incrementor,
                             Some(|node: &Node| self.visitor(node)),
                             Some(is_expression),
-                            Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                            Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                         ))
                         .set_text_range(Some(&**node_incrementor)),
                 );
@@ -605,7 +606,7 @@ impl TransformGenerators {
                 node,
                 Some(|node: &Node| self.visitor(node)),
                 Some(is_statement),
-                Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
             ));
         }
     }
@@ -631,7 +632,7 @@ impl TransformGenerators {
                 &node,
                 (!variables.is_empty()).then(|| {
                     self.factory
-                        .inline_expressions(&map(&variables, |variable: &Gc<Node>, _| {
+                        .inline_expressions(&map(&variables, |variable: &Id<Node>, _| {
                             self.transform_initialized_variable(variable)
                         }))
                 }),
@@ -639,13 +640,13 @@ impl TransformGenerators {
                     node_as_for_statement.condition.as_deref(),
                     Some(|node: &Node| self.visitor(node)),
                     Some(is_expression),
-                    Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                    Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                 ),
                 maybe_visit_node(
                     node_as_for_statement.incrementor.as_deref(),
                     Some(|node: &Node| self.visitor(node)),
                     Some(is_expression),
-                    Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                    Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                 ),
                 visit_iteration_body(
                     &node_as_for_statement.statement,

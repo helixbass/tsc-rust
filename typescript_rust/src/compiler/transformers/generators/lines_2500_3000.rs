@@ -1,4 +1,5 @@
 use gc::Gc;
+use id_arena::Id;
 
 use super::{BlockAction, CodeBlockKind, Label, OpCode, OperationArguments, TransformGenerators};
 use crate::{
@@ -10,7 +11,7 @@ impl TransformGenerators {
         self.emit_worker(OpCode::Nop, None, Option::<&Node>::None);
     }
 
-    pub(super) fn emit_statement(&self, node: Gc<Node /*Statement*/>) {
+    pub(super) fn emit_statement(&self, node: Id<Node /*Statement*/>) {
         // if (node) {
         self.emit_worker(OpCode::Statement, Some(node.into()), Option::<&Node>::None);
         // } else {
@@ -20,8 +21,8 @@ impl TransformGenerators {
 
     pub(super) fn emit_assignment(
         &self,
-        left: Gc<Node /*Expression*/>,
-        right: Gc<Node /*Expression*/>,
+        left: Id<Node /*Expression*/>,
+        right: Id<Node /*Expression*/>,
         location: Option<&impl ReadonlyTextRange>,
     ) {
         self.emit_worker(OpCode::Assign, Some((left, right).into()), location);
@@ -34,7 +35,7 @@ impl TransformGenerators {
     pub(super) fn emit_break_when_true(
         &self,
         label: Label,
-        condition: Gc<Node /*Expression*/>,
+        condition: Id<Node /*Expression*/>,
         location: Option<&impl ReadonlyTextRange>,
     ) {
         self.emit_worker(
@@ -47,7 +48,7 @@ impl TransformGenerators {
     pub(super) fn emit_break_when_false(
         &self,
         label: Label,
-        condition: Gc<Node /*Expression*/>,
+        condition: Id<Node /*Expression*/>,
         location: Option<&impl ReadonlyTextRange>,
     ) {
         self.emit_worker(
@@ -59,7 +60,7 @@ impl TransformGenerators {
 
     pub(super) fn emit_yield_star(
         &self,
-        expression: Option<Gc<Node /*Expression*/>>,
+        expression: Option<Id<Node /*Expression*/>>,
         location: Option<&impl ReadonlyTextRange>,
     ) {
         self.emit_worker(OpCode::YieldStar, Some(expression.into()), location);
@@ -67,7 +68,7 @@ impl TransformGenerators {
 
     pub(super) fn emit_yield(
         &self,
-        expression: Option<Gc<Node /*Expression*/>>,
+        expression: Option<Id<Node /*Expression*/>>,
         location: Option<&impl ReadonlyTextRange>,
     ) {
         self.emit_worker(OpCode::Yield, Some(expression.into()), location);
@@ -75,7 +76,7 @@ impl TransformGenerators {
 
     pub(super) fn emit_return(
         &self,
-        expression: Option<Gc<Node /*Expression*/>>,
+        expression: Option<Id<Node /*Expression*/>>,
         location: Option<&impl ReadonlyTextRange>,
     ) {
         self.emit_worker(OpCode::Return, Some(expression.into()), location);
@@ -83,7 +84,7 @@ impl TransformGenerators {
 
     pub(super) fn emit_throw(
         &self,
-        expression: Gc<Node /*Expression*/>,
+        expression: Id<Node /*Expression*/>,
         location: Option<&impl ReadonlyTextRange>,
     ) {
         self.emit_worker(OpCode::Throw, Some(expression.into()), location);
@@ -116,7 +117,7 @@ impl TransformGenerators {
             .push(location.map(Into::into));
     }
 
-    pub(super) fn build(&self) -> Gc<Node> {
+    pub(super) fn build(&self) -> Id<Node> {
         self.set_block_index(0);
         self.set_label_number(0);
         self.set_label_numbers(None);
@@ -135,7 +136,7 @@ impl TransformGenerators {
                 .create_function_expression(
                     Option::<Gc<NodeArray>>::None,
                     None,
-                    Option::<Gc<Node>>::None,
+                    Option::<Id<Node>>::None,
                     Option::<Gc<NodeArray>>::None,
                     Some(vec![self.factory.create_parameter_declaration(
                         Option::<Gc<NodeArray>>::None,
@@ -154,7 +155,7 @@ impl TransformGenerators {
         )
     }
 
-    pub(super) fn build_statements(&self) -> Vec<Gc<Node /*Statement*/>> {
+    pub(super) fn build_statements(&self) -> Vec<Id<Node /*Statement*/>> {
         if let Some(operations) = self.maybe_operations().as_ref() {
             for operation_index in 0..operations.len() {
                 self.write_operation(operation_index);
@@ -426,7 +427,7 @@ impl TransformGenerators {
         }
     }
 
-    pub(super) fn write_statement(&self, statement: Gc<Node /*Statement*/>) {
+    pub(super) fn write_statement(&self, statement: Id<Node /*Statement*/>) {
         // if (statement) {
         self.maybe_statements_mut()
             .get_or_insert_default_()
@@ -436,8 +437,8 @@ impl TransformGenerators {
 
     pub(super) fn write_assign(
         &self,
-        left: Gc<Node /*Expression*/>,
-        right: Gc<Node /*Expression*/>,
+        left: Id<Node /*Expression*/>,
+        right: Id<Node /*Expression*/>,
         operation_location: Option<&impl ReadonlyTextRange>,
     ) {
         self.write_statement(

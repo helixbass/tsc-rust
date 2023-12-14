@@ -100,7 +100,7 @@ impl TypeChecker {
     pub(super) fn get_constraint_declaration_for_mapped_type(
         &self,
         type_: Id<Type>, /*MappedType*/
-    ) -> Option<Gc<Node>> {
+    ) -> Option<Id<Node>> {
         get_effective_constraint_of_type_parameter(
             &type_
                 .ref_(self)
@@ -1077,7 +1077,7 @@ impl TypeChecker {
                     type_parameter.ref_(self).maybe_symbol().and_then(|symbol| {
                         maybe_for_each(
                             symbol.ref_(self).maybe_declarations().as_deref(),
-                            |decl: &Gc<Node>, _| {
+                            |decl: &Id<Node>, _| {
                                 if is_type_parameter_declaration(decl) {
                                     decl.as_type_parameter_declaration().default.clone()
                                 } else {
@@ -1147,7 +1147,7 @@ impl TypeChecker {
     ) -> bool {
         matches!(
             type_parameter.ref_(self).maybe_symbol(),
-            Some(symbol) if maybe_for_each_bool(symbol.ref_(self).maybe_declarations().as_deref(), |decl: &Gc<Node>, _| {
+            Some(symbol) if maybe_for_each_bool(symbol.ref_(self).maybe_declarations().as_deref(), |decl: &Id<Node>, _| {
                 is_type_parameter_declaration(decl) && decl.as_type_parameter_declaration().default.is_some()
             })
         )

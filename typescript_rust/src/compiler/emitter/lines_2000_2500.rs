@@ -1,6 +1,7 @@
 use std::io;
 
 use gc::Gc;
+use id_arena::Id;
 
 use super::{
     ParenthesizeElementTypeOfArrayTypeCurrentParenthesizerRule,
@@ -917,7 +918,7 @@ impl Printer {
         let node_as_object_literal_expression = node.as_object_literal_expression();
         for_each(
             &node_as_object_literal_expression.properties,
-            |property: &Gc<Node>, _| -> Option<()> {
+            |property: &Id<Node>, _| -> Option<()> {
                 self.generate_member_names(Some(&**property));
                 None
             },
@@ -973,7 +974,7 @@ impl Printer {
             .question_dot_token
             .clone()
             .unwrap_or_else(|| {
-                let token: Gc<Node> = get_factory().create_token(SyntaxKind::DotToken);
+                let token: Id<Node> = get_factory().create_token(SyntaxKind::DotToken);
                 set_text_range_pos_end(
                     &*token,
                     node_as_property_access_expression.expression.end(),

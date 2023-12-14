@@ -39,7 +39,7 @@ impl SymbolTableToDeclarationStatements {
             symbol.ref_(self)
                 .maybe_declarations()
                 .as_deref(),
-            Some(|declaration: &Gc<Node>| is_parameter_declaration(declaration)),
+            Some(|declaration: &Id<Node>| is_parameter_declaration(declaration)),
         ) {
             return;
         }
@@ -56,7 +56,7 @@ impl SymbolTableToDeclarationStatements {
                 symbol.ref_(self)
                     .maybe_declarations()
                     .as_deref(),
-                Some(|d: &Gc<Node>| {
+                Some(|d: &Id<Node>| {
                     find_ancestor(Some(&**d), |node: &Node| is_export_declaration(node)).is_some()
                         || is_namespace_export(d)
                         || is_import_equals_declaration(d)
@@ -165,7 +165,7 @@ impl SymbolTableToDeclarationStatements {
             .and_then(|symbol_declarations| {
                 symbol_declarations
                     .iter()
-                    .find(|declaration: &&Gc<Node>| is_jsdoc_type_alias(declaration))
+                    .find(|declaration: &&Id<Node>| is_jsdoc_type_alias(declaration))
                     .cloned()
             });
         let comment = jsdoc_alias_decl.as_ref().and_then(|jsdoc_alias_decl| {
@@ -288,7 +288,7 @@ impl SymbolTableToDeclarationStatements {
         )?;
         let index_signatures = self.serialize_index_signatures(interface_type, base_type)?;
 
-        let heritage_clauses: Option<Vec<Gc<Node>>> = if base_types.is_empty() {
+        let heritage_clauses: Option<Vec<Id<Node>>> = if base_types.is_empty() {
             None
         } else {
             Some(vec![get_factory().create_heritage_clause(
@@ -396,7 +396,7 @@ impl SymbolTableToDeclarationStatements {
                             n.ref_(self).escaped_name()
                                 != InternalSymbolName::ExportEquals
                         })),
-                        |&s: &Id<Symbol>, _| -> io::Result<Option<Gc<Node>>> {
+                        |&s: &Id<Symbol>, _| -> io::Result<Option<Id<Node>>> {
                             let s_ref = s.ref_(self);
                             let name = unescape_leading_underscores(s_ref.escaped_name());
                             let local_name = self.get_internal_symbol_name(s, name);
@@ -418,7 +418,7 @@ impl SymbolTableToDeclarationStatements {
                                             s.ref_(self)
                                                 .maybe_declarations()
                                                 .as_deref(),
-                                            Some(|d: &Gc<Node>| {
+                                            Some(|d: &Id<Node>| {
                                                 Gc::ptr_eq(
                                                     &get_source_file_of_node(d),
                                                     *containing_file,
@@ -505,7 +505,7 @@ impl SymbolTableToDeclarationStatements {
                                 .flags()
                                 .intersects(SymbolFlags::EnumMember)
                         })
-                        .map(|p| -> io::Result<Gc<Node>> {
+                        .map(|p| -> io::Result<Id<Node>> {
                             let initialized_value = p.ref_(self)
                                 .maybe_declarations()
                                 .as_ref()
@@ -599,7 +599,7 @@ impl SymbolTableToDeclarationStatements {
     pub(super) fn get_signature_text_range_location(
         &self,
         signature: &Signature,
-    ) -> Option<Gc<Node>> {
+    ) -> Option<Id<Node>> {
         if let Some(signature_declaration) = signature
             .declaration
             .as_ref()
@@ -635,7 +635,7 @@ impl SymbolTableToDeclarationStatements {
                     if length(p.ref_(self).maybe_declarations().as_deref()) == 0
                         || some(
                             p.ref_(self).maybe_declarations().as_deref(),
-                            Some(|d: &Gc<Node>| {
+                            Some(|d: &Id<Node>| {
                                 are_option_gcs_equal(
                                     maybe_get_source_file_of_node(Some(&**d)).as_ref(),
                                     maybe_get_source_file_of_node(
@@ -694,7 +694,7 @@ impl SymbolTableToDeclarationStatements {
             self.set_adding_declare(old_adding_declare);
             let declarations = self.results().clone();
             self.set_results(old_results);
-            let default_replaced = map(&declarations, |d: &Gc<Node>, _| {
+            let default_replaced = map(&declarations, |d: &Id<Node>, _| {
                 if is_export_assignment(d) && {
                     let d_as_export_assignment = d.as_export_assignment();
                     d_as_export_assignment.is_export_equals != Some(true)
@@ -722,7 +722,7 @@ impl SymbolTableToDeclarationStatements {
                 .iter()
                 .all(|d| has_syntactic_modifier(d, ModifierFlags::Export))
             {
-                map(&default_replaced, |node: &Gc<Node>, _| {
+                map(&default_replaced, |node: &Id<Node>, _| {
                     self.remove_export_modifier(node)
                 })
             } else {
@@ -757,9 +757,9 @@ impl SymbolTableToDeclarationStatements {
 
     pub(super) fn sanitize_jsdoc_implements(
         &self,
-        clauses: &[Gc<Node /*ExpressionWithTypeArguments*/>],
-    ) -> io::Result<Option<Vec<Gc<Node /*ExpressionWithTypeArguments*/>>>> {
-        let result = try_map_defined(Some(clauses), |e: &Gc<Node>, _| -> io::Result<_> {
+        clauses: &[Id<Node /*ExpressionWithTypeArguments*/>],
+    ) -> io::Result<Option<Vec<Id<Node /*ExpressionWithTypeArguments*/>>>> {
+        let result = try_map_defined(Some(clauses), |e: &Id<Node>, _| -> io::Result<_> {
             let e_as_expression_with_type_arguments = e.as_expression_with_type_arguments();
             let old_enclosing = self.context().maybe_enclosing_declaration();
             self.context().set_enclosing_declaration(Some(e.clone()));
@@ -792,7 +792,7 @@ impl SymbolTableToDeclarationStatements {
                             e_as_expression_with_type_arguments
                                 .maybe_type_arguments()
                                 .as_deref(),
-                            |a: &Gc<Node>, _| -> io::Result<_> {
+                            |a: &Id<Node>, _| -> io::Result<_> {
                                 self.node_builder
                                     .serialize_existing_type_node(
                                         &self.context(),
@@ -829,9 +829,9 @@ impl SymbolTableToDeclarationStatements {
 
     pub(super) fn sanitize_jsdoc_implements_cleanup(
         &self,
-        old_enclosing: Option<Gc<Node>>,
-        result: Option<Gc<Node>>,
-    ) -> Option<Gc<Node>> {
+        old_enclosing: Option<Id<Node>>,
+        result: Option<Id<Node>>,
+    ) -> Option<Id<Node>> {
         self.context().set_enclosing_declaration(old_enclosing);
         result
     }
@@ -891,7 +891,7 @@ impl SymbolTableToDeclarationStatements {
         } else {
             self.type_checker.any_type()
         };
-        let heritage_clauses: Vec<Gc<Node>> =
+        let heritage_clauses: Vec<Id<Node>> =
             {
                 let mut heritage_clauses = vec![];
                 if !base_types.is_empty() {
@@ -933,7 +933,7 @@ impl SymbolTableToDeclarationStatements {
                     is_private_identifier(&value_decl.as_named_declaration().name())
             )
         });
-        let private_properties: Vec<Gc<Node>> = if has_private_identifier {
+        let private_properties: Vec<Id<Node>> = if has_private_identifier {
             vec![get_factory().create_property_declaration(
                 Option::<Gc<NodeArray>>::None,
                 Option::<Gc<NodeArray>>::None,
@@ -1044,9 +1044,9 @@ impl SymbolTableToDeclarationStatements {
 
     pub(super) fn get_some_target_name_from_declarations(
         &self,
-        declarations: Option<&[Gc<Node /*Declaration*/>]>,
+        declarations: Option<&[Id<Node /*Declaration*/>]>,
     ) -> io::Result<Option<String>> {
-        try_maybe_first_defined(declarations, |d: &Gc<Node>, _| {
+        try_maybe_first_defined(declarations, |d: &Id<Node>, _| {
             if is_import_specifier(d) || is_export_specifier(d) {
                 return Ok(Some(
                     id_text(
@@ -1230,7 +1230,7 @@ impl SymbolTableToDeclarationStatements {
                         target.ref_(self)
                             .maybe_declarations()
                             .as_deref(),
-                        Some(|declaration: &Gc<Node>| is_json_source_file(declaration)),
+                        Some(|declaration: &Id<Node>| is_json_source_file(declaration)),
                     )
                 {
                     self.serialize_maybe_alias_assignment(symbol)?;
@@ -1278,7 +1278,7 @@ impl SymbolTableToDeclarationStatements {
                         target.ref_(self)
                             .maybe_declarations()
                             .as_deref(),
-                        Some(|declaration: &Gc<Node>| is_json_source_file(declaration)),
+                        Some(|declaration: &Id<Node>| is_json_source_file(declaration)),
                     )
                 {
                     self.serialize_maybe_alias_assignment(symbol)?;

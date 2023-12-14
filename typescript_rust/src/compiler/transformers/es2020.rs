@@ -1,6 +1,7 @@
 use std::{io, mem};
 
 use gc::{Finalize, Gc, GcCell, Trace};
+use id_arena::Id;
 
 use crate::{
     cast, chain_bundle, is_call_chain, is_expression, is_identifier, is_non_null_chain,
@@ -35,7 +36,7 @@ impl TransformES2020 {
         self._transformer_wrapper.borrow().clone().unwrap()
     }
 
-    fn transform_source_file(&self, node: &Node /*SourceFile*/) -> Gc<Node> {
+    fn transform_source_file(&self, node: &Node /*SourceFile*/) -> Id<Node> {
         if node.as_source_file().is_declaration_file() {
             return node.node_wrapper();
         }
@@ -95,7 +96,7 @@ impl TransformES2020 {
     fn flatten_chain(&self, chain: &Node /*OptionalChain*/) -> FlattenChainReturn {
         Debug_.assert_not_node(Some(chain), Some(is_non_null_chain), None);
         let mut chain = chain.node_wrapper();
-        let mut links: Vec<Gc<Node /*OptionalChain*/>> = vec![chain.clone()];
+        let mut links: Vec<Id<Node /*OptionalChain*/>> = vec![chain.clone()];
         while chain
             .as_has_question_dot_token()
             .maybe_question_dot_token()
@@ -106,7 +107,7 @@ impl TransformES2020 {
                 Some(skip_partially_emitted_expressions(
                     &chain.as_has_expression().expression(),
                 )),
-                |value: &Gc<Node>| is_optional_chain(value),
+                |value: &Id<Node>| is_optional_chain(value),
             );
             Debug_.assert_not_node(Some(&*chain), Some(is_non_null_chain), None);
             links.insert(0, chain.clone());
@@ -122,7 +123,7 @@ impl TransformES2020 {
         node: &Node, /*ParenthesizedExpression*/
         capture_this_arg: bool,
         is_delete: bool,
-    ) -> Gc<Node /*Expression*/> {
+    ) -> Id<Node /*Expression*/> {
         let expression = self.visit_non_optional_expression(
             &node.as_parenthesized_expression().expression,
             capture_this_arg,
@@ -152,7 +153,7 @@ impl TransformES2020 {
         node: &Node, /*AccessExpression*/
         capture_this_arg: bool,
         is_delete: bool,
-    ) -> Gc<Node /*Expression*/> {
+    ) -> Id<Node /*Expression*/> {
         if is_optional_chain(node) {
             return self.visit_optional_expression(node, capture_this_arg, is_delete);
         }
@@ -161,11 +162,11 @@ impl TransformES2020 {
             &node.as_has_expression().expression(),
             Some(|node: &Node| self.visitor(node)),
             Some(is_expression),
-            Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+            Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
         );
         Debug_.assert_not_node(Some(&*expression), Some(is_synthetic_reference), None);
 
-        let mut this_arg: Option<Gc<Node /*Expression*/>> = Default::default();
+        let mut this_arg: Option<Id<Node /*Expression*/>> = Default::default();
         if capture_this_arg {
             if !is_simple_copiable_expression(&expression) {
                 this_arg = Some(self.factory.create_temp_variable(
@@ -190,7 +191,7 @@ impl TransformES2020 {
                     &node.as_property_access_expression().name,
                     Some(|node: &Node| self.visitor(node)),
                     Some(is_identifier),
-                    Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                    Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                 ),
             )
         } else {
@@ -201,7 +202,7 @@ impl TransformES2020 {
                     &node.as_element_access_expression().argument_expression,
                     Some(|node: &Node| self.visitor(node)),
                     Some(is_expression),
-                    Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                    Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                 ),
             )
         };
@@ -217,7 +218,7 @@ impl TransformES2020 {
         &self,
         node: &Node, /*CallExpression*/
         capture_this_arg: bool,
-    ) -> Gc<Node /*Expression*/> {
+    ) -> Id<Node /*Expression*/> {
         let node_as_call_expression = node.as_call_expression();
         if is_optional_chain(node) {
             return self.visit_optional_expression(node, capture_this_arg, false);
@@ -268,7 +269,7 @@ impl TransformES2020 {
         node: &Node, /*OptionalChain*/
         capture_this_arg: bool,
         is_delete: bool,
-    ) -> Gc<Node /*Expression*/> {
+    ) -> Id<Node /*Expression*/> {
         match node.kind() {
             SyntaxKind::ParenthesizedExpression => {
                 self.visit_non_optional_parenthesized_expression(node, capture_this_arg, is_delete)
@@ -286,7 +287,7 @@ impl TransformES2020 {
                 node,
                 Some(|node: &Node| self.visitor(node)),
                 Some(is_expression),
-                Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
             ),
         }
     }
@@ -296,7 +297,7 @@ impl TransformES2020 {
         node: &Node, /*OptionalChain*/
         capture_this_arg: bool,
         is_delete: bool,
-    ) -> Gc<Node /*Expression*/> {
+    ) -> Id<Node /*Expression*/> {
         let FlattenChainReturn { expression, chain } = self.flatten_chain(node);
         let left = self.visit_non_optional_expression(&expression, is_call_chain(&chain[0]), false);
         let left_this_arg = is_synthetic_reference(&left)
@@ -319,7 +320,7 @@ impl TransformES2020 {
                 .create_assignment(captured_left.clone(), left_expression.clone());
         }
         let mut right_expression = captured_left.clone();
-        let mut this_arg: Option<Gc<Node /*Expression*/>> = Default::default();
+        let mut this_arg: Option<Id<Node /*Expression*/>> = Default::default();
         for (i, segment) in chain.iter().enumerate() {
             match segment.kind() {
                 SyntaxKind::PropertyAccessExpression | SyntaxKind::ElementAccessExpression => {
@@ -345,7 +346,7 @@ impl TransformES2020 {
                                 &segment.as_property_access_expression().name,
                                 Some(|node: &Node| self.visitor(node)),
                                 Some(is_identifier),
-                                Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                                Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                             ),
                         )
                     } else {
@@ -355,7 +356,7 @@ impl TransformES2020 {
                                 &segment.as_element_access_expression().argument_expression,
                                 Some(|node: &Node| self.visitor(node)),
                                 Some(is_expression),
-                                Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                                Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                             ),
                         )
                     };
@@ -425,10 +426,10 @@ impl TransformES2020 {
 
     fn create_not_null_condition(
         &self,
-        left: Gc<Node>,  /*Expression*/
-        right: Gc<Node>, /*Expression*/
+        left: Id<Node>,  /*Expression*/
+        right: Id<Node>, /*Expression*/
         invert: Option<bool>,
-    ) -> Gc<Node> {
+    ) -> Id<Node> {
         self.factory.create_binary_expression(
             self.factory.create_binary_expression(
                 left,
@@ -465,7 +466,7 @@ impl TransformES2020 {
             &node_as_binary_expression.left,
             Some(|node: &Node| self.visitor(node)),
             Some(is_expression),
-            Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+            Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
         );
         let mut right = left.clone();
         if !is_simple_copiable_expression(&left) {
@@ -488,7 +489,7 @@ impl TransformES2020 {
                         &node_as_binary_expression.right,
                         Some(|node: &Node| self.visitor(node)),
                         Some(is_expression),
-                        Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                        Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                     ),
                 )
                 .set_text_range(Some(node))
@@ -516,7 +517,7 @@ impl TransformES2020 {
                         &node_as_delete_expression.expression,
                         Some(|node: &Node| self.visitor(node)),
                         Some(is_expression),
-                        Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                        Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                     ),
                 )
             }
@@ -526,12 +527,12 @@ impl TransformES2020 {
 }
 
 struct FlattenChainReturn {
-    pub expression: Gc<Node>,
-    pub chain: Vec<Gc<Node>>,
+    pub expression: Id<Node>,
+    pub chain: Vec<Id<Node>>,
 }
 
 impl TransformerInterface for TransformES2020 {
-    fn call(&self, node: &Node) -> io::Result<Gc<Node>> {
+    fn call(&self, node: &Node) -> io::Result<Id<Node>> {
         Ok(self.transform_source_file(node))
     }
 }

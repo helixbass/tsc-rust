@@ -1,6 +1,7 @@
 use std::{io, ptr};
 
 use gc::Gc;
+use id_arena::Id;
 
 use super::TransformTypeScript;
 use crate::{
@@ -81,7 +82,7 @@ impl TransformTypeScript {
 
     pub(super) fn add_var_for_enum_or_module_declaration(
         &self,
-        statements: &mut Vec<Gc<Node /*Statement*/>>,
+        statements: &mut Vec<Id<Node /*Statement*/>>,
         node: &Node, /*ModuleDeclaration | EnumDeclaration*/
     ) -> bool {
         let statement = self
@@ -160,7 +161,7 @@ impl TransformTypeScript {
         );
         self.enable_substitution_for_namespace_exports();
 
-        let mut statements: Vec<Gc<Node /*Statement*/>> = Default::default();
+        let mut statements: Vec<Id<Node /*Statement*/>> = Default::default();
 
         let mut emit_flags = EmitFlags::AdviseOnEmitNode;
 
@@ -212,7 +213,7 @@ impl TransformTypeScript {
                 self.factory.create_function_expression(
                     Option::<Gc<NodeArray>>::None,
                     None,
-                    Option::<Gc<Node>>::None,
+                    Option::<Id<Node>>::None,
                     Option::<Gc<NodeArray>>::None,
                     Some(vec![self.factory.create_parameter_declaration(
                         Option::<Gc<NodeArray>>::None,
@@ -250,7 +251,7 @@ impl TransformTypeScript {
         &self,
         node: &Node,                 /*ModuleDeclaration*/
         namespace_local_name: &Node, /*Identifier*/
-    ) -> io::Result<Gc<Node>> /*Identifier*/ {
+    ) -> io::Result<Id<Node>> /*Identifier*/ {
         let node_as_module_declaration = node.as_module_declaration();
         let saved_current_namespace_container_name = self.maybe_current_namespace_container_name();
         let saved_current_namespace = self.maybe_current_namespace();
@@ -261,11 +262,11 @@ impl TransformTypeScript {
         self.set_current_namespace(Some(node.node_wrapper()));
         self.set_current_scope_first_declarations_of_name(None);
 
-        let mut statements: Vec<Gc<Node /*Statement*/>> = Default::default();
+        let mut statements: Vec<Id<Node /*Statement*/>> = Default::default();
         self.context.start_lexical_environment();
 
         let mut statements_location: Option<ReadonlyTextRangeConcrete> = Default::default();
-        let mut block_location: Option<Gc<Node> /*TextRange*/> = Default::default();
+        let mut block_location: Option<Id<Node> /*TextRange*/> = Default::default();
         if let Some(node_body) = node_as_module_declaration.body.as_ref() {
             if node_body.kind() == SyntaxKind::ModuleBlock {
                 self.try_save_state_and_invoke(node_body, |body: &Node| {
@@ -346,7 +347,7 @@ impl TransformTypeScript {
     pub(super) fn get_inner_most_module_declaration_from_dotted_module(
         &self,
         module_declaration: &Node, /*ModuleDeclaration*/
-    ) -> Option<Gc<Node>> /*ModuleDeclaration*/ {
+    ) -> Option<Id<Node>> /*ModuleDeclaration*/ {
         let module_declaration_as_module_declaration = module_declaration.as_module_declaration();
         let module_body = module_declaration_as_module_declaration
             .body
@@ -378,7 +379,7 @@ impl TransformTypeScript {
             Some(&**node_import_clause),
             Some(|node: &Node| self.visit_import_clause(node)),
             Some(is_import_clause),
-            Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+            Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
         )?;
         Ok(
             if import_clause.is_some()
@@ -420,7 +421,7 @@ impl TransformTypeScript {
             node_as_import_clause.named_bindings.as_deref(),
             Some(|node: &Node| self.visit_named_import_bindings(node)),
             Some(is_named_import_bindings),
-            Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+            Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
         )?;
         Ok(if name.is_some() || named_bindings.is_some() {
             Some(
@@ -516,7 +517,7 @@ impl TransformTypeScript {
                 self.visit_named_export_bindings(bindings, allow_empty)
             }),
             Some(is_named_export_bindings),
-            Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+            Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
         )?;
         Ok(export_clause.map(|export_clause| {
             self.factory
@@ -562,7 +563,7 @@ impl TransformTypeScript {
                         &node.as_namespace_export().name,
                         Some(|node: &Node| self.visitor(node)),
                         Some(is_identifier),
-                        Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                        Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                     )?,
                 )
                 .into(),

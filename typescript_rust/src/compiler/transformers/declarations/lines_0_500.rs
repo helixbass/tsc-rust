@@ -55,7 +55,7 @@ pub fn get_declaration_diagnostics(
         &if let Some(file) = file {
             vec![file.node_wrapper()]
         } else {
-            filter(&host.get_source_files(), |source_file: &Gc<Node>| {
+            filter(&host.get_source_files(), |source_file: &Id<Node>| {
                 is_source_file_not_json(source_file)
             })
         },
@@ -89,7 +89,7 @@ pub fn is_internal_declaration(
             .as_signature_declaration()
             .parameters()
             .into_iter()
-            .position(|parameter: &Gc<Node>| Gc::ptr_eq(parameter, parse_tree_node));
+            .position(|parameter: &Id<Node>| Gc::ptr_eq(parameter, parse_tree_node));
         let previous_sibling = if let Some(param_idx) = param_idx.filter(|param_idx| *param_idx > 0)
         {
             parse_tree_node
@@ -167,11 +167,11 @@ pub(super) struct TransformDeclarations {
     pub(super) needs_scope_fix_marker: Cell<bool>,
     #[unsafe_ignore_trace]
     pub(super) result_has_scope_marker: Cell<bool>,
-    pub(super) enclosing_declaration: GcCell<Option<Gc<Node>>>,
+    pub(super) enclosing_declaration: GcCell<Option<Id<Node>>>,
     #[unsafe_ignore_trace]
     pub(super) necessary_type_references: RefCell<Option<HashSet<String>>>,
     pub(super) late_marked_statements:
-        GcCell<Option<Vec<Gc<Node /*LateVisibilityPaintedStatement*/>>>>,
+        GcCell<Option<Vec<Id<Node /*LateVisibilityPaintedStatement*/>>>>,
     pub(super) late_statement_replacement_map: GcCell<
         Option<
             HashMap<
@@ -186,12 +186,12 @@ pub(super) struct TransformDeclarations {
     pub(super) factory: Gc<NodeFactory<BaseNodeFactorySynthetic>>,
     pub(super) host: Gc<Box<dyn EmitHost>>,
     pub(super) symbol_tracker: GcCell<Option<Gc<Box<dyn SymbolTracker>>>>,
-    pub(super) error_name_node: GcCell<Option<Gc<Node /*DeclarationName*/>>>,
-    pub(super) error_fallback_node: GcCell<Option<Gc<Node /*Declaration*/>>>,
-    pub(super) current_source_file: GcCell<Option<Gc<Node /*SourceFile*/>>>,
-    pub(super) refs: GcCell<Option<HashMap<NodeId, Gc<Node /*SourceFile*/>>>>,
+    pub(super) error_name_node: GcCell<Option<Id<Node /*DeclarationName*/>>>,
+    pub(super) error_fallback_node: GcCell<Option<Id<Node /*Declaration*/>>>,
+    pub(super) current_source_file: GcCell<Option<Id<Node /*SourceFile*/>>>,
+    pub(super) refs: GcCell<Option<HashMap<NodeId, Id<Node /*SourceFile*/>>>>,
     pub(super) libs: GcCell<Option<HashMap<String, bool>>>,
-    pub(super) emitted_imports: GcCell<Option<Vec<Gc<Node /*AnyImportSyntax*/>>>>,
+    pub(super) emitted_imports: GcCell<Option<Vec<Id<Node /*AnyImportSyntax*/>>>>,
     pub(super) resolver: Gc<Box<dyn EmitResolver>>,
     pub(super) options: Gc<CompilerOptions>,
     pub(super) no_resolve: Option<bool>,
@@ -307,15 +307,15 @@ impl TransformDeclarations {
         self.result_has_scope_marker.set(result_has_scope_marker);
     }
 
-    pub(super) fn maybe_enclosing_declaration(&self) -> Option<Gc<Node>> {
+    pub(super) fn maybe_enclosing_declaration(&self) -> Option<Id<Node>> {
         self.enclosing_declaration.borrow().clone()
     }
 
-    pub(super) fn enclosing_declaration(&self) -> Gc<Node> {
+    pub(super) fn enclosing_declaration(&self) -> Id<Node> {
         self.enclosing_declaration.borrow().clone().unwrap()
     }
 
-    pub(super) fn set_enclosing_declaration(&self, enclosing_declaration: Option<Gc<Node>>) {
+    pub(super) fn set_enclosing_declaration(&self, enclosing_declaration: Option<Id<Node>>) {
         *self.enclosing_declaration.borrow_mut() = enclosing_declaration;
     }
 
@@ -334,21 +334,21 @@ impl TransformDeclarations {
         *self.necessary_type_references.borrow_mut() = necessary_type_references;
     }
 
-    pub(super) fn maybe_late_marked_statements(&self) -> GcCellRef<Option<Vec<Gc<Node>>>> {
+    pub(super) fn maybe_late_marked_statements(&self) -> GcCellRef<Option<Vec<Id<Node>>>> {
         self.late_marked_statements.borrow()
     }
 
-    pub(super) fn maybe_late_marked_statements_mut(&self) -> GcCellRefMut<Option<Vec<Gc<Node>>>> {
+    pub(super) fn maybe_late_marked_statements_mut(&self) -> GcCellRefMut<Option<Vec<Id<Node>>>> {
         self.late_marked_statements.borrow_mut()
     }
 
     pub(super) fn late_marked_statements_mut(
         &self,
-    ) -> GcCellRefMut<Option<Vec<Gc<Node>>>, Vec<Gc<Node>>> {
+    ) -> GcCellRefMut<Option<Vec<Id<Node>>>, Vec<Id<Node>>> {
         gc_cell_ref_mut_unwrapped(&self.late_marked_statements)
     }
 
-    pub(super) fn set_late_marked_statements(&self, late_marked_statements: Option<Vec<Gc<Node>>>) {
+    pub(super) fn set_late_marked_statements(&self, late_marked_statements: Option<Vec<Id<Node>>>) {
         *self.late_marked_statements.borrow_mut() = late_marked_statements;
     }
 
@@ -397,41 +397,41 @@ impl TransformDeclarations {
         self.symbol_tracker.borrow().clone().unwrap()
     }
 
-    pub(super) fn maybe_error_name_node(&self) -> Option<Gc<Node>> {
+    pub(super) fn maybe_error_name_node(&self) -> Option<Id<Node>> {
         self.error_name_node.borrow().clone()
     }
 
-    pub(super) fn set_error_name_node(&self, error_name_node: Option<Gc<Node>>) {
+    pub(super) fn set_error_name_node(&self, error_name_node: Option<Id<Node>>) {
         *self.error_name_node.borrow_mut() = error_name_node;
     }
 
-    pub(super) fn maybe_error_fallback_node(&self) -> Option<Gc<Node>> {
+    pub(super) fn maybe_error_fallback_node(&self) -> Option<Id<Node>> {
         self.error_fallback_node.borrow().clone()
     }
 
-    pub(super) fn set_error_fallback_node(&self, error_fallback_node: Option<Gc<Node>>) {
+    pub(super) fn set_error_fallback_node(&self, error_fallback_node: Option<Id<Node>>) {
         *self.error_fallback_node.borrow_mut() = error_fallback_node;
     }
 
-    pub(super) fn current_source_file(&self) -> Gc<Node> {
+    pub(super) fn current_source_file(&self) -> Id<Node> {
         self.current_source_file.borrow().clone().unwrap()
     }
 
-    pub(super) fn set_current_source_file(&self, current_source_file: Option<Gc<Node>>) {
+    pub(super) fn set_current_source_file(&self, current_source_file: Option<Id<Node>>) {
         *self.current_source_file.borrow_mut() = current_source_file;
     }
 
-    pub(super) fn refs(&self) -> GcCellRef<HashMap<NodeId, Gc<Node>>> {
+    pub(super) fn refs(&self) -> GcCellRef<HashMap<NodeId, Id<Node>>> {
         gc_cell_ref_unwrapped(&self.refs)
     }
 
     pub(super) fn refs_mut(
         &self,
-    ) -> GcCellRefMut<Option<HashMap<NodeId, Gc<Node>>>, HashMap<NodeId, Gc<Node>>> {
+    ) -> GcCellRefMut<Option<HashMap<NodeId, Id<Node>>>, HashMap<NodeId, Id<Node>>> {
         gc_cell_ref_mut_unwrapped(&self.refs)
     }
 
-    pub(super) fn set_refs(&self, refs: Option<HashMap<NodeId, Gc<Node>>>) {
+    pub(super) fn set_refs(&self, refs: Option<HashMap<NodeId, Id<Node>>>) {
         *self.refs.borrow_mut() = refs;
     }
 
@@ -449,11 +449,11 @@ impl TransformDeclarations {
         *self.libs.borrow_mut() = libs;
     }
 
-    pub(super) fn maybe_emitted_imports(&self) -> GcCellRef<Option<Vec<Gc<Node>>>> {
+    pub(super) fn maybe_emitted_imports(&self) -> GcCellRef<Option<Vec<Id<Node>>>> {
         self.emitted_imports.borrow()
     }
 
-    pub(super) fn set_emitted_imports(&self, emitted_imports: Option<Vec<Gc<Node>>>) {
+    pub(super) fn set_emitted_imports(&self, emitted_imports: Option<Vec<Id<Node>>>) {
         *self.emitted_imports.borrow_mut() = emitted_imports;
     }
 
@@ -556,7 +556,7 @@ impl TransformDeclarations {
         &self,
         source_file: &Node, /*SourceFile*/
         bundled: Option<bool>,
-    ) -> io::Result<Option<Vec<Gc<Node>>>> {
+    ) -> io::Result<Option<Vec<Id<Node>>>> {
         let old_diag = self.get_symbol_accessibility_diagnostic();
         self.set_get_symbol_accessibility_diagnostic(Gc::new(Box::new(
             TransformDeclarationsForJSGetSymbolAccessibilityDiagnostic::new(
@@ -576,7 +576,7 @@ impl TransformDeclarations {
     pub(super) fn transform_root(
         &self,
         node: &Node, /*SourceFile | Bundle*/
-    ) -> io::Result<Gc<Node>> {
+    ) -> io::Result<Id<Node>> {
         if node.kind() == SyntaxKind::SourceFile && node.as_source_file().is_declaration_file() {
             return Ok(node.node_wrapper());
         }
@@ -591,7 +591,7 @@ impl TransformDeclarations {
                 self.factory.create_bundle_raw(
                     try_map(
                         &node_as_bundle.source_files,
-                        |source_file: &Option<Gc<Node>>, _| -> io::Result<Option<Gc<Node>>> {
+                        |source_file: &Option<Id<Node>>, _| -> io::Result<Option<Id<Node>>> {
                             let source_file = source_file.as_ref().unwrap();
                             let source_file_as_source_file = source_file.as_source_file();
                             if source_file_as_source_file.is_declaration_file() {
@@ -718,7 +718,7 @@ impl TransformDeclarations {
                     )?,
                     Some(try_map_defined(
                         Some(&node_as_bundle.prepends),
-                        |prepend: &Gc<Node>, _| -> io::Result<Option<Gc<Node>>> {
+                        |prepend: &Id<Node>, _| -> io::Result<Option<Id<Node>>> {
                             if prepend.kind() == SyntaxKind::InputFiles {
                                 let source_file = create_unparsed_source_file(
                                     prepend.clone(),
@@ -764,7 +764,7 @@ impl TransformDeclarations {
                 );
                 self.refs()
                     .values()
-                    .try_for_each(|ref_: &Gc<Node>| -> io::Result<_> {
+                    .try_for_each(|ref_: &Id<Node>| -> io::Result<_> {
                         reference_visitor(ref_)?;
 
                         Ok(())
@@ -812,14 +812,14 @@ impl TransformDeclarations {
                 .create_node_array(self.transform_declarations_for_js(node, None)?, None);
             self.refs()
                 .values()
-                .try_for_each(|ref_: &Gc<Node>| -> io::Result<_> {
+                .try_for_each(|ref_: &Id<Node>| -> io::Result<_> {
                     reference_visitor(ref_)?;
 
                     Ok(())
                 })?;
             self.set_emitted_imports(Some(filter(
                 &combined_statements,
-                |statement: &Gc<Node>| is_any_import_syntax(statement),
+                |statement: &Id<Node>| is_any_import_syntax(statement),
             )));
         } else {
             let statements = try_visit_nodes(
@@ -838,14 +838,14 @@ impl TransformDeclarations {
             );
             self.refs()
                 .values()
-                .try_for_each(|ref_: &Gc<Node>| -> io::Result<_> {
+                .try_for_each(|ref_: &Id<Node>| -> io::Result<_> {
                     reference_visitor(ref_)?;
 
                     Ok(())
                 })?;
             self.set_emitted_imports(Some(filter(
                 &combined_statements,
-                |statement: &Gc<Node>| is_any_import_syntax(statement),
+                |statement: &Id<Node>| is_any_import_syntax(statement),
             )));
             if is_external_module(node)
                 && (!self.result_has_external_module_indicator()
@@ -956,7 +956,7 @@ impl TransformDeclarations {
                     && contains_comparer(
                         Some(&node.as_bundle().source_files),
                         &Some(file.node_wrapper()),
-                        |a: &Option<Gc<Node>>, b: &Option<Gc<Node>>| {
+                        |a: &Option<Id<Node>>, b: &Option<Id<Node>>| {
                             are_option_gcs_equal(a.as_ref(), b.as_ref())
                         },
                     )
@@ -1020,7 +1020,7 @@ impl TransformDeclarations {
     pub(super) fn collect_references(
         &self,
         source_file: &Node, /*SourceFile | UnparsedSource*/
-        ret: &mut HashMap<NodeId, Gc<Node /*SourceFile*/>>,
+        ret: &mut HashMap<NodeId, Id<Node /*SourceFile*/>>,
     ) -> io::Result<()> {
         if self.no_resolve == Some(true)
             || !is_unparsed_source(source_file) && is_source_file_js(source_file)
@@ -1093,7 +1093,7 @@ impl TransformDeclarations {
     pub(super) fn filter_binding_pattern_initializers(
         &self,
         name: &Node, /*BindingName*/
-    ) -> io::Result<Gc<Node>> {
+    ) -> io::Result<Id<Node>> {
         Ok(if name.kind() == SyntaxKind::Identifier {
             name.node_wrapper()
         } else {
@@ -1130,7 +1130,7 @@ impl TransformDeclarations {
     pub(super) fn visit_binding_element(
         &self,
         elem: &Node, /*ArrayBindingElement*/
-    ) -> io::Result<Gc<Node>> {
+    ) -> io::Result<Id<Node>> {
         if elem.kind() == SyntaxKind::OmittedExpression {
             return Ok(elem.node_wrapper());
         }
@@ -1153,7 +1153,7 @@ impl TransformDeclarations {
         p: &Node, /*ParameterDeclaration*/
         modifier_mask: Option<ModifierFlags>,
         type_: Option<&Node /*TypeNode*/>,
-    ) -> io::Result<Gc<Node /*ParameterDeclaration*/>> {
+    ) -> io::Result<Id<Node /*ParameterDeclaration*/>> {
         let p_as_parameter_declaration = p.as_parameter_declaration();
         let mut old_diag: Option<GetSymbolAccessibilityDiagnostic> = None;
         if self.maybe_suppress_new_diagnostic_contexts() != Some(true) {
@@ -1204,7 +1204,7 @@ impl TransformDeclarations {
     pub(super) fn ensure_no_initializer(
         &self,
         node: &Node, /*CanHaveLiteralInitializer*/
-    ) -> io::Result<Option<Gc<Node>>> {
+    ) -> io::Result<Option<Id<Node>>> {
         if self.should_print_with_initializer(node)? {
             return Ok(Some(self.resolver.create_literal_const_value(
                 &get_parse_tree_node(Some(node), Option::<fn(&Node) -> bool>::None).unwrap(),
@@ -1222,7 +1222,7 @@ impl HasArena for TransformDeclarations {
 }
 
 impl TransformerInterface for TransformDeclarations {
-    fn call(&self, node: &Node) -> io::Result<Gc<Node>> {
+    fn call(&self, node: &Node) -> io::Result<Id<Node>> {
         self.transform_root(node)
     }
 }
@@ -1296,7 +1296,7 @@ impl SymbolTracker for TransformDeclarationsSymbolTracker {
     fn track_symbol(
         &self,
         symbol: Id<Symbol>,
-        enclosing_declaration: Option<Gc<Node>>,
+        enclosing_declaration: Option<Id<Node>>,
         meaning: SymbolFlags,
     ) -> Option<io::Result<bool>> {
         if self.is_track_symbol_disabled.get() {
@@ -1530,7 +1530,7 @@ impl SymbolTracker for TransformDeclarationsSymbolTracker {
             .and_then(|parent_symbol_declarations| {
                 parent_symbol_declarations
                     .into_iter()
-                    .find(|d: &&Gc<Node>| ptr::eq(&*get_source_file_of_node(d), containing_file))
+                    .find(|d: &&Id<Node>| ptr::eq(&*get_source_file_of_node(d), containing_file))
                     .cloned()
             });
         let augmenting_declarations = maybe_filter(
@@ -1539,7 +1539,7 @@ impl SymbolTracker for TransformDeclarationsSymbolTracker {
                 .symbol(symbol)
                 .maybe_declarations()
                 .as_deref(),
-            |d: &Gc<Node>| !ptr::eq(&*get_source_file_of_node(d), containing_file),
+            |d: &Id<Node>| !ptr::eq(&*get_source_file_of_node(d), containing_file),
         );
         if let Some(augmenting_declarations) = augmenting_declarations {
             for augmentations in augmenting_declarations {
@@ -1592,11 +1592,11 @@ impl SymbolTracker for TransformDeclarationsSymbolTracker {
 
 #[derive(Trace, Finalize)]
 pub(super) struct TransformDeclarationsForJSGetSymbolAccessibilityDiagnostic {
-    pub(super) source_file: Gc<Node /*SourceFile*/>,
+    pub(super) source_file: Id<Node /*SourceFile*/>,
 }
 
 impl TransformDeclarationsForJSGetSymbolAccessibilityDiagnostic {
-    fn new(source_file: Gc<Node /*SourceFile*/>) -> Self {
+    fn new(source_file: Id<Node /*SourceFile*/>) -> Self {
         Self { source_file }
     }
 }

@@ -57,8 +57,8 @@ impl GetFlowTypeOfReference {
         &self,
         expr: &Node, /*Expression*/
         computed_type: Id<Type>,
-    ) -> io::Result<Option<Gc<Node>>> {
-        let mut access: Option<Gc<Node>> = None;
+    ) -> io::Result<Option<Id<Node>>> {
+        let mut access: Option<Id<Node>> = None;
         let mut name: Option<__String> = None;
         let type_ = if self
             .declared_type
@@ -607,7 +607,7 @@ impl GetFlowTypeOfReference {
         }
         let symbol = symbol.unwrap();
         let class_symbol = symbol.ref_(self).maybe_parent().unwrap();
-        let target_type = if has_static_modifier(Debug_.check_defined::<&Gc<Node>>(
+        let target_type = if has_static_modifier(Debug_.check_defined::<&Id<Node>>(
             symbol.ref_(self).maybe_value_declaration().as_ref(),
             Some("should always have a declaration"),
         )) {

@@ -1,4 +1,5 @@
 use gc::{Finalize, Gc, Trace};
+use id_arena::Id;
 use local_macros::generate_node_factory_method_wrapper;
 
 use super::{propagate_child_flags, propagate_children_flags};
@@ -31,7 +32,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_expression_with_type_arguments_raw(
         &self,
-        expression: Gc<Node>, /*Expression*/
+        expression: Id<Node>, /*Expression*/
         type_arguments: Option<impl Into<NodeArrayOrVec>>,
     ) -> ExpressionWithTypeArguments {
         let node = self.create_base_node(SyntaxKind::ExpressionWithTypeArguments);
@@ -55,9 +56,9 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     pub fn update_expression_with_type_arguments(
         &self,
         node: &Node,          /*ExpressionWithTypeArguments*/
-        expression: Gc<Node>, /*Expression*/
+        expression: Id<Node>, /*Expression*/
         type_arguments: Option<impl Into<NodeArrayOrVec>>,
-    ) -> Gc<Node> {
+    ) -> Id<Node> {
         let node_as_expression_with_type_arguments = node.as_expression_with_type_arguments();
         let type_arguments = type_arguments.map(Into::into);
         if !Gc::ptr_eq(
@@ -81,8 +82,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_as_expression_raw(
         &self,
-        expression: Gc<Node>, /*Expression*/
-        type_: Gc<Node /*TypeNode*/>,
+        expression: Id<Node>, /*Expression*/
+        type_: Id<Node /*TypeNode*/>,
     ) -> AsExpression {
         let node = self.create_base_expression(SyntaxKind::AsExpression);
         let node = AsExpression::new(node, expression, type_);
@@ -97,9 +98,9 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     pub fn update_as_expression(
         &self,
         node: &Node,          /*AsExpression*/
-        expression: Gc<Node>, /*Expression*/
-        type_: Gc<Node /*TypeNode*/>,
-    ) -> Gc<Node> {
+        expression: Id<Node>, /*Expression*/
+        type_: Id<Node /*TypeNode*/>,
+    ) -> Id<Node> {
         let node_as_as_expression = node.as_as_expression();
         if !Gc::ptr_eq(&node_as_as_expression.expression, &expression)
             || !Gc::ptr_eq(&node_as_as_expression.type_, &type_)
@@ -113,7 +114,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_non_null_expression_raw(
         &self,
-        expression: Gc<Node>, /*Expression*/
+        expression: Id<Node>, /*Expression*/
     ) -> NonNullExpression {
         let node = self.create_base_expression(SyntaxKind::NonNullExpression);
         let node = NonNullExpression::new(
@@ -130,8 +131,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     pub fn update_non_null_expression(
         &self,
         node: &Node,          /*NonNullExpression*/
-        expression: Gc<Node>, /*Expression*/
-    ) -> Gc<Node> {
+        expression: Id<Node>, /*Expression*/
+    ) -> Id<Node> {
         let node_as_non_null_expression = node.as_non_null_expression();
         if is_non_null_chain(node) {
             return self.update_non_null_chain(node, expression);
@@ -146,7 +147,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_non_null_chain_raw(
         &self,
-        expression: Gc<Node>, /*Expression*/
+        expression: Id<Node>, /*Expression*/
     ) -> NonNullExpression {
         let node = self.create_base_expression(SyntaxKind::NonNullExpression);
         node.set_flags(node.flags() | NodeFlags::OptionalChain);
@@ -164,8 +165,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     pub fn update_non_null_chain(
         &self,
         node: &Node,          /*NonNullChain*/
-        expression: Gc<Node>, /*Expression*/
-    ) -> Gc<Node> {
+        expression: Id<Node>, /*Expression*/
+    ) -> Id<Node> {
         let node_as_non_null_expression = node.as_non_null_expression();
         Debug_.assert(
             node.flags().intersects(NodeFlags::OptionalChain),
@@ -182,7 +183,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     pub fn create_meta_property_raw(
         &self,
         keyword_token: SyntaxKind, /*MetaProperty["keywordToken"]*/
-        name: Gc<Node>,            /*Identifier*/
+        name: Id<Node>,            /*Identifier*/
     ) -> MetaProperty {
         let node = self.create_base_expression(SyntaxKind::MetaProperty);
         let node = MetaProperty::new(node, keyword_token, name);
@@ -204,8 +205,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     pub fn update_meta_property(
         &self,
         node: &Node,    /*MetaProperty*/
-        name: Gc<Node>, /*Identifier*/
-    ) -> Gc<Node> {
+        name: Id<Node>, /*Identifier*/
+    ) -> Id<Node> {
         let node_as_meta_property = node.as_meta_property();
         if !Gc::ptr_eq(&node_as_meta_property.name, &name) {
             self.update(
@@ -220,8 +221,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_template_span_raw(
         &self,
-        expression: Gc<Node /*Expression*/>,
-        literal: Gc<Node /*TemplateMiddle | TemplateTail*/>,
+        expression: Id<Node /*Expression*/>,
+        literal: Id<Node /*TemplateMiddle | TemplateTail*/>,
     ) -> TemplateSpan {
         let node = self.create_base_node(SyntaxKind::TemplateSpan);
         let node = TemplateSpan::new(node, expression, literal);
@@ -236,9 +237,9 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     pub fn update_template_span(
         &self,
         node: &Node, /*TemplateSpan*/
-        expression: Gc<Node /*Expression*/>,
-        literal: Gc<Node /*TemplateMiddle | TemplateTail*/>,
-    ) -> Gc<Node> {
+        expression: Id<Node /*Expression*/>,
+        literal: Id<Node /*TemplateMiddle | TemplateTail*/>,
+    ) -> Id<Node> {
         let node_as_template_span = node.as_template_span();
         if !Gc::ptr_eq(&node_as_template_span.expression, &expression)
             || !Gc::ptr_eq(&node_as_template_span.literal, &literal)
@@ -277,7 +278,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         &self,
         node: &Node,                           /*Block*/
         statements: impl Into<NodeArrayOrVec>, /*Statement*/
-    ) -> Gc<Node> {
+    ) -> Id<Node> {
         let node_as_block = node.as_block();
         let statements = statements.into();
         if has_node_array_changed(&node_as_block.statements, &statements) {
@@ -326,8 +327,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         &self,
         node: &Node, /*VariableStatement*/
         modifiers: Option<impl Into<NodeArrayOrVec>>,
-        declaration_list: Gc<Node /*VariableDeclarationList*/>,
-    ) -> Gc<Node> {
+        declaration_list: Id<Node /*VariableDeclarationList*/>,
+    ) -> Id<Node> {
         let node_as_variable_statement = node.as_variable_statement();
         let modifiers = modifiers.map(Into::into);
         if has_option_node_array_changed(node.maybe_modifiers().as_deref(), modifiers.as_ref())
@@ -354,7 +355,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_expression_statement_raw(
         &self,
-        expression: Gc<Node /*Expression*/>,
+        expression: Id<Node /*Expression*/>,
     ) -> ExpressionStatement {
         let node = self.create_base_node(SyntaxKind::ExpressionStatement);
         let node = ExpressionStatement::new(
@@ -369,8 +370,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     pub fn update_expression_statement(
         &self,
         node: &Node, /*ExpressionStatement*/
-        expression: Gc<Node /*Expression*/>,
-    ) -> Gc<Node> {
+        expression: Id<Node /*Expression*/>,
+    ) -> Id<Node> {
         let node_as_expression_statement = node.as_expression_statement();
         if !Gc::ptr_eq(&node_as_expression_statement.expression, &expression) {
             self.update(self.create_expression_statement(expression), node)
@@ -382,9 +383,9 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_if_statement_raw(
         &self,
-        expression: Gc<Node /*Expression*/>,
-        then_statement: Gc<Node /*Statement*/>,
-        else_statement: Option<Gc<Node /*Statement*/>>,
+        expression: Id<Node /*Expression*/>,
+        then_statement: Id<Node /*Statement*/>,
+        else_statement: Option<Id<Node /*Statement*/>>,
     ) -> IfStatement {
         let node = self.create_base_node(SyntaxKind::IfStatement);
         let node = IfStatement::new(
@@ -404,10 +405,10 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     pub fn update_if_statement(
         &self,
         node: &Node, /*IfStatement*/
-        expression: Gc<Node /*Expression*/>,
-        then_statement: Gc<Node /*Statement*/>,
-        else_statement: Option<Gc<Node /*Statement*/>>,
-    ) -> Gc<Node> {
+        expression: Id<Node /*Expression*/>,
+        then_statement: Id<Node /*Statement*/>,
+        else_statement: Option<Id<Node /*Statement*/>>,
+    ) -> Id<Node> {
         let node_as_if_statement = node.as_if_statement();
         if !Gc::ptr_eq(&node_as_if_statement.expression, &expression)
             || !Gc::ptr_eq(&node_as_if_statement.then_statement, &then_statement)
@@ -428,8 +429,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_do_statement_raw(
         &self,
-        statement: Gc<Node /*Statement*/>,
-        expression: Gc<Node /*Expression*/>,
+        statement: Id<Node /*Statement*/>,
+        expression: Id<Node /*Expression*/>,
     ) -> DoStatement {
         let node = self.create_base_node(SyntaxKind::DoStatement);
         let node = DoStatement::new(
@@ -447,9 +448,9 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     pub fn update_do_statement(
         &self,
         node: &Node, /*DoStatement*/
-        statement: Gc<Node /*Statement*/>,
-        expression: Gc<Node /*Expression*/>,
-    ) -> Gc<Node> {
+        statement: Id<Node /*Statement*/>,
+        expression: Id<Node /*Expression*/>,
+    ) -> Id<Node> {
         let node_as_do_statement = node.as_do_statement();
         if !Gc::ptr_eq(&node_as_do_statement.statement, &statement)
             || !Gc::ptr_eq(&node_as_do_statement.expression, &expression)
@@ -463,8 +464,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_while_statement_raw(
         &self,
-        expression: Gc<Node /*Expression*/>,
-        statement: Gc<Node /*Statement*/>,
+        expression: Id<Node /*Expression*/>,
+        statement: Id<Node /*Statement*/>,
     ) -> WhileStatement {
         let node = self.create_base_node(SyntaxKind::WhileStatement);
         let node = WhileStatement::new(
@@ -482,9 +483,9 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     pub fn update_while_statement(
         &self,
         node: &Node, /*WhileStatement*/
-        expression: Gc<Node /*Expression*/>,
-        statement: Gc<Node /*Statement*/>,
-    ) -> Gc<Node> {
+        expression: Id<Node /*Expression*/>,
+        statement: Id<Node /*Statement*/>,
+    ) -> Id<Node> {
         let node_as_while_statement = node.as_while_statement();
         if !Gc::ptr_eq(&node_as_while_statement.expression, &expression)
             || !Gc::ptr_eq(&node_as_while_statement.statement, &statement)
@@ -498,10 +499,10 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_for_statement_raw(
         &self,
-        initializer: Option<Gc<Node /*ForInitializer*/>>,
-        condition: Option<Gc<Node /*Expression*/>>,
-        incrementor: Option<Gc<Node /*Expression*/>>,
-        statement: Gc<Node /*Statement*/>,
+        initializer: Option<Id<Node /*ForInitializer*/>>,
+        condition: Option<Id<Node /*Expression*/>>,
+        incrementor: Option<Id<Node /*Expression*/>>,
+        statement: Id<Node /*Statement*/>,
     ) -> ForStatement {
         let node = self.create_base_node(SyntaxKind::ForStatement);
         let node = ForStatement::new(
@@ -523,11 +524,11 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     pub fn update_for_statement(
         &self,
         node: &Node, /*ForStatement*/
-        initializer: Option<Gc<Node /*ForInitializer*/>>,
-        condition: Option<Gc<Node /*Expression*/>>,
-        incrementor: Option<Gc<Node /*Expression*/>>,
-        statement: Gc<Node /*Statement*/>,
-    ) -> Gc<Node> {
+        initializer: Option<Id<Node /*ForInitializer*/>>,
+        condition: Option<Id<Node /*Expression*/>>,
+        incrementor: Option<Id<Node /*Expression*/>>,
+        statement: Id<Node /*Statement*/>,
+    ) -> Id<Node> {
         let node_as_for_statement = node.as_for_statement();
         if !are_option_gcs_equal(
             node_as_for_statement.initializer.as_ref(),
@@ -551,9 +552,9 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_for_in_statement_raw(
         &self,
-        initializer: Gc<Node /*ForInitializer*/>,
-        expression: Gc<Node /*Expression*/>,
-        statement: Gc<Node /*Statement*/>,
+        initializer: Id<Node /*ForInitializer*/>,
+        expression: Id<Node /*Expression*/>,
+        statement: Id<Node /*Statement*/>,
     ) -> ForInStatement {
         let node = self.create_base_node(SyntaxKind::ForInStatement);
         let node = ForInStatement::new(
@@ -573,10 +574,10 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     pub fn update_for_in_statement(
         &self,
         node: &Node, /*ForInStatement*/
-        initializer: Gc<Node /*ForInitializer*/>,
-        expression: Gc<Node /*Expression*/>,
-        statement: Gc<Node /*Statement*/>,
-    ) -> Gc<Node> {
+        initializer: Id<Node /*ForInitializer*/>,
+        expression: Id<Node /*Expression*/>,
+        statement: Id<Node /*Statement*/>,
+    ) -> Id<Node> {
         let node_as_for_in_statement = node.as_for_in_statement();
         if !Gc::ptr_eq(&node_as_for_in_statement.initializer, &initializer)
             || !Gc::ptr_eq(&node_as_for_in_statement.expression, &expression)
@@ -594,10 +595,10 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_for_of_statement_raw(
         &self,
-        await_modifier: Option<Gc<Node /*AwaitKeyword*/>>,
-        initializer: Gc<Node /*ForInitializer*/>,
-        expression: Gc<Node /*Expression*/>,
-        statement: Gc<Node /*Statement*/>,
+        await_modifier: Option<Id<Node /*AwaitKeyword*/>>,
+        initializer: Id<Node /*ForInitializer*/>,
+        expression: Id<Node /*Expression*/>,
+        statement: Id<Node /*Statement*/>,
     ) -> ForOfStatement {
         let node = self.create_base_node(SyntaxKind::ForOfStatement);
         let await_modifier_is_some = await_modifier.is_some();
@@ -625,11 +626,11 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     pub fn update_for_of_statement(
         &self,
         node: &Node, /*ForOfStatement*/
-        await_modifier: Option<Gc<Node /*AwaitKeyword*/>>,
-        initializer: Gc<Node /*ForInitializer*/>,
-        expression: Gc<Node /*Expression*/>,
-        statement: Gc<Node /*Statement*/>,
-    ) -> Gc<Node> {
+        await_modifier: Option<Id<Node /*AwaitKeyword*/>>,
+        initializer: Id<Node /*ForInitializer*/>,
+        expression: Id<Node /*Expression*/>,
+        statement: Id<Node /*Statement*/>,
+    ) -> Id<Node> {
         let node_as_for_of_statement = node.as_for_of_statement();
         if !are_option_gcs_equal(
             node_as_for_of_statement.await_modifier.as_ref(),
@@ -664,8 +665,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     pub fn update_continue_statement(
         &self,
         node: &Node, /*ContinueStatement*/
-        label: Option<Gc<Node /*Identifier*/>>,
-    ) -> Gc<Node> {
+        label: Option<Id<Node /*Identifier*/>>,
+    ) -> Id<Node> {
         let node_as_continue_statement = node.as_continue_statement();
         if !are_option_gcs_equal(node_as_continue_statement.label.as_ref(), label.as_ref()) {
             self.update(self.create_continue_statement(label), node)
@@ -691,8 +692,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     pub fn update_break_statement(
         &self,
         node: &Node, /*BreakStatement*/
-        label: Option<Gc<Node /*Identifier*/>>,
-    ) -> Gc<Node> {
+        label: Option<Id<Node /*Identifier*/>>,
+    ) -> Id<Node> {
         let node_as_break_statement = node.as_break_statement();
         if !are_option_gcs_equal(node_as_break_statement.label.as_ref(), label.as_ref()) {
             self.update(self.create_break_statement(label), node)
@@ -704,7 +705,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_return_statement_raw(
         &self,
-        expression: Option<Gc<Node /*Expression*/>>,
+        expression: Option<Id<Node /*Expression*/>>,
     ) -> ReturnStatement {
         let node = self.create_base_node(SyntaxKind::ReturnStatement);
         let node = ReturnStatement::new(node, expression);
@@ -719,8 +720,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     pub fn update_return_statement(
         &self,
         node: &Node, /*ReturnStatement*/
-        expression: Option<Gc<Node /*Expression*/>>,
-    ) -> Gc<Node> {
+        expression: Option<Id<Node /*Expression*/>>,
+    ) -> Id<Node> {
         let node_as_return_statement = node.as_return_statement();
         if !are_option_gcs_equal(
             node_as_return_statement.expression.as_ref(),
@@ -735,8 +736,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_with_statement_raw(
         &self,
-        expression: Gc<Node /*Expression*/>,
-        statement: Gc<Node /*Statement*/>,
+        expression: Id<Node /*Expression*/>,
+        statement: Id<Node /*Statement*/>,
     ) -> WithStatement {
         let node = self.create_base_node(SyntaxKind::WithStatement);
         let node = WithStatement::new(
@@ -754,9 +755,9 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     pub fn update_with_statement(
         &self,
         node: &Node, /*WithStatement*/
-        expression: Gc<Node /*Expression*/>,
-        statement: Gc<Node /*Statement*/>,
-    ) -> Gc<Node> {
+        expression: Id<Node /*Expression*/>,
+        statement: Id<Node /*Statement*/>,
+    ) -> Id<Node> {
         let node_as_with_statement = node.as_with_statement();
         if !Gc::ptr_eq(&node_as_with_statement.expression, &expression)
             || !Gc::ptr_eq(&node_as_with_statement.statement, &statement)
@@ -770,8 +771,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_switch_statement_raw(
         &self,
-        expression: Gc<Node /*Expression*/>,
-        case_block: Gc<Node /*CaseBlock*/>,
+        expression: Id<Node /*Expression*/>,
+        case_block: Id<Node /*CaseBlock*/>,
     ) -> SwitchStatement {
         let node = self.create_base_node(SyntaxKind::SwitchStatement);
         let node = SwitchStatement::new(
@@ -790,9 +791,9 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     pub fn update_switch_statement(
         &self,
         node: &Node, /*SwitchStatement*/
-        expression: Gc<Node /*Expression*/>,
-        case_block: Gc<Node /*CaseBlock*/>,
-    ) -> Gc<Node> {
+        expression: Id<Node /*Expression*/>,
+        case_block: Id<Node /*CaseBlock*/>,
+    ) -> Id<Node> {
         let node_as_switch_statement = node.as_switch_statement();
         if !Gc::ptr_eq(&node_as_switch_statement.expression, &expression)
             || !Gc::ptr_eq(&node_as_switch_statement.case_block, &case_block)
@@ -807,7 +808,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     pub fn create_labeled_statement_raw<'label>(
         &self,
         label: impl Into<StrOrRcNode<'label>>,
-        statement: Gc<Node /*Statement*/>,
+        statement: Id<Node /*Statement*/>,
     ) -> LabeledStatement {
         let node = self.create_base_node(SyntaxKind::LabeledStatement);
         let node = LabeledStatement::new(
@@ -825,9 +826,9 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     pub fn update_labeled_statement(
         &self,
         node: &Node, /*LabeledStatement*/
-        label: Gc<Node /*Identifier*/>,
-        statement: Gc<Node /*Statement*/>,
-    ) -> Gc<Node> {
+        label: Id<Node /*Identifier*/>,
+        statement: Id<Node /*Statement*/>,
+    ) -> Id<Node> {
         let node_as_labeled_statement = node.as_labeled_statement();
         if !Gc::ptr_eq(&node_as_labeled_statement.label, &label)
             || !Gc::ptr_eq(&node_as_labeled_statement.statement, &statement)
@@ -841,7 +842,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_throw_statement_raw(
         &self,
-        expression: Gc<Node /*Expression*/>,
+        expression: Id<Node /*Expression*/>,
     ) -> ThrowStatement {
         let node = self.create_base_node(SyntaxKind::ThrowStatement);
         let node = ThrowStatement::new(node, expression);
@@ -852,8 +853,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     pub fn update_throw_statement(
         &self,
         node: &Node, /*ThrowStatement*/
-        expression: Gc<Node /*Expression*/>,
-    ) -> Gc<Node> {
+        expression: Id<Node /*Expression*/>,
+    ) -> Id<Node> {
         let node_as_throw_statement = node.as_throw_statement();
         if !Gc::ptr_eq(&node_as_throw_statement.expression, &expression) {
             self.update(self.create_throw_statement(expression), node)
@@ -865,9 +866,9 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_try_statement_raw(
         &self,
-        try_block: Gc<Node /*Block*/>,
-        catch_clause: Option<Gc<Node /*CatchClause*/>>,
-        finally_block: Option<Gc<Node /*Block*/>>,
+        try_block: Id<Node /*Block*/>,
+        catch_clause: Option<Id<Node /*CatchClause*/>>,
+        finally_block: Option<Id<Node /*Block*/>>,
     ) -> TryStatement {
         let node = self.create_base_node(SyntaxKind::TryStatement);
         let node = TryStatement::new(node, try_block, catch_clause, finally_block);
@@ -882,10 +883,10 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     pub fn update_try_statement(
         &self,
         node: &Node, /*TryStatement*/
-        try_block: Gc<Node /*Block*/>,
-        catch_clause: Option<Gc<Node /*CatchClause*/>>,
-        finally_block: Option<Gc<Node /*Block*/>>,
-    ) -> Gc<Node> {
+        try_block: Id<Node /*Block*/>,
+        catch_clause: Option<Id<Node /*CatchClause*/>>,
+        finally_block: Option<Id<Node /*Block*/>>,
+    ) -> Id<Node> {
         let node_as_try_statement = node.as_try_statement();
         if !Gc::ptr_eq(&node_as_try_statement.try_block, &try_block)
             || !are_option_gcs_equal(
@@ -916,9 +917,9 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     pub fn create_variable_declaration_raw<'name>(
         &self,
         name: Option<impl Into<StrOrRcNode<'name> /*BindingName*/>>,
-        exclamation_token: Option<Gc<Node /*ExclamationToken*/>>,
-        type_: Option<Gc<Node /*TypeNode*/>>,
-        initializer: Option<Gc<Node /*Expression*/>>,
+        exclamation_token: Option<Id<Node /*ExclamationToken*/>>,
+        type_: Option<Id<Node /*TypeNode*/>>,
+        initializer: Option<Id<Node /*Expression*/>>,
     ) -> VariableDeclaration {
         let node = self.create_base_variable_like_declaration(
             SyntaxKind::VariableDeclaration,
@@ -943,11 +944,11 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     pub fn update_variable_declaration(
         &self,
         node: &Node, /*VariableDeclaration*/
-        name: Option<Gc<Node /*BindingName*/>>,
-        exclamation_token: Option<Gc<Node /*ExclamationToken*/>>,
-        type_: Option<Gc<Node /*TypeNode*/>>,
-        initializer: Option<Gc<Node /*Expression*/>>,
-    ) -> Gc<Node> {
+        name: Option<Id<Node /*BindingName*/>>,
+        exclamation_token: Option<Id<Node /*ExclamationToken*/>>,
+        type_: Option<Id<Node /*TypeNode*/>>,
+        initializer: Option<Id<Node /*Expression*/>>,
+    ) -> Id<Node> {
         let node_as_variable_declaration = node.as_variable_declaration();
         if !are_option_gcs_equal(
             node_as_variable_declaration.maybe_name().as_ref(),
@@ -998,7 +999,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         &self,
         node: &Node, /*VariableDeclarationList*/
         declarations: impl Into<NodeArrayOrVec>,
-    ) -> Gc<Node> {
+    ) -> Id<Node> {
         let node_as_variable_declaration_list = node.as_variable_declaration_list();
         let declarations = declarations.into();
         if has_node_array_changed(
@@ -1019,7 +1020,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         &self,
         decorators: Option<impl Into<NodeArrayOrVec>>,
         modifiers: Option<impl Into<NodeArrayOrVec>>,
-        asterisk_token: Option<Gc<Node /*AsteriskToken*/>>,
+        asterisk_token: Option<Id<Node /*AsteriskToken*/>>,
         name: Option<
             impl Into<StrOrRcNode<'name>>,
             /*Identifier*/
@@ -1029,8 +1030,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
             /*<TypeParameterDeclaration>*/
         >,
         parameters: impl Into<NodeArrayOrVec>, /*<ParameterDeclaration>*/
-        type_: Option<Gc<Node /*TypeNode*/>>,
-        body: Option<Gc<Node /*Block*/>>,
+        type_: Option<Id<Node /*TypeNode*/>>,
+        body: Option<Id<Node /*Block*/>>,
     ) -> FunctionDeclaration {
         let mut node = self.create_base_function_like_declaration(
             SyntaxKind::FunctionDeclaration,
@@ -1077,13 +1078,13 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         node: &Node, /*FunctionDeclaration*/
         decorators: Option<impl Into<NodeArrayOrVec>>,
         modifiers: Option<impl Into<NodeArrayOrVec>>,
-        asterisk_token: Option<Gc<Node /*AsteriskToken*/>>,
-        name: Option<Gc<Node /*Identifier*/>>,
+        asterisk_token: Option<Id<Node /*AsteriskToken*/>>,
+        name: Option<Id<Node /*Identifier*/>>,
         type_parameters: Option<impl Into<NodeArrayOrVec>>,
         parameters: impl Into<NodeArrayOrVec>,
-        type_: Option<Gc<Node /*TypeNode*/>>,
-        body: Option<Gc<Node /*Block*/>>,
-    ) -> Gc<Node> {
+        type_: Option<Id<Node /*TypeNode*/>>,
+        body: Option<Id<Node /*Block*/>>,
+    ) -> Id<Node> {
         let node_as_function_declaration = node.as_function_declaration();
         let decorators = decorators.map(Into::into);
         let modifiers = modifiers.map(Into::into);
@@ -1183,7 +1184,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         node: &Node, /*ClassDeclaration*/
         decorators: Option<impl Into<NodeArrayOrVec>>,
         modifiers: Option<impl Into<NodeArrayOrVec>>,
-        name: Option<Gc<Node>>,
+        name: Option<Id<Node>>,
         type_parameters: Option<
             impl Into<NodeArrayOrVec>,
             /*<TypeParameterDeclaration>*/
@@ -1193,7 +1194,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
             /*<HeritageClause>*/
         >,
         members: impl Into<NodeArrayOrVec>, /*<ClassElement>*/
-    ) -> Gc<Node> {
+    ) -> Id<Node> {
         let node_as_class_declaration = node.as_class_declaration();
         let decorators = decorators.map(Into::into);
         let modifiers = modifiers.map(Into::into);
@@ -1262,11 +1263,11 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         node: &Node, /*InterfaceDeclaration*/
         decorators: Option<impl Into<NodeArrayOrVec>>,
         modifiers: Option<impl Into<NodeArrayOrVec>>,
-        name: Gc<Node>,
+        name: Id<Node>,
         type_parameters: Option<impl Into<NodeArrayOrVec>>,
         heritage_clauses: Option<impl Into<NodeArrayOrVec>>,
         members: impl Into<NodeArrayOrVec>,
-    ) -> Gc<Node> {
+    ) -> Id<Node> {
         let node_as_interface_declaration = node.as_interface_declaration();
         let decorators = decorators.map(Into::into);
         let modifiers = modifiers.map(Into::into);
@@ -1313,7 +1314,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         modifiers: Option<impl Into<NodeArrayOrVec>>,
         name: impl Into<StrOrRcNode<'name>>,
         type_parameters: Option<impl Into<NodeArrayOrVec>>,
-        type_: Gc<Node /*TypeNode*/>,
+        type_: Id<Node /*TypeNode*/>,
     ) -> TypeAliasDeclaration {
         let node = self.create_base_generic_named_declaration(
             SyntaxKind::TypeAliasDeclaration,
@@ -1332,10 +1333,10 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         node: &Node, /*TypeAliasDeclaration*/
         decorators: Option<impl Into<NodeArrayOrVec>>,
         modifiers: Option<impl Into<NodeArrayOrVec>>,
-        name: Gc<Node>,
+        name: Id<Node>,
         type_parameters: Option<impl Into<NodeArrayOrVec>>,
-        type_: Gc<Node /*TypeNode*/>,
-    ) -> Gc<Node> {
+        type_: Id<Node /*TypeNode*/>,
+    ) -> Id<Node> {
         let node_as_type_alias_declaration = node.as_type_alias_declaration();
         let decorators = decorators.map(Into::into);
         let modifiers = modifiers.map(Into::into);
@@ -1398,9 +1399,9 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         node: &Node, /*EnumDeclaration*/
         decorators: Option<impl Into<NodeArrayOrVec>>,
         modifiers: Option<impl Into<NodeArrayOrVec>>,
-        name: Gc<Node>,
+        name: Id<Node>,
         members: Option<impl Into<NodeArrayOrVec>>,
-    ) -> Gc<Node> {
+    ) -> Id<Node> {
         let node_as_enum_declaration = node.as_enum_declaration();
         let decorators = decorators.map(Into::into);
         let modifiers = modifiers.map(Into::into);
@@ -1427,8 +1428,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         &self,
         decorators: Option<impl Into<NodeArrayOrVec>>,
         modifiers: Option<impl Into<NodeArrayOrVec>>,
-        name: Gc<Node /*ModuleName*/>,
-        body: Option<Gc<Node /*ModuleBody*/>>,
+        name: Id<Node /*ModuleName*/>,
+        body: Option<Id<Node /*ModuleBody*/>>,
         flags: Option<NodeFlags>,
     ) -> ModuleDeclaration {
         let flags = flags.unwrap_or(NodeFlags::None);
@@ -1464,9 +1465,9 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         node: &Node, /*ModuleDeclaration*/
         decorators: Option<impl Into<NodeArrayOrVec>>,
         modifiers: Option<impl Into<NodeArrayOrVec>>,
-        name: Gc<Node /*ModuleName*/>,
-        body: Option<Gc<Node /*ModuleBody*/>>,
-    ) -> Gc<Node> {
+        name: Id<Node /*ModuleName*/>,
+        body: Option<Id<Node /*ModuleBody*/>>,
+    ) -> Id<Node> {
         let node_as_module_declaration = node.as_module_declaration();
         let decorators = decorators.map(Into::into);
         let modifiers = modifiers.map(Into::into);
@@ -1505,7 +1506,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         &self,
         node: &Node, /*ModuleBlock*/
         statements: impl Into<NodeArrayOrVec>,
-    ) -> Gc<Node> {
+    ) -> Id<Node> {
         let node_as_module_block = node.as_module_block();
         let statements = statements.into();
         if has_node_array_changed(&node_as_module_block.statements, &statements) {
@@ -1530,7 +1531,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         &self,
         node: &Node,                        /*CaseBlock*/
         clauses: impl Into<NodeArrayOrVec>, /*<CaseOrDefaultClause>*/
-    ) -> Gc<Node> {
+    ) -> Id<Node> {
         let node_as_case_block = node.as_case_block();
         let clauses = clauses.into();
         if has_node_array_changed(&node_as_case_block.clauses, &clauses) {
@@ -1559,8 +1560,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     pub fn update_namespace_export_declaration(
         &self,
         _node: &Node, /*NamespaceExportDeclaration*/
-        _name: Gc<Node /*Identifier*/>,
-    ) -> Gc<Node> {
+        _name: Id<Node /*Identifier*/>,
+    ) -> Id<Node> {
         unimplemented!()
     }
 
@@ -1571,7 +1572,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         modifiers: Option<impl Into<NodeArrayOrVec>>,
         is_type_only: bool,
         name: impl Into<StrOrRcNode<'name>>,
-        module_reference: Gc<Node /*ModuleReference*/>,
+        module_reference: Id<Node /*ModuleReference*/>,
     ) -> ImportEqualsDeclaration {
         let node = self.create_base_named_declaration(
             SyntaxKind::ImportEqualsDeclaration,
@@ -1596,9 +1597,9 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         decorators: Option<impl Into<NodeArrayOrVec>>,
         modifiers: Option<impl Into<NodeArrayOrVec>>,
         is_type_only: bool,
-        name: Gc<Node /*Identifier*/>,
-        module_reference: Gc<Node /*ModuleReference*/>,
-    ) -> Gc<Node> {
+        name: Id<Node /*Identifier*/>,
+        module_reference: Id<Node /*ModuleReference*/>,
+    ) -> Id<Node> {
         let node_as_import_equals_declaration = node.as_import_equals_declaration();
         let decorators = decorators.map(Into::into);
         let modifiers = modifiers.map(Into::into);
@@ -1630,9 +1631,9 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         &self,
         decorators: Option<impl Into<NodeArrayOrVec>>,
         modifiers: Option<impl Into<NodeArrayOrVec>>,
-        import_clause: Option<Gc<Node /*ImportClause*/>>,
-        module_specifier: Gc<Node /*Expression*/>,
-        assert_clause: Option<Gc<Node /*AssertClause*/>>,
+        import_clause: Option<Id<Node /*ImportClause*/>>,
+        module_specifier: Id<Node /*Expression*/>,
+        assert_clause: Option<Id<Node /*AssertClause*/>>,
     ) -> ImportDeclaration {
         let node =
             self.create_base_declaration(SyntaxKind::ImportDeclaration, decorators, modifiers);
@@ -1649,10 +1650,10 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         node: &Node, /*ImportDeclaration*/
         decorators: Option<impl Into<NodeArrayOrVec>>,
         modifiers: Option<impl Into<NodeArrayOrVec>>,
-        import_clause: Option<Gc<Node /*ImportClause*/>>,
-        module_specifier: Gc<Node /*Expression*/>,
-        assert_clause: Option<Gc<Node /*AssertClause*/>>,
-    ) -> Gc<Node> {
+        import_clause: Option<Id<Node /*ImportClause*/>>,
+        module_specifier: Id<Node /*Expression*/>,
+        assert_clause: Option<Id<Node /*AssertClause*/>>,
+    ) -> Id<Node> {
         let node_as_import_declaration = node.as_import_declaration();
         let decorators = decorators.map(Into::into);
         let modifiers = modifiers.map(Into::into);
@@ -1690,8 +1691,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     pub fn create_import_clause_raw(
         &self,
         is_type_only: bool,
-        name: Option<Gc<Node /*Identifier*/>>,
-        named_bindings: Option<Gc<Node /*NamedImportBindings*/>>,
+        name: Option<Id<Node /*Identifier*/>>,
+        named_bindings: Option<Id<Node /*NamedImportBindings*/>>,
     ) -> ImportClause {
         let node = self.create_base_node(SyntaxKind::ImportClause);
         let node = ImportClause::new(node, is_type_only, name, named_bindings);
@@ -1712,9 +1713,9 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         &self,
         node: &Node, /*ImportClause*/
         is_type_only: bool,
-        name: Option<Gc<Node /*Identifier*/>>,
-        named_bindings: Option<Gc<Node /*NamedImportBindings*/>>,
-    ) -> Gc<Node> {
+        name: Option<Id<Node /*Identifier*/>>,
+        named_bindings: Option<Id<Node /*NamedImportBindings*/>>,
+    ) -> Id<Node> {
         let node_as_import_clause = node.as_import_clause();
         if node_as_import_clause.is_type_only != is_type_only
             || !are_option_gcs_equal(node_as_import_clause.name.as_ref(), name.as_ref())

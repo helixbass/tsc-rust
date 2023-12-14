@@ -174,7 +174,7 @@ impl TypeChecker {
                         return !(is_jsdoc_template_tag(&decl_parent)
                             && find(
                                 decl_parent.parent().as_jsdoc().tags.as_deref().unwrap(),
-                                |tag: &Gc<Node>, _| is_jsdoc_type_alias(tag),
+                                |tag: &Id<Node>, _| is_jsdoc_type_alias(tag),
                             )
                             .is_some());
                     }
@@ -200,7 +200,7 @@ impl TypeChecker {
         }
 
         let container = get_this_container(error_location, false);
-        let mut location: Option<Gc<Node>> = Some(container.clone());
+        let mut location: Option<Id<Node>> = Some(container.clone());
         while let Some(location_present) = location {
             if maybe_is_class_like(location_present.maybe_parent()) {
                 let class_symbol =
@@ -278,7 +278,7 @@ impl TypeChecker {
     pub(super) fn get_entity_name_for_extending_interface(
         &self,
         node: &Node,
-    ) -> Option<Gc<Node /*EntityNameExpression*/>> {
+    ) -> Option<Id<Node /*EntityNameExpression*/>> {
         match node.kind() {
             SyntaxKind::Identifier | SyntaxKind::PropertyAccessExpression => node
                 .maybe_parent()
@@ -314,7 +314,7 @@ impl TypeChecker {
                     name,
                     SymbolFlags::Type & !namespace_meaning,
                     None,
-                    Option::<Gc<Node>>::None,
+                    Option::<Id<Node>>::None,
                     false,
                     None,
                 )?,
@@ -370,7 +370,7 @@ impl TypeChecker {
                     name,
                     !SymbolFlags::Type & SymbolFlags::Value,
                     None,
-                    Option::<Gc<Node>>::None,
+                    Option::<Id<Node>>::None,
                     false,
                     None,
                 )?,
@@ -435,7 +435,7 @@ impl TypeChecker {
                     name,
                     SymbolFlags::Type & !SymbolFlags::Value,
                     None,
-                    Option::<Gc<Node>>::None,
+                    Option::<Id<Node>>::None,
                     false,
                     None,
                 )?,
@@ -522,7 +522,7 @@ impl TypeChecker {
                     name,
                     SymbolFlags::NamespaceModule & !SymbolFlags::Value,
                     None,
-                    Option::<Gc<Node>>::None,
+                    Option::<Id<Node>>::None,
                     false,
                     None,
                 )?,
@@ -545,7 +545,7 @@ impl TypeChecker {
                     name,
                     (SymbolFlags::ValueModule | SymbolFlags::NamespaceModule) & !SymbolFlags::Type,
                     None,
-                    Option::<Gc<Node>>::None,
+                    Option::<Id<Node>>::None,
                     false,
                     None,
                 )?,
@@ -687,7 +687,7 @@ impl TypeChecker {
     pub(super) fn get_any_import_syntax(
         &self,
         node: &Node,
-    ) -> Option<Gc<Node /*AnyImportSyntax*/>> {
+    ) -> Option<Id<Node /*AnyImportSyntax*/>> {
         match node.kind() {
             SyntaxKind::ImportEqualsDeclaration => Some(node.node_wrapper()),
             SyntaxKind::ImportClause => node.maybe_parent(),
@@ -700,7 +700,7 @@ impl TypeChecker {
     pub(super) fn get_declaration_of_alias_symbol(
         &self,
         symbol: Id<Symbol>,
-    ) -> io::Result<Option<Gc<Node /*Declaration*/>>> {
+    ) -> io::Result<Option<Id<Node /*Declaration*/>>> {
         Ok(symbol
             .ref_(self)
             .maybe_declarations()
@@ -967,7 +967,7 @@ impl TypeChecker {
                 default_export_symbol,
                 Some(default_export_symbol) if some(
                     default_export_symbol.ref_(self).maybe_declarations().as_deref(),
-                    Some(|declaration: &Gc<Node>| self.is_syntactic_default(declaration))
+                    Some(|declaration: &Id<Node>| self.is_syntactic_default(declaration))
                 )
             ) {
                 return Ok(false);
@@ -1356,7 +1356,7 @@ impl TypeChecker {
                 _ => panic!("Expected ImportDeclaration or ExportDeclaration"),
             });
         let module_symbol = self.resolve_external_module_name_(node, &module_specifier, None)?;
-        let name: Gc<Node> = if !is_property_access_expression(specifier) {
+        let name: Id<Node> = if !is_property_access_expression(specifier) {
             specifier.as_has_property_name().maybe_property_name()
         } else {
             None
@@ -1426,7 +1426,7 @@ impl TypeChecker {
                     .and_then(|declarations| {
                         declarations
                             .iter()
-                            .find(|declaration: &&Gc<Node>| is_source_file(declaration))
+                            .find(|declaration: &&Id<Node>| is_source_file(declaration))
                             .map(Clone::clone)
                     });
                 if self.is_only_imported_as_default(&module_specifier)
@@ -1614,7 +1614,7 @@ impl TypeChecker {
                 {
                     add_related_info(
                         &diagnostic,
-                        map(local_symbol_declarations, |decl: &Gc<Node>, index| {
+                        map(local_symbol_declarations, |decl: &Id<Node>, index| {
                             create_diagnostic_for_node(
                                 decl,
                                 if index == 0 {
@@ -1730,7 +1730,7 @@ impl TypeChecker {
     pub(super) fn get_common_js_property_access(
         &self,
         node: &Node,
-    ) -> Option<Gc<Node /*PropertyAccessExpression*/>> {
+    ) -> Option<Id<Node /*PropertyAccessExpression*/>> {
         if is_variable_declaration(node) {
             if let Some(node_initializer) = node.as_variable_declaration().maybe_initializer() {
                 if is_property_access_expression(&node_initializer) {

@@ -150,7 +150,7 @@ bitflags! {
 pub struct NodeLinksSerializedType {
     pub truncating: Option<bool>,
     pub added_length: usize,
-    pub node: Gc<Node /*TypeNode*/>,
+    pub node: Id<Node /*TypeNode*/>,
 }
 
 #[derive(Debug, Trace, Finalize)]
@@ -175,7 +175,7 @@ pub struct NodeLinks {
     pub jsx_namespace: Option<Option<Id<Symbol>>>,
     pub jsx_implicit_import_container: Option<Option<Id<Symbol>>>,
     pub context_free_type: Option<Id<Type>>,
-    pub deferred_nodes: Option<IndexMap<NodeId, Gc<Node>>>,
+    pub deferred_nodes: Option<IndexMap<NodeId, Id<Node>>>,
     pub captured_block_scope_bindings: Option<Vec<Id<Symbol>>>,
     pub outer_type_parameters: Option<Vec<Id<Type /*TypeParameter*/>>>,
     pub is_exhaustive: Option<bool>,
@@ -544,7 +544,7 @@ pub trait TypeInterface {
     fn maybe_symbol(&self) -> Option<Id<Symbol>>;
     fn symbol(&self) -> Id<Symbol>;
     fn set_symbol(&self, symbol: Option<Id<Symbol>>);
-    fn maybe_pattern(&self) -> GcCellRefMut<Option<Gc<Node /*DestructuringPattern*/>>>;
+    fn maybe_pattern(&self) -> GcCellRefMut<Option<Id<Node /*DestructuringPattern*/>>>;
     fn maybe_alias_symbol(&self) -> Option<Id<Symbol>>;
     fn maybe_alias_symbol_mut(&self) -> GcCellRefMut<Option<Id<Symbol>>>;
     fn maybe_alias_type_arguments(&self) -> Option<Vec<Id<Type>>>;
@@ -600,7 +600,7 @@ pub struct BaseType {
     #[unsafe_ignore_trace]
     pub id: Option<TypeId>,
     symbol: GcCell<Option<Id<Symbol>>>,
-    pattern: GcCell<Option<Gc<Node>>>,
+    pattern: GcCell<Option<Id<Node>>>,
     alias_symbol: GcCell<Option<Id<Symbol>>>,
     alias_type_arguments: GcCell<Option<Vec<Id<Type>>>>,
     #[unsafe_ignore_trace]
@@ -697,7 +697,7 @@ impl TypeInterface for BaseType {
         *self.symbol.borrow_mut() = symbol;
     }
 
-    fn maybe_pattern(&self) -> GcCellRefMut<Option<Gc<Node>>> {
+    fn maybe_pattern(&self) -> GcCellRefMut<Option<Id<Node>>> {
         self.pattern.borrow_mut()
     }
 

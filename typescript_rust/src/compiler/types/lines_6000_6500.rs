@@ -69,7 +69,7 @@ pub enum CompilerOptionsValue {
     Bool(Option<bool>),
     String(Option<String>),
     #[serde(skip_serializing)]
-    SourceFile(Option<Gc<Node /*SourceFile*/>>),
+    SourceFile(Option<Id<Node /*SourceFile*/>>),
     ImportsNotUsedAsValues(Option<ImportsNotUsedAsValues>),
     JsxEmit(Option<JsxEmit>),
     VecString(Option<Vec<String>>),
@@ -191,7 +191,7 @@ impl CompilerOptionsValue {
         enum_unwrapped!(self, [CompilerOptionsValue, Usize])
     }
 
-    pub fn into_option_rc_node(self) -> Option<Gc<Node>> {
+    pub fn into_option_rc_node(self) -> Option<Id<Node>> {
         enum_unwrapped!(self, [CompilerOptionsValue, SourceFile])
     }
 
@@ -305,8 +305,8 @@ impl From<Option<String>> for CompilerOptionsValue {
     }
 }
 
-impl From<Option<Gc<Node>>> for CompilerOptionsValue {
-    fn from(value: Option<Gc<Node>>) -> Self {
+impl From<Option<Id<Node>>> for CompilerOptionsValue {
+    fn from(value: Option<Id<Node>>) -> Self {
         Self::SourceFile(value)
     }
 }
@@ -419,7 +419,7 @@ mod _CompilerOptionsDeriveTraceScope {
         pub check_js: Option<bool>,
         pub config_file_path: Option<String>,
         #[serde(skip_serializing)]
-        pub config_file: Option<Gc<Node /*TsConfigSourceFile*/>>,
+        pub config_file: Option<Id<Node /*TsConfigSourceFile*/>>,
         pub declaration: Option<bool>,
         pub declaration_map: Option<bool>,
         pub emit_declaration_only: Option<bool>,
@@ -2149,6 +2149,7 @@ mod _CreateProgramOptionsDeriveTraceScope {
 pub use _CreateProgramOptionsDeriveTraceScope::{
     CreateProgramOptions, CreateProgramOptionsBuilder,
 };
+use id_arena::Id;
 
 use crate::HasArena;
 

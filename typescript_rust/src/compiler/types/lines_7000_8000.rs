@@ -21,15 +21,15 @@ pub struct PropertyDescriptorAttributes {
     #[builder(setter(strip_option))]
     pub writable: Option<BoolOrRcNode /*Expression*/>,
     #[builder(setter(strip_option))]
-    pub value: Option<Gc<Node /*Expression*/>>,
-    pub get: Option<Gc<Node /*Expression*/>>,
-    pub set: Option<Gc<Node /*Expression*/>>,
+    pub value: Option<Id<Node /*Expression*/>>,
+    pub get: Option<Id<Node /*Expression*/>>,
+    pub set: Option<Id<Node /*Expression*/>>,
 }
 
 #[derive(Clone)]
 pub enum BoolOrRcNode {
     Bool(bool),
-    RcNode(Gc<Node>),
+    RcNode(Id<Node>),
 }
 
 impl From<bool> for BoolOrRcNode {
@@ -38,8 +38,8 @@ impl From<bool> for BoolOrRcNode {
     }
 }
 
-impl From<Gc<Node>> for BoolOrRcNode {
-    fn from(value: Gc<Node>) -> Self {
+impl From<Id<Node>> for BoolOrRcNode {
+    fn from(value: Id<Node>) -> Self {
         Self::RcNode(value)
     }
 }
@@ -60,8 +60,8 @@ bitflags! {
 }
 
 pub struct CallBinding {
-    pub target: Gc<Node /*LeftHandSideExpression*/>,
-    pub this_arg: Gc<Node /*Expression*/>,
+    pub target: Id<Node /*LeftHandSideExpression*/>,
+    pub this_arg: Id<Node /*Expression*/>,
 }
 
 pub trait ParenthesizerRules<TBaseNodeFactory: BaseNodeFactory>: Trace + Finalize {
@@ -71,45 +71,45 @@ pub trait ParenthesizerRules<TBaseNodeFactory: BaseNodeFactory>: Trace + Finaliz
         &self,
         binary_operator: SyntaxKind,
         left_side: &Node, /*Expression*/
-    ) -> Gc<Node /*Expression*/>;
+    ) -> Id<Node /*Expression*/>;
     fn parenthesize_right_side_of_binary(
         &self,
         binary_operator: SyntaxKind,
-        left_side: Option<Gc<Node /*Expression*/>>,
+        left_side: Option<Id<Node /*Expression*/>>,
         right_side: &Node, /*Expression*/
-    ) -> Gc<Node /*Expression*/>;
+    ) -> Id<Node /*Expression*/>;
     fn parenthesize_expression_of_computed_property_name(
         &self,
         expression: &Node, /*Expression*/
-    ) -> Gc<Node /*Expression*/>;
+    ) -> Id<Node /*Expression*/>;
     fn parenthesize_condition_of_conditional_expression(
         &self,
         condition: &Node, /*Expression*/
-    ) -> Gc<Node /*Expression*/>;
+    ) -> Id<Node /*Expression*/>;
     fn parenthesize_branch_of_conditional_expression(
         &self,
         branch: &Node, /*Expression*/
-    ) -> Gc<Node /*Expression*/>;
+    ) -> Id<Node /*Expression*/>;
     fn parenthesize_expression_of_export_default(
         &self,
         expression: &Node, /*Expression*/
-    ) -> Gc<Node /*Expression*/>;
+    ) -> Id<Node /*Expression*/>;
     fn parenthesize_expression_of_new(
         &self,
         expression: &Node, /*Expression*/
-    ) -> Gc<Node /*LeftHandSideExpression*/>;
+    ) -> Id<Node /*LeftHandSideExpression*/>;
     fn parenthesize_left_side_of_access(
         &self,
         expression: &Node, /*Expression*/
-    ) -> Gc<Node /*LeftHandSideExpression*/>;
+    ) -> Id<Node /*LeftHandSideExpression*/>;
     fn parenthesize_operand_of_postfix_unary(
         &self,
         operand: &Node, /*Expression*/
-    ) -> Gc<Node /*LeftHandSideExpression*/>;
+    ) -> Id<Node /*LeftHandSideExpression*/>;
     fn parenthesize_operand_of_prefix_unary(
         &self,
         operand: &Node, /*Expression*/
-    ) -> Gc<Node /*UnaryExpression*/>;
+    ) -> Id<Node /*UnaryExpression*/>;
     fn parenthesize_expressions_of_comma_delimited_list(
         &self,
         elements: NodeArrayOrVec, /*<Expression>*/
@@ -117,27 +117,27 @@ pub trait ParenthesizerRules<TBaseNodeFactory: BaseNodeFactory>: Trace + Finaliz
     fn parenthesize_expression_for_disallowed_comma(
         &self,
         expression: &Node, /*Expression*/
-    ) -> Gc<Node /*Expression*/>;
+    ) -> Id<Node /*Expression*/>;
     fn parenthesize_expression_of_expression_statement(
         &self,
         expression: &Node, /*Expression*/
-    ) -> Gc<Node /*Expression*/>;
+    ) -> Id<Node /*Expression*/>;
     fn parenthesize_concise_body_of_arrow_function(
         &self,
         expression: &Node, /*Expression | ConciseBody*/
-    ) -> Gc<Node /*Expression | ConciseBody*/>;
+    ) -> Id<Node /*Expression | ConciseBody*/>;
     fn parenthesize_member_of_conditional_type(
         &self,
         member: &Node, /*TypeNode*/
-    ) -> Gc<Node /*TypeNode*/>;
+    ) -> Id<Node /*TypeNode*/>;
     fn parenthesize_member_of_element_type(
         &self,
         member: &Node, /*TypeNode*/
-    ) -> Gc<Node /*TypeNode*/>;
+    ) -> Id<Node /*TypeNode*/>;
     fn parenthesize_element_type_of_array_type(
         &self,
         member: &Node, /*TypeNode*/
-    ) -> Gc<Node /*TypeNode*/>;
+    ) -> Id<Node /*TypeNode*/>;
     fn parenthesize_constituent_types_of_union_or_intersection_type(
         &self,
         members: NodeArrayOrVec, /*<TypeNode>*/
@@ -153,35 +153,35 @@ pub trait NodeConverters<TBaseNodeFactory: BaseNodeFactory>: Trace + Finalize {
         &self,
         node: &Node, /*ConciseBody*/
         multi_line: Option<bool>,
-    ) -> Gc<Node /*Block*/>;
+    ) -> Id<Node /*Block*/>;
     fn convert_to_function_expression(
         &self,
         node: &Node, /*FunctionDeclaration*/
-    ) -> Gc<Node /*FunctionExpression*/>;
+    ) -> Id<Node /*FunctionExpression*/>;
     fn convert_to_array_assignment_element(
         &self,
         element: &Node, /*ArrayBindingOrAssignmentElement*/
-    ) -> Gc<Node /*Expression*/>;
+    ) -> Id<Node /*Expression*/>;
     fn convert_to_object_assignment_element(
         &self,
         element: &Node, /*ObjectBindingOrAssignmentElement*/
-    ) -> Gc<Node /*ObjectLiteralElementLike*/>;
+    ) -> Id<Node /*ObjectLiteralElementLike*/>;
     fn convert_to_assignment_pattern(
         &self,
         node: &Node, /*BindingOrAssignmentPattern*/
-    ) -> Gc<Node /*AssignmentPattern*/>;
+    ) -> Id<Node /*AssignmentPattern*/>;
     fn convert_to_object_assignment_pattern(
         &self,
         node: &Node, /*ObjectBindingOrAssignmentPattern*/
-    ) -> Gc<Node /*ObjectLiteralExpression*/>;
+    ) -> Id<Node /*ObjectLiteralExpression*/>;
     fn convert_to_array_assignment_pattern(
         &self,
         node: &Node, /*ArrayBindingOrAssignmentPattern*/
-    ) -> Gc<Node /*ArrayLiteralExpression*/>;
+    ) -> Id<Node /*ArrayLiteralExpression*/>;
     fn convert_to_assignment_element_target(
         &self,
         node: &Node, /*BindingOrAssignmentElementTarget*/
-    ) -> Gc<Node /*Expression*/>;
+    ) -> Id<Node /*Expression*/>;
 }
 
 #[derive(Trace, Finalize)]
@@ -218,7 +218,7 @@ pub trait CoreTransformationContext<TBaseNodeFactory: BaseNodeFactory + Trace + 
 
     fn resume_lexical_environment(&self);
 
-    fn end_lexical_environment(&self) -> Option<Vec<Gc<Node /*Statement*/>>>;
+    fn end_lexical_environment(&self) -> Option<Vec<Id<Node /*Statement*/>>>;
 
     fn hoist_function_declaration(&self, node: &Node /*FunctionDeclaration*/);
 
@@ -226,7 +226,7 @@ pub trait CoreTransformationContext<TBaseNodeFactory: BaseNodeFactory + Trace + 
 
     fn start_block_scope(&self);
 
-    fn end_block_scope(&self) -> Option<Vec<Gc<Node /*Statement*/>>>;
+    fn end_block_scope(&self) -> Option<Vec<Id<Node /*Statement*/>>>;
 
     fn add_block_scoped_variable(&self, node: &Node /*Identifier*/);
 
@@ -246,7 +246,7 @@ pub trait TransformationContext: CoreTransformationContext<BaseNodeFactorySynthe
 
     fn is_substitution_enabled(&self, node: &Node) -> bool;
 
-    fn on_substitute_node(&self, hint: EmitHint, node: &Node) -> io::Result<Gc<Node>>;
+    fn on_substitute_node(&self, hint: EmitHint, node: &Node) -> io::Result<Id<Node>>;
     fn override_on_substitute_node(
         &self,
         overrider: &mut dyn FnMut(
@@ -289,15 +289,15 @@ pub trait TransformationContextOnEmitNodeOverrider: Trace + Finalize {
 }
 
 pub trait TransformationContextOnSubstituteNodeOverrider: Trace + Finalize {
-    fn on_substitute_node(&self, hint: EmitHint, node: &Node) -> io::Result<Gc<Node>>;
+    fn on_substitute_node(&self, hint: EmitHint, node: &Node) -> io::Result<Id<Node>>;
 }
 
 pub trait TransformationResult {
-    fn transformed(&self) -> Vec<Gc<Node>>;
+    fn transformed(&self) -> Vec<Id<Node>>;
 
     fn diagnostics(&self) -> Option<Vec<Gc<Diagnostic /*DiagnosticWithLocation*/>>>;
 
-    fn substitute_node(&self, hint: EmitHint, node: &Node) -> io::Result<Gc<Node>>;
+    fn substitute_node(&self, hint: EmitHint, node: &Node) -> io::Result<Id<Node>>;
 
     fn emit_node_with_notification(
         &self,
@@ -320,14 +320,14 @@ pub trait TransformerFactoryInterface: Trace + Finalize {
 pub type Transformer = Gc<Box<dyn TransformerInterface>>;
 
 pub trait TransformerInterface: Trace + Finalize {
-    fn call(&self, node: &Node) -> io::Result<Gc<Node>>;
+    fn call(&self, node: &Node) -> io::Result<Id<Node>>;
 }
 
 pub type VisitResult = Option<SingleNodeOrVecNode>;
 
 pub trait VisitResultInterface {
     fn ptr_eq_node(&self, node: &Node) -> bool;
-    fn into_single_node(self) -> Gc<Node>;
+    fn into_single_node(self) -> Id<Node>;
 }
 
 impl VisitResultInterface for VisitResult {
@@ -338,7 +338,7 @@ impl VisitResultInterface for VisitResult {
         )
     }
 
-    fn into_single_node(self) -> Gc<Node> {
+    fn into_single_node(self) -> Id<Node> {
         self.unwrap().as_single_node()
     }
 }
@@ -350,26 +350,27 @@ mod _SingleNodeOrVecNodeDeriveTraceScope {
 
     #[derive(Clone, Trace, Finalize)]
     pub enum SingleNodeOrVecNode {
-        SingleNode(Gc<Node>),
-        VecNode(Vec<Gc<Node>>),
+        SingleNode(Id<Node>),
+        VecNode(Vec<Id<Node>>),
     }
 }
 pub use _SingleNodeOrVecNodeDeriveTraceScope::SingleNodeOrVecNode;
+use id_arena::Id;
 
 impl SingleNodeOrVecNode {
     // TODO: suppress `gc`-generated Drop implementation to avoid this complaining?
-    // fn as_single_node(self) -> Gc<Node> {
+    // fn as_single_node(self) -> Id<Node> {
     //     enum_unwrapped!(self, [SingleNodeOrVecNode, SingleNode])
     // }
 
-    // fn as_vec_node(self) -> Vec<Gc<Node>> {
+    // fn as_vec_node(self) -> Vec<Id<Node>> {
     //     enum_unwrapped!(self, [SingleNodeOrVecNode, VecNode])
     // }
-    pub fn as_single_node(&self) -> Gc<Node> {
+    pub fn as_single_node(&self) -> Id<Node> {
         enum_unwrapped!(self, [SingleNodeOrVecNode, SingleNode]).clone()
     }
 
-    pub fn as_vec_node(&self) -> &Vec<Gc<Node>> {
+    pub fn as_vec_node(&self) -> &Vec<Id<Node>> {
         enum_unwrapped!(self, [SingleNodeOrVecNode, VecNode])
     }
 
@@ -388,19 +389,19 @@ impl SingleNodeOrVecNode {
     }
 }
 
-impl From<Gc<Node>> for SingleNodeOrVecNode {
-    fn from(value: Gc<Node>) -> Self {
+impl From<Id<Node>> for SingleNodeOrVecNode {
+    fn from(value: Id<Node>) -> Self {
         Self::SingleNode(value)
     }
 }
 
-impl From<Vec<Gc<Node>>> for SingleNodeOrVecNode {
-    fn from(value: Vec<Gc<Node>>) -> Self {
+impl From<Vec<Id<Node>>> for SingleNodeOrVecNode {
+    fn from(value: Vec<Id<Node>>) -> Self {
         Self::VecNode(value)
     }
 }
 
-impl From<SingleNodeOrVecNode> for Vec<Gc<Node>> {
+impl From<SingleNodeOrVecNode> for Vec<Id<Node>> {
     fn from(value: SingleNodeOrVecNode) -> Self {
         match value {
             SingleNodeOrVecNode::SingleNode(value) => vec![value],
@@ -424,7 +425,7 @@ impl<'single_node_or_vec_node> SingleNodeOrVecNodeIter<'single_node_or_vec_node>
 }
 
 impl<'single_node_or_vec_node> Iterator for SingleNodeOrVecNodeIter<'single_node_or_vec_node> {
-    type Item = &'single_node_or_vec_node Gc<Node>;
+    type Item = &'single_node_or_vec_node Id<Node>;
 
     fn next(&mut self) -> Option<Self::Item> {
         match self.single_node_or_vec_node {
@@ -448,7 +449,7 @@ impl<'single_node_or_vec_node> Iterator for SingleNodeOrVecNodeIter<'single_node
 }
 
 impl<'single_node_or_vec_node> IntoIterator for &'single_node_or_vec_node SingleNodeOrVecNode {
-    type Item = &'single_node_or_vec_node Gc<Node>;
+    type Item = &'single_node_or_vec_node Id<Node>;
     type IntoIter = SingleNodeOrVecNodeIter<'single_node_or_vec_node>;
 
     fn into_iter(self) -> Self::IntoIter {

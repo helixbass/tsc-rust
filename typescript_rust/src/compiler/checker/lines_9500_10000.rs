@@ -187,7 +187,7 @@ impl TypeChecker {
             let declared_type = export_symbol.try_and_then(|export_symbol| {
                 try_maybe_first_defined(
                     export_symbol.ref_(self).maybe_declarations().as_deref(),
-                    |d: &Gc<Node>, _| -> io::Result<_> {
+                    |d: &Id<Node>, _| -> io::Result<_> {
                         Ok(if is_export_assignment(d) {
                             self.try_get_type_from_effective_type_node(d)?
                         } else {
@@ -448,7 +448,7 @@ impl TypeChecker {
     pub(super) fn append_type_parameters(
         &self,
         mut type_parameters: Option<Vec<Id<Type>>>,
-        declarations: &[Gc<Node>],
+        declarations: &[Id<Node>],
     ) -> io::Result<Option<Vec<Id<Type>>>> {
         for declaration in declarations {
             type_parameters = Some(maybe_append_if_unique_eq(
@@ -593,7 +593,7 @@ impl TypeChecker {
                         if let Some(node_tags) = node_present.as_jsdoc().tags.as_deref() {
                             self.append_type_parameters(
                                 outer_type_parameters,
-                                &flat_map(Some(node_tags), |t: &Gc<Node>, _| {
+                                &flat_map(Some(node_tags), |t: &Id<Node>, _| {
                                     if is_jsdoc_template_tag(t) {
                                         t.as_jsdoc_template_tag().type_parameters.to_vec()
                                     } else {
@@ -713,7 +713,7 @@ impl TypeChecker {
     pub(super) fn get_base_type_node_of_class(
         &self,
         type_: Id<Type>, /*InterfaceType*/
-    ) -> Option<Gc<Node /*ExpressionWithTypeArguments*/>> {
+    ) -> Option<Id<Node /*ExpressionWithTypeArguments*/>> {
         get_effective_base_type_node(
             &type_.ref_(self).symbol().ref_(self)
                 .maybe_value_declaration()
@@ -724,7 +724,7 @@ impl TypeChecker {
     pub(super) fn get_constructors_for_type_arguments(
         &self,
         type_: Id<Type>,
-        type_argument_nodes: Option<&[Gc<Node /*TypeNode*/>]>,
+        type_argument_nodes: Option<&[Id<Node /*TypeNode*/>]>,
         location: &Node,
     ) -> io::Result<Vec<Gc<Signature>>> {
         let type_arg_count = length(type_argument_nodes);
@@ -743,13 +743,13 @@ impl TypeChecker {
     pub(super) fn get_instantiated_constructors_for_type_arguments(
         &self,
         type_: Id<Type>,
-        type_argument_nodes: Option<&[Gc<Node /*TypeNode*/>]>,
+        type_argument_nodes: Option<&[Id<Node /*TypeNode*/>]>,
         location: &Node,
     ) -> io::Result<Vec<Gc<Signature>>> {
         let signatures =
             self.get_constructors_for_type_arguments(type_, type_argument_nodes, location)?;
         let type_arguments =
-            try_maybe_map(type_argument_nodes, |type_argument_node: &Gc<Node>, _| {
+            try_maybe_map(type_argument_nodes, |type_argument_node: &Id<Node>, _| {
                 self.get_type_from_type_node_(type_argument_node)
             })
             .transpose()?;

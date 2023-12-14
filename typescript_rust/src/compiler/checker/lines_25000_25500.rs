@@ -55,7 +55,7 @@ impl TypeChecker {
         &self,
         node: &Node,
         container: &Node, /*ForStatement*/
-    ) -> Option<Gc<Node>> {
+    ) -> Option<Id<Node>> {
         let container_as_for_statement = container.as_for_statement();
         find_ancestor(Some(node), |n: &Node| {
             if ptr::eq(n, container) {
@@ -76,7 +76,7 @@ impl TypeChecker {
         })
     }
 
-    pub(super) fn get_enclosing_iteration_statement(&self, node: &Node) -> Option<Gc<Node>> {
+    pub(super) fn get_enclosing_iteration_statement(&self, node: &Node) -> Option<Id<Node>> {
         find_ancestor(Some(node), |n: &Node| {
             if
             /* !n ||*/
@@ -262,7 +262,7 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn find_first_super_call(&self, node: &Node) -> Option<Gc<Node /*SuperCall*/>> {
+    pub(super) fn find_first_super_call(&self, node: &Node) -> Option<Id<Node /*SuperCall*/>> {
         if is_super_call(node) {
             Some(node.node_wrapper())
         } else if is_function_like(Some(node)) {
@@ -271,7 +271,7 @@ impl TypeChecker {
             for_each_child_returns(
                 node,
                 |node: &Node| self.find_first_super_call(node),
-                Option::<fn(&NodeArray) -> Option<Gc<Node>>>::None,
+                Option::<fn(&NodeArray) -> Option<Id<Node>>>::None,
             )
         }
     }
@@ -569,7 +569,7 @@ impl TypeChecker {
     pub(super) fn get_class_name_from_prototype_method(
         &self,
         container: &Node,
-    ) -> Option<Gc<Node>> {
+    ) -> Option<Id<Node>> {
         if container.kind() == SyntaxKind::FunctionExpression
             && is_binary_expression(&container.parent())
             && get_assignment_declaration_kind(&container.parent())

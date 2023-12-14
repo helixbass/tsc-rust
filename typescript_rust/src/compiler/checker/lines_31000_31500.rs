@@ -52,7 +52,7 @@ impl TypeChecker {
                 "Symbol",
                 SymbolFlags::Value,
                 None,
-                Option::<Gc<Node>>::None,
+                Option::<Id<Node>>::None,
                 false,
                 None,
             )?,
@@ -291,7 +291,7 @@ impl TypeChecker {
                     .escaped_text,
                 SymbolFlags::Value,
                 None,
-                Option::<Gc<Node>>::None,
+                Option::<Id<Node>>::None,
                 true,
                 None,
             )?
@@ -739,7 +739,7 @@ impl TypeChecker {
         &self,
         signature: &Signature,
         pos: usize,
-    ) -> io::Result<Option<Gc<Node>>> {
+    ) -> io::Result<Option<Id<Node>>> {
         let param_count = signature.parameters().len()
             - if signature_has_rest_parameter(signature) {
                 1

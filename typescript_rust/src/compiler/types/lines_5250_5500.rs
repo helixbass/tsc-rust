@@ -727,7 +727,7 @@ pub struct BaseInterfaceType {
     variances: Rc<RefCell<Option<Vec<VarianceFlags>>>>,
     // TypeReference fields (for GenericType)
     pub target: GcCell<Option<Id<Type /*GenericType*/>>>,
-    pub node: GcCell<Option<Gc<Node /*TypeReferenceNode | ArrayTypeNode | TupleTypeNode*/>>>,
+    pub node: GcCell<Option<Id<Node /*TypeReferenceNode | ArrayTypeNode | TupleTypeNode*/>>>,
     pub resolved_type_arguments: GcCell<Option<Vec<Id<Type>>>>,
     literal_type: GcCell<Option<Id<Type /*TypeReference*/>>>,
     cached_equivalent_base_type: GcCell<Option<Id<Type>>>,
@@ -910,11 +910,11 @@ impl TypeReferenceInterface for BaseInterfaceType {
         *self.target.borrow_mut() = Some(target);
     }
 
-    fn maybe_node(&self) -> Option<Gc<Node>> {
+    fn maybe_node(&self) -> Option<Id<Node>> {
         self.node.borrow().clone()
     }
 
-    fn maybe_node_mut(&self) -> GcCellRefMut<Option<Gc<Node>>> {
+    fn maybe_node_mut(&self) -> GcCellRefMut<Option<Id<Node>>> {
         self.node.borrow_mut()
     }
 
@@ -947,7 +947,7 @@ impl TypeReferenceInterface for BaseInterfaceType {
 pub struct TypeReference {
     _object_type: BaseObjectType,
     pub target: Id<Type /*GenericType*/>,
-    pub node: GcCell<Option<Gc<Node /*TypeReferenceNode | ArrayTypeNode | TupleTypeNode*/>>>, // TODO: should be weak?
+    pub node: GcCell<Option<Id<Node /*TypeReferenceNode | ArrayTypeNode | TupleTypeNode*/>>>, // TODO: should be weak?
     pub resolved_type_arguments: GcCell<Option<Vec<Id<Type>>>>,
     literal_type: GcCell<Option<Id<Type /*TypeReference*/>>>,
     cached_equivalent_base_type: GcCell<Option<Id<Type>>>,
@@ -973,8 +973,8 @@ impl TypeReference {
 pub trait TypeReferenceInterface: ObjectTypeInterface {
     fn target(&self) -> Id<Type>;
     fn set_target(&self, target: Id<Type>);
-    fn maybe_node(&self) -> Option<Gc<Node>>;
-    fn maybe_node_mut(&self) -> GcCellRefMut<Option<Gc<Node>>>;
+    fn maybe_node(&self) -> Option<Id<Node>>;
+    fn maybe_node_mut(&self) -> GcCellRefMut<Option<Id<Node>>>;
     fn maybe_resolved_type_arguments(&self) -> GcCellRef<Option<Vec<Id<Type>>>>;
     fn maybe_resolved_type_arguments_mut(&self) -> GcCellRefMut<Option<Vec<Id<Type>>>>;
     fn maybe_literal_type(&self) -> Option<Id<Type>>;
@@ -991,11 +991,11 @@ impl TypeReferenceInterface for TypeReference {
         panic!("Shouldn't call set_target() on a TypeReference")
     }
 
-    fn maybe_node(&self) -> Option<Gc<Node>> {
+    fn maybe_node(&self) -> Option<Id<Node>> {
         self.node.borrow().clone()
     }
 
-    fn maybe_node_mut(&self) -> GcCellRefMut<Option<Gc<Node>>> {
+    fn maybe_node_mut(&self) -> GcCellRefMut<Option<Id<Node>>> {
         self.node.borrow_mut()
     }
 
@@ -1085,7 +1085,7 @@ pub struct TupleType {
     pub combined_flags: ElementFlags,
     pub readonly: bool,
     pub labeled_element_declarations:
-        Option<Vec<Gc<Node /*NamedTupleMember | ParameterDeclaration*/>>>,
+        Option<Vec<Id<Node /*NamedTupleMember | ParameterDeclaration*/>>>,
 }
 
 impl TupleType {
@@ -1097,7 +1097,7 @@ impl TupleType {
         has_rest_element: bool,
         combined_flags: ElementFlags,
         readonly: bool,
-        labeled_element_declarations: Option<Vec<Gc<Node>>>,
+        labeled_element_declarations: Option<Vec<Id<Node>>>,
     ) -> Self {
         Self {
             _interface_type: interface_type,

@@ -62,7 +62,7 @@ impl TypeChecker {
 
     pub(super) fn populate_symbols(
         &self,
-        location: &mut Option<Gc<Node>>,
+        location: &mut Option<Id<Node>>,
         meaning: SymbolFlags,
         symbols: &mut SymbolTable,
         is_static_symbol: &mut bool,
@@ -342,7 +342,7 @@ impl TypeChecker {
     pub(super) fn get_left_side_of_import_equals_or_export_assignment(
         &self,
         node_on_right_side: &Node, /*EntityName*/
-    ) -> Option<Gc<Node /*ImportEqualsDeclaration | ExportAssignment*/>> {
+    ) -> Option<Id<Node /*ImportEqualsDeclaration | ExportAssignment*/>> {
         let mut node_on_right_side = node_on_right_side.node_wrapper();
         while node_on_right_side.parent().kind() == SyntaxKind::QualifiedName {
             node_on_right_side = node_on_right_side.parent();
@@ -410,7 +410,7 @@ impl TypeChecker {
     pub(super) fn is_import_type_qualifier_part(
         &self,
         node: &Node, /*EntityName*/
-    ) -> Option<Gc<Node /*ImportTypeNode*/>> {
+    ) -> Option<Id<Node /*ImportTypeNode*/>> {
         let mut parent = node.parent();
         let mut node = node.node_wrapper();
         while is_qualified_name(&parent) {

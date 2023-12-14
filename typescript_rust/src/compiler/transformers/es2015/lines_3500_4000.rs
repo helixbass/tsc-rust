@@ -1,6 +1,7 @@
 use std::{io, rc::Rc};
 
 use gc::Gc;
+use id_arena::Id;
 
 use super::{HierarchyFacts, SpreadSegment, SpreadSegmentKind, TransformES2015};
 use crate::{
@@ -26,7 +27,7 @@ impl TransformES2015 {
         receiver: &Node, /*Expression*/
         container: &Node,
         starts_on_new_line: Option<bool>,
-    ) -> io::Result<Gc<Node>> {
+    ) -> io::Result<Id<Node>> {
         let method_as_method_declaration = method.as_method_declaration();
         let expression = self
             .factory
@@ -38,7 +39,7 @@ impl TransformES2015 {
                         &method_as_method_declaration.name(),
                         Some(|node: &Node| self.visitor(node)),
                         Some(is_property_name),
-                        Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                        Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                     )?,
                     Option::<&Node>::None,
                 ),
@@ -59,14 +60,14 @@ impl TransformES2015 {
     pub(super) fn visit_catch_clause(
         &self,
         node: &Node, /*CatchClause*/
-    ) -> io::Result<Gc<Node /*CatchClause*/>> {
+    ) -> io::Result<Id<Node /*CatchClause*/>> {
         let node_as_catch_clause = node.as_catch_clause();
         let ancestor_facts = self.enter_subtree(
             HierarchyFacts::BlockScopeExcludes,
             HierarchyFacts::BlockScopeIncludes,
         );
         #[allow(clippy::needless_late_init)]
-        let updated: Gc<Node /*CatchClause*/>;
+        let updated: Id<Node /*CatchClause*/>;
         Debug_.assert(
             node_as_catch_clause.variable_declaration.is_some(),
             Some("Catch clause variable should always be present when downleveling ES2015."),
@@ -117,8 +118,8 @@ impl TransformES2015 {
     pub(super) fn add_statement_to_start_of_block(
         &self,
         block: &Node, /*Block*/
-        statement: Gc<Node /*Statement*/>,
-    ) -> io::Result<Gc<Node /*Block*/>> {
+        statement: Id<Node /*Statement*/>,
+    ) -> io::Result<Id<Node /*Block*/>> {
         let block_as_block = block.as_block();
         let transformed_statements = try_visit_nodes(
             &block_as_block.statements,
@@ -136,7 +137,7 @@ impl TransformES2015 {
     pub(super) fn visit_method_declaration(
         &self,
         node: &Node, /*MethodDeclaration*/
-    ) -> io::Result<Gc<Node /*ObjectLiteralElementLike*/>> {
+    ) -> io::Result<Id<Node /*ObjectLiteralElementLike*/>> {
         let node_as_method_declaration = node.as_method_declaration();
         Debug_.assert(
             !is_computed_property_name(&node_as_method_declaration.name()),
@@ -159,7 +160,7 @@ impl TransformES2015 {
     pub(super) fn visit_accessor_declaration(
         &self,
         node: &Node, /*AccessorDeclaration*/
-    ) -> io::Result<Gc<Node /*AccessorDeclaration*/>> {
+    ) -> io::Result<Id<Node /*AccessorDeclaration*/>> {
         let ref node_name = node.as_named_declaration().name();
         Debug_.assert(!is_computed_property_name(node_name), None);
         let saved_converted_loop_state = self.maybe_converted_loop_state();
@@ -168,7 +169,7 @@ impl TransformES2015 {
             HierarchyFacts::FunctionExcludes,
             HierarchyFacts::FunctionIncludes,
         );
-        let updated: Gc<Node /*AccessorDeclaration*/>;
+        let updated: Id<Node /*AccessorDeclaration*/>;
         let parameters = try_visit_parameter_list(
             Some(&node.as_signature_declaration().parameters()),
             |node: &Node| self.visitor(node),
@@ -208,7 +209,7 @@ impl TransformES2015 {
     pub(super) fn visit_shorthand_property_assignment(
         &self,
         node: &Node, /*ShorthandPropertyAssignment*/
-    ) -> io::Result<Gc<Node /*ObjectLiteralElementLike*/>> {
+    ) -> io::Result<Id<Node /*ObjectLiteralElementLike*/>> {
         let node_as_shorthand_property_assignment = node.as_shorthand_property_assignment();
         Ok(self
             .factory
@@ -235,18 +236,18 @@ impl TransformES2015 {
     pub(super) fn visit_yield_expression(
         &self,
         node: &Node, /*YieldExpression*/
-    ) -> io::Result<Gc<Node /*Expression*/>> {
+    ) -> io::Result<Id<Node /*Expression*/>> {
         try_visit_each_child(node, |node: &Node| self.visitor(node), &**self.context)
     }
 
     pub(super) fn visit_array_literal_expression(
         &self,
         node: &Node, /*ArrayLiteralExpression*/
-    ) -> io::Result<Gc<Node /*Expression*/>> {
+    ) -> io::Result<Id<Node /*Expression*/>> {
         let node_as_array_literal_expression = node.as_array_literal_expression();
         if some(
             Some(&node_as_array_literal_expression.elements),
-            Some(|element: &Gc<Node>| is_spread_element(element)),
+            Some(|element: &Id<Node>| is_spread_element(element)),
         ) {
             return self.transform_and_spread_elements(
                 &node_as_array_literal_expression.elements,
@@ -272,7 +273,7 @@ impl TransformES2015 {
             || is_super_property(expression)
             || some(
                 Some(&node_as_call_expression.arguments),
-                Some(|argument: &Gc<Node>| is_spread_element(argument)),
+                Some(|argument: &Id<Node>| is_spread_element(argument)),
             )
         {
             return Ok(Some(
@@ -289,7 +290,7 @@ impl TransformES2015 {
                         &node_as_call_expression.expression,
                         Some(|node: &Node| self.call_expression_visitor(node)),
                         Some(is_expression),
-                        Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                        Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                     )?,
                     Option::<Gc<NodeArray>>::None,
                     try_visit_nodes(
@@ -312,12 +313,12 @@ impl TransformES2015 {
         let body = cast_present(
             cast_present(
                 skip_outer_expressions(&node_as_call_expression.expression, None),
-                |node: &Gc<Node>| is_arrow_function(node),
+                |node: &Id<Node>| is_arrow_function(node),
             )
             .as_arrow_function()
             .maybe_body()
             .unwrap(),
-            |node: &Gc<Node>| is_block(node),
+            |node: &Id<Node>| is_block(node),
         );
         let body_as_block = body.as_block();
 
@@ -332,14 +333,14 @@ impl TransformES2015 {
         )?;
         self.set_converted_loop_state(saved_converted_loop_state);
 
-        let class_statements = filter(&body_statements, |statement: &Gc<Node>| {
+        let class_statements = filter(&body_statements, |statement: &Id<Node>| {
             self.is_variable_statement_with_initializer(statement)
         });
-        let remaining_statements = filter(&body_statements, |stmt: &Gc<Node>| {
+        let remaining_statements = filter(&body_statements, |stmt: &Id<Node>| {
             !self.is_variable_statement_with_initializer(stmt)
         });
         let var_statement =
-            cast_present(first(&class_statements).clone(), |statement: &Gc<Node>| {
+            cast_present(first(&class_statements).clone(), |statement: &Id<Node>| {
                 is_variable_statement(statement)
             });
         let var_statement_as_variable_statement = var_statement.as_variable_statement();
@@ -356,7 +357,7 @@ impl TransformES2015 {
             None,
         );
 
-        let mut alias_assignment = try_cast(initializer.clone(), |initializer: &Gc<Node>| {
+        let mut alias_assignment = try_cast(initializer.clone(), |initializer: &Id<Node>| {
             is_assignment_expression(initializer, None)
         });
         if alias_assignment.is_none()
@@ -365,7 +366,7 @@ impl TransformES2015 {
         {
             alias_assignment = try_cast(
                 initializer.as_binary_expression().left.clone(),
-                |initializer_left: &Gc<Node>| is_assignment_expression(initializer_left, None),
+                |initializer_left: &Id<Node>| is_assignment_expression(initializer_left, None),
             );
         }
 
@@ -376,12 +377,12 @@ impl TransformES2015 {
                     skip_outer_expressions(&alias_assignment.as_binary_expression().right, None)
                 },
             ),
-            |node: &Gc<Node>| is_call_expression(node),
+            |node: &Id<Node>| is_call_expression(node),
         );
         let call_as_call_expression = call.as_call_expression();
         let func = cast_present(
             skip_outer_expressions(&call_as_call_expression.expression, None),
-            |node: &Gc<Node>| is_function_expression(node),
+            |node: &Id<Node>| is_function_expression(node),
         );
         let func_as_function_expression = func.as_function_expression();
 
@@ -394,11 +395,11 @@ impl TransformES2015 {
         let mut class_body_start = 0;
         let mut class_body_end = -1;
 
-        let mut statements: Vec<Gc<Node /*Statement*/>> = _d();
+        let mut statements: Vec<Id<Node /*Statement*/>> = _d();
         if let Some(alias_assignment) = alias_assignment.as_ref() {
             let extends_call = try_cast(
                 func_statements.get(0).cloned(),
-                |node: &Option<Gc<Node>>| {
+                |node: &Option<Id<Node>>| {
                     node.as_ref().matches(|node| is_expression_statement(node))
                 },
             )
@@ -416,7 +417,7 @@ impl TransformES2015 {
                     alias_assignment.as_binary_expression().left.clone(),
                     cast_present(
                         variable_as_variable_declaration.name(),
-                        |node: &Gc<Node>| is_identifier(node),
+                        |node: &Id<Node>| is_identifier(node),
                     ),
                 ),
             ));
@@ -508,7 +509,7 @@ impl TransformES2015 {
     pub(super) fn visit_immediate_super_call_in_body(
         &self,
         node: &Node, /*CallExpression*/
-    ) -> io::Result<Gc<Node>> {
+    ) -> io::Result<Id<Node>> {
         self.visit_call_expression_with_potential_captured_this_assignment(node, false)
     }
 
@@ -516,7 +517,7 @@ impl TransformES2015 {
         &self,
         node: &Node, /*CallExpression*/
         assign_to_captured_this: bool,
-    ) -> io::Result<Gc<Node /*CallExpression | BinaryExpression*/>> {
+    ) -> io::Result<Id<Node /*CallExpression | BinaryExpression*/>> {
         let node_as_call_expression = node.as_call_expression();
         if node
             .transform_flags()
@@ -539,7 +540,7 @@ impl TransformES2015 {
                 set_emit_flags(&*this_arg, EmitFlags::NoSubstitution);
             }
 
-            let mut resulting_call: Gc<Node /*CallExpression | BinaryExpression*/>;
+            let mut resulting_call: Id<Node /*CallExpression | BinaryExpression*/>;
             if node
                 .transform_flags()
                 .intersects(TransformFlags::ContainsRestOrSpread)
@@ -549,7 +550,7 @@ impl TransformES2015 {
                         &target,
                         Some(|node: &Node| self.call_expression_visitor(node)),
                         Some(is_expression),
-                        Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                        Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                     )?,
                     if node_as_call_expression.expression.kind() == SyntaxKind::SuperKeyword {
                         this_arg
@@ -558,7 +559,7 @@ impl TransformES2015 {
                             &this_arg,
                             Some(|node: &Node| self.visitor(node)),
                             Some(is_expression),
-                            Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                            Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                         )?
                     },
                     self.transform_and_spread_elements(
@@ -576,7 +577,7 @@ impl TransformES2015 {
                             &target,
                             Some(|node: &Node| self.call_expression_visitor(node)),
                             Some(is_expression),
-                            Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                            Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                         )?,
                         if node_as_call_expression.expression.kind() == SyntaxKind::SuperKeyword {
                             this_arg
@@ -585,7 +586,7 @@ impl TransformES2015 {
                                 &this_arg,
                                 Some(|node: &Node| self.visitor(node)),
                                 Some(is_expression),
-                                Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                                Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                             )?
                         },
                         try_visit_nodes(
@@ -627,11 +628,11 @@ impl TransformES2015 {
     pub(super) fn visit_new_expression(
         &self,
         node: &Node, /*NewExpression*/
-    ) -> io::Result<Gc<Node /*LeftHandSideExpression*/>> {
+    ) -> io::Result<Id<Node /*LeftHandSideExpression*/>> {
         let node_as_new_expression = node.as_new_expression();
         if some(
             node_as_new_expression.arguments.as_double_deref(),
-            Some(|node: &Gc<Node>| is_spread_element(node)),
+            Some(|node: &Id<Node>| is_spread_element(node)),
         ) {
             let CallBinding { target, this_arg } = self.factory.create_call_binding(
                 &self.factory.create_property_access_expression(
@@ -650,7 +651,7 @@ impl TransformES2015 {
                         &target,
                         Some(|node: &Node| self.visitor(node)),
                         Some(is_expression),
-                        Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                        Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                     )?,
                     this_arg,
                     self.transform_and_spread_elements(
@@ -684,18 +685,18 @@ impl TransformES2015 {
         is_argument_list: bool,
         multi_line: bool,
         has_trailing_comma: bool,
-    ) -> io::Result<Gc<Node /*Expression*/>> {
+    ) -> io::Result<Id<Node /*Expression*/>> {
         let num_elements = elements.len();
         let segments = flatten(&try_span_map(
             elements,
-            |node: &Gc<Node>, _| -> Rc<dyn PartitionSpread> {
+            |node: &Id<Node>, _| -> Rc<dyn PartitionSpread> {
                 if is_spread_element(node) {
                     Rc::new(PartitionSpreadVisitSpanOfSpreads::new(self.rc_wrapper()))
                 } else {
                     Rc::new(PartitionSpreadVisitSpanOfNonSpreads::new(self.rc_wrapper()))
                 }
             },
-            |partition: &[Gc<Node>], visit_partition, _start, end| {
+            |partition: &[Id<Node>], visit_partition, _start, end| {
                 visit_partition.call(
                     partition,
                     multi_line,
@@ -716,7 +717,7 @@ impl TransformES2015 {
 
         let helpers = self.emit_helpers();
         let starts_with_spread = segments[0].kind != SpreadSegmentKind::None;
-        let mut expression: Gc<Node /*Expression*/> = if starts_with_spread {
+        let mut expression: Id<Node /*Expression*/> = if starts_with_spread {
             self.factory
                 .create_array_literal_expression(Option::<Gc<NodeArray>>::None, None)
         } else {
@@ -736,7 +737,7 @@ impl TransformES2015 {
 pub(super) trait PartitionSpread {
     fn call(
         &self,
-        chunk: &[Gc<Node>],
+        chunk: &[Id<Node>],
         multi_line: bool,
         has_trailing_comma: bool,
     ) -> io::Result<Vec<SpreadSegment>>;
@@ -765,7 +766,7 @@ impl PartitionSpreadVisitSpanOfSpreads {
 impl PartitionSpread for PartitionSpreadVisitSpanOfSpreads {
     fn call(
         &self,
-        chunk: &[Gc<Node>],
+        chunk: &[Id<Node>],
         _multi_line: bool,
         _has_trailing_comma: bool,
     ) -> io::Result<Vec<SpreadSegment>> {
@@ -790,7 +791,7 @@ impl PartitionSpreadVisitSpanOfNonSpreads {
 impl PartitionSpread for PartitionSpreadVisitSpanOfNonSpreads {
     fn call(
         &self,
-        chunk: &[Gc<Node>],
+        chunk: &[Id<Node>],
         multi_line: bool,
         has_trailing_comma: bool,
     ) -> io::Result<Vec<SpreadSegment>> {

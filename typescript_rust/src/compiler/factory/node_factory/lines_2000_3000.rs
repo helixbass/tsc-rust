@@ -1,4 +1,5 @@
 use gc::{Finalize, Gc, Trace};
+use id_arena::Id;
 use local_macros::generate_node_factory_method_wrapper;
 
 use super::{
@@ -34,7 +35,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_infer_type_node_raw(
         &self,
-        type_parameter: Gc<Node /*TypeParameterDeclaration*/>,
+        type_parameter: Id<Node /*TypeParameterDeclaration*/>,
     ) -> InferTypeNode {
         let node = self.create_base_node(SyntaxKind::InferType);
         let node = InferTypeNode::new(node, type_parameter);
@@ -45,8 +46,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     pub fn update_infer_type_node(
         &self,
         node: &Node, /*InferTypeNode*/
-        type_parameter: Gc<Node /*TypeParameterDeclaration*/>,
-    ) -> Gc<Node> {
+        type_parameter: Id<Node /*TypeParameterDeclaration*/>,
+    ) -> Id<Node> {
         let node_as_infer_type_node = node.as_infer_type_node();
         if !Gc::ptr_eq(&node_as_infer_type_node.type_parameter, &type_parameter) {
             self.update(self.create_infer_type_node(type_parameter), node)
@@ -58,7 +59,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_template_literal_type_raw(
         &self,
-        head: Gc<Node /*TemplateHead*/>,
+        head: Id<Node /*TemplateHead*/>,
         template_spans: impl Into<NodeArrayOrVec>, /*<TemplateLiteralTypeSpan>*/
     ) -> TemplateLiteralTypeNode {
         let node = self.create_base_node(SyntaxKind::TemplateLiteralType);
@@ -74,9 +75,9 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     pub fn update_template_literal_type(
         &self,
         node: &Node, /*TemplateLiteralTypeSpan*/
-        head: Gc<Node /*TemplateHead*/>,
+        head: Id<Node /*TemplateHead*/>,
         template_spans: impl Into<NodeArrayOrVec>, /*<TemplateLiteralTypeSpan>*/
-    ) -> Gc<Node> {
+    ) -> Id<Node> {
         let node_as_template_literal_type_node = node.as_template_literal_type_node();
         let template_spans = template_spans.into();
         if !Gc::ptr_eq(&node_as_template_literal_type_node.head, &head)
@@ -97,8 +98,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_import_type_node_raw<TTypeArguments: Into<NodeArrayOrVec>>(
         &self,
-        argument: Gc<Node /*TypeNode*/>,
-        qualifier: Option<Gc<Node /*EntityName*/>>,
+        argument: Id<Node /*TypeNode*/>,
+        qualifier: Option<Id<Node /*EntityName*/>>,
         type_arguments: Option<TTypeArguments /*<TypeNode>*/>,
         is_type_of: Option<bool>,
     ) -> ImportTypeNode {
@@ -121,11 +122,11 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     pub fn update_import_type_node(
         &self,
         node: &Node, /*ImportTypeNode*/
-        argument: Gc<Node /*TypeNode*/>,
-        qualifier: Option<Gc<Node /*EntityName*/>>,
+        argument: Id<Node /*TypeNode*/>,
+        qualifier: Option<Id<Node /*EntityName*/>>,
         type_arguments: Option<impl Into<NodeArrayOrVec /*<TypeNode>*/>>,
         is_type_of: Option<bool>,
-    ) -> Gc<Node> {
+    ) -> Id<Node> {
         let node_as_import_type_node = node.as_import_type_node();
         let is_type_of = is_type_of.unwrap_or_else(|| node_as_import_type_node.is_type_of());
         let type_arguments = type_arguments.map(Into::into);
@@ -152,7 +153,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_parenthesized_type_raw(
         &self,
-        type_: Gc<Node /*TypeNode*/>,
+        type_: Id<Node /*TypeNode*/>,
     ) -> ParenthesizedTypeNode {
         let node = self.create_base_node(SyntaxKind::ParenthesizedType);
         let node = ParenthesizedTypeNode::new(node, type_);
@@ -163,8 +164,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     pub fn update_parenthesized_type(
         &self,
         node: &Node, /*ParenthesizedTypeNode*/
-        type_: Gc<Node /*TypeNode*/>,
-    ) -> Gc<Node> {
+        type_: Id<Node /*TypeNode*/>,
+    ) -> Id<Node> {
         let node_as_parenthesized_type_node = node.as_parenthesized_type_node();
         if !Gc::ptr_eq(&node_as_parenthesized_type_node.type_, &type_) {
             self.update(self.create_parenthesized_type(type_), node)
@@ -185,7 +186,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     pub fn create_type_operator_node_raw(
         &self,
         operator: SyntaxKind,
-        type_: Gc<Node /*TypeNode*/>,
+        type_: Id<Node /*TypeNode*/>,
     ) -> TypeOperatorNode {
         let node = self.create_base_node(SyntaxKind::TypeOperator);
         let node = TypeOperatorNode::new(
@@ -201,8 +202,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     pub fn update_type_operator_node(
         &self,
         node: &Node, /*TypeOperatorNode*/
-        type_: Gc<Node /*TypeNode*/>,
-    ) -> Gc<Node> {
+        type_: Id<Node /*TypeNode*/>,
+    ) -> Id<Node> {
         let node_as_type_operator_node = node.as_type_operator_node();
         if !Gc::ptr_eq(&node_as_type_operator_node.type_, &type_) {
             self.update(
@@ -217,8 +218,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_indexed_access_type_node_raw(
         &self,
-        object_type: Gc<Node /*TypeNode*/>,
-        index_type: Gc<Node /*TypeNode*/>,
+        object_type: Id<Node /*TypeNode*/>,
+        index_type: Id<Node /*TypeNode*/>,
     ) -> IndexedAccessTypeNode {
         let node = self.create_base_node(SyntaxKind::IndexedAccessType);
         let node = IndexedAccessTypeNode::new(
@@ -234,9 +235,9 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     pub fn update_indexed_access_type_node(
         &self,
         node: &Node, /*IndexedAccessTypeNode*/
-        object_type: Gc<Node /*TypeNode*/>,
-        index_type: Gc<Node /*TypeNode*/>,
-    ) -> Gc<Node> {
+        object_type: Id<Node /*TypeNode*/>,
+        index_type: Id<Node /*TypeNode*/>,
+    ) -> Id<Node> {
         let node_as_indexed_access_type_node = node.as_indexed_access_type_node();
         if !Gc::ptr_eq(&node_as_indexed_access_type_node.object_type, &object_type)
             || !Gc::ptr_eq(&node_as_indexed_access_type_node.index_type, &index_type)
@@ -253,11 +254,11 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_mapped_type_node_raw(
         &self,
-        readonly_token: Option<Gc<Node /*ReadonlyKeyword | PlusToken | MinusToken*/>>,
-        type_parameter: Gc<Node /*TypeParameterDeclaration*/>,
-        name_type: Option<Gc<Node /*TypeNode*/>>,
-        question_token: Option<Gc<Node /*QuestionToken | PlusToken | MinusToken*/>>,
-        type_: Option<Gc<Node /*TypeNode*/>>,
+        readonly_token: Option<Id<Node /*ReadonlyKeyword | PlusToken | MinusToken*/>>,
+        type_parameter: Id<Node /*TypeParameterDeclaration*/>,
+        name_type: Option<Id<Node /*TypeNode*/>>,
+        question_token: Option<Id<Node /*QuestionToken | PlusToken | MinusToken*/>>,
+        type_: Option<Id<Node /*TypeNode*/>>,
         members: Option<impl Into<NodeArrayOrVec> /*<TypeElement>*/>,
     ) -> MappedTypeNode {
         let node = self.create_base_node(SyntaxKind::MappedType);
@@ -277,13 +278,13 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     pub fn update_mapped_type_node(
         &self,
         node: &Node, /*MappedTypeNode*/
-        readonly_token: Option<Gc<Node /*ReadonlyKeyword | PlusToken | MinusToken*/>>,
-        type_parameter: Gc<Node /*TypeParameterDeclaration*/>,
-        name_type: Option<Gc<Node /*TypeNode*/>>,
-        question_token: Option<Gc<Node /*QuestionToken | PlusToken | MinusToken*/>>,
-        type_: Option<Gc<Node /*TypeNode*/>>,
+        readonly_token: Option<Id<Node /*ReadonlyKeyword | PlusToken | MinusToken*/>>,
+        type_parameter: Id<Node /*TypeParameterDeclaration*/>,
+        name_type: Option<Id<Node /*TypeNode*/>>,
+        question_token: Option<Id<Node /*QuestionToken | PlusToken | MinusToken*/>>,
+        type_: Option<Id<Node /*TypeNode*/>>,
         members: Option<Gc<NodeArray /*<TypeElement>*/>>,
-    ) -> Gc<Node> {
+    ) -> Id<Node> {
         let node_as_mapped_type_node = node.as_mapped_type_node();
         if !are_option_gcs_equal(
             node_as_mapped_type_node.readonly_token.as_ref(),
@@ -319,7 +320,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_literal_type_node_raw(
         &self,
-        literal: Gc<Node /*LiteralTypeNode["literal"]*/>,
+        literal: Id<Node /*LiteralTypeNode["literal"]*/>,
     ) -> LiteralTypeNode {
         let node = self.create_base_node(SyntaxKind::LiteralType);
         let node = LiteralTypeNode::new(node, literal);
@@ -330,8 +331,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     pub fn update_literal_type_node(
         &self,
         node: &Node, /*LiteralTypeNode*/
-        literal: Gc<Node /*LiteralTypeNode["literal"]*/>,
-    ) -> Gc<Node> {
+        literal: Id<Node /*LiteralTypeNode["literal"]*/>,
+    ) -> Id<Node> {
         let node_as_literal_type_node = node.as_literal_type_node();
         if !Gc::ptr_eq(&node_as_literal_type_node.literal, &literal) {
             self.update(self.create_literal_type_node(literal), node)
@@ -367,7 +368,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         &self,
         node: &Node, /*ObjectBindingPattern*/
         elements: impl Into<NodeArrayOrVec /*<BindingElement>*/>,
-    ) -> Gc<Node> {
+    ) -> Id<Node> {
         let node_as_object_binding_pattern = node.as_object_binding_pattern();
         let elements = elements.into();
         if has_node_array_changed(&node_as_object_binding_pattern.elements, &elements) {
@@ -396,7 +397,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         &self,
         node: &Node, /*ArrayBindingPattern*/
         elements: impl Into<NodeArrayOrVec /*<ArrayBindingElement>*/>,
-    ) -> Gc<Node> {
+    ) -> Id<Node> {
         let node_as_array_binding_pattern = node.as_array_binding_pattern();
         let elements = elements.into();
         if has_node_array_changed(&node_as_array_binding_pattern.elements, &elements) {
@@ -409,10 +410,10 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_binding_element_raw<'property_name, 'name>(
         &self,
-        dot_dot_dot_token: Option<Gc<Node /*DotDotDotToken*/>>,
+        dot_dot_dot_token: Option<Id<Node /*DotDotDotToken*/>>,
         property_name: Option<impl Into<StrOrRcNode<'property_name> /*PropertyName*/>>,
         name: impl Into<StrOrRcNode<'name>>, /*BindingName*/
-        initializer: Option<Gc<Node /*Expression*/>>,
+        initializer: Option<Id<Node /*Expression*/>>,
     ) -> BindingElement {
         let node = self.create_base_binding_like_declaration(
             SyntaxKind::BindingElement,
@@ -445,11 +446,11 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     pub fn update_binding_element(
         &self,
         node: &Node, /*BindingElement*/
-        dot_dot_dot_token: Option<Gc<Node /*DotDotDotToken*/>>,
-        property_name: Option<Gc<Node /*PropertyName*/>>,
-        name: Gc<Node /*BindingName*/>,
-        initializer: Option<Gc<Node /*Expression*/>>,
-    ) -> Gc<Node> {
+        dot_dot_dot_token: Option<Id<Node /*DotDotDotToken*/>>,
+        property_name: Option<Id<Node /*PropertyName*/>>,
+        name: Id<Node /*BindingName*/>,
+        initializer: Option<Id<Node /*Expression*/>>,
+    ) -> Id<Node> {
         let node_as_binding_element = node.as_binding_element();
         if !are_option_gcs_equal(
             node_as_binding_element.property_name.as_ref(),
@@ -516,7 +517,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         &self,
         node: &Node,                         /*ArrayLiteralExpression*/
         elements: impl Into<NodeArrayOrVec>, /*Expression*/
-    ) -> Gc<Node> {
+    ) -> Id<Node> {
         let node_as_array_literal_expression = node.as_array_literal_expression();
         let elements = elements.into();
         if has_node_array_changed(&node_as_array_literal_expression.elements, &elements) {
@@ -552,7 +553,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         &self,
         node: &Node,                           /*ObjectLiteralExpression*/
         properties: impl Into<NodeArrayOrVec>, /*ObjectLiteralElementLike*/
-    ) -> Gc<Node> {
+    ) -> Id<Node> {
         let node_as_object_literal_expression = node.as_object_literal_expression();
         let properties = properties.into();
         if has_node_array_changed(&node_as_object_literal_expression.properties, &properties) {
@@ -571,7 +572,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_property_access_expression_raw<'name>(
         &self,
-        expression: Gc<Node /*Expression*/>,
+        expression: Id<Node /*Expression*/>,
         name: impl Into<StrOrRcNode<'name>>,
     ) -> PropertyAccessExpression {
         let node = self.create_base_expression(SyntaxKind::PropertyAccessExpression);
@@ -601,9 +602,9 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     pub fn update_property_access_expression(
         &self,
         node: &Node, /*PropertyAccessExpression*/
-        expression: Gc<Node /*Expression*/>,
-        name: Gc<Node /*Identifier | PrivateIdentifier*/>,
-    ) -> Gc<Node> {
+        expression: Id<Node /*Expression*/>,
+        name: Id<Node /*Identifier | PrivateIdentifier*/>,
+    ) -> Id<Node> {
         let node_as_property_access_expression = node.as_property_access_expression();
         if is_property_access_chain(node) {
             return self.update_property_access_chain(
@@ -630,8 +631,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_property_access_chain_raw<'name>(
         &self,
-        expression: Gc<Node /*Expression*/>,
-        question_dot_token: Option<Gc<Node /*QuestionDotToken*/>>,
+        expression: Id<Node /*Expression*/>,
+        question_dot_token: Option<Id<Node /*QuestionDotToken*/>>,
         name: impl Into<StrOrRcNode<'name>>,
     ) -> PropertyAccessExpression {
         let node = self.create_base_expression(SyntaxKind::PropertyAccessExpression);
@@ -659,10 +660,10 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     pub fn update_property_access_chain(
         &self,
         node: &Node, /*PropertyAccessChain*/
-        expression: Gc<Node /*Expression*/>,
-        question_dot_token: Option<Gc<Node /*QuestionDotToken*/>>,
-        name: Gc<Node /*Identifier | PrivateIdentifier*/>,
-    ) -> Gc<Node> {
+        expression: Id<Node /*Expression*/>,
+        question_dot_token: Option<Id<Node /*QuestionDotToken*/>>,
+        name: Id<Node /*Identifier | PrivateIdentifier*/>,
+    ) -> Id<Node> {
         let node_as_property_access_expression = node.as_property_access_expression();
         Debug_.assert(
             node.flags().intersects(NodeFlags::OptionalChain),
@@ -689,7 +690,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_element_access_expression_raw(
         &self,
-        expression: Gc<Node /*Expression*/>,
+        expression: Id<Node /*Expression*/>,
         index: impl Into<StringOrNumberOrBoolOrRcNode>,
     ) -> ElementAccessExpression {
         let node = self.create_base_expression(SyntaxKind::ElementAccessExpression);
@@ -715,9 +716,9 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     pub fn update_element_access_expression(
         &self,
         node: &Node, /*ElementAccessExpression*/
-        expression: Gc<Node /*Expression*/>,
-        argument_expression: Gc<Node /*Expression*/>,
-    ) -> Gc<Node> {
+        expression: Id<Node /*Expression*/>,
+        argument_expression: Id<Node /*Expression*/>,
+    ) -> Id<Node> {
         let node_as_element_access_expression = node.as_element_access_expression();
         if is_element_access_chain(node) {
             return self.update_element_access_chain(
@@ -745,8 +746,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_element_access_chain_raw(
         &self,
-        expression: Gc<Node /*Expression*/>,
-        question_dot_token: Option<Gc<Node /*QuestionDotToken*/>>,
+        expression: Id<Node /*Expression*/>,
+        question_dot_token: Option<Id<Node /*QuestionDotToken*/>>,
         index: impl Into<StringOrNumberOrBoolOrRcNode>,
     ) -> ElementAccessExpression {
         let node = self.create_base_expression(SyntaxKind::ElementAccessExpression);
@@ -770,10 +771,10 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     pub fn update_element_access_chain(
         &self,
         node: &Node, /*ElementAccessChain*/
-        expression: Gc<Node /*Expression*/>,
-        question_dot_token: Option<Gc<Node /*QuestionDotToken*/>>,
-        argument_expression: Gc<Node /*Expression*/>,
-    ) -> Gc<Node> {
+        expression: Id<Node /*Expression*/>,
+        question_dot_token: Option<Id<Node /*QuestionDotToken*/>>,
+        argument_expression: Id<Node /*Expression*/>,
+    ) -> Id<Node> {
         let node_as_element_access_expression = node.as_element_access_expression();
         Debug_.assert(
             node.flags().intersects(NodeFlags::OptionalChain),
@@ -807,7 +808,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_call_expression_raw(
         &self,
-        expression: Gc<Node /*Expression*/>,
+        expression: Id<Node /*Expression*/>,
         type_arguments: Option<impl Into<NodeArrayOrVec /*<TypeNode>*/>>,
         arguments_array: Option<impl Into<NodeArrayOrVec /*<Expression>*/>>,
     ) -> CallExpression {
@@ -842,10 +843,10 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     pub fn update_call_expression(
         &self,
         node: &Node, /*CallExpression*/
-        expression: Gc<Node /*Expression*/>,
+        expression: Id<Node /*Expression*/>,
         type_arguments: Option<impl Into<NodeArrayOrVec /*<TypeNode>*/>>,
         arguments_array: impl Into<NodeArrayOrVec /*<Expression>*/>,
-    ) -> Gc<Node /*CallExpression*/> {
+    ) -> Id<Node /*CallExpression*/> {
         let node_as_call_expression = node.as_call_expression();
         if is_call_chain(node) {
             return self.update_call_chain(
@@ -877,8 +878,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_call_chain_raw(
         &self,
-        expression: Gc<Node /*Expression*/>,
-        question_dot_token: Option<Gc<Node /*QuestionDotToken*/>>,
+        expression: Id<Node /*Expression*/>,
+        question_dot_token: Option<Id<Node /*QuestionDotToken*/>>,
         type_arguments: Option<
             impl Into<NodeArrayOrVec>,
             /*<TypeNode>*/
@@ -920,15 +921,15 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     pub fn update_call_chain(
         &self,
         node: &Node, /*CallChain*/
-        expression: Gc<Node /*Expression*/>,
-        question_dot_token: Option<Gc<Node /*QuestionDotToken*/>>,
+        expression: Id<Node /*Expression*/>,
+        question_dot_token: Option<Id<Node /*QuestionDotToken*/>>,
         type_arguments: Option<
             impl Into<NodeArrayOrVec>,
             /*<TypeNode>*/
         >,
         arguments_array: impl Into<NodeArrayOrVec>,
         /*<Expression>*/
-    ) -> Gc<Node /*CallExpression*/> {
+    ) -> Id<Node /*CallExpression*/> {
         let node_as_call_expression = node.as_call_expression();
         let type_arguments = type_arguments.map(Into::into);
         let arguments_array = arguments_array.into();
@@ -964,7 +965,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_new_expression_raw(
         &self,
-        expression: Gc<Node /*Expression*/>,
+        expression: Id<Node /*Expression*/>,
         type_arguments: Option<
             impl Into<NodeArrayOrVec>,
             /*<TypeNode>*/
@@ -1000,7 +1001,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     pub fn update_new_expression(
         &self,
         node: &Node, /*NewExpression*/
-        expression: Gc<Node /*Expression*/>,
+        expression: Id<Node /*Expression*/>,
         type_arguments: Option<
             impl Into<NodeArrayOrVec>,
             /*<TypeNode>*/
@@ -1009,7 +1010,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
             impl Into<NodeArrayOrVec>,
             /*<Expression>*/
         >,
-    ) -> Gc<Node> {
+    ) -> Id<Node> {
         let node_as_new_expression = node.as_new_expression();
         let type_arguments = type_arguments.map(Into::into);
         let arguments_array = arguments_array.map(Into::into);
@@ -1035,9 +1036,9 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_tagged_template_expression_raw(
         &self,
-        tag: Gc<Node /*Expression*/>,
+        tag: Id<Node /*Expression*/>,
         type_arguments: Option<impl Into<NodeArrayOrVec> /*<TypeNode>*/>,
-        template: Gc<Node /*TemplateLiteral*/>,
+        template: Id<Node /*TemplateLiteral*/>,
     ) -> TaggedTemplateExpression {
         let node = self.create_base_expression(SyntaxKind::TaggedTemplateExpression);
         let node = TaggedTemplateExpression::new(
@@ -1066,10 +1067,10 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     pub fn update_tagged_template_expression(
         &self,
         node: &Node, /*TaggedTemplateExpression*/
-        tag: Gc<Node /*Expression*/>,
+        tag: Id<Node /*Expression*/>,
         type_arguments: Option<impl Into<NodeArrayOrVec> /*<TypeNode>*/>,
-        template: Gc<Node /*TemplateLiteral*/>,
-    ) -> Gc<Node> {
+        template: Id<Node /*TemplateLiteral*/>,
+    ) -> Id<Node> {
         let node_as_tagged_template_expression = node.as_tagged_template_expression();
         let type_arguments = type_arguments.map(Into::into);
         if !Gc::ptr_eq(&node_as_tagged_template_expression.tag, &tag)
@@ -1093,8 +1094,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_type_assertion_raw(
         &self,
-        type_: Gc<Node /*TypeNode*/>,
-        expression: Gc<Node /*Expression*/>,
+        type_: Id<Node /*TypeNode*/>,
+        expression: Id<Node /*Expression*/>,
     ) -> TypeAssertion {
         let node = self.create_base_expression(SyntaxKind::TypeAssertionExpression);
         let node = TypeAssertion::new(
@@ -1114,9 +1115,9 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     pub fn update_type_assertion(
         &self,
         node: &Node, /*TypeAssertion*/
-        type_: Gc<Node /*TypeNode*/>,
-        expression: Gc<Node /*Expression*/>,
-    ) -> Gc<Node> {
+        type_: Id<Node /*TypeNode*/>,
+        expression: Id<Node /*Expression*/>,
+    ) -> Id<Node> {
         let node_as_type_assertion = node.as_type_assertion();
         if !Gc::ptr_eq(&node_as_type_assertion.type_, &type_)
             || !Gc::ptr_eq(&node_as_type_assertion.expression, &expression)
@@ -1130,7 +1131,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_parenthesized_expression_raw(
         &self,
-        expression: Gc<Node /*Expression*/>,
+        expression: Id<Node /*Expression*/>,
     ) -> ParenthesizedExpression {
         let node = self.create_base_expression(SyntaxKind::ParenthesizedExpression);
         let node = ParenthesizedExpression::new(node, expression);
@@ -1141,8 +1142,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     pub fn update_parenthesized_expression(
         &self,
         node: &Node, /*ParenthesizedExpression*/
-        expression: Gc<Node /*Expression*/>,
-    ) -> Gc<Node> {
+        expression: Id<Node /*Expression*/>,
+    ) -> Id<Node> {
         let node_as_parenthesized_expression = node.as_parenthesized_expression();
         if !Gc::ptr_eq(&node_as_parenthesized_expression.expression, &expression) {
             self.update(self.create_parenthesized_expression(expression), node)
@@ -1155,12 +1156,12 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     pub fn create_function_expression_raw<'name>(
         &self,
         modifiers: Option<impl Into<NodeArrayOrVec>>,
-        asterisk_token: Option<Gc<Node>>,
+        asterisk_token: Option<Id<Node>>,
         name: Option<impl Into<StrOrRcNode<'name>>>,
         type_parameters: Option<impl Into<NodeArrayOrVec>>,
         parameters: Option<impl Into<NodeArrayOrVec>>,
-        type_: Option<Gc<Node>>,
-        body: Gc<Node>,
+        type_: Option<Id<Node>>,
+        body: Id<Node>,
     ) -> FunctionExpression {
         let mut node = self.create_base_function_like_declaration(
             SyntaxKind::FunctionExpression,
@@ -1196,13 +1197,13 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         &self,
         node: &Node, /*FunctionExpression*/
         modifiers: Option<impl Into<NodeArrayOrVec>>,
-        asterisk_token: Option<Gc<Node /*AsteriskToken*/>>,
-        name: Option<Gc<Node /*Identifier*/>>,
+        asterisk_token: Option<Id<Node /*AsteriskToken*/>>,
+        name: Option<Id<Node /*Identifier*/>>,
         type_parameters: Option<impl Into<NodeArrayOrVec>>,
         parameters: impl Into<NodeArrayOrVec>,
-        type_: Option<Gc<Node /*TypeNode*/>>,
-        body: Gc<Node /*Block*/>,
-    ) -> Gc<Node> {
+        type_: Option<Id<Node /*TypeNode*/>>,
+        body: Id<Node /*Block*/>,
+    ) -> Id<Node> {
         let node_as_function_expression = node.as_function_expression();
         let modifiers = modifiers.map(Into::into);
         let type_parameters = type_parameters.map(Into::into);
@@ -1251,15 +1252,15 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         modifiers: Option<impl Into<NodeArrayOrVec>>,
         type_parameters: Option<impl Into<NodeArrayOrVec>>,
         parameters: impl Into<NodeArrayOrVec>,
-        type_: Option<Gc<Node>>,
-        equals_greater_than_token: Option<Gc<Node /*EqualsGreaterThanToken*/>>,
-        body: Gc<Node /*ConciseBody*/>,
+        type_: Option<Id<Node>>,
+        equals_greater_than_token: Option<Id<Node /*EqualsGreaterThanToken*/>>,
+        body: Id<Node /*ConciseBody*/>,
     ) -> ArrowFunction {
         let node = self.create_base_function_like_declaration(
             SyntaxKind::ArrowFunction,
             Option::<Gc<NodeArray>>::None,
             modifiers,
-            Option::<Gc<Node>>::None,
+            Option::<Id<Node>>::None,
             type_parameters,
             Some(parameters),
             type_,
@@ -1293,10 +1294,10 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         modifiers: Option<impl Into<NodeArrayOrVec>>,
         type_parameters: Option<impl Into<NodeArrayOrVec>>,
         parameters: impl Into<NodeArrayOrVec>,
-        type_: Option<Gc<Node /*TypeNode*/>>,
-        equals_greater_than_token: Gc<Node /*EqualsGreaterThanToken*/>,
-        body: Gc<Node /*ConciseBody*/>,
-    ) -> Gc<Node /*ArrowFunction*/> {
+        type_: Option<Id<Node /*TypeNode*/>>,
+        equals_greater_than_token: Id<Node /*EqualsGreaterThanToken*/>,
+        body: Id<Node /*ConciseBody*/>,
+    ) -> Id<Node /*ArrowFunction*/> {
         let node_as_arrow_function = node.as_arrow_function();
         let modifiers = modifiers.map(Into::into);
         let type_parameters = type_parameters.map(Into::into);
@@ -1333,7 +1334,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_delete_expression_raw(
         &self,
-        expression: Gc<Node /*Expression*/>,
+        expression: Id<Node /*Expression*/>,
     ) -> DeleteExpression {
         let node = self.create_base_expression(SyntaxKind::DeleteExpression);
         let node = DeleteExpression::new(
@@ -1348,8 +1349,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     pub fn update_delete_expression(
         &self,
         node: &Node, /*DeleteExpression*/
-        expression: Gc<Node /*Expression*/>,
-    ) -> Gc<Node> {
+        expression: Id<Node /*Expression*/>,
+    ) -> Id<Node> {
         let node_as_delete_expression = node.as_delete_expression();
         if !Gc::ptr_eq(&node_as_delete_expression.expression, &expression) {
             self.update(self.create_delete_expression(expression), node)
@@ -1361,7 +1362,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_type_of_expression_raw(
         &self,
-        expression: Gc<Node /*Expression*/>,
+        expression: Id<Node /*Expression*/>,
     ) -> TypeOfExpression {
         let node = self.create_base_expression(SyntaxKind::TypeOfExpression);
         let node = TypeOfExpression::new(
@@ -1376,8 +1377,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     pub fn update_type_of_expression(
         &self,
         node: &Node, /*TypeOfExpression*/
-        expression: Gc<Node /*Expression*/>,
-    ) -> Gc<Node> {
+        expression: Id<Node /*Expression*/>,
+    ) -> Id<Node> {
         let node_as_type_of_expression = node.as_type_of_expression();
         if !Gc::ptr_eq(&node_as_type_of_expression.expression, &expression) {
             self.update(self.create_type_of_expression(expression), node)
@@ -1389,7 +1390,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_void_expression_raw(
         &self,
-        expression: Gc<Node /*Expression*/>,
+        expression: Id<Node /*Expression*/>,
     ) -> VoidExpression {
         let node = self.create_base_expression(SyntaxKind::VoidExpression);
         let node = VoidExpression::new(
@@ -1404,8 +1405,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     pub fn update_void_expression(
         &self,
         node: &Node, /*VoidExpression*/
-        expression: Gc<Node /*Expression*/>,
-    ) -> Gc<Node> {
+        expression: Id<Node /*Expression*/>,
+    ) -> Id<Node> {
         let node_as_void_expression = node.as_void_expression();
         if !Gc::ptr_eq(&node_as_void_expression.expression, &expression) {
             self.update(self.create_void_expression(expression), node)
@@ -1417,7 +1418,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_await_expression_raw(
         &self,
-        expression: Gc<Node /*Expression*/>,
+        expression: Id<Node /*Expression*/>,
     ) -> AwaitExpression {
         let node = self.create_base_expression(SyntaxKind::AwaitExpression);
         let node = AwaitExpression::new(
@@ -1437,8 +1438,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     pub fn update_await_expression(
         &self,
         node: &Node, /*AwaitExpression*/
-        expression: Gc<Node /*Expression*/>,
-    ) -> Gc<Node> {
+        expression: Id<Node /*Expression*/>,
+    ) -> Id<Node> {
         let node_as_await_expression = node.as_await_expression();
         if !Gc::ptr_eq(&node_as_await_expression.expression, &expression) {
             self.update(self.create_await_expression(expression), node)
@@ -1451,7 +1452,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     pub fn create_prefix_unary_expression_raw(
         &self,
         operator: SyntaxKind, /*PrefixUnaryOperator*/
-        operand: Gc<Node /*Expression*/>,
+        operand: Id<Node /*Expression*/>,
     ) -> PrefixUnaryExpression {
         let node = self.create_base_expression(SyntaxKind::PrefixUnaryExpression);
         let node = PrefixUnaryExpression::new(
@@ -1476,8 +1477,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     pub fn update_prefix_unary_expression(
         &self,
         node: &Node, /*PrefixUnaryExpression*/
-        operand: Gc<Node /*Expression*/>,
-    ) -> Gc<Node> {
+        operand: Id<Node /*Expression*/>,
+    ) -> Id<Node> {
         let node_as_prefix_unary_expression = node.as_prefix_unary_expression();
         if !Gc::ptr_eq(&node_as_prefix_unary_expression.operand, &operand) {
             self.update(
@@ -1495,7 +1496,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_postfix_unary_expression_raw(
         &self,
-        operand: Gc<Node /*Expression*/>,
+        operand: Id<Node /*Expression*/>,
         operator: SyntaxKind,
     ) -> PostfixUnaryExpression {
         let node = self.create_base_expression(SyntaxKind::PostfixUnaryExpression);
@@ -1518,8 +1519,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     pub fn update_postfix_unary_expression(
         &self,
         node: &Node, /*PostfixUnaryExpression*/
-        operand: Gc<Node /*Expression*/>,
-    ) -> Gc<Node> {
+        operand: Id<Node /*Expression*/>,
+    ) -> Id<Node> {
         let node_as_postfix_unary_expression = node.as_postfix_unary_expression();
         if !Gc::ptr_eq(&node_as_postfix_unary_expression.operand, &operand) {
             self.update(
@@ -1537,9 +1538,9 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_binary_expression_raw(
         &self,
-        left: Gc<Node /*Expression*/>,
+        left: Id<Node /*Expression*/>,
         operator: impl Into<SyntaxKindOrRcNode>,
-        right: Gc<Node /*Expression*/>,
+        right: Id<Node /*Expression*/>,
     ) -> BinaryExpression {
         let node = self.create_base_expression(SyntaxKind::BinaryExpression);
         let operator_token = self.as_token(operator.into());
@@ -1588,10 +1589,10 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     pub fn update_binary_expression(
         &self,
         node: &Node, /*BinaryExpression*/
-        left: Gc<Node /*Expression*/>,
-        operator: Gc<Node /*BinaryOperatorToken*/>,
-        right: Gc<Node /*Expression*/>,
-    ) -> Gc<Node> {
+        left: Id<Node /*Expression*/>,
+        operator: Id<Node /*BinaryOperatorToken*/>,
+        right: Id<Node /*Expression*/>,
+    ) -> Id<Node> {
         let node_as_binary_expression = node.as_binary_expression();
         if !Gc::ptr_eq(&node_as_binary_expression.left, &left)
             || !Gc::ptr_eq(&node_as_binary_expression.operator_token, &operator)
@@ -1644,11 +1645,11 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_conditional_expression_raw(
         &self,
-        condition: Gc<Node /*Expression*/>,
-        question_token: Option<Gc<Node /*QuestionToken*/>>,
-        when_true: Gc<Node /*Expression*/>,
-        colon_token: Option<Gc<Node /*ColonToken*/>>,
-        when_false: Gc<Node /*Expression*/>,
+        condition: Id<Node /*Expression*/>,
+        question_token: Option<Id<Node /*QuestionToken*/>>,
+        when_true: Id<Node /*Expression*/>,
+        colon_token: Option<Id<Node /*ColonToken*/>>,
+        when_false: Id<Node /*Expression*/>,
     ) -> ConditionalExpression {
         let node = self.create_base_expression(SyntaxKind::ConditionalExpression);
         let node = ConditionalExpression::new(
@@ -1675,12 +1676,12 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     pub fn update_conditional_expression(
         &self,
         node: &Node, /*ConditionalExpression*/
-        condition: Gc<Node /*Expression*/>,
-        question_token: Gc<Node /*QuestionToken*/>,
-        when_true: Gc<Node /*Expression*/>,
-        colon_token: Gc<Node /*ColonToken*/>,
-        when_false: Gc<Node /*Expression*/>,
-    ) -> Gc<Node> {
+        condition: Id<Node /*Expression*/>,
+        question_token: Id<Node /*QuestionToken*/>,
+        when_true: Id<Node /*Expression*/>,
+        colon_token: Id<Node /*ColonToken*/>,
+        when_false: Id<Node /*Expression*/>,
+    ) -> Id<Node> {
         let node_as_conditional_expression = node.as_conditional_expression();
         if !Gc::ptr_eq(&node_as_conditional_expression.condition, &condition)
             || !Gc::ptr_eq(
@@ -1709,7 +1710,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_template_expression_raw(
         &self,
-        head: Gc<Node /*TemplateHead*/>,
+        head: Id<Node /*TemplateHead*/>,
         template_spans: impl Into<NodeArrayOrVec>, /*<TemplateSpan>*/
     ) -> TemplateExpression {
         let node = self.create_base_expression(SyntaxKind::TemplateExpression);
@@ -1729,9 +1730,9 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     pub fn update_template_expression(
         &self,
         node: &Node, /*TemplateExpression*/
-        head: Gc<Node /*TemplateHead*/>,
+        head: Id<Node /*TemplateHead*/>,
         template_spans: impl Into<NodeArrayOrVec>, /*<TemplateSpan>*/
-    ) -> Gc<Node> {
+    ) -> Id<Node> {
         let node_as_template_expression = node.as_template_expression();
         let template_spans = template_spans.into();
         if !Gc::ptr_eq(&node_as_template_expression.head, &head)
@@ -1881,8 +1882,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_yield_expression_raw(
         &self,
-        asterisk_token: Option<Gc<Node /*AsteriskToken*/>>,
-        expression: Option<Gc<Node /*Expression*/>>,
+        asterisk_token: Option<Id<Node /*AsteriskToken*/>>,
+        expression: Option<Id<Node /*Expression*/>>,
     ) -> YieldExpression {
         let node = self.create_base_expression(SyntaxKind::YieldExpression);
         let node = YieldExpression::new(
@@ -1905,10 +1906,10 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn update_yield_expression(
         &self,
-        node: &Node, /*Gc<Node>*/
-        asterisk_token: Option<Gc<Node /*AsteriskToken*/>>,
-        expression: Option<Gc<Node /*Expression*/>>,
-    ) -> Gc<Node> {
+        node: &Node, /*Id<Node>*/
+        asterisk_token: Option<Id<Node /*AsteriskToken*/>>,
+        expression: Option<Id<Node /*Expression*/>>,
+    ) -> Id<Node> {
         let node_as_yield_expression = node.as_yield_expression();
         if !are_option_gcs_equal(
             node_as_yield_expression.expression.as_ref(),
@@ -1927,7 +1928,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     }
 
     #[generate_node_factory_method_wrapper]
-    pub fn create_spread_element_raw(&self, expression: Gc<Node /*Expression*/>) -> SpreadElement {
+    pub fn create_spread_element_raw(&self, expression: Id<Node /*Expression*/>) -> SpreadElement {
         let node = self.create_base_expression(SyntaxKind::SpreadElement);
         let node = SpreadElement::new(
             node,
@@ -1945,8 +1946,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     pub fn update_spread_element(
         &self,
         node: &Node, /*SpreadElement*/
-        expression: Gc<Node /*Expression*/>,
-    ) -> Gc<Node> {
+        expression: Id<Node /*Expression*/>,
+    ) -> Id<Node> {
         let node_as_spread_element = node.as_spread_element();
         if !Gc::ptr_eq(&node_as_spread_element.expression, &expression) {
             self.update(self.create_spread_element(expression), node)
@@ -1994,7 +1995,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         node: &Node, /*ClassExpression*/
         decorators: Option<impl Into<NodeArrayOrVec>>,
         modifiers: Option<impl Into<NodeArrayOrVec>>,
-        name: Option<Gc<Node>>,
+        name: Option<Id<Node>>,
         type_parameters: Option<
             impl Into<NodeArrayOrVec>,
             /*<TypeParameterDeclaration>*/
@@ -2005,7 +2006,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         >,
         members: impl Into<NodeArrayOrVec>,
         /*<ClassElement>*/
-    ) -> Gc<Node> {
+    ) -> Id<Node> {
         let node_as_class_expression = node.as_class_expression();
         let decorators = decorators.map(Into::into);
         let modifiers = modifiers.map(Into::into);

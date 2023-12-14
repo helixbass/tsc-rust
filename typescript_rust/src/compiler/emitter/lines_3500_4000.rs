@@ -1,6 +1,7 @@
 use std::{collections::HashSet, convert::TryInto, io};
 
 use gc::Gc;
+use id_arena::Id;
 use regex::Regex;
 
 use super::ParenthesizeExpressionForDisallowedCommaCurrentParenthesizerRule;
@@ -1016,14 +1017,14 @@ impl Printer {
     ) -> io::Result<()> {
         let statements = node.as_source_file().statements();
         self.push_name_generation_scope(Some(node));
-        for_each(&statements, |statement: &Gc<Node>, _| -> Option<()> {
+        for_each(&statements, |statement: &Id<Node>, _| -> Option<()> {
             self.generate_names(Some(&**statement));
             None
         });
         self.emit_helpers(node);
         let index = find_index(
             &statements,
-            |statement: &Gc<Node>, _| !is_prologue_directive(statement),
+            |statement: &Id<Node>, _| !is_prologue_directive(statement),
             None,
         );
         self.emit_triple_slash_directives_if_needed(node);
@@ -1070,7 +1071,7 @@ impl Printer {
 
     pub(super) fn emit_prologue_directives(
         &self,
-        statements: &[Gc<Node>],
+        statements: &[Id<Node>],
         source_file: Option<&Node /*SourceFile*/>,
         seen_prologue_directives: &mut Option<HashSet<String>>,
         record_bundle_file_section: Option<bool /*true*/>,

@@ -11,6 +11,7 @@ use std::{
 
 use fancy_regex::{Captures, Regex};
 use gc::{Finalize, Gc, Trace};
+use id_arena::Id;
 use local_macros::enum_unwrapped;
 
 use crate::{
@@ -772,7 +773,7 @@ pub fn get_jsx_implicit_import_base(
     compiler_options: &CompilerOptions,
     file: Option<impl Borrow<Node> /*SourceFile*/>,
 ) -> Option<String> {
-    let file: Option<Gc<Node>> = file.map(|file| file.borrow().node_wrapper());
+    let file: Option<Id<Node>> = file.map(|file| file.borrow().node_wrapper());
     let jsx_import_source_pragmas = file.as_ref().and_then(|file| {
         file.as_source_file()
             .pragmas()
@@ -974,7 +975,7 @@ impl SymlinkCache {
 
     pub fn set_symlinks_from_resolutions(
         &self,
-        files: &[Gc<Node /*SourceFile*/>],
+        files: &[Id<Node /*SourceFile*/>],
         type_reference_directives: Option<
             &HashMap<String, Option<Gc<ResolvedTypeReferenceDirective>>>,
         >,

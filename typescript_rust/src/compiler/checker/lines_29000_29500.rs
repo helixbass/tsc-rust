@@ -41,11 +41,11 @@ impl TypeChecker {
 
     pub(super) fn get_spread_argument_index(
         &self,
-        args: &[Gc<Node /*Expression*/>],
+        args: &[Id<Node /*Expression*/>],
     ) -> Option<usize> {
         find_index(
             args,
-            |arg: &Gc<Node>, _| self.is_spread_argument(Some(&**arg)),
+            |arg: &Id<Node>, _| self.is_spread_argument(Some(&**arg)),
             None,
         )
     }
@@ -63,7 +63,7 @@ impl TypeChecker {
     pub(super) fn has_correct_arity(
         &self,
         node: &Node, /*CallLikeExpression*/
-        args: &[Gc<Node /*Expression*/>],
+        args: &[Id<Node /*Expression*/>],
         signature: &Signature,
         signature_help_trailing_comma: Option<bool>,
     ) -> io::Result<bool> {
@@ -179,7 +179,7 @@ impl TypeChecker {
             self.get_min_type_argument_count(signature.maybe_type_parameters().as_deref());
         !some(
             type_arguments.map(|type_arguments| &**type_arguments),
-            Option::<fn(&Gc<Node>) -> bool>::None,
+            Option::<fn(&Id<Node>) -> bool>::None,
         ) || {
             let type_arguments = type_arguments.unwrap();
             type_arguments.len() >= min_type_argument_count
@@ -374,7 +374,7 @@ impl TypeChecker {
         &self,
         node: &Node, /*CallLikeExpression*/
         signature: Gc<Signature>,
-        args: &[Gc<Node /*Expression*/>],
+        args: &[Id<Node /*Expression*/>],
         check_mode: CheckMode,
         context: Gc<InferenceContext>,
     ) -> io::Result<Vec<Id<Type>>> {
@@ -491,7 +491,7 @@ impl TypeChecker {
                 info.set_implied_arity(
                     if find_index(
                         args,
-                        |arg: &Gc<Node>, _| self.is_spread_argument(Some(&**arg)),
+                        |arg: &Id<Node>, _| self.is_spread_argument(Some(&**arg)),
                         None,
                     )
                     .is_none()
@@ -589,7 +589,7 @@ impl TypeChecker {
 
     pub(super) fn get_spread_argument_type(
         &self,
-        args: &[Gc<Node /*Expression*/>],
+        args: &[Id<Node /*Expression*/>],
         index: usize,
         arg_count: usize,
         rest_type: Id<Type>,
@@ -615,7 +615,7 @@ impl TypeChecker {
         }
         let mut types: Vec<Id<Type>> = vec![];
         let mut flags: Vec<ElementFlags> = vec![];
-        let mut names: Vec<Gc<Node>> = vec![];
+        let mut names: Vec<Id<Node>> = vec![];
         for i in index..arg_count {
             let arg = &args[i];
             if self.is_spread_argument(Some(&**arg)) {
@@ -692,7 +692,7 @@ impl TypeChecker {
     pub(super) fn check_type_arguments(
         &self,
         signature: &Signature,
-        type_argument_nodes: &[Gc<Node /*TypeNode*/>],
+        type_argument_nodes: &[Id<Node /*TypeNode*/>],
         report_errors: bool,
         head_message: Option<&'static DiagnosticMessage>,
     ) -> io::Result<Option<Vec<Id<Type>>>> {
@@ -700,7 +700,7 @@ impl TypeChecker {
         let type_parameters = signature.maybe_type_parameters().clone().unwrap();
         let type_argument_types = self
             .fill_missing_type_arguments(
-                Some(try_map(type_argument_nodes, |node: &Gc<Node>, _| {
+                Some(try_map(type_argument_nodes, |node: &Id<Node>, _| {
                     self.get_type_from_type_node_(node)
                 })?),
                 Some(&type_parameters),
@@ -956,7 +956,7 @@ impl TypeChecker {
     pub(super) fn get_signature_applicability_error(
         &self,
         node: &Node, /*CallLikeExpression*/
-        args: &[Gc<Node /*Expression*/>],
+        args: &[Id<Node /*Expression*/>],
         signature: Gc<Signature>,
         relation: Rc<RefCell<HashMap<String, RelationComparisonResult>>>,
         check_mode: CheckMode,

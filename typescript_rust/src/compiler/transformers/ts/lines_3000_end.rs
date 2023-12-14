@@ -1,6 +1,7 @@
 use std::io;
 
 use gc::Gc;
+use id_arena::Id;
 
 use super::{TransformTypeScript, TypeScriptSubstitutionFlags};
 use crate::{
@@ -29,13 +30,13 @@ impl TransformTypeScript {
         self.is_external_module_export(node) && has_syntactic_modifier(node, ModifierFlags::Default)
     }
 
-    pub(super) fn expression_to_statement(&self, expression: Gc<Node /*Expression*/>) -> Gc<Node> {
+    pub(super) fn expression_to_statement(&self, expression: Id<Node /*Expression*/>) -> Id<Node> {
         self.factory.create_expression_statement(expression)
     }
 
     pub(super) fn add_export_member_assignment(
         &self,
-        statements: &mut Vec<Gc<Node /*Statement*/>>,
+        statements: &mut Vec<Id<Node /*Statement*/>>,
         node: &Node, /*ClassDeclaration | FunctionDeclaration*/
     ) {
         let expression = self
@@ -71,7 +72,7 @@ impl TransformTypeScript {
         export_name: &Node,  /*Identifier*/
         export_value: &Node, /*Expression*/
         location: Option<&impl ReadonlyTextRange>,
-    ) -> Gc<Node> {
+    ) -> Id<Node> {
         self.factory
             .create_expression_statement(self.factory.create_assignment(
                 self.factory.get_namespace_member_name(
@@ -90,7 +91,7 @@ impl TransformTypeScript {
         export_name: &Node,  /*Identifier*/
         export_value: &Node, /*Expression*/
         location: Option<&(impl ReadonlyTextRange + ?Sized)>,
-    ) -> Gc<Node> {
+    ) -> Id<Node> {
         self.factory
             .create_assignment(
                 self.get_namespace_member_name_with_source_maps_and_without_comments(export_name),
@@ -102,7 +103,7 @@ impl TransformTypeScript {
     pub(super) fn get_namespace_member_name_with_source_maps_and_without_comments(
         &self,
         name: &Node, /*Identifier*/
-    ) -> Gc<Node> {
+    ) -> Id<Node> {
         self.factory.get_namespace_member_name(
             &self.current_namespace_container_name(),
             name,
@@ -114,7 +115,7 @@ impl TransformTypeScript {
     pub(super) fn get_namespace_parameter_name(
         &self,
         node: &Node, /*ModuleDeclaration | EnumDeclaration*/
-    ) -> Gc<Node> {
+    ) -> Id<Node> {
         self.factory
             .get_generated_name_for_node(Some(node), None)
             .set_source_map_range(
@@ -128,14 +129,14 @@ impl TransformTypeScript {
     pub(super) fn get_namespace_container_name(
         &self,
         node: &Node, /*ModuleDeclaration | EnumDeclaration*/
-    ) -> Gc<Node> {
+    ) -> Id<Node> {
         self.factory.get_generated_name_for_node(Some(node), None)
     }
 
     pub(super) fn get_class_alias_if_needed(
         &self,
         node: &Node, /*ClassDeclaration*/
-    ) -> Option<Gc<Node>> {
+    ) -> Option<Id<Node>> {
         if self
             .resolver
             .get_node_check_flags(node)
@@ -160,7 +161,7 @@ impl TransformTypeScript {
     pub(super) fn get_class_prototype(
         &self,
         node: &Node, /*ClassExpression | ClassDeclaration*/
-    ) -> Gc<Node> {
+    ) -> Id<Node> {
         self.factory.create_property_access_expression(
             self.factory.get_declaration_name(Some(node), None, None),
             "prototype",
@@ -171,7 +172,7 @@ impl TransformTypeScript {
         &self,
         node: &Node,   /*ClassExpression | ClassDeclaration*/
         member: &Node, /*ClassElement*/
-    ) -> Gc<Node> {
+    ) -> Id<Node> {
         if is_static(member) {
             self.factory.get_declaration_name(Some(node), None, None)
         } else {

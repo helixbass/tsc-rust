@@ -809,7 +809,7 @@ impl TypeChecker {
         if self.call_like_expression_may_have_type_arguments(node) {
             try_maybe_for_each(
                 node.as_has_type_arguments().maybe_type_arguments().as_ref(),
-                |type_argument: &Gc<Node>, _| -> io::Result<Option<()>> {
+                |type_argument: &Id<Node>, _| -> io::Result<Option<()>> {
                     self.check_source_element(Some(&**type_argument))?;
                     Ok(None)
                 },
@@ -823,7 +823,7 @@ impl TypeChecker {
         } else if node.kind() != SyntaxKind::Decorator {
             try_maybe_for_each(
                 node.as_has_arguments().maybe_arguments().as_deref(),
-                |argument: &Gc<Node>, _| -> io::Result<Option<()>> {
+                |argument: &Id<Node>, _| -> io::Result<Option<()>> {
                     self.check_expression(argument, None, None)?;
                     Ok(None)
                 },
@@ -846,7 +846,7 @@ impl TypeChecker {
         result: &mut Vec<Gc<Signature>>,
         call_chain_flags: SignatureFlags,
     ) -> io::Result<()> {
-        let mut last_parent: Option<Gc<Node>> = None;
+        let mut last_parent: Option<Id<Node>> = None;
         let mut last_symbol: Option<Id<Symbol>> = None;
         let mut cutoff_index = 0;
         let mut index: Option<usize> = None;

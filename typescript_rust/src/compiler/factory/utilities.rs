@@ -1,6 +1,7 @@
 use std::{borrow::Borrow, cell::RefCell, io, ptr, rc::Rc};
 
 use gc::{Finalize, Gc, Trace};
+use id_arena::Id;
 
 use crate::{
     first, first_or_undefined, get_all_accessor_declarations, get_emit_flags, get_jsdoc_type,
@@ -30,7 +31,7 @@ use crate::{
 
 pub fn create_empty_exports<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>(
     factory: &NodeFactory<TBaseNodeFactory>,
-) -> Gc<Node> {
+) -> Id<Node> {
     factory.create_export_declaration(
         Option::<Gc<NodeArray>>::None,
         Option::<Gc<NodeArray>>::None,
@@ -48,7 +49,7 @@ pub fn create_member_access_for_property_name<
     target: &Node,      /*Expression*/
     member_name: &Node, /*PropertyName*/
     location: Option<&impl ReadonlyTextRange>,
-) -> Gc<Node /*MemberExpression*/> {
+) -> Id<Node /*MemberExpression*/> {
     if is_computed_property_name(member_name) {
         factory
             .create_element_access_expression(
@@ -77,7 +78,7 @@ pub fn create_member_access_for_property_name<
 fn create_react_namespace(
     react_namespace: Option<&str>,
     parent: &Node, /*JsxOpeningLikeElement | JsxOpeningFragment*/
-) -> Gc<Node> {
+) -> Id<Node> {
     get_parse_node_factory()
         .create_identifier(react_namespace.non_empty().unwrap_or("React"))
         .and_set_parent(get_parse_tree_node(
@@ -92,7 +93,7 @@ fn create_jsx_factory_expression_from_entity_name<
     factory: &NodeFactory<TBaseNodeFactory>,
     jsx_factory: &Node, /*EntityName*/
     parent: &Node,      /*JsxOpeningLikeElement | JsxOpeningFragment*/
-) -> Gc<Node /*Expression*/> {
+) -> Id<Node /*Expression*/> {
     if is_qualified_name(jsx_factory) {
         let jsx_factory_as_qualified_name = jsx_factory.as_qualified_name();
         let left = create_jsx_factory_expression_from_entity_name(
@@ -114,7 +115,7 @@ pub fn create_jsx_factory_expression<
     jsx_factory_entity: Option<impl Borrow<Node /*EntityName*/>>,
     react_namespace: Option<&str>,
     parent: &Node, /*JsxOpeningLikeElement | JsxOpeningFragment*/
-) -> Gc<Node /*Expression*/> {
+) -> Id<Node /*Expression*/> {
     jsx_factory_entity.map_or_else(
         || {
             factory.create_property_access_expression(
@@ -136,7 +137,7 @@ pub fn create_jsx_fragment_factory_expression<
     jsx_fragment_factory_entity: Option<impl Borrow<Node /*EntityName*/>>,
     react_namespace: &str,
     parent: &Node, /*JsxOpeningLikeElement | JsxOpeningFragment*/
-) -> Gc<Node /*Expression*/> {
+) -> Id<Node /*Expression*/> {
     jsx_fragment_factory_entity.map_or_else(
         || {
             factory.create_property_access_expression(
@@ -162,9 +163,9 @@ pub fn create_expression_for_jsx_element<
     callee: &Node,   /*Expression*/
     tag_name: &Node, /*Expression*/
     props: Option<impl Borrow<Node /*Expression*/>>,
-    children: Option<&[Gc<Node /*Expression*/>]>,
+    children: Option<&[Id<Node /*Expression*/>]>,
     location: &impl ReadonlyTextRange,
-) -> Gc<Node /*LeftHandSideExpression*/> {
+) -> Id<Node /*LeftHandSideExpression*/> {
     let mut arguments_list = vec![tag_name.node_wrapper()];
     if let Some(props) = props.as_ref() {
         let props = props.borrow();
@@ -202,10 +203,10 @@ pub fn create_expression_for_jsx_fragment<
     jsx_factory_entity: Option<impl Borrow<Node /*EntityName*/>>,
     jsx_fragment_factory_entity: Option<impl Borrow<Node /*EntityName*/>>,
     react_namespace: &str,
-    children: &[Gc<Node /*Expression*/>],
+    children: &[Id<Node /*Expression*/>],
     parent_element: &Node, /*JsxOpeningFragment*/
     location: &impl ReadonlyTextRange,
-) -> Gc<Node /*LeftHandSideExpression*/> {
+) -> Id<Node /*LeftHandSideExpression*/> {
     let tag_name = create_jsx_fragment_factory_expression(
         factory,
         jsx_fragment_factory_entity,
@@ -247,7 +248,7 @@ pub fn create_for_of_binding_statement<
     factory: &NodeFactory<TBaseNodeFactory>,
     node: &Node,        /*ForInitializer*/
     bound_value: &Node, /*Expression*/
-) -> Gc<Node /*Statement*/> {
+) -> Id<Node /*Statement*/> {
     if is_variable_declaration_list(node) {
         let first_declaration = first(&node.as_variable_declaration_list().declarations);
         let updated_declaration = factory.update_variable_declaration(
@@ -278,7 +279,7 @@ pub fn create_expression_from_entity_name<
 >(
     factory: &NodeFactory<TBaseNodeFactory>,
     node: &Node, /*EntityName | Expression*/
-) -> Gc<Node /*Expression*/> {
+) -> Id<Node /*Expression*/> {
     if is_qualified_name(node) {
         let node_as_qualified_name = node.as_qualified_name();
         let left = create_expression_from_entity_name(factory, &node_as_qualified_name.left);
@@ -302,7 +303,7 @@ pub fn create_expression_for_property_name<
 >(
     factory: &NodeFactory<TBaseNodeFactory>,
     member_name: &Node, /*Exclude<PropertyName, PrivateIdentifier>*/
-) -> Gc<Node /*Expression*/> {
+) -> Id<Node /*Expression*/> {
     if is_identifier(member_name) {
         factory.create_string_literal_from_node(member_name)
     } else if is_computed_property_name(member_name) {
@@ -331,7 +332,7 @@ fn create_expression_for_accessor_declaration<
     property: &Node, /*AccessorDeclaration & { readonly name: Exclude<PropertyName, PrivateIdentifier> }*/
     receiver: &Node, /*Expression*/
     multi_line: bool,
-) -> Option<Gc<Node>> {
+) -> Option<Id<Node>> {
     let AllAccessorDeclarations {
         first_accessor,
         get_accessor,
@@ -358,7 +359,7 @@ fn create_expression_for_accessor_declaration<
                                     .create_function_expression(
                                         get_accessor.maybe_modifiers(),
                                         None,
-                                        Option::<Gc<Node>>::None,
+                                        Option::<Id<Node>>::None,
                                         Option::<Gc<NodeArray>>::None,
                                         Some(get_accessor_as_get_accessor_declaration.parameters()),
                                         None,
@@ -376,7 +377,7 @@ fn create_expression_for_accessor_declaration<
                                     .create_function_expression(
                                         set_accessor.maybe_modifiers(),
                                         None,
-                                        Option::<Gc<Node>>::None,
+                                        Option::<Id<Node>>::None,
                                         Option::<Gc<NodeArray>>::None,
                                         Some(set_accessor_as_set_accessor_declaration.parameters()),
                                         None,
@@ -405,7 +406,7 @@ fn create_expression_for_property_assignment<
     factory: &NodeFactory<TBaseNodeFactory>,
     property: &Node, /*PropertyAssignment*/
     receiver: &Node, /*Expression*/
-) -> Gc<Node> {
+) -> Id<Node> {
     let property_as_property_assignment = property.as_property_assignment();
     factory
         .create_assignment(
@@ -427,7 +428,7 @@ fn create_expression_for_shorthand_property_assignment<
     factory: &NodeFactory<TBaseNodeFactory>,
     property: &Node, /*ShorthandPropertyAssignment*/
     receiver: &Node, /*Expression*/
-) -> Gc<Node> {
+) -> Id<Node> {
     let property_as_shorthand_property_assignment = property.as_shorthand_property_assignment();
     factory
         .create_assignment(
@@ -449,7 +450,7 @@ fn create_expression_for_method_declaration<
     factory: &NodeFactory<TBaseNodeFactory>,
     method: &Node,   /*MethodDeclaration*/
     receiver: &Node, /*Expression*/
-) -> Gc<Node> {
+) -> Id<Node> {
     let method_as_method_declaration = method.as_method_declaration();
     factory
         .create_assignment(
@@ -463,7 +464,7 @@ fn create_expression_for_method_declaration<
                 .create_function_expression(
                     method.maybe_modifiers(),
                     method_as_method_declaration.maybe_asterisk_token(),
-                    Option::<Gc<Node>>::None,
+                    Option::<Id<Node>>::None,
                     Option::<Gc<NodeArray>>::None,
                     Some(method_as_method_declaration.parameters()),
                     None,
@@ -483,7 +484,7 @@ pub fn create_expression_for_object_literal_element_like<
     node: &Node,     /*ObjectLiteralExpression*/
     property: &Node, /*ObjectLiteralElementLike*/
     receiver: &Node, /*Expression*/
-) -> Option<Gc<Node /*Expression*/>> {
+) -> Option<Id<Node /*Expression*/>> {
     let node_as_object_literal_expression = node.as_object_literal_expression();
     if property
         .as_named_declaration()
@@ -526,7 +527,7 @@ pub fn expand_pre_or_postfix_increment_or_decrement_expression<
     expression: &Node, /*Expression*/
     record_temp_variable: impl FnMut(&Node /*Expression*/),
     result_variable: Option<impl Borrow<Node /*Identifier*/>>,
-) -> Gc<Node /*Expression*/> {
+) -> Id<Node /*Expression*/> {
     let node_as_unary_expression = node.as_unary_expression();
     let operator = node_as_unary_expression.operator();
     Debug_.assert(
@@ -589,8 +590,8 @@ fn is_use_strict_prologue(node: &Node /*ExpressionStatement*/) -> bool {
 }
 
 pub fn find_use_strict_prologue(
-    statements: &[Gc<Node /*Statement*/>],
-) -> Option<Gc<Node /*Statement*/>> {
+    statements: &[Id<Node /*Statement*/>],
+) -> Option<Id<Node /*Statement*/>> {
     for statement in statements {
         if is_prologue_directive(statement) {
             if is_use_strict_prologue(statement) {
@@ -603,7 +604,7 @@ pub fn find_use_strict_prologue(
     None
 }
 
-pub fn starts_with_use_strict(statements: &[Gc<Node>]) -> bool {
+pub fn starts_with_use_strict(statements: &[Id<Node>]) -> bool {
     let first_statement = first_or_undefined(statements);
     if first_statement.is_none() {
         return false;
@@ -624,7 +625,7 @@ pub fn is_jsdoc_type_assertion(node: &Node) -> bool {
         && get_jsdoc_type_tag(node).is_some()
 }
 
-pub fn get_jsdoc_type_assertion_type(node: &Node /*JSDocTypeAssertion*/) -> Gc<Node> {
+pub fn get_jsdoc_type_assertion_type(node: &Node /*JSDocTypeAssertion*/) -> Id<Node> {
     let type_ = get_jsdoc_type(node);
     Debug_.assert_is_defined(&type_, None);
     type_.unwrap()
@@ -652,7 +653,7 @@ pub fn is_outer_expression(node: &Node, kinds: Option<OuterExpressionKinds>) -> 
     }
 }
 
-pub fn skip_outer_expressions(node: &Node, kinds: Option<OuterExpressionKinds>) -> Gc<Node> {
+pub fn skip_outer_expressions(node: &Node, kinds: Option<OuterExpressionKinds>) -> Id<Node> {
     let kinds = kinds.unwrap_or(OuterExpressionKinds::All);
     let mut node = node.node_wrapper();
     while is_outer_expression(&node, Some(kinds)) {
@@ -666,10 +667,10 @@ pub fn start_on_new_line<TNode: Borrow<Node>>(node: TNode) -> TNode {
     node
 }
 
-pub fn get_external_helpers_module_name(node: &Node /*SourceFile*/) -> Option<Gc<Node>> {
+pub fn get_external_helpers_module_name(node: &Node /*SourceFile*/) -> Option<Id<Node>> {
     let parse_node = maybe_get_original_node_full(
         Some(node),
-        Some(|node: Option<Gc<Node>>| is_source_file(node.as_ref().unwrap())),
+        Some(|node: Option<Id<Node>>| is_source_file(node.as_ref().unwrap())),
     )?;
     let emit_node = parse_node.maybe_emit_node()?;
     let ret = (*emit_node).borrow().external_helpers_module_name.clone();
@@ -679,7 +680,7 @@ pub fn get_external_helpers_module_name(node: &Node /*SourceFile*/) -> Option<Gc
 pub fn has_recorded_external_helpers(source_file: &Node /*SourceFile*/) -> bool {
     let parse_node = maybe_get_original_node_full(
         Some(source_file),
-        Some(|node: Option<Gc<Node>>| is_source_file(node.as_ref().unwrap())),
+        Some(|node: Option<Id<Node>>| is_source_file(node.as_ref().unwrap())),
     );
     let emit_node = parse_node.and_then(|parse_node| parse_node.maybe_emit_node());
     matches!(
@@ -702,12 +703,12 @@ pub fn create_external_helpers_import_declaration_if_needed<
     has_export_stars_to_export_values: Option<bool>,
     has_import_star: Option<bool>,
     has_import_default: Option<bool>,
-) -> Option<Gc<Node>> {
+) -> Option<Id<Node>> {
     let source_file_as_source_file = source_file.as_source_file();
     if compiler_options.import_helpers == Some(true)
         && is_effective_external_module(source_file, compiler_options)
     {
-        let mut named_bindings: Option<Gc<Node /*NamedImportBindings*/>> = _d();
+        let mut named_bindings: Option<Id<Node /*NamedImportBindings*/>> = _d();
         let module_kind = get_emit_module_kind(compiler_options);
         if module_kind >= ModuleKind::ES2015 && module_kind <= ModuleKind::ESNext
             || source_file_as_source_file.maybe_implied_node_format() == Some(ModuleKind::ESNext)
@@ -751,7 +752,7 @@ pub fn create_external_helpers_import_declaration_if_needed<
                     )));
                     let parse_node = maybe_get_original_node_full(
                         Some(source_file),
-                        Some(|node: Option<Gc<Node>>| is_source_file(&node.unwrap())),
+                        Some(|node: Option<Id<Node>>| is_source_file(&node.unwrap())),
                     )
                     .unwrap();
                     let emit_node = get_or_create_emit_node(&parse_node);
@@ -800,7 +801,7 @@ pub fn get_or_create_external_helpers_module_name_if_needed<
     compiler_options: &CompilerOptions,
     has_export_stars_to_export_values: Option<bool>,
     has_import_star_or_import_default: Option<bool>,
-) -> Option<Gc<Node>> {
+) -> Option<Id<Node>> {
     let node_as_source_file = node.as_source_file();
     if compiler_options.import_helpers == Some(true)
         && is_effective_external_module(node, compiler_options)
@@ -832,7 +833,7 @@ pub fn get_or_create_external_helpers_module_name_if_needed<
         if create {
             let parse_node = maybe_get_original_node_full(
                 Some(node),
-                Some(|node: Option<Gc<Node>>| is_source_file(&node.unwrap())),
+                Some(|node: Option<Id<Node>>| is_source_file(&node.unwrap())),
             )
             .unwrap();
             let emit_node = get_or_create_emit_node(&parse_node);
@@ -856,7 +857,7 @@ pub fn get_local_name_for_external_import<
     factory: &NodeFactory<TBaseNodeFactory>,
     node: &Node, /*ImportDeclaration | ExportDeclaration | ImportEqualsDeclaration*/
     source_file: &Node, /*SourceFile*/
-) -> Option<Gc<Node /*Identifier*/>> {
+) -> Option<Id<Node /*Identifier*/>> {
     let namespace_declaration = get_namespace_declaration_node(node);
     if let Some(namespace_declaration) = namespace_declaration
         .filter(|_| !is_default_import(node) && !is_export_namespace_as_default_declaration(node))
@@ -894,7 +895,7 @@ pub fn get_external_module_name_literal<
     host: &dyn EmitHost,
     resolver: &dyn EmitResolver,
     compiler_options: &CompilerOptions,
-) -> io::Result<Option<Gc<Node>>> {
+) -> io::Result<Option<Id<Node>>> {
     let module_name = get_external_module_name(import_node);
     if let Some(module_name) = module_name.filter(|module_name| is_string_literal(module_name)) {
         return Ok(Some(
@@ -917,7 +918,7 @@ fn try_rename_external_module<TBaseNodeFactory: 'static + BaseNodeFactory + Trac
     factory: &NodeFactory<TBaseNodeFactory>,
     module_name: &Node, /*LiteralExpression*/
     source_file: &Node, /*SourceFile*/
-) -> Option<Gc<Node>> {
+) -> Option<Id<Node>> {
     let rename = source_file
         .as_source_file()
         .maybe_renamed_dependencies()
@@ -939,7 +940,7 @@ pub fn try_get_module_name_from_file<
     file: Option<impl Borrow<Node /*SourceFile*/>>,
     host: &dyn EmitHost,
     options: &CompilerOptions,
-) -> Option<Gc<Node /*StringLiteral*/>> {
+) -> Option<Id<Node /*StringLiteral*/>> {
     let file = file?;
     let file: &Node = file.borrow();
     let file_as_source_file = file.as_source_file();
@@ -964,7 +965,7 @@ fn try_get_module_name_from_declaration<
     factory: &NodeFactory<TBaseNodeFactory>,
     resolver: &dyn EmitResolver,
     compiler_options: &CompilerOptions,
-) -> io::Result<Option<Gc<Node>>> {
+) -> io::Result<Option<Id<Node>>> {
     Ok(try_get_module_name_from_file(
         factory,
         resolver.get_external_module_file_from_declaration(declaration)?,
@@ -975,7 +976,7 @@ fn try_get_module_name_from_declaration<
 
 pub fn get_initializer_of_binding_or_assignment_element(
     binding_element: &Node, /*BindingOrAssignmentElement*/
-) -> Option<Gc<Node /*Expression*/>> {
+) -> Option<Id<Node /*Expression*/>> {
     if is_declaration_binding_element(binding_element) {
         return binding_element.as_has_initializer().maybe_initializer();
     }
@@ -1007,7 +1008,7 @@ pub fn get_initializer_of_binding_or_assignment_element(
 
 pub fn get_target_of_binding_or_assignment_element(
     binding_element: &Node, /*BindingOrAssignmentElement*/
-) -> Option<Gc<Node /*BindingOrAssignmentElementTarget*/>> {
+) -> Option<Id<Node /*BindingOrAssignmentElementTarget*/>> {
     if is_declaration_binding_element(binding_element) {
         return binding_element.as_named_declaration().maybe_name();
     }
@@ -1057,7 +1058,7 @@ pub fn get_target_of_binding_or_assignment_element(
 
 pub fn get_elements_of_binding_or_assignment_pattern(
     name: &Node, /*BindingOrAssignmentPattern*/
-) -> impl Iterator<Item = Gc<Node /*BindingOrAssignmentElement*/>> {
+) -> impl Iterator<Item = Id<Node /*BindingOrAssignmentElement*/>> {
     match name.kind() {
         SyntaxKind::ObjectBindingPattern
         | SyntaxKind::ArrayBindingPattern
@@ -1071,7 +1072,7 @@ pub fn get_elements_of_binding_or_assignment_pattern(
 
 pub fn get_rest_indicator_of_binding_or_assignment_element(
     binding_element: &Node, /*BindingOrAssignmentElement*/
-) -> Option<Gc<Node /*BindingOrAssignmentElementRestIndicator*/>> {
+) -> Option<Id<Node /*BindingOrAssignmentElementRestIndicator*/>> {
     match binding_element.kind() {
         SyntaxKind::Parameter | SyntaxKind::BindingElement => binding_element
             .as_has_dot_dot_dot_token()
@@ -1085,7 +1086,7 @@ pub fn get_rest_indicator_of_binding_or_assignment_element(
 
 pub fn get_property_name_of_binding_or_assignment_element(
     binding_element: &Node, /*BindingOrAssignmentElement*/
-) -> Option<Gc<Node /*Exclude<PropertyName, PrivateIdentifier>*/>> {
+) -> Option<Id<Node /*Exclude<PropertyName, PrivateIdentifier>*/>> {
     let property_name = try_get_property_name_of_binding_or_assignment_element(binding_element);
     Debug_.assert(
         property_name.is_some() || is_spread_assignment(binding_element),
@@ -1096,7 +1097,7 @@ pub fn get_property_name_of_binding_or_assignment_element(
 
 pub fn try_get_property_name_of_binding_or_assignment_element(
     binding_element: &Node, /*BindingOrAssignmentElement*/
-) -> Option<Gc<Node /*Exclude<PropertyName, PrivateIdentifier>*/>> {
+) -> Option<Id<Node /*Exclude<PropertyName, PrivateIdentifier>*/>> {
     match binding_element.kind() {
         SyntaxKind::BindingElement => {
             if let Some(binding_element_property_name) =
@@ -1167,7 +1168,7 @@ fn is_string_or_numeric_literal(node: &Node) -> bool {
 
 pub(crate) fn get_jsdoc_type_alias_name(
     full_name: Option<impl Borrow<Node> /*JSDocNamespaceBody*/>,
-) -> Option<Gc<Node /*Identifier*/>> {
+) -> Option<Id<Node /*Identifier*/>> {
     full_name.map(|full_name| {
         let full_name = full_name.borrow();
         let mut right_node = full_name.node_wrapper();
@@ -1355,7 +1356,7 @@ fn binary_expression_state_call<TMachine: BinaryExpressionStateMachine>(
     machine: &TMachine,
     stack_index: usize,
     state_stack: &mut Vec<BinaryExpressionState>,
-    node_stack: &mut Vec<Gc<Node /*BinaryExpression*/>>,
+    node_stack: &mut Vec<Id<Node /*BinaryExpression*/>>,
     user_state_stack: &mut Vec<Option<TMachine::TState>>,
     result_holder: Rc<RefCell<Option<TMachine::TResult>>>,
     outer_state: TMachine::TOuterState,
@@ -1422,7 +1423,7 @@ fn binary_expression_state_enter<TMachine: BinaryExpressionStateMachine>(
     machine: &TMachine,
     stack_index: usize,
     state_stack: &mut Vec<BinaryExpressionState>,
-    node_stack: &mut Vec<Gc<Node /*BinaryExpression*/>>,
+    node_stack: &mut Vec<Id<Node /*BinaryExpression*/>>,
     user_state_stack: &mut Vec<Option<TMachine::TState>>,
     _result_holder: Rc<RefCell<Option<TMachine::TResult>>>,
     outer_state: TMachine::TOuterState,
@@ -1455,7 +1456,7 @@ fn binary_expression_state_left<TMachine: BinaryExpressionStateMachine>(
     machine: &TMachine,
     stack_index: usize,
     state_stack: &mut Vec<BinaryExpressionState>,
-    node_stack: &mut Vec<Gc<Node /*BinaryExpression*/>>,
+    node_stack: &mut Vec<Id<Node /*BinaryExpression*/>>,
     user_state_stack: &mut Vec<Option<TMachine::TState>>,
     _result_holder: Rc<RefCell<Option<TMachine::TResult>>>,
     _outer_state: TMachine::TOuterState,
@@ -1494,7 +1495,7 @@ fn binary_expression_state_operator<TMachine: BinaryExpressionStateMachine>(
     machine: &TMachine,
     stack_index: usize,
     state_stack: &mut Vec<BinaryExpressionState>,
-    node_stack: &mut Vec<Gc<Node /*BinaryExpression*/>>,
+    node_stack: &mut Vec<Id<Node /*BinaryExpression*/>>,
     user_state_stack: &mut Vec<Option<TMachine::TState>>,
     _result_holder: Rc<RefCell<Option<TMachine::TResult>>>,
     _outer_state: TMachine::TOuterState,
@@ -1525,7 +1526,7 @@ fn binary_expression_state_right<TMachine: BinaryExpressionStateMachine>(
     machine: &TMachine,
     stack_index: usize,
     state_stack: &mut Vec<BinaryExpressionState>,
-    node_stack: &mut Vec<Gc<Node /*BinaryExpression*/>>,
+    node_stack: &mut Vec<Id<Node /*BinaryExpression*/>>,
     user_state_stack: &mut Vec<Option<TMachine::TState>>,
     _result_holder: Rc<RefCell<Option<TMachine::TResult>>>,
     _outer_state: TMachine::TOuterState,
@@ -1564,7 +1565,7 @@ fn binary_expression_state_exit<TMachine: BinaryExpressionStateMachine>(
     machine: &TMachine,
     mut stack_index: usize,
     state_stack: &mut Vec<BinaryExpressionState>,
-    node_stack: &mut Vec<Gc<Node /*BinaryExpression*/>>,
+    node_stack: &mut Vec<Id<Node /*BinaryExpression*/>>,
     user_state_stack: &mut Vec<Option<TMachine::TState>>,
     result_holder: Rc<RefCell<Option<TMachine::TResult>>>,
     _outer_state: TMachine::TOuterState,
@@ -1612,7 +1613,7 @@ fn binary_expression_state_done<TMachine: BinaryExpressionStateMachine>(
     _machine: &TMachine,
     stack_index: usize,
     state_stack: &mut Vec<BinaryExpressionState>,
-    _node_stack: &mut Vec<Gc<Node /*BinaryExpression*/>>,
+    _node_stack: &mut Vec<Id<Node /*BinaryExpression*/>>,
     _user_state_stack: &mut Vec<Option<TMachine::TState>>,
     _result_holder: Rc<RefCell<Option<TMachine::TResult>>>,
     _outer_state: TMachine::TOuterState,
@@ -1667,7 +1668,7 @@ fn binary_expression_state_next_state<TMachine: BinaryExpressionStateMachine>(
 fn binary_expression_state_push_stack<TState>(
     mut stack_index: usize,
     state_stack: &mut Vec<BinaryExpressionState>,
-    node_stack: &mut Vec<Gc<Node /*BinaryExpression*/>>,
+    node_stack: &mut Vec<Id<Node /*BinaryExpression*/>>,
     user_state_stack: &mut Vec<Option<TState>>,
     node: &Node, /*BinaryExpression*/
 ) -> usize {
@@ -1680,7 +1681,7 @@ fn binary_expression_state_push_stack<TState>(
 
 fn binary_expression_state_check_circularity(
     mut stack_index: usize,
-    node_stack: &[Gc<Node /*BinaryExpression*/>],
+    node_stack: &[Id<Node /*BinaryExpression*/>],
     node: &Node, /*BinaryExpression*/
 ) {
     if Debug_.should_assert(AssertionLevel::Aggressive) {
@@ -1716,7 +1717,7 @@ pub trait BinaryExpressionStateMachine: Trace + Finalize {
         _left: &Node, /*Expression*/
         _user_state: Self::TState,
         _node: &Node, /*BinaryExpression*/
-    ) -> io::Result<Option<Gc<Node /*BinaryExpression*/>>> {
+    ) -> io::Result<Option<Id<Node /*BinaryExpression*/>>> {
         panic!("Shouldn't call default on_left()")
     }
 
@@ -1734,7 +1735,7 @@ pub trait BinaryExpressionStateMachine: Trace + Finalize {
         _right: &Node, /*Expression*/
         _user_state: Self::TState,
         _node: &Node, /*BinaryExpression*/
-    ) -> io::Result<Option<Gc<Node /*BinaryExpression*/>>> {
+    ) -> io::Result<Option<Id<Node /*BinaryExpression*/>>> {
         panic!("Shouldn't call default on_left()")
     }
 
@@ -1788,7 +1789,7 @@ impl<TMachine: BinaryExpressionStateMachine> BinaryExpressionTrampoline<TMachine
     ) -> io::Result<TMachine::TResult> {
         let result_holder: Rc<RefCell<Option<TMachine::TResult>>> = Rc::new(RefCell::new(None));
         let mut state_stack: Vec<BinaryExpressionState> = vec![BinaryExpressionState::Enter];
-        let mut node_stack: Vec<Gc<Node /*BinaryExpression*/>> = vec![node.node_wrapper()];
+        let mut node_stack: Vec<Id<Node /*BinaryExpression*/>> = vec![node.node_wrapper()];
         let mut user_state_stack: Vec<Option<TMachine::TState>> = vec![None];
         let mut stack_index = 0;
         while state_stack[stack_index] != BinaryExpressionState::Done {

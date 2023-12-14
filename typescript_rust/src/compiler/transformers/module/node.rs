@@ -1,6 +1,7 @@
 use std::{io, mem};
 
 use gc::{Finalize, Gc, GcCell, Trace};
+use id_arena::Id;
 
 use crate::{
     EmitHint, Node, NodeInterface, TransformationContext, TransformationContextOnEmitNodeOverrider,
@@ -19,7 +20,7 @@ struct TransformNodeModule {
     cjs_transform: Transformer,
     cjs_on_substitute_node: Gc<Box<dyn TransformationContextOnSubstituteNodeOverrider>>,
     cjs_on_emit_node: Gc<Box<dyn TransformationContextOnEmitNodeOverrider>>,
-    current_source_file: GcCell<Option<Gc<Node /*SourceFile*/>>>,
+    current_source_file: GcCell<Option<Id<Node /*SourceFile*/>>>,
 }
 
 impl TransformNodeModule {
@@ -69,11 +70,11 @@ impl TransformNodeModule {
         self._transformer_wrapper.borrow().clone().unwrap()
     }
 
-    fn maybe_current_source_file(&self) -> Option<Gc<Node /*SourceFile*/>> {
+    fn maybe_current_source_file(&self) -> Option<Id<Node /*SourceFile*/>> {
         self.current_source_file.borrow().clone()
     }
 
-    fn set_current_source_file(&self, current_source_file: Option<Gc<Node /*SourceFile*/>>) {
+    fn set_current_source_file(&self, current_source_file: Option<Id<Node /*SourceFile*/>>) {
         *self.current_source_file.borrow_mut() = current_source_file;
     }
 
@@ -85,7 +86,7 @@ impl TransformNodeModule {
         }
     }
 
-    fn transform_source_file(&self, node: &Node /*SourceFile*/) -> io::Result<Gc<Node>> {
+    fn transform_source_file(&self, node: &Node /*SourceFile*/) -> io::Result<Id<Node>> {
         let node_as_source_file = node.as_source_file();
         if node_as_source_file.is_declaration_file() {
             return Ok(node.node_wrapper());
@@ -101,19 +102,19 @@ impl TransformNodeModule {
     fn transform_source_file_or_bundle(
         &self,
         node: &Node, /*SourceFile | Bundle*/
-    ) -> io::Result<Gc<Node>> {
+    ) -> io::Result<Id<Node>> {
         Ok(match node.kind() {
             SyntaxKind::SourceFile => self.transform_source_file(node)?,
             _ => self.transform_bundle(node)?,
         })
     }
 
-    fn transform_bundle(&self, node: &Node /*Bundle*/) -> io::Result<Gc<Node>> {
+    fn transform_bundle(&self, node: &Node /*Bundle*/) -> io::Result<Id<Node>> {
         let node_as_bundle = node.as_bundle();
         Ok(self.context.factory().create_bundle(
             try_map(
                 &node_as_bundle.source_files,
-                |source_file: &Option<Gc<Node>>, _| -> io::Result<_> {
+                |source_file: &Option<Id<Node>>, _| -> io::Result<_> {
                     Ok(Some(
                         self.transform_source_file(source_file.as_ref().unwrap())?,
                     ))
@@ -125,7 +126,7 @@ impl TransformNodeModule {
 }
 
 impl TransformerInterface for TransformNodeModule {
-    fn call(&self, node: &Node) -> io::Result<Gc<Node>> {
+    fn call(&self, node: &Node) -> io::Result<Id<Node>> {
         self.transform_source_file_or_bundle(node)
     }
 }
@@ -204,7 +205,7 @@ impl TransformNodeModuleOnSubstituteNodeOverrider {
 impl TransformationContextOnSubstituteNodeOverrider
     for TransformNodeModuleOnSubstituteNodeOverrider
 {
-    fn on_substitute_node(&self, hint: EmitHint, node: &Node) -> io::Result<Gc<Node>> {
+    fn on_substitute_node(&self, hint: EmitHint, node: &Node) -> io::Result<Id<Node>> {
         if is_source_file(node) {
             self.transform_node_module
                 .set_current_source_file(Some(node.node_wrapper()));

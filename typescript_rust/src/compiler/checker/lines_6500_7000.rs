@@ -37,7 +37,7 @@ impl NodeBuilder {
     pub(super) fn get_effective_dot_dot_dot_for_parameter(
         &self,
         _p: &Node, /*ParameterDeclaration*/
-    ) -> Option<Gc<Node>> {
+    ) -> Option<Id<Node>> {
         unimplemented!()
     }
 
@@ -45,7 +45,7 @@ impl NodeBuilder {
         &self,
         _p: &Node, /*ParameterDeclaration*/
         _index: usize,
-    ) -> Option<Gc<Node>> {
+    ) -> Option<Id<Node>> {
         unimplemented!()
     }
 
@@ -54,7 +54,7 @@ impl NodeBuilder {
         symbol_table: Gc<GcCell<SymbolTable>>,
         context: &NodeBuilderContext,
         bundled: Option<bool>,
-    ) -> io::Result<Vec<Gc<Node /*Statement*/>>> {
+    ) -> io::Result<Vec<Id<Node /*Statement*/>>> {
         SymbolTableToDeclarationStatements::new(
             context,
             self.type_checker.clone(),
@@ -76,8 +76,8 @@ pub(super) struct SymbolTableToDeclarationStatements {
     pub(super) serialize_property_symbol_for_class: GcCell<Option<MakeSerializePropertySymbol>>,
     pub(super) serialize_property_symbol_for_interface_worker:
         GcCell<Option<MakeSerializePropertySymbol>>,
-    pub(super) enclosing_declaration: Gc<Node>,
-    pub(super) results: GcCell<Vec<Gc<Node>>>,
+    pub(super) enclosing_declaration: Id<Node>,
+    pub(super) results: GcCell<Vec<Id<Node>>>,
     pub(super) visited_symbols: GcCell<HashSet<SymbolId>>,
     pub(super) deferred_privates_stack: GcCell<Vec<HashMap<SymbolId, Id<Symbol>>>>,
     pub(super) oldcontext: Gc<NodeBuilderContext>,
@@ -174,15 +174,15 @@ impl SymbolTableToDeclarationStatements {
         gc_cell_ref_unwrapped(&self.serialize_property_symbol_for_interface_worker)
     }
 
-    pub fn results(&self) -> GcCellRef<Vec<Gc<Node>>> {
+    pub fn results(&self) -> GcCellRef<Vec<Id<Node>>> {
         self.results.borrow()
     }
 
-    pub fn results_mut(&self) -> GcCellRefMut<Vec<Gc<Node>>> {
+    pub fn results_mut(&self) -> GcCellRefMut<Vec<Id<Node>>> {
         self.results.borrow_mut()
     }
 
-    pub fn set_results(&self, results: Vec<Gc<Node>>) {
+    pub fn set_results(&self, results: Vec<Id<Node>>) {
         *self.results.borrow_mut() = results;
     }
 
@@ -218,7 +218,7 @@ impl SymbolTableToDeclarationStatements {
         self.adding_declare.set(adding_declare);
     }
 
-    pub fn call(&self) -> io::Result<Vec<Gc<Node>>> {
+    pub fn call(&self) -> io::Result<Vec<Id<Node>>> {
         for_each_entry(
             &*(*self.symbol_table()).borrow(),
             |&symbol: &Id<Symbol>, name: &String| -> Option<()> {
@@ -264,7 +264,7 @@ impl SymbolTableToDeclarationStatements {
     pub(super) fn get_names_of_declaration(
         &self,
         statement: &Node, /*Statement*/
-    ) -> Vec<Gc<Node /*Identifier*/>> {
+    ) -> Vec<Id<Node /*Identifier*/>> {
         if is_variable_statement(statement) {
             return statement
                 .as_variable_statement()
@@ -286,8 +286,8 @@ impl SymbolTableToDeclarationStatements {
 
     pub(super) fn flatten_export_assigned_namespace(
         &self,
-        statements: &[Gc<Node /*Statement*/>],
-    ) -> Vec<Gc<Node>> {
+        statements: &[Id<Node /*Statement*/>],
+    ) -> Vec<Id<Node>> {
         let export_assignment = statements
             .iter()
             .find(|statement| is_export_assignment(statement));
@@ -309,7 +309,7 @@ impl SymbolTableToDeclarationStatements {
                     .as_ref()
                     .filter(|ns_body| is_module_block(ns_body))
                 {
-                    let excess_exports = filter(&statements, |s: &Gc<Node>| {
+                    let excess_exports = filter(&statements, |s: &Id<Node>| {
                         get_effective_modifier_flags(s).intersects(ModifierFlags::Export)
                     });
                     let ref name = ns.as_module_declaration().name.clone();
@@ -334,14 +334,14 @@ impl SymbolTableToDeclarationStatements {
                                                 Some(get_factory().create_named_exports(map(
                                                     flat_map(
                                                         Some(&excess_exports),
-                                                        |e: &Gc<Node>, _| {
+                                                        |e: &Id<Node>, _| {
                                                             self.get_names_of_declaration(e)
                                                         },
                                                     ),
-                                                    |id: Gc<Node>, _| {
+                                                    |id: Id<Node>, _| {
                                                         get_factory().create_export_specifier(
                                                             false,
-                                                            Option::<Gc<Node>>::None,
+                                                            Option::<Id<Node>>::None,
                                                             id,
                                                         )
                                                     },
@@ -385,7 +385,7 @@ impl SymbolTableToDeclarationStatements {
                             );
                         });
                         statements = {
-                            let mut statements = filter(&statements, |s: &Gc<Node>| {
+                            let mut statements = filter(&statements, |s: &Id<Node>| {
                                 !Gc::ptr_eq(s, &ns) && !Gc::ptr_eq(s, export_assignment)
                             });
                             statements.extend(self.results().iter().cloned());
@@ -400,9 +400,9 @@ impl SymbolTableToDeclarationStatements {
 
     pub(super) fn merge_export_declarations(
         &self,
-        statements: &[Gc<Node /*Statement*/>],
-    ) -> Vec<Gc<Node>> {
-        let exports = filter(statements, |d: &Gc<Node>| {
+        statements: &[Id<Node /*Statement*/>],
+    ) -> Vec<Id<Node>> {
+        let exports = filter(statements, |d: &Id<Node>| {
             is_export_declaration(d) && {
                 let d_as_export_declaration = d.as_export_declaration();
                 d_as_export_declaration.module_specifier.is_none()
@@ -414,7 +414,7 @@ impl SymbolTableToDeclarationStatements {
         });
         let mut statements = statements.to_owned();
         if length(Some(&exports)) > 1 {
-            let non_exports = filter(&statements, |d: &Gc<Node>| {
+            let non_exports = filter(&statements, |d: &Id<Node>| {
                 !is_export_declaration(d) || {
                     let d_as_export_declaration = d.as_export_declaration();
                     d_as_export_declaration.module_specifier.is_some()
@@ -429,10 +429,10 @@ impl SymbolTableToDeclarationStatements {
                     false,
                     Some(get_factory().create_named_exports(flat_map(
                         Some(&exports),
-                        |e: &Gc<Node>, _| {
+                        |e: &Id<Node>, _| {
                             cast(
                                 e.as_export_declaration().export_clause.as_ref(),
-                                |export_clause: &&Gc<Node>| is_named_exports(export_clause),
+                                |export_clause: &&Id<Node>| is_named_exports(export_clause),
                             )
                             .as_named_exports()
                             .elements
@@ -446,7 +446,7 @@ impl SymbolTableToDeclarationStatements {
             };
         }
 
-        let reexports = filter(&statements, |d: &Gc<Node>| {
+        let reexports = filter(&statements, |d: &Id<Node>| {
             is_export_declaration(d) && {
                 let d_as_export_declaration = d.as_export_declaration();
                 d_as_export_declaration.module_specifier.is_some()
@@ -457,9 +457,9 @@ impl SymbolTableToDeclarationStatements {
             }
         });
         if length(Some(&reexports)) > 1 {
-            let groups: Vec<Vec<Gc<Node>>> = group(
+            let groups: Vec<Vec<Id<Node>>> = group(
                 &reexports,
-                |decl: &Gc<Node>| {
+                |decl: &Id<Node>| {
                     let decl_as_export_declaration = decl.as_export_declaration();
                     if is_string_literal(
                         decl_as_export_declaration
@@ -480,16 +480,16 @@ impl SymbolTableToDeclarationStatements {
                         ">".to_owned()
                     }
                 },
-                |values: Vec<Gc<Node>>| values,
+                |values: Vec<Id<Node>>| values,
             );
             if groups.len() != reexports.len() {
                 for group in groups {
                     if group.len() > 1 {
                         statements = {
-                            let mut statements = filter(&statements, |s: &Gc<Node>| {
+                            let mut statements = filter(&statements, |s: &Id<Node>| {
                                 group
                                     .iter()
-                                    .position(|item: &Gc<Node>| Gc::ptr_eq(item, s))
+                                    .position(|item: &Id<Node>| Gc::ptr_eq(item, s))
                                     .is_none()
                             });
                             statements.push(get_factory().create_export_declaration(
@@ -498,10 +498,10 @@ impl SymbolTableToDeclarationStatements {
                                 false,
                                 Some(get_factory().create_named_exports(flat_map(
                                     Some(&group),
-                                    |e: &Gc<Node>, _| {
+                                    |e: &Id<Node>, _| {
                                         cast(
                                             e.as_export_declaration().export_clause.as_ref(),
-                                            |export_clause: &&Gc<Node>| {
+                                            |export_clause: &&Id<Node>| {
                                                 is_named_exports(export_clause)
                                             },
                                         )
@@ -524,11 +524,11 @@ impl SymbolTableToDeclarationStatements {
 
     pub(super) fn inline_export_modifiers(
         &self,
-        mut statements: Vec<Gc<Node /*Statement*/>>,
-    ) -> Vec<Gc<Node>> {
+        mut statements: Vec<Id<Node /*Statement*/>>,
+    ) -> Vec<Id<Node>> {
         let index = find_index(
             &statements,
-            |d: &Gc<Node>, _| {
+            |d: &Id<Node>, _| {
                 is_export_declaration(d) && {
                     let d_as_export_declaration = d.as_export_declaration();
                     d_as_export_declaration.module_specifier.is_none()
@@ -553,7 +553,7 @@ impl SymbolTableToDeclarationStatements {
                         .as_named_exports()
                         .elements,
                 ),
-                |e: &Gc<Node>, _| {
+                |e: &Id<Node>, _| {
                     let e_as_export_specifier = e.as_export_specifier();
                     if e_as_export_specifier.property_name.is_none() {
                         let indices = indices_of(&statements);
@@ -601,8 +601,8 @@ impl SymbolTableToDeclarationStatements {
 
     pub(super) fn merge_redundant_statements(
         &self,
-        statements: &[Gc<Node /*Statement*/>],
-    ) -> Vec<Gc<Node>> {
+        statements: &[Id<Node /*Statement*/>],
+    ) -> Vec<Id<Node>> {
         let statements = self.flatten_export_assigned_namespace(statements);
         let statements = self.merge_export_declarations(&statements);
         let mut statements = self.inline_export_modifiers(statements);
@@ -639,7 +639,7 @@ impl SymbolTableToDeclarationStatements {
     pub(super) fn add_export_modifier(
         &self,
         node: &Node, /*Extract<HasModifiers, Statement>*/
-    ) -> Gc<Node> {
+    ) -> Id<Node> {
         let flags =
             (get_effective_modifier_flags(node) | ModifierFlags::Export) & !ModifierFlags::Ambient;
         get_factory().update_modifiers(node, flags)
@@ -648,7 +648,7 @@ impl SymbolTableToDeclarationStatements {
     pub(super) fn remove_export_modifier(
         &self,
         node: &Node, /*Extract<HasModifiers, Statement>*/
-    ) -> Gc<Node> {
+    ) -> Id<Node> {
         let flags = get_effective_modifier_flags(node) & !ModifierFlags::Export;
         get_factory().update_modifiers(node, flags)
     }
@@ -1149,7 +1149,7 @@ impl SymbolTracker for SymbolTableToDeclarationStatementsSymbolTracker {
     fn track_symbol(
         &self,
         sym: Id<Symbol>,
-        decl: Option<Gc<Node>>,
+        decl: Option<Id<Node>>,
         meaning: SymbolFlags,
     ) -> Option<io::Result<bool>> {
         if self.is_track_symbol_disabled.get() {
@@ -1319,10 +1319,10 @@ impl MakeSerializePropertySymbolCreateProperty
         decorators: Option<NodeArrayOrVec /*Decorator*/>,
         modifiers: Option<NodeArrayOrVec /*Modifier*/>,
         name: StrOrRcNode<'_>, /*PropertyName*/
-        question_or_exclamation_token: Option<Gc<Node /*QuestionToken*/>>,
-        type_: Option<Gc<Node /*TypeNode*/>>,
-        initializer: Option<Gc<Node /*Expression*/>>,
-    ) -> Gc<Node> {
+        question_or_exclamation_token: Option<Id<Node /*QuestionToken*/>>,
+        type_: Option<Id<Node /*TypeNode*/>>,
+        initializer: Option<Id<Node /*Expression*/>>,
+    ) -> Id<Node> {
         get_factory().create_property_declaration(
             decorators,
             modifiers,
@@ -1351,10 +1351,10 @@ impl MakeSerializePropertySymbolCreateProperty
         _decorators: Option<NodeArrayOrVec /*Decorator*/>,
         mods: Option<NodeArrayOrVec /*Modifier*/>,
         name: StrOrRcNode<'_>, /*PropertyName*/
-        question: Option<Gc<Node /*QuestionToken*/>>,
-        type_: Option<Gc<Node /*TypeNode*/>>,
-        _initializer: Option<Gc<Node /*Expression*/>>,
-    ) -> Gc<Node> {
+        question: Option<Id<Node /*QuestionToken*/>>,
+        type_: Option<Id<Node /*TypeNode*/>>,
+        _initializer: Option<Id<Node /*Expression*/>>,
+    ) -> Id<Node> {
         get_factory().create_property_signature(mods, name, question, type_)
     }
 }

@@ -260,11 +260,11 @@ impl TypeChecker {
         } else {
             vec![single_prop]
         };
-        let mut declarations: Option<Vec<Gc<Node /*Declaration*/>>> = None;
+        let mut declarations: Option<Vec<Id<Node /*Declaration*/>>> = None;
         let mut first_type: Option<Id<Type>> = None;
         let mut name_type: Option<Id<Type>> = None;
         let mut prop_types: Vec<Id<Type>> = vec![];
-        let mut first_value_declaration: Option<Gc<Node /*Declaration*/>> = None;
+        let mut first_value_declaration: Option<Id<Node /*Declaration*/>> = None;
         let mut has_non_uniform_value_declaration = false;
         for prop in props {
             if first_value_declaration.is_none() {
@@ -869,7 +869,7 @@ impl TypeChecker {
     ) -> bool {
         is_in_js_file(Some(node)) && (
             matches!(node.as_parameter_declaration().maybe_type(), Some(type_) if type_.kind() == SyntaxKind::JSDocOptionalType) ||
-            get_jsdoc_parameter_tags(node).any(|tag: Gc<Node>| {
+            get_jsdoc_parameter_tags(node).any(|tag: Id<Node>| {
                 let tag_as_jsdoc_property_like_tag = tag.as_jsdoc_property_like_tag();
                 let is_bracketed = tag_as_jsdoc_property_like_tag.is_bracketed;
                 let type_expression = tag_as_jsdoc_property_like_tag.type_expression.as_ref();

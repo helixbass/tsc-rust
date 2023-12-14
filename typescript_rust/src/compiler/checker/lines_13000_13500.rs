@@ -508,7 +508,7 @@ impl TypeChecker {
                 } else {
                     try_map(
                         &node.as_tuple_type_node().elements,
-                        |element: &Gc<Node>, _| self.get_type_from_type_node_(element),
+                        |element: &Id<Node>, _| self.get_type_from_type_node_(element),
                     )?
                 }
             };
@@ -846,7 +846,7 @@ impl TypeChecker {
         let declaration = symbol_declarations.as_ref().and_then(|declarations| {
             declarations
                 .iter()
-                .find(|declaration: &&Gc<Node>| is_type_alias(declaration))
+                .find(|declaration: &&Id<Node>| is_type_alias(declaration))
                 .map(Clone::clone)
         });
         declaration
@@ -857,7 +857,7 @@ impl TypeChecker {
     pub(super) fn get_type_reference_name(
         &self,
         node: &Node, /*TypeReferenceType*/
-    ) -> Option<Gc<Node /*EntityNameOrEntityNameExpression*/>> {
+    ) -> Option<Id<Node /*EntityNameOrEntityNameExpression*/>> {
         match node.kind() {
             SyntaxKind::TypeReference => {
                 return Some(node.as_type_reference_node().type_name.clone());

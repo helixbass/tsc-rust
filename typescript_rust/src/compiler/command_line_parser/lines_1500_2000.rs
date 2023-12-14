@@ -1,6 +1,7 @@
 use std::{borrow::Borrow, cell::RefCell, collections::HashMap, io, rc::Rc};
 
 use gc::{Finalize, Gc, GcCell, Trace};
+use id_arena::Id;
 use indexmap::IndexMap;
 use local_macros::enum_unwrapped;
 
@@ -573,7 +574,7 @@ pub fn parse_config_file_text_to_json(
 pub fn read_json_config_file(
     file_name: &str,
     read_file: impl FnMut(&str) -> io::Result<Option<String>>,
-) -> Gc<Node /*TsConfigSourceFile*/> {
+) -> Id<Node /*TsConfigSourceFile*/> {
     let text_or_diagnostic = try_read_file(file_name, read_file);
     match text_or_diagnostic {
         StringOrRcDiagnostic::String(text_or_diagnostic) => {

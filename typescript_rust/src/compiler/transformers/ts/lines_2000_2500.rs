@@ -1,6 +1,7 @@
 use std::{io, ptr};
 
 use gc::Gc;
+use id_arena::Id;
 
 use super::TransformTypeScript;
 use crate::{
@@ -207,7 +208,7 @@ impl TransformTypeScript {
             ),
         );
         if self.is_export_of_namespace(node) {
-            let mut statements: Vec<Gc<Node /*Statement*/>> = vec![updated];
+            let mut statements: Vec<Id<Node /*Statement*/>> = vec![updated];
             self.add_export_member_assignment(&mut statements, node);
             return Ok(Some(statements.into()));
         }
@@ -217,7 +218,7 @@ impl TransformTypeScript {
     pub(super) fn visit_function_expression(
         &self,
         node: &Node, /*FunctionExpression*/
-    ) -> io::Result<Gc<Node /*Expression*/>> {
+    ) -> io::Result<Id<Node /*Expression*/>> {
         let node_as_function_expression = node.as_function_expression();
         if !self.should_emit_function_like_declaration(node) {
             return Ok(self.factory.create_omitted_expression());
@@ -302,7 +303,7 @@ impl TransformTypeScript {
                 node_as_parameter_declaration.maybe_name(),
                 Some(|node: &Node| self.visitor(node)),
                 Some(is_binding_name),
-                Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
             )?,
             None,
             None,
@@ -310,7 +311,7 @@ impl TransformTypeScript {
                 node_as_parameter_declaration.maybe_initializer(),
                 Some(|node: &Node| self.visitor(node)),
                 Some(is_expression),
-                Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
             )?,
         );
         if !ptr::eq(&*updated, node) {
@@ -334,7 +335,7 @@ impl TransformTypeScript {
     pub(super) fn visit_variable_statement(
         &self,
         node: &Node, /*VariableStatement*/
-    ) -> io::Result<Option<Gc<Node /*Statement*/>>> {
+    ) -> io::Result<Option<Id<Node /*Statement*/>>> {
         let node_as_variable_statement = node.as_variable_statement();
         Ok(if self.is_export_of_namespace(node) {
             let variables = get_initialized_variables(&node_as_variable_statement.declaration_list);
@@ -346,7 +347,7 @@ impl TransformTypeScript {
                 self.factory
                     .create_expression_statement(
                         self.factory
-                            .inline_expressions(&try_map(&variables, |variable: &Gc<Node>, _| {
+                            .inline_expressions(&try_map(&variables, |variable: &Id<Node>, _| {
                                 self.transform_initialized_variable(variable)
                             })?),
                     )
@@ -364,7 +365,7 @@ impl TransformTypeScript {
     pub(super) fn transform_initialized_variable(
         &self,
         node: &Node, /*InitializedVariableDeclaration*/
-    ) -> io::Result<Gc<Node /*Expression*/>> {
+    ) -> io::Result<Id<Node /*Expression*/>> {
         let node_as_variable_declaration = node.as_variable_declaration();
         let ref name = node_as_variable_declaration.name();
         Ok(if is_binding_pattern(Some(&**name)) {
@@ -394,7 +395,7 @@ impl TransformTypeScript {
                         &node_as_variable_declaration.maybe_initializer().unwrap(),
                         Some(|node: &Node| self.visitor(node)),
                         Some(is_expression),
-                        Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                        Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                     )?,
                 )
                 .set_text_range(Some(node))
@@ -414,7 +415,7 @@ impl TransformTypeScript {
                         node_as_variable_declaration.maybe_name(),
                         Some(|node: &Node| self.visitor(node)),
                         Some(is_binding_name),
-                        Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                        Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                     )?,
                     None,
                     None,
@@ -422,7 +423,7 @@ impl TransformTypeScript {
                         node_as_variable_declaration.maybe_initializer(),
                         Some(|node: &Node| self.visitor(node)),
                         Some(is_expression),
-                        Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                        Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                     )?,
                 )
                 .into(),
@@ -432,7 +433,7 @@ impl TransformTypeScript {
     pub(super) fn visit_parenthesized_expression(
         &self,
         node: &Node, /*ParenthesizedExpression*/
-    ) -> io::Result<Gc<Node /*Expression*/>> {
+    ) -> io::Result<Id<Node /*Expression*/>> {
         let node_as_parenthesized_expression = node.as_parenthesized_expression();
         let ref inner_expression = skip_outer_expressions(
             &node_as_parenthesized_expression.expression,
@@ -443,7 +444,7 @@ impl TransformTypeScript {
                 &node_as_parenthesized_expression.expression,
                 Some(|node: &Node| self.visitor(node)),
                 Some(is_expression),
-                Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
             )?;
 
             if get_leading_comment_ranges_of_node(&expression, &self.current_source_file())
@@ -464,12 +465,12 @@ impl TransformTypeScript {
     pub(super) fn visit_assertion_expression(
         &self,
         node: &Node, /*AssertionExpression*/
-    ) -> io::Result<Gc<Node /*Expression*/>> {
+    ) -> io::Result<Id<Node /*Expression*/>> {
         let expression = try_visit_node(
             &node.as_has_expression().expression(),
             Some(|node: &Node| self.visitor(node)),
             Some(is_expression),
-            Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+            Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
         )?;
         Ok(self
             .factory
@@ -479,12 +480,12 @@ impl TransformTypeScript {
     pub(super) fn visit_non_null_expression(
         &self,
         node: &Node, /*NonNullExpression*/
-    ) -> io::Result<Gc<Node /*Expression*/>> {
+    ) -> io::Result<Id<Node /*Expression*/>> {
         let expression = try_visit_node(
             &node.as_non_null_expression().expression,
             Some(|node: &Node| self.visitor(node)),
             Some(is_left_hand_side_expression),
-            Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+            Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
         )?;
         Ok(self
             .factory
@@ -504,7 +505,7 @@ impl TransformTypeScript {
                         &node_as_call_expression.expression,
                         Some(|node: &Node| self.visitor(node)),
                         Some(is_expression),
-                        Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                        Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                     )?,
                     Option::<Gc<NodeArray>>::None,
                     try_visit_nodes(
@@ -532,7 +533,7 @@ impl TransformTypeScript {
                         &node_as_new_expression.expression,
                         Some(|node: &Node| self.visitor(node)),
                         Some(is_expression),
-                        Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                        Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                     )?,
                     Option::<Gc<NodeArray>>::None,
                     try_maybe_visit_nodes(
@@ -560,14 +561,14 @@ impl TransformTypeScript {
                         &node_as_tagged_template_expression.tag,
                         Some(|node: &Node| self.visitor(node)),
                         Some(is_expression),
-                        Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                        Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                     )?,
                     Option::<Gc<NodeArray>>::None,
                     try_visit_node(
                         &node_as_tagged_template_expression.template,
                         Some(|node: &Node| self.visitor(node)),
                         Some(is_expression),
-                        Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                        Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                     )?,
                 )
                 .into(),
@@ -587,14 +588,14 @@ impl TransformTypeScript {
                         &node_as_jsx_self_closing_element.tag_name,
                         Some(|node: &Node| self.visitor(node)),
                         Some(is_jsx_tag_name_expression),
-                        Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                        Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                     )?,
                     Option::<Gc<NodeArray>>::None,
                     try_visit_node(
                         &node_as_jsx_self_closing_element.attributes,
                         Some(|node: &Node| self.visitor(node)),
                         Some(is_jsx_attributes),
-                        Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                        Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                     )?,
                 )
                 .into(),
@@ -614,14 +615,14 @@ impl TransformTypeScript {
                         &node_as_jsx_opening_element.tag_name,
                         Some(|node: &Node| self.visitor(node)),
                         Some(is_jsx_tag_name_expression),
-                        Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                        Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                     )?,
                     Option::<Gc<NodeArray>>::None,
                     try_visit_node(
                         &node_as_jsx_opening_element.attributes,
                         Some(|node: &Node| self.visitor(node)),
                         Some(is_jsx_attributes),
-                        Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                        Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                     )?,
                 )
                 .into(),
@@ -647,7 +648,7 @@ impl TransformTypeScript {
             ));
         }
 
-        let mut statements: Vec<Gc<Node /*Statement*/>> = Default::default();
+        let mut statements: Vec<Id<Node /*Statement*/>> = Default::default();
 
         let mut emit_flags = EmitFlags::AdviseOnEmitNode;
 
@@ -699,7 +700,7 @@ impl TransformTypeScript {
                 self.factory.create_function_expression(
                     Option::<Gc<NodeArray>>::None,
                     None,
-                    Option::<Gc<Node>>::None,
+                    Option::<Id<Node>>::None,
                     Option::<Gc<NodeArray>>::None,
                     Some(vec![self.factory.create_parameter_declaration(
                         Option::<Gc<NodeArray>>::None,
@@ -736,14 +737,14 @@ impl TransformTypeScript {
         &self,
         node: &Node,       /*EnumDeclaration*/
         local_name: &Node, /*Identifier*/
-    ) -> io::Result<Gc<Node /*Block*/>> {
+    ) -> io::Result<Id<Node /*Block*/>> {
         let node_as_enum_declaration = node.as_enum_declaration();
         let saved_current_namespace_local_name = self.maybe_current_namespace_container_name();
         self.set_current_namespace_container_name(Some(local_name.node_wrapper()));
 
-        let mut statements: Vec<Gc<Node /*Statement*/>> = Default::default();
+        let mut statements: Vec<Id<Node /*Statement*/>> = Default::default();
         self.context.start_lexical_environment();
-        let members = try_map(&node_as_enum_declaration.members, |member: &Gc<Node>, _| {
+        let members = try_map(&node_as_enum_declaration.members, |member: &Id<Node>, _| {
             self.transform_enum_member(member)
         })?;
         insert_statements_after_standard_prologue(
@@ -764,7 +765,7 @@ impl TransformTypeScript {
     pub(super) fn transform_enum_member(
         &self,
         member: &Node, /*EnumMember*/
-    ) -> io::Result<Gc<Node /*Statement*/>> {
+    ) -> io::Result<Id<Node /*Statement*/>> {
         let name = self.get_expression_for_property_name(member, false);
         let value_expression = self.transform_enum_member_declaration_value(member)?;
         let inner_assignment = self.factory.create_assignment(
@@ -794,7 +795,7 @@ impl TransformTypeScript {
     pub(super) fn transform_enum_member_declaration_value(
         &self,
         member: &Node, /*EnumMember*/
-    ) -> io::Result<Gc<Node /*Expression*/>> {
+    ) -> io::Result<Id<Node /*Expression*/>> {
         let value = self.resolver.get_constant_value(member)?;
         Ok(if let Some(value) = value {
             match value {
@@ -810,7 +811,7 @@ impl TransformTypeScript {
                     member_initializer,
                     Some(|node: &Node| self.visitor(node)),
                     Some(is_expression),
-                    Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                    Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                 )?
             } else {
                 self.factory.create_void_zero()

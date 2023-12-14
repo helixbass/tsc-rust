@@ -395,7 +395,7 @@ impl TypeChecker {
                     node_as_jsx_opening_like_element
                         .maybe_type_arguments()
                         .as_ref(),
-                    |type_argument: &Gc<Node>, _| -> io::Result<Option<()>> {
+                    |type_argument: &Id<Node>, _| -> io::Result<Option<()>> {
                         self.check_source_element(Some(&**type_argument))?;
                         Ok(None)
                     },
@@ -678,8 +678,8 @@ impl TypeChecker {
         if node.maybe_parent().is_none() {
             return Ok(None);
         }
-        let mut name: Option<Gc<Node /*Expression | BindingName*/>> = None;
-        let mut decl: Option<Gc<Node>> = None;
+        let mut name: Option<Id<Node /*Expression | BindingName*/>> = None;
+        let mut decl: Option<Id<Node>> = None;
         if is_variable_declaration(&node.parent())
             && matches!(
                 node.parent().as_variable_declaration().maybe_initializer().as_ref(),
@@ -761,7 +761,7 @@ impl TypeChecker {
         self.get_symbol_of_node(&decl)
     }
 
-    pub(super) fn get_assigned_js_prototype(&self, node: &Node) -> Option<Gc<Node>> {
+    pub(super) fn get_assigned_js_prototype(&self, node: &Node) -> Option<Id<Node>> {
         if node.maybe_parent().is_none() {
             return None;
         }
@@ -948,7 +948,7 @@ impl TypeChecker {
         Ok(())
     }
 
-    pub(super) fn get_deprecated_suggestion_node(&self, node: &Node) -> Gc<Node> {
+    pub(super) fn get_deprecated_suggestion_node(&self, node: &Node) -> Id<Node> {
         let node = skip_parentheses(node, None);
         match node.kind() {
             SyntaxKind::CallExpression | SyntaxKind::Decorator | SyntaxKind::NewExpression => {

@@ -15,11 +15,11 @@ use super::{
 #[ast_type]
 pub struct ExternalModuleReference {
     _node: BaseNode,
-    pub expression: Gc<Node /*Expression*/>,
+    pub expression: Id<Node /*Expression*/>,
 }
 
 impl ExternalModuleReference {
-    pub fn new(base_node: BaseNode, expression: Gc<Node>) -> Self {
+    pub fn new(base_node: BaseNode, expression: Id<Node>) -> Self {
         Self {
             _node: base_node,
             expression,
@@ -28,7 +28,7 @@ impl ExternalModuleReference {
 }
 
 impl HasExpressionInterface for ExternalModuleReference {
-    fn expression(&self) -> Gc<Node> {
+    fn expression(&self) -> Id<Node> {
         self.expression.clone()
     }
 }
@@ -37,17 +37,17 @@ impl HasExpressionInterface for ExternalModuleReference {
 #[ast_type]
 pub struct ImportDeclaration {
     _node: BaseNode,
-    pub import_clause: Option<Gc<Node /*ImportClause*/>>,
-    pub module_specifier: Gc<Node /*Expression*/>,
-    pub assert_clause: Option<Gc<Node /*AssertClause*/>>,
+    pub import_clause: Option<Id<Node /*ImportClause*/>>,
+    pub module_specifier: Id<Node /*Expression*/>,
+    pub assert_clause: Option<Id<Node /*AssertClause*/>>,
 }
 
 impl ImportDeclaration {
     pub fn new(
         base_node: BaseNode,
-        import_clause: Option<Gc<Node>>,
-        module_specifier: Gc<Node>,
-        assert_clause: Option<Gc<Node>>,
+        import_clause: Option<Id<Node>>,
+        module_specifier: Id<Node>,
+        assert_clause: Option<Id<Node>>,
     ) -> Self {
         Self {
             _node: base_node,
@@ -59,17 +59,17 @@ impl ImportDeclaration {
 }
 
 impl HasAssertClauseInterface for ImportDeclaration {
-    fn maybe_assert_clause(&self) -> Option<Gc<Node>> {
+    fn maybe_assert_clause(&self) -> Option<Id<Node>> {
         self.assert_clause.clone()
     }
 }
 
 pub trait HasModuleSpecifierInterface {
-    fn maybe_module_specifier(&self) -> Option<Gc<Node>>;
+    fn maybe_module_specifier(&self) -> Option<Id<Node>>;
 }
 
 impl HasModuleSpecifierInterface for ImportDeclaration {
-    fn maybe_module_specifier(&self) -> Option<Gc<Node>> {
+    fn maybe_module_specifier(&self) -> Option<Id<Node>> {
         Some(self.module_specifier.clone())
     }
 }
@@ -79,16 +79,16 @@ impl HasModuleSpecifierInterface for ImportDeclaration {
 pub struct ImportClause {
     _node: BaseNode,
     pub is_type_only: bool,
-    pub name: Option<Gc<Node /*Identifier*/>>,
-    pub named_bindings: Option<Gc<Node /*NamedImportBindings*/>>,
+    pub name: Option<Id<Node /*Identifier*/>>,
+    pub named_bindings: Option<Id<Node /*NamedImportBindings*/>>,
 }
 
 impl ImportClause {
     pub fn new(
         base_node: BaseNode,
         is_type_only: bool,
-        name: Option<Gc<Node>>,
-        named_bindings: Option<Gc<Node>>,
+        name: Option<Id<Node>>,
+        named_bindings: Option<Id<Node>>,
     ) -> Self {
         Self {
             _node: base_node,
@@ -100,15 +100,15 @@ impl ImportClause {
 }
 
 impl NamedDeclarationInterface for ImportClause {
-    fn maybe_name(&self) -> Option<Gc<Node>> {
+    fn maybe_name(&self) -> Option<Id<Node>> {
         self.name.clone()
     }
 
-    fn name(&self) -> Gc<Node> {
+    fn name(&self) -> Id<Node> {
         self.name.clone().unwrap()
     }
 
-    fn set_name(&mut self, name: Gc<Node>) {
+    fn set_name(&mut self, name: Id<Node>) {
         self.name = Some(name);
     }
 }
@@ -123,12 +123,12 @@ impl HasIsTypeOnlyInterface for ImportClause {
 #[ast_type]
 pub struct AssertEntry {
     _node: BaseNode,
-    pub name: Gc<Node /*AssertionKey*/>,
-    pub value: Gc<Node /*StringLiteral*/>,
+    pub name: Id<Node /*AssertionKey*/>,
+    pub value: Id<Node /*StringLiteral*/>,
 }
 
 impl AssertEntry {
-    pub fn new(base_node: BaseNode, name: Gc<Node>, value: Gc<Node /*StringLiteral*/>) -> Self {
+    pub fn new(base_node: BaseNode, name: Id<Node>, value: Id<Node /*StringLiteral*/>) -> Self {
         Self {
             _node: base_node,
             name,
@@ -165,11 +165,11 @@ impl HasElementsInterface for AssertClause {
 #[ast_type]
 pub struct NamespaceImport {
     _node: BaseNode,
-    pub name: Gc<Node /*Identifier*/>,
+    pub name: Id<Node /*Identifier*/>,
 }
 
 impl NamespaceImport {
-    pub fn new(base_node: BaseNode, name: Gc<Node /*Identifier*/>) -> Self {
+    pub fn new(base_node: BaseNode, name: Id<Node /*Identifier*/>) -> Self {
         Self {
             _node: base_node,
             name,
@@ -178,15 +178,15 @@ impl NamespaceImport {
 }
 
 impl NamedDeclarationInterface for NamespaceImport {
-    fn maybe_name(&self) -> Option<Gc<Node>> {
+    fn maybe_name(&self) -> Option<Id<Node>> {
         Some(self.name.clone())
     }
 
-    fn name(&self) -> Gc<Node> {
+    fn name(&self) -> Id<Node> {
         self.name.clone()
     }
 
-    fn set_name(&mut self, name: Gc<Node>) {
+    fn set_name(&mut self, name: Id<Node>) {
         self.name = name;
     }
 }
@@ -195,11 +195,11 @@ impl NamedDeclarationInterface for NamespaceImport {
 #[ast_type]
 pub struct NamespaceExport {
     _node: BaseNode,
-    pub name: Gc<Node /*Identifier*/>,
+    pub name: Id<Node /*Identifier*/>,
 }
 
 impl NamespaceExport {
-    pub fn new(base_node: BaseNode, name: Gc<Node /*Identifier*/>) -> Self {
+    pub fn new(base_node: BaseNode, name: Id<Node /*Identifier*/>) -> Self {
         Self {
             _node: base_node,
             name,
@@ -222,7 +222,7 @@ impl NamespaceExportDeclaration {
 }
 
 pub trait HasAssertClauseInterface {
-    fn maybe_assert_clause(&self) -> Option<Gc<Node>>;
+    fn maybe_assert_clause(&self) -> Option<Id<Node>>;
 }
 
 #[derive(Debug, Trace, Finalize)]
@@ -230,18 +230,18 @@ pub trait HasAssertClauseInterface {
 pub struct ExportDeclaration {
     _node: BaseNode,
     pub is_type_only: bool,
-    pub export_clause: Option<Gc<Node /*NamedExportBindings*/>>,
-    pub module_specifier: Option<Gc<Node /*Expression*/>>,
-    pub assert_clause: Option<Gc<Node /*AssertClause*/>>,
+    pub export_clause: Option<Id<Node /*NamedExportBindings*/>>,
+    pub module_specifier: Option<Id<Node /*Expression*/>>,
+    pub assert_clause: Option<Id<Node /*AssertClause*/>>,
 }
 
 impl ExportDeclaration {
     pub fn new(
         base_node: BaseNode,
         is_type_only: bool,
-        export_clause: Option<Gc<Node>>,
-        module_specifier: Option<Gc<Node>>,
-        assert_clause: Option<Gc<Node>>,
+        export_clause: Option<Id<Node>>,
+        module_specifier: Option<Id<Node>>,
+        assert_clause: Option<Id<Node>>,
     ) -> Self {
         Self {
             _node: base_node,
@@ -260,13 +260,13 @@ impl HasIsTypeOnlyInterface for ExportDeclaration {
 }
 
 impl HasAssertClauseInterface for ExportDeclaration {
-    fn maybe_assert_clause(&self) -> Option<Gc<Node>> {
+    fn maybe_assert_clause(&self) -> Option<Id<Node>> {
         self.assert_clause.clone()
     }
 }
 
 impl HasModuleSpecifierInterface for ExportDeclaration {
-    fn maybe_module_specifier(&self) -> Option<Gc<Node>> {
+    fn maybe_module_specifier(&self) -> Option<Id<Node>> {
         self.module_specifier.clone()
     }
 }
@@ -316,15 +316,15 @@ impl HasElementsInterface for NamedExports {
 }
 
 pub trait HasPropertyNameInterface {
-    fn maybe_property_name(&self) -> Option<Gc<Node>>;
+    fn maybe_property_name(&self) -> Option<Id<Node>>;
 }
 
 #[derive(Debug, Trace, Finalize)]
 #[ast_type]
 pub struct ImportSpecifier {
     _node: BaseNode,
-    pub property_name: Option<Gc<Node /*Identifier*/>>,
-    pub name: Gc<Node /*Identifier*/>,
+    pub property_name: Option<Id<Node /*Identifier*/>>,
+    pub name: Id<Node /*Identifier*/>,
     pub is_type_only: bool,
 }
 
@@ -332,8 +332,8 @@ impl ImportSpecifier {
     pub fn new(
         base_node: BaseNode,
         is_type_only: bool,
-        property_name: Option<Gc<Node>>,
-        name: Gc<Node>,
+        property_name: Option<Id<Node>>,
+        name: Id<Node>,
     ) -> Self {
         Self {
             _node: base_node,
@@ -345,15 +345,15 @@ impl ImportSpecifier {
 }
 
 impl NamedDeclarationInterface for ImportSpecifier {
-    fn maybe_name(&self) -> Option<Gc<Node>> {
+    fn maybe_name(&self) -> Option<Id<Node>> {
         Some(self.name.clone())
     }
 
-    fn name(&self) -> Gc<Node> {
+    fn name(&self) -> Id<Node> {
         self.name.clone()
     }
 
-    fn set_name(&mut self, name: Gc<Node>) {
+    fn set_name(&mut self, name: Id<Node>) {
         self.name = name;
     }
 }
@@ -365,7 +365,7 @@ impl HasIsTypeOnlyInterface for ImportSpecifier {
 }
 
 impl HasPropertyNameInterface for ImportSpecifier {
-    fn maybe_property_name(&self) -> Option<Gc<Node>> {
+    fn maybe_property_name(&self) -> Option<Id<Node>> {
         self.property_name.clone()
     }
 }
@@ -375,16 +375,16 @@ impl HasPropertyNameInterface for ImportSpecifier {
 pub struct ExportSpecifier {
     _node: BaseNode,
     pub is_type_only: bool,
-    pub property_name: Option<Gc<Node /*Identifier*/>>,
-    pub name: Gc<Node /*Identifier*/>,
+    pub property_name: Option<Id<Node /*Identifier*/>>,
+    pub name: Id<Node /*Identifier*/>,
 }
 
 impl ExportSpecifier {
     pub fn new(
         base_node: BaseNode,
         is_type_only: bool,
-        property_name: Option<Gc<Node>>,
-        name: Gc<Node>,
+        property_name: Option<Id<Node>>,
+        name: Id<Node>,
     ) -> Self {
         Self {
             _node: base_node,
@@ -396,15 +396,15 @@ impl ExportSpecifier {
 }
 
 impl NamedDeclarationInterface for ExportSpecifier {
-    fn maybe_name(&self) -> Option<Gc<Node>> {
+    fn maybe_name(&self) -> Option<Id<Node>> {
         Some(self.name.clone())
     }
 
-    fn name(&self) -> Gc<Node> {
+    fn name(&self) -> Id<Node> {
         self.name.clone()
     }
 
-    fn set_name(&mut self, name: Gc<Node>) {
+    fn set_name(&mut self, name: Id<Node>) {
         self.name = name;
     }
 }
@@ -416,7 +416,7 @@ impl HasIsTypeOnlyInterface for ExportSpecifier {
 }
 
 impl HasPropertyNameInterface for ExportSpecifier {
-    fn maybe_property_name(&self) -> Option<Gc<Node>> {
+    fn maybe_property_name(&self) -> Option<Id<Node>> {
         self.property_name.clone()
     }
 }
@@ -426,12 +426,12 @@ impl HasPropertyNameInterface for ExportSpecifier {
 pub struct ExportAssignment {
     _node: BaseNode,
     pub is_export_equals: Option<bool>,
-    pub expression: Gc<Node /*Expression*/>,
+    pub expression: Id<Node /*Expression*/>,
 }
 
 // TODO: should implement HasExpressionInterface for ExportAssignment?
 impl ExportAssignment {
-    pub fn new(base_node: BaseNode, is_export_equals: Option<bool>, expression: Gc<Node>) -> Self {
+    pub fn new(base_node: BaseNode, is_export_equals: Option<bool>, expression: Id<Node>) -> Self {
         Self {
             _node: base_node,
             is_export_equals,
@@ -441,7 +441,7 @@ impl ExportAssignment {
 }
 
 impl HasExpressionInterface for ExportAssignment {
-    fn expression(&self) -> Gc<Node> {
+    fn expression(&self) -> Id<Node> {
         self.expression.clone()
     }
 }
@@ -591,11 +591,11 @@ impl TextRange for SynthesizedComment {
 #[ast_type]
 pub struct JSDocTypeExpression {
     _node: BaseNode,
-    pub type_: Gc<Node /*TypeNode*/>,
+    pub type_: Id<Node /*TypeNode*/>,
 }
 
 impl JSDocTypeExpression {
-    pub fn new(base_node: BaseNode, type_: Gc<Node>) -> Self {
+    pub fn new(base_node: BaseNode, type_: Id<Node>) -> Self {
         Self {
             _node: base_node,
             type_,
@@ -604,11 +604,11 @@ impl JSDocTypeExpression {
 }
 
 impl HasTypeInterface for JSDocTypeExpression {
-    fn maybe_type(&self) -> Option<Gc<Node>> {
+    fn maybe_type(&self) -> Option<Id<Node>> {
         Some(self.type_.clone())
     }
 
-    fn set_type(&mut self, type_: Option<Gc<Node>>) {
+    fn set_type(&mut self, type_: Option<Id<Node>>) {
         self.type_ = type_.unwrap();
     }
 }
@@ -617,11 +617,11 @@ impl HasTypeInterface for JSDocTypeExpression {
 #[ast_type]
 pub struct JSDocNameReference {
     _node: BaseNode,
-    pub name: Gc<Node /*EntityName | JSDocMemberName*/>,
+    pub name: Id<Node /*EntityName | JSDocMemberName*/>,
 }
 
 impl JSDocNameReference {
-    pub fn new(base_node: BaseNode, name: Gc<Node>) -> Self {
+    pub fn new(base_node: BaseNode, name: Id<Node>) -> Self {
         Self {
             _node: base_node,
             name,
@@ -630,15 +630,15 @@ impl JSDocNameReference {
 }
 
 impl NamedDeclarationInterface for JSDocNameReference {
-    fn maybe_name(&self) -> Option<Gc<Node>> {
+    fn maybe_name(&self) -> Option<Id<Node>> {
         Some(self.name.clone())
     }
 
-    fn name(&self) -> Gc<Node> {
+    fn name(&self) -> Id<Node> {
         self.name.clone()
     }
 
-    fn set_name(&mut self, name: Gc<Node>) {
+    fn set_name(&mut self, name: Id<Node>) {
         self.name = name;
     }
 }
@@ -647,12 +647,12 @@ impl NamedDeclarationInterface for JSDocNameReference {
 #[ast_type]
 pub struct JSDocMemberName {
     _node: BaseNode,
-    pub left: Gc<Node /*EntityName | JSDocMemberName*/>,
-    pub right: Gc<Node /*Identifier*/>,
+    pub left: Id<Node /*EntityName | JSDocMemberName*/>,
+    pub right: Id<Node /*Identifier*/>,
 }
 
 impl JSDocMemberName {
-    pub fn new(base_node: BaseNode, left: Gc<Node>, right: Gc<Node>) -> Self {
+    pub fn new(base_node: BaseNode, left: Id<Node>, right: Id<Node>) -> Self {
         Self {
             _node: base_node,
             left,
@@ -662,11 +662,11 @@ impl JSDocMemberName {
 }
 
 impl HasLeftAndRightInterface for JSDocMemberName {
-    fn left(&self) -> Gc<Node> {
+    fn left(&self) -> Id<Node> {
         self.left.clone()
     }
 
-    fn right(&self) -> Gc<Node> {
+    fn right(&self) -> Id<Node> {
         self.right.clone()
     }
 }
@@ -675,11 +675,11 @@ impl HasLeftAndRightInterface for JSDocMemberName {
 #[ast_type]
 pub struct BaseJSDocUnaryType {
     _node: BaseNode,
-    pub type_: Option<Gc<Node /*TypeNode*/>>,
+    pub type_: Option<Id<Node /*TypeNode*/>>,
 }
 
 impl BaseJSDocUnaryType {
-    pub fn new(base_node: BaseNode, type_: Option<Gc<Node>>) -> Self {
+    pub fn new(base_node: BaseNode, type_: Option<Id<Node>>) -> Self {
         Self {
             _node: base_node,
             type_,
@@ -688,11 +688,11 @@ impl BaseJSDocUnaryType {
 }
 
 impl HasTypeInterface for BaseJSDocUnaryType {
-    fn maybe_type(&self) -> Option<Gc<Node>> {
+    fn maybe_type(&self) -> Option<Id<Node>> {
         self.type_.clone()
     }
 
-    fn set_type(&mut self, type_: Option<Gc<Node>>) {
+    fn set_type(&mut self, type_: Option<Id<Node>>) {
         self.type_ = type_;
     }
 }
@@ -736,12 +736,12 @@ impl JSDoc {
 }
 
 pub trait JSDocTagInterface {
-    fn tag_name(&self) -> Gc<Node /*Identifier*/>;
+    fn tag_name(&self) -> Id<Node /*Identifier*/>;
     fn maybe_comment(&self) -> Option<&StringOrNodeArray /*<JSDocComment>*/>;
 }
 
 pub trait JSDocLinkLikeInterface {
-    fn maybe_name(&self) -> Option<Gc<Node>>;
+    fn maybe_name(&self) -> Option<Id<Node>>;
     fn text(&self) -> &str;
 }
 
@@ -749,12 +749,12 @@ pub trait JSDocLinkLikeInterface {
 #[ast_type]
 pub struct JSDocLink {
     _node: BaseNode,
-    pub name: Option<Gc<Node /*EntityName | JSDocMemberName*/>>,
+    pub name: Option<Id<Node /*EntityName | JSDocMemberName*/>>,
     pub text: String,
 }
 
 impl JSDocLink {
-    pub fn new(base_node: BaseNode, name: Option<Gc<Node>>, text: String) -> Self {
+    pub fn new(base_node: BaseNode, name: Option<Id<Node>>, text: String) -> Self {
         Self {
             _node: base_node,
             name,
@@ -764,7 +764,7 @@ impl JSDocLink {
 }
 
 impl JSDocLinkLikeInterface for JSDocLink {
-    fn maybe_name(&self) -> Option<Gc<Node>> {
+    fn maybe_name(&self) -> Option<Id<Node>> {
         self.name.clone()
     }
 
@@ -777,12 +777,12 @@ impl JSDocLinkLikeInterface for JSDocLink {
 #[ast_type]
 pub struct JSDocLinkCode {
     _node: BaseNode,
-    pub name: Option<Gc<Node /*EntityName | JSDocMemberName*/>>,
+    pub name: Option<Id<Node /*EntityName | JSDocMemberName*/>>,
     pub text: String,
 }
 
 impl JSDocLinkCode {
-    pub fn new(base_node: BaseNode, name: Option<Gc<Node>>, text: String) -> Self {
+    pub fn new(base_node: BaseNode, name: Option<Id<Node>>, text: String) -> Self {
         Self {
             _node: base_node,
             name,
@@ -792,7 +792,7 @@ impl JSDocLinkCode {
 }
 
 impl JSDocLinkLikeInterface for JSDocLinkCode {
-    fn maybe_name(&self) -> Option<Gc<Node>> {
+    fn maybe_name(&self) -> Option<Id<Node>> {
         self.name.clone()
     }
 
@@ -805,12 +805,12 @@ impl JSDocLinkLikeInterface for JSDocLinkCode {
 #[ast_type]
 pub struct JSDocLinkPlain {
     _node: BaseNode,
-    pub name: Option<Gc<Node /*EntityName | JSDocMemberName*/>>,
+    pub name: Option<Id<Node /*EntityName | JSDocMemberName*/>>,
     pub text: String,
 }
 
 impl JSDocLinkPlain {
-    pub fn new(base_node: BaseNode, name: Option<Gc<Node>>, text: String) -> Self {
+    pub fn new(base_node: BaseNode, name: Option<Id<Node>>, text: String) -> Self {
         Self {
             _node: base_node,
             name,
@@ -820,7 +820,7 @@ impl JSDocLinkPlain {
 }
 
 impl JSDocLinkLikeInterface for JSDocLinkPlain {
-    fn maybe_name(&self) -> Option<Gc<Node>> {
+    fn maybe_name(&self) -> Option<Id<Node>> {
         self.name.clone()
     }
 
@@ -857,6 +857,7 @@ mod _StringOrNodeArrayDeriveTraceScope {
     }
 }
 pub use _StringOrNodeArrayDeriveTraceScope::StringOrNodeArray;
+use id_arena::Id;
 
 impl From<String> for StringOrNodeArray {
     fn from(value: String) -> Self {
@@ -874,14 +875,14 @@ impl From<Gc<NodeArray>> for StringOrNodeArray {
 #[ast_type]
 pub struct BaseJSDocTag {
     _node: BaseNode,
-    tag_name: Gc<Node /*Identifier*/>,
+    tag_name: Id<Node /*Identifier*/>,
     comment: Option<StringOrNodeArray /*<JSDocComment>*/>,
 }
 
 impl BaseJSDocTag {
     pub fn new(
         base_node: BaseNode,
-        tag_name: Gc<Node>,
+        tag_name: Id<Node>,
         comment: Option<StringOrNodeArray>,
     ) -> Self {
         Self {
@@ -893,7 +894,7 @@ impl BaseJSDocTag {
 }
 
 impl JSDocTagInterface for BaseJSDocTag {
-    fn tag_name(&self) -> Gc<Node> {
+    fn tag_name(&self) -> Id<Node> {
         self.tag_name.clone()
     }
 
@@ -906,13 +907,13 @@ impl JSDocTagInterface for BaseJSDocTag {
 #[ast_type(interfaces = "JSDocTagInterface")]
 pub struct JSDocAugmentsTag {
     _base_jsdoc_tag: BaseJSDocTag,
-    pub class: Gc<
+    pub class: Id<
         Node, /*ExpressionWithTypeArguments & { readonly expression: Identifier | PropertyAccessEntityNameExpression*/
     >,
 }
 
 impl JSDocAugmentsTag {
-    pub fn new(base_jsdoc_tag: BaseJSDocTag, class: Gc<Node>) -> Self {
+    pub fn new(base_jsdoc_tag: BaseJSDocTag, class: Id<Node>) -> Self {
         Self {
             _base_jsdoc_tag: base_jsdoc_tag,
             class,
@@ -921,11 +922,11 @@ impl JSDocAugmentsTag {
 }
 
 pub trait JSDocHeritageTagInterface: JSDocTagInterface {
-    fn class(&self) -> Gc<Node>;
+    fn class(&self) -> Id<Node>;
 }
 
 impl JSDocHeritageTagInterface for JSDocAugmentsTag {
-    fn class(&self) -> Gc<Node> {
+    fn class(&self) -> Id<Node> {
         self.class.clone()
     }
 }
@@ -934,13 +935,13 @@ impl JSDocHeritageTagInterface for JSDocAugmentsTag {
 #[ast_type(interfaces = "JSDocTagInterface")]
 pub struct JSDocImplementsTag {
     _base_jsdoc_tag: BaseJSDocTag,
-    pub class: Gc<
+    pub class: Id<
         Node, /*ExpressionWithTypeArguments & { readonly expression: Identifier | PropertyAccessEntityNameExpression*/
     >,
 }
 
 impl JSDocImplementsTag {
-    pub fn new(base_jsdoc_tag: BaseJSDocTag, class: Gc<Node>) -> Self {
+    pub fn new(base_jsdoc_tag: BaseJSDocTag, class: Id<Node>) -> Self {
         Self {
             _base_jsdoc_tag: base_jsdoc_tag,
             class,
@@ -949,25 +950,25 @@ impl JSDocImplementsTag {
 }
 
 impl JSDocHeritageTagInterface for JSDocImplementsTag {
-    fn class(&self) -> Gc<Node> {
+    fn class(&self) -> Id<Node> {
         self.class.clone()
     }
 }
 
 pub trait JSDocTypeLikeTagInterface: JSDocTagInterface {
-    fn maybe_type_expression(&self) -> Option<Gc<Node>>;
-    fn type_expression(&self) -> Gc<Node>;
+    fn maybe_type_expression(&self) -> Option<Id<Node>>;
+    fn type_expression(&self) -> Id<Node>;
 }
 
 #[derive(Debug, Trace, Finalize)]
 #[ast_type(interfaces = "JSDocTagInterface")]
 pub struct BaseJSDocTypeLikeTag {
     _base_jsdoc_tag: BaseJSDocTag,
-    pub type_expression: Option<Gc<Node /*JSDocTypeExpression*/>>,
+    pub type_expression: Option<Id<Node /*JSDocTypeExpression*/>>,
 }
 
 impl BaseJSDocTypeLikeTag {
-    pub fn new(base_jsdoc_tag: BaseJSDocTag, type_expression: Option<Gc<Node>>) -> Self {
+    pub fn new(base_jsdoc_tag: BaseJSDocTag, type_expression: Option<Id<Node>>) -> Self {
         Self {
             _base_jsdoc_tag: base_jsdoc_tag,
             type_expression,
@@ -976,11 +977,11 @@ impl BaseJSDocTypeLikeTag {
 }
 
 impl JSDocTypeLikeTagInterface for BaseJSDocTypeLikeTag {
-    fn maybe_type_expression(&self) -> Option<Gc<Node>> {
+    fn maybe_type_expression(&self) -> Option<Id<Node>> {
         self.type_expression.clone()
     }
 
-    fn type_expression(&self) -> Gc<Node> {
+    fn type_expression(&self) -> Id<Node> {
         self.type_expression.clone().unwrap()
     }
 }
@@ -989,7 +990,7 @@ impl JSDocTypeLikeTagInterface for BaseJSDocTypeLikeTag {
 #[ast_type(interfaces = "JSDocTagInterface")]
 pub struct JSDocTemplateTag {
     _base_jsdoc_tag: BaseJSDocTag,
-    pub constraint: Option<Gc<Node /*JSDocTypeExpression*/>>,
+    pub constraint: Option<Id<Node /*JSDocTypeExpression*/>>,
     pub type_parameters: Gc<NodeArray>, /*<TypeParameterDeclaration>*/
     type_parameters_for_has_type_parameters_interface: GcCell<Option<Gc<NodeArray>>>, /*<TypeParameterDeclaration>*/
 }
@@ -997,7 +998,7 @@ pub struct JSDocTemplateTag {
 impl JSDocTemplateTag {
     pub fn new(
         base_jsdoc_tag: BaseJSDocTag,
-        constraint: Option<Gc<Node>>,
+        constraint: Option<Id<Node>>,
         type_parameters: Gc<NodeArray>,
     ) -> Self {
         Self {
@@ -1026,11 +1027,11 @@ impl HasTypeParametersInterface for JSDocTemplateTag {
 #[ast_type(interfaces = "JSDocTagInterface")]
 pub struct JSDocSeeTag {
     _base_jsdoc_tag: BaseJSDocTag,
-    pub name: Option<Gc<Node /*JSDocNameReference*/>>,
+    pub name: Option<Id<Node /*JSDocNameReference*/>>,
 }
 
 impl JSDocSeeTag {
-    pub fn new(base_jsdoc_tag: BaseJSDocTag, name: Option<Gc<Node>>) -> Self {
+    pub fn new(base_jsdoc_tag: BaseJSDocTag, name: Option<Id<Node>>) -> Self {
         Self {
             _base_jsdoc_tag: base_jsdoc_tag,
             name,
@@ -1041,24 +1042,24 @@ impl JSDocSeeTag {
 pub trait JSDocTypedefOrCallbackTagInterface:
     NamedDeclarationInterface + JSDocTypeLikeTagInterface
 {
-    fn maybe_full_name(&self) -> Option<Gc<Node>>;
+    fn maybe_full_name(&self) -> Option<Id<Node>>;
 }
 
 #[derive(Debug, Trace, Finalize)]
 #[ast_type(interfaces = "JSDocTagInterface")]
 pub struct JSDocTypedefTag {
     _base_jsdoc_tag: BaseJSDocTag,
-    pub full_name: Option<Gc<Node /*JSDocNamespaceDeclaration | Identifier*/>>,
-    pub name: Option<Gc<Node /*Identifier*/>>,
-    pub type_expression: Option<Gc<Node /*JSDocTypeExpression | JSDocTypeLiteral*/>>,
+    pub full_name: Option<Id<Node /*JSDocNamespaceDeclaration | Identifier*/>>,
+    pub name: Option<Id<Node /*Identifier*/>>,
+    pub type_expression: Option<Id<Node /*JSDocTypeExpression | JSDocTypeLiteral*/>>,
 }
 
 impl JSDocTypedefTag {
     pub fn new(
         base_jsdoc_tag: BaseJSDocTag,
-        full_name: Option<Gc<Node>>,
-        name: Option<Gc<Node>>,
-        type_expression: Option<Gc<Node>>,
+        full_name: Option<Id<Node>>,
+        name: Option<Id<Node>>,
+        type_expression: Option<Id<Node>>,
     ) -> Self {
         Self {
             _base_jsdoc_tag: base_jsdoc_tag,
@@ -1070,31 +1071,31 @@ impl JSDocTypedefTag {
 }
 
 impl NamedDeclarationInterface for JSDocTypedefTag {
-    fn maybe_name(&self) -> Option<Gc<Node>> {
+    fn maybe_name(&self) -> Option<Id<Node>> {
         self.name.clone()
     }
 
-    fn name(&self) -> Gc<Node> {
+    fn name(&self) -> Id<Node> {
         self.name.clone().unwrap()
     }
 
-    fn set_name(&mut self, name: Gc<Node>) {
+    fn set_name(&mut self, name: Id<Node>) {
         self.name = Some(name);
     }
 }
 
 impl JSDocTypedefOrCallbackTagInterface for JSDocTypedefTag {
-    fn maybe_full_name(&self) -> Option<Gc<Node>> {
+    fn maybe_full_name(&self) -> Option<Id<Node>> {
         self.full_name.clone()
     }
 }
 
 impl JSDocTypeLikeTagInterface for JSDocTypedefTag {
-    fn maybe_type_expression(&self) -> Option<Gc<Node>> {
+    fn maybe_type_expression(&self) -> Option<Id<Node>> {
         self.type_expression.clone()
     }
 
-    fn type_expression(&self) -> Gc<Node> {
+    fn type_expression(&self) -> Id<Node> {
         self.type_expression.clone().unwrap()
     }
 }
@@ -1103,17 +1104,17 @@ impl JSDocTypeLikeTagInterface for JSDocTypedefTag {
 #[ast_type(interfaces = "JSDocTagInterface")]
 pub struct JSDocCallbackTag {
     _base_jsdoc_tag: BaseJSDocTag,
-    pub full_name: Option<Gc<Node /*JSDocNamespaceDeclaration | Identifier*/>>,
-    pub name: Option<Gc<Node /*Identifier*/>>,
-    pub type_expression: Gc<Node /*JSDocSignature*/>,
+    pub full_name: Option<Id<Node /*JSDocNamespaceDeclaration | Identifier*/>>,
+    pub name: Option<Id<Node /*Identifier*/>>,
+    pub type_expression: Id<Node /*JSDocSignature*/>,
 }
 
 impl JSDocCallbackTag {
     pub fn new(
         base_jsdoc_tag: BaseJSDocTag,
-        type_expression: Gc<Node>,
-        full_name: Option<Gc<Node>>,
-        name: Option<Gc<Node>>,
+        type_expression: Id<Node>,
+        full_name: Option<Id<Node>>,
+        name: Option<Id<Node>>,
     ) -> Self {
         Self {
             _base_jsdoc_tag: base_jsdoc_tag,
@@ -1125,31 +1126,31 @@ impl JSDocCallbackTag {
 }
 
 impl NamedDeclarationInterface for JSDocCallbackTag {
-    fn maybe_name(&self) -> Option<Gc<Node>> {
+    fn maybe_name(&self) -> Option<Id<Node>> {
         self.name.clone()
     }
 
-    fn name(&self) -> Gc<Node> {
+    fn name(&self) -> Id<Node> {
         self.name.clone().unwrap()
     }
 
-    fn set_name(&mut self, name: Gc<Node>) {
+    fn set_name(&mut self, name: Id<Node>) {
         self.name = Some(name);
     }
 }
 
 impl JSDocTypedefOrCallbackTagInterface for JSDocCallbackTag {
-    fn maybe_full_name(&self) -> Option<Gc<Node>> {
+    fn maybe_full_name(&self) -> Option<Id<Node>> {
         self.full_name.clone()
     }
 }
 
 impl JSDocTypeLikeTagInterface for JSDocCallbackTag {
-    fn maybe_type_expression(&self) -> Option<Gc<Node>> {
+    fn maybe_type_expression(&self) -> Option<Id<Node>> {
         Some(self.type_expression.clone())
     }
 
-    fn type_expression(&self) -> Gc<Node> {
+    fn type_expression(&self) -> Id<Node> {
         self.type_expression.clone()
     }
 }
@@ -1160,7 +1161,7 @@ pub struct JSDocSignature {
     _node: BaseNode,
     type_parameters: GcCell<Option<Gc<NodeArray> /*<JSDocTemplateTag>*/>>,
     pub parameters: Gc<NodeArray>, /*<JSDocParameterTag>*/
-    pub type_: Option<Gc<Node /*JSDocReturnTag*/>>,
+    pub type_: Option<Id<Node /*JSDocReturnTag*/>>,
 }
 
 impl JSDocSignature {
@@ -1168,7 +1169,7 @@ impl JSDocSignature {
         base_node: BaseNode,
         type_parameters: Option<Gc<NodeArray>>,
         parameters: Gc<NodeArray>,
-        type_: Option<Gc<Node>>,
+        type_: Option<Id<Node>>,
     ) -> Self {
         Self {
             _node: base_node,
@@ -1186,25 +1187,25 @@ impl SignatureDeclarationInterface for JSDocSignature {
 }
 
 impl NamedDeclarationInterface for JSDocSignature {
-    fn maybe_name(&self) -> Option<Gc<Node>> {
+    fn maybe_name(&self) -> Option<Id<Node>> {
         None
     }
 
-    fn name(&self) -> Gc<Node> {
+    fn name(&self) -> Id<Node> {
         panic!("JSDocSignature doesn't have name")
     }
 
-    fn set_name(&mut self, _name: Gc<Node>) {
+    fn set_name(&mut self, _name: Id<Node>) {
         panic!("Tried to set name of JSDocSignature")
     }
 }
 
 impl HasTypeInterface for JSDocSignature {
-    fn maybe_type(&self) -> Option<Gc<Node>> {
+    fn maybe_type(&self) -> Option<Id<Node>> {
         self.type_.clone()
     }
 
-    fn set_type(&mut self, type_: Option<Gc<Node>>) {
+    fn set_type(&mut self, type_: Option<Id<Node>>) {
         self.type_ = type_;
     }
 }
@@ -1223,8 +1224,8 @@ impl HasTypeParametersInterface for JSDocSignature {
 #[ast_type(interfaces = "JSDocTagInterface")]
 pub struct JSDocPropertyLikeTag {
     _base_jsdoc_tag: BaseJSDocTag,
-    pub name: Gc<Node /*EntityName*/>,
-    pub type_expression: Option<Gc<Node /*JSDocTypeExpression*/>>,
+    pub name: Id<Node /*EntityName*/>,
+    pub type_expression: Option<Id<Node /*JSDocTypeExpression*/>>,
     pub is_name_first: bool,
     pub is_bracketed: bool,
 }
@@ -1232,8 +1233,8 @@ pub struct JSDocPropertyLikeTag {
 impl JSDocPropertyLikeTag {
     pub fn new(
         base_jsdoc_tag: BaseJSDocTag,
-        type_expression: Option<Gc<Node>>,
-        name: Gc<Node>,
+        type_expression: Option<Id<Node>>,
+        name: Id<Node>,
         is_name_first: bool,
         is_bracketed: bool,
     ) -> Self {
@@ -1248,25 +1249,25 @@ impl JSDocPropertyLikeTag {
 }
 
 impl NamedDeclarationInterface for JSDocPropertyLikeTag {
-    fn maybe_name(&self) -> Option<Gc<Node>> {
+    fn maybe_name(&self) -> Option<Id<Node>> {
         Some(self.name.clone())
     }
 
-    fn name(&self) -> Gc<Node> {
+    fn name(&self) -> Id<Node> {
         self.name.clone()
     }
 
-    fn set_name(&mut self, name: Gc<Node>) {
+    fn set_name(&mut self, name: Id<Node>) {
         self.name = name;
     }
 }
 
 impl JSDocTypeLikeTagInterface for JSDocPropertyLikeTag {
-    fn maybe_type_expression(&self) -> Option<Gc<Node>> {
+    fn maybe_type_expression(&self) -> Option<Id<Node>> {
         self.type_expression.clone()
     }
 
-    fn type_expression(&self) -> Gc<Node> {
+    fn type_expression(&self) -> Id<Node> {
         self.type_expression.clone().unwrap()
     }
 }
@@ -1442,7 +1443,7 @@ pub struct FlowStart {
     id: Cell<Option<isize>>,
     node: GcCell<
         Option<
-            Gc<
+            Id<
                 Node, /*FunctionExpression | ArrowFunction | MethodDeclaration | GetAccessorDeclaration | SetAccessorDeclaration*/
             >,
         >,
@@ -1450,7 +1451,7 @@ pub struct FlowStart {
 }
 
 impl FlowStart {
-    pub fn new(flags: FlowFlags, node: Option<Gc<Node>>) -> Self {
+    pub fn new(flags: FlowFlags, node: Option<Id<Node>>) -> Self {
         Self {
             flags: Cell::new(flags),
             id: Default::default(),
@@ -1460,11 +1461,11 @@ impl FlowStart {
 }
 
 impl FlowStart {
-    pub fn maybe_node(&self) -> Option<Gc<Node>> {
+    pub fn maybe_node(&self) -> Option<Id<Node>> {
         self.node.borrow().clone()
     }
 
-    pub fn set_node(&self, node: Option<Gc<Node>>) {
+    pub fn set_node(&self, node: Option<Id<Node>>) {
         *self.node.borrow_mut() = node;
     }
 }
@@ -1558,12 +1559,12 @@ pub struct FlowAssignment {
     flags: Cell<FlowFlags>,
     #[unsafe_ignore_trace]
     id: Cell<Option<isize>>,
-    pub node: Gc<Node /*Expression | VariableDeclaration | BindingElement*/>,
+    pub node: Id<Node /*Expression | VariableDeclaration | BindingElement*/>,
     pub antecedent: Gc<FlowNode>,
 }
 
 impl FlowAssignment {
-    pub fn new(flags: FlowFlags, antecedent: Gc<FlowNode>, node: Gc<Node>) -> Self {
+    pub fn new(flags: FlowFlags, antecedent: Gc<FlowNode>, node: Id<Node>) -> Self {
         Self {
             flags: Cell::new(flags),
             id: Cell::new(None),
@@ -1609,12 +1610,12 @@ pub struct FlowCall {
     flags: Cell<FlowFlags>,
     #[unsafe_ignore_trace]
     id: Cell<Option<isize>>,
-    pub node: Gc<Node /*CallExpression*/>,
+    pub node: Id<Node /*CallExpression*/>,
     pub antecedent: Gc<FlowNode>,
 }
 
 impl FlowCall {
-    pub fn new(flags: FlowFlags, antecedent: Gc<FlowNode>, node: Gc<Node>) -> Self {
+    pub fn new(flags: FlowFlags, antecedent: Gc<FlowNode>, node: Id<Node>) -> Self {
         Self {
             flags: Cell::new(flags),
             id: Cell::new(None),
@@ -1660,12 +1661,12 @@ pub struct FlowCondition {
     flags: Cell<FlowFlags>,
     #[unsafe_ignore_trace]
     id: Cell<Option<isize>>,
-    pub node: Gc<Node /*Expression*/>,
+    pub node: Id<Node /*Expression*/>,
     pub antecedent: Gc<FlowNode>,
 }
 
 impl FlowCondition {
-    pub fn new(flags: FlowFlags, antecedent: Gc<FlowNode>, node: Gc<Node>) -> Self {
+    pub fn new(flags: FlowFlags, antecedent: Gc<FlowNode>, node: Id<Node>) -> Self {
         Self {
             flags: Cell::new(flags),
             antecedent,
@@ -1711,7 +1712,7 @@ pub struct FlowSwitchClause {
     flags: Cell<FlowFlags>,
     #[unsafe_ignore_trace]
     id: Cell<Option<isize>>,
-    pub switch_statement: Gc<Node /*SwitchStatement*/>,
+    pub switch_statement: Id<Node /*SwitchStatement*/>,
     pub clause_start: usize,
     pub clause_end: usize,
     pub antecedent: Gc<FlowNode>,
@@ -1721,7 +1722,7 @@ impl FlowSwitchClause {
     pub fn new(
         flags: FlowFlags,
         antecedent: Gc<FlowNode>,
-        switch_statement: Gc<Node>,
+        switch_statement: Id<Node>,
         clause_start: usize,
         clause_end: usize,
     ) -> Self {
@@ -1772,12 +1773,12 @@ pub struct FlowArrayMutation {
     flags: Cell<FlowFlags>,
     #[unsafe_ignore_trace]
     id: Cell<Option<isize>>,
-    pub node: Gc<Node /*CallExpression | BinaryExpression*/>,
+    pub node: Id<Node /*CallExpression | BinaryExpression*/>,
     pub antecedent: Gc<FlowNode>,
 }
 
 impl FlowArrayMutation {
-    pub fn new(flags: FlowFlags, antecedent: Gc<FlowNode>, node: Gc<Node>) -> Self {
+    pub fn new(flags: FlowFlags, antecedent: Gc<FlowNode>, node: Id<Node>) -> Self {
         Self {
             flags: Cell::new(flags),
             id: Cell::new(None),

@@ -511,9 +511,9 @@ pub fn flat_map_to_mutable<
 
 pub fn same_flat_map_rc_node(
     array: NodeArrayOrVec,
-    mut mapfn: impl FnMut(&Gc<Node>, usize) -> SingleOrVec<Gc<Node>>,
+    mut mapfn: impl FnMut(&Id<Node>, usize) -> SingleOrVec<Id<Node>>,
 ) -> NodeArrayOrVec {
-    let mut result: Option<Vec<Gc<Node>>> = Default::default();
+    let mut result: Option<Vec<Id<Node>>> = Default::default();
     // if (array) {
     for (i, item) in array.iter().enumerate() {
         let mapped = mapfn(item, i);
@@ -1278,13 +1278,13 @@ pub fn single_or_undefined<TItem>(array: Option<&[TItem]>) -> Option<&TItem> {
 }
 
 pub fn single_or_many_node<'array>(
-    array: impl Into<Cow<'array, [Gc<Node>]>>,
+    array: impl Into<Cow<'array, [Id<Node>]>>,
 ) -> SingleNodeOrVecNode {
     maybe_single_or_many_node(Some(array)).unwrap()
 }
 
 pub fn maybe_single_or_many_node<'array>(
-    array: Option<impl Into<Cow<'array, [Gc<Node>]>>>,
+    array: Option<impl Into<Cow<'array, [Id<Node>]>>>,
 ) -> Option<SingleNodeOrVecNode> {
     let array = array.map(Into::into);
     match array {
@@ -1812,6 +1812,7 @@ mod _MultiMapOrderedDeriveTraceScope {
     }
 }
 pub use _MultiMapOrderedDeriveTraceScope::MultiMapOrdered;
+use id_arena::Id;
 
 use crate::{SingleNodeOrVecNode, _d};
 

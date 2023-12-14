@@ -1,6 +1,7 @@
 use std::{collections::HashMap, convert::TryInto, io, marker::PhantomData, rc::Rc};
 
 use gc::{Finalize, Gc, GcCell, Trace};
+use id_arena::Id;
 use local_macros::enum_unwrapped;
 
 use crate::{
@@ -372,7 +373,7 @@ impl ProgramOrBuilderProgram {
         }
     }
 
-    fn get_source_files(&self) -> Vec<Gc<Node>> {
+    fn get_source_files(&self) -> Vec<Id<Node>> {
         match self {
             Self::Program(program) => program.get_source_files().clone(),
             Self::BuilderProgram(program) => program.get_source_files().to_owned(),

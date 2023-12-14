@@ -674,7 +674,7 @@ impl TypeChecker {
     ) -> bool {
         for_each_bool(
             &named_bindings.as_has_elements().elements(),
-            |specifier: &Gc<Node>, _| {
+            |specifier: &Id<Node>, _| {
                 if specifier.as_has_is_type_only().is_type_only() {
                     return self.grammar_error_on_first_token(
                         specifier,
@@ -734,7 +734,7 @@ impl TypeChecker {
             );
         }
 
-        let spread_element = find(node_arguments, |argument: &Gc<Node>, _| {
+        let spread_element = find(node_arguments, |argument: &Id<Node>, _| {
             is_spread_element(argument)
         });
         if let Some(spread_element) = spread_element {
@@ -1087,7 +1087,7 @@ impl EmitResolver for EmitResolverCreateResolver {
         &self,
         node: &Node, /*Identifier*/
         prefix_locals: Option<bool>,
-    ) -> io::Result<Option<Gc<Node /*SourceFile | ModuleDeclaration | EnumDeclaration*/>>> {
+    ) -> io::Result<Option<Id<Node /*SourceFile | ModuleDeclaration | EnumDeclaration*/>>> {
         self.type_checker
             .get_referenced_export_container(node, prefix_locals)
     }
@@ -1095,14 +1095,14 @@ impl EmitResolver for EmitResolverCreateResolver {
     fn get_referenced_import_declaration(
         &self,
         node: &Node, /*Identifier*/
-    ) -> io::Result<Option<Gc<Node /*Declaration*/>>> {
+    ) -> io::Result<Option<Id<Node /*Declaration*/>>> {
         self.type_checker.get_referenced_import_declaration(node)
     }
 
     fn get_referenced_declaration_with_colliding_name(
         &self,
         node: &Node, /*Identifier*/
-    ) -> io::Result<Option<Gc<Node /*Declaration*/>>> {
+    ) -> io::Result<Option<Id<Node /*Declaration*/>>> {
         self.type_checker
             .get_referenced_declaration_with_colliding_name(node)
     }
@@ -1167,7 +1167,7 @@ impl EmitResolver for EmitResolverCreateResolver {
         &self,
         node: &Node, /*Identifier*/
         set_visibility: Option<bool>,
-    ) -> io::Result<Option<Vec<Gc<Node>>>> {
+    ) -> io::Result<Option<Vec<Id<Node>>>> {
         self.type_checker
             .collect_linked_aliases(node, set_visibility)
     }
@@ -1218,7 +1218,7 @@ impl EmitResolver for EmitResolverCreateResolver {
         flags: NodeBuilderFlags,
         tracker: Gc<Box<dyn SymbolTracker>>,
         add_undefined: Option<bool>,
-    ) -> io::Result<Option<Gc<Node /*TypeNode*/>>> {
+    ) -> io::Result<Option<Id<Node /*TypeNode*/>>> {
         self.type_checker.create_type_of_declaration(
             declaration,
             enclosing_declaration,
@@ -1234,7 +1234,7 @@ impl EmitResolver for EmitResolverCreateResolver {
         enclosing_declaration: &Node,
         flags: NodeBuilderFlags,
         tracker: Gc<Box<dyn SymbolTracker>>,
-    ) -> io::Result<Option<Gc<Node /*TypeNode*/>>> {
+    ) -> io::Result<Option<Id<Node /*TypeNode*/>>> {
         self.type_checker
             .create_return_type_of_signature_declaration(
                 signature_declaration,
@@ -1250,7 +1250,7 @@ impl EmitResolver for EmitResolverCreateResolver {
         enclosing_declaration: &Node,
         flags: NodeBuilderFlags,
         tracker: Gc<Box<dyn SymbolTracker>>,
-    ) -> io::Result<Option<Gc<Node /*TypeNode*/>>> {
+    ) -> io::Result<Option<Id<Node /*TypeNode*/>>> {
         self.type_checker
             .create_type_of_expression(expr, enclosing_declaration, flags, tracker)
     }
@@ -1259,7 +1259,7 @@ impl EmitResolver for EmitResolverCreateResolver {
         &self,
         node: &Node, /*VariableDeclaration | PropertyDeclaration | PropertySignature | ParameterDeclaration*/
         tracker: Gc<Box<dyn SymbolTracker>>,
-    ) -> io::Result<Gc<Node /*Expression*/>> {
+    ) -> io::Result<Id<Node /*Expression*/>> {
         self.type_checker.create_literal_const_value(node, tracker)
     }
 
@@ -1302,7 +1302,7 @@ impl EmitResolver for EmitResolverCreateResolver {
     fn get_referenced_value_declaration(
         &self,
         reference: &Node, /*Identifier*/
-    ) -> io::Result<Option<Gc<Node /*Declaration*/>>> {
+    ) -> io::Result<Option<Id<Node /*Declaration*/>>> {
         self.type_checker
             .get_referenced_value_declaration(reference)
     }
@@ -1335,7 +1335,7 @@ impl EmitResolver for EmitResolverCreateResolver {
     fn get_external_module_file_from_declaration(
         &self,
         node_in: &Node, /*ImportEqualsDeclaration | ImportDeclaration | ExportDeclaration | ModuleDeclaration | ImportTypeNode | ImportCall*/
-    ) -> io::Result<Option<Gc<Node /*SourceFile*/>>> {
+    ) -> io::Result<Option<Id<Node /*SourceFile*/>>> {
         let node = get_parse_tree_node(
             Some(node_in),
             Some(|node: &Node| has_possible_external_module_reference(node)),
@@ -1422,14 +1422,14 @@ impl EmitResolver for EmitResolverCreateResolver {
         self.type_checker.is_literal_const_declaration(node)
     }
 
-    fn get_jsx_factory_entity(&self, location: Option<&Node>) -> Option<Gc<Node /*EntityName*/>> {
+    fn get_jsx_factory_entity(&self, location: Option<&Node>) -> Option<Id<Node /*EntityName*/>> {
         self.type_checker.get_jsx_factory_entity(location.unwrap())
     }
 
     fn get_jsx_fragment_factory_entity(
         &self,
         location: Option<&Node>,
-    ) -> Option<Gc<Node /*EntityName*/>> {
+    ) -> Option<Id<Node /*EntityName*/>> {
         self.type_checker
             .get_jsx_fragment_factory_entity(location.unwrap())
     }
@@ -1509,7 +1509,7 @@ impl EmitResolver for EmitResolverCreateResolver {
         flags: NodeBuilderFlags,
         tracker: Gc<Box<dyn SymbolTracker>>,
         bundled: Option<bool>,
-    ) -> io::Result<Option<Vec<Gc<Node /*Statement*/>>>> {
+    ) -> io::Result<Option<Vec<Id<Node /*Statement*/>>>> {
         let n = get_parse_tree_node(Some(node), Option::<fn(&Node) -> bool>::None);
         Debug_.assert(
             matches!(

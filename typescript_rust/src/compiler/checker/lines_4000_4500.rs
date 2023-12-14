@@ -110,7 +110,7 @@ impl TypeChecker {
     pub(super) fn find_constructor_declaration(
         &self,
         node: &Node, /*ClassLikeDeclaration*/
-    ) -> Option<Gc<Node /*ConstructorDeclaration*/>> {
+    ) -> Option<Id<Node /*ConstructorDeclaration*/>> {
         let members = node.as_class_like_declaration().members();
         for member in &members {
             if member.kind() == SyntaxKind::Constructor
@@ -391,7 +391,7 @@ impl TypeChecker {
         ) -> io::Result<Option<TReturn>>,
     ) -> io::Result<Option<TReturn>> {
         let mut result: Option<TReturn>;
-        let mut location: Option<Gc<Node>> = enclosing_declaration
+        let mut location: Option<Id<Node>> = enclosing_declaration
             .map(|enclosing_declaration| enclosing_declaration.borrow().node_wrapper());
         while let Some(location_unwrapped) = location {
             if let Some(location_locals) = location_unwrapped.maybe_locals().as_ref() {
@@ -642,7 +642,7 @@ impl TypeChecker {
                 .ref_(self)
                 .maybe_declarations()
                 .as_deref(),
-            Some(|declaration: &Gc<Node>| {
+            Some(|declaration: &Id<Node>| {
                 self.has_non_global_augmentation_external_module_symbol(declaration)
             }),
         ) && (matches!(ignore_qualification, Some(true))
@@ -702,7 +702,7 @@ impl TypeChecker {
                                 .ref_(self)
                                 .maybe_declarations()
                                 .as_deref(),
-                            Some(|declaration: &Gc<Node>| {
+                            Some(|declaration: &Id<Node>| {
                                 is_external_module_import_equals_declaration(declaration)
                             }),
                         ))
@@ -712,7 +712,7 @@ impl TypeChecker {
                                 .ref_(self)
                                 .maybe_declarations()
                                 .as_deref(),
-                            Some(|declaration: &Gc<Node>| {
+                            Some(|declaration: &Id<Node>| {
                                 is_namespace_reexport_declaration(declaration)
                             }),
                         )
@@ -1004,7 +1004,7 @@ impl TypeChecker {
             if allow_modules {
                 if some(
                     symbol.ref_(self).maybe_declarations().as_deref(),
-                    Some(|declaration: &Gc<Node>| {
+                    Some(|declaration: &Id<Node>| {
                         self.has_non_global_augmentation_external_module_symbol(declaration)
                     }),
                 ) {
@@ -1121,7 +1121,7 @@ impl TypeChecker {
 
                 let symbol_external_module = try_maybe_for_each(
                     symbol.ref_(self).maybe_declarations().as_deref(),
-                    |declaration: &Gc<Node>, _| self.get_external_module_container(declaration),
+                    |declaration: &Id<Node>, _| self.get_external_module_container(declaration),
                 )?;
                 if let Some(symbol_external_module) = symbol_external_module {
                     let enclosing_external_module =

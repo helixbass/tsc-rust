@@ -1,4 +1,5 @@
 use gc::Gc;
+use id_arena::Id;
 
 use super::{
     try_visit_node_returns, try_visit_nodes_returns, visit_node_returns, visit_nodes_returns,
@@ -2858,11 +2859,11 @@ pub fn try_for_each_child_returns<TReturn, TError>(
         }
         Node::JSDocSignature(node) => {
             node.maybe_type_parameters().as_ref().try_and_then(|type_parameters| {
-                try_for_each(type_parameters, |node: &Gc<Node>, _| {
+                try_for_each(type_parameters, |node: &Id<Node>, _| {
                     cb_node(node)
                 })
             })?.try_or_else(|| {
-                try_for_each(&node.parameters, |node: &Gc<Node>, _| {
+                try_for_each(&node.parameters, |node: &Id<Node>, _| {
                     cb_node(node)
                 })
             })?.try_or_else(|| {
@@ -2879,7 +2880,7 @@ pub fn try_for_each_child_returns<TReturn, TError>(
             try_visit_node_returns(&mut cb_node, node.name.clone())?
         }
         Node::JSDocTypeLiteral(node) => {
-            try_maybe_for_each(node.js_doc_property_tags.as_deref(), |node: &Gc<Node>, _| {
+            try_maybe_for_each(node.js_doc_property_tags.as_deref(), |node: &Id<Node>, _| {
                 cb_node(node)
             })?
         }

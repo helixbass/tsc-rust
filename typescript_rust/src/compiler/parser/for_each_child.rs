@@ -1,4 +1,5 @@
 use gc::Gc;
+use id_arena::Id;
 
 use super::{try_visit_node, try_visit_nodes, visit_node, visit_nodes};
 use crate::{
@@ -2291,14 +2292,14 @@ pub fn try_for_each_child<TError>(
             node.maybe_type_parameters()
                 .as_ref()
                 .try_map(|type_parameters| {
-                    try_for_each(type_parameters, |node: &Gc<Node>, _| -> Result<_, TError> {
+                    try_for_each(type_parameters, |node: &Id<Node>, _| -> Result<_, TError> {
                         cb_node(node)?;
                         Ok(Option::<()>::None)
                     })
                 })?;
             try_for_each(
                 &node.parameters,
-                |node: &Gc<Node>, _| -> Result<_, TError> {
+                |node: &Id<Node>, _| -> Result<_, TError> {
                     cb_node(node)?;
                     Ok(Option::<()>::None)
                 },
@@ -2317,7 +2318,7 @@ pub fn try_for_each_child<TError>(
         Node::JSDocTypeLiteral(node) => {
             try_maybe_for_each(
                 node.js_doc_property_tags.as_deref(),
-                |node: &Gc<Node>, _| -> Result<_, TError> {
+                |node: &Id<Node>, _| -> Result<_, TError> {
                     cb_node(node)?;
                     Ok(Option::<()>::None)
                 },

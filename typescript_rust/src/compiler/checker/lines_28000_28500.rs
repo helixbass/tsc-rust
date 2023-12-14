@@ -23,7 +23,7 @@ use crate::{
 };
 
 impl TypeChecker {
-    pub(super) fn get_this_parameter_from_node_context(&self, node: &Node) -> Option<Gc<Node>> {
+    pub(super) fn get_this_parameter_from_node_context(&self, node: &Node) -> Option<Id<Node>> {
         let this_container = get_this_container(node, false);
         /*thisContainer &&*/
         if is_function_like(Some(&*this_container)) {
@@ -799,7 +799,7 @@ impl TypeChecker {
                     suggestion
                         .and_then(|suggestion| suggestion.ref_(self).maybe_declarations().clone())
                         .as_ref(),
-                    |declaration: &Gc<Node>, _| maybe_get_source_file_of_node(Some(&**declaration)),
+                    |declaration: &Id<Node>, _| maybe_get_source_file_of_node(Some(&**declaration)),
                 );
                 return !matches!(
                     declaration_file.as_ref(),

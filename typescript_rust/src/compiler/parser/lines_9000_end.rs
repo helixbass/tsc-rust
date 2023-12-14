@@ -6,6 +6,7 @@ use std::{
 };
 
 use gc::{Finalize, Gc, GcCell, Trace};
+use id_arena::Id;
 use regex::{Captures, Regex};
 
 use crate::{
@@ -28,7 +29,7 @@ impl IncrementalParserType {
 }
 
 pub trait IncrementalParserSyntaxCursorInterface {
-    fn current_node(&self, parser: &ParserType, position: usize) -> Option<Gc<Node>>;
+    fn current_node(&self, parser: &ParserType, position: usize) -> Option<Id<Node>>;
 }
 
 #[derive(Trace, Finalize)]
@@ -38,13 +39,13 @@ pub enum IncrementalParserSyntaxCursor {
 }
 
 impl IncrementalParserSyntaxCursor {
-    pub fn create(source_file: Gc<Node>) -> Self {
+    pub fn create(source_file: Id<Node>) -> Self {
         Self::Created(IncrementalParserSyntaxCursorCreated::new(source_file))
     }
 }
 
 impl IncrementalParserSyntaxCursorInterface for IncrementalParserSyntaxCursor {
-    fn current_node(&self, parser: &ParserType, position: usize) -> Option<Gc<Node>> {
+    fn current_node(&self, parser: &ParserType, position: usize) -> Option<Id<Node>> {
         match self {
             IncrementalParserSyntaxCursor::Created(incremental_parser_syntax_cursor) => {
                 incremental_parser_syntax_cursor.current_node(parser, position)
@@ -58,17 +59,17 @@ impl IncrementalParserSyntaxCursorInterface for IncrementalParserSyntaxCursor {
 
 #[derive(Trace, Finalize)]
 pub struct IncrementalParserSyntaxCursorCreated {
-    source_file: Gc<Node /*SourceFile*/>,
+    source_file: Id<Node /*SourceFile*/>,
     current_array: GcCell<Option<Gc<NodeArray>>>,
     #[unsafe_ignore_trace]
     current_array_index: Cell<Option<usize>>,
-    current: GcCell<Option<Gc<Node>>>,
+    current: GcCell<Option<Id<Node>>>,
     #[unsafe_ignore_trace]
     last_queried_position: Cell<Option<usize>>,
 }
 
 impl IncrementalParserSyntaxCursorCreated {
-    pub fn new(source_file: Gc<Node>) -> Self {
+    pub fn new(source_file: Id<Node>) -> Self {
         let source_file_as_source_file = source_file.as_source_file();
         let current_array = source_file_as_source_file.statements();
         let current_array_index = 0;
@@ -99,11 +100,11 @@ impl IncrementalParserSyntaxCursorCreated {
         self.current_array_index.set(current_array_index)
     }
 
-    fn maybe_current(&self) -> Option<Gc<Node>> {
+    fn maybe_current(&self) -> Option<Id<Node>> {
         self.current.borrow().clone()
     }
 
-    fn set_current(&self, current: Option<Gc<Node>>) {
+    fn set_current(&self, current: Option<Id<Node>>) {
         *self.current.borrow_mut() = current;
     }
 
@@ -169,7 +170,7 @@ impl IncrementalParserSyntaxCursorCreated {
 }
 
 impl IncrementalParserSyntaxCursorInterface for IncrementalParserSyntaxCursorCreated {
-    fn current_node(&self, _parser: &ParserType, position: usize) -> Option<Gc<Node>> {
+    fn current_node(&self, _parser: &ParserType, position: usize) -> Option<Id<Node>> {
         let position_as_isize: isize = position.try_into().unwrap();
         if match self.maybe_last_queried_position() {
             None => true,

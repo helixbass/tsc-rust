@@ -1,6 +1,7 @@
 use std::{convert::TryInto, io, rc::Rc};
 
 use gc::Gc;
+use id_arena::Id;
 
 use super::{PipelinePhase, TempFlags};
 use crate::{
@@ -309,10 +310,10 @@ impl Printer {
     pub(super) fn get_node_for_generated_name(
         &self,
         name: &Node, /*GeneratedIdentifier*/
-    ) -> Gc<Node> {
+    ) -> Id<Node> {
         let auto_generate_id = name.as_identifier().auto_generate_id;
-        let mut node: Gc<Node> = name.node_wrapper();
-        let mut original: Option<Gc<Node>> = node.maybe_original();
+        let mut node: Id<Node> = name.node_wrapper();
+        let mut original: Option<Id<Node>> = node.maybe_original();
         while let Some(ref original_present) = original {
             node = original_present.clone();
 

@@ -775,7 +775,7 @@ impl TypeChecker {
                 )
             })?;
         if enclosing_class.is_none() {
-            let mut this_parameter: Option<Gc<Node /*ParameterDeclaration*/>> = None;
+            let mut this_parameter: Option<Id<Node /*ParameterDeclaration*/>> = None;
             if flags.intersects(ModifierFlags::Static) || {
                 this_parameter = self.get_this_parameter_from_node_context(location);
                 match this_parameter.as_ref() {
@@ -889,11 +889,11 @@ impl TypeChecker {
 
 #[derive(Trace, Finalize)]
 pub(super) struct GenerateInitialErrorChain {
-    opening_like_element: Gc<Node>,
+    opening_like_element: Id<Node>,
 }
 
 impl GenerateInitialErrorChain {
-    pub fn new(opening_like_element: Gc<Node>) -> Self {
+    pub fn new(opening_like_element: Id<Node>) -> Self {
         Self {
             opening_like_element,
         }

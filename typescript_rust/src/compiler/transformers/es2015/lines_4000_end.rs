@@ -1,6 +1,7 @@
 use std::{borrow::Borrow, io};
 
 use gc::Gc;
+use id_arena::Id;
 
 use super::{
     create_spread_segment, ES2015SubstitutionFlags, HierarchyFacts, SpreadSegment,
@@ -18,9 +19,9 @@ use crate::{
 impl TransformES2015 {
     pub(super) fn visit_span_of_spreads(
         &self,
-        chunk: &[Gc<Node /*Expression*/>],
+        chunk: &[Id<Node /*Expression*/>],
     ) -> io::Result<Vec<SpreadSegment>> {
-        try_map(chunk, |node: &Gc<Node>, _| {
+        try_map(chunk, |node: &Id<Node>, _| {
             self.visit_expression_of_spread(node)
         })
     }
@@ -34,7 +35,7 @@ impl TransformES2015 {
             &node_as_spread_element.expression,
             Some(|node: &Node| self.visitor(node)),
             Some(is_expression),
-            Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+            Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
         )?;
 
         let is_call_to_read_helper = is_call_to_helper(&expression, "___read");
@@ -60,7 +61,7 @@ impl TransformES2015 {
 
     pub(super) fn visit_span_of_non_spreads(
         &self,
-        chunk: Vec<Gc<Node /*Expression*/>>,
+        chunk: Vec<Id<Node /*Expression*/>>,
         multi_line: bool,
         has_trailing_comma: bool,
     ) -> io::Result<SpreadSegment> {
@@ -90,7 +91,7 @@ impl TransformES2015 {
                 &node_as_spread_element.expression,
                 Some(|node: &Node| self.visitor(node)),
                 Some(is_expression),
-                Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
             )?
             .into(),
         ))
@@ -99,7 +100,7 @@ impl TransformES2015 {
     pub(super) fn visit_template_literal(
         &self,
         node: &Node, /*LiteralExpression*/
-    ) -> Gc<Node /*LeftHandSideExpression*/> {
+    ) -> Id<Node /*LeftHandSideExpression*/> {
         self.factory
             .create_string_literal(node.as_literal_like_node().text().clone(), None, None)
             .set_text_range(Some(node))
@@ -154,9 +155,9 @@ impl TransformES2015 {
     pub(super) fn visit_template_expression(
         &self,
         node: &Node, /*TemplateExpression*/
-    ) -> io::Result<Gc<Node /*Expression*/>> {
+    ) -> io::Result<Id<Node /*Expression*/>> {
         let node_as_template_expression = node.as_template_expression();
-        let mut expression: Gc<Node /*Expression*/> = self.factory.create_string_literal(
+        let mut expression: Id<Node /*Expression*/> = self.factory.create_string_literal(
             node_as_template_expression
                 .head
                 .as_template_literal_like_node()
@@ -171,7 +172,7 @@ impl TransformES2015 {
                 &span_as_template_span.expression,
                 Some(|node: &Node| self.visitor(node)),
                 Some(is_expression),
-                Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
             )?];
 
             if !span_as_template_span
@@ -207,7 +208,7 @@ impl TransformES2015 {
     pub(super) fn visit_super_keyword(
         &self,
         is_expression_of_call: bool,
-    ) -> Gc<Node /*LeftHandSideExpression*/> {
+    ) -> Id<Node /*LeftHandSideExpression*/> {
         if self
             .maybe_hierarchy_facts()
             .unwrap_or_default()
@@ -300,7 +301,7 @@ impl TransformES2015 {
         &self,
         node: &Node,   /*ClassExpression | ClassDeclaration*/
         member: &Node, /*ClassElement*/
-    ) -> Gc<Node> {
+    ) -> Id<Node> {
         if is_static(member) {
             self.factory.get_internal_name(node, None, None)
         } else {

@@ -41,7 +41,7 @@ impl TypeChecker {
                     None
                 }
             },
-            Option::<fn(&NodeArray) -> Option<Gc<Node>>>::None,
+            Option::<fn(&NodeArray) -> Option<Id<Node>>>::None,
         );
         if let Some(subsequent_node) = subsequent_node
             .as_ref()
@@ -253,7 +253,7 @@ impl TypeChecker {
                 let target = self.resolve_alias(self.get_symbol_of_node(&d)?.unwrap())?;
                 try_maybe_for_each(
                     target.ref_(self).maybe_declarations().as_deref(),
-                    |d: &Gc<Node>, _| -> io::Result<Option<()>> {
+                    |d: &Id<Node>, _| -> io::Result<Option<()>> {
                         result |= self.get_declaration_spaces(d)?;
                         Ok(None)
                     },
@@ -267,7 +267,7 @@ impl TypeChecker {
                 let target = self.resolve_alias(self.get_symbol_of_node(&d)?.unwrap())?;
                 try_maybe_for_each(
                     target.ref_(self).maybe_declarations().as_deref(),
-                    |d: &Gc<Node>, _| -> io::Result<Option<()>> {
+                    |d: &Id<Node>, _| -> io::Result<Option<()>> {
                         result |= self.get_declaration_spaces(d)?;
                         Ok(None)
                     },

@@ -1,6 +1,7 @@
 use std::{collections::HashMap, io, mem};
 
 use gc::{Finalize, Gc, GcCell, GcCellRef, GcCellRefMut, Trace};
+use id_arena::Id;
 
 use crate::{
     chain_bundle, BaseNodeFactorySynthetic, CompilerOptions, EmitHelperBase, EmitHint, EmitHost,
@@ -20,9 +21,9 @@ use crate::{
 };
 
 pub(super) struct DependencyGroup {
-    pub name: Gc<Node /*StringLiteral*/>,
+    pub name: Id<Node /*StringLiteral*/>,
     pub external_imports:
-        Vec<Gc<Node /*ImportDeclaration | ImportEqualsDeclaration | ExportDeclaration*/>>,
+        Vec<Id<Node /*ImportDeclaration | ImportEqualsDeclaration | ExportDeclaration*/>>,
 }
 
 #[derive(Trace, Finalize)]
@@ -34,16 +35,16 @@ pub(super) struct TransformSystemModule {
     pub(super) resolver: Gc<Box<dyn EmitResolver>>,
     pub(super) host: Gc<Box<dyn EmitHost>>,
     pub(super) module_info_map: GcCell<HashMap<NodeId, Gc<ExternalModuleInfo>>>,
-    pub(super) deferred_exports: GcCell<HashMap<NodeId, Option<Vec<Gc<Node /*Statement*/>>>>>,
-    pub(super) export_functions_map: GcCell<HashMap<NodeId, Gc<Node /*Identifier*/>>>,
+    pub(super) deferred_exports: GcCell<HashMap<NodeId, Option<Vec<Id<Node /*Statement*/>>>>>,
+    pub(super) export_functions_map: GcCell<HashMap<NodeId, Id<Node /*Identifier*/>>>,
     pub(super) no_substitution_map: GcCell<HashMap<NodeId, HashMap<NodeId, bool>>>,
-    pub(super) context_object_map: GcCell<HashMap<NodeId, Gc<Node /*Identifier*/>>>,
-    pub(super) current_source_file: GcCell<Option<Gc<Node /*SourceFile*/>>>,
+    pub(super) context_object_map: GcCell<HashMap<NodeId, Id<Node /*Identifier*/>>>,
+    pub(super) current_source_file: GcCell<Option<Id<Node /*SourceFile*/>>>,
     pub(super) module_info: GcCell<Option<Gc<ExternalModuleInfo>>>,
-    pub(super) export_function: GcCell<Option<Gc<Node /*Identifier*/>>>,
-    pub(super) context_object: GcCell<Option<Gc<Node /*Identifier*/>>>,
-    pub(super) hoisted_statements: GcCell<Option<Vec<Gc<Node /*Statement*/>>>>,
-    pub(super) enclosing_block_scoped_container: GcCell<Option<Gc<Node>>>,
+    pub(super) export_function: GcCell<Option<Id<Node /*Identifier*/>>>,
+    pub(super) context_object: GcCell<Option<Id<Node /*Identifier*/>>>,
+    pub(super) hoisted_statements: GcCell<Option<Vec<Id<Node /*Statement*/>>>>,
+    pub(super) enclosing_block_scoped_container: GcCell<Option<Id<Node>>>,
     pub(super) no_substitution: GcCell<Option<HashMap<NodeId, bool>>>,
 }
 
@@ -109,25 +110,25 @@ impl TransformSystemModule {
 
     pub(super) fn deferred_exports(
         &self,
-    ) -> GcCellRef<HashMap<NodeId, Option<Vec<Gc<Node /*Statement*/>>>>> {
+    ) -> GcCellRef<HashMap<NodeId, Option<Vec<Id<Node /*Statement*/>>>>> {
         self.deferred_exports.borrow()
     }
 
     pub(super) fn deferred_exports_mut(
         &self,
-    ) -> GcCellRefMut<HashMap<NodeId, Option<Vec<Gc<Node /*Statement*/>>>>> {
+    ) -> GcCellRefMut<HashMap<NodeId, Option<Vec<Id<Node /*Statement*/>>>>> {
         self.deferred_exports.borrow_mut()
     }
 
     pub(super) fn export_functions_map(
         &self,
-    ) -> GcCellRef<HashMap<NodeId, Gc<Node /*Identifier*/>>> {
+    ) -> GcCellRef<HashMap<NodeId, Id<Node /*Identifier*/>>> {
         self.export_functions_map.borrow()
     }
 
     pub(super) fn export_functions_map_mut(
         &self,
-    ) -> GcCellRefMut<HashMap<NodeId, Gc<Node /*Identifier*/>>> {
+    ) -> GcCellRefMut<HashMap<NodeId, Id<Node /*Identifier*/>>> {
         self.export_functions_map.borrow_mut()
     }
 
@@ -141,23 +142,23 @@ impl TransformSystemModule {
         self.no_substitution_map.borrow_mut()
     }
 
-    pub(super) fn context_object_map(&self) -> GcCellRef<HashMap<NodeId, Gc<Node /*Identifier*/>>> {
+    pub(super) fn context_object_map(&self) -> GcCellRef<HashMap<NodeId, Id<Node /*Identifier*/>>> {
         self.context_object_map.borrow()
     }
 
     pub(super) fn context_object_map_mut(
         &self,
-    ) -> GcCellRefMut<HashMap<NodeId, Gc<Node /*Identifier*/>>> {
+    ) -> GcCellRefMut<HashMap<NodeId, Id<Node /*Identifier*/>>> {
         self.context_object_map.borrow_mut()
     }
 
-    pub(super) fn current_source_file(&self) -> Gc<Node /*SourceFile*/> {
+    pub(super) fn current_source_file(&self) -> Id<Node /*SourceFile*/> {
         self.current_source_file.borrow().clone().unwrap()
     }
 
     pub(super) fn set_current_source_file(
         &self,
-        current_source_file: Option<Gc<Node /*SourceFile*/>>,
+        current_source_file: Option<Id<Node /*SourceFile*/>>,
     ) {
         *self.current_source_file.borrow_mut() = current_source_file;
     }
@@ -174,54 +175,54 @@ impl TransformSystemModule {
         *self.module_info.borrow_mut() = module_info;
     }
 
-    pub(super) fn maybe_export_function(&self) -> Option<Gc<Node /*Identifier*/>> {
+    pub(super) fn maybe_export_function(&self) -> Option<Id<Node /*Identifier*/>> {
         self.export_function.borrow().clone()
     }
 
-    pub(super) fn export_function(&self) -> Gc<Node /*Identifier*/> {
+    pub(super) fn export_function(&self) -> Id<Node /*Identifier*/> {
         self.export_function.borrow().clone().unwrap()
     }
 
-    pub(super) fn set_export_function(&self, export_function: Option<Gc<Node /*Identifier*/>>) {
+    pub(super) fn set_export_function(&self, export_function: Option<Id<Node /*Identifier*/>>) {
         *self.export_function.borrow_mut() = export_function;
     }
 
-    pub(super) fn maybe_context_object(&self) -> Option<Gc<Node /*Identifier*/>> {
+    pub(super) fn maybe_context_object(&self) -> Option<Id<Node /*Identifier*/>> {
         self.context_object.borrow().clone()
     }
 
-    pub(super) fn context_object(&self) -> Gc<Node /*Identifier*/> {
+    pub(super) fn context_object(&self) -> Id<Node /*Identifier*/> {
         self.context_object.borrow().clone().unwrap()
     }
 
-    pub(super) fn set_context_object(&self, context_object: Option<Gc<Node /*Identifier*/>>) {
+    pub(super) fn set_context_object(&self, context_object: Option<Id<Node /*Identifier*/>>) {
         *self.context_object.borrow_mut() = context_object;
     }
 
     pub(super) fn maybe_hoisted_statements(
         &self,
-    ) -> GcCellRef<Option<Vec<Gc<Node /*Statement*/>>>> {
+    ) -> GcCellRef<Option<Vec<Id<Node /*Statement*/>>>> {
         self.hoisted_statements.borrow()
     }
 
     pub(super) fn maybe_hoisted_statements_mut(
         &self,
-    ) -> GcCellRefMut<Option<Vec<Gc<Node /*Statement*/>>>> {
+    ) -> GcCellRefMut<Option<Vec<Id<Node /*Statement*/>>>> {
         self.hoisted_statements.borrow_mut()
     }
 
     pub(super) fn set_hoisted_statements(
         &self,
-        hoisted_statements: Option<Vec<Gc<Node /*Statement*/>>>,
+        hoisted_statements: Option<Vec<Id<Node /*Statement*/>>>,
     ) {
         *self.hoisted_statements.borrow_mut() = hoisted_statements;
     }
 
-    pub(super) fn maybe_enclosing_block_scoped_container(&self) -> Option<Gc<Node>> {
+    pub(super) fn maybe_enclosing_block_scoped_container(&self) -> Option<Id<Node>> {
         self.enclosing_block_scoped_container.borrow().clone()
     }
 
-    pub(super) fn enclosing_block_scoped_container(&self) -> Gc<Node> {
+    pub(super) fn enclosing_block_scoped_container(&self) -> Id<Node> {
         self.enclosing_block_scoped_container
             .borrow()
             .clone()
@@ -230,7 +231,7 @@ impl TransformSystemModule {
 
     pub(super) fn set_enclosing_block_scoped_container(
         &self,
-        enclosing_block_scoped_container: Option<Gc<Node>>,
+        enclosing_block_scoped_container: Option<Id<Node>>,
     ) {
         *self.enclosing_block_scoped_container.borrow_mut() = enclosing_block_scoped_container;
     }
@@ -250,7 +251,7 @@ impl TransformSystemModule {
     pub(super) fn transform_source_file(
         &self,
         node: &Node, /*SourceFile*/
-    ) -> io::Result<Gc<Node>> {
+    ) -> io::Result<Id<Node>> {
         let node_as_source_file = node.as_source_file();
         if node_as_source_file.is_declaration_file()
             || !(is_effective_external_module(node, &self.compiler_options)
@@ -287,7 +288,7 @@ impl TransformSystemModule {
         let module_body_function = self.factory.create_function_expression(
             Option::<Gc<NodeArray>>::None,
             None,
-            Option::<Gc<Node>>::None,
+            Option::<Id<Node>>::None,
             Option::<Gc<NodeArray>>::None,
             Some(vec![
                 self.factory.create_parameter_declaration(
@@ -384,7 +385,7 @@ impl TransformSystemModule {
 
     pub(super) fn collect_dependency_groups(
         &self,
-        external_imports: &[Gc<
+        external_imports: &[Id<
             Node, /*ImportDeclaration | ImportEqualsDeclaration | ExportDeclaration*/
         >],
     ) -> io::Result<Vec<DependencyGroup>> {
@@ -423,9 +424,9 @@ impl TransformSystemModule {
         &self,
         node: &Node, /*SourceFile*/
         dependency_groups: &[DependencyGroup],
-    ) -> io::Result<Gc<Node>> {
+    ) -> io::Result<Id<Node>> {
         let node_as_source_file = node.as_source_file();
-        let mut statements: Vec<Gc<Node /*Statement*/>> = _d();
+        let mut statements: Vec<Id<Node /*Statement*/>> = _d();
 
         self.context.start_lexical_environment();
 
@@ -464,7 +465,7 @@ impl TransformSystemModule {
                 .as_deref(),
             Some(|node: &Node| self.top_level_visitor(node)),
             Some(is_statement),
-            Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+            Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
         )?;
 
         let execute_statements = try_visit_nodes(
@@ -506,7 +507,7 @@ impl TransformSystemModule {
                     self.factory.create_function_expression(
                         modifiers,
                         None,
-                        Option::<Gc<Node>>::None,
+                        Option::<Id<Node>>::None,
                         Option::<Gc<NodeArray>>::None,
                         Some(vec![]),
                         None,
@@ -523,8 +524,8 @@ impl TransformSystemModule {
 
     pub(super) fn add_export_star_if_needed(
         &self,
-        statements: &mut Vec<Gc<Node /*Statement*/>>,
-    ) -> Option<Gc<Node>> {
+        statements: &mut Vec<Id<Node /*Statement*/>>,
+    ) -> Option<Id<Node>> {
         if !self.module_info().has_export_stars_to_export_values {
             return None;
         }
@@ -552,7 +553,7 @@ impl TransformSystemModule {
             }
         }
 
-        let mut exported_names: Vec<Gc<Node /*ObjectLiteralElementLike*/>> = _d();
+        let mut exported_names: Vec<Id<Node /*ObjectLiteralElementLike*/>> = _d();
         if let Some(module_info_exported_names) = self.module_info().exported_names.as_ref() {
             for exported_local_name in module_info_exported_names {
                 if exported_local_name.as_identifier().escaped_text == "default" {
@@ -596,8 +597,8 @@ impl TransformSystemModule {
 
     pub(super) fn create_export_star_function(
         &self,
-        local_names: Option<Gc<Node /*Identifier*/>>,
-    ) -> Gc<Node> {
+        local_names: Option<Id<Node /*Identifier*/>>,
+    ) -> Id<Node> {
         let export_star_function = self.factory.create_unique_name("exportStar", None);
         let m = self.factory.create_identifier("m");
         let n = self.factory.create_identifier("n");
@@ -702,12 +703,12 @@ impl TransformSystemModule {
 
     pub(super) fn create_setters_array(
         &self,
-        export_star_function: Gc<Node /*Identifier*/>,
+        export_star_function: Id<Node /*Identifier*/>,
         dependency_groups: &[DependencyGroup],
-    ) -> Gc<Node> {
-        let mut setters: Vec<Gc<Node /*Expression*/>> = _d();
+    ) -> Id<Node> {
+        let mut setters: Vec<Id<Node /*Expression*/>> = _d();
         for group in dependency_groups {
-            let local_name = for_each(&group.external_imports, |i: &Gc<Node>, _| {
+            let local_name = for_each(&group.external_imports, |i: &Id<Node>, _| {
                 get_local_name_for_external_import(&self.factory, i, &self.current_source_file())
             });
             let parameter_name = local_name.map_or_else(
@@ -717,7 +718,7 @@ impl TransformSystemModule {
                         .get_generated_name_for_node(Some(local_name), None)
                 },
             );
-            let mut statements: Vec<Gc<Node /*Statement*/>> = _d();
+            let mut statements: Vec<Id<Node /*Statement*/>> = _d();
             for entry in &group.external_imports {
                 let import_variable_name = get_local_name_for_external_import(
                     &self.factory,
@@ -749,7 +750,7 @@ impl TransformSystemModule {
                             entry.as_export_declaration().export_clause.as_ref()
                         {
                             if is_named_exports(entry_export_clause) {
-                                let mut properties: Vec<Gc<Node /*PropertyAssignment*/>> = _d();
+                                let mut properties: Vec<Id<Node /*PropertyAssignment*/>> = _d();
                                 for e in &entry_export_clause.as_named_exports().elements {
                                     let e_as_export_specifier = e.as_export_specifier();
                                     properties.push(
@@ -825,7 +826,7 @@ impl TransformSystemModule {
             setters.push(self.factory.create_function_expression(
                 Option::<Gc<NodeArray>>::None,
                 None,
-                Option::<Gc<Node>>::None,
+                Option::<Id<Node>>::None,
                 Option::<Gc<NodeArray>>::None,
                 Some(vec![self.factory.create_parameter_declaration(
                     Option::<Gc<NodeArray>>::None,
@@ -847,7 +848,7 @@ impl TransformSystemModule {
 }
 
 impl TransformerInterface for TransformSystemModule {
-    fn call(&self, node: &Node) -> io::Result<Gc<Node>> {
+    fn call(&self, node: &Node) -> io::Result<Id<Node>> {
         self.transform_source_file(node)
     }
 }
@@ -950,7 +951,7 @@ impl TransformSystemModuleOnSubstituteNodeOverrider {
         }
     }
 
-    fn substitute_unspecified(&self, node: &Node) -> io::Result<Gc<Node>> {
+    fn substitute_unspecified(&self, node: &Node) -> io::Result<Id<Node>> {
         Ok(match node.kind() {
             SyntaxKind::ShorthandPropertyAssignment => {
                 self.substitute_shorthand_property_assignment(node)?
@@ -962,7 +963,7 @@ impl TransformSystemModuleOnSubstituteNodeOverrider {
     fn substitute_shorthand_property_assignment(
         &self,
         node: &Node, /*ShorthandPropertyAssignment*/
-    ) -> io::Result<Gc<Node>> {
+    ) -> io::Result<Id<Node>> {
         let node_as_shorthand_property_assignment = node.as_shorthand_property_assignment();
         let name = &node_as_shorthand_property_assignment.name();
         if !is_generated_identifier(name) && !is_local_name(name) {
@@ -1037,7 +1038,7 @@ impl TransformSystemModuleOnSubstituteNodeOverrider {
         Ok(node.node_wrapper())
     }
 
-    fn substitute_expression(&self, node: &Node /*Expression*/) -> io::Result<Gc<Node>> {
+    fn substitute_expression(&self, node: &Node /*Expression*/) -> io::Result<Id<Node>> {
         Ok(match node.kind() {
             SyntaxKind::Identifier => self.substitute_expression_identifier(node)?,
             SyntaxKind::BinaryExpression => self.substitute_binary_expression(node)?,
@@ -1049,7 +1050,7 @@ impl TransformSystemModuleOnSubstituteNodeOverrider {
     fn substitute_expression_identifier(
         &self,
         node: &Node, /*Identifier*/
-    ) -> io::Result<Gc<Node /*Expression*/>> {
+    ) -> io::Result<Id<Node /*Expression*/>> {
         if get_emit_flags(node).intersects(EmitFlags::HelperName) {
             let external_helpers_module_name = get_external_helpers_module_name(
                 &self.transform_system_module.current_source_file(),
@@ -1130,7 +1131,7 @@ impl TransformSystemModuleOnSubstituteNodeOverrider {
     fn substitute_binary_expression(
         &self,
         node: &Node, /*BinaryExpression*/
-    ) -> io::Result<Gc<Node /*Expression*/>> {
+    ) -> io::Result<Id<Node /*Expression*/>> {
         let node_as_binary_expression = node.as_binary_expression();
         let node_left = &node_as_binary_expression.left;
         if is_assignment_operator(node_as_binary_expression.operator_token.kind())
@@ -1158,7 +1159,7 @@ impl TransformSystemModuleOnSubstituteNodeOverrider {
         Ok(node.node_wrapper())
     }
 
-    fn substitute_meta_property(&self, node: &Node /*MetaProperty*/) -> Gc<Node> {
+    fn substitute_meta_property(&self, node: &Node /*MetaProperty*/) -> Id<Node> {
         if is_import_meta(node) {
             return self
                 .transform_system_module
@@ -1187,7 +1188,7 @@ impl TransformSystemModuleOnSubstituteNodeOverrider {
 impl TransformationContextOnSubstituteNodeOverrider
     for TransformSystemModuleOnSubstituteNodeOverrider
 {
-    fn on_substitute_node(&self, hint: EmitHint, node: &Node) -> io::Result<Gc<Node>> {
+    fn on_substitute_node(&self, hint: EmitHint, node: &Node) -> io::Result<Id<Node>> {
         let node = self
             .previous_on_substitute_node
             .on_substitute_node(hint, node)?;

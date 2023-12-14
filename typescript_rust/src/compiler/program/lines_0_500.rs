@@ -4,6 +4,7 @@ use std::{
 };
 
 use gc::{Finalize, Gc, GcCell, Trace};
+use id_arena::Id;
 use regex::Regex;
 
 use crate::{
@@ -427,7 +428,7 @@ impl CompilerHost for CompilerHostConcrete {
         language_version: ScriptTarget,
         on_error: Option<&mut dyn FnMut(&str)>,
         _should_create_new_source_file: Option<bool>,
-    ) -> io::Result<Option<Gc<Node /*SourceFile*/>>> {
+    ) -> io::Result<Option<Id<Node /*SourceFile*/>>> {
         let text: Option<String>;
         // performance.mark("beforeIORead");
         match self.read_file(file_name) {
@@ -502,7 +503,7 @@ impl CompilerHost for CompilerHostConcrete {
         data: &str,
         write_byte_order_mark: bool,
         on_error: Option<&mut dyn FnMut(&str)>,
-        _source_files: Option<&[Gc<Node /*SourceFile*/>]>,
+        _source_files: Option<&[Id<Node /*SourceFile*/>]>,
     ) -> io::Result<()> {
         if let Some(write_file_override) = self.maybe_write_file_override() {
             write_file_override.write_file(
@@ -529,7 +530,7 @@ impl CompilerHost for CompilerHostConcrete {
         data: &str,
         write_byte_order_mark: bool,
         on_error: Option<&mut dyn FnMut(&str)>,
-        _source_files: Option<&[Gc<Node /*SourceFile*/>]>,
+        _source_files: Option<&[Id<Node /*SourceFile*/>]>,
     ) -> io::Result<()> {
         // performance.mark("beforeIOWrite");
         match write_file_ensuring_directories(
@@ -693,7 +694,7 @@ struct ChangeCompilerHostLikeToUseCacheOverrider {
     file_exists_cache: RefCell<HashMap<String, bool>>,
     #[unsafe_ignore_trace]
     directory_exists_cache: RefCell<HashMap<String, bool>>,
-    source_file_cache: GcCell<HashMap<String, Gc<Node /*SourceFile*/>>>,
+    source_file_cache: GcCell<HashMap<String, Id<Node /*SourceFile*/>>>,
     has_get_source_file_with_cache: bool,
 }
 
@@ -778,7 +779,7 @@ impl ModuleResolutionHostOverrider for ChangeCompilerHostLikeToUseCacheOverrider
         data: &str,
         write_byte_order_mark: bool,
         on_error: Option<&mut dyn FnMut(&str)>,
-        source_files: Option<&[Gc<Node /*SourceFile*/>]>,
+        source_files: Option<&[Id<Node /*SourceFile*/>]>,
     ) -> io::Result<()> {
         let key = self.to_path.call(file_name);
         self.file_exists_cache.borrow_mut().remove(&*key);
@@ -867,7 +868,7 @@ pub trait GetSourceFile: Trace + Finalize {
         script_target: ScriptTarget,
         something: Option<&mut dyn FnMut(&str)>,
         something_else: Option<bool>,
-    ) -> Option<Gc<Node>>;
+    ) -> Option<Id<Node>>;
 }
 
 pub fn get_pre_emit_diagnostics(

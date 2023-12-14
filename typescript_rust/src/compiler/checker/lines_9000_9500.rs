@@ -61,7 +61,7 @@ impl TypeChecker {
     pub(super) fn get_constructor_defined_this_assignment_types(
         &self,
         types: &[Id<Type>],
-        declarations: &[Gc<Node /*Declaration*/>],
+        declarations: &[Id<Node /*Declaration*/>],
     ) -> Option<Vec<Id<Type>>> {
         Debug_.assert(types.len() == declarations.len(), None);
         Some(types.iter().enumerate().filter(|(i, _)| {
@@ -134,7 +134,7 @@ impl TypeChecker {
             ObjectFlags::ObjectLiteral | ObjectFlags::ContainsObjectOrArrayLiteral;
         try_for_each(
             &pattern.as_object_binding_pattern().elements,
-            |e: &Gc<Node>, _| -> io::Result<_> {
+            |e: &Id<Node>, _| -> io::Result<_> {
                 let e_as_binding_element = e.as_binding_element();
                 let name = e_as_binding_element
                     .property_name
@@ -230,7 +230,7 @@ impl TypeChecker {
                 self.any_array_type()
             });
         }
-        let element_types = try_map(elements, |e: &Gc<Node>, _| -> io::Result<_> {
+        let element_types = try_map(elements, |e: &Id<Node>, _| -> io::Result<_> {
             Ok(if is_omitted_expression(e) {
                 self.any_type()
             } else {
@@ -243,7 +243,7 @@ impl TypeChecker {
         })?;
         let min_length: usize = (find_last_index_returns_isize(
             &**elements,
-            |e: &Gc<Node>, _| {
+            |e: &Id<Node>, _| {
                 !(matches!(rest_element.as_ref(), Some(rest_element) if Gc::ptr_eq(e, rest_element))
                     || is_omitted_expression(e)
                     || self.has_default_value(e))
@@ -252,7 +252,7 @@ impl TypeChecker {
         ) + 1)
             .try_into()
             .unwrap();
-        let element_flags = map(elements, |e: &Gc<Node>, i| {
+        let element_flags = map(elements, |e: &Id<Node>, i| {
             if matches!(rest_element.as_ref(), Some(rest_element) if Gc::ptr_eq(e, rest_element)) {
                 ElementFlags::Rest
             } else if i >= min_length {
@@ -651,7 +651,7 @@ impl TypeChecker {
     pub(super) fn get_annotated_accessor_type_node(
         &self,
         accessor: Option<impl Borrow<Node> /*AccessorDeclaration*/>,
-    ) -> Option<Gc<Node /*TypeNode*/>> {
+    ) -> Option<Id<Node /*TypeNode*/>> {
         let accessor = accessor?;
         let accessor = accessor.borrow();
         if accessor.kind() == SyntaxKind::GetAccessor {

@@ -1,6 +1,7 @@
 use std::io;
 
 use gc::{Finalize, Gc, Trace};
+use id_arena::Id;
 
 use crate::{
     chain_bundle, visit_each_child, Node, NodeInterface, TransformFlags, TransformationContext,
@@ -18,7 +19,7 @@ impl TransformESNext {
         Self { context }
     }
 
-    fn transform_source_file(&self, node: &Node /*SourceFile*/) -> Gc<Node> {
+    fn transform_source_file(&self, node: &Node /*SourceFile*/) -> Id<Node> {
         let node_as_source_file = node.as_source_file();
         if node_as_source_file.is_declaration_file() {
             return node.node_wrapper();
@@ -44,7 +45,7 @@ impl TransformESNext {
 }
 
 impl TransformerInterface for TransformESNext {
-    fn call(&self, node: &Node) -> io::Result<Gc<Node>> {
+    fn call(&self, node: &Node) -> io::Result<Id<Node>> {
         Ok(self.transform_source_file(node))
     }
 }

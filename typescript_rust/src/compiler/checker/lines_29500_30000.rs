@@ -82,7 +82,7 @@ impl TypeChecker {
     pub(super) fn get_this_argument_of_call(
         &self,
         node: &Node, /*CallLikeExpression*/
-    ) -> Option<Gc<Node /*LeftHandSideExpression*/>> {
+    ) -> Option<Id<Node /*LeftHandSideExpression*/>> {
         let expression = if node.kind() == SyntaxKind::CallExpression {
             Some(node.as_call_expression().expression.clone())
         } else if node.kind() == SyntaxKind::TaggedTemplateExpression {
@@ -107,7 +107,7 @@ impl TypeChecker {
         tuple_name_source: Option<
             TTupleNameSource, /*ParameterDeclaration | NamedTupleMember*/
         >,
-    ) -> Gc<Node> {
+    ) -> Id<Node> {
         let result = parse_node_factory.with(|parse_node_factory_| {
             parse_node_factory_.create_synthetic_expression(
                 type_,
@@ -124,10 +124,10 @@ impl TypeChecker {
     pub(super) fn get_effective_call_arguments(
         &self,
         node: &Node, /*CallLikeExpression*/
-    ) -> io::Result<Vec<Gc<Node /*Expression*/>>> {
+    ) -> io::Result<Vec<Id<Node /*Expression*/>>> {
         if node.kind() == SyntaxKind::TaggedTemplateExpression {
             let template = &node.as_tagged_template_expression().template;
-            let mut args: Vec<Gc<Node /*Expression*/>> = vec![self.create_synthetic_expression(
+            let mut args: Vec<Id<Node /*Expression*/>> = vec![self.create_synthetic_expression(
                 template,
                 self.get_global_template_strings_array_type()?,
                 None,
@@ -136,7 +136,7 @@ impl TypeChecker {
             if template.kind() == SyntaxKind::TemplateExpression {
                 for_each(
                     &template.as_template_expression().template_spans,
-                    |span: &Gc<Node>, _| -> Option<()> {
+                    |span: &Id<Node>, _| -> Option<()> {
                         args.push(span.as_template_span().expression.clone());
                         None
                     },
@@ -226,7 +226,7 @@ impl TypeChecker {
     pub(super) fn get_effective_decorator_arguments(
         &self,
         node: &Node, /*Decorator*/
-    ) -> io::Result<Vec<Gc<Node /*Expression*/>>> {
+    ) -> io::Result<Vec<Id<Node /*Expression*/>>> {
         let parent = node.parent();
         let expr = &node.as_decorator().expression;
         Ok(match parent.kind() {
@@ -401,7 +401,7 @@ impl TypeChecker {
                 .escaped_text,
             SymbolFlags::Value,
             None,
-            Option::<Gc<Node>>::None,
+            Option::<Id<Node>>::None,
             false,
             None,
         )?;
@@ -435,7 +435,7 @@ impl TypeChecker {
         &self,
         node: &Node, /*CallLikeExpression*/
         signatures: &[Gc<Signature>],
-        args: &[Gc<Node /*Expression*/>],
+        args: &[Id<Node /*Expression*/>],
     ) -> io::Result<Gc<Diagnostic>> {
         let spread_index = self.get_spread_argument_index(args);
         if let Some(spread_index) = spread_index {
@@ -704,7 +704,7 @@ impl TypeChecker {
             {
                 try_maybe_for_each(
                     type_arguments.as_ref(),
-                    |type_argument: &Gc<Node>, _| -> io::Result<Option<()>> {
+                    |type_argument: &Id<Node>, _| -> io::Result<Option<()>> {
                         self.check_source_element(Some(&**type_argument))?;
                         Ok(None)
                     },
@@ -735,7 +735,7 @@ impl TypeChecker {
             && !is_single_non_generic_candidate
             && try_some(
                 Some(&*args),
-                Some(|arg: &Gc<Node>| self.is_context_sensitive(arg)),
+                Some(|arg: &Id<Node>| self.is_context_sensitive(arg)),
             )? {
             CheckMode::SkipContextSensitive
         } else {
@@ -1029,7 +1029,7 @@ impl TypeChecker {
         candidate_for_type_argument_error: &mut Option<Gc<Signature>>,
         type_arguments: Option<&NodeArray>,
         node: &Node,
-        args: &[Gc<Node>],
+        args: &[Id<Node>],
         arg_check_mode: &mut CheckMode,
         failed: &Signature,
         diagnostic: &Diagnostic,
@@ -1051,7 +1051,7 @@ impl TypeChecker {
             .unwrap_or_else(|| vec![]);
         let is_overload = failed_signature_declarations.len() > 1;
         let impl_decl = if is_overload {
-            find(&failed_signature_declarations, |d: &Gc<Node>, _| {
+            find(&failed_signature_declarations, |d: &Id<Node>, _| {
                 is_function_like_declaration(d)
                     && node_is_present(d.as_function_like_declaration().maybe_body())
             })
@@ -1107,7 +1107,7 @@ impl TypeChecker {
         candidate_for_type_argument_error: &mut Option<Gc<Signature>>,
         type_arguments: Option<&NodeArray>,
         node: &Node,
-        args: &[Gc<Node>],
+        args: &[Id<Node>],
         arg_check_mode: &mut CheckMode,
         candidates: &mut Vec<Gc<Signature>>,
         relation: Rc<RefCell<HashMap<String, RelationComparisonResult>>>,
@@ -1123,7 +1123,7 @@ impl TypeChecker {
             let candidate = &candidates[0];
             if some(
                 type_arguments.map(|type_arguments| &**type_arguments),
-                Option::<fn(&Gc<Node>) -> bool>::None,
+                Option::<fn(&Id<Node>) -> bool>::None,
             ) || !self.has_correct_arity(
                 node,
                 args,
@@ -1170,7 +1170,7 @@ impl TypeChecker {
                 let type_argument_types: Option<Vec<Id<Type>>>;
                 if some(
                     type_arguments.map(|type_arguments| &**type_arguments),
-                    Option::<fn(&Gc<Node>) -> bool>::None,
+                    Option::<fn(&Id<Node>) -> bool>::None,
                 ) {
                     type_argument_types =
                         self.check_type_arguments(candidate, type_arguments.unwrap(), false, None)?;
@@ -1317,7 +1317,7 @@ impl TypeChecker {
 pub(super) struct GetDiagnosticSpanForCallNodeReturn {
     pub start: isize,
     pub length: isize,
-    pub source_file: Gc<Node /*SourceFile*/>,
+    pub source_file: Id<Node /*SourceFile*/>,
 }
 
 #[derive(Trace, Finalize)]

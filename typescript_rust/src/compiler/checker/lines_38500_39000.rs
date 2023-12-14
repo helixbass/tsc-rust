@@ -56,7 +56,7 @@ impl TypeChecker {
             if is_constructor_declaration(member) {
                 try_for_each(
                     &member.as_constructor_declaration().parameters(),
-                    |param: &Gc<Node>, _| -> io::Result<Option<()>> {
+                    |param: &Id<Node>, _| -> io::Result<Option<()>> {
                         if is_parameter_property_declaration(param, member) {
                             self.check_existing_member_for_override_modifier(
                                 node,
@@ -183,7 +183,7 @@ impl TypeChecker {
             ) {
                 let base_has_abstract = some(
                     Some(base_prop_declarations),
-                    Some(|declaration: &Gc<Node>| has_abstract_modifier(declaration)),
+                    Some(|declaration: &Id<Node>| has_abstract_modifier(declaration)),
                 );
                 if member_has_override_modifier {
                     return Ok(MemberOverrideStatus::Ok);
@@ -421,10 +421,10 @@ impl TypeChecker {
     pub(super) fn get_class_or_interface_declarations_of_symbol(
         &self,
         symbol: Id<Symbol>,
-    ) -> Option<Vec<Gc<Node>>> {
+    ) -> Option<Vec<Id<Node>>> {
         maybe_filter(
             symbol.ref_(self).maybe_declarations().as_deref(),
-            |d: &Gc<Node>| {
+            |d: &Id<Node>| {
                 matches!(
                     d.kind(),
                     SyntaxKind::ClassDeclaration | SyntaxKind::InterfaceDeclaration

@@ -31,7 +31,7 @@ impl NodeBuilder {
         &self,
         context: &NodeBuilderContext,
         type_: Id<Type>, /*ConditionalType*/
-    ) -> io::Result<Gc<Node>> {
+    ) -> io::Result<Id<Node>> {
         let check_type_node = self
             .type_to_type_node_helper(
                 Some(type_.ref_(self).as_conditional_type().check_type),
@@ -74,7 +74,7 @@ impl NodeBuilder {
         &self,
         context: &NodeBuilderContext,
         type_: Id<Type>,
-    ) -> io::Result<Gc<Node>> {
+    ) -> io::Result<Id<Node>> {
         if type_.ref_(self).flags().intersects(TypeFlags::Union) {
             if matches!(context.visited_types.borrow().as_ref(), Some(visited_types) if visited_types.contains(&self.type_checker.get_type_id(type_)))
             {
@@ -102,20 +102,20 @@ impl NodeBuilder {
         &self,
         context: &NodeBuilderContext,
         type_: Id<Type>, /*MappedType*/
-    ) -> io::Result<Gc<Node>> {
+    ) -> io::Result<Id<Node>> {
         Debug_.assert(type_.ref_(self).flags().intersects(TypeFlags::Object), None);
         let type_ref = type_.ref_(self);
         let type_declaration_as_mapped_type_node =
             type_ref.as_mapped_type().declaration.as_mapped_type_node();
-        let readonly_token: Option<Gc<Node>> = type_declaration_as_mapped_type_node
+        let readonly_token: Option<Id<Node>> = type_declaration_as_mapped_type_node
             .readonly_token
             .as_ref()
             .map(|readonly_token| get_factory().create_token(readonly_token.kind()));
-        let question_token: Option<Gc<Node>> = type_declaration_as_mapped_type_node
+        let question_token: Option<Id<Node>> = type_declaration_as_mapped_type_node
             .question_token
             .as_ref()
             .map(|question_token| get_factory().create_token(question_token.kind()));
-        let appropriate_constraint_type_node: Gc<Node /*TypeNode*/>;
+        let appropriate_constraint_type_node: Id<Node /*TypeNode*/>;
         if self
             .type_checker
             .is_mapped_type_with_keyof_constraint_declaration(type_)
@@ -142,13 +142,13 @@ impl NodeBuilder {
                 )?
                 .unwrap();
         }
-        let type_parameter_node: Gc<Node> = self.type_parameter_to_declaration_with_constraint(
+        let type_parameter_node: Id<Node> = self.type_parameter_to_declaration_with_constraint(
             self.type_checker
                 .get_type_parameter_from_mapped_type(type_)?,
             context,
             Some(appropriate_constraint_type_node),
         )?;
-        let name_type_node: Option<Gc<Node>> =
+        let name_type_node: Option<Id<Node>> =
             if type_declaration_as_mapped_type_node.name_type.is_some() {
                 self.type_to_type_node_helper(
                     self.type_checker.get_name_type_from_mapped_type(type_)?,
@@ -157,7 +157,7 @@ impl NodeBuilder {
             } else {
                 None
             };
-        let template_type_node: Option<Gc<Node>> = self.type_to_type_node_helper(
+        let template_type_node: Option<Id<Node>> = self.type_to_type_node_helper(
             Some(
                 self.type_checker.remove_missing_type(
                     self.type_checker
@@ -186,7 +186,7 @@ impl NodeBuilder {
         &self,
         context: &NodeBuilderContext,
         type_: Id<Type>, /*ObjectType*/
-    ) -> io::Result<Gc<Node>> {
+    ) -> io::Result<Id<Node>> {
         let type_id = type_.ref_(self).id();
         let symbol = type_.ref_(self).maybe_symbol();
         Ok(if let Some(symbol) = symbol {
@@ -243,14 +243,14 @@ impl NodeBuilder {
         let is_static_method_symbol = symbol.ref_(self).flags().intersects(SymbolFlags::Method)
             && some(
                 symbol.ref_(self).maybe_declarations().as_deref(),
-                Some(|declaration: &Gc<Node>| is_static(declaration)),
+                Some(|declaration: &Id<Node>| is_static(declaration)),
             );
         let is_non_local_function_symbol =
             symbol.ref_(self).flags().intersects(SymbolFlags::Function)
                 && (symbol.ref_(self).maybe_parent().is_some()
                     || maybe_for_each_bool(
                         symbol.ref_(self).maybe_declarations().as_deref(),
-                        |declaration: &Gc<Node>, _| {
+                        |declaration: &Id<Node>, _| {
                             matches!(
                                 declaration.parent().kind(),
                                 SyntaxKind::SourceFile | SyntaxKind::ModuleBlock
@@ -278,8 +278,8 @@ impl NodeBuilder {
         &self,
         context: &NodeBuilderContext,
         type_: Id<Type>,
-        mut transform: impl FnMut(Id<Type>) -> Gc<Node>,
-    ) -> Gc<Node> {
+        mut transform: impl FnMut(Id<Type>) -> Id<Node>,
+    ) -> Id<Node> {
         self.try_visit_and_transform_type(context, type_, |type_: Id<Type>| Ok(transform(type_)))
             .unwrap()
     }
@@ -288,8 +288,8 @@ impl NodeBuilder {
         &self,
         context: &NodeBuilderContext,
         type_: Id<Type>,
-        mut transform: impl FnMut(Id<Type>) -> io::Result<Gc<Node>>,
-    ) -> io::Result<Gc<Node>> {
+        mut transform: impl FnMut(Id<Type>) -> io::Result<Id<Node>>,
+    ) -> io::Result<Id<Node>> {
         let type_id = type_.ref_(self).id();
         let is_constructor_object = get_object_flags(&type_.ref_(self))
             .intersects(ObjectFlags::Anonymous)
@@ -438,7 +438,7 @@ impl NodeBuilder {
         Ok(result)
     }
 
-    pub(super) fn deep_clone_or_reuse_node(&self, node: &Node) -> Gc<Node> {
+    pub(super) fn deep_clone_or_reuse_node(&self, node: &Node) -> Id<Node> {
         if !node_is_synthesized(node)
             && matches!(get_parse_tree_node(Some(node), Option::<fn(&Node) -> bool>::None), Some(parse_tree_node) if ptr::eq(&*parse_tree_node, node))
         {
@@ -459,7 +459,7 @@ impl NodeBuilder {
         &self,
         context: &NodeBuilderContext,
         type_: Id<Type>, /*ObjectType*/
-    ) -> io::Result<Gc<Node>> {
+    ) -> io::Result<Id<Node>> {
         if self.type_checker.is_generic_mapped_type(type_)?
             || matches!(
                 type_
@@ -633,7 +633,7 @@ impl NodeBuilder {
         &self,
         context: &NodeBuilderContext,
         type_: Id<Type>, /*TypeReference*/
-    ) -> io::Result<Option<Gc<Node>>> {
+    ) -> io::Result<Option<Id<Node>>> {
         let type_arguments = self.type_checker.get_type_arguments(type_)?;
         let type_target = type_.ref_(self).as_type_reference_interface().target();
         Ok(
@@ -795,7 +795,7 @@ impl NodeBuilder {
                     .as_interface_type()
                     .maybe_outer_type_parameters();
                 let mut i = 0;
-                let mut result_type: Option<Gc<Node /*TypeReferenceNode | ImportTypeNode*/>> = None;
+                let mut result_type: Option<Id<Node /*TypeReferenceNode | ImportTypeNode*/>> = None;
                 if let Some(outer_type_parameters) = outer_type_parameters {
                     let length = outer_type_parameters.len();
                     while i < length {
@@ -839,7 +839,7 @@ impl NodeBuilder {
                         }
                     }
                 }
-                let mut type_argument_nodes: Option<Vec<Gc<Node /*TypeNode*/>>> = None;
+                let mut type_argument_nodes: Option<Vec<Id<Node /*TypeNode*/>>> = None;
                 if !type_arguments.is_empty() {
                     let type_parameter_count = type_target
                         .ref_(self)
@@ -875,12 +875,12 @@ impl NodeBuilder {
         &self,
         root: &Node, /*TypeReferenceNode | ImportTypeNode*/
         ref_: &Node, /*TypeReferenceNode*/
-    ) -> Gc<Node /*TypeReferenceNode | ImportTypeNode*/> {
+    ) -> Id<Node /*TypeReferenceNode | ImportTypeNode*/> {
         if is_import_type_node(root) {
             let root_as_import_type_node = root.as_import_type_node();
             let type_arguments = root_as_import_type_node.maybe_type_arguments();
             let type_arguments = type_arguments.as_ref();
-            let mut qualifier: Option<Gc<Node>> = root_as_import_type_node.qualifier.clone();
+            let mut qualifier: Option<Id<Node>> = root_as_import_type_node.qualifier.clone();
             if let Some(qualifier_present) = qualifier {
                 if is_identifier(&qualifier_present) {
                     qualifier = Some(factory.with(|factory_| {
@@ -924,7 +924,7 @@ impl NodeBuilder {
             let root_as_type_reference_node = root.as_type_reference_node();
             let type_arguments = root_as_type_reference_node.maybe_type_arguments();
             let type_arguments = type_arguments.as_ref();
-            let mut type_name: Gc<Node> = root_as_type_reference_node.type_name.clone();
+            let mut type_name: Id<Node> = root_as_type_reference_node.type_name.clone();
             if is_identifier(&type_name) {
                 type_name = factory.with(|factory_| {
                     factory_.update_identifier(&type_name, type_arguments.cloned())
@@ -956,8 +956,8 @@ impl NodeBuilder {
     pub(super) fn get_access_stack(
         &self,
         ref_: &Node, /*TypeReferenceNode*/
-    ) -> Vec<Gc<Node /*Identifier*/>> {
-        let mut state: &Gc<Node> = &ref_.as_type_reference_node().type_name;
+    ) -> Vec<Id<Node /*Identifier*/>> {
+        let mut state: &Id<Node> = &ref_.as_type_reference_node().type_name;
         let mut ids = vec![];
         while !is_identifier(&state) {
             let state_as_qualified_name = state.as_qualified_name();
@@ -972,13 +972,13 @@ impl NodeBuilder {
         &self,
         context: &NodeBuilderContext,
         resolved_type: Id<Type>, /*ResolvedType*/
-    ) -> io::Result<Option<Vec<Gc<Node /*TypeElement*/>>>> {
+    ) -> io::Result<Option<Vec<Id<Node /*TypeElement*/>>>> {
         if self.check_truncation_length(context) {
             return Ok(Some(vec![factory.with(|factory_| {
                 factory_.create_property_signature(Option::<Gc<NodeArray>>::None, "...", None, None)
             })]));
         }
-        let mut type_elements: Vec<Gc<Node>> = vec![];
+        let mut type_elements: Vec<Id<Node>> = vec![];
         for signature in &*resolved_type
             .ref_(self)
             .as_resolved_type()
@@ -1087,7 +1087,7 @@ impl NodeBuilder {
     pub(super) fn create_elided_information_placeholder(
         &self,
         context: &NodeBuilderContext,
-    ) -> Gc<Node> {
+    ) -> Id<Node> {
         context.increment_approximate_length_by(3);
         if !context.flags().intersects(NodeBuilderFlags::NoTruncation) {
             return factory.with(|factory_| {
@@ -1131,7 +1131,7 @@ impl NodeBuilder {
         &self,
         property_symbol: Id<Symbol>,
         context: &NodeBuilderContext,
-        type_elements: &mut Vec<Gc<Node /*TypeElement*/>>,
+        type_elements: &mut Vec<Id<Node /*TypeElement*/>>,
     ) -> io::Result<()> {
         let property_is_reverse_mapped =
             get_check_flags(&property_symbol.ref_(self)).intersects(CheckFlags::ReverseMapped);
@@ -1152,7 +1152,7 @@ impl NodeBuilder {
             if let Some(property_symbol_declarations) =
                 property_symbol.ref_(self).maybe_declarations().as_ref()
             {
-                let decl: &Gc<Node> = first(property_symbol_declarations);
+                let decl: &Id<Node> = first(property_symbol_declarations);
                 if self.type_checker.has_late_bindable_name(decl)? {
                     if is_binary_expression(decl) {
                         let name = get_name_of_declaration(Some(&**decl));
@@ -1213,7 +1213,7 @@ impl NodeBuilder {
         let property_name = self.get_property_name_node_for_symbol(property_symbol, context)?;
         context.set_enclosing_declaration(save_enclosing_declaration.clone());
         context.increment_approximate_length_by(symbol_name(&property_symbol.ref_(self)).len() + 1);
-        let optional_token: Option<Gc<Node>> = if property_symbol
+        let optional_token: Option<Id<Node>> = if property_symbol
             .ref_(self)
             .flags()
             .intersects(SymbolFlags::Optional)
@@ -1254,7 +1254,7 @@ impl NodeBuilder {
                 type_elements.push(self.preserve_comments_on(property_symbol, method_declaration));
             }
         } else {
-            let property_type_node: Gc<Node>;
+            let property_type_node: Id<Node>;
             if self.should_use_placeholder_for_property(property_symbol, context) {
                 property_type_node = self.create_elided_information_placeholder(context);
             } else {
@@ -1289,7 +1289,7 @@ impl NodeBuilder {
                 }
             }
 
-            let modifiers: Option<Vec<Gc<Node>>> =
+            let modifiers: Option<Vec<Id<Node>>> =
                 if self.type_checker.is_readonly_symbol(property_symbol)? {
                     Some(vec![factory.with(|factory_| {
                         factory_.create_token(SyntaxKind::ReadonlyKeyword)

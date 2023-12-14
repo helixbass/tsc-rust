@@ -1,4 +1,5 @@
 use gc::{Finalize, Gc, Trace};
+use id_arena::Id;
 use local_macros::generate_node_factory_method_wrapper;
 
 use super::{get_default_tag_name_for_kind, propagate_child_flags, propagate_children_flags};
@@ -37,7 +38,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         node: &Node,             /*AssertClause*/
         elements: Gc<NodeArray>, /*<AssertEntry>*/
         multi_line: Option<bool>,
-    ) -> Gc<Node> {
+    ) -> Id<Node> {
         let node_as_assert_clause = node.as_assert_clause();
         if !Gc::ptr_eq(&node_as_assert_clause.elements, &elements)
             || node_as_assert_clause.multi_line != multi_line
@@ -51,8 +52,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_assert_entry_raw(
         &self,
-        name: Gc<Node /*AssertionKey*/>,
-        value: Gc<Node /*StringLiteral*/>,
+        name: Id<Node /*AssertionKey*/>,
+        value: Id<Node /*StringLiteral*/>,
     ) -> AssertEntry {
         let node = self.create_base_node(SyntaxKind::AssertEntry);
         let node = AssertEntry::new(node, name, value);
@@ -63,9 +64,9 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     pub fn update_assert_entry(
         &self,
         node: &Node, /*AssertEntry*/
-        name: Gc<Node /*AssertionKey*/>,
-        value: Gc<Node /*StringLiteral*/>,
-    ) -> Gc<Node> {
+        name: Id<Node /*AssertionKey*/>,
+        value: Id<Node /*StringLiteral*/>,
+    ) -> Id<Node> {
         let node_as_assert_entry = node.as_assert_entry();
         if !Gc::ptr_eq(&node_as_assert_entry.name, &name)
             || !Gc::ptr_eq(&node_as_assert_entry.value, &value)
@@ -77,7 +78,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     }
 
     #[generate_node_factory_method_wrapper]
-    pub fn create_namespace_import_raw(&self, name: Gc<Node /*Identifier*/>) -> NamespaceImport {
+    pub fn create_namespace_import_raw(&self, name: Id<Node /*Identifier*/>) -> NamespaceImport {
         let node = self.create_base_node(SyntaxKind::NamespaceImport);
         let node = NamespaceImport::new(node, name);
         node.add_transform_flags(propagate_child_flags(Some(&*node.name)));
@@ -90,8 +91,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     pub fn update_namespace_import(
         &self,
         node: &Node, /*NamespaceImport*/
-        name: Gc<Node /*Identifier*/>,
-    ) -> Gc<Node> {
+        name: Id<Node /*Identifier*/>,
+    ) -> Id<Node> {
         let node_as_namespace_import = node.as_namespace_import();
         if !Gc::ptr_eq(&node_as_namespace_import.name, &name) {
             self.update(self.create_namespace_import(name), node)
@@ -101,7 +102,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     }
 
     #[generate_node_factory_method_wrapper]
-    pub fn create_namespace_export_raw(&self, name: Gc<Node /*Identifier*/>) -> NamespaceExport {
+    pub fn create_namespace_export_raw(&self, name: Id<Node /*Identifier*/>) -> NamespaceExport {
         let node = self.create_base_node(SyntaxKind::NamespaceExport);
         let node = NamespaceExport::new(node, name);
         node.add_transform_flags(
@@ -116,8 +117,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     pub fn update_namespace_export(
         &self,
         node: &Node, /*NamespaceExport*/
-        name: Gc<Node /*Identifier*/>,
-    ) -> Gc<Node> {
+        name: Id<Node /*Identifier*/>,
+    ) -> Id<Node> {
         let node_as_namespace_export = node.as_namespace_export();
         if !Gc::ptr_eq(&node_as_namespace_export.name, &name) {
             self.update(self.create_namespace_export(name), node)
@@ -141,7 +142,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         &self,
         node: &Node, /*NamedImports*/
         elements: impl Into<NodeArrayOrVec>,
-    ) -> Gc<Node> {
+    ) -> Id<Node> {
         let node_as_named_imports = node.as_named_imports();
         let elements = elements.into();
         if has_node_array_changed(&node_as_named_imports.elements, &elements) {
@@ -155,8 +156,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     pub fn create_import_specifier_raw(
         &self,
         is_type_only: bool,
-        property_name: Option<Gc<Node /*Identifier*/>>,
-        name: Gc<Node /*Identifier*/>,
+        property_name: Option<Id<Node /*Identifier*/>>,
+        name: Id<Node /*Identifier*/>,
     ) -> ImportSpecifier {
         let node = self.create_base_node(SyntaxKind::ImportSpecifier);
         let node = ImportSpecifier::new(node, is_type_only, property_name, name);
@@ -174,9 +175,9 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         &self,
         node: &Node, /*ImportSpecifier*/
         is_type_only: bool,
-        property_name: Option<Gc<Node /*Identifier*/>>,
-        name: Gc<Node /*Identifier*/>,
-    ) -> Gc<Node> {
+        property_name: Option<Id<Node /*Identifier*/>>,
+        name: Id<Node /*Identifier*/>,
+    ) -> Id<Node> {
         let node_as_import_specifier = node.as_import_specifier();
         if node_as_import_specifier.is_type_only != is_type_only
             || !are_option_gcs_equal(
@@ -200,7 +201,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         decorators: Option<impl Into<NodeArrayOrVec>>,
         modifiers: Option<impl Into<NodeArrayOrVec>>,
         is_export_equals: Option<bool>,
-        expression: Gc<Node /*Expression*/>,
+        expression: Id<Node /*Expression*/>,
     ) -> ExportAssignment {
         let node =
             self.create_base_declaration(SyntaxKind::ExportAssignment, decorators, modifiers);
@@ -227,8 +228,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         node: &Node, /*ExportAssignment*/
         decorators: Option<impl Into<NodeArrayOrVec>>,
         modifiers: Option<impl Into<NodeArrayOrVec>>,
-        expression: Gc<Node /*Expression*/>,
-    ) -> Gc<Node> {
+        expression: Id<Node /*Expression*/>,
+    ) -> Id<Node> {
         let node_as_export_assignment = node.as_export_assignment();
         let decorators = decorators.map(Into::into);
         let modifiers = modifiers.map(Into::into);
@@ -256,9 +257,9 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         decorators: Option<impl Into<NodeArrayOrVec>>,
         modifiers: Option<impl Into<NodeArrayOrVec>>,
         is_type_only: bool,
-        export_clause: Option<Gc<Node /*NamedExportBindings*/>>,
-        module_specifier: Option<Gc<Node /*Expression*/>>,
-        assert_clause: Option<Gc<Node /*AssertClause*/>>,
+        export_clause: Option<Id<Node /*NamedExportBindings*/>>,
+        module_specifier: Option<Id<Node /*Expression*/>>,
+        assert_clause: Option<Id<Node /*AssertClause*/>>,
     ) -> ExportDeclaration {
         let node =
             self.create_base_declaration(SyntaxKind::ExportDeclaration, decorators, modifiers);
@@ -285,10 +286,10 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         decorators: Option<impl Into<NodeArrayOrVec>>,
         modifiers: Option<impl Into<NodeArrayOrVec>>,
         is_type_only: bool,
-        export_clause: Option<Gc<Node /*NamedExportBindings*/>>,
-        module_specifier: Option<Gc<Node /*Expression*/>>,
-        assert_clause: Option<Gc<Node /*AssertClause*/>>,
-    ) -> Gc<Node> {
+        export_clause: Option<Id<Node /*NamedExportBindings*/>>,
+        module_specifier: Option<Id<Node /*Expression*/>>,
+        assert_clause: Option<Id<Node /*AssertClause*/>>,
+    ) -> Id<Node> {
         let node_as_export_declaration = node.as_export_declaration();
         let decorators = decorators.map(Into::into);
         let modifiers = modifiers.map(Into::into);
@@ -339,7 +340,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         &self,
         node: &Node, /*NamedExports*/
         elements: impl Into<NodeArrayOrVec>,
-    ) -> Gc<Node> {
+    ) -> Id<Node> {
         let node_as_named_exports = node.as_named_exports();
         let elements = elements.into();
         if has_node_array_changed(&node_as_named_exports.elements, &elements) {
@@ -381,10 +382,10 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         &self,
         node: &Node, /*ExportSpecifier*/
         is_type_only: bool,
-        property_name: Option<Gc<Node> /*Identifier*/>,
-        name: Gc<Node>,
+        property_name: Option<Id<Node> /*Identifier*/>,
+        name: Id<Node>,
         /*Identifier*/
-    ) -> Gc<Node> {
+    ) -> Id<Node> {
         let node_as_export_specifier = node.as_export_specifier();
         if node_as_export_specifier.is_type_only != is_type_only
             || !are_option_gcs_equal(
@@ -415,7 +416,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_external_module_reference_raw(
         &self,
-        expression: Gc<Node /*Expression*/>,
+        expression: Id<Node /*Expression*/>,
     ) -> ExternalModuleReference {
         let node = self.create_base_node(SyntaxKind::ExternalModuleReference);
         let node = ExternalModuleReference::new(node, expression);
@@ -429,8 +430,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     pub fn update_external_module_reference(
         &self,
         node: &Node, /*ExternalModuleReference*/
-        expression: Gc<Node /*Expression*/>,
-    ) -> Gc<Node> {
+        expression: Id<Node /*Expression*/>,
+    ) -> Id<Node> {
         let node_as_external_module_reference = node.as_external_module_reference();
         if !Gc::ptr_eq(&node_as_external_module_reference.expression, &expression) {
             self.update(self.create_external_module_reference(expression), node)
@@ -446,7 +447,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     pub(crate) fn create_jsdoc_unary_type_worker(
         &self,
         kind: SyntaxKind,
-        type_: Option<Gc<Node /*TypeNode*/>>,
+        type_: Option<Id<Node /*TypeNode*/>>,
     ) -> BaseJSDocUnaryType {
         let node = self.create_base_node(kind);
         let node = BaseJSDocUnaryType::new(node, type_);
@@ -457,13 +458,13 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     pub fn create_jsdoc_function_type_raw<TParameters: Into<NodeArrayOrVec>>(
         &self,
         parameters: TParameters,
-        type_: Option<Gc<Node /*TypeNode*/>>,
+        type_: Option<Id<Node /*TypeNode*/>>,
     ) -> JSDocFunctionType {
         let node = self.create_base_signature_declaration(
             SyntaxKind::JSDocFunctionType,
             Option::<Gc<NodeArray>>::None,
             Option::<Gc<NodeArray>>::None,
-            Option::<Gc<Node>>::None,
+            Option::<Id<Node>>::None,
             Option::<Gc<NodeArray>>::None,
             Some(parameters),
             type_,
@@ -485,7 +486,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_jsdoc_type_expression_raw(
         &self,
-        type_: Gc<Node /*TypeNode*/>,
+        type_: Id<Node /*TypeNode*/>,
     ) -> JSDocTypeExpression {
         let node = self.create_base_node(SyntaxKind::JSDocTypeExpression);
         JSDocTypeExpression::new(node, type_)
@@ -499,7 +500,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         &self,
         type_parameters: Option<TTypeParameters /*<JSDocTemplateTag>*/>,
         parameters: TParameters, /*<JSDocParameterTag>*/
-        type_: Option<Gc<Node /*JSDocReturnTag*/>>,
+        type_: Option<Id<Node /*JSDocReturnTag*/>>,
     ) -> JSDocSignature {
         let node = self.create_base_node(SyntaxKind::JSDocSignature);
         JSDocSignature::new(
@@ -511,7 +512,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     }
 
     #[allow(dead_code)]
-    fn get_default_tag_name(&self, node: &Node /*JSDocTag*/) -> Gc<Node /*Identifier*/> {
+    fn get_default_tag_name(&self, node: &Node /*JSDocTag*/) -> Id<Node /*Identifier*/> {
         let default_tag_name = get_default_tag_name_for_kind(node.kind());
         let node_as_jsdoc_tag = node.as_jsdoc_tag();
         if node_as_jsdoc_tag.tag_name().as_identifier().escaped_text
@@ -526,7 +527,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     pub(crate) fn create_base_jsdoc_tag<TComment: Into<StringOrNodeArray>>(
         &self,
         kind: SyntaxKind,
-        tag_name: Gc<Node /*Identifier*/>,
+        tag_name: Id<Node /*Identifier*/>,
         comment: Option<TComment>,
     ) -> BaseJSDocTag {
         let node = self.create_base_node(kind);
@@ -539,8 +540,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         TComment: Into<StringOrNodeArray>,
     >(
         &self,
-        tag_name: Option<Gc<Node /*Identifier*/>>,
-        constraint: Option<Gc<Node /*JSDocTypeExpression*/>>,
+        tag_name: Option<Id<Node /*Identifier*/>>,
+        constraint: Option<Id<Node /*JSDocTypeExpression*/>>,
         type_parameters: TTypeParameters, /*<TypeParameterDeclaration>*/
         comment: Option<TComment>,
     ) -> JSDocTemplateTag {
@@ -559,9 +560,9 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_jsdoc_typedef_tag_raw<TComment: Into<StringOrNodeArray>>(
         &self,
-        tag_name: Option<Gc<Node /*Identifier*/>>,
-        type_expression: Option<Gc<Node /*JSDocTypeExpression*/>>,
-        full_name: Option<Gc<Node /*Identifier | JSDocNamespaceDeclaration*/>>,
+        tag_name: Option<Id<Node /*Identifier*/>>,
+        type_expression: Option<Id<Node /*JSDocTypeExpression*/>>,
+        full_name: Option<Id<Node /*Identifier | JSDocNamespaceDeclaration*/>>,
         comment: Option<TComment>,
     ) -> JSDocTypedefTag {
         let node = self.create_base_jsdoc_tag(
@@ -580,10 +581,10 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_jsdoc_parameter_tag_raw<TComment: Into<StringOrNodeArray>>(
         &self,
-        tag_name: Option<Gc<Node /*Identifier*/>>,
-        name: Gc<Node /*EntityName*/>,
+        tag_name: Option<Id<Node /*Identifier*/>>,
+        name: Id<Node /*EntityName*/>,
         is_bracketed: bool,
-        type_expression: Option<Gc<Node /*JSDocTypeExpression*/>>,
+        type_expression: Option<Id<Node /*JSDocTypeExpression*/>>,
         is_name_first: Option<bool>,
         comment: Option<TComment>,
     ) -> JSDocPropertyLikeTag {
@@ -604,10 +605,10 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_jsdoc_property_tag_raw(
         &self,
-        tag_name: Option<Gc<Node /*Identifier*/>>,
-        name: Gc<Node /*EntityName*/>,
+        tag_name: Option<Id<Node /*Identifier*/>>,
+        name: Id<Node /*EntityName*/>,
         is_bracketed: bool,
-        type_expression: Option<Gc<Node /*JSDocTypeExpression*/>>,
+        type_expression: Option<Id<Node /*JSDocTypeExpression*/>>,
         is_name_first: Option<bool>,
         comment: Option<impl Into<StringOrNodeArray>>,
     ) -> JSDocPropertyLikeTag {
@@ -628,9 +629,9 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_jsdoc_callback_tag_raw(
         &self,
-        tag_name: Option<Gc<Node /*Identifier*/>>,
-        type_expression: Gc<Node /*JSDocSignature*/>,
-        full_name: Option<Gc<Node /*Identifier | JSDocNamespaceDeclaration*/>>,
+        tag_name: Option<Id<Node /*Identifier*/>>,
+        type_expression: Id<Node /*JSDocSignature*/>,
+        full_name: Option<Id<Node /*Identifier | JSDocNamespaceDeclaration*/>>,
         comment: Option<impl Into<StringOrNodeArray>>,
     ) -> JSDocCallbackTag {
         let node = self.create_base_jsdoc_tag(
@@ -649,8 +650,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_jsdoc_augments_tag_raw<TComment: Into<StringOrNodeArray>>(
         &self,
-        tag_name: Option<Gc<Node /*Identifier*/>>,
-        class_name: Gc<Node /*JSDocAugmentsTag["class"]*/>,
+        tag_name: Option<Id<Node /*Identifier*/>>,
+        class_name: Id<Node /*JSDocAugmentsTag["class"]*/>,
         comment: Option<TComment>,
     ) -> JSDocAugmentsTag {
         let node = self.create_base_jsdoc_tag(
@@ -664,8 +665,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_jsdoc_implements_tag_raw<TComment: Into<StringOrNodeArray>>(
         &self,
-        tag_name: Option<Gc<Node /*Identifier*/>>,
-        class_name: Gc<Node /*JSDocImplementsTag["class"]*/>,
+        tag_name: Option<Id<Node /*Identifier*/>>,
+        class_name: Id<Node /*JSDocImplementsTag["class"]*/>,
         comment: Option<TComment>,
     ) -> JSDocImplementsTag {
         let node = self.create_base_jsdoc_tag(
@@ -679,8 +680,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_jsdoc_see_tag_raw<TComment: Into<StringOrNodeArray>>(
         &self,
-        tag_name: Option<Gc<Node /*Identifier*/>>,
-        name: Option<Gc<Node /*JSDocNameReference*/>>,
+        tag_name: Option<Id<Node /*Identifier*/>>,
+        name: Option<Id<Node /*JSDocNameReference*/>>,
         comment: Option<TComment>,
     ) -> JSDocSeeTag {
         let node = self.create_base_jsdoc_tag(
@@ -694,7 +695,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_jsdoc_name_reference_raw(
         &self,
-        name: Gc<Node /*EntityName | JSDocMemberName*/>,
+        name: Id<Node /*EntityName | JSDocMemberName*/>,
     ) -> JSDocNameReference {
         let node = self.create_base_node(SyntaxKind::JSDocNameReference);
         JSDocNameReference::new(node, name)
@@ -703,8 +704,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_jsdoc_member_name_raw(
         &self,
-        left: Gc<Node /*EntityName | JSDocMemberName*/>,
-        right: Gc<Node /*Identifier*/>,
+        left: Id<Node /*EntityName | JSDocMemberName*/>,
+        right: Id<Node /*Identifier*/>,
     ) -> JSDocMemberName {
         let node = self.create_base_node(SyntaxKind::JSDocMemberName);
         let node = JSDocMemberName::new(node, left, right);
@@ -717,7 +718,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_jsdoc_link_raw(
         &self,
-        name: Option<Gc<Node /*EntityName | JSDocMemberName*/>>,
+        name: Option<Id<Node /*EntityName | JSDocMemberName*/>>,
         text: String,
     ) -> JSDocLink {
         let node = self.create_base_node(SyntaxKind::JSDocLink);
@@ -727,7 +728,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_jsdoc_link_code_raw(
         &self,
-        name: Option<Gc<Node /*EntityName | JSDocMemberName*/>>,
+        name: Option<Id<Node /*EntityName | JSDocMemberName*/>>,
         text: String,
     ) -> JSDocLinkCode {
         let node = self.create_base_node(SyntaxKind::JSDocLinkCode);
@@ -737,7 +738,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_jsdoc_link_plain_raw(
         &self,
-        name: Option<Gc<Node /*EntityName | JSDocMemberName*/>>,
+        name: Option<Id<Node /*EntityName | JSDocMemberName*/>>,
         text: String,
     ) -> JSDocLinkPlain {
         let node = self.create_base_node(SyntaxKind::JSDocLinkPlain);
@@ -747,7 +748,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     pub(crate) fn create_jsdoc_simple_tag_worker<TComment: Into<StringOrNodeArray>>(
         &self,
         kind: SyntaxKind,
-        tag_name: Option<Gc<Node /*Identifier*/>>,
+        tag_name: Option<Id<Node /*Identifier*/>>,
         comment: Option<TComment>,
     ) -> BaseJSDocTag {
         self.create_base_jsdoc_tag(
@@ -760,8 +761,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     pub(crate) fn create_jsdoc_type_like_tag_worker<TComment: Into<StringOrNodeArray>>(
         &self,
         kind: SyntaxKind,
-        tag_name: Option<Gc<Node /*Identifier*/>>,
-        type_expression: Option<Gc<Node /*JSDocTypeExpression*/>>,
+        tag_name: Option<Id<Node /*Identifier*/>>,
+        type_expression: Option<Id<Node /*JSDocTypeExpression*/>>,
         comment: Option<TComment>,
     ) -> BaseJSDocTypeLikeTag {
         let node = self.create_base_jsdoc_tag(
@@ -775,7 +776,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_jsdoc_unknown_tag_raw<TComment: Into<StringOrNodeArray>>(
         &self,
-        tag_name: Gc<Node /*Identifier*/>,
+        tag_name: Id<Node /*Identifier*/>,
         comment: Option<TComment>,
     ) -> BaseJSDocTag {
         self.create_base_jsdoc_tag(SyntaxKind::JSDocTag, tag_name, comment)
@@ -803,9 +804,9 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_jsx_element_raw(
         &self,
-        opening_element: Gc<Node /*JsxOpeningElement*/>,
+        opening_element: Id<Node /*JsxOpeningElement*/>,
         children: impl Into<NodeArrayOrVec>,
-        closing_element: Gc<Node /*JsxClosingElement*/>,
+        closing_element: Id<Node /*JsxClosingElement*/>,
     ) -> JsxElement {
         let node = self.create_base_node(SyntaxKind::JsxElement);
         let node = JsxElement::new(
@@ -826,10 +827,10 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     pub fn update_jsx_element(
         &self,
         node: &Node, /*JsxElement*/
-        opening_element: Gc<Node /*JsxOpeningElement*/>,
+        opening_element: Id<Node /*JsxOpeningElement*/>,
         children: impl Into<NodeArrayOrVec>,
-        closing_element: Gc<Node /*JsxClosingElement*/>,
-    ) -> Gc<Node> {
+        closing_element: Id<Node /*JsxClosingElement*/>,
+    ) -> Id<Node> {
         let node_as_jsx_element = node.as_jsx_element();
         let children = children.into();
         if !Gc::ptr_eq(&node_as_jsx_element.opening_element, &opening_element)
@@ -848,9 +849,9 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_jsx_self_closing_element_raw(
         &self,
-        tag_name: Gc<Node /*JsxTagNameExpression*/>,
+        tag_name: Id<Node /*JsxTagNameExpression*/>,
         type_arguments: Option<impl Into<NodeArrayOrVec>>,
-        attributes: Gc<Node /*JsxAttributes*/>,
+        attributes: Id<Node /*JsxAttributes*/>,
     ) -> JsxSelfClosingElement {
         let node = self.create_base_node(SyntaxKind::JsxSelfClosingElement);
         let node = JsxSelfClosingElement::new(
@@ -874,10 +875,10 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     pub fn update_jsx_self_closing_element(
         &self,
         node: &Node, /*JsxSelfClosingElement*/
-        tag_name: Gc<Node /*JsxTagNameExpression*/>,
+        tag_name: Id<Node /*JsxTagNameExpression*/>,
         type_arguments: Option<impl Into<NodeArrayOrVec>>,
-        attributes: Gc<Node /*JsxAttributes*/>,
-    ) -> Gc<Node> {
+        attributes: Id<Node /*JsxAttributes*/>,
+    ) -> Id<Node> {
         let node_as_jsx_self_closing_element = node.as_jsx_self_closing_element();
         let type_arguments = type_arguments.map(Into::into);
         if !Gc::ptr_eq(&node_as_jsx_self_closing_element.tag_name, &tag_name)
@@ -901,9 +902,9 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_jsx_opening_element_raw(
         &self,
-        tag_name: Gc<Node /*JsxTagNameExpression*/>,
+        tag_name: Id<Node /*JsxTagNameExpression*/>,
         type_arguments: Option<impl Into<NodeArrayOrVec>>,
-        attributes: Gc<Node /*JsxAttributes*/>,
+        attributes: Id<Node /*JsxAttributes*/>,
     ) -> JsxOpeningElement {
         let node = self.create_base_node(SyntaxKind::JsxOpeningElement);
         let node = JsxOpeningElement::new(
@@ -927,10 +928,10 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     pub fn update_jsx_opening_element(
         &self,
         node: &Node, /*JsxOpeningElement*/
-        tag_name: Gc<Node /*JsxTagNameExpression*/>,
+        tag_name: Id<Node /*JsxTagNameExpression*/>,
         type_arguments: Option<impl Into<NodeArrayOrVec>>,
-        attributes: Gc<Node /*JsxAttributes*/>,
-    ) -> Gc<Node> {
+        attributes: Id<Node /*JsxAttributes*/>,
+    ) -> Id<Node> {
         let node_as_jsx_opening_element = node.as_jsx_opening_element();
         let type_arguments = type_arguments.map(Into::into);
         if !Gc::ptr_eq(&node_as_jsx_opening_element.tag_name, &tag_name)
@@ -954,7 +955,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_jsx_closing_element_raw(
         &self,
-        tag_name: Gc<Node /*JsxTagNameExpression*/>,
+        tag_name: Id<Node /*JsxTagNameExpression*/>,
     ) -> JsxClosingElement {
         let node = self.create_base_node(SyntaxKind::JsxClosingElement);
         let node = JsxClosingElement::new(node, tag_name);
@@ -967,8 +968,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     pub fn update_jsx_closing_element(
         &self,
         node: &Node, /*JsxClosingElement*/
-        tag_name: Gc<Node /*JsxTagNameExpression*/>,
-    ) -> Gc<Node> {
+        tag_name: Id<Node /*JsxTagNameExpression*/>,
+    ) -> Id<Node> {
         let node_as_jsx_closing_element = node.as_jsx_closing_element();
         if !Gc::ptr_eq(&node_as_jsx_closing_element.tag_name, &tag_name) {
             self.update(self.create_jsx_closing_element(tag_name), node)
@@ -980,9 +981,9 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_jsx_fragment_raw(
         &self,
-        opening_fragment: Gc<Node /*JsxOpeningFragment*/>,
+        opening_fragment: Id<Node /*JsxOpeningFragment*/>,
         children: impl Into<NodeArrayOrVec>,
-        closing_fragment: Gc<Node /*JsxClosingFragment*/>,
+        closing_fragment: Id<Node /*JsxClosingFragment*/>,
     ) -> JsxFragment {
         let node = self.create_base_node(SyntaxKind::JsxFragment);
         let node = JsxFragment::new(
@@ -1003,10 +1004,10 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     pub fn update_jsx_fragment(
         &self,
         node: &Node, /*JsxFragment*/
-        opening_fragment: Gc<Node /*JsxOpeningFragment*/>,
+        opening_fragment: Id<Node /*JsxOpeningFragment*/>,
         children: impl Into<NodeArrayOrVec>,
-        closing_fragment: Gc<Node /*JsxClosingFragment*/>,
-    ) -> Gc<Node> {
+        closing_fragment: Id<Node /*JsxClosingFragment*/>,
+    ) -> Id<Node> {
         let node_as_jsx_fragment = node.as_jsx_fragment();
         let children = children.into();
         if !Gc::ptr_eq(&node_as_jsx_fragment.opening_fragment, &opening_fragment)
@@ -1043,7 +1044,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         node: &Node, /*JsxText*/
         text: String,
         contains_only_trivia_white_spaces: Option<bool>,
-    ) -> Gc<Node> {
+    ) -> Id<Node> {
         let node_as_jsx_text = node.as_jsx_text();
         if &*node_as_jsx_text.text() != &text
             || Some(node_as_jsx_text.contains_only_trivia_white_spaces)
@@ -1077,8 +1078,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_jsx_attribute_raw(
         &self,
-        name: Gc<Node /*Identifier*/>,
-        initializer: Option<Gc<Node /*StringLiteral | JsxExpression*/>>,
+        name: Id<Node /*Identifier*/>,
+        initializer: Option<Id<Node /*StringLiteral | JsxExpression*/>>,
     ) -> JsxAttribute {
         let node = self.create_base_node(SyntaxKind::JsxAttribute);
         let node = JsxAttribute::new(node, name, initializer);
@@ -1093,9 +1094,9 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     pub fn update_jsx_attribute(
         &self,
         node: &Node, /*JsxAttribute*/
-        name: Gc<Node /*Identifier*/>,
-        initializer: Option<Gc<Node /*StringLiteral | JsxExpression*/>>,
-    ) -> Gc<Node> {
+        name: Id<Node /*Identifier*/>,
+        initializer: Option<Id<Node /*StringLiteral | JsxExpression*/>>,
+    ) -> Id<Node> {
         let node_as_jsx_attribute = node.as_jsx_attribute();
         if !Gc::ptr_eq(&node_as_jsx_attribute.name, &name)
             || !are_option_gcs_equal(
@@ -1126,7 +1127,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         &self,
         node: &Node, /*JsxAttributes*/
         properties: impl Into<NodeArrayOrVec>,
-    ) -> Gc<Node> {
+    ) -> Id<Node> {
         let node_as_jsx_attributes = node.as_jsx_attributes();
         let properties = properties.into();
         if has_node_array_changed(&node_as_jsx_attributes.properties, &properties) {
@@ -1139,7 +1140,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_jsx_spread_attribute_raw(
         &self,
-        expression: Gc<Node /*Expression*/>,
+        expression: Id<Node /*Expression*/>,
     ) -> JsxSpreadAttribute {
         let node = self.create_base_node(SyntaxKind::JsxSpreadAttribute);
         let node = JsxSpreadAttribute::new(node, expression);
@@ -1152,8 +1153,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     pub fn update_jsx_spread_attribute(
         &self,
         node: &Node, /*JsxSpreadAttribute*/
-        expression: Gc<Node /*Expression*/>,
-    ) -> Gc<Node> {
+        expression: Id<Node /*Expression*/>,
+    ) -> Id<Node> {
         let node_as_jsx_spread_attribute = node.as_jsx_spread_attribute();
         if !Gc::ptr_eq(&node_as_jsx_spread_attribute.expression, &expression) {
             self.update(self.create_jsx_spread_attribute(expression), node)
@@ -1165,8 +1166,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_jsx_expression_raw(
         &self,
-        dot_dot_dot_token: Option<Gc<Node /*DotDotDotToken*/>>,
-        expression: Option<Gc<Node /*Expression*/>>,
+        dot_dot_dot_token: Option<Id<Node /*DotDotDotToken*/>>,
+        expression: Option<Id<Node /*Expression*/>>,
     ) -> JsxExpression {
         let node = self.create_base_node(SyntaxKind::JsxExpression);
         let node = JsxExpression::new(node, dot_dot_dot_token, expression);
@@ -1181,8 +1182,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     pub fn update_jsx_expression(
         &self,
         node: &Node, /*JsxExpression*/
-        expression: Option<Gc<Node /*Expression*/>>,
-    ) -> Gc<Node> {
+        expression: Option<Id<Node /*Expression*/>>,
+    ) -> Id<Node> {
         let node_as_jsx_expression = node.as_jsx_expression();
         if !are_option_gcs_equal(
             node_as_jsx_expression.expression.as_ref(),
@@ -1203,7 +1204,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_case_clause_raw(
         &self,
-        expression: Gc<Node /*Expression*/>,
+        expression: Id<Node /*Expression*/>,
         statements: impl Into<NodeArrayOrVec>,
     ) -> CaseClause {
         let node = self.create_base_node(SyntaxKind::CaseClause);
@@ -1223,9 +1224,9 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     pub fn update_case_clause(
         &self,
         node: &Node, /*CaseClause*/
-        expression: Gc<Node /*Expression*/>,
+        expression: Id<Node /*Expression*/>,
         statements: impl Into<NodeArrayOrVec>,
-    ) -> Gc<Node> {
+    ) -> Id<Node> {
         let node_as_case_clause = node.as_case_clause();
         let statements = statements.into();
         if !Gc::ptr_eq(&node_as_case_clause.expression, &expression)
@@ -1252,7 +1253,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         &self,
         node: &Node, /*DefaultClause*/
         statements: impl Into<NodeArrayOrVec>,
-    ) -> Gc<Node> {
+    ) -> Id<Node> {
         let node_as_default_clause = node.as_default_clause();
         let statements = statements.into();
         if has_node_array_changed(&node_as_default_clause.statements, &statements) {
@@ -1287,7 +1288,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         &self,
         node: &Node,                      /*HeritageClause*/
         types: impl Into<NodeArrayOrVec>, /*<ExpressionWithTypeArguments>*/
-    ) -> Gc<Node> {
+    ) -> Id<Node> {
         let node_as_heritage_clause = node.as_heritage_clause();
         let types = types.into();
         if has_node_array_changed(&node_as_heritage_clause.types, &types) {
@@ -1307,10 +1308,10 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
             impl Into<StrOrRcNode<'variable_declaration>>,
             /*BindingName | VariableDeclaration*/
         >,
-        block: Gc<Node /*Block*/>,
+        block: Id<Node /*Block*/>,
     ) -> CatchClause {
         let node = self.create_base_node(SyntaxKind::CatchClause);
-        let variable_declaration: Option<Gc<Node>> =
+        let variable_declaration: Option<Id<Node>> =
             variable_declaration.map(|variable_declaration| {
                 let variable_declaration = variable_declaration.into();
                 match variable_declaration {
@@ -1348,9 +1349,9 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     pub fn update_catch_clause(
         &self,
         node: &Node, /*CatchClause*/
-        variable_declaration: Option<Gc<Node> /*VariableDeclaration*/>,
-        block: Gc<Node /*Block*/>,
-    ) -> Gc<Node> {
+        variable_declaration: Option<Id<Node> /*VariableDeclaration*/>,
+        block: Id<Node /*Block*/>,
+    ) -> Id<Node> {
         let node_as_catch_clause = node.as_catch_clause();
         if !are_option_gcs_equal(
             node_as_catch_clause.variable_declaration.as_ref(),

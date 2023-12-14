@@ -5,6 +5,7 @@ use std::{
 };
 
 use gc::Gc;
+use id_arena::Id;
 
 use super::{get_node_id, UnusedKind};
 use crate::{
@@ -129,7 +130,7 @@ impl TypeChecker {
     pub(super) fn get_identifier_from_entity_name_expression(
         &self,
         node: &Node, /*Expression*/
-    ) -> Option<Gc<Node /*Identifier | PrivateIdentifier*/>> {
+    ) -> Option<Id<Node /*Identifier | PrivateIdentifier*/>> {
         match node.kind() {
             SyntaxKind::Identifier => Some(node.node_wrapper()),
             SyntaxKind::PropertyAccessExpression => {
@@ -251,7 +252,7 @@ impl TypeChecker {
 
     pub(super) fn check_unused_identifiers(
         &self,
-        potentially_unused_identifiers: &[Gc<Node /*PotentiallyUnusedIdentifier*/>],
+        potentially_unused_identifiers: &[Id<Node /*PotentiallyUnusedIdentifier*/>],
         mut add_diagnostic: impl FnMut(&Node, UnusedKind, Gc<Diagnostic>), /*AddUnusedDiagnostic*/
     ) -> io::Result<()> {
         for node in potentially_unused_identifiers {
@@ -564,8 +565,8 @@ impl TypeChecker {
     pub(super) fn try_get_root_parameter_declaration(
         &self,
         node: &Node,
-    ) -> Option<Gc<Node /*ParameterDeclaration*/>> {
-        try_cast(get_root_declaration(node), |root_declaration: &Gc<Node>| {
+    ) -> Option<Id<Node /*ParameterDeclaration*/>> {
+        try_cast(get_root_declaration(node), |root_declaration: &Id<Node>| {
             is_parameter(root_declaration)
         })
     }
@@ -604,22 +605,22 @@ impl TypeChecker {
         let mut unused_imports: HashMap<
             String,
             (
-                Gc<Node /*ImportClause*/>,
-                Vec<Gc<Node /*ImportedDeclaration*/>>,
+                Id<Node /*ImportClause*/>,
+                Vec<Id<Node /*ImportedDeclaration*/>>,
             ),
         > = HashMap::new();
         let mut unused_destructures: HashMap<
             String,
             (
-                Gc<Node /*BindingPattern*/>,
-                Vec<Gc<Node /*BindingElement*/>>,
+                Id<Node /*BindingPattern*/>,
+                Vec<Id<Node /*BindingElement*/>>,
             ),
         > = HashMap::new();
         let mut unused_variables: HashMap<
             String,
             (
-                Gc<Node /*VariableDeclarationList*/>,
-                Vec<Gc<Node /*VariableDeclaration*/>>,
+                Id<Node /*VariableDeclarationList*/>,
+                Vec<Id<Node /*VariableDeclaration*/>>,
             ),
         > = HashMap::new();
         for &local in (*node_with_locals.locals()).borrow().values() {
@@ -653,7 +654,7 @@ impl TypeChecker {
                             &mut unused_imports,
                             self.import_clause_from_imported(declaration),
                             declaration.clone(),
-                            |key: &Gc<Node>| get_node_id(key).to_string(),
+                            |key: &Id<Node>| get_node_id(key).to_string(),
                         );
                     } else if is_binding_element(declaration)
                         && is_object_binding_pattern(&declaration.parent())
@@ -671,7 +672,7 @@ impl TypeChecker {
                                 &mut unused_destructures,
                                 declaration_parent.clone(),
                                 declaration.clone(),
-                                |key: &Gc<Node>| get_node_id(key).to_string(),
+                                |key: &Id<Node>| get_node_id(key).to_string(),
                             );
                         }
                     } else if is_variable_declaration(declaration) {
@@ -679,7 +680,7 @@ impl TypeChecker {
                             &mut unused_variables,
                             declaration.parent(),
                             declaration.clone(),
-                            |key: &Gc<Node>| get_node_id(key).to_string(),
+                            |key: &Id<Node>| get_node_id(key).to_string(),
                         );
                     } else {
                         let parameter = local
@@ -708,7 +709,7 @@ impl TypeChecker {
                                         &mut unused_destructures,
                                         declaration.parent(),
                                         declaration.clone(),
-                                        |key: &Gc<Node>| get_node_id(key).to_string(),
+                                        |key: &Id<Node>| get_node_id(key).to_string(),
                                     );
                                 } else {
                                     add_diagnostic(
@@ -809,7 +810,7 @@ impl TypeChecker {
                         &mut unused_variables,
                         binding_pattern.parent().parent(),
                         binding_pattern.parent(),
-                        |key: &Gc<Node>| get_node_id(key).to_string(),
+                        |key: &Id<Node>| get_node_id(key).to_string(),
                     );
                 } else {
                     add_diagnostic(
@@ -920,7 +921,7 @@ impl TypeChecker {
                 .binding_name_text(
                     &*cast_present(
                         first(&**name.as_has_elements().elements()),
-                        |element: &&Gc<Node>| is_binding_element(element),
+                        |element: &&Id<Node>| is_binding_element(element),
                     )
                     .as_binding_element()
                     .name(),
@@ -941,7 +942,7 @@ impl TypeChecker {
     pub(super) fn import_clause_from_imported(
         &self,
         decl: &Node, /*ImportedDeclaration*/
-    ) -> Gc<Node /*ImportClause*/> {
+    ) -> Id<Node /*ImportClause*/> {
         if decl.kind() == SyntaxKind::ImportClause {
             decl.node_wrapper()
         } else if decl.kind() == SyntaxKind::NamespaceImport {
@@ -1002,7 +1003,7 @@ impl TypeChecker {
 
         for_each(
             &node.as_signature_declaration().parameters(),
-            |p: &Gc<Node>, _| -> Option<()> {
+            |p: &Id<Node>, _| -> Option<()> {
                 if matches!(
                     p.as_parameter_declaration().maybe_name().as_ref(),
                     Some(p_name) if !is_binding_pattern(Some(&**p_name)) &&

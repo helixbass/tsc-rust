@@ -1,6 +1,7 @@
 use std::{collections::HashMap, io, mem};
 
 use gc::{Finalize, Gc, GcCell, GcCellRef, GcCellRefMut, Trace};
+use id_arena::Id;
 
 use crate::{
     chain_bundle, gc_cell_ref_mut_unwrapped, get_original_node_id, id_text, is_identifier,
@@ -74,13 +75,13 @@ impl TransformES5 {
         gc_cell_ref_mut_unwrapped(&self.no_substitution)
     }
 
-    fn transform_source_file(&self, node: &Node) -> Gc<Node> {
+    fn transform_source_file(&self, node: &Node) -> Id<Node> {
         node.node_wrapper()
     }
 }
 
 impl TransformerInterface for TransformES5 {
-    fn call(&self, node: &Node) -> io::Result<Gc<Node>> {
+    fn call(&self, node: &Node) -> io::Result<Id<Node>> {
         Ok(self.transform_source_file(node))
     }
 }
@@ -147,7 +148,7 @@ impl TransformES5OnSubstituteNodeOverrider {
     fn substitute_property_access_expression(
         &self,
         node: &Node, /*PropertyAccessExpression*/
-    ) -> Gc<Node /*Expression*/> {
+    ) -> Id<Node /*Expression*/> {
         let node_as_property_access_expression = node.as_property_access_expression();
         if is_private_identifier(&node_as_property_access_expression.name) {
             return node.node_wrapper();
@@ -170,7 +171,7 @@ impl TransformES5OnSubstituteNodeOverrider {
     fn substitute_property_assignment(
         &self,
         node: &Node, /*PropertyAssignment*/
-    ) -> Gc<Node /*PropertyAssignment*/> {
+    ) -> Id<Node /*PropertyAssignment*/> {
         let node_as_property_assignment = node.as_property_assignment();
         let literal_name = is_identifier(&node_as_property_assignment.name())
             .then_and(|| self.try_substitute_reserved_name(&node_as_property_assignment.name()));
@@ -184,7 +185,7 @@ impl TransformES5OnSubstituteNodeOverrider {
         node.node_wrapper()
     }
 
-    fn try_substitute_reserved_name(&self, name: &Node /*Identifier*/) -> Option<Gc<Node>> {
+    fn try_substitute_reserved_name(&self, name: &Node /*Identifier*/) -> Option<Id<Node>> {
         let name_as_identifier = name.as_identifier();
         let token = name_as_identifier
             .original_keyword_kind
@@ -204,7 +205,7 @@ impl TransformES5OnSubstituteNodeOverrider {
 }
 
 impl TransformationContextOnSubstituteNodeOverrider for TransformES5OnSubstituteNodeOverrider {
-    fn on_substitute_node(&self, hint: EmitHint, node: &Node) -> io::Result<Gc<Node>> {
+    fn on_substitute_node(&self, hint: EmitHint, node: &Node) -> io::Result<Id<Node>> {
         if matches!(
             (node.maybe_id(), self.transform_es5.maybe_no_substitution().as_ref()),
             (Some(node_id), Some(no_substitution)) if no_substitution.get(&node_id).copied() == Some(true)

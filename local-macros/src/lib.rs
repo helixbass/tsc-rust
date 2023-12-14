@@ -69,7 +69,7 @@ fn get_ast_struct_interface_impl(
         "NodeInterface" => {
             let wrap = if should_impl_from {
                 quote! {
-                    fn wrap(self) -> ::gc::Gc<crate::Node> {
+                    fn wrap(self) -> ::id_arena::Id<crate::Node> {
                         let rc = ::gc::Gc::new(Into::<crate::Node>::into(self));
                         crate::NodeInterface::set_node_wrapper(&*rc, rc.clone());
                         rc
@@ -77,18 +77,18 @@ fn get_ast_struct_interface_impl(
                 }
             } else {
                 quote! {
-                    fn wrap(self) -> ::gc::Gc<crate::Node> {
+                    fn wrap(self) -> ::id_arena::Id<crate::Node> {
                         unreachable!()
                     }
                 }
             };
             quote! {
                 impl crate::NodeInterface for #ast_type_name {
-                    fn node_wrapper(&self) -> ::gc::Gc<crate::Node> {
+                    fn node_wrapper(&self) -> ::id_arena::Id<crate::Node> {
                         self.#first_field_name.node_wrapper()
                     }
 
-                    fn set_node_wrapper(&self, wrapper: ::gc::Gc<crate::Node>) {
+                    fn set_node_wrapper(&self, wrapper: ::id_arena::Id<crate::Node>) {
                         self.#first_field_name.set_node_wrapper(wrapper)
                     }
 
@@ -158,23 +158,23 @@ fn get_ast_struct_interface_impl(
                         self.#first_field_name.set_id_override(id_override)
                     }
 
-                    fn maybe_parent(&self) -> ::std::option::Option<::gc::Gc<crate::Node>> {
+                    fn maybe_parent(&self) -> ::std::option::Option<::id_arena::Id<crate::Node>> {
                         self.#first_field_name.maybe_parent()
                     }
 
-                    fn parent(&self) -> ::gc::Gc<crate::Node> {
+                    fn parent(&self) -> ::id_arena::Id<crate::Node> {
                         self.#first_field_name.parent()
                     }
 
-                    fn set_parent(&self, parent: ::std::option::Option<::gc::Gc<crate::Node>>) {
+                    fn set_parent(&self, parent: ::std::option::Option<::id_arena::Id<crate::Node>>) {
                         self.#first_field_name.set_parent(parent)
                     }
 
-                    fn maybe_original(&self) -> ::std::option::Option<::gc::Gc<crate::Node>> {
+                    fn maybe_original(&self) -> ::std::option::Option<::id_arena::Id<crate::Node>> {
                         self.#first_field_name.maybe_original()
                     }
 
-                    fn set_original(&self, original: ::std::option::Option<::gc::Gc<crate::Node>>) {
+                    fn set_original(&self, original: ::std::option::Option<::id_arena::Id<crate::Node>>) {
                         self.#first_field_name.set_original(original)
                     }
 
@@ -214,11 +214,11 @@ fn get_ast_struct_interface_impl(
                         self.#first_field_name.set_locals(locals)
                     }
 
-                    fn maybe_next_container(&self) -> ::std::option::Option<::gc::Gc<crate::Node>> {
+                    fn maybe_next_container(&self) -> ::std::option::Option<::id_arena::Id<crate::Node>> {
                         self.#first_field_name.maybe_next_container()
                     }
 
-                    fn set_next_container(&self, next_container: ::std::option::Option<::gc::Gc<crate::Node>>) {
+                    fn set_next_container(&self, next_container: ::std::option::Option<::id_arena::Id<crate::Node>>) {
                         self.#first_field_name.set_next_container(next_container)
                     }
 
@@ -262,19 +262,19 @@ fn get_ast_struct_interface_impl(
                         self.#first_field_name.set_flow_node(flow_node)
                     }
 
-                    fn maybe_js_doc(&self) -> ::std::option::Option<::std::vec::Vec<::gc::Gc<crate::Node>>> {
+                    fn maybe_js_doc(&self) -> ::std::option::Option<::std::vec::Vec<::id_arena::Id<crate::Node>>> {
                         self.#first_field_name.maybe_js_doc()
                     }
 
-                    fn set_js_doc(&self, js_doc: ::std::option::Option<::std::vec::Vec<::gc::Gc<crate::Node>>>) {
+                    fn set_js_doc(&self, js_doc: ::std::option::Option<::std::vec::Vec<::id_arena::Id<crate::Node>>>) {
                         self.#first_field_name.set_js_doc(js_doc)
                     }
 
-                    fn maybe_js_doc_cache(&self) -> ::std::option::Option<crate::GcVec<::gc::Gc<crate::Node>>> {
+                    fn maybe_js_doc_cache(&self) -> ::std::option::Option<crate::GcVec<::id_arena::Id<crate::Node>>> {
                         self.#first_field_name.maybe_js_doc_cache()
                     }
 
-                    fn set_js_doc_cache(&self, js_doc_cache: ::std::option::Option<crate::GcVec<::gc::Gc<crate::Node>>>) {
+                    fn set_js_doc_cache(&self, js_doc_cache: ::std::option::Option<crate::GcVec<::id_arena::Id<crate::Node>>>) {
                         self.#first_field_name.set_js_doc_cache(js_doc_cache)
                     }
 
@@ -312,15 +312,15 @@ fn get_ast_struct_interface_impl(
         "NamedDeclarationInterface" => {
             quote! {
                 impl crate::NamedDeclarationInterface for #ast_type_name {
-                    fn maybe_name(&self) -> ::std::option::Option<::gc::Gc<crate::Node>> {
+                    fn maybe_name(&self) -> ::std::option::Option<::id_arena::Id<crate::Node>> {
                         self.#first_field_name.maybe_name()
                     }
 
-                    fn name(&self) -> ::gc::Gc<crate::Node> {
+                    fn name(&self) -> ::id_arena::Id<crate::Node> {
                         self.#first_field_name.name()
                     }
 
-                    fn set_name(&mut self, name: ::gc::Gc<crate::Node>) {
+                    fn set_name(&mut self, name: ::id_arena::Id<crate::Node>) {
                         self.#first_field_name.set_name(name);
                     }
                 }
@@ -342,11 +342,11 @@ fn get_ast_struct_interface_impl(
         "HasInitializerInterface" => {
             quote! {
                 impl crate::HasInitializerInterface for #ast_type_name {
-                    fn maybe_initializer(&self) -> ::std::option::Option<::gc::Gc<crate::Node>> {
+                    fn maybe_initializer(&self) -> ::std::option::Option<::id_arena::Id<crate::Node>> {
                         self.#first_field_name.maybe_initializer()
                     }
 
-                    fn set_initializer(&mut self, initializer: ::gc::Gc<crate::Node>) {
+                    fn set_initializer(&mut self, initializer: ::id_arena::Id<crate::Node>) {
                         self.#first_field_name.set_initializer(initializer);
                     }
                 }
@@ -360,11 +360,11 @@ fn get_ast_struct_interface_impl(
         "HasTypeInterface" => {
             quote! {
                 impl crate::HasTypeInterface for #ast_type_name {
-                    fn maybe_type(&self) -> ::std::option::Option<::gc::Gc<crate::Node>> {
+                    fn maybe_type(&self) -> ::std::option::Option<::id_arena::Id<crate::Node>> {
                         self.#first_field_name.maybe_type()
                     }
 
-                    fn set_type(&mut self, type_: ::std::option::Option<::gc::Gc<crate::Node>>) {
+                    fn set_type(&mut self, type_: ::std::option::Option<::id_arena::Id<crate::Node>>) {
                         self.#first_field_name.set_type(type_);
                     }
                 }
@@ -434,15 +434,15 @@ fn get_ast_struct_interface_impl(
         "FunctionLikeDeclarationInterface" => {
             quote! {
                 impl crate::FunctionLikeDeclarationInterface for #ast_type_name {
-                    fn maybe_body(&self) -> ::std::option::Option<::gc::Gc<crate::Node>> {
+                    fn maybe_body(&self) -> ::std::option::Option<::id_arena::Id<crate::Node>> {
                         self.#first_field_name.maybe_body()
                     }
 
-                    fn maybe_asterisk_token(&self) -> ::std::option::Option<::gc::Gc<crate::Node>> {
+                    fn maybe_asterisk_token(&self) -> ::std::option::Option<::id_arena::Id<crate::Node>> {
                         self.#first_field_name.maybe_asterisk_token()
                     }
 
-                    fn maybe_exclamation_token(&self) -> ::gc::GcCellRefMut<::std::option::Option<::gc::Gc<crate::Node>>> {
+                    fn maybe_exclamation_token(&self) -> ::gc::GcCellRefMut<::std::option::Option<::id_arena::Id<crate::Node>>> {
                         self.#first_field_name.maybe_exclamation_token()
                     }
 
@@ -467,7 +467,7 @@ fn get_ast_struct_interface_impl(
         "JSDocTagInterface" => {
             quote! {
                 impl crate::JSDocTagInterface for #ast_type_name {
-                    fn tag_name(&self) -> ::gc::Gc<crate::Node> {
+                    fn tag_name(&self) -> ::id_arena::Id<crate::Node> {
                         self.#first_field_name.tag_name()
                     }
 
@@ -507,7 +507,7 @@ fn get_ast_struct_interface_impl(
         "HasQuestionTokenInterface" => {
             quote! {
                 impl crate::HasQuestionTokenInterface for #ast_type_name {
-                    fn maybe_question_token(&self) -> ::std::option::Option<::gc::Gc<crate::Node>> {
+                    fn maybe_question_token(&self) -> ::std::option::Option<::id_arena::Id<crate::Node>> {
                         self.#first_field_name.maybe_question_token()
                     }
                 }
@@ -527,7 +527,7 @@ fn get_ast_enum_interface_impl(
         "NodeInterface" => {
             let wrap = if should_impl_from {
                 quote! {
-                    fn wrap(self) -> ::gc::Gc<crate::Node> {
+                    fn wrap(self) -> ::id_arena::Id<crate::Node> {
                         let rc = ::gc::Gc::new(Into::<crate::Node>::into(self));
                         crate::NodeInterface::set_node_wrapper(&*rc, rc.clone());
                         rc
@@ -535,20 +535,20 @@ fn get_ast_enum_interface_impl(
                 }
             } else {
                 quote! {
-                    fn wrap(self) -> ::gc::Gc<crate::Node> {
+                    fn wrap(self) -> ::id_arena::Id<crate::Node> {
                         unreachable!()
                     }
                 }
             };
             quote! {
                 impl crate::NodeInterface for #ast_type_name {
-                    fn node_wrapper(&self) -> ::gc::Gc<crate::Node> {
+                    fn node_wrapper(&self) -> ::id_arena::Id<crate::Node> {
                         match self {
                             #(#ast_type_name::#variant_names(nested) => nested.node_wrapper()),*
                         }
                     }
 
-                    fn set_node_wrapper(&self, wrapper: ::gc::Gc<crate::Node>) {
+                    fn set_node_wrapper(&self, wrapper: ::id_arena::Id<crate::Node>) {
                         match self {
                             #(#ast_type_name::#variant_names(nested) => nested.set_node_wrapper(wrapper)),*
                         }
@@ -652,31 +652,31 @@ fn get_ast_enum_interface_impl(
                         }
                     }
 
-                    fn maybe_parent(&self) -> ::std::option::Option<::gc::Gc<crate::Node>> {
+                    fn maybe_parent(&self) -> ::std::option::Option<::id_arena::Id<crate::Node>> {
                         match self {
                             #(#ast_type_name::#variant_names(nested) => nested.maybe_parent()),*
                         }
                     }
 
-                    fn parent(&self) -> ::gc::Gc<crate::Node> {
+                    fn parent(&self) -> ::id_arena::Id<crate::Node> {
                         match self {
                             #(#ast_type_name::#variant_names(nested) => nested.parent()),*
                         }
                     }
 
-                    fn set_parent(&self, parent: ::std::option::Option<::gc::Gc<crate::Node>>) {
+                    fn set_parent(&self, parent: ::std::option::Option<::id_arena::Id<crate::Node>>) {
                         match self {
                             #(#ast_type_name::#variant_names(nested) => nested.set_parent(parent)),*
                         }
                     }
 
-                    fn maybe_original(&self) -> ::std::option::Option<::gc::Gc<crate::Node>> {
+                    fn maybe_original(&self) -> ::std::option::Option<::id_arena::Id<crate::Node>> {
                         match self {
                             #(#ast_type_name::#variant_names(nested) => nested.maybe_original()),*
                         }
                     }
 
-                    fn set_original(&self, original: ::std::option::Option<::gc::Gc<crate::Node>>) {
+                    fn set_original(&self, original: ::std::option::Option<::id_arena::Id<crate::Node>>) {
                         match self {
                             #(#ast_type_name::#variant_names(nested) => nested.set_original(original)),*
                         }
@@ -736,13 +736,13 @@ fn get_ast_enum_interface_impl(
                         }
                     }
 
-                    fn maybe_next_container(&self) -> ::std::option::Option<::gc::Gc<crate::Node>> {
+                    fn maybe_next_container(&self) -> ::std::option::Option<::id_arena::Id<crate::Node>> {
                         match self {
                             #(#ast_type_name::#variant_names(nested) => nested.maybe_next_container()),*
                         }
                     }
 
-                    fn set_next_container(&self, next_container: ::std::option::Option<::gc::Gc<crate::Node>>) {
+                    fn set_next_container(&self, next_container: ::std::option::Option<::id_arena::Id<crate::Node>>) {
                         match self {
                             #(#ast_type_name::#variant_names(nested) => nested.set_next_container(next_container)),*
                         }
@@ -808,25 +808,25 @@ fn get_ast_enum_interface_impl(
                         }
                     }
 
-                    fn maybe_js_doc(&self) -> ::std::option::Option<::std::vec::Vec<::gc::Gc<crate::Node>>> {
+                    fn maybe_js_doc(&self) -> ::std::option::Option<::std::vec::Vec<::id_arena::Id<crate::Node>>> {
                         match self {
                             #(#ast_type_name::#variant_names(nested) => nested.maybe_js_doc()),*
                         }
                     }
 
-                    fn set_js_doc(&self, js_doc: ::std::option::Option<::std::vec::Vec<::gc::Gc<crate::Node>>>) {
+                    fn set_js_doc(&self, js_doc: ::std::option::Option<::std::vec::Vec<::id_arena::Id<crate::Node>>>) {
                         match self {
                             #(#ast_type_name::#variant_names(nested) => nested.set_js_doc(js_doc)),*
                         }
                     }
 
-                    fn maybe_js_doc_cache(&self) -> ::std::option::Option<crate::GcVec<::gc::Gc<crate::Node>>> {
+                    fn maybe_js_doc_cache(&self) -> ::std::option::Option<crate::GcVec<::id_arena::Id<crate::Node>>> {
                         match self {
                             #(#ast_type_name::#variant_names(nested) => nested.maybe_js_doc_cache()),*
                         }
                     }
 
-                    fn set_js_doc_cache(&self, js_doc_cache: ::std::option::Option<crate::GcVec<::gc::Gc<crate::Node>>>) {
+                    fn set_js_doc_cache(&self, js_doc_cache: ::std::option::Option<crate::GcVec<::id_arena::Id<crate::Node>>>) {
                         match self {
                             #(#ast_type_name::#variant_names(nested) => nested.set_js_doc_cache(js_doc_cache)),*
                         }
@@ -919,19 +919,19 @@ fn get_ast_enum_interface_impl(
         "NamedDeclarationInterface" => {
             quote! {
                 impl crate::NamedDeclarationInterface for #ast_type_name {
-                    fn maybe_name(&self) -> ::std::option::Option<::gc::Gc<crate::Node>> {
+                    fn maybe_name(&self) -> ::std::option::Option<::id_arena::Id<crate::Node>> {
                         match self {
                             #(#ast_type_name::#variant_names(nested) => nested.maybe_name()),*
                         }
                     }
 
-                    fn name(&self) -> ::gc::Gc<crate::Node> {
+                    fn name(&self) -> ::id_arena::Id<crate::Node> {
                         match self {
                             #(#ast_type_name::#variant_names(nested) => nested.name()),*
                         }
                     }
 
-                    fn set_name(&mut self, name: ::gc::Gc<crate::Node>) {
+                    fn set_name(&mut self, name: ::id_arena::Id<crate::Node>) {
                         match self {
                             #(#ast_type_name::#variant_names(nested) => nested.set_name(name)),*
                         }
@@ -992,19 +992,19 @@ fn get_ast_enum_interface_impl(
         "FunctionLikeDeclarationInterface" => {
             quote! {
                 impl crate::FunctionLikeDeclarationInterface for #ast_type_name {
-                    fn maybe_body(&self) -> ::std::option::Option<::gc::Gc<crate::Node>> {
+                    fn maybe_body(&self) -> ::std::option::Option<::id_arena::Id<crate::Node>> {
                         match self {
                             #(#ast_type_name::#variant_names(nested) => nested.maybe_body()),*
                         }
                     }
 
-                    fn maybe_asterisk_token(&self) -> ::std::option::Option<::gc::Gc<crate::Node>> {
+                    fn maybe_asterisk_token(&self) -> ::std::option::Option<::id_arena::Id<crate::Node>> {
                         match self {
                             #(#ast_type_name::#variant_names(nested) => nested.maybe_asterisk_token()),*
                         }
                     }
 
-                    fn maybe_exclamation_token(&self) -> ::gc::GcCellRefMut<::std::option::Option<::gc::Gc<crate::Node>>> {
+                    fn maybe_exclamation_token(&self) -> ::gc::GcCellRefMut<::std::option::Option<::id_arena::Id<crate::Node>>> {
                         match self {
                             #(#ast_type_name::#variant_names(nested) => nested.maybe_exclamation_token()),*
                         }
@@ -1039,13 +1039,13 @@ fn get_ast_enum_interface_impl(
         "HasTypeInterface" => {
             quote! {
                 impl crate::HasTypeInterface for #ast_type_name {
-                    fn maybe_type(&self) -> ::std::option::Option<::gc::Gc<crate::Node>> {
+                    fn maybe_type(&self) -> ::std::option::Option<::id_arena::Id<crate::Node>> {
                         match self {
                             #(#ast_type_name::#variant_names(nested) => nested.maybe_type()),*
                         }
                     }
 
-                    fn set_type(&mut self, type_: ::std::option::Option<::gc::Gc<crate::Node>>) {
+                    fn set_type(&mut self, type_: ::std::option::Option<::id_arena::Id<crate::Node>>) {
                         match self {
                             #(#ast_type_name::#variant_names(nested) => nested.set_type(type_)),*
                         }
@@ -1056,7 +1056,7 @@ fn get_ast_enum_interface_impl(
         "JSDocTagInterface" => {
             quote! {
                 impl crate::JSDocTagInterface for #ast_type_name {
-                    fn tag_name(&self) -> ::gc::Gc<crate::Node> {
+                    fn tag_name(&self) -> ::id_arena::Id<crate::Node> {
                         match self {
                             #(#ast_type_name::#variant_names(nested) => nested.tag_name()),*
                         }
@@ -1106,7 +1106,7 @@ fn get_ast_enum_interface_impl(
         "HasQuestionTokenInterface" => {
             quote! {
                 impl crate::HasQuestionTokenInterface for #ast_type_name {
-                    fn maybe_question_token(&self) -> ::std::option::Option<::gc::Gc<crate::Node>> {
+                    fn maybe_question_token(&self) -> ::std::option::Option<::id_arena::Id<crate::Node>> {
                         match self {
                             #(#ast_type_name::#variant_names(nested) => nested.maybe_question_token()),*
                         }
@@ -1318,7 +1318,7 @@ fn get_type_struct_interface_impl(
                         self.#first_field_name.set_symbol(symbol)
                     }
 
-                    fn maybe_pattern(&self) -> ::gc::GcCellRefMut<::std::option::Option<::gc::Gc<crate::Node>>> {
+                    fn maybe_pattern(&self) -> ::gc::GcCellRefMut<::std::option::Option<::id_arena::Id<crate::Node>>> {
                         self.#first_field_name.maybe_pattern()
                     }
 
@@ -1736,11 +1736,11 @@ fn get_type_struct_interface_impl(
                         self.#first_field_name.set_target(target)
                     }
 
-                    fn maybe_node(&self) -> ::std::option::Option<::gc::Gc<crate::Node>> {
+                    fn maybe_node(&self) -> ::std::option::Option<::id_arena::Id<crate::Node>> {
                         self.#first_field_name.maybe_node()
                     }
 
-                    fn maybe_node_mut(&self) -> ::gc::GcCellRefMut<::std::option::Option<::gc::Gc<crate::Node>>> {
+                    fn maybe_node_mut(&self) -> ::gc::GcCellRefMut<::std::option::Option<::id_arena::Id<crate::Node>>> {
                         self.#first_field_name.maybe_node_mut()
                     }
 
@@ -1828,7 +1828,7 @@ fn get_type_enum_interface_impl(
                         }
                     }
 
-                    fn maybe_pattern(&self) -> ::gc::GcCellRefMut<::std::option::Option<::gc::Gc<crate::Node>>> {
+                    fn maybe_pattern(&self) -> ::gc::GcCellRefMut<::std::option::Option<::id_arena::Id<crate::Node>>> {
                         match self {
                             #(#type_type_name::#variant_names(nested) => nested.maybe_pattern()),*
                         }
@@ -2414,13 +2414,13 @@ fn get_type_enum_interface_impl(
                         }
                     }
 
-                    fn maybe_node(&self) -> ::std::option::Option<::gc::Gc<crate::Node>> {
+                    fn maybe_node(&self) -> ::std::option::Option<::id_arena::Id<crate::Node>> {
                         match self {
                             #(#type_type_name::#variant_names(nested) => nested.maybe_node()),*
                         }
                     }
 
-                    fn maybe_node_mut(&self) -> ::gc::GcCellRefMut<::std::option::Option<::gc::Gc<crate::Node>>> {
+                    fn maybe_node_mut(&self) -> ::gc::GcCellRefMut<::std::option::Option<::id_arena::Id<crate::Node>>> {
                         match self {
                             #(#type_type_name::#variant_names(nested) => nested.maybe_node_mut()),*
                         }
@@ -2635,23 +2635,23 @@ fn get_symbol_struct_interface_impl(
                         self.#first_field_name.escaped_name()
                     }
 
-                    fn maybe_declarations(&self) -> ::gc::GcCellRef<::std::option::Option<::std::vec::Vec<::gc::Gc<crate::Node>>>> {
+                    fn maybe_declarations(&self) -> ::gc::GcCellRef<::std::option::Option<::std::vec::Vec<::id_arena::Id<crate::Node>>>> {
                         self.#first_field_name.maybe_declarations()
                     }
 
-                    fn maybe_declarations_mut(&self) -> ::gc::GcCellRefMut<::std::option::Option<::std::vec::Vec<::gc::Gc<crate::Node>>>> {
+                    fn maybe_declarations_mut(&self) -> ::gc::GcCellRefMut<::std::option::Option<::std::vec::Vec<::id_arena::Id<crate::Node>>>> {
                         self.#first_field_name.maybe_declarations_mut()
                     }
 
-                    fn set_declarations(&self, declarations: ::std::vec::Vec<::gc::Gc<crate::Node>>) {
+                    fn set_declarations(&self, declarations: ::std::vec::Vec<::id_arena::Id<crate::Node>>) {
                         self.#first_field_name.set_declarations(declarations)
                     }
 
-                    fn maybe_value_declaration(&self) -> ::std::option::Option<::gc::Gc<crate::Node>> {
+                    fn maybe_value_declaration(&self) -> ::std::option::Option<::id_arena::Id<crate::Node>> {
                         self.#first_field_name.maybe_value_declaration()
                     }
 
-                    fn set_value_declaration(&self, node: ::gc::Gc<crate::Node>) {
+                    fn set_value_declaration(&self, node: ::id_arena::Id<crate::Node>) {
                         self.#first_field_name.set_value_declaration(node)
                     }
 
@@ -2751,7 +2751,7 @@ fn get_symbol_struct_interface_impl(
                         self.#first_field_name.set_is_assigned(is_assigned)
                     }
 
-                    fn maybe_assignment_declaration_members(&self) -> ::gc::GcCellRefMut<::std::option::Option<::std::collections::HashMap<crate::NodeId, ::gc::Gc<crate::Node>>>> {
+                    fn maybe_assignment_declaration_members(&self) -> ::gc::GcCellRefMut<::std::option::Option<::std::collections::HashMap<crate::NodeId, ::id_arena::Id<crate::Node>>>> {
                         self.#first_field_name.maybe_assignment_declaration_members()
                     }
                 }
@@ -2805,31 +2805,31 @@ fn get_symbol_enum_interface_impl(
                         }
                     }
 
-                    fn maybe_declarations(&self) -> ::gc::GcCellRef<::std::option::Option<::std::vec::Vec<::gc::Gc<crate::Node>>>> {
+                    fn maybe_declarations(&self) -> ::gc::GcCellRef<::std::option::Option<::std::vec::Vec<::id_arena::Id<crate::Node>>>> {
                         match self {
                             #(#symbol_type_name::#variant_names(nested) => nested.maybe_declarations()),*
                         }
                     }
 
-                    fn maybe_declarations_mut(&self) -> ::gc::GcCellRefMut<::std::option::Option<::std::vec::Vec<::gc::Gc<crate::Node>>>> {
+                    fn maybe_declarations_mut(&self) -> ::gc::GcCellRefMut<::std::option::Option<::std::vec::Vec<::id_arena::Id<crate::Node>>>> {
                         match self {
                             #(#symbol_type_name::#variant_names(nested) => nested.maybe_declarations_mut()),*
                         }
                     }
 
-                    fn set_declarations(&self, declarations: ::std::vec::Vec<::gc::Gc<crate::Node>>) {
+                    fn set_declarations(&self, declarations: ::std::vec::Vec<::id_arena::Id<crate::Node>>) {
                         match self {
                             #(#symbol_type_name::#variant_names(nested) => nested.set_declarations(declarations)),*
                         }
                     }
 
-                    fn maybe_value_declaration(&self) -> ::std::option::Option<::gc::Gc<crate::Node>> {
+                    fn maybe_value_declaration(&self) -> ::std::option::Option<::id_arena::Id<crate::Node>> {
                         match self {
                             #(#symbol_type_name::#variant_names(nested) => nested.maybe_value_declaration()),*
                         }
                     }
 
-                    fn set_value_declaration(&self, node: ::gc::Gc<crate::Node>) {
+                    fn set_value_declaration(&self, node: ::id_arena::Id<crate::Node>) {
                         match self {
                             #(#symbol_type_name::#variant_names(nested) => nested.set_value_declaration(node)),*
                         }
@@ -2979,7 +2979,7 @@ fn get_symbol_enum_interface_impl(
                         }
                     }
 
-                    fn maybe_assignment_declaration_members(&self) -> ::gc::GcCellRefMut<::std::option::Option<::std::collections::HashMap<crate::NodeId, ::gc::Gc<crate::Node>>>> {
+                    fn maybe_assignment_declaration_members(&self) -> ::gc::GcCellRefMut<::std::option::Option<::std::collections::HashMap<crate::NodeId, ::id_arena::Id<crate::Node>>>> {
                         match self {
                             #(#symbol_type_name::#variant_names(nested) => nested.maybe_assignment_declaration_members()),*
                         }

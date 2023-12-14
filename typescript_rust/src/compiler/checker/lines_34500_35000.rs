@@ -88,19 +88,19 @@ impl TypeChecker {
                     || !self.use_define_for_class_fields)
                     && (some(
                         Some(&*node.parent().as_class_like_declaration().members()),
-                        Some(|member: &Gc<Node>| {
+                        Some(|member: &Id<Node>| {
                             self.is_instance_property_with_initializer_or_private_identifier_property(member)
                         }),
                     ) || some(
                         Some(&*node_as_constructor_declaration.parameters()),
-                        Some(|p: &Gc<Node>| {
+                        Some(|p: &Id<Node>| {
                             has_syntactic_modifier(p, ModifierFlags::ParameterPropertyModifier)
                         }),
                     ));
 
                 if super_call_should_be_first {
                     let statements = &node_body.as_block().statements;
-                    let mut super_call_statement: Option<Gc<Node /*ExpressionStatement*/>> = None;
+                    let mut super_call_statement: Option<Id<Node /*ExpressionStatement*/>> = None;
 
                     for statement in statements {
                         if statement.kind() == SyntaxKind::ExpressionStatement
@@ -407,7 +407,7 @@ impl TypeChecker {
             if let Some(symbol) = symbol {
                 if some(
                     symbol.ref_(self).maybe_declarations().as_deref(),
-                    Some(|d: &Gc<Node>| {
+                    Some(|d: &Id<Node>| {
                         self.is_type_declaration(d) && d.flags().intersects(NodeFlags::Deprecated)
                     }),
                 ) {
@@ -445,7 +445,7 @@ impl TypeChecker {
         node: &Node, /*TypeNode*/
     ) -> io::Result<Option<Id<Type>>> {
         let type_reference_node =
-            return_ok_default_if_none!(try_cast(node.parent(), |parent: &Gc<Node>| {
+            return_ok_default_if_none!(try_cast(node.parent(), |parent: &Id<Node>| {
                 is_type_reference_type(parent)
             }));
         let type_parameters = return_ok_default_if_none!(
@@ -487,7 +487,7 @@ impl TypeChecker {
     ) -> io::Result<()> {
         try_for_each(
             &node.as_type_literal_node().members,
-            |member: &Gc<Node>, _| -> io::Result<Option<()>> {
+            |member: &Id<Node>, _| -> io::Result<Option<()>> {
                 self.check_source_element(Some(&**member))?;
                 Ok(None)
             },
@@ -516,7 +516,7 @@ impl TypeChecker {
         let mut seen_rest_element = false;
         let has_named_element = some(
             Some(&**element_types),
-            Some(|element_type: &Gc<Node>| is_named_tuple_member(element_type)),
+            Some(|element_type: &Id<Node>| is_named_tuple_member(element_type)),
         );
         for e in element_types {
             if e.kind() != SyntaxKind::NamedTupleMember && has_named_element {
@@ -579,7 +579,7 @@ impl TypeChecker {
         }
         try_for_each(
             &node_as_tuple_type_node.elements,
-            |element: &Gc<Node>, _| -> io::Result<Option<()>> {
+            |element: &Id<Node>, _| -> io::Result<Option<()>> {
                 self.check_source_element(Some(&**element))?;
                 Ok(None)
             },
@@ -930,10 +930,10 @@ impl TypeChecker {
         let mut some_have_question_token = false;
         let mut all_have_question_token = true;
         let mut has_overloads = false;
-        let mut body_declaration: Option<Gc<Node /*FunctionLikeDeclaration*/>> = None;
-        let mut last_seen_non_ambient_declaration: Option<Gc<Node /*FunctionLikeDeclaration*/>> =
+        let mut body_declaration: Option<Id<Node /*FunctionLikeDeclaration*/>> = None;
+        let mut last_seen_non_ambient_declaration: Option<Id<Node /*FunctionLikeDeclaration*/>> =
             None;
-        let mut previous_declaration: Option<Gc<Node /*SignatureDeclaration*/>> = None;
+        let mut previous_declaration: Option<Id<Node /*SignatureDeclaration*/>> = None;
 
         let symbol_ref = symbol.ref_(self);
         let declarations = symbol_ref.maybe_declarations();
@@ -944,7 +944,7 @@ impl TypeChecker {
         let mut duplicate_function_declaration = false;
         let mut multiple_constructor_implementation = false;
         let mut has_non_ambient_class = false;
-        let mut function_declarations: Vec<Gc<Node /*Declaration*/>> = vec![];
+        let mut function_declarations: Vec<Id<Node /*Declaration*/>> = vec![];
         if let Some(declarations) = declarations.as_ref() {
             for current in declarations {
                 let node = current;
@@ -1027,7 +1027,7 @@ impl TypeChecker {
         if multiple_constructor_implementation {
             for_each(
                 &function_declarations,
-                |declaration: &Gc<Node>, _| -> Option<()> {
+                |declaration: &Id<Node>, _| -> Option<()> {
                     self.error(
                         Some(&**declaration),
                         &Diagnostics::Multiple_constructor_implementations_are_not_allowed,
@@ -1041,7 +1041,7 @@ impl TypeChecker {
         if duplicate_function_declaration {
             for_each(
                 &function_declarations,
-                |declaration: &Gc<Node>, _| -> Option<()> {
+                |declaration: &Id<Node>, _| -> Option<()> {
                     self.error(
                         Some(
                             get_name_of_declaration(Some(&**declaration))
@@ -1063,7 +1063,7 @@ impl TypeChecker {
         {
             if let Some(declarations) = declarations.as_ref() {
                 let related_diagnostics: Vec<Gc<DiagnosticRelatedInformation>> =
-                    filter(declarations, |d: &Gc<Node>| {
+                    filter(declarations, |d: &Id<Node>| {
                         d.kind() == SyntaxKind::ClassDeclaration
                     })
                     .iter()
@@ -1079,7 +1079,7 @@ impl TypeChecker {
                     })
                     .collect();
 
-                for_each(declarations, |declaration: &Gc<Node>, _| -> Option<()> {
+                for_each(declarations, |declaration: &Id<Node>, _| -> Option<()> {
                     let diagnostic = if declaration.kind() == SyntaxKind::ClassDeclaration {
                         Some(&*Diagnostics::Class_declaration_cannot_implement_overload_list_for_0)
                     } else if declaration.kind() == SyntaxKind::FunctionDeclaration {
@@ -1180,9 +1180,9 @@ impl TypeChecker {
 
     pub(super) fn get_canonical_overload<TImplementation: Borrow<Node>>(
         &self,
-        overloads: &[Gc<Node /*Declaration*/>],
+        overloads: &[Id<Node /*Declaration*/>],
         implementation: Option<TImplementation /*FunctionLikeDeclaration*/>,
-    ) -> Gc<Node /*Declaration*/> {
+    ) -> Id<Node /*Declaration*/> {
         let implementation =
             implementation.map(|implementation| implementation.borrow().node_wrapper());
         let implementation_shares_container_with_first_overload = matches!(
@@ -1201,7 +1201,7 @@ impl TypeChecker {
 
     pub(super) fn check_flag_agreement_between_overloads<TImplementation: Borrow<Node>>(
         &self,
-        overloads: &[Gc<Node /*Declaration*/>],
+        overloads: &[Id<Node /*Declaration*/>],
         implementation: Option<TImplementation /*FunctionLikeDeclaration*/>,
         flags_to_check: ModifierFlags,
         some_overload_flags: ModifierFlags,
@@ -1213,7 +1213,7 @@ impl TypeChecker {
                 &self.get_canonical_overload(overloads, implementation),
                 flags_to_check,
             );
-            for_each(overloads, |o: &Gc<Node>, _| -> Option<()> {
+            for_each(overloads, |o: &Id<Node>, _| -> Option<()> {
                 let deviation =
                     self.get_effective_declaration_flags(o, flags_to_check) ^ canonical_flags;
                 if deviation.intersects(ModifierFlags::Export) {
@@ -1250,7 +1250,7 @@ impl TypeChecker {
         TImplementation: Borrow<Node>,
     >(
         &self,
-        overloads: &[Gc<Node /*Declaration*/>],
+        overloads: &[Id<Node /*Declaration*/>],
         implementation: Option<TImplementation /*FunctionLikeDeclaration*/>,
         some_have_question_token: bool,
         all_have_question_token: bool,
@@ -1258,7 +1258,7 @@ impl TypeChecker {
         if some_have_question_token != all_have_question_token {
             let canonical_has_question_token =
                 has_question_token(&self.get_canonical_overload(overloads, implementation));
-            for_each(overloads, |o: &Gc<Node>, _| -> Option<()> {
+            for_each(overloads, |o: &Id<Node>, _| -> Option<()> {
                 let deviation = has_question_token(o) != canonical_has_question_token;
                 if deviation {
                     self.error(

@@ -2,6 +2,7 @@ use std::{borrow::Borrow, cell::RefCell, ptr};
 
 use bitflags::bitflags;
 use gc::{Finalize, Gc, GcCellRef, Trace};
+use id_arena::Id;
 use local_macros::generate_node_factory_method_wrapper;
 
 use super::{
@@ -85,7 +86,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         factory_
     }
 
-    pub(crate) fn update(&self, updated: Gc<Node>, original: &Node) -> Gc<Node> {
+    pub(crate) fn update(&self, updated: Id<Node>, original: &Node) -> Id<Node> {
         if self.flags.intersects(NodeFactoryFlags::NoOriginalNode) {
             update_without_original(updated, original)
         } else {
@@ -127,7 +128,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_jsdoc_unknown_type_raw(
         &self,
-        type_: Option<Gc<Node /*TypeNode*/>>,
+        type_: Option<Id<Node /*TypeNode*/>>,
     ) -> BaseJSDocUnaryType {
         self.create_jsdoc_unary_type_worker(SyntaxKind::JSDocUnknownType, type_)
     }
@@ -135,7 +136,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_jsdoc_non_nullable_type_raw(
         &self,
-        type_: Option<Gc<Node /*TypeNode*/>>,
+        type_: Option<Id<Node /*TypeNode*/>>,
     ) -> BaseJSDocUnaryType {
         self.create_jsdoc_unary_type_worker(SyntaxKind::JSDocNonNullableType, type_)
     }
@@ -143,7 +144,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_jsdoc_nullable_type_raw(
         &self,
-        type_: Option<Gc<Node /*TypeNode*/>>,
+        type_: Option<Id<Node /*TypeNode*/>>,
     ) -> BaseJSDocUnaryType {
         self.create_jsdoc_unary_type_worker(SyntaxKind::JSDocNullableType, type_)
     }
@@ -151,7 +152,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_jsdoc_optional_type_raw(
         &self,
-        type_: Option<Gc<Node /*TypeNode*/>>,
+        type_: Option<Id<Node /*TypeNode*/>>,
     ) -> BaseJSDocUnaryType {
         self.create_jsdoc_unary_type_worker(SyntaxKind::JSDocOptionalType, type_)
     }
@@ -159,7 +160,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_jsdoc_variadic_type_raw(
         &self,
-        type_: Option<Gc<Node /*TypeNode*/>>,
+        type_: Option<Id<Node /*TypeNode*/>>,
     ) -> BaseJSDocUnaryType {
         self.create_jsdoc_unary_type_worker(SyntaxKind::JSDocVariadicType, type_)
     }
@@ -167,7 +168,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_jsdoc_namepath_type_raw(
         &self,
-        type_: Option<Gc<Node /*TypeNode*/>>,
+        type_: Option<Id<Node /*TypeNode*/>>,
     ) -> BaseJSDocUnaryType {
         self.create_jsdoc_unary_type_worker(SyntaxKind::JSDocNamepathType, type_)
     }
@@ -175,8 +176,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_jsdoc_type_tag_raw<TComment: Into<StringOrNodeArray>>(
         &self,
-        tag_name: Option<Gc<Node /*Identifier*/>>,
-        type_expression: Option<Gc<Node /*JSDocTypeExpression*/>>,
+        tag_name: Option<Id<Node /*Identifier*/>>,
+        type_expression: Option<Id<Node /*JSDocTypeExpression*/>>,
         comment: Option<TComment /*<JSDocComment>*/>,
     ) -> BaseJSDocTypeLikeTag {
         self.create_jsdoc_type_like_tag_worker(
@@ -190,8 +191,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_jsdoc_return_tag_raw<TComment: Into<StringOrNodeArray>>(
         &self,
-        tag_name: Option<Gc<Node /*Identifier*/>>,
-        type_expression: Option<Gc<Node /*JSDocTypeExpression*/>>,
+        tag_name: Option<Id<Node /*Identifier*/>>,
+        type_expression: Option<Id<Node /*JSDocTypeExpression*/>>,
         comment: Option<TComment /*<JSDocComment>*/>,
     ) -> BaseJSDocTypeLikeTag {
         self.create_jsdoc_type_like_tag_worker(
@@ -205,8 +206,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_jsdoc_this_tag_raw<TComment: Into<StringOrNodeArray>>(
         &self,
-        tag_name: Option<Gc<Node /*Identifier*/>>,
-        type_expression: Option<Gc<Node /*JSDocTypeExpression*/>>,
+        tag_name: Option<Id<Node /*Identifier*/>>,
+        type_expression: Option<Id<Node /*JSDocTypeExpression*/>>,
         comment: Option<TComment /*<JSDocComment>*/>,
     ) -> BaseJSDocTypeLikeTag {
         self.create_jsdoc_type_like_tag_worker(
@@ -220,8 +221,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_jsdoc_enum_tag_raw<TComment: Into<StringOrNodeArray>>(
         &self,
-        tag_name: Option<Gc<Node /*Identifier*/>>,
-        type_expression: Option<Gc<Node /*JSDocTypeExpression*/>>,
+        tag_name: Option<Id<Node /*Identifier*/>>,
+        type_expression: Option<Id<Node /*JSDocTypeExpression*/>>,
         comment: Option<TComment /*<JSDocComment>*/>,
     ) -> BaseJSDocTypeLikeTag {
         self.create_jsdoc_type_like_tag_worker(
@@ -235,7 +236,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_jsdoc_author_tag_raw<TComment: Into<StringOrNodeArray>>(
         &self,
-        tag_name: Option<Gc<Node /*Identifier*/>>,
+        tag_name: Option<Id<Node /*Identifier*/>>,
         comment: Option<TComment /*<JSDocComment>*/>,
     ) -> BaseJSDocTag {
         self.create_jsdoc_simple_tag_worker(SyntaxKind::JSDocAuthorTag, tag_name, comment)
@@ -244,7 +245,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_jsdoc_class_tag_raw<TComment: Into<StringOrNodeArray>>(
         &self,
-        tag_name: Option<Gc<Node /*Identifier*/>>,
+        tag_name: Option<Id<Node /*Identifier*/>>,
         comment: Option<TComment /*<JSDocComment>*/>,
     ) -> BaseJSDocTag {
         self.create_jsdoc_simple_tag_worker(SyntaxKind::JSDocClassTag, tag_name, comment)
@@ -253,7 +254,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_jsdoc_public_tag_raw<TComment: Into<StringOrNodeArray>>(
         &self,
-        tag_name: Option<Gc<Node /*Identifier*/>>,
+        tag_name: Option<Id<Node /*Identifier*/>>,
         comment: Option<TComment /*<JSDocComment>*/>,
     ) -> BaseJSDocTag {
         self.create_jsdoc_simple_tag_worker(SyntaxKind::JSDocPublicTag, tag_name, comment)
@@ -262,7 +263,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_jsdoc_private_tag_raw<TComment: Into<StringOrNodeArray>>(
         &self,
-        tag_name: Option<Gc<Node /*Identifier*/>>,
+        tag_name: Option<Id<Node /*Identifier*/>>,
         comment: Option<TComment /*<JSDocComment>*/>,
     ) -> BaseJSDocTag {
         self.create_jsdoc_simple_tag_worker(SyntaxKind::JSDocPrivateTag, tag_name, comment)
@@ -271,7 +272,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_jsdoc_protected_tag_raw<TComment: Into<StringOrNodeArray>>(
         &self,
-        tag_name: Option<Gc<Node /*Identifier*/>>,
+        tag_name: Option<Id<Node /*Identifier*/>>,
         comment: Option<TComment /*<JSDocComment>*/>,
     ) -> BaseJSDocTag {
         self.create_jsdoc_simple_tag_worker(SyntaxKind::JSDocProtectedTag, tag_name, comment)
@@ -280,7 +281,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_jsdoc_readonly_tag_raw<TComment: Into<StringOrNodeArray>>(
         &self,
-        tag_name: Option<Gc<Node /*Identifier*/>>,
+        tag_name: Option<Id<Node /*Identifier*/>>,
         comment: Option<TComment /*<JSDocComment>*/>,
     ) -> BaseJSDocTag {
         self.create_jsdoc_simple_tag_worker(SyntaxKind::JSDocReadonlyTag, tag_name, comment)
@@ -289,7 +290,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_jsdoc_override_tag_raw<TComment: Into<StringOrNodeArray>>(
         &self,
-        tag_name: Option<Gc<Node /*Identifier*/>>,
+        tag_name: Option<Id<Node /*Identifier*/>>,
         comment: Option<TComment /*<JSDocComment>*/>,
     ) -> BaseJSDocTag {
         self.create_jsdoc_simple_tag_worker(SyntaxKind::JSDocOverrideTag, tag_name, comment)
@@ -298,7 +299,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_jsdoc_deprecated_tag_raw<TComment: Into<StringOrNodeArray>>(
         &self,
-        tag_name: Option<Gc<Node /*Identifier*/>>,
+        tag_name: Option<Id<Node /*Identifier*/>>,
         comment: Option<TComment /*<JSDocComment>*/>,
     ) -> BaseJSDocTag {
         self.create_jsdoc_simple_tag_worker(SyntaxKind::JSDocDeprecatedTag, tag_name, comment)
@@ -307,8 +308,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_comma_raw(
         &self,
-        left: Gc<Node /*Expression*/>,
-        right: Gc<Node /*Expression*/>,
+        left: Id<Node /*Expression*/>,
+        right: Id<Node /*Expression*/>,
     ) -> BinaryExpression {
         self.create_binary_expression_raw(left, SyntaxKind::CommaToken, right)
     }
@@ -316,8 +317,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_assignment_raw(
         &self,
-        left: Gc<Node /*Expression*/>,
-        right: Gc<Node /*Expression*/>,
+        left: Id<Node /*Expression*/>,
+        right: Id<Node /*Expression*/>,
     ) -> BinaryExpression {
         self.create_binary_expression_raw(left, SyntaxKind::EqualsToken, right)
     }
@@ -325,8 +326,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_logical_or_raw(
         &self,
-        left: Gc<Node /*Expression*/>,
-        right: Gc<Node /*Expression*/>,
+        left: Id<Node /*Expression*/>,
+        right: Id<Node /*Expression*/>,
     ) -> BinaryExpression {
         self.create_binary_expression_raw(left, SyntaxKind::BarBarToken, right)
     }
@@ -334,8 +335,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_logical_and_raw(
         &self,
-        left: Gc<Node /*Expression*/>,
-        right: Gc<Node /*Expression*/>,
+        left: Id<Node /*Expression*/>,
+        right: Id<Node /*Expression*/>,
     ) -> BinaryExpression {
         self.create_binary_expression_raw(left, SyntaxKind::AmpersandAmpersandToken, right)
     }
@@ -343,8 +344,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_bitwise_or_raw(
         &self,
-        left: Gc<Node /*Expression*/>,
-        right: Gc<Node /*Expression*/>,
+        left: Id<Node /*Expression*/>,
+        right: Id<Node /*Expression*/>,
     ) -> BinaryExpression {
         self.create_binary_expression_raw(left, SyntaxKind::BarToken, right)
     }
@@ -352,8 +353,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_bitwise_xor_raw(
         &self,
-        left: Gc<Node /*Expression*/>,
-        right: Gc<Node /*Expression*/>,
+        left: Id<Node /*Expression*/>,
+        right: Id<Node /*Expression*/>,
     ) -> BinaryExpression {
         self.create_binary_expression_raw(left, SyntaxKind::CaretToken, right)
     }
@@ -361,8 +362,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_bitwise_and_raw(
         &self,
-        left: Gc<Node /*Expression*/>,
-        right: Gc<Node /*Expression*/>,
+        left: Id<Node /*Expression*/>,
+        right: Id<Node /*Expression*/>,
     ) -> BinaryExpression {
         self.create_binary_expression_raw(left, SyntaxKind::AmpersandToken, right)
     }
@@ -370,8 +371,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_strict_equality_raw(
         &self,
-        left: Gc<Node /*Expression*/>,
-        right: Gc<Node /*Expression*/>,
+        left: Id<Node /*Expression*/>,
+        right: Id<Node /*Expression*/>,
     ) -> BinaryExpression {
         self.create_binary_expression_raw(left, SyntaxKind::EqualsEqualsEqualsToken, right)
     }
@@ -379,8 +380,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_strict_inequality_raw(
         &self,
-        left: Gc<Node /*Expression*/>,
-        right: Gc<Node /*Expression*/>,
+        left: Id<Node /*Expression*/>,
+        right: Id<Node /*Expression*/>,
     ) -> BinaryExpression {
         self.create_binary_expression_raw(left, SyntaxKind::ExclamationEqualsEqualsToken, right)
     }
@@ -388,8 +389,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_equality_raw(
         &self,
-        left: Gc<Node /*Expression*/>,
-        right: Gc<Node /*Expression*/>,
+        left: Id<Node /*Expression*/>,
+        right: Id<Node /*Expression*/>,
     ) -> BinaryExpression {
         self.create_binary_expression_raw(left, SyntaxKind::EqualsEqualsToken, right)
     }
@@ -397,8 +398,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_inequality_raw(
         &self,
-        left: Gc<Node /*Expression*/>,
-        right: Gc<Node /*Expression*/>,
+        left: Id<Node /*Expression*/>,
+        right: Id<Node /*Expression*/>,
     ) -> BinaryExpression {
         self.create_binary_expression_raw(left, SyntaxKind::ExclamationEqualsToken, right)
     }
@@ -406,8 +407,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_less_than_raw(
         &self,
-        left: Gc<Node /*Expression*/>,
-        right: Gc<Node /*Expression*/>,
+        left: Id<Node /*Expression*/>,
+        right: Id<Node /*Expression*/>,
     ) -> BinaryExpression {
         self.create_binary_expression_raw(left, SyntaxKind::LessThanToken, right)
     }
@@ -415,8 +416,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_less_than_equals_raw(
         &self,
-        left: Gc<Node /*Expression*/>,
-        right: Gc<Node /*Expression*/>,
+        left: Id<Node /*Expression*/>,
+        right: Id<Node /*Expression*/>,
     ) -> BinaryExpression {
         self.create_binary_expression_raw(left, SyntaxKind::LessThanEqualsToken, right)
     }
@@ -424,8 +425,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_greater_than_raw(
         &self,
-        left: Gc<Node /*Expression*/>,
-        right: Gc<Node /*Expression*/>,
+        left: Id<Node /*Expression*/>,
+        right: Id<Node /*Expression*/>,
     ) -> BinaryExpression {
         self.create_binary_expression_raw(left, SyntaxKind::GreaterThanToken, right)
     }
@@ -433,8 +434,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_greater_than_equals_raw(
         &self,
-        left: Gc<Node /*Expression*/>,
-        right: Gc<Node /*Expression*/>,
+        left: Id<Node /*Expression*/>,
+        right: Id<Node /*Expression*/>,
     ) -> BinaryExpression {
         self.create_binary_expression_raw(left, SyntaxKind::GreaterThanEqualsToken, right)
     }
@@ -442,8 +443,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_left_shift_raw(
         &self,
-        left: Gc<Node /*Expression*/>,
-        right: Gc<Node /*Expression*/>,
+        left: Id<Node /*Expression*/>,
+        right: Id<Node /*Expression*/>,
     ) -> BinaryExpression {
         self.create_binary_expression_raw(left, SyntaxKind::LessThanLessThanToken, right)
     }
@@ -451,8 +452,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_right_shift_raw(
         &self,
-        left: Gc<Node /*Expression*/>,
-        right: Gc<Node /*Expression*/>,
+        left: Id<Node /*Expression*/>,
+        right: Id<Node /*Expression*/>,
     ) -> BinaryExpression {
         self.create_binary_expression_raw(left, SyntaxKind::GreaterThanGreaterThanToken, right)
     }
@@ -460,8 +461,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_unsigned_right_shift_raw(
         &self,
-        left: Gc<Node /*Expression*/>,
-        right: Gc<Node /*Expression*/>,
+        left: Id<Node /*Expression*/>,
+        right: Id<Node /*Expression*/>,
     ) -> BinaryExpression {
         self.create_binary_expression_raw(
             left,
@@ -473,8 +474,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_add_raw(
         &self,
-        left: Gc<Node /*Expression*/>,
-        right: Gc<Node /*Expression*/>,
+        left: Id<Node /*Expression*/>,
+        right: Id<Node /*Expression*/>,
     ) -> BinaryExpression {
         self.create_binary_expression_raw(left, SyntaxKind::PlusToken, right)
     }
@@ -482,8 +483,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_subtract_raw(
         &self,
-        left: Gc<Node /*Expression*/>,
-        right: Gc<Node /*Expression*/>,
+        left: Id<Node /*Expression*/>,
+        right: Id<Node /*Expression*/>,
     ) -> BinaryExpression {
         self.create_binary_expression_raw(left, SyntaxKind::MinusToken, right)
     }
@@ -491,8 +492,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_multiply_raw(
         &self,
-        left: Gc<Node /*Expression*/>,
-        right: Gc<Node /*Expression*/>,
+        left: Id<Node /*Expression*/>,
+        right: Id<Node /*Expression*/>,
     ) -> BinaryExpression {
         self.create_binary_expression_raw(left, SyntaxKind::AsteriskToken, right)
     }
@@ -500,8 +501,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_divide_raw(
         &self,
-        left: Gc<Node /*Expression*/>,
-        right: Gc<Node /*Expression*/>,
+        left: Id<Node /*Expression*/>,
+        right: Id<Node /*Expression*/>,
     ) -> BinaryExpression {
         self.create_binary_expression_raw(left, SyntaxKind::SlashToken, right)
     }
@@ -509,8 +510,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_modulo_raw(
         &self,
-        left: Gc<Node /*Expression*/>,
-        right: Gc<Node /*Expression*/>,
+        left: Id<Node /*Expression*/>,
+        right: Id<Node /*Expression*/>,
     ) -> BinaryExpression {
         self.create_binary_expression_raw(left, SyntaxKind::PercentToken, right)
     }
@@ -518,8 +519,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_exponent_raw(
         &self,
-        left: Gc<Node /*Expression*/>,
-        right: Gc<Node /*Expression*/>,
+        left: Id<Node /*Expression*/>,
+        right: Id<Node /*Expression*/>,
     ) -> BinaryExpression {
         self.create_binary_expression_raw(left, SyntaxKind::AsteriskAsteriskToken, right)
     }
@@ -527,7 +528,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_prefix_plus_raw(
         &self,
-        operand: Gc<Node /*Expression*/>,
+        operand: Id<Node /*Expression*/>,
     ) -> PrefixUnaryExpression {
         self.create_prefix_unary_expression_raw(SyntaxKind::MinusToken, operand)
     }
@@ -535,7 +536,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_prefix_increment_raw(
         &self,
-        operand: Gc<Node /*Expression*/>,
+        operand: Id<Node /*Expression*/>,
     ) -> PrefixUnaryExpression {
         self.create_prefix_unary_expression_raw(SyntaxKind::PlusPlusToken, operand)
     }
@@ -543,7 +544,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_prefix_decrement_raw(
         &self,
-        operand: Gc<Node /*Expression*/>,
+        operand: Id<Node /*Expression*/>,
     ) -> PrefixUnaryExpression {
         self.create_prefix_unary_expression_raw(SyntaxKind::MinusMinusToken, operand)
     }
@@ -551,7 +552,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_bitwise_not_raw(
         &self,
-        operand: Gc<Node /*Expression*/>,
+        operand: Id<Node /*Expression*/>,
     ) -> PrefixUnaryExpression {
         self.create_prefix_unary_expression_raw(SyntaxKind::TildeToken, operand)
     }
@@ -559,7 +560,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_logical_not_raw(
         &self,
-        operand: Gc<Node /*Expression*/>,
+        operand: Id<Node /*Expression*/>,
     ) -> PrefixUnaryExpression {
         self.create_prefix_unary_expression_raw(SyntaxKind::ExclamationToken, operand)
     }
@@ -567,7 +568,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_postfix_increment_raw(
         &self,
-        operand: Gc<Node /*Expression*/>,
+        operand: Id<Node /*Expression*/>,
     ) -> PostfixUnaryExpression {
         self.create_postfix_unary_expression_raw(operand, SyntaxKind::PlusPlusToken)
     }
@@ -575,7 +576,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_postfix_decrement_raw(
         &self,
-        operand: Gc<Node /*Expression*/>,
+        operand: Id<Node /*Expression*/>,
     ) -> PostfixUnaryExpression {
         self.create_postfix_unary_expression_raw(operand, SyntaxKind::MinusMinusToken)
     }
@@ -724,7 +725,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         name: Option<TName>,
         type_parameters: Option<TTypeParameters>,
         parameters: Option<TParameters>,
-        type_: Option<Gc<Node>>,
+        type_: Option<Id<Node>>,
     ) -> BaseSignatureDeclaration {
         let node = self.create_base_generic_named_declaration(
             kind,
@@ -747,9 +748,9 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub(crate) fn update_base_signature_declaration(
         &self,
-        updated: Gc<Node>,
+        updated: Id<Node>,
         original: &Node,
-    ) -> Gc<Node> {
+    ) -> Id<Node> {
         // TODO: haven't added maybe_type_arguments() on SignatureDeclarationInterface yet (looks
         // like this logic is duplicated on updateBaseFunctionLikeDeclaration())
         // if let Some(original_type_arguments) = original_as_function_like_declaration.maybe_type_arguments().clone() {
@@ -765,8 +766,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         name: Option<impl Into<StrOrRcNode<'name>>>,
         type_parameters: Option<impl Into<NodeArrayOrVec>>,
         parameters: Option<impl Into<NodeArrayOrVec>>,
-        type_: Option<Gc<Node>>,
-        body: Option<Gc<Node>>,
+        type_: Option<Id<Node>>,
+        body: Option<Id<Node>>,
     ) -> BaseFunctionLikeDeclaration {
         let node = self.create_base_signature_declaration(
             kind,
@@ -791,9 +792,9 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub(crate) fn update_base_function_like_declaration(
         &self,
-        updated: Gc<Node>,
+        updated: Id<Node>,
         original: &Node,
-    ) -> Gc<Node> {
+    ) -> Id<Node> {
         let updated_as_function_like_declaration = updated.as_function_like_declaration();
         let original_as_function_like_declaration = original.as_function_like_declaration();
         if let Some(original_exclamation_token) = original_as_function_like_declaration
@@ -877,7 +878,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         decorators: Option<impl Into<NodeArrayOrVec>>,
         modifiers: Option<impl Into<NodeArrayOrVec>>,
         name: Option<impl Into<StrOrRcNode<'name>>>,
-        initializer: Option<Gc<Node>>,
+        initializer: Option<Id<Node>>,
     ) -> BaseBindingLikeDeclaration {
         let node = self.create_base_named_declaration(kind, decorators, modifiers, name);
         let node = BaseBindingLikeDeclaration::new(node, initializer);
@@ -891,8 +892,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         decorators: Option<impl Into<NodeArrayOrVec>>,
         modifiers: Option<impl Into<NodeArrayOrVec>>,
         name: Option<impl Into<StrOrRcNode<'name>>>,
-        type_: Option<Gc<Node>>,
-        initializer: Option<Gc<Node>>,
+        type_: Option<Id<Node>>,
+        initializer: Option<Id<Node>>,
     ) -> BaseVariableLikeDeclaration {
         let node = self.create_base_binding_like_declaration(
             kind,
@@ -1081,12 +1082,12 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         text: &str,
         type_arguments: Option<impl Into<NodeArrayOrVec>>,
         original_keyword_kind: Option<SyntaxKind>,
-    ) -> Gc<Node> {
+    ) -> Id<Node> {
         self.create_identifier_raw(text, type_arguments, original_keyword_kind)
             .wrap()
     }
 
-    pub fn create_identifier(&self, text: &str) -> Gc<Node> {
+    pub fn create_identifier(&self, text: &str) -> Id<Node> {
         self.create_identifier_full(text, Option::<Gc<NodeArray>>::None, None)
     }
 
@@ -1096,7 +1097,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         type_arguments: Option<
             impl Into<NodeArrayOrVec>, /*<TypeNode | TypeParameterDeclaration>*/
         >,
-    ) -> Gc<Node> {
+    ) -> Id<Node> {
         let type_arguments = type_arguments.map(Into::into);
         let node_type_arguments = node.as_identifier().maybe_type_arguments();
         if has_option_node_array_changed(node_type_arguments.as_deref(), type_arguments.as_ref()) {
@@ -1113,7 +1114,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         &self,
         record_temp_variable: Option<impl FnMut(&Node /*Identifier*/)>,
         reserved_in_nested_scopes: Option<bool>,
-    ) -> Gc<Node /*GeneratedIdentifier*/> {
+    ) -> Id<Node /*GeneratedIdentifier*/> {
         let mut flags = GeneratedIdentifierFlags::Auto;
         if reserved_in_nested_scopes == Some(true) {
             flags |= GeneratedIdentifierFlags::ReservedInNestedScopes;
@@ -1128,7 +1129,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     pub fn create_loop_variable(
         &self,
         reserved_in_nested_scopes: Option<bool>,
-    ) -> Gc<Node /*Identifier*/> {
+    ) -> Id<Node /*Identifier*/> {
         let mut flags = GeneratedIdentifierFlags::Loop;
         if reserved_in_nested_scopes == Some(true) {
             flags |= GeneratedIdentifierFlags::ReservedInNestedScopes;
@@ -1140,7 +1141,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         &self,
         text: &str,
         flags: Option<GeneratedIdentifierFlags>,
-    ) -> Gc<Node /*Identifier*/> {
+    ) -> Id<Node /*Identifier*/> {
         let flags = flags.unwrap_or_default();
         Debug_.assert(
             !flags.intersects(GeneratedIdentifierFlags::KindMask),
@@ -1158,7 +1159,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         &self,
         node: Option<impl Borrow<Node>>,
         flags: Option<GeneratedIdentifierFlags>,
-    ) -> Gc<Node /*Identifier*/> {
+    ) -> Id<Node /*Identifier*/> {
         let flags = flags.unwrap_or_default();
         Debug_.assert(
             !flags.intersects(GeneratedIdentifierFlags::KindMask),
@@ -1287,7 +1288,7 @@ pub fn has_node_array_changed(existing: &Gc<NodeArray>, maybe_changed: &NodeArra
 }
 
 pub fn has_option_str_or_node_changed(
-    existing: Option<&Gc<Node>>,
+    existing: Option<&Id<Node>>,
     maybe_changed: Option<&StrOrRcNode<'_>>,
 ) -> bool {
     match (existing, maybe_changed) {
@@ -1302,7 +1303,7 @@ pub fn has_option_str_or_node_changed(
 #[derive(Clone)]
 pub enum StringOrRcNode {
     String(String),
-    RcNode(Gc<Node>),
+    RcNode(Id<Node>),
 }
 
 impl From<String> for StringOrRcNode {
@@ -1311,8 +1312,8 @@ impl From<String> for StringOrRcNode {
     }
 }
 
-impl From<Gc<Node>> for StringOrRcNode {
-    fn from(value: Gc<Node>) -> Self {
+impl From<Id<Node>> for StringOrRcNode {
+    fn from(value: Id<Node>) -> Self {
         Self::RcNode(value)
     }
 }
@@ -1320,7 +1321,7 @@ impl From<Gc<Node>> for StringOrRcNode {
 #[derive(Clone)]
 pub enum StrOrRcNode<'str> {
     Str(&'str str),
-    RcNode(Gc<Node>),
+    RcNode(Id<Node>),
 }
 
 impl<'str> From<&'str str> for StrOrRcNode<'str> {
@@ -1329,8 +1330,8 @@ impl<'str> From<&'str str> for StrOrRcNode<'str> {
     }
 }
 
-impl<'str> From<Gc<Node>> for StrOrRcNode<'str> {
-    fn from(value: Gc<Node>) -> Self {
+impl<'str> From<Id<Node>> for StrOrRcNode<'str> {
+    fn from(value: Id<Node>) -> Self {
         Self::RcNode(value)
     }
 }
@@ -1357,7 +1358,7 @@ pub enum StringOrNumberOrBoolOrRcNode {
     String(String),
     Number(Number),
     Bool(bool),
-    RcNode(Gc<Node>),
+    RcNode(Id<Node>),
 }
 
 impl From<String> for StringOrNumberOrBoolOrRcNode {
@@ -1366,8 +1367,8 @@ impl From<String> for StringOrNumberOrBoolOrRcNode {
     }
 }
 
-impl From<Gc<Node>> for StringOrNumberOrBoolOrRcNode {
-    fn from(value: Gc<Node>) -> Self {
+impl From<Id<Node>> for StringOrNumberOrBoolOrRcNode {
+    fn from(value: Id<Node>) -> Self {
         Self::RcNode(value)
     }
 }
@@ -1413,7 +1414,7 @@ impl From<BoolOrRcNode> for StringOrNumberOrBoolOrRcNode {
 
 pub enum NumberOrRcNode {
     Number(Number),
-    RcNode(Gc<Node>),
+    RcNode(Id<Node>),
 }
 
 impl From<Number> for NumberOrRcNode {
@@ -1422,8 +1423,8 @@ impl From<Number> for NumberOrRcNode {
     }
 }
 
-impl From<Gc<Node>> for NumberOrRcNode {
-    fn from(value: Gc<Node>) -> Self {
+impl From<Id<Node>> for NumberOrRcNode {
+    fn from(value: Id<Node>) -> Self {
         Self::RcNode(value)
     }
 }

@@ -32,7 +32,7 @@ pub type RedirectTargetsMap = MultiMap<Path, String>;
 #[builder(setter(into, strip_option))]
 pub struct ResolvedProjectReference {
     pub command_line: Gc<ParsedCommandLine>,
-    pub source_file: Gc<Node /*SourceFile*/>,
+    pub source_file: Id<Node /*SourceFile*/>,
     #[builder(setter(skip))]
     references: GcCell<Option<Vec<Option<Gc<ResolvedProjectReference>>>>>,
 }
@@ -63,8 +63,8 @@ pub trait CustomTransformerFactoryInterface: Trace + Finalize {
 pub type CustomTransformer = Gc<Box<dyn CustomTransformerInterface>>;
 
 pub trait CustomTransformerInterface: Trace + Finalize {
-    fn transform_source_file(&self, node: &Node /*SourceFile*/) -> Gc<Node /*SourceFile*/>;
-    fn transform_bundle(&self, node: &Node /*Bundle*/) -> Gc<Node /*Bundle*/>;
+    fn transform_source_file(&self, node: &Node /*SourceFile*/) -> Id<Node /*SourceFile*/>;
+    fn transform_bundle(&self, node: &Node /*Bundle*/) -> Id<Node /*Bundle*/>;
 }
 
 #[derive(Trace, Finalize)]
@@ -145,8 +145,8 @@ pub struct EmitResult {
 pub trait TypeCheckerHost: ModuleSpecifierResolutionHost {
     fn get_compiler_options(&self) -> Gc<CompilerOptions>;
 
-    fn get_source_files(&self) -> GcCellRef<Vec<Gc<Node /*SourceFile*/>>>;
-    fn get_source_file(&self, file_name: &str) -> Option<Gc<Node /*SourceFile*/>>;
+    fn get_source_files(&self) -> GcCellRef<Vec<Id<Node /*SourceFile*/>>>;
+    fn get_source_file(&self, file_name: &str) -> Option<Id<Node /*SourceFile*/>>;
     fn get_resolved_type_reference_directives(
         &self,
     ) -> Gc<GcCell<HashMap<String, Option<Gc<ResolvedTypeReferenceDirective>>>>>;
@@ -192,7 +192,7 @@ pub struct TypeChecker {
     pub(crate) instantiation_depth: Cell<usize>,
     #[unsafe_ignore_trace]
     pub(crate) inline_level: Cell<usize>,
-    pub(crate) current_node: GcCell<Option<Gc<Node>>>,
+    pub(crate) current_node: GcCell<Option<Id<Node>>>,
     pub(crate) empty_symbols: Gc<GcCell<SymbolTable>>,
     pub(crate) compiler_options: Gc<CompilerOptions>,
     #[unsafe_ignore_trace]
@@ -379,7 +379,7 @@ pub struct TypeChecker {
     pub(crate) deferred_global_big_int_type: GcCell<Option<Id<Type /*ObjectType*/>>>,
 
     pub(crate) all_potentially_unused_identifiers:
-        GcCell<HashMap<Path, Vec<Gc<Node /*PotentiallyUnusedIdentifier*/>>>>,
+        GcCell<HashMap<Path, Vec<Id<Node /*PotentiallyUnusedIdentifier*/>>>>,
 
     #[unsafe_ignore_trace]
     pub(crate) flow_loop_start: Cell<usize>,
@@ -423,10 +423,10 @@ pub struct TypeChecker {
     pub(crate) flow_node_reachable: RefCell<HashMap<usize, bool>>,
     #[unsafe_ignore_trace]
     pub(crate) flow_node_post_super: RefCell<HashMap<usize, bool>>,
-    pub(crate) potential_this_collisions: GcCell<Vec<Gc<Node>>>,
-    pub(crate) potential_new_target_collisions: GcCell<Vec<Gc<Node>>>,
-    pub(crate) potential_weak_map_set_collisions: GcCell<Vec<Gc<Node>>>,
-    pub(crate) potential_reflect_collisions: GcCell<Vec<Gc<Node>>>,
+    pub(crate) potential_this_collisions: GcCell<Vec<Id<Node>>>,
+    pub(crate) potential_new_target_collisions: GcCell<Vec<Id<Node>>>,
+    pub(crate) potential_weak_map_set_collisions: GcCell<Vec<Id<Node>>>,
+    pub(crate) potential_reflect_collisions: GcCell<Vec<Id<Node>>>,
     #[unsafe_ignore_trace]
     pub(crate) awaited_type_stack: RefCell<Vec<TypeId>>,
 
@@ -437,7 +437,7 @@ pub struct TypeChecker {
     pub(crate) typeof_type: Option<Id<Type>>,
 
     pub(crate) _jsx_namespace: GcCell<Option<__String>>,
-    pub(crate) _jsx_factory_entity: GcCell<Option<Gc<Node /*EntityName*/>>>,
+    pub(crate) _jsx_factory_entity: GcCell<Option<Id<Node /*EntityName*/>>>,
     pub(crate) outofband_variance_marker_handler:
         GcCell<Option<Gc<Box<dyn OutofbandVarianceMarkerHandler>>>>,
 
@@ -626,9 +626,9 @@ pub struct TypePredicate {
 
 pub struct SymbolVisibilityResult {
     pub accessibility: SymbolAccessibility,
-    pub aliases_to_make_visible: Option<Vec<Gc<Node /*LateVisibilityPaintedStatement*/>>>,
+    pub aliases_to_make_visible: Option<Vec<Id<Node /*LateVisibilityPaintedStatement*/>>>,
     pub error_symbol_name: Option<String>,
-    pub error_node: Option<Gc<Node>>,
+    pub error_node: Option<Id<Node>>,
 }
 
 impl SymbolVisibilityResult {
@@ -651,17 +651,17 @@ impl SymbolVisibilityResult {
 
 pub struct SymbolAccessibilityResult {
     pub accessibility: SymbolAccessibility,
-    pub aliases_to_make_visible: Option<Vec<Gc<Node /*LateVisibilityPaintedStatement*/>>>,
+    pub aliases_to_make_visible: Option<Vec<Id<Node /*LateVisibilityPaintedStatement*/>>>,
     pub error_symbol_name: Option<String>,
-    pub error_node: Option<Gc<Node>>,
+    pub error_node: Option<Id<Node>>,
     pub error_module_name: Option<String>,
 }
 
 pub struct AllAccessorDeclarations {
-    pub first_accessor: Gc<Node /*AccessorDeclaration*/>,
-    pub second_accessor: Option<Gc<Node /*AccessorDeclaration*/>>,
-    pub get_accessor: Option<Gc<Node /*GetAccessorDeclaration*/>>,
-    pub set_accessor: Option<Gc<Node /*SetAccessorDeclaration*/>>,
+    pub first_accessor: Id<Node /*AccessorDeclaration*/>,
+    pub second_accessor: Option<Id<Node /*AccessorDeclaration*/>>,
+    pub get_accessor: Option<Id<Node /*GetAccessorDeclaration*/>>,
+    pub set_accessor: Option<Id<Node /*SetAccessorDeclaration*/>>,
 }
 
 pub enum TypeReferenceSerializationKind {
@@ -696,15 +696,15 @@ pub trait EmitResolver: Trace + Finalize {
         &self,
         node: &Node, /*Identifier*/
         prefix_locals: Option<bool>,
-    ) -> io::Result<Option<Gc<Node /*SourceFile | ModuleDeclaration | EnumDeclaration*/>>>;
+    ) -> io::Result<Option<Id<Node /*SourceFile | ModuleDeclaration | EnumDeclaration*/>>>;
     fn get_referenced_import_declaration(
         &self,
         node: &Node, /*Identifier*/
-    ) -> io::Result<Option<Gc<Node /*Declaration*/>>>;
+    ) -> io::Result<Option<Id<Node /*Declaration*/>>>;
     fn get_referenced_declaration_with_colliding_name(
         &self,
         node: &Node, /*Identifier*/
-    ) -> io::Result<Option<Gc<Node /*Declaration*/>>>;
+    ) -> io::Result<Option<Id<Node /*Declaration*/>>>;
     fn is_declaration_with_colliding_name(
         &self,
         node: &Node, /*Declaration*/
@@ -726,7 +726,7 @@ pub trait EmitResolver: Trace + Finalize {
         &self,
         node: &Node, /*Identifier*/
         set_visibility: Option<bool>,
-    ) -> io::Result<Option<Vec<Gc<Node>>>>;
+    ) -> io::Result<Option<Vec<Id<Node>>>>;
     fn is_implementation_of_overload(
         &self,
         node: &Node, /*SignatureDeclaration*/
@@ -754,26 +754,26 @@ pub trait EmitResolver: Trace + Finalize {
         flags: NodeBuilderFlags,
         tracker: Gc<Box<dyn SymbolTracker>>,
         add_undefined: Option<bool>,
-    ) -> io::Result<Option<Gc<Node /*TypeNode*/>>>;
+    ) -> io::Result<Option<Id<Node /*TypeNode*/>>>;
     fn create_return_type_of_signature_declaration(
         &self,
         signature_declaration: &Node, /*SignatureDeclaration*/
         enclosing_declaration: &Node,
         flags: NodeBuilderFlags,
         tracker: Gc<Box<dyn SymbolTracker>>,
-    ) -> io::Result<Option<Gc<Node /*TypeNode*/>>>;
+    ) -> io::Result<Option<Id<Node /*TypeNode*/>>>;
     fn create_type_of_expression(
         &self,
         expr: &Node, /*Expression*/
         enclosing_declaration: &Node,
         flags: NodeBuilderFlags,
         tracker: Gc<Box<dyn SymbolTracker>>,
-    ) -> io::Result<Option<Gc<Node /*TypeNode*/>>>;
+    ) -> io::Result<Option<Id<Node /*TypeNode*/>>>;
     fn create_literal_const_value(
         &self,
         node: &Node, /*VariableDeclaration | PropertyDeclaration | PropertySignature | ParameterDeclaration*/
         tracker: Gc<Box<dyn SymbolTracker>>,
-    ) -> io::Result<Gc<Node /*Expression*/>>;
+    ) -> io::Result<Id<Node /*Expression*/>>;
     fn is_symbol_accessible(
         &self,
         symbol: Id<Symbol>,
@@ -793,7 +793,7 @@ pub trait EmitResolver: Trace + Finalize {
     fn get_referenced_value_declaration(
         &self,
         reference: &Node, /*Identifier*/
-    ) -> io::Result<Option<Gc<Node /*Declaration*/>>>;
+    ) -> io::Result<Option<Id<Node /*Declaration*/>>>;
     fn get_type_reference_serialization_kind(
         &self,
         type_name: &Node, /*EntityName*/
@@ -808,7 +808,7 @@ pub trait EmitResolver: Trace + Finalize {
     fn get_external_module_file_from_declaration(
         &self,
         declaration: &Node, /*ImportEqualsDeclaration | ImportDeclaration | ExportDeclaration | ModuleDeclaration | ImportTypeNode | ImportCall*/
-    ) -> io::Result<Option<Gc<Node /*SourceFile*/>>>;
+    ) -> io::Result<Option<Id<Node /*SourceFile*/>>>;
     fn get_type_reference_directives_for_entity_name(
         &self,
         name: &Node, /*EntityNameOrEntityNameExpression*/
@@ -822,11 +822,11 @@ pub trait EmitResolver: Trace + Finalize {
         &self,
         node: &Node, /*VariableDeclaration | PropertyDeclaration | PropertySignature | ParameterDeclaration*/
     ) -> io::Result<bool>;
-    fn get_jsx_factory_entity(&self, location: Option<&Node>) -> Option<Gc<Node /*EntityName*/>>;
+    fn get_jsx_factory_entity(&self, location: Option<&Node>) -> Option<Id<Node /*EntityName*/>>;
     fn get_jsx_fragment_factory_entity(
         &self,
         location: Option<&Node>,
-    ) -> Option<Gc<Node /*EntityName*/>>;
+    ) -> Option<Id<Node /*EntityName*/>>;
     fn get_all_accessor_declarations(
         &self,
         declaration: &Node, /*AccessorDeclaration*/
@@ -846,7 +846,7 @@ pub trait EmitResolver: Trace + Finalize {
         flags: NodeBuilderFlags,
         tracker: Gc<Box<dyn SymbolTracker>>,
         bundled: Option<bool>,
-    ) -> io::Result<Option<Vec<Gc<Node /*Statement*/>>>>;
+    ) -> io::Result<Option<Vec<Id<Node /*Statement*/>>>>;
     fn is_import_required_by_augmentation(
         &self,
         decl: &Node, /*ImportDeclaration*/
@@ -942,11 +942,11 @@ pub trait SymbolInterface {
     fn flags(&self) -> SymbolFlags;
     fn set_flags(&self, flags: SymbolFlags);
     fn escaped_name(&self) -> &str /*__String*/;
-    fn maybe_declarations(&self) -> GcCellRef<Option<Vec<Gc<Node>>>>;
-    fn maybe_declarations_mut(&self) -> GcCellRefMut<Option<Vec<Gc<Node>>>>;
-    fn set_declarations(&self, declarations: Vec<Gc<Node>>);
-    fn maybe_value_declaration(&self) -> Option<Gc<Node>>;
-    fn set_value_declaration(&self, node: Gc<Node>);
+    fn maybe_declarations(&self) -> GcCellRef<Option<Vec<Id<Node>>>>;
+    fn maybe_declarations_mut(&self) -> GcCellRefMut<Option<Vec<Id<Node>>>>;
+    fn set_declarations(&self, declarations: Vec<Id<Node>>);
+    fn maybe_value_declaration(&self) -> Option<Id<Node>>;
+    fn set_value_declaration(&self, node: Id<Node>);
     fn maybe_members(&self) -> GcCellRef<Option<Gc<GcCell<SymbolTable>>>>;
     fn maybe_members_mut(&self) -> GcCellRefMut<Option<Gc<GcCell<SymbolTable>>>>;
     fn members(&self) -> Gc<GcCell<SymbolTable>>;
@@ -973,7 +973,7 @@ pub trait SymbolInterface {
     fn set_is_assigned(&self, is_assigned: Option<bool>);
     fn maybe_assignment_declaration_members(
         &self,
-    ) -> GcCellRefMut<Option<HashMap<NodeId, Gc<Node /*Declaration*/>>>>;
+    ) -> GcCellRefMut<Option<HashMap<NodeId, Id<Node /*Declaration*/>>>>;
 }
 
 #[derive(Debug, Finalize, Trace)]
@@ -1010,8 +1010,8 @@ pub struct BaseSymbol {
     flags: Cell<SymbolFlags>,
     #[unsafe_ignore_trace]
     escaped_name: __String,
-    declarations: GcCell<Option<Vec<Gc<Node /*Declaration*/>>>>,
-    value_declaration: GcCell<Option<Gc<Node>>>,
+    declarations: GcCell<Option<Vec<Id<Node /*Declaration*/>>>>,
+    value_declaration: GcCell<Option<Id<Node>>>,
     members: GcCell<Option<Gc<GcCell<SymbolTable>>>>,
     exports: GcCell<Option<Gc<GcCell<SymbolTable>>>>,
     global_exports: GcCell<Option<Gc<GcCell<SymbolTable>>>>,
@@ -1029,7 +1029,7 @@ pub struct BaseSymbol {
     is_replaceable_by_method: Cell<Option<bool>>,
     #[unsafe_ignore_trace]
     is_assigned: Cell<Option<bool>>,
-    assignment_declaration_members: GcCell<Option<HashMap<NodeId, Gc<Node /*Declaration*/>>>>,
+    assignment_declaration_members: GcCell<Option<HashMap<NodeId, Id<Node /*Declaration*/>>>>,
 }
 
 impl BaseSymbol {
@@ -1068,23 +1068,23 @@ impl SymbolInterface for BaseSymbol {
         &self.escaped_name
     }
 
-    fn maybe_declarations(&self) -> GcCellRef<Option<Vec<Gc<Node>>>> {
+    fn maybe_declarations(&self) -> GcCellRef<Option<Vec<Id<Node>>>> {
         self.declarations.borrow()
     }
 
-    fn maybe_declarations_mut(&self) -> GcCellRefMut<Option<Vec<Gc<Node>>>> {
+    fn maybe_declarations_mut(&self) -> GcCellRefMut<Option<Vec<Id<Node>>>> {
         self.declarations.borrow_mut()
     }
 
-    fn set_declarations(&self, declarations: Vec<Gc<Node>>) {
+    fn set_declarations(&self, declarations: Vec<Id<Node>>) {
         *self.declarations.borrow_mut() = Some(declarations);
     }
 
-    fn maybe_value_declaration(&self) -> Option<Gc<Node>> {
+    fn maybe_value_declaration(&self) -> Option<Id<Node>> {
         self.value_declaration.borrow().clone()
     }
 
-    fn set_value_declaration(&self, node: Gc<Node>) {
+    fn set_value_declaration(&self, node: Id<Node>) {
         *self.value_declaration.borrow_mut() = Some(node);
     }
 
@@ -1186,7 +1186,7 @@ impl SymbolInterface for BaseSymbol {
 
     fn maybe_assignment_declaration_members(
         &self,
-    ) -> GcCellRefMut<Option<HashMap<NodeId, Gc<Node>>>> {
+    ) -> GcCellRefMut<Option<HashMap<NodeId, Id<Node>>>> {
         self.assignment_declaration_members.borrow_mut()
     }
 }
@@ -1222,11 +1222,11 @@ pub struct SymbolLinks {
     pub exports_checked: Option<bool>,
     pub type_parameters_checked: Option<bool>,
     pub is_declaration_with_colliding_name: Option<bool>,
-    pub binding_element: Option<Gc<Node /*BindingElement*/>>,
+    pub binding_element: Option<Id<Node /*BindingElement*/>>,
     pub exports_some_value: Option<bool>,
     #[unsafe_ignore_trace]
     pub enum_kind: Option<EnumKind>,
-    pub originating_import: Option<Gc<Node /*ImportDeclaration | ImportCall*/>>,
+    pub originating_import: Option<Id<Node /*ImportDeclaration | ImportCall*/>>,
     pub late_symbol: Option<Id<Symbol>>,
     #[unsafe_ignore_trace]
     pub specifier_cache: Option<HashMap<String, String>>,
@@ -1237,9 +1237,9 @@ pub struct SymbolLinks {
     pub deferral_constituents: Option<Vec<Id<Type>>>,
     pub deferral_parent: Option<Id<Type>>,
     pub cjs_export_merged: Option<Id<Symbol>>,
-    pub type_only_declaration: Option<Option<Gc<Node /*TypeOnlyAliasDeclaration | false*/>>>,
+    pub type_only_declaration: Option<Option<Id<Node /*TypeOnlyAliasDeclaration | false*/>>>,
     pub is_constructor_declared_property: Option<bool>,
-    pub tuple_label_declaration: Option<Gc<Node /*NamedTupleMember | ParameterDeclaration*/>>,
+    pub tuple_label_declaration: Option<Id<Node /*NamedTupleMember | ParameterDeclaration*/>>,
     pub accessible_chain_cache: Option<HashMap<String, Option<Vec<Id<Symbol>>>>>,
 }
 

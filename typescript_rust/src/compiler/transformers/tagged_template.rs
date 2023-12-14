@@ -1,6 +1,7 @@
 use std::io;
 
 use gc::Gc;
+use id_arena::Id;
 
 use crate::{Node, TransformationContext, VisitResult};
 
@@ -17,7 +18,7 @@ pub fn process_tagged_template_expression(
     current_source_file: &Node, /*SourceFile*/
     record_tagged_template_string: impl FnMut(&Node /*Identifier*/),
     level: ProcessLevel,
-) -> Gc<Node> {
+) -> Id<Node> {
     try_process_tagged_template_expression(
         context,
         node,
@@ -36,6 +37,6 @@ pub fn try_process_tagged_template_expression(
     _current_source_file: &Node, /*SourceFile*/
     _record_tagged_template_string: impl FnMut(&Node /*Identifier*/),
     _level: ProcessLevel,
-) -> io::Result<Gc<Node>> {
+) -> io::Result<Id<Node>> {
     unimplemented!()
 }

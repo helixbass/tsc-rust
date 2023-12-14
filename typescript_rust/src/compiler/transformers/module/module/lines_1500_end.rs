@@ -1,6 +1,7 @@
 use std::io;
 
 use gc::Gc;
+use id_arena::Id;
 use once_cell::unsync::Lazy;
 
 use super::TransformModule;
@@ -14,7 +15,7 @@ use crate::{
 impl TransformModule {
     pub(super) fn append_exports_of_import_equals_declaration(
         &self,
-        statements: &mut Option<Vec<Gc<Node /*Statement*/>>>,
+        statements: &mut Option<Vec<Id<Node /*Statement*/>>>,
         decl: &Node, /*ImportEqualsDeclaration*/
     ) /*: Statement[] | undefined */
     {
@@ -27,7 +28,7 @@ impl TransformModule {
 
     pub(super) fn append_exports_of_variable_statement(
         &self,
-        statements: &mut Option<Vec<Gc<Node /*Statement*/>>>,
+        statements: &mut Option<Vec<Id<Node /*Statement*/>>>,
         node: &Node, /*VariableStatement*/
     ) /*: Statement[] | undefined */
     {
@@ -49,7 +50,7 @@ impl TransformModule {
 
     pub(super) fn append_exports_of_binding_element(
         &self,
-        statements: &mut Option<Vec<Gc<Node /*Statement*/>>>,
+        statements: &mut Option<Vec<Id<Node /*Statement*/>>>,
         decl: &Node, /*VariableDeclaration | BindingElement*/
     ) /*: Statement[] | undefined */
     {
@@ -77,7 +78,7 @@ impl TransformModule {
 
     pub(super) fn append_exports_of_hoisted_declaration(
         &self,
-        statements: &mut Option<Vec<Gc<Node /*Statement*/>>>,
+        statements: &mut Option<Vec<Id<Node /*Statement*/>>>,
         decl: &Node, /*ClassDeclaration | FunctionDeclaration*/
     ) /*: Statement[] | undefined */
     {
@@ -110,7 +111,7 @@ impl TransformModule {
 
     pub(super) fn append_exports_of_declaration(
         &self,
-        statements: &mut Option<Vec<Gc<Node /*Statement*/>>>,
+        statements: &mut Option<Vec<Id<Node /*Statement*/>>>,
         decl: &Node, /*Declaration*/
         live_binding: Option<bool>,
     ) /*: Statement[] | undefined */
@@ -136,7 +137,7 @@ impl TransformModule {
 
     pub(super) fn append_export_statement(
         &self,
-        statements: &mut Option<Vec<Gc<Node /*Statement*/>>>,
+        statements: &mut Option<Vec<Id<Node /*Statement*/>>>,
         export_name: &Node, /*Identifier*/
         expression: &Node,  /*Expression*/
         location: Option<&impl ReadonlyTextRange>,
@@ -156,7 +157,7 @@ impl TransformModule {
         // return statements;
     }
 
-    pub(super) fn create_underscore_underscore_es_module(&self) -> Gc<Node> {
+    pub(super) fn create_underscore_underscore_es_module(&self) -> Id<Node> {
         if self.language_version == ScriptTarget::ES3 {
             self.factory
                 .create_expression_statement(self.create_export_expression(
@@ -203,7 +204,7 @@ impl TransformModule {
         location: Option<&impl ReadonlyTextRange>,
         allow_comments: Option<bool>,
         live_binding: Option<bool>,
-    ) -> Gc<Node> {
+    ) -> Id<Node> {
         let statement = self
             .factory
             .create_expression_statement(self.create_export_expression(
@@ -227,7 +228,7 @@ impl TransformModule {
         value: &Node, /*Expression*/
         location: Option<&(impl ReadonlyTextRange + ?Sized)>,
         live_binding: Option<bool>,
-    ) -> Gc<Node> {
+    ) -> Id<Node> {
         if live_binding == Some(true) && self.language_version != ScriptTarget::ES3 {
             self.factory.create_call_expression(
                 self.factory.create_property_access_expression(
@@ -249,7 +250,7 @@ impl TransformModule {
                                 self.factory.create_function_expression(
                                     Option::<Gc<NodeArray>>::None,
                                     None,
-                                    Option::<Gc<Node>>::None,
+                                    Option::<Id<Node>>::None,
                                     Option::<Gc<NodeArray>>::None,
                                     Some(vec![]),
                                     None,
@@ -288,7 +289,7 @@ impl TransformModule {
     pub(super) fn get_exports(
         &self,
         name: &Node, /*Identifier*/
-    ) -> io::Result<Option<Vec<Gc<Node /*Identifier*/>>>> {
+    ) -> io::Result<Option<Vec<Id<Node /*Identifier*/>>>> {
         if !is_generated_identifier(name) {
             let value_declaration = self
                 .resolver

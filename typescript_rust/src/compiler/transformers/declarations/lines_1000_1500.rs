@@ -34,7 +34,7 @@ impl TransformDeclarations {
         &self,
         input: &Node,
         can_produce_diagnostic: bool,
-        previous_enclosing_declaration: Option<&Gc<Node>>,
+        previous_enclosing_declaration: Option<&Id<Node>>,
         old_diag: &GetSymbolAccessibilityDiagnostic,
         should_enter_suppress_new_diagnostics_context_context: bool,
         old_within_object_literal_type: Option<bool>,
@@ -176,7 +176,7 @@ impl TransformDeclarations {
     pub(super) fn strip_export_modifiers(
         &self,
         statement: &Node, /*Statement*/
-    ) -> Gc<Node /*Statement*/> {
+    ) -> Id<Node /*Statement*/> {
         if is_import_equals_declaration(statement)
             || has_effective_modifier(statement, ModifierFlags::Default)
             || !can_have_modifiers(statement)
@@ -218,7 +218,7 @@ impl TransformDeclarations {
             return Ok(None);
         }
 
-        let mut previous_enclosing_declaration: Option<Gc<Node>> = None;
+        let mut previous_enclosing_declaration: Option<Id<Node>> = None;
         if self.is_enclosing_declaration(input) {
             previous_enclosing_declaration = self.maybe_enclosing_declaration();
             self.set_enclosing_declaration(Some(input.node_wrapper()));
@@ -264,7 +264,7 @@ impl TransformDeclarations {
                                     .unwrap(),
                                 Some(|node: &Node| self.visit_declaration_subtree(node)),
                                 Some(is_type_node),
-                                Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                                Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                             )?,
                         ),
                     ),
@@ -366,11 +366,11 @@ impl TransformDeclarations {
                         Some(&props),
                     )))));
                     fakespace.set_symbol(props[0].ref_(self).maybe_parent().unwrap());
-                    let mut export_mappings: Vec<(Gc<Node /*Identifier*/>, String)> =
+                    let mut export_mappings: Vec<(Id<Node /*Identifier*/>, String)> =
                         Default::default();
                     let mut declarations = try_map_defined(
                         Some(&props),
-                        |&p: &Id<Symbol>, _| -> io::Result<Option<Gc<Node>>> {
+                        |&p: &Id<Symbol>, _| -> io::Result<Option<Id<Node>>> {
                             let ref p_value_declaration = return_ok_default_if_none!(p
                                 .ref_(self)
                                 .maybe_value_declaration()
@@ -426,7 +426,7 @@ impl TransformDeclarations {
                     )?;
                     if export_mappings.is_empty() {
                         declarations =
-                            map_defined(Some(&declarations), |declaration: &Gc<Node>, _| {
+                            map_defined(Some(&declarations), |declaration: &Id<Node>, _| {
                                 Some(
                                     self.factory
                                         .update_modifiers(declaration, ModifierFlags::None),
@@ -588,7 +588,7 @@ impl TransformDeclarations {
                         inner.as_double_deref(),
                         Some(|node: &Node| self.visit_declaration_statements(node)),
                         Option::<fn(&Node) -> bool>::None,
-                        Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                        Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                     )?;
                     let id = maybe_get_original_node_id(inner.as_double_deref());
                     let body = self
@@ -625,14 +625,14 @@ impl TransformDeclarations {
                         .as_deref(),
                 )?;
                 let ctor = get_first_constructor_with_body(input);
-                let mut parameter_properties: Option<Vec<Gc<Node /*PropertyDeclaration*/>>> =
+                let mut parameter_properties: Option<Vec<Id<Node /*PropertyDeclaration*/>>> =
                     Default::default();
                 if let Some(ref ctor) = ctor {
                     let old_diag = self.get_symbol_accessibility_diagnostic();
                     let ctor_as_constructor_declaration = ctor.as_constructor_declaration();
                     parameter_properties = Some(/*compact(*/ try_flat_map(
                         Some(&ctor_as_constructor_declaration.parameters()),
-                        |param: &Gc<Node>, _| -> io::Result<_> {
+                        |param: &Id<Node>, _| -> io::Result<_> {
                             if !has_syntactic_modifier(
                                 param,
                                 ModifierFlags::ParameterPropertyModifier,
@@ -680,7 +680,7 @@ impl TransformDeclarations {
 
                 let has_private_identifier = some(
                     Some(&input_as_class_declaration.members()),
-                    Some(|member: &Gc<Node>| {
+                    Some(|member: &Id<Node>| {
                         matches!(
                             member.as_named_declaration().maybe_name().as_ref(),
                             Some(member_name) if is_private_identifier(member_name)
@@ -770,7 +770,7 @@ impl TransformDeclarations {
                             input_as_class_declaration
                                 .maybe_heritage_clauses()
                                 .as_deref(),
-                            |clause: &Gc<Node>, _| -> io::Result<_> {
+                            |clause: &Id<Node>, _| -> io::Result<_> {
                                 let clause_as_heritage_clause = clause.as_heritage_clause();
                                 if clause_as_heritage_clause.token == SyntaxKind::ExtendsKeyword {
                                     let old_diag = self.get_symbol_accessibility_diagnostic();
@@ -783,7 +783,7 @@ impl TransformDeclarations {
                                         clause,
                                         try_map(
                                             &clause_as_heritage_clause.types,
-                                            |t: &Gc<Node>, _| -> io::Result<_> {
+                                            |t: &Id<Node>, _| -> io::Result<_> {
                                                 Ok(self
                                                     .factory
                                                     .update_expression_with_type_arguments(
@@ -917,7 +917,7 @@ impl TransformDeclarations {
                             Some(self.factory.create_node_array(
                                 Some(try_map_defined(
                                     Some(&input_as_enum_declaration.members),
-                                    |m: &Gc<Node>, _| -> io::Result<_> {
+                                    |m: &Id<Node>, _| -> io::Result<_> {
                                         if self.should_strip_internal(m) {
                                             return Ok(None);
                                         }
@@ -966,8 +966,8 @@ impl TransformDeclarations {
         &self,
         param: &Node,
         pattern: &Node, /*BindingPattern*/
-    ) -> io::Result<Option<Vec<Gc<Node>>>> {
-        let mut elems: Option<Vec<Gc<Node /*PropertyDeclaration*/>>> = Default::default();
+    ) -> io::Result<Option<Vec<Id<Node>>>> {
+        let mut elems: Option<Vec<Id<Node /*PropertyDeclaration*/>>> = Default::default();
         for elem in &pattern.as_has_elements().elements() {
             let elem_as_binding_element = elem.as_binding_element();
             if is_omitted_expression(elem) {
@@ -996,7 +996,7 @@ impl TransformDeclarations {
     pub(super) fn transform_top_level_declaration_cleanup(
         &self,
         input: &Node,
-        previous_enclosing_declaration: Option<&Gc<Node>>,
+        previous_enclosing_declaration: Option<&Id<Node>>,
         can_prodice_diagnostic: bool,
         old_diag: &GetSymbolAccessibilityDiagnostic,
         previous_needs_declare: bool,
@@ -1031,7 +1031,7 @@ impl TransformDeclarations {
 
 #[derive(Trace, Finalize)]
 struct VisitDeclarationStatementsGetSymbolAccessibilityDiagnostic {
-    input: Gc<Node>,
+    input: Id<Node>,
 }
 
 impl VisitDeclarationStatementsGetSymbolAccessibilityDiagnostic {
@@ -1060,8 +1060,8 @@ impl GetSymbolAccessibilityDiagnosticInterface
 
 #[derive(Trace, Finalize)]
 struct TransformTopLevelDeclarationGetSymbolAccessibilityDiagnostic {
-    extends_clause: Gc<Node>,
-    input: Gc<Node>,
+    extends_clause: Id<Node>,
+    input: Id<Node>,
 }
 
 impl TransformTopLevelDeclarationGetSymbolAccessibilityDiagnostic {

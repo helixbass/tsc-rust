@@ -1,6 +1,7 @@
 use std::io;
 
 use gc::Gc;
+use id_arena::Id;
 
 use super::{
     ParenthesizeConciseBodyOfArrowFunctionCurrentParenthesizerRule,
@@ -241,7 +242,7 @@ impl Printer {
                 self.push_name_generation_scope(Some(node));
                 for_each(
                     &node_as_function_like_declaration.parameters(),
-                    |parameter: &Gc<Node>, _| -> Option<()> {
+                    |parameter: &Id<Node>, _| -> Option<()> {
                         self.generate_names(Some(&**parameter));
                         None
                     },
@@ -322,7 +323,7 @@ impl Printer {
             return false;
         }
 
-        let mut previous_statement: Option<Gc<Node /*Statement*/>> = None;
+        let mut previous_statement: Option<Id<Node /*Statement*/>> = None;
         for statement in &body_as_block.statements {
             if self.get_separating_line_terminator_count(
                 previous_statement.as_deref(),
@@ -440,7 +441,7 @@ impl Printer {
         let node_as_class_like_declaration = node.as_class_like_declaration();
         for_each(
             &node_as_class_like_declaration.members(),
-            |member: &Gc<Node>, _| -> Option<()> {
+            |member: &Id<Node>, _| -> Option<()> {
                 self.generate_member_names(Some(&**member));
                 None
             },
@@ -621,7 +622,7 @@ impl Printer {
         self.push_name_generation_scope(Some(node));
         for_each(
             &node.as_module_block().statements,
-            |statement: &Gc<Node>, _| -> Option<()> {
+            |statement: &Id<Node>, _| -> Option<()> {
                 self.generate_names(Some(&**statement));
                 None
             },

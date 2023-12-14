@@ -415,7 +415,7 @@ impl TypeChecker {
         mut flags: NodeBuilderFlags,
         tracker: Gc<Box<dyn SymbolTracker>>,
         add_undefined: Option<bool>,
-    ) -> io::Result<Option<Gc<Node /*TypeNode*/>>> {
+    ) -> io::Result<Option<Id<Node /*TypeNode*/>>> {
         let declaration = get_parse_tree_node(
             Some(declaration_in),
             Some(|node: &Node| is_variable_like_or_accessor(node)),
@@ -460,7 +460,7 @@ impl TypeChecker {
         enclosing_declaration: &Node,
         flags: NodeBuilderFlags,
         tracker: Gc<Box<dyn SymbolTracker>>,
-    ) -> io::Result<Option<Gc<Node /*TypeNode*/>>> {
+    ) -> io::Result<Option<Id<Node /*TypeNode*/>>> {
         let signature_declaration = get_parse_tree_node(
             Some(signature_declaration_in),
             Some(|node: &Node| is_function_like(Some(node))),
@@ -484,7 +484,7 @@ impl TypeChecker {
         enclosing_declaration: &Node,
         flags: NodeBuilderFlags,
         tracker: Gc<Box<dyn SymbolTracker>>,
-    ) -> io::Result<Option<Gc<Node /*TypeNode*/>>> {
+    ) -> io::Result<Option<Id<Node /*TypeNode*/>>> {
         let expr = get_parse_tree_node(Some(expr_in), Some(|node: &Node| is_expression(node)));
         if expr.is_none() {
             return Ok(Some(get_factory().create_token(SyntaxKind::AnyKeyword)));
@@ -538,7 +538,7 @@ impl TypeChecker {
             &reference.as_identifier().escaped_text,
             SymbolFlags::Value | SymbolFlags::ExportValue | SymbolFlags::Alias,
             None,
-            Option::<Gc<Node>>::None,
+            Option::<Id<Node>>::None,
             true,
             None,
         )
@@ -547,7 +547,7 @@ impl TypeChecker {
     pub(super) fn get_referenced_value_declaration(
         &self,
         reference_in: &Node, /*Identifier*/
-    ) -> io::Result<Option<Gc<Node /*Declaration*/>>> {
+    ) -> io::Result<Option<Id<Node /*Declaration*/>>> {
         if !is_generated_identifier(reference_in) {
             let reference =
                 get_parse_tree_node(Some(reference_in), Some(|node: &Node| is_identifier(node)));
@@ -583,7 +583,7 @@ impl TypeChecker {
         type_: Id<Type>, /*FreshableType*/
         enclosing: &Node,
         tracker: Gc<Box<dyn SymbolTracker>>,
-    ) -> io::Result<Gc<Node /*Expression*/>> {
+    ) -> io::Result<Id<Node /*Expression*/>> {
         let enum_result = if type_.ref_(self).flags().intersects(TypeFlags::EnumLiteral) {
             self.node_builder().symbol_to_expression(
                 type_.ref_(self).symbol(),
@@ -620,7 +620,7 @@ impl TypeChecker {
         &self,
         node: &Node, /*VariableDeclaration | PropertyDeclaration | PropertySignature | ParameterDeclaration*/
         tracker: Gc<Box<dyn SymbolTracker>>,
-    ) -> io::Result<Gc<Node>> {
+    ) -> io::Result<Id<Node>> {
         let type_ = self.get_type_of_symbol(self.get_symbol_of_node(node)?.unwrap())?;
         self.literal_type_to_node(type_, node, tracker)
     }
@@ -628,7 +628,7 @@ impl TypeChecker {
     pub(super) fn get_jsx_factory_entity(
         &self,
         location: &Node,
-    ) -> Option<Gc<Node /*EntityName*/>> {
+    ) -> Option<Id<Node /*EntityName*/>> {
         /*location ?*/
         self.get_jsx_namespace_(Some(location));
         get_source_file_of_node(location)
@@ -642,7 +642,7 @@ impl TypeChecker {
     pub(super) fn get_jsx_fragment_factory_entity(
         &self,
         location: &Node,
-    ) -> Option<Gc<Node /*EntityName*/>> {
+    ) -> Option<Id<Node /*EntityName*/>> {
         // if (location) {
         let file = maybe_get_source_file_of_node(Some(location));
         if let Some(file) = file.as_ref() {
@@ -691,11 +691,11 @@ impl TypeChecker {
     pub(super) fn get_external_module_file_from_declaration(
         &self,
         declaration: &Node, /*AnyImportOrReExport | ModuleDeclaration | ImportTypeNode | ImportCall*/
-    ) -> io::Result<Option<Gc<Node /*SourceFile*/>>> {
+    ) -> io::Result<Option<Id<Node /*SourceFile*/>>> {
         let specifier = if declaration.kind() == SyntaxKind::ModuleDeclaration {
             try_cast(
                 declaration.as_module_declaration().name(),
-                |node: &Gc<Node>| is_string_literal(node),
+                |node: &Id<Node>| is_string_literal(node),
             )
         } else {
             get_external_module_name(declaration)
@@ -720,7 +720,7 @@ impl TypeChecker {
 
         *self.maybe_amalgamated_duplicates() = Some(HashMap::new());
 
-        let mut augmentations: Option<Vec<Vec<Gc<Node /*StringLiteral | Identifier*/>>>> = None;
+        let mut augmentations: Option<Vec<Vec<Id<Node /*StringLiteral | Identifier*/>>>> = None;
         for file in &*self.host.get_source_files() {
             let file_as_source_file = file.as_source_file();
             if file_as_source_file.maybe_redirect_info().is_some() {
@@ -1218,11 +1218,11 @@ impl TypeChecker {
             return quick_result;
         }
 
-        let mut last_static: Option<Gc<Node>> = None;
-        let mut last_declare: Option<Gc<Node>> = None;
-        let mut last_async: Option<Gc<Node>> = None;
-        let mut last_readonly: Option<Gc<Node>> = None;
-        let mut last_override: Option<Gc<Node>> = None;
+        let mut last_static: Option<Id<Node>> = None;
+        let mut last_declare: Option<Id<Node>> = None;
+        let mut last_async: Option<Id<Node>> = None;
+        let mut last_readonly: Option<Id<Node>> = None;
+        let mut last_override: Option<Id<Node>> = None;
         let mut flags = ModifierFlags::None;
         for modifier in node.maybe_modifiers().as_ref().unwrap() {
             if modifier.kind() != SyntaxKind::ReadonlyKeyword {

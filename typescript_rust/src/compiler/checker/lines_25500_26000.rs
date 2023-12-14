@@ -67,7 +67,7 @@ impl TypeChecker {
     pub(super) fn get_containing_object_literal(
         &self,
         func: &Node, /*SignatureDeclaration*/
-    ) -> Option<Gc<Node /*ObjectLiteralExpression*/>> {
+    ) -> Option<Id<Node /*ObjectLiteralExpression*/>> {
         if matches!(
             func.kind(),
             SyntaxKind::MethodDeclaration | SyntaxKind::GetAccessor | SyntaxKind::SetAccessor

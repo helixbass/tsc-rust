@@ -1,6 +1,7 @@
 use std::{io, ptr};
 
 use gc::Gc;
+use id_arena::Id;
 use itertools::Itertools;
 
 use super::TransformTypeScript;
@@ -22,9 +23,9 @@ use crate::{
 impl TransformTypeScript {
     pub(super) fn serialize_type_list(
         &self,
-        types: &[Gc<Node /*TypeNode*/>],
-    ) -> io::Result<Gc<Node /*SerializedTypeNode*/>> {
-        let mut serialized_union: Option<Gc<Node /*SerializedTypeNode*/>> = Default::default();
+        types: &[Id<Node /*TypeNode*/>],
+    ) -> io::Result<Id<Node /*SerializedTypeNode*/>> {
+        let mut serialized_union: Option<Id<Node /*SerializedTypeNode*/>> = Default::default();
         for type_node in types {
             let mut type_node = type_node.clone();
             while type_node.kind() == SyntaxKind::ParenthesizedType {
@@ -65,7 +66,7 @@ impl TransformTypeScript {
     pub(super) fn serialize_type_reference_node(
         &self,
         node: &Node, /*TypeReferenceNode*/
-    ) -> io::Result<Gc<Node /*SerializedTypeNode*/>> {
+    ) -> io::Result<Id<Node /*SerializedTypeNode*/>> {
         let node_as_type_reference_node = node.as_type_reference_node();
         let kind = self.resolver.get_type_reference_serialization_kind(
             &node_as_type_reference_node.type_name,
@@ -148,9 +149,9 @@ impl TransformTypeScript {
 
     pub(super) fn create_checked_value(
         &self,
-        left: Gc<Node /*Expression*/>,
-        right: Gc<Node /*Expression*/>,
-    ) -> Gc<Node> {
+        left: Id<Node /*Expression*/>,
+        right: Id<Node /*Expression*/>,
+    ) -> Id<Node> {
         self.factory.create_logical_and(
             self.factory.create_strict_inequality(
                 self.factory.create_type_of_expression(left),
@@ -164,7 +165,7 @@ impl TransformTypeScript {
     pub(super) fn serialize_entity_name_as_expression_fallback(
         &self,
         node: &Node, /*EntityName*/
-    ) -> Gc<Node /*BinaryExpression*/> {
+    ) -> Id<Node /*BinaryExpression*/> {
         if node.kind() == SyntaxKind::Identifier {
             let copied = self.serialize_entity_name_as_expression(node);
             return self.create_checked_value(copied.clone(), copied);
@@ -198,7 +199,7 @@ impl TransformTypeScript {
     pub(super) fn serialize_entity_name_as_expression(
         &self,
         node: &Node, /*EntityName*/
-    ) -> Gc<Node /*SerializedEntityNameAsExpression*/> {
+    ) -> Id<Node /*SerializedEntityNameAsExpression*/> {
         match node.kind() {
             SyntaxKind::Identifier => get_parse_node_factory()
                 .clone_node(node)
@@ -217,7 +218,7 @@ impl TransformTypeScript {
     pub(super) fn serialize_qualified_name_as_expression(
         &self,
         node: &Node, /*QualifiedName*/
-    ) -> Gc<Node /*SerializedEntityNameAsExpression*/> {
+    ) -> Id<Node /*SerializedEntityNameAsExpression*/> {
         let node_as_qualified_name = node.as_qualified_name();
         self.factory.create_property_access_expression(
             self.serialize_entity_name_as_expression(&node_as_qualified_name.left),
@@ -227,7 +228,7 @@ impl TransformTypeScript {
 
     pub(super) fn get_global_symbol_name_with_fallback(
         &self,
-    ) -> Gc<Node /*ConditionalExpression*/> {
+    ) -> Id<Node /*ConditionalExpression*/> {
         self.factory.create_conditional_expression(
             self.factory
                 .create_type_check(self.factory.create_identifier("Symbol"), "function"),
@@ -238,7 +239,7 @@ impl TransformTypeScript {
         )
     }
 
-    pub(super) fn get_global_big_int_name_with_fallback(&self) -> Gc<Node /*SerializedTypeNode*/> {
+    pub(super) fn get_global_big_int_name_with_fallback(&self) -> Id<Node /*SerializedTypeNode*/> {
         if self.language_version < ScriptTarget::ESNext {
             self.factory.create_conditional_expression(
                 self.factory
@@ -257,7 +258,7 @@ impl TransformTypeScript {
         &self,
         member: &Node, /*ClassElement | EnumMember*/
         generate_name_for_computed_property_name: bool,
-    ) -> Gc<Node /*Expression*/> {
+    ) -> Id<Node /*Expression*/> {
         let name = member.as_named_declaration().name();
         if is_private_identifier(&name) {
             self.factory.create_identifier("")
@@ -281,7 +282,7 @@ impl TransformTypeScript {
     pub(super) fn visit_property_name_of_class_element(
         &self,
         member: &Node, /*ClassElement*/
-    ) -> io::Result<Gc<Node /*PropertyName*/>> {
+    ) -> io::Result<Id<Node /*PropertyName*/>> {
         let ref name = member.as_named_declaration().name();
         if is_computed_property_name(name)
             && (!has_static_modifier(member)
@@ -293,7 +294,7 @@ impl TransformTypeScript {
                 &name_as_computed_property_name.expression,
                 Some(|node: &Node| self.visitor(node)),
                 Some(is_expression),
-                Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
             )?;
             let ref inner_expression = skip_partially_emitted_expressions(&expression);
             if !is_simple_inlineable_expression(inner_expression) {
@@ -311,14 +312,14 @@ impl TransformTypeScript {
             name,
             Some(|node: &Node| self.visitor(node)),
             Some(is_property_name),
-            Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+            Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
         )
     }
 
     pub(super) fn visit_heritage_clause(
         &self,
         node: &Node, /*HeritageClause*/
-    ) -> io::Result<Option<Gc<Node /*HeritageClause*/>>> {
+    ) -> io::Result<Option<Id<Node /*HeritageClause*/>>> {
         let node_as_heritage_clause = node.as_heritage_clause();
         if node_as_heritage_clause.token == SyntaxKind::ImplementsKeyword {
             return Ok(None);
@@ -333,14 +334,14 @@ impl TransformTypeScript {
     pub(super) fn visit_expression_with_type_arguments(
         &self,
         node: &Node, /*ExpressionWithTypeArguments*/
-    ) -> io::Result<Gc<Node /*ExpressionWithTypeArguments*/>> {
+    ) -> io::Result<Id<Node /*ExpressionWithTypeArguments*/>> {
         Ok(self.factory.update_expression_with_type_arguments(
             node,
             try_visit_node(
                 &node.as_expression_with_type_arguments().expression,
                 Some(|node: &Node| self.visitor(node)),
                 Some(is_left_hand_side_expression),
-                Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
             )?,
             Option::<Gc<NodeArray>>::None,
         ))
@@ -379,7 +380,7 @@ impl TransformTypeScript {
                 node.as_property_declaration().maybe_initializer(),
                 Some(|node: &Node| self.visitor(node)),
                 Option::<fn(&Node) -> bool>::None,
-                Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
             )?,
         );
         if !ptr::eq(&*updated, node) {
@@ -426,7 +427,7 @@ impl TransformTypeScript {
         &self,
         body: &Node,        /*Block*/
         constructor: &Node, /*ConstructorDeclaration*/
-    ) -> io::Result<Gc<Node>> {
+    ) -> io::Result<Id<Node>> {
         let body_as_block = body.as_block();
         let parameters_with_property_assignments =
             /*constructor &&*/
@@ -450,7 +451,7 @@ impl TransformTypeScript {
             .unwrap());
         }
 
-        let mut statements: Vec<Gc<Node /*Statement*/>> = Default::default();
+        let mut statements: Vec<Id<Node /*Statement*/>> = Default::default();
         #[allow(clippy::needless_late_init)]
         let index_of_first_statement: usize/* = 0*/;
 
@@ -512,7 +513,7 @@ impl TransformTypeScript {
     pub(super) fn transform_parameter_with_property_assignment(
         &self,
         node: &Node, /*ParameterPropertyDeclaration*/
-    ) -> Option<Gc<Node>> {
+    ) -> Option<Id<Node>> {
         let ref name = node.as_named_declaration().name();
         if !is_identifier(name) {
             return None;

@@ -1,6 +1,7 @@
 use std::{collections::HashMap, convert::TryInto, io, ptr};
 
 use gc::Gc;
+use id_arena::Id;
 
 use crate::{
     add_related_info, create_diagnostic_for_node, first, get_containing_function,
@@ -74,7 +75,7 @@ impl TypeChecker {
 
     pub(super) fn check_grammar_jsx_name(&self, node: &Node /*JsxTagNameExpression*/) -> bool {
         if is_property_access_expression(node) {
-            let mut prop_name: Gc<Node /*JsxTagNameExpression*/> = node.node_wrapper();
+            let mut prop_name: Id<Node /*JsxTagNameExpression*/> = node.node_wrapper();
             while {
                 let check = self
                     .check_grammar_jsx_nested_identifier(&prop_name.as_named_declaration().name());
@@ -446,7 +447,7 @@ impl TypeChecker {
     pub(super) fn get_accessor_this_parameter(
         &self,
         accessor: &Node, /*AccessorDeclaration*/
-    ) -> Option<Gc<Node /*ParameterDeclaration*/>> {
+    ) -> Option<Id<Node /*ParameterDeclaration*/>> {
         if accessor.as_function_like_declaration().parameters().len()
             == if accessor.kind() == SyntaxKind::GetAccessor {
                 1
@@ -654,7 +655,7 @@ impl TypeChecker {
         &self,
         node: &Node, /*BreakOrContinueStatement*/
     ) -> bool {
-        let mut current: Option<Gc<Node>> = Some(node.node_wrapper());
+        let mut current: Option<Id<Node>> = Some(node.node_wrapper());
         let node_as_has_label = node.as_has_label();
         while let Some(current_present) = current.as_ref() {
             if is_function_like_or_class_static_block_declaration(Some(&**current_present)) {

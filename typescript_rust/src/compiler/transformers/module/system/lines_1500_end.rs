@@ -1,6 +1,7 @@
 use std::io;
 
 use gc::Gc;
+use id_arena::Id;
 
 use super::TransformSystemModule;
 use crate::{
@@ -38,7 +39,7 @@ impl TransformSystemModule {
                         &node_as_expression_statement.expression,
                         Some(|node: &Node| self.discarded_value_visitor(node)),
                         Some(is_expression),
-                        Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                        Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                     )?,
                 )
                 .into(),
@@ -65,7 +66,7 @@ impl TransformSystemModule {
                             }
                         }),
                         Some(is_expression),
-                        Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                        Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                     )?,
                 )
                 .into(),
@@ -92,7 +93,7 @@ impl TransformSystemModule {
                             }
                         }),
                         Some(is_expression),
-                        Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                        Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                     )?,
                 )
                 .into(),
@@ -102,7 +103,7 @@ impl TransformSystemModule {
     pub(super) fn visit_import_call_expression(
         &self,
         node: &Node, /*ImportCall*/
-    ) -> io::Result<Gc<Node /*Expression*/>> {
+    ) -> io::Result<Id<Node /*Expression*/>> {
         let node_as_call_expression = node.as_call_expression();
         let external_module_name = get_external_module_name_literal(
             &self.factory,
@@ -116,7 +117,7 @@ impl TransformSystemModule {
             first_or_undefined(&node_as_call_expression.arguments).cloned(),
             Some(|node: &Node| self.visitor(node)),
             Option::<fn(&Node) -> bool>::None,
-            Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+            Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
         )?;
         let argument = external_module_name
             .filter(|external_module_name| {
@@ -152,7 +153,7 @@ impl TransformSystemModule {
                     FlattenLevel::All,
                     Some(!value_is_discarded),
                     Option::<
-                        fn(&Node, &Node, Option<&dyn ReadonlyTextRange>) -> io::Result<Gc<Node>>,
+                        fn(&Node, &Node, Option<&dyn ReadonlyTextRange>) -> io::Result<Id<Node>>,
                     >::None,
                 )?
                 .into(),
@@ -177,14 +178,14 @@ impl TransformSystemModule {
         } else if is_object_literal_expression(node) {
             try_some(
                 Some(&node.as_object_literal_expression().properties),
-                Some(|property: &Gc<Node>| {
+                Some(|property: &Id<Node>| {
                     self.has_exported_reference_in_destructuring_target(property)
                 }),
             )?
         } else if is_array_literal_expression(node) {
             try_some(
                 Some(&node.as_array_literal_expression().elements),
-                Some(|element: &Gc<Node>| {
+                Some(|element: &Id<Node>| {
                     self.has_exported_reference_in_destructuring_target(element)
                 }),
             )?
@@ -221,12 +222,12 @@ impl TransformSystemModule {
         {
             let exported_names = self.get_exports(node_operand)?;
             if let Some(exported_names) = exported_names {
-                let mut temp: Option<Gc<Node /*Identifier*/>> = _d();
+                let mut temp: Option<Id<Node /*Identifier*/>> = _d();
                 let mut expression/*: Expression*/ = try_visit_node(
                     &node_operand,
                     Some(|node: &Node| self.visitor(node)),
                     Some(is_expression),
-                    Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                    Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                 )?;
                 if is_prefix_unary_expression(node) {
                     expression = self
@@ -288,8 +289,8 @@ impl TransformSystemModule {
     pub(super) fn get_exports(
         &self,
         name: &Node, /*Identifier*/
-    ) -> io::Result<Option<Vec<Gc<Node>>>> {
-        let mut exported_names: Option<Vec<Gc<Node /*Identifier*/>>> = _d();
+    ) -> io::Result<Option<Vec<Id<Node>>>> {
+        let mut exported_names: Option<Vec<Id<Node /*Identifier*/>>> = _d();
         if !is_generated_identifier(name) {
             let value_declaration = self
                 .resolver
@@ -329,7 +330,7 @@ impl TransformSystemModule {
         Ok(exported_names)
     }
 
-    pub(super) fn prevent_substitution(&self, node: Gc<Node>) -> Gc<Node> {
+    pub(super) fn prevent_substitution(&self, node: Id<Node>) -> Id<Node> {
         self.maybe_no_substitution_mut()
             .get_or_insert_default_()
             .insert(get_node_id(&node), true);

@@ -2,6 +2,7 @@ use std::{borrow::Borrow, cell::Cell, collections::HashMap, io, mem};
 
 use bitflags::bitflags;
 use gc::{Finalize, Gc, GcCell, GcCellRef, GcCellRefMut, Trace};
+use id_arena::Id;
 use local_macros::enum_unwrapped;
 
 use crate::{
@@ -47,31 +48,31 @@ impl Borrow<str> for PrivateIdentifierKind {
 }
 
 pub(super) trait PrivateIdentifierInfoInterface {
-    fn brand_check_identifier(&self) -> Gc<Node /*Identifier*/>;
+    fn brand_check_identifier(&self) -> Id<Node /*Identifier*/>;
     fn is_static(&self) -> bool;
     fn is_valid(&self) -> bool;
     fn kind(&self) -> PrivateIdentifierKind;
-    fn maybe_variable_name(&self) -> Option<Gc<Node>>;
+    fn maybe_variable_name(&self) -> Option<Id<Node>>;
 }
 
 #[derive(Trace, Finalize)]
 pub(super) struct PrivateIdentifierAccessorInfo {
-    brand_check_identifier: Gc<Node /*Identifier*/>,
+    brand_check_identifier: Id<Node /*Identifier*/>,
     is_static: bool,
     is_valid: bool,
     #[unsafe_ignore_trace]
     kind: PrivateIdentifierKind, /*PrivateIdentifierKind.Accessor*/
-    pub getter_name: Option<Gc<Node /*Identifier*/>>,
-    pub setter_name: Option<Gc<Node /*Identifier*/>>,
+    pub getter_name: Option<Id<Node /*Identifier*/>>,
+    pub setter_name: Option<Id<Node /*Identifier*/>>,
 }
 
 impl PrivateIdentifierAccessorInfo {
     pub fn new(
-        brand_check_identifier: Gc<Node /*Identifier*/>,
+        brand_check_identifier: Id<Node /*Identifier*/>,
         is_static: bool,
         is_valid: bool,
-        getter_name: Option<Gc<Node /*Identifier*/>>,
-        setter_name: Option<Gc<Node /*Identifier*/>>,
+        getter_name: Option<Id<Node /*Identifier*/>>,
+        setter_name: Option<Id<Node /*Identifier*/>>,
     ) -> Self {
         Self {
             is_static,
@@ -85,7 +86,7 @@ impl PrivateIdentifierAccessorInfo {
 }
 
 impl PrivateIdentifierInfoInterface for PrivateIdentifierAccessorInfo {
-    fn brand_check_identifier(&self) -> Gc<Node /*Identifier*/> {
+    fn brand_check_identifier(&self) -> Id<Node /*Identifier*/> {
         self.brand_check_identifier.clone()
     }
 
@@ -101,27 +102,27 @@ impl PrivateIdentifierInfoInterface for PrivateIdentifierAccessorInfo {
         self.kind
     }
 
-    fn maybe_variable_name(&self) -> Option<Gc<Node>> {
+    fn maybe_variable_name(&self) -> Option<Id<Node>> {
         None
     }
 }
 
 #[derive(Trace, Finalize)]
 pub(super) struct PrivateIdentifierMethodInfo {
-    brand_check_identifier: Gc<Node /*Identifier*/>,
+    brand_check_identifier: Id<Node /*Identifier*/>,
     is_static: bool,
     is_valid: bool,
     #[unsafe_ignore_trace]
     kind: PrivateIdentifierKind, /*PrivateIdentifierKind.Method*/
-    pub method_name: Gc<Node /*Identifier*/>,
+    pub method_name: Id<Node /*Identifier*/>,
 }
 
 impl PrivateIdentifierMethodInfo {
     pub fn new(
-        brand_check_identifier: Gc<Node /*Identifier*/>,
+        brand_check_identifier: Id<Node /*Identifier*/>,
         is_static: bool,
         is_valid: bool,
-        method_name: Gc<Node /*Identifier*/>,
+        method_name: Id<Node /*Identifier*/>,
     ) -> Self {
         Self {
             is_static,
@@ -134,7 +135,7 @@ impl PrivateIdentifierMethodInfo {
 }
 
 impl PrivateIdentifierInfoInterface for PrivateIdentifierMethodInfo {
-    fn brand_check_identifier(&self) -> Gc<Node /*Identifier*/> {
+    fn brand_check_identifier(&self) -> Id<Node /*Identifier*/> {
         self.brand_check_identifier.clone()
     }
 
@@ -150,14 +151,14 @@ impl PrivateIdentifierInfoInterface for PrivateIdentifierMethodInfo {
         self.kind
     }
 
-    fn maybe_variable_name(&self) -> Option<Gc<Node>> {
+    fn maybe_variable_name(&self) -> Option<Id<Node>> {
         None
     }
 }
 
 #[derive(Trace, Finalize)]
 pub(super) struct PrivateIdentifierInstanceFieldInfo {
-    brand_check_identifier: Gc<Node /*Identifier*/>,
+    brand_check_identifier: Id<Node /*Identifier*/>,
     is_static: bool,
     is_valid: bool,
     #[unsafe_ignore_trace]
@@ -165,7 +166,7 @@ pub(super) struct PrivateIdentifierInstanceFieldInfo {
 }
 
 impl PrivateIdentifierInstanceFieldInfo {
-    pub fn new(brand_check_identifier: Gc<Node /*Identifier*/>, is_valid: bool) -> Self {
+    pub fn new(brand_check_identifier: Id<Node /*Identifier*/>, is_valid: bool) -> Self {
         Self {
             is_static: false,
             kind: PrivateIdentifierKind::Field,
@@ -176,7 +177,7 @@ impl PrivateIdentifierInstanceFieldInfo {
 }
 
 impl PrivateIdentifierInfoInterface for PrivateIdentifierInstanceFieldInfo {
-    fn brand_check_identifier(&self) -> Gc<Node /*Identifier*/> {
+    fn brand_check_identifier(&self) -> Id<Node /*Identifier*/> {
         self.brand_check_identifier.clone()
     }
 
@@ -192,26 +193,26 @@ impl PrivateIdentifierInfoInterface for PrivateIdentifierInstanceFieldInfo {
         self.kind
     }
 
-    fn maybe_variable_name(&self) -> Option<Gc<Node>> {
+    fn maybe_variable_name(&self) -> Option<Id<Node>> {
         None
     }
 }
 
 #[derive(Trace, Finalize)]
 pub(super) struct PrivateIdentifierStaticFieldInfo {
-    brand_check_identifier: Gc<Node /*Identifier*/>,
+    brand_check_identifier: Id<Node /*Identifier*/>,
     is_static: bool,
     is_valid: bool,
     #[unsafe_ignore_trace]
     kind: PrivateIdentifierKind, /*PrivateIdentifierKind.Field*/
-    pub variable_name: Gc<Node /*Identifier*/>,
+    pub variable_name: Id<Node /*Identifier*/>,
 }
 
 impl PrivateIdentifierStaticFieldInfo {
     pub fn new(
-        brand_check_identifier: Gc<Node /*Identifier*/>,
+        brand_check_identifier: Id<Node /*Identifier*/>,
         is_valid: bool,
-        variable_name: Gc<Node /*Identifier*/>,
+        variable_name: Id<Node /*Identifier*/>,
     ) -> Self {
         Self {
             is_static: true,
@@ -224,7 +225,7 @@ impl PrivateIdentifierStaticFieldInfo {
 }
 
 impl PrivateIdentifierInfoInterface for PrivateIdentifierStaticFieldInfo {
-    fn brand_check_identifier(&self) -> Gc<Node /*Identifier*/> {
+    fn brand_check_identifier(&self) -> Id<Node /*Identifier*/> {
         self.brand_check_identifier.clone()
     }
 
@@ -240,7 +241,7 @@ impl PrivateIdentifierInfoInterface for PrivateIdentifierStaticFieldInfo {
         self.kind
     }
 
-    fn maybe_variable_name(&self) -> Option<Gc<Node>> {
+    fn maybe_variable_name(&self) -> Option<Id<Node>> {
         Some(self.variable_name.clone())
     }
 }
@@ -270,7 +271,7 @@ impl PrivateIdentifierInfo {
 }
 
 impl PrivateIdentifierInfoInterface for PrivateIdentifierInfo {
-    fn brand_check_identifier(&self) -> Gc<Node /*Identifier*/> {
+    fn brand_check_identifier(&self) -> Id<Node /*Identifier*/> {
         match self {
             Self::PrivateIdentifierMethodInfo(value) => value.brand_check_identifier(),
             Self::PrivateIdentifierInstanceFieldInfo(value) => value.brand_check_identifier(),
@@ -306,7 +307,7 @@ impl PrivateIdentifierInfoInterface for PrivateIdentifierInfo {
         }
     }
 
-    fn maybe_variable_name(&self) -> Option<Gc<Node>> {
+    fn maybe_variable_name(&self) -> Option<Id<Node>> {
         match self {
             Self::PrivateIdentifierMethodInfo(value) => value.maybe_variable_name(),
             Self::PrivateIdentifierInstanceFieldInfo(value) => value.maybe_variable_name(),
@@ -367,7 +368,7 @@ impl From<PrivateIdentifierAccessorInfo> for Gc<GcCell<PrivateIdentifierInfo>> {
 #[derive(Default, Trace, Finalize)]
 pub(super) struct PrivateIdentifierEnvironment {
     pub class_name: String,
-    pub weak_set_name: Option<Gc<Node /*Identifier*/>>,
+    pub weak_set_name: Option<Id<Node /*Identifier*/>>,
     pub identifiers: UnderscoreEscapedMap<Gc<GcCell<PrivateIdentifierInfo>>>,
 }
 
@@ -375,8 +376,8 @@ pub(super) struct PrivateIdentifierEnvironment {
 pub(super) struct ClassLexicalEnvironment {
     #[unsafe_ignore_trace]
     pub facts: ClassFacts,
-    pub class_constructor: Option<Gc<Node /*Identifier*/>>,
-    pub super_class_reference: Option<Gc<Node /*Identifier*/>>,
+    pub class_constructor: Option<Id<Node /*Identifier*/>>,
+    pub super_class_reference: Option<Id<Node /*Identifier*/>>,
     pub private_identifier_environment: Option<Gc<GcCell<PrivateIdentifierEnvironment>>>,
 }
 
@@ -406,9 +407,9 @@ pub(super) struct TransformClassFields {
     pub(super) should_transform_this_in_static_initializers: bool,
     #[unsafe_ignore_trace]
     pub(super) enabled_substitutions: Cell<Option<ClassPropertySubstitutionFlags>>,
-    pub(super) class_aliases: GcCell<Option<HashMap<NodeId, Gc<Node /*Identifier*/>>>>,
-    pub(super) pending_expressions: GcCell<Option<Vec<Gc<Node /*Expression*/>>>>,
-    pub(super) pending_statements: GcCell<Option<Vec<Gc<Node /*Statement*/>>>>,
+    pub(super) class_aliases: GcCell<Option<HashMap<NodeId, Id<Node /*Identifier*/>>>>,
+    pub(super) pending_expressions: GcCell<Option<Vec<Id<Node /*Expression*/>>>>,
+    pub(super) pending_statements: GcCell<Option<Vec<Id<Node /*Statement*/>>>>,
     pub(super) class_lexical_environment_stack:
         GcCell<Vec<Option<Gc<GcCell<ClassLexicalEnvironment>>>>>,
     pub(super) class_lexical_environment_map:
@@ -418,7 +419,7 @@ pub(super) struct TransformClassFields {
     pub(super) current_computed_property_name_class_lexical_environment:
         GcCell<Option<Gc<GcCell<ClassLexicalEnvironment>>>>,
     pub(super) current_static_property_declaration_or_static_block:
-        GcCell<Option<Gc<Node /*PropertyDeclaration | ClassStaticBlockDeclaration*/>>>,
+        GcCell<Option<Id<Node /*PropertyDeclaration | ClassStaticBlockDeclaration*/>>>,
 }
 
 impl TransformClassFields {
@@ -486,74 +487,74 @@ impl TransformClassFields {
         self.enabled_substitutions.set(enabled_substitutions);
     }
 
-    pub(super) fn class_aliases(&self) -> GcCellRef<HashMap<NodeId, Gc<Node /*Identifier*/>>> {
+    pub(super) fn class_aliases(&self) -> GcCellRef<HashMap<NodeId, Id<Node /*Identifier*/>>> {
         gc_cell_ref_unwrapped(&self.class_aliases)
     }
 
     pub(super) fn class_aliases_mut(
         &self,
     ) -> GcCellRefMut<
-        Option<HashMap<NodeId, Gc<Node /*Identifier*/>>>,
-        HashMap<NodeId, Gc<Node /*Identifier*/>>,
+        Option<HashMap<NodeId, Id<Node /*Identifier*/>>>,
+        HashMap<NodeId, Id<Node /*Identifier*/>>,
     > {
         gc_cell_ref_mut_unwrapped(&self.class_aliases)
     }
 
     pub(super) fn set_class_aliases(
         &self,
-        class_aliases: Option<HashMap<NodeId, Gc<Node /*Identifier*/>>>,
+        class_aliases: Option<HashMap<NodeId, Id<Node /*Identifier*/>>>,
     ) {
         *self.class_aliases.borrow_mut() = class_aliases;
     }
 
     pub(super) fn maybe_pending_expressions(
         &self,
-    ) -> GcCellRef<Option<Vec<Gc<Node /*Expression*/>>>> {
+    ) -> GcCellRef<Option<Vec<Id<Node /*Expression*/>>>> {
         self.pending_expressions.borrow()
     }
 
-    pub(super) fn pending_expressions(&self) -> GcCellRef<Vec<Gc<Node /*Expression*/>>> {
+    pub(super) fn pending_expressions(&self) -> GcCellRef<Vec<Id<Node /*Expression*/>>> {
         gc_cell_ref_unwrapped(&self.pending_expressions)
     }
 
     pub(super) fn maybe_pending_expressions_mut(
         &self,
-    ) -> GcCellRefMut<Option<Vec<Gc<Node /*Expression*/>>>> {
+    ) -> GcCellRefMut<Option<Vec<Id<Node /*Expression*/>>>> {
         self.pending_expressions.borrow_mut()
     }
 
     pub(super) fn pending_expressions_mut(
         &self,
-    ) -> GcCellRefMut<Option<Vec<Gc<Node /*Expression*/>>>, Vec<Gc<Node /*Expression*/>>> {
+    ) -> GcCellRefMut<Option<Vec<Id<Node /*Expression*/>>>, Vec<Id<Node /*Expression*/>>> {
         gc_cell_ref_mut_unwrapped(&self.pending_expressions)
     }
 
     pub(super) fn set_pending_expressions(
         &self,
-        pending_expressions: Option<Vec<Gc<Node /*Expression*/>>>,
+        pending_expressions: Option<Vec<Id<Node /*Expression*/>>>,
     ) {
         *self.pending_expressions.borrow_mut() = pending_expressions;
     }
 
     pub(super) fn maybe_pending_statements(
         &self,
-    ) -> GcCellRef<Option<Vec<Gc<Node /*Statement*/>>>> {
+    ) -> GcCellRef<Option<Vec<Id<Node /*Statement*/>>>> {
         self.pending_statements.borrow()
     }
 
-    pub(super) fn pending_statements(&self) -> GcCellRef<Vec<Gc<Node /*Statement*/>>> {
+    pub(super) fn pending_statements(&self) -> GcCellRef<Vec<Id<Node /*Statement*/>>> {
         gc_cell_ref_unwrapped(&self.pending_statements)
     }
 
     pub(super) fn pending_statements_mut(
         &self,
-    ) -> GcCellRefMut<Option<Vec<Gc<Node /*Statement*/>>>, Vec<Gc<Node /*Statement*/>>> {
+    ) -> GcCellRefMut<Option<Vec<Id<Node /*Statement*/>>>, Vec<Id<Node /*Statement*/>>> {
         gc_cell_ref_mut_unwrapped(&self.pending_statements)
     }
 
     pub(super) fn set_pending_statements(
         &self,
-        pending_statements: Option<Vec<Gc<Node /*Statement*/>>>,
+        pending_statements: Option<Vec<Id<Node /*Statement*/>>>,
     ) {
         *self.pending_statements.borrow_mut() = pending_statements;
     }
@@ -616,7 +617,7 @@ impl TransformClassFields {
 
     pub(super) fn maybe_current_static_property_declaration_or_static_block(
         &self,
-    ) -> Option<Gc<Node /*PropertyDeclaration | ClassStaticBlockDeclaration*/>> {
+    ) -> Option<Id<Node /*PropertyDeclaration | ClassStaticBlockDeclaration*/>> {
         self.current_static_property_declaration_or_static_block
             .borrow()
             .clone()
@@ -625,7 +626,7 @@ impl TransformClassFields {
     pub(super) fn set_current_static_property_declaration_or_static_block(
         &self,
         current_static_property_declaration_or_static_block: Option<
-            Gc<Node /*PropertyDeclaration | ClassStaticBlockDeclaration*/>,
+            Id<Node /*PropertyDeclaration | ClassStaticBlockDeclaration*/>,
         >,
     ) {
         *self
@@ -633,7 +634,7 @@ impl TransformClassFields {
             .borrow_mut() = current_static_property_declaration_or_static_block;
     }
 
-    pub(super) fn transform_source_file(&self, node: &Node /*SourceFile*/) -> Gc<Node> {
+    pub(super) fn transform_source_file(&self, node: &Node /*SourceFile*/) -> Id<Node> {
         let node_as_source_file = node.as_source_file();
         let ref options = self.context.get_compiler_options();
         if node_as_source_file.is_declaration_file()
@@ -805,7 +806,7 @@ impl TransformClassFields {
                 &node_as_binary_expression.right,
                 Some(|node: &Node| self.visitor(node)),
                 Some(is_expression),
-                Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
             );
 
             return Some(
@@ -916,7 +917,7 @@ impl TransformClassFields {
                 self.factory.create_assignment(
                     function_name.clone(),
                     self.factory.create_function_expression(
-                        maybe_filter(node.maybe_modifiers().as_double_deref(), |m: &Gc<Node>| {
+                        maybe_filter(node.maybe_modifiers().as_double_deref(), |m: &Id<Node>| {
                             !is_static_modifier(m)
                         }),
                         node_as_function_like_declaration.maybe_asterisk_token(),
@@ -945,7 +946,7 @@ impl TransformClassFields {
     pub(super) fn get_hoisted_function_name(
         &self,
         node: &Node, /*MethodDeclaration | AccessorDeclaration*/
-    ) -> Option<Gc<Node>> {
+    ) -> Option<Id<Node>> {
         let node_as_function_like_declaration = node.as_function_like_declaration();
         let ref node_name = node_as_function_like_declaration.name();
         Debug_.assert(is_private_identifier(node_name), None);
@@ -1036,14 +1037,14 @@ impl TransformClassFields {
         &self,
         info: &PrivateIdentifierInfo,
         receiver: &Node, /*Expression*/
-    ) -> Gc<Node /*Expression*/> {
+    ) -> Id<Node /*Expression*/> {
         self.create_private_identifier_access_helper(
             info,
             &visit_node(
                 receiver,
                 Some(|node: &Node| self.visitor(node)),
                 Some(is_expression),
-                Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
             ),
         )
     }
@@ -1052,7 +1053,7 @@ impl TransformClassFields {
         &self,
         info: &PrivateIdentifierInfo,
         receiver: &Node, /*Expression*/
-    ) -> Gc<Node /*Expression*/> {
+    ) -> Id<Node /*Expression*/> {
         set_comment_range(
             receiver,
             &ReadonlyTextRangeConcrete::from(move_range_pos(receiver, -1)),
@@ -1164,7 +1165,7 @@ impl TransformClassFields {
 }
 
 impl TransformerInterface for TransformClassFields {
-    fn call(&self, node: &Node) -> io::Result<Gc<Node>> {
+    fn call(&self, node: &Node) -> io::Result<Id<Node>> {
         Ok(self.transform_source_file(node))
     }
 }
@@ -1338,7 +1339,7 @@ impl TransformClassFieldsOnSubstituteNodeOverrider {
     pub(super) fn substitute_expression(
         &self,
         node: &Node, /*Expression*/
-    ) -> io::Result<Gc<Node>> {
+    ) -> io::Result<Id<Node>> {
         Ok(match node.kind() {
             SyntaxKind::Identifier => self.substitute_expression_identifier(node)?,
             SyntaxKind::ThisKeyword => self.substitute_this_expression(node),
@@ -1349,7 +1350,7 @@ impl TransformClassFieldsOnSubstituteNodeOverrider {
     pub(super) fn substitute_this_expression(
         &self,
         node: &Node, /*ThisExpression*/
-    ) -> Gc<Node> {
+    ) -> Id<Node> {
         if self
             .transform_class_fields
             .maybe_enabled_substitutions()
@@ -1389,7 +1390,7 @@ impl TransformClassFieldsOnSubstituteNodeOverrider {
     pub(super) fn substitute_expression_identifier(
         &self,
         node: &Node, /*Identifier*/
-    ) -> io::Result<Gc<Node /*Expression*/>> {
+    ) -> io::Result<Id<Node /*Expression*/>> {
         Ok(self
             .try_substitute_class_alias(node)?
             .unwrap_or_else(|| node.node_wrapper()))
@@ -1398,7 +1399,7 @@ impl TransformClassFieldsOnSubstituteNodeOverrider {
     pub(super) fn try_substitute_class_alias(
         &self,
         node: &Node, /*Identifier*/
-    ) -> io::Result<Option<Gc<Node /*Expression*/>>> {
+    ) -> io::Result<Option<Id<Node /*Expression*/>>> {
         if self
             .transform_class_fields
             .maybe_enabled_substitutions()
@@ -1441,7 +1442,7 @@ impl TransformClassFieldsOnSubstituteNodeOverrider {
 impl TransformationContextOnSubstituteNodeOverrider
     for TransformClassFieldsOnSubstituteNodeOverrider
 {
-    fn on_substitute_node(&self, hint: EmitHint, node: &Node) -> io::Result<Gc<Node>> {
+    fn on_substitute_node(&self, hint: EmitHint, node: &Node) -> io::Result<Id<Node>> {
         let node = self
             .previous_on_substitute_node
             .on_substitute_node(hint, node)?;

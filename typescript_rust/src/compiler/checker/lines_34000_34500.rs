@@ -282,7 +282,7 @@ impl TypeChecker {
     pub(super) fn get_type_predicate_parent(
         &self,
         node: &Node,
-    ) -> Option<Gc<Node /*SignatureDeclaration*/>> {
+    ) -> Option<Id<Node /*SignatureDeclaration*/>> {
         match node.parent().kind() {
             SyntaxKind::ArrowFunction
             | SyntaxKind::CallSignature
@@ -388,7 +388,7 @@ impl TypeChecker {
         let node_as_signature_declaration = node.as_signature_declaration();
         try_for_each(
             &node_as_signature_declaration.parameters(),
-            |parameter: &Gc<Node>, _| -> io::Result<Option<()>> {
+            |parameter: &Id<Node>, _| -> io::Result<Option<()>> {
                 self.check_parameter(parameter)?;
                 Ok(None)
             },
@@ -921,5 +921,5 @@ impl CheckTypeContainingMessageChain for CheckTypePredicateContainingMessageChai
 
 struct IndexSignatureMapValue {
     pub type_: Id<Type>,
-    pub declarations: Vec<Gc<Node /*IndexSignatureDeclaration*/>>,
+    pub declarations: Vec<Id<Node /*IndexSignatureDeclaration*/>>,
 }

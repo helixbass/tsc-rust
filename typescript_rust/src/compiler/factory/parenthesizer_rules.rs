@@ -1,6 +1,7 @@
 use std::{borrow::Borrow, marker::PhantomData};
 
 use gc::{Finalize, Gc, Trace};
+use id_arena::Id;
 
 use crate::{
     compare_values, get_expression_associativity, get_expression_precedence,
@@ -161,7 +162,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>
         operand: &Node, /*Expression*/
         is_left_side_of_binary: bool,
         left_operand: Option<TLeftOperand /*Expression*/>,
-    ) -> Gc<Node /*Expression*/> {
+    ) -> Id<Node /*Expression*/> {
         let skipped = skip_partially_emitted_expressions(operand);
 
         if skipped.kind() == SyntaxKind::ParenthesizedExpression {
@@ -185,7 +186,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>
         &self,
         node: &Node, /*TypeNode*/
         i: usize,
-    ) -> Gc<Node /*TypeNode*/> {
+    ) -> Id<Node /*TypeNode*/> {
         if i == 0
             && is_function_or_constructor_type_node(node)
             && node
@@ -207,20 +208,20 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>
         &self,
         binary_operator: SyntaxKind,
         left_side: &Node,
-    ) -> Gc<Node> {
+    ) -> Id<Node> {
         self.parenthesize_binary_operand(binary_operator, left_side, true, Option::<&Node>::None)
     }
 
     fn parenthesize_right_side_of_binary(
         &self,
         binary_operator: SyntaxKind,
-        left_side: Option<Gc<Node>>,
+        left_side: Option<Id<Node>>,
         right_side: &Node,
-    ) -> Gc<Node> {
+    ) -> Id<Node> {
         self.parenthesize_binary_operand(binary_operator, right_side, false, left_side)
     }
 
-    fn parenthesize_expression_of_computed_property_name(&self, expression: &Node) -> Gc<Node> {
+    fn parenthesize_expression_of_computed_property_name(&self, expression: &Node) -> Id<Node> {
         if is_comma_sequence(expression) {
             self.factory
                 .create_parenthesized_expression(expression.node_wrapper())
@@ -229,7 +230,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>
         }
     }
 
-    fn parenthesize_condition_of_conditional_expression(&self, condition: &Node) -> Gc<Node> {
+    fn parenthesize_condition_of_conditional_expression(&self, condition: &Node) -> Id<Node> {
         let conditional_precedence = get_operator_precedence(
             SyntaxKind::ConditionalExpression,
             SyntaxKind::QuestionToken,
@@ -247,7 +248,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>
         condition.node_wrapper()
     }
 
-    fn parenthesize_branch_of_conditional_expression(&self, branch: &Node) -> Gc<Node> {
+    fn parenthesize_branch_of_conditional_expression(&self, branch: &Node) -> Id<Node> {
         let emitted_expression = skip_partially_emitted_expressions(branch);
         if is_comma_sequence(&emitted_expression) {
             self.factory
@@ -257,7 +258,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>
         }
     }
 
-    fn parenthesize_expression_of_export_default(&self, expression: &Node) -> Gc<Node> {
+    fn parenthesize_expression_of_export_default(&self, expression: &Node) -> Id<Node> {
         let check = skip_partially_emitted_expressions(expression);
         let mut needs_parens = is_comma_sequence(&check);
         if !needs_parens {
@@ -276,7 +277,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>
         }
     }
 
-    fn parenthesize_expression_of_new(&self, expression: &Node) -> Gc<Node> {
+    fn parenthesize_expression_of_new(&self, expression: &Node) -> Id<Node> {
         let leftmost_expr = get_leftmost_expression(expression, true);
         match leftmost_expr.kind() {
             SyntaxKind::CallExpression => {
@@ -299,7 +300,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>
         self.parenthesize_left_side_of_access(expression)
     }
 
-    fn parenthesize_left_side_of_access(&self, expression: &Node) -> Gc<Node> {
+    fn parenthesize_left_side_of_access(&self, expression: &Node) -> Id<Node> {
         let emitted_expression = skip_partially_emitted_expressions(expression);
         if is_left_hand_side_expression(&emitted_expression)
             && (emitted_expression.kind() != SyntaxKind::NewExpression
@@ -317,7 +318,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>
         .node_wrapper()
     }
 
-    fn parenthesize_operand_of_postfix_unary(&self, operand: &Node) -> Gc<Node> {
+    fn parenthesize_operand_of_postfix_unary(&self, operand: &Node) -> Id<Node> {
         if is_left_hand_side_expression(operand) {
             operand.node_wrapper()
         } else {
@@ -331,7 +332,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>
         }
     }
 
-    fn parenthesize_operand_of_prefix_unary(&self, operand: &Node) -> Gc<Node> {
+    fn parenthesize_operand_of_prefix_unary(&self, operand: &Node) -> Id<Node> {
         if is_unary_expression(operand) {
             operand.node_wrapper()
         } else {
@@ -375,7 +376,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>
         node_array
     }
 
-    fn parenthesize_expression_for_disallowed_comma(&self, expression: &Node) -> Gc<Node> {
+    fn parenthesize_expression_for_disallowed_comma(&self, expression: &Node) -> Id<Node> {
         let emitted_expression = skip_partially_emitted_expressions(expression);
         let expression_precedence = get_expression_precedence(&emitted_expression);
         let comma_precedence =
@@ -393,7 +394,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>
         }
     }
 
-    fn parenthesize_expression_of_expression_statement(&self, expression: &Node) -> Gc<Node> {
+    fn parenthesize_expression_of_expression_statement(&self, expression: &Node) -> Id<Node> {
         let emitted_expression = skip_partially_emitted_expressions(expression);
         if is_call_expression(&emitted_expression) {
             let emitted_expression_as_call_expression = emitted_expression.as_call_expression();
@@ -438,7 +439,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>
         expression.node_wrapper()
     }
 
-    fn parenthesize_concise_body_of_arrow_function(&self, body: &Node) -> Gc<Node> {
+    fn parenthesize_concise_body_of_arrow_function(&self, body: &Node) -> Id<Node> {
         if !is_block(body)
             && (is_comma_sequence(body)
                 || get_leftmost_expression(body, false).kind()
@@ -456,7 +457,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>
         body.node_wrapper()
     }
 
-    fn parenthesize_member_of_conditional_type(&self, member: &Node) -> Gc<Node> {
+    fn parenthesize_member_of_conditional_type(&self, member: &Node) -> Id<Node> {
         if member.kind() == SyntaxKind::ConditionalType {
             self.factory
                 .create_parenthesized_type(member.node_wrapper())
@@ -465,7 +466,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>
         }
     }
 
-    fn parenthesize_member_of_element_type(&self, member: &Node) -> Gc<Node> {
+    fn parenthesize_member_of_element_type(&self, member: &Node) -> Id<Node> {
         match member.kind() {
             SyntaxKind::UnionType
             | SyntaxKind::IntersectionType
@@ -477,7 +478,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>
         }
     }
 
-    fn parenthesize_element_type_of_array_type(&self, member: &Node) -> Gc<Node> {
+    fn parenthesize_element_type_of_array_type(&self, member: &Node) -> Id<Node> {
         match member.kind() {
             SyntaxKind::TypeQuery | SyntaxKind::TypeOperator | SyntaxKind::InferType => self
                 .factory
@@ -508,7 +509,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>
     ) -> Option<Gc<NodeArray>> {
         if some(
             type_arguments.as_deref(),
-            Option::<fn(&Gc<Node>) -> bool>::None,
+            Option::<fn(&Id<Node>) -> bool>::None,
         ) {
             return Some(self.factory.create_node_array(
                 maybe_same_map(type_arguments.as_deref(), |type_arguments, index| {
@@ -543,48 +544,48 @@ impl<TBaseNodeFactory: BaseNodeFactory> NullParenthesizerRules<TBaseNodeFactory>
 impl<TBaseNodeFactory: BaseNodeFactory> ParenthesizerRules<TBaseNodeFactory>
     for NullParenthesizerRules<TBaseNodeFactory>
 {
-    fn parenthesize_left_side_of_binary(&self, _: SyntaxKind, left_side: &Node) -> Gc<Node> {
+    fn parenthesize_left_side_of_binary(&self, _: SyntaxKind, left_side: &Node) -> Id<Node> {
         left_side.node_wrapper()
     }
 
     fn parenthesize_right_side_of_binary(
         &self,
         _: SyntaxKind,
-        _left_side: Option<Gc<Node>>,
+        _left_side: Option<Id<Node>>,
         right_side: &Node,
-    ) -> Gc<Node> {
+    ) -> Id<Node> {
         right_side.node_wrapper()
     }
 
-    fn parenthesize_expression_of_computed_property_name(&self, expression: &Node) -> Gc<Node> {
+    fn parenthesize_expression_of_computed_property_name(&self, expression: &Node) -> Id<Node> {
         expression.node_wrapper()
     }
 
-    fn parenthesize_condition_of_conditional_expression(&self, condition: &Node) -> Gc<Node> {
+    fn parenthesize_condition_of_conditional_expression(&self, condition: &Node) -> Id<Node> {
         condition.node_wrapper()
     }
 
-    fn parenthesize_branch_of_conditional_expression(&self, branch: &Node) -> Gc<Node> {
+    fn parenthesize_branch_of_conditional_expression(&self, branch: &Node) -> Id<Node> {
         branch.node_wrapper()
     }
 
-    fn parenthesize_expression_of_export_default(&self, expression: &Node) -> Gc<Node> {
+    fn parenthesize_expression_of_export_default(&self, expression: &Node) -> Id<Node> {
         expression.node_wrapper()
     }
 
-    fn parenthesize_expression_of_new(&self, expression: &Node) -> Gc<Node> {
+    fn parenthesize_expression_of_new(&self, expression: &Node) -> Id<Node> {
         expression.node_wrapper()
     }
 
-    fn parenthesize_left_side_of_access(&self, expression: &Node) -> Gc<Node> {
+    fn parenthesize_left_side_of_access(&self, expression: &Node) -> Id<Node> {
         expression.node_wrapper()
     }
 
-    fn parenthesize_operand_of_postfix_unary(&self, operand: &Node) -> Gc<Node> {
+    fn parenthesize_operand_of_postfix_unary(&self, operand: &Node) -> Id<Node> {
         operand.node_wrapper()
     }
 
-    fn parenthesize_operand_of_prefix_unary(&self, operand: &Node) -> Gc<Node> {
+    fn parenthesize_operand_of_prefix_unary(&self, operand: &Node) -> Id<Node> {
         operand.node_wrapper()
     }
 
@@ -600,27 +601,27 @@ impl<TBaseNodeFactory: BaseNodeFactory> ParenthesizerRules<TBaseNodeFactory>
         }
     }
 
-    fn parenthesize_expression_for_disallowed_comma(&self, expression: &Node) -> Gc<Node> {
+    fn parenthesize_expression_for_disallowed_comma(&self, expression: &Node) -> Id<Node> {
         expression.node_wrapper()
     }
 
-    fn parenthesize_expression_of_expression_statement(&self, expression: &Node) -> Gc<Node> {
+    fn parenthesize_expression_of_expression_statement(&self, expression: &Node) -> Id<Node> {
         expression.node_wrapper()
     }
 
-    fn parenthesize_concise_body_of_arrow_function(&self, expression: &Node) -> Gc<Node> {
+    fn parenthesize_concise_body_of_arrow_function(&self, expression: &Node) -> Id<Node> {
         expression.node_wrapper()
     }
 
-    fn parenthesize_member_of_conditional_type(&self, member: &Node) -> Gc<Node> {
+    fn parenthesize_member_of_conditional_type(&self, member: &Node) -> Id<Node> {
         member.node_wrapper()
     }
 
-    fn parenthesize_member_of_element_type(&self, member: &Node) -> Gc<Node> {
+    fn parenthesize_member_of_element_type(&self, member: &Node) -> Id<Node> {
         member.node_wrapper()
     }
 
-    fn parenthesize_element_type_of_array_type(&self, member: &Node) -> Gc<Node> {
+    fn parenthesize_element_type_of_array_type(&self, member: &Node) -> Id<Node> {
         member.node_wrapper()
     }
 

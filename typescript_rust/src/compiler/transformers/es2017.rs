@@ -6,6 +6,7 @@ use std::{
 
 use bitflags::bitflags;
 use gc::{Finalize, Gc, GcCell, Trace};
+use id_arena::Id;
 
 use crate::{
     is_concise_body, is_expression, is_for_initializer, is_statement, try_map,
@@ -186,7 +187,7 @@ impl TransformES2017 {
         self.context_flags.set(flags);
     }
 
-    fn transform_source_file(&self, node: &Node /*SourceFile*/) -> io::Result<Gc<Node>> {
+    fn transform_source_file(&self, node: &Node /*SourceFile*/) -> io::Result<Id<Node>> {
         if node.as_source_file().is_declaration_file() {
             return Ok(node.node_wrapper());
         }
@@ -408,7 +409,7 @@ impl TransformES2017 {
     fn visit_catch_clause_in_async_body(
         &self,
         node: &Node, /*CatchClause*/
-    ) -> io::Result<Gc<Node>> {
+    ) -> io::Result<Id<Node>> {
         let mut catch_clause_names: HashSet<__String> = Default::default();
         let node_as_catch_clause = node.as_catch_clause();
         self.record_declaration_name(
@@ -457,7 +458,7 @@ impl TransformES2017 {
     fn visit_variable_statement_in_async_body(
         &self,
         node: &Node, /*VariableStatement*/
-    ) -> io::Result<Option<Gc<Node>>> {
+    ) -> io::Result<Option<Id<Node>>> {
         let node_as_variable_statement = node.as_variable_statement();
         if self.is_variable_declaration_list_with_colliding_name(Some(
             &*node_as_variable_statement.declaration_list,
@@ -480,7 +481,7 @@ impl TransformES2017 {
     fn visit_for_in_statement_in_async_body(
         &self,
         node: &Node, /*ForInStatement*/
-    ) -> io::Result<Gc<Node>> {
+    ) -> io::Result<Id<Node>> {
         let node_as_for_in_statement = node.as_for_in_statement();
         Ok(self.factory.update_for_in_statement(
             node,
@@ -497,14 +498,14 @@ impl TransformES2017 {
                     &node_as_for_in_statement.initializer,
                     Some(|node: &Node| self.visitor(node)),
                     Some(is_for_initializer),
-                    Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                    Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                 )?
             },
             try_visit_node(
                 &node_as_for_in_statement.expression,
                 Some(|node: &Node| self.visitor(node)),
                 Some(is_expression),
-                Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
             )?,
             try_visit_iteration_body(
                 &node_as_for_in_statement.statement,
@@ -517,7 +518,7 @@ impl TransformES2017 {
     fn visit_for_of_statement_in_async_body(
         &self,
         node: &Node, /*ForOfStatement*/
-    ) -> io::Result<Gc<Node>> {
+    ) -> io::Result<Id<Node>> {
         let node_as_for_of_statement = node.as_for_of_statement();
         Ok(self.factory.update_for_of_statement(
             node,
@@ -525,7 +526,7 @@ impl TransformES2017 {
                 node_as_for_of_statement.await_modifier.as_deref(),
                 Some(|node: &Node| self.visitor(node)),
                 Some(is_token),
-                Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
             )?,
             if self.is_variable_declaration_list_with_colliding_name(Some(
                 &*node_as_for_of_statement.initializer,
@@ -540,14 +541,14 @@ impl TransformES2017 {
                     &node_as_for_of_statement.initializer,
                     Some(|node: &Node| self.visitor(node)),
                     Some(is_for_initializer),
-                    Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                    Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                 )?
             },
             try_visit_node(
                 &node_as_for_of_statement.expression,
                 Some(|node: &Node| self.visitor(node)),
                 Some(is_expression),
-                Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
             )?,
             try_visit_iteration_body(
                 &node_as_for_of_statement.statement,
@@ -560,7 +561,7 @@ impl TransformES2017 {
     fn visit_for_statement_in_async_body(
         &self,
         node: &Node, /*ForStatement*/
-    ) -> io::Result<Gc<Node>> {
+    ) -> io::Result<Id<Node>> {
         let node_as_for_statement = node.as_for_statement();
         let initializer = node_as_for_statement.initializer.as_deref();
         Ok(self.factory.update_for_statement(
@@ -575,20 +576,20 @@ impl TransformES2017 {
                     initializer,
                     Some(|node: &Node| self.visitor(node)),
                     Some(is_for_initializer),
-                    Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                    Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                 )?
             },
             try_maybe_visit_node(
                 node_as_for_statement.condition.as_deref(),
                 Some(|node: &Node| self.visitor(node)),
                 Some(is_expression),
-                Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
             )?,
             try_maybe_visit_node(
                 node_as_for_statement.incrementor.as_deref(),
                 Some(|node: &Node| self.visitor(node)),
                 Some(is_expression),
-                Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
             )?,
             try_visit_iteration_body(
                 &node_as_for_statement.statement,
@@ -601,7 +602,7 @@ impl TransformES2017 {
     fn visit_await_expression(
         &self,
         node: &Node, /*AwaitExpression*/
-    ) -> io::Result<Gc<Node /*Expression*/>> {
+    ) -> io::Result<Id<Node /*Expression*/>> {
         if self.in_top_level_context() {
             return try_visit_each_child(node, |node: &Node| self.visitor(node), &**self.context);
         }
@@ -613,7 +614,7 @@ impl TransformES2017 {
                         Some(&*node.as_await_expression().expression),
                         Some(|node: &Node| self.visitor(node)),
                         Some(is_expression),
-                        Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                        Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                     )?,
                 ),
                 Some(node),
@@ -625,7 +626,7 @@ impl TransformES2017 {
     fn visit_method_declaration(
         &self,
         node: &Node, /*MethodDeclaration*/
-    ) -> io::Result<Gc<Node>> {
+    ) -> io::Result<Id<Node>> {
         let node_as_method_declaration = node.as_method_declaration();
         Ok(self.factory.update_method_declaration(
             node,
@@ -704,7 +705,7 @@ impl TransformES2017 {
     fn visit_function_expression(
         &self,
         node: &Node, /*FunctionExpression*/
-    ) -> io::Result<Gc<Node /*Expression*/>> {
+    ) -> io::Result<Id<Node /*Expression*/>> {
         let node_as_function_expression = node.as_function_expression();
         Ok(self.factory.update_function_expression(
             node,
@@ -738,7 +739,7 @@ impl TransformES2017 {
         ))
     }
 
-    fn visit_arrow_function(&self, node: &Node /*ArrowFunction*/) -> io::Result<Gc<Node>> {
+    fn visit_arrow_function(&self, node: &Node /*ArrowFunction*/) -> io::Result<Id<Node>> {
         let node_as_arrow_function = node.as_arrow_function();
         Ok(self.factory.update_arrow_function(
             node,
@@ -802,7 +803,7 @@ impl TransformES2017 {
                 .as_variable_declaration_list()
                 .declarations
                 .iter()
-                .any(|node: &Gc<Node>| {
+                .any(|node: &Id<Node>| {
                     self.collides_with_parameter_name(&node.as_named_declaration().name())
                 })
     }
@@ -811,7 +812,7 @@ impl TransformES2017 {
         &self,
         node: &Node, /*VariableDeclarationList*/
         has_receiver: bool,
-    ) -> io::Result<Option<Gc<Node>>> {
+    ) -> io::Result<Option<Id<Node>>> {
         let node_as_variable_declaration_list = node.as_variable_declaration_list();
         self.hoist_variable_declaration_list(node);
 
@@ -830,7 +831,7 @@ impl TransformES2017 {
                     ),
                     Some(|node: &Node| self.visitor(node)),
                     Some(is_expression),
-                    Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                    Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                 );
             }
             return Ok(None);
@@ -838,14 +839,14 @@ impl TransformES2017 {
 
         Ok(Some(self.factory.inline_expressions(&try_map(
             &variables,
-            |variable: &Gc<Node>, _| self.transform_initialized_variable(variable),
+            |variable: &Id<Node>, _| self.transform_initialized_variable(variable),
         )?)))
     }
 
     fn hoist_variable_declaration_list(&self, node: &Node /*VariableDeclarationList*/) {
         for_each(
             &node.as_variable_declaration_list().declarations,
-            |declaration: &Gc<Node>, _| -> Option<()> {
+            |declaration: &Id<Node>, _| -> Option<()> {
                 self.hoist_variable(&declaration.as_named_declaration().name());
                 None
             },
@@ -867,7 +868,7 @@ impl TransformES2017 {
     fn transform_initialized_variable(
         &self,
         node: &Node, /*VariableDeclaration*/
-    ) -> io::Result<Gc<Node>> {
+    ) -> io::Result<Id<Node>> {
         let node_as_variable_declaration = node.as_variable_declaration();
         let converted = set_source_map_range(
             self.factory.create_assignment(
@@ -882,7 +883,7 @@ impl TransformES2017 {
             &converted,
             Some(|node: &Node| self.visitor(node)),
             Some(is_expression),
-            Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+            Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
         )?)
     }
 
@@ -904,7 +905,7 @@ impl TransformES2017 {
     fn transform_async_function_body(
         &self,
         node: &Node, /*FunctionLikeDeclaration*/
-    ) -> io::Result<Gc<Node /*ConciseBody*/>> {
+    ) -> io::Result<Id<Node /*ConciseBody*/>> {
         let node_as_function_like_declaration = node.as_function_like_declaration();
         self.context.resume_lexical_environment();
 
@@ -938,9 +939,9 @@ impl TransformES2017 {
             self.set_has_super_element_access(Some(false));
         }
 
-        let result: Gc<Node /*ConciseBody*/>;
+        let result: Id<Node /*ConciseBody*/>;
         if !is_arrow_function {
-            let mut statements: Vec<Gc<Node /*Statement*/>> = Default::default();
+            let mut statements: Vec<Id<Node /*Statement*/>> = Default::default();
             let statement_offset = self.factory.try_copy_prologue(
                 &node_as_function_like_declaration
                     .maybe_body()
@@ -1072,7 +1073,7 @@ impl TransformES2017 {
         &self,
         body: &Node, /*ConciseBody*/
         start: Option<usize>,
-    ) -> io::Result<Gc<Node>> {
+    ) -> io::Result<Id<Node>> {
         Ok(if is_block(body) {
             self.factory.update_block(
                 body,
@@ -1090,7 +1091,7 @@ impl TransformES2017 {
                     body,
                     Some(|node: &Node| self.async_body_visitor(node)),
                     Some(is_concise_body),
-                    Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                    Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                 )?,
                 None,
             )
@@ -1100,7 +1101,7 @@ impl TransformES2017 {
     fn get_promise_constructor(
         &self,
         type_: Option<&Node /*TypeNode*/>,
-    ) -> io::Result<Option<Gc<Node>>> {
+    ) -> io::Result<Option<Id<Node>>> {
         type_
             .and_then(get_entity_name_from_type_node)
             .filter(|type_name| is_entity_name(type_name))
@@ -1155,7 +1156,7 @@ impl TransformES2017 {
         }
     }
 
-    fn substitute_expression(&self, node: &Node /*Expression*/) -> Gc<Node> {
+    fn substitute_expression(&self, node: &Node /*Expression*/) -> Id<Node> {
         match node.kind() {
             SyntaxKind::PropertyAccessExpression => {
                 self.substitute_property_access_expression(node)
@@ -1169,7 +1170,7 @@ impl TransformES2017 {
     fn substitute_property_access_expression(
         &self,
         node: &Node, /*PropertyAccessExpression*/
-    ) -> Gc<Node> {
+    ) -> Id<Node> {
         let node_as_property_access_expression = node.as_property_access_expression();
         if node_as_property_access_expression.expression.kind() == SyntaxKind::SuperKeyword {
             return set_text_range_rc_node(
@@ -1192,7 +1193,7 @@ impl TransformES2017 {
     fn substitute_element_access_expression(
         &self,
         node: &Node, /*ElementAccessExpression*/
-    ) -> Gc<Node> {
+    ) -> Id<Node> {
         let node_as_element_access_expression = node.as_element_access_expression();
         if node_as_element_access_expression.expression.kind() == SyntaxKind::SuperKeyword {
             return self.create_super_element_access_in_async_method(
@@ -1203,7 +1204,7 @@ impl TransformES2017 {
         node.node_wrapper()
     }
 
-    fn substitute_call_expression(&self, node: &Node /*CallExpression*/) -> Gc<Node> {
+    fn substitute_call_expression(&self, node: &Node /*CallExpression*/) -> Id<Node> {
         let node_as_call_expression = node.as_call_expression();
         let expression = &node_as_call_expression.expression;
         if is_super_property(expression) {
@@ -1244,7 +1245,7 @@ impl TransformES2017 {
         &self,
         argument_expression: &Node,        /*Expression*/
         location: &impl ReadonlyTextRange, /*TextRange*/
-    ) -> Gc<Node /*LeftHandSideExpression*/> {
+    ) -> Id<Node /*LeftHandSideExpression*/> {
         if self
             .enclosing_super_container_flags()
             .intersects(NodeCheckFlags::AsyncMethodWithSuperBinding)
@@ -1286,7 +1287,7 @@ impl TransformES2017 {
 }
 
 impl TransformerInterface for TransformES2017 {
-    fn call(&self, node: &Node) -> io::Result<Gc<Node>> {
+    fn call(&self, node: &Node) -> io::Result<Id<Node>> {
         self.transform_source_file(node)
     }
 }
@@ -1381,7 +1382,7 @@ impl TransformES2017OnSubstituteNodeOverrider {
 }
 
 impl TransformationContextOnSubstituteNodeOverrider for TransformES2017OnSubstituteNodeOverrider {
-    fn on_substitute_node(&self, hint: EmitHint, node: &Node) -> io::Result<Gc<Node>> {
+    fn on_substitute_node(&self, hint: EmitHint, node: &Node) -> io::Result<Id<Node>> {
         let node = self
             .previous_on_substitute_node
             .on_substitute_node(hint, node)?;
@@ -1422,14 +1423,14 @@ pub fn create_super_access_variable_statement(
     resolver: &dyn EmitResolver,
     node: &Node, /*FunctionLikeDeclaration*/
     names: &HashSet<__String>,
-) -> Gc<Node> {
+) -> Id<Node> {
     let has_binding = resolver
         .get_node_check_flags(node)
         .intersects(NodeCheckFlags::AsyncMethodWithSuperBinding);
-    let mut accessors: Vec<Gc<Node /*PropertyAssignment*/>> = Default::default();
+    let mut accessors: Vec<Id<Node /*PropertyAssignment*/>> = Default::default();
     names.iter().for_each(|key| {
         let name = unescape_leading_underscores(key);
-        let mut getter_and_setter: Vec<Gc<Node /*PropertyAssignment*/>> = Default::default();
+        let mut getter_and_setter: Vec<Id<Node /*PropertyAssignment*/>> = Default::default();
         getter_and_setter.push(factory.create_property_assignment(
             "get",
             factory.create_arrow_function(

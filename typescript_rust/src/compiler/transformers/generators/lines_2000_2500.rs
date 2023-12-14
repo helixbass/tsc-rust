@@ -1,4 +1,5 @@
 use gc::{Gc, GcCell};
+use id_arena::Id;
 
 use super::{
     get_instruction_name, BlockAction, CodeBlock, CodeBlockKind, ExceptionBlock,
@@ -82,7 +83,7 @@ impl TransformGenerators {
         self.peek_block().map(|block| (*block).borrow().kind())
     }
 
-    pub(super) fn begin_with_block(&self, expression: Gc<Node /*Identifier*/>) {
+    pub(super) fn begin_with_block(&self, expression: Id<Node /*Identifier*/>) {
         let start_label = self.define_label();
         let end_label = self.define_label();
         self.mark_label(start_label);
@@ -121,7 +122,7 @@ impl TransformGenerators {
             None,
         );
 
-        let name: Gc<Node /*Identifier*/>;
+        let name: Id<Node /*Identifier*/>;
         let ref variable_name = variable_as_variable_declaration.name();
         if is_generated_identifier(variable_name) {
             name = variable_name.clone();
@@ -387,7 +388,7 @@ impl TransformGenerators {
         0
     }
 
-    pub(super) fn create_label(&self, label: Option<Label>) -> Gc<Node /*Expression*/> {
+    pub(super) fn create_label(&self, label: Option<Label>) -> Id<Node /*Expression*/> {
         if let Some(label) = label.filter(|&label| label > 0) {
             let mut label_expressions = self.maybe_label_expressions_mut();
             let label_expressions = label_expressions.get_or_insert_default_();
@@ -407,7 +408,7 @@ impl TransformGenerators {
     pub(super) fn create_instruction(
         &self,
         instruction: Instruction,
-    ) -> Gc<Node /*NumericLiteral*/> {
+    ) -> Id<Node /*NumericLiteral*/> {
         self.factory
             .create_numeric_literal(Number::new(instruction as u8 as f64), None)
             .add_synthetic_trailing_comment(
@@ -421,7 +422,7 @@ impl TransformGenerators {
         &self,
         label: Label,
         location: Option<&impl ReadonlyTextRange>,
-    ) -> Gc<Node /*ReturnStatement*/> {
+    ) -> Id<Node /*ReturnStatement*/> {
         Debug_.assert_less_than(0, label, Some("Invalid label"));
         self.factory
             .create_return_statement(Some(self.factory.create_array_literal_expression(
@@ -436,9 +437,9 @@ impl TransformGenerators {
 
     pub(super) fn create_inline_return(
         &self,
-        expression: Option<Gc<Node>>,
+        expression: Option<Id<Node>>,
         location: Option<&impl ReadonlyTextRange>,
-    ) -> Gc<Node /*ReturnStatement*/> {
+    ) -> Id<Node /*ReturnStatement*/> {
         self.factory
             .create_return_statement(Some(self.factory.create_array_literal_expression(
                 Some(if let Some(expression) = expression {
@@ -454,7 +455,7 @@ impl TransformGenerators {
     pub(super) fn create_generator_resume(
         &self,
         location: Option<&impl ReadonlyTextRange>,
-    ) -> Gc<Node /*LeftHandSideExpression*/> {
+    ) -> Id<Node /*LeftHandSideExpression*/> {
         self.factory
             .create_call_expression(
                 self.factory

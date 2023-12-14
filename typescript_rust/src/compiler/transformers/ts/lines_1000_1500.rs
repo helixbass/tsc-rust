@@ -1,6 +1,7 @@
 use std::{borrow::Borrow, io, ptr};
 
 use gc::Gc;
+use id_arena::Id;
 
 use super::{AllDecorators, TransformTypeScript, USE_NEW_TYPE_METADATA_FORMAT};
 use crate::{
@@ -107,15 +108,15 @@ impl TransformTypeScript {
         node: &Node,      /*Declaration*/
         container: &Node, /*ClassLikeDeclaration*/
         all_decorators: Option<&AllDecorators>,
-    ) -> io::Result<Option<Vec<Gc<Node>>>> {
+    ) -> io::Result<Option<Vec<Id<Node>>>> {
         let all_decorators = return_ok_default_if_none!(all_decorators);
 
-        let mut decorator_expressions: Vec<Gc<Node /*Expression*/>> = Default::default();
+        let mut decorator_expressions: Vec<Id<Node /*Expression*/>> = Default::default();
         add_range(
             &mut decorator_expressions,
             try_maybe_map(
                 all_decorators.decorators.as_deref(),
-                |decorator: &Gc<Node>, _| self.transform_decorator(decorator),
+                |decorator: &Id<Node>, _| self.transform_decorator(decorator),
             )
             .transpose()?
             .as_deref(),
@@ -147,7 +148,7 @@ impl TransformTypeScript {
 
     pub(super) fn add_class_element_decoration_statements(
         &self,
-        statements: &mut Vec<Gc<Node /*Statement*/>>,
+        statements: &mut Vec<Id<Node /*Statement*/>>,
         node: &Node, /*ClassDeclaration*/
         is_static: bool,
     ) -> io::Result<()> {
@@ -155,7 +156,7 @@ impl TransformTypeScript {
             statements,
             maybe_map(
                 self.generate_class_element_decoration_expressions(node, is_static)?,
-                |expression: Gc<Node>, _| self.expression_to_statement(expression),
+                |expression: Id<Node>, _| self.expression_to_statement(expression),
             )
             .as_deref(),
             None,
@@ -169,9 +170,9 @@ impl TransformTypeScript {
         &self,
         node: &Node, /*ClassExpression | ClassDeclaration*/
         is_static: bool,
-    ) -> io::Result<Option<Vec<Gc<Node>>>> {
+    ) -> io::Result<Option<Vec<Id<Node>>>> {
         let members = self.get_decorated_class_elements(node, is_static);
-        let mut expressions: Option<Vec<Gc<Node>>> = Default::default();
+        let mut expressions: Option<Vec<Id<Node>>> = Default::default();
         for ref member in members {
             let expression = self.generate_class_element_decoration_expression(node, member)?;
             if let Some(expression) = expression {
@@ -185,7 +186,7 @@ impl TransformTypeScript {
         &self,
         node: &Node,   /*ClassExpression | ClassDeclaration*/
         member: &Node, /*ClassElement*/
-    ) -> io::Result<Option<Gc<Node>>> {
+    ) -> io::Result<Option<Id<Node>>> {
         let all_decorators = self.get_all_decorators_of_class_element(node, member);
         let decorator_expressions = return_ok_default_if_none!(
             self.transform_all_decorators_of_declaration(member, node, all_decorators.as_ref())?
@@ -220,7 +221,7 @@ impl TransformTypeScript {
 
     pub(super) fn add_constructor_decoration_statement(
         &self,
-        statements: &mut Vec<Gc<Node /*Statement*/>>,
+        statements: &mut Vec<Id<Node /*Statement*/>>,
         node: &Node, /*ClassDeclaration*/
     ) -> io::Result<()> {
         let expression = self.generate_constructor_decoration_expression(node)?;
@@ -238,7 +239,7 @@ impl TransformTypeScript {
     pub(super) fn generate_constructor_decoration_expression(
         &self,
         node: &Node, /*ClassExpression | ClassDeclaration*/
-    ) -> io::Result<Option<Gc<Node>>> {
+    ) -> io::Result<Option<Id<Node>>> {
         let all_decorators = self.get_all_decorators_of_constructor(node);
         let decorator_expressions = return_ok_default_if_none!(
             self.transform_all_decorators_of_declaration(node, node, all_decorators.as_ref())?
@@ -281,21 +282,21 @@ impl TransformTypeScript {
     pub(super) fn transform_decorator(
         &self,
         decorator: &Node, /*Decorator*/
-    ) -> io::Result<Gc<Node>> {
+    ) -> io::Result<Id<Node>> {
         try_visit_node(
             &decorator.as_decorator().expression,
             Some(|node: &Node| self.visitor(node)),
             Some(is_expression),
-            Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+            Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
         )
     }
 
     pub(super) fn transform_decorators_of_parameter(
         &self,
-        decorators: Option<&[Gc<Node /*Decorator*/>]>,
+        decorators: Option<&[Id<Node /*Decorator*/>]>,
         parameter_offset: usize,
-    ) -> io::Result<Option<Vec<Gc<Node>>>> {
-        let mut expressions: Option<Vec<Gc<Node /*Expression*/>>> = Default::default();
+    ) -> io::Result<Option<Vec<Id<Node>>>> {
+        let mut expressions: Option<Vec<Id<Node /*Expression*/>>> = Default::default();
         if let Some(decorators) = decorators {
             let expressions = expressions.get_or_insert_default_();
             for decorator in decorators {
@@ -315,7 +316,7 @@ impl TransformTypeScript {
         &self,
         node: &Node,      /*Declaration*/
         container: &Node, /*ClassLikeDeclaration*/
-        decorator_expressions: &mut Vec<Gc<Node /*Expression*/>>,
+        decorator_expressions: &mut Vec<Id<Node /*Expression*/>>,
     ) -> io::Result<()> {
         if USE_NEW_TYPE_METADATA_FORMAT {
             self.add_new_type_metadata(node, container, decorator_expressions)?;
@@ -330,7 +331,7 @@ impl TransformTypeScript {
         &self,
         node: &Node,      /*Declaration*/
         container: &Node, /*ClassLikeDeclaration*/
-        decorator_expressions: &mut Vec<Gc<Node /*Expression*/>>,
+        decorator_expressions: &mut Vec<Id<Node /*Expression*/>>,
     ) -> io::Result<()> {
         if self.compiler_options.emit_decorator_metadata == Some(true) {
             if self.should_add_type_metadata(node) {
@@ -360,10 +361,10 @@ impl TransformTypeScript {
         &self,
         node: &Node,      /*Declaration*/
         container: &Node, /*ClassLikeDeclaration*/
-        decorator_expressions: &mut Vec<Gc<Node /*Expression*/>>,
+        decorator_expressions: &mut Vec<Id<Node /*Expression*/>>,
     ) -> io::Result<()> {
         if self.compiler_options.emit_decorator_metadata == Some(true) {
-            let mut properties: Option<Vec<Gc<Node /*ObjectLiteralElementLike*/>>> =
+            let mut properties: Option<Vec<Id<Node /*ObjectLiteralElementLike*/>>> =
                 Default::default();
             if self.should_add_type_metadata(node) {
                 properties.get_or_insert_default_().push(
@@ -463,7 +464,7 @@ impl TransformTypeScript {
     pub(super) fn get_accessor_type_node(
         &self,
         node: &Node, /*AccessorDeclaration*/
-    ) -> io::Result<Option<Gc<Node>>> {
+    ) -> io::Result<Option<Id<Node>>> {
         let accessors = self.resolver.get_all_accessor_declarations(node)?;
         Ok(accessors
             .set_accessor
@@ -484,7 +485,7 @@ impl TransformTypeScript {
     pub(super) fn serialize_type_of_node(
         &self,
         node: &Node,
-    ) -> io::Result<Gc<Node /*SerializedTypeNode*/>> {
+    ) -> io::Result<Id<Node /*SerializedTypeNode*/>> {
         Ok(match node.kind() {
             SyntaxKind::PropertyDeclaration | SyntaxKind::Parameter => {
                 self.serialize_type_node(node.as_has_type().maybe_type())?
@@ -503,7 +504,7 @@ impl TransformTypeScript {
         &self,
         node: &Node,
         container: &Node, /*ClassLikeDeclaration*/
-    ) -> io::Result<Gc<Node /*ArrayLiteralExpression*/>> {
+    ) -> io::Result<Id<Node /*ArrayLiteralExpression*/>> {
         let value_declaration = if is_class_like(node) {
             get_first_constructor_with_body(node)
         } else if is_function_like(Some(node))
@@ -514,7 +515,7 @@ impl TransformTypeScript {
             None
         };
 
-        let mut expressions: Vec<Gc<Node /*SerializedTypeNode*/>> = Default::default();
+        let mut expressions: Vec<Id<Node /*SerializedTypeNode*/>> = Default::default();
         if let Some(value_declaration) = value_declaration {
             let parameters =
                 self.get_parameters_of_decorated_declaration(&value_declaration, container);
@@ -570,7 +571,7 @@ impl TransformTypeScript {
     pub(super) fn serialize_return_type_of_node(
         &self,
         node: &Node,
-    ) -> io::Result<Gc<Node /*SerializedTypeNode*/>> {
+    ) -> io::Result<Id<Node /*SerializedTypeNode*/>> {
         if is_function_like(Some(node)) && node.as_has_type().maybe_type().is_some() {
             return self.serialize_type_node(node.as_has_type().maybe_type());
         } else if is_async_function(node) {
@@ -583,7 +584,7 @@ impl TransformTypeScript {
     pub(super) fn serialize_type_node(
         &self,
         node: Option<impl Borrow<Node /*TypeNode*/>>,
-    ) -> io::Result<Gc<Node /*SerializedTypeNode*/>> {
+    ) -> io::Result<Id<Node /*SerializedTypeNode*/>> {
         if node.is_none() {
             return Ok(self.factory.create_identifier("Object"));
         }

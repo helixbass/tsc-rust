@@ -2,6 +2,7 @@ use std::{borrow::Borrow, collections::HashMap, io, rc::Rc};
 
 use fancy_regex::Regex;
 use gc::{Gc, GcCell};
+use id_arena::Id;
 use indexmap::IndexMap;
 
 use super::{
@@ -31,7 +32,7 @@ use crate::{
 };
 
 pub struct ExtendedConfigCacheEntry {
-    pub extended_result: Gc<Node /*TsConfigSourceFile*/>,
+    pub extended_result: Id<Node /*TsConfigSourceFile*/>,
     pub extended_config: Option<Rc<ParsedTsconfig>>,
 }
 
@@ -48,7 +49,7 @@ pub(crate) fn get_extended_config(
     } else {
         to_file_name_lower_case(extended_config_path)
     };
-    let mut extended_result: Option<Gc<Node /*TsConfigSourceFile*/>> = None;
+    let mut extended_result: Option<Id<Node /*TsConfigSourceFile*/>> = None;
     let mut extended_config: Option<Rc<ParsedTsconfig>> = None;
     if let Some(extended_config_cache) = extended_config_cache.as_ref() {
         let value = extended_config_cache.get(&path);

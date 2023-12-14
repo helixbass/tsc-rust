@@ -32,7 +32,7 @@ pub struct Printer {
     pub new_line: String,
     #[unsafe_ignore_trace]
     pub module_kind: ModuleKind,
-    pub current_source_file: GcCell<Option<Gc<Node /*SourceFile*/>>>,
+    pub current_source_file: GcCell<Option<Id<Node /*SourceFile*/>>>,
     #[unsafe_ignore_trace]
     pub bundled_helpers: RefCell<HashMap<String, bool>>,
     #[unsafe_ignore_trace]
@@ -91,14 +91,14 @@ pub struct Printer {
     pub has_written_comment: Cell<bool>,
     #[unsafe_ignore_trace]
     pub comments_disabled: Cell<bool>,
-    pub last_substitution: GcCell<Option<Gc<Node>>>,
+    pub last_substitution: GcCell<Option<Id<Node>>>,
     pub current_parenthesizer_rule: GcCell<Option<Gc<Box<dyn CurrentParenthesizerRule>>>>,
     pub parenthesizer: Gc<Box<dyn ParenthesizerRules<BaseNodeFactorySynthetic>>>,
     pub emit_binary_expression: GcCell<Option<Gc<EmitBinaryExpression>>>,
 }
 
 pub trait CurrentParenthesizerRule: Trace + Finalize {
-    fn call(&self, node: &Node) -> Gc<Node>;
+    fn call(&self, node: &Node) -> Id<Node>;
 }
 
 #[derive(Copy, Clone)]
@@ -658,7 +658,7 @@ pub trait PrintHandlers: Trace + Finalize {
     fn is_emit_notification_enabled(&self, _node: &Node) -> Option<bool> {
         None
     }
-    fn substitute_node(&self, _hint: EmitHint, _node: &Node) -> io::Result<Option<Gc<Node>>> {
+    fn substitute_node(&self, _hint: EmitHint, _node: &Node) -> io::Result<Option<Id<Node>>> {
         Ok(None)
     }
     fn is_substitute_node_supported(&self) -> bool;
@@ -866,7 +866,7 @@ pub trait SymbolTracker: Trace + Finalize {
     fn track_symbol(
         &self,
         _symbol: Id<Symbol>,
-        _enclosing_declaration: Option<Gc<Node>>,
+        _enclosing_declaration: Option<Id<Node>>,
         _meaning: SymbolFlags,
     ) -> Option<io::Result<bool>> {
         None
@@ -944,7 +944,7 @@ pub struct DiagnosticCollection {
 #[ast_type]
 pub struct SyntaxList {
     _node: BaseNode,
-    pub _children: Vec<Gc<Node>>,
+    pub _children: Vec<Id<Node>>,
 }
 
 bitflags! {

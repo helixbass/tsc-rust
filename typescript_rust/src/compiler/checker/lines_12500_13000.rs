@@ -133,7 +133,7 @@ impl TypeChecker {
                         param_symbol.unwrap().ref_(self).escaped_name(),
                         SymbolFlags::Value,
                         None,
-                        Option::<Gc<Node>>::None,
+                        Option::<Id<Node>>::None,
                         false,
                         None,
                     )?;
@@ -250,10 +250,10 @@ impl TypeChecker {
             Either::Left(get_jsdoc_parameter_tags(last_param))
         } else {
             Either::Right(
-                get_jsdoc_tags(declaration).filter(|tag: &Gc<Node>| is_jsdoc_parameter_tag(tag)),
+                get_jsdoc_tags(declaration).filter(|tag: &Id<Node>| is_jsdoc_parameter_tag(tag)),
             )
         };
-        let last_param_variadic_type = first_defined(last_param_tags, |p: Gc<Node>, _| {
+        let last_param_variadic_type = first_defined(last_param_tags, |p: Id<Node>, _| {
             p.as_jsdoc_property_like_tag()
                 .type_expression
                 .as_ref()
@@ -1009,7 +1009,7 @@ impl TypeChecker {
         key_type: Id<Type>,
         type_: Id<Type>,
         is_readonly: bool,
-        declaration: Option<Gc<Node /*IndexSignatureDeclaration*/>>,
+        declaration: Option<Id<Node /*IndexSignatureDeclaration*/>>,
     ) -> IndexInfo {
         IndexInfo {
             key_type,
@@ -1105,7 +1105,7 @@ impl TypeChecker {
     pub(super) fn get_constraint_declaration(
         &self,
         type_: Id<Type>, /*TypeParameter*/
-    ) -> Option<Gc<Node /*TypeNode*/>> {
+    ) -> Option<Id<Node /*TypeNode*/>> {
         map_defined(
             maybe_filter(
                 type_
@@ -1113,7 +1113,7 @@ impl TypeChecker {
                     .maybe_symbol()
                     .and_then(|symbol| symbol.ref_(self).maybe_declarations().clone())
                     .as_deref(),
-                |node: &Gc<Node>| is_type_parameter_declaration(node),
+                |node: &Id<Node>| is_type_parameter_declaration(node),
             ),
             |node, _| get_effective_constraint_of_type_parameter(&node),
         )

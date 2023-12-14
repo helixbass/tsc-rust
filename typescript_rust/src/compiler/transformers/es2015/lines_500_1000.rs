@@ -1,6 +1,7 @@
 use std::{borrow::Borrow, io};
 
 use gc::Gc;
+use id_arena::Id;
 
 use super::{CopyDirection, HierarchyFacts, Jump, TransformES2015};
 use crate::{
@@ -21,14 +22,14 @@ impl TransformES2015 {
     pub(super) fn visit_source_file(
         &self,
         node: &Node, /*SourceFile*/
-    ) -> io::Result<Gc<Node /*SourceFile*/>> {
+    ) -> io::Result<Id<Node /*SourceFile*/>> {
         let node_as_source_file = node.as_source_file();
         let ancestor_facts = self.enter_subtree(
             HierarchyFacts::SourceFileExcludes,
             HierarchyFacts::SourceFileIncludes,
         );
-        let mut prologue: Vec<Gc<Node /*Statement*/>> = Default::default();
-        let mut statements: Vec<Gc<Node /*Statement*/>> = Default::default();
+        let mut prologue: Vec<Id<Node /*Statement*/>> = Default::default();
+        let mut statements: Vec<Id<Node /*Statement*/>> = Default::default();
         self.context.start_lexical_environment();
         let statement_offset = self.factory.try_copy_prologue(
             &node_as_source_file.statements(),
@@ -81,7 +82,7 @@ impl TransformES2015 {
     pub(super) fn visit_switch_statement(
         &self,
         node: &Node, /*SwitchStatement*/
-    ) -> io::Result<Gc<Node /*SwitchStatement*/>> {
+    ) -> io::Result<Id<Node /*SwitchStatement*/>> {
         if let Some(converted_loop_state) = self.maybe_converted_loop_state() {
             let saved_allowed_non_labeled_jumps = (*converted_loop_state)
                 .borrow()
@@ -108,7 +109,7 @@ impl TransformES2015 {
     pub(super) fn visit_case_block(
         &self,
         node: &Node, /*CaseBlock*/
-    ) -> io::Result<Gc<Node /*CaseBlock*/>> {
+    ) -> io::Result<Id<Node /*CaseBlock*/>> {
         let ancestor_facts = self.enter_subtree(
             HierarchyFacts::BlockScopeExcludes,
             HierarchyFacts::BlockScopeIncludes,
@@ -119,7 +120,7 @@ impl TransformES2015 {
         Ok(updated)
     }
 
-    pub(super) fn return_captured_this(&self, node: &Node) -> Gc<Node /*ReturnStatement*/> {
+    pub(super) fn return_captured_this(&self, node: &Node) -> Id<Node /*ReturnStatement*/> {
         self.factory
             .create_return_statement(Some(self.factory.create_unique_name(
                 "_this",
@@ -131,7 +132,7 @@ impl TransformES2015 {
     pub(super) fn visit_return_statement(
         &self,
         node: &Node, /*ReturnStatement*/
-    ) -> io::Result<Gc<Node /*Statement*/>> {
+    ) -> io::Result<Id<Node /*Statement*/>> {
         let mut node = node.node_wrapper();
         if let Some(converted_loop_state) = self.maybe_converted_loop_state() {
             {
@@ -156,7 +157,7 @@ impl TransformES2015 {
                                         node_expression,
                                         Some(|node: &Node| self.visitor(node)),
                                         Some(is_expression),
-                                        Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                                        Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                                     )
                                 },
                             )?,
@@ -170,7 +171,7 @@ impl TransformES2015 {
         try_visit_each_child(&node, |node: &Node| self.visitor(node), &**self.context)
     }
 
-    pub(super) fn visit_this_keyword(&self, node: &Node) -> Gc<Node> {
+    pub(super) fn visit_this_keyword(&self, node: &Node) -> Id<Node> {
         if self
             .maybe_hierarchy_facts()
             .unwrap_or_default()
@@ -209,7 +210,7 @@ impl TransformES2015 {
     pub(super) fn visit_void_expression(
         &self,
         node: &Node, /*VoidExpression*/
-    ) -> io::Result<Gc<Node /*Expression*/>> {
+    ) -> io::Result<Id<Node /*Expression*/>> {
         try_visit_each_child(
             &node,
             |node: &Node| self.visitor_with_unused_expression_result(node),
@@ -220,7 +221,7 @@ impl TransformES2015 {
     pub(super) fn visit_identifier(
         &self,
         node: &Node, /*Identifier*/
-    ) -> io::Result<Gc<Node /*Identifier*/>> {
+    ) -> io::Result<Id<Node /*Identifier*/>> {
         if self.maybe_converted_loop_state().is_none() {
             return Ok(node.node_wrapper());
         }
@@ -238,7 +239,7 @@ impl TransformES2015 {
     pub(super) fn visit_break_or_continue_statement(
         &self,
         node: &Node, /*BreakOrContinueStatement*/
-    ) -> io::Result<Gc<Node /*Statement*/>> {
+    ) -> io::Result<Id<Node /*Statement*/>> {
         let node_as_has_label = node.as_has_label();
         if self.maybe_converted_loop_state().is_some() {
             let jump = if node.kind() == SyntaxKind::BreakStatement {
@@ -310,7 +311,7 @@ impl TransformES2015 {
                     let converted_loop_state = self.converted_loop_state();
                     let converted_loop_state = (*converted_loop_state).borrow();
                     let out_params = &converted_loop_state.loop_out_parameters;
-                    let mut expr: Option<Gc<Node>> = None;
+                    let mut expr: Option<Id<Node>> = None;
                     for (i, out_param) in out_params.iter().enumerate() {
                         let copy_expr =
                             self.copy_out_parameter(out_param, CopyDirection::ToOutParameter);
@@ -352,7 +353,7 @@ impl TransformES2015 {
             )
             .set_original_node(Some(node.node_wrapper()));
 
-        let mut statements: Vec<Gc<Node /*Statement*/>> = Default::default();
+        let mut statements: Vec<Id<Node /*Statement*/>> = Default::default();
         let statement = self
             .factory
             .create_variable_statement(
@@ -395,14 +396,14 @@ impl TransformES2015 {
     pub(super) fn visit_class_expression(
         &self,
         node: &Node, /*ClassExpression*/
-    ) -> io::Result<Gc<Node /*Expression*/>> {
+    ) -> io::Result<Id<Node /*Expression*/>> {
         self.transform_class_like_declaration_to_expression(node)
     }
 
     pub(super) fn transform_class_like_declaration_to_expression(
         &self,
         node: &Node, /*ClassExpression | ClassDeclaration*/
-    ) -> io::Result<Gc<Node /*Expression*/>> {
+    ) -> io::Result<Id<Node /*Expression*/>> {
         let node_as_class_like_declaration = node.as_class_like_declaration();
         if node_as_class_like_declaration.maybe_name().is_some() {
             self.enable_substitutions_for_block_scoped_bindings();
@@ -414,7 +415,7 @@ impl TransformES2015 {
             .create_function_expression(
                 Option::<Gc<NodeArray>>::None,
                 None,
-                Option::<Gc<Node>>::None,
+                Option::<Id<Node>>::None,
                 Option::<Gc<NodeArray>>::None,
                 Some(extends_clause_element.as_ref().map_or_default(|_| {
                     vec![self.factory.create_parameter_declaration(
@@ -471,7 +472,7 @@ impl TransformES2015 {
                                 .expression,
                             Some(|node: &Node| self.visitor(node)),
                             Some(is_expression),
-                            Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                            Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                         )?])
                     },
                 )?),
@@ -483,9 +484,9 @@ impl TransformES2015 {
         &self,
         node: &Node, /*ClassExpression | ClassDeclaration*/
         extends_clause_element: Option<impl Borrow<Node>>, /*ExpressionWithTypeArguments*/
-    ) -> io::Result<Gc<Node /*Block*/>> {
+    ) -> io::Result<Id<Node /*Block*/>> {
         let node_as_class_like_declaration = node.as_class_like_declaration();
-        let mut statements: Vec<Gc<Node /*Statement*/>> = Default::default();
+        let mut statements: Vec<Id<Node /*Statement*/>> = Default::default();
         let name = self.factory.get_internal_name(node, None, None);
         let constructor_like_name = if is_identifier_a_non_contextual_keyword(&name) {
             self.factory.get_generated_name_for_node(Some(name), None)
@@ -545,7 +546,7 @@ impl TransformES2015 {
 
     pub(super) fn add_extends_helper_if_needed(
         &self,
-        statements: &mut Vec<Gc<Node /*Statement*/>>,
+        statements: &mut Vec<Id<Node /*Statement*/>>,
         node: &Node, /*ClassExpression | ClassDeclaration*/
         extends_clause_element: Option<impl Borrow<Node>>, /*ExpressionWithTypeArguments*/
     ) {
@@ -565,7 +566,7 @@ impl TransformES2015 {
 
     pub(super) fn add_constructor(
         &self,
-        statements: &mut Vec<Gc<Node /*Statement*/>>,
+        statements: &mut Vec<Id<Node /*Statement*/>>,
         node: &Node, /*ClassExpression | ClassDeclaration*/
         name: &Node, /*Identifier*/
         extends_clause_element: Option<impl Borrow<Node>>, /*ExpressionWithTypeArguments*/
@@ -639,8 +640,8 @@ impl TransformES2015 {
         &self,
         node: &Node, /*ClassExpression | ClassDeclaration*/
         is_derived_class: bool,
-    ) -> Gc<Node> {
-        let mut statements: Vec<Gc<Node /*Statement*/>> = Default::default();
+    ) -> Id<Node> {
+        let mut statements: Vec<Id<Node /*Statement*/>> = Default::default();
         self.context.resume_lexical_environment();
         statements = self
             .factory
@@ -674,7 +675,7 @@ impl TransformES2015 {
         node: &Node,                            /*ClassExpression | ClassDeclaration*/
         extends_clause_element: Option<impl Borrow<Node>>, /*ExpressionWithTypeArguments*/
         has_synthesized_super: bool,
-    ) -> io::Result<Gc<Node>> {
+    ) -> io::Result<Id<Node>> {
         let extends_clause_element = extends_clause_element.node_wrappered();
         let is_derived_class = extends_clause_element
             .as_ref()
@@ -698,8 +699,8 @@ impl TransformES2015 {
         let constructor_body = constructor_as_constructor_declaration.maybe_body().unwrap();
         let constructor_body_as_block = constructor_body.as_block();
 
-        let mut prologue: Vec<Gc<Node /*Statement*/>> = Default::default();
-        let mut statements: Vec<Gc<Node /*Statement*/>> = Default::default();
+        let mut prologue: Vec<Id<Node /*Statement*/>> = Default::default();
+        let mut statements: Vec<Id<Node /*Statement*/>> = Default::default();
         self.context.resume_lexical_environment();
 
         let mut statement_offset = 0;
@@ -725,7 +726,7 @@ impl TransformES2015 {
                 .unwrap();
         }
 
-        let mut super_call_expression: Option<Gc<Node /*Expression*/>> = None;
+        let mut super_call_expression: Option<Id<Node /*Expression*/>> = None;
         if has_synthesized_super {
             super_call_expression = Some(self.create_default_super_call_or_this());
         } else if is_derived_class && statement_offset < constructor_body_as_block.statements.len()
@@ -775,12 +776,12 @@ impl TransformES2015 {
                         .intersects(TransformFlags::ContainsLexicalThis)
             }) {
                 let super_call = cast_present(
-                    &cast_present(&super_call_expression, |node: &&Gc<Node>| {
+                    &cast_present(&super_call_expression, |node: &&Id<Node>| {
                         is_binary_expression(node)
                     })
                     .as_binary_expression()
                     .left,
-                    |node: &&Gc<Node>| is_call_expression(node),
+                    |node: &&Id<Node>| is_call_expression(node),
                 );
                 let return_statement = self
                     .factory

@@ -1,4 +1,5 @@
 use gc::Gc;
+use id_arena::Id;
 
 use super::{ParserType, ParsingContext, SignatureFlags};
 use crate::{
@@ -54,7 +55,7 @@ impl ParserType {
     pub(super) fn parse_identifier_or_pattern(
         &self,
         private_identifier_diagnostic_message: Option<&DiagnosticMessage>,
-    ) -> Gc<Node /*Identifier | BindingPattern*/> {
+    ) -> Id<Node /*Identifier | BindingPattern*/> {
         if self.token() == SyntaxKind::OpenBracketToken {
             return self.parse_array_binding_pattern().wrap();
         }
@@ -67,21 +68,21 @@ impl ParserType {
 
     pub(super) fn parse_variable_declaration_allow_exclamation(
         &self,
-    ) -> Gc<Node /*VariableDeclaration*/> {
+    ) -> Id<Node /*VariableDeclaration*/> {
         self.parse_variable_declaration(Some(true))
     }
 
     pub(super) fn parse_variable_declaration(
         &self,
         allow_exclamation: Option<bool>,
-    ) -> Gc<Node /*VariableDeclaration*/> {
+    ) -> Id<Node /*VariableDeclaration*/> {
         let allow_exclamation = allow_exclamation.unwrap_or(false);
         let pos = self.get_node_pos();
         let has_jsdoc = self.has_preceding_jsdoc_comment();
         let name = self.parse_identifier_or_pattern(Some(
             &Diagnostics::Private_identifiers_are_not_allowed_in_variable_declarations,
         ));
-        let mut exclamation_token: Option<Gc<Node>> = None;
+        let mut exclamation_token: Option<Id<Node>> = None;
         if allow_exclamation
             && name.kind() == SyntaxKind::Identifier
             && self.token() == SyntaxKind::ExclamationToken
@@ -166,7 +167,7 @@ impl ParserType {
         has_jsdoc: bool,
         decorators: Option<Gc<NodeArray>>,
         modifiers: Option<Gc<NodeArray>>,
-    ) -> Gc<Node /*VariableStatement*/> {
+    ) -> Id<Node /*VariableStatement*/> {
         let declaration_list = self.parse_variable_declaration_list(false);
         self.parse_semicolon();
         let node = self
@@ -182,7 +183,7 @@ impl ParserType {
         has_jsdoc: bool,
         decorators: Option<Gc<NodeArray>>,
         modifiers: Option<Gc<NodeArray>>,
-    ) -> Gc<Node /*FunctionDeclaration*/> {
+    ) -> Id<Node /*FunctionDeclaration*/> {
         let saved_await_context = self.in_await_context();
 
         let modifier_flags = modifiers_to_flags(modifiers.as_double_deref());
@@ -249,7 +250,7 @@ impl ParserType {
         has_jsdoc: bool,
         decorators: Option<Gc<NodeArray>>,
         modifiers: Option<Gc<NodeArray>>,
-    ) -> Option<Gc<Node /*ConstructorDeclaration*/>> {
+    ) -> Option<Id<Node /*ConstructorDeclaration*/>> {
         self.try_parse(|| {
             if self.parse_constructor_name() {
                 let type_parameters = self.parse_type_parameters();
@@ -279,12 +280,12 @@ impl ParserType {
         has_jsdoc: bool,
         decorators: Option<Gc<NodeArray>>,
         modifiers: Option<Gc<NodeArray>>,
-        asterisk_token: Option<Gc<Node /*AsteriskToken*/>>,
-        name: Gc<Node /*PropertyName*/>,
-        question_token: Option<Gc<Node /*QuestionToken*/>>,
-        exclamation_token: Option<Gc<Node /*ExclamationToken*/>>,
+        asterisk_token: Option<Id<Node /*AsteriskToken*/>>,
+        name: Id<Node /*PropertyName*/>,
+        question_token: Option<Id<Node /*QuestionToken*/>>,
+        exclamation_token: Option<Id<Node /*ExclamationToken*/>>,
         diagnostic_message: Option<&DiagnosticMessage>,
-    ) -> Gc<Node /*MethodDeclaration*/> {
+    ) -> Id<Node /*MethodDeclaration*/> {
         let is_generator = if asterisk_token.is_some() {
             SignatureFlags::Yield
         } else {
@@ -292,7 +293,7 @@ impl ParserType {
         };
         let is_async = if some(
             modifiers.as_double_deref(),
-            Some(|modifier: &Gc<Node>| is_async_modifier(modifier)),
+            Some(|modifier: &Id<Node>| is_async_modifier(modifier)),
         ) {
             SignatureFlags::Await
         } else {
@@ -324,10 +325,10 @@ impl ParserType {
         has_jsdoc: bool,
         decorators: Option<Gc<NodeArray>>,
         modifiers: Option<Gc<NodeArray>>,
-        name: Gc<Node /*PropertyName*/>,
-        question_token: Option<Gc<Node /*QuestionToken*/>>,
-    ) -> Gc<Node /*PropertyDeclaration*/> {
-        let exclamation_token: Option<Gc<Node>> =
+        name: Id<Node /*PropertyName*/>,
+        question_token: Option<Id<Node /*QuestionToken*/>>,
+    ) -> Id<Node /*PropertyDeclaration*/> {
+        let exclamation_token: Option<Id<Node>> =
             if question_token.is_none() && !self.scanner().has_preceding_line_break() {
                 self.parse_optional_token(SyntaxKind::ExclamationToken)
                     .map(Node::wrap)
@@ -340,7 +341,7 @@ impl ParserType {
             || self.parse_initializer(),
         );
         self.parse_semicolon_after_property_name(&*name, type_.clone(), initializer.clone());
-        let node: Gc<Node> = self.factory().create_property_declaration(
+        let node: Id<Node> = self.factory().create_property_declaration(
             decorators,
             modifiers,
             name,
@@ -358,12 +359,12 @@ impl ParserType {
         has_jsdoc: bool,
         decorators: Option<Gc<NodeArray>>,
         modifiers: Option<Gc<NodeArray>>,
-    ) -> Gc<Node /*PropertyDeclaration | MethodDeclaration*/> {
-        let asterisk_token: Option<Gc<Node>> = self
+    ) -> Id<Node /*PropertyDeclaration | MethodDeclaration*/> {
+        let asterisk_token: Option<Id<Node>> = self
             .parse_optional_token(SyntaxKind::AsteriskToken)
             .map(Node::wrap);
         let name = self.parse_property_name().wrap();
-        let question_token: Option<Gc<Node>> = self
+        let question_token: Option<Id<Node>> = self
             .parse_optional_token(SyntaxKind::QuestionToken)
             .map(Node::wrap);
         if asterisk_token.is_some()
@@ -394,12 +395,12 @@ impl ParserType {
         decorators: Option<Gc<NodeArray>>,
         modifiers: Option<Gc<NodeArray>>,
         kind: SyntaxKind, /*AccessorDeclaration["kind"]*/
-    ) -> Gc<Node /*AccessorDeclaration*/> {
+    ) -> Id<Node /*AccessorDeclaration*/> {
         let name = self.parse_property_name().wrap();
         let type_parameters = self.parse_type_parameters();
         let parameters = self.parse_parameters(SignatureFlags::None);
-        let type_: Option<Gc<Node>> = self.parse_return_type(SyntaxKind::ColonToken, false);
-        let body: Option<Gc<Node>> =
+        let type_: Option<Id<Node>> = self.parse_return_type(SyntaxKind::ColonToken, false);
+        let body: Option<Id<Node>> =
             self.parse_function_block_or_semicolon(SignatureFlags::None, None);
         let node: Node = if kind == SyntaxKind::GetAccessor {
             self.factory()
@@ -480,9 +481,9 @@ impl ParserType {
         has_jsdoc: bool,
         decorators: Option<Gc<NodeArray>>,
         modifiers: Option<Gc<NodeArray>>,
-    ) -> Gc<Node /*ClassStaticBlockDeclaration*/> {
+    ) -> Id<Node /*ClassStaticBlockDeclaration*/> {
         self.parse_expected_token(SyntaxKind::StaticKeyword, None, None);
-        let body: Gc<Node> = self.parse_class_static_block_body();
+        let body: Id<Node> = self.parse_class_static_block_body();
         self.with_jsdoc(
             self.finish_node(
                 self.factory()
@@ -495,7 +496,7 @@ impl ParserType {
         )
     }
 
-    pub(super) fn parse_class_static_block_body(&self) -> Gc<Node /*Block*/> {
+    pub(super) fn parse_class_static_block_body(&self) -> Id<Node /*Block*/> {
         let saved_yield_context = self.in_yield_context();
         let saved_await_context = self.in_await_context();
 
@@ -510,10 +511,10 @@ impl ParserType {
         body
     }
 
-    pub(super) fn parse_decorator_expression(&self) -> Gc<Node /*LeftHandSideExpression*/> {
+    pub(super) fn parse_decorator_expression(&self) -> Id<Node /*LeftHandSideExpression*/> {
         if self.in_await_context() && self.token() == SyntaxKind::AwaitKeyword {
             let pos = self.get_node_pos();
-            let await_expression: Gc<Node> = self
+            let await_expression: Id<Node> = self
                 .parse_identifier(Some(&Diagnostics::Expression_expected), None)
                 .wrap();
             self.next_token();
@@ -534,7 +535,7 @@ impl ParserType {
 
     pub(super) fn parse_decorators(&self) -> Option<Gc<NodeArray> /*<Decorator>*/> {
         let pos = self.get_node_pos();
-        let mut list: Option<Vec<Gc<Node>>> = None;
+        let mut list: Option<Vec<Id<Node>>> = None;
         loop {
             let decorator = self.try_parse_decorator();
             if decorator.is_none() {
@@ -592,7 +593,7 @@ impl ParserType {
         stop_on_start_of_class_static_block: Option<bool>,
     ) -> Option<Gc<NodeArray> /*<Modifier>*/> {
         let pos = self.get_node_pos();
-        let mut list: Option<Vec<Gc<Node>>> = None;
+        let mut list: Option<Vec<Id<Node>>> = None;
         let mut has_seen_static = false;
         loop {
             let modifier = self.try_parse_modifier(
@@ -635,7 +636,7 @@ impl ParserType {
         modifiers
     }
 
-    pub(super) fn parse_class_element(&self) -> Gc<Node /*ClassElement*/> {
+    pub(super) fn parse_class_element(&self) -> Id<Node /*ClassElement*/> {
         let pos = self.get_node_pos();
         if self.token() == SyntaxKind::SemicolonToken {
             self.next_token();
@@ -708,10 +709,10 @@ impl ParserType {
         {
             let is_ambient = some(
                 modifiers.as_ref().map(|node_array| {
-                    let node_array: &[Gc<Node>] = node_array;
+                    let node_array: &[Id<Node>] = node_array;
                     node_array
                 }),
-                Some(|modifier: &Gc<Node>| self.is_declare_modifier(modifier)),
+                Some(|modifier: &Id<Node>| self.is_declare_modifier(modifier)),
             );
             if is_ambient {
                 for m in modifiers.as_ref().unwrap() {
@@ -727,7 +728,7 @@ impl ParserType {
         }
 
         if decorators.is_some() || modifiers.is_some() {
-            let name: Gc<Node> = self
+            let name: Id<Node> = self
                 .create_missing_node(
                     SyntaxKind::Identifier,
                     true,
@@ -744,7 +745,7 @@ impl ParserType {
         ))
     }
 
-    pub(super) fn parse_class_expression(&self) -> Gc<Node /*ClassExpression*/> {
+    pub(super) fn parse_class_expression(&self) -> Id<Node /*ClassExpression*/> {
         self.parse_class_declaration_or_expression(
             self.get_node_pos(),
             self.has_preceding_jsdoc_comment(),
@@ -760,7 +761,7 @@ impl ParserType {
         has_jsdoc: bool,
         decorators: Option<Gc<NodeArray>>,
         modifiers: Option<Gc<NodeArray>>,
-    ) -> Gc<Node /*ClassDeclaration*/> {
+    ) -> Id<Node /*ClassDeclaration*/> {
         self.parse_class_declaration_or_expression(
             pos,
             has_jsdoc,

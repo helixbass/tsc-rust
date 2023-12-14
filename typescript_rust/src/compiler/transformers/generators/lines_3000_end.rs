@@ -1,4 +1,5 @@
 use gc::Gc;
+use id_arena::Id;
 
 use super::{Instruction, Label, TransformGenerators};
 use crate::{EmitFlags, Node, NodeExt, ReadonlyTextRange};
@@ -6,7 +7,7 @@ use crate::{EmitFlags, Node, NodeExt, ReadonlyTextRange};
 impl TransformGenerators {
     pub(super) fn write_throw(
         &self,
-        expression: Gc<Node /*Expression*/>,
+        expression: Id<Node /*Expression*/>,
         operation_location: Option<&impl ReadonlyTextRange>,
     ) {
         self.set_last_operation_was_abrupt(true);
@@ -20,7 +21,7 @@ impl TransformGenerators {
 
     pub(super) fn write_return(
         &self,
-        expression: Option<Gc<Node>>,
+        expression: Option<Id<Node>>,
         operation_location: Option<&impl ReadonlyTextRange>,
     ) {
         self.set_last_operation_was_abrupt(true);
@@ -63,7 +64,7 @@ impl TransformGenerators {
     pub(super) fn write_break_when_true(
         &self,
         label: Label,
-        condition: Gc<Node /*Expression*/>,
+        condition: Id<Node /*Expression*/>,
         operation_location: Option<&impl ReadonlyTextRange>,
     ) {
         self.write_statement(
@@ -91,7 +92,7 @@ impl TransformGenerators {
     pub(super) fn write_break_when_false(
         &self,
         label: Label,
-        condition: Gc<Node /*Expression*/>,
+        condition: Id<Node /*Expression*/>,
         operation_location: Option<&impl ReadonlyTextRange>,
     ) {
         self.write_statement(
@@ -118,7 +119,7 @@ impl TransformGenerators {
 
     pub(super) fn write_yield(
         &self,
-        expression: Gc<Node /*Expression*/>,
+        expression: Id<Node /*Expression*/>,
         operation_location: Option<&impl ReadonlyTextRange>,
     ) {
         self.set_last_operation_was_abrupt(true);
@@ -140,7 +141,7 @@ impl TransformGenerators {
 
     pub(super) fn write_yield_star(
         &self,
-        expression: Gc<Node /*Expression*/>,
+        expression: Id<Node /*Expression*/>,
         operation_location: Option<&impl ReadonlyTextRange>,
     ) {
         self.set_last_operation_was_abrupt(true);

@@ -1,4 +1,5 @@
 use gc::Gc;
+use id_arena::Id;
 
 use super::{ParserType, ParsingContext};
 use crate::{
@@ -64,7 +65,7 @@ impl ParserType {
         let result: Node;
         if opening.kind() == SyntaxKind::JsxOpeningElement {
             let mut children = self.parse_jsx_children(&opening);
-            let closing_element: Gc<Node /*JsxClosingElement*/>;
+            let closing_element: Id<Node /*JsxClosingElement*/>;
 
             let opening_as_jsx_opening_element = opening.as_jsx_opening_element();
             let last_child = if children.is_empty() {
@@ -298,7 +299,7 @@ impl ParserType {
         &self,
         opening_tag: &Node, /*JsxOpeningElement | JsxOpeningFragment*/
     ) -> Gc<NodeArray> /*<JsxChild>*/ {
-        let mut list: Vec<Gc<Node>> = vec![];
+        let mut list: Vec<Id<Node>> = vec![];
         let list_pos = self.get_node_pos();
         let save_parsing_context = self.parsing_context();
         self.set_parsing_context(self.parsing_context() | ParsingContext::JsxChildren);
@@ -609,8 +610,8 @@ impl ParserType {
     pub(super) fn parse_property_access_expression_rest(
         &self,
         pos: isize,
-        expression: Gc<Node /*LeftHandSideExpression*/>,
-        question_dot_token: Option<Gc<Node /*QuestionDotToken*/>>,
+        expression: Id<Node /*LeftHandSideExpression*/>,
+        question_dot_token: Option<Id<Node /*QuestionDotToken*/>>,
     ) -> PropertyAccessExpression {
         let name = self.parse_right_side_of_dot(true, true);
         let is_optional_chain =
@@ -638,10 +639,10 @@ impl ParserType {
     pub(super) fn parse_element_access_expression_rest(
         &self,
         pos: isize,
-        expression: Gc<Node /*LeftHandSideExpression*/>,
-        question_dot_token: Option<Gc<Node /*QuestionDotToken*/>>,
+        expression: Id<Node /*LeftHandSideExpression*/>,
+        question_dot_token: Option<Id<Node /*QuestionDotToken*/>>,
     ) -> ElementAccessExpression {
-        let argument_expression: Gc<Node /*Expression*/>;
+        let argument_expression: Id<Node /*Expression*/>;
         if self.token() == SyntaxKind::CloseBracketToken {
             argument_expression = self
                 .create_missing_node(
@@ -680,9 +681,9 @@ impl ParserType {
     pub(super) fn parse_member_expression_rest(
         &self,
         pos: isize,
-        mut expression: Gc<Node /*LeftHandSideExpression*/>,
+        mut expression: Id<Node /*LeftHandSideExpression*/>,
         allow_optional_chain: bool,
-    ) -> Gc<Node /*MemberExpression*/> {
+    ) -> Id<Node /*MemberExpression*/> {
         loop {
             let mut question_dot_token = None;
             let is_property_access: bool /* = false*/;
@@ -758,10 +759,10 @@ impl ParserType {
     pub(super) fn parse_tagged_template_rest(
         &self,
         pos: isize,
-        tag: Gc<Node /*LeftHandSideExpression*/>,
-        question_dot_token: Option<Gc<Node /*QuestionDotToken*/>>,
+        tag: Id<Node /*LeftHandSideExpression*/>,
+        question_dot_token: Option<Id<Node /*QuestionDotToken*/>>,
         type_arguments: Option<Gc<NodeArray> /*TypeNode*/>,
-    ) -> Gc<Node> {
+    ) -> Id<Node> {
         let mut tag_expression = self.factory().create_tagged_template_expression_raw(
             tag.clone(),
             type_arguments,
@@ -782,8 +783,8 @@ impl ParserType {
     pub(super) fn parse_call_expression_rest(
         &self,
         pos: isize,
-        mut expression: Gc<Node>,
-    ) -> Gc<Node> {
+        mut expression: Id<Node>,
+    ) -> Id<Node> {
         loop {
             expression = self.parse_member_expression_rest(pos, expression, true);
             let question_dot_token = self.parse_optional_token(SyntaxKind::QuestionDotToken);

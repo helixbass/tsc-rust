@@ -1,4 +1,5 @@
 use gc::Gc;
+use id_arena::Id;
 
 use super::{
     ClassFacts, PrivateIdentifierInfo, PrivateIdentifierInfoInterface, TransformClassFields,
@@ -58,7 +59,7 @@ impl TransformClassFields {
                                         &node_as_element_access_expression.argument_expression,
                                         Some(|node: &Node| self.visitor(node)),
                                         Some(is_expression),
-                                        Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                                        Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                                     ),
                                     Some(class_constructor.clone()),
                                 )
@@ -100,14 +101,14 @@ impl TransformClassFields {
                         &node_operand.as_property_access_expression().expression,
                         Some(|node: &Node| self.visitor(node)),
                         Some(is_expression),
-                        Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                        Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                     );
                     let CopiableReceiverExpr {
                         read_expression,
                         initialize_expression,
                     } = self.create_copiable_receiver_expr(receiver);
 
-                    let mut expression: Gc<Node /*Expression*/> =
+                    let mut expression: Id<Node /*Expression*/> =
                         self.create_private_identifier_access(&info, &read_expression);
                     let temp =
                         (!(is_prefix_unary_expression(node) || value_is_discarded)).then(|| {
@@ -176,8 +177,8 @@ impl TransformClassFields {
                     }
                     if let Some(class_constructor) = class_constructor {
                         if let Some(super_class_reference) = super_class_reference {
-                            let mut setter_name: Option<Gc<Node /*Expression*/>> = None;
-                            let mut getter_name: Option<Gc<Node /*Expression*/>> = None;
+                            let mut setter_name: Option<Id<Node /*Expression*/>> = None;
+                            let mut getter_name: Option<Id<Node /*Expression*/>> = None;
                             if is_property_access_expression(&node_operand) {
                                 let node_operand_as_property_access_expression =
                                     node_operand.as_property_access_expression();
@@ -216,7 +217,7 @@ impl TransformClassFields {
                                                     .argument_expression,
                                                 Some(|node: &Node| self.visitor(node)),
                                                 Some(is_expression),
-                                                Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                                                Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                                             ),
                                         ),
                                     );
@@ -225,7 +226,7 @@ impl TransformClassFields {
                             if let (Some(setter_name), Some(getter_name)) =
                                 (setter_name, getter_name)
                             {
-                                let mut expression: Gc<Node /*Expression*/> = self
+                                let mut expression: Id<Node /*Expression*/> = self
                                     .factory
                                     .create_reflect_get_call(
                                         super_class_reference.clone(),
@@ -288,19 +289,19 @@ impl TransformClassFields {
                         node_as_for_statement.initializer.as_deref(),
                         Some(|node: &Node| self.discarded_value_visitor(node)),
                         Some(is_for_initializer),
-                        Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                        Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                     ),
                     maybe_visit_node(
                         node_as_for_statement.condition.as_deref(),
                         Some(|node: &Node| self.visitor(node)),
                         Some(is_expression),
-                        Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                        Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                     ),
                     maybe_visit_node(
                         node_as_for_statement.incrementor.as_deref(),
                         Some(|node: &Node| self.discarded_value_visitor(node)),
                         Some(is_expression),
-                        Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                        Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                     ),
                     visit_iteration_body(
                         &node_as_for_statement.statement,
@@ -325,7 +326,7 @@ impl TransformClassFields {
                         &node_as_expression_statement.expression,
                         Some(|node: &Node| self.discarded_value_visitor(node)),
                         Some(is_expression),
-                        Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                        Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                     ),
                 )
                 .into(),
@@ -385,7 +386,7 @@ impl TransformClassFields {
                                     &target,
                                     Some(|node: &Node| self.visitor(node)),
                                     Option::<fn(&Node) -> bool>::None,
-                                    Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                                    Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                                 ),
                                 node_as_call_expression.question_dot_token.clone(),
                                 "call",
@@ -396,7 +397,7 @@ impl TransformClassFields {
                                 &this_arg,
                                 Some(|node: &Node| self.visitor(node)),
                                 Some(is_expression),
-                                Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                                Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                             )]
                             .and_extend(
                                 visit_nodes(
@@ -421,7 +422,7 @@ impl TransformClassFields {
                                 &target,
                                 Some(|node: &Node| self.visitor(node)),
                                 Option::<fn(&Node) -> bool>::None,
-                                Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                                Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                             ),
                             "call",
                         ),
@@ -430,7 +431,7 @@ impl TransformClassFields {
                             &this_arg,
                             Some(|node: &Node| self.visitor(node)),
                             Some(is_expression),
-                            Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                            Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                         )]
                         .and_extend(
                             visit_nodes(
@@ -469,7 +470,7 @@ impl TransformClassFields {
                                 &node_as_call_expression.expression,
                                 Some(|node: &Node| self.visitor(node)),
                                 Some(is_expression),
-                                Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                                Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                             ),
                             current_class_lexical_environment_class_constructor.clone(),
                             visit_nodes(
@@ -518,7 +519,7 @@ impl TransformClassFields {
                                     &target,
                                     Some(|node: &Node| self.visitor(node)),
                                     Option::<fn(&Node) -> bool>::None,
-                                    Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                                    Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                                 ),
                                 "bind",
                             ),
@@ -527,7 +528,7 @@ impl TransformClassFields {
                                 &this_arg,
                                 Some(|node: &Node| self.visitor(node)),
                                 Some(is_expression),
-                                Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                                Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                             )]),
                         ),
                         Option::<Gc<NodeArray>>::None,
@@ -535,7 +536,7 @@ impl TransformClassFields {
                             &node_as_tagged_template_expression.template,
                             Some(|node: &Node| self.visitor(node)),
                             Some(is_template_literal),
-                            Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                            Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                         ),
                     )
                     .into(),
@@ -563,7 +564,7 @@ impl TransformClassFields {
                             &node_as_tagged_template_expression.tag,
                             Some(|node: &Node| self.visitor(node)),
                             Some(is_expression),
-                            Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                            Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                         ),
                         current_class_lexical_environment_class_constructor.clone(),
                         vec![],
@@ -580,7 +581,7 @@ impl TransformClassFields {
                                 &node_as_tagged_template_expression.template,
                                 Some(|node: &Node| self.visitor(node)),
                                 Some(is_template_literal),
-                                Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                                Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                             ),
                         )
                         .into(),
@@ -594,7 +595,7 @@ impl TransformClassFields {
     pub(super) fn transform_class_static_block_declaration(
         &self,
         node: &Node, /*ClassStaticBlockDeclaration*/
-    ) -> Option<Gc<Node>> {
+    ) -> Option<Id<Node>> {
         let node_as_class_static_block_declaration = node.as_class_static_block_declaration();
         if self.should_transform_private_elements_or_class_static_blocks {
             if let Some(current_class_lexical_environment) =
@@ -657,14 +658,14 @@ impl TransformClassFields {
                     &node.as_binary_expression().left,
                     Some(|node: &Node| self.visitor_destructuring_target(node)),
                     Option::<fn(&Node) -> bool>::None,
-                    Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                    Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                 ),
                 node.as_binary_expression().operator_token.clone(),
                 visit_node(
                     &node.as_binary_expression().right,
                     Some(|node: &Node| self.visitor(node)),
                     Option::<fn(&Node) -> bool>::None,
-                    Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                    Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                 ),
             );
             let expr = if self.maybe_pending_expressions().as_ref().is_non_empty() {
@@ -735,7 +736,7 @@ impl TransformClassFields {
                                         &node_as_binary_expression.right,
                                         Some(|node: &Node| self.visitor(node)),
                                         Some(is_expression),
-                                        Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                                        Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                                     ),
                                 )
                                 .into(),
@@ -752,7 +753,7 @@ impl TransformClassFields {
                                             .argument_expression,
                                         Some(|node: &Node| self.visitor(node)),
                                         Some(is_expression),
-                                        Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                                        Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                                     ))
                                 } else if is_identifier(
                                     &node_as_binary_expression
@@ -776,7 +777,7 @@ impl TransformClassFields {
                                     &node_as_binary_expression.right,
                                     Some(|node: &Node| self.visitor(node)),
                                     Some(is_expression),
-                                    Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                                    Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                                 );
                                 if is_compound_assignment(
                                     node_as_binary_expression.operator_token.kind(),
@@ -870,18 +871,18 @@ impl TransformClassFields {
         receiver: &Node,      /*Expression*/
         right: &Node,         /*Expression*/
         operator: SyntaxKind, /*AssignmentOperator*/
-    ) -> Gc<Node /*Expression*/> {
+    ) -> Id<Node /*Expression*/> {
         let mut receiver = visit_node(
             receiver,
             Some(|node: &Node| self.visitor(node)),
             Some(is_expression),
-            Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+            Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
         );
         let mut right = visit_node(
             right,
             Some(|node: &Node| self.visitor(node)),
             Some(is_expression),
-            Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+            Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
         );
 
         if is_compound_assignment(operator) {
@@ -949,7 +950,7 @@ impl TransformClassFields {
         let node_as_class_like_declaration = node.as_class_like_declaration();
         if !for_each_bool(
             &node_as_class_like_declaration.members(),
-            |member: &Gc<Node>, _| self.does_class_element_need_transform(member),
+            |member: &Id<Node>, _| self.does_class_element_need_transform(member),
         ) {
             return Some(
                 visit_each_child(node, |node: &Node| self.visitor(node), &**self.context).into(),
@@ -1011,11 +1012,11 @@ impl TransformClassFields {
     pub(super) fn get_private_instance_methods_and_accessors(
         &self,
         node: &Node, /*ClassLikeDeclaration*/
-    ) -> Vec<Gc<Node>> {
+    ) -> Vec<Id<Node>> {
         let node_as_class_like_declaration = node.as_class_like_declaration();
         filter(
             &node_as_class_like_declaration.members(),
-            |member: &Gc<Node>| is_non_static_method_or_accessor_with_private_name(member),
+            |member: &Id<Node>| is_non_static_method_or_accessor_with_private_name(member),
         )
     }
 
@@ -1094,7 +1095,7 @@ impl TransformClassFields {
                                 &node_as_expression_with_type_arguments.expression,
                                 Some(|node: &Node| self.visitor(node)),
                                 Some(is_expression),
-                                Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                                Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                             ),
                         ),
                         Option::<Gc<NodeArray>>::None,
@@ -1107,6 +1108,6 @@ impl TransformClassFields {
 }
 
 pub(super) struct CopiableReceiverExpr {
-    pub read_expression: Gc<Node /*Expression*/>,
-    pub initialize_expression: Option<Gc<Node /*Expression*/>>,
+    pub read_expression: Id<Node /*Expression*/>,
+    pub initialize_expression: Option<Id<Node /*Expression*/>>,
 }

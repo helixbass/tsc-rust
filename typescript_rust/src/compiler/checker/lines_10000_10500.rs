@@ -660,7 +660,7 @@ impl TypeChecker {
                     .as_deref()
                 {
                     None => true,
-                    Some(type_arguments) => every(type_arguments, |type_argument: &Gc<Node>, _| {
+                    Some(type_arguments) => every(type_arguments, |type_argument: &Id<Node>, _| {
                         self.is_thisless_type(type_argument)
                     }),
                 }
@@ -704,10 +704,10 @@ impl TypeChecker {
                 .as_signature_declaration()
                 .parameters()
                 .iter()
-                .all(|parameter: &Gc<Node>| self.is_thisless_variable_like_declaration(parameter))
+                .all(|parameter: &Id<Node>| self.is_thisless_variable_like_declaration(parameter))
             && type_parameters
                 .iter()
-                .all(|type_parameter: &Gc<Node>| self.is_thisless_type_parameter(type_parameter))
+                .all(|type_parameter: &Id<Node>| self.is_thisless_type_parameter(type_parameter))
     }
 
     pub(super) fn is_thisless(&self, symbol: Id<Symbol>) -> bool {

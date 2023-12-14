@@ -159,7 +159,7 @@ impl TypeChecker {
                     .try_map(|annotated| self.get_type_from_type_node_(annotated))?
             }
             AssignmentDeclarationKind::ModuleExports => {
-                let mut value_declaration: Option<Gc<Node>> = None;
+                let mut value_declaration: Option<Id<Node>> = None;
                 value_declaration = value_declaration.or_else(|| {
                     binary_expression_as_binary_expression
                         .maybe_symbol()
@@ -216,7 +216,7 @@ impl TypeChecker {
             &name,
             SymbolFlags::Value,
             None,
-            Option::<Gc<Node>>::None,
+            Option::<Id<Node>>::None,
             true,
             Some(true),
         )?;
@@ -630,7 +630,7 @@ impl TypeChecker {
             map(
                 &try_filter(
                     &node.as_jsx_attributes().properties,
-                    |p: &Gc<Node>| -> io::Result<_> {
+                    |p: &Id<Node>| -> io::Result<_> {
                         Ok(p.maybe_symbol().is_some() &&
                             p.kind() == SyntaxKind::JsxAttribute &&
                             self.is_discriminant_property(Some(contextual_type), self.symbol(p.symbol()).escaped_name())? &&
@@ -640,7 +640,7 @@ impl TypeChecker {
                             })
                     }
                 )?,
-                |prop: &Gc<Node>, _| {
+                |prop: &Id<Node>, _| {
                     (
                         Box::new({
                             let type_checker = self.rc_wrapper();

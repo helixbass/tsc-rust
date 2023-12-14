@@ -308,7 +308,7 @@ impl BinderType {
         self.set_block_scope_container(saved_block_scope_container);
     }
 
-    pub(super) fn bind_each_functions_first(&self, nodes: Option<&[Gc<Node>] /*NodeArray*/>) {
+    pub(super) fn bind_each_functions_first(&self, nodes: Option<&[Id<Node>] /*NodeArray*/>) {
         self.bind_each_callback(nodes, |n| {
             if n.kind() == SyntaxKind::FunctionDeclaration {
                 self.bind(Some(n))
@@ -321,7 +321,7 @@ impl BinderType {
         });
     }
 
-    pub(super) fn bind_each(&self, nodes: Option<&[Gc<Node>] /*NodeArray*/>) {
+    pub(super) fn bind_each(&self, nodes: Option<&[Id<Node>] /*NodeArray*/>) {
         if nodes.is_none() {
             return;
         }
@@ -335,7 +335,7 @@ impl BinderType {
 
     pub(super) fn bind_each_callback<TNodeCallback: FnMut(&Node)>(
         &self,
-        nodes: Option<&[Gc<Node>] /*NodeArray*/>,
+        nodes: Option<&[Id<Node>] /*NodeArray*/>,
         mut bind_function: TNodeCallback,
     ) {
         if nodes.is_none() {

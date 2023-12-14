@@ -103,7 +103,7 @@ impl TypeChecker {
         let mut expanded_types: Vec<Id<Type>> = vec![];
         let mut expanded_flags: Vec<ElementFlags> = vec![];
         let mut expanded_declarations: Option<
-            Vec<Gc<Node /*NamedTupleMember | ParameterDeclaration*/>>,
+            Vec<Id<Node /*NamedTupleMember | ParameterDeclaration*/>>,
         > = Some(vec![]);
         let mut last_required_index: isize = -1;
         let mut first_rest_index: isize = -1;
@@ -296,10 +296,10 @@ impl TypeChecker {
         first_rest_index: &mut isize,
         last_optional_or_rest_index: &mut isize,
         expanded_types: &mut Vec<Id<Type>>,
-        expanded_declarations: &mut Option<Vec<Gc<Node>>>,
+        expanded_declarations: &mut Option<Vec<Id<Node>>>,
         type_: Id<Type>,
         flags: ElementFlags,
-        declaration: Option<Gc<Node /*NamedTupleMember | ParameterDeclaration*/>>,
+        declaration: Option<Id<Node /*NamedTupleMember | ParameterDeclaration*/>>,
     ) {
         if flags.intersects(ElementFlags::Required) {
             *last_required_index = expanded_flags.len().try_into().unwrap();
@@ -1048,7 +1048,7 @@ impl TypeChecker {
             let alias_symbol = self.get_alias_symbol_for_type_node(node)?;
             links.borrow_mut().resolved_type = Some(
                 self.get_union_type(
-                    &try_map(&node.as_union_type_node().types, |type_: &Gc<Node>, _| {
+                    &try_map(&node.as_union_type_node().types, |type_: &Id<Node>, _| {
                         self.get_type_from_type_node_(type_)
                     })?,
                     Some(UnionReduction::Literal),

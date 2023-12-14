@@ -6,6 +6,7 @@ use std::{
 
 use bitflags::bitflags;
 use gc::{Finalize, Gc, GcCell, GcCellRef, GcCellRefMut, Trace};
+use id_arena::Id;
 
 use crate::{
     add_range, append, chain_bundle, create_emit_helper_factory, dispose_emit_nodes,
@@ -198,7 +199,7 @@ impl WrapCustomTransformer {
 }
 
 impl TransformerInterface for WrapCustomTransformer {
-    fn call(&self, node: &Node) -> io::Result<Gc<Node>> {
+    fn call(&self, node: &Node) -> io::Result<Id<Node>> {
         Ok(if is_bundle(node) {
             self.transformer.transform_bundle(node)
         } else {
@@ -290,7 +291,7 @@ fn passthrough_transformer() -> Gc<Box<dyn WrapCustomTransformerFactoryHandleDef
     PASSTHROUGH_TRANSFORMER.with(|passthrough_transformer| passthrough_transformer.clone())
 }
 
-pub fn no_emit_substitution(_hint: EmitHint, node: &Node) -> Gc<Node> {
+pub fn no_emit_substitution(_hint: EmitHint, node: &Node) -> Id<Node> {
     node.node_wrapper()
 }
 
@@ -308,7 +309,7 @@ pub fn transform_nodes(
     factory: Gc<NodeFactory<BaseNodeFactorySynthetic>>,
     base_factory: Gc<BaseNodeFactorySynthetic>,
     options: Gc<CompilerOptions>,
-    nodes: &[Gc<Node>],
+    nodes: &[Id<Node>],
     transformers: &[TransformerFactory],
     allow_dts_files: bool,
     // TODO: would presumably have to do some further Gc-dyn-casting shenanigans in order to return
@@ -350,33 +351,33 @@ pub struct TransformNodesTransformationResult {
         GcCell<Gc<Box<dyn TransformationContextOnSubstituteNodeOverrider>>>,
     on_substitute_node_previous_override_or_original_method:
         GcCell<Option<Gc<Box<dyn TransformationContextOnSubstituteNodeOverrider>>>>,
-    transformed: GcCell<Vec<Gc<Node>>>,
+    transformed: GcCell<Vec<Id<Node>>>,
     #[unsafe_ignore_trace]
     state: Cell<TransformationState>,
-    nodes: Vec<Gc<Node>>,
+    nodes: Vec<Id<Node>>,
     #[unsafe_ignore_trace]
     enabled_syntax_kind_features: RefCell<HashMap<SyntaxKind, SyntaxKindFeatureFlags>>,
     lexical_environment_variable_declarations:
-        GcCell<Option<Vec<Gc<Node /*VariableDeclaration*/>>>>,
+        GcCell<Option<Vec<Id<Node /*VariableDeclaration*/>>>>,
     lexical_environment_function_declarations:
-        GcCell<Option<Vec<Gc<Node /*FunctionDeclaration*/>>>>,
-    lexical_environment_statements: GcCell<Option<Vec<Gc<Node /*Statement*/>>>>,
+        GcCell<Option<Vec<Id<Node /*FunctionDeclaration*/>>>>,
+    lexical_environment_statements: GcCell<Option<Vec<Id<Node /*Statement*/>>>>,
     #[unsafe_ignore_trace]
     lexical_environment_flags: Cell<LexicalEnvironmentFlags>,
     lexical_environment_variable_declarations_stack:
-        GcCell<Option<Vec<Option<Vec<Gc<Node /*VariableDeclaration*/>>>>>>,
+        GcCell<Option<Vec<Option<Vec<Id<Node /*VariableDeclaration*/>>>>>>,
     lexical_environment_function_declarations_stack:
-        GcCell<Option<Vec<Option<Vec<Gc<Node /*FunctionDeclaration*/>>>>>>,
-    lexical_environment_statements_stack: GcCell<Option<Vec<Option<Vec<Gc<Node /*Statement*/>>>>>>,
+        GcCell<Option<Vec<Option<Vec<Id<Node /*FunctionDeclaration*/>>>>>>,
+    lexical_environment_statements_stack: GcCell<Option<Vec<Option<Vec<Id<Node /*Statement*/>>>>>>,
     #[unsafe_ignore_trace]
     lexical_environment_flags_stack: RefCell<Option<Vec<LexicalEnvironmentFlags>>>,
     #[unsafe_ignore_trace]
     lexical_environment_suspended: Cell<bool>,
     block_scoped_variable_declarations_stack:
-        GcCell<Option<Vec<Option<Vec<Gc<Node /*Identifier*/>>>>>>,
+        GcCell<Option<Vec<Option<Vec<Id<Node /*Identifier*/>>>>>>,
     #[unsafe_ignore_trace]
     block_scope_stack_offset: Cell<usize>,
-    block_scoped_variable_declarations: GcCell<Option<Vec<Gc<Node /*Identifier*/>>>>,
+    block_scoped_variable_declarations: GcCell<Option<Vec<Id<Node /*Identifier*/>>>>,
     emit_helpers: GcCell<Option<Vec<Gc<EmitHelper>>>>,
     diagnostics: GcCell<Vec<Gc<Diagnostic>>>,
     transformers: Vec<TransformerFactory>,
@@ -392,13 +393,13 @@ pub struct TransformNodesTransformationResult {
 
 impl TransformNodesTransformationResult {
     pub fn new(
-        transformed: Vec<Gc<Node>>,
+        transformed: Vec<Id<Node>>,
         state: TransformationState,
-        nodes: Vec<Gc<Node>>,
-        lexical_environment_variable_declarations: Option<Vec<Gc<Node>>>,
-        lexical_environment_function_declarations: Option<Vec<Gc<Node>>>,
-        lexical_environment_variable_declarations_stack: Vec<Option<Vec<Gc<Node>>>>,
-        lexical_environment_function_declarations_stack: Vec<Option<Vec<Gc<Node>>>>,
+        nodes: Vec<Id<Node>>,
+        lexical_environment_variable_declarations: Option<Vec<Id<Node>>>,
+        lexical_environment_function_declarations: Option<Vec<Id<Node>>>,
+        lexical_environment_variable_declarations_stack: Vec<Option<Vec<Id<Node>>>>,
+        lexical_environment_function_declarations_stack: Vec<Option<Vec<Id<Node>>>>,
         emit_helpers: Option<Vec<Gc<EmitHelper>>>,
         diagnostics: Vec<Gc<Diagnostic>>,
         transformers: Vec<TransformerFactory>,
@@ -484,37 +485,37 @@ impl TransformNodesTransformationResult {
         self._rc_wrapper.borrow().clone().unwrap()
     }
 
-    fn lexical_environment_variable_declarations(&self) -> GcCellRefMut<Option<Vec<Gc<Node>>>> {
+    fn lexical_environment_variable_declarations(&self) -> GcCellRefMut<Option<Vec<Id<Node>>>> {
         self.lexical_environment_variable_declarations.borrow_mut()
     }
 
     fn set_lexical_environment_variable_declarations(
         &self,
-        lexical_environment_variable_declarations: Option<Vec<Gc<Node>>>,
+        lexical_environment_variable_declarations: Option<Vec<Id<Node>>>,
     ) {
         *self.lexical_environment_variable_declarations.borrow_mut() =
             lexical_environment_variable_declarations;
     }
 
-    fn lexical_environment_function_declarations(&self) -> GcCellRefMut<Option<Vec<Gc<Node>>>> {
+    fn lexical_environment_function_declarations(&self) -> GcCellRefMut<Option<Vec<Id<Node>>>> {
         self.lexical_environment_function_declarations.borrow_mut()
     }
 
     fn set_lexical_environment_function_declarations(
         &self,
-        lexical_environment_function_declarations: Option<Vec<Gc<Node>>>,
+        lexical_environment_function_declarations: Option<Vec<Id<Node>>>,
     ) {
         *self.lexical_environment_function_declarations.borrow_mut() =
             lexical_environment_function_declarations;
     }
 
-    fn lexical_environment_statements(&self) -> GcCellRefMut<Option<Vec<Gc<Node>>>> {
+    fn lexical_environment_statements(&self) -> GcCellRefMut<Option<Vec<Id<Node>>>> {
         self.lexical_environment_statements.borrow_mut()
     }
 
     fn lexical_environment_variable_declarations_stack(
         &self,
-    ) -> GcCellRefMut<Option<Vec<Option<Vec<Gc<Node>>>>>, Vec<Option<Vec<Gc<Node>>>>> {
+    ) -> GcCellRefMut<Option<Vec<Option<Vec<Id<Node>>>>>, Vec<Option<Vec<Id<Node>>>>> {
         GcCellRefMut::map(
             self.lexical_environment_variable_declarations_stack
                 .borrow_mut(),
@@ -524,7 +525,7 @@ impl TransformNodesTransformationResult {
 
     fn set_lexical_environment_variable_declarations_stack(
         &self,
-        lexical_environment_variable_declarations_stack: Option<Vec<Option<Vec<Gc<Node>>>>>,
+        lexical_environment_variable_declarations_stack: Option<Vec<Option<Vec<Id<Node>>>>>,
     ) {
         *self
             .lexical_environment_variable_declarations_stack
@@ -533,7 +534,7 @@ impl TransformNodesTransformationResult {
 
     fn lexical_environment_function_declarations_stack(
         &self,
-    ) -> GcCellRefMut<Option<Vec<Option<Vec<Gc<Node>>>>>, Vec<Option<Vec<Gc<Node>>>>> {
+    ) -> GcCellRefMut<Option<Vec<Option<Vec<Id<Node>>>>>, Vec<Option<Vec<Id<Node>>>>> {
         GcCellRefMut::map(
             self.lexical_environment_function_declarations_stack
                 .borrow_mut(),
@@ -543,7 +544,7 @@ impl TransformNodesTransformationResult {
 
     fn set_lexical_environment_function_declarations_stack(
         &self,
-        lexical_environment_function_declarations_stack: Option<Vec<Option<Vec<Gc<Node>>>>>,
+        lexical_environment_function_declarations_stack: Option<Vec<Option<Vec<Id<Node>>>>>,
     ) {
         *self
             .lexical_environment_function_declarations_stack
@@ -552,7 +553,7 @@ impl TransformNodesTransformationResult {
 
     fn lexical_environment_statements_stack(
         &self,
-    ) -> GcCellRefMut<Option<Vec<Option<Vec<Gc<Node>>>>>, Vec<Option<Vec<Gc<Node>>>>> {
+    ) -> GcCellRefMut<Option<Vec<Option<Vec<Id<Node>>>>>, Vec<Option<Vec<Id<Node>>>>> {
         GcCellRefMut::map(
             self.lexical_environment_statements_stack.borrow_mut(),
             |option| option.as_mut().unwrap(),
@@ -568,7 +569,7 @@ impl TransformNodesTransformationResult {
 
     fn block_scoped_variable_declarations_stack(
         &self,
-    ) -> GcCellRefMut<Option<Vec<Option<Vec<Gc<Node>>>>>, Vec<Option<Vec<Gc<Node>>>>> {
+    ) -> GcCellRefMut<Option<Vec<Option<Vec<Id<Node>>>>>, Vec<Option<Vec<Id<Node>>>>> {
         GcCellRefMut::map(
             self.block_scoped_variable_declarations_stack.borrow_mut(),
             |option| option.as_mut().unwrap(),
@@ -577,27 +578,27 @@ impl TransformNodesTransformationResult {
 
     fn set_block_scoped_variable_declarations_stack(
         &self,
-        block_scoped_variable_declarations_stack: Option<Vec<Option<Vec<Gc<Node>>>>>,
+        block_scoped_variable_declarations_stack: Option<Vec<Option<Vec<Id<Node>>>>>,
     ) {
         *self.block_scoped_variable_declarations_stack.borrow_mut() =
             block_scoped_variable_declarations_stack;
     }
 
-    fn maybe_block_scoped_variable_declarations(&self) -> GcCellRef<Option<Vec<Gc<Node>>>> {
+    fn maybe_block_scoped_variable_declarations(&self) -> GcCellRef<Option<Vec<Id<Node>>>> {
         self.block_scoped_variable_declarations.borrow()
     }
 
-    fn block_scoped_variable_declarations(&self) -> GcCellRef<Vec<Gc<Node>>> {
+    fn block_scoped_variable_declarations(&self) -> GcCellRef<Vec<Id<Node>>> {
         gc_cell_ref_unwrapped(&self.block_scoped_variable_declarations)
     }
 
-    fn maybe_block_scoped_variable_declarations_mut(&self) -> GcCellRefMut<Option<Vec<Gc<Node>>>> {
+    fn maybe_block_scoped_variable_declarations_mut(&self) -> GcCellRefMut<Option<Vec<Id<Node>>>> {
         self.block_scoped_variable_declarations.borrow_mut()
     }
 
     fn set_block_scoped_variable_declarations(
         &self,
-        block_scoped_variable_declarations: Option<Vec<Gc<Node>>>,
+        block_scoped_variable_declarations: Option<Vec<Id<Node>>>,
     ) {
         *self.block_scoped_variable_declarations.borrow_mut() = block_scoped_variable_declarations;
     }
@@ -630,7 +631,7 @@ impl TransformNodesTransformationResult {
         *self.transformers_with_context.borrow_mut() = Some(transformers_with_context);
     }
 
-    fn transformed(&self) -> GcCellRefMut<Vec<Gc<Node>>> {
+    fn transformed(&self) -> GcCellRefMut<Vec<Id<Node>>> {
         self.transformed.borrow_mut()
     }
 
@@ -705,7 +706,7 @@ impl TransformNodesTransformationResult {
         Ok(())
     }
 
-    fn transformation(&self, node: &Node) -> io::Result<Gc<Node>> {
+    fn transformation(&self, node: &Node) -> io::Result<Id<Node>> {
         let mut node = node.node_wrapper();
         for transform in self.transformers_with_context().iter() {
             node = transform.call(&node)?;
@@ -713,7 +714,7 @@ impl TransformNodesTransformationResult {
         Ok(node)
     }
 
-    fn transform_root(&self, node: &Node) -> io::Result<Gc<Node>> {
+    fn transform_root(&self, node: &Node) -> io::Result<Id<Node>> {
         Ok(
             if
             /*node &&*/
@@ -816,7 +817,7 @@ impl CoreTransformationContext<BaseNodeFactorySynthetic> for TransformNodesTrans
         self.set_lexical_environment_suspended(false);
     }
 
-    fn end_lexical_environment(&self) -> Option<Vec<Gc<Node /*Statement*/>>> {
+    fn end_lexical_environment(&self) -> Option<Vec<Id<Node /*Statement*/>>> {
         Debug_.assert(
             self.state() > TransformationState::Uninitialized,
             Some("Cannot modify the lexical environment during initialization."),
@@ -830,7 +831,7 @@ impl CoreTransformationContext<BaseNodeFactorySynthetic> for TransformNodesTrans
             Some("Lexical environment is suspended."),
         );
 
-        let mut statements: Option<Vec<Gc<Node>>> = None;
+        let mut statements: Option<Vec<Id<Node>>> = None;
         let mut lexical_environment_variable_declarations =
             self.lexical_environment_variable_declarations();
         let mut lexical_environment_function_declarations =
@@ -970,7 +971,7 @@ impl CoreTransformationContext<BaseNodeFactorySynthetic> for TransformNodesTrans
         // blockScopedVariableDeclarations = undefined!;
     }
 
-    fn end_block_scope(&self) -> Option<Vec<Gc<Node /*Statement*/>>> {
+    fn end_block_scope(&self) -> Option<Vec<Id<Node /*Statement*/>>> {
         Debug_.assert(
             self.state() > TransformationState::Uninitialized,
             Some("Cannot end a block scope during initialization."),
@@ -979,9 +980,9 @@ impl CoreTransformationContext<BaseNodeFactorySynthetic> for TransformNodesTrans
             self.state() < TransformationState::Completed,
             Some("Cannot end a block scope after transformation has completed."),
         );
-        let statements: Option<Vec<Gc<Node>>> = if some(
+        let statements: Option<Vec<Id<Node>>> = if some(
             self.maybe_block_scoped_variable_declarations().as_deref(),
-            Option::<fn(&Gc<Node>) -> bool>::None,
+            Option::<fn(&Id<Node>) -> bool>::None,
         ) {
             Some(vec![self.factory().create_variable_statement(
                 Option::<Gc<NodeArray>>::None,
@@ -1123,7 +1124,7 @@ impl TransformationContext for TransformNodesTransformationResult {
             && !get_emit_flags(node).intersects(EmitFlags::NoSubstitution)
     }
 
-    fn on_substitute_node(&self, hint: EmitHint, node: &Node) -> io::Result<Gc<Node>> {
+    fn on_substitute_node(&self, hint: EmitHint, node: &Node) -> io::Result<Id<Node>> {
         self.on_substitute_node_outermost_override_or_original_method
             .borrow()
             .on_substitute_node(hint, node)
@@ -1248,13 +1249,13 @@ struct NoEmitNotificationTransformationContextOnSubstituteNodeOverrider;
 impl TransformationContextOnSubstituteNodeOverrider
     for NoEmitNotificationTransformationContextOnSubstituteNodeOverrider
 {
-    fn on_substitute_node(&self, hint: EmitHint, node: &Node) -> io::Result<Gc<Node>> {
+    fn on_substitute_node(&self, hint: EmitHint, node: &Node) -> io::Result<Id<Node>> {
         Ok(no_emit_substitution(hint, node))
     }
 }
 
 impl TransformationResult for TransformNodesTransformationResult {
-    fn transformed(&self) -> Vec<Gc<Node>> {
+    fn transformed(&self) -> Vec<Id<Node>> {
         self.transformed.borrow().clone()
     }
 
@@ -1262,7 +1263,7 @@ impl TransformationResult for TransformNodesTransformationResult {
         Some(self.diagnostics.borrow().clone())
     }
 
-    fn substitute_node(&self, hint: EmitHint, node: &Node) -> io::Result<Gc<Node>> {
+    fn substitute_node(&self, hint: EmitHint, node: &Node) -> io::Result<Id<Node>> {
         Debug_.assert(
             self.state() < TransformationState::Disposed,
             Some("Cannot substitute a node after the result is disposed."),
@@ -1363,7 +1364,7 @@ impl CoreTransformationContext<BaseNodeFactorySynthetic> for TransformationConte
 
     fn resume_lexical_environment(&self) {}
 
-    fn end_lexical_environment(&self) -> Option<Vec<Gc<Node /*Statement*/>>> {
+    fn end_lexical_environment(&self) -> Option<Vec<Id<Node /*Statement*/>>> {
         None
     }
 
@@ -1373,7 +1374,7 @@ impl CoreTransformationContext<BaseNodeFactorySynthetic> for TransformationConte
 
     fn start_block_scope(&self) {}
 
-    fn end_block_scope(&self) -> Option<Vec<Gc<Node /*Statement*/>>> {
+    fn end_block_scope(&self) -> Option<Vec<Id<Node /*Statement*/>>> {
         None
     }
 
@@ -1407,7 +1408,7 @@ impl TransformationContext for TransformationContextNull {
         not_implemented()
     }
 
-    fn on_substitute_node(&self, hint: EmitHint, node: &Node) -> io::Result<Gc<Node>> {
+    fn on_substitute_node(&self, hint: EmitHint, node: &Node) -> io::Result<Id<Node>> {
         Ok(no_emit_substitution(hint, node))
     }
 

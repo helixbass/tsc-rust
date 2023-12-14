@@ -35,7 +35,7 @@ pub fn introduces_arguments_exotic_object(node: &Node) -> bool {
 pub fn unwrap_innermost_statement_of_label(
     node: &Node, /*LabeledStatement*/
     mut before_unwrap_label_callback: Option<impl FnMut(&Node)>,
-) -> Gc<Node /*Statement*/> {
+) -> Id<Node /*Statement*/> {
     let mut node = node.node_wrapper();
     loop {
         if let Some(before_unwrap_label_callback) = before_unwrap_label_callback.as_mut() {
@@ -84,7 +84,7 @@ pub fn get_property_assignment<'key_and_key2>(
     object_literal: &Node, /*ObjectLiteralExpression*/
     key: &'key_and_key2 str,
     key2: Option<&'key_and_key2 str>,
-) -> impl Iterator<Item = Gc<Node /*PropertyAssignment*/>> + Clone + 'key_and_key2 {
+) -> impl Iterator<Item = Id<Node /*PropertyAssignment*/>> + Clone + 'key_and_key2 {
     object_literal
         .as_object_literal_expression()
         .properties
@@ -103,7 +103,7 @@ pub fn get_property_array_element_value(
     object_literal: &Node, /*ObjectLiteralExpression*/
     prop_key: &str,
     element_value: &str,
-) -> Option<Gc<Node /*StringLiteral*/>> {
+) -> Option<Id<Node /*StringLiteral*/>> {
     first_defined(
         get_property_assignment(object_literal, prop_key, None),
         |property, _| {
@@ -132,7 +132,7 @@ pub fn get_property_array_element_value(
 
 pub fn get_ts_config_object_literal_expression<TTsConfigSourceFile: Borrow<Node>>(
     ts_config_source_file: Option<TTsConfigSourceFile /*TsConfigSourceFile*/>,
-) -> Option<Gc<Node /*ObjectLiteralExpression*/>> {
+) -> Option<Id<Node /*ObjectLiteralExpression*/>> {
     if ts_config_source_file.is_none() {
         return None;
     }
@@ -156,7 +156,7 @@ pub fn get_ts_config_prop_array_element_value<TTsConfigSourceFile: Borrow<Node>>
     ts_config_source_file: Option<TTsConfigSourceFile /*TsConfigSourceFile*/>,
     prop_key: &str,
     element_value: &str,
-) -> Option<Gc<Node /*StringLiteral*/>> {
+) -> Option<Id<Node /*StringLiteral*/>> {
     first_defined(
         get_ts_config_prop_array(ts_config_source_file, prop_key),
         |property, _| {
@@ -186,7 +186,7 @@ pub fn get_ts_config_prop_array_element_value<TTsConfigSourceFile: Borrow<Node>>
 pub fn get_ts_config_prop_array<'prop_key>(
     ts_config_source_file: Option<impl Borrow<Node> /*TsConfigSourceFile*/>,
     prop_key: &'prop_key str,
-) -> impl Iterator<Item = Gc<Node /*PropertyAssignment*/>> + 'prop_key {
+) -> impl Iterator<Item = Id<Node /*PropertyAssignment*/>> + 'prop_key {
     let json_object_literal = get_ts_config_object_literal_expression(ts_config_source_file);
     match json_object_literal {
         Some(json_object_literal) => Either::Left(get_property_assignment(
@@ -198,7 +198,7 @@ pub fn get_ts_config_prop_array<'prop_key>(
     }
 }
 
-pub fn get_containing_function(node: &Node) -> Option<Gc<Node /*SignatureDeclaration*/>> {
+pub fn get_containing_function(node: &Node) -> Option<Id<Node /*SignatureDeclaration*/>> {
     find_ancestor(node.maybe_parent(), |node: &Node| {
         is_function_like(Some(node))
     })
@@ -206,17 +206,17 @@ pub fn get_containing_function(node: &Node) -> Option<Gc<Node /*SignatureDeclara
 
 pub fn get_containing_function_declaration(
     node: &Node,
-) -> Option<Gc<Node /*FunctionLikeDeclaration*/>> {
+) -> Option<Id<Node /*FunctionLikeDeclaration*/>> {
     find_ancestor(node.maybe_parent(), |node: &Node| {
         is_function_like_declaration(node)
     })
 }
 
-pub fn get_containing_class(node: &Node) -> Option<Gc<Node /*ClassLikeDeclaration*/>> {
+pub fn get_containing_class(node: &Node) -> Option<Id<Node /*ClassLikeDeclaration*/>> {
     find_ancestor(node.maybe_parent(), |node: &Node| is_class_like(node))
 }
 
-pub fn get_containing_class_static_block(node: &Node) -> Option<Gc<Node>> {
+pub fn get_containing_class_static_block(node: &Node) -> Option<Id<Node>> {
     find_ancestor(node.maybe_parent(), |n: &Node| {
         if is_class_like(n) || is_function_like(Some(n)) {
             return FindAncestorCallbackReturn::Quit;
@@ -227,13 +227,13 @@ pub fn get_containing_class_static_block(node: &Node) -> Option<Gc<Node>> {
 
 pub fn get_containing_function_or_class_static_block(
     node: &Node,
-) -> Option<Gc<Node /*SignatureDeclaration | ClassStaticBlockDeclaration*/>> {
+) -> Option<Id<Node /*SignatureDeclaration | ClassStaticBlockDeclaration*/>> {
     find_ancestor(node.maybe_parent(), |node: &Node| {
         is_function_like_or_class_static_block_declaration(Some(node))
     })
 }
 
-pub fn get_this_container(node: &Node, include_arrow_functions: bool) -> Gc<Node> {
+pub fn get_this_container(node: &Node, include_arrow_functions: bool) -> Id<Node> {
     Debug_.assert(node.kind() != SyntaxKind::SourceFile, None);
     let mut node = node.node_wrapper();
     loop {
@@ -299,7 +299,7 @@ pub fn is_in_top_level_context(node: &Node) -> bool {
     is_source_file(&container)
 }
 
-pub fn get_new_target_container(node: &Node) -> Option<Gc<Node>> {
+pub fn get_new_target_container(node: &Node) -> Option<Id<Node>> {
     let container = get_this_container(node, false);
     // if (container) {
     match container.kind() {
@@ -314,7 +314,7 @@ pub fn get_new_target_container(node: &Node) -> Option<Gc<Node>> {
     None
 }
 
-pub fn get_super_container(node: &Node, stop_on_functions: bool) -> Option<Gc<Node>> {
+pub fn get_super_container(node: &Node, stop_on_functions: bool) -> Option<Id<Node>> {
     let mut node = node.node_wrapper();
     loop {
         let maybe_parent = node.maybe_parent();
@@ -360,7 +360,7 @@ pub fn get_super_container(node: &Node, stop_on_functions: bool) -> Option<Gc<No
 
 pub fn get_immediately_invoked_function_expression(
     func: &Node,
-) -> Option<Gc<Node /*CallExpression*/>> {
+) -> Option<Id<Node /*CallExpression*/>> {
     if matches!(
         func.kind(),
         SyntaxKind::FunctionExpression | SyntaxKind::ArrowFunction
@@ -433,7 +433,7 @@ pub fn is_this_initialized_object_binding_expression<TNode: Borrow<Node>>(
 
 pub fn get_entity_name_from_type_node(
     node: &Node, /*TypeNode*/
-) -> Option<Gc<Node /*EntityNameOrEntityNameExpression*/>> {
+) -> Option<Id<Node /*EntityNameOrEntityNameExpression*/>> {
     match node.kind() {
         SyntaxKind::TypeReference => {
             return Some(node.as_type_reference_node().type_name.clone());
@@ -457,7 +457,7 @@ pub fn get_entity_name_from_type_node(
     None
 }
 
-pub fn get_invoked_expression(node: &Node /*CallLikeExpression*/) -> Gc<Node /*Expression*/> {
+pub fn get_invoked_expression(node: &Node /*CallLikeExpression*/) -> Id<Node /*Expression*/> {
     match node.kind() {
         SyntaxKind::TaggedTemplateExpression => node.as_tagged_template_expression().tag.clone(),
         SyntaxKind::JsxOpeningElement => node.as_jsx_opening_element().tag_name.clone(),
@@ -533,11 +533,11 @@ pub fn child_is_decorated(node: &Node, parent: Option<impl Borrow<Node> + Clone>
     match node.kind() {
         SyntaxKind::ClassDeclaration => some(
             Some(&node.as_class_declaration().members()),
-            Some(|m: &Gc<Node>| node_or_child_is_decorated(m, Some(node), parent.clone())), // TODO: figure out how to not clone parent every time
+            Some(|m: &Id<Node>| node_or_child_is_decorated(m, Some(node), parent.clone())), // TODO: figure out how to not clone parent every time
         ),
         SyntaxKind::MethodDeclaration | SyntaxKind::SetAccessor | SyntaxKind::Constructor => some(
             Some(&node.as_function_like_declaration().parameters()),
-            Some(|p: &Gc<Node>| node_is_decorated(p, Some(node), parent.clone())),
+            Some(|p: &Id<Node>| node_is_decorated(p, Some(node), parent.clone())),
         ),
         _ => false,
     }

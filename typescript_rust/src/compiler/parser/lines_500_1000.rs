@@ -6,6 +6,7 @@ use std::{
 };
 
 use gc::{Finalize, Gc, GcCell, GcCellRef, GcCellRefMut, Trace};
+use id_arena::Id;
 
 use super::{Parser, ParsingContext};
 use crate::{
@@ -40,7 +41,7 @@ pub fn for_each_child_recursively<
     mut cb_nodes: Option<TCBNodes>,
 ) -> Option<TValue> {
     let mut queue: Vec<RcNodeOrNodeArray> = gather_possible_children(root_node);
-    let mut parents: Vec<Gc<Node>> = vec![];
+    let mut parents: Vec<Id<Node>> = vec![];
     while parents.len() < queue.len() {
         parents.push(root_node.node_wrapper());
     }
@@ -112,7 +113,7 @@ pub fn try_for_each_child_recursively_bool<TError>(
     mut cb_nodes: Option<impl FnMut(&NodeArray, &Node) -> Result<bool, TError>>,
 ) -> Result<bool, TError> {
     let mut queue: Vec<RcNodeOrNodeArray> = gather_possible_children(root_node);
-    let mut parents: Vec<Gc<Node>> = vec![];
+    let mut parents: Vec<Id<Node>> = vec![];
     while parents.len() < queue.len() {
         parents.push(root_node.node_wrapper());
     }
@@ -150,12 +151,12 @@ pub fn try_for_each_child_recursively_bool<TError>(
 }
 
 enum RcNodeOrNodeArray {
-    RcNode(Gc<Node>),
+    RcNode(Id<Node>),
     NodeArray(Gc<NodeArray>),
 }
 
-impl From<Gc<Node>> for RcNodeOrNodeArray {
-    fn from(value: Gc<Node>) -> Self {
+impl From<Id<Node>> for RcNodeOrNodeArray {
+    fn from(value: Id<Node>) -> Self {
         Self::RcNode(value)
     }
 }
@@ -188,11 +189,11 @@ pub fn create_source_file(
     language_version: ScriptTarget,
     set_parent_nodes: Option<bool>,
     script_kind: Option<ScriptKind>,
-) -> io::Result<Gc<Node /*SourceFile*/>> {
+) -> io::Result<Id<Node /*SourceFile*/>> {
     let set_parent_nodes = set_parent_nodes.unwrap_or(false);
     // tracing?.push(tracing.Phase.Parse, "createSourceFile", { path: fileName }, /*separateBeginAndEnd*/ true);
     // performance.mark("beforeParse");
-    let result: Gc<Node /*SourceFile*/>;
+    let result: Id<Node /*SourceFile*/>;
 
     // perfLogger.logStartParseSourceFile(fileName);
     if language_version == ScriptTarget::JSON {
@@ -225,11 +226,11 @@ pub fn create_source_file(
 pub fn parse_isolated_entity_name(
     text: String,
     language_version: ScriptTarget,
-) -> Option<Gc<Node /*EntityName*/>> {
+) -> Option<Id<Node /*EntityName*/>> {
     Parser().parse_isolated_entity_name(text, language_version)
 }
 
-pub fn parse_json_text(file_name: &str, source_text: String) -> Gc<Node /*JsonSourceFile*/> {
+pub fn parse_json_text(file_name: &str, source_text: String) -> Id<Node /*JsonSourceFile*/> {
     Parser().parse_json_text(file_name, source_text, None, None, None)
 }
 
@@ -244,7 +245,7 @@ pub fn update_source_file(
     new_text: String,
     text_change_range: TextChangeRange,
     aggressive_checks: Option<bool>,
-) -> Gc<Node /*SourceFile*/> {
+) -> Id<Node /*SourceFile*/> {
     let aggressive_checks = aggressive_checks.unwrap_or(false);
     let new_source_file = IncrementalParser().update_source_file(
         source_file,
@@ -693,7 +694,7 @@ impl ParserType {
         syntax_cursor: Option<IncrementalParserSyntaxCursor>,
         set_parent_nodes: Option<bool>,
         script_kind: Option<ScriptKind>,
-    ) -> io::Result<Gc<Node /*SourceFile*/>> {
+    ) -> io::Result<Id<Node /*SourceFile*/>> {
         if is_logging {
             println!("parsing source file: {}", file_name,);
         }
@@ -747,7 +748,7 @@ impl ParserType {
         &self,
         content: String,
         language_version: ScriptTarget,
-    ) -> Option<Gc<Node /*EntityName*/>> {
+    ) -> Option<Id<Node /*EntityName*/>> {
         self.initialize_state("", content, language_version, None, ScriptKind::JS);
         self.next_token();
         let entity_name = self.parse_entity_name(true, None);
@@ -768,7 +769,7 @@ impl ParserType {
         language_version: Option<ScriptTarget>,
         syntax_cursor: Option<IncrementalParserSyntaxCursor>,
         set_parent_nodes: Option<bool>,
-    ) -> Gc<Node /*JsonSourceFile*/> {
+    ) -> Id<Node /*JsonSourceFile*/> {
         let language_version = language_version.unwrap_or(ScriptTarget::ES2015);
         let set_parent_nodes = set_parent_nodes.unwrap_or(false);
         self.initialize_state(
@@ -783,14 +784,14 @@ impl ParserType {
         self.next_token();
         let pos = self.get_node_pos();
         let statements: Gc<NodeArray>;
-        let end_of_file_token: Gc<Node>;
+        let end_of_file_token: Id<Node>;
         if self.token() == SyntaxKind::EndOfFileToken {
             statements = self.create_node_array(vec![], pos, Some(pos), None);
             end_of_file_token = self.parse_token_node().wrap();
         } else {
-            let mut expressions: Option<Vec<Gc<Node>>> = None;
+            let mut expressions: Option<Vec<Id<Node>>> = None;
             while self.token() != SyntaxKind::EndOfFileToken {
-                let expression: Gc<Node>;
+                let expression: Id<Node>;
                 match self.token() {
                     SyntaxKind::OpenBracketToken => {
                         expression = self.parse_array_literal_expression().wrap();
@@ -835,7 +836,7 @@ impl ParserType {
                 }
             }
 
-            let expression: Gc<Node> = match expressions {
+            let expression: Id<Node> = match expressions {
                 Some(expressions) if expressions.len() > 1 => self
                     .finish_node(
                         self.factory()

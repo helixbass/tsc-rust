@@ -81,7 +81,7 @@ impl SymbolTableToDeclarationStatements {
                         target.ref_(self)
                             .maybe_declarations()
                             .as_deref(),
-                        Some(|d: &Gc<Node>| {
+                        Some(|d: &Id<Node>| {
                             Gc::ptr_eq(
                                 &get_source_file_of_node(d),
                                 &get_source_file_of_node(&self.enclosing_declaration),
@@ -287,7 +287,7 @@ impl SymbolTableToDeclarationStatements {
                     type_to_serialize.ref_(self).maybe_symbol(),
                     Some(type_to_serialize_symbol) if some(
                         type_to_serialize_symbol.ref_(self).maybe_declarations().as_deref(),
-                        Some(|d: &Gc<Node>| !are_option_gcs_equal(
+                        Some(|d: &Id<Node>| !are_option_gcs_equal(
                             maybe_get_source_file_of_node(Some(&**d)).as_ref(),
                             ctx_src.as_ref()
                         ))
@@ -306,7 +306,7 @@ impl SymbolTableToDeclarationStatements {
                     .any(|p| {
                         some(
                             p.ref_(self).maybe_declarations().as_deref(),
-                            Some(|d: &Gc<Node>| {
+                            Some(|d: &Id<Node>| {
                                 !are_option_gcs_equal(
                                     maybe_get_source_file_of_node(Some(&**d)).as_ref(),
                                     ctx_src.as_ref(),
@@ -348,7 +348,7 @@ impl SymbolTableToDeclarationStatements {
         &self,
         p: Id<Symbol>,
         base_type: Option<Id<Type>>,
-    ) -> io::Result<Vec<Gc<Node>>> {
+    ) -> io::Result<Vec<Id<Node>>> {
         self.serialize_property_symbol_for_interface_worker()
             .call(p, false, base_type)
     }
@@ -359,7 +359,7 @@ impl SymbolTableToDeclarationStatements {
         input: Id<Type>,
         base_type: Option<Id<Type>>,
         output_kind: SyntaxKind,
-    ) -> io::Result<Vec<Gc<Node>>> {
+    ) -> io::Result<Vec<Id<Node>>> {
         let signatures = self.type_checker.get_signatures_of_type(input, kind)?;
         if kind == SignatureKind::Construct {
             if base_type.is_none() && signatures.iter().all(|s| s.parameters().is_empty()) {
@@ -417,7 +417,7 @@ impl SymbolTableToDeclarationStatements {
             }
         }
 
-        let mut results: Vec<Gc<Node>> = Default::default();
+        let mut results: Vec<Id<Node>> = Default::default();
         for sig in &signatures {
             let decl = self
                 .node_builder
@@ -436,8 +436,8 @@ impl SymbolTableToDeclarationStatements {
         &self,
         input: Id<Type>,
         base_type: Option<Id<Type>>,
-    ) -> io::Result<Vec<Gc<Node>>> {
-        let mut results: Vec<Gc<Node /*IndexSignatureDeclaration*/>> = Default::default();
+    ) -> io::Result<Vec<Id<Node>>> {
+        let mut results: Vec<Id<Node /*IndexSignatureDeclaration*/>> = Default::default();
         for info in &self.type_checker.get_index_infos_of_type(input)? {
             if let Some(base_type) = base_type {
                 let base_info = self
@@ -469,7 +469,7 @@ impl SymbolTableToDeclarationStatements {
         t: Id<Type>,
         static_type: Id<Type>,
         root_name: &str,
-    ) -> io::Result<Gc<Node>> {
+    ) -> io::Result<Id<Node>> {
         let ref_ = self.try_serialize_as_type_reference(t, SymbolFlags::Value)?;
         if let Some(ref_) = ref_ {
             return Ok(ref_);
@@ -500,9 +500,9 @@ impl SymbolTableToDeclarationStatements {
         &self,
         t: Id<Type>,
         flags: SymbolFlags,
-    ) -> io::Result<Option<Gc<Node>>> {
-        let mut type_args: Option<Vec<Gc<Node /*TypeNode*/>>> = Default::default();
-        let mut reference: Option<Gc<Node /*Expression*/>> = Default::default();
+    ) -> io::Result<Option<Id<Node>>> {
+        let mut type_args: Option<Vec<Id<Node /*TypeNode*/>>> = Default::default();
+        let mut reference: Option<Id<Node /*Expression*/>> = Default::default();
 
         if let Some(t_target) = t.ref_(self)
             .maybe_as_type_reference_interface()
@@ -554,7 +554,7 @@ impl SymbolTableToDeclarationStatements {
         }))
     }
 
-    pub(super) fn serialize_implemented_type(&self, t: Id<Type>) -> io::Result<Option<Gc<Node>>> {
+    pub(super) fn serialize_implemented_type(&self, t: Id<Type>) -> io::Result<Option<Id<Node>>> {
         let ref_ = self.try_serialize_as_type_reference(t, SymbolFlags::Type)?;
         if ref_.is_some() {
             return Ok(ref_);
@@ -717,7 +717,7 @@ impl MakeSerializePropertySymbol {
         p: Id<Symbol>,
         is_static: bool,
         base_type: Option<Id<Type>>,
-    ) -> io::Result<Vec<Gc<Node>>> {
+    ) -> io::Result<Vec<Id<Node>>> {
         let modifier_flags = get_declaration_modifier_flags_from_symbol(
             self.type_checker.arena(),
             &p.ref_(self),
@@ -789,7 +789,7 @@ impl MakeSerializePropertySymbol {
             .intersects(SymbolFlags::Accessor)
             && self.use_accessors
         {
-            let mut result: Vec<Gc<Node /*AccessorDeclaration*/>> = Default::default();
+            let mut result: Vec<Id<Node /*AccessorDeclaration*/>> = Default::default();
             if p.ref_(self)
                 .flags()
                 .intersects(SymbolFlags::SetAccessor)
@@ -1008,7 +1008,7 @@ impl MakeSerializePropertySymbol {
                 )]);
             }
 
-            let mut results: Vec<Gc<Node>> = Default::default();
+            let mut results: Vec<Id<Node>> = Default::default();
             for ref sig in signatures {
                 let decl = self
                     .node_builder
@@ -1053,8 +1053,8 @@ pub(super) trait MakeSerializePropertySymbolCreateProperty: Trace + Finalize {
         decorators: Option<NodeArrayOrVec /*Decorator*/>,
         modifiers: Option<NodeArrayOrVec /*Modifier*/>,
         name: StrOrRcNode<'_>, /*PropertyName*/
-        question_or_exclamation_token: Option<Gc<Node /*QuestionToken*/>>,
-        type_: Option<Gc<Node /*TypeNode*/>>,
-        initializer: Option<Gc<Node /*Expression*/>>,
-    ) -> Gc<Node>;
+        question_or_exclamation_token: Option<Id<Node /*QuestionToken*/>>,
+        type_: Option<Id<Node /*TypeNode*/>>,
+        initializer: Option<Id<Node /*Expression*/>>,
+    ) -> Id<Node>;
 }

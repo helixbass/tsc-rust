@@ -269,7 +269,7 @@ impl TypeChecker {
             &root_name.as_identifier().escaped_text,
             meaning,
             None,
-            Option::<Gc<Node>>::None,
+            Option::<Id<Node>>::None,
             true,
             None,
         )?;
@@ -306,7 +306,7 @@ impl TypeChecker {
     pub(super) fn get_entity_name_for_decorator_metadata<TNode: Borrow<Node>>(
         &self,
         node: Option<TNode /*TypeNode*/>,
-    ) -> Option<Gc<Node /*EntityName*/>> {
+    ) -> Option<Id<Node /*EntityName*/>> {
         let node = node?;
         let node: &Node = node.borrow();
         match node.kind() {
@@ -334,9 +334,9 @@ impl TypeChecker {
 
     pub(super) fn get_entity_name_for_decorator_metadata_from_type_list(
         &self,
-        types: &[Gc<Node /*TypeNode*/>],
-    ) -> Option<Gc<Node /*EntityName*/>> {
-        let mut common_entity_name: Option<Gc<Node /*EntityName*/>> = None;
+        types: &[Id<Node /*TypeNode*/>],
+    ) -> Option<Id<Node /*EntityName*/>> {
+        let mut common_entity_name: Option<Id<Node /*EntityName*/>> = None;
         for type_node in types {
             let mut type_node = type_node.clone();
             while matches!(
@@ -376,7 +376,7 @@ impl TypeChecker {
     pub(super) fn get_parameter_type_node_for_decorator_check(
         &self,
         node: &Node, /*ParameterDeclaration*/
-    ) -> Option<Gc<Node /*TypeNode*/>> {
+    ) -> Option<Id<Node /*TypeNode*/>> {
         let type_node = get_effective_type_annotation_node(node);
         if is_rest_parameter(node) {
             get_rest_parameter_element_type(type_node)
@@ -479,7 +479,7 @@ impl TypeChecker {
 
         try_for_each(
             node_decorators,
-            |decorator: &Gc<Node>, _| -> io::Result<Option<()>> {
+            |decorator: &Id<Node>, _| -> io::Result<Option<()>> {
                 self.check_decorator(decorator)?;
                 Ok(None)
             },

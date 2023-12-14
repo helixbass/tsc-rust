@@ -1,6 +1,7 @@
 use std::{collections::HashMap, io, mem};
 
 use gc::{Finalize, Gc, GcCell, GcCellRef, GcCellRefMut, Trace};
+use id_arena::Id;
 
 use crate::{
     BaseNodeFactorySynthetic, CompilerOptions, EmitResolver, Node, NodeFactory, ScriptTarget,
@@ -29,12 +30,12 @@ struct TransformEcmascriptModule {
     compiler_options: Gc<CompilerOptions>,
     #[unsafe_ignore_trace]
     language_version: ScriptTarget,
-    helper_name_substitutions: GcCell<Option<HashMap<String, Gc<Node /*Identifier*/>>>>,
-    current_source_file: GcCell<Option<Gc<Node /*SourceFile*/>>>,
+    helper_name_substitutions: GcCell<Option<HashMap<String, Id<Node /*Identifier*/>>>>,
+    current_source_file: GcCell<Option<Id<Node /*SourceFile*/>>>,
     import_require_statements: GcCell<
         Option<(
-            Gc<Node /*ImportDeclaration*/>,
-            Gc<Node /*VariableStatement*/>,
+            Id<Node /*ImportDeclaration*/>,
+            Id<Node /*VariableStatement*/>,
         )>,
     >,
 }
@@ -85,45 +86,45 @@ impl TransformEcmascriptModule {
 
     fn maybe_helper_name_substitutions(
         &self,
-    ) -> GcCellRef<Option<HashMap<String, Gc<Node /*Identifier*/>>>> {
+    ) -> GcCellRef<Option<HashMap<String, Id<Node /*Identifier*/>>>> {
         self.helper_name_substitutions.borrow()
     }
 
     pub(super) fn helper_name_substitutions(
         &self,
-    ) -> GcCellRef<HashMap<String, Gc<Node /*Identifier*/>>> {
+    ) -> GcCellRef<HashMap<String, Id<Node /*Identifier*/>>> {
         gc_cell_ref_unwrapped(&self.helper_name_substitutions)
     }
 
     pub(super) fn helper_name_substitutions_mut(
         &self,
     ) -> GcCellRefMut<
-        Option<HashMap<String, Gc<Node /*Identifier*/>>>,
-        HashMap<String, Gc<Node /*Identifier*/>>,
+        Option<HashMap<String, Id<Node /*Identifier*/>>>,
+        HashMap<String, Id<Node /*Identifier*/>>,
     > {
         gc_cell_ref_mut_unwrapped(&self.helper_name_substitutions)
     }
 
     fn set_helper_name_substitutions(
         &self,
-        helper_name_substitutions: Option<HashMap<String, Gc<Node /*Identifier*/>>>,
+        helper_name_substitutions: Option<HashMap<String, Id<Node /*Identifier*/>>>,
     ) {
         *self.helper_name_substitutions.borrow_mut() = helper_name_substitutions;
     }
 
-    fn maybe_current_source_file(&self) -> Option<Gc<Node /*SourceFile*/>> {
+    fn maybe_current_source_file(&self) -> Option<Id<Node /*SourceFile*/>> {
         self.current_source_file.borrow().clone()
     }
 
-    fn set_current_source_file(&self, current_source_file: Option<Gc<Node /*SourceFile*/>>) {
+    fn set_current_source_file(&self, current_source_file: Option<Id<Node /*SourceFile*/>>) {
         *self.current_source_file.borrow_mut() = current_source_file;
     }
 
     fn maybe_import_require_statements(
         &self,
     ) -> Option<(
-        Gc<Node /*ImportDeclaration*/>,
-        Gc<Node /*VariableStatement*/>,
+        Id<Node /*ImportDeclaration*/>,
+        Id<Node /*VariableStatement*/>,
     )> {
         self.import_require_statements.borrow().clone()
     }
@@ -131,8 +132,8 @@ impl TransformEcmascriptModule {
     pub(super) fn import_require_statements(
         &self,
     ) -> (
-        Gc<Node /*ImportDeclaration*/>,
-        Gc<Node /*VariableStatement*/>,
+        Id<Node /*ImportDeclaration*/>,
+        Id<Node /*VariableStatement*/>,
     ) {
         self.import_require_statements.borrow().clone().unwrap()
     }
@@ -140,14 +141,14 @@ impl TransformEcmascriptModule {
     fn set_import_require_statements(
         &self,
         import_require_statements: Option<(
-            Gc<Node /*ImportDeclaration*/>,
-            Gc<Node /*VariableStatement*/>,
+            Id<Node /*ImportDeclaration*/>,
+            Id<Node /*VariableStatement*/>,
         )>,
     ) {
         *self.import_require_statements.borrow_mut() = import_require_statements;
     }
 
-    fn transform_source_file(&self, node: &Node /*SourceFile*/) -> io::Result<Gc<Node>> {
+    fn transform_source_file(&self, node: &Node /*SourceFile*/) -> io::Result<Id<Node>> {
         let node_as_source_file = node.as_source_file();
         if node_as_source_file.is_declaration_file() {
             return Ok(node.node_wrapper());
@@ -218,7 +219,7 @@ impl TransformEcmascriptModule {
         Ok(node.node_wrapper())
     }
 
-    fn update_external_module(&self, node: &Node /*SourceFile*/) -> io::Result<Gc<Node>> {
+    fn update_external_module(&self, node: &Node /*SourceFile*/) -> io::Result<Id<Node>> {
         let node_as_source_file = node.as_source_file();
         let external_helpers_import_declaration =
             create_external_helpers_import_declaration_if_needed(
@@ -232,7 +233,7 @@ impl TransformEcmascriptModule {
             );
         Ok(match external_helpers_import_declaration {
             Some(external_helpers_import_declaration) => {
-                let mut statements: Vec<Gc<Node /*Statement*/>> = _d();
+                let mut statements: Vec<Id<Node /*Statement*/>> = _d();
                 let statement_offset = self.factory.copy_prologue(
                     &node_as_source_file.statements(),
                     &mut statements,
@@ -286,7 +287,7 @@ impl TransformEcmascriptModule {
     fn create_require_call(
         &self,
         import_node: &Node, /*ImportDeclaration | ImportEqualsDeclaration | ExportDeclaration*/
-    ) -> io::Result<Gc<Node>> {
+    ) -> io::Result<Id<Node>> {
         let module_name = get_external_module_name_literal(
             &self.factory,
             import_node,
@@ -295,7 +296,7 @@ impl TransformEcmascriptModule {
             &**self.resolver,
             &self.compiler_options,
         )?;
-        let mut args: Vec<Gc<Node /*Expression*/>> = _d();
+        let mut args: Vec<Id<Node /*Expression*/>> = _d();
         if let Some(module_name) = module_name {
             args.push(module_name);
         }
@@ -383,7 +384,7 @@ impl TransformEcmascriptModule {
             Some("import= for internal module references should be handled in an earlier transformer.")
         );
 
-        let mut statements: Option<Vec<Gc<Node /*Statement*/>>> = _d();
+        let mut statements: Option<Vec<Id<Node /*Statement*/>>> = _d();
         statements.get_or_insert_default_().push(
             self.factory
                 .create_variable_statement(
@@ -416,7 +417,7 @@ impl TransformEcmascriptModule {
 
     fn append_exports_of_import_equals_declaration(
         &self,
-        statements: &mut Option<Vec<Gc<Node /*Statement*/>>>,
+        statements: &mut Option<Vec<Id<Node /*Statement*/>>>,
         node: &Node, /*ImportEqualsDeclaration*/
     ) {
         let node_as_import_equals_declaration = node.as_import_equals_declaration();
@@ -430,7 +431,7 @@ impl TransformEcmascriptModule {
                     Some(self.factory.create_named_exports(vec![
                         self.factory.create_export_specifier(
                             false,
-                            Option::<Gc<Node>>::None,
+                            Option::<Id<Node>>::None,
                             id_text(&node_as_import_equals_declaration.name()),
                         ),
                     ])),
@@ -513,7 +514,7 @@ impl TransformEcmascriptModule {
 }
 
 impl TransformerInterface for TransformEcmascriptModule {
-    fn call(&self, node: &Node) -> io::Result<Gc<Node>> {
+    fn call(&self, node: &Node) -> io::Result<Id<Node>> {
         self.transform_source_file(node)
     }
 }
@@ -589,7 +590,7 @@ impl TransformEcmascriptModuleOnSubstituteNodeOverrider {
         }
     }
 
-    fn substitute_helper_name(&self, node: &Node /*Identifier*/) -> Gc<Node /*Expression*/> {
+    fn substitute_helper_name(&self, node: &Node /*Identifier*/) -> Id<Node /*Expression*/> {
         let name = id_text(node);
         let mut substitution = self
             .transform_ecmascript_module
@@ -612,7 +613,7 @@ impl TransformEcmascriptModuleOnSubstituteNodeOverrider {
 impl TransformationContextOnSubstituteNodeOverrider
     for TransformEcmascriptModuleOnSubstituteNodeOverrider
 {
-    fn on_substitute_node(&self, hint: EmitHint, node: &Node) -> io::Result<Gc<Node>> {
+    fn on_substitute_node(&self, hint: EmitHint, node: &Node) -> io::Result<Id<Node>> {
         let node = self
             .previous_on_substitute_node
             .on_substitute_node(hint, node)?;

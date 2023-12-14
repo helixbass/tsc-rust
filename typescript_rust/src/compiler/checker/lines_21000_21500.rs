@@ -451,7 +451,7 @@ impl TypeChecker {
                         .as_signature_declaration()
                         .parameters()
                         .into_iter()
-                        .position(|parameter: &Gc<Node>| ptr::eq(param, &**parameter))
+                        .position(|parameter: &Id<Node>| ptr::eq(param, &**parameter))
                         .is_some()
                     && (self
                         .resolve_name_(
@@ -484,7 +484,7 @@ impl TypeChecker {
                             .as_signature_declaration()
                             .parameters()
                             .into_iter()
-                            .position(|parameter: &Gc<Node>| ptr::eq(param, &**parameter))
+                            .position(|parameter: &Id<Node>| ptr::eq(param, &**parameter))
                             .unwrap()
                             .to_string()
                     );

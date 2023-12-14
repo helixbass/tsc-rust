@@ -26,7 +26,7 @@ impl TypeChecker {
     pub(super) fn get_first_non_module_exports_identifier(
         &self,
         node: &Node, /*EntityNameOrEntityNameExpression*/
-    ) -> Gc<Node /*Identifier*/> {
+    ) -> Id<Node /*Identifier*/> {
         match node.kind() {
             SyntaxKind::Identifier => node.node_wrapper(),
             SyntaxKind::QualifiedName => {
@@ -374,7 +374,7 @@ impl TypeChecker {
                         if module_existed.is_some() {
                             try_for_each(
                                 &import_clause_named_bindings.as_named_imports().elements,
-                                |element: &Gc<Node>, _| -> io::Result<Option<()>> {
+                                |element: &Id<Node>, _| -> io::Result<Option<()>> {
                                     self.check_import_binding(element)?;
                                     Ok(None)
                                 },
@@ -515,7 +515,7 @@ impl TypeChecker {
             {
                 try_for_each(
                     &node_export_clause.as_named_exports().elements,
-                    |element: &Gc<Node>, _| -> io::Result<Option<()>> {
+                    |element: &Id<Node>, _| -> io::Result<Option<()>> {
                         self.check_export_specifier(element)?;
                         Ok(None)
                     },
@@ -744,7 +744,7 @@ impl TypeChecker {
                     | SymbolFlags::Namespace
                     | SymbolFlags::Alias,
                 None,
-                Option::<Gc<Node>>::None,
+                Option::<Id<Node>>::None,
                 true,
                 None,
             )?;
@@ -989,7 +989,7 @@ impl TypeChecker {
                     continue;
                 }
                 let exported_declarations_count =
-                    count_where(declarations.as_deref(), |declaration: &Gc<Node>, _| {
+                    count_where(declarations.as_deref(), |declaration: &Id<Node>, _| {
                         is_not_overload_and_not_accessor(declaration)
                     });
                 if flags.intersects(SymbolFlags::TypeAlias) && exported_declarations_count <= 2 {

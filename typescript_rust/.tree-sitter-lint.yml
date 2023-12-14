@@ -6,8 +6,8 @@ plugins:
 rules:
   # rewrite-self-arena-method-to-ref-method:
   #   level: error
-  # rewrite-gc-type-to-id-type:
-  #   level: error
+  rewrite-gc-type-to-id-type:
+    level: error
   # rewrite-ref-type-to-id-type:
   #   level: error
   rustfmt/rustfmt:

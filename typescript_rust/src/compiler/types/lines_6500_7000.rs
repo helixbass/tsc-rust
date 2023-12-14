@@ -166,7 +166,7 @@ pub trait ModuleResolutionHostOverrider: Trace + Finalize {
         data: &str,
         write_byte_order_mark: bool,
         on_error: Option<&mut dyn FnMut(&str)>,
-        source_files: Option<&[Gc<Node /*SourceFile*/>]>,
+        source_files: Option<&[Id<Node /*SourceFile*/>]>,
     ) -> io::Result<()>;
     fn directory_exists(&self, _directory_name: &str) -> Option<bool> {
         None
@@ -330,7 +330,7 @@ pub trait CompilerHost: ModuleResolutionHost + Trace + Finalize {
         language_version: ScriptTarget,
         on_error: Option<&mut dyn FnMut(&str)>,
         should_create_new_source_file: Option<bool>,
-    ) -> io::Result<Option<Gc<Node /*SourceFile*/>>>;
+    ) -> io::Result<Option<Id<Node /*SourceFile*/>>>;
     fn get_source_file_by_path(
         &self,
         _file_name: &str,
@@ -338,7 +338,7 @@ pub trait CompilerHost: ModuleResolutionHost + Trace + Finalize {
         _language_version: ScriptTarget,
         _on_error: Option<&mut dyn FnMut(&str)>,
         _should_create_new_source_file: Option<bool>,
-    ) -> Option<Gc<Node /*SourceFile*/>> {
+    ) -> Option<Id<Node /*SourceFile*/>> {
         None
     }
     fn is_get_source_file_by_path_supported(&self) -> bool;
@@ -355,7 +355,7 @@ pub trait CompilerHost: ModuleResolutionHost + Trace + Finalize {
         data: &str,
         write_byte_order_mark: bool,
         on_error: Option<&mut dyn FnMut(&str)>,
-        source_files: Option<&[Gc<Node /*SourceFile*/>]>,
+        source_files: Option<&[Id<Node /*SourceFile*/>]>,
     ) -> io::Result<()>;
     fn write_file_non_overridden(
         &self,
@@ -363,7 +363,7 @@ pub trait CompilerHost: ModuleResolutionHost + Trace + Finalize {
         data: &str,
         write_byte_order_mark: bool,
         on_error: Option<&mut dyn FnMut(&str)>,
-        source_files: Option<&[Gc<Node /*SourceFile*/>]>,
+        source_files: Option<&[Id<Node /*SourceFile*/>]>,
     ) -> io::Result<()>;
     fn is_write_file_supported(&self) -> bool;
     fn set_overriding_write_file(
@@ -613,7 +613,7 @@ impl From<&BaseTextRange> for Gc<SourceMapRange> {
 
 #[derive(Debug, Trace, Finalize)]
 pub enum SourceMapSource {
-    SourceFile(Gc<Node /*SourceFile*/>),
+    SourceFile(Id<Node /*SourceFile*/>),
     SourceMapSourceConcrete(SourceMapSourceConcrete),
 }
 
@@ -679,8 +679,8 @@ impl SourceFileLike for SourceMapSource {
     }
 }
 
-impl From<Gc<Node /*SourceFile*/>> for SourceMapSource {
-    fn from(value: Gc<Node>) -> Self {
+impl From<Id<Node /*SourceFile*/>> for SourceMapSource {
+    fn from(value: Id<Node>) -> Self {
         Self::SourceFile(value)
     }
 }
@@ -760,7 +760,7 @@ impl SourceFileLike for SourceMapSourceConcrete {
 
 #[derive(Debug, Default, Trace, Finalize)]
 pub struct EmitNode {
-    pub annotated_nodes: Option<Vec<Gc<Node>>>,
+    pub annotated_nodes: Option<Vec<Id<Node>>>,
     #[unsafe_ignore_trace]
     pub flags: Option<EmitFlags>,
     #[unsafe_ignore_trace]
@@ -773,7 +773,7 @@ pub struct EmitNode {
     pub token_source_map_ranges: Option<HashMap<SyntaxKind, Option<Gc<SourceMapRange>>>>,
     #[unsafe_ignore_trace]
     pub constant_value: Option<StringOrNumber>,
-    pub external_helpers_module_name: Option<Gc<Node /*Identifier*/>>,
+    pub external_helpers_module_name: Option<Id<Node /*Identifier*/>>,
     pub external_helpers: Option<bool>,
     pub helpers: Option<Vec<Gc<EmitHelper>>>,
     pub starts_on_new_line: Option<bool>,
@@ -815,6 +815,7 @@ mod _EmitHelperTextDeriveTraceScope {
     }
 }
 pub use _EmitHelperTextDeriveTraceScope::EmitHelperText;
+use id_arena::Id;
 
 pub trait EmitHelperTextCallback: Trace + Finalize {
     fn call(&self, callback: &dyn Fn(&str) -> String) -> String;
@@ -1112,19 +1113,19 @@ pub trait EmitHost:
     + Finalize
 {
     fn arena(&self) -> &AllArenas;
-    // fn get_source_files(&self) -> &[Gc<Node /*SourceFile*/>];
-    fn get_source_files(&self) -> GcCellRef<Vec<Gc<Node /*SourceFile*/>>>;
+    // fn get_source_files(&self) -> &[Id<Node /*SourceFile*/>];
+    fn get_source_files(&self) -> GcCellRef<Vec<Id<Node /*SourceFile*/>>>;
     fn use_case_sensitive_file_names(&self) -> bool;
     // fn get_current_directory(&self) -> String;
 
-    fn get_lib_file_from_reference(&self, ref_: &FileReference) -> Option<Gc<Node /*SourceFile*/>>;
+    fn get_lib_file_from_reference(&self, ref_: &FileReference) -> Option<Id<Node /*SourceFile*/>>;
 
     // fn get_canonical_file_name(&self, file_name: &str) -> String;
     fn get_new_line(&self) -> String;
 
     fn is_emit_blocked(&self, emit_file_name: &str) -> bool;
 
-    fn get_prepend_nodes(&self) -> Vec<Gc<Node /*InputFiles | UnparsedSource*/>>;
+    fn get_prepend_nodes(&self) -> Vec<Id<Node /*InputFiles | UnparsedSource*/>>;
 
     fn write_file(
         &self,
@@ -1132,14 +1133,14 @@ pub trait EmitHost:
         data: &str,
         write_byte_order_mark: bool,
         on_error: Option<&mut dyn FnMut(&str)>,
-        source_files: Option<&[Gc<Node /*SourceFile*/>]>,
+        source_files: Option<&[Id<Node /*SourceFile*/>]>,
     ) -> io::Result<()>; // WriteFileCallback
     fn get_program_build_info(&self) -> Option<Gc<ProgramBuildInfo>>;
     fn get_source_file_from_reference(
         &self,
         referencing_file: &Node, /*SourceFile | UnparsedSource*/
         ref_: &FileReference,
-    ) -> io::Result<Option<Gc<Node /*SourceFile*/>>>;
+    ) -> io::Result<Option<Id<Node /*SourceFile*/>>>;
     fn redirect_targets_map(&self) -> Rc<RefCell<RedirectTargetsMap>>;
     fn as_source_file_may_be_emitted_host(&self) -> &dyn SourceFileMayBeEmittedHost;
     fn as_module_specifier_resolution_host_and_get_common_source_directory(

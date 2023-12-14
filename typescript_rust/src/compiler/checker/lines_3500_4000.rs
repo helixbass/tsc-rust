@@ -776,7 +776,7 @@ impl TypeChecker {
             {
                 let mut additional_containers: Vec<Id<Symbol>> = try_map_defined(
                     container.ref_(self).maybe_declarations().as_ref(),
-                    |d: &Gc<Node>, _| {
+                    |d: &Id<Node>, _| {
                         self.get_file_symbol_if_file_symbol_export_equals_container(d, container)
                     },
                 )?;
@@ -866,7 +866,7 @@ impl TypeChecker {
         }
         let candidates = try_map_defined(
             symbol.ref_(self).maybe_declarations().as_deref(),
-            |d: &Gc<Node>, _| -> io::Result<_> {
+            |d: &Id<Node>, _| -> io::Result<_> {
                 if !is_ambient_module(d) {
                     if let Some(d_parent) = d.maybe_parent() {
                         if self.has_non_global_augmentation_external_module_symbol(&d_parent) {
@@ -930,7 +930,7 @@ impl TypeChecker {
         symbol: Id<Symbol>,
         meaning: SymbolFlags,
     ) -> io::Result<Option<Id<Symbol>>> {
-        let first_decl: Option<Gc<Node>> =
+        let first_decl: Option<Id<Node>> =
             if length(symbol.ref_(self).maybe_declarations().as_deref()) > 0 {
                 Some(first(symbol.ref_(self).maybe_declarations().as_deref().unwrap()).clone())
             } else {
@@ -991,7 +991,7 @@ impl TypeChecker {
 
 pub(super) struct ExportCollisionTracker {
     pub specifier_text: String,
-    pub exports_with_duplicate: Option<Vec<Gc<Node /*ExportDeclaration*/>>>,
+    pub exports_with_duplicate: Option<Vec<Id<Node /*ExportDeclaration*/>>>,
 }
 
 pub(super) type ExportCollisionTrackerTable = UnderscoreEscapedMap<ExportCollisionTracker>;

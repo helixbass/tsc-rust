@@ -292,7 +292,7 @@ impl TypeChecker {
         }
         if let Some(symbol_declarations) = symbol.ref_(self).maybe_declarations().as_deref() {
             if !symbol_declarations.is_empty() {
-                let mut declaration = first_defined(symbol_declarations, |d: &Gc<Node>, _| {
+                let mut declaration = first_defined(symbol_declarations, |d: &Id<Node>, _| {
                     if get_name_of_declaration(Some(&**d)).is_some() {
                         Some(d)
                     } else {
@@ -474,7 +474,7 @@ impl TypeChecker {
         &self,
         node: &Node, /*Identifier*/
         set_visibility: Option<bool>,
-    ) -> io::Result<Option<Vec<Gc<Node>>>> {
+    ) -> io::Result<Option<Vec<Id<Node>>>> {
         let mut export_symbol: Option<Id<Symbol>> = None;
         if
         /*node.parent &&*/
@@ -501,7 +501,7 @@ impl TypeChecker {
                 None,
             )?;
         }
-        let result: RefCell<Option<Vec<Gc<Node>>>> = RefCell::new(None);
+        let result: RefCell<Option<Vec<Id<Node>>>> = RefCell::new(None);
         if let Some(export_symbol) = export_symbol {
             let mut visited: HashSet<SymbolId> = HashSet::new();
             visited.insert(get_symbol_id(&export_symbol.ref_(self)));
@@ -518,11 +518,11 @@ impl TypeChecker {
     pub(super) fn build_visible_node_list(
         &self,
         set_visibility: bool,
-        result: &RefCell<Option<Vec<Gc<Node>>>>,
+        result: &RefCell<Option<Vec<Id<Node>>>>,
         visited: &mut HashSet<SymbolId>,
-        declarations: Option<&[Gc<Node /*Declaration*/>]>,
+        declarations: Option<&[Id<Node /*Declaration*/>]>,
     ) -> io::Result<()> {
-        try_maybe_for_each(declarations, |declaration: &Gc<Node>, _| -> io::Result<_> {
+        try_maybe_for_each(declarations, |declaration: &Id<Node>, _| -> io::Result<_> {
             let result_node = self
                 .get_any_import_syntax(declaration)
                 .unwrap_or_else(|| declaration.node_wrapper());
@@ -545,7 +545,7 @@ impl TypeChecker {
                     &first_identifier.as_identifier().escaped_text,
                     SymbolFlags::Value | SymbolFlags::Type | SymbolFlags::Namespace,
                     None,
-                    Option::<Gc<Node>>::None,
+                    Option::<Id<Node>>::None,
                     false,
                     None,
                 )?;
@@ -671,7 +671,7 @@ impl TypeChecker {
         self.resolution_results().pop().unwrap()
     }
 
-    pub(super) fn get_declaration_container(&self, node: &Node) -> Gc<Node> {
+    pub(super) fn get_declaration_container(&self, node: &Node) -> Id<Node> {
         find_ancestor(Some(get_root_declaration(node)), |node| {
             !matches!(
                 node.kind(),
@@ -760,7 +760,7 @@ impl TypeChecker {
     pub(super) fn get_rest_type(
         &self,
         source: Id<Type>,
-        properties: &[Gc<Node /*PropertyName*/>],
+        properties: &[Id<Node /*PropertyName*/>],
         symbol: Option<Id<Symbol>>,
     ) -> io::Result<Id<Type>> {
         let source = self.filter_type(source, |t| {
@@ -779,7 +779,7 @@ impl TypeChecker {
                 .unwrap());
         }
         let omit_key_type = self.get_union_type(
-            &try_map(properties, |property: &Gc<Node>, _| {
+            &try_map(properties, |property: &Id<Node>, _| {
                 self.get_literal_type_from_property_name(property)
             })?,
             None,
@@ -896,7 +896,7 @@ impl TypeChecker {
     pub(super) fn get_synthetic_element_access(
         &self,
         node: &Node, /*BindingElement | PropertyAssignment | ShorthandPropertyAssignment | Expression*/
-    ) -> io::Result<Option<Gc<Node /*ElementAccessExpression*/>>> {
+    ) -> io::Result<Option<Id<Node /*ElementAccessExpression*/>>> {
         let parent_access = return_ok_default_if_none!(self.get_parent_element_access(node)?);
         let ret = parent_access.maybe_flow_node().clone().try_and_then(
             |parent_access_flow_node| -> io::Result<_> {

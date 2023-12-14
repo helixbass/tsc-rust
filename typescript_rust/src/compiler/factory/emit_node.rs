@@ -1,6 +1,7 @@
 use std::{borrow::Borrow, rc::Rc};
 
 use gc::{Gc, GcCell};
+use id_arena::Id;
 
 use crate::{
     get_parse_tree_node, is_parse_tree_node, maybe_get_source_file_of_node, push_if_unique_gc,
@@ -132,7 +133,7 @@ pub(crate) fn get_starts_on_new_line(node: &Node) -> Option<bool> {
         .and_then(|emit_node| (*emit_node).borrow().starts_on_new_line)
 }
 
-pub(crate) fn set_starts_on_new_line(node: &Node, new_line: bool) /*-> Gc<Node>*/
+pub(crate) fn set_starts_on_new_line(node: &Node, new_line: bool) /*-> Id<Node>*/
 {
     get_or_create_emit_node(node)
         .borrow_mut()
@@ -148,15 +149,15 @@ pub fn get_comment_range(node: &Node) -> BaseTextRange {
 }
 
 pub fn set_comment_range(node: &Node, range: &impl ReadonlyTextRange /*TextRange*/)
-/*-> Gc<Node>*/
+/*-> Id<Node>*/
 {
     get_or_create_emit_node(node).borrow_mut().comment_range = Some(range.into());
 }
 
 pub fn set_comment_range_rc(
-    node: Gc<Node>,
+    node: Id<Node>,
     range: &impl ReadonlyTextRange, /*TextRange*/
-) -> Gc<Node> {
+) -> Id<Node> {
     set_comment_range(&node, range);
     node
 }
@@ -167,15 +168,15 @@ pub fn get_synthetic_leading_comments(node: &Node) -> Option<Vec<Rc<SynthesizedC
 }
 
 pub fn set_synthetic_leading_comments(node: &Node, comments: Option<Vec<Rc<SynthesizedComment>>>)
-/*-> Gc<Node>*/
+/*-> Id<Node>*/
 {
     get_or_create_emit_node(node).borrow_mut().leading_comments = comments;
 }
 
 pub fn set_synthetic_leading_comments_rc(
-    node: Gc<Node>,
+    node: Id<Node>,
     comments: Option<Vec<Rc<SynthesizedComment>>>,
-) -> Gc<Node> {
+) -> Id<Node> {
     set_synthetic_leading_comments(&node, comments);
     node
 }
@@ -185,7 +186,7 @@ pub fn add_synthetic_leading_comment(
     kind: SyntaxKind, /*SyntaxKind.SingleLineCommentTrivia | SyntaxKind.MultiLineCommentTrivia*/
     text: &str,
     has_trailing_new_line: Option<bool>,
-) /*-> Gc<Node>*/
+) /*-> Id<Node>*/
 {
     let mut synthetic_leading_comments = get_synthetic_leading_comments(node);
     if synthetic_leading_comments.is_none() {
@@ -209,7 +210,7 @@ pub fn get_synthetic_trailing_comments(node: &Node) -> Option<Vec<Rc<Synthesized
 }
 
 pub fn set_synthetic_trailing_comments(node: &Node, comments: Option<Vec<Rc<SynthesizedComment>>>)
-/*-> Gc<Node>*/
+/*-> Id<Node>*/
 {
     get_or_create_emit_node(node).borrow_mut().trailing_comments = comments;
 }
@@ -219,7 +220,7 @@ pub fn add_synthetic_trailing_comment(
     kind: SyntaxKind, /*SyntaxKind.SingleLineCommentTrivia | SyntaxKind.MultiLineCommentTrivia*/
     text: &str,
     has_trailing_new_line: Option<bool>,
-) /*-> Gc<Node>*/
+) /*-> Id<Node>*/
 {
     let mut synthetic_trailing_comments = get_synthetic_trailing_comments(node);
     if synthetic_trailing_comments.is_none() {
@@ -256,13 +257,13 @@ pub fn get_constant_value(node: &Node /*AccessExpression*/) -> Option<StringOrNu
 pub fn set_constant_value(
     node: &Node, /*AccessExpression*/
     value: StringOrNumber,
-) -> Gc<Node /*AccessExpression*/> {
+) -> Id<Node /*AccessExpression*/> {
     let emit_node = get_or_create_emit_node(node);
     emit_node.borrow_mut().constant_value = Some(value);
     node.node_wrapper()
 }
 
-pub fn add_emit_helper(node: &Node, helper: Gc<EmitHelper>) -> Gc<Node> {
+pub fn add_emit_helper(node: &Node, helper: Gc<EmitHelper>) -> Id<Node> {
     let emit_node = get_or_create_emit_node(node);
     emit_node
         .borrow_mut()
@@ -272,7 +273,7 @@ pub fn add_emit_helper(node: &Node, helper: Gc<EmitHelper>) -> Gc<Node> {
     node.node_wrapper()
 }
 
-pub fn add_emit_helpers(node: &Node, helpers: Option<&[Gc<EmitHelper>]>) -> Gc<Node> {
+pub fn add_emit_helpers(node: &Node, helpers: Option<&[Gc<EmitHelper>]>) -> Id<Node> {
     if let Some(helpers) = helpers.non_empty() {
         let emit_node = get_or_create_emit_node(node);
         let mut emit_node = emit_node.borrow_mut();

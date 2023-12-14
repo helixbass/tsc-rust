@@ -2,6 +2,7 @@ use std::{borrow::Borrow, cell::RefCell, collections::HashMap, io, rc::Rc};
 
 use derive_builder::Builder;
 use gc::{Gc, GcCell};
+use id_arena::Id;
 
 use super::{
     command_options_without_build, convert_compile_on_save_option_from_json,
@@ -349,7 +350,7 @@ pub(super) fn parse_own_config_of_json_source_file(
     let typing_options_type_acquisition: RefCell<Option<TypeAcquisition>> = Default::default();
     let watch_options: RefCell<Option<WatchOptions>> = Default::default();
     let extended_config_path: RefCell<Option<String>> = Default::default();
-    let root_compiler_options: RefCell<Option<Vec<Gc<Node /*PropertyName*/>>>> = Default::default();
+    let root_compiler_options: RefCell<Option<Vec<Id<Node /*PropertyName*/>>>> = Default::default();
 
     let base_path_string = base_path.to_owned();
     let options_iterator = ParseOwnConfigOfJsonSourceFileOptionsIterator::new(
@@ -437,7 +438,7 @@ struct ParseOwnConfigOfJsonSourceFileOptionsIterator<'a, THost: ParseConfigHost 
     host: &'a THost,
     errors: Gc<GcCell<Vec<Gc<Diagnostic>>>>,
     source_file: &'a Node,
-    root_compiler_options: &'a RefCell<Option<Vec<Gc<Node>>>>,
+    root_compiler_options: &'a RefCell<Option<Vec<Id<Node>>>>,
 }
 
 impl<'a, THost: ParseConfigHost + ?Sized> ParseOwnConfigOfJsonSourceFileOptionsIterator<'a, THost> {
@@ -452,7 +453,7 @@ impl<'a, THost: ParseConfigHost + ?Sized> ParseOwnConfigOfJsonSourceFileOptionsI
         host: &'a THost,
         errors: Gc<GcCell<Vec<Gc<Diagnostic>>>>,
         source_file: &'a Node,
-        root_compiler_options: &'a RefCell<Option<Vec<Gc<Node>>>>,
+        root_compiler_options: &'a RefCell<Option<Vec<Id<Node>>>>,
     ) -> Self {
         Self {
             options: RefCell::new(options),

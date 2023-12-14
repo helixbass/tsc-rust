@@ -1,6 +1,7 @@
 use std::convert::TryInto;
 
 use gc::Gc;
+use id_arena::Id;
 
 use super::{ParserType, ParsingContext, SignatureFlags};
 use crate::{
@@ -77,7 +78,7 @@ impl ParserType {
         }
     }
 
-    pub(super) fn parse_primary_expression(&self) -> Gc<Node /*PrimaryExpression*/> {
+    pub(super) fn parse_primary_expression(&self) -> Id<Node /*PrimaryExpression*/> {
         match self.token() {
             SyntaxKind::NumericLiteral
             | SyntaxKind::BigIntLiteral
@@ -113,7 +114,7 @@ impl ParserType {
             .wrap()
     }
 
-    pub(super) fn parse_parenthesized_expression(&self) -> Gc<Node /*ParenthesizedExpression*/> {
+    pub(super) fn parse_parenthesized_expression(&self) -> Id<Node /*ParenthesizedExpression*/> {
         let pos = self.get_node_pos();
         let has_jsdoc = self.has_preceding_jsdoc_comment();
         self.parse_expected(SyntaxKind::OpenParenToken, None, None);
@@ -142,7 +143,7 @@ impl ParserType {
         )
     }
 
-    pub(super) fn parse_argument_or_array_literal_element(&self) -> Gc<Node> {
+    pub(super) fn parse_argument_or_array_literal_element(&self) -> Id<Node> {
         if self.token() == SyntaxKind::DotDotDotToken {
             self.parse_spread_element().wrap()
         } else if self.token() == SyntaxKind::CommaToken {
@@ -157,7 +158,7 @@ impl ParserType {
         }
     }
 
-    pub(super) fn parse_argument_expression(&self) -> Gc<Node /*Expression*/> {
+    pub(super) fn parse_argument_expression(&self) -> Id<Node /*Expression*/> {
         self.do_outside_of_context(self.disallow_in_and_decorator_context, || {
             self.parse_argument_or_array_literal_element()
         })
@@ -181,7 +182,7 @@ impl ParserType {
         )
     }
 
-    pub(super) fn parse_object_literal_element(&self) -> Gc<Node /*ObjectLiteralElementLike*/> {
+    pub(super) fn parse_object_literal_element(&self) -> Id<Node /*ObjectLiteralElementLike*/> {
         let pos = self.get_node_pos();
         let has_jsdoc = self.has_preceding_jsdoc_comment();
 
@@ -227,12 +228,12 @@ impl ParserType {
             .parse_optional_token(SyntaxKind::AsteriskToken)
             .map(|asterisk_token| asterisk_token.wrap());
         let token_is_identifier = self.is_identifier();
-        let name: Gc<Node> = self.parse_property_name().wrap();
+        let name: Id<Node> = self.parse_property_name().wrap();
 
-        let question_token: Option<Gc<Node>> = self
+        let question_token: Option<Id<Node>> = self
             .parse_optional_token(SyntaxKind::QuestionToken)
             .map(|question_token| question_token.wrap());
-        let exclamation_token: Option<Gc<Node>> = self
+        let exclamation_token: Option<Id<Node>> = self
             .parse_optional_token(SyntaxKind::ExclamationToken)
             .map(|exclamation_token| exclamation_token.wrap());
 
@@ -259,7 +260,7 @@ impl ParserType {
         let is_shorthand_property_assignment =
             token_is_identifier && self.token() != SyntaxKind::ColonToken;
         if is_shorthand_property_assignment {
-            let equals_token: Option<Gc<Node>> = self
+            let equals_token: Option<Id<Node>> = self
                 .parse_optional_token(SyntaxKind::EqualsToken)
                 .map(|equals_token| equals_token.wrap());
             let object_assignment_initializer = if equals_token.is_some() {
@@ -328,7 +329,7 @@ impl ParserType {
         )
     }
 
-    pub(super) fn parse_function_expression(&self) -> Gc<Node /*FunctionExpression*/> {
+    pub(super) fn parse_function_expression(&self) -> Id<Node /*FunctionExpression*/> {
         let saved_decorator_context = self.in_decorator_context();
         self.set_decorator_context(false);
 
@@ -336,7 +337,7 @@ impl ParserType {
         let has_jsdoc = self.has_preceding_jsdoc_comment();
         let modifiers = self.parse_modifiers(None, None);
         self.parse_expected(SyntaxKind::FunctionKeyword, None, None);
-        let asterisk_token: Option<Gc<Node>> = self
+        let asterisk_token: Option<Id<Node>> = self
             .parse_optional_token(SyntaxKind::AsteriskToken)
             .map(Node::wrap);
         let is_generator = if asterisk_token.is_some() {
@@ -346,13 +347,13 @@ impl ParserType {
         };
         let is_async = if some(
             modifiers.as_double_deref(),
-            Some(|modifier: &Gc<Node>| is_async_modifier(modifier)),
+            Some(|modifier: &Id<Node>| is_async_modifier(modifier)),
         ) {
             SignatureFlags::Await
         } else {
             SignatureFlags::None
         };
-        let name: Option<Gc<Node>> =
+        let name: Option<Id<Node>> =
             if is_generator != SignatureFlags::None && is_async != SignatureFlags::None {
                 self.do_in_yield_and_await_context(|| {
                     self.parse_optional_binding_identifier()
@@ -375,8 +376,8 @@ impl ParserType {
 
         let type_parameters = self.parse_type_parameters();
         let parameters = self.parse_parameters(is_generator | is_async);
-        let type_: Option<Gc<Node>> = self.parse_return_type(SyntaxKind::ColonToken, false);
-        let body: Gc<Node> = self.parse_function_block(is_generator | is_async, None);
+        let type_: Option<Id<Node>> = self.parse_return_type(SyntaxKind::ColonToken, false);
+        let body: Id<Node> = self.parse_function_block(is_generator | is_async, None);
 
         self.set_decorator_context(saved_decorator_context);
 
@@ -405,7 +406,7 @@ impl ParserType {
         let pos = self.get_node_pos();
         self.parse_expected(SyntaxKind::NewKeyword, None, None);
         if self.parse_optional(SyntaxKind::DotToken) {
-            let name: Gc<Node> = self.parse_identifier_name(None).wrap();
+            let name: Id<Node> = self.parse_identifier_name(None).wrap();
             return self.finish_node(
                 self.factory()
                     .create_meta_property_raw(SyntaxKind::NewKeyword, name)
@@ -416,7 +417,7 @@ impl ParserType {
         }
 
         let expression_pos = self.get_node_pos();
-        let mut expression: Gc<Node /*MemberExpression*/> = self.parse_primary_expression();
+        let mut expression: Id<Node /*MemberExpression*/> = self.parse_primary_expression();
         let mut type_arguments: Option<Gc<NodeArray>>;
         loop {
             expression = self.parse_member_expression_rest(expression_pos, expression, false);
@@ -453,7 +454,7 @@ impl ParserType {
         &self,
         ignore_missing_open_brace: bool,
         diagnostic_message: Option<&DiagnosticMessage>,
-    ) -> Gc<Node /*Block*/> {
+    ) -> Id<Node /*Block*/> {
         let pos = self.get_node_pos();
         let has_jsdoc = self.has_preceding_jsdoc_comment();
         let open_brace_position = self.scanner().get_token_pos();
@@ -515,7 +516,7 @@ impl ParserType {
         &self,
         flags: SignatureFlags,
         diagnostic_message: Option<&DiagnosticMessage>,
-    ) -> Gc<Node /*Block*/> {
+    ) -> Id<Node /*Block*/> {
         let saved_yield_context = self.in_yield_context();
         self.set_yield_context(flags.intersects(SignatureFlags::Yield));
 
@@ -546,7 +547,7 @@ impl ParserType {
         block
     }
 
-    pub(super) fn parse_empty_statement(&self) -> Gc<Node /*Statement*/> {
+    pub(super) fn parse_empty_statement(&self) -> Id<Node /*Statement*/> {
         let pos = self.get_node_pos();
         let has_jsdoc = self.has_preceding_jsdoc_comment();
         self.parse_expected(SyntaxKind::SemicolonToken, None, None);
@@ -557,7 +558,7 @@ impl ParserType {
         )
     }
 
-    pub(super) fn parse_if_statement(&self) -> Gc<Node /*IfStatement*/> {
+    pub(super) fn parse_if_statement(&self) -> Id<Node /*IfStatement*/> {
         let pos = self.get_node_pos();
         let has_jsdoc = self.has_preceding_jsdoc_comment();
         self.parse_expected(SyntaxKind::IfKeyword, None, None);
@@ -582,7 +583,7 @@ impl ParserType {
         )
     }
 
-    pub(super) fn parse_do_statement(&self) -> Gc<Node /*DoStatement*/> {
+    pub(super) fn parse_do_statement(&self) -> Id<Node /*DoStatement*/> {
         let pos = self.get_node_pos();
         let has_jsdoc = self.has_preceding_jsdoc_comment();
         self.parse_expected(SyntaxKind::DoKeyword, None, None);
@@ -605,7 +606,7 @@ impl ParserType {
         )
     }
 
-    pub(super) fn parse_while_statement(&self) -> Gc<Node /*WhileStatement*/> {
+    pub(super) fn parse_while_statement(&self) -> Id<Node /*WhileStatement*/> {
         let pos = self.get_node_pos();
         let has_jsdoc = self.has_preceding_jsdoc_comment();
         self.parse_expected(SyntaxKind::WhileKeyword, None, None);
@@ -625,14 +626,14 @@ impl ParserType {
         )
     }
 
-    pub(super) fn parse_for_or_for_in_or_for_of_statement(&self) -> Gc<Node /*Statement*/> {
+    pub(super) fn parse_for_or_for_in_or_for_of_statement(&self) -> Id<Node /*Statement*/> {
         let pos = self.get_node_pos();
         let has_jsdoc = self.has_preceding_jsdoc_comment();
         self.parse_expected(SyntaxKind::ForKeyword, None, None);
         let await_token = self.parse_optional_token(SyntaxKind::AwaitKeyword);
         self.parse_expected(SyntaxKind::OpenParenToken, None, None);
 
-        let mut initializer: Option<Gc<Node /*VariableDeclarationList | Expression*/>> = None;
+        let mut initializer: Option<Id<Node /*VariableDeclarationList | Expression*/>> = None;
         if self.token() != SyntaxKind::SemicolonToken {
             if matches!(
                 self.token(),
@@ -674,7 +675,7 @@ impl ParserType {
                 .into();
         } else {
             self.parse_expected(SyntaxKind::SemicolonToken, None, None);
-            let condition: Option<Gc<Node>> = if !matches!(
+            let condition: Option<Id<Node>> = if !matches!(
                 self.token(),
                 SyntaxKind::SemicolonToken | SyntaxKind::CloseParenToken
             ) {
@@ -683,7 +684,7 @@ impl ParserType {
                 None
             };
             self.parse_expected(SyntaxKind::SemicolonToken, None, None);
-            let incrementor: Option<Gc<Node>> = if self.token() != SyntaxKind::CloseParenToken {
+            let incrementor: Option<Id<Node>> = if self.token() != SyntaxKind::CloseParenToken {
                 Some(self.allow_in_and(|| self.parse_expression()))
             } else {
                 None
@@ -706,7 +707,7 @@ impl ParserType {
     pub(super) fn parse_break_or_continue_statement(
         &self,
         kind: SyntaxKind,
-    ) -> Gc<Node /*BreakOrContinueStatement*/> {
+    ) -> Id<Node /*BreakOrContinueStatement*/> {
         let pos = self.get_node_pos();
         let has_jsdoc = self.has_preceding_jsdoc_comment();
 
@@ -719,7 +720,7 @@ impl ParserType {
             None,
             None,
         );
-        let label: Option<Gc<Node>> = if self.can_parse_semicolon() {
+        let label: Option<Id<Node>> = if self.can_parse_semicolon() {
             None
         } else {
             Some(self.parse_identifier(None, None).wrap())
@@ -734,11 +735,11 @@ impl ParserType {
         self.with_jsdoc(self.finish_node(node, pos, None).wrap(), has_jsdoc)
     }
 
-    pub(super) fn parse_return_statement(&self) -> Gc<Node /*ReturnStatement*/> {
+    pub(super) fn parse_return_statement(&self) -> Id<Node /*ReturnStatement*/> {
         let pos = self.get_node_pos();
         let has_jsdoc = self.has_preceding_jsdoc_comment();
         self.parse_expected(SyntaxKind::ReturnKeyword, None, None);
-        let expression: Option<Gc<Node>> = if self.can_parse_semicolon() {
+        let expression: Option<Id<Node>> = if self.can_parse_semicolon() {
             None
         } else {
             Some(self.allow_in_and(|| self.parse_expression()))
@@ -755,14 +756,14 @@ impl ParserType {
         )
     }
 
-    pub(super) fn parse_with_statement(&self) -> Gc<Node /*WithStatement*/> {
+    pub(super) fn parse_with_statement(&self) -> Id<Node /*WithStatement*/> {
         let pos = self.get_node_pos();
         let has_jsdoc = self.has_preceding_jsdoc_comment();
         self.parse_expected(SyntaxKind::WithKeyword, None, None);
         self.parse_expected(SyntaxKind::OpenParenToken, None, None);
         let expression = self.allow_in_and(|| self.parse_expression());
         self.parse_expected(SyntaxKind::CloseParenToken, None, None);
-        let statement: Gc<Node> =
+        let statement: Id<Node> =
             self.do_inside_of_context(NodeFlags::InWithStatement, || self.parse_statement());
         self.with_jsdoc(
             self.finish_node(

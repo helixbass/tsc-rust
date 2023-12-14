@@ -682,7 +682,7 @@ impl TypeChecker {
     pub(super) fn get_identifier_chain(
         &self,
         node: &Node, /*EntityName*/
-    ) -> Vec<Gc<Node /*Identifier*/>> {
+    ) -> Vec<Id<Node /*Identifier*/>> {
         if is_identifier(node) {
             vec![node.node_wrapper()]
         } else {
@@ -753,10 +753,10 @@ impl TypeChecker {
                 .resolve_external_module_symbol(Some(inner_module_symbol), Some(false))?
                 .unwrap();
             if !node_is_missing(node_as_import_type_node.qualifier.as_deref()) {
-                let mut name_stack: Vec<Gc<Node /*Identifier*/>> =
+                let mut name_stack: Vec<Id<Node /*Identifier*/>> =
                     self.get_identifier_chain(node_as_import_type_node.qualifier.as_ref().unwrap());
                 let mut current_namespace = module_symbol.clone();
-                let mut current: Option<Gc<Node /*Identifier*/>>;
+                let mut current: Option<Id<Node /*Identifier*/>>;
                 while {
                     current = if name_stack.is_empty() {
                         None

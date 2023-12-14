@@ -1,6 +1,7 @@
 use std::{borrow::Borrow, collections::HashMap, io};
 
 use gc::{Finalize, Gc, Trace};
+use id_arena::Id;
 
 use crate::{
     get_node_id, get_original_node, maybe_get_original_node, BaseNodeFactory, CompilerOptions,
@@ -35,12 +36,12 @@ pub fn maybe_get_original_node_id(node: Option<impl Borrow<Node>>) -> NodeId {
 #[derive(Trace, Finalize)]
 pub struct ExternalModuleInfo {
     pub external_imports:
-        Vec<Gc<Node /*ImportDeclaration | ImportEqualsDeclaration | ExportDeclaration*/>>,
-    pub external_helpers_import_declaration: Option<Gc<Node /*ImportDeclaration*/>>,
-    pub export_specifiers: HashMap<String, Vec<Gc<Node /*ExportSpecifier*/>>>,
-    pub exported_bindings: HashMap<NodeId, Vec<Gc<Node /*Identifier*/>>>,
-    pub exported_names: Option<Vec<Gc<Node /*Identifier*/>>>,
-    pub export_equals: Option<Gc<Node /*ExportAssignment*/>>,
+        Vec<Id<Node /*ImportDeclaration | ImportEqualsDeclaration | ExportDeclaration*/>>,
+    pub external_helpers_import_declaration: Option<Id<Node /*ImportDeclaration*/>>,
+    pub export_specifiers: HashMap<String, Vec<Id<Node /*ExportSpecifier*/>>>,
+    pub exported_bindings: HashMap<NodeId, Vec<Id<Node /*Identifier*/>>>,
+    pub exported_names: Option<Vec<Id<Node /*Identifier*/>>>,
+    pub export_equals: Option<Id<Node /*ExportAssignment*/>>,
     pub has_export_stars_to_export_values: bool,
 }
 
@@ -150,14 +151,14 @@ pub fn collect_external_module_info(
 ) -> io::Result<ExternalModuleInfo> {
     let source_file_as_source_file = source_file.as_source_file();
     let mut external_imports: Vec<
-        Gc<Node /*ImportDeclaration | ImportEqualsDeclaration | ExportDeclaration*/>,
+        Id<Node /*ImportDeclaration | ImportEqualsDeclaration | ExportDeclaration*/>,
     > = _d();
-    let mut export_specifiers: MultiMap<String, Gc<Node /*ExportSpecifier*/>> = create_multi_map();
-    let mut exported_bindings: HashMap<NodeId, Vec<Gc<Node /*Identifier*/>>> = _d();
+    let mut export_specifiers: MultiMap<String, Id<Node /*ExportSpecifier*/>> = create_multi_map();
+    let mut exported_bindings: HashMap<NodeId, Vec<Id<Node /*Identifier*/>>> = _d();
     let mut unique_exports: HashMap<String, bool> = _d();
-    let mut exported_names: Option<Vec<Gc<Node /*Identifier*/>>> = _d();
+    let mut exported_names: Option<Vec<Id<Node /*Identifier*/>>> = _d();
     let mut has_export_default = false;
-    let mut export_equals: Option<Gc<Node /*ExportAssignment*/>> = _d();
+    let mut export_equals: Option<Id<Node /*ExportAssignment*/>> = _d();
     let mut has_export_stars_to_export_values = false;
     let mut has_import_star = false;
     let mut has_import_default = false;
@@ -336,16 +337,16 @@ pub fn collect_external_module_info(
 
 fn add_exported_names_for_export_declaration(
     unique_exports: &mut HashMap<String, bool>,
-    export_specifiers: &mut MultiMap<String, Gc<Node /*ExportSpecifier*/>>,
+    export_specifiers: &mut MultiMap<String, Id<Node /*ExportSpecifier*/>>,
     resolver: &dyn EmitResolver,
-    exported_bindings: &mut HashMap<NodeId, Vec<Gc<Node /*Identifier*/>>>,
-    exported_names: &mut Option<Vec<Gc<Node /*Identifier*/>>>,
+    exported_bindings: &mut HashMap<NodeId, Vec<Id<Node /*Identifier*/>>>,
+    exported_names: &mut Option<Vec<Id<Node /*Identifier*/>>>,
     node: &Node, /*ExportDeclaration*/
 ) -> io::Result<()> {
     let node_as_export_declaration = node.as_export_declaration();
     for specifier in &cast(
         node_as_export_declaration.export_clause.as_ref(),
-        |node: &&Gc<Node>| is_named_exports(node),
+        |node: &&Id<Node>| is_named_exports(node),
     )
     .as_named_exports()
     .elements
@@ -391,7 +392,7 @@ fn add_exported_names_for_export_declaration(
 fn collect_exported_variable_info(
     decl: &Node, /*VariableDeclaration | BindingElement*/
     unique_exports: &mut HashMap<String, bool>,
-    exported_names: &mut Option<Vec<Gc<Node /*Identifier*/>>>,
+    exported_names: &mut Option<Vec<Id<Node /*Identifier*/>>>,
 ) {
     let decl_name = decl.as_named_declaration().name();
     if is_binding_pattern(Some(&*decl_name)) {
@@ -453,7 +454,7 @@ pub fn get_non_assignment_operator_for_compound_assignment(
 pub fn add_prologue_directives_and_initial_super_call(
     factory: &NodeFactory<impl 'static + BaseNodeFactory + Trace + Finalize>,
     ctor: &Node, /*ConstructorDeclaration*/
-    result: &mut Vec<Gc<Node /*Statement*/>>,
+    result: &mut Vec<Id<Node /*Statement*/>>,
     mut visitor: impl FnMut(&Node) -> VisitResult,
 ) -> usize {
     try_add_prologue_directives_and_initial_super_call(factory, ctor, result, |node: &Node| {
@@ -465,7 +466,7 @@ pub fn add_prologue_directives_and_initial_super_call(
 pub fn try_add_prologue_directives_and_initial_super_call(
     factory: &NodeFactory<impl 'static + BaseNodeFactory + Trace + Finalize>,
     ctor: &Node, /*ConstructorDeclaration*/
-    result: &mut Vec<Gc<Node /*Statement*/>>,
+    result: &mut Vec<Id<Node /*Statement*/>>,
     mut visitor: impl FnMut(&Node) -> io::Result<VisitResult>,
 ) -> io::Result<usize> {
     let ctor_as_constructor_declaration = ctor.as_constructor_declaration();
@@ -494,7 +495,7 @@ pub fn try_add_prologue_directives_and_initial_super_call(
                     statement,
                     Some(|node: &Node| visitor(node)),
                     Some(is_statement),
-                    Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                    Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                 )?);
             }
             return Ok(super_index + 1);
@@ -510,7 +511,7 @@ pub fn get_properties(
     node: &Node, /*ClassExpression | ClassDeclaration*/
     require_initializer: bool,
     is_static: bool,
-) -> Vec<Gc<Node /*PropertyDeclaration*/>> {
+) -> Vec<Id<Node /*PropertyDeclaration*/>> {
     node.as_class_like_declaration()
         .members()
         .iter()
@@ -527,7 +528,7 @@ pub fn is_static_property_declaration_or_class_static_block_declaration(
 
 pub fn get_static_properties_and_class_static_block(
     node: &Node, /*ClassExpression | ClassDeclaration*/
-) -> Vec<Gc<Node /*PropertyDeclaration | ClassStaticBlockDeclaration*/>> {
+) -> Vec<Id<Node /*PropertyDeclaration | ClassStaticBlockDeclaration*/>> {
     node.as_class_like_declaration()
         .members()
         .iter()

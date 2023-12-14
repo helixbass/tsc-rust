@@ -31,7 +31,7 @@ use crate::{
     SymbolFlags, SymbolInterface, SyntaxKind,
 };
 
-pub fn get_first_identifier(node: &Node) -> Gc<Node /*Identifier*/> {
+pub fn get_first_identifier(node: &Node) -> Id<Node /*Identifier*/> {
     match node.kind() {
         SyntaxKind::Identifier => node.node_wrapper(),
         SyntaxKind::QualifiedName => {
@@ -423,10 +423,10 @@ pub fn is_declaration_name_of_enum_or_namespace(node: &Node /*Identifier*/) -> b
     false
 }
 
-pub fn get_initialized_variables(node: &Node /*VariableDeclarationList*/) -> Vec<Gc<Node>> {
+pub fn get_initialized_variables(node: &Node /*VariableDeclarationList*/) -> Vec<Id<Node>> {
     filter(
         &node.as_variable_declaration_list().declarations,
-        |declaration: &Gc<Node>| is_initialized_variable(declaration),
+        |declaration: &Id<Node>| is_initialized_variable(declaration),
     )
 }
 
@@ -452,9 +452,9 @@ pub fn get_declaration_modifier_flags_from_symbol(
 ) -> ModifierFlags {
     let is_write = is_write.unwrap_or(false);
     if let Some(s_value_declaration) = s.maybe_value_declaration().as_ref() {
-        let declaration: Gc<Node> = if is_write {
+        let declaration: Id<Node> = if is_write {
             s.maybe_declarations().as_ref().and_then(|s_declarations| {
-                find(s_declarations, |d: &Gc<Node>, _| {
+                find(s_declarations, |d: &Id<Node>, _| {
                     d.kind() == SyntaxKind::SetAccessor
                 })
                 .cloned()
@@ -605,7 +605,7 @@ fn reverse_access_kind(a: AccessKind) -> AccessKind {
 
 pub fn get_class_like_declaration_of_symbol(
     symbol: &Symbol,
-) -> Option<Gc<Node /*ClassLikeDeclaration*/>> {
+) -> Option<Id<Node /*ClassLikeDeclaration*/>> {
     symbol
         .maybe_declarations()
         .as_ref()
@@ -687,7 +687,7 @@ pub fn is_bundle_file_text_like(_section: &BundleFileSection) -> bool {
     unimplemented!()
 }
 
-pub fn get_leftmost_access_expression(expr: &Node /*Expression*/) -> Gc<Node /*Expression*/> {
+pub fn get_leftmost_access_expression(expr: &Node /*Expression*/) -> Id<Node /*Expression*/> {
     let mut expr = expr.node_wrapper();
     while is_access_expression(&expr) {
         expr = expr.as_has_expression().expression();
@@ -698,7 +698,7 @@ pub fn get_leftmost_access_expression(expr: &Node /*Expression*/) -> Gc<Node /*E
 pub fn get_leftmost_expression(
     node: &Node, /*Expression*/
     stop_at_call_expressions: bool,
-) -> Gc<Node /*Expression*/> {
+) -> Id<Node /*Expression*/> {
     let mut node = node.node_wrapper();
     loop {
         match node.kind() {

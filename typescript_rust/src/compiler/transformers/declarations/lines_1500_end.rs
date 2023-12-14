@@ -1,6 +1,7 @@
 use std::{io, ptr};
 
 use gc::Gc;
+use id_arena::Id;
 
 use super::TransformDeclarations;
 use crate::{
@@ -17,14 +18,14 @@ impl TransformDeclarations {
     pub(super) fn transform_variable_statement(
         &self,
         input: &Node, /*VariableStatement*/
-    ) -> io::Result<Option<Gc<Node>>> {
+    ) -> io::Result<Option<Id<Node>>> {
         let input_as_variable_statement = input.as_variable_statement();
         if !for_each_bool(
             &input_as_variable_statement
                 .declaration_list
                 .as_variable_declaration_list()
                 .declarations,
-            |declaration: &Gc<Node>, _| self.get_binding_name_visible(declaration),
+            |declaration: &Id<Node>, _| self.get_binding_name_visible(declaration),
         ) {
             return Ok(None);
         }
@@ -59,17 +60,17 @@ impl TransformDeclarations {
     pub(super) fn recreate_binding_pattern(
         &self,
         d: &Node, /*BindingPattern*/
-    ) -> io::Result<Vec<Gc<Node /*VariableDeclaration*/>>> {
+    ) -> io::Result<Vec<Id<Node /*VariableDeclaration*/>>> {
         Ok(flatten(&try_map_defined(
             Some(&d.as_has_elements().elements()),
-            |e: &Gc<Node>, _| self.recreate_binding_element(e),
+            |e: &Id<Node>, _| self.recreate_binding_element(e),
         )?))
     }
 
     pub(super) fn recreate_binding_element(
         &self,
         e: &Node, /*ArrayBindingElement*/
-    ) -> io::Result<Option<Vec<Gc<Node>>>> {
+    ) -> io::Result<Option<Vec<Id<Node>>>> {
         if e.kind() == SyntaxKind::OmittedExpression {
             return Ok(None);
         }
@@ -136,7 +137,7 @@ impl TransformDeclarations {
     pub(super) fn has_scope_marker(&self, statements: &NodeArray) -> bool {
         some(
             Some(statements),
-            Some(|statement: &Gc<Node>| self.is_scope_marker(statement)),
+            Some(|statement: &Id<Node>| self.is_scope_marker(statement)),
         )
     }
 
@@ -175,7 +176,7 @@ impl TransformDeclarations {
         &self,
         node: &Node, /*AccessorDeclaration*/
         accessors: &AllAccessorDeclarations,
-    ) -> Option<Gc<Node>> {
+    ) -> Option<Id<Node>> {
         let mut accessor_type = get_type_annotation_from_accessor(node);
         if accessor_type.is_none() && !ptr::eq(node, &*accessors.first_accessor) {
             accessor_type = get_type_annotation_from_accessor(&accessors.first_accessor);
@@ -262,7 +263,7 @@ pub(super) fn mask_modifiers(
     node: &Node,
     modifier_mask: Option<ModifierFlags>,
     modifier_additions: Option<ModifierFlags>,
-) -> Vec<Gc<Node /*Modifier*/>> {
+) -> Vec<Id<Node /*Modifier*/>> {
     get_factory().create_modifiers_from_modifier_flags(mask_modifier_flags(
         node,
         modifier_mask,
@@ -289,7 +290,7 @@ pub(super) fn mask_modifier_flags(
 
 pub(super) fn get_type_annotation_from_accessor(
     accessor: &Node, /*AccessorDeclaration*/
-) -> Option<Gc<Node /*TypeNode*/>> {
+) -> Option<Id<Node /*TypeNode*/>> {
     // if (accessor) {
     if accessor.kind() == SyntaxKind::GetAccessor {
         accessor.as_get_accessor_declaration().maybe_type()

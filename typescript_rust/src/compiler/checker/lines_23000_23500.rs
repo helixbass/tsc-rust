@@ -111,7 +111,7 @@ impl TypeChecker {
                 && self.is_empty_array_literal(&node.parent().as_binary_expression().right)
     }
 
-    pub(super) fn get_reference_candidate(&self, node: &Node /*Expression*/) -> Gc<Node> {
+    pub(super) fn get_reference_candidate(&self, node: &Node /*Expression*/) -> Id<Node> {
         match node.kind() {
             SyntaxKind::ParenthesizedExpression => {
                 return self
@@ -137,7 +137,7 @@ impl TypeChecker {
         node.node_wrapper()
     }
 
-    pub(super) fn get_reference_root(&self, node: &Node) -> Gc<Node> {
+    pub(super) fn get_reference_root(&self, node: &Node) -> Id<Node> {
         let parent = node.parent();
         if parent.kind() == SyntaxKind::ParenthesizedExpression
             || parent.kind() == SyntaxKind::BinaryExpression && {
@@ -1092,7 +1092,7 @@ impl TypeChecker {
         &self,
         predicate: &TypePredicate,
         call_expression: &Node, /*CallExpression*/
-    ) -> Option<Gc<Node>> {
+    ) -> Option<Id<Node>> {
         let call_expression_as_call_expression = call_expression.as_call_expression();
         if matches!(
             predicate.kind,

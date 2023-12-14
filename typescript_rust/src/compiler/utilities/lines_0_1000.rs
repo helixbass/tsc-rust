@@ -61,7 +61,7 @@ pub const no_truncation_maximum_truncation_length: usize = 1_000_000;
 pub fn get_declaration_of_kind(
     symbol: &Symbol,
     kind: SyntaxKind,
-) -> Option<Gc<Node /*T extends Declaration*/>> {
+) -> Option<Id<Node /*T extends Declaration*/>> {
     let maybe_declarations = symbol.maybe_declarations();
     let declarations = maybe_declarations.as_ref();
     if let Some(declarations) = declarations {
@@ -272,7 +272,7 @@ impl SymbolTracker for SingleLineStringWriter {
     fn track_symbol(
         &self,
         symbol: Id<Symbol>,
-        enclosing_declaration: Option<Gc<Node>>,
+        enclosing_declaration: Option<Id<Node>>,
         meaning: SymbolFlags,
     ) -> Option<io::Result<bool>> {
         self._dyn_symbol_tracker_wrapper
@@ -359,7 +359,7 @@ impl SymbolTracker for SingleLineStringWriterSymbolTracker {
     fn track_symbol(
         &self,
         _symbol: Id<Symbol>,
-        _enclosing_declaration: Option<Gc<Node>>,
+        _enclosing_declaration: Option<Id<Node>>,
         _meaning: SymbolFlags,
     ) -> Option<io::Result<bool>> {
         Some(Ok(false))
@@ -785,7 +785,7 @@ fn aggregate_child_data(node: &Node) {
     }
 }
 
-pub fn get_source_file_of_node(node: &Node) -> Gc<Node /*SourceFile*/> {
+pub fn get_source_file_of_node(node: &Node) -> Id<Node /*SourceFile*/> {
     let mut node = node.node_wrapper();
     while node.kind() != SyntaxKind::SourceFile {
         node = node.parent();
@@ -795,7 +795,7 @@ pub fn get_source_file_of_node(node: &Node) -> Gc<Node /*SourceFile*/> {
 
 pub fn maybe_get_source_file_of_node(
     node: Option<impl Borrow<Node>>,
-) -> Option<Gc<Node /*SourceFile*/>> {
+) -> Option<Id<Node /*SourceFile*/>> {
     // node.map(|node| get_source_file_of_node(node.borrow()))
     let mut node = node.map(|node| {
         let node = node.borrow();
@@ -807,7 +807,7 @@ pub fn maybe_get_source_file_of_node(
     node
 }
 
-pub fn get_source_file_of_module(module: &Symbol) -> Option<Gc<Node /*SourceFile*/>> {
+pub fn get_source_file_of_module(module: &Symbol) -> Option<Id<Node /*SourceFile*/>> {
     maybe_get_source_file_of_node(
         module
             .maybe_value_declaration()
@@ -893,8 +893,8 @@ pub fn node_is_present(node: Option<impl Borrow<Node>>) -> bool {
 }
 
 fn insert_statements_after_prologue(
-    to: &mut Vec<Gc<Node>>,
-    from: Option<&[Gc<Node>]>,
+    to: &mut Vec<Id<Node>>,
+    from: Option<&[Id<Node>]>,
     mut is_prologue_directive: impl FnMut(&Node) -> bool,
 ) {
     if from.is_none() {
@@ -918,8 +918,8 @@ fn insert_statements_after_prologue(
 }
 
 fn insert_statement_after_prologue(
-    to: &mut Vec<Gc<Node>>,
-    statement: Option<Gc<Node>>,
+    to: &mut Vec<Id<Node>>,
+    statement: Option<Id<Node>>,
     mut is_prologue_directive: impl FnMut(&Node) -> bool,
 ) {
     if statement.is_none() {
@@ -941,24 +941,24 @@ fn is_any_prologue_directive(node: &Node) -> bool {
 }
 
 pub fn insert_statements_after_standard_prologue(
-    to: &mut Vec<Gc<Node>>,
-    from: Option<&[Gc<Node>]>,
+    to: &mut Vec<Id<Node>>,
+    from: Option<&[Id<Node>]>,
 ) {
     insert_statements_after_prologue(to, from, is_prologue_directive)
 }
 
-pub fn insert_statements_after_custom_prologue(to: &mut Vec<Gc<Node>>, from: Option<&[Gc<Node>]>) {
+pub fn insert_statements_after_custom_prologue(to: &mut Vec<Id<Node>>, from: Option<&[Id<Node>]>) {
     insert_statements_after_prologue(to, from, is_any_prologue_directive)
 }
 
 pub fn insert_statement_after_standard_prologue(
-    to: &mut Vec<Gc<Node>>,
-    statement: Option<Gc<Node>>,
+    to: &mut Vec<Id<Node>>,
+    statement: Option<Id<Node>>,
 ) {
     insert_statement_after_prologue(to, statement, is_prologue_directive)
 }
 
-pub fn insert_statement_after_custom_prologue(to: &mut Vec<Gc<Node>>, statement: Option<Gc<Node>>) {
+pub fn insert_statement_after_custom_prologue(to: &mut Vec<Id<Node>>, statement: Option<Id<Node>>) {
     insert_statement_after_prologue(to, statement, is_any_prologue_directive)
 }
 
@@ -1214,7 +1214,7 @@ fn get_pos(range: &Node) -> isize {
     range.pos()
 }
 
-pub fn index_of_node(node_array: &[Gc<Node>], node: &Node) -> isize {
+pub fn index_of_node(node_array: &[Id<Node>], node: &Node) -> isize {
     binary_search_copy_key(
         node_array,
         &node.node_wrapper(),
@@ -1619,7 +1619,7 @@ pub fn is_module_augmentation_external(node: &Node /*AmbientModuleDeclaration*/)
     }
 }
 
-pub fn get_non_augmentation_declaration(symbol: &Symbol) -> Option<Gc<Node /*Declaration*/>> {
+pub fn get_non_augmentation_declaration(symbol: &Symbol) -> Option<Id<Node /*Declaration*/>> {
     symbol
         .maybe_declarations()
         .as_ref()
@@ -1782,7 +1782,7 @@ pub fn is_any_import_or_re_export(node: &Node) -> bool {
     is_any_import_syntax(node) || is_export_declaration(node)
 }
 
-pub fn get_enclosing_block_scope_container(node: &Node) -> Option<Gc<Node>> {
+pub fn get_enclosing_block_scope_container(node: &Node) -> Option<Id<Node>> {
     find_ancestor(node.maybe_parent(), |current| {
         is_block_scope(current, current.maybe_parent())
     })

@@ -6,6 +6,7 @@ use std::{
 };
 
 use gc::Gc;
+use id_arena::Id;
 
 use crate::{
     maybe_map, unescape_leading_underscores, AssertionLevel, Node, NodeArray, NodeInterface,
@@ -191,7 +192,7 @@ impl DebugType {
 
     pub fn assert_each_node(
         &self,
-        nodes: &[Gc<Node>],
+        nodes: &[Id<Node>],
         mut test: impl FnMut(&Node) -> bool,
         message: Option<&str>,
     ) {
@@ -238,7 +239,7 @@ impl DebugType {
             self.format_symbol_flags(Some(symbol.flags())),
             maybe_map(
                 symbol.maybe_declarations().as_deref(),
-                |node: &Gc<Node>, _| self.format_syntax_kind(Some(node.kind()))
+                |node: &Id<Node>, _| self.format_syntax_kind(Some(node.kind()))
             )
         )
     }

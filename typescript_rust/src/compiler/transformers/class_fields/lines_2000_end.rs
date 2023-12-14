@@ -1,4 +1,5 @@
 use gc::Gc;
+use id_arena::Id;
 
 use super::TransformClassFields;
 use crate::{
@@ -48,9 +49,9 @@ impl TransformClassFields {
 }
 
 pub(super) fn create_private_static_field_initializer(
-    variable_name: Gc<Node /*Identifier*/>,
-    initializer: Option<Gc<Node /*Expression*/>>,
-) -> Gc<Node> {
+    variable_name: Id<Node /*Identifier*/>,
+    initializer: Option<Id<Node /*Expression*/>>,
+) -> Id<Node> {
     get_factory().create_assignment(
         variable_name,
         get_factory().create_object_literal_expression(
@@ -64,10 +65,10 @@ pub(super) fn create_private_static_field_initializer(
 }
 
 pub(super) fn create_private_instance_field_initializer(
-    receiver: Gc<Node /*LeftHandSideExpression*/>,
-    initializer: Option<Gc<Node /*Expression*/>>,
-    weak_map_name: Gc<Node /*Identifier*/>,
-) -> Gc<Node> {
+    receiver: Id<Node /*LeftHandSideExpression*/>,
+    initializer: Option<Id<Node /*Expression*/>>,
+    weak_map_name: Id<Node /*Identifier*/>,
+) -> Id<Node> {
     get_factory().create_call_expression(
         get_factory().create_property_access_expression(weak_map_name, "set"),
         Option::<Gc<NodeArray>>::None,
@@ -79,9 +80,9 @@ pub(super) fn create_private_instance_field_initializer(
 }
 
 pub(super) fn create_private_instance_method_initializer(
-    receiver: Gc<Node /*LeftHandSideExpression*/>,
-    weak_set_name: Gc<Node /*Identifier*/>,
-) -> Gc<Node> {
+    receiver: Id<Node /*LeftHandSideExpression*/>,
+    weak_set_name: Id<Node /*Identifier*/>,
+) -> Id<Node> {
     get_factory().create_call_expression(
         get_factory().create_property_access_expression(weak_set_name, "add"),
         Option::<Gc<NodeArray>>::None,

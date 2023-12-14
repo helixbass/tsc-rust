@@ -318,7 +318,7 @@ impl TypeChecker {
                 &node_name.as_identifier().escaped_text,
                 SymbolFlags::Variable,
                 None,
-                Option::<Gc<Node>>::None,
+                Option::<Id<Node>>::None,
                 false,
                 None,
             )?;
@@ -481,7 +481,7 @@ impl TypeChecker {
 
             try_for_each(
                 &node_name.as_has_elements().elements(),
-                |element: &Gc<Node>, _| -> io::Result<Option<()>> {
+                |element: &Id<Node>, _| -> io::Result<Option<()>> {
                     self.check_source_element(Some(&**element))?;
                     Ok(None)
                 },
@@ -593,7 +593,7 @@ impl TypeChecker {
             {
                 if some(
                     Some(symbol_declarations),
-                    Some(|d: &Gc<Node>| {
+                    Some(|d: &Id<Node>| {
                         !ptr::eq(&**d, node)
                             && is_variable_like(d)
                             && !self.are_declaration_flags_identical(d, node)

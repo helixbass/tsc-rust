@@ -3,6 +3,7 @@ use std::{cell::Cell, collections::HashMap, io, mem, ptr};
 use bitflags::bitflags;
 use derive_builder::Builder;
 use gc::{Finalize, Gc, GcCell, GcCellRef, GcCellRefMut, Trace};
+use id_arena::Id;
 use indexmap::IndexMap;
 
 use crate::{
@@ -33,8 +34,8 @@ bitflags! {
 pub(super) struct LoopOutParameter {
     #[unsafe_ignore_trace]
     pub flags: LoopOutParameterFlags,
-    pub original_name: Gc<Node /*Identifier*/>,
-    pub out_param_name: Gc<Node /*Identifier*/>,
+    pub original_name: Id<Node /*Identifier*/>,
+    pub out_param_name: Id<Node /*Identifier*/>,
 }
 
 bitflags! {
@@ -77,16 +78,16 @@ pub(super) struct ConvertedLoopState {
     #[unsafe_ignore_trace]
     pub allowed_non_labeled_jumps: Option<Jump>,
     #[builder(default)]
-    pub arguments_name: Option<Gc<Node /*Identifier*/>>,
+    pub arguments_name: Option<Id<Node /*Identifier*/>>,
     #[builder(default)]
-    pub this_name: Option<Gc<Node /*Identifier*/>>,
+    pub this_name: Option<Id<Node /*Identifier*/>>,
     #[builder(default)]
     pub contains_lexical_this: Option<bool>,
     #[builder(default)]
-    pub hoisted_local_variables: Option<Vec<Gc<Node /*Identifier*/>>>,
+    pub hoisted_local_variables: Option<Vec<Id<Node /*Identifier*/>>>,
     #[builder(default)]
-    pub condition_variable: Option<Gc<Node /*Identifier*/>>,
-    pub loop_parameters: Vec<Gc<Node /*ParameterDeclaration*/>>,
+    pub condition_variable: Option<Id<Node /*Identifier*/>>,
+    pub loop_parameters: Vec<Id<Node /*ParameterDeclaration*/>>,
     pub loop_out_parameters: Vec<LoopOutParameter>,
 }
 
@@ -168,12 +169,12 @@ pub(super) enum SpreadSegmentKind {
 #[derive(Clone)]
 pub(super) struct SpreadSegment {
     pub kind: SpreadSegmentKind,
-    pub expression: Gc<Node /*Expression*/>,
+    pub expression: Id<Node /*Expression*/>,
 }
 
 pub(super) fn create_spread_segment(
     kind: SpreadSegmentKind,
-    expression: Gc<Node /*Expression*/>,
+    expression: Id<Node /*Expression*/>,
 ) -> SpreadSegment {
     SpreadSegment { kind, expression }
 }
@@ -186,12 +187,12 @@ pub(super) struct TransformES2015 {
     pub(super) factory: Gc<NodeFactory<BaseNodeFactorySynthetic>>,
     pub(super) compiler_options: Gc<CompilerOptions>,
     pub(super) resolver: Gc<Box<dyn EmitResolver>>,
-    pub(super) current_source_file: GcCell<Option<Gc<Node /*SourceFile*/>>>,
+    pub(super) current_source_file: GcCell<Option<Id<Node /*SourceFile*/>>>,
     pub(super) current_text: GcCell<Option<SourceTextAsChars>>,
     #[unsafe_ignore_trace]
     pub(super) hierarchy_facts: Cell<Option<HierarchyFacts>>,
     pub(super) tagged_template_string_declarations:
-        GcCell<Option<Vec<Gc<Node /*VariableDeclaration*/>>>>,
+        GcCell<Option<Vec<Id<Node /*VariableDeclaration*/>>>>,
     pub(super) converted_loop_state: GcCell<Option<Gc<GcCell<ConvertedLoopState>>>>,
     #[unsafe_ignore_trace]
     pub(super) enabled_substitutions: Cell<Option<ES2015SubstitutionFlags>>,
@@ -239,17 +240,17 @@ impl TransformES2015 {
         self._rc_wrapper.borrow().clone().unwrap()
     }
 
-    pub(super) fn maybe_current_source_file(&self) -> GcCellRef<Option<Gc<Node /*SourceFile*/>>> {
+    pub(super) fn maybe_current_source_file(&self) -> GcCellRef<Option<Id<Node /*SourceFile*/>>> {
         self.current_source_file.borrow()
     }
 
-    pub(super) fn current_source_file(&self) -> GcCellRef<Gc<Node /*SourceFile*/>> {
+    pub(super) fn current_source_file(&self) -> GcCellRef<Id<Node /*SourceFile*/>> {
         gc_cell_ref_unwrapped(&self.current_source_file)
     }
 
     pub(super) fn set_current_source_file(
         &self,
-        current_source_file: Option<Gc<Node /*SourceFile*/>>,
+        current_source_file: Option<Id<Node /*SourceFile*/>>,
     ) {
         *self.current_source_file.borrow_mut() = current_source_file;
     }
@@ -298,19 +299,19 @@ impl TransformES2015 {
 
     pub(super) fn maybe_tagged_template_string_declarations(
         &self,
-    ) -> GcCellRef<Option<Vec<Gc<Node /*VariableDeclaration*/>>>> {
+    ) -> GcCellRef<Option<Vec<Id<Node /*VariableDeclaration*/>>>> {
         self.tagged_template_string_declarations.borrow()
     }
 
     pub(super) fn maybe_tagged_template_string_declarations_mut(
         &self,
-    ) -> GcCellRefMut<Option<Vec<Gc<Node /*VariableDeclaration*/>>>> {
+    ) -> GcCellRefMut<Option<Vec<Id<Node /*VariableDeclaration*/>>>> {
         self.tagged_template_string_declarations.borrow_mut()
     }
 
     pub(super) fn set_tagged_template_string_declarations(
         &self,
-        tagged_template_string_declarations: Option<Vec<Gc<Node /*VariableDeclaration*/>>>,
+        tagged_template_string_declarations: Option<Vec<Id<Node /*VariableDeclaration*/>>>,
     ) {
         *self.tagged_template_string_declarations.borrow_mut() =
             tagged_template_string_declarations;
@@ -334,7 +335,7 @@ impl TransformES2015 {
     pub(super) fn transform_source_file(
         &self,
         node: &Node, /*SourceFile*/
-    ) -> io::Result<Gc<Node>> {
+    ) -> io::Result<Id<Node>> {
         let node_as_source_file = node.as_source_file();
         if node_as_source_file.is_declaration_file() {
             return Ok(node.node_wrapper());
@@ -560,7 +561,7 @@ impl TransformES2015 {
 }
 
 impl TransformerInterface for TransformES2015 {
-    fn call(&self, node: &Node) -> io::Result<Gc<Node>> {
+    fn call(&self, node: &Node) -> io::Result<Id<Node>> {
         self.transform_source_file(node)
     }
 }
@@ -640,7 +641,7 @@ impl TransformES2015OnSubstituteNodeOverrider {
     pub(super) fn substitute_identifier(
         &self,
         node: &Node, /*Identifier*/
-    ) -> io::Result<Gc<Node>> {
+    ) -> io::Result<Id<Node>> {
         if self
             .transform_es2015
             .maybe_enabled_substitutions()
@@ -685,7 +686,7 @@ impl TransformES2015OnSubstituteNodeOverrider {
     pub(super) fn substitute_expression(
         &self,
         node: &Node, /*Identifier*/
-    ) -> io::Result<Gc<Node>> {
+    ) -> io::Result<Id<Node>> {
         match node.kind() {
             SyntaxKind::Identifier => {
                 return self.substitute_expression_identifier(node);
@@ -702,7 +703,7 @@ impl TransformES2015OnSubstituteNodeOverrider {
     pub(super) fn substitute_expression_identifier(
         &self,
         node: &Node, /*Identifier*/
-    ) -> io::Result<Gc<Node /*Identifier*/>> {
+    ) -> io::Result<Id<Node /*Identifier*/>> {
         if self
             .transform_es2015
             .maybe_enabled_substitutions()
@@ -761,7 +762,7 @@ impl TransformES2015OnSubstituteNodeOverrider {
     pub(super) fn substitute_this_keyword(
         &self,
         node: &Node, /*PrimaryExpression*/
-    ) -> Gc<Node /*PrimaryExpression*/> {
+    ) -> Id<Node /*PrimaryExpression*/> {
         if self
             .transform_es2015
             .maybe_enabled_substitutions()
@@ -789,7 +790,7 @@ impl TransformES2015OnSubstituteNodeOverrider {
 }
 
 impl TransformationContextOnSubstituteNodeOverrider for TransformES2015OnSubstituteNodeOverrider {
-    fn on_substitute_node(&self, hint: EmitHint, node: &Node) -> io::Result<Gc<Node>> {
+    fn on_substitute_node(&self, hint: EmitHint, node: &Node) -> io::Result<Id<Node>> {
         let ref node = self
             .previous_on_substitute_node
             .on_substitute_node(hint, node)?;

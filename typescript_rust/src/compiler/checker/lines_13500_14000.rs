@@ -160,7 +160,7 @@ impl TypeChecker {
     pub(super) fn get_type_declaration(
         &self,
         symbol: Id<Symbol>,
-    ) -> Option<Gc<Node /*Declaration*/>> {
+    ) -> Option<Id<Node /*Declaration*/>> {
         let symbol_ref = symbol.ref_(self);
         let declarations = symbol_ref.maybe_declarations();
         declarations.as_ref().and_then(|declarations| {
@@ -239,7 +239,7 @@ impl TypeChecker {
                 let decl = symbol_declarations
                     .as_deref()
                     .and_then(|symbol_declarations| {
-                        find(symbol_declarations, |declaration: &Gc<Node>, _| {
+                        find(symbol_declarations, |declaration: &Id<Node>, _| {
                             is_type_alias_declaration(declaration)
                         })
                         .map(Clone::clone)
@@ -811,11 +811,11 @@ impl TypeChecker {
         let node_as_tuple_type_node = node.as_tuple_type_node();
         let element_flags = map(
             &node_as_tuple_type_node.elements,
-            |element: &Gc<Node>, _| self.get_tuple_element_flags(element),
+            |element: &Id<Node>, _| self.get_tuple_element_flags(element),
         );
         let missing_name = some(
             Some(&node_as_tuple_type_node.elements),
-            Some(|e: &Gc<Node>| e.kind() != SyntaxKind::NamedTupleMember),
+            Some(|e: &Id<Node>| e.kind() != SyntaxKind::NamedTupleMember),
         );
         self.get_tuple_target_type(
             &element_flags,
@@ -840,7 +840,7 @@ impl TypeChecker {
                 } else if node.kind() == SyntaxKind::TupleType {
                     try_some(
                         Some(&node.as_tuple_type_node().elements),
-                        Some(|element: &Gc<Node>| self.may_resolve_type_alias(element)),
+                        Some(|element: &Id<Node>| self.may_resolve_type_alias(element)),
                     )?
                 } else {
                     matches!(has_default_type_arguments, Some(true))
@@ -848,7 +848,7 @@ impl TypeChecker {
                             node.as_type_reference_node()
                                 .maybe_type_arguments()
                                 .as_double_deref(),
-                            Some(|type_argument: &Gc<Node>| {
+                            Some(|type_argument: &Id<Node>| {
                                 self.may_resolve_type_alias(type_argument)
                             }),
                         )?
@@ -910,7 +910,7 @@ impl TypeChecker {
             }
             SyntaxKind::UnionType | SyntaxKind::IntersectionType => try_some(
                 Some(&node.as_union_or_intersection_type_node().types()),
-                Some(|type_: &Gc<Node>| self.may_resolve_type_alias(type_)),
+                Some(|type_: &Id<Node>| self.may_resolve_type_alias(type_)),
             )?,
             SyntaxKind::IndexedAccessType => {
                 let node_as_indexed_access_type_node = node.as_indexed_access_type_node();
@@ -940,7 +940,7 @@ impl TypeChecker {
             } else if !(node.kind() == SyntaxKind::TupleType
                 && some(
                     Some(&*node.as_tuple_type_node().elements),
-                    Some(|e: &Gc<Node>| {
+                    Some(|e: &Id<Node>| {
                         self.get_tuple_element_flags(e)
                             .intersects(ElementFlags::Variadic)
                     }),
@@ -968,7 +968,7 @@ impl TypeChecker {
                 } else {
                     try_map(
                         &node.as_tuple_type_node().elements,
-                        |element: &Gc<Node>, _| self.get_type_from_type_node_(element),
+                        |element: &Id<Node>, _| self.get_type_from_type_node_(element),
                     )?
                 };
                 links.borrow_mut().resolved_type =
@@ -989,7 +989,7 @@ impl TypeChecker {
         element_types: &[Id<Type>],
         element_flags: Option<&[ElementFlags]>,
         readonly: Option<bool>,
-        named_member_declarations: Option<&[Gc<Node /*NamedTupleMember | ParameterDeclaration*/>]>,
+        named_member_declarations: Option<&[Id<Node /*NamedTupleMember | ParameterDeclaration*/>]>,
     ) -> io::Result<Id<Type>> {
         let readonly = readonly.unwrap_or(false);
         let tuple_target = self.get_tuple_target_type(
@@ -1012,7 +1012,7 @@ impl TypeChecker {
         &self,
         element_flags: &[ElementFlags],
         readonly: bool,
-        named_member_declarations: Option<&[Gc<Node /*NamedTupleMember | ParameterDeclaration*/>]>,
+        named_member_declarations: Option<&[Id<Node /*NamedTupleMember | ParameterDeclaration*/>]>,
     ) -> io::Result<Id<Type /*GenericType*/>> {
         if element_flags.len() == 1 && element_flags[0].intersects(ElementFlags::Rest) {
             return Ok(if readonly {
@@ -1043,7 +1043,7 @@ impl TypeChecker {
                     ",{}",
                     map(
                         named_member_declarations,
-                        |named_member_declaration: &Gc<Node>, _| get_node_id(
+                        |named_member_declaration: &Id<Node>, _| get_node_id(
                             named_member_declaration
                         )
                         .to_string()
@@ -1070,7 +1070,7 @@ impl TypeChecker {
         &self,
         element_flags: &[ElementFlags],
         readonly: bool,
-        named_member_declarations: Option<&[Gc<Node /*NamedTupleMember | ParameterDeclaration*/>]>,
+        named_member_declarations: Option<&[Id<Node /*NamedTupleMember | ParameterDeclaration*/>]>,
     ) -> io::Result<Id<Type /*TupleType*/>> {
         let arity = element_flags.len();
         let min_length = count_where(Some(element_flags), |f: &ElementFlags, _| {

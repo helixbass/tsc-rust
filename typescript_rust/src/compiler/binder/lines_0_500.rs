@@ -214,11 +214,11 @@ pub(super) fn get_module_instance_state_for_alias_target(
     visited: Rc<RefCell<HashMap<NodeId, Option<ModuleInstanceState>>>>,
 ) -> ModuleInstanceState {
     let specifier_as_export_specifier = specifier.as_export_specifier();
-    let name: Gc<Node> = specifier_as_export_specifier
+    let name: Id<Node> = specifier_as_export_specifier
         .property_name
         .clone()
         .unwrap_or_else(|| specifier_as_export_specifier.name.clone());
-    let mut p: Option<Gc<Node>> = specifier.maybe_parent();
+    let mut p: Option<Id<Node>> = specifier.maybe_parent();
     while let Some(p_present) = p {
         if is_block(&p_present) || is_module_block(&p_present) || is_source_file(&p_present) {
             let statements = p_present.as_has_statements().statements();
@@ -300,17 +300,17 @@ pub struct BinderType {
     #[unsafe_ignore_trace]
     pub(crate) arena: *const AllArenas,
     pub(super) _rc_wrapper: GcCell<Option<Gc<BinderType>>>,
-    pub(super) file: GcCell<Option<Gc</*SourceFile*/ Node>>>,
+    pub(super) file: GcCell<Option<Id</*SourceFile*/ Node>>>,
     pub(super) options: GcCell<Option<Gc<CompilerOptions>>>,
     #[unsafe_ignore_trace]
     pub(super) language_version: Cell<Option<ScriptTarget>>,
-    pub(super) parent: GcCell<Option<Gc<Node>>>,
-    pub(super) container: GcCell<Option<Gc<Node>>>,
-    pub(super) this_parent_container: GcCell<Option<Gc<Node>>>,
-    pub(super) block_scope_container: GcCell<Option<Gc<Node>>>,
-    pub(super) last_container: GcCell<Option<Gc<Node>>>,
+    pub(super) parent: GcCell<Option<Id<Node>>>,
+    pub(super) container: GcCell<Option<Id<Node>>>,
+    pub(super) this_parent_container: GcCell<Option<Id<Node>>>,
+    pub(super) block_scope_container: GcCell<Option<Id<Node>>>,
+    pub(super) last_container: GcCell<Option<Id<Node>>>,
     pub(super) delayed_type_aliases:
-        GcCell<Option<Vec<Gc<Node /*JSDocTypedefTag | JSDocCallbackTag | JSDocEnumTag*/>>>>,
+        GcCell<Option<Vec<Id<Node /*JSDocTypedefTag | JSDocCallbackTag | JSDocEnumTag*/>>>>,
     #[unsafe_ignore_trace]
     pub(super) seen_this_keyword: Cell<Option<bool>>,
 
@@ -400,11 +400,11 @@ impl BinderType {
         self._rc_wrapper.borrow().clone().unwrap()
     }
 
-    pub(super) fn file(&self) -> Gc<Node> {
+    pub(super) fn file(&self) -> Id<Node> {
         self.file.borrow().as_ref().unwrap().clone()
     }
 
-    pub(super) fn set_file(&self, file: Option<Gc<Node>>) {
+    pub(super) fn set_file(&self, file: Option<Id<Node>>) {
         *self.file.borrow_mut() = file;
     }
 
@@ -424,31 +424,31 @@ impl BinderType {
         self.language_version.set(language_version);
     }
 
-    pub(super) fn maybe_parent(&self) -> Option<Gc<Node>> {
+    pub(super) fn maybe_parent(&self) -> Option<Id<Node>> {
         self.parent.borrow().clone()
     }
 
-    pub(super) fn parent(&self) -> Gc<Node> {
+    pub(super) fn parent(&self) -> Id<Node> {
         self.parent.borrow().as_ref().unwrap().clone()
     }
 
-    pub(super) fn set_parent(&self, parent: Option<Gc<Node>>) {
+    pub(super) fn set_parent(&self, parent: Option<Id<Node>>) {
         *self.parent.borrow_mut() = parent;
     }
 
-    pub(super) fn container(&self) -> Gc<Node> {
+    pub(super) fn container(&self) -> Id<Node> {
         self.container.borrow().as_ref().unwrap().clone()
     }
 
-    pub(super) fn maybe_container(&self) -> Option<Gc<Node>> {
+    pub(super) fn maybe_container(&self) -> Option<Id<Node>> {
         self.container.borrow().as_ref().map(Clone::clone)
     }
 
-    pub(super) fn set_container(&self, container: Option<Gc<Node>>) {
+    pub(super) fn set_container(&self, container: Option<Id<Node>>) {
         *self.container.borrow_mut() = container;
     }
 
-    pub(super) fn this_parent_container(&self) -> Gc<Node> {
+    pub(super) fn this_parent_container(&self) -> Id<Node> {
         self.this_parent_container
             .borrow()
             .as_ref()
@@ -456,25 +456,25 @@ impl BinderType {
             .clone()
     }
 
-    pub(super) fn maybe_this_parent_container(&self) -> Option<Gc<Node>> {
+    pub(super) fn maybe_this_parent_container(&self) -> Option<Id<Node>> {
         self.this_parent_container
             .borrow()
             .as_ref()
             .map(Clone::clone)
     }
 
-    pub(super) fn set_this_parent_container(&self, this_parent_container: Option<Gc<Node>>) {
+    pub(super) fn set_this_parent_container(&self, this_parent_container: Option<Id<Node>>) {
         *self.this_parent_container.borrow_mut() = this_parent_container;
     }
 
-    pub(super) fn maybe_block_scope_container(&self) -> Option<Gc<Node>> {
+    pub(super) fn maybe_block_scope_container(&self) -> Option<Id<Node>> {
         self.block_scope_container
             .borrow()
             .as_ref()
             .map(Clone::clone)
     }
 
-    pub(super) fn block_scope_container(&self) -> Gc<Node> {
+    pub(super) fn block_scope_container(&self) -> Id<Node> {
         self.block_scope_container
             .borrow()
             .as_ref()
@@ -482,23 +482,23 @@ impl BinderType {
             .clone()
     }
 
-    pub(super) fn set_block_scope_container(&self, block_scope_container: Option<Gc<Node>>) {
+    pub(super) fn set_block_scope_container(&self, block_scope_container: Option<Id<Node>>) {
         *self.block_scope_container.borrow_mut() = block_scope_container;
     }
 
-    pub(super) fn maybe_last_container(&self) -> Option<Gc<Node>> {
+    pub(super) fn maybe_last_container(&self) -> Option<Id<Node>> {
         self.last_container.borrow().clone()
     }
 
-    pub(super) fn set_last_container(&self, last_container: Option<Gc<Node>>) {
+    pub(super) fn set_last_container(&self, last_container: Option<Id<Node>>) {
         *self.last_container.borrow_mut() = last_container;
     }
 
-    pub(super) fn maybe_delayed_type_aliases(&self) -> GcCellRefMut<Option<Vec<Gc<Node>>>> {
+    pub(super) fn maybe_delayed_type_aliases(&self) -> GcCellRefMut<Option<Vec<Id<Node>>>> {
         self.delayed_type_aliases.borrow_mut()
     }
 
-    pub(super) fn set_delayed_type_aliases(&self, delayed_type_aliases: Option<Vec<Gc<Node>>>) {
+    pub(super) fn set_delayed_type_aliases(&self, delayed_type_aliases: Option<Vec<Id<Node>>>) {
         *self.delayed_type_aliases.borrow_mut() = delayed_type_aliases;
     }
 
@@ -1116,11 +1116,11 @@ impl BinderType {
                                 ));
                             }
 
-                            let declaration_name: Gc<Node> = get_name_of_declaration(Some(node))
+                            let declaration_name: Id<Node> = get_name_of_declaration(Some(node))
                                 .unwrap_or_else(|| node.node_wrapper());
                             maybe_for_each(
                                 symbol_present.ref_(self).maybe_declarations().as_ref(),
-                                |declaration: &Gc<Node>, index| {
+                                |declaration: &Id<Node>, index| {
                                     let decl = get_name_of_declaration(Some(&**declaration))
                                         .unwrap_or_else(|| declaration.node_wrapper());
                                     let diag: Gc<Diagnostic> = Gc::new(

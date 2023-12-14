@@ -28,7 +28,7 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
         self.parser.next_token_jsdoc();
         self.skip_whitespace();
         let p2 = self.parser.get_node_pos();
-        let mut name: Option<Gc<Node /*EntityName | JSDocMemberName*/>> =
+        let mut name: Option<Id<Node /*EntityName | JSDocMemberName*/>> =
             if token_is_identifier_or_keyword(self.parser.token()) {
                 Some(self.parser.parse_entity_name(true, None).wrap())
             } else {
@@ -103,7 +103,7 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
     pub(super) fn parse_unknown_tag(
         &self,
         start: usize,
-        tag_name: Gc<Node /*Identifier*/>,
+        tag_name: Id<Node /*Identifier*/>,
         indent: usize,
         indent_text: &str,
     ) -> BaseJSDocTag /*JSDocAuthorTag*/ {
@@ -122,7 +122,7 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
         )
     }
 
-    pub(super) fn add_tag(&mut self, tag: Option<Gc<Node /*JSDocTag*/>>) {
+    pub(super) fn add_tag(&mut self, tag: Option<Id<Node /*JSDocTag*/>>) {
         if tag.is_none() {
             return;
         }
@@ -138,7 +138,7 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
         self.tags_end = Some(tag_end);
     }
 
-    pub(super) fn try_parse_type_expression(&self) -> Option<Gc<Node>> {
+    pub(super) fn try_parse_type_expression(&self) -> Option<Id<Node>> {
         self.skip_whitespace_or_asterisk();
         if self.parser.token() == SyntaxKind::OpenBraceToken {
             Some(self.parser.JSDocParser_parse_jsdoc_type_expression(None))
@@ -204,7 +204,7 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
     pub(super) fn parse_parameter_or_property_tag(
         &self,
         start: usize,
-        tag_name: Gc<Node /*Identifier*/>,
+        tag_name: Id<Node /*Identifier*/>,
         target: PropertyLikeParse,
         indent: usize,
     ) -> JSDocPropertyLikeTag /*JSDocParameterTag | JSDocPropertyTag*/ {
@@ -266,7 +266,7 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
 
     pub(super) fn parse_nested_type_literal(
         &self,
-        type_expression: Option<Gc<Node /*JSDocTypeExpression*/>>,
+        type_expression: Option<Id<Node /*JSDocTypeExpression*/>>,
         name: &Node, /*EntityName*/
         target: PropertyLikeParse,
         indent: usize,
@@ -278,7 +278,7 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
         }) {
             let pos = self.parser.get_node_pos();
             let mut child: Option<Node>;
-            let mut children: Option<Vec<Gc<Node /*JSDocPropertyLikeTag*/>>> = None;
+            let mut children: Option<Vec<Id<Node /*JSDocPropertyLikeTag*/>>> = None;
             while let Some(child) = {
                 child = self.parser.try_parse(|| {
                     self.parse_child_parameter_or_property_tag(target, indent, Some(name))
@@ -324,13 +324,13 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
     pub(super) fn parse_return_tag(
         &self,
         start: usize,
-        tag_name: Gc<Node /*Identifier*/>,
+        tag_name: Id<Node /*Identifier*/>,
         indent: usize,
         indent_text: &str,
     ) -> BaseJSDocTypeLikeTag /*JSDocReturnTag*/ {
         if some(
             self.tags.as_deref(),
-            Some(|tag: &Gc<Node>| is_jsdoc_return_tag(tag)),
+            Some(|tag: &Id<Node>| is_jsdoc_return_tag(tag)),
         ) {
             self.parser.parse_error_at(
                 tag_name.pos(),
@@ -360,13 +360,13 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
     pub(super) fn parse_type_tag(
         &self,
         start: usize,
-        tag_name: Gc<Node /*Identifier*/>,
+        tag_name: Id<Node /*Identifier*/>,
         indent: Option<usize>,
         indent_text: Option<&str>,
     ) -> BaseJSDocTypeLikeTag /*JSDocTypeTag*/ {
         if some(
             self.tags.as_deref(),
-            Some(|tag: &Gc<Node>| is_jsdoc_type_tag(tag)),
+            Some(|tag: &Id<Node>| is_jsdoc_type_tag(tag)),
         ) {
             self.parser.parse_error_at(
                 tag_name.pos(),
@@ -402,7 +402,7 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
     pub(super) fn parse_see_tag(
         &self,
         start: usize,
-        tag_name: Gc<Node /*Identifier*/>,
+        tag_name: Id<Node /*Identifier*/>,
         indent: Option<usize>,
         indent_text: Option<&str>,
     ) -> JSDocSeeTag /*JSDocSeeTag*/ {
@@ -440,7 +440,7 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
     pub(super) fn parse_author_tag(
         &self,
         start: usize,
-        tag_name: Gc<Node /*Identifier*/>,
+        tag_name: Id<Node /*Identifier*/>,
         indent: usize,
         indent_text: &str,
     ) -> BaseJSDocTag /*JSDocAuthorTag*/ {
@@ -533,7 +533,7 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
     pub(super) fn parse_implements_tag(
         &self,
         start: usize,
-        tag_name: Gc<Node /*Identifier*/>,
+        tag_name: Id<Node /*Identifier*/>,
         margin: usize,
         indent_text: &str,
     ) -> JSDocImplementsTag {
@@ -557,7 +557,7 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
     pub(super) fn parse_augments_tag(
         &self,
         start: usize,
-        tag_name: Gc<Node /*Identifier*/>,
+        tag_name: Id<Node /*Identifier*/>,
         margin: usize,
         indent_text: &str,
     ) -> JSDocAugmentsTag {
@@ -603,7 +603,7 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
         let pos = self.parser.get_node_pos();
         let mut node: Node = self.parse_jsdoc_identifier_name(None);
         while self.parser.parse_optional(SyntaxKind::DotToken) {
-            let name: Gc<Node> = self.parse_jsdoc_identifier_name(None).wrap();
+            let name: Id<Node> = self.parse_jsdoc_identifier_name(None).wrap();
             node = self
                 .parser
                 .finish_node(
@@ -619,12 +619,12 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
     }
 
     pub(super) fn parse_simple_tag<
-        TCreateTag: FnOnce(Option<Gc<Node /*Identifier*/>>, Option<StringOrNodeArray>) -> BaseJSDocTag,
+        TCreateTag: FnOnce(Option<Id<Node /*Identifier*/>>, Option<StringOrNodeArray>) -> BaseJSDocTag,
     >(
         &self,
         start: usize,
         create_tag: TCreateTag,
-        tag_name: Gc<Node /*Identifier*/>,
+        tag_name: Id<Node /*Identifier*/>,
         margin: usize,
         indent_text: &str,
     ) -> BaseJSDocTag /*JSDocTag*/ {
@@ -646,7 +646,7 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
     pub(super) fn parse_this_tag(
         &self,
         start: usize,
-        tag_name: Gc<Node /*Identifier*/>,
+        tag_name: Id<Node /*Identifier*/>,
         margin: usize,
         indent_text: &str,
     ) -> BaseJSDocTypeLikeTag /*JSDocThisTag*/ {
@@ -673,7 +673,7 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
     pub(super) fn parse_enum_tag(
         &self,
         start: usize,
-        tag_name: Gc<Node /*Identifier*/>,
+        tag_name: Id<Node /*Identifier*/>,
         margin: usize,
         indent_text: &str,
     ) -> BaseJSDocTypeLikeTag /*JSDocEnumTag*/ {
@@ -700,15 +700,15 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
     pub(super) fn parse_typedef_tag(
         &self,
         start: usize,
-        tag_name: Gc<Node /*Identifier*/>,
+        tag_name: Id<Node /*Identifier*/>,
         indent: usize,
         indent_text: &str,
     ) -> JSDocTypedefTag {
-        let mut type_expression: Option<Gc<Node /*JSDocTypeExpression | JSDocTypeLiteral*/>> =
+        let mut type_expression: Option<Id<Node /*JSDocTypeExpression | JSDocTypeLiteral*/>> =
             self.try_parse_type_expression();
         self.skip_whitespace_or_asterisk();
 
-        let full_name: Option<Gc<Node>> = self
+        let full_name: Option<Id<Node>> = self
             .parse_jsdoc_type_name_with_namespace(None)
             .map(Node::wrap);
         self.skip_whitespace();
@@ -721,8 +721,8 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
                 &type_expression.as_jsdoc_type_expression().type_,
             ),
         } {
-            let mut child_type_tag: Option<Gc<Node /*JSDocTypeTag*/>> = None;
-            let mut js_doc_property_tags: Option<Vec<Gc<Node /*JSDocPropertyTag*/>>> = None;
+            let mut child_type_tag: Option<Id<Node /*JSDocTypeTag*/>> = None;
+            let mut js_doc_property_tags: Option<Vec<Id<Node /*JSDocPropertyTag*/>>> = None;
             let mut has_children = false;
             while let Some(child) = self
                 .parser
@@ -860,7 +860,7 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
     pub(super) fn parse_callback_tag_parameters(&self, indent: usize) -> Gc<NodeArray> /*<JSDocParameterTag>*/
     {
         let pos = self.parser.get_node_pos();
-        let mut parameters: Option<Vec<Gc<Node>>> = None;
+        let mut parameters: Option<Vec<Id<Node>>> = None;
         while let Some(child) = self.parser.try_parse(|| {
             self.parse_child_parameter_or_property_tag(
                 PropertyLikeParse::CallbackParameter,
@@ -881,7 +881,7 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
     pub(super) fn parse_callback_tag(
         &self,
         start: usize,
-        tag_name: Gc<Node /*Identifier*/>,
+        tag_name: Id<Node /*Identifier*/>,
         indent: usize,
         indent_text: &str,
     ) -> JSDocCallbackTag {
@@ -1054,11 +1054,11 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
         if is_bracketed {
             self.skip_whitespace();
         }
-        let name: Gc<Node> = self.parse_jsdoc_identifier_name(Some(
+        let name: Id<Node> = self.parse_jsdoc_identifier_name(Some(
             &Diagnostics::Unexpected_token_A_type_parameter_name_was_expected_without_curly_braces,
         )).wrap();
 
-        let mut default_type: Option<Gc<Node /*TypeNode*/>> = None;
+        let mut default_type: Option<Id<Node /*TypeNode*/>> = None;
         if is_bracketed {
             self.skip_whitespace();
             self.parser
@@ -1090,7 +1090,7 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
     pub(super) fn parse_template_tag_type_parameters(&self) -> Gc<NodeArray> /*<TypeParameterDeclaration>*/
     {
         let pos = self.parser.get_node_pos();
-        let mut type_parameters: Vec<Gc<Node>> = vec![];
+        let mut type_parameters: Vec<Id<Node>> = vec![];
         while {
             self.skip_whitespace();
             let node = self
@@ -1109,11 +1109,11 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
     pub(super) fn parse_template_tag(
         &self,
         start: usize,
-        tag_name: Gc<Node /*Identifier*/>,
+        tag_name: Id<Node /*Identifier*/>,
         indent: usize,
         indent_text: &str,
     ) -> JSDocTemplateTag {
-        let constraint: Option<Gc<Node>> = if self.parser.token() == SyntaxKind::OpenBraceToken {
+        let constraint: Option<Id<Node>> = if self.parser.token() == SyntaxKind::OpenBraceToken {
             Some(self.parser.JSDocParser_parse_jsdoc_type_expression(None))
         } else {
             None
@@ -1220,7 +1220,7 @@ impl IncrementalParserType {
         _new_text: String,
         _text_change_range: TextChangeRange,
         _aggressive_checks: bool,
-    ) -> Gc<Node /*SourceFile*/> {
+    ) -> Id<Node /*SourceFile*/> {
         unimplemented!()
     }
 }

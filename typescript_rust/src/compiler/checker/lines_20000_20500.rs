@@ -1112,7 +1112,7 @@ impl From<Id<Type>> for GetVariancesCache {
 
 #[derive(Trace, Finalize)]
 pub(super) enum RecursionIdentity {
-    Node(Gc<Node>),
+    Node(Id<Node>),
     Symbol(Id<Symbol>),
     Type(Id<Type>),
     ConditionalRoot(Gc<GcCell<ConditionalRoot>>),
@@ -1134,8 +1134,8 @@ impl PartialEq for RecursionIdentity {
 
 impl Eq for RecursionIdentity {}
 
-impl From<Gc<Node>> for RecursionIdentity {
-    fn from(value: Gc<Node>) -> Self {
+impl From<Id<Node>> for RecursionIdentity {
+    fn from(value: Id<Node>) -> Self {
         Self::Node(value)
     }
 }

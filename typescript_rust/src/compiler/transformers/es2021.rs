@@ -1,6 +1,7 @@
 use std::io;
 
 use gc::{Finalize, Gc, Trace};
+use id_arena::Id;
 
 use crate::{
     chain_bundle, get_non_assignment_operator_for_compound_assignment, is_access_expression,
@@ -25,7 +26,7 @@ impl TransformES2021 {
         }
     }
 
-    fn transform_source_file(&self, node: &Node /*SourceFile*/) -> Gc<Node> {
+    fn transform_source_file(&self, node: &Node /*SourceFile*/) -> Id<Node> {
         if node.as_source_file().is_declaration_file() {
             return node.node_wrapper();
         }
@@ -75,7 +76,7 @@ impl TransformES2021 {
                 &binary_expression_as_binary_expression.left,
                 Some(|node: &Node| self.visitor(node)),
                 Some(is_left_hand_side_expression),
-                Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
             ),
             None,
         );
@@ -85,7 +86,7 @@ impl TransformES2021 {
                 &binary_expression_as_binary_expression.right,
                 Some(|node: &Node| self.visitor(node)),
                 Some(is_expression),
-                Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
             ),
             None,
         );
@@ -176,7 +177,7 @@ impl TransformES2021 {
 }
 
 impl TransformerInterface for TransformES2021 {
-    fn call(&self, node: &Node) -> io::Result<Gc<Node>> {
+    fn call(&self, node: &Node) -> io::Result<Id<Node>> {
         Ok(self.transform_source_file(node))
     }
 }

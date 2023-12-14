@@ -151,7 +151,7 @@ pub(crate) struct IterationTypesResolver {
     pub resolve_iteration_type: fn(
         &TypeChecker,
         type_: Id<Type>,
-        error_node: Option<Gc<Node>>,
+        error_node: Option<Id<Node>>,
     ) -> io::Result<Option<Id<Type>>>,
     pub must_have_a_next_method_diagnostic: &'static DiagnosticMessage,
     pub must_be_a_method_diagnostic: &'static DiagnosticMessage,
@@ -277,7 +277,7 @@ lazy_static! {
 
 #[derive(Clone, Debug, Trace, Finalize)]
 pub(crate) enum TypeSystemEntity {
-    Node(Gc<Node>),
+    Node(Id<Node>),
     Symbol(Id<Symbol>),
     Type(Id<Type>),
     Signature(Gc<Signature>),
@@ -327,8 +327,8 @@ impl PartialEq for TypeSystemEntity {
 
 impl Eq for TypeSystemEntity {}
 
-impl From<Gc<Node>> for TypeSystemEntity {
-    fn from(value: Gc<Node>) -> Self {
+impl From<Id<Node>> for TypeSystemEntity {
+    fn from(value: Id<Node>) -> Self {
         Self::Node(value)
     }
 }
@@ -1509,7 +1509,7 @@ impl TypeMapperCallback for PermissiveMapperFunc {
 fn async_iteration_types_resolver_resolve_iteration_type(
     type_checker: &TypeChecker,
     type_: Id<Type>,
-    error_node: Option<Gc<Node>>,
+    error_node: Option<Id<Node>>,
 ) -> io::Result<Option<Id<Type>>> {
     type_checker.get_awaited_type_(type_, error_node, None, None)
 }
@@ -1517,22 +1517,22 @@ fn async_iteration_types_resolver_resolve_iteration_type(
 fn sync_iteration_types_resolver_resolve_iteration_type(
     _type_checker: &TypeChecker,
     type_: Id<Type>,
-    _error_node: Option<Gc<Node>>,
+    _error_node: Option<Id<Node>>,
 ) -> io::Result<Option<Id<Type>>> {
     Ok(Some(type_))
 }
 
 #[derive(Debug, Trace, Finalize)]
 pub(crate) struct DuplicateInfoForSymbol {
-    pub first_file_locations: Vec<Gc<Node /*Declaration*/>>,
-    pub second_file_locations: Vec<Gc<Node /*Declaration*/>>,
+    pub first_file_locations: Vec<Id<Node /*Declaration*/>>,
+    pub second_file_locations: Vec<Id<Node /*Declaration*/>>,
     pub is_block_scoped: bool,
 }
 
 #[derive(Debug, Trace, Finalize)]
 pub(crate) struct DuplicateInfoForFiles {
-    pub first_file: Gc<Node /*SourceFile*/>,
-    pub second_file: Gc<Node /*SourceFile*/>,
+    pub first_file: Id<Node /*SourceFile*/>,
+    pub second_file: Id<Node /*SourceFile*/>,
     pub conflicting_symbols: IndexMap<String, DuplicateInfoForSymbol>,
 }
 
@@ -1663,11 +1663,11 @@ impl TypeChecker {
         self.inline_level.set(inline_level);
     }
 
-    pub(super) fn maybe_current_node(&self) -> Option<Gc<Node>> {
+    pub(super) fn maybe_current_node(&self) -> Option<Id<Node>> {
         self.current_node.borrow().clone()
     }
 
-    pub(super) fn set_current_node(&self, current_node: Option<Gc<Node>>) {
+    pub(super) fn set_current_node(&self, current_node: Option<Id<Node>>) {
         *self.current_node.borrow_mut() = current_node;
     }
 
@@ -1901,7 +1901,7 @@ impl TypeChecker {
         enclosing_declaration: Option<impl Borrow<Node>>,
         flags: Option<NodeBuilderFlags>,
         tracker: Option<Gc<Box<dyn SymbolTracker>>>,
-    ) -> io::Result<Option<Gc<Node /*TypeNode*/>>> {
+    ) -> io::Result<Option<Id<Node /*TypeNode*/>>> {
         self.node_builder()
             .type_to_type_node(type_, enclosing_declaration, flags, tracker)
     }
@@ -1912,7 +1912,7 @@ impl TypeChecker {
         enclosing_declaration: Option<impl Borrow<Node>>,
         flags: Option<NodeBuilderFlags>,
         tracker: Option<Gc<Box<dyn SymbolTracker>>>,
-    ) -> io::Result<Option<Gc<Node /*IndexSignatureDeclaration*/>>> {
+    ) -> io::Result<Option<Id<Node /*IndexSignatureDeclaration*/>>> {
         self.node_builder()
             .index_info_to_index_signature_declaration(
                 index_info,
@@ -1929,7 +1929,7 @@ impl TypeChecker {
         enclosing_declaration: Option<impl Borrow<Node>>,
         flags: Option<NodeBuilderFlags>,
         tracker: Option<Gc<Box<dyn SymbolTracker>>>,
-    ) -> io::Result<Option<Gc<Node /*SignatureDeclaration & {typeArguments?: NodeArray<TypeNode>}*/>>>
+    ) -> io::Result<Option<Id<Node /*SignatureDeclaration & {typeArguments?: NodeArray<TypeNode>}*/>>>
     {
         self.node_builder().signature_to_signature_declaration(
             signature,
@@ -1946,7 +1946,7 @@ impl TypeChecker {
         meaning: SymbolFlags,
         enclosing_declaration: Option<impl Borrow<Node>>,
         flags: Option<NodeBuilderFlags>,
-    ) -> io::Result<Option<Gc<Node /*EntityName*/>>> {
+    ) -> io::Result<Option<Id<Node /*EntityName*/>>> {
         self.node_builder().symbol_to_entity_name(
             symbol,
             Some(meaning),
@@ -1962,7 +1962,7 @@ impl TypeChecker {
         meaning: SymbolFlags,
         enclosing_declaration: Option<impl Borrow<Node>>,
         flags: Option<NodeBuilderFlags>,
-    ) -> io::Result<Option<Gc<Node /*Expression*/>>> {
+    ) -> io::Result<Option<Id<Node /*Expression*/>>> {
         self.node_builder().symbol_to_expression(
             symbol,
             Some(meaning),
@@ -1991,7 +1991,7 @@ impl TypeChecker {
         symbol: Id<Symbol>,
         enclosing_declaration: Option<impl Borrow<Node>>,
         flags: Option<NodeBuilderFlags>,
-    ) -> io::Result<Option<Gc<Node /*ParameterDeclaration*/>>> {
+    ) -> io::Result<Option<Id<Node /*ParameterDeclaration*/>>> {
         self.node_builder().symbol_to_parameter_declaration(
             symbol,
             enclosing_declaration,
@@ -2005,7 +2005,7 @@ impl TypeChecker {
         parameter: Id<Type>, /*TypeParameter*/
         enclosing_declaration: Option<impl Borrow<Node>>,
         flags: Option<NodeBuilderFlags>,
-    ) -> io::Result<Option<Gc<Node /*TypeParameterDeclaration*/>>> {
+    ) -> io::Result<Option<Id<Node /*TypeParameterDeclaration*/>>> {
         self.node_builder().type_parameter_to_declaration(
             parameter,
             enclosing_declaration,
@@ -2254,7 +2254,7 @@ impl TypeChecker {
         if matches!(context_flags, Some(context_flags) if context_flags.intersects(ContextFlags::Completions))
         {
             if let Some(containing_call) = containing_call.as_ref() {
-                let mut to_mark_skip: Option<Gc<Node>> = Some(node.node_wrapper());
+                let mut to_mark_skip: Option<Id<Node>> = Some(node.node_wrapper());
                 while {
                     let to_mark_skip_present = to_mark_skip.as_ref().unwrap();
                     self.get_node_links(to_mark_skip_present)
@@ -2272,7 +2272,7 @@ impl TypeChecker {
         if matches!(context_flags, Some(context_flags) if context_flags.intersects(ContextFlags::Completions))
         {
             if let Some(containing_call) = containing_call.as_ref() {
-                let mut to_mark_skip: Option<Gc<Node>> = Some(node.node_wrapper());
+                let mut to_mark_skip: Option<Id<Node>> = Some(node.node_wrapper());
                 while {
                     let to_mark_skip_present = to_mark_skip.as_ref().unwrap();
                     self.get_node_links(to_mark_skip_present)
@@ -2591,7 +2591,7 @@ impl TypeChecker {
             &escape_leading_underscores(name),
             meaning,
             None,
-            Option::<Gc<Node>>::None,
+            Option::<Id<Node>>::None,
             false,
             Some(exclude_globals),
         )
@@ -3319,7 +3319,7 @@ impl TypeChecker {
 
     pub(super) fn all_potentially_unused_identifiers(
         &self,
-    ) -> GcCellRefMut<HashMap<Path, Vec<Gc<Node /*PotentiallyUnusedIdentifier*/>>>> {
+    ) -> GcCellRefMut<HashMap<Path, Vec<Id<Node /*PotentiallyUnusedIdentifier*/>>>> {
         self.all_potentially_unused_identifiers.borrow_mut()
     }
 
@@ -3453,19 +3453,19 @@ impl TypeChecker {
         self.flow_node_post_super.borrow_mut()
     }
 
-    pub(super) fn potential_this_collisions(&self) -> GcCellRefMut<Vec<Gc<Node>>> {
+    pub(super) fn potential_this_collisions(&self) -> GcCellRefMut<Vec<Id<Node>>> {
         self.potential_this_collisions.borrow_mut()
     }
 
-    pub(super) fn potential_new_target_collisions(&self) -> GcCellRefMut<Vec<Gc<Node>>> {
+    pub(super) fn potential_new_target_collisions(&self) -> GcCellRefMut<Vec<Id<Node>>> {
         self.potential_new_target_collisions.borrow_mut()
     }
 
-    pub(super) fn potential_weak_map_set_collisions(&self) -> GcCellRefMut<Vec<Gc<Node>>> {
+    pub(super) fn potential_weak_map_set_collisions(&self) -> GcCellRefMut<Vec<Id<Node>>> {
         self.potential_weak_map_set_collisions.borrow_mut()
     }
 
-    pub(super) fn potential_reflect_collisions(&self) -> GcCellRefMut<Vec<Gc<Node>>> {
+    pub(super) fn potential_reflect_collisions(&self) -> GcCellRefMut<Vec<Id<Node>>> {
         self.potential_reflect_collisions.borrow_mut()
     }
 

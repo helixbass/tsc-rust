@@ -579,7 +579,7 @@ impl TypeChecker {
                 ))
     }
 
-    pub(super) fn get_context_node(&self, node: &Node /*Expression*/) -> Gc<Node> {
+    pub(super) fn get_context_node(&self, node: &Node /*Expression*/) -> Id<Node> {
         if node.kind() == SyntaxKind::JsxAttributes && !is_jsx_self_closing_element(&node.parent())
         {
             return node.parent().parent();

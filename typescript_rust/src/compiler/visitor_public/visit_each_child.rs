@@ -1,6 +1,7 @@
 use std::borrow::Borrow;
 
 use gc::Gc;
+use id_arena::Id;
 
 use super::{visit_iteration_body, visit_lexical_environment};
 use crate::{
@@ -37,7 +38,7 @@ pub fn visit_each_child(
     node: &Node,
     visitor: impl FnMut(&Node) -> VisitResult,
     context: &(impl TransformationContext + ?Sized),
-) -> Gc<Node> {
+) -> Id<Node> {
     maybe_visit_each_child(Some(node), visitor, context).unwrap()
 }
 
@@ -46,7 +47,7 @@ pub fn maybe_visit_each_child(
     node: Option<impl Borrow<Node>>,
     visitor: impl FnMut(&Node) -> VisitResult,
     context: &(impl TransformationContext + ?Sized),
-) -> Option<Gc<Node>> {
+) -> Option<Id<Node>> {
     maybe_visit_each_child_full(
         node,
         visitor,
@@ -66,8 +67,8 @@ pub fn maybe_visit_each_child(
                 Option<&Node>,
                 Option<&mut dyn FnMut(&Node) -> VisitResult>,
                 Option<&dyn Fn(&Node) -> bool>,
-                Option<&dyn Fn(&[Gc<Node>]) -> Gc<Node>>,
-            ) -> Option<Gc<Node>>,
+                Option<&dyn Fn(&[Id<Node>]) -> Id<Node>>,
+            ) -> Option<Id<Node>>,
         >::None,
     )
 }
@@ -91,10 +92,10 @@ pub fn maybe_visit_each_child_full(
             Option<&Node>,
             Option<&mut dyn FnMut(&Node) -> VisitResult>,
             Option<&dyn Fn(&Node) -> bool>,
-            Option<&dyn Fn(&[Gc<Node>]) -> Gc<Node>>,
-        ) -> Option<Gc<Node>>,
+            Option<&dyn Fn(&[Id<Node>]) -> Id<Node>>,
+        ) -> Option<Id<Node>>,
     >,
-) -> Option<Gc<Node>> {
+) -> Option<Id<Node>> {
     let mut nodes_visitor = move |nodes: Option<&NodeArray>,
                                   visitor: Option<&mut dyn FnMut(&Node) -> VisitResult>,
                                   test: Option<&dyn Fn(&Node) -> bool>,
@@ -110,8 +111,8 @@ pub fn maybe_visit_each_child_full(
     let mut node_visitor = move |node: Option<&Node>,
                                  visitor: Option<&mut dyn FnMut(&Node) -> VisitResult>,
                                  lift: Option<&dyn Fn(&Node) -> bool>,
-                                 test: Option<&dyn Fn(&[Gc<Node>]) -> Gc<Node>>|
-          -> Option<Gc<Node>> {
+                                 test: Option<&dyn Fn(&[Id<Node>]) -> Id<Node>>|
+          -> Option<Id<Node>> {
         if let Some(node_visitor) = node_visitor.as_mut() {
             node_visitor(node, visitor, lift, test)
         } else {
@@ -532,8 +533,8 @@ pub fn maybe_visit_each_child_full(
                             |node: Option<&Node>,
                              visitor: Option<&mut dyn FnMut(&Node) -> VisitResult>,
                              lift: Option<&dyn Fn(&Node) -> bool>,
-                             test: Option<&dyn Fn(&[Gc<Node>]) -> Gc<Node>>|
-                             -> Option<Gc<Node>> {
+                             test: Option<&dyn Fn(&[Id<Node>]) -> Id<Node>>|
+                             -> Option<Id<Node>> {
                                 node_visitor(node, visitor, lift, test)
                             },
                         ),
@@ -583,7 +584,7 @@ pub fn maybe_visit_each_child_full(
                             |node: Option<&Node>,
                              visitor: Option<&mut dyn FnMut(&Node) -> VisitResult>,
                              lift: Option<&dyn Fn(&Node) -> bool>,
-                             test: Option<&dyn Fn(&[Gc<Node>]) -> Gc<Node>>| {
+                             test: Option<&dyn Fn(&[Id<Node>]) -> Id<Node>>| {
                                 node_visitor(node, visitor, lift, test)
                             },
                         ),
@@ -646,7 +647,7 @@ pub fn maybe_visit_each_child_full(
                             |node: Option<&Node>,
                              visitor: Option<&mut dyn FnMut(&Node) -> VisitResult>,
                              lift: Option<&dyn Fn(&Node) -> bool>,
-                             test: Option<&dyn Fn(&[Gc<Node>]) -> Gc<Node>>| {
+                             test: Option<&dyn Fn(&[Id<Node>]) -> Id<Node>>| {
                                 node_visitor(node, visitor, lift, test)
                             },
                         ),
@@ -703,7 +704,7 @@ pub fn maybe_visit_each_child_full(
                             |node: Option<&Node>,
                              visitor: Option<&mut dyn FnMut(&Node) -> VisitResult>,
                              lift: Option<&dyn Fn(&Node) -> bool>,
-                             test: Option<&dyn Fn(&[Gc<Node>]) -> Gc<Node>>| {
+                             test: Option<&dyn Fn(&[Id<Node>]) -> Id<Node>>| {
                                 node_visitor(node, visitor, lift, test)
                             },
                         ),
@@ -740,7 +741,7 @@ pub fn maybe_visit_each_child_full(
                             |node: Option<&Node>,
                              visitor: Option<&mut dyn FnMut(&Node) -> VisitResult>,
                              lift: Option<&dyn Fn(&Node) -> bool>,
-                             test: Option<&dyn Fn(&[Gc<Node>]) -> Gc<Node>>| {
+                             test: Option<&dyn Fn(&[Id<Node>]) -> Id<Node>>| {
                                 node_visitor(node, visitor, lift, test)
                             },
                         ),
@@ -1822,7 +1823,7 @@ pub fn maybe_visit_each_child_full(
                             |node: Option<&Node>,
                              visitor: Option<&mut dyn FnMut(&Node) -> VisitResult>,
                              lift: Option<&dyn Fn(&Node) -> bool>,
-                             test: Option<&dyn Fn(&[Gc<Node>]) -> Gc<Node>>| {
+                             test: Option<&dyn Fn(&[Id<Node>]) -> Id<Node>>| {
                                 node_visitor(node, visitor, lift, test)
                             },
                         ),
@@ -1891,7 +1892,7 @@ pub fn maybe_visit_each_child_full(
                             |node: Option<&Node>,
                              visitor: Option<&mut dyn FnMut(&Node) -> VisitResult>,
                              lift: Option<&dyn Fn(&Node) -> bool>,
-                             test: Option<&dyn Fn(&[Gc<Node>]) -> Gc<Node>>| {
+                             test: Option<&dyn Fn(&[Id<Node>]) -> Id<Node>>| {
                                 node_visitor(node, visitor, lift, test)
                             },
                         ),
@@ -2372,14 +2373,14 @@ pub fn maybe_visit_each_child_full(
                         Some(&node_as_if_statement.then_statement),
                         Some(&mut visitor),
                         Some(&is_statement),
-                        Some(&|nodes: &[Gc<Node>]| factory.lift_to_block(nodes)),
+                        Some(&|nodes: &[Id<Node>]| factory.lift_to_block(nodes)),
                     )
                     .unwrap(),
                     node_visitor(
                         node_as_if_statement.else_statement.as_deref(),
                         Some(&mut visitor),
                         Some(&is_statement),
-                        Some(&|nodes: &[Gc<Node>]| factory.lift_to_block(nodes)),
+                        Some(&|nodes: &[Id<Node>]| factory.lift_to_block(nodes)),
                     ),
                 ),
             )
@@ -2571,7 +2572,7 @@ pub fn maybe_visit_each_child_full(
                         Some(&node_as_with_statement.statement),
                         Some(&mut visitor),
                         Some(&is_statement),
-                        Some(&|nodes: &[Gc<Node>]| factory.lift_to_block(nodes)),
+                        Some(&|nodes: &[Id<Node>]| factory.lift_to_block(nodes)),
                     )
                     .unwrap(),
                 ),
@@ -2615,7 +2616,7 @@ pub fn maybe_visit_each_child_full(
                         Some(&node_as_labeled_statement.statement),
                         Some(&mut visitor),
                         Some(&is_statement),
-                        Some(&|nodes: &[Gc<Node>]| factory.lift_to_block(nodes)),
+                        Some(&|nodes: &[Id<Node>]| factory.lift_to_block(nodes)),
                     )
                     .unwrap(),
                 ),
@@ -2788,7 +2789,7 @@ pub fn maybe_visit_each_child_full(
                             |node: Option<&Node>,
                              visitor: Option<&mut dyn FnMut(&Node) -> VisitResult>,
                              lift: Option<&dyn Fn(&Node) -> bool>,
-                             test: Option<&dyn Fn(&[Gc<Node>]) -> Gc<Node>>| {
+                             test: Option<&dyn Fn(&[Id<Node>]) -> Id<Node>>| {
                                 node_visitor(node, visitor, lift, test)
                             },
                         ),

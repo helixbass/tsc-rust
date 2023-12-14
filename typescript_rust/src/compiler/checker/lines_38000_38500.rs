@@ -63,7 +63,7 @@ impl TypeChecker {
     ) -> io::Result<()> {
         self.check_grammar_statement_in_ambient_context(node);
 
-        let mut first_default_clause: Option<Gc<Node /*CaseOrDefaultClause*/>> = None;
+        let mut first_default_clause: Option<Id<Node /*CaseOrDefaultClause*/>> = None;
         let mut has_duplicate_default_clause = false;
 
         let node_as_switch_statement = node.as_switch_statement();
@@ -72,7 +72,7 @@ impl TypeChecker {
         let expression_is_literal = self.is_literal_type(expression_type);
         try_for_each(
             &node_as_switch_statement.case_block.as_case_block().clauses,
-            |clause: &Gc<Node>, _| -> io::Result<Option<()>> {
+            |clause: &Id<Node>, _| -> io::Result<Option<()>> {
                 if clause.kind() == SyntaxKind::DefaultClause && !has_duplicate_default_clause {
                     if first_default_clause.is_none() {
                         first_default_clause = Some(clause.clone());
@@ -114,7 +114,7 @@ impl TypeChecker {
                 let clause_as_case_or_default_clause = clause.as_case_or_default_clause();
                 try_for_each(
                     &clause_as_case_or_default_clause.statements(),
-                    |statement: &Gc<Node>, _| -> io::Result<Option<()>> {
+                    |statement: &Id<Node>, _| -> io::Result<Option<()>> {
                         self.check_source_element(Some(&**statement))?;
                         Ok(None)
                     },
@@ -550,7 +550,7 @@ impl TypeChecker {
 
     pub(super) fn check_type_parameters(
         &self,
-        type_parameter_declarations: Option<&[Gc<Node /*TypeParameterDeclaration*/>]>,
+        type_parameter_declarations: Option<&[Id<Node /*TypeParameterDeclaration*/>]>,
     ) -> io::Result<()> {
         if let Some(type_parameter_declarations) = type_parameter_declarations {
             let mut seen_default = false;
@@ -597,7 +597,7 @@ impl TypeChecker {
     pub(super) fn check_type_parameters_not_referenced(
         &self,
         root: &Node, /*TypeNode*/
-        type_parameters: &[Gc<Node /*TypeParameterDeclaration*/>],
+        type_parameters: &[Id<Node /*TypeParameterDeclaration*/>],
         index: usize,
     ) -> io::Result<()> {
         self.check_type_parameters_not_referenced_visit(index, type_parameters, root)?;
@@ -608,7 +608,7 @@ impl TypeChecker {
     pub(super) fn check_type_parameters_not_referenced_visit(
         &self,
         index: usize,
-        type_parameters: &[Gc<Node /*TypeParameterDeclaration*/>],
+        type_parameters: &[Id<Node /*TypeParameterDeclaration*/>],
         node: &Node,
     ) -> io::Result<()> {
         if node.kind() == SyntaxKind::TypeReference {
@@ -688,7 +688,7 @@ impl TypeChecker {
 
     pub(super) fn are_type_parameters_identical(
         &self,
-        declarations: &[Gc<Node /*ClassDeclaration | InterfaceDeclaration*/>],
+        declarations: &[Id<Node /*ClassDeclaration | InterfaceDeclaration*/>],
         target_parameters: Option<&[Id<Type /*TypeParameter*/>]>,
     ) -> io::Result<bool> {
         let max_type_argument_count = length(target_parameters);
@@ -767,7 +767,7 @@ impl TypeChecker {
     ) -> io::Result<()> {
         try_for_each(
             &node.as_class_expression().members(),
-            |member: &Gc<Node>, _| -> io::Result<Option<()>> {
+            |member: &Id<Node>, _| -> io::Result<Option<()>> {
                 self.check_source_element(Some(&**member))?;
                 Ok(None)
             },
@@ -784,10 +784,10 @@ impl TypeChecker {
         let node_as_class_declaration = node.as_class_declaration();
         if some(
             node.maybe_decorators().as_double_deref(),
-            Option::<fn(&Gc<Node>) -> bool>::None,
+            Option::<fn(&Id<Node>) -> bool>::None,
         ) && some(
             Some(&node_as_class_declaration.members()),
-            Some(|p: &Gc<Node>| {
+            Some(|p: &Id<Node>| {
                 has_static_modifier(p) && is_private_identifier_class_element_declaration(p)
             }),
         ) {
@@ -809,7 +809,7 @@ impl TypeChecker {
         self.check_class_like_declaration(node)?;
         try_for_each(
             &node_as_class_declaration.members(),
-            |member: &Gc<Node>, _| -> io::Result<Option<()>> {
+            |member: &Id<Node>, _| -> io::Result<Option<()>> {
                 self.check_source_element(Some(&**member))?;
                 Ok(None)
             },
@@ -854,7 +854,7 @@ impl TypeChecker {
                 base_type_node_as_expression_with_type_arguments
                     .maybe_type_arguments()
                     .as_ref(),
-                |type_argument: &Gc<Node>, _| -> io::Result<Option<()>> {
+                |type_argument: &Id<Node>, _| -> io::Result<Option<()>> {
                     self.check_source_element(Some(&**type_argument))?;
                     Ok(None)
                 },
@@ -890,13 +890,13 @@ impl TypeChecker {
                     base_type_node_as_expression_with_type_arguments
                         .maybe_type_arguments()
                         .as_double_deref(),
-                    Option::<fn(&Gc<Node>) -> bool>::None,
+                    Option::<fn(&Id<Node>) -> bool>::None,
                 ) {
                     try_maybe_for_each(
                         base_type_node_as_expression_with_type_arguments
                             .maybe_type_arguments()
                             .as_ref(),
-                        |type_argument: &Gc<Node>, _| -> io::Result<Option<()>> {
+                        |type_argument: &Id<Node>, _| -> io::Result<Option<()>> {
                             self.check_source_element(Some(&**type_argument))?;
                             Ok(None)
                         },

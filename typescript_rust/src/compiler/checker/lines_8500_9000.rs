@@ -31,7 +31,7 @@ impl TypeChecker {
     pub(super) fn get_parent_element_access(
         &self,
         node: &Node, /*BindingElement | PropertyAssignment | ShorthandPropertyAssignment | Expression*/
-    ) -> io::Result<Option<Gc<Node>>> {
+    ) -> io::Result<Option<Id<Node>>> {
         let ancestor = node.parent().parent();
         Ok(match ancestor.kind() {
             SyntaxKind::BindingElement | SyntaxKind::PropertyAssignment => {
@@ -147,7 +147,7 @@ impl TypeChecker {
                     );
                     return Ok(Some(self.error_type()));
                 }
-                let mut literal_members: Vec<Gc<Node /*PropertyName*/>> = vec![];
+                let mut literal_members: Vec<Id<Node /*PropertyName*/>> = vec![];
                 for element in &pattern.as_object_binding_pattern().elements {
                     let element_as_binding_element = element.as_binding_element();
                     if element_as_binding_element.dot_dot_dot_token.is_none() {
@@ -516,7 +516,7 @@ impl TypeChecker {
             } else {
                 let static_blocks = filter(
                     &declaration.parent().as_class_like_declaration().members(),
-                    |member: &Gc<Node>| is_class_static_block_declaration(member),
+                    |member: &Id<Node>| is_class_static_block_declaration(member),
                 );
                 let type_ = if !static_blocks.is_empty() {
                     self.get_flow_type_in_static_blocks(declaration.symbol(), &static_blocks)?
@@ -559,7 +559,7 @@ impl TypeChecker {
                     self.get_declaring_constructor(symbol)?.is_some()
                         && try_maybe_every(
                             symbol.ref_(self).maybe_declarations().as_deref(),
-                            |declaration: &Gc<Node>, _| -> io::Result<_> {
+                            |declaration: &Id<Node>, _| -> io::Result<_> {
                                 Ok(is_binary_expression(declaration)
                                     && self.is_possibly_aliased_this_property(declaration, None)?
                                     && {
@@ -604,7 +604,7 @@ impl TypeChecker {
     pub(super) fn get_declaring_constructor(
         &self,
         symbol: Id<Symbol>,
-    ) -> io::Result<Option<Gc<Node>>> {
+    ) -> io::Result<Option<Id<Node>>> {
         let symbol_ref = symbol.ref_(self);
         let symbol_declarations = symbol_ref.maybe_declarations();
         let symbol_declarations = return_ok_default_if_none!(symbol_declarations.as_deref());
@@ -637,13 +637,13 @@ impl TypeChecker {
         let access_name = unescape_leading_underscores(symbol_ref.escaped_name());
         let are_all_module_exports = every(
             symbol.ref_(self).maybe_declarations().as_deref().unwrap(),
-            |d: &Gc<Node>, _| {
+            |d: &Id<Node>, _| {
                 is_in_js_file(Some(&**d))
                     && is_access_expression(d)
                     && is_module_exports_access_expression(d)
             },
         );
-        let reference: Gc<Node> = if are_all_module_exports {
+        let reference: Id<Node> = if are_all_module_exports {
             factory.with(|factory_| {
                 factory_.create_property_access_expression(
                     factory_.create_property_access_expression(
@@ -688,7 +688,7 @@ impl TypeChecker {
     pub(super) fn get_flow_type_in_static_blocks(
         &self,
         symbol: Id<Symbol>,
-        static_blocks: &[Gc<Node /*ClassStaticBlockDeclaration*/>],
+        static_blocks: &[Id<Node /*ClassStaticBlockDeclaration*/>],
     ) -> io::Result<Option<Id<Type>>> {
         let symbol_ref = symbol.ref_(self);
         let access_name: StrOrRcNode<'_> = if starts_with(symbol.ref_(self).escaped_name(), "__#")
@@ -1184,9 +1184,9 @@ impl TypeChecker {
                                         unescape_leading_underscores(s_ref.escaped_name());
                                     let exported_member_name = try_cast(
                                         &exported_member_value_declaration,
-                                        |node: &&Gc<Node>| is_named_declaration(node),
+                                        |node: &&Id<Node>| is_named_declaration(node),
                                     )
-                                    .and_then(|named_declaration: &Gc<Node>| {
+                                    .and_then(|named_declaration: &Id<Node>| {
                                         named_declaration.as_named_declaration().maybe_name()
                                     })
                                     .unwrap_or_else(|| exported_member_value_declaration);

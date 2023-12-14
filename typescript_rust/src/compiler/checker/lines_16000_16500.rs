@@ -25,7 +25,7 @@ impl TypeChecker {
     pub(super) fn is_spreadable_property(&self, prop: Id<Symbol>) -> bool {
         !some(
             prop.ref_(self).maybe_declarations().as_deref(),
-            Some(|declaration: &Gc<Node>| {
+            Some(|declaration: &Id<Node>| {
                 is_private_identifier_class_element_declaration(declaration)
             }),
         ) && (!prop
@@ -34,7 +34,7 @@ impl TypeChecker {
             .intersects(SymbolFlags::Method | SymbolFlags::GetAccessor | SymbolFlags::SetAccessor)
             || !matches!(
                 prop.ref_(self).maybe_declarations().as_ref(),
-                Some(prop_declarations) if prop_declarations.iter().any(|decl: &Gc<Node>| maybe_is_class_like(decl.maybe_parent()))
+                Some(prop_declarations) if prop_declarations.iter().any(|decl: &Id<Node>| maybe_is_class_like(decl.maybe_parent()))
             ))
     }
 
@@ -482,7 +482,7 @@ impl TypeChecker {
     pub(super) fn get_array_element_type_node(
         &self,
         node: &Node, /*TypeNode*/
-    ) -> Option<Gc<Node /*TypeNode*/>> {
+    ) -> Option<Id<Node /*TypeNode*/>> {
         match node.kind() {
             SyntaxKind::ParenthesizedType => {
                 return self.get_array_element_type_node(&node.as_parenthesized_type_node().type_);
@@ -1172,7 +1172,7 @@ impl TypeChecker {
                 try_maybe_filter(type_parameters.as_deref(), |&tp: &Id<Type>| {
                     try_some(
                         Some(&*all_declarations),
-                        Some(|d: &Gc<Node>| self.is_type_parameter_possibly_referenced(tp, d)),
+                        Some(|d: &Id<Node>| self.is_type_parameter_possibly_referenced(tp, d)),
                     )
                 })
                 .transpose()?

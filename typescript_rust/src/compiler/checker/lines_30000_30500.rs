@@ -24,7 +24,7 @@ impl TypeChecker {
         &self,
         node: &Node, /*CallLikeExpression*/
         candidates: &mut Vec<Gc<Signature>>,
-        args: &[Gc<Node /*Expression*/>],
+        args: &[Id<Node /*Expression*/>],
         has_candidates_out_array: bool,
     ) -> io::Result<Gc<Signature>> {
         Debug_.assert(!candidates.is_empty(), None);
@@ -186,7 +186,7 @@ impl TypeChecker {
         &self,
         node: &Node, /*CallLikeExpression*/
         candidates: &mut Vec<Gc<Signature>>,
-        args: &[Gc<Node /*Expression*/>],
+        args: &[Id<Node /*Expression*/>],
     ) -> io::Result<Gc<Signature>> {
         let best_index = self.get_longest_candidate_index(
             candidates,
@@ -231,7 +231,7 @@ impl TypeChecker {
 
     pub(super) fn get_type_arguments_from_nodes(
         &self,
-        type_argument_nodes: &[Gc<Node /*TypeNode*/>],
+        type_argument_nodes: &[Id<Node /*TypeNode*/>],
         type_parameters: &[Id<Type /*TypeParameter*/>],
         is_js: bool,
     ) -> io::Result<Vec<Id<Type>>> {
@@ -256,7 +256,7 @@ impl TypeChecker {
         node: &Node, /*CallLikeExpression*/
         type_parameters: &[Id<Type /*TypeParameter*/>],
         candidate: Gc<Signature>,
-        args: &[Gc<Node /*Expression*/>],
+        args: &[Id<Node /*Expression*/>],
     ) -> io::Result<Gc<Signature>> {
         let inference_context = self.create_inference_context(
             type_parameters,

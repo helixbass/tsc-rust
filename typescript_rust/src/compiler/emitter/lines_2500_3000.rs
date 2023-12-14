@@ -1,6 +1,7 @@
 use std::{cell::RefCell, io, rc::Rc};
 
 use gc::{Finalize, Gc, Trace};
+use id_arena::Id;
 
 use super::PipelinePhase;
 use crate::{
@@ -1127,7 +1128,7 @@ impl EmitBinaryExpressionStateMachine {
         next: &Node,   /*Expression*/
         parent: &Node, /*BinaryExpression*/
         side: LeftOrRight,
-    ) -> io::Result<Option<Gc<Node>>> {
+    ) -> io::Result<Option<Id<Node>>> {
         let parenthesizer_rule: Gc<Box<dyn CurrentParenthesizerRule>> =
             Gc::new(Box::new(MaybeEmitExpressionCurrentParenthesizerRule::new(
                 side,
@@ -1146,7 +1147,7 @@ impl EmitBinaryExpressionStateMachine {
             Debug_.assert_is_defined(&self.printer.maybe_last_substitution(), None);
             next = parenthesizer_rule.call(&*cast(
                 self.printer.maybe_last_substitution(),
-                |node: &Gc<Node>| is_expression(node),
+                |node: &Id<Node>| is_expression(node),
             ));
             pipeline_phase = self.printer.get_next_pipeline_phase(
                 PipelinePhase::Substitution,
@@ -1226,7 +1227,7 @@ impl BinaryExpressionStateMachine for EmitBinaryExpressionStateMachine {
         next: &Node, /*Expression*/
         _work_area: Rc<RefCell<WorkArea>>,
         parent: &Node, /*BinaryExpression*/
-    ) -> io::Result<Option<Gc<Node /*BinaryExpression*/>>> {
+    ) -> io::Result<Option<Id<Node /*BinaryExpression*/>>> {
         self.maybe_emit_expression(next, parent, LeftOrRight::Left)
     }
 
@@ -1273,7 +1274,7 @@ impl BinaryExpressionStateMachine for EmitBinaryExpressionStateMachine {
         next: &Node, /*Expression*/
         _state: Rc<RefCell<WorkArea>>,
         parent: &Node, /*BinaryExpression*/
-    ) -> io::Result<Option<Gc<Node /*BinaryExpression*/>>> {
+    ) -> io::Result<Option<Id<Node /*BinaryExpression*/>>> {
         self.maybe_emit_expression(next, parent, LeftOrRight::Right)
     }
 
@@ -1366,7 +1367,7 @@ impl MaybeEmitExpressionCurrentParenthesizerRule {
 }
 
 impl CurrentParenthesizerRule for MaybeEmitExpressionCurrentParenthesizerRule {
-    fn call(&self, node: &Node) -> Gc<Node> {
+    fn call(&self, node: &Node) -> Id<Node> {
         if self.side == LeftOrRight::Left {
             self.parenthesizer
                 .parenthesize_left_side_of_binary(self.parent_operator_token_kind, node)
@@ -1392,7 +1393,7 @@ impl ParenthesizeOperandOfPrefixUnaryCurrentParenthesizerRule {
 }
 
 impl CurrentParenthesizerRule for ParenthesizeOperandOfPrefixUnaryCurrentParenthesizerRule {
-    fn call(&self, node: &Node) -> Gc<Node> {
+    fn call(&self, node: &Node) -> Id<Node> {
         self.parenthesizer
             .parenthesize_operand_of_prefix_unary(node)
     }
@@ -1410,7 +1411,7 @@ impl ParenthesizeOperandOfPostfixUnaryCurrentParenthesizerRule {
 }
 
 impl CurrentParenthesizerRule for ParenthesizeOperandOfPostfixUnaryCurrentParenthesizerRule {
-    fn call(&self, node: &Node) -> Gc<Node> {
+    fn call(&self, node: &Node) -> Id<Node> {
         self.parenthesizer
             .parenthesize_operand_of_postfix_unary(node)
     }
@@ -1428,7 +1429,7 @@ impl ParenthesizeLeftSideOfAccessCurrentParenthesizerRule {
 }
 
 impl CurrentParenthesizerRule for ParenthesizeLeftSideOfAccessCurrentParenthesizerRule {
-    fn call(&self, node: &Node) -> Gc<Node> {
+    fn call(&self, node: &Node) -> Id<Node> {
         self.parenthesizer.parenthesize_left_side_of_access(node)
     }
 }
@@ -1445,7 +1446,7 @@ impl ParenthesizeExpressionOfNewCurrentParenthesizerRule {
 }
 
 impl CurrentParenthesizerRule for ParenthesizeExpressionOfNewCurrentParenthesizerRule {
-    fn call(&self, node: &Node) -> Gc<Node> {
+    fn call(&self, node: &Node) -> Id<Node> {
         self.parenthesizer.parenthesize_expression_of_new(node)
     }
 }
@@ -1462,7 +1463,7 @@ impl ParenthesizeMemberOfElementTypeCurrentParenthesizerRule {
 }
 
 impl CurrentParenthesizerRule for ParenthesizeMemberOfElementTypeCurrentParenthesizerRule {
-    fn call(&self, node: &Node) -> Gc<Node> {
+    fn call(&self, node: &Node) -> Id<Node> {
         self.parenthesizer.parenthesize_member_of_element_type(node)
     }
 }
@@ -1479,7 +1480,7 @@ impl ParenthesizeMemberOfConditionalTypeCurrentParenthesizerRule {
 }
 
 impl CurrentParenthesizerRule for ParenthesizeMemberOfConditionalTypeCurrentParenthesizerRule {
-    fn call(&self, node: &Node) -> Gc<Node> {
+    fn call(&self, node: &Node) -> Id<Node> {
         self.parenthesizer
             .parenthesize_member_of_conditional_type(node)
     }
@@ -1497,7 +1498,7 @@ impl ParenthesizeElementTypeOfArrayTypeCurrentParenthesizerRule {
 }
 
 impl CurrentParenthesizerRule for ParenthesizeElementTypeOfArrayTypeCurrentParenthesizerRule {
-    fn call(&self, node: &Node) -> Gc<Node> {
+    fn call(&self, node: &Node) -> Id<Node> {
         self.parenthesizer
             .parenthesize_element_type_of_array_type(node)
     }
@@ -1517,7 +1518,7 @@ impl ParenthesizeExpressionOfComputedPropertyNameCurrentParenthesizerRule {
 impl CurrentParenthesizerRule
     for ParenthesizeExpressionOfComputedPropertyNameCurrentParenthesizerRule
 {
-    fn call(&self, node: &Node) -> Gc<Node> {
+    fn call(&self, node: &Node) -> Id<Node> {
         self.parenthesizer
             .parenthesize_expression_of_computed_property_name(node)
     }
@@ -1535,7 +1536,7 @@ impl ParenthesizeExpressionForDisallowedCommaCurrentParenthesizerRule {
 }
 
 impl CurrentParenthesizerRule for ParenthesizeExpressionForDisallowedCommaCurrentParenthesizerRule {
-    fn call(&self, node: &Node) -> Gc<Node> {
+    fn call(&self, node: &Node) -> Id<Node> {
         self.parenthesizer
             .parenthesize_expression_for_disallowed_comma(node)
     }
@@ -1553,7 +1554,7 @@ impl ParenthesizeExpressionOfExportDefaultCurrentParenthesizerRule {
 }
 
 impl CurrentParenthesizerRule for ParenthesizeExpressionOfExportDefaultCurrentParenthesizerRule {
-    fn call(&self, node: &Node) -> Gc<Node> {
+    fn call(&self, node: &Node) -> Id<Node> {
         self.parenthesizer
             .parenthesize_expression_of_export_default(node)
     }
@@ -1571,7 +1572,7 @@ impl ParenthesizeRightSideOfBinaryCurrentParenthesizerRule {
 }
 
 impl CurrentParenthesizerRule for ParenthesizeRightSideOfBinaryCurrentParenthesizerRule {
-    fn call(&self, node: &Node) -> Gc<Node> {
+    fn call(&self, node: &Node) -> Id<Node> {
         self.parenthesizer
             .parenthesize_right_side_of_binary(SyntaxKind::EqualsToken, None, node)
     }
@@ -1589,7 +1590,7 @@ impl ParenthesizeConciseBodyOfArrowFunctionCurrentParenthesizerRule {
 }
 
 impl CurrentParenthesizerRule for ParenthesizeConciseBodyOfArrowFunctionCurrentParenthesizerRule {
-    fn call(&self, node: &Node) -> Gc<Node> {
+    fn call(&self, node: &Node) -> Id<Node> {
         self.parenthesizer
             .parenthesize_concise_body_of_arrow_function(node)
     }
@@ -1609,7 +1610,7 @@ impl ParenthesizeExpressionOfExpressionStatementCurrentParenthesizerRule {
 impl CurrentParenthesizerRule
     for ParenthesizeExpressionOfExpressionStatementCurrentParenthesizerRule
 {
-    fn call(&self, node: &Node) -> Gc<Node> {
+    fn call(&self, node: &Node) -> Id<Node> {
         self.parenthesizer
             .parenthesize_expression_of_expression_statement(node)
     }
@@ -1629,7 +1630,7 @@ impl ParenthesizeBranchOfConditionalExpressionCurrentParenthesizerRule {
 impl CurrentParenthesizerRule
     for ParenthesizeBranchOfConditionalExpressionCurrentParenthesizerRule
 {
-    fn call(&self, node: &Node) -> Gc<Node> {
+    fn call(&self, node: &Node) -> Id<Node> {
         self.parenthesizer
             .parenthesize_branch_of_conditional_expression(node)
     }
@@ -1649,7 +1650,7 @@ impl ParenthesizeConditionOfConditionalExpressionCurrentParenthesizerRule {
 impl CurrentParenthesizerRule
     for ParenthesizeConditionOfConditionalExpressionCurrentParenthesizerRule
 {
-    fn call(&self, node: &Node) -> Gc<Node> {
+    fn call(&self, node: &Node) -> Id<Node> {
         self.parenthesizer
             .parenthesize_condition_of_conditional_expression(node)
     }

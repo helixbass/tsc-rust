@@ -1,6 +1,7 @@
 use std::{borrow::Borrow, io};
 
 use gc::Gc;
+use id_arena::Id;
 
 use super::{HierarchyFacts, TransformES2015};
 use crate::{
@@ -23,7 +24,7 @@ use crate::{
 impl TransformES2015 {
     pub(super) fn insert_capture_this_for_node_if_needed(
         &self,
-        statements: &mut Vec<Gc<Node>>, /*Statement*/
+        statements: &mut Vec<Id<Node>>, /*Statement*/
         node: &Node,
     ) -> bool {
         if self
@@ -40,7 +41,7 @@ impl TransformES2015 {
 
     pub(super) fn insert_capture_this_for_node(
         &self,
-        statements: &mut Vec<Gc<Node>>, /*Statement*/
+        statements: &mut Vec<Id<Node>>, /*Statement*/
         node: &Node,
         initializer: Option<impl Borrow<Node /*Expression*/>>,
     ) {
@@ -73,16 +74,16 @@ impl TransformES2015 {
 
     pub(super) fn insert_capture_new_target_if_needed(
         &self,
-        mut statements: Vec<Gc<Node>>, /*Statement*/
+        mut statements: Vec<Id<Node>>, /*Statement*/
         node: &Node,                   /*FunctionLikeDeclaration*/
         copy_on_write: bool,
-    ) -> Vec<Gc<Node>> /*Statement*/ {
+    ) -> Vec<Id<Node>> /*Statement*/ {
         if self
             .maybe_hierarchy_facts()
             .unwrap_or_default()
             .intersects(HierarchyFacts::NewTarget)
         {
-            let new_target: Gc<Node /*Expression*/>;
+            let new_target: Id<Node /*Expression*/>;
             match node.kind() {
                 SyntaxKind::ArrowFunction => {
                     return statements;
@@ -165,7 +166,7 @@ impl TransformES2015 {
 
     pub(super) fn add_class_members(
         &self,
-        statements: &mut Vec<Gc<Node /*Statement*/>>,
+        statements: &mut Vec<Id<Node /*Statement*/>>,
         node: &Node, /*ClassExpression | ClassDeclaration*/
     ) -> io::Result<()> {
         let node_as_class_like_declaration = node.as_class_like_declaration();
@@ -213,7 +214,7 @@ impl TransformES2015 {
     pub(super) fn transform_semicolon_class_element_to_statement(
         &self,
         member: &Node, /*SemicolonClassElement*/
-    ) -> Gc<Node> {
+    ) -> Id<Node> {
         self.factory
             .create_empty_statement()
             .set_text_range(Some(member))
@@ -224,7 +225,7 @@ impl TransformES2015 {
         receiver: &Node, /*LeftHandSideExpression*/
         member: &Node,   /*MethodDeclaration*/
         container: &Node,
-    ) -> io::Result<Gc<Node>> {
+    ) -> io::Result<Id<Node>> {
         let member_as_method_declaration = member.as_method_declaration();
         let comment_range: ReadonlyTextRangeConcrete = get_comment_range(member).into();
         let source_map_range = get_source_map_range(member);
@@ -238,9 +239,9 @@ impl TransformES2015 {
             &member_as_method_declaration.name(),
             Some(|node: &Node| self.visitor(node)),
             Some(is_property_name),
-            Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+            Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
         )?;
-        let e: Gc<Node /*Expression*/>;
+        let e: Id<Node /*Expression*/>;
         if !is_private_identifier(property_name)
             && get_use_define_for_class_fields(&self.context.get_compiler_options())
         {
@@ -297,7 +298,7 @@ impl TransformES2015 {
         receiver: &Node, /*LeftHandSideExpression*/
         accessors: &AllAccessorDeclarations,
         container: &Node,
-    ) -> io::Result<Gc<Node /*Statement*/>> {
+    ) -> io::Result<Id<Node /*Statement*/>> {
         Ok(self
             .factory
             .create_expression_statement(
@@ -313,7 +314,7 @@ impl TransformES2015 {
         accessors: &AllAccessorDeclarations,
         container: &Node,
         starts_on_new_line: bool,
-    ) -> io::Result<Gc<Node /*Expression*/>> {
+    ) -> io::Result<Id<Node /*Expression*/>> {
         let first_accessor = &accessors.first_accessor;
         let get_accessor = accessors.get_accessor.as_ref();
         let set_accessor = accessors.set_accessor.as_ref();
@@ -335,7 +336,7 @@ impl TransformES2015 {
             &first_accessor.as_named_declaration().name(),
             Some(|node: &Node| self.visitor(node)),
             Some(is_property_name),
-            Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+            Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
         )?;
         if is_private_identifier(visited_accessor_name) {
             Debug_.fail_bad_syntax_kind(
@@ -354,7 +355,7 @@ impl TransformES2015 {
                         .map(Into::into),
                 );
 
-        let mut properties: Vec<Gc<Node /*ObjectLiteralElementLike*/>> = Default::default();
+        let mut properties: Vec<Id<Node /*ObjectLiteralElementLike*/>> = Default::default();
         if let Some(get_accessor) = get_accessor {
             let getter_function = self
                 .transform_function_like_to_expression(
@@ -456,14 +457,14 @@ impl TransformES2015 {
             .create_function_expression(
                 Option::<Gc<NodeArray>>::None,
                 None,
-                Option::<Gc<Node>>::None,
+                Option::<Id<Node>>::None,
                 Option::<Gc<NodeArray>>::None,
                 try_visit_parameter_list(
                     Some(&node_as_arrow_function.parameters()),
                     |node: &Node| self.visitor(node),
                     &**self.context,
                 )?,
-                Option::<Gc<Node>>::None,
+                Option::<Id<Node>>::None,
                 self.transform_function_body(node)?,
             )
             .set_text_range(Some(node))
@@ -483,7 +484,7 @@ impl TransformES2015 {
     pub(super) fn visit_function_expression(
         &self,
         node: &Node, /*FunctionExpression*/
-    ) -> io::Result<Gc<Node /*Expression*/>> {
+    ) -> io::Result<Id<Node /*Expression*/>> {
         let node_as_function_expression = node.as_function_expression();
         let ancestor_facts = if get_emit_flags(node).intersects(EmitFlags::AsyncFunctionBody) {
             self.enter_subtree(
@@ -537,7 +538,7 @@ impl TransformES2015 {
     pub(super) fn visit_function_declaration(
         &self,
         node: &Node, /*FunctionDeclaration*/
-    ) -> io::Result<Gc<Node /*FunctionDeclaration*/>> {
+    ) -> io::Result<Id<Node /*FunctionDeclaration*/>> {
         let node_as_function_declaration = node.as_function_declaration();
         let saved_converted_loop_state = self.maybe_converted_loop_state();
         self.set_converted_loop_state(None);
@@ -593,7 +594,7 @@ impl TransformES2015 {
         location: Option<&impl ReadonlyTextRange>,
         name: Option<impl Borrow<Node /*Identifier*/>>,
         container: Option<impl Borrow<Node>>,
-    ) -> io::Result<Gc<Node /*FunctionExpression*/>> {
+    ) -> io::Result<Id<Node /*FunctionExpression*/>> {
         let node_as_function_like_declaration = node.as_function_like_declaration();
         let saved_converted_loop_state = self.maybe_converted_loop_state();
         self.set_converted_loop_state(None);
@@ -655,15 +656,15 @@ impl TransformES2015 {
     pub(super) fn transform_function_body(
         &self,
         node: &Node, /*FunctionLikeDeclaration*/
-    ) -> io::Result<Gc<Node>> {
+    ) -> io::Result<Id<Node>> {
         let node_as_function_like_declaration = node.as_function_like_declaration();
         let mut multi_line = false;
         let mut single_line = false;
         let statements_location: Option<ReadonlyTextRangeConcrete /*TextRange*/>;
-        let mut close_brace_location: Option<Gc<Node /*TextRange*/>> = Default::default();
+        let mut close_brace_location: Option<Id<Node /*TextRange*/>> = Default::default();
 
-        let mut prologue: Vec<Gc<Node /*Statement*/>> = Default::default();
-        let mut statements: Vec<Gc<Node /*Statement*/>> = Default::default();
+        let mut prologue: Vec<Id<Node /*Statement*/>> = Default::default();
+        let mut statements: Vec<Id<Node /*Statement*/>> = Default::default();
         let ref body = node_as_function_like_declaration.maybe_body().unwrap();
         let mut statement_offset: Option<usize> = Default::default();
 
@@ -745,7 +746,7 @@ impl TransformES2015 {
                 body,
                 Some(|node: &Node| self.visitor(node)),
                 Some(is_expression),
-                Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
             )?;
             let return_statement = self
                 .factory

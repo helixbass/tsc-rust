@@ -1,6 +1,7 @@
 use std::io;
 
 use gc::Gc;
+use id_arena::Id;
 
 use super::TransformSystemModule;
 use crate::{
@@ -33,7 +34,7 @@ impl TransformSystemModule {
         node: &Node, /*ImportDeclaration*/
     ) -> VisitResult /*<Statement>*/ {
         let node_as_import_declaration = node.as_import_declaration();
-        let mut statements: Option<Vec<Gc<Node /*Statement*/>>> = _d();
+        let mut statements: Option<Vec<Id<Node /*Statement*/>>> = _d();
         if node_as_import_declaration.import_clause.is_some() {
             self.context.hoist_variable_declaration(
                 &get_local_name_for_external_import(
@@ -75,7 +76,7 @@ impl TransformSystemModule {
             Some("import= for internal module references should be handled in an earlier transformer.")
         );
 
-        let mut statements: Option<Vec<Gc<Node /*Statement*/>>> = _d();
+        let mut statements: Option<Vec<Id<Node /*Statement*/>>> = _d();
         self.context.hoist_variable_declaration(
             &get_local_name_for_external_import(&self.factory, node, &self.current_source_file())
                 .unwrap(),
@@ -107,7 +108,7 @@ impl TransformSystemModule {
             &node_as_export_assignment.expression,
             Some(|node: &Node| self.visitor(node)),
             Some(is_expression),
-            Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+            Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
         )?;
         let original = node.maybe_original();
         Ok(match original {
@@ -169,7 +170,7 @@ impl TransformSystemModule {
                             node_as_function_declaration.maybe_body(),
                             Some(|node: &Node| self.visitor(node)),
                             Some(is_block),
-                            Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                            Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                         )?,
                     ),
                 );
@@ -204,7 +205,7 @@ impl TransformSystemModule {
         node: &Node, /*ClassDeclaration*/
     ) -> io::Result<VisitResult> /*<Statement>*/ {
         let node_as_class_declaration = node.as_class_declaration();
-        let mut statements: Option<Vec<Gc<Node /*Statement*/>>> = _d();
+        let mut statements: Option<Vec<Id<Node /*Statement*/>>> = _d();
 
         let name = self.factory.get_local_name(node, None, None);
         self.context.hoist_variable_declaration(&name);
@@ -275,13 +276,13 @@ impl TransformSystemModule {
                     node,
                     Some(|node: &Node| self.visitor(node)),
                     Some(is_statement),
-                    Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                    Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                 )?
                 .into(),
             ));
         }
 
-        let mut expressions: Option<Vec<Gc<Node /*Expression*/>>> = _d();
+        let mut expressions: Option<Vec<Id<Node /*Expression*/>>> = _d();
         let is_exported_declaration = has_syntactic_modifier(node, ModifierFlags::Export);
         let is_marked_declaration = self.has_associated_end_of_declaration_marker(node);
         for variable in &node_as_variable_statement
@@ -305,7 +306,7 @@ impl TransformSystemModule {
             }
         }
 
-        let mut statements: Option<Vec<Gc<Node /*Statement*/>>> = _d();
+        let mut statements: Option<Vec<Id<Node /*Statement*/>>> = _d();
         if let Some(expressions) = expressions {
             statements.get_or_insert_default_().push(
                 self.factory
@@ -361,7 +362,7 @@ impl TransformSystemModule {
         &self,
         node: &Node, /*VariableDeclaration*/
         is_exported_declaration: bool,
-    ) -> io::Result<Gc<Node /*Expression*/>> {
+    ) -> io::Result<Id<Node /*Expression*/>> {
         let node_as_variable_declaration = node.as_variable_declaration();
         let create_assignment =
             |name: &Node, value: &Node, location: Option<&dyn ReadonlyTextRange>| {
@@ -389,7 +390,7 @@ impl TransformSystemModule {
                         &node_initializer,
                         Some(|node: &Node| self.visitor(node)),
                         Some(is_expression),
-                        Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                        Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                     )?,
                     None,
                 )?
@@ -404,7 +405,7 @@ impl TransformSystemModule {
         name: &Node,  /*Identifier*/
         value: &Node, /*Expression*/
         location: Option<&(impl ReadonlyTextRange + ?Sized)>,
-    ) -> Gc<Node> {
+    ) -> Id<Node> {
         self.create_variable_assignment(name, value, location, true)
     }
 
@@ -413,7 +414,7 @@ impl TransformSystemModule {
         name: &Node,  /*Identifier*/
         value: &Node, /*Expression*/
         location: Option<&(impl ReadonlyTextRange + ?Sized)>,
-    ) -> Gc<Node> {
+    ) -> Id<Node> {
         self.create_variable_assignment(name, value, location, false)
     }
 
@@ -423,7 +424,7 @@ impl TransformSystemModule {
         value: &Node, /*Expression*/
         location: Option<&(impl ReadonlyTextRange + ?Sized)>,
         is_exported_declaration: bool,
-    ) -> Gc<Node> {
+    ) -> Id<Node> {
         self.context
             .hoist_variable_declaration(&self.factory.clone_node(name));
         if is_exported_declaration {
@@ -494,7 +495,7 @@ impl TransformSystemModule {
 
     pub(super) fn append_exports_of_import_declaration(
         &self,
-        statements: &mut Option<Vec<Gc<Node /*Statement*/>>>,
+        statements: &mut Option<Vec<Id<Node /*Statement*/>>>,
         decl: &Node, /*ImportDeclaration*/
     ) {
         let decl_as_import_declaration = decl.as_import_declaration();
@@ -528,7 +529,7 @@ impl TransformSystemModule {
 
     pub(super) fn append_exports_of_import_equals_declaration(
         &self,
-        statements: &mut Option<Vec<Gc<Node /*Statement*/>>>,
+        statements: &mut Option<Vec<Id<Node /*Statement*/>>>,
         decl: &Node, /*ImportEqualsDeclaration*/
     ) /*: Statement[] | undefined*/
     {
@@ -541,7 +542,7 @@ impl TransformSystemModule {
 
     pub(super) fn append_exports_of_variable_statement(
         &self,
-        statements: &mut Option<Vec<Gc<Node /*Statement*/>>>,
+        statements: &mut Option<Vec<Id<Node /*Statement*/>>>,
         node: &Node, /*VariableStatement*/
         export_self: bool,
     ) /*: Statement[] | undefined*/

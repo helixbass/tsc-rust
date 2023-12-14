@@ -122,27 +122,27 @@ pub(crate) fn load_with_local_cache<TValue: Clone>(
 }
 
 pub(crate) trait SourceFileImportsList {
-    fn maybe_imports(&self) -> GcCellRef<Option<Vec<Gc<Node>>>>;
-    fn imports(&self) -> GcCellRef<Vec<Gc<Node>>>;
-    fn maybe_module_augmentations(&self) -> GcCellRef<Option<Vec<Gc<Node>>>>;
-    fn module_augmentations(&self) -> GcCellRef<Vec<Gc<Node>>>;
+    fn maybe_imports(&self) -> GcCellRef<Option<Vec<Id<Node>>>>;
+    fn imports(&self) -> GcCellRef<Vec<Id<Node>>>;
+    fn maybe_module_augmentations(&self) -> GcCellRef<Option<Vec<Id<Node>>>>;
+    fn module_augmentations(&self) -> GcCellRef<Vec<Id<Node>>>;
     fn maybe_implied_node_format(&self) -> Option<ModuleKind>;
 }
 
 impl SourceFileImportsList for SourceFile {
-    fn maybe_imports(&self) -> GcCellRef<Option<Vec<Gc<Node>>>> {
+    fn maybe_imports(&self) -> GcCellRef<Option<Vec<Id<Node>>>> {
         self.maybe_imports()
     }
 
-    fn imports(&self) -> GcCellRef<Vec<Gc<Node>>> {
+    fn imports(&self) -> GcCellRef<Vec<Id<Node>>> {
         self.imports()
     }
 
-    fn maybe_module_augmentations(&self) -> GcCellRef<Option<Vec<Gc<Node>>>> {
+    fn maybe_module_augmentations(&self) -> GcCellRef<Option<Vec<Id<Node>>>> {
         self.maybe_module_augmentations()
     }
 
-    fn module_augmentations(&self) -> GcCellRef<Vec<Gc<Node>>> {
+    fn module_augmentations(&self) -> GcCellRef<Vec<Id<Node>>> {
         self.module_augmentations()
     }
 
@@ -557,7 +557,7 @@ pub(crate) fn is_referenced_file(reason: Option<&FileIncludeReason>) -> bool {
 
 #[derive(Debug)]
 pub(crate) struct ReferenceFileLocation {
-    pub file: Gc<Node /*SourceFile*/>,
+    pub file: Id<Node /*SourceFile*/>,
     pub pos: isize,
     pub end: isize,
     pub package_id: Option<PackageId>,
@@ -565,7 +565,7 @@ pub(crate) struct ReferenceFileLocation {
 
 #[derive(Debug)]
 pub(crate) struct SyntheticReferenceFileLocation {
-    pub file: Gc<Node /*SourceFile*/>,
+    pub file: Id<Node /*SourceFile*/>,
     pub package_id: Option<PackageId>,
     pub text: String,
 }
@@ -593,7 +593,7 @@ impl ReferenceFileLocationOrSyntheticReferenceFileLocation {
         }
     }
 
-    pub fn file(&self) -> Gc<Node> {
+    pub fn file(&self) -> Id<Node> {
         match self {
             Self::ReferenceFileLocation(location) => location.file.clone(),
             Self::SyntheticReferenceFileLocation(location) => location.file.clone(),
@@ -626,7 +626,7 @@ impl From<SyntheticReferenceFileLocation>
 }
 
 pub(crate) fn get_referenced_file_location(
-    mut get_source_file_by_path: impl FnMut(&Path) -> Option<Gc<Node /*SourceFile*/>>,
+    mut get_source_file_by_path: impl FnMut(&Path) -> Option<Id<Node /*SourceFile*/>>,
     ref_: &ReferencedFile,
 ) -> ReferenceFileLocationOrSyntheticReferenceFileLocation {
     let ref file = Debug_.check_defined(get_source_file_by_path(&ref_.file), None);
@@ -823,7 +823,7 @@ impl Program {
     pub fn new(
         create_program_options: CreateProgramOptions,
         // options: Gc<CompilerOptions>,
-        // files: Vec<Gc<Node>>,
+        // files: Vec<Id<Node>>,
         // current_directory: String,
         // host: Gc<Box<dyn CompilerHost>>,
     ) -> Gc<Box<Self>> {
@@ -1286,7 +1286,7 @@ impl Program {
                 );
             }
             *self.files.borrow_mut() = Some({
-                let mut files: Vec<Gc<Node>> = stable_sort(
+                let mut files: Vec<Id<Node>> = stable_sort(
                     self.processing_default_lib_files.borrow().as_ref().unwrap(),
                     |a, b| self.compare_default_lib_files(a, b),
                 )
@@ -1395,11 +1395,11 @@ impl Program {
         self.project_references.borrow()
     }
 
-    pub(super) fn files(&self) -> GcCellRef<Vec<Gc<Node>>> {
+    pub(super) fn files(&self) -> GcCellRef<Vec<Id<Node>>> {
         GcCellRef::map(self.files.borrow(), |files| files.as_ref().unwrap())
     }
 
-    pub(super) fn set_files(&self, files: Option<Vec<Gc<Node>>>) {
+    pub(super) fn set_files(&self, files: Option<Vec<Id<Node>>>) {
         *self.files.borrow_mut() = files;
     }
 
@@ -1581,7 +1581,7 @@ impl Program {
         ref_mut_unwrapped(&self.has_emit_blocking_diagnostics)
     }
 
-    pub(super) fn maybe_compiler_options_object_literal_syntax(&self) -> Option<Option<Gc<Node>>> {
+    pub(super) fn maybe_compiler_options_object_literal_syntax(&self) -> Option<Option<Id<Node>>> {
         self._compiler_options_object_literal_syntax
             .borrow()
             .clone()
@@ -1589,7 +1589,7 @@ impl Program {
 
     pub(super) fn set_compiler_options_object_literal_syntax(
         &self,
-        compiler_options_object_literal_syntax: Option<Option<Gc<Node>>>,
+        compiler_options_object_literal_syntax: Option<Option<Id<Node>>>,
     ) {
         *self._compiler_options_object_literal_syntax.borrow_mut() =
             compiler_options_object_literal_syntax;
@@ -1628,8 +1628,8 @@ impl Program {
     pub(super) fn package_id_to_source_file(
         &self,
     ) -> GcCellRefMut<
-        Option<HashMap<String, Gc<Node /*SourceFile*/>>>,
-        HashMap<String, Gc<Node /*SourceFile*/>>,
+        Option<HashMap<String, Id<Node /*SourceFile*/>>>,
+        HashMap<String, Id<Node /*SourceFile*/>>,
     > {
         GcCellRefMut::map(
             self.package_id_to_source_file.borrow_mut(),
@@ -1688,7 +1688,7 @@ impl Program {
 
     pub(super) fn files_by_name_ignore_case(
         &self,
-    ) -> GcCellRefMut<Option<HashMap<String, Gc<Node>>>, HashMap<String, Gc<Node>>> {
+    ) -> GcCellRefMut<Option<HashMap<String, Id<Node>>>, HashMap<String, Id<Node>>> {
         GcCellRefMut::map(
             self.files_by_name_ignore_case.borrow_mut(),
             |files_by_name_ignore_case| files_by_name_ignore_case.as_mut().unwrap(),
@@ -1799,19 +1799,19 @@ mod _FilesByNameValueDeriveTraceScope {
 
     #[derive(Clone, Trace, Finalize)]
     pub enum FilesByNameValue {
-        SourceFile(Gc<Node /*SourceFile*/>),
+        SourceFile(Id<Node /*SourceFile*/>),
         False,
         Undefined,
     }
 
     impl FilesByNameValue {
-        pub fn as_source_file(&self) -> &Gc<Node /*SourceFile*/> {
+        pub fn as_source_file(&self) -> &Id<Node /*SourceFile*/> {
             enum_unwrapped!(self, [FilesByNameValue, SourceFile])
         }
     }
 
-    impl From<Gc<Node /*SourceFile*/>> for FilesByNameValue {
-        fn from(value: Gc<Node /*SourceFile*/>) -> Self {
+    impl From<Id<Node /*SourceFile*/>> for FilesByNameValue {
+        fn from(value: Id<Node /*SourceFile*/>) -> Self {
             Self::SourceFile(value)
         }
     }
@@ -1993,11 +1993,11 @@ impl ScriptReferenceHost for Program {
         self.options.clone()
     }
 
-    fn get_source_file(&self, file_name: &str) -> Option<Gc<Node /*SourceFile*/>> {
+    fn get_source_file(&self, file_name: &str) -> Option<Id<Node /*SourceFile*/>> {
         self.get_source_file_(file_name)
     }
 
-    fn get_source_file_by_path(&self, path: &Path) -> Option<Gc<Node /*SourceFile*/>> {
+    fn get_source_file_by_path(&self, path: &Path) -> Option<Id<Node /*SourceFile*/>> {
         self.files_by_name()
             .get(&**path)
             .and_then(|value| match value {
@@ -2063,11 +2063,11 @@ impl TypeCheckerHost for Program {
         self.options.clone()
     }
 
-    fn get_source_files(&self) -> GcCellRef<Vec<Gc<Node>>> {
+    fn get_source_files(&self) -> GcCellRef<Vec<Id<Node>>> {
         self.files()
     }
 
-    fn get_source_file(&self, file_name: &str) -> Option<Gc<Node /*SourceFile*/>> {
+    fn get_source_file(&self, file_name: &str) -> Option<Id<Node /*SourceFile*/>> {
         self.get_source_file_(file_name)
     }
 

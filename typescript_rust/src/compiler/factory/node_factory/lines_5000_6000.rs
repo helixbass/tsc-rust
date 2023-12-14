@@ -34,7 +34,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     pub fn create_property_assignment_raw<'name>(
         &self,
         name: impl Into<StrOrRcNode<'name> /*PropertyName*/>,
-        initializer: Gc<Node /*Expression*/>,
+        initializer: Id<Node /*Expression*/>,
     ) -> PropertyAssignment {
         let node = self.create_base_named_declaration(
             SyntaxKind::PropertyAssignment,
@@ -58,7 +58,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         &self,
         mut updated: PropertyAssignment,
         original: &Node, /*PropertyAssignment*/
-    ) -> Gc<Node> {
+    ) -> Id<Node> {
         if let Some(original_decorators) = original.maybe_decorators() {
             updated.set_decorators(Some(original_decorators));
         }
@@ -82,9 +82,9 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     pub fn update_property_assignment(
         &self,
         node: &Node,    /*PropertyAssignment*/
-        name: Gc<Node>, /*PropertyName*/
-        initializer: Gc<Node /*Expression*/>,
-    ) -> Gc<Node> {
+        name: Id<Node>, /*PropertyName*/
+        initializer: Id<Node /*Expression*/>,
+    ) -> Id<Node> {
         let node_as_property_assignment = node.as_property_assignment();
         if !Gc::ptr_eq(&node_as_property_assignment.name(), &name)
             || !Gc::ptr_eq(
@@ -105,7 +105,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     pub fn create_shorthand_property_assignment_raw<'name>(
         &self,
         name: impl Into<StrOrRcNode<'name>>, /*Identifier*/
-        object_assignment_initializer: Option<Gc<Node /*Expression*/>>,
+        object_assignment_initializer: Option<Id<Node /*Expression*/>>,
     ) -> ShorthandPropertyAssignment {
         let node = self.create_base_named_declaration(
             SyntaxKind::ShorthandPropertyAssignment,
@@ -131,7 +131,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         &self,
         mut updated: ShorthandPropertyAssignment,
         original: &Node, /*ShorthandPropertyAssignment*/
-    ) -> Gc<Node> {
+    ) -> Id<Node> {
         if let Some(original_decorators) = original.maybe_decorators() {
             updated.set_decorators(Some(original_decorators));
         }
@@ -163,9 +163,9 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     pub fn update_shorthand_property_assignment(
         &self,
         node: &Node,    /*ShorthandPropertyAssignment*/
-        name: Gc<Node>, /*Identifier*/
-        object_assignment_initializer: Option<Gc<Node /*Expression*/>>,
-    ) -> Gc<Node> {
+        name: Id<Node>, /*Identifier*/
+        object_assignment_initializer: Option<Id<Node /*Expression*/>>,
+    ) -> Id<Node> {
         let node_as_shorthand_property_assignment = node.as_shorthand_property_assignment();
         if !Gc::ptr_eq(&node_as_shorthand_property_assignment.name(), &name)
             || !are_option_gcs_equal(
@@ -187,7 +187,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_spread_assignment_raw(
         &self,
-        expression: Gc<Node /*Expression*/>,
+        expression: Id<Node /*Expression*/>,
     ) -> SpreadAssignment {
         let node = self.create_base_node(SyntaxKind::SpreadAssignment);
         let node = SpreadAssignment::new(
@@ -206,8 +206,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     pub fn update_spread_assignment(
         &self,
         node: &Node, /*SpreadAssignment*/
-        expression: Gc<Node /*Expression*/>,
-    ) -> Gc<Node> {
+        expression: Id<Node /*Expression*/>,
+    ) -> Id<Node> {
         let node_as_spread_assignment = node.as_spread_assignment();
         if !Gc::ptr_eq(&node_as_spread_assignment.expression, &expression) {
             self.update(self.create_spread_assignment(expression), node)
@@ -220,7 +220,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     pub fn create_enum_member_raw<'name>(
         &self,
         name: impl Into<StrOrRcNode<'name>>, /*Identifier*/
-        initializer: Option<Gc<Node /*Expression*/>>,
+        initializer: Option<Id<Node /*Expression*/>>,
     ) -> EnumMember {
         let node = self.create_base_node(SyntaxKind::EnumMember);
         let node = EnumMember::new(
@@ -242,9 +242,9 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     pub fn update_enum_member(
         &self,
         node: &Node, /*EnumMember*/
-        name: Gc<Node>,
-        initializer: Option<Gc<Node /*Expression*/>>,
-    ) -> Gc<Node> {
+        name: Id<Node>,
+        initializer: Option<Id<Node /*Expression*/>>,
+    ) -> Id<Node> {
         let node_as_enum_member = node.as_enum_member();
         if !Gc::ptr_eq(&node_as_enum_member.name, &name)
             || !are_option_gcs_equal(
@@ -262,7 +262,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     pub fn create_source_file_raw(
         &self,
         statements: impl Into<NodeArrayOrVec>,
-        end_of_file_token: Gc<Node /*EndOfFileToken*/>,
+        end_of_file_token: Id<Node /*EndOfFileToken*/>,
         flags: NodeFlags,
     ) -> SourceFile {
         let node = self
@@ -297,7 +297,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         type_reference_directives: Rc<RefCell<Vec<FileReference>>>,
         has_no_default_lib: bool,
         lib_reference_directives: Rc<RefCell<Vec<FileReference>>>,
-    ) -> Gc<Node> {
+    ) -> Id<Node> {
         let source_as_source_file = source.as_source_file();
         let mut node = source_as_source_file.clone();
         node.set_pos(-1);
@@ -335,7 +335,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         type_reference_directives: Option<Rc<RefCell<Vec<FileReference>>>>,
         has_no_default_lib: Option<bool>,
         lib_reference_directives: Option<Rc<RefCell<Vec<FileReference>>>>,
-    ) -> Gc<Node> {
+    ) -> Id<Node> {
         let node_as_source_file = node.as_source_file();
         let is_declaration_file =
             is_declaration_file.unwrap_or_else(|| node_as_source_file.is_declaration_file());
@@ -388,8 +388,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_bundle_raw(
         &self,
-        source_files: Vec<Option<Gc<Node /*<SourceFile>*/>>>,
-        prepends: Option<Vec<Gc<Node /*<UnparsedSource | InputFiles>*/>>>,
+        source_files: Vec<Option<Id<Node /*<SourceFile>*/>>>,
+        prepends: Option<Vec<Id<Node /*<UnparsedSource | InputFiles>*/>>>,
     ) -> Bundle {
         let prepends = prepends.unwrap_or_else(|| vec![]);
         let node = self.create_base_node(SyntaxKind::Bundle);
@@ -399,9 +399,9 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_unparsed_source_raw(
         &self,
-        prologues: Vec<Gc<Node /*<UnparsedPrologue>*/>>,
-        synthetic_references: Option<Vec<Gc<Node /*<UnparsedSyntheticReference*/>>>,
-        texts: Vec<Gc<Node /*<UnparsedSourceText>*/>>,
+        prologues: Vec<Id<Node /*<UnparsedPrologue>*/>>,
+        synthetic_references: Option<Vec<Id<Node /*<UnparsedSyntheticReference*/>>>,
+        texts: Vec<Id<Node /*<UnparsedSourceText>*/>>,
     ) -> UnparsedSource {
         let node = self.create_base_node(SyntaxKind::UnparsedSource);
         UnparsedSource::new(
@@ -435,7 +435,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     pub fn create_unparsed_prepend_raw(
         &self,
         data: Option<String>,
-        texts: Vec<Gc<Node /*UnparsedTextLike*/>>,
+        texts: Vec<Id<Node /*UnparsedTextLike*/>>,
     ) -> UnparsedPrepend {
         let node = self.create_base_unparsed_node(SyntaxKind::UnparsedPrepend, data);
         UnparsedPrepend::new(node, texts)
@@ -469,7 +469,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         &self,
         type_: Id<Type>,
         is_spread: Option<bool>,
-        tuple_name_source: Option<Gc<Node /*ParameterDeclaration | NamedTupleMember*/>>,
+        tuple_name_source: Option<Id<Node /*ParameterDeclaration | NamedTupleMember*/>>,
     ) -> SyntheticExpression {
         let is_spread = is_spread.unwrap_or(false);
         let node = self.create_base_node(SyntaxKind::SyntheticExpression);
@@ -477,7 +477,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         node
     }
 
-    pub fn create_not_emitted_statement(&self, original: Gc<Node>) -> Gc<Node> {
+    pub fn create_not_emitted_statement(&self, original: Id<Node>) -> Id<Node> {
         let node = self
             .create_base_node(SyntaxKind::NotEmittedStatement)
             .wrap();
@@ -489,8 +489,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     #[generate_node_factory_method_wrapper]
     pub fn create_partially_emitted_expression_raw(
         &self,
-        expression: Gc<Node /*Expression*/>,
-        original: Option<Gc<Node>>,
+        expression: Id<Node /*Expression*/>,
+        original: Option<Id<Node>>,
     ) -> PartiallyEmittedExpression {
         let node = self.create_base_node(SyntaxKind::PartiallyEmittedExpression);
         let node = PartiallyEmittedExpression::new(node, expression);
@@ -507,8 +507,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     pub fn update_partially_emitted_expression(
         &self,
         node: &Node, /*PartiallyEmittedExpression*/
-        expression: Gc<Node /*Expression*/>,
-    ) -> Gc<Node> {
+        expression: Id<Node /*Expression*/>,
+    ) -> Id<Node> {
         let node_as_partially_emitted_expression = node.as_partially_emitted_expression();
         if !Gc::ptr_eq(
             &node_as_partially_emitted_expression.expression,
@@ -529,7 +529,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     fn flatten_comma_elements(
         &self,
         node: &Node, /*Expression*/
-    ) -> SingleOrVec<Gc<Node /*Expression*/>> {
+    ) -> SingleOrVec<Id<Node /*Expression*/>> {
         if node_is_synthesized(node)
             && !is_parse_tree_node(node)
             && node.maybe_original().is_none()
@@ -563,7 +563,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         let node = CommaListExpression::new(
             node,
             self.create_node_array(
-                Some(same_flat_map_rc_node(elements, |element: &Gc<Node>, _| {
+                Some(same_flat_map_rc_node(elements, |element: &Id<Node>, _| {
                     self.flatten_comma_elements(element)
                 })),
                 None,
@@ -579,7 +579,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         &self,
         node: &Node, /*CommaListExpression*/
         elements: impl Into<NodeArrayOrVec /*<Expression>*/>,
-    ) -> Gc<Node> {
+    ) -> Id<Node> {
         let node_as_comma_list_expression = node.as_comma_list_expression();
         let elements = elements.into();
         if has_node_array_changed(&node_as_comma_list_expression.elements, &elements) {
@@ -589,7 +589,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         }
     }
 
-    pub fn create_end_of_declaration_marker(&self, original: Gc<Node>) -> Gc<Node> {
+    pub fn create_end_of_declaration_marker(&self, original: Id<Node>) -> Id<Node> {
         let node = self
             .create_base_node(SyntaxKind::EndOfDeclarationMarker)
             .wrap();
@@ -598,7 +598,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         node
     }
 
-    pub fn create_merge_declaration_marker(&self, original: Gc<Node>) -> Gc<Node> {
+    pub fn create_merge_declaration_marker(&self, original: Id<Node>) -> Id<Node> {
         let node = self
             .create_base_node(SyntaxKind::MergeDeclarationMarker)
             .wrap();
@@ -609,9 +609,9 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn create_synthetic_reference_expression(
         &self,
-        expression: Gc<Node>, /*Expression*/
-        this_arg: Gc<Node>,   /*Expression*/
-    ) -> Gc<Node> {
+        expression: Id<Node>, /*Expression*/
+        this_arg: Id<Node>,   /*Expression*/
+    ) -> Id<Node> {
         let node = self.create_base_node(SyntaxKind::SyntheticReferenceExpression);
         let node = SyntheticReferenceExpression::new(node, expression, this_arg);
         node.set_transform_flags(
@@ -622,7 +622,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         node.wrap()
     }
 
-    pub fn clone_node(&self, node: &Node) -> Gc<Node> {
+    pub fn clone_node(&self, node: &Node) -> Id<Node> {
         // if (node === undefined) {
         //     return node;
         //  }
@@ -645,9 +645,9 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     pub fn create_immediately_invoked_arrow_function(
         &self,
         statements: impl Into<NodeArrayOrVec>,
-        param: Option<Gc<Node /*ParameterDeclaration*/>>,
-        param_value: Option<Gc<Node /*Expression*/>>,
-    ) -> Gc<Node> {
+        param: Option<Id<Node /*ParameterDeclaration*/>>,
+        param_value: Option<Id<Node /*Expression*/>>,
+    ) -> Id<Node> {
         self.create_call_expression(
             self.create_arrow_function(
                 Option::<Gc<NodeArray>>::None,
@@ -662,11 +662,11 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         )
     }
 
-    pub fn create_void_zero(&self) -> Gc<Node> {
+    pub fn create_void_zero(&self) -> Id<Node> {
         self.create_void_expression(self.create_numeric_literal("0".to_owned(), None))
     }
 
-    pub fn create_export_default(&self, expression: Gc<Node /*Expression*/>) -> Gc<Node> {
+    pub fn create_export_default(&self, expression: Id<Node /*Expression*/>) -> Id<Node> {
         self.create_export_assignment(
             Option::<Gc<NodeArray>>::None,
             Option::<Gc<NodeArray>>::None,
@@ -675,14 +675,14 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         )
     }
 
-    pub fn create_external_module_export(&self, export_name: Gc<Node /*Identifier*/>) -> Gc<Node> {
+    pub fn create_external_module_export(&self, export_name: Id<Node /*Identifier*/>) -> Id<Node> {
         self.create_export_declaration(
             Option::<Gc<NodeArray>>::None,
             Option::<Gc<NodeArray>>::None,
             false,
             Some(self.create_named_exports(vec![self.create_export_specifier(
                 false,
-                Option::<Gc<Node>>::None,
+                Option::<Id<Node>>::None,
                 export_name,
             )])),
             None,
@@ -692,9 +692,9 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn create_type_check(
         &self,
-        value: Gc<Node /*Expression*/>,
+        value: Id<Node /*Expression*/>,
         tag: &str, /*TypeOfTag*/
-    ) -> Gc<Node> {
+    ) -> Id<Node> {
         if tag == "undefined" {
             self.create_strict_equality(value, self.create_void_zero())
         } else {
@@ -707,10 +707,10 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub(super) fn create_method_call<'method_name>(
         &self,
-        object: Gc<Node /*Expression*/>,
+        object: Id<Node /*Expression*/>,
         method_name: impl Into<StrOrRcNode<'method_name>>,
         arguments_list: impl Into<NodeArrayOrVec /*Expression*/>,
-    ) -> Gc<Node> {
+    ) -> Id<Node> {
         if is_call_chain(&object) {
             return self.create_call_chain(
                 self.create_property_access_chain(object, None, method_name),
@@ -728,30 +728,30 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn create_function_bind_call(
         &self,
-        target: Gc<Node /*Expression*/>,
-        this_arg: Gc<Node /*Expression*/>,
+        target: Id<Node /*Expression*/>,
+        this_arg: Id<Node /*Expression*/>,
         arguments_list: impl Into<NodeArrayOrVec /*Expression*/>,
-    ) -> Gc<Node> {
+    ) -> Id<Node> {
         let arguments_list = arguments_list.into();
         self.create_method_call(target, "bind", vec![this_arg].and_extend(arguments_list))
     }
 
     pub fn create_function_call_call(
         &self,
-        target: Gc<Node /*Expression*/>,
-        this_arg: Gc<Node /*Expression*/>,
+        target: Id<Node /*Expression*/>,
+        this_arg: Id<Node /*Expression*/>,
         arguments_list: impl Into<NodeArrayOrVec /*Expression*/>,
-    ) -> Gc<Node> {
+    ) -> Id<Node> {
         let arguments_list = arguments_list.into();
         self.create_method_call(target, "call", vec![this_arg].and_extend(arguments_list))
     }
 
     pub fn create_function_apply_call(
         &self,
-        target: Gc<Node /*Expression*/>,
-        this_arg: Gc<Node /*Expression*/>,
-        arguments_expression: Gc<Node /*Expression*/>,
-    ) -> Gc<Node> {
+        target: Id<Node /*Expression*/>,
+        this_arg: Id<Node /*Expression*/>,
+        arguments_expression: Id<Node /*Expression*/>,
+    ) -> Id<Node> {
         self.create_method_call(target, "apply", vec![this_arg, arguments_expression])
     }
 
@@ -760,7 +760,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         global_object_name: &str,
         method_name: &str,
         arguments_list: impl Into<NodeArrayOrVec /*Expression*/>,
-    ) -> Gc<Node> {
+    ) -> Id<Node> {
         self.create_method_call(
             self.create_identifier(global_object_name),
             method_name,
@@ -770,9 +770,9 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn create_array_slice_call(
         &self,
-        array: Gc<Node /*Expression*/>,
+        array: Id<Node /*Expression*/>,
         start: Option<impl Into<NumberOrRcNode>>,
-    ) -> Gc<Node> {
+    ) -> Id<Node> {
         self.create_method_call(
             array,
             "slice",
@@ -782,18 +782,18 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn create_array_concat_call(
         &self,
-        array: Gc<Node /*Expression*/>,
-        arguments_list: Vec<Gc<Node /*Expression*/>>,
-    ) -> Gc<Node> {
+        array: Id<Node /*Expression*/>,
+        arguments_list: Vec<Id<Node /*Expression*/>>,
+    ) -> Id<Node> {
         self.create_method_call(array, "concat", arguments_list)
     }
 
     pub fn create_object_define_property_call<'property_name>(
         &self,
-        target: Gc<Node /*Expression*/>,
+        target: Id<Node /*Expression*/>,
         property_name: impl Into<StrOrRcNode<'property_name>>,
-        attributes: Gc<Node /*Expression*/>,
-    ) -> Gc<Node> {
+        attributes: Id<Node /*Expression*/>,
+    ) -> Id<Node> {
         let property_name = property_name.into();
         self.create_global_method_call(
             "Object",
@@ -804,10 +804,10 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn create_reflect_get_call(
         &self,
-        target: Gc<Node /*Expression*/>,
-        property_key: Gc<Node /*Expression*/>,
-        receiver: Option<Gc<Node /*Expression*/>>,
-    ) -> Gc<Node /*CallExpression*/> {
+        target: Id<Node /*Expression*/>,
+        property_key: Id<Node /*Expression*/>,
+        receiver: Option<Id<Node /*Expression*/>>,
+    ) -> Id<Node /*CallExpression*/> {
         self.create_global_method_call(
             "Reflect",
             "get",
@@ -820,11 +820,11 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn create_reflect_set_call(
         &self,
-        target: Gc<Node /*Expression*/>,
-        property_key: Gc<Node /*Expression*/>,
-        value: Gc<Node /*Expression*/>,
-        receiver: Option<Gc<Node /*Expression*/>>,
-    ) -> Gc<Node /*CallExpression*/> {
+        target: Id<Node /*Expression*/>,
+        property_key: Id<Node /*Expression*/>,
+        value: Id<Node /*Expression*/>,
+        receiver: Option<Id<Node /*Expression*/>>,
+    ) -> Id<Node /*CallExpression*/> {
         self.create_global_method_call(
             "Reflect",
             "set",
@@ -844,9 +844,9 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub(super) fn try_add_property_assignment(
         &self,
-        properties: &mut Vec<Gc<Node /*PropertyAssignment*/>>,
+        properties: &mut Vec<Id<Node /*PropertyAssignment*/>>,
         property_name: &str,
-        expression: Option<Gc<Node>>,
+        expression: Option<Id<Node>>,
     ) -> bool {
         if let Some(expression) = expression {
             properties.push(self.create_property_assignment(property_name, expression));
@@ -859,8 +859,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         &self,
         attributes: PropertyDescriptorAttributes,
         single_line: Option<bool>,
-    ) -> Gc<Node> {
-        let mut properties: Vec<Gc<Node /*PropertyAssignment*/>> = _d();
+    ) -> Id<Node> {
+        let mut properties: Vec<Id<Node /*PropertyAssignment*/>> = _d();
         self.try_add_property_assignment(
             &mut properties,
             "enumerable",
@@ -894,8 +894,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     pub(super) fn update_outer_expression(
         &self,
         outer_expression: &Node, /*OuterExpression*/
-        expression: Gc<Node /*Expression*/>,
-    ) -> Gc<Node> {
+        expression: Id<Node /*Expression*/>,
+    ) -> Id<Node> {
         match outer_expression.kind() {
             SyntaxKind::ParenthesizedExpression => {
                 self.update_parenthesized_expression(outer_expression, expression)
@@ -936,7 +936,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         outer_expression: Option<impl Borrow<Node> /*Expression*/>,
         inner_expression: &Node, /*Expression*/
         kinds: Option<OuterExpressionKinds>,
-    ) -> Gc<Node /*Expression*/> {
+    ) -> Id<Node /*Expression*/> {
         let kinds = kinds.unwrap_or(OuterExpressionKinds::All);
         if let Some(outer_expression) = outer_expression.filter(|outer_expression| {
             let outer_expression = outer_expression.borrow();
@@ -961,7 +961,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         node: &Node, /*Statement*/
         outermost_labeled_statement: Option<impl Borrow<Node /*LabeledStatement*/>>,
         after_restore_label_callback: Option<impl FnMut(&Node /*LabeledStatement*/)>,
-    ) -> Gc<Node /*Statement*/> {
+    ) -> Id<Node /*Statement*/> {
         if outermost_labeled_statement.is_none() {
             return node.node_wrapper();
         }
@@ -1025,8 +1025,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     ) -> CallBinding {
         let cache_identifiers = cache_identifiers.unwrap_or_default();
         let callee = &skip_outer_expressions(expression, Some(OuterExpressionKinds::All));
-        let this_arg: Gc<Node /*Expression*/>;
-        let target: Gc<Node /*LeftHandSideExpression*/>;
+        let this_arg: Id<Node /*Expression*/>;
+        let target: Id<Node /*LeftHandSideExpression*/>;
         if is_super_property(callee) {
             this_arg = self.create_this();
             target = callee.clone();
@@ -1111,9 +1111,9 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn create_assignment_target_wrapper(
         &self,
-        param_name: Gc<Node /*Identifier*/>,
-        expression: Gc<Node /*Expression*/>,
-    ) -> Gc<Node /*LeftHandSideExpression*/> {
+        param_name: Id<Node /*Identifier*/>,
+        expression: Id<Node /*Expression*/>,
+    ) -> Id<Node /*LeftHandSideExpression*/> {
         self.create_property_access_expression(
             self.create_parenthesized_expression(self.create_object_literal_expression(
                 Some(vec![self.create_set_accessor_declaration(
@@ -1139,13 +1139,13 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         )
     }
 
-    pub fn inline_expressions(&self, expressions: &[Gc<Node /*Expression*/>]) -> Gc<Node> {
+    pub fn inline_expressions(&self, expressions: &[Id<Node /*Expression*/>]) -> Id<Node> {
         if expressions.len() > 10 {
             self.create_comma_list_expression(expressions.to_owned())
         } else {
             reduce_left_no_initial_value(
                 expressions,
-                |accumulator: Gc<Node>, next: &Gc<Node>, _| {
+                |accumulator: Id<Node>, next: &Id<Node>, _| {
                     self.create_comma(accumulator, next.clone())
                 },
                 None,
@@ -1160,7 +1160,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         allow_comments: Option<bool>,
         allow_source_maps: Option<bool>,
         emit_flags: Option<EmitFlags>,
-    ) -> Gc<Node> {
+    ) -> Id<Node> {
         let mut emit_flags = emit_flags.unwrap_or_default();
         let node = node.node_wrappered();
         let node_name = get_name_of_declaration(node.as_deref());
@@ -1191,7 +1191,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         node: &Node, /*Declaration*/
         allow_comments: Option<bool>,
         allow_source_maps: Option<bool>,
-    ) -> Gc<Node> {
+    ) -> Id<Node> {
         self.get_name(
             Some(node),
             allow_comments,
@@ -1205,7 +1205,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         node: &Node, /*Declaration*/
         allow_comments: Option<bool>,
         allow_source_maps: Option<bool>,
-    ) -> Gc<Node> {
+    ) -> Id<Node> {
         self.get_name(
             Some(node),
             allow_comments,
@@ -1219,7 +1219,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         node: &Node, /*Declaration*/
         allow_comments: Option<bool>,
         allow_source_maps: Option<bool>,
-    ) -> Gc<Node /*Identifier*/> {
+    ) -> Id<Node /*Identifier*/> {
         self.get_name(
             Some(node),
             allow_comments,
@@ -1233,7 +1233,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         node: Option<impl Borrow<Node> /*Declaration*/>,
         allow_comments: Option<bool>,
         allow_source_maps: Option<bool>,
-    ) -> Gc<Node /*Identifier*/> {
+    ) -> Id<Node /*Identifier*/> {
         self.get_name(node, allow_comments, allow_source_maps, None)
     }
 
@@ -1243,7 +1243,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         name: &Node, /*Identifier*/
         allow_comments: Option<bool>,
         allow_source_maps: Option<bool>,
-    ) -> Gc<Node /*PropertyAccessExpression*/> {
+    ) -> Id<Node /*PropertyAccessExpression*/> {
         let qualified_name = self
             .create_property_access_expression(
                 ns.node_wrapper(),
@@ -1273,7 +1273,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         node: &Node, /*Declaration*/
         allow_comments: Option<bool>,
         allow_source_maps: Option<bool>,
-    ) -> Gc<Node /*Identifier | PropertyAccessExpression*/> {
+    ) -> Id<Node /*Identifier | PropertyAccessExpression*/> {
         if let Some(ns) = ns.filter(|_| has_syntactic_modifier(node, ModifierFlags::Export)) {
             let ns = ns.borrow();
             return self.get_namespace_member_name(
@@ -1288,8 +1288,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn copy_prologue(
         &self,
-        source: &[Gc<Node /*Statement*/>],
-        target: &mut Vec<Gc<Node /*Statement*/>>,
+        source: &[Id<Node /*Statement*/>],
+        target: &mut Vec<Id<Node /*Statement*/>>,
         ensure_use_strict: Option<bool>,
         visitor: Option<impl FnMut(&Node) -> VisitResult /*<Node>*/>,
     ) -> usize {
@@ -1304,8 +1304,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn try_copy_prologue(
         &self,
-        source: &[Gc<Node /*Statement*/>],
-        target: &mut Vec<Gc<Node /*Statement*/>>,
+        source: &[Id<Node /*Statement*/>],
+        target: &mut Vec<Id<Node /*Statement*/>>,
         ensure_use_strict: Option<bool>,
         visitor: Option<impl FnMut(&Node) -> io::Result<VisitResult /*<Node>*/>>,
     ) -> io::Result<usize> {
@@ -1331,7 +1331,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
                 == "use strict"
     }
 
-    pub fn create_use_strict_prologue(&self) -> Gc<Node> {
+    pub fn create_use_strict_prologue(&self) -> Id<Node> {
         self.create_expression_statement(self.create_string_literal(
             "use strict".to_owned(),
             None,
@@ -1342,8 +1342,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn copy_standard_prologue(
         &self,
-        source: &[Gc<Node /*Statement*/>],
-        target: &mut Vec<Gc<Node /*Statement*/>>,
+        source: &[Id<Node /*Statement*/>],
+        target: &mut Vec<Id<Node /*Statement*/>>,
         ensure_use_strict: Option<bool>,
     ) -> usize {
         Debug_.assert(target.is_empty(), Some("Prologue directives should be at the first statement in the target statements array"));
@@ -1370,8 +1370,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn copy_custom_prologue(
         &self,
-        source: &[Gc<Node /*Statement*/>],
-        target: &mut Vec<Gc<Node /*Statement*/>>,
+        source: &[Id<Node /*Statement*/>],
+        target: &mut Vec<Id<Node /*Statement*/>>,
         statement_offset: Option<usize>,
         visitor: Option<impl FnMut(&Node) -> VisitResult /*<Node>*/>,
         filter: Option<impl FnMut(&Node) -> bool>,
@@ -1388,8 +1388,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn try_copy_custom_prologue(
         &self,
-        source: &[Gc<Node /*Statement*/>],
-        target: &mut Vec<Gc<Node /*Statement*/>>,
+        source: &[Id<Node /*Statement*/>],
+        target: &mut Vec<Id<Node /*Statement*/>>,
         statement_offset: Option<usize>,
         mut visitor: Option<impl FnMut(&Node) -> io::Result<VisitResult /*<Node>*/>>,
         mut filter: Option<impl FnMut(&Node) -> bool>,
@@ -1414,7 +1414,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
                             statement,
                             Some(|node: &Node| visitor(node)),
                             Some(is_statement),
-                            Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                            Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                         )
                     },
                 )?);
@@ -1446,9 +1446,9 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         statements.rc_wrapper()
     }
 
-    pub fn lift_to_block(&self, nodes: &[Gc<Node>]) -> Gc<Node /*Statement*/> {
+    pub fn lift_to_block(&self, nodes: &[Id<Node>]) -> Id<Node /*Statement*/> {
         Debug_.assert(
-            every(nodes, |node: &Gc<Node>, _| is_statement_or_block(node)),
+            every(nodes, |node: &Id<Node>, _| is_statement_or_block(node)),
             Some("Cannot lift nodes to a Block."),
         );
         single_or_undefined(Some(nodes))
@@ -1472,7 +1472,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     pub fn merge_lexical_environment(
         &self,
         statements: impl Into<NodeArrayOrVec>,
-        declarations: Option<&[Gc<Node /*Statement*/>]>,
+        declarations: Option<&[Id<Node /*Statement*/>]>,
     ) -> NodeArrayOrVec {
         let statements = statements.into();
         if !declarations.is_non_empty() {
@@ -1482,38 +1482,38 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
         let left_standard_prologue_end = self.find_span_end(
             &*statements,
-            |node: &Gc<Node>| is_prologue_directive(node),
+            |node: &Id<Node>| is_prologue_directive(node),
             0,
         );
         let left_hoisted_functions_end = self.find_span_end(
             &*statements,
-            |node: &Gc<Node>| is_hoisted_function(node),
+            |node: &Id<Node>| is_hoisted_function(node),
             left_standard_prologue_end,
         );
         let left_hoisted_variables_end = self.find_span_end(
             &*statements,
-            |node: &Gc<Node>| is_hoisted_variable_statement(node),
+            |node: &Id<Node>| is_hoisted_variable_statement(node),
             left_hoisted_functions_end,
         );
 
         let right_standard_prologue_end = self.find_span_end(
             declarations,
-            |node: &Gc<Node>| is_prologue_directive(node),
+            |node: &Id<Node>| is_prologue_directive(node),
             0,
         );
         let right_hoisted_functions_end = self.find_span_end(
             declarations,
-            |node: &Gc<Node>| is_hoisted_function(node),
+            |node: &Id<Node>| is_hoisted_function(node),
             right_standard_prologue_end,
         );
         let right_hoisted_variables_end = self.find_span_end(
             declarations,
-            |node: &Gc<Node>| is_hoisted_variable_statement(node),
+            |node: &Id<Node>| is_hoisted_variable_statement(node),
             right_hoisted_functions_end,
         );
         let right_custom_prologue_end = self.find_span_end(
             declarations,
-            |node: &Gc<Node>| is_custom_prologue(node),
+            |node: &Id<Node>| is_custom_prologue(node),
             right_hoisted_variables_end,
         );
         Debug_.assert(

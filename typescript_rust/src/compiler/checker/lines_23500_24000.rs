@@ -131,10 +131,10 @@ impl TypeChecker {
 
 pub(super) struct GetFlowTypeOfReference {
     pub type_checker: Gc<TypeChecker>,
-    pub reference: Gc<Node>,
+    pub reference: Id<Node>,
     pub declared_type: Id<Type>,
     pub initial_type: Id<Type>,
-    pub flow_container: Option<Gc<Node>>,
+    pub flow_container: Option<Id<Node>>,
     key: RefCell<Option<String>>,
     is_key_set: Cell<bool>,
     flow_depth: Cell<usize>,
@@ -150,10 +150,10 @@ impl HasArena for GetFlowTypeOfReference {
 impl GetFlowTypeOfReference {
     pub(super) fn new(
         type_checker: Gc<TypeChecker>,
-        reference: Gc<Node>,
+        reference: Id<Node>,
         declared_type: Id<Type>,
         initial_type: Id<Type>,
-        flow_container: Option<Gc<Node>>,
+        flow_container: Option<Id<Node>>,
     ) -> Self {
         Self {
             type_checker,

@@ -1,6 +1,7 @@
 use std::{io, mem};
 
 use gc::{Finalize, Gc, GcCell, Trace};
+use id_arena::Id;
 
 use crate::{
     chain_bundle, is_block, maybe_visit_each_child, visit_each_child, visit_node,
@@ -32,7 +33,7 @@ impl TransformES2019 {
         self._transformer_wrapper.borrow().clone().unwrap()
     }
 
-    fn transform_source_file(&self, node: &Node /*SourceFile*/) -> Gc<Node> {
+    fn transform_source_file(&self, node: &Node /*SourceFile*/) -> Id<Node> {
         if node.as_source_file().is_declaration_file() {
             return node.node_wrapper();
         }
@@ -58,7 +59,7 @@ impl TransformES2019 {
         }
     }
 
-    fn visit_catch_clause(&self, node: &Node /*CatchClause*/) -> Gc<Node /*CatchClause*/> {
+    fn visit_catch_clause(&self, node: &Node /*CatchClause*/) -> Id<Node /*CatchClause*/> {
         let node_as_catch_clause = node.as_catch_clause();
         if node_as_catch_clause.variable_declaration.is_none() {
             return self.factory.update_catch_clause(
@@ -78,7 +79,7 @@ impl TransformES2019 {
                     &node_as_catch_clause.block,
                     Some(|node: &Node| self.visitor(node)),
                     Some(is_block),
-                    Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                    Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                 ),
             );
         }
@@ -87,7 +88,7 @@ impl TransformES2019 {
 }
 
 impl TransformerInterface for TransformES2019 {
-    fn call(&self, node: &Node) -> io::Result<Gc<Node>> {
+    fn call(&self, node: &Node) -> io::Result<Id<Node>> {
         Ok(self.transform_source_file(node))
     }
 }

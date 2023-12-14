@@ -569,7 +569,7 @@ impl TypeChecker {
         self.get_non_missing_type_of_symbol(symbol)
     }
 
-    pub(super) fn maybe_get_control_flow_container(&self, node: &Node) -> Option<Gc<Node>> {
+    pub(super) fn maybe_get_control_flow_container(&self, node: &Node) -> Option<Id<Node>> {
         find_ancestor(node.maybe_parent(), |node: &Node| {
             is_function_like(Some(node))
                 && get_immediately_invoked_function_expression(node).is_none()
@@ -582,7 +582,7 @@ impl TypeChecker {
         })
     }
 
-    pub(super) fn get_control_flow_container(&self, node: &Node) -> Gc<Node> {
+    pub(super) fn get_control_flow_container(&self, node: &Node) -> Id<Node> {
         self.maybe_get_control_flow_container(node).unwrap()
     }
 

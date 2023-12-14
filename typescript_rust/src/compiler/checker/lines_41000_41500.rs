@@ -254,7 +254,7 @@ impl TypeChecker {
             )?));
         }
         if expr.parent().kind() == SyntaxKind::PropertyAssignment {
-            let ref node = cast_present(expr.parent().parent(), |node: &Gc<Node>| {
+            let ref node = cast_present(expr.parent().parent(), |node: &Id<Node>| {
                 is_object_literal_expression(node)
             });
             let type_of_parent_object_literal = self
@@ -272,7 +272,7 @@ impl TypeChecker {
                 None,
             );
         }
-        let node = cast_present(expr.parent(), |node: &Gc<Node>| {
+        let node = cast_present(expr.parent(), |node: &Id<Node>| {
             is_array_literal_expression(node)
         });
         let type_of_array_literal = self
@@ -307,7 +307,7 @@ impl TypeChecker {
     ) -> io::Result<Option<Id<Symbol>>> {
         let type_of_object_literal = self.get_type_of_assignment_pattern_(&*cast_present(
             location.parent().parent(),
-            |node: &Gc<Node>| is_assignment_pattern(node),
+            |node: &Id<Node>| is_assignment_pattern(node),
         ))?;
         type_of_object_literal.try_and_then(|type_of_object_literal| {
             self.get_property_of_type_(
@@ -561,7 +561,7 @@ impl TypeChecker {
         &self,
         node_in: &Node, /*Identifier*/
         prefix_locals: Option<bool>,
-    ) -> io::Result<Option<Gc<Node /*SourceFile | ModuleDeclaration | EnumDeclaration*/>>> {
+    ) -> io::Result<Option<Id<Node /*SourceFile | ModuleDeclaration | EnumDeclaration*/>>> {
         let node = get_parse_tree_node(Some(node_in), Some(is_identifier));
         if let Some(node) = node.as_ref() {
             let symbol = self.get_referenced_value_symbol(
@@ -627,7 +627,7 @@ impl TypeChecker {
     pub(super) fn get_referenced_import_declaration(
         &self,
         node_in: &Node, /*Identifier*/
-    ) -> io::Result<Option<Gc<Node /*Declaration*/>>> {
+    ) -> io::Result<Option<Id<Node /*Declaration*/>>> {
         if let Some(node_in_generated_import_reference) = node_in
             .as_identifier()
             .maybe_generated_import_reference()
@@ -692,7 +692,7 @@ impl TypeChecker {
                                 symbol.ref_(self).escaped_name(),
                                 SymbolFlags::Value,
                                 None,
-                                Option::<Gc<Node>>::None,
+                                Option::<Id<Node>>::None,
                                 false,
                                 None,
                             )?
@@ -731,7 +731,7 @@ impl TypeChecker {
     pub(super) fn get_referenced_declaration_with_colliding_name(
         &self,
         node_in: &Node, /*Identifier*/
-    ) -> io::Result<Option<Gc<Node /*Declaration*/>>> {
+    ) -> io::Result<Option<Id<Node /*Declaration*/>>> {
         if !is_generated_identifier(node_in) {
             let node = get_parse_tree_node(Some(node_in), Some(is_identifier));
             if let Some(node) = node.as_ref() {
@@ -787,7 +787,7 @@ impl TypeChecker {
                     Some(export_clause) if is_namespace_export(export_clause) ||
                         try_some(
                             Some(&*export_clause.as_named_exports().elements),
-                            Some(|element: &Gc<Node>| self.is_value_alias_declaration(element))
+                            Some(|element: &Id<Node>| self.is_value_alias_declaration(element))
                         )?
                 )
             }

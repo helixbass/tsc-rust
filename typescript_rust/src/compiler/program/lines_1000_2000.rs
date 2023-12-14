@@ -6,6 +6,7 @@ use std::{
 };
 
 use gc::{Finalize, Gc, GcCell, GcCellRef, Trace};
+use id_arena::Id;
 use itertools::Itertools;
 
 use super::{
@@ -218,7 +219,7 @@ impl Program {
         })
     }
 
-    pub fn get_source_files(&self) -> GcCellRef<Vec<Gc<Node>>> {
+    pub fn get_source_files(&self) -> GcCellRef<Vec<Id<Node>>> {
         self.files()
     }
 
@@ -246,7 +247,7 @@ impl Program {
         self.file_reasons.borrow().clone()
     }
 
-    pub fn get_source_file_(&self, file_name: &str) -> Option<Gc<Node /*SourceFile*/>> {
+    pub fn get_source_file_(&self, file_name: &str) -> Option<Id<Node /*SourceFile*/>> {
         self.get_source_file_by_path(&self.to_path(file_name))
     }
 
@@ -377,13 +378,13 @@ impl Program {
     pub fn get_common_source_directory(&self) -> String {
         self.maybe_common_source_directory_mut()
             .get_or_insert_with(|| {
-                let emitted_files = filter(&**self.files(), |file: &Gc<Node>| {
+                let emitted_files = filter(&**self.files(), |file: &Id<Node>| {
                     source_file_may_be_emitted(file, self, None)
                 });
                 get_common_source_directory(
                     &self.options,
                     || {
-                        map_defined(Some(&emitted_files), |file: &Gc<Node>, _| {
+                        map_defined(Some(&emitted_files), |file: &Id<Node>, _| {
                             let file_as_source_file = file.as_source_file();
                             if file_as_source_file.is_declaration_file() {
                                 None
@@ -748,10 +749,10 @@ impl Program {
             );
         }
 
-        let mut new_source_files: Vec<Gc<Node /*SourceFile*/>> = Default::default();
+        let mut new_source_files: Vec<Id<Node /*SourceFile*/>> = Default::default();
         struct ModifiedSourceFile {
-            pub old_file: Gc<Node /*SourceFile*/>,
-            pub new_file: Gc<Node /*SourceFile*/>,
+            pub old_file: Id<Node /*SourceFile*/>,
+            pub new_file: Id<Node /*SourceFile*/>,
         }
         let mut modified_source_files: Vec<ModifiedSourceFile> = Default::default();
         self.set_structure_is_reused(StructureIsReused::Completely);
@@ -928,7 +929,7 @@ impl Program {
                 if !array_is_equal_to(
                     old_source_file_as_source_file.maybe_imports().as_deref(),
                     new_source_file_as_source_file.maybe_imports().as_deref(),
-                    |a: &Gc<Node>, b: &Gc<Node>, _| self.module_name_is_equal_to(a, b),
+                    |a: &Id<Node>, b: &Id<Node>, _| self.module_name_is_equal_to(a, b),
                 ) {
                     self.set_structure_is_reused(StructureIsReused::SafeModules);
                 }
@@ -939,7 +940,7 @@ impl Program {
                     new_source_file_as_source_file
                         .maybe_module_augmentations()
                         .as_deref(),
-                    |a: &Gc<Node>, b: &Gc<Node>, _| self.module_name_is_equal_to(a, b),
+                    |a: &Id<Node>, b: &Id<Node>, _| self.module_name_is_equal_to(a, b),
                 ) {
                     self.set_structure_is_reused(StructureIsReused::SafeModules);
                 }
@@ -1188,7 +1189,7 @@ impl Program {
         self.maybe_project_references()
     }
 
-    pub(super) fn get_prepend_nodes(&self) -> Vec<Gc<Node /*InputFiles*/>> {
+    pub(super) fn get_prepend_nodes(&self) -> Vec<Id<Node /*InputFiles*/>> {
         create_prepend_nodes(
             self.maybe_project_references().as_deref(),
             |_ref, index| {
@@ -1272,7 +1273,7 @@ impl Program {
         }
         Ok(sort_and_deduplicate_diagnostics(&try_flat_map(
             Some(&*self.get_source_files()),
-            |source_file: &Gc<Node>, _| {
+            |source_file: &Id<Node>, _| {
                 // if (cancellationToken) {
                 //     cancellationToken.throwIfCancellationRequested();
                 // }
@@ -1431,7 +1432,7 @@ impl EmitHost for ProgramEmitHost {
         unimplemented!()
     }
 
-    fn get_prepend_nodes(&self) -> Vec<Gc<Node /*InputFiles | UnparsedSource*/>> {
+    fn get_prepend_nodes(&self) -> Vec<Id<Node /*InputFiles | UnparsedSource*/>> {
         self.program.get_prepend_nodes()
     }
 
@@ -1439,11 +1440,11 @@ impl EmitHost for ProgramEmitHost {
         self.program.host().get_new_line()
     }
 
-    fn get_source_files(&self) -> GcCellRef<Vec<Gc<Node /*SourceFile*/>>> {
+    fn get_source_files(&self) -> GcCellRef<Vec<Id<Node /*SourceFile*/>>> {
         self.program.get_source_files()
     }
 
-    fn get_lib_file_from_reference(&self, ref_: &FileReference) -> Option<Gc<Node /*SourceFile*/>> {
+    fn get_lib_file_from_reference(&self, ref_: &FileReference) -> Option<Id<Node /*SourceFile*/>> {
         self.program.get_lib_file_from_reference(ref_)
     }
 
@@ -1453,7 +1454,7 @@ impl EmitHost for ProgramEmitHost {
         data: &str,
         write_byte_order_mark: bool,
         on_error: Option<&mut dyn FnMut(&str)>,
-        source_files: Option<&[Gc<Node /*SourceFile*/>]>,
+        source_files: Option<&[Id<Node /*SourceFile*/>]>,
     ) -> io::Result<()> {
         if let Some(write_file_callback) = self.write_file_callback.clone() {
             write_file_callback.call(
@@ -1493,7 +1494,7 @@ impl EmitHost for ProgramEmitHost {
         &self,
         file: &Node, /*SourceFile | UnparsedSource*/
         ref_: &FileReference,
-    ) -> io::Result<Option<Gc<Node /*SourceFile*/>>> {
+    ) -> io::Result<Option<Id<Node /*SourceFile*/>>> {
         self.program.get_source_file_from_reference(file, ref_)
     }
 
@@ -1517,11 +1518,11 @@ impl ScriptReferenceHost for ProgramEmitHost {
         self.program.get_compiler_options()
     }
 
-    fn get_source_file(&self, file_name: &str) -> Option<Gc<Node /*SourceFile*/>> {
+    fn get_source_file(&self, file_name: &str) -> Option<Id<Node /*SourceFile*/>> {
         self.program.get_source_file_(file_name)
     }
 
-    fn get_source_file_by_path(&self, path: &Path) -> Option<Gc<Node /*SourceFile*/>> {
+    fn get_source_file_by_path(&self, path: &Path) -> Option<Id<Node /*SourceFile*/>> {
         self.program.get_source_file_by_path(path)
     }
 
@@ -1651,7 +1652,7 @@ impl WriteFileCallback for EmitHostWriteFileCallback {
         data: &str,
         write_byte_order_mark: bool,
         on_error: Option<&mut dyn FnMut(&str)>,
-        source_files: Option<&[Gc<Node /*SourceFile*/>]>,
+        source_files: Option<&[Id<Node /*SourceFile*/>]>,
     ) -> io::Result<()> {
         self.host.write_file(
             file_name,

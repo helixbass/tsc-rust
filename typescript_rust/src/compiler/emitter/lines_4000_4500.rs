@@ -22,7 +22,7 @@ use crate::{
 impl Printer {
     pub(super) fn emit_unparsed_prologues(
         &self,
-        prologues: &[Gc<Node /*UnparsedPrologue*/>],
+        prologues: &[Id<Node /*UnparsedPrologue*/>],
         seen_prologue_directives: &mut HashSet<String>,
     ) -> io::Result<()> {
         for prologue in prologues {
@@ -427,23 +427,23 @@ impl Printer {
                     parent_node_as_arrow_function.maybe_type().is_none() &&
                         !some(
                             parent_node.maybe_decorators().as_double_deref(),
-                            Option::<fn(&Gc<Node>) -> bool>::None
+                            Option::<fn(&Id<Node>) -> bool>::None
                         ) &&
                         !some(
                             parent_node.maybe_modifiers().as_double_deref(),
-                            Option::<fn(&Gc<Node>) -> bool>::None
+                            Option::<fn(&Id<Node>) -> bool>::None
                         ) &&
                         !some(
                             parent_node_as_arrow_function.maybe_type_parameters().as_double_deref(),
-                            Option::<fn(&Gc<Node>) -> bool>::None
+                            Option::<fn(&Id<Node>) -> bool>::None
                         ) &&
                         !some(
                             parameter.maybe_decorators().as_double_deref(),
-                            Option::<fn(&Gc<Node>) -> bool>::None
+                            Option::<fn(&Id<Node>) -> bool>::None
                         ) &&
                         !some(
                             parameter.maybe_modifiers().as_double_deref(),
-                            Option::<fn(&Gc<Node>) -> bool>::None
+                            Option::<fn(&Id<Node>) -> bool>::None
                         ) &&
                         parameter_as_parameter_declaration.dot_dot_dot_token.is_none() &&
                         parameter_as_parameter_declaration.question_token.is_none() &&
@@ -643,7 +643,7 @@ impl Printer {
                 self.increase_indent();
             }
 
-            let mut previous_sibling: Option<Gc<Node>> = None;
+            let mut previous_sibling: Option<Id<Node>> = None;
             let mut previous_source_file_text_kind: Option<BundleFileSectionKind> = None;
             let mut should_decrease_indent_after_emit = false;
             for i in 0..count {

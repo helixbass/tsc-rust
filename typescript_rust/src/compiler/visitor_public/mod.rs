@@ -11,6 +11,7 @@ use crate::{
 
 mod try_visit_each_child;
 mod visit_each_child;
+use id_arena::Id;
 pub use try_visit_each_child::*;
 pub use visit_each_child::*;
 
@@ -25,8 +26,8 @@ pub fn visit_node(
     node: &Node,
     visitor: Option<impl FnMut(&Node) -> VisitResult>,
     test: Option<impl Fn(&Node) -> bool>,
-    lift: Option<impl Fn(&[Gc<Node>]) -> Gc<Node>>,
-) -> Gc<Node> {
+    lift: Option<impl Fn(&[Id<Node>]) -> Id<Node>>,
+) -> Id<Node> {
     maybe_visit_node(Some(node), visitor, test, lift).unwrap()
 }
 
@@ -35,8 +36,8 @@ pub fn maybe_visit_node(
     node: Option<impl Borrow<Node>>,
     visitor: Option<impl FnMut(&Node) -> VisitResult>,
     test: Option<impl Fn(&Node) -> bool>,
-    lift: Option<impl Fn(&[Gc<Node>]) -> Gc<Node>>,
-) -> Option<Gc<Node>> {
+    lift: Option<impl Fn(&[Id<Node>]) -> Id<Node>>,
+) -> Option<Id<Node>> {
     try_maybe_visit_node(
         node,
         visitor.map(|mut visitor| move |node: &Node| Ok(visitor(node))),
@@ -51,8 +52,8 @@ pub fn try_visit_node(
     node: &Node,
     visitor: Option<impl FnMut(&Node) -> io::Result<VisitResult>>,
     test: Option<impl Fn(&Node) -> bool>,
-    lift: Option<impl Fn(&[Gc<Node>]) -> Gc<Node>>,
-) -> io::Result<Gc<Node>> {
+    lift: Option<impl Fn(&[Id<Node>]) -> Id<Node>>,
+) -> io::Result<Id<Node>> {
     Ok(try_maybe_visit_node(Some(node), visitor, test, lift)?.unwrap())
 }
 
@@ -60,8 +61,8 @@ pub fn try_maybe_visit_node(
     node: Option<impl Borrow<Node>>,
     visitor: Option<impl FnMut(&Node) -> io::Result<VisitResult>>,
     test: Option<impl Fn(&Node) -> bool>,
-    lift: Option<impl Fn(&[Gc<Node>]) -> Gc<Node>>,
-) -> io::Result<Option<Gc<Node>>> {
+    lift: Option<impl Fn(&[Id<Node>]) -> Id<Node>>,
+) -> io::Result<Option<Id<Node>>> {
     let node = return_ok_default_if_none!(node);
     let node = node.borrow();
     if visitor.is_none() {
@@ -113,7 +114,7 @@ pub fn maybe_visit_nodes(
     }
     let mut visitor = visitor.unwrap();
 
-    let mut updated: Option<Vec<Gc<Node>>> = Default::default();
+    let mut updated: Option<Vec<Id<Node>>> = Default::default();
 
     let length = nodes.len();
     let start = start.unwrap_or(0); /*start < 0*/
@@ -212,7 +213,7 @@ pub fn try_maybe_visit_nodes(
     }
     let mut visitor = visitor.unwrap();
 
-    let mut updated: Option<Vec<Gc<Node>>> = Default::default();
+    let mut updated: Option<Vec<Id<Node>>> = Default::default();
 
     let length = nodes.len();
     let start = start.unwrap_or(0); /*start < 0*/
@@ -601,7 +602,7 @@ fn add_default_value_assignments_if_needed(
     parameters: &NodeArray, /*<ParameterDeclaration>*/
     context: &(impl TransformationContext + ?Sized),
 ) -> Gc<NodeArray /*<ParameterDeclaration>*/> {
-    let mut result: Option<Vec<Gc<Node /*ParameterDeclaration*/>>> = _d();
+    let mut result: Option<Vec<Id<Node /*ParameterDeclaration*/>>> = _d();
     for (i, parameter) in parameters.iter().enumerate() {
         let updated = add_default_value_assignment_if_needed(parameter, context);
         if result.is_some() || !Gc::ptr_eq(&updated, parameter) {
@@ -624,7 +625,7 @@ fn add_default_value_assignments_if_needed(
 fn add_default_value_assignment_if_needed(
     parameter: &Node, /*ParameterDeclaration*/
     context: &(impl TransformationContext + ?Sized),
-) -> Gc<Node> {
+) -> Id<Node> {
     let parameter_as_parameter_declaration = parameter.as_parameter_declaration();
     if parameter_as_parameter_declaration
         .dot_dot_dot_token
@@ -650,7 +651,7 @@ fn add_default_value_assignment_if_needed(
 fn add_default_value_assignment_for_binding_pattern(
     parameter: &Node, /*ParameterDeclaration*/
     context: &(impl TransformationContext + ?Sized),
-) -> Gc<Node> {
+) -> Id<Node> {
     let parameter_as_parameter_declaration = parameter.as_parameter_declaration();
     let factory = context.factory();
     context.add_initialization_statement(&factory.create_variable_statement(
@@ -707,7 +708,7 @@ fn add_default_value_assignment_for_initializer(
     name: &Node,        /*Identifier*/
     initializer: &Node, /*Expression*/
     context: &(impl TransformationContext + ?Sized),
-) -> Gc<Node> {
+) -> Id<Node> {
     let parameter_as_parameter_declaration = parameter.as_parameter_declaration();
     let factory = context.factory();
     context.add_initialization_statement(
@@ -758,7 +759,7 @@ pub fn visit_function_body(
     node: Option<&Node /*ConciseBody*/>,
     visitor: impl FnMut(&Node) -> VisitResult,
     context: &(impl TransformationContext + ?Sized),
-) -> Option<Gc<Node /*ConciseBody*/>> {
+) -> Option<Id<Node /*ConciseBody*/>> {
     visit_function_body_full(
         node,
         visitor,
@@ -768,8 +769,8 @@ pub fn visit_function_body(
                 Option<&Node>,
                 Option<&mut dyn FnMut(&Node) -> VisitResult>,
                 Option<&dyn Fn(&Node) -> bool>,
-                Option<&dyn Fn(&[Gc<Node>]) -> Gc<Node>>,
-            ) -> Option<Gc<Node>>,
+                Option<&dyn Fn(&[Id<Node>]) -> Id<Node>>,
+            ) -> Option<Id<Node>>,
         >::None,
     )
 }
@@ -783,16 +784,16 @@ pub fn visit_function_body_full(
             Option<&Node>,
             Option<&mut dyn FnMut(&Node) -> VisitResult>,
             Option<&dyn Fn(&Node) -> bool>,
-            Option<&dyn Fn(&[Gc<Node>]) -> Gc<Node>>,
-        ) -> Option<Gc<Node>>,
+            Option<&dyn Fn(&[Id<Node>]) -> Id<Node>>,
+        ) -> Option<Id<Node>>,
     >,
-) -> Option<Gc<Node /*ConciseBody*/>> {
+) -> Option<Id<Node /*ConciseBody*/>> {
     context.resume_lexical_environment();
     let mut node_visitor = |node: Option<&Node>,
                             visitor: Option<&mut dyn FnMut(&Node) -> VisitResult>,
                             test: Option<&dyn Fn(&Node) -> bool>,
-                            lift: Option<&dyn Fn(&[Gc<Node>]) -> Gc<Node>>|
-     -> Option<Gc<Node>> {
+                            lift: Option<&dyn Fn(&[Id<Node>]) -> Id<Node>>|
+     -> Option<Id<Node>> {
         if let Some(node_visitor) = node_visitor.as_mut() {
             node_visitor(node, visitor, test, lift)
         } else {
@@ -800,7 +801,7 @@ pub fn visit_function_body_full(
                 node,
                 visitor.map(|visitor| |node: &Node| visitor(node)),
                 test.map(|test| |node: &Node| test(node)),
-                lift.map(|lift| |node: &[Gc<Node>]| lift(node)),
+                lift.map(|lift| |node: &[Id<Node>]| lift(node)),
             )
         }
     };
@@ -827,7 +828,7 @@ pub fn try_visit_function_body(
     node: Option<&Node /*ConciseBody*/>,
     visitor: impl FnMut(&Node) -> io::Result<VisitResult>,
     context: &(impl TransformationContext + ?Sized),
-) -> io::Result<Option<Gc<Node /*ConciseBody*/>>> {
+) -> io::Result<Option<Id<Node /*ConciseBody*/>>> {
     try_visit_function_body_full(
         node,
         visitor,
@@ -837,8 +838,8 @@ pub fn try_visit_function_body(
                 Option<&Node>,
                 Option<&mut dyn FnMut(&Node) -> io::Result<VisitResult>>,
                 Option<&dyn Fn(&Node) -> bool>,
-                Option<&dyn Fn(&[Gc<Node>]) -> Gc<Node>>,
-            ) -> io::Result<Option<Gc<Node>>>,
+                Option<&dyn Fn(&[Id<Node>]) -> Id<Node>>,
+            ) -> io::Result<Option<Id<Node>>>,
         >::None,
     )
 }
@@ -852,16 +853,16 @@ pub fn try_visit_function_body_full(
             Option<&Node>,
             Option<&mut dyn FnMut(&Node) -> io::Result<VisitResult>>,
             Option<&dyn Fn(&Node) -> bool>,
-            Option<&dyn Fn(&[Gc<Node>]) -> Gc<Node>>,
-        ) -> io::Result<Option<Gc<Node>>>,
+            Option<&dyn Fn(&[Id<Node>]) -> Id<Node>>,
+        ) -> io::Result<Option<Id<Node>>>,
     >,
-) -> io::Result<Option<Gc<Node /*ConciseBody*/>>> {
+) -> io::Result<Option<Id<Node /*ConciseBody*/>>> {
     context.resume_lexical_environment();
     let mut node_visitor = |node: Option<&Node>,
                             visitor: Option<&mut dyn FnMut(&Node) -> io::Result<VisitResult>>,
                             test: Option<&dyn Fn(&Node) -> bool>,
-                            lift: Option<&dyn Fn(&[Gc<Node>]) -> Gc<Node>>|
-     -> io::Result<Option<Gc<Node>>> {
+                            lift: Option<&dyn Fn(&[Id<Node>]) -> Id<Node>>|
+     -> io::Result<Option<Id<Node>>> {
         if let Some(node_visitor) = node_visitor.as_mut() {
             node_visitor(node, visitor, test, lift)
         } else {
@@ -869,7 +870,7 @@ pub fn try_visit_function_body_full(
                 node,
                 visitor.map(|visitor| |node: &Node| visitor(node)),
                 test.map(|test| |node: &Node| test(node)),
-                lift.map(|lift| |node: &[Gc<Node>]| lift(node)),
+                lift.map(|lift| |node: &[Id<Node>]| lift(node)),
             )
         }
     };
@@ -896,7 +897,7 @@ pub fn visit_iteration_body(
     body: &Node, /*Statement*/
     mut visitor: impl FnMut(&Node) -> VisitResult,
     context: &(impl TransformationContext + ?Sized),
-) -> Gc<Node /*Statement*/> {
+) -> Id<Node /*Statement*/> {
     try_visit_iteration_body(body, |a| Ok(visitor(a)), context).unwrap()
 }
 
@@ -904,13 +905,13 @@ pub fn try_visit_iteration_body(
     body: &Node, /*Statement*/
     visitor: impl FnMut(&Node) -> io::Result<VisitResult>,
     context: &(impl TransformationContext + ?Sized),
-) -> io::Result<Gc<Node /*Statement*/>> {
+) -> io::Result<Id<Node /*Statement*/>> {
     context.start_block_scope();
     let updated = try_visit_node(
         body,
         Some(visitor),
         Some(is_statement),
-        Some(|nodes: &[Gc<Node>]| context.factory().lift_to_block(nodes)),
+        Some(|nodes: &[Id<Node>]| context.factory().lift_to_block(nodes)),
     )?;
     let declarations = context.end_block_scope();
     if let Some(mut declarations) = declarations.non_empty()
@@ -926,7 +927,7 @@ pub fn try_visit_iteration_body(
     Ok(updated)
 }
 
-fn extract_single_node(nodes: &[Gc<Node>]) -> Option<Gc<Node>> {
+fn extract_single_node(nodes: &[Id<Node>]) -> Option<Id<Node>> {
     Debug_.assert(nodes.len() <= 1, Some("Too many nodes written to output."));
     single_or_undefined(Some(nodes)).cloned()
 }

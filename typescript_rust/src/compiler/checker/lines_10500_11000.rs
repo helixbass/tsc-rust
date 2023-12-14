@@ -197,7 +197,7 @@ impl TypeChecker {
                     } else {
                         declaration_name_to_string(Some(&*decl_name)).into_owned()
                     };
-                    maybe_for_each(declarations.as_deref(), |declaration: &Gc<Node>, _| {
+                    maybe_for_each(declarations.as_deref(), |declaration: &Id<Node>, _| {
                         self.error(
                             Some(
                                 get_name_of_declaration(Some(&**declaration))
@@ -407,14 +407,14 @@ impl TypeChecker {
                 value
             } && try_some(
                 symbol.ref_(self).maybe_declarations().as_deref(),
-                Some(|declaration: &Gc<Node>| self.has_late_bindable_name(declaration)),
+                Some(|declaration: &Id<Node>| self.has_late_bindable_name(declaration)),
             )? {
                 let parent = self
                     .get_merged_symbol(symbol.ref_(self).maybe_parent())
                     .unwrap();
                 if some(
                     symbol.ref_(self).maybe_declarations().as_deref(),
-                    Some(|declaration: &Gc<Node>| has_static_modifier(declaration)),
+                    Some(|declaration: &Id<Node>| has_static_modifier(declaration)),
                 ) {
                     self.get_exports_of_symbol(parent)?;
                 } else {
@@ -693,7 +693,7 @@ impl TypeChecker {
 
     pub(super) fn create_signature(
         &self,
-        declaration: Option<Gc<Node>>,
+        declaration: Option<Id<Node>>,
         type_parameters: Option<Vec<Id<Type>>>,
         this_parameter: Option<Id<Symbol>>,
         parameters: Vec<Id<Symbol>>,

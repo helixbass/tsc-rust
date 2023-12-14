@@ -34,7 +34,7 @@ pub(super) struct CheckTypeRelatedTo {
     pub target: Id<Type>,
     #[unsafe_ignore_trace]
     pub relation: Rc<RefCell<HashMap<String, RelationComparisonResult>>>,
-    pub error_node: GcCell<Option<Gc<Node>>>,
+    pub error_node: GcCell<Option<Id<Node>>>,
     #[unsafe_ignore_trace]
     pub head_message: Option<Cow<'static, DiagnosticMessage>>,
     pub containing_message_chain: Option<Gc<Box<dyn CheckTypeContainingMessageChain>>>,
@@ -77,7 +77,7 @@ impl CheckTypeRelatedTo {
         source: Id<Type>,
         target: Id<Type>,
         relation: Rc<RefCell<HashMap<String, RelationComparisonResult>>>,
-        error_node: Option<Gc<Node>>,
+        error_node: Option<Id<Node>>,
         head_message: Option<Cow<'static, DiagnosticMessage>>,
         containing_message_chain: Option<Gc<Box<dyn CheckTypeContainingMessageChain>>>,
         error_output_container: Option<Gc<Box<dyn CheckTypeErrorOutputContainer>>>,
@@ -120,11 +120,11 @@ impl CheckTypeRelatedTo {
         self._rc_wrapper.borrow().clone().unwrap()
     }
 
-    pub(super) fn maybe_error_node(&self) -> Option<Gc<Node>> {
+    pub(super) fn maybe_error_node(&self) -> Option<Id<Node>> {
         self.error_node.borrow().clone()
     }
 
-    pub(super) fn set_error_node(&self, error_node: Option<Gc<Node>>) {
+    pub(super) fn set_error_node(&self, error_node: Option<Id<Node>>) {
         *self.error_node.borrow_mut() = error_node;
     }
 

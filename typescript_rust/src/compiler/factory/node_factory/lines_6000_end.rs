@@ -1,6 +1,7 @@
 use std::{borrow::Borrow, cell::RefCell, collections::HashMap, fmt, ptr};
 
 use gc::{Finalize, Gc, Trace};
+use id_arena::Id;
 
 use super::{create_node_factory, NodeFactoryFlags};
 use crate::{
@@ -28,7 +29,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         &self,
         node: &Node, /*HasModifiers*/
         modifiers: impl Into<VecNodeOrModifierFlags>,
-    ) -> Gc<Node> {
+    ) -> Id<Node> {
         let modifiers = modifiers.into();
         let modifiers = match modifiers {
             VecNodeOrModifierFlags::VecNode(modifiers) => modifiers,
@@ -292,14 +293,14 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     pub(super) fn as_name<'name, TName: Into<StrOrRcNode<'name>>>(
         &self,
         name: Option<TName>,
-    ) -> Option<Gc<Node>> {
+    ) -> Option<Id<Node>> {
         name.map(|name| match name.into() {
             StrOrRcNode::Str(name) => self.create_identifier(name),
             StrOrRcNode::RcNode(name) => name,
         })
     }
 
-    pub(super) fn as_expression(&self, value: impl Into<StringOrNumberOrBoolOrRcNode>) -> Gc<Node> {
+    pub(super) fn as_expression(&self, value: impl Into<StringOrNumberOrBoolOrRcNode>) -> Id<Node> {
         match value.into() {
             StringOrNumberOrBoolOrRcNode::String(value) => {
                 self.create_string_literal(value, None, None)
@@ -320,18 +321,18 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     pub(super) fn maybe_as_expression(
         &self,
         value: Option<impl Into<StringOrNumberOrBoolOrRcNode>>,
-    ) -> Option<Gc<Node>> {
+    ) -> Option<Id<Node>> {
         value.map(|value| self.as_expression(value))
     }
 
-    pub(super) fn as_token(&self, value: SyntaxKindOrRcNode) -> Gc<Node> {
+    pub(super) fn as_token(&self, value: SyntaxKindOrRcNode) -> Id<Node> {
         match value {
             SyntaxKindOrRcNode::SyntaxKind(value) => self.create_token(value),
             SyntaxKindOrRcNode::RcNode(value) => value,
         }
     }
 
-    pub(super) fn as_embedded_statement(&self, statement: Option<Gc<Node>>) -> Option<Gc<Node>> {
+    pub(super) fn as_embedded_statement(&self, statement: Option<Id<Node>>) -> Option<Id<Node>> {
         if false {
             unimplemented!()
         } else {
@@ -341,12 +342,12 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 }
 
 pub enum VecNodeOrModifierFlags {
-    VecNode(Vec<Gc<Node>>),
+    VecNode(Vec<Id<Node>>),
     ModifierFlags(ModifierFlags),
 }
 
-impl From<Vec<Gc<Node>>> for VecNodeOrModifierFlags {
-    fn from(value: Vec<Gc<Node>>) -> Self {
+impl From<Vec<Id<Node>>> for VecNodeOrModifierFlags {
+    fn from(value: Vec<Id<Node>>) -> Self {
         Self::VecNode(value)
     }
 }
@@ -359,7 +360,7 @@ impl From<ModifierFlags> for VecNodeOrModifierFlags {
 
 pub enum SyntaxKindOrRcNode {
     SyntaxKind(SyntaxKind),
-    RcNode(Gc<Node>),
+    RcNode(Id<Node>),
 }
 
 impl From<SyntaxKind> for SyntaxKindOrRcNode {
@@ -368,20 +369,20 @@ impl From<SyntaxKind> for SyntaxKindOrRcNode {
     }
 }
 
-impl From<Gc<Node>> for SyntaxKindOrRcNode {
-    fn from(value: Gc<Node>) -> Self {
+impl From<Id<Node>> for SyntaxKindOrRcNode {
+    fn from(value: Id<Node>) -> Self {
         Self::RcNode(value)
     }
 }
 
-pub(super) fn update_without_original(updated: Gc<Node>, original: &Node) -> Gc<Node> {
+pub(super) fn update_without_original(updated: Id<Node>, original: &Node) -> Id<Node> {
     if !ptr::eq(&*updated, original) {
         set_text_range(&*updated, Some(original));
     }
     updated
 }
 
-pub(super) fn update_with_original(updated: Gc<Node>, original: &Node) -> Gc<Node> {
+pub(super) fn update_with_original(updated: Id<Node>, original: &Node) -> Id<Node> {
     if !ptr::eq(&*updated, original) {
         set_original_node(updated.clone(), Some(original.node_wrapper()));
         set_text_range(&*updated, Some(original));
@@ -713,7 +714,7 @@ pub fn create_unparsed_source_file(
     _text_or_input_files: impl Into<StringOrRcNode>,
     _map_path_or_type: Option<&str>,
     _map_text_or_strip_internal: Option<impl Into<StringOrBool>>,
-) -> Gc<Node /*UnparsedSource*/> {
+) -> Id<Node /*UnparsedSource*/> {
     unimplemented!()
 }
 
@@ -729,7 +730,7 @@ pub fn create_input_files(
     build_info_path: Option<String>,
     build_info: Option<Gc<BuildInfo>>,
     old_file_of_current_emit: Option<bool>,
-) -> Gc<Node /*InputFiles*/> {
+) -> Id<Node /*InputFiles*/> {
     let mut node: InputFiles = parse_node_factory
         .with(|parse_node_factory_| parse_node_factory_.create_input_files_raw().into());
     match javascript_text_or_read_file_text.into() {
@@ -783,7 +784,7 @@ impl From<Gc<Box<dyn ReadFileCallback>>> for StringOrReadFileCallback {
     }
 }
 
-pub fn set_original_node<TNode: Borrow<Node>>(node: TNode, original: Option<Gc<Node>>) -> TNode {
+pub fn set_original_node<TNode: Borrow<Node>>(node: TNode, original: Option<Id<Node>>) -> TNode {
     let node_as_node = node.borrow();
     node_as_node.set_original(original.clone());
     if let Some(original) = original {

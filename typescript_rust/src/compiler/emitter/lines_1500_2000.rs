@@ -1,6 +1,7 @@
 use std::{collections::HashMap, convert::TryInto, io};
 
 use gc::Gc;
+use id_arena::Id;
 
 use super::{ParenthesizeExpressionOfComputedPropertyNameCurrentParenthesizerRule, PipelinePhase};
 use crate::{
@@ -85,7 +86,7 @@ impl Printer {
 
     pub(super) fn emit_helpers(&self, node: &Node) -> bool {
         let mut helpers_emitted = false;
-        let bundle: Option<Gc<Node>> = if node.kind() == SyntaxKind::Bundle {
+        let bundle: Option<Id<Node>> = if node.kind() == SyntaxKind::Bundle {
             Some(node.node_wrapper())
         } else {
             None

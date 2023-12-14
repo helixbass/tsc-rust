@@ -1,6 +1,7 @@
 use std::io;
 
 use gc::{Gc, GcCell};
+use id_arena::Id;
 use indexmap::IndexMap;
 
 use super::{
@@ -18,7 +19,7 @@ use crate::{
 };
 
 impl TransformES2015 {
-    pub(super) fn create_out_variable(&self, p: &LoopOutParameter) -> Gc<Node> {
+    pub(super) fn create_out_variable(&self, p: &LoopOutParameter) -> Id<Node> {
         self.factory.create_variable_declaration(
             Some(p.original_name.clone()),
             None,
@@ -31,7 +32,7 @@ impl TransformES2015 {
         &self,
         node: &Node, /*ForStatementWithConvertibleInitializer*/
         current_state: Gc<GcCell<ConvertedLoopState>>,
-    ) -> io::Result<IterationStatementPartFunction<Gc<Node /*VariableDeclarationList*/>>> {
+    ) -> io::Result<IterationStatementPartFunction<Id<Node /*VariableDeclarationList*/>>> {
         let node_as_for_statement = node.as_for_statement();
         let function_name = self.factory.create_unique_name("_loop_init", None);
 
@@ -53,7 +54,7 @@ impl TransformES2015 {
             emit_flags |= EmitFlags::AsyncFunctionBody;
         }
 
-        let mut statements: Vec<Gc<Node /*Statement*/>> = _d();
+        let mut statements: Vec<Id<Node /*Statement*/>> = _d();
         statements.push(
             self.factory
                 .create_variable_statement(Option::<Gc<NodeArray>>::None, node_initializer.clone()),
@@ -80,7 +81,7 @@ impl TransformES2015 {
                                     contains_yield.then(|| {
                                         self.factory.create_token(SyntaxKind::AsteriskToken)
                                     }),
-                                    Option::<Gc<Node>>::None,
+                                    Option::<Id<Node>>::None,
                                     Option::<Gc<NodeArray>>::None,
                                     Option::<Gc<NodeArray>>::None,
                                     None,
@@ -88,7 +89,7 @@ impl TransformES2015 {
                                         &self.factory.create_block(statements, Some(true)),
                                         Some(|node: &Node| self.visitor(node)),
                                         Some(is_block),
-                                        Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                                        Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                                     )?,
                                 )
                                 .set_emit_flags(emit_flags),
@@ -122,18 +123,18 @@ impl TransformES2015 {
         node: &Node, /*IterationStatement*/
         current_state: Gc<GcCell<ConvertedLoopState>>,
         outer_state: Option<Gc<GcCell<ConvertedLoopState>>>,
-    ) -> io::Result<IterationStatementPartFunction<Vec<Gc<Node /*Statement*/>>>> {
+    ) -> io::Result<IterationStatementPartFunction<Vec<Id<Node /*Statement*/>>>> {
         let function_name = self.factory.create_unique_name("_loop", None);
         self.context.start_lexical_environment();
         let statement = try_visit_node(
             &node.as_has_statement().statement(),
             Some(|node: &Node| self.visitor(node)),
             Some(is_statement),
-            Some(&|nodes: &[Gc<Node>]| self.factory.lift_to_block(nodes)),
+            Some(&|nodes: &[Id<Node>]| self.factory.lift_to_block(nodes)),
         )?;
         let lexical_environment = self.context.end_lexical_environment();
 
-        let mut statements: Vec<Gc<Node /*Statement*/>> = _d();
+        let mut statements: Vec<Id<Node /*Statement*/>> = _d();
         if self.should_convert_condition_of_for_statement(node)
             || self.should_convert_incrementor_of_for_statement(node)
         {
@@ -152,7 +153,7 @@ impl TransformES2015 {
                             node_incrementor,
                             Some(|node: &Node| self.visitor(node)),
                             Some(is_expression),
-                            Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                            Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                         )?),
                         Some(
                             self.factory.create_expression_statement(
@@ -202,16 +203,16 @@ impl TransformES2015 {
                                 node_as_for_statement.condition.as_deref().unwrap(),
                                 Some(|node: &Node| self.visitor(node)),
                                 Some(is_expression),
-                                Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                                Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                             )?,
                         ),
                         try_visit_node(
                             &self
                                 .factory
-                                .create_break_statement(Option::<Gc<Node>>::None),
+                                .create_break_statement(Option::<Id<Node>>::None),
                             Some(|node: &Node| self.visitor(node)),
                             Some(is_statement),
-                            Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                            Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                         )?,
                         None,
                     ),
@@ -277,7 +278,7 @@ impl TransformES2015 {
                                     contains_yield.then(|| {
                                         self.factory.create_token(SyntaxKind::AsteriskToken)
                                     }),
-                                    Option::<Gc<Node>>::None,
+                                    Option::<Id<Node>>::None,
                                     Option::<Gc<NodeArray>>::None,
                                     Some((*current_state).borrow().loop_parameters.clone()),
                                     None,
@@ -310,7 +311,7 @@ impl TransformES2015 {
         &self,
         out_param: &LoopOutParameter,
         copy_direction: CopyDirection,
-    ) -> Gc<Node /*BinaryExpression*/> {
+    ) -> Id<Node /*BinaryExpression*/> {
         let source = if copy_direction == CopyDirection::ToOriginal {
             out_param.out_param_name.clone()
         } else {
@@ -330,7 +331,7 @@ impl TransformES2015 {
         out_params: &[LoopOutParameter],
         part_flags: LoopOutParameterFlags,
         copy_direction: CopyDirection,
-        statements: &mut Vec<Gc<Node /*Statement*/>>,
+        statements: &mut Vec<Id<Node /*Statement*/>>,
     ) {
         for out_param in out_params {
             if out_param.flags.intersects(part_flags) {
@@ -345,7 +346,7 @@ impl TransformES2015 {
         &self,
         init_function_expression_name: &Node, /*Identifier*/
         contains_yield: bool,
-    ) -> Gc<Node /*Statement*/> {
+    ) -> Id<Node /*Statement*/> {
         let call = self.factory.create_call_expression(
             init_function_expression_name.node_wrapper(),
             Option::<Gc<NodeArray>>::None,
@@ -368,8 +369,8 @@ impl TransformES2015 {
         state: Gc<GcCell<ConvertedLoopState>>,
         outer_state: Option<Gc<GcCell<ConvertedLoopState>>>,
         contains_yield: bool,
-    ) -> Vec<Gc<Node /*Statement*/>> {
-        let mut statements: Vec<Gc<Node /*Statement*/>> = _d();
+    ) -> Vec<Id<Node /*Statement*/>> {
+        let mut statements: Vec<Id<Node /*Statement*/>> = _d();
         let state = (*state).borrow();
         let is_simple_loop = !state
             .non_local_jumps
@@ -381,7 +382,7 @@ impl TransformES2015 {
         let call = self.factory.create_call_expression(
             loop_function_expression_name.node_wrapper(),
             Option::<Gc<NodeArray>>::None,
-            Some(map(&state.loop_parameters, |p: &Gc<Node>, _| {
+            Some(map(&state.loop_parameters, |p: &Id<Node>, _| {
                 p.as_parameter_declaration().name()
             })),
         );
@@ -428,7 +429,7 @@ impl TransformES2015 {
                 .unwrap_or_default()
                 .intersects(Jump::Return)
             {
-                let return_statement: Gc<Node /*ReturnStatement*/>;
+                let return_statement: Id<Node /*ReturnStatement*/>;
                 if let Some(outer_state) = outer_state.as_ref() {
                     *outer_state
                         .borrow_mut()
@@ -466,7 +467,7 @@ impl TransformES2015 {
                                 .create_string_literal("break".to_owned(), None, None),
                         ),
                         self.factory
-                            .create_break_statement(Option::<Gc<Node>>::None),
+                            .create_break_statement(Option::<Id<Node>>::None),
                         None,
                     ),
                 );
@@ -475,7 +476,7 @@ impl TransformES2015 {
             if state.labeled_non_local_breaks.is_some()
                 || state.labeled_non_local_continues.is_some()
             {
-                let mut case_clauses: Vec<Gc<Node /*CaseClause*/>> = _d();
+                let mut case_clauses: Vec<Id<Node /*CaseClause*/>> = _d();
                 self.process_labeled_jumps(
                     state.labeled_non_local_breaks.as_ref(),
                     true,
@@ -525,11 +526,11 @@ impl TransformES2015 {
         is_break: bool,
         loop_result_name: &Node, /*Identifier*/
         outer_loop: Option<Gc<GcCell<ConvertedLoopState>>>,
-        case_clauses: &mut Vec<Gc<Node /*CaseClause*/>>,
+        case_clauses: &mut Vec<Id<Node /*CaseClause*/>>,
     ) {
         let table = return_if_none!(table);
         for (label_text, label_marker) in table {
-            let mut statements: Vec<Gc<Node /*Statement*/>> = _d();
+            let mut statements: Vec<Id<Node /*Statement*/>> = _d();
             if match outer_loop.as_ref() {
                 None => true,
                 Some(outer_loop) => {
@@ -574,7 +575,7 @@ impl TransformES2015 {
         &self,
         container: &Node, /*IterationStatement*/
         decl: &Node,      /*VariableDeclaration | BindingElement*/
-        loop_parameters: &mut Vec<Gc<Node /*ParameterDeclaration*/>>,
+        loop_parameters: &mut Vec<Id<Node /*ParameterDeclaration*/>>,
         loop_out_parameters: &mut Vec<LoopOutParameter>,
         has_captured_bindings_in_for_initializer: bool,
     ) -> io::Result<()> {
@@ -637,7 +638,7 @@ impl TransformES2015 {
 
     pub(super) fn add_object_literal_members(
         &self,
-        expressions: &mut Vec<Gc<Node /*Expression*/>>,
+        expressions: &mut Vec<Id<Node /*Expression*/>>,
         node: &Node,     /*ObjectLiteralExpression*/
         receiver: &Node, /*Identifier*/
         start: usize,
@@ -696,7 +697,7 @@ impl TransformES2015 {
         property: &Node, /*PropertyAssignment*/
         receiver: &Node, /*Expression*/
         starts_on_new_line: Option<bool>,
-    ) -> io::Result<Gc<Node>> {
+    ) -> io::Result<Id<Node>> {
         let property_as_property_assignment = property.as_property_assignment();
         let expression = self
             .factory
@@ -708,7 +709,7 @@ impl TransformES2015 {
                         &property_as_property_assignment.name(),
                         Some(|node: &Node| self.visitor(node)),
                         Some(is_property_name),
-                        Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                        Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                     )?,
                     Option::<&Node>::None,
                 ),
@@ -716,7 +717,7 @@ impl TransformES2015 {
                     &property_as_property_assignment.maybe_initializer().unwrap(),
                     Some(|node: &Node| self.visitor(node)),
                     Some(is_expression),
-                    Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                    Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                 )?,
             )
             .set_text_range(Some(property));
@@ -731,7 +732,7 @@ impl TransformES2015 {
         property: &Node, /*ShorthandPropertyAssignment*/
         receiver: &Node, /*Expression*/
         starts_on_new_line: Option<bool>,
-    ) -> io::Result<Gc<Node>> {
+    ) -> io::Result<Id<Node>> {
         let property_as_shorthand_property_assignment = property.as_shorthand_property_assignment();
         let expression = self
             .factory
@@ -743,7 +744,7 @@ impl TransformES2015 {
                         &property_as_shorthand_property_assignment.name(),
                         Some(|node: &Node| self.visitor(node)),
                         Some(is_property_name),
-                        Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                        Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                     )?,
                     Option::<&Node>::None,
                 ),
@@ -759,8 +760,8 @@ impl TransformES2015 {
 }
 
 pub(super) struct IterationStatementPartFunction<TPart> {
-    pub function_name: Gc<Node /*Identifier*/>,
-    pub function_declaration: Gc<Node /*Statement*/>,
+    pub function_name: Id<Node /*Identifier*/>,
+    pub function_declaration: Id<Node /*Statement*/>,
     pub contains_yield: bool,
     pub part: TPart,
 }

@@ -333,7 +333,7 @@ impl BinderType {
                         .as_object_literal_expression()
                         .properties,
                 ),
-                Some(|p: &Gc<Node>| {
+                Some(|p: &Id<Node>| {
                     let id = get_name_of_declaration(Some(&**p));
                     matches!(id, Some(id) if is_identifier(&id) && id_text(&id) == "set")
                 }),
@@ -347,7 +347,7 @@ impl BinderType {
                         .as_object_literal_expression()
                         .properties,
                 ),
-                Some(|p: &Gc<Node>| {
+                Some(|p: &Id<Node>| {
                     let id = get_name_of_declaration(Some(&**p));
                     matches!(id, Some(id) if is_identifier(&id) && id_text(&id) == "get")
                 }),
@@ -468,7 +468,7 @@ impl BinderType {
         false
     }
 
-    pub(super) fn get_parent_of_binary_expression(&self, expr: &Node) -> Gc<Node> {
+    pub(super) fn get_parent_of_binary_expression(&self, expr: &Node) -> Id<Node> {
         let mut expr = expr.node_wrapper();
         while is_binary_expression(&expr.parent()) {
             expr = expr.parent();
@@ -805,7 +805,7 @@ impl BinderType {
     pub(super) fn get_infer_type_container(
         &self,
         node: &Node,
-    ) -> Option<Gc<Node /*ConditionalTypeNode*/>> {
+    ) -> Option<Id<Node /*ConditionalTypeNode*/>> {
         let extends_type = find_ancestor(
             Some(node),
             |n| matches!(n.maybe_parent(), Some(parent) if is_conditional_type_node(&parent) && ptr::eq(&*parent.as_conditional_type_node().extends_type, n)),

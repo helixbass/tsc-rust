@@ -1,6 +1,7 @@
 use std::io;
 
 use gc::Gc;
+use id_arena::Id;
 
 use super::TransformSystemModule;
 use crate::{
@@ -17,7 +18,7 @@ use crate::{
 impl TransformSystemModule {
     pub(super) fn append_exports_of_binding_element(
         &self,
-        statements: &mut Option<Vec<Gc<Node /*Statement*/>>>,
+        statements: &mut Option<Vec<Id<Node /*Statement*/>>>,
         decl: &Node, /*VariableDeclaration | BindingElement*/
         export_self: bool,
     ) /*: Statement[] | undefined*/
@@ -53,7 +54,7 @@ impl TransformSystemModule {
 
     pub(super) fn append_exports_of_hoisted_declaration(
         &self,
-        statements: &mut Option<Vec<Gc<Node /*Statement*/>>>,
+        statements: &mut Option<Vec<Id<Node /*Statement*/>>>,
         decl: &Node, /*ClassDeclaration | FunctionDeclaration*/
     ) /*: Statement[] | undefined*/
     {
@@ -87,7 +88,7 @@ impl TransformSystemModule {
 
     pub(super) fn append_exports_of_declaration(
         &self,
-        statements: &mut Option<Vec<Gc<Node /*Statement*/>>>,
+        statements: &mut Option<Vec<Id<Node /*Statement*/>>>,
         decl: &Node, /*Declaration*/
         exclude_name: Option<&str>,
     ) /*: Statement[] | undefined*/
@@ -123,7 +124,7 @@ impl TransformSystemModule {
 
     pub(super) fn append_export_statement(
         &self,
-        statements: &mut Option<Vec<Gc<Node /*Statement*/>>>,
+        statements: &mut Option<Vec<Id<Node /*Statement*/>>>,
         export_name: &Node, /*Identifier | StringLiteral*/
         expression: &Node,  /*Expression*/
         allow_comments: Option<bool>,
@@ -140,7 +141,7 @@ impl TransformSystemModule {
         name: &Node,  /*Identifier | StringLiteral*/
         value: &Node, /*Expression*/
         allow_comments: Option<bool>,
-    ) -> Gc<Node> {
+    ) -> Id<Node> {
         let statement = self
             .factory
             .create_expression_statement(self.create_export_expression(name, value))
@@ -156,7 +157,7 @@ impl TransformSystemModule {
         &self,
         name: &Node,  /*Identifier | StringLiteral*/
         value: &Node, /*Expression*/
-    ) -> Gc<Node> {
+    ) -> Id<Node> {
         let export_name = if is_identifier(name) {
             self.factory.create_string_literal_from_node(name)
         } else {
@@ -219,19 +220,19 @@ impl TransformSystemModule {
                     })
                 }),
                 Some(is_for_initializer),
-                Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
             )?,
             try_maybe_visit_node(
                 node_as_for_statement.condition.as_deref(),
                 Some(|node: &Node| self.visitor(node)),
                 Some(is_expression),
-                Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
             )?,
             try_maybe_visit_node(
                 node_as_for_statement.incrementor.as_deref(),
                 Some(|node: &Node| self.discarded_value_visitor(node)),
                 Some(is_expression),
-                Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
             )?,
             try_visit_iteration_body(
                 &node_as_for_statement.statement,
@@ -265,7 +266,7 @@ impl TransformSystemModule {
                 &node_as_for_in_statement.expression,
                 Some(|node: &Node| self.visitor(node)),
                 Some(is_expression),
-                Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
             )?,
             try_visit_iteration_body(
                 &node_as_for_in_statement.statement,
@@ -294,7 +295,7 @@ impl TransformSystemModule {
                 &node_as_for_of_statement.expression,
                 Some(|node: &Node| self.visitor(node)),
                 Some(is_expression),
-                Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
             )?,
             try_visit_iteration_body(
                 &node_as_for_of_statement.statement,
@@ -314,9 +315,9 @@ impl TransformSystemModule {
     pub(super) fn visit_for_initializer(
         &self,
         node: &Node, /*ForInitializer*/
-    ) -> io::Result<Gc<Node /*ForInitializer*/>> {
+    ) -> io::Result<Id<Node /*ForInitializer*/>> {
         Ok(if self.should_hoist_for_initializer(node) {
-            let mut expressions: Option<Vec<Gc<Node /*Expression*/>>> = _d();
+            let mut expressions: Option<Vec<Id<Node /*Expression*/>>> = _d();
             for variable in &node.as_variable_declaration_list().declarations {
                 expressions
                     .get_or_insert_default_()
@@ -339,7 +340,7 @@ impl TransformSystemModule {
                 node,
                 Some(|node: &Node| self.discarded_value_visitor(node)),
                 Some(is_expression),
-                Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
             )?
         })
     }
@@ -362,7 +363,7 @@ impl TransformSystemModule {
                         &node_as_do_statement.expression,
                         Some(|node: &Node| self.visitor(node)),
                         Some(is_expression),
-                        Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                        Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                     )?,
                 )
                 .into(),
@@ -382,7 +383,7 @@ impl TransformSystemModule {
                         &node_as_while_statement.expression,
                         Some(|node: &Node| self.visitor(node)),
                         Some(is_expression),
-                        Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                        Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                     )?,
                     try_visit_iteration_body(
                         &node_as_while_statement.statement,
@@ -408,7 +409,7 @@ impl TransformSystemModule {
                         &node_as_labeled_statement.statement,
                         Some(|node: &Node| self.top_level_nested_visitor(node)),
                         Some(is_statement),
-                        Some(|nodes: &[Gc<Node>]| self.factory.lift_to_block(nodes)),
+                        Some(|nodes: &[Id<Node>]| self.factory.lift_to_block(nodes)),
                     )?,
                 )
                 .into(),
@@ -428,13 +429,13 @@ impl TransformSystemModule {
                         &node_as_with_statement.expression,
                         Some(|node: &Node| self.visitor(node)),
                         Some(is_expression),
-                        Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                        Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                     )?,
                     try_visit_node(
                         &node_as_with_statement.statement,
                         Some(|node: &Node| self.top_level_nested_visitor(node)),
                         Some(is_statement),
-                        Some(|nodes: &[Gc<Node>]| self.factory.lift_to_block(nodes)),
+                        Some(|nodes: &[Id<Node>]| self.factory.lift_to_block(nodes)),
                     )?,
                 )
                 .into(),
@@ -454,13 +455,13 @@ impl TransformSystemModule {
                         &node_as_switch_statement.expression,
                         Some(|node: &Node| self.visitor(node)),
                         Some(is_expression),
-                        Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                        Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                     )?,
                     try_visit_node(
                         &node_as_switch_statement.case_block,
                         Some(|node: &Node| self.top_level_nested_visitor(node)),
                         Some(is_case_block),
-                        Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                        Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                     )?,
                 )
                 .into(),
@@ -470,7 +471,7 @@ impl TransformSystemModule {
     pub(super) fn visit_case_block(
         &self,
         node: &Node, /*CaseBlock*/
-    ) -> io::Result<Gc<Node /*CaseBlock*/>> {
+    ) -> io::Result<Id<Node /*CaseBlock*/>> {
         let node_as_case_block = node.as_case_block();
         let saved_enclosing_block_scoped_container = self.maybe_enclosing_block_scoped_container();
         self.set_enclosing_block_scoped_container(Some(node.node_wrapper()));
@@ -503,7 +504,7 @@ impl TransformSystemModule {
                         &node_as_case_clause.expression,
                         Some(|node: &Node| self.visitor(node)),
                         Some(is_expression),
-                        Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                        Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                     )?,
                     try_visit_nodes(
                         &node_as_case_clause.statements,
@@ -548,7 +549,7 @@ impl TransformSystemModule {
     pub(super) fn visit_catch_clause(
         &self,
         node: &Node, /*CatchClause*/
-    ) -> io::Result<Gc<Node /*CatchClause*/>> {
+    ) -> io::Result<Id<Node /*CatchClause*/>> {
         let node_as_catch_clause = node.as_catch_clause();
         let saved_enclosing_block_scoped_container = self.maybe_enclosing_block_scoped_container();
         self.set_enclosing_block_scoped_container(Some(node.node_wrapper()));
@@ -560,7 +561,7 @@ impl TransformSystemModule {
                 &node_as_catch_clause.block,
                 Some(|node: &Node| self.top_level_nested_visitor(node)),
                 Some(is_block),
-                Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
             )?,
         );
 
@@ -568,7 +569,7 @@ impl TransformSystemModule {
         Ok(node)
     }
 
-    pub(super) fn visit_block(&self, node: &Node /*Block*/) -> io::Result<Gc<Node /*Block*/>> {
+    pub(super) fn visit_block(&self, node: &Node /*Block*/) -> io::Result<Id<Node /*Block*/>> {
         let saved_enclosing_block_scoped_container = self.maybe_enclosing_block_scoped_container();
         self.set_enclosing_block_scoped_container(Some(node.node_wrapper()));
 

@@ -1,6 +1,7 @@
 use std::{collections::HashMap, io, ptr, rc::Rc};
 
 use gc::{Finalize, Gc, Trace};
+use id_arena::Id;
 
 use super::{
     execute_command_line_worker, print_build_help, print_version, should_be_pretty,
@@ -268,7 +269,7 @@ impl BuilderProgram for BuilderProgramDummy {
         unimplemented!()
     }
 
-    fn get_source_files(&self) -> &[Gc<Node /*SourceFile*/>] {
+    fn get_source_files(&self) -> &[Id<Node /*SourceFile*/>] {
         unimplemented!()
     }
 }

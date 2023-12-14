@@ -1,4 +1,5 @@
 use gc::Gc;
+use id_arena::Id;
 
 use super::{ParserType, ParsingContext, SignatureFlags};
 use crate::{
@@ -10,7 +11,7 @@ use crate::{
 };
 
 impl ParserType {
-    pub(super) fn parse_jsdoc_function_type(&self) -> Gc<Node> {
+    pub(super) fn parse_jsdoc_function_type(&self) -> Id<Node> {
         let pos = self.get_node_pos();
         let has_jsdoc = self.has_preceding_jsdoc_comment();
         if self.look_ahead_bool(|| self.next_token_is_open_paren()) {
@@ -64,7 +65,7 @@ impl ParserType {
         )
     }
 
-    pub(super) fn parse_jsdoc_type(&self) -> Gc<Node> {
+    pub(super) fn parse_jsdoc_type(&self) -> Id<Node> {
         self.scanner().set_in_jsdoc_type(true);
         let pos = self.get_node_pos();
         if self.parse_optional(SyntaxKind::ModuleKeyword) {
@@ -88,7 +89,7 @@ impl ParserType {
         }
 
         let has_dot_dot_dot = self.parse_optional(SyntaxKind::DotDotDotToken);
-        let mut type_: Gc<Node> = self.parse_type_or_type_predicate();
+        let mut type_: Id<Node> = self.parse_type_or_type_predicate();
         self.scanner().set_in_jsdoc_type(false);
         if has_dot_dot_dot {
             type_ = self
@@ -126,8 +127,8 @@ impl ParserType {
     pub(super) fn parse_type_parameter(&self) -> TypeParameterDeclaration {
         let pos = self.get_node_pos();
         let name = self.parse_identifier(None, None);
-        let mut constraint: Option<Gc<Node>> = None;
-        let mut expression: Option<Gc<Node>> = None;
+        let mut constraint: Option<Id<Node>> = None;
+        let mut expression: Option<Id<Node>> = None;
         if self.parse_optional(SyntaxKind::ExtendsKeyword) {
             if self.is_start_of_type(None) || !self.is_start_of_expression() {
                 constraint = Some(self.parse_type());
@@ -172,17 +173,17 @@ impl ParserType {
             || self.is_start_of_type(Some(!is_jsdoc_parameter))
     }
 
-    pub(super) fn parse_name_of_parameter(&self, modifiers: Option<&NodeArray>) -> Gc<Node> {
+    pub(super) fn parse_name_of_parameter(&self, modifiers: Option<&NodeArray>) -> Id<Node> {
         let name = self.parse_identifier_or_pattern(Some(
             &Diagnostics::Private_identifiers_cannot_be_used_as_parameters,
         ));
         if get_full_width(&name) == 0
             && !some(
                 modifiers.as_ref().map(|modifiers| {
-                    let modifiers: &[Gc<Node>] = modifiers;
+                    let modifiers: &[Id<Node>] = modifiers;
                     modifiers
                 }),
-                Option::<fn(&Gc<Node>) -> bool>::None,
+                Option::<fn(&Id<Node>) -> bool>::None,
             )
             && is_modifier_kind(self.token())
         {
@@ -193,18 +194,18 @@ impl ParserType {
 
     pub(super) fn parse_parameter_in_outer_await_context(
         &self,
-    ) -> Gc<Node /*ParameterDeclaration*/> {
+    ) -> Id<Node /*ParameterDeclaration*/> {
         self.parse_parameter_worker(true)
     }
 
-    pub(super) fn parse_parameter(&self) -> Gc<Node /*ParameterDeclaration*/> {
+    pub(super) fn parse_parameter(&self) -> Id<Node /*ParameterDeclaration*/> {
         self.parse_parameter_worker(false)
     }
 
     pub(super) fn parse_parameter_worker(
         &self,
         in_outer_await_context: bool,
-    ) -> Gc<Node /*ParameterDeclaration*/> {
+    ) -> Id<Node /*ParameterDeclaration*/> {
         let pos = self.get_node_pos();
         let has_jsdoc = self.has_preceding_jsdoc_comment();
 
@@ -269,7 +270,7 @@ impl ParserType {
         &self,
         return_token: SyntaxKind, /*SyntaxKind.ColonToken | SyntaxKind.EqualsGreaterThanToken*/
         is_type: bool,
-    ) -> Option<Gc<Node /*TypeNode*/>> {
+    ) -> Option<Id<Node /*TypeNode*/>> {
         if self.should_parse_return_type(return_token, is_type) {
             return Some(self.parse_type_or_type_predicate());
         }
@@ -355,7 +356,7 @@ impl ParserType {
     pub(super) fn parse_signature_member(
         &self,
         kind: SyntaxKind, /*SyntaxKind.CallSignature | SyntaxKind.ConstructSignature*/
-    ) -> Gc<Node /*CallSignatureDeclaration | ConstructSignatureDeclaration*/> {
+    ) -> Id<Node /*CallSignatureDeclaration | ConstructSignatureDeclaration*/> {
         let pos = self.get_node_pos();
         let has_jsdoc = self.has_preceding_jsdoc_comment();
         if kind == SyntaxKind::ConstructSignature {
@@ -427,7 +428,7 @@ impl ParserType {
         has_jsdoc: bool,
         decorators: Option<Gc<NodeArray>>,
         modifiers: Option<Gc<NodeArray>>,
-    ) -> Gc<Node /*IndexSignatureDeclaration*/> {
+    ) -> Id<Node /*IndexSignatureDeclaration*/> {
         let parameters = self.parse_bracketed_list(
             ParsingContext::Parameters,
             || self.parse_parameter(),
@@ -447,7 +448,7 @@ impl ParserType {
         pos: isize,
         has_jsdoc: bool,
         modifiers: Option<Gc<NodeArray>>,
-    ) -> Gc<Node /*PropertySignature | MethodSignature*/> {
+    ) -> Id<Node /*PropertySignature | MethodSignature*/> {
         let name = self.parse_property_name();
         let question_token = self.parse_optional_token(SyntaxKind::QuestionToken);
         let node: Node;
@@ -521,7 +522,7 @@ impl ParserType {
         false
     }
 
-    pub(super) fn parse_type_member(&self) -> Gc<Node> {
+    pub(super) fn parse_type_member(&self) -> Id<Node> {
         if matches!(
             self.token(),
             SyntaxKind::OpenParenToken | SyntaxKind::LessThanToken
@@ -682,7 +683,7 @@ impl ParserType {
         )
     }
 
-    pub(super) fn parse_tuple_element_type(&self) -> Gc<Node /*TypeNode*/> {
+    pub(super) fn parse_tuple_element_type(&self) -> Id<Node /*TypeNode*/> {
         let pos = self.get_node_pos();
         if self.parse_optional(SyntaxKind::DotDotDotToken) {
             return self
@@ -723,7 +724,7 @@ impl ParserType {
         token_is_identifier_or_keyword(self.token()) && self.is_next_token_colon_or_question_colon()
     }
 
-    pub(super) fn parse_tuple_element_name_or_tuple_element_type(&self) -> Gc<Node /*TypeNode*/> {
+    pub(super) fn parse_tuple_element_name_or_tuple_element_type(&self) -> Id<Node /*TypeNode*/> {
         if self.look_ahead_bool(|| self.is_tuple_element_name()) {
             let pos = self.get_node_pos();
             let has_jsdoc = self.has_preceding_jsdoc_comment();
@@ -787,7 +788,7 @@ impl ParserType {
         modifiers
     }
 
-    pub(super) fn parse_function_or_constructor_type(&self) -> Gc<Node /*TypeNode*/> {
+    pub(super) fn parse_function_or_constructor_type(&self) -> Id<Node /*TypeNode*/> {
         let pos = self.get_node_pos();
         let has_jsdoc = self.has_preceding_jsdoc_comment();
         let modifiers = self.parse_modifiers_for_constructor_type();
@@ -889,7 +890,7 @@ impl ParserType {
         )
     }
 
-    pub(super) fn parse_non_array_type(&self) -> Gc<Node> {
+    pub(super) fn parse_non_array_type(&self) -> Id<Node> {
         match self.token() {
             SyntaxKind::AnyKeyword
             | SyntaxKind::UnknownKeyword
@@ -1029,9 +1030,9 @@ impl ParserType {
             || self.is_start_of_type(None)
     }
 
-    pub(super) fn parse_postfix_type_or_higher(&self) -> Gc<Node /*TypeNode*/> {
+    pub(super) fn parse_postfix_type_or_higher(&self) -> Id<Node /*TypeNode*/> {
         let pos = self.get_node_pos();
-        let mut type_: Gc<Node> = self.parse_non_array_type();
+        let mut type_: Id<Node> = self.parse_non_array_type();
         while !self.scanner().has_preceding_line_break() {
             match self.token() {
                 SyntaxKind::ExclamationToken => {
@@ -1128,7 +1129,7 @@ impl ParserType {
         )
     }
 
-    pub(super) fn parse_type_operator_or_higher(&self) -> Gc<Node> {
+    pub(super) fn parse_type_operator_or_higher(&self) -> Id<Node> {
         let operator = self.token();
         match operator {
             SyntaxKind::KeyOfKeyword | SyntaxKind::UniqueKeyword | SyntaxKind::ReadonlyKeyword => {
@@ -1142,7 +1143,7 @@ impl ParserType {
     pub(super) fn parse_function_or_constructor_type_to_error(
         &self,
         is_in_union_type: bool,
-    ) -> Option<Gc<Node /*TypeNode*/>> {
+    ) -> Option<Id<Node /*TypeNode*/>> {
         if self.is_start_of_function_type_or_constructor_type() {
             let type_ = self.parse_function_or_constructor_type();
             let diagnostic: &DiagnosticMessage;
@@ -1168,20 +1169,20 @@ impl ParserType {
     pub(super) fn parse_union_or_intersection_type(
         &self,
         operator: SyntaxKind, /*SyntaxKind.BarToken | SyntaxKind.AmpersandToken*/
-        mut parse_constituent_type: impl FnMut() -> Gc<Node>,
+        mut parse_constituent_type: impl FnMut() -> Id<Node>,
         mut create_type_node: impl FnMut(Gc<NodeArray>) -> Node,
-    ) -> Gc<Node> {
+    ) -> Id<Node> {
         let pos = self.get_node_pos();
         let is_union_type = operator == SyntaxKind::BarToken;
         let has_leading_operator = self.parse_optional(operator);
-        let mut type_: Option<Gc<Node>> = Some(if has_leading_operator {
+        let mut type_: Option<Id<Node>> = Some(if has_leading_operator {
             self.parse_function_or_constructor_type_to_error(is_union_type)
                 .unwrap_or_else(|| parse_constituent_type())
         } else {
             parse_constituent_type()
         });
         if self.token() == operator || has_leading_operator {
-            let mut types: Vec<Gc<Node>> = vec![type_.take().unwrap()];
+            let mut types: Vec<Id<Node>> = vec![type_.take().unwrap()];
             while self.parse_optional(operator) {
                 types.push(
                     self.parse_function_or_constructor_type_to_error(is_union_type)
@@ -1200,7 +1201,7 @@ impl ParserType {
         type_.unwrap()
     }
 
-    pub(super) fn parse_intersection_type_or_higher(&self) -> Gc<Node> {
+    pub(super) fn parse_intersection_type_or_higher(&self) -> Id<Node> {
         self.parse_union_or_intersection_type(
             SyntaxKind::AmpersandToken,
             || self.parse_type_operator_or_higher(),
@@ -1208,7 +1209,7 @@ impl ParserType {
         )
     }
 
-    pub(super) fn parse_union_type_or_higher(&self) -> Gc<Node> {
+    pub(super) fn parse_union_type_or_higher(&self) -> Id<Node> {
         self.parse_union_or_intersection_type(
             SyntaxKind::BarToken,
             || self.parse_intersection_type_or_higher(),
@@ -1282,7 +1283,7 @@ impl ParserType {
         false
     }
 
-    pub(super) fn parse_type_or_type_predicate(&self) -> Gc<Node /*TypeNode*/> {
+    pub(super) fn parse_type_or_type_predicate(&self) -> Id<Node /*TypeNode*/> {
         let pos = self.get_node_pos();
         let type_predicate_variable = if self.is_identifier() {
             self.try_parse(|| self.parse_type_predicate_prefix())

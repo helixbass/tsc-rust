@@ -48,15 +48,15 @@ impl TypeChecker {
         should_compute_aliases_to_make_visible: bool,
     ) -> Option<SymbolVisibilityResult> {
         let aliases_to_make_visible: RefCell<
-            Option<Vec<Gc<Node /*LateVisibilityPaintedStatement*/>>>,
+            Option<Vec<Id<Node /*LateVisibilityPaintedStatement*/>>>,
         > = RefCell::new(None);
         if !every(
             &maybe_filter(
                 symbol.ref_(self).maybe_declarations().as_deref(),
-                |d: &Gc<Node>| d.kind() != SyntaxKind::Identifier,
+                |d: &Id<Node>| d.kind() != SyntaxKind::Identifier,
             )
             .unwrap_or_else(|| vec![]),
-            |d: &Gc<Node>, _| {
+            |d: &Id<Node>, _| {
                 self.get_is_declaration_visible(
                     symbol,
                     should_compute_aliases_to_make_visible,
@@ -79,7 +79,7 @@ impl TypeChecker {
         &self,
         symbol: Id<Symbol>,
         should_compute_aliases_to_make_visible: bool,
-        aliases_to_make_visible: &RefCell<Option<Vec<Gc<Node>>>>,
+        aliases_to_make_visible: &RefCell<Option<Vec<Id<Node>>>>,
         declaration: &Node, /*Declaration*/
     ) -> bool {
         if !self.is_declaration_visible(declaration) {
@@ -167,7 +167,7 @@ impl TypeChecker {
     pub(super) fn add_visible_alias(
         &self,
         should_compute_aliases_to_make_visible: bool,
-        aliases_to_make_visible: &RefCell<Option<Vec<Gc<Node>>>>,
+        aliases_to_make_visible: &RefCell<Option<Vec<Id<Node>>>>,
         declaration: &Node,        /*Declaration*/
         aliasing_statement: &Node, /*LateVisibilityPaintedStatement*/
     ) -> bool {
@@ -212,7 +212,7 @@ impl TypeChecker {
             &first_identifier.as_identifier().escaped_text,
             meaning,
             None,
-            Option::<Gc<Node>>::None,
+            Option::<Id<Node>>::None,
             false,
             None,
         )?;
@@ -442,7 +442,7 @@ impl TypeChecker {
             ),
             Some(writer.as_symbol_tracker()),
         )?;
-        let type_node: Gc<Node> = match type_node {
+        let type_node: Id<Node> = match type_node {
             None => Debug_.fail(Some("should always get typenode")),
             Some(type_node) => type_node,
         };
@@ -582,7 +582,7 @@ impl NodeBuilder {
         enclosing_declaration: Option<impl Borrow<Node>>,
         flags: Option<NodeBuilderFlags>,
         tracker: Option<Gc<Box<dyn SymbolTracker>>>,
-    ) -> io::Result<Option<Gc<Node>>> {
+    ) -> io::Result<Option<Id<Node>>> {
         self.try_with_context(enclosing_declaration, flags, tracker, |context| {
             self.type_to_type_node_helper(Some(type_), context)
         })
@@ -594,7 +594,7 @@ impl NodeBuilder {
         enclosing_declaration: Option<impl Borrow<Node>>,
         flags: Option<NodeBuilderFlags>,
         tracker: Option<Gc<Box<dyn SymbolTracker>>>,
-    ) -> io::Result<Option<Gc<Node>>> {
+    ) -> io::Result<Option<Id<Node>>> {
         self.try_with_context(enclosing_declaration, flags, tracker, |context| {
             Ok(Some(
                 self.index_info_to_index_signature_declaration_helper(
@@ -613,7 +613,7 @@ impl NodeBuilder {
         enclosing_declaration: Option<impl Borrow<Node>>,
         flags: Option<NodeBuilderFlags>,
         tracker: Option<Gc<Box<dyn SymbolTracker>>>,
-    ) -> io::Result<Option<Gc<Node /*SignatureDeclaration & {typeArguments?: NodeArray<TypeNode>}*/>>>
+    ) -> io::Result<Option<Id<Node /*SignatureDeclaration & {typeArguments?: NodeArray<TypeNode>}*/>>>
     {
         self.try_with_context(enclosing_declaration, flags, tracker, |context| {
             Ok(Some(self.signature_to_signature_declaration_helper(
@@ -632,7 +632,7 @@ impl NodeBuilder {
         enclosing_declaration: Option<impl Borrow<Node>>,
         flags: Option<NodeBuilderFlags>,
         tracker: Option<Gc<Box<dyn SymbolTracker>>>,
-    ) -> io::Result<Option<Gc<Node /*EntityName*/>>> {
+    ) -> io::Result<Option<Id<Node /*EntityName*/>>> {
         self.try_with_context(enclosing_declaration, flags, tracker, |context| {
             Ok(Some(self.symbol_to_name(symbol, context, meaning, false)?))
         })
@@ -645,7 +645,7 @@ impl NodeBuilder {
         enclosing_declaration: Option<impl Borrow<Node>>,
         flags: Option<NodeBuilderFlags>,
         tracker: Option<Gc<Box<dyn SymbolTracker>>>,
-    ) -> io::Result<Option<Gc<Node>>> {
+    ) -> io::Result<Option<Id<Node>>> {
         self.try_with_context(enclosing_declaration, flags, tracker, |context| {
             Ok(Some(self.symbol_to_expression_(symbol, context, meaning)?))
         })
@@ -669,7 +669,7 @@ impl NodeBuilder {
         enclosing_declaration: Option<impl Borrow<Node>>,
         flags: Option<NodeBuilderFlags>,
         tracker: Option<Gc<Box<dyn SymbolTracker>>>,
-    ) -> io::Result<Option<Gc<Node /*ParameterDeclaration*/>>> {
+    ) -> io::Result<Option<Id<Node /*ParameterDeclaration*/>>> {
         self.try_with_context(enclosing_declaration, flags, tracker, |context| {
             Ok(Some(self.symbol_to_parameter_declaration_(
                 symbol,
@@ -687,7 +687,7 @@ impl NodeBuilder {
         enclosing_declaration: Option<impl Borrow<Node>>,
         flags: Option<NodeBuilderFlags>,
         tracker: Option<Gc<Box<dyn SymbolTracker>>>,
-    ) -> io::Result<Option<Gc<Node /*TypeParameterDeclaration*/>>> {
+    ) -> io::Result<Option<Id<Node /*TypeParameterDeclaration*/>>> {
         self.try_with_context(enclosing_declaration, flags, tracker, |context| {
             Ok(Some(self.type_parameter_to_declaration_(
                 parameter, context, None,
@@ -702,7 +702,7 @@ impl NodeBuilder {
         flags: Option<NodeBuilderFlags>,
         tracker: Option<Gc<Box<dyn SymbolTracker>>>,
         bundled: Option<bool>,
-    ) -> io::Result<Option<Vec<Gc<Node /*Statement*/>>>> {
+    ) -> io::Result<Option<Vec<Id<Node /*Statement*/>>>> {
         self.try_with_context(enclosing_declaration, flags, tracker, |context| {
             Ok(Some(self.symbol_table_to_declaration_statements_(
                 symbol_table,
@@ -828,7 +828,7 @@ impl NodeBuilder {
         &self,
         type_: Option<Id<Type>>,
         context: &NodeBuilderContext,
-    ) -> io::Result<Option<Gc<Node>>> {
+    ) -> io::Result<Option<Id<Node>>> {
         if let Some(_cancellation_token) = self.type_checker.maybe_cancellation_token()
         /*&& cancellationToken.throwIfCancellationRequested*/
         {
@@ -1361,12 +1361,12 @@ impl NodeBuilder {
             let type_ref = type_.ref_(self);
             let texts = &type_ref.as_template_literal_type().texts;
             let types = &type_ref.as_template_literal_type().types;
-            let template_head: Gc<Node> =
+            let template_head: Id<Node> =
                 get_factory().create_template_head(Some(texts[0].clone()), None, None);
             let template_spans = get_factory().create_node_array(
                 Some(try_map(
                     types,
-                    |&t: &Id<Type>, i| -> io::Result<Gc<Node>> {
+                    |&t: &Id<Type>, i| -> io::Result<Id<Node>> {
                         Ok(get_factory().create_template_literal_type_span(
                             self.type_to_type_node_helper(Some(t), context)?.unwrap(),
                             if i < types.len() - 1 {
@@ -1490,7 +1490,7 @@ impl SymbolTracker for DefaultNodeBuilderContextSymbolTracker {
     fn track_symbol(
         &self,
         _symbol: Id<Symbol>,
-        _enclosing_declaration: Option<Gc<Node>>,
+        _enclosing_declaration: Option<Id<Node>>,
         _meaning: SymbolFlags,
     ) -> Option<io::Result<bool>> {
         Some(Ok(false))
@@ -1757,7 +1757,7 @@ impl SymbolTracker for NodeBuilderContextWrappedSymbolTracker {
     fn track_symbol(
         &self,
         symbol: Id<Symbol>,
-        enclosing_declaration: Option<Gc<Node>>,
+        enclosing_declaration: Option<Id<Node>>,
         meaning: SymbolFlags,
     ) -> Option<io::Result<bool>> {
         if self.is_track_symbol_disabled.get() {
@@ -1825,7 +1825,7 @@ impl SymbolTracker for NodeBuilderContextWrappedSymbolTracker {
 #[derive(Trace, Finalize)]
 pub struct NodeBuilderContext {
     pub(super) _rc_wrapper: GcCell<Option<Gc<NodeBuilderContext>>>,
-    pub(super) enclosing_declaration: Gc<GcCell<Option<Gc<Node>>>>,
+    pub(super) enclosing_declaration: Gc<GcCell<Option<Id<Node>>>>,
     #[unsafe_ignore_trace]
     pub flags: Cell<NodeBuilderFlags>,
     pub(super) tracker: GcCell<Gc<Box<dyn SymbolTracker>>>,
@@ -1845,7 +1845,7 @@ pub struct NodeBuilderContext {
     pub truncating: Cell<Option<bool>>,
     #[unsafe_ignore_trace]
     pub type_parameter_symbol_list: Rc<RefCell<Option<HashSet<SymbolId>>>>,
-    pub type_parameter_names: Gc<GcCell<Option<HashMap<TypeId, Gc<Node /*Identifier*/>>>>>,
+    pub type_parameter_names: Gc<GcCell<Option<HashMap<TypeId, Id<Node /*Identifier*/>>>>>,
     #[unsafe_ignore_trace]
     pub type_parameter_names_by_text: Rc<RefCell<Option<HashSet<String>>>>,
     #[unsafe_ignore_trace]
@@ -1859,7 +1859,7 @@ pub struct NodeBuilderContext {
 
 impl NodeBuilderContext {
     pub fn new(
-        enclosing_declaration: Option<Gc<Node>>,
+        enclosing_declaration: Option<Id<Node>>,
         flags: NodeBuilderFlags,
         tracker: Gc<Box<dyn SymbolTracker>>,
     ) -> Gc<Self> {
@@ -1895,15 +1895,15 @@ impl NodeBuilderContext {
         *self._rc_wrapper.borrow_mut() = rc_wrapper;
     }
 
-    pub fn maybe_enclosing_declaration(&self) -> Option<Gc<Node>> {
+    pub fn maybe_enclosing_declaration(&self) -> Option<Id<Node>> {
         (*self.enclosing_declaration).borrow().clone()
     }
 
-    pub fn enclosing_declaration(&self) -> Gc<Node> {
+    pub fn enclosing_declaration(&self) -> Id<Node> {
         (*self.enclosing_declaration).borrow().clone().unwrap()
     }
 
-    pub fn set_enclosing_declaration(&self, enclosing_declaration: Option<Gc<Node>>) {
+    pub fn set_enclosing_declaration(&self, enclosing_declaration: Option<Id<Node>>) {
         *self.enclosing_declaration.borrow_mut() = enclosing_declaration;
     }
 

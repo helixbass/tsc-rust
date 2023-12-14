@@ -28,11 +28,11 @@ impl Program {
         is_java_script_file: bool,
         source_file: &Node, /*SourceFile*/
         position: isize,
-    ) -> Gc<Node> {
+    ) -> Id<Node> {
         let mut current = source_file.node_wrapper();
         loop {
             let child = if is_java_script_file && has_jsdoc_nodes(&current) {
-                maybe_for_each(current.maybe_js_doc().as_ref(), |child: &Gc<Node>, _| {
+                maybe_for_each(current.maybe_js_doc().as_ref(), |child: &Id<Node>, _| {
                     self.get_containing_child(position, child)
                 })
             } else {
@@ -42,7 +42,7 @@ impl Program {
                 for_each_child_returns(
                     &current,
                     |child: &Node| self.get_containing_child(position, child),
-                    Option::<fn(&NodeArray) -> Option<Gc<Node>>>::None,
+                    Option::<fn(&NodeArray) -> Option<Id<Node>>>::None,
                 )
             });
             if child.is_none() {
@@ -55,7 +55,7 @@ impl Program {
     pub(super) fn get_lib_file_from_reference(
         &self,
         _ref_: &FileReference,
-    ) -> Option<Gc<Node /*SourceFile*/>> {
+    ) -> Option<Id<Node /*SourceFile*/>> {
         unimplemented!()
     }
 
@@ -63,7 +63,7 @@ impl Program {
         &self,
         referencing_file: &Node, /*SourceFile | UnparsedSource*/
         ref_: &FileReference,
-    ) -> io::Result<Option<Gc<Node /*SourceFile*/>>> {
+    ) -> io::Result<Option<Id<Node /*SourceFile*/>>> {
         self.get_source_file_from_reference_worker(
             &resolve_tripleslash_reference(
                 &ref_.file_name,
@@ -78,10 +78,10 @@ impl Program {
     pub(super) fn get_source_file_from_reference_worker(
         &self,
         file_name: &str,
-        mut get_source_file: impl FnMut(&str) -> io::Result<Option<Gc<Node>>>,
+        mut get_source_file: impl FnMut(&str) -> io::Result<Option<Id<Node>>>,
         mut fail: Option<impl FnMut(&'static DiagnosticMessage, Option<Vec<String>>)>,
         reason: Option<&FileIncludeReason>,
-    ) -> io::Result<Option<Gc<Node>>> {
+    ) -> io::Result<Option<Id<Node>>> {
         Ok(if has_extension(file_name) {
             let canonical_file_name = self.host().get_canonical_file_name(file_name);
             if self.options.allow_non_ts_extensions != Some(true)
@@ -273,7 +273,7 @@ impl Program {
         path: &Path,
         resolved_path: &Path,
         original_file_name: &str,
-    ) -> Gc<Node /*SourceFile*/> {
+    ) -> Id<Node /*SourceFile*/> {
         let redirect: SourceFile = redirect_target.as_source_file().clone();
         redirect.set_file_name(file_name.to_owned());
         redirect.set_path(path.clone());
@@ -302,7 +302,7 @@ impl Program {
         ignore_no_default_lib: bool,
         reason: Gc<FileIncludeReason>,
         package_id: Option<&PackageId>,
-    ) -> io::Result<Option<Gc<Node>>> {
+    ) -> io::Result<Option<Id<Node>>> {
         // tracing?.push(tracing.Phase.Program, "findSourceFile", {
         //     fileName,
         //     isDefaultLib: isDefaultLib || undefined,
@@ -326,7 +326,7 @@ impl Program {
         ignore_no_default_lib: bool,
         reason: Gc<FileIncludeReason>,
         package_id: Option<&PackageId>,
-    ) -> io::Result<Option<Gc<Node>>> {
+    ) -> io::Result<Option<Id<Node>>> {
         let path = self.to_path(file_name);
         if self.use_source_of_project_reference_redirect() {
             let mut source = self.get_source_of_project_reference_redirect(&path);
@@ -1072,11 +1072,11 @@ impl Program {
 
 #[derive(Debug, Trace, Finalize)]
 struct RedirectSourceFileIdOverride {
-    redirect_source_file: Gc<Node>,
+    redirect_source_file: Id<Node>,
 }
 
 impl RedirectSourceFileIdOverride {
-    fn new(redirect_source_file: Gc<Node>) -> Self {
+    fn new(redirect_source_file: Id<Node>) -> Self {
         Self {
             redirect_source_file,
         }
@@ -1107,11 +1107,11 @@ impl NodeIdOverride for RedirectSourceFileIdOverride {
 
 #[derive(Debug, Trace, Finalize)]
 struct RedirectSourceFileSymbolOverride {
-    redirect_source_file: Gc<Node>,
+    redirect_source_file: Id<Node>,
 }
 
 impl RedirectSourceFileSymbolOverride {
-    fn new(redirect_source_file: Gc<Node>) -> Self {
+    fn new(redirect_source_file: Id<Node>) -> Self {
         Self {
             redirect_source_file,
         }

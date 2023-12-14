@@ -2,6 +2,7 @@ use std::{cell::Cell, collections::HashMap, io, mem, ptr};
 
 use bitflags::bitflags;
 use gc::{Finalize, Gc, GcCell, GcCellRef, GcCellRefMut, Trace};
+use id_arena::Id;
 
 use crate::{
     add_emit_helpers, add_synthetic_trailing_comment, are_option_gcs_equal,
@@ -65,19 +66,19 @@ pub(super) struct TransformTypeScript {
     pub(super) language_version: ScriptTarget,
     #[unsafe_ignore_trace]
     pub(super) module_kind: ModuleKind,
-    pub(super) current_source_file: GcCell<Option<Gc<Node /*SourceFile*/>>>,
-    pub(super) current_namespace: GcCell<Option<Gc<Node /*ModuleDeclaration*/>>>,
-    pub(super) current_namespace_container_name: GcCell<Option<Gc<Node /*Identifier*/>>>,
+    pub(super) current_source_file: GcCell<Option<Id<Node /*SourceFile*/>>>,
+    pub(super) current_namespace: GcCell<Option<Id<Node /*ModuleDeclaration*/>>>,
+    pub(super) current_namespace_container_name: GcCell<Option<Id<Node /*Identifier*/>>>,
     pub(super) current_lexical_scope:
-        GcCell<Option<Gc<Node /*SourceFile | Block | ModuleBlock | CaseBlock*/>>>,
-    pub(super) current_name_scope: GcCell<Option<Gc<Node /*ClassDeclaration*/>>>,
+        GcCell<Option<Id<Node /*SourceFile | Block | ModuleBlock | CaseBlock*/>>>,
+    pub(super) current_name_scope: GcCell<Option<Id<Node /*ClassDeclaration*/>>>,
     pub(super) current_scope_first_declarations_of_name:
-        GcCell<Option<UnderscoreEscapedMap<Gc<Node>>>>,
+        GcCell<Option<UnderscoreEscapedMap<Id<Node>>>>,
     #[unsafe_ignore_trace]
     pub(super) current_class_has_parameter_properties: Cell<Option<bool>>,
     #[unsafe_ignore_trace]
     pub(super) enabled_substitutions: Cell<TypeScriptSubstitutionFlags>,
-    pub(super) class_aliases: GcCell<Option<HashMap<NodeId, Gc<Node /*Identifier*/>>>>,
+    pub(super) class_aliases: GcCell<Option<HashMap<NodeId, Id<Node /*Identifier*/>>>>,
     #[unsafe_ignore_trace]
     pub(super) applicable_substitutions: Cell<TypeScriptSubstitutionFlags>,
 }
@@ -131,31 +132,31 @@ impl TransformTypeScript {
         self._transformer_wrapper.borrow().clone().unwrap()
     }
 
-    pub(super) fn maybe_current_source_file(&self) -> Option<Gc<Node>> {
+    pub(super) fn maybe_current_source_file(&self) -> Option<Id<Node>> {
         self.current_source_file.borrow().clone()
     }
 
-    pub(super) fn current_source_file(&self) -> Gc<Node> {
+    pub(super) fn current_source_file(&self) -> Id<Node> {
         self.current_source_file.borrow().clone().unwrap()
     }
 
-    pub(super) fn set_current_source_file(&self, current_source_file: Option<Gc<Node>>) {
+    pub(super) fn set_current_source_file(&self, current_source_file: Option<Id<Node>>) {
         *self.current_source_file.borrow_mut() = current_source_file;
     }
 
-    pub(super) fn maybe_current_namespace(&self) -> Option<Gc<Node>> {
+    pub(super) fn maybe_current_namespace(&self) -> Option<Id<Node>> {
         self.current_namespace.borrow().clone()
     }
 
-    pub(super) fn set_current_namespace(&self, current_namespace: Option<Gc<Node>>) {
+    pub(super) fn set_current_namespace(&self, current_namespace: Option<Id<Node>>) {
         *self.current_namespace.borrow_mut() = current_namespace;
     }
 
-    pub(super) fn maybe_current_namespace_container_name(&self) -> Option<Gc<Node>> {
+    pub(super) fn maybe_current_namespace_container_name(&self) -> Option<Id<Node>> {
         self.current_namespace_container_name.borrow().clone()
     }
 
-    pub(super) fn current_namespace_container_name(&self) -> Gc<Node> {
+    pub(super) fn current_namespace_container_name(&self) -> Id<Node> {
         self.current_namespace_container_name
             .borrow()
             .clone()
@@ -164,46 +165,46 @@ impl TransformTypeScript {
 
     pub(super) fn set_current_namespace_container_name(
         &self,
-        current_namespace_container_name: Option<Gc<Node>>,
+        current_namespace_container_name: Option<Id<Node>>,
     ) {
         *self.current_namespace_container_name.borrow_mut() = current_namespace_container_name;
     }
 
-    pub(super) fn current_lexical_scope(&self) -> Gc<Node> {
+    pub(super) fn current_lexical_scope(&self) -> Id<Node> {
         self.current_lexical_scope.borrow().clone().unwrap()
     }
 
-    pub(super) fn maybe_current_lexical_scope(&self) -> Option<Gc<Node>> {
+    pub(super) fn maybe_current_lexical_scope(&self) -> Option<Id<Node>> {
         self.current_lexical_scope.borrow().clone()
     }
 
-    pub(super) fn set_current_lexical_scope(&self, current_lexical_scope: Option<Gc<Node>>) {
+    pub(super) fn set_current_lexical_scope(&self, current_lexical_scope: Option<Id<Node>>) {
         *self.current_lexical_scope.borrow_mut() = current_lexical_scope;
     }
 
-    pub(super) fn maybe_current_name_scope(&self) -> Option<Gc<Node>> {
+    pub(super) fn maybe_current_name_scope(&self) -> Option<Id<Node>> {
         self.current_name_scope.borrow().clone()
     }
 
-    pub(super) fn set_current_name_scope(&self, current_name_scope: Option<Gc<Node>>) {
+    pub(super) fn set_current_name_scope(&self, current_name_scope: Option<Id<Node>>) {
         *self.current_name_scope.borrow_mut() = current_name_scope;
     }
 
     pub(super) fn maybe_current_scope_first_declarations_of_name(
         &self,
-    ) -> GcCellRef<Option<UnderscoreEscapedMap<Gc<Node>>>> {
+    ) -> GcCellRef<Option<UnderscoreEscapedMap<Id<Node>>>> {
         self.current_scope_first_declarations_of_name.borrow()
     }
 
     pub(super) fn maybe_current_scope_first_declarations_of_name_mut(
         &self,
-    ) -> GcCellRefMut<Option<UnderscoreEscapedMap<Gc<Node>>>> {
+    ) -> GcCellRefMut<Option<UnderscoreEscapedMap<Id<Node>>>> {
         self.current_scope_first_declarations_of_name.borrow_mut()
     }
 
     pub(super) fn set_current_scope_first_declarations_of_name(
         &self,
-        current_scope_first_declarations_of_name: Option<UnderscoreEscapedMap<Gc<Node>>>,
+        current_scope_first_declarations_of_name: Option<UnderscoreEscapedMap<Id<Node>>>,
     ) {
         *self.current_scope_first_declarations_of_name.borrow_mut() =
             current_scope_first_declarations_of_name;
@@ -232,21 +233,21 @@ impl TransformTypeScript {
         self.enabled_substitutions.set(enabled_substitutions);
     }
 
-    pub(super) fn maybe_class_aliases(&self) -> GcCellRef<Option<HashMap<NodeId, Gc<Node>>>> {
+    pub(super) fn maybe_class_aliases(&self) -> GcCellRef<Option<HashMap<NodeId, Id<Node>>>> {
         self.class_aliases.borrow()
     }
 
-    pub(super) fn class_aliases(&self) -> GcCellRef<HashMap<NodeId, Gc<Node>>> {
+    pub(super) fn class_aliases(&self) -> GcCellRef<HashMap<NodeId, Id<Node>>> {
         gc_cell_ref_unwrapped(&self.class_aliases)
     }
 
     pub(super) fn class_aliases_mut(
         &self,
-    ) -> GcCellRefMut<Option<HashMap<NodeId, Gc<Node>>>, HashMap<NodeId, Gc<Node>>> {
+    ) -> GcCellRefMut<Option<HashMap<NodeId, Id<Node>>>, HashMap<NodeId, Id<Node>>> {
         gc_cell_ref_mut_unwrapped(&self.class_aliases)
     }
 
-    pub(super) fn set_class_aliases(&self, class_aliases: Option<HashMap<NodeId, Gc<Node>>>) {
+    pub(super) fn set_class_aliases(&self, class_aliases: Option<HashMap<NodeId, Id<Node>>>) {
         *self.class_aliases.borrow_mut() = class_aliases;
     }
 
@@ -268,14 +269,14 @@ impl TransformTypeScript {
     pub(super) fn transform_source_file_or_bundle(
         &self,
         node: &Node, /*SourceFile | Bundle*/
-    ) -> io::Result<Gc<Node>> {
+    ) -> io::Result<Id<Node>> {
         if node.kind() == SyntaxKind::Bundle {
             return self.transform_bundle(node);
         }
         self.transform_source_file(node)
     }
 
-    pub(super) fn transform_bundle(&self, node: &Node /*Bundle*/) -> io::Result<Gc<Node>> {
+    pub(super) fn transform_bundle(&self, node: &Node /*Bundle*/) -> io::Result<Id<Node>> {
         let node_as_bundle = node.as_bundle();
         Ok(self.factory.create_bundle(
             node_as_bundle
@@ -289,7 +290,7 @@ impl TransformTypeScript {
                 .collect::<Result<Vec<_>, _>>()?,
             Some(map_defined(
                 Some(&node_as_bundle.prepends),
-                |prepend: &Gc<Node>, _| {
+                |prepend: &Id<Node>, _| {
                     if prepend.kind() == SyntaxKind::InputFiles {
                         return Some(create_unparsed_source_file(
                             prepend.clone(),
@@ -306,7 +307,7 @@ impl TransformTypeScript {
     pub(super) fn transform_source_file(
         &self,
         node: &Node, /*SourceFile*/
-    ) -> io::Result<Gc<Node>> {
+    ) -> io::Result<Id<Node>> {
         if node.as_source_file().is_declaration_file() {
             return Ok(node.node_wrapper());
         }
@@ -624,7 +625,7 @@ impl TransformTypeScript {
 }
 
 impl TransformerInterface for TransformTypeScript {
-    fn call(&self, node: &Node) -> io::Result<Gc<Node>> {
+    fn call(&self, node: &Node) -> io::Result<Id<Node>> {
         self.transform_source_file_or_bundle(node)
     }
 }
@@ -726,7 +727,7 @@ impl TransformTypeScriptOnSubstituteNodeOverrider {
     fn substitute_shorthand_property_assignment(
         &self,
         node: &Node, /*ShorthandPropertyAssignment*/
-    ) -> io::Result<Gc<Node /*ObjectLiteralElementLike*/>> {
+    ) -> io::Result<Id<Node /*ObjectLiteralElementLike*/>> {
         let node_as_shorthand_property_assignment = node.as_shorthand_property_assignment();
         if self
             .transform_type_script
@@ -761,7 +762,7 @@ impl TransformTypeScriptOnSubstituteNodeOverrider {
         Ok(node.node_wrapper())
     }
 
-    fn substitute_expression(&self, node: &Node /*Expression*/) -> io::Result<Gc<Node>> {
+    fn substitute_expression(&self, node: &Node /*Expression*/) -> io::Result<Id<Node>> {
         match node.kind() {
             SyntaxKind::Identifier => {
                 return self.substitute_expression_identifier(node);
@@ -781,7 +782,7 @@ impl TransformTypeScriptOnSubstituteNodeOverrider {
     fn substitute_expression_identifier(
         &self,
         node: &Node, /*Identifier*/
-    ) -> io::Result<Gc<Node /*Expression*/>> {
+    ) -> io::Result<Id<Node /*Expression*/>> {
         Ok(self
             .try_substitute_class_alias(node)?
             .try_or_else(|| self.try_substitute_namespace_exported_name(node))?
@@ -791,7 +792,7 @@ impl TransformTypeScriptOnSubstituteNodeOverrider {
     fn try_substitute_class_alias(
         &self,
         node: &Node, /*Identifier*/
-    ) -> io::Result<Option<Gc<Node /*Expression*/>>> {
+    ) -> io::Result<Option<Id<Node /*Expression*/>>> {
         if self
             .transform_type_script
             .enabled_substitutions()
@@ -829,7 +830,7 @@ impl TransformTypeScriptOnSubstituteNodeOverrider {
     fn try_substitute_namespace_exported_name(
         &self,
         node: &Node, /*Identifier*/
-    ) -> io::Result<Option<Gc<Node /*Expression*/>>> {
+    ) -> io::Result<Option<Id<Node /*Expression*/>>> {
         if self.transform_type_script.enabled_substitutions()
             & self.transform_type_script.applicable_substitutions()
             != TypeScriptSubstitutionFlags::None
@@ -875,21 +876,21 @@ impl TransformTypeScriptOnSubstituteNodeOverrider {
     fn substitute_property_access_expression(
         &self,
         node: &Node, /*PropertyAccessExpression*/
-    ) -> io::Result<Gc<Node>> {
+    ) -> io::Result<Id<Node>> {
         self.substitute_constant_value(node)
     }
 
     fn substitute_element_access_expression(
         &self,
         node: &Node, /*ElementAccessExpression*/
-    ) -> io::Result<Gc<Node>> {
+    ) -> io::Result<Id<Node>> {
         self.substitute_constant_value(node)
     }
 
     fn substitute_constant_value(
         &self,
         node: &Node, /*PropertyAccessExpression | ElementAccessExpression*/
-    ) -> io::Result<Gc<Node /*LeftHandSideExpression*/>> {
+    ) -> io::Result<Id<Node /*LeftHandSideExpression*/>> {
         let constant_value = self.try_get_const_enum_value(node)?;
 
         if let Some(constant_value) = constant_value {
@@ -908,7 +909,7 @@ impl TransformTypeScriptOnSubstituteNodeOverrider {
             if self.transform_type_script.compiler_options.remove_comments != Some(true) {
                 let ref original_node = maybe_get_original_node_full(
                     Some(node),
-                    Some(|node: Option<Gc<Node>>| is_access_expression(&node.unwrap())),
+                    Some(|node: Option<Id<Node>>| is_access_expression(&node.unwrap())),
                 )
                 // TODO: this looks unsafe, the Typescript version seems to have a wrong typing
                 // where the present node argument + present nodeTest should be typed as
@@ -954,7 +955,7 @@ impl TransformTypeScriptOnSubstituteNodeOverrider {
 impl TransformationContextOnSubstituteNodeOverrider
     for TransformTypeScriptOnSubstituteNodeOverrider
 {
-    fn on_substitute_node(&self, hint: EmitHint, node: &Node) -> io::Result<Gc<Node>> {
+    fn on_substitute_node(&self, hint: EmitHint, node: &Node) -> io::Result<Id<Node>> {
         let node = self
             .previous_on_substitute_node
             .on_substitute_node(hint, node)?;

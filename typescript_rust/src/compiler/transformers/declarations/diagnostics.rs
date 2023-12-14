@@ -1,4 +1,5 @@
 use gc::{Finalize, Gc, Trace};
+use id_arena::Id;
 
 use crate::{
     get_name_of_declaration, has_syntactic_modifier, is_binding_element,
@@ -24,9 +25,9 @@ pub type GetSymbolAccessibilityDiagnostic = Gc<Box<dyn GetSymbolAccessibilityDia
 
 #[derive(Trace, Finalize)]
 pub struct SymbolAccessibilityDiagnostic {
-    pub error_node: Gc<Node>,
+    pub error_node: Id<Node>,
     pub diagnostic_message: &'static DiagnosticMessage,
-    pub type_name: Option<Gc<Node /*DeclarationName | QualifiedName*/>>,
+    pub type_name: Option<Id<Node /*DeclarationName | QualifiedName*/>>,
 }
 
 pub fn can_produce_diagnostics(node: &Node) -> bool {
@@ -191,7 +192,7 @@ fn get_variable_declaration_type_visibility_diagnostic_message(
 
 #[derive(Trace, Finalize)]
 struct GetVariableDeclarationTypeVisibilityError {
-    node: Gc<Node>,
+    node: Id<Node>,
 }
 
 impl GetVariableDeclarationTypeVisibilityError {
@@ -223,7 +224,7 @@ impl GetSymbolAccessibilityDiagnosticInterface for GetVariableDeclarationTypeVis
 
 #[derive(Trace, Finalize)]
 struct GetAccessorDeclarationTypeVisibilityError {
-    node: Gc<Node>,
+    node: Id<Node>,
 }
 
 impl GetAccessorDeclarationTypeVisibilityError {
@@ -311,7 +312,7 @@ impl GetSymbolAccessibilityDiagnosticInterface for GetAccessorDeclarationTypeVis
 
 #[derive(Trace, Finalize)]
 struct GetReturnTypeVisibilityError {
-    node: Gc<Node>,
+    node: Id<Node>,
 }
 
 impl GetReturnTypeVisibilityError {
@@ -451,7 +452,7 @@ impl GetSymbolAccessibilityDiagnosticInterface for GetReturnTypeVisibilityError 
 
 #[derive(Trace, Finalize)]
 struct GetParameterDeclarationTypeVisibilityError {
-    node: Gc<Node>,
+    node: Id<Node>,
 }
 
 impl GetParameterDeclarationTypeVisibilityError {
@@ -627,7 +628,7 @@ fn get_parameter_declaration_type_visibility_diagnostic_message(
 
 #[derive(Trace, Finalize)]
 struct GetTypeParameterConstraintVisibilityError {
-    node: Gc<Node>,
+    node: Id<Node>,
 }
 
 impl GetTypeParameterConstraintVisibilityError {
@@ -692,7 +693,7 @@ impl GetSymbolAccessibilityDiagnosticInterface for GetTypeParameterConstraintVis
 
 #[derive(Trace, Finalize)]
 struct GetHeritageClauseVisibilityError {
-    node: Gc<Node>,
+    node: Id<Node>,
 }
 
 impl GetHeritageClauseVisibilityError {
@@ -741,7 +742,7 @@ impl GetSymbolAccessibilityDiagnosticInterface for GetHeritageClauseVisibilityEr
 
 #[derive(Trace, Finalize)]
 struct GetImportEntityNameVisibilityError {
-    node: Gc<Node>,
+    node: Id<Node>,
 }
 
 impl GetImportEntityNameVisibilityError {
@@ -767,7 +768,7 @@ impl GetSymbolAccessibilityDiagnosticInterface for GetImportEntityNameVisibility
 
 #[derive(Trace, Finalize)]
 struct GetTypeAliasDeclarationVisibilityError {
-    node: Gc<Node>,
+    node: Id<Node>,
 }
 
 impl GetTypeAliasDeclarationVisibilityError {
