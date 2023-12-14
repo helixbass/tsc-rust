@@ -19,7 +19,7 @@ use crate::{
     ref_unwrapped, CancellationToken, Cloneable, ModuleResolutionCache,
     ModuleSpecifierResolutionHostAndGetCommonSourceDirectory, ParseConfigHost, ParsedCommandLine,
     Path, ProgramBuildInfo, ReadonlyTextRange, ResolveModuleNameResolutionHost, SourceFileLike,
-    SourceTextAsChars, StringOrNumber, SymlinkCache,
+    SourceTextAsChars, StringOrNumber, SymlinkCache, AllArenas,
 };
 
 pub trait ModuleResolutionHost {
@@ -1111,6 +1111,7 @@ pub trait EmitHost:
     + Trace
     + Finalize
 {
+    fn arena(&self) -> &AllArenas;
     // fn get_source_files(&self) -> &[Gc<Node /*SourceFile*/>];
     fn get_source_files(&self) -> GcCellRef<Vec<Gc<Node /*SourceFile*/>>>;
     fn use_case_sensitive_file_names(&self) -> bool;

@@ -196,8 +196,8 @@ impl TransformDeclarations {
         }
 
         let overload_signatures: Option<Vec<_>> =
-            input
-                .symbol()
+            self.symbol(input
+                .symbol())
                 .maybe_declarations()
                 .as_ref()
                 .map(|input_symbol_declarations| {
@@ -723,7 +723,7 @@ impl TransformDeclarations {
                 if matches!(
                     input.maybe_symbol(),
                     Some(input_symbol) if matches!(
-                        input_symbol.maybe_declarations().as_ref(),
+                        self.symbol(input_symbol).maybe_declarations().as_ref(),
                         Some(input_symbol_declarations) if !ptr::eq(
                             &*input_symbol_declarations[0],
                             input

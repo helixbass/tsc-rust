@@ -37,7 +37,7 @@ use crate::{
     ScriptReferenceHost, SourceFileLike, Symbol, SymbolAccessibility,
     SymbolAccessibilityDiagnostic, SymbolAccessibilityResult, SymbolFlags, SymbolInterface,
     SymbolTracker, SyntaxKind, TextRange, TransformationContext, TransformationResult, Transformer,
-    TransformerFactory, TransformerFactoryInterface, TransformerInterface, VisitResult,
+    TransformerFactory, TransformerFactoryInterface, TransformerInterface, VisitResult, AllArenas,
 };
 
 pub fn get_declaration_diagnostics(
@@ -152,6 +152,7 @@ pub(super) fn declaration_emit_node_builder_flags() -> NodeBuilderFlags {
 
 #[derive(Trace, Finalize)]
 pub(super) struct TransformDeclarations {
+    pub(super) _arena: *const AllArenas,
     pub(super) _transformer_wrapper: GcCell<Option<Transformer>>,
     pub(super) context: Gc<Box<dyn TransformationContext>>,
     pub(super) get_symbol_accessibility_diagnostic: GcCell<GetSymbolAccessibilityDiagnostic>,
@@ -235,6 +236,14 @@ impl TransformDeclarations {
             TransformDeclarationsSymbolTracker::new(downcasted.clone(), host),
         )));
         downcasted
+    }
+
+    pub(super) fn arena(&self) -> &AllArenas {
+        unsafe { &*self._arena }
+    }
+
+    pub(super) fn symbol(&self, symbol: Id<Symbol>) -> debug_cell::Ref<Symbol> {
+        self.arena.symbol(symbol)
     }
 
     pub(super) fn as_transformer(&self) -> Transformer {
@@ -1286,7 +1295,7 @@ impl SymbolTracker for TransformDeclarationsSymbolTracker {
         if self.is_track_symbol_disabled.get() {
             return Some(Ok(false));
         }
-        if symbol.flags().intersects(SymbolFlags::TypeParameter) {
+        if self.host.arena().symbol(symbol).flags().intersects(SymbolFlags::TypeParameter) {
             return Some(Ok(false));
         }
         let issued_diagnostic = self
@@ -1489,7 +1498,7 @@ impl SymbolTracker for TransformDeclarationsSymbolTracker {
             self.transform_declarations
                 .maybe_exported_modules_from_declaration_emit_mut()
                 .get_or_insert_default_()
-                .push(symbol.symbol_wrapper());
+                .push(symbol);
         }
     }
 
@@ -1500,7 +1509,7 @@ impl SymbolTracker for TransformDeclarationsSymbolTracker {
         symbol: Id<Symbol>,
     ) {
         let primary_declaration =
-            parent_symbol
+            self.host.arena().symbol(parent_symbol)
                 .maybe_declarations()
                 .as_ref()
                 .and_then(|parent_symbol_declarations| {
@@ -1512,7 +1521,7 @@ impl SymbolTracker for TransformDeclarationsSymbolTracker {
                         .cloned()
                 });
         let augmenting_declarations =
-            maybe_filter(symbol.maybe_declarations().as_deref(), |d: &Gc<Node>| {
+            maybe_filter(self.host.arena().symbol(symbol).maybe_declarations().as_deref(), |d: &Gc<Node>| {
                 !ptr::eq(&*get_source_file_of_node(d), containing_file)
             });
         if let Some(augmenting_declarations) = augmenting_declarations {

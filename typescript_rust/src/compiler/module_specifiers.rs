@@ -1010,7 +1010,7 @@ fn try_get_module_name_from_ambient_module(
     module_symbol: Id<Symbol>,
     checker: &TypeChecker,
 ) -> io::Result<Option<String>> {
-    let decl = module_symbol
+    let decl = checker.symbol(module_symbol)
         .maybe_declarations()
         .as_ref()
         .and_then(|module_symbol_declarations| {
@@ -1036,7 +1036,7 @@ fn try_get_module_name_from_ambient_module(
     }
 
     let ambient_module_declare_candidates = try_map_defined(
-        module_symbol.maybe_declarations().as_ref(),
+        checker.symbol(module_symbol).maybe_declarations().as_ref(),
         |d: &Gc<Node>, _| -> io::Result<Option<Gc<Node>>> {
             if !is_module_declaration(d) {
                 return Ok(None);
@@ -1053,10 +1053,10 @@ fn try_get_module_name_from_ambient_module(
             )) {
                 return Ok(None);
             }
-            let ref export_assignment = return_ok_default_if_none!(top_namespace
+            let ref export_assignment = return_ok_default_if_none!(checker.symbol(top_namespace
                 .parent()
                 .parent()
-                .symbol()
+                .symbol())
                 .maybe_exports()
                 .as_ref()
                 .and_then(|top_namespace_parent_parent_symbol_exports| {
@@ -1076,20 +1076,17 @@ fn try_get_module_name_from_ambient_module(
                             .clone()
                     },
                 ));
-            let ref export_symbol =
+            let export_symbol =
                 return_ok_default_if_none!(checker.get_symbol_at_location(export_assignment)?);
-            let ref original_export_symbol = if export_symbol.flags().intersects(SymbolFlags::Alias)
+            let original_export_symbol = if checker.symbol(export_symbol).flags().intersects(SymbolFlags::Alias)
             {
                 checker.get_aliased_symbol(export_symbol)?
             } else {
                 export_symbol.clone()
             };
             if matches!(
-                d.maybe_symbol().as_ref(),
-                Some(d_symbol) if Gc::ptr_eq(
-                    original_export_symbol,
-                    d_symbol
-                )
+                d.maybe_symbol(),
+                Some(d_symbol) if original_export_symbol == d_symbol
             ) {
                 return Ok(Some(top_namespace.parent().parent()));
             }
