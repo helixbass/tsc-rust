@@ -860,7 +860,7 @@ impl TypeChecker {
                 self.get_symbol_path(symbol_parent),
                 self.symbol(symbol).escaped_name()
             ),
-            None => self.symbol(symbol).escaped_name().into_owned(),
+            None => self.symbol(symbol).escaped_name().to_owned(),
         }
     }
 
