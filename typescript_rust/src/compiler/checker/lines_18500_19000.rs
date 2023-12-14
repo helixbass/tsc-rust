@@ -21,8 +21,17 @@ impl CheckTypeRelatedTo {
         prop: Id<Symbol>,
         container: Id<Symbol>,
     ) -> bool {
-        if let Some(prop_value_declaration) = self.type_checker.symbol(prop).maybe_value_declaration().as_ref() {
-            if let Some(container_value_declaration) = self.type_checker.symbol(container).maybe_value_declaration().as_ref()
+        if let Some(prop_value_declaration) = self
+            .type_checker
+            .symbol(prop)
+            .maybe_value_declaration()
+            .as_ref()
+        {
+            if let Some(container_value_declaration) = self
+                .type_checker
+                .symbol(container)
+                .maybe_value_declaration()
+                .as_ref()
             {
                 return Gc::ptr_eq(
                     &prop_value_declaration.parent(),
@@ -938,8 +947,7 @@ impl CheckTypeRelatedTo {
             if let Some(source_alias_symbol) = {
                 let alias_symbol = self.type_checker.type_(source).maybe_alias_symbol();
                 alias_symbol
-            }
-            {
+            } {
                 if let Some(source_alias_type_arguments) = {
                     let alias_type_arguments =
                         self.type_checker.type_(source).maybe_alias_type_arguments();
@@ -964,9 +972,8 @@ impl CheckTypeRelatedTo {
                                 .maybe_alias_type_arguments_contains_marker(),
                             Some(true)
                         )) {
-                            let variances = self
-                                .type_checker
-                                .get_alias_variances(source_alias_symbol)?;
+                            let variances =
+                                self.type_checker.get_alias_variances(source_alias_symbol)?;
                             if variances.is_empty() {
                                 return Ok(Ternary::Unknown);
                             }
@@ -1762,13 +1769,12 @@ impl CheckTypeRelatedTo {
                 .type_(target)
                 .flags()
                 .intersects(TypeFlags::StringMapping)
-                && 
-                    self
-                        .type_checker
-                        .type_(source)
-                        .as_string_mapping_type()
-                        .symbol() ==
-                    self
+                && self
+                    .type_checker
+                    .type_(source)
+                    .as_string_mapping_type()
+                    .symbol()
+                    == self
                         .type_checker
                         .type_(target)
                         .as_string_mapping_type()

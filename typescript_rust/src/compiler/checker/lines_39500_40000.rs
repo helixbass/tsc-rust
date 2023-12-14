@@ -114,20 +114,28 @@ impl TypeChecker {
 
         if target != self.unknown_symbol() {
             symbol = self
-                .get_merged_symbol(Some(self.symbol(symbol).maybe_export_symbol().unwrap_or(symbol)))
+                .get_merged_symbol(Some(
+                    self.symbol(symbol).maybe_export_symbol().unwrap_or(symbol),
+                ))
                 .unwrap();
-            let excluded_meanings = if self.symbol(symbol
-                ).flags()
+            let excluded_meanings = if self
+                .symbol(symbol)
+                .flags()
                 .intersects(SymbolFlags::Value | SymbolFlags::ExportValue)
             {
                 SymbolFlags::Value
             } else {
                 SymbolFlags::None
-            } | if self.symbol(symbol).flags().intersects(SymbolFlags::Type) {
+            } | if self.symbol(symbol).flags().intersects(SymbolFlags::Type)
+            {
                 SymbolFlags::Type
             } else {
                 SymbolFlags::None
-            } | if self.symbol(symbol).flags().intersects(SymbolFlags::Namespace) {
+            } | if self
+                .symbol(symbol)
+                .flags()
+                .intersects(SymbolFlags::Namespace)
+            {
                 SymbolFlags::Namespace
             } else {
                 SymbolFlags::None
@@ -230,14 +238,13 @@ impl TypeChecker {
 
             if is_import_specifier(node) {
                 if let Some(target_declarations) =
-                    self.symbol(target
-                        ).maybe_declarations()
-                        .as_ref()
-                        .filter(|target_declarations| {
+                    self.symbol(target).maybe_declarations().as_ref().filter(
+                        |target_declarations| {
                             target_declarations.into_iter().all(|d| {
                                 get_combined_node_flags(d).intersects(NodeFlags::Deprecated)
                             })
-                        })
+                        },
+                    )
                 {
                     self.add_deprecated_suggestion(
                         &node.as_named_declaration().name(),
@@ -413,15 +420,17 @@ impl TypeChecker {
                         let module_name = get_first_identifier(
                             &node_as_import_equals_declaration.module_reference,
                         );
-                        if !self.symbol(self
-                            .resolve_entity_name(
-                                &module_name,
-                                SymbolFlags::Value | SymbolFlags::Namespace,
-                                None,
-                                None,
-                                Option::<&Node>::None,
-                            )?
-                            .unwrap())
+                        if !self
+                            .symbol(
+                                self.resolve_entity_name(
+                                    &module_name,
+                                    SymbolFlags::Value | SymbolFlags::Namespace,
+                                    None,
+                                    None,
+                                    Option::<&Node>::None,
+                                )?
+                                .unwrap(),
+                            )
                             .flags()
                             .intersects(SymbolFlags::Namespace)
                         {
@@ -629,9 +638,8 @@ impl TypeChecker {
     ) -> io::Result<bool> {
         try_for_each_import_clause_declaration_bool(import_clause, |declaration| -> io::Result<_> {
             Ok(
-                match self.symbol(self
-                    .get_symbol_of_node(declaration)?
-                    .unwrap())
+                match self
+                    .symbol(self.get_symbol_of_node(declaration)?.unwrap())
                     .maybe_is_referenced()
                 {
                     None => false,
@@ -947,7 +955,10 @@ impl TypeChecker {
         let module_symbol = self.get_symbol_of_node(node)?.unwrap();
         let links = self.get_symbol_links(module_symbol);
         if (*links).borrow().exports_checked != Some(true) {
-            let export_equals_symbol = (*self.symbol(module_symbol).exports()).borrow().get("export=").cloned();
+            let export_equals_symbol = (*self.symbol(module_symbol).exports())
+                .borrow()
+                .get("export=")
+                .cloned();
             if let Some(export_equals_symbol) = export_equals_symbol.as_ref() {
                 if self.has_exported_members(module_symbol) {
                     let declaration = self

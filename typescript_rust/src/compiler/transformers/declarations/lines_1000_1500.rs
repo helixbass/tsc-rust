@@ -371,7 +371,8 @@ impl TransformDeclarations {
                     let mut declarations = try_map_defined(
                         Some(&props),
                         |&p: &Id<Symbol>, _| -> io::Result<Option<Gc<Node>>> {
-                            let ref p_value_declaration = return_ok_default_if_none!(self.symbol(p)
+                            let ref p_value_declaration = return_ok_default_if_none!(self
+                                .symbol(p)
                                 .maybe_value_declaration()
                                 .filter(|p_value_declaration| {
                                     is_property_access_expression(p_value_declaration)
@@ -389,7 +390,8 @@ impl TransformDeclarations {
                                 None,
                             )?;
                             self.set_get_symbol_accessibility_diagnostic(old_diag.clone());
-                            let name_str = unescape_leading_underscores(self.symbol(p).escaped_name());
+                            let name_str =
+                                unescape_leading_underscores(self.symbol(p).escaped_name());
                             let is_non_contextual_keyword_name =
                                 is_string_a_non_contextual_keyword(name_str);
                             let name = if is_non_contextual_keyword_name {

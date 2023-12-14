@@ -192,8 +192,7 @@ impl TypeChecker {
             let class_type: Option<Id<Type>> = if declaration.kind() == SyntaxKind::Constructor {
                 Some(
                     self.get_declared_type_of_class_or_interface(
-                        self
-                            .get_merged_symbol(declaration.parent().maybe_symbol())
+                        self.get_merged_symbol(declaration.parent().maybe_symbol())
                             .unwrap(),
                     )?,
                 )
@@ -263,15 +262,16 @@ impl TypeChecker {
                 })
                 .map(|type_expression| type_expression.as_jsdoc_type_expression().type_.clone())
         });
-        let synthetic_args_symbol = self.alloc_symbol(self
-            .create_symbol(
+        let synthetic_args_symbol = self.alloc_symbol(
+            self.create_symbol(
                 SymbolFlags::Variable,
                 "args".to_owned(),
                 Some(CheckFlags::RestParameter),
             )
-            .into());
-        self.symbol(synthetic_args_symbol
-            ).as_transient_symbol()
+            .into(),
+        );
+        self.symbol(synthetic_args_symbol)
+            .as_transient_symbol()
             .symbol_links()
             .borrow_mut()
             .type_ = Some(
@@ -358,7 +358,8 @@ impl TypeChecker {
         let node = node.borrow();
         Ok(match node.kind() {
             SyntaxKind::Identifier => {
-                &node.as_identifier().escaped_text == self.symbol(self.arguments_symbol()).escaped_name()
+                &node.as_identifier().escaped_text
+                    == self.symbol(self.arguments_symbol()).escaped_name()
                     && matches!(
                         self.get_referenced_value_symbol(node, None)?,
                         Some(symbol) if symbol == self.arguments_symbol()
@@ -677,8 +678,7 @@ impl TypeChecker {
         if declaration.kind() == SyntaxKind::Constructor {
             return Ok(Some(
                 self.get_declared_type_of_class_or_interface(
-                    self
-                        .get_merged_symbol(declaration.parent().maybe_symbol())
+                    self.get_merged_symbol(declaration.parent().maybe_symbol())
                         .unwrap(),
                 )?,
             ));
@@ -988,8 +988,8 @@ impl TypeChecker {
     }
 
     pub(super) fn get_index_symbol(&self, symbol: Id<Symbol>) -> Option<Id<Symbol>> {
-        self.symbol(symbol
-            ).maybe_members()
+        self.symbol(symbol)
+            .maybe_members()
             .clone()
             .and_then(|members| self.get_index_symbol_from_symbol_table(&(*members).borrow()))
     }

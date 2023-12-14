@@ -576,7 +576,11 @@ impl TypeChecker {
         if let Some(node_locals) = node.maybe_locals().clone() {
             (*node_locals).borrow().values().try_for_each(
                 |&symbol: &Id<Symbol>| -> io::Result<_> {
-                    if self.symbol(symbol).flags().intersects(SymbolFlags::TypeParameter) {
+                    if self
+                        .symbol(symbol)
+                        .flags()
+                        .intersects(SymbolFlags::TypeParameter)
+                    {
                         if result.is_none() {
                             result = Some(vec![]);
                         }
@@ -614,8 +618,7 @@ impl TypeChecker {
             let check_type =
                 self.get_type_from_type_node_(&node_as_conditional_type_node.check_type)?;
             let alias_symbol = self.get_alias_symbol_for_type_node(node)?;
-            let alias_type_arguments =
-                self.get_type_arguments_for_alias_symbol(alias_symbol)?;
+            let alias_type_arguments = self.get_type_arguments_for_alias_symbol(alias_symbol)?;
             let all_outer_type_parameters = self.get_outer_type_parameters(node, Some(true))?;
             let outer_type_parameters = if alias_type_arguments.is_some() {
                 all_outer_type_parameters
@@ -665,8 +668,7 @@ impl TypeChecker {
         if (*links).borrow().resolved_type.is_none() {
             links.borrow_mut().resolved_type = Some(
                 self.get_declared_type_of_type_parameter(
-                    self
-                        .get_symbol_of_node(&node.as_infer_type_node().type_parameter)?
+                    self.get_symbol_of_node(&node.as_infer_type_node().type_parameter)?
                         .unwrap(),
                 ),
             );
@@ -813,7 +815,11 @@ impl TypeChecker {
                     target_meaning,
                 )?);
             } else {
-                if self.symbol(module_symbol).flags().intersects(target_meaning) {
+                if self
+                    .symbol(module_symbol)
+                    .flags()
+                    .intersects(target_meaning)
+                {
                     links.borrow_mut().resolved_type = Some(self.resolve_import_symbol_type(
                         node,
                         &links,
@@ -1002,11 +1008,17 @@ impl TypeChecker {
                 .intersects(ModifierFlags::Private | ModifierFlags::Protected)
             {
             } else if self.is_spreadable_property(prop) {
-                let is_setonly_accessor = self.symbol(prop).flags().intersects(SymbolFlags::SetAccessor)
-                    && !self.symbol(prop).flags().intersects(SymbolFlags::GetAccessor);
+                let is_setonly_accessor = self
+                    .symbol(prop)
+                    .flags()
+                    .intersects(SymbolFlags::SetAccessor)
+                    && !self
+                        .symbol(prop)
+                        .flags()
+                        .intersects(SymbolFlags::GetAccessor);
                 let flags = SymbolFlags::Property | SymbolFlags::Optional;
-                let result = self.alloc_symbol(self
-                    .create_symbol(
+                let result = self.alloc_symbol(
+                    self.create_symbol(
                         flags,
                         self.symbol(prop).escaped_name().to_owned(),
                         Some(
@@ -1018,7 +1030,8 @@ impl TypeChecker {
                                 },
                         ),
                     )
-                    .into());
+                    .into(),
+                );
                 let result_links = self.symbol(result).as_transient_symbol().symbol_links();
                 let mut result_links = result_links.borrow_mut();
                 result_links.type_ = Some(if is_setonly_accessor {
@@ -1028,7 +1041,8 @@ impl TypeChecker {
                 });
                 let prop_declarations = self.symbol(prop).maybe_declarations();
                 if let Some(prop_declarations) = prop_declarations.as_ref() {
-                    self.symbol(result).set_declarations(prop_declarations.clone());
+                    self.symbol(result)
+                        .set_declarations(prop_declarations.clone());
                 }
                 result_links.name_type = (*self.get_symbol_links(&prop)).borrow().name_type.clone();
                 result_links.synthetic_origin = Some(prop.clone());
@@ -1173,8 +1187,12 @@ impl TypeChecker {
         };
 
         for right_prop in self.get_properties_of_type(right)? {
-            if get_declaration_modifier_flags_from_symbol(self.arena(), &self.symbol(right_prop), None)
-                .intersects(ModifierFlags::Private | ModifierFlags::Protected)
+            if get_declaration_modifier_flags_from_symbol(
+                self.arena(),
+                &self.symbol(right_prop),
+                None,
+            )
+            .intersects(ModifierFlags::Private | ModifierFlags::Protected)
             {
                 skipped_private_members.insert(self.symbol(right_prop).escaped_name().to_owned());
             } else if self.is_spreadable_property(right_prop) {
@@ -1194,15 +1212,25 @@ impl TypeChecker {
             if members.contains_key(self.symbol(left_prop).escaped_name()) {
                 let right_prop = *members.get(self.symbol(left_prop).escaped_name()).unwrap();
                 let right_type = self.get_type_of_symbol(right_prop)?;
-                if self.symbol(right_prop).flags().intersects(SymbolFlags::Optional) {
+                if self
+                    .symbol(right_prop)
+                    .flags()
+                    .intersects(SymbolFlags::Optional)
+                {
                     let declarations = maybe_concatenate(
                         self.symbol(left_prop).maybe_declarations().clone(),
                         self.symbol(right_prop).maybe_declarations().clone(),
                     );
-                    let flags = SymbolFlags::Property | (self.symbol(left_prop).flags() & SymbolFlags::Optional);
-                    let result = self.alloc_symbol(self
-                        .create_symbol(flags, self.symbol(left_prop).escaped_name().to_owned(), None)
-                        .into());
+                    let flags = SymbolFlags::Property
+                        | (self.symbol(left_prop).flags() & SymbolFlags::Optional);
+                    let result = self.alloc_symbol(
+                        self.create_symbol(
+                            flags,
+                            self.symbol(left_prop).escaped_name().to_owned(),
+                            None,
+                        )
+                        .into(),
+                    );
                     let result_links = self.symbol(result).as_transient_symbol().symbol_links();
                     let mut result_links = result_links.borrow_mut();
                     result_links.type_ = Some(self.get_union_type(

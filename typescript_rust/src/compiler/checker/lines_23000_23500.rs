@@ -869,8 +869,9 @@ impl TypeChecker {
         ) {
             return Ok(Some(self.get_type_of_symbol(symbol)?));
         }
-        if self.symbol(symbol
-            ).flags()
+        if self
+            .symbol(symbol)
+            .flags()
             .intersects(SymbolFlags::Variable | SymbolFlags::Property)
         {
             if get_check_flags(symbol).intersects(CheckFlags::Mapped) {

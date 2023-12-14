@@ -1010,7 +1010,8 @@ fn try_get_module_name_from_ambient_module(
     module_symbol: Id<Symbol>,
     checker: &TypeChecker,
 ) -> io::Result<Option<String>> {
-    let decl = checker.symbol(module_symbol)
+    let decl = checker
+        .symbol(module_symbol)
         .maybe_declarations()
         .as_ref()
         .and_then(|module_symbol_declarations| {
@@ -1053,10 +1054,8 @@ fn try_get_module_name_from_ambient_module(
             )) {
                 return Ok(None);
             }
-            let ref export_assignment = return_ok_default_if_none!(checker.symbol(top_namespace
-                .parent()
-                .parent()
-                .symbol())
+            let ref export_assignment = return_ok_default_if_none!(checker
+                .symbol(top_namespace.parent().parent().symbol())
                 .maybe_exports()
                 .as_ref()
                 .and_then(|top_namespace_parent_parent_symbol_exports| {
@@ -1078,7 +1077,10 @@ fn try_get_module_name_from_ambient_module(
                 ));
             let export_symbol =
                 return_ok_default_if_none!(checker.get_symbol_at_location(export_assignment)?);
-            let original_export_symbol = if checker.symbol(export_symbol).flags().intersects(SymbolFlags::Alias)
+            let original_export_symbol = if checker
+                .symbol(export_symbol)
+                .flags()
+                .intersects(SymbolFlags::Alias)
             {
                 checker.get_aliased_symbol(export_symbol)?
             } else {

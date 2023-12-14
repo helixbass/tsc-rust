@@ -35,14 +35,15 @@ use crate::{
     is_string_or_numeric_literal_like, is_white_space_like, maybe_text_char_at_index,
     module_resolution_option_declarations, node_is_synthesized,
     options_affecting_program_structure, skip_trivia, starts_with_use_strict, text_char_at_index,
-    text_substring, trim_string_start, CharacterCodes, CommandLineOption, CommentDirective,
-    CommentDirectiveType, CommentDirectivesMap, CompilerOptions, Debug_, EmitFlags, EmitTextWriter,
-    HasStatementsInterface, IndexInfo, LiteralLikeNodeInterface, ModeAwareCache, ModuleKind,
-    NamedDeclarationInterface, Node, NodeArray, NodeFlags, NodeInterface, PackageId,
-    ProjectReference, ReadonlyCollection, ReadonlyTextRange, ResolvedModuleFull,
-    ResolvedTypeReferenceDirective, ScriptKind, SignatureDeclarationInterface, SourceFileLike,
-    SourceTextAsChars, StringOrNumber, Symbol, SymbolFlags, SymbolInterface, SymbolTable,
-    SymbolTracker, SymbolWriter, SyntaxKind, TextRange, TokenFlags, Type, UnderscoreEscapedMap, AllArenas,
+    text_substring, trim_string_start, AllArenas, CharacterCodes, CommandLineOption,
+    CommentDirective, CommentDirectiveType, CommentDirectivesMap, CompilerOptions, Debug_,
+    EmitFlags, EmitTextWriter, HasStatementsInterface, IndexInfo, LiteralLikeNodeInterface,
+    ModeAwareCache, ModuleKind, NamedDeclarationInterface, Node, NodeArray, NodeFlags,
+    NodeInterface, PackageId, ProjectReference, ReadonlyCollection, ReadonlyTextRange,
+    ResolvedModuleFull, ResolvedTypeReferenceDirective, ScriptKind, SignatureDeclarationInterface,
+    SourceFileLike, SourceTextAsChars, StringOrNumber, Symbol, SymbolFlags, SymbolInterface,
+    SymbolTable, SymbolTracker, SymbolWriter, SyntaxKind, TextRange, TokenFlags, Type,
+    UnderscoreEscapedMap,
 };
 
 thread_local! {
@@ -88,7 +89,10 @@ pub fn create_symbol_table(
     if let Some(symbols) = symbols {
         for symbol in symbols {
             let symbol: &Id<Symbol> = symbol.borrow();
-            result.insert(arena.symbol(symbol).escaped_name().to_owned(), symbol.clone());
+            result.insert(
+                arena.symbol(symbol).escaped_name().to_owned(),
+                symbol.clone(),
+            );
         }
     }
     result

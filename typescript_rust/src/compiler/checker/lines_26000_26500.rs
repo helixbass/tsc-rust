@@ -81,9 +81,8 @@ impl TypeChecker {
                 {
                     Some(self.get_type_of_expression(&binary_expression_as_binary_expression.left)?)
                 } else {
-                    let decl = return_ok_default_if_none!(self.symbol(binary_expression_as_binary_expression
-                        .left
-                        .symbol())
+                    let decl = return_ok_default_if_none!(self
+                        .symbol(binary_expression_as_binary_expression.left.symbol())
                         .maybe_value_declaration());
                     let lhs = cast(
                         Some(&*binary_expression_as_binary_expression.left),
@@ -142,13 +141,15 @@ impl TypeChecker {
                     .left
                     .maybe_symbol()
                     .and_then(|binary_expression_left_symbol| {
-                        self.symbol(binary_expression_left_symbol).maybe_value_declaration()
+                        self.symbol(binary_expression_left_symbol)
+                            .maybe_value_declaration()
                     });
                 value_declaration = value_declaration.or_else(|| {
                     binary_expression_as_binary_expression
                         .maybe_symbol()
                         .and_then(|binary_expression_symbol| {
-                            self.symbol(binary_expression_symbol).maybe_value_declaration()
+                            self.symbol(binary_expression_symbol)
+                                .maybe_value_declaration()
                         })
                 });
                 let annotated = value_declaration.as_ref().and_then(|value_declaration| {
@@ -164,7 +165,8 @@ impl TypeChecker {
                     binary_expression_as_binary_expression
                         .maybe_symbol()
                         .and_then(|binary_expression_symbol| {
-                            self.symbol(binary_expression_symbol).maybe_value_declaration()
+                            self.symbol(binary_expression_symbol)
+                                .maybe_value_declaration()
                         })
                 });
                 let annotated = value_declaration.as_ref().and_then(|value_declaration| {
@@ -238,8 +240,9 @@ impl TypeChecker {
             )?));
         }
         let binary_expression_symbol = binary_expression_symbol.unwrap();
-        if let Some(binary_expression_symbol_value_declaration) =
-            self.symbol(binary_expression_symbol).maybe_value_declaration()
+        if let Some(binary_expression_symbol_value_declaration) = self
+            .symbol(binary_expression_symbol)
+            .maybe_value_declaration()
         {
             let annotated =
                 get_effective_type_annotation_node(&binary_expression_symbol_value_declaration);
@@ -274,10 +277,8 @@ impl TypeChecker {
                 .borrow()
                 .type_
                 .is_none()
-            && self.find_resolution_cycle_start_index(
-                &symbol.into(),
-                TypeSystemPropertyName::Type,
-            ) >= 0
+            && self.find_resolution_cycle_start_index(&symbol.into(), TypeSystemPropertyName::Type)
+                >= 0
     }
 
     pub(super) fn get_type_of_property_of_contextual_type(
@@ -362,7 +363,8 @@ impl TypeChecker {
             if self.has_bindable_name(element)? {
                 return self.get_type_of_property_of_contextual_type(
                     type_,
-                    self.symbol(self.get_symbol_of_node(element)?.unwrap()).escaped_name(),
+                    self.symbol(self.get_symbol_of_node(element)?.unwrap())
+                        .escaped_name(),
                 );
             }
             if let Some(element_name) = element.as_named_declaration().maybe_name() {

@@ -465,15 +465,20 @@ impl BinderType {
             | SyntaxKind::JSDocTypeLiteral
             | SyntaxKind::ObjectLiteralExpression
             | SyntaxKind::InterfaceDeclaration
-            | SyntaxKind::JsxAttributes => Some(self.declare_symbol(
-                &mut *self.symbol(self.container().symbol()).members().borrow_mut(),
-                Some(self.container().symbol()),
-                node,
-                symbol_flags,
-                symbol_excludes,
-                None,
-                None,
-            )),
+            | SyntaxKind::JsxAttributes => Some(
+                self.declare_symbol(
+                    &mut *self
+                        .symbol(self.container().symbol())
+                        .members()
+                        .borrow_mut(),
+                    Some(self.container().symbol()),
+                    node,
+                    symbol_flags,
+                    symbol_excludes,
+                    None,
+                    None,
+                ),
+            ),
 
             SyntaxKind::FunctionType
             | SyntaxKind::ConstructorType
@@ -515,7 +520,10 @@ impl BinderType {
     ) -> Id<Symbol> {
         if is_static(node) {
             self.declare_symbol(
-                &mut *self.symbol(self.container().symbol()).exports().borrow_mut(),
+                &mut *self
+                    .symbol(self.container().symbol())
+                    .exports()
+                    .borrow_mut(),
                 Some(self.container().symbol()),
                 node,
                 symbol_flags,
@@ -525,7 +533,10 @@ impl BinderType {
             )
         } else {
             self.declare_symbol(
-                &mut *self.symbol(self.container().symbol()).members().borrow_mut(),
+                &mut *self
+                    .symbol(self.container().symbol())
+                    .members()
+                    .borrow_mut(),
                 Some(self.container().symbol()),
                 node,
                 symbol_flags,
@@ -648,7 +659,10 @@ impl BinderType {
                     !self.symbol(symbol).flags().intersects(
                         SymbolFlags::Function | SymbolFlags::Class | SymbolFlags::RegularEnum,
                     ) && state == ModuleInstanceState::ConstEnumOnly
-                        && !matches!(self.symbol(symbol).maybe_const_enum_only_module(), Some(false)),
+                        && !matches!(
+                            self.symbol(symbol).maybe_const_enum_only_module(),
+                            Some(false)
+                        ),
                 ));
             }
         }

@@ -176,7 +176,10 @@ impl TypeChecker {
                             if match base_symbol {
                                 None => true,
                                 Some(base_symbol) => {
-                                    !self.symbol(base_symbol).flags().intersects(SymbolFlags::Interface)
+                                    !self
+                                        .symbol(base_symbol)
+                                        .flags()
+                                        .intersects(SymbolFlags::Interface)
                                         || self
                                             .type_(self.get_declared_type_of_class_or_interface(
                                                 base_symbol,
@@ -316,10 +319,7 @@ impl TypeChecker {
     ) -> io::Result<Id<Type>> {
         let links = self.get_symbol_links(symbol);
         if (*links).borrow().declared_type.is_none() {
-            if !self.push_type_resolution(
-                &symbol.into(),
-                TypeSystemPropertyName::DeclaredType,
-            ) {
+            if !self.push_type_resolution(&symbol.into(), TypeSystemPropertyName::DeclaredType) {
                 return Ok(self.error_type());
             }
 
@@ -437,9 +437,8 @@ impl TypeChecker {
             }
             SyntaxKind::Identifier => {
                 node_is_missing(Some(expr))
-                    || (*self.symbol(self
-                        .get_symbol_of_node(&member.parent())?
-                        .unwrap())
+                    || (*self
+                        .symbol(self.get_symbol_of_node(&member.parent())?.unwrap())
                         .exports())
                     .borrow()
                     .get(&expr.as_identifier().escaped_text)
@@ -491,8 +490,7 @@ impl TypeChecker {
                 && !self.type_(type_).flags().intersects(TypeFlags::Union)
             {
                 self.get_declared_type_of_symbol(
-                    self
-                        .get_parent_of_symbol(self.type_(type_).symbol())?
+                    self.get_parent_of_symbol(self.type_(type_).symbol())?
                         .unwrap(),
                 )?
             } else {
@@ -540,8 +538,7 @@ impl TypeChecker {
                 if self.type_(enum_type).flags().intersects(TypeFlags::Union) {
                     self.type_(enum_type)
                         .set_flags(self.type_(enum_type).flags() | TypeFlags::EnumLiteral);
-                    self.type_(enum_type)
-                        .set_symbol(Some(symbol));
+                    self.type_(enum_type).set_symbol(Some(symbol));
                 }
                 links.borrow_mut().declared_type = Some(enum_type.clone());
                 return Ok(enum_type);
@@ -603,7 +600,8 @@ impl TypeChecker {
         &self,
         symbol: Id<Symbol>,
     ) -> io::Result<Option<Id<Type>>> {
-        if self.symbol(symbol)
+        if self
+            .symbol(symbol)
             .flags()
             .intersects(SymbolFlags::Class | SymbolFlags::Interface)
         {

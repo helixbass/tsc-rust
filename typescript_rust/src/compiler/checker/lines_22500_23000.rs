@@ -185,11 +185,9 @@ impl TypeChecker {
                         || matches!(
                             target.kind(),
                             SyntaxKind::VariableDeclaration | SyntaxKind::BindingElement
-                        ) && 
-                            self.get_export_symbol_of_value_symbol_if_exported(Some(
-                                self.get_resolved_symbol(source)?,
-                            )) ==
-                            self.get_symbol_of_node(target)?
+                        ) && self.get_export_symbol_of_value_symbol_if_exported(Some(
+                            self.get_resolved_symbol(source)?,
+                        )) == self.get_symbol_of_node(target)?
                 });
             }
             SyntaxKind::ThisKeyword => {
@@ -360,9 +358,9 @@ impl TypeChecker {
         if let Some(type_) = type_ {
             if self.type_(type_).flags().intersects(TypeFlags::Union) {
                 let prop = self.get_union_or_intersection_property(type_, name, None)?;
-                if let Some(prop) = prop
-                    .filter(|&prop| get_check_flags(&self.symbol(prop)).intersects(CheckFlags::SyntheticProperty))
-                {
+                if let Some(prop) = prop.filter(|&prop| {
+                    get_check_flags(&self.symbol(prop)).intersects(CheckFlags::SyntheticProperty)
+                }) {
                     let prop_as_transient_symbol = self.symbol(prop).as_transient_symbol();
                     let prop_symbol_links = prop_as_transient_symbol.symbol_links();
                     if (*prop_symbol_links)

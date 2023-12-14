@@ -98,10 +98,8 @@ impl GetFlowTypeOfReference {
                     && get_object_flags(&self.type_checker.type_(target))
                         .intersects(ObjectFlags::Class)
             {
-                return Ok(
-                    self.type_checker.type_(source).maybe_symbol() ==
-                    self.type_checker.type_(target).maybe_symbol()
-                );
+                return Ok(self.type_checker.type_(source).maybe_symbol()
+                    == self.type_checker.type_(target).maybe_symbol());
             }
 
             self.type_checker.is_type_subtype_of(source, target)
@@ -429,7 +427,8 @@ impl GetFlowTypeOfReference {
                 {
                     let symbol = self.type_checker.get_resolved_symbol(expr)?;
                     if self.type_checker.is_const_variable(symbol) {
-                        let declaration = self.type_checker.symbol(symbol).maybe_value_declaration();
+                        let declaration =
+                            self.type_checker.symbol(symbol).maybe_value_declaration();
                         if let Some(declaration) =
                             declaration
                                 .as_ref()
@@ -541,8 +540,9 @@ impl TypeChecker {
         symbol: Id<Symbol>,
         location: &Node,
     ) -> io::Result<Id<Type>> {
-        let symbol = self.symbol(symbol
-            ).maybe_export_symbol()
+        let symbol = self
+            .symbol(symbol)
+            .maybe_export_symbol()
             .unwrap_or_else(|| symbol);
 
         let mut location = location.node_wrapper();
@@ -652,7 +652,9 @@ impl TypeChecker {
     }
 
     pub(super) fn is_const_variable(&self, symbol: Id<Symbol>) -> bool {
-        self.symbol(symbol).flags().intersects(SymbolFlags::Variable)
+        self.symbol(symbol)
+            .flags()
+            .intersects(SymbolFlags::Variable)
             && self
                 .get_declaration_node_flags_from_symbol(symbol)
                 .intersects(NodeFlags::Const)
@@ -817,7 +819,11 @@ impl TypeChecker {
         .is_some()
     }
 
-    pub(super) fn mark_alias_referenced(&self, symbol: Id<Symbol>, location: &Node) -> io::Result<()> {
+    pub(super) fn mark_alias_referenced(
+        &self,
+        symbol: Id<Symbol>,
+        location: &Node,
+    ) -> io::Result<()> {
         if self.is_non_local_alias(Some(symbol), Some(SymbolFlags::Value))
             && !self.is_in_type_query(location)
             && self.get_type_only_alias_declaration(symbol).is_none()
@@ -893,8 +899,9 @@ impl TypeChecker {
         let local_or_export_symbol = self
             .get_export_symbol_of_value_symbol_if_exported(Some(symbol))
             .unwrap();
-        let source_symbol = if self.symbol(local_or_export_symbol
-            ).flags()
+        let source_symbol = if self
+            .symbol(local_or_export_symbol)
+            .flags()
             .intersects(SymbolFlags::Alias)
         {
             self.resolve_alias(local_or_export_symbol)?
@@ -915,10 +922,13 @@ impl TypeChecker {
             }
         }
 
-        let mut declaration = self.symbol(local_or_export_symbol).maybe_value_declaration();
+        let mut declaration = self
+            .symbol(local_or_export_symbol)
+            .maybe_value_declaration();
         if let Some(declaration) = declaration.as_ref() {
-            if self.symbol(local_or_export_symbol
-                ).flags()
+            if self
+                .symbol(local_or_export_symbol)
+                .flags()
                 .intersects(SymbolFlags::Class)
             {
                 if declaration.kind() == SyntaxKind::ClassDeclaration
@@ -971,40 +981,49 @@ impl TypeChecker {
         let assignment_kind = get_assignment_target_kind(node);
 
         if assignment_kind != AssignmentKind::None {
-            if !self.symbol(local_or_export_symbol
-                ).flags()
+            if !self
+                .symbol(local_or_export_symbol)
+                .flags()
                 .intersects(SymbolFlags::Variable)
                 && !(is_in_js_file(Some(node))
-                    && self.symbol(local_or_export_symbol
-                        ).flags()
+                    && self
+                        .symbol(local_or_export_symbol)
+                        .flags()
                         .intersects(SymbolFlags::ValueModule))
             {
-                let assignment_error =
-                    if self.symbol(local_or_export_symbol).flags().intersects(SymbolFlags::Enum) {
-                        &*Diagnostics::Cannot_assign_to_0_because_it_is_an_enum
-                    } else if self.symbol(local_or_export_symbol
-                        ).flags()
-                        .intersects(SymbolFlags::Class)
-                    {
-                        &*Diagnostics::Cannot_assign_to_0_because_it_is_a_class
-                    } else if self.symbol(local_or_export_symbol
-                        ).flags()
-                        .intersects(SymbolFlags::Module)
-                    {
-                        &*Diagnostics::Cannot_assign_to_0_because_it_is_a_namespace
-                    } else if self.symbol(local_or_export_symbol
-                        ).flags()
-                        .intersects(SymbolFlags::Function)
-                    {
-                        &*Diagnostics::Cannot_assign_to_0_because_it_is_a_function
-                    } else if self.symbol(local_or_export_symbol
-                        ).flags()
-                        .intersects(SymbolFlags::Alias)
-                    {
-                        &*Diagnostics::Cannot_assign_to_0_because_it_is_an_import
-                    } else {
-                        &*Diagnostics::Cannot_assign_to_0_because_it_is_not_a_variable
-                    };
+                let assignment_error = if self
+                    .symbol(local_or_export_symbol)
+                    .flags()
+                    .intersects(SymbolFlags::Enum)
+                {
+                    &*Diagnostics::Cannot_assign_to_0_because_it_is_an_enum
+                } else if self
+                    .symbol(local_or_export_symbol)
+                    .flags()
+                    .intersects(SymbolFlags::Class)
+                {
+                    &*Diagnostics::Cannot_assign_to_0_because_it_is_a_class
+                } else if self
+                    .symbol(local_or_export_symbol)
+                    .flags()
+                    .intersects(SymbolFlags::Module)
+                {
+                    &*Diagnostics::Cannot_assign_to_0_because_it_is_a_namespace
+                } else if self
+                    .symbol(local_or_export_symbol)
+                    .flags()
+                    .intersects(SymbolFlags::Function)
+                {
+                    &*Diagnostics::Cannot_assign_to_0_because_it_is_a_function
+                } else if self
+                    .symbol(local_or_export_symbol)
+                    .flags()
+                    .intersects(SymbolFlags::Alias)
+                {
+                    &*Diagnostics::Cannot_assign_to_0_because_it_is_an_import
+                } else {
+                    &*Diagnostics::Cannot_assign_to_0_because_it_is_not_a_variable
+                };
 
                 self.error(
                     Some(node),
@@ -1020,8 +1039,9 @@ impl TypeChecker {
                 return Ok(self.error_type());
             }
             if self.is_readonly_symbol(local_or_export_symbol)? {
-                if self.symbol(local_or_export_symbol
-                    ).flags()
+                if self
+                    .symbol(local_or_export_symbol)
+                    .flags()
                     .intersects(SymbolFlags::Variable)
                 {
                     self.error(
@@ -1052,12 +1072,14 @@ impl TypeChecker {
             }
         }
 
-        let is_alias = self.symbol(local_or_export_symbol
-            ).flags()
+        let is_alias = self
+            .symbol(local_or_export_symbol)
+            .flags()
             .intersects(SymbolFlags::Alias);
 
-        if self.symbol(local_or_export_symbol
-            ).flags()
+        if self
+            .symbol(local_or_export_symbol)
+            .flags()
             .intersects(SymbolFlags::Variable)
         {
             if assignment_kind == AssignmentKind::Definite {
@@ -1090,7 +1112,10 @@ impl TypeChecker {
                 Some(node_parent_parent) if is_spread_assignment(node_parent) && self.is_destructuring_assignment_target(node_parent_parent)
             )
         );
-        let is_module_exports = self.symbol(symbol).flags().intersects(SymbolFlags::ModuleExports);
+        let is_module_exports = self
+            .symbol(symbol)
+            .flags()
+            .intersects(SymbolFlags::ModuleExports);
         while !matches!(
             declaration_container.as_ref(),
             Some(declaration_container) if Gc::ptr_eq(&flow_container, declaration_container)

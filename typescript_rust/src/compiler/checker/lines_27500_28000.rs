@@ -449,9 +449,13 @@ impl TypeChecker {
             }
 
             if let Some(jsx_factory_sym) = jsx_factory_sym {
-                self.symbol(jsx_factory_sym).set_is_referenced(Some(SymbolFlags::All));
+                self.symbol(jsx_factory_sym)
+                    .set_is_referenced(Some(SymbolFlags::All));
 
-                if self.symbol(jsx_factory_sym).flags().intersects(SymbolFlags::Alias)
+                if self
+                    .symbol(jsx_factory_sym)
+                    .flags()
+                    .intersects(SymbolFlags::Alias)
                     && self
                         .get_type_only_alias_declaration(jsx_factory_sym)
                         .is_none()
@@ -603,7 +607,11 @@ impl TypeChecker {
             return true;
         }
         if is_in_js_file(self.symbol(symbol).maybe_value_declaration()) {
-            let parent = self.symbol(symbol).maybe_value_declaration().unwrap().maybe_parent();
+            let parent = self
+                .symbol(symbol)
+                .maybe_value_declaration()
+                .unwrap()
+                .maybe_parent();
             return matches!(
                 parent.as_ref(),
                 Some(parent) if is_binary_expression(parent) &&
@@ -697,8 +705,9 @@ impl TypeChecker {
                 || is_object_binding_pattern(&location.parent())
                     && is_this_initialized_declaration(location.parent().maybe_parent()))
         {
-            let declaring_class_declaration =
-                get_class_like_declaration_of_symbol(&self.symbol(self.get_parent_of_symbol(prop)?.unwrap()));
+            let declaring_class_declaration = get_class_like_declaration_of_symbol(
+                &self.symbol(self.get_parent_of_symbol(prop)?.unwrap()),
+            );
             if let Some(declaring_class_declaration) = declaring_class_declaration.as_ref() {
                 if self.is_node_used_during_class_initialization(location) {
                     if error_node.is_some() {

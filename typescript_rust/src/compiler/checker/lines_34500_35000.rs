@@ -296,10 +296,9 @@ impl TypeChecker {
                 if type_arguments.is_none() {
                     type_arguments =
                         Some(self.get_effective_type_arguments(node, Some(type_parameters))?);
-                    mapper = Some(self.create_type_mapper(
-                        type_parameters.to_owned(),
-                        type_arguments.clone(),
-                    ));
+                    mapper = Some(
+                        self.create_type_mapper(type_parameters.to_owned(), type_arguments.clone()),
+                    );
                 }
                 result = result
                     && self.check_type_assignable_to(
@@ -331,7 +330,11 @@ impl TypeChecker {
                 .resolved_symbol
                 .clone();
             if let Some(symbol) = symbol {
-                return Ok(if self.symbol(symbol).flags().intersects(SymbolFlags::TypeAlias) {
+                return Ok(if self
+                    .symbol(symbol)
+                    .flags()
+                    .intersects(SymbolFlags::TypeAlias)
+                {
                     (*self.get_symbol_links(symbol))
                         .borrow()
                         .type_parameters
@@ -416,7 +419,10 @@ impl TypeChecker {
                     );
                 }
                 if self.type_(type_).flags().intersects(TypeFlags::Enum)
-                    && self.symbol(symbol).flags().intersects(SymbolFlags::EnumMember)
+                    && self
+                        .symbol(symbol)
+                        .flags()
+                        .intersects(SymbolFlags::EnumMember)
                 {
                     self.error(
                         Some(node),
@@ -910,7 +916,10 @@ impl TypeChecker {
         flags & flags_to_check
     }
 
-    pub(super) fn check_function_or_constructor_symbol(&self, symbol: Id<Symbol>) -> io::Result<()> {
+    pub(super) fn check_function_or_constructor_symbol(
+        &self,
+        symbol: Id<Symbol>,
+    ) -> io::Result<()> {
         if !self.produce_diagnostics {
             return Ok(());
         }
@@ -931,7 +940,10 @@ impl TypeChecker {
         let mut previous_declaration: Option<Gc<Node /*SignatureDeclaration*/>> = None;
 
         let declarations = self.symbol(symbol).maybe_declarations();
-        let is_constructor = self.symbol(symbol).flags().intersects(SymbolFlags::Constructor);
+        let is_constructor = self
+            .symbol(symbol)
+            .flags()
+            .intersects(SymbolFlags::Constructor);
 
         let mut duplicate_function_declaration = false;
         let mut multiple_constructor_implementation = false;
@@ -1049,7 +1061,10 @@ impl TypeChecker {
 
         if has_non_ambient_class
             && !is_constructor
-            && self.symbol(symbol).flags().intersects(SymbolFlags::Function)
+            && self
+                .symbol(symbol)
+                .flags()
+                .intersects(SymbolFlags::Function)
         {
             if let Some(declarations) = declarations.as_ref() {
                 let related_diagnostics: Vec<Gc<DiagnosticRelatedInformation>> =

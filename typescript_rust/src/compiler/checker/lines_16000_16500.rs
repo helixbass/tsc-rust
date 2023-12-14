@@ -28,8 +28,9 @@ impl TypeChecker {
             Some(|declaration: &Gc<Node>| {
                 is_private_identifier_class_element_declaration(declaration)
             }),
-        ) && (!self.symbol(prop
-            ).flags()
+        ) && (!self
+            .symbol(prop)
+            .flags()
             .intersects(SymbolFlags::Method | SymbolFlags::GetAccessor | SymbolFlags::SetAccessor)
             || !matches!(
                 self.symbol(prop).maybe_declarations().as_ref(),
@@ -42,14 +43,20 @@ impl TypeChecker {
         prop: Id<Symbol>,
         readonly: bool,
     ) -> io::Result<Id<Symbol>> {
-        let is_setonly_accessor = self.symbol(prop).flags().intersects(SymbolFlags::SetAccessor)
-            && !self.symbol(prop).flags().intersects(SymbolFlags::GetAccessor);
+        let is_setonly_accessor = self
+            .symbol(prop)
+            .flags()
+            .intersects(SymbolFlags::SetAccessor)
+            && !self
+                .symbol(prop)
+                .flags()
+                .intersects(SymbolFlags::GetAccessor);
         if !is_setonly_accessor && readonly == self.is_readonly_symbol(prop)? {
             return Ok(prop);
         }
         let flags = SymbolFlags::Property | (self.symbol(prop).flags() & SymbolFlags::Optional);
-        let result = self.alloc_symbol(self
-            .create_symbol(
+        let result = self.alloc_symbol(
+            self.create_symbol(
                 flags,
                 self.symbol(prop).escaped_name().to_owned(),
                 Some(
@@ -61,7 +68,8 @@ impl TypeChecker {
                         },
                 ),
             )
-            .into());
+            .into(),
+        );
         let result_links = self.symbol(result).as_transient_symbol().symbol_links();
         let mut result_links = result_links.borrow_mut();
         result_links.type_ = Some(if is_setonly_accessor {
@@ -105,8 +113,7 @@ impl TypeChecker {
         let type_ = self.create_type(flags);
         let type_ = BaseLiteralType::new(type_);
         let type_ = self.alloc_type(StringLiteralType::new(type_, value).into());
-        self.type_(type_)
-            .set_symbol(symbol);
+        self.type_(type_).set_symbol(symbol);
         self.type_(type_).as_literal_type().set_regular_type(
             if let Some(regular_type) = regular_type {
                 regular_type
@@ -127,8 +134,7 @@ impl TypeChecker {
         let type_ = self.create_type(flags);
         let type_ = BaseLiteralType::new(type_);
         let type_ = self.alloc_type(NumberLiteralType::new(type_, value).into());
-        self.type_(type_)
-            .set_symbol(symbol);
+        self.type_(type_).set_symbol(symbol);
         self.type_(type_).as_literal_type().set_regular_type(
             if let Some(regular_type) = regular_type {
                 regular_type
@@ -149,8 +155,7 @@ impl TypeChecker {
         let type_ = self.create_type(flags);
         let type_ = BaseLiteralType::new(type_);
         let type_ = self.alloc_type(BigIntLiteralType::new(type_, value).into());
-        self.type_(type_)
-            .set_symbol(symbol);
+        self.type_(type_).set_symbol(symbol);
         self.type_(type_).as_literal_type().set_regular_type(
             if let Some(regular_type) = regular_type {
                 regular_type
@@ -344,7 +349,11 @@ impl TypeChecker {
             UniqueESSymbolType::new(
                 type_,
                 symbol,
-                format!("__@{}@{}", self.symbol(symbol).escaped_name(), get_symbol_id(&self.symbol(symbol))),
+                format!(
+                    "__@{}@{}",
+                    self.symbol(symbol).escaped_name(),
+                    get_symbol_id(&self.symbol(symbol))
+                ),
             )
             .into(),
         );
@@ -396,9 +405,13 @@ impl TypeChecker {
             return Ok(self
                 .type_(
                     self.get_declared_type_of_class_or_interface(
-                        &self.symbol(self
-                            .get_symbol_of_node(&parent.parent().as_binary_expression().left)?
-                            .unwrap())
+                        &self
+                            .symbol(
+                                self.get_symbol_of_node(
+                                    &parent.parent().as_binary_expression().left,
+                                )?
+                                .unwrap(),
+                            )
                             .maybe_parent()
                             .unwrap(),
                     )?,
@@ -421,9 +434,13 @@ impl TypeChecker {
             return Ok(self
                 .type_(
                     self.get_declared_type_of_class_or_interface(
-                        &self.symbol(self
-                            ).get_symbol_of_node(&host.parent().as_binary_expression().left)?
-                            .unwrap())
+                        &self
+                            .symbol(
+                                self.get_symbol_of_node(
+                                    &host.parent().as_binary_expression().left,
+                                )?
+                                .unwrap(),
+                            )
                             .maybe_parent()
                             .unwrap(),
                     )?,
@@ -1002,11 +1019,9 @@ impl TypeChecker {
         let mut result = self.create_signature(
             signature.declaration.clone(),
             fresh_type_parameters,
-            signature
-                .maybe_this_parameter()
-                .try_map(|this_parameter| {
-                    self.instantiate_symbol(this_parameter, mapper.clone())
-                })?,
+            signature.maybe_this_parameter().try_map(|this_parameter| {
+                self.instantiate_symbol(this_parameter, mapper.clone())
+            })?,
             self.try_instantiate_list_non_gc(
                 Some(signature.parameters()),
                 Some(mapper.clone()),
@@ -1090,8 +1105,7 @@ impl TypeChecker {
                 .clone()
                 .unwrap()
         } else {
-            self.symbol(self.type_(type_)
-                .symbol())
+            self.symbol(self.type_(type_).symbol())
                 .maybe_declarations()
                 .clone()
                 .unwrap()[0]
@@ -1138,8 +1152,7 @@ impl TypeChecker {
             {
                 vec![declaration.clone()]
             } else {
-                self.symbol(self.type_(type_)
-                    .symbol())
+                self.symbol(self.type_(type_).symbol())
                     .maybe_declarations()
                     .clone()
                     .unwrap()
@@ -1149,14 +1162,12 @@ impl TypeChecker {
                 .as_object_type()
                 .object_flags()
                 .intersects(ObjectFlags::Reference)
-                || self.symbol(self
-                    .type_(target)
-                    .symbol())
+                || self
+                    .symbol(self.type_(target).symbol())
                     .flags()
                     .intersects(SymbolFlags::Method)
-                || self.symbol(self
-                    .type_(target)
-                    .symbol())
+                || self
+                    .symbol(self.type_(target).symbol())
                     .flags()
                     .intersects(SymbolFlags::TypeLiteral))
                 && self.type_(target).maybe_alias_type_arguments().is_none()

@@ -101,8 +101,8 @@ impl TypeChecker {
             } else {
                 None
             };
-            let param_symbol = self.alloc_symbol(self
-                .create_symbol(
+            let param_symbol = self.alloc_symbol(
+                self.create_symbol(
                     SymbolFlags::FunctionScopedVariable
                         | if is_optional && !is_rest_param {
                             SymbolFlags::Optional
@@ -112,9 +112,10 @@ impl TypeChecker {
                     param_name.unwrap_or_else(|| format!("arg{}", i)),
                     None,
                 )
-                .into());
-            self.symbol(param_symbol
-                ).as_transient_symbol()
+                .into(),
+            );
+            self.symbol(param_symbol)
+                .as_transient_symbol()
                 .symbol_links()
                 .borrow_mut()
                 .type_ = Some(if is_rest_param {
@@ -125,11 +126,12 @@ impl TypeChecker {
             params.push(param_symbol);
         }
         if needs_extra_rest_element {
-            let rest_param_symbol = self.alloc_symbol(self
-                .create_symbol(SymbolFlags::FunctionScopedVariable, "args".to_owned(), None)
-                .into());
-            self.symbol(rest_param_symbol
-                ).as_transient_symbol()
+            let rest_param_symbol = self.alloc_symbol(
+                self.create_symbol(SymbolFlags::FunctionScopedVariable, "args".to_owned(), None)
+                    .into(),
+            );
+            self.symbol(rest_param_symbol)
+                .as_transient_symbol()
                 .symbol_links()
                 .borrow_mut()
                 .type_ = Some(
@@ -137,13 +139,16 @@ impl TypeChecker {
             );
             if ptr::eq(shorter, right) {
                 let type_ = self.maybe_instantiate_type(
-                    (*self.symbol(rest_param_symbol).as_transient_symbol().symbol_links())
-                        .borrow()
-                        .type_,
+                    (*self
+                        .symbol(rest_param_symbol)
+                        .as_transient_symbol()
+                        .symbol_links())
+                    .borrow()
+                    .type_,
                     mapper,
                 )?;
-                self.symbol(rest_param_symbol
-                    ).as_transient_symbol()
+                self.symbol(rest_param_symbol)
+                    .as_transient_symbol()
                     .symbol_links()
                     .borrow_mut()
                     .type_ = type_;
@@ -522,7 +527,11 @@ impl TypeChecker {
                 construct_signatures,
                 index_infos,
             )?;
-        } else if self.symbol(symbol).flags().intersects(SymbolFlags::TypeLiteral) {
+        } else if self
+            .symbol(symbol)
+            .flags()
+            .intersects(SymbolFlags::TypeLiteral)
+        {
             self.set_structured_type_members(
                 self.type_(type_).as_object_type(),
                 self.empty_symbols(),
@@ -574,9 +583,10 @@ impl TypeChecker {
                 if self.type_(base_constructor_type).flags().intersects(
                     TypeFlags::Object | TypeFlags::Intersection | TypeFlags::TypeVariable,
                 ) {
-                    let members_new = Gc::new(GcCell::new(create_symbol_table(self.arena(), Some(
-                        &*self.get_named_or_index_signature_members(&*(*members).borrow())?,
-                    ))));
+                    let members_new = Gc::new(GcCell::new(create_symbol_table(
+                        self.arena(),
+                        Some(&*self.get_named_or_index_signature_members(&*(*members).borrow())?),
+                    )));
                     members = members_new;
                     self.add_inherited_members(
                         &mut members.borrow_mut(),
@@ -627,8 +637,9 @@ impl TypeChecker {
                 vec![],
                 index_infos,
             )?;
-            if self.symbol(symbol
-                ).flags()
+            if self
+                .symbol(symbol)
+                .flags()
                 .intersects(SymbolFlags::Function | SymbolFlags::Method)
             {
                 let signatures = self.get_signatures_of_symbol(Some(symbol))?;
@@ -650,7 +661,11 @@ impl TypeChecker {
                 } else {
                     vec![]
                 };
-                if self.symbol(symbol).flags().intersects(SymbolFlags::Function) {
+                if self
+                    .symbol(symbol)
+                    .flags()
+                    .intersects(SymbolFlags::Function)
+                {
                     add_range(
                         &mut construct_signatures,
                         Some(&try_map_defined(
@@ -817,9 +832,11 @@ impl TypeChecker {
                     .constraint_type
                     .clone();
             }
-            let inferred_prop = self.alloc_symbol(inferred_prop
-                .into_reverse_mapped_symbol(property_type, mapped_type, constraint_type)
-                .into());
+            let inferred_prop = self.alloc_symbol(
+                inferred_prop
+                    .into_reverse_mapped_symbol(property_type, mapped_type, constraint_type)
+                    .into(),
+            );
             members.insert(self.symbol(prop).escaped_name().to_owned(), inferred_prop);
         }
         self.set_structured_type_members(
@@ -1239,10 +1256,7 @@ impl TypeChecker {
             .is_none()
         {
             let mapped_type = symbol_as_mapped_symbol.mapped_type;
-            if !self.push_type_resolution(
-                &symbol.into(),
-                TypeSystemPropertyName::Type,
-            ) {
+            if !self.push_type_resolution(&symbol.into(), TypeSystemPropertyName::Type) {
                 self.type_(mapped_type)
                     .as_mapped_type()
                     .set_contains_error(Some(true));
@@ -1261,7 +1275,10 @@ impl TypeChecker {
             );
             let prop_type = self.instantiate_type(template_type, Some(mapper))?;
             let mut type_ = if self.strict_null_checks
-                && self.symbol(symbol).flags().intersects(SymbolFlags::Optional)
+                && self
+                    .symbol(symbol)
+                    .flags()
+                    .intersects(SymbolFlags::Optional)
                 && !self.maybe_type_of_kind(prop_type, TypeFlags::Undefined | TypeFlags::Void)
             {
                 self.get_optional_type_(prop_type, Some(true))?
@@ -1307,18 +1324,17 @@ impl TypeChecker {
         }
         .try_unwrap_or_else(|| -> io::Result<_> {
             let ret = self.get_declared_type_of_type_parameter(
-                self
-                    .get_symbol_of_node(&*{
-                        let type_parameter = self
-                            .type_(type_)
-                            .as_mapped_type()
-                            .declaration
-                            .as_mapped_type_node()
-                            .type_parameter
-                            .clone();
-                        type_parameter
-                    })?
-                    .unwrap(),
+                self.get_symbol_of_node(&*{
+                    let type_parameter = self
+                        .type_(type_)
+                        .as_mapped_type()
+                        .declaration
+                        .as_mapped_type_node()
+                        .type_parameter
+                        .clone();
+                    type_parameter
+                })?
+                .unwrap(),
             );
             *self.type_(type_).as_mapped_type().maybe_type_parameter() = Some(ret.clone());
             Ok(ret)

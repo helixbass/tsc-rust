@@ -250,8 +250,14 @@ impl TypeChecker {
             return Ok(entry.intersects(RelationComparisonResult::Succeeded));
         }
         if self.symbol(source_symbol).escaped_name() != self.symbol(target_symbol).escaped_name()
-            || !self.symbol(source_symbol).flags().intersects(SymbolFlags::RegularEnum)
-            || !self.symbol(target_symbol).flags().intersects(SymbolFlags::RegularEnum)
+            || !self
+                .symbol(source_symbol)
+                .flags()
+                .intersects(SymbolFlags::RegularEnum)
+            || !self
+                .symbol(target_symbol)
+                .flags()
+                .intersects(SymbolFlags::RegularEnum)
         {
             self.enum_relation().insert(
                 id,
@@ -261,14 +267,22 @@ impl TypeChecker {
         }
         let target_enum_type = self.get_type_of_symbol(target_symbol)?;
         for property in self.get_properties_of_type(self.get_type_of_symbol(source_symbol)?)? {
-            if self.symbol(property).flags().intersects(SymbolFlags::EnumMember) {
-                let target_property =
-                    self.get_property_of_type_(target_enum_type, self.symbol(property).escaped_name(), None)?;
+            if self
+                .symbol(property)
+                .flags()
+                .intersects(SymbolFlags::EnumMember)
+            {
+                let target_property = self.get_property_of_type_(
+                    target_enum_type,
+                    self.symbol(property).escaped_name(),
+                    None,
+                )?;
                 if match target_property {
                     None => true,
-                    Some(target_property) => {
-                        !self.symbol(target_property).flags().intersects(SymbolFlags::EnumMember)
-                    }
+                    Some(target_property) => !self
+                        .symbol(target_property)
+                        .flags()
+                        .intersects(SymbolFlags::EnumMember),
                 } {
                     if let Some(error_reporter) = error_reporter.as_mut() {
                         error_reporter(
@@ -379,11 +393,9 @@ impl TypeChecker {
                     .as_literal_type()
                     .is_value_eq(&self.type_(target))
                 && self.is_enum_type_related_to(
-                    self
-                        .get_parent_of_symbol(self.type_(source).symbol())?
+                    self.get_parent_of_symbol(self.type_(source).symbol())?
                         .unwrap(),
-                    self
-                        .get_parent_of_symbol(self.type_(target).symbol())?
+                    self.get_parent_of_symbol(self.type_(target).symbol())?
                         .unwrap(),
                     &mut error_reporter,
                 )?

@@ -51,9 +51,10 @@ impl TypeChecker {
             Option<Vec<Gc<Node /*LateVisibilityPaintedStatement*/>>>,
         > = RefCell::new(None);
         if !every(
-            &maybe_filter(self.symbol(symbol).maybe_declarations().as_deref(), |d: &Gc<Node>| {
-                d.kind() != SyntaxKind::Identifier
-            })
+            &maybe_filter(
+                self.symbol(symbol).maybe_declarations().as_deref(),
+                |d: &Gc<Node>| d.kind() != SyntaxKind::Identifier,
+            )
             .unwrap_or_else(|| vec![]),
             |d: &Gc<Node>, _| {
                 self.get_is_declaration_visible(
@@ -477,7 +478,8 @@ impl TypeChecker {
     ) -> io::Result<(String, String)> {
         let mut left_str = if let Some(symbol) = self.type_(left).maybe_symbol() {
             if self.symbol_value_declaration_is_context_sensitive(Some(symbol))? {
-                let enclosing_declaration = (*self.symbol(symbol).maybe_value_declaration().borrow()).clone();
+                let enclosing_declaration =
+                    (*self.symbol(symbol).maybe_value_declaration().borrow()).clone();
                 self.type_to_string_(left, enclosing_declaration, None, None)?
             } else {
                 self.type_to_string_(left, Option::<&Node>::None, None, None)?
@@ -487,7 +489,8 @@ impl TypeChecker {
         };
         let mut right_str = if let Some(symbol) = self.type_(right).maybe_symbol() {
             if self.symbol_value_declaration_is_context_sensitive(Some(symbol))? {
-                let enclosing_declaration = (*self.symbol(symbol).maybe_value_declaration().borrow()).clone();
+                let enclosing_declaration =
+                    (*self.symbol(symbol).maybe_value_declaration().borrow()).clone();
                 self.type_to_string_(right, enclosing_declaration, None, None)?
             } else {
                 self.type_to_string_(right, Option::<&Node>::None, None, None)?
@@ -1291,10 +1294,13 @@ impl NodeBuilder {
                         context,
                         None,
                     )?;
-                    if self
+                    if self.type_checker.is_reserved_member_name(
+                        self.type_checker.symbol(type_alias_symbol).escaped_name(),
+                    ) && !self
                         .type_checker
-                        .is_reserved_member_name(self.type_checker.symbol(type_alias_symbol).escaped_name())
-                        && !self.type_checker.symbol(type_alias_symbol).flags().intersects(SymbolFlags::Class)
+                        .symbol(type_alias_symbol)
+                        .flags()
+                        .intersects(SymbolFlags::Class)
                     {
                         return Ok(Some(get_factory().create_type_reference_node(
                             get_factory().create_identifier(""),

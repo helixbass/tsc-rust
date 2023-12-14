@@ -115,7 +115,8 @@ impl TypeChecker {
                 None => true,
                 Some(value_declaration) => value_declaration.kind() != member.kind(),
             } {
-                self.symbol(symbol).set_value_declaration(member.node_wrapper());
+                self.symbol(symbol)
+                    .set_value_declaration(member.node_wrapper());
             }
         }
     }
@@ -155,12 +156,14 @@ impl TypeChecker {
                     late_symbols.get(&*member_name).map(Clone::clone);
                 if late_symbol.is_none() {
                     late_symbol = Some(
-                        self.alloc_symbol(self.create_symbol(
-                            SymbolFlags::None,
-                            (*member_name).to_owned(),
-                            Some(CheckFlags::Late),
-                        )
-                        .into()),
+                        self.alloc_symbol(
+                            self.create_symbol(
+                                SymbolFlags::None,
+                                (*member_name).to_owned(),
+                                Some(CheckFlags::Late),
+                            )
+                            .into(),
+                        ),
                     );
                     late_symbols.insert((*member_name).to_owned(), late_symbol.clone().unwrap());
                 }
@@ -168,7 +171,8 @@ impl TypeChecker {
 
                 let early_symbol =
                     early_symbols.and_then(|early_symbols| early_symbols.get(&*member_name));
-                if self.symbol(late_symbol)
+                if self
+                    .symbol(late_symbol)
                     .flags()
                     .intersects(self.get_excluded_symbol_flags(symbol_flags))
                     || early_symbol.is_some()
@@ -206,9 +210,10 @@ impl TypeChecker {
                         &Diagnostics::Duplicate_property_0,
                         Some(vec![name]),
                     );
-                    late_symbol = self.alloc_symbol(self
-                        .create_symbol(SymbolFlags::None, member_name, Some(CheckFlags::Late))
-                        .into());
+                    late_symbol = self.alloc_symbol(
+                        self.create_symbol(SymbolFlags::None, member_name, Some(CheckFlags::Late))
+                            .into(),
+                    );
                 }
                 self.symbol(late_symbol)
                     .as_transient_symbol()
@@ -398,7 +403,9 @@ impl TypeChecker {
                 self.symbol(symbol).maybe_declarations().as_deref(),
                 Some(|declaration: &Gc<Node>| self.has_late_bindable_name(declaration)),
             )? {
-                let parent = self.get_merged_symbol(self.symbol(symbol).maybe_parent()).unwrap();
+                let parent = self
+                    .get_merged_symbol(self.symbol(symbol).maybe_parent())
+                    .unwrap();
                 if some(
                     self.symbol(symbol).maybe_declarations().as_deref(),
                     Some(|declaration: &Gc<Node>| has_static_modifier(declaration)),
@@ -505,7 +512,8 @@ impl TypeChecker {
                 self.get_members_of_symbol(source_symbol)?
             } else {
                 Gc::new(GcCell::new(create_symbol_table(
-                    self.arena(), self.type_(source)
+                    self.arena(),
+                    self.type_(source)
                         .as_interface_type_with_declared_members()
                         .maybe_declared_properties()
                         .as_deref(),
@@ -567,7 +575,8 @@ impl TypeChecker {
             if matches!(self.type_(source).maybe_symbol(), Some(symbol) if Gc::ptr_eq(&members, &self.get_members_of_symbol(symbol)?))
             {
                 members = Gc::new(GcCell::new(create_symbol_table(
-                    self.arena(), self.type_(source)
+                    self.arena(),
+                    self.type_(source)
                         .as_interface_type_with_declared_members()
                         .maybe_declared_properties()
                         .as_deref(),
@@ -856,9 +865,10 @@ impl TypeChecker {
             } else {
                 CheckFlags::None
             };
-            let symbol = self.alloc_symbol(self
-                .create_symbol(SymbolFlags::FunctionScopedVariable, name, Some(check_flags))
-                .into());
+            let symbol = self.alloc_symbol(
+                self.create_symbol(SymbolFlags::FunctionScopedVariable, name, Some(check_flags))
+                    .into(),
+            );
             self.symbol(symbol)
                 .as_transient_symbol()
                 .symbol_links()
@@ -883,7 +893,8 @@ impl TypeChecker {
         let base_constructor_type = self.get_base_constructor_type_of_class(class_type)?;
         let base_signatures =
             self.get_signatures_of_type(base_constructor_type, SignatureKind::Construct)?;
-        let declaration = get_class_like_declaration_of_symbol(&self.symbol(self.type_(class_type).symbol()));
+        let declaration =
+            get_class_like_declaration_of_symbol(&self.symbol(self.type_(class_type).symbol()));
         let is_abstract = matches!(declaration.as_ref(), Some(declaration) if has_syntactic_modifier(declaration, ModifierFlags::Abstract));
         if base_signatures.is_empty() {
             return Ok(vec![Gc::new(
@@ -1061,11 +1072,9 @@ impl TypeChecker {
                                     &try_map_defined(
                                         Some(&union_signatures),
                                         |sig: &Gc<Signature>, _| {
-                                            sig.maybe_this_parameter().try_map(
-                                                |this_parameter| {
-                                                    self.get_type_of_symbol(this_parameter)
-                                                },
-                                            )
+                                            sig.maybe_this_parameter().try_map(|this_parameter| {
+                                                self.get_type_of_symbol(this_parameter)
+                                            })
                                         },
                                     )?,
                                     Option::<Id<Symbol>>::None,

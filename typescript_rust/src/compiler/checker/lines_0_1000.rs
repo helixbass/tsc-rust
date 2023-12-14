@@ -36,8 +36,8 @@ use crate::{
     RelationComparisonResult, Signature, SignatureFlags, SignatureKind, StringOrNumber, Symbol,
     SymbolFlags, SymbolFormatFlags, SymbolId, SymbolInterface, SymbolTable, SymbolTracker,
     SymbolWalker, SyntaxKind, Type, TypeChecker, TypeCheckerHost, TypeCheckerHostDebuggable,
-    TypeFlags, TypeFormatFlags, TypeId, TypeInterface, TypeMapperCallback, TypePredicate,
-    TypePredicateKind, VarianceFlags, TypeMapper,
+    TypeFlags, TypeFormatFlags, TypeId, TypeInterface, TypeMapper, TypeMapperCallback,
+    TypePredicate, TypePredicateKind, VarianceFlags,
 };
 
 lazy_static! {
@@ -840,22 +840,25 @@ pub fn create_type_checker(
         ],
     };
     type_checker.undefined_symbol = Some(
-        type_checker.alloc_symbol(type_checker
-            .create_symbol(SymbolFlags::Property, "undefined".to_owned(), None)
-            .into()),
+        type_checker.alloc_symbol(
+            type_checker
+                .create_symbol(SymbolFlags::Property, "undefined".to_owned(), None)
+                .into(),
+        ),
     );
-    type_checker.symbol(type_checker
-        .undefined_symbol
-        .unwrap())
+    type_checker
+        .symbol(type_checker.undefined_symbol.unwrap())
         .set_declarations(vec![]);
     type_checker.global_this_symbol = Some(
-        type_checker.alloc_symbol(type_checker
-            .create_symbol(
-                SymbolFlags::Module,
-                "globalThis".to_owned(),
-                Some(CheckFlags::Readonly),
-            )
-            .into()),
+        type_checker.alloc_symbol(
+            type_checker
+                .create_symbol(
+                    SymbolFlags::Module,
+                    "globalThis".to_owned(),
+                    Some(CheckFlags::Readonly),
+                )
+                .into(),
+        ),
     );
     let global_this_symbol = type_checker.global_this_symbol();
     {
@@ -863,34 +866,47 @@ pub fn create_type_checker(
         let mut global_this_symbol_exports = global_this_symbol_ref.maybe_exports_mut();
         *global_this_symbol_exports = Some(type_checker.globals_rc());
     }
-    type_checker.symbol(global_this_symbol).set_declarations(vec![]);
+    type_checker
+        .symbol(global_this_symbol)
+        .set_declarations(vec![]);
     type_checker.globals_mut().insert(
-        type_checker.symbol(global_this_symbol).escaped_name().to_owned(),
+        type_checker
+            .symbol(global_this_symbol)
+            .escaped_name()
+            .to_owned(),
         global_this_symbol,
     );
     type_checker.arguments_symbol = Some(
-        type_checker.alloc_symbol(type_checker
-            .create_symbol(SymbolFlags::Property, "arguments".to_owned(), None)
-            .into()),
+        type_checker.alloc_symbol(
+            type_checker
+                .create_symbol(SymbolFlags::Property, "arguments".to_owned(), None)
+                .into(),
+        ),
     );
     type_checker.require_symbol = Some(
-        type_checker.alloc_symbol(type_checker
-            .create_symbol(SymbolFlags::Property, "require".to_owned(), None)
-            .into()),
+        type_checker.alloc_symbol(
+            type_checker
+                .create_symbol(SymbolFlags::Property, "require".to_owned(), None)
+                .into(),
+        ),
     );
     type_checker.unknown_symbol = Some(
-        type_checker.alloc_symbol(type_checker
-            .create_symbol(SymbolFlags::Property, "unknown".to_owned(), None)
-            .into()),
+        type_checker.alloc_symbol(
+            type_checker
+                .create_symbol(SymbolFlags::Property, "unknown".to_owned(), None)
+                .into(),
+        ),
     );
     type_checker.resolving_symbol = Some(
-        type_checker.alloc_symbol(type_checker
-            .create_symbol(
-                SymbolFlags::None,
-                InternalSymbolName::Resolving.to_owned(),
-                None,
-            )
-            .into()),
+        type_checker.alloc_symbol(
+            type_checker
+                .create_symbol(
+                    SymbolFlags::None,
+                    InternalSymbolName::Resolving.to_owned(),
+                    None,
+                )
+                .into(),
+        ),
     );
 
     type_checker.any_type = Some(
@@ -1222,12 +1238,10 @@ pub fn create_type_checker(
         None,
     )?);
 
-    type_checker.restrictive_mapper = Some(
-        type_checker.make_function_type_mapper(RestrictiveMapperFunc::default()),
-    );
-    type_checker.permissive_mapper = Some(
-        type_checker.make_function_type_mapper(PermissiveMapperFunc::default()),
-    );
+    type_checker.restrictive_mapper =
+        Some(type_checker.make_function_type_mapper(RestrictiveMapperFunc::default()));
+    type_checker.permissive_mapper =
+        Some(type_checker.make_function_type_mapper(PermissiveMapperFunc::default()));
 
     type_checker.empty_object_type = Some(type_checker.create_anonymous_type(
         Option::<Id<Symbol>>::None,
@@ -1263,7 +1277,8 @@ pub fn create_type_checker(
     *empty_type_literal_symbol.maybe_members_mut() = Some(Gc::new(GcCell::new(
         create_symbol_table(type_checker.arena(), Option::<&[Id<Symbol>]>::None),
     )));
-    type_checker.empty_type_literal_symbol = Some(type_checker.alloc_symbol(empty_type_literal_symbol.into()));
+    type_checker.empty_type_literal_symbol =
+        Some(type_checker.alloc_symbol(empty_type_literal_symbol.into()));
     type_checker.empty_type_literal_type = Some(type_checker.create_anonymous_type(
         Some(type_checker.empty_type_literal_symbol()),
         type_checker.empty_symbols(),
@@ -1431,7 +1446,10 @@ pub fn create_type_checker(
 
     let mut builtin_globals: SymbolTable = SymbolTable::new();
     builtin_globals.insert(
-        type_checker.symbol(type_checker.undefined_symbol()).escaped_name().to_owned(),
+        type_checker
+            .symbol(type_checker.undefined_symbol())
+            .escaped_name()
+            .to_owned(),
         type_checker.undefined_symbol(),
     );
     *type_checker.builtin_globals.borrow_mut() = Some(builtin_globals);
@@ -1520,9 +1538,7 @@ pub(crate) struct DuplicateInfoForFiles {
 
 impl TypeChecker {
     pub fn arena(&self) -> &AllArenas {
-        unsafe {
-            &*self.arena
-        }
+        unsafe { &*self.arena }
     }
 
     #[track_caller]
@@ -2445,7 +2461,10 @@ impl TypeChecker {
         self.get_exports_of_module_as_array(module_symbol)
     }
 
-    pub fn get_symbol_walker(&self, _accept: Option<impl FnMut(Id<Symbol>) -> bool>) -> SymbolWalker {
+    pub fn get_symbol_walker(
+        &self,
+        _accept: Option<impl FnMut(Id<Symbol>) -> bool>,
+    ) -> SymbolWalker {
         unimplemented!() // TODO: figure out how to implement this
     }
 

@@ -581,12 +581,12 @@ impl TypeChecker {
                 );
                 return self.resolve_error_call(node);
             }
-            let value_decl = self
-                .type_(expression_type)
-                .maybe_symbol()
-                .and_then(|expression_type_symbol| {
-                    get_class_like_declaration_of_symbol(&self.symbol(expression_type_symbol))
-                });
+            let value_decl =
+                self.type_(expression_type)
+                    .maybe_symbol()
+                    .and_then(|expression_type_symbol| {
+                        get_class_like_declaration_of_symbol(&self.symbol(expression_type_symbol))
+                    });
             if value_decl
                 .as_ref()
                 .matches(|value_decl| has_syntactic_modifier(value_decl, ModifierFlags::Abstract))

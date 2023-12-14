@@ -298,8 +298,7 @@ impl TypeChecker {
         result: Id<Type>,
     ) -> io::Result<Gc<Signature>> {
         let namespace = self.get_jsx_namespace_at(Some(node))?;
-        let exports = namespace
-            .try_map(|namespace| self.get_exports_of_symbol(namespace))?;
+        let exports = namespace.try_map(|namespace| self.get_exports_of_symbol(namespace))?;
         let type_symbol = exports.as_ref().try_and_then(|exports| {
             self.get_symbol(&(**exports).borrow(), &JsxNames::Element, SymbolFlags::Type)
         })?;
@@ -330,15 +329,16 @@ impl TypeChecker {
                 get_factory().create_keyword_type_node(SyntaxKind::AnyKeyword)
             }),
         );
-        let parameter_symbol = self.alloc_symbol(self
-            .create_symbol(
+        let parameter_symbol = self.alloc_symbol(
+            self.create_symbol(
                 SymbolFlags::FunctionScopedVariable,
                 "props".to_owned(),
                 None,
             )
-            .into());
-        self.symbol(parameter_symbol
-            ).as_transient_symbol()
+            .into(),
+        );
+        self.symbol(parameter_symbol)
+            .as_transient_symbol()
             .symbol_links()
             .borrow_mut()
             .type_ = Some(result);
@@ -600,7 +600,8 @@ impl TypeChecker {
                     ))));
                 }
             }
-            inferred.set_flags(inferred.flags() | (self.symbol(source).flags() & SymbolFlags::Class));
+            inferred
+                .set_flags(inferred.flags() | (self.symbol(source).flags() & SymbolFlags::Class));
             if matches!(
                 self.symbol(source).maybe_exports().as_ref(),
                 Some(source_exports) if !(**source_exports).borrow().is_empty()

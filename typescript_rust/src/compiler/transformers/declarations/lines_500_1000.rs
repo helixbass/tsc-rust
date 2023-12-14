@@ -195,21 +195,20 @@ impl TransformDeclarations {
             return true;
         }
 
-        let overload_signatures: Option<Vec<_>> =
-            self.symbol(input
-                .symbol())
-                .maybe_declarations()
-                .as_ref()
-                .map(|input_symbol_declarations| {
-                    input_symbol_declarations
-                        .into_iter()
-                        .filter(|decl: &&Gc<Node>| {
-                            is_function_declaration(decl)
-                                && decl.as_function_declaration().maybe_body().is_none()
-                        })
-                        .cloned()
-                        .collect()
-                });
+        let overload_signatures: Option<Vec<_>> = self
+            .symbol(input.symbol())
+            .maybe_declarations()
+            .as_ref()
+            .map(|input_symbol_declarations| {
+                input_symbol_declarations
+                    .into_iter()
+                    .filter(|decl: &&Gc<Node>| {
+                        is_function_declaration(decl)
+                            && decl.as_function_declaration().maybe_body().is_none()
+                    })
+                    .cloned()
+                    .collect()
+            });
         match overload_signatures {
             None => true,
             Some(overload_signatures) if overload_signatures.is_empty() => true,

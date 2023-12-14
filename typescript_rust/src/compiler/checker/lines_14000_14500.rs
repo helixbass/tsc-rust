@@ -561,13 +561,10 @@ impl TypeChecker {
                 } else {
                     None
                 };
-                let key_property_type =
-                    key_property
-                        .try_map(|key_property| -> io::Result<_> {
-                            Ok(self.get_regular_type_of_literal_type(
-                                self.get_type_of_symbol(key_property)?,
-                            ))
-                        })?;
+                let key_property_type = key_property.try_map(|key_property| -> io::Result<_> {
+                    Ok(self
+                        .get_regular_type_of_literal_type(self.get_type_of_symbol(key_property)?))
+                })?;
                 for &target in &types.clone() {
                     if source != target {
                         if count == 100000 {

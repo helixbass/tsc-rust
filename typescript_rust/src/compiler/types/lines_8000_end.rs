@@ -15,10 +15,10 @@ use serde::Serialize;
 
 use super::{BaseNode, CommentDirective, Diagnostic, Node, Symbol, SymbolFlags, SymbolWriter};
 use crate::{
-    BaseNodeFactorySynthetic, CommentRange, EmitBinaryExpression, EmitHint, FileIncludeReason,
-    LineAndCharacter, ModuleKind, MultiMap, NewLineKind, NodeArray, NodeId, ParenthesizerRules,
-    Path, ProgramBuildInfo, RedirectTargetsMap, ScriptTarget, SortedArray, SourceMapSource,
-    SymlinkCache, SyntaxKind, TempFlags, TextRange, AllArenas,
+    AllArenas, BaseNodeFactorySynthetic, CommentRange, EmitBinaryExpression, EmitHint,
+    FileIncludeReason, LineAndCharacter, ModuleKind, MultiMap, NewLineKind, NodeArray, NodeId,
+    ParenthesizerRules, Path, ProgramBuildInfo, RedirectTargetsMap, ScriptTarget, SortedArray,
+    SourceMapSource, SymlinkCache, SyntaxKind, TempFlags, TextRange,
 };
 
 #[derive(Trace, Finalize)]

@@ -79,9 +79,8 @@ impl TypeChecker {
                     if is_external_module(location_present) {
                         self.copy_locally_visible_export_symbols(
                             symbols,
-                            &(*self.symbol(self
-                                .get_symbol_of_node(location_present)?
-                                .unwrap())
+                            &(*self
+                                .symbol(self.get_symbol_of_node(location_present)?.unwrap())
                                 .exports())
                             .borrow(),
                             meaning & SymbolFlags::ModuleMember,
@@ -91,9 +90,8 @@ impl TypeChecker {
                 SyntaxKind::ModuleDeclaration => {
                     self.copy_locally_visible_export_symbols(
                         symbols,
-                        &(*self.symbol(self
-                            .get_symbol_of_node(location_present)?
-                            .unwrap())
+                        &(*self
+                            .symbol(self.get_symbol_of_node(location_present)?.unwrap())
                             .exports())
                         .borrow(),
                         meaning & SymbolFlags::ModuleMember,
@@ -102,9 +100,8 @@ impl TypeChecker {
                 SyntaxKind::EnumDeclaration => {
                     self.copy_symbols(
                         symbols,
-                        &(*self.symbol(self
-                            .get_symbol_of_node(location_present)?
-                            .unwrap())
+                        &(*self
+                            .symbol(self.get_symbol_of_node(location_present)?.unwrap())
                             .exports())
                         .borrow(),
                         meaning & SymbolFlags::EnumMember,
@@ -196,8 +193,10 @@ impl TypeChecker {
     ) {
         if meaning != SymbolFlags::None {
             for &symbol in source.values() {
-                if get_declaration_of_kind(&self.symbol(symbol), SyntaxKind::ExportSpecifier).is_none()
-                    && get_declaration_of_kind(&self.symbol(symbol), SyntaxKind::NamespaceExport).is_none()
+                if get_declaration_of_kind(&self.symbol(symbol), SyntaxKind::ExportSpecifier)
+                    .is_none()
+                    && get_declaration_of_kind(&self.symbol(symbol), SyntaxKind::NamespaceExport)
+                        .is_none()
                 {
                     self.copy_symbol(symbols, symbol, meaning);
                 }

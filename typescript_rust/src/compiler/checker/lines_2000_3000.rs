@@ -442,7 +442,11 @@ impl TypeChecker {
                 None,
             )?;
             if let Some(symbol) = symbol {
-                if !self.symbol(symbol).flags().intersects(SymbolFlags::NamespaceModule) {
+                if !self
+                    .symbol(symbol)
+                    .flags()
+                    .intersects(SymbolFlags::NamespaceModule)
+                {
                     let raw_name = unescape_leading_underscores(name);
                     if self.is_es2015_or_later_constructor_name(name) {
                         self.error(
@@ -565,7 +569,9 @@ impl TypeChecker {
         error_location: &Node,
     ) -> io::Result<()> {
         Debug_.assert(
-            self.symbol(result).flags().intersects(SymbolFlags::BlockScopedVariable)
+            self.symbol(result)
+                .flags()
+                .intersects(SymbolFlags::BlockScopedVariable)
                 || self.symbol(result).flags().intersects(SymbolFlags::Class)
                 || self.symbol(result).flags().intersects(SymbolFlags::Enum),
             None,
@@ -599,7 +605,11 @@ impl TypeChecker {
             let declaration_name =
                 declaration_name_to_string(get_name_of_declaration(Some(&**declaration)))
                     .into_owned();
-            if self.symbol(result).flags().intersects(SymbolFlags::BlockScopedVariable) {
+            if self
+                .symbol(result)
+                .flags()
+                .intersects(SymbolFlags::BlockScopedVariable)
+            {
                 diagnostic_message = Some(self.error(
                     Some(error_location),
                     &Diagnostics::Block_scoped_variable_0_used_before_its_declaration,
@@ -611,14 +621,23 @@ impl TypeChecker {
                     &Diagnostics::Class_0_used_before_its_declaration,
                     Some(vec![declaration_name.clone()]),
                 ));
-            } else if self.symbol(result).flags().intersects(SymbolFlags::RegularEnum) {
+            } else if self
+                .symbol(result)
+                .flags()
+                .intersects(SymbolFlags::RegularEnum)
+            {
                 diagnostic_message = Some(self.error(
                     Some(error_location),
                     &Diagnostics::Enum_0_used_before_its_declaration,
                     Some(vec![declaration_name.clone()]),
                 ));
             } else {
-                Debug_.assert(self.symbol(result).flags().intersects(SymbolFlags::ConstEnum), None);
+                Debug_.assert(
+                    self.symbol(result)
+                        .flags()
+                        .intersects(SymbolFlags::ConstEnum),
+                    None,
+                );
                 if should_preserve_const_enums(&self.compiler_options) {
                     diagnostic_message = Some(self.error(
                         Some(error_location),
@@ -682,8 +701,9 @@ impl TypeChecker {
         &self,
         symbol: Id<Symbol>,
     ) -> io::Result<Option<Gc<Node /*Declaration*/>>> {
-        Ok(self.symbol(symbol
-            ).maybe_declarations()
+        Ok(self
+            .symbol(symbol)
+            .maybe_declarations()
             .as_deref()
             .try_and_then(|declarations| {
                 try_find_last(declarations, |declaration, _| {
@@ -1397,8 +1417,9 @@ impl TypeChecker {
             if symbol_from_module.is_none()
                 && name_as_identifier.escaped_text == InternalSymbolName::Default
             {
-                let file = self.symbol(module_symbol
-                    ).maybe_declarations()
+                let file = self
+                    .symbol(module_symbol)
+                    .maybe_declarations()
                     .as_ref()
                     .and_then(|declarations| {
                         declarations
@@ -1458,7 +1479,8 @@ impl TypeChecker {
                             suggestion_name.clone(),
                         ]),
                     );
-                    if let Some(suggestion_value_declaration) = self.symbol(suggestion).maybe_value_declaration()
+                    if let Some(suggestion_value_declaration) =
+                        self.symbol(suggestion).maybe_value_declaration()
                     {
                         add_related_info(
                             &diagnostic,
@@ -1507,8 +1529,9 @@ impl TypeChecker {
         module_symbol: Id<Symbol>,
         module_name: String,
     ) -> io::Result<()> {
-        let local_symbol = self.symbol(module_symbol
-            ).maybe_value_declaration()
+        let local_symbol = self
+            .symbol(module_symbol)
+            .maybe_value_declaration()
             .and_then(|value_declaration| {
                 value_declaration
                     .maybe_locals()

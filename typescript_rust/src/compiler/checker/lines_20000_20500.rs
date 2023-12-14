@@ -1027,10 +1027,7 @@ impl TypeChecker {
             return Ok(Ternary::False);
         }
         if source_prop_accessibility != ModifierFlags::None {
-            if 
-                self.get_target_symbol(source_prop) !=
-                self.get_target_symbol(target_prop)
-            {
+            if self.get_target_symbol(source_prop) != self.get_target_symbol(target_prop) {
                 return Ok(Ternary::False);
             }
         } else {

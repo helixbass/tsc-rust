@@ -58,16 +58,16 @@ impl TypeChecker {
         prop_name: &str, /*__String*/
         containing_type: Id<Type>,
     ) -> io::Result<bool> {
-        let prop = self
-            .type_(containing_type)
-            .maybe_symbol()
-            .try_and_then(|containing_type_symbol| {
-                self.get_property_of_type_(
-                    self.get_type_of_symbol(containing_type_symbol)?,
-                    prop_name,
-                    None,
-                )
-            })?;
+        let prop =
+            self.type_(containing_type)
+                .maybe_symbol()
+                .try_and_then(|containing_type_symbol| {
+                    self.get_property_of_type_(
+                        self.get_type_of_symbol(containing_type_symbol)?,
+                        prop_name,
+                        None,
+                    )
+                })?;
         Ok(matches!(
             prop.and_then(|prop| self.symbol(prop).maybe_value_declaration()).as_ref(),
             Some(prop_value_declaration) if is_static(prop_value_declaration)
@@ -197,8 +197,7 @@ impl TypeChecker {
     ) -> io::Result<Option<String>> {
         let suggestion =
             self.get_suggested_symbol_for_nonexistent_property(name, containing_type)?;
-        Ok(suggestion
-            .map(|suggestion| symbol_name(suggestion).into_owned()))
+        Ok(suggestion.map(|suggestion| symbol_name(suggestion).into_owned()))
     }
 
     pub(super) fn get_suggested_symbol_for_nonexistent_symbol_(
@@ -234,8 +233,14 @@ impl TypeChecker {
                         |s: &str, _| {
                             if symbols.contains_key(&capitalize(s)) {
                                 Some(
-                                    self.alloc_symbol(self.create_symbol(SymbolFlags::TypeAlias, s.to_owned(), None)
-                                        .into()),
+                                    self.alloc_symbol(
+                                        self.create_symbol(
+                                            SymbolFlags::TypeAlias,
+                                            s.to_owned(),
+                                            None,
+                                        )
+                                        .into(),
+                                    ),
                                 )
                             } else {
                                 None
@@ -267,8 +272,10 @@ impl TypeChecker {
     ) -> io::Result<Option<String>> {
         let symbol_result =
             self.get_suggested_symbol_for_nonexistent_symbol_(location, outer_name, meaning)?;
-        Ok(symbol_result
-            .map(|symbol_result| symbol_name(&self.symbol(symbol_result)).into_owned()))
+        Ok(
+            symbol_result
+                .map(|symbol_result| symbol_name(&self.symbol(symbol_result)).into_owned()),
+        )
     }
 
     pub(super) fn get_suggested_symbol_for_nonexistent_module(
@@ -293,8 +300,7 @@ impl TypeChecker {
         target_module: Id<Symbol>,
     ) -> io::Result<Option<String>> {
         let suggestion = self.get_suggested_symbol_for_nonexistent_module(name, target_module)?;
-        Ok(suggestion
-            .map(|suggestion| symbol_name(&self.symbol(suggestion)).into_owned()))
+        Ok(suggestion.map(|suggestion| symbol_name(&self.symbol(suggestion)).into_owned()))
     }
 
     pub(super) fn get_suggestion_for_nonexistent_index_signature(
@@ -386,7 +392,11 @@ impl TypeChecker {
                 return Ok(Some(candidate_name.into_owned()));
             }
 
-            if self.symbol(candidate).flags().intersects(SymbolFlags::Alias) {
+            if self
+                .symbol(candidate)
+                .flags()
+                .intersects(SymbolFlags::Alias)
+            {
                 let alias = self.try_resolve_alias(candidate)?;
                 if matches!(
                     alias,
@@ -431,7 +441,10 @@ impl TypeChecker {
         if matches!(
             node_for_check_write_only.as_ref(),
             Some(node_for_check_write_only) if is_write_only_access(node_for_check_write_only)
-        ) && !self.symbol(prop).flags().intersects(SymbolFlags::SetAccessor)
+        ) && !self
+            .symbol(prop)
+            .flags()
+            .intersects(SymbolFlags::SetAccessor)
         {
             return;
         }
@@ -571,8 +584,9 @@ impl TypeChecker {
             return Ok(true);
         }
 
-        if let Some(property_value_declaration) = self.symbol(property
-            ).maybe_value_declaration()
+        if let Some(property_value_declaration) = self
+            .symbol(property)
+            .maybe_value_declaration()
             .as_ref()
             .filter(|property_value_declaration| {
                 is_private_identifier_class_element_declaration(property_value_declaration)
@@ -638,7 +652,11 @@ impl TypeChecker {
         let e = skip_parentheses(expr, None);
         if e.kind() == SyntaxKind::Identifier {
             let symbol = self.get_resolved_symbol(&e)?;
-            if self.symbol(symbol).flags().intersects(SymbolFlags::Variable) {
+            if self
+                .symbol(symbol)
+                .flags()
+                .intersects(SymbolFlags::Variable)
+            {
                 let mut child = expr.node_wrapper();
                 let mut node = expr.maybe_parent();
                 while let Some(node_present) = node.as_ref() {

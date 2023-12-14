@@ -1044,7 +1044,9 @@ impl TypeChecker {
             .as_ref()
             .and_then(|failed_declaration| failed_declaration.maybe_symbol())
             .and_then(|failed_declaration_symbol| {
-                self.symbol(failed_declaration_symbol).maybe_declarations().clone()
+                self.symbol(failed_declaration_symbol)
+                    .maybe_declarations()
+                    .clone()
             })
             .unwrap_or_else(|| vec![]);
         let is_overload = failed_signature_declarations.len() > 1;

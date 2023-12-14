@@ -158,8 +158,7 @@ impl TypeChecker {
         let type_ = self.alloc_type(
             IndexedAccessType::new(type_, object_type, index_type, access_flags).into(),
         );
-        *self.type_(type_).maybe_alias_symbol_mut() =
-            alias_symbol;
+        *self.type_(type_).maybe_alias_symbol_mut() = alias_symbol;
         *self.type_(type_).maybe_alias_type_arguments_mut() =
             alias_type_arguments.map(ToOwned::to_owned);
         type_
@@ -222,8 +221,9 @@ impl TypeChecker {
         node: &Node,
         symbol: Id<Symbol>,
     ) -> io::Result<bool> {
-        if self.symbol(symbol
-            ).flags()
+        if self
+            .symbol(symbol)
+            .flags()
             .intersects(SymbolFlags::Function | SymbolFlags::Method)
         {
             let parent = find_ancestor(node.maybe_parent(), |n| !is_access_expression(n))
@@ -606,8 +606,11 @@ impl TypeChecker {
                         Some(symbol) if symbol == self.global_this_symbol()
                     ) {
                         if let Some(prop_name) = prop_name.as_ref() {
-                            let global_this_symbol_exports =
-                                self.symbol(self.global_this_symbol()).maybe_exports().clone().unwrap();
+                            let global_this_symbol_exports = self
+                                .symbol(self.global_this_symbol())
+                                .maybe_exports()
+                                .clone()
+                                .unwrap();
                             let global_this_symbol_exports = (*global_this_symbol_exports).borrow();
                             if global_this_symbol_exports.contains_key(&**prop_name)
                                 && global_this_symbol_exports

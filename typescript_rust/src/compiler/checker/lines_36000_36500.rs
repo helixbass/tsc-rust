@@ -339,7 +339,10 @@ impl TypeChecker {
                 | SyntaxKind::GetAccessor
                 | SyntaxKind::SetAccessor => {
                     if !(member.kind() == SyntaxKind::SetAccessor
-                        && self.symbol(member.symbol()).flags().intersects(SymbolFlags::GetAccessor))
+                        && self
+                            .symbol(member.symbol())
+                            .flags()
+                            .intersects(SymbolFlags::GetAccessor))
                     {
                         let symbol = self.get_symbol_of_node(member)?.unwrap();
                         if match self.symbol(symbol).maybe_is_referenced() {
@@ -618,7 +621,11 @@ impl TypeChecker {
             ),
         > = HashMap::new();
         for &local in (*node_with_locals.locals()).borrow().values() {
-            if if self.symbol(local).flags().intersects(SymbolFlags::TypeParameter) {
+            if if self
+                .symbol(local)
+                .flags()
+                .intersects(SymbolFlags::TypeParameter)
+            {
                 !(self.symbol(local).flags().intersects(SymbolFlags::Variable)
                     && !matches!(
                         self.symbol(local).maybe_is_referenced(),
@@ -673,16 +680,20 @@ impl TypeChecker {
                             |key: &Gc<Node>| get_node_id(key).to_string(),
                         );
                     } else {
-                        let parameter = self.symbol(local).maybe_value_declaration().as_ref().and_then(
-                            |local_value_declaration| {
+                        let parameter = self
+                            .symbol(local)
+                            .maybe_value_declaration()
+                            .as_ref()
+                            .and_then(|local_value_declaration| {
                                 self.try_get_root_parameter_declaration(local_value_declaration)
-                            },
-                        );
-                        let name = self.symbol(local).maybe_value_declaration().as_ref().and_then(
-                            |local_value_declaration| {
+                            });
+                        let name = self
+                            .symbol(local)
+                            .maybe_value_declaration()
+                            .as_ref()
+                            .and_then(|local_value_declaration| {
                                 get_name_of_declaration(Some(&**local_value_declaration))
-                            },
-                        );
+                            });
                         if let (Some(parameter), Some(name)) = (parameter.as_ref(), name.as_ref()) {
                             if !is_parameter_property_declaration(parameter, &parameter.parent())
                                 && !parameter_is_this_keyword(parameter)

@@ -472,9 +472,18 @@ impl NodeBuilder {
         symbol: Id<Symbol>,
         context: &NodeBuilderContext,
     ) -> io::Result<Gc<Node>> {
-        let single_quote = length(self.type_checker.symbol(symbol).maybe_declarations().as_deref()) > 0
+        let single_quote = length(
+            self.type_checker
+                .symbol(symbol)
+                .maybe_declarations()
+                .as_deref(),
+        ) > 0
             && every(
-                self.type_checker.symbol(symbol).maybe_declarations().as_deref().unwrap(),
+                self.type_checker
+                    .symbol(symbol)
+                    .maybe_declarations()
+                    .as_deref()
+                    .unwrap(),
                 |declaration: &Gc<Node>, _| self.is_single_quoted_string_named(declaration),
             );
         let from_name_type = self.get_property_name_node_for_symbol_from_name_type(
@@ -485,10 +494,20 @@ impl NodeBuilder {
         if let Some(from_name_type) = from_name_type {
             return Ok(from_name_type);
         }
-        let raw_name = unescape_leading_underscores(self.type_checker.symbol(symbol).escaped_name());
-        let string_named = length(self.type_checker.symbol(symbol).maybe_declarations().as_deref()) > 0
+        let raw_name =
+            unescape_leading_underscores(self.type_checker.symbol(symbol).escaped_name());
+        let string_named = length(
+            self.type_checker
+                .symbol(symbol)
+                .maybe_declarations()
+                .as_deref(),
+        ) > 0
             && every(
-                self.type_checker.symbol(symbol).maybe_declarations().as_deref().unwrap(),
+                self.type_checker
+                    .symbol(symbol)
+                    .maybe_declarations()
+                    .as_deref()
+                    .unwrap(),
                 |declaration: &Gc<Node>, _| self.is_string_named(declaration),
             );
         Ok(self.create_property_name_node_for_identifier_or_literal(
@@ -631,7 +650,8 @@ impl NodeBuilder {
     ) -> Option<Gc<Node>> {
         let enclosing_declaration = enclosing_declaration
             .map(|enclosing_declaration| enclosing_declaration.borrow().node_wrapper());
-        self.type_checker.symbol(symbol)
+        self.type_checker
+            .symbol(symbol)
             .maybe_declarations()
             .as_deref()
             .and_then(|symbol_declarations| {
@@ -729,7 +749,10 @@ impl NodeBuilder {
             && match context.maybe_enclosing_declaration().as_ref() {
                 None => true,
                 Some(context_enclosing_declaration) => some(
-                    self.type_checker.symbol(symbol).maybe_declarations().as_deref(),
+                    self.type_checker
+                        .symbol(symbol)
+                        .maybe_declarations()
+                        .as_deref(),
                     Some(|d: &Gc<Node>| {
                         Gc::ptr_eq(
                             maybe_get_source_file_of_node(Some(&**d)).as_ref().unwrap(),
@@ -869,7 +892,12 @@ impl NodeBuilder {
                 }
             }
             if is_identifier(node) {
-                let name = if self.type_checker.symbol(sym).flags().intersects(SymbolFlags::TypeParameter) {
+                let name = if self
+                    .type_checker
+                    .symbol(sym)
+                    .flags()
+                    .intersects(SymbolFlags::TypeParameter)
+                {
                     self.type_parameter_to_name(
                         self.type_checker.get_declared_type_of_symbol(sym)?,
                         context,

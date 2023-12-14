@@ -738,15 +738,13 @@ impl TypeChecker {
 
         if self.compiler_options.isolated_modules == Some(true) {
             Debug_.assert(
-                self.symbol(self.type_(type_)
-                    .symbol())
+                self.symbol(self.type_(type_).symbol())
                     .flags()
                     .intersects(SymbolFlags::ConstEnum),
                 None,
             );
-            let const_enum_declaration = self.symbol(self
-                .type_(type_)
-                .symbol())
+            let const_enum_declaration = self
+                .symbol(self.type_(type_).symbol())
                 .maybe_value_declaration()
                 .unwrap();
             if const_enum_declaration

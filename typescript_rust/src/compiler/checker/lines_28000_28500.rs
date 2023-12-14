@@ -248,13 +248,14 @@ impl TypeChecker {
         while let Some(containing_class_present) = containing_class.as_ref() {
             let symbol = containing_class_present.symbol();
             let name = get_symbol_name_for_private_identifier(&self.symbol(symbol), prop_name);
-            let prop = self.symbol(symbol
-                ).maybe_members()
+            let prop = self
+                .symbol(symbol)
+                .maybe_members()
                 .as_ref()
                 .and_then(|symbol_members| (**symbol_members).borrow().get(&name).cloned())
                 .or_else(|| {
-                    self.symbol(symbol
-                        ).maybe_exports()
+                    self.symbol(symbol)
+                        .maybe_exports()
                         .as_ref()
                         .and_then(|symbol_exports| (**symbol_exports).borrow().get(&name).cloned())
                 });
@@ -534,13 +535,9 @@ impl TypeChecker {
                     return Ok(self.any_type());
                 }
             }
-            prop = lexically_scoped_symbol
-                .try_and_then(|lexically_scoped_symbol| {
-                    self.get_private_identifier_property_of_type_(
-                        left_type,
-                        lexically_scoped_symbol,
-                    )
-                })?;
+            prop = lexically_scoped_symbol.try_and_then(|lexically_scoped_symbol| {
+                self.get_private_identifier_property_of_type_(left_type, lexically_scoped_symbol)
+            })?;
             if prop.is_none()
                 && self.check_private_identifier_property_access(
                     left_type,
@@ -627,8 +624,11 @@ impl TypeChecker {
                         self.type_(left_type).maybe_symbol(),
                         Some(left_type_symbol) if left_type_symbol == self.global_this_symbol()
                     ) {
-                        let global_this_symbol_exports =
-                            self.symbol(self.global_this_symbol()).maybe_exports().clone().unwrap();
+                        let global_this_symbol_exports = self
+                            .symbol(self.global_this_symbol())
+                            .maybe_exports()
+                            .clone()
+                            .unwrap();
                         if (*global_this_symbol_exports)
                             .borrow()
                             .contains_key(right.as_member_name().escaped_text())
@@ -1031,8 +1031,9 @@ impl TypeChecker {
         &self,
         prop: Id<Symbol>,
     ) -> io::Result<bool> {
-        if !self.symbol(prop
-            ).maybe_parent()
+        if !self
+            .symbol(prop)
+            .maybe_parent()
             .unwrap()
             .flags()
             .intersects(SymbolFlags::Class)
@@ -1199,8 +1200,11 @@ impl TypeChecker {
                             message,
                             Some(vec![missing_property, container, suggested_name.clone()]),
                         ));
-                        related_info = self.symbol(suggestion).maybe_value_declaration().as_ref().map(
-                            |suggestion_value_declaration| {
+                        related_info = self
+                            .symbol(suggestion)
+                            .maybe_value_declaration()
+                            .as_ref()
+                            .map(|suggestion_value_declaration| {
                                 Gc::new(
                                     create_diagnostic_for_node(
                                         suggestion_value_declaration,
@@ -1209,8 +1213,7 @@ impl TypeChecker {
                                     )
                                     .into(),
                                 )
-                            },
-                        );
+                            });
                     } else {
                         let diagnostic = if self
                             .container_seems_to_be_empty_dom_element(containing_type)?

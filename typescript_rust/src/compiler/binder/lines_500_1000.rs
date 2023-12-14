@@ -71,7 +71,10 @@ impl BinderType {
                         && self.get_declaration_name(node).is_none()
                 {
                     return self.declare_symbol(
-                        &mut self.symbol(self.container().symbol()).exports().borrow_mut(),
+                        &mut self
+                            .symbol(self.container().symbol())
+                            .exports()
+                            .borrow_mut(),
                         Some(self.container().symbol()),
                         node,
                         symbol_flags,
@@ -94,15 +97,20 @@ impl BinderType {
                     None,
                     None,
                 );
-                self.symbol(local).set_export_symbol(Some(self.declare_symbol(
-                    &mut self.symbol(self.container().symbol()).exports().borrow_mut(),
-                    Some(self.container().symbol()),
-                    node,
-                    symbol_flags,
-                    symbol_excludes,
-                    None,
-                    None,
-                )));
+                self.symbol(local).set_export_symbol(Some(
+                    self.declare_symbol(
+                        &mut self
+                            .symbol(self.container().symbol())
+                            .exports()
+                            .borrow_mut(),
+                        Some(self.container().symbol()),
+                        node,
+                        symbol_flags,
+                        symbol_excludes,
+                        None,
+                        None,
+                    ),
+                ));
                 node.set_local_symbol(Some(local.clone()));
                 local
             } else {
@@ -168,7 +176,8 @@ impl BinderType {
             if container_flags.intersects(ContainerFlags::HasLocals) {
                 self.container()
                     .set_locals(Some(Gc::new(GcCell::new(create_symbol_table(
-                        self.arena(), Option::<&[Id<Symbol>]>::None,
+                        self.arena(),
+                        Option::<&[Id<Symbol>]>::None,
                     )))));
             }
             self.add_to_container_chain(&self.container());

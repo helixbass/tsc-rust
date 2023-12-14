@@ -676,8 +676,9 @@ impl TypeChecker {
                 &**first_declaration
             )
         ) {
-            if let Some(enum_symbol_declarations) = self.symbol(enum_symbol
-                ).maybe_declarations()
+            if let Some(enum_symbol_declarations) = self
+                .symbol(enum_symbol)
+                .maybe_declarations()
                 .as_ref()
                 .filter(|enum_symbol_declarations| enum_symbol_declarations.len() > 1)
             {
@@ -820,7 +821,10 @@ impl TypeChecker {
             self.check_exports_on_merged_declarations(node)?;
             let symbol = self.get_symbol_of_node(node)?.unwrap();
 
-            if self.symbol(symbol).flags().intersects(SymbolFlags::ValueModule)
+            if self
+                .symbol(symbol)
+                .flags()
+                .intersects(SymbolFlags::ValueModule)
                 && !in_ambient_context
                 && matches!(
                     self.symbol(symbol).maybe_declarations().as_ref(),
@@ -852,7 +856,8 @@ impl TypeChecker {
                     }
                 }
 
-                let merged_class = get_declaration_of_kind(&self.symbol(symbol), SyntaxKind::ClassDeclaration);
+                let merged_class =
+                    get_declaration_of_kind(&self.symbol(symbol), SyntaxKind::ClassDeclaration);
                 if matches!(
                     merged_class.as_ref(),
                     Some(merged_class) if self.in_same_lexical_scope(
@@ -868,9 +873,8 @@ impl TypeChecker {
             if is_ambient_external_module {
                 if is_external_module_augmentation(node) {
                     let check_body = is_global_augmentation
-                        || self.symbol(self
-                            .get_symbol_of_node(node)?
-                            .unwrap())
+                        || self
+                            .symbol(self.get_symbol_of_node(node)?.unwrap())
                             .flags()
                             .intersects(SymbolFlags::Transient);
                     if check_body {
@@ -976,7 +980,10 @@ impl TypeChecker {
                 }
                 let symbol = self.get_symbol_of_node(node)?;
                 if let Some(symbol) = symbol {
-                    let mut report_error = !self.symbol(symbol).flags().intersects(SymbolFlags::Transient);
+                    let mut report_error = !self
+                        .symbol(symbol)
+                        .flags()
+                        .intersects(SymbolFlags::Transient);
                     #[allow(unused_assignments)]
                     if !report_error {
                         report_error = matches!(

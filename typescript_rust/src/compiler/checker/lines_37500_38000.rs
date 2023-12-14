@@ -266,7 +266,12 @@ impl TypeChecker {
             None,
         )?;
         let method_type = method
-            .filter(|method| !self.symbol(method).flags().intersects(SymbolFlags::Optional))
+            .filter(|method| {
+                !self
+                    .symbol(method)
+                    .flags()
+                    .intersects(SymbolFlags::Optional)
+            })
             .try_map(|method| self.get_type_of_symbol(method))?;
         if self.is_type_any(method_type) {
             return Ok(self.set_cached_iteration_types(
@@ -527,7 +532,11 @@ impl TypeChecker {
 
         let method_type = method
             .filter(|&method| {
-                !(method_name == "next" && self.symbol(method).flags().intersects(SymbolFlags::Optional))
+                !(method_name == "next"
+                    && self
+                        .symbol(method)
+                        .flags()
+                        .intersects(SymbolFlags::Optional))
             })
             .try_map(|method| -> io::Result<_> {
                 Ok(if method_name == "next" {
@@ -569,8 +578,8 @@ impl TypeChecker {
             });
         }
 
-        if let Some(method_type_symbol) = method_type
-            .and_then(|method_type| self.type_(method_type).maybe_symbol())
+        if let Some(method_type_symbol) =
+            method_type.and_then(|method_type| self.type_(method_type).maybe_symbol())
         {
             if method_signatures.len() == 1 {
                 let global_generator_type = (resolver.get_global_generator_type)(self, false)?;

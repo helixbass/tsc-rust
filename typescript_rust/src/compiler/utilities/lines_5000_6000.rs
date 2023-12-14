@@ -20,7 +20,7 @@ use crate::{
     is_element_access_expression, is_entity_name_expression, is_identifier, is_jsdoc_member_name,
     is_namespace_export_declaration, is_property_access_expression, is_property_name,
     is_qualified_name, parse_config_file_text_to_json, position_is_synthesized, skip_trivia,
-    token_to_string, unescape_leading_underscores, walk_up_parenthesized_expressions,
+    token_to_string, unescape_leading_underscores, walk_up_parenthesized_expressions, AllArenas,
     BaseDiagnostic, BaseDiagnosticRelatedInformation, BaseNode, BaseSymbol, BaseTextRange,
     BaseType, BundleFileSection, CheckFlags, CompilerOptions, Debug_, Diagnostic,
     DiagnosticInterface, DiagnosticMessage, DiagnosticRelatedInformation,
@@ -28,7 +28,7 @@ use crate::{
     Extension, HasInitializerInterface, MapLike, ModifierFlags, NamedDeclarationInterface,
     NewLineKind, Node, NodeFlags, NodeInterface, ObjectFlags, ReadonlyTextRange, Signature,
     SignatureFlags, SignatureKind, SourceFileLike, Symbol, SymbolFlags, SymbolInterface,
-    SyntaxKind, AllArenas,
+    SyntaxKind,
 };
 
 pub fn get_first_identifier(node: &Node) -> Gc<Node /*Identifier*/> {

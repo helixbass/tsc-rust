@@ -4,7 +4,7 @@ use gc::Gc;
 use id_arena::Id;
 
 use crate::{
-    add_related_info, contains_gc, create_diagnostic_for_node, find_ancestor,
+    add_related_info, contains, contains_gc, create_diagnostic_for_node, find_ancestor,
     for_each_child_returns, for_each_enclosing_block_scope_container, get_ancestor,
     get_assignment_declaration_kind, get_class_extends_heritage_element,
     get_enclosing_block_scope_container, get_jsdoc_this_tag, get_jsdoc_type, get_super_container,
@@ -15,12 +15,12 @@ use crate::{
     is_iteration_statement, is_method_declaration, is_object_literal_expression,
     is_property_assignment, is_property_declaration, is_source_file, is_static, is_super_call,
     is_super_property, length, maybe_is_class_like, node_starts_new_lexical_environment,
-    push_if_unique_gc, text_range_contains_position_inclusive, AsDoubleDeref,
+    push_if_unique_eq, push_if_unique_gc, text_range_contains_position_inclusive, AsDoubleDeref,
     AssignmentDeclarationKind, DiagnosticMessage, Diagnostics, FindAncestorCallbackReturn,
     HasTypeInterface, InterfaceTypeInterface, InternalSymbolName, ModifierFlags,
     NamedDeclarationInterface, Node, NodeArray, NodeCheckFlags, NodeInterface, OptionTry,
     ReadonlyTextRange, ScriptTarget, SignatureDeclarationInterface, Symbol, SymbolFlags,
-    SymbolInterface, SyntaxKind, Type, TypeChecker, TypeInterface, push_if_unique_eq, contains,
+    SymbolInterface, SyntaxKind, Type, TypeChecker, TypeInterface,
 };
 
 impl TypeChecker {
@@ -465,7 +465,10 @@ impl TypeChecker {
                         .maybe_symbol();
                     if let Some(class_symbol) = class_symbol.filter(|&class_symbol| {
                         self.symbol(class_symbol).maybe_members().is_some()
-                            && self.symbol(class_symbol).flags().intersects(SymbolFlags::Function)
+                            && self
+                                .symbol(class_symbol)
+                                .flags()
+                                .intersects(SymbolFlags::Function)
                     }) {
                         this_type = self
                             .type_(self.get_declared_type_of_symbol(class_symbol)?)
@@ -520,8 +523,7 @@ impl TypeChecker {
                 .is_some()
             {
                 let file_symbol = self.get_symbol_of_node(&container)?;
-                return file_symbol
-                    .try_map(|file_symbol| self.get_type_of_symbol(file_symbol));
+                return file_symbol.try_map(|file_symbol| self.get_type_of_symbol(file_symbol));
             } else if container_as_source_file
                 .maybe_external_module_indicator()
                 .is_some()

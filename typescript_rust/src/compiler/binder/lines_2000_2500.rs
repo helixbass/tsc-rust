@@ -171,7 +171,8 @@ impl BinderType {
     ) -> Id<Symbol> {
         let symbol = self.create_symbol(symbol_flags, name).wrap();
         if symbol_flags.intersects(SymbolFlags::EnumMember | SymbolFlags::ClassMember) {
-            self.symbol(symbol).set_parent(self.container().maybe_symbol());
+            self.symbol(symbol)
+                .set_parent(self.container().maybe_symbol());
         }
         self.add_declaration_to_symbol(symbol, node, symbol_flags);
         symbol

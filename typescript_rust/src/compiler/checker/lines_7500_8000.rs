@@ -21,8 +21,7 @@ use crate::{
     unescape_leading_underscores, BoolExt, Debug_, InternalSymbolName, IteratorExt, Matches,
     ModifierFlags, Node, NodeArray, NodeArrayOrVec, NodeBuilder, NodeBuilderFlags, NodeFlags,
     NodeInterface, NodeWrappered, ObjectFlags, OptionTry, SignatureKind, StrOrRcNode, Symbol,
-    SymbolFlags, SymbolInterface, SyntaxKind, Ternary, Type, TypeChecker,
-    TypeInterface,
+    SymbolFlags, SymbolInterface, SyntaxKind, Ternary, Type, TypeChecker, TypeInterface,
 };
 
 impl SymbolTableToDeclarationStatements {
@@ -52,15 +51,22 @@ impl SymbolTableToDeclarationStatements {
     }
 
     pub(super) fn serialize_maybe_alias_assignment(&self, symbol: Id<Symbol>) -> io::Result<bool> {
-        if self.type_checker.symbol(symbol).flags().intersects(SymbolFlags::Prototype) {
+        if self
+            .type_checker
+            .symbol(symbol)
+            .flags()
+            .intersects(SymbolFlags::Prototype)
+        {
             return Ok(false);
         }
         let name = unescape_leading_underscores(self.type_checker.symbol(symbol).escaped_name());
         let is_export_equals = name == InternalSymbolName::ExportEquals;
         let is_default = name == InternalSymbolName::Default;
         let is_export_assignment_compatible_symbol_name = is_export_equals || is_default;
-        let alias_decl = self.type_checker.symbol(symbol
-        ).maybe_declarations()
+        let alias_decl = self
+            .type_checker
+            .symbol(symbol)
+            .maybe_declarations()
             .is_some()
             .try_then_and(|| self.type_checker.get_declaration_of_alias_symbol(symbol))?;
         let target = alias_decl.as_ref().try_and_then(|alias_decl| {
@@ -284,7 +290,10 @@ impl SymbolTableToDeclarationStatements {
                 && !self
                     .type_checker
                     .get_properties_of_type(type_to_serialize)?
-                    .any(|p| self.type_checker.is_late_bound_name(self.type_checker.symbol(p).escaped_name()))
+                    .any(|p| {
+                        self.type_checker
+                            .is_late_bound_name(self.type_checker.symbol(p).escaped_name())
+                    })
                 && !self
                     .type_checker
                     .get_properties_of_type(type_to_serialize)?
@@ -459,7 +468,8 @@ impl SymbolTableToDeclarationStatements {
         if let Some(ref_) = ref_ {
             return Ok(ref_);
         }
-        let temp_name = self.get_unused_name(&format!("{root_name}_base"), Option::<Id<Symbol>>::None);
+        let temp_name =
+            self.get_unused_name(&format!("{root_name}_base"), Option::<Id<Symbol>>::None);
         let statement = get_factory().create_variable_statement(
             Option::<Gc<NodeArray>>::None,
             get_factory().create_variable_declaration_list(
@@ -518,17 +528,17 @@ impl SymbolTableToDeclarationStatements {
                 &self.context(),
                 Some(SymbolFlags::Type),
             )?);
-        } else if let Some(t_symbol) = self
-            .type_checker
-            .type_(t)
-            .maybe_symbol()
-            .try_filter(|&t_symbol| {
-                self.type_checker.is_symbol_accessible_by_flags(
-                    t_symbol,
-                    Some(&*self.enclosing_declaration),
-                    flags,
-                )
-            })?
+        } else if let Some(t_symbol) =
+            self.type_checker
+                .type_(t)
+                .maybe_symbol()
+                .try_filter(|&t_symbol| {
+                    self.type_checker.is_symbol_accessible_by_flags(
+                        t_symbol,
+                        Some(&*self.enclosing_declaration),
+                        flags,
+                    )
+                })?
         {
             reference = Some(self.node_builder.symbol_to_expression_(
                 t_symbol,
@@ -561,11 +571,7 @@ impl SymbolTableToDeclarationStatements {
             })
     }
 
-    pub(super) fn get_unused_name(
-        &self,
-        input: &str,
-        symbol: Option<Id<Symbol>>,
-    ) -> String {
+    pub(super) fn get_unused_name(&self, input: &str, symbol: Option<Id<Symbol>>) -> String {
         let id = symbol.map(|symbol| get_symbol_id(&self.type_checker.symbol(symbol)));
         if let Some(id) = id {
             if self.context().remapped_symbol_names().contains_key(&id) {

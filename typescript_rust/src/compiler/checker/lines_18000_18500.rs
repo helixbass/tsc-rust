@@ -676,9 +676,8 @@ impl CheckTypeRelatedTo {
             )? {
             self.type_checker.type_to_string_(
                 source,
-                self.type_checker.symbol(self.type_checker
-                    .type_(source)
-                    .symbol())
+                self.type_checker
+                    .symbol(self.type_checker.type_(source).symbol())
                     .maybe_value_declaration(),
                 None,
                 None,
@@ -694,9 +693,8 @@ impl CheckTypeRelatedTo {
             )? {
             self.type_checker.type_to_string_(
                 target,
-                self.type_checker.symbol(self.type_checker
-                    .type_(target)
-                    .symbol())
+                self.type_checker
+                    .symbol(self.type_checker.type_(target).symbol())
                     .maybe_value_declaration(),
                 None,
                 None,
@@ -1628,8 +1626,7 @@ impl CheckTypeRelatedTo {
             );
         }
         for prop in self.type_checker.get_properties_of_type(source)? {
-            if self
-                .should_check_as_excess_property(prop, self.type_checker.type_(source).symbol())
+            if self.should_check_as_excess_property(prop, self.type_checker.type_(source).symbol())
                 && !self.type_checker.is_ignored_jsx_property(source, prop)
             {
                 if !self.type_checker.is_known_property(
@@ -1649,7 +1646,9 @@ impl CheckTypeRelatedTo {
                             || is_jsx_opening_like_element(error_node_present)
                             || is_jsx_opening_like_element(&error_node_present.parent())
                         {
-                            if let Some(prop_value_declaration) = self.type_checker.symbol(prop)
+                            if let Some(prop_value_declaration) = self
+                                .type_checker
+                                .symbol(prop)
                                 .maybe_value_declaration()
                                 .filter(|prop_value_declaration| {
                                     is_jsx_attribute(prop_value_declaration)
@@ -1682,16 +1681,15 @@ impl CheckTypeRelatedTo {
                                     &*prop_name,
                                     error_target,
                                 )?;
-                            let suggestion =
-                                suggestion_symbol.try_map(|suggestion_symbol| {
-                                    self.type_checker.symbol_to_string_(
-                                        suggestion_symbol,
-                                        Option::<&Node>::None,
-                                        None,
-                                        None,
-                                        None,
-                                    )
-                                })?;
+                            let suggestion = suggestion_symbol.try_map(|suggestion_symbol| {
+                                self.type_checker.symbol_to_string_(
+                                    suggestion_symbol,
+                                    Option::<&Node>::None,
+                                    None,
+                                    None,
+                                    None,
+                                )
+                            })?;
                             if let Some(suggestion) = suggestion {
                                 self.report_error(
                                     Cow::Borrowed(&Diagnostics::Property_0_does_not_exist_on_type_1_Did_you_mean_2),
@@ -1725,7 +1723,9 @@ impl CheckTypeRelatedTo {
                             let object_literal_declaration = if let Some(symbol) =
                                 self.type_checker.type_(source).maybe_symbol()
                             {
-                                if let Some(declarations) = &*self.type_checker.symbol(symbol).maybe_declarations() {
+                                if let Some(declarations) =
+                                    &*self.type_checker.symbol(symbol).maybe_declarations()
+                                {
                                     first_or_undefined(declarations).map(Clone::clone)
                                 } else {
                                     None

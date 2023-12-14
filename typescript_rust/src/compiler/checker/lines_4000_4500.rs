@@ -29,12 +29,16 @@ impl TypeChecker {
         ) {
             return Ok(Some(symbol));
         }
-        let export_equals = self.symbol(container).maybe_exports().as_ref().and_then(|exports| {
-            (**exports)
-                .borrow()
-                .get(InternalSymbolName::ExportEquals)
-                .cloned()
-        });
+        let export_equals = self
+            .symbol(container)
+            .maybe_exports()
+            .as_ref()
+            .and_then(|exports| {
+                (**exports)
+                    .borrow()
+                    .get(InternalSymbolName::ExportEquals)
+                    .cloned()
+            });
         if matches!(export_equals, Some(export_equals) if self.get_symbol_if_same_reference(export_equals, symbol)?.is_some())
         {
             return Ok(Some(container));
@@ -64,11 +68,12 @@ impl TypeChecker {
         s2: Id<Symbol>,
     ) -> io::Result<Option<Id<Symbol>>> {
         if self
-                .get_merged_symbol(self.resolve_symbol(self.get_merged_symbol(Some(s1)), None)?)
-                .unwrap() ==
-            self
+            .get_merged_symbol(self.resolve_symbol(self.get_merged_symbol(Some(s1)), None)?)
+            .unwrap()
+            == self
                 .get_merged_symbol(self.resolve_symbol(self.get_merged_symbol(Some(s2)), None)?)
-                .unwrap() {
+                .unwrap()
+        {
             return Ok(Some(s1));
         }
         Ok(None)
@@ -80,7 +85,11 @@ impl TypeChecker {
     ) -> Option<Id<Symbol>> {
         self.get_merged_symbol(symbol.and_then(|symbol| {
             let symbol = symbol.borrow();
-            if self.symbol(symbol).flags().intersects(SymbolFlags::ExportValue) {
+            if self
+                .symbol(symbol)
+                .flags()
+                .intersects(SymbolFlags::ExportValue)
+            {
                 self.symbol(symbol).maybe_export_symbol()
             } else {
                 Some(symbol)
@@ -91,8 +100,8 @@ impl TypeChecker {
     pub(super) fn symbol_is_value(&self, symbol: Id<Symbol>) -> io::Result<bool> {
         Ok(self.symbol(symbol).flags().intersects(SymbolFlags::Value)
             || self.symbol(symbol).flags().intersects(SymbolFlags::Alias)
-                && self.symbol(self
-                    .resolve_alias(symbol)?)
+                && self
+                    .symbol(self.resolve_alias(symbol)?)
                     .flags()
                     .intersects(SymbolFlags::Value)
                 && self.get_type_only_alias_declaration(symbol).is_none())
@@ -417,9 +426,8 @@ impl TypeChecker {
                 | SyntaxKind::ClassExpression
                 | SyntaxKind::InterfaceDeclaration => {
                     let mut table: Option<SymbolTable> = None;
-                    for (key, member_symbol) in &*(self.symbol(*self
-                        .get_symbol_of_node(&location_unwrapped)?
-                        .unwrap())
+                    for (key, member_symbol) in &*(self
+                        .symbol(*self.get_symbol_of_node(&location_unwrapped)?.unwrap())
                         .maybe_members()
                         .clone()
                         .unwrap_or_else(|| self.empty_symbols()))
@@ -430,7 +438,10 @@ impl TypeChecker {
                             .intersects(SymbolFlags::Type & !SymbolFlags::Assignment)
                         {
                             if table.is_none() {
-                                table = Some(create_symbol_table(self.arena(), Option::<&[Id<Symbol>]>::None));
+                                table = Some(create_symbol_table(
+                                    self.arena(),
+                                    Option::<&[Id<Symbol>]>::None,
+                                ));
                             }
                             table
                                 .as_mut()
@@ -656,7 +667,10 @@ impl TypeChecker {
             enclosing_declaration,
             use_only_external_aliasing,
             visited_symbol_tables_map,
-            (*symbols).borrow().get(self.symbol(symbol).escaped_name()).cloned(),
+            (*symbols)
+                .borrow()
+                .get(self.symbol(symbol).escaped_name())
+                .cloned(),
             Option::<Id<Symbol>>::None,
             ignore_qualification,
         )? {
@@ -666,23 +680,30 @@ impl TypeChecker {
         let result: Option<Vec<Id<Symbol>>> = try_for_each_entry(
             &*(*symbols).borrow(),
             |&symbol_from_symbol_table, _| -> io::Result<_> {
-                if self.symbol(symbol_from_symbol_table
-                    ).flags()
+                if self
+                    .symbol(symbol_from_symbol_table)
+                    .flags()
                     .intersects(SymbolFlags::Alias)
-                    && self.symbol(symbol_from_symbol_table).escaped_name() != InternalSymbolName::ExportEquals
-                    && self.symbol(symbol_from_symbol_table).escaped_name() != InternalSymbolName::Default
+                    && self.symbol(symbol_from_symbol_table).escaped_name()
+                        != InternalSymbolName::ExportEquals
+                    && self.symbol(symbol_from_symbol_table).escaped_name()
+                        != InternalSymbolName::Default
                     && !(is_umd_export_symbol(Some(&self.symbol(symbol_from_symbol_table)))
                         && matches!(enclosing_declaration, Some(enclosing_declaration) if is_external_module(&get_source_file_of_node(enclosing_declaration))))
                     && (!use_only_external_aliasing
                         || some(
-                            self.symbol(symbol_from_symbol_table).maybe_declarations().as_deref(),
+                            self.symbol(symbol_from_symbol_table)
+                                .maybe_declarations()
+                                .as_deref(),
                             Some(|declaration: &Gc<Node>| {
                                 is_external_module_import_equals_declaration(declaration)
                             }),
                         ))
                     && if matches!(is_local_name_lookup, Some(true)) {
                         !some(
-                            self.symbol(symbol_from_symbol_table).maybe_declarations().as_deref(),
+                            self.symbol(symbol_from_symbol_table)
+                                .maybe_declarations()
+                                .as_deref(),
                             Some(|declaration: &Gc<Node>| {
                                 is_namespace_reexport_declaration(declaration)
                             }),
@@ -713,7 +734,9 @@ impl TypeChecker {
                         return Ok(candidate);
                     }
                 }
-                if self.symbol(symbol_from_symbol_table).escaped_name() == self.symbol(symbol).escaped_name() {
+                if self.symbol(symbol_from_symbol_table).escaped_name()
+                    == self.symbol(symbol).escaped_name()
+                {
                     if let Some(symbol_from_symbol_table_export_symbol) =
                         self.symbol(symbol_from_symbol_table).maybe_export_symbol()
                     {
@@ -819,7 +842,10 @@ impl TypeChecker {
             enclosing_declaration,
             |symbol_table, _, _, _| -> io::Result<_> {
                 let symbol_from_symbol_table = self.get_merged_symbol(
-                    (*symbol_table).borrow().get(self.symbol(symbol).escaped_name()).cloned(),
+                    (*symbol_table)
+                        .borrow()
+                        .get(self.symbol(symbol).escaped_name())
+                        .cloned(),
                 );
                 if symbol_from_symbol_table.is_none() {
                     return Ok(None);
@@ -829,8 +855,9 @@ impl TypeChecker {
                     return Ok(Some(()));
                 }
 
-                symbol_from_symbol_table = if self.symbol(symbol_from_symbol_table
-                    ).flags()
+                symbol_from_symbol_table = if self
+                    .symbol(symbol_from_symbol_table)
+                    .flags()
                     .intersects(SymbolFlags::Alias)
                     && get_declaration_of_kind(
                         &self.symbol(symbol_from_symbol_table),
@@ -842,7 +869,11 @@ impl TypeChecker {
                 } else {
                     symbol_from_symbol_table
                 };
-                if self.symbol(symbol_from_symbol_table).flags().intersects(meaning) {
+                if self
+                    .symbol(symbol_from_symbol_table)
+                    .flags()
+                    .intersects(meaning)
+                {
                     qualify = true;
                     return Ok(Some(()));
                 }

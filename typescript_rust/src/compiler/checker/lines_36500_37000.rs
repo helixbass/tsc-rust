@@ -336,7 +336,8 @@ impl TypeChecker {
                     .intersects(NodeFlags::BlockScoped)
                 {
                     let var_decl_list = get_ancestor(
-                        self.symbol(local_declaration_symbol).maybe_value_declaration(),
+                        self.symbol(local_declaration_symbol)
+                            .maybe_value_declaration(),
                         SyntaxKind::VariableDeclarationList,
                     )
                     .unwrap();
@@ -583,8 +584,9 @@ impl TypeChecker {
                     )?;
                 }
             }
-            if let Some(symbol_declarations) = self.symbol(symbol
-                ).maybe_declarations()
+            if let Some(symbol_declarations) = self
+                .symbol(symbol)
+                .maybe_declarations()
                 .as_ref()
                 .filter(|symbol_declarations| symbol_declarations.len() > 1)
             {
@@ -613,7 +615,10 @@ impl TypeChecker {
             if !self.is_error_type(type_)
                 && !self.is_error_type(declaration_type)
                 && !self.is_type_identical_to(type_, declaration_type)?
-                && !self.symbol(symbol).flags().intersects(SymbolFlags::Assignment)
+                && !self
+                    .symbol(symbol)
+                    .flags()
+                    .intersects(SymbolFlags::Assignment)
             {
                 self.error_next_variable_or_property_declaration_must_have_same_type(
                     self.symbol(symbol).maybe_value_declaration(),
@@ -953,10 +958,9 @@ impl TypeChecker {
                         || tested_expression_present.kind() == SyntaxKind::ThisKeyword
                             && child_expression_present.kind() == SyntaxKind::ThisKeyword
                     {
-                        return Ok(
-                            self.get_symbol_at_location_(tested_expression_present, None)? ==
-                            self.get_symbol_at_location_(child_expression_present, None)?
-                        );
+                        return Ok(self
+                            .get_symbol_at_location_(tested_expression_present, None)?
+                            == self.get_symbol_at_location_(child_expression_present, None)?);
                     } else if is_property_access_expression(tested_expression_present)
                         && is_property_access_expression(child_expression_present)
                     {
@@ -965,14 +969,12 @@ impl TypeChecker {
                         let child_expression_present_as_property_access_expression =
                             child_expression_present.as_property_access_expression();
                         if self.get_symbol_at_location_(
-                                &tested_expression_present_as_property_access_expression.name,
-                                None,
-                            )? !=
-                            self.get_symbol_at_location_(
-                                &child_expression_present_as_property_access_expression.name,
-                                None,
-                            )?
-                        {
+                            &tested_expression_present_as_property_access_expression.name,
+                            None,
+                        )? != self.get_symbol_at_location_(
+                            &child_expression_present_as_property_access_expression.name,
+                            None,
+                        )? {
                             return Ok(false);
                         }
                         child_expression = Some(

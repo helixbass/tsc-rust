@@ -27,9 +27,9 @@ use crate::{
     maybe_filter, maybe_for_each, maybe_for_each_bool, module_specifiers, normalize_slashes,
     path_contains_node_modules, path_is_relative, push_if_unique_gc, set_text_range_node_array,
     skip_trivia, starts_with, string_contains, to_file_name_lower_case, to_path, transform_nodes,
-    try_map, try_map_defined, try_maybe_for_each, try_visit_nodes, BaseNodeFactorySynthetic,
-    CommentRange, CompilerOptions, Debug_, Diagnostic, Diagnostics, EmitHost, EmitResolver,
-    FileReference, GetOrInsertDefault, GetSymbolAccessibilityDiagnostic,
+    try_map, try_map_defined, try_maybe_for_each, try_visit_nodes, AllArenas,
+    BaseNodeFactorySynthetic, CommentRange, CompilerOptions, Debug_, Diagnostic, Diagnostics,
+    EmitHost, EmitResolver, FileReference, GetOrInsertDefault, GetSymbolAccessibilityDiagnostic,
     GetSymbolAccessibilityDiagnosticInterface, HasInitializerInterface, HasStatementsInterface,
     HasTypeInterface, LiteralLikeNodeInterface, ModifierFlags,
     ModuleSpecifierResolutionHostAndGetCommonSourceDirectory, NamedDeclarationInterface, Node,
@@ -37,7 +37,7 @@ use crate::{
     ScriptReferenceHost, SourceFileLike, Symbol, SymbolAccessibility,
     SymbolAccessibilityDiagnostic, SymbolAccessibilityResult, SymbolFlags, SymbolInterface,
     SymbolTracker, SyntaxKind, TextRange, TransformationContext, TransformationResult, Transformer,
-    TransformerFactory, TransformerFactoryInterface, TransformerInterface, VisitResult, AllArenas,
+    TransformerFactory, TransformerFactoryInterface, TransformerInterface, VisitResult,
 };
 
 pub fn get_declaration_diagnostics(
@@ -1295,7 +1295,13 @@ impl SymbolTracker for TransformDeclarationsSymbolTracker {
         if self.is_track_symbol_disabled.get() {
             return Some(Ok(false));
         }
-        if self.host.arena().symbol(symbol).flags().intersects(SymbolFlags::TypeParameter) {
+        if self
+            .host
+            .arena()
+            .symbol(symbol)
+            .flags()
+            .intersects(SymbolFlags::TypeParameter)
+        {
             return Some(Ok(false));
         }
         let issued_diagnostic = self
@@ -1508,22 +1514,26 @@ impl SymbolTracker for TransformDeclarationsSymbolTracker {
         parent_symbol: Id<Symbol>,
         symbol: Id<Symbol>,
     ) {
-        let primary_declaration =
-            self.host.arena().symbol(parent_symbol)
-                .maybe_declarations()
-                .as_ref()
-                .and_then(|parent_symbol_declarations| {
-                    parent_symbol_declarations
-                        .into_iter()
-                        .find(|d: &&Gc<Node>| {
-                            ptr::eq(&*get_source_file_of_node(d), containing_file)
-                        })
-                        .cloned()
-                });
-        let augmenting_declarations =
-            maybe_filter(self.host.arena().symbol(symbol).maybe_declarations().as_deref(), |d: &Gc<Node>| {
-                !ptr::eq(&*get_source_file_of_node(d), containing_file)
+        let primary_declaration = self
+            .host
+            .arena()
+            .symbol(parent_symbol)
+            .maybe_declarations()
+            .as_ref()
+            .and_then(|parent_symbol_declarations| {
+                parent_symbol_declarations
+                    .into_iter()
+                    .find(|d: &&Gc<Node>| ptr::eq(&*get_source_file_of_node(d), containing_file))
+                    .cloned()
             });
+        let augmenting_declarations = maybe_filter(
+            self.host
+                .arena()
+                .symbol(symbol)
+                .maybe_declarations()
+                .as_deref(),
+            |d: &Gc<Node>| !ptr::eq(&*get_source_file_of_node(d), containing_file),
+        );
         if let Some(augmenting_declarations) = augmenting_declarations {
             for augmentations in augmenting_declarations {
                 self.transform_declarations.context.add_diagnostic(

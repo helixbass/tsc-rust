@@ -388,12 +388,9 @@ impl TypeChecker {
                 info.declaration
                     .clone()
                     .try_filter(|info_declaration| -> io::Result<_> {
-                        Ok(
-                            self.get_parent_of_symbol(
-                                self.get_symbol_of_node(info_declaration)?.unwrap(),
-                            )? ==
-                            self.type_(type_).maybe_symbol()
-                        )
+                        Ok(self.get_parent_of_symbol(
+                            self.get_symbol_of_node(info_declaration)?.unwrap(),
+                        )? == self.type_(type_).maybe_symbol())
                     })?;
             let error_node = local_prop_declaration
                 .clone()
@@ -406,7 +403,10 @@ impl TypeChecker {
                                 Some(&self.get_base_types(type_)?),
                                 Some(|&base: &Id<Type>| -> io::Result<_> {
                                     Ok(self
-                                        .get_property_of_object_type(base, self.symbol(prop).escaped_name())?
+                                        .get_property_of_object_type(
+                                            base,
+                                            self.symbol(prop).escaped_name(),
+                                        )?
                                         .is_some()
                                         && self
                                             .get_index_type_of_type_(base, info.key_type)?
@@ -451,8 +451,8 @@ impl TypeChecker {
         let local_check_declaration = declaration
             .try_filter(|declaration| -> io::Result<_> {
                 Ok(
-                    self.get_parent_of_symbol(self.get_symbol_of_node(declaration)?.unwrap())? ==
-                    self.type_(type_).maybe_symbol()
+                    self.get_parent_of_symbol(self.get_symbol_of_node(declaration)?.unwrap())?
+                        == self.type_(type_).maybe_symbol(),
                 )
             })?
             .cloned();
@@ -464,12 +464,9 @@ impl TypeChecker {
                 info.declaration
                     .clone()
                     .try_filter(|info_declaration| -> io::Result<_> {
-                        Ok(
-                            self.get_parent_of_symbol(
-                                self.get_symbol_of_node(info_declaration)?.unwrap(),
-                            )? ==
-                            self.type_(type_).maybe_symbol()
-                        )
+                        Ok(self.get_parent_of_symbol(
+                            self.get_symbol_of_node(info_declaration)?.unwrap(),
+                        )? == self.type_(type_).maybe_symbol())
                     })?;
             let error_node = local_check_declaration
                 .clone()
@@ -577,9 +574,7 @@ impl TypeChecker {
                         );
                     }
                     for j in 0..i {
-                        if type_parameter_declarations[j].maybe_symbol() ==
-                            node.maybe_symbol()
-                        {
+                        if type_parameter_declarations[j].maybe_symbol() == node.maybe_symbol() {
                             self.error(
                                 node_as_type_parameter_declaration.maybe_name(),
                                 &Diagnostics::Duplicate_identifier_0,
@@ -622,8 +617,8 @@ impl TypeChecker {
                 .intersects(TypeFlags::TypeParameter)
             {
                 for i in index..type_parameters.len() {
-                    if self.type_(type_).maybe_symbol() ==
-                        self.get_symbol_of_node(&type_parameters[i])?
+                    if self.type_(type_).maybe_symbol()
+                        == self.get_symbol_of_node(&type_parameters[i])?
                     {
                         self.error(
                             Some(node),

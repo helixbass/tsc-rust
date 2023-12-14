@@ -25,9 +25,9 @@ use crate::{
     FlowFlags, FlowNode, FlowStart, ModifierFlags, NodeFlags, NodeId, ScriptTarget,
     SignatureDeclarationInterface, Symbol, SymbolTable, SyntaxKind, __String, append_if_unique_gc,
     create_symbol_table, get_escaped_text_of_identifier_or_literal, get_name_of_declaration,
-    is_property_name_literal, object_allocator, set_parent, set_value_declaration, BaseSymbol,
-    InternalSymbolName, NamedDeclarationInterface, Node, NodeArray, NodeInterface, SymbolFlags,
-    SymbolInterface, AllArenas,
+    is_property_name_literal, object_allocator, set_parent, set_value_declaration, AllArenas,
+    BaseSymbol, InternalSymbolName, NamedDeclarationInterface, Node, NodeArray, NodeInterface,
+    SymbolFlags, SymbolInterface,
 };
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
@@ -348,9 +348,7 @@ pub(crate) struct BinderType {
     pub(super) bind_binary_expression_flow: GcCell<Option<Gc<BindBinaryExpressionFlow>>>,
 }
 
-pub(super) fn create_binder(
-    arena: *const AllArenas,
-) -> Gc<BinderType> {
+pub(super) fn create_binder(arena: *const AllArenas) -> Gc<BinderType> {
     let wrapped = Gc::new(BinderType {
         arena,
         _rc_wrapper: Default::default(),
@@ -399,9 +397,7 @@ impl BinderType {
     }
 
     pub fn arena(&self) -> &AllArenas {
-        unsafe {
-            &*self.arena
-        }
+        unsafe { &*self.arena }
     }
 
     #[track_caller]
@@ -790,7 +786,8 @@ impl BinderType {
         node: &Node, /*Declaration*/
         symbol_flags: SymbolFlags,
     ) {
-        self.symbol(symbol).set_flags(self.symbol(symbol).flags() | symbol_flags);
+        self.symbol(symbol)
+            .set_flags(self.symbol(symbol).flags() | symbol_flags);
 
         node.set_symbol(symbol);
         let mut symbol_declarations = self.symbol(symbol).maybe_declarations_mut();
@@ -826,9 +823,11 @@ impl BinderType {
             }
         }
 
-        if matches!(self.symbol(symbol).maybe_const_enum_only_module(), Some(true))
-            && symbol_flags
-                .intersects(SymbolFlags::Function | SymbolFlags::Class | SymbolFlags::RegularEnum)
+        if matches!(
+            self.symbol(symbol).maybe_const_enum_only_module(),
+            Some(true)
+        ) && symbol_flags
+            .intersects(SymbolFlags::Function | SymbolFlags::Class | SymbolFlags::RegularEnum)
         {
             self.symbol(symbol).set_const_enum_only_module(Some(false));
         }
@@ -1020,19 +1019,26 @@ impl BinderType {
                         );
                         symbol_table.insert(name.into_owned(), symbol.as_ref().unwrap().clone());
                         if is_replaceable_by_method {
-                            self.symbol(symbol
-                                .unwrap())
+                            self.symbol(symbol.unwrap())
                                 .set_is_replaceable_by_method(Some(true));
                         }
                     }
                     Some(symbol)
                         if is_replaceable_by_method
-                            && !matches!(self.symbol(symbol).maybe_is_replaceable_by_method(), Some(true)) =>
+                            && !matches!(
+                                self.symbol(symbol).maybe_is_replaceable_by_method(),
+                                Some(true)
+                            ) =>
                     {
                         return symbol.clone();
                     }
-                    Some(symbol_present) if self.symbol(symbol_present).flags().intersects(excludes) => {
-                        if matches!(self.symbol(symbol_present).maybe_is_replaceable_by_method(), Some(true)) {
+                    Some(symbol_present)
+                        if self.symbol(symbol_present).flags().intersects(excludes) =>
+                    {
+                        if matches!(
+                            self.symbol(symbol_present).maybe_is_replaceable_by_method(),
+                            Some(true)
+                        ) {
                             symbol = Some(
                                 self.create_symbol(SymbolFlags::None, (*name).to_owned())
                                     .wrap(),
@@ -1040,7 +1046,10 @@ impl BinderType {
                             symbol_table
                                 .insert(name.into_owned(), symbol.as_ref().unwrap().clone());
                         } else if !(includes.intersects(SymbolFlags::Variable)
-                            && self.symbol(symbol_present).flags().intersects(SymbolFlags::Assignment))
+                            && self
+                                .symbol(symbol_present)
+                                .flags()
+                                .intersects(SymbolFlags::Assignment))
                         {
                             if is_named_declaration(node) {
                                 maybe_set_parent(
@@ -1048,8 +1057,9 @@ impl BinderType {
                                     Some(node.node_wrapper()),
                                 );
                             }
-                            let mut message = if self.symbol(symbol_present
-                                ).flags()
+                            let mut message = if self
+                                .symbol(symbol_present)
+                                .flags()
                                 .intersects(SymbolFlags::BlockScopedVariable)
                             {
                                 &Diagnostics::Cannot_redeclare_block_scoped_variable_0
@@ -1058,7 +1068,10 @@ impl BinderType {
                             };
                             let mut message_needs_name = true;
 
-                            if self.symbol(symbol_present).flags().intersects(SymbolFlags::Enum)
+                            if self
+                                .symbol(symbol_present)
+                                .flags()
+                                .intersects(SymbolFlags::Enum)
                                 || includes.intersects(SymbolFlags::Enum)
                             {
                                 message = &Diagnostics::Enum_declarations_can_only_merge_with_namespace_or_other_enum_declarations;
@@ -1066,7 +1079,9 @@ impl BinderType {
                             }
 
                             let mut multiple_default_exports = false;
-                            if length(self.symbol(symbol_present).maybe_declarations().as_deref()) > 0 {
+                            if length(self.symbol(symbol_present).maybe_declarations().as_deref())
+                                > 0
+                            {
                                 if is_default_export {
                                     message =
                                         &*Diagnostics::A_module_cannot_have_multiple_default_exports;
@@ -1209,7 +1224,7 @@ impl BinderType {
                     parent,
                     Some(parent) if symbol_parent == parent
                 ),
-                Some("Existing symbol parent should match new one")
+                Some("Existing symbol parent should match new one"),
             );
         } else {
             self.symbol(symbol).set_parent(parent);

@@ -1139,13 +1139,14 @@ impl TypeChecker {
         source: Id<Symbol>,
         type_: Option<Id<Type>>,
     ) -> Id<Symbol> {
-        let symbol = self.alloc_symbol(self
-            .create_symbol(
+        let symbol = self.alloc_symbol(
+            self.create_symbol(
                 self.symbol(source).flags(),
                 self.symbol(source).escaped_name().to_owned(),
                 Some(get_check_flags(&self.symbol(source)) & CheckFlags::Readonly),
             )
-            .into());
+            .into(),
+        );
         *self.symbol(symbol).maybe_declarations_mut() =
             self.symbol(source).maybe_declarations().clone();
         self.symbol(symbol)

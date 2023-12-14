@@ -505,7 +505,7 @@ impl TypeChecker {
         let result: RefCell<Option<Vec<Gc<Node>>>> = RefCell::new(None);
         if let Some(export_symbol) = export_symbol {
             let mut visited: HashSet<SymbolId> = HashSet::new();
-            visited.insert(get_symbol_id(&self.symbol(export_symbol));
+            visited.insert(get_symbol_id(&self.symbol(export_symbol)));
             self.build_visible_node_list(
                 set_visibility.unwrap_or(false),
                 &result,
@@ -820,8 +820,12 @@ impl TypeChecker {
                     None,
                 )?,
                 omit_key_type,
-            )? && !get_declaration_modifier_flags_from_symbol(self.arena(), &self.symbol(prop), None)
-                .intersects(ModifierFlags::Private | ModifierFlags::Protected)
+            )? && !get_declaration_modifier_flags_from_symbol(
+                self.arena(),
+                &self.symbol(prop),
+                None,
+            )
+            .intersects(ModifierFlags::Private | ModifierFlags::Protected)
                 && self.is_spreadable_property(&prop)
             {
                 members.insert(

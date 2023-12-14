@@ -408,7 +408,7 @@ impl GetFlowTypeOfReference {
                     |&t: &Id<Type>, _| {
                         !matches!(
                             self.type_checker.type_(t).maybe_symbol(),
-                            Some(t_symbol) if 
+                            Some(t_symbol) if
                                 t_symbol ==
                                 self.type_checker.global_this_symbol()
                         )
@@ -653,10 +653,15 @@ impl GetFlowTypeOfReference {
         }
         let symbol = symbol.unwrap();
         let class_symbol = self.type_checker.symbol(symbol).maybe_parent().unwrap();
-        let target_type = if has_static_modifier(Debug_.check_defined::<&Gc<Node>>(
-            self.type_checker.symbol(symbol).maybe_value_declaration().as_ref(),
-            Some("should always have a declaration"),
-        )) {
+        let target_type = if has_static_modifier(
+            Debug_.check_defined::<&Gc<Node>>(
+                self.type_checker
+                    .symbol(symbol)
+                    .maybe_value_declaration()
+                    .as_ref(),
+                Some("should always have a declaration"),
+            ),
+        ) {
             self.type_checker.get_type_of_symbol(&class_symbol)?
         } else {
             self.type_checker

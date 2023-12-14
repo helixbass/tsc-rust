@@ -142,7 +142,10 @@ impl TypeChecker {
             self.error(
                 self.get_type_declaration(symbol),
                 &Diagnostics::Global_type_0_must_have_1_type_parameter_s,
-                Some(vec![symbol_name(&self.symbol(symbol)).into_owned(), arity.to_string()]),
+                Some(vec![
+                    symbol_name(&self.symbol(symbol)).into_owned(),
+                    arity.to_string(),
+                ]),
             );
             return Ok(if arity != 0 {
                 self.empty_generic_type()
@@ -241,7 +244,10 @@ impl TypeChecker {
                 self.error(
                     decl,
                     &Diagnostics::Global_type_0_must_have_1_type_parameter_s,
-                    Some(vec![symbol_name(&self.symbol(symbol)).into_owned(), arity.to_string()]),
+                    Some(vec![
+                        symbol_name(&self.symbol(symbol)).into_owned(),
+                        arity.to_string(),
+                    ]),
                 );
                 return Ok(None);
             }
@@ -330,28 +336,32 @@ impl TypeChecker {
             .maybe_deferred_global_import_meta_expression_type()
             .is_none()
         {
-            let symbol = self.alloc_symbol(self
-                .create_symbol(SymbolFlags::None, "ImportMetaExpression".to_owned(), None)
-                .into());
+            let symbol = self.alloc_symbol(
+                self.create_symbol(SymbolFlags::None, "ImportMetaExpression".to_owned(), None)
+                    .into(),
+            );
             let import_meta_type = self.get_global_import_meta_type()?;
 
-            let meta_property_symbol = self.alloc_symbol(self
-                .create_symbol(
+            let meta_property_symbol = self.alloc_symbol(
+                self.create_symbol(
                     SymbolFlags::Property,
                     "meta".to_owned(),
                     Some(CheckFlags::Readonly),
                 )
-                .into());
-            self.symbol(meta_property_symbol).set_parent(Some(symbol.clone()));
-            self.symbol(meta_property_symbol
-                ).as_transient_symbol()
+                .into(),
+            );
+            self.symbol(meta_property_symbol)
+                .set_parent(Some(symbol.clone()));
+            self.symbol(meta_property_symbol)
+                .as_transient_symbol()
                 .symbol_links()
                 .borrow_mut()
                 .type_ = Some(import_meta_type);
 
-            let members = Gc::new(GcCell::new(create_symbol_table(self.arena(), Some(&vec![
-                meta_property_symbol,
-            ]))));
+            let members = Gc::new(GcCell::new(create_symbol_table(
+                self.arena(),
+                Some(&vec![meta_property_symbol]),
+            )));
             *self.symbol(symbol).maybe_members_mut() = Some(members.clone());
 
             *self.maybe_deferred_global_import_meta_expression_type() =
@@ -862,8 +872,8 @@ impl TypeChecker {
         Ok(match node.kind() {
             SyntaxKind::TypeReference => {
                 self.is_jsdoc_type_reference(node)
-                    || self.symbol(self
-                        .resolve_type_reference_name(node, SymbolFlags::Type, None)?)
+                    || self
+                        .symbol(self.resolve_type_reference_name(node, SymbolFlags::Type, None)?)
                         .flags()
                         .intersects(SymbolFlags::TypeAlias)
             }
@@ -1077,8 +1087,8 @@ impl TypeChecker {
                 let flags = element_flags[i];
                 combined_flags |= flags;
                 if !combined_flags.intersects(ElementFlags::Variable) {
-                    let property = self.alloc_symbol(self
-                        .create_symbol(
+                    let property = self.alloc_symbol(
+                        self.create_symbol(
                             SymbolFlags::Property
                                 | if flags.intersects(ElementFlags::Optional) {
                                     SymbolFlags::Optional
@@ -1092,7 +1102,8 @@ impl TypeChecker {
                                 CheckFlags::None
                             }),
                         )
-                        .into());
+                        .into(),
+                    );
                     let property_links = self.symbol(property).as_transient_symbol().symbol_links();
                     let mut property_links = property_links.borrow_mut();
                     property_links.tuple_label_declaration =
@@ -1110,8 +1121,8 @@ impl TypeChecker {
                 .into(),
         );
         if combined_flags.intersects(ElementFlags::Variable) {
-            self.symbol(length_symbol
-                ).as_transient_symbol()
+            self.symbol(length_symbol)
+                .as_transient_symbol()
                 .symbol_links()
                 .borrow_mut()
                 .type_ = Some(self.number_type());
@@ -1120,8 +1131,8 @@ impl TypeChecker {
             for i in min_length..=arity {
                 literal_types.push(self.get_number_literal_type(Number::new(i as f64)));
             }
-            self.symbol(length_symbol
-                ).as_transient_symbol()
+            self.symbol(length_symbol)
+                .as_transient_symbol()
                 .symbol_links()
                 .borrow_mut()
                 .type_ = Some(self.get_union_type(

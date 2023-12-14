@@ -184,7 +184,8 @@ impl TypeChecker {
             return cached;
         }
         let result = self.create_symbol_with_type(prop, Some(self.missing_type()));
-        self.symbol(result).set_flags(self.symbol(result).flags() | SymbolFlags::Optional);
+        self.symbol(result)
+            .set_flags(self.symbol(result).flags() | SymbolFlags::Optional);
         self.undefined_properties()
             .insert(self.symbol(prop).escaped_name().to_owned(), result.clone());
         result
@@ -922,8 +923,10 @@ impl TypeChecker {
     pub(super) fn is_non_generic_top_level_type(&self, type_: Id<Type>) -> bool {
         if let Some(type_alias_symbol) = self.type_(type_).maybe_alias_symbol() {
             if self.type_(type_).maybe_alias_type_arguments().is_none() {
-                let declaration =
-                    get_declaration_of_kind(&self.symbol(type_alias_symbol), SyntaxKind::TypeAliasDeclaration);
+                let declaration = get_declaration_of_kind(
+                    &self.symbol(type_alias_symbol),
+                    SyntaxKind::TypeAliasDeclaration,
+                );
                 return matches!(
                     declaration.as_ref(),
                     Some(declaration) if find_ancestor(
@@ -978,20 +981,27 @@ impl TypeChecker {
             }
             let name = escape_leading_underscores(&self.type_(t).as_string_literal_type().value)
                 .into_owned();
-            let literal_prop = self.alloc_symbol(self
-                .create_symbol(SymbolFlags::Property, name.clone(), None)
-                .into());
-            self.symbol(literal_prop
-                ).as_transient_symbol()
+            let literal_prop = self.alloc_symbol(
+                self.create_symbol(SymbolFlags::Property, name.clone(), None)
+                    .into(),
+            );
+            self.symbol(literal_prop)
+                .as_transient_symbol()
                 .symbol_links()
                 .borrow_mut()
                 .type_ = Some(self.any_type());
             if let Some(t_symbol) = self.type_(t).maybe_symbol() {
-                if let Some(t_symbol_declarations) = self.symbol(t_symbol).maybe_declarations().clone() {
-                    self.symbol(literal_prop).set_declarations(t_symbol_declarations);
+                if let Some(t_symbol_declarations) =
+                    self.symbol(t_symbol).maybe_declarations().clone()
+                {
+                    self.symbol(literal_prop)
+                        .set_declarations(t_symbol_declarations);
                 }
-                if let Some(t_symbol_value_declaration) = self.symbol(t_symbol).maybe_value_declaration() {
-                    self.symbol(literal_prop).set_value_declaration(t_symbol_value_declaration);
+                if let Some(t_symbol_value_declaration) =
+                    self.symbol(t_symbol).maybe_value_declaration()
+                {
+                    self.symbol(literal_prop)
+                        .set_value_declaration(t_symbol_value_declaration);
                 }
             }
             members.insert(name, literal_prop);

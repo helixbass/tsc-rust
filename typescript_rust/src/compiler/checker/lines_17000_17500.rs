@@ -349,7 +349,8 @@ impl TypeChecker {
             )?;
             if result_obj.errors_len() > 0 {
                 if let Some(target_symbol) = self.type_(target).maybe_symbol() {
-                    let target_symbol_declarations = self.symbol(target_symbol).maybe_declarations();
+                    let target_symbol_declarations =
+                        self.symbol(target_symbol).maybe_declarations();
                     if let Some(target_symbol_declarations) = target_symbol_declarations
                         .as_ref()
                         .filter(|target_symbol_declarations| !target_symbol_declarations.is_empty())
@@ -636,12 +637,16 @@ impl TypeChecker {
                         {
                             let target_node = if let Some(target_prop) =
                                 target_prop.filter(|&target_prop| {
-                                    length(self.symbol(target_prop).maybe_declarations().as_deref()) > 0
+                                    length(self.symbol(target_prop).maybe_declarations().as_deref())
+                                        > 0
                                 }) {
-                                self.symbol(target_prop).maybe_declarations().as_ref().unwrap()[0].clone()
+                                self.symbol(target_prop)
+                                    .maybe_declarations()
+                                    .as_ref()
+                                    .unwrap()[0]
+                                    .clone()
                             } else {
-                                self.symbol(self.type_(target)
-                                    .symbol())
+                                self.symbol(self.type_(target).symbol())
                                     .maybe_declarations()
                                     .as_ref()
                                     .unwrap()[0]
@@ -1439,8 +1444,7 @@ impl TypeChecker {
                     })?
             {
                 self.get_declared_type_of_class_or_interface(
-                    self
-                        .get_merged_symbol(target_declaration.maybe_symbol())
+                    self.get_merged_symbol(target_declaration.maybe_symbol())
                         .unwrap(),
                 )?
             } else {
@@ -1460,8 +1464,7 @@ impl TypeChecker {
                     })?
             {
                 self.get_declared_type_of_class_or_interface(
-                    self
-                        .get_merged_symbol(source_declaration.maybe_symbol())
+                    self.get_merged_symbol(source_declaration.maybe_symbol())
                         .unwrap(),
                 )?
             } else {

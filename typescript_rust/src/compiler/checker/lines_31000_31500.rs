@@ -154,13 +154,14 @@ impl TypeChecker {
         anonymous_symbol: Option<Id<Symbol>>,
     ) -> io::Result<Id<Type>> {
         let mut member_table = create_symbol_table(self.arena(), Option::<&[Id<Symbol>]>::None);
-        let new_symbol = self.alloc_symbol(self
-            .create_symbol(
+        let new_symbol = self.alloc_symbol(
+            self.create_symbol(
                 SymbolFlags::Alias,
                 InternalSymbolName::Default.to_owned(),
                 None,
             )
-            .into());
+            .into(),
+        );
         self.symbol(new_symbol).set_parent(Some(original_symbol));
         {
             let new_symbol_links = self.symbol(new_symbol).as_transient_symbol().symbol_links();
@@ -215,14 +216,16 @@ impl TypeChecker {
         if self.allow_synthetic_default_imports && /*type &&*/ !self.is_error_type(type_) {
             let synth_type = type_;
             if self.type_(synth_type).maybe_synthetic_type().is_none() {
-                let file = self.symbol(original_symbol).maybe_declarations().as_ref().and_then(
-                    |original_symbol_declarations| {
+                let file = self
+                    .symbol(original_symbol)
+                    .maybe_declarations()
+                    .as_ref()
+                    .and_then(|original_symbol_declarations| {
                         original_symbol_declarations
                             .into_iter()
                             .find(|declaration| is_source_file(declaration))
                             .cloned()
-                    },
-                );
+                    });
                 let has_synthetic_default = self.can_have_synthetic_default(
                     file.as_deref(),
                     original_symbol,
@@ -230,21 +233,22 @@ impl TypeChecker {
                     module_specifier,
                 )?;
                 if has_synthetic_default {
-                    let anonymous_symbol = self.alloc_symbol(self
-                        .create_symbol(
+                    let anonymous_symbol = self.alloc_symbol(
+                        self.create_symbol(
                             SymbolFlags::TypeLiteral,
                             InternalSymbolName::Type.to_owned(),
                             None,
                         )
-                        .into());
+                        .into(),
+                    );
                     let default_containing_object = self
                         .create_default_property_wrapper_for_module(
                             symbol,
                             original_symbol,
                             Some(anonymous_symbol),
                         )?;
-                    self.symbol(anonymous_symbol
-                        ).as_transient_symbol()
+                    self.symbol(anonymous_symbol)
+                        .as_transient_symbol()
                         .symbol_links()
                         .borrow_mut()
                         .type_ = Some(default_containing_object.clone());
@@ -617,7 +621,10 @@ impl TypeChecker {
                 0
             };
         if pos < param_count {
-            return Ok(self.symbol(signature.parameters()[pos]).escaped_name().to_owned());
+            return Ok(self
+                .symbol(signature.parameters()[pos])
+                .escaped_name()
+                .to_owned());
         }
         let rest_parameter = signature
             .parameters()
@@ -635,7 +642,9 @@ impl TypeChecker {
             let index = pos - param_count;
             return Ok(associated_names
                 .map(|associated_names| self.get_tuple_element_label(&associated_names[index]))
-                .unwrap_or_else(|| format!("{}_{}", self.symbol(rest_parameter).escaped_name(), index)));
+                .unwrap_or_else(|| {
+                    format!("{}_{}", self.symbol(rest_parameter).escaped_name(), index)
+                }));
         }
         Ok(self.symbol(rest_parameter).escaped_name().to_owned())
     }
@@ -694,7 +703,10 @@ impl TypeChecker {
         }
 
         if pos == param_count {
-            return Ok(Some((self.symbol(rest_parameter).escaped_name().to_owned(), true)));
+            return Ok(Some((
+                self.symbol(rest_parameter).escaped_name().to_owned(),
+                true,
+            )));
         }
         Ok(None)
     }
@@ -731,7 +743,9 @@ impl TypeChecker {
                 0
             };
         if pos < param_count {
-            let decl = self.symbol(signature.parameters()[pos]).maybe_value_declaration();
+            let decl = self
+                .symbol(signature.parameters()[pos])
+                .maybe_value_declaration();
             return Ok(decl.filter(|decl| self.is_valid_declaration_for_tuple_label(decl)));
         }
         let rest_parameter = signature
@@ -751,8 +765,9 @@ impl TypeChecker {
                 associated_names.and_then(|associated_names| associated_names.get(index).cloned())
             );
         }
-        Ok(self.symbol(rest_parameter
-            ).maybe_value_declaration()
+        Ok(self
+            .symbol(rest_parameter)
+            .maybe_value_declaration()
             .filter(|rest_parameter_value_declaration| {
                 self.is_valid_declaration_for_tuple_label(rest_parameter_value_declaration)
             }))
@@ -905,9 +920,8 @@ impl TypeChecker {
         if void_is_non_optional || signature.maybe_resolved_min_argument_count().is_none() {
             let mut min_argument_count = None;
             if signature_has_rest_parameter(signature) {
-                let rest_type = self.get_type_of_symbol(
-                    signature.parameters()[signature.parameters().len() - 1],
-                )?;
+                let rest_type = self
+                    .get_type_of_symbol(signature.parameters()[signature.parameters().len() - 1])?;
                 if self.is_tuple_type(rest_type) {
                     let rest_type_target =
                         self.type_(rest_type).as_type_reference_interface().target();

@@ -90,7 +90,8 @@ impl BinderType {
                         .maybe_common_js_module_indicator()
                         .is_some()
                     && is_module_exports_access_expression(expr)
-                    && lookup_symbol_for_name(self, &self.block_scope_container(), "module").is_none()
+                    && lookup_symbol_for_name(self, &self.block_scope_container(), "module")
+                        .is_none()
                 {
                     self.declare_symbol(
                         &mut self.file().locals().borrow_mut(),
@@ -498,7 +499,10 @@ impl BinderType {
                 SymbolFlags::Property
             };
             let symbol = self.declare_symbol(
-                &mut self.symbol(self.container().symbol()).exports().borrow_mut(),
+                &mut self
+                    .symbol(self.container().symbol())
+                    .exports()
+                    .borrow_mut(),
                 Some(self.container().symbol()),
                 node,
                 flags,
@@ -551,7 +555,8 @@ impl BinderType {
             let mut global_exports = self.symbol(file_symbol).maybe_global_exports();
             if global_exports.is_none() {
                 *global_exports = Some(Gc::new(GcCell::new(create_symbol_table(
-                    self.arena(), Option::<&[Id<Symbol>]>::None,
+                    self.arena(),
+                    Option::<&[Id<Symbol>]>::None,
                 ))));
             }
             self.declare_symbol(
@@ -577,7 +582,10 @@ impl BinderType {
             );
         } else if node_as_export_declaration.export_clause.is_none() {
             self.declare_symbol(
-                &mut self.symbol(self.container().symbol()).exports().borrow_mut(),
+                &mut self
+                    .symbol(self.container().symbol())
+                    .exports()
+                    .borrow_mut(),
                 Some(self.container().symbol()),
                 node,
                 SymbolFlags::ExportStar,
@@ -587,7 +595,10 @@ impl BinderType {
             );
         } else if is_namespace_export(node_as_export_declaration.export_clause.as_ref().unwrap()) {
             self.declare_symbol(
-                &mut self.symbol(self.container().symbol()).exports().borrow_mut(),
+                &mut self
+                    .symbol(self.container().symbol())
+                    .exports()
+                    .borrow_mut(),
                 Some(self.container().symbol()),
                 node_as_export_declaration.export_clause.as_ref().unwrap(),
                 SymbolFlags::Alias,
@@ -839,9 +850,11 @@ impl BinderType {
                             let mut constructor_symbol_members =
                                 self.symbol(constructor_symbol).maybe_members_mut();
                             if constructor_symbol_members.is_none() {
-                                *constructor_symbol_members = Some(Gc::new(GcCell::new(
-                                    create_symbol_table(self.arena(), Option::<&[Id<Symbol>]>::None),
-                                )));
+                                *constructor_symbol_members =
+                                    Some(Gc::new(GcCell::new(create_symbol_table(
+                                        self.arena(),
+                                        Option::<&[Id<Symbol>]>::None,
+                                    ))));
                             }
                             let constructor_symbol_members =
                                 constructor_symbol_members.clone().unwrap();

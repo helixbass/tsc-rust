@@ -32,7 +32,11 @@ impl TypeChecker {
         if let Some(managed_sym) = managed_sym {
             let declared_managed_type = self.get_declared_type_of_symbol(managed_sym)?;
             let ctor_type = self.get_static_type_of_referenced_jsx_constructor(context)?;
-            if self.symbol(managed_sym).flags().intersects(SymbolFlags::TypeAlias) {
+            if self
+                .symbol(managed_sym)
+                .flags()
+                .intersects(SymbolFlags::TypeAlias)
+            {
                 let params = (*self.get_symbol_links(managed_sym))
                     .borrow()
                     .type_parameters
@@ -119,11 +123,8 @@ impl TypeChecker {
         }
         let mut attributes_type = attributes_type.unwrap();
 
-        attributes_type = self.get_jsx_managed_attributes_from_located_attributes(
-            context,
-            ns,
-            attributes_type,
-        )?;
+        attributes_type =
+            self.get_jsx_managed_attributes_from_located_attributes(context, ns, attributes_type)?;
 
         Ok(if self.is_type_any(Some(attributes_type)) {
             attributes_type
@@ -297,8 +298,8 @@ impl TypeChecker {
             } else {
                 None
             };
-            let param_symbol = self.alloc_symbol(self
-                .create_symbol(
+            let param_symbol = self.alloc_symbol(
+                self.create_symbol(
                     SymbolFlags::FunctionScopedVariable
                         | if is_optional && !is_rest_param {
                             SymbolFlags::Optional
@@ -308,9 +309,10 @@ impl TypeChecker {
                     param_name.unwrap_or_else(|| format!("arg{}", i)),
                     None,
                 )
-                .into());
-            self.symbol(param_symbol
-                ).as_transient_symbol()
+                .into(),
+            );
+            self.symbol(param_symbol)
+                .as_transient_symbol()
                 .symbol_links()
                 .borrow_mut()
                 .type_ = Some(if is_rest_param {
@@ -321,19 +323,20 @@ impl TypeChecker {
             params.push(param_symbol);
         }
         if needs_extra_rest_element {
-            let rest_param_symbol = self.alloc_symbol(self
-                .create_symbol(SymbolFlags::FunctionScopedVariable, "args".to_owned(), None)
-                .into());
+            let rest_param_symbol = self.alloc_symbol(
+                self.create_symbol(SymbolFlags::FunctionScopedVariable, "args".to_owned(), None)
+                    .into(),
+            );
             let rest_param_symbol_type =
                 self.create_array_type(self.get_type_at_position(shorter, longest_count)?, None);
-            self.symbol(rest_param_symbol
-                ).as_transient_symbol()
+            self.symbol(rest_param_symbol)
+                .as_transient_symbol()
                 .symbol_links()
                 .borrow_mut()
                 .type_ = Some(rest_param_symbol_type.clone());
             if ptr::eq(shorter, right) {
-                self.symbol(rest_param_symbol
-                    ).as_transient_symbol()
+                self.symbol(rest_param_symbol)
+                    .as_transient_symbol()
                     .symbol_links()
                     .borrow_mut()
                     .type_ = Some(self.instantiate_type(rest_param_symbol_type, mapper.clone())?);
@@ -844,21 +847,25 @@ impl TypeChecker {
     }
 
     pub(super) fn is_symbol_with_numeric_name(&self, symbol: Id<Symbol>) -> io::Result<bool> {
-        let first_decl = self.symbol(symbol
-            ).maybe_declarations()
+        let first_decl = self
+            .symbol(symbol)
+            .maybe_declarations()
             .as_ref()
             .and_then(|symbol_declarations| symbol_declarations.get(0).cloned());
-        Ok(self.is_numeric_literal_name(&self.symbol(symbol).escaped_name())
-            || matches!(
-                first_decl.as_ref(),
-                Some(first_decl) if is_named_declaration(first_decl)
-                    && self.is_numeric_name(&first_decl.as_named_declaration().name())?
-            ))
+        Ok(
+            self.is_numeric_literal_name(&self.symbol(symbol).escaped_name())
+                || matches!(
+                    first_decl.as_ref(),
+                    Some(first_decl) if is_named_declaration(first_decl)
+                        && self.is_numeric_name(&first_decl.as_named_declaration().name())?
+                ),
+        )
     }
 
     pub(super) fn is_symbol_with_symbol_name(&self, symbol: Id<Symbol>) -> io::Result<bool> {
-        let first_decl = self.symbol(symbol
-            ).maybe_declarations()
+        let first_decl = self
+            .symbol(symbol)
+            .maybe_declarations()
             .as_ref()
             .and_then(|symbol_declarations| symbol_declarations.get(0).cloned());
         Ok(is_known_symbol(symbol)
@@ -933,7 +940,10 @@ impl TypeChecker {
 
         let node_as_object_literal_expression = node.as_object_literal_expression();
         let mut all_properties_table = if self.strict_null_checks {
-            Some(create_symbol_table(self.arena(), Option::<&[Id<Symbol>]>::None))
+            Some(create_symbol_table(
+                self.arena(),
+                Option::<&[Id<Symbol>]>::None,
+            ))
         } else {
             None
         };
@@ -1074,7 +1084,8 @@ impl TypeChecker {
                     .into()
                 });
                 if let Some(name_type) = name_type {
-                    self.symbol(prop).as_transient_symbol()
+                    self.symbol(prop)
+                        .as_transient_symbol()
                         .symbol_links()
                         .borrow_mut()
                         .name_type = Some(name_type.clone());
@@ -1094,7 +1105,8 @@ impl TypeChecker {
                                 .object_assignment_initializer
                                 .is_some();
                     if is_optional {
-                        self.symbol(prop).set_flags(self.symbol(prop).flags() | SymbolFlags::Optional);
+                        self.symbol(prop)
+                            .set_flags(self.symbol(prop).flags() | SymbolFlags::Optional);
                     }
                 } else if contextual_type_has_pattern
                     && !get_object_flags(&self.type_(contextual_type.unwrap()))
@@ -1107,7 +1119,8 @@ impl TypeChecker {
                     )?;
                     if let Some(implied_prop) = implied_prop.as_ref() {
                         self.symbol(prop).set_flags(
-                            self.symbol(prop).flags() | (self.symbol(implied_prop).flags() & SymbolFlags::Optional),
+                            self.symbol(prop).flags()
+                                | (self.symbol(implied_prop).flags() & SymbolFlags::Optional),
                         );
                     } else if self.compiler_options.suppress_excess_property_errors != Some(true)
                         && self
@@ -1133,12 +1146,18 @@ impl TypeChecker {
                     }
                 }
 
-                if let Some(member_declarations) = self.symbol(member_present).maybe_declarations().clone() {
+                if let Some(member_declarations) =
+                    self.symbol(member_present).maybe_declarations().clone()
+                {
                     self.symbol(prop).set_declarations(member_declarations);
                 }
-                self.symbol(prop).set_parent(self.symbol(member_present).maybe_parent());
-                if let Some(member_value_declaration) = self.symbol(member_present).maybe_value_declaration() {
-                    self.symbol(prop).set_value_declaration(member_value_declaration);
+                self.symbol(prop)
+                    .set_parent(self.symbol(member_present).maybe_parent());
+                if let Some(member_value_declaration) =
+                    self.symbol(member_present).maybe_value_declaration()
+                {
+                    self.symbol(prop)
+                        .set_value_declaration(member_value_declaration);
                 }
 
                 {
@@ -1149,7 +1168,8 @@ impl TypeChecker {
                 }
                 member = Some(prop.clone());
                 if let Some(all_properties_table) = all_properties_table.as_mut() {
-                    all_properties_table.insert(self.symbol(prop).escaped_name().to_owned(), prop.clone());
+                    all_properties_table
+                        .insert(self.symbol(prop).escaped_name().to_owned(), prop.clone());
                 };
             } else if member_decl.kind() == SyntaxKind::SpreadAssignment {
                 if self.language_version < ScriptTarget::ES2015 {
@@ -1176,7 +1196,8 @@ impl TypeChecker {
                         in_const_context,
                     )?;
                     properties_array = vec![];
-                    properties_table = create_symbol_table(self.arena(), Option::<&[Id<Symbol>]>::None);
+                    properties_table =
+                        create_symbol_table(self.arena(), Option::<&[Id<Symbol>]>::None);
                     has_computed_string_property = false;
                     has_computed_number_property = false;
                     has_computed_symbol_property = false;
@@ -1251,7 +1272,10 @@ impl TypeChecker {
                     }
                 }
             } else {
-                properties_table.insert(self.symbol(member).escaped_name().to_owned(), member.clone());
+                properties_table.insert(
+                    self.symbol(member).escaped_name().to_owned(),
+                    member.clone(),
+                );
             }
             properties_array.push(member);
         }
@@ -1272,7 +1296,8 @@ impl TypeChecker {
                             None,
                         );
                     }
-                    properties_table.insert(self.symbol(prop).escaped_name().to_owned(), prop.clone());
+                    properties_table
+                        .insert(self.symbol(prop).escaped_name().to_owned(), prop.clone());
                     properties_array.push(prop.clone());
                 }
             }

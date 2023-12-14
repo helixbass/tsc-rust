@@ -16,10 +16,10 @@ use super::{
     TextRange,
 };
 use crate::{
-    ref_unwrapped, CancellationToken, Cloneable, ModuleResolutionCache,
+    ref_unwrapped, AllArenas, CancellationToken, Cloneable, ModuleResolutionCache,
     ModuleSpecifierResolutionHostAndGetCommonSourceDirectory, ParseConfigHost, ParsedCommandLine,
     Path, ProgramBuildInfo, ReadonlyTextRange, ResolveModuleNameResolutionHost, SourceFileLike,
-    SourceTextAsChars, StringOrNumber, SymlinkCache, AllArenas,
+    SourceTextAsChars, StringOrNumber, SymlinkCache,
 };
 
 pub trait ModuleResolutionHost {

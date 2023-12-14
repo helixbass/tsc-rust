@@ -448,7 +448,8 @@ impl TypeChecker {
                 self.get_property_of_object_type(type_, self.symbol(base).escaped_name())?
             );
             let derived = self.get_target_symbol(base_symbol);
-            let base_declaration_flags = get_declaration_modifier_flags_from_symbol(self.arena(), base, None);
+            let base_declaration_flags =
+                get_declaration_modifier_flags_from_symbol(self.arena(), base, None);
 
             // Debug.assert(!!derived, "derived should point at something, even if it is the base class' declaration.");
 
@@ -527,8 +528,10 @@ impl TypeChecker {
                 }
 
                 let error_message: &DiagnosticMessage;
-                let base_property_flags = self.symbol(base).flags() & SymbolFlags::PropertyOrAccessor;
-                let derived_property_flags = self.symbol(derived).flags() & SymbolFlags::PropertyOrAccessor;
+                let base_property_flags =
+                    self.symbol(base).flags() & SymbolFlags::PropertyOrAccessor;
+                let derived_property_flags =
+                    self.symbol(derived).flags() & SymbolFlags::PropertyOrAccessor;
                 if base_property_flags != SymbolFlags::None
                     && derived_property_flags != SymbolFlags::None
                 {
@@ -577,21 +580,25 @@ impl TypeChecker {
                             ]),
                         );
                     } else if self.use_define_for_class_fields {
-                        let uninitialized = self.symbol(derived).maybe_declarations().as_ref().and_then(
-                            |derived_declarations| {
-                                derived_declarations
-                                    .into_iter()
-                                    .find(|d| {
-                                        d.kind() == SyntaxKind::PropertyDeclaration
-                                            && d.as_property_declaration()
-                                                .maybe_initializer()
-                                                .is_none()
-                                    })
-                                    .cloned()
-                            },
-                        );
+                        let uninitialized =
+                            self.symbol(derived).maybe_declarations().as_ref().and_then(
+                                |derived_declarations| {
+                                    derived_declarations
+                                        .into_iter()
+                                        .find(|d| {
+                                            d.kind() == SyntaxKind::PropertyDeclaration
+                                                && d.as_property_declaration()
+                                                    .maybe_initializer()
+                                                    .is_none()
+                                        })
+                                        .cloned()
+                                },
+                            );
                         if let Some(uninitialized) = uninitialized.as_ref() {
-                            if !self.symbol(derived).flags().intersects(SymbolFlags::Transient)
+                            if !self
+                                .symbol(derived)
+                                .flags()
+                                .intersects(SymbolFlags::Transient)
                                 && !base_declaration_flags.intersects(ModifierFlags::Abstract)
                                 && !derived_declaration_flags.intersects(ModifierFlags::Abstract)
                                 && !matches!(
@@ -622,8 +629,10 @@ impl TypeChecker {
                                 {
                                     let error_message = &Diagnostics::Property_0_will_overwrite_the_base_property_in_1_If_this_is_intentional_add_an_initializer_Otherwise_add_a_declare_modifier_or_remove_the_redundant_declaration;
                                     self.error(
-                                        get_name_of_declaration(self.symbol(derived).maybe_value_declaration())
-                                            .or_else(|| self.symbol(derived).maybe_value_declaration()),
+                                        get_name_of_declaration(
+                                            self.symbol(derived).maybe_value_declaration(),
+                                        )
+                                        .or_else(|| self.symbol(derived).maybe_value_declaration()),
                                         error_message,
                                         Some(vec![
                                             self.symbol_to_string_(
@@ -649,11 +658,19 @@ impl TypeChecker {
                     continue;
                 } else if self.is_prototype_property(base) {
                     if self.is_prototype_property(derived)
-                        || self.symbol(derived).flags().intersects(SymbolFlags::Property)
+                        || self
+                            .symbol(derived)
+                            .flags()
+                            .intersects(SymbolFlags::Property)
                     {
                         continue;
                     } else {
-                        Debug_.assert(self.symbol(derived).flags().intersects(SymbolFlags::Accessor), None);
+                        Debug_.assert(
+                            self.symbol(derived)
+                                .flags()
+                                .intersects(SymbolFlags::Accessor),
+                            None,
+                        );
                         error_message = &Diagnostics::Class_0_defines_instance_member_function_1_but_extended_class_2_defines_it_as_instance_member_accessor;
                     }
                 } else if self.symbol(base).flags().intersects(SymbolFlags::Accessor) {

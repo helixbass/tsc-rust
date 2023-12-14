@@ -431,8 +431,9 @@ impl TypeChecker {
         let declaration = declaration.as_ref().unwrap();
         let symbol = self.get_symbol_of_node(declaration)?;
         let mut type_ = if let Some(symbol) = symbol.filter(|symbol| {
-            !self.symbol(symbol
-                ).flags()
+            !self
+                .symbol(symbol)
+                .flags()
                 .intersects(SymbolFlags::TypeLiteral | SymbolFlags::Signature)
         }) {
             self.get_widened_literal_type(self.get_type_of_symbol(symbol)?)?
@@ -560,7 +561,9 @@ impl TypeChecker {
                 if let Some(symbol) = symbol {
                     return Ok(self
                         .get_export_symbol_of_value_symbol_if_exported(Some(symbol))
-                        .and_then(|export_symbol| self.symbol(export_symbol).maybe_value_declaration()));
+                        .and_then(|export_symbol| {
+                            self.symbol(export_symbol).maybe_value_declaration()
+                        }));
                 }
             }
         }
@@ -732,7 +735,9 @@ impl TypeChecker {
                 let file_global_this_symbol = (*file.locals()).borrow().get("globalThis").cloned();
                 if let Some(ref file_global_this_symbol_declarations) = file_global_this_symbol
                     .and_then(|file_global_this_symbol| {
-                        self.symbol(file_global_this_symbol).maybe_declarations().clone()
+                        self.symbol(file_global_this_symbol)
+                            .maybe_declarations()
+                            .clone()
                     })
                 {
                     for declaration in file_global_this_symbol_declarations {

@@ -678,11 +678,7 @@ impl TypeChecker {
             let new_types = self
                 .instantiate_types(Some(&types), Some(mapper.clone()))?
                 .unwrap();
-            if &new_types == &types
-                && 
-                    alias_symbol ==
-                    self.type_(type_).maybe_alias_symbol()
-            {
+            if &new_types == &types && alias_symbol == self.type_(type_).maybe_alias_symbol() {
                 return Ok(type_);
             }
             let new_alias_symbol = alias_symbol

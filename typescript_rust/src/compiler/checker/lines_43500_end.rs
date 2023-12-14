@@ -773,8 +773,8 @@ impl TypeChecker {
                         }
                         if overlap_obj_flags.intersects(ObjectFlags::Anonymous) {
                             return self.type_(source).maybe_alias_symbol().is_some()
-                                && self.type_(source).maybe_alias_symbol() ==
-                                    self.type_(target).maybe_alias_symbol();
+                                && self.type_(source).maybe_alias_symbol()
+                                    == self.type_(target).maybe_alias_symbol();
                         }
                     }
                     false
@@ -1003,7 +1003,10 @@ impl EmitResolverCreateResolver {
         )
     }
 
-    pub(super) fn is_symbol_from_type_declaration_file(&self, symbol: Id<Symbol>) -> io::Result<bool> {
+    pub(super) fn is_symbol_from_type_declaration_file(
+        &self,
+        symbol: Id<Symbol>,
+    ) -> io::Result<bool> {
         let symbol_declarations = self.symbol(symbol).maybe_declarations();
         if symbol_declarations.is_none() {
             return Ok(false);
@@ -1379,7 +1382,13 @@ impl EmitResolver for EmitResolverCreateResolver {
             return Ok(None);
         }
         let mut type_reference_directives: Option<Vec<String>> = Default::default();
-        for decl in self.type_checker.symbol(symbol).maybe_declarations().as_ref().unwrap() {
+        for decl in self
+            .type_checker
+            .symbol(symbol)
+            .maybe_declarations()
+            .as_ref()
+            .unwrap()
+        {
             if decl
                 .maybe_symbol()
                 .filter(|decl_symbol| {
@@ -1436,7 +1445,9 @@ impl EmitResolver for EmitResolverCreateResolver {
             SyntaxKind::SetAccessor
         };
         let other_accessor = get_declaration_of_kind(
-            &self.type_checker.symbol(self.type_checker.get_symbol_of_node(accessor)?.unwrap()),
+            &self
+                .type_checker
+                .symbol(self.type_checker.get_symbol_of_node(accessor)?.unwrap()),
             other_kind,
         );
         let first_accessor = other_accessor
@@ -1561,7 +1572,12 @@ impl EmitResolver for EmitResolverCreateResolver {
         for &s in (*exports).borrow().values() {
             if self.type_checker.symbol(s).maybe_merge_id().is_some() {
                 let merged = self.type_checker.get_merged_symbol(Some(s)).unwrap();
-                if let Some(merged_declarations) = self.type_checker.symbol(merged).maybe_declarations().as_ref() {
+                if let Some(merged_declarations) = self
+                    .type_checker
+                    .symbol(merged)
+                    .maybe_declarations()
+                    .as_ref()
+                {
                     for d in merged_declarations {
                         let ref decl_file = get_source_file_of_node(d);
                         if Gc::ptr_eq(decl_file, import_target) {

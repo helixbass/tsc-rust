@@ -906,8 +906,8 @@ impl TypeChecker {
                 let result = result.unwrap();
                 self.unresolved_symbols().insert(path, result.clone());
                 self.symbol(result).set_parent(parent_symbol);
-                self.symbol(result
-                    ).as_transient_symbol()
+                self.symbol(result)
+                    .as_transient_symbol()
                     .symbol_links()
                     .borrow_mut()
                     .declared_type = Some(self.unresolved_type());
@@ -957,11 +957,10 @@ impl TypeChecker {
         if symbol == self.unknown_symbol() {
             return Ok(self.error_type());
         }
-        let symbol = self
-            .get_expando_symbol(symbol)?
-            .unwrap_or_else(|| symbol);
-        if self.symbol(symbol
-            ).flags()
+        let symbol = self.get_expando_symbol(symbol)?.unwrap_or_else(|| symbol);
+        if self
+            .symbol(symbol)
+            .flags()
             .intersects(SymbolFlags::Class | SymbolFlags::Interface)
         {
             return self.get_type_from_class_or_interface_reference(node, symbol);

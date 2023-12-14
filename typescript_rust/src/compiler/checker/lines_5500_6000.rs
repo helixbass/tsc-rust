@@ -37,10 +37,15 @@ impl NodeBuilder {
         node: Gc<Node>,
     ) -> Gc<Node> {
         if some(
-            self.type_checker.symbol(property_symbol).maybe_declarations().as_deref(),
+            self.type_checker
+                .symbol(property_symbol)
+                .maybe_declarations()
+                .as_deref(),
             Some(|d: &Gc<Node>| d.kind() == SyntaxKind::JSDocPropertyTag),
         ) {
-            let d: Gc<Node> = self.type_checker.symbol(property_symbol)
+            let d: Gc<Node> = self
+                .type_checker
+                .symbol(property_symbol)
                 .maybe_declarations()
                 .as_ref()
                 .unwrap()
@@ -70,8 +75,11 @@ impl NodeBuilder {
                     })]),
                 );
             }
-        } else if let Some(property_symbol_value_declaration) =
-            self.type_checker.symbol(property_symbol).maybe_value_declaration().as_ref()
+        } else if let Some(property_symbol_value_declaration) = self
+            .type_checker
+            .symbol(property_symbol)
+            .maybe_value_declaration()
+            .as_ref()
         {
             set_comment_range(&node, &**property_symbol_value_declaration);
         }
@@ -180,11 +188,11 @@ impl NodeBuilder {
     pub(super) fn types_are_same_reference(&self, a: Id<Type>, b: Id<Type>) -> bool {
         a == b
             || self.type_checker.type_(a).maybe_symbol().is_some()
-                && self.type_checker.type_(a).maybe_symbol() ==
-                    self.type_checker.type_(b).maybe_symbol()
+                && self.type_checker.type_(a).maybe_symbol()
+                    == self.type_checker.type_(b).maybe_symbol()
             || self.type_checker.type_(a).maybe_alias_symbol().is_some()
-                && self.type_checker.type_(a).maybe_alias_symbol() ==
-                    self.type_checker.type_(b).maybe_alias_symbol()
+                && self.type_checker.type_(a).maybe_alias_symbol()
+                    == self.type_checker.type_(b).maybe_alias_symbol()
     }
 
     pub(super) fn index_info_to_index_signature_declaration_helper(
@@ -297,7 +305,8 @@ impl NodeBuilder {
             Some(&*expanded_params),
             Some(|&p: &Id<Symbol>| {
                 p != expanded_params[expanded_params.len() - 1]
-                    && get_check_flags(&self.type_checker.symbol(p)).intersects(CheckFlags::RestParameter)
+                    && get_check_flags(&self.type_checker.symbol(p))
+                        .intersects(CheckFlags::RestParameter)
             }),
         ) {
             signature.parameters()
@@ -808,7 +817,11 @@ impl NodeBuilder {
         yield_module_symbol: Option<bool>,
     ) -> io::Result<Vec<Id<Symbol>>> {
         let chain: Vec<Id<Symbol>>;
-        let is_type_parameter = self.type_checker.symbol(symbol).flags().intersects(SymbolFlags::TypeParameter);
+        let is_type_parameter = self
+            .type_checker
+            .symbol(symbol)
+            .flags()
+            .intersects(SymbolFlags::TypeParameter);
         if !is_type_parameter
             && (context.maybe_enclosing_declaration().is_some()
                 || context
@@ -868,9 +881,7 @@ impl NodeBuilder {
             let parents = self.type_checker.get_containers_of_symbol(
                 accessible_symbol_chain
                     .as_ref()
-                    .map_or(symbol, |accessible_symbol_chain| {
-                        accessible_symbol_chain[0]
-                    }),
+                    .map_or(symbol, |accessible_symbol_chain| accessible_symbol_chain[0]),
                 context.maybe_enclosing_declaration(),
                 // TODO: ...or here
                 meaning.unwrap(),
@@ -882,7 +893,10 @@ impl NodeBuilder {
                     .map(|&symbol| -> io::Result<_> {
                         Ok(
                             if some(
-                                self.type_checker.symbol(symbol).maybe_declarations().as_deref(),
+                                self.type_checker
+                                    .symbol(symbol)
+                                    .maybe_declarations()
+                                    .as_deref(),
                                 Some(|declaration: &Gc<Node>| {
                                     self.type_checker
                                         .has_non_global_augmentation_external_module_symbol(
@@ -945,14 +959,19 @@ impl NodeBuilder {
             return Ok(accessible_symbol_chain);
         }
         if end_of_chain
-            || !self.type_checker.symbol(symbol)
+            || !self
+                .type_checker
+                .symbol(symbol)
                 .flags()
                 .intersects(SymbolFlags::TypeLiteral | SymbolFlags::ObjectLiteral)
         {
             if !end_of_chain
                 && yield_module_symbol != Some(true)
                 && maybe_for_each_bool(
-                    self.type_checker.symbol(symbol).maybe_declarations().as_ref(),
+                    self.type_checker
+                        .symbol(symbol)
+                        .maybe_declarations()
+                        .as_ref(),
                     |declaration: &Gc<Node>, _| {
                         self.type_checker
                             .has_non_global_augmentation_external_module_symbol(declaration)
@@ -1011,7 +1030,9 @@ impl NodeBuilder {
     ) -> io::Result<Option<Gc<NodeArray> /*<TypeParameterDeclaration>*/>> {
         let mut type_parameter_nodes: Option<Gc<NodeArray> /*TypeParameterDeclaration*/> = None;
         let target_symbol = self.type_checker.get_target_symbol(symbol);
-        if self.type_checker.symbol(target_symbol)
+        if self
+            .type_checker
+            .symbol(target_symbol)
             .flags()
             .intersects(SymbolFlags::Class | SymbolFlags::Interface | SymbolFlags::TypeAlias)
         {
@@ -1063,10 +1084,14 @@ impl NodeBuilder {
         {
             let parent_symbol = symbol;
             let next_symbol = chain[index + 1];
-            if get_check_flags(&self.type_checker.symbol(next_symbol)).intersects(CheckFlags::Instantiated) {
+            if get_check_flags(&self.type_checker.symbol(next_symbol))
+                .intersects(CheckFlags::Instantiated)
+            {
                 let params = self
                     .type_checker
-                    .get_type_parameters_of_class_or_interface(&*if self.type_checker.symbol(parent_symbol)
+                    .get_type_parameters_of_class_or_interface(&*if self
+                        .type_checker
+                        .symbol(parent_symbol)
                         .flags()
                         .intersects(SymbolFlags::Alias)
                     {
@@ -1078,10 +1103,14 @@ impl NodeBuilder {
                     try_maybe_map(params.as_ref(), |&t: &Id<Type>, _| {
                         self.type_checker.get_mapped_type(
                             t,
-                            (*self.type_checker.symbol(next_symbol).as_transient_symbol().symbol_links())
-                                .borrow()
-                                .mapper
-                                .unwrap(),
+                            (*self
+                                .type_checker
+                                .symbol(next_symbol)
+                                .as_transient_symbol()
+                                .symbol_links())
+                            .borrow()
+                            .mapper
+                            .unwrap(),
                         )
                     })
                     .transpose()?
@@ -1118,14 +1147,20 @@ impl NodeBuilder {
         let mut file = get_declaration_of_kind(symbol, SyntaxKind::SourceFile);
         if file.is_none() {
             let equivalent_file_symbol = try_maybe_first_defined(
-                self.type_checker.symbol(symbol).maybe_declarations().as_ref(),
+                self.type_checker
+                    .symbol(symbol)
+                    .maybe_declarations()
+                    .as_ref(),
                 |d: &Gc<Node>, _| {
                     self.type_checker
                         .get_file_symbol_if_file_symbol_export_equals_container(d, symbol)
                 },
             )?;
             if let Some(equivalent_file_symbol) = equivalent_file_symbol {
-                file = get_declaration_of_kind(&self.type_checker.symbol(equivalent_file_symbol), SyntaxKind::SourceFile);
+                file = get_declaration_of_kind(
+                    &self.type_checker.symbol(equivalent_file_symbol),
+                    SyntaxKind::SourceFile,
+                );
             }
         }
         if let Some(file_module_name) = file
@@ -1140,7 +1175,10 @@ impl NodeBuilder {
                 .is_track_referenced_ambient_module_supported()
             {
                 let ambient_decls = maybe_filter(
-                    self.type_checker.symbol(symbol).maybe_declarations().as_deref(),
+                    self.type_checker
+                        .symbol(symbol)
+                        .maybe_declarations()
+                        .as_deref(),
                     |declaration: &Gc<Node>| is_ambient_module(declaration),
                 );
                 if length(ambient_decls.as_deref()) > 0 {
@@ -1151,22 +1189,28 @@ impl NodeBuilder {
                     }
                 }
             }
-            if ambient_module_symbol_regex.is_match(self.type_checker.symbol(symbol).escaped_name()) {
-                return Ok(self.type_checker.symbol(symbol).escaped_name()[1..self.type_checker.symbol(symbol).escaped_name().len() - 1].to_owned());
+            if ambient_module_symbol_regex.is_match(self.type_checker.symbol(symbol).escaped_name())
+            {
+                return Ok(self.type_checker.symbol(symbol).escaped_name()
+                    [1..self.type_checker.symbol(symbol).escaped_name().len() - 1]
+                    .to_owned());
             }
         }
         if context.maybe_enclosing_declaration().is_none()
             || !context.tracker().is_module_resolver_host_supported()
         {
-            if ambient_module_symbol_regex.is_match(self.type_checker.symbol(symbol).escaped_name()) {
-                return Ok(self.type_checker.symbol(symbol).escaped_name()[1..self.type_checker.symbol(symbol).escaped_name().len() - 1].to_owned());
+            if ambient_module_symbol_regex.is_match(self.type_checker.symbol(symbol).escaped_name())
+            {
+                return Ok(self.type_checker.symbol(symbol).escaped_name()
+                    [1..self.type_checker.symbol(symbol).escaped_name().len() - 1]
+                    .to_owned());
             }
-            return Ok(
-                get_source_file_of_node(&get_non_augmentation_declaration(&self.symbol(symbol)).unwrap())
-                    .as_source_file()
-                    .file_name()
-                    .clone(),
-            );
+            return Ok(get_source_file_of_node(
+                &get_non_augmentation_declaration(&self.symbol(symbol)).unwrap(),
+            )
+            .as_source_file()
+            .file_name()
+            .clone());
         }
         let context_file =
             get_source_file_of_node(&get_original_node(&context.enclosing_declaration()));
@@ -1232,8 +1276,9 @@ impl NodeBuilder {
     }
 
     pub(super) fn symbol_to_entity_name_node(&self, symbol: Id<Symbol>) -> Gc<Node /*EntityName*/> {
-        let identifier =
-            get_factory().create_identifier(&unescape_leading_underscores(self.type_checker.symbol(symbol).escaped_name()));
+        let identifier = get_factory().create_identifier(&unescape_leading_underscores(
+            self.type_checker.symbol(symbol).escaped_name(),
+        ));
         if let Some(symbol_parent) = self.type_checker.symbol(symbol).maybe_parent() {
             get_factory()
                 .create_qualified_name(self.symbol_to_entity_name_node(symbol_parent), identifier)
@@ -1262,7 +1307,10 @@ impl NodeBuilder {
 
         let is_type_of = meaning == SymbolFlags::Value;
         if some(
-            self.type_checker.symbol(chain[0]).maybe_declarations().as_deref(),
+            self.type_checker
+                .symbol(chain[0])
+                .maybe_declarations()
+                .as_deref(),
             Some(|declaration: &Gc<Node>| {
                 self.type_checker
                     .has_non_global_augmentation_external_module_symbol(declaration)

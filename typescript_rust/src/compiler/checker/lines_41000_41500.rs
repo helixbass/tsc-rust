@@ -368,7 +368,8 @@ impl TypeChecker {
         type_: Id<Type>,
     ) -> io::Result<Vec<Id<Symbol>>> {
         let type_ = self.get_apparent_type(type_)?;
-        let mut props_by_name = create_symbol_table(self.arena(), Some(self.get_properties_of_type(type_)?));
+        let mut props_by_name =
+            create_symbol_table(self.arena(), Some(self.get_properties_of_type(type_)?));
         let function_type = if !self
             .get_signatures_of_type(type_, SignatureKind::Call)?
             .is_empty()
@@ -434,7 +435,11 @@ impl TypeChecker {
                     self.get_property_of_type_(type_, self.symbol(symbol).escaped_name(), None)
                 },
             )?));
-        } else if self.symbol(symbol).flags().intersects(SymbolFlags::Transient) {
+        } else if self
+            .symbol(symbol)
+            .flags()
+            .intersects(SymbolFlags::Transient)
+        {
             let (left_spread, right_spread, synthetic_origin) = {
                 let symbol_links = self.symbol(symbol).as_transient_symbol().symbol_links();
                 let symbol_links = (*symbol_links).borrow();
@@ -525,7 +530,9 @@ impl TypeChecker {
         let symbol_links = self.get_symbol_links(module_symbol);
         if (*symbol_links).borrow().exports_some_value.is_none() {
             symbol_links.borrow_mut().exports_some_value = Some(if has_export_assignment {
-                self.symbol(module_symbol).flags().intersects(SymbolFlags::Value)
+                self.symbol(module_symbol)
+                    .flags()
+                    .intersects(SymbolFlags::Value)
             } else {
                 try_for_each_entry_bool(
                     &*(*self.get_exports_of_module_(module_symbol)?).borrow(),
@@ -570,10 +577,14 @@ impl TypeChecker {
                         .get_merged_symbol(symbol.maybe_export_symbol())
                         .unwrap();
                     if prefix_locals != Some(true)
-                        && self.symbol(export_symbol
-                            ).flags()
+                        && self
+                            .symbol(export_symbol)
+                            .flags()
                             .intersects(SymbolFlags::ExportHasLocal)
-                        && !self.symbol(export_symbol).flags().intersects(SymbolFlags::Variable)
+                        && !self
+                            .symbol(export_symbol)
+                            .flags()
+                            .intersects(SymbolFlags::Variable)
                     {
                         return Ok(None);
                     }
@@ -581,9 +592,14 @@ impl TypeChecker {
                 }
                 let parent_symbol = self.get_parent_of_symbol(symbol)?;
                 if let Some(parent_symbol) = parent_symbol {
-                    if self.symbol(parent_symbol).flags().intersects(SymbolFlags::ValueModule) {
-                        if let Some(parent_symbol_value_declaration) = self.symbol(parent_symbol
-                            ).maybe_value_declaration()
+                    if self
+                        .symbol(parent_symbol)
+                        .flags()
+                        .intersects(SymbolFlags::ValueModule)
+                    {
+                        if let Some(parent_symbol_value_declaration) = self
+                            .symbol(parent_symbol)
+                            .maybe_value_declaration()
                             .as_ref()
                             .filter(|parent_symbol_value_declaration| {
                                 parent_symbol_value_declaration.kind() == SyntaxKind::SourceFile
@@ -653,9 +669,14 @@ impl TypeChecker {
         &self,
         symbol: Id<Symbol>,
     ) -> io::Result<bool> {
-        if self.symbol(symbol).flags().intersects(SymbolFlags::BlockScoped) {
-            if let Some(symbol_value_declaration) = self.symbol(symbol
-                ).maybe_value_declaration()
+        if self
+            .symbol(symbol)
+            .flags()
+            .intersects(SymbolFlags::BlockScoped)
+        {
+            if let Some(symbol_value_declaration) = self
+                .symbol(symbol)
+                .maybe_value_declaration()
                 .as_ref()
                 .filter(|symbol_value_declaration| !is_source_file(symbol_value_declaration))
             {

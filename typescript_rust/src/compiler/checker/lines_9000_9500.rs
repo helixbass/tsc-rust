@@ -163,8 +163,8 @@ impl TypeChecker {
                         SymbolFlags::None
                     };
                 let symbol = self.alloc_symbol(self.create_symbol(flags, text, None).into());
-                self.symbol(symbol
-                    ).as_transient_symbol()
+                self.symbol(symbol)
+                    .as_transient_symbol()
                     .symbol_links()
                     .borrow_mut()
                     .type_ = Some(self.get_type_from_binding_element(
@@ -172,8 +172,8 @@ impl TypeChecker {
                     Some(include_pattern_in_type),
                     Some(report_errors),
                 )?);
-                self.symbol(symbol
-                    ).as_transient_symbol()
+                self.symbol(symbol)
+                    .as_transient_symbol()
                     .symbol_links()
                     .borrow_mut()
                     .binding_element = Some(e.clone());
@@ -407,41 +407,59 @@ impl TypeChecker {
         &self,
         symbol: Id<Symbol>,
     ) -> io::Result<Id<Type>> {
-        if self.symbol(symbol).flags().intersects(SymbolFlags::Prototype) {
+        if self
+            .symbol(symbol)
+            .flags()
+            .intersects(SymbolFlags::Prototype)
+        {
             return self.get_type_of_prototype_property(symbol);
         }
         if symbol == self.require_symbol() {
             return Ok(self.any_type());
         }
-        if self.symbol(symbol).flags().intersects(SymbolFlags::ModuleExports) {
+        if self
+            .symbol(symbol)
+            .flags()
+            .intersects(SymbolFlags::ModuleExports)
+        {
             if let Some(symbol_value_declaration) = self.symbol(symbol).maybe_value_declaration() {
                 let file_symbol = self
                     .get_symbol_of_node(&get_source_file_of_node(&symbol_value_declaration))?
                     .unwrap();
-                let result = self.alloc_symbol(self
-                    .create_symbol(self.symbol(file_symbol).flags(), "exports".to_owned(), None)
-                    .into());
+                let result = self.alloc_symbol(
+                    self.create_symbol(
+                        self.symbol(file_symbol).flags(),
+                        "exports".to_owned(),
+                        None,
+                    )
+                    .into(),
+                );
                 self.symbol(result).set_declarations(
-                    self.symbol(file_symbol
-                        ).maybe_declarations()
+                    self.symbol(file_symbol)
+                        .maybe_declarations()
                         .as_ref()
                         .map_or_else(|| vec![], Clone::clone),
                 );
                 self.symbol(result).set_parent(Some(symbol));
-                self.symbol(result
-                    ).as_transient_symbol()
+                self.symbol(result)
+                    .as_transient_symbol()
                     .symbol_links()
                     .borrow_mut()
                     .target = Some(file_symbol.clone());
-                if let Some(file_symbol_value_declaration) = self.symbol(file_symbol).maybe_value_declaration() {
-                    self.symbol(result).set_value_declaration(file_symbol_value_declaration);
+                if let Some(file_symbol_value_declaration) =
+                    self.symbol(file_symbol).maybe_value_declaration()
+                {
+                    self.symbol(result)
+                        .set_value_declaration(file_symbol_value_declaration);
                 }
-                if let Some(file_symbol_members) = self.symbol(file_symbol).maybe_members().as_ref() {
+                if let Some(file_symbol_members) = self.symbol(file_symbol).maybe_members().as_ref()
+                {
                     *self.symbol(result).maybe_members_mut() = Some(Gc::new(GcCell::new(
                         (**file_symbol_members).borrow().clone(),
                     )));
                 }
-                if let Some(file_symbol_exports) = self.symbol(file_symbol).maybe_exports().as_ref() {
+                if let Some(file_symbol_exports) = self.symbol(file_symbol).maybe_exports().as_ref()
+                {
                     *self.symbol(result).maybe_exports_mut() = Some(Gc::new(GcCell::new(
                         (**file_symbol_exports).borrow().clone(),
                     )));
@@ -497,12 +515,15 @@ impl TypeChecker {
             );
         }
 
-        if !self.push_type_resolution(
-            &symbol.into(),
-            TypeSystemPropertyName::Type,
-        ) {
-            if self.symbol(symbol).flags().intersects(SymbolFlags::ValueModule)
-                && !self.symbol(symbol).flags().intersects(SymbolFlags::Assignment)
+        if !self.push_type_resolution(&symbol.into(), TypeSystemPropertyName::Type) {
+            if self
+                .symbol(symbol)
+                .flags()
+                .intersects(SymbolFlags::ValueModule)
+                && !self
+                    .symbol(symbol)
+                    .flags()
+                    .intersects(SymbolFlags::Assignment)
             {
                 return self.get_type_of_func_class_enum_module(symbol);
             }
@@ -615,8 +636,14 @@ impl TypeChecker {
         }
 
         if !self.pop_type_resolution() {
-            if self.symbol(symbol).flags().intersects(SymbolFlags::ValueModule)
-                && !self.symbol(symbol).flags().intersects(SymbolFlags::Assignment)
+            if self
+                .symbol(symbol)
+                .flags()
+                .intersects(SymbolFlags::ValueModule)
+                && !self
+                    .symbol(symbol)
+                    .flags()
+                    .intersects(SymbolFlags::Assignment)
             {
                 return self.get_type_of_func_class_enum_module(symbol);
             }
@@ -695,10 +722,7 @@ impl TypeChecker {
         symbol: Id<Symbol>,
         writing: Option<bool>,
     ) -> io::Result<Option<Id<Type>>> {
-        if !self.push_type_resolution(
-            &symbol.into(),
-            TypeSystemPropertyName::Type,
-        ) {
+        if !self.push_type_resolution(&symbol.into(), TypeSystemPropertyName::Type) {
             return Ok(Some(self.error_type()));
         }
 

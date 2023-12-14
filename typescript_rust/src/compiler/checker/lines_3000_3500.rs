@@ -247,8 +247,9 @@ impl TypeChecker {
                         Some(None)
                     )
             {
-                let export_symbol = self.symbol(target
-                    ).maybe_exports()
+                let export_symbol = self
+                    .symbol(target)
+                    .maybe_exports()
                     .as_ref()
                     .and_then(|exports| {
                         (**exports)
@@ -399,24 +400,26 @@ impl TypeChecker {
         symbol: Id<Symbol>,
         containing_location: Option<impl Borrow<Node>>,
     ) -> io::Result<String> {
-        Ok(if let Some(symbol_parent) = self.symbol(symbol).maybe_parent() {
-            format!(
-                "{}.{}",
-                self.get_fully_qualified_name(symbol_parent, containing_location)?,
-                self.symbol_to_string_(symbol, Option::<&Node>::None, None, None, None)?
-            )
-        } else {
-            self.symbol_to_string_(
-                symbol,
-                containing_location,
-                None,
-                Some(
-                    SymbolFormatFlags::DoNotIncludeSymbolChain
-                        | SymbolFormatFlags::AllowAnyNodeKind,
-                ),
-                None,
-            )?
-        })
+        Ok(
+            if let Some(symbol_parent) = self.symbol(symbol).maybe_parent() {
+                format!(
+                    "{}.{}",
+                    self.get_fully_qualified_name(symbol_parent, containing_location)?,
+                    self.symbol_to_string_(symbol, Option::<&Node>::None, None, None, None)?
+                )
+            } else {
+                self.symbol_to_string_(
+                    symbol,
+                    containing_location,
+                    None,
+                    Some(
+                        SymbolFormatFlags::DoNotIncludeSymbolChain
+                            | SymbolFormatFlags::AllowAnyNodeKind,
+                    ),
+                    None,
+                )?
+            },
+        )
     }
 
     pub(super) fn get_containing_qualified_name_node(
@@ -541,7 +544,9 @@ impl TypeChecker {
             } else if namespace == self.unknown_symbol() {
                 return Ok(Some(namespace));
             }
-            if let Some(namespace_value_declaration) = self.symbol(namespace).maybe_value_declaration() {
+            if let Some(namespace_value_declaration) =
+                self.symbol(namespace).maybe_value_declaration()
+            {
                 if is_in_js_file(Some(&*namespace_value_declaration))
                     && is_variable_declaration(&namespace_value_declaration)
                 {
@@ -783,7 +788,10 @@ impl TypeChecker {
     pub(super) fn get_expando_symbol(&self, symbol: Id<Symbol>) -> io::Result<Option<Id<Symbol>>> {
         let decl = return_ok_default_if_none!(self.symbol(symbol).maybe_value_declaration());
         if !is_in_js_file(Some(&*decl))
-            || self.symbol(symbol).flags().intersects(SymbolFlags::TypeAlias)
+            || self
+                .symbol(symbol)
+                .flags()
+                .intersects(SymbolFlags::TypeAlias)
             || get_expando_initializer(&decl, false).is_some()
         {
             return Ok(None);

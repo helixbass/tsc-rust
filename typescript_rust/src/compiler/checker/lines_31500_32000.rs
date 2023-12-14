@@ -283,28 +283,31 @@ impl TypeChecker {
         &self,
         target_type: Id<Type>,
     ) -> io::Result<Id<Type>> {
-        let symbol = self.alloc_symbol(self
-            .create_symbol(SymbolFlags::None, "NewTargetExpression".to_owned(), None)
-            .into());
+        let symbol = self.alloc_symbol(
+            self.create_symbol(SymbolFlags::None, "NewTargetExpression".to_owned(), None)
+                .into(),
+        );
 
-        let target_property_symbol = self.alloc_symbol(self
-            .create_symbol(
+        let target_property_symbol = self.alloc_symbol(
+            self.create_symbol(
                 SymbolFlags::Property,
                 "target".to_owned(),
                 Some(CheckFlags::Readonly),
             )
-            .into());
+            .into(),
+        );
         self.symbol(target_property_symbol)
             .set_parent(Some(symbol.clone()));
-        self.symbol(target_property_symbol
-            ).as_transient_symbol()
+        self.symbol(target_property_symbol)
+            .as_transient_symbol()
             .symbol_links()
             .borrow_mut()
             .type_ = Some(target_type);
 
-        let members = Gc::new(GcCell::new(create_symbol_table(self.arena(), Some(&[
-            target_property_symbol,
-        ]))));
+        let members = Gc::new(GcCell::new(create_symbol_table(
+            self.arena(),
+            Some(&[target_property_symbol]),
+        )));
         *self.symbol(symbol).maybe_members_mut() = Some(members.clone());
         self.create_anonymous_type(Some(symbol), members, vec![], vec![], vec![])
     }
@@ -879,10 +882,9 @@ impl TypeChecker {
             && !aggregated_types.is_empty()
             && has_return_with_no_expression
             && !(self.is_js_constructor(Some(func))?
-                && aggregated_types.iter().any(|&t| {
-                    self.type_(t).maybe_symbol() ==
-                    func.maybe_symbol()
-                }))
+                && aggregated_types
+                    .iter()
+                    .any(|&t| self.type_(t).maybe_symbol() == func.maybe_symbol()))
         {
             push_if_unique_eq(&mut aggregated_types, &self.undefined_type());
         }
