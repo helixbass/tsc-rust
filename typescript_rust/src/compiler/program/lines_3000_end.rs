@@ -43,7 +43,7 @@ use crate::{
     Diagnostics, DirectoryStructureHost, EmitFileNames, EmitResult, Extension, FileIncludeKind,
     FileIncludeReason, FilePreprocessingDiagnostics, FilePreprocessingDiagnosticsKind,
     FilePreprocessingFileExplainingDiagnostic, FilePreprocessingReferencedDiagnostic,
-    FileReference, GetCanonicalFileName, GetOrInsertDefault, JsxEmit, ModuleKind,
+    FileReference, GetCanonicalFileName, GetOrInsertDefault, HasArena, JsxEmit, ModuleKind,
     ModuleResolutionHost, ModuleResolutionHostOverrider, ModuleResolutionKind,
     NamedDeclarationInterface, Node, NodeFlags, NodeInterface, NodeWrappered, ParseConfigFileHost,
     ParseConfigHost, ParsedCommandLine, Path, PeekableExt, Program, ProjectReference,

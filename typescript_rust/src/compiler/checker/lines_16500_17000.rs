@@ -18,7 +18,7 @@ use crate::{
     Diagnostics, ElementFlags, HasTypeArgumentsInterface, IndexInfo, MappedType, Node, NodeArray,
     NodeInterface, ObjectFlags, ObjectTypeInterface, ResolvableTypeInterface, Symbol,
     SymbolInterface, SyntaxKind, Ternary, Type, TypeChecker, TypeFlags, TypeInterface, TypeMapper,
-    TypeSystemPropertyName, UnionOrIntersectionTypeInterface, UnionReduction,
+    TypeSystemPropertyName, UnionOrIntersectionTypeInterface, UnionReduction, HasArena,
 };
 
 impl TypeChecker {

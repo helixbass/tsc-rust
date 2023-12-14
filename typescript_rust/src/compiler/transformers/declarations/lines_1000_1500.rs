@@ -21,7 +21,7 @@ use crate::{
     try_maybe_visit_nodes, try_visit_node, try_visit_nodes, unescape_leading_underscores,
     visit_nodes, AsDoubleDeref, ClassLikeDeclarationInterface, Debug_, Diagnostics,
     GeneratedIdentifierFlags, GetOrInsertDefault, GetSymbolAccessibilityDiagnostic,
-    GetSymbolAccessibilityDiagnosticInterface, HasQuestionTokenInterface,
+    GetSymbolAccessibilityDiagnosticInterface, HasArena, HasQuestionTokenInterface,
     HasTypeArgumentsInterface, HasTypeInterface, HasTypeParametersInterface,
     InterfaceOrClassLikeDeclarationInterface, ModifierFlags, NamedDeclarationInterface, Node,
     NodeArray, NodeFlags, NodeInterface, OptionTry, SignatureDeclarationInterface,

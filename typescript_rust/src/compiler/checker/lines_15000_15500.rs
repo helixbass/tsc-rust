@@ -17,7 +17,7 @@ use crate::{
     is_function_like, is_identifier, is_indexed_access_type_node, is_private_identifier,
     is_property_name, maybe_every, pseudo_big_int_to_string, try_every, try_map, try_reduce_left,
     try_some, uncapitalize, unescape_leading_underscores, AccessFlags, AssignmentKind,
-    DiagnosticMessageChain, Diagnostics, IndexInfo, IndexedAccessType, LiteralType, Node,
+    DiagnosticMessageChain, Diagnostics, HasArena, IndexInfo, IndexedAccessType, LiteralType, Node,
     NodeFlags, NodeInterface, Number, ObjectFlags, ObjectFlagsTypeInterface, ObjectTypeInterface,
     OptionTry, StringMappingType, Symbol, SymbolFlags, SymbolInterface, SyntaxKind,
     TemplateLiteralType, Type, TypeChecker, TypeFlags, TypeInterface,

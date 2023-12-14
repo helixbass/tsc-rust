@@ -19,7 +19,7 @@ use crate::{
     is_property_access_entity_name_expression, is_static, last, length, map, maybe_for_each_bool,
     node_is_synthesized, null_transformation_context, range_equals, range_equals_gc, same_map,
     set_emit_flags, set_text_range, some, symbol_name, unescape_leading_underscores,
-    visit_each_child, CheckFlags, Debug_, ElementFlags, EmitFlags, GetOrInsertDefault,
+    visit_each_child, CheckFlags, Debug_, ElementFlags, EmitFlags, GetOrInsertDefault, HasArena,
     HasTypeArgumentsInterface, InterfaceTypeInterface, KeywordTypeNode, ModifierFlags, Node,
     NodeArray, NodeBuilder, NodeBuilderFlags, NodeInterface, NodeLinksSerializedType, ObjectFlags,
     ObjectFlagsTypeInterface, PeekableExt, Signature, SignatureFlags, SignatureKind, Symbol,

@@ -25,10 +25,10 @@ use crate::{
     BaseType, BundleFileSection, CheckFlags, CompilerOptions, Debug_, Diagnostic,
     DiagnosticInterface, DiagnosticMessage, DiagnosticRelatedInformation,
     DiagnosticRelatedInformationInterface, DiagnosticWithDetachedLocation, DiagnosticWithLocation,
-    Extension, HasInitializerInterface, MapLike, ModifierFlags, NamedDeclarationInterface,
-    NewLineKind, Node, NodeFlags, NodeInterface, ObjectFlags, ReadonlyTextRange, Signature,
-    SignatureFlags, SignatureKind, SourceFileLike, Symbol, SymbolFlags, SymbolInterface,
-    SyntaxKind,
+    Extension, HasArena, HasInitializerInterface, MapLike, ModifierFlags,
+    NamedDeclarationInterface, NewLineKind, Node, NodeFlags, NodeInterface, ObjectFlags,
+    ReadonlyTextRange, Signature, SignatureFlags, SignatureKind, SourceFileLike, Symbol,
+    SymbolFlags, SymbolInterface, SyntaxKind,
 };
 
 pub fn get_first_identifier(node: &Node) -> Gc<Node /*Identifier*/> {

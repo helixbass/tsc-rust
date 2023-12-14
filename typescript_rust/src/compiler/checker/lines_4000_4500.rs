@@ -11,7 +11,7 @@ use crate::{
     is_namespace_reexport_declaration, is_umd_export_symbol, length, node_is_present,
     push_if_unique_gc, some, try_for_each_entry, try_maybe_for_each, BaseInterfaceType,
     BaseIntrinsicType, BaseObjectType, BaseType, CharacterCodes, FunctionLikeDeclarationInterface,
-    IndexInfo, InternalSymbolName, Node, NodeInterface, ObjectFlags, OptionTry,
+    HasArena, IndexInfo, InternalSymbolName, Node, NodeInterface, ObjectFlags, OptionTry,
     ResolvableTypeInterface, ResolvedTypeInterface, Signature, SignatureFlags, Symbol,
     SymbolAccessibility, SymbolAccessibilityResult, SymbolFlags, SymbolId, SymbolInterface,
     SymbolTable, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface, TypeParameter,

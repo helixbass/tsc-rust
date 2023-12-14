@@ -27,7 +27,7 @@ use crate::{
     NodeBuilderFlags, NodeInterface, OptionTry, Signature, SignatureFlags, StrOrNodeArray,
     StrOrRcNode, StringOrNodeArray, Symbol, SymbolFlags, SymbolInterface, SyntaxKind,
     SynthesizedComment, TransientSymbolInterface, Type, TypeInterface, TypePredicateKind,
-    UnderscoreEscapedMultiMap, UserPreferencesBuilder,
+    UnderscoreEscapedMultiMap, UserPreferencesBuilder, HasArena,
 };
 
 impl NodeBuilder {

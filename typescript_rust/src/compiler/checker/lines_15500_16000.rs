@@ -14,9 +14,9 @@ use crate::{
     is_optional_type_node, is_parenthesized_type_node, is_rest_type_node, is_tuple_type_node,
     is_type_alias, is_type_operator_node, length, maybe_concatenate, node_is_missing, same_map,
     try_find, try_map, try_maybe_filter, AccessFlags, CheckFlags, ConditionalRoot, ConditionalType,
-    Diagnostics, IndexInfo, InferenceFlags, InferencePriority, MappedType, ModifierFlags, Node,
-    NodeFlags, NodeInterface, NodeLinks, ObjectFlags, ObjectFlagsTypeInterface, OptionTry, Symbol,
-    SymbolFlags, SymbolInterface, SyntaxKind, TransientSymbolInterface, Type, TypeChecker,
+    Diagnostics, HasArena, IndexInfo, InferenceFlags, InferencePriority, MappedType, ModifierFlags,
+    Node, NodeFlags, NodeInterface, NodeLinks, ObjectFlags, ObjectFlagsTypeInterface, OptionTry,
+    Symbol, SymbolFlags, SymbolInterface, SyntaxKind, TransientSymbolInterface, Type, TypeChecker,
     TypeFlags, TypeInterface, TypeMapper, UnionOrIntersectionTypeInterface,
 };
 

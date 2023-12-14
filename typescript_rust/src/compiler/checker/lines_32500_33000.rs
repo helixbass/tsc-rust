@@ -12,7 +12,7 @@ use crate::{
     skip_parentheses, skip_trivia, text_span_contains_position, token_to_string,
     walk_up_parenthesized_expressions, AccessFlags, AssignmentDeclarationKind,
     BinaryExpressionStateMachine, BinaryExpressionTrampoline, Debug_,
-    DiagnosticRelatedInformationInterface, Diagnostics, ExternalEmitHelpers, LeftOrRight,
+    DiagnosticRelatedInformationInterface, Diagnostics, ExternalEmitHelpers, HasArena, LeftOrRight,
     NamedDeclarationInterface, Node, NodeArray, NodeInterface, Number, ObjectFlags, OptionTry,
     ReadonlyTextRange, ScriptTarget, SourceFileLike, Symbol, SyntaxKind, TextSpan, Type,
     TypeChecker, TypeFlags, TypeInterface, UnionReduction,

@@ -13,11 +13,11 @@ use crate::{
     is_external_module_name_relative, is_in_js_file, is_jsdoc_property_like_tag,
     is_property_declaration, length, map, maybe_append_if_unique_eq, maybe_append_if_unique_gc,
     reduce_left, try_filter, try_map, unescape_leading_underscores, CheckFlags, Debug_,
-    DiagnosticMessageChain, Diagnostics, HasInitializerInterface, HasTypeInterface, IndexInfo,
-    IteratorExt, ModifierFlags, Node, NodeInterface, ObjectFlags, ObjectFlagsTypeInterface,
-    ScriptTarget, Signature, SignatureKind, Symbol, SymbolFlags, SymbolId, SymbolInterface,
-    SymbolTable, SyntaxKind, Ternary, TransientSymbolInterface, Type, TypeChecker, TypeFlags,
-    TypeFormatFlags, TypeInterface, TypePredicate, TypePredicateKind,
+    DiagnosticMessageChain, Diagnostics, HasArena, HasInitializerInterface, HasTypeInterface,
+    IndexInfo, IteratorExt, ModifierFlags, Node, NodeInterface, ObjectFlags,
+    ObjectFlagsTypeInterface, ScriptTarget, Signature, SignatureKind, Symbol, SymbolFlags,
+    SymbolId, SymbolInterface, SymbolTable, SyntaxKind, Ternary, TransientSymbolInterface, Type,
+    TypeChecker, TypeFlags, TypeFormatFlags, TypeInterface, TypePredicate, TypePredicateKind,
     UnionOrIntersectionTypeInterface,
 };
 

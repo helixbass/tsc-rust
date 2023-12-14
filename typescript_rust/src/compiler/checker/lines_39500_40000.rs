@@ -19,7 +19,7 @@ use crate::{
     DiagnosticMessage, Diagnostics, ExternalEmitHelpers, HasStatementsInterface,
     LiteralLikeNodeInterface, ModifierFlags, ModuleKind, NamedDeclarationInterface, Node,
     NodeFlags, NodeInterface, OptionTry, ScriptTarget, Symbol, SymbolFlags, SymbolInterface,
-    SyntaxKind, TypeChecker,
+    SyntaxKind, TypeChecker, HasArena,
 };
 
 impl TypeChecker {

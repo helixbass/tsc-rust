@@ -27,7 +27,7 @@ use crate::{
     is_valid_type_only_alias_use_site, is_variable_declaration, map, maybe_is_class_like,
     return_ok_default_if_none, should_preserve_const_enums, some, try_find, try_find_last,
     unescape_leading_underscores, AssignmentDeclarationKind, Debug_, Diagnostic, Diagnostics,
-    Extension, FindAncestorCallbackReturn, HasInitializerInterface, HasTypeInterface,
+    Extension, FindAncestorCallbackReturn, HasArena, HasInitializerInterface, HasTypeInterface,
     InterfaceTypeInterface, InternalSymbolName, IteratorExt, ModifierFlags, ModuleKind, Node,
     NodeFlags, NodeInterface, OptionTry, Symbol, SymbolFlags, SymbolInterface, SyntaxKind,
     TypeChecker, TypeFlags, TypeInterface,

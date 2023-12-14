@@ -24,7 +24,7 @@ use crate::{
     is_qualified_name, is_require_call,
     is_right_side_of_qualified_name_or_property_access_or_jsdoc_member_name, is_static,
     node_is_missing, node_is_present, AssignmentDeclarationKind, Debug_, Diagnostic,
-    FindAncestorCallbackReturn, FunctionLikeDeclarationInterface, InternalSymbolName,
+    FindAncestorCallbackReturn, FunctionLikeDeclarationInterface, HasArena, InternalSymbolName,
     NamedDeclarationInterface, Node, NodeFlags, NodeInterface, OptionTry, Symbol, SymbolFlags,
     SymbolInterface, SymbolTable, SyntaxKind, TypeChecker, TypeInterface,
 };

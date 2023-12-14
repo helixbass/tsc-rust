@@ -8,10 +8,10 @@ use peekmore::PeekMore;
 use super::InferTypes;
 use crate::{
     every, find, flat_map, get_object_flags, try_some, DiagnosticMessage, Diagnostics,
-    ElementFlags, InferenceContext, InferenceFlags, InferenceInfo, InferencePriority, Node,
-    NodeInterface, ObjectFlags, OptionTry, PeekMoreExt, PeekableExt, Signature, SignatureKind,
-    Symbol, SymbolFlags, SymbolInterface, SyntaxKind, Ternary, Type, TypeChecker, TypeFlags,
-    TypeInterface, UnionReduction, VecExt,
+    ElementFlags, HasArena, InferenceContext, InferenceFlags, InferenceInfo, InferencePriority,
+    Node, NodeInterface, ObjectFlags, OptionTry, PeekMoreExt, PeekableExt, Signature,
+    SignatureKind, Symbol, SymbolFlags, SymbolInterface, SyntaxKind, Ternary, Type, TypeChecker,
+    TypeFlags, TypeInterface, UnionReduction, VecExt,
 };
 
 impl InferTypes {

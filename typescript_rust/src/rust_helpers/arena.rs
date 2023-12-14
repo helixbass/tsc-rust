@@ -1,6 +1,6 @@
 use std::rc::Rc;
 
-use debug_cell::{Ref, RefCell, RefMut};
+use debug_cell::{Ref, RefCell};
 use id_arena::{Arena, Id};
 use once_cell::unsync::Lazy;
 
@@ -17,17 +17,41 @@ pub struct AllArenas {
     pub type_mappers: RefCell<Arena<TypeMapper>>,
 }
 
-impl AllArenas {
-    // pub fn node(&self, node: Id<Node>) -> &Node {
-    //     &self.nodes.borrow()[node]
-    // }
+pub trait HasArena {
+    fn arena(&self) -> &AllArenas;
 
-    // pub fn node_mut(&self, node: Id<Node>) -> &mut Node {
-    //     &mut self.nodes.borrow_mut()[node]
-    // }
+    fn type_(&self, type_: Id<Type>) -> Ref<Type> {
+        self.arena().type_(type_)
+    }
+
+    fn alloc_type(&self, type_: Type) -> Id<Type> {
+        self.arena().alloc_type(type_)
+    }
+
+    fn type_mapper(&self, type_mapper: Id<TypeMapper>) -> Ref<TypeMapper> {
+        self.arena().type_mapper(type_mapper)
+    }
+
+    fn alloc_type_mapper(&self, type_mapper: TypeMapper) -> Id<TypeMapper> {
+        self.arena().alloc_type_mapper(type_mapper)
+    }
+
+    fn symbol(&self, symbol: Id<Symbol>) -> Ref<Symbol> {
+        self.arena().symbol(symbol)
+    }
+
+    fn alloc_symbol(&self, symbol: Symbol) -> Id<Symbol> {
+        self.arena().alloc_symbol(symbol)
+    }
+}
+
+impl HasArena for AllArenas {
+    fn arena(&self) -> &AllArenas {
+        self
+    }
 
     #[track_caller]
-    pub fn type_(&self, type_: Id<Type>) -> Ref<Type> {
+    fn type_(&self, type_: Id<Type>) -> Ref<Type> {
         Ref::map(self.types.borrow(), |types| &types[type_])
     }
 
@@ -36,33 +60,64 @@ impl AllArenas {
     //     RefMut::map(self.types.borrow_mut(), |types| &mut types[type_])
     // }
 
-    pub fn create_type(&self, type_: Type) -> Id<Type> {
+    fn alloc_type(&self, type_: Type) -> Id<Type> {
         let id = self.types.borrow_mut().alloc(type_);
         self.type_(id).set_arena_id(id);
         id
     }
 
     #[track_caller]
-    pub fn type_mapper(&self, type_mapper: Id<TypeMapper>) -> Ref<TypeMapper> {
+    fn type_mapper(&self, type_mapper: Id<TypeMapper>) -> Ref<TypeMapper> {
         Ref::map(self.type_mappers.borrow(), |type_mappers| {
             &type_mappers[type_mapper]
         })
     }
 
-    pub fn create_type_mapper(&self, type_mapper: TypeMapper) -> Id<TypeMapper> {
+    fn alloc_type_mapper(&self, type_mapper: TypeMapper) -> Id<TypeMapper> {
         let id = self.type_mappers.borrow_mut().alloc(type_mapper);
         // self.type_mapper(id).set_arena_id(id);
         id
     }
 
     #[track_caller]
-    pub fn symbol(&self, symbol: Id<Symbol>) -> Ref<Symbol> {
+    fn symbol(&self, symbol: Id<Symbol>) -> Ref<Symbol> {
         Ref::map(self.symbols.borrow(), |symbols| &symbols[symbol])
     }
 
-    pub fn create_symbol(&self, symbol: Symbol) -> Id<Symbol> {
+    fn alloc_symbol(&self, symbol: Symbol) -> Id<Symbol> {
         let id = self.symbols.borrow_mut().alloc(symbol);
         id
+    }
+}
+
+pub trait InArena {
+    type Item;
+
+    fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, Self::Item>;
+    // fn ref_mut(&self) -> RefMut<Type>;
+}
+
+impl InArena for Id<Type> {
+    type Item = Type;
+
+    fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, Type> {
+        has_arena.type_(*self)
+    }
+}
+
+impl InArena for Id<TypeMapper> {
+    type Item = TypeMapper;
+
+    fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, TypeMapper> {
+        has_arena.type_mapper(*self)
+    }
+}
+
+impl InArena for Id<Symbol> {
+    type Item = Symbol;
+
+    fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, Symbol> {
+        has_arena.symbol(*self)
     }
 }
 

@@ -18,7 +18,7 @@ use crate::{
     JsxReferenceKind, Node, NodeFlags, NodeInterface, Number, OptionTry, Signature, Symbol,
     SymbolFlags, SymbolInterface, SyntaxKind, TransientSymbolInterface, Type, TypeChecker,
     TypeFlags, TypeInterface, TypeMapper, TypeSystemPropertyName, UnionOrIntersectionTypeInterface,
-    UnionReduction,
+    UnionReduction, HasArena,
 };
 
 impl TypeChecker {

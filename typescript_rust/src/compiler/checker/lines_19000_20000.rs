@@ -23,7 +23,7 @@ use crate::{
     ModifierFlags, Node, NodeInterface, ObjectFlags, Signature, SignatureFlags, SignatureKind,
     Symbol, SymbolFlags, SymbolInterface, SyntaxKind, Ternary, Type, TypeFlags, TypeFormatFlags,
     TypeInterface, VarianceFlags, __String, get_check_flags, get_object_flags, push_if_unique_eq,
-    return_ok_default_if_none,
+    return_ok_default_if_none, HasArena,
 };
 
 impl CheckTypeRelatedTo {

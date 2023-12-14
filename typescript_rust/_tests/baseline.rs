@@ -16,6 +16,8 @@ use typescript_rust::{
     CreateProgramOptions, Diagnostic, FormatDiagnosticsHost, NewLineKind, Node,
 };
 
+use crate::HasArena;
+
 #[rstest]
 #[case("2dArrays.ts")]
 #[case("APISample_Watch.ts")] // NOT RUNNABLE

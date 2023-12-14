@@ -20,7 +20,7 @@ use crate::{
     is_jsx_self_closing_element, is_optional_chain, is_optional_chain_root, last, length,
     node_is_missing, set_text_range_pos_end, some, try_map, try_maybe_every, AccessFlags,
     ContextFlags, Debug_, Diagnostic, DiagnosticMessage, DiagnosticMessageChain, Diagnostics,
-    ElementFlags, InferenceContext, InferenceFlags, InferenceInfo, InferencePriority,
+    ElementFlags, HasArena, InferenceContext, InferenceFlags, InferenceInfo, InferencePriority,
     JsxReferenceKind, Node, NodeArray, NodeInterface, Number, OptionTry, ReadonlyTextRange,
     RelationComparisonResult, Signature, SignatureKind, Symbol, SymbolFlags, SymbolInterface,
     SyntaxKind, Type, TypeChecker, TypeComparer, TypeFlags, TypeInterface, TypeMapper,

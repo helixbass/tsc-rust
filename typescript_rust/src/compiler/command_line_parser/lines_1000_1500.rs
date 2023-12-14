@@ -15,8 +15,9 @@ use crate::{
     AlternateModeDiagnostics, BuildOptions, CharacterCodes, CommandLineOption,
     CommandLineOptionBaseBuilder, CommandLineOptionInterface, CommandLineOptionOfListType,
     CommandLineOptionType, CompilerOptions, CompilerOptionsBuilder, CompilerOptionsValue,
-    Diagnostic, DiagnosticMessage, Diagnostics, DidYouMeanOptionsDiagnostics, GcVec, ModuleKind,
-    ParsedCommandLineWithBaseOptions, ScriptTarget, StringOrDiagnosticMessage, WatchOptions,
+    Diagnostic, DiagnosticMessage, Diagnostics, DidYouMeanOptionsDiagnostics, GcVec, HasArena,
+    ModuleKind, ParsedCommandLineWithBaseOptions, ScriptTarget, StringOrDiagnosticMessage,
+    WatchOptions,
 };
 
 thread_local! {

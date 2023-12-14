@@ -14,9 +14,9 @@ use crate::{
     get_normalized_absolute_path, get_ts_config_prop_array, normalize_path, normalize_slashes,
     CommandLineOption, CommandLineOptionInterface, CommandLineOptionType, CompilerOptions,
     CompilerOptionsValue, ConfigFileSpecs, Debug_, Diagnostic, Diagnostics,
-    ExtendedConfigCacheEntry, FileExtensionInfo, HasInitializerInterface, Node, NodeInterface,
-    ParseConfigHost, ParsedCommandLine, Path, ProjectReference, ToHashMapOfCompilerOptionsValues,
-    WatchOptions,
+    ExtendedConfigCacheEntry, FileExtensionInfo, HasArena, HasInitializerInterface, Node,
+    NodeInterface, ParseConfigHost, ParsedCommandLine, Path, ProjectReference,
+    ToHashMapOfCompilerOptionsValues, WatchOptions,
 };
 
 pub(crate) fn convert_to_options_with_absolute_paths<TToAbsolutePath: Fn(&str) -> String>(

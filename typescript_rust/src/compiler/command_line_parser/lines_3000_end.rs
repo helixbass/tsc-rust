@@ -26,8 +26,8 @@ use crate::{
     set_watch_option_value, starts_with, to_file_name_lower_case, CommandLineOption,
     CommandLineOptionInterface, CommandLineOptionType, CompilerOptions, CompilerOptionsValue,
     ConfigFileSpecs, Diagnostic, DiagnosticMessage, Diagnostics, DidYouMeanOptionsDiagnostics,
-    Extension, FileExtensionInfo, Node, ParseConfigHost, ToHashMapOfCompilerOptionsValues,
-    TypeAcquisition, WatchDirectoryFlags, WatchOptions,
+    Extension, FileExtensionInfo, HasArena, Node, ParseConfigHost,
+    ToHashMapOfCompilerOptionsValues, TypeAcquisition, WatchDirectoryFlags, WatchOptions,
 };
 
 pub struct ExtendedConfigCacheEntry {

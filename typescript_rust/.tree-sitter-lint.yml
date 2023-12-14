@@ -44,6 +44,38 @@ rules:
         _d:
           module: crate
           kind: function
+        # arena:
+        #   module: crate
+        #   kind: trait_method
+        #   trait: HasArena
+        # type_:
+        #   module: crate
+        #   kind: trait_method
+        #   trait: HasArena
+        # alloc_type:
+        #   module: crate
+        #   kind: trait_method
+        #   trait: HasArena
+        # type_mapper:
+        #   module: crate
+        #   kind: trait_method
+        #   trait: HasArena
+        # alloc_type_mapper:
+        #   module: crate
+        #   kind: trait_method
+        #   trait: HasArena
+        # symbol:
+        #   module: crate
+        #   kind: trait_method
+        #   trait: HasArena
+        # alloc_symbol:
+        #   module: crate
+        #   kind: trait_method
+        #   trait: HasArena
+        ref_:
+          module: crate
+          kind: trait_method
+          trait: InArena
         Id:
           module: id_arena
           kind: type

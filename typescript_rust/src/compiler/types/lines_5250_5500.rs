@@ -15,7 +15,7 @@ use super::{
 };
 use crate::{
     EvolvingArrayType, FreshObjectLiteralTypeInterface, GcVec, Number, TypeId, TypeMapper,
-    __String, gc_cell_ref_mut_unwrapped,
+    __String, gc_cell_ref_mut_unwrapped, HasArena,
 };
 
 pub trait LiteralTypeInterface: TypeInterface {

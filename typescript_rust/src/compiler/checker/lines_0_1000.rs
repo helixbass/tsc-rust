@@ -37,7 +37,7 @@ use crate::{
     SymbolFlags, SymbolFormatFlags, SymbolId, SymbolInterface, SymbolTable, SymbolTracker,
     SymbolWalker, SyntaxKind, Type, TypeChecker, TypeCheckerHost, TypeCheckerHostDebuggable,
     TypeFlags, TypeFormatFlags, TypeId, TypeInterface, TypeMapper, TypeMapperCallback,
-    TypePredicate, TypePredicateKind, VarianceFlags,
+    TypePredicate, TypePredicateKind, VarianceFlags, HasArena,
 };
 
 lazy_static! {
@@ -1537,40 +1537,6 @@ pub(crate) struct DuplicateInfoForFiles {
 }
 
 impl TypeChecker {
-    pub fn arena(&self) -> &AllArenas {
-        unsafe { &*self.arena }
-    }
-
-    #[track_caller]
-    pub fn type_(&self, type_: Id<Type>) -> debug_cell::Ref<Type> {
-        self.arena().type_(type_)
-    }
-
-    #[track_caller]
-    pub fn alloc_type(&self, type_: Type) -> Id<Type> {
-        self.arena().create_type(type_)
-    }
-
-    #[track_caller]
-    pub fn type_mapper(&self, type_mapper: Id<TypeMapper>) -> debug_cell::Ref<TypeMapper> {
-        self.arena().type_mapper(type_mapper)
-    }
-
-    #[track_caller]
-    pub fn alloc_type_mapper(&self, type_mapper: TypeMapper) -> Id<TypeMapper> {
-        self.arena().create_type_mapper(type_mapper)
-    }
-
-    #[track_caller]
-    pub fn symbol(&self, symbol: Id<Symbol>) -> debug_cell::Ref<Symbol> {
-        self.arena().symbol(symbol)
-    }
-
-    #[track_caller]
-    pub fn alloc_symbol(&self, symbol: Symbol) -> Id<Symbol> {
-        self.arena().create_symbol(symbol)
-    }
-
     pub fn rc_wrapper(&self) -> Gc<TypeChecker> {
         self._rc_wrapper.borrow().clone().unwrap()
     }
@@ -3565,6 +3531,12 @@ impl TypeChecker {
         GcCellRef::map(self.builtin_globals.borrow(), |builtin_globals| {
             builtin_globals.as_ref().unwrap()
         })
+    }
+}
+
+impl HasArena for TypeChecker {
+    fn arena(&self) -> &AllArenas {
+        unsafe { &*self.arena }
     }
 }
 

@@ -20,7 +20,7 @@ use crate::{
     is_variable_declaration, length, return_ok_default_if_none, skip_parentheses,
     try_get_property_access_or_identifier_to_string, try_maybe_for_each,
     walk_up_parenthesized_expressions, AsDoubleDeref, Debug_, Diagnostic, DiagnosticMessage,
-    DiagnosticRelatedInformation, DiagnosticRelatedInformationInterface, Diagnostics,
+    DiagnosticRelatedInformation, DiagnosticRelatedInformationInterface, Diagnostics, HasArena,
     HasInitializerInterface, Matches, NamedDeclarationInterface, Node, NodeArray, NodeFlags,
     NodeInterface, ObjectFlags, OptionTry, Signature, SignatureFlags, SignatureKind, Symbol,
     SymbolFlags, SymbolInterface, SyntaxKind, TransientSymbolInterface, Type, TypeChecker,

@@ -13,8 +13,8 @@ use crate::{
     is_parameter, is_parenthesized_expression, is_property_assignment,
     is_shorthand_property_assignment, is_spread_element, is_template_span, map,
     parse_pseudo_big_int, skip_parentheses, some, try_some, ContextFlags, Diagnostics,
-    ElementFlags, InferenceContext, InferenceFlags, InferenceInfo, InferencePriority, Matches,
-    NamedDeclarationInterface, Node, NodeFlags, NodeInterface, OptionTry, PseudoBigInt,
+    ElementFlags, HasArena, InferenceContext, InferenceFlags, InferenceInfo, InferencePriority,
+    Matches, NamedDeclarationInterface, Node, NodeFlags, NodeInterface, OptionTry, PseudoBigInt,
     SignatureKind, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
 };
 

@@ -17,7 +17,7 @@ use crate::{
     is_element_access_expression, is_in_js_file, last_or_undefined, length, maybe_concatenate,
     maybe_for_each, range_equals, range_equals_gc, return_ok_default_if_none, some, try_map,
     try_map_defined, try_maybe_map, try_some, unescape_leading_underscores,
-    AssignmentDeclarationKind, CheckFlags, Debug_, Diagnostics, ElementFlags, IndexInfo,
+    AssignmentDeclarationKind, CheckFlags, Debug_, Diagnostics, ElementFlags, HasArena, IndexInfo,
     InterfaceTypeInterface, InterfaceTypeWithDeclaredMembersInterface, InternalSymbolName,
     LiteralType, ModifierFlags, Node, NodeInterface, ObjectFlags, OptionTry, Signature,
     SignatureFlags, SignatureKind, SignatureOptionalCallSignatureCache, Symbol, SymbolFlags,

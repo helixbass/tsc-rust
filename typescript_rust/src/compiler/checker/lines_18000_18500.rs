@@ -23,7 +23,7 @@ use crate::{
     Diagnostic, DiagnosticMessage, DiagnosticMessageChain, DiagnosticRelatedInformation,
     Diagnostics, Node, NodeInterface, ObjectFlags, ObjectFlagsTypeInterface, OptionTry,
     RelationComparisonResult, SignatureKind, Symbol, SymbolInterface, Ternary, Type, TypeChecker,
-    TypeFlags, TypeInterface, UnionOrIntersectionTypeInterface,
+    TypeFlags, TypeInterface, UnionOrIntersectionTypeInterface, HasArena,
 };
 
 #[derive(Trace, Finalize)]

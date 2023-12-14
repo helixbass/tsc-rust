@@ -10,7 +10,7 @@ use crate::{
     is_computed_property_name, is_element_access_expression, is_entity_name_expression,
     is_jsdoc_type_alias, is_named_declaration, is_private_identifier_class_element_declaration,
     is_static, is_string_literal_like, is_type_alias, node_is_missing, try_every,
-    BaseInterfaceType, Debug_, Diagnostics, EnumKind, GenericableTypeInterface,
+    BaseInterfaceType, Debug_, Diagnostics, EnumKind, GenericableTypeInterface, HasArena,
     HasTypeArgumentsInterface, InterfaceTypeInterface, InterfaceTypeWithDeclaredMembersInterface,
     InternalSymbolName, Node, NodeFlags, NodeInterface, Number, ObjectFlags,
     ObjectFlagsTypeInterface, OptionTry, Symbol, SymbolFlags, SymbolInterface, SymbolTable,

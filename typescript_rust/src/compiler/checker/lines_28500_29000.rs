@@ -26,7 +26,7 @@ use crate::{
     Debug_, Diagnostics, ModifierFlags, NamedDeclarationInterface, Node, NodeFlags, NodeInterface,
     OptionTry, Signature, SignatureFlags, StrOrRcNode, Symbol, SymbolFlags, SymbolInterface,
     SymbolTable, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
-    UnionOrIntersectionTypeInterface,
+    UnionOrIntersectionTypeInterface, HasArena,
 };
 
 impl TypeChecker {

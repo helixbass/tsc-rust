@@ -15,10 +15,10 @@ use crate::{
     is_optional_chain, is_optional_chain_root, is_outermost_optional_chain,
     is_push_or_unshift_identifier, is_source_file, is_static, set_parent, set_parent_recursive,
     skip_parentheses, try_cast, try_parse_pattern, AsDoubleDeref, BinaryExpressionStateMachine,
-    BinaryExpressionTrampoline, Diagnostics, FlowFlags, FlowNode, HasInitializerInterface,
-    HasTypeArgumentsInterface, ModifierFlags, NamedDeclarationInterface, Node, NodeFlags,
-    NodeInterface, PatternAmbientModule, StringOrNodeArray, StringOrPattern, Symbol, SymbolFlags,
-    SymbolInterface, SyntaxKind,
+    BinaryExpressionTrampoline, Diagnostics, FlowFlags, FlowNode, HasArena,
+    HasInitializerInterface, HasTypeArgumentsInterface, ModifierFlags, NamedDeclarationInterface,
+    Node, NodeFlags, NodeInterface, PatternAmbientModule, StringOrNodeArray, StringOrPattern,
+    Symbol, SymbolFlags, SymbolInterface, SyntaxKind,
 };
 
 impl BinderType {

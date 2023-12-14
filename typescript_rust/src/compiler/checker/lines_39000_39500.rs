@@ -17,10 +17,10 @@ use crate::{
     is_nan, is_optional_chain, is_private_identifier, is_static, is_string_literal_like, length,
     maybe_for_each, maybe_get_source_file_of_node, node_is_missing, node_is_present, set_parent,
     should_preserve_const_enums, AsDoubleDeref, Diagnostics, EnumKind,
-    FunctionLikeDeclarationInterface, HasInitializerInterface, HasTypeParametersInterface,
-    InterfaceTypeInterface, ModifierFlags, NamedDeclarationInterface, Node, NodeCheckFlags,
-    NodeFlags, NodeInterface, Number, OptionTry, ReadonlyTextRange, StringOrNumber, Symbol,
-    SymbolFlags,
+    FunctionLikeDeclarationInterface, HasArena, HasInitializerInterface,
+    HasTypeParametersInterface, InterfaceTypeInterface, ModifierFlags, NamedDeclarationInterface,
+    Node, NodeCheckFlags, NodeFlags, NodeInterface, Number, OptionTry, ReadonlyTextRange,
+    StringOrNumber, Symbol, SymbolFlags,
 };
 
 impl TypeChecker {

@@ -18,7 +18,7 @@ use crate::{
     is_value_signature_declaration, last_or_undefined, length, map_defined, maybe_filter,
     node_is_missing, node_starts_new_lexical_environment, return_ok_default_if_none,
     return_ok_false_if_none, try_for_each_child_bool, try_map, try_maybe_map, try_some, CheckFlags,
-    Debug_, Diagnostics, HasInitializerInterface, HasTypeInterface, IndexInfo,
+    Debug_, Diagnostics, HasArena, HasInitializerInterface, HasTypeInterface, IndexInfo,
     InterfaceTypeInterface, InternalSymbolName, ModifierFlags, Node, NodeArray, NodeCheckFlags,
     NodeInterface, ObjectFlags, OptionTry, ReadonlyTextRange, Signature,
     SignatureDeclarationInterface, SignatureFlags, Symbol, SymbolFlags, SymbolInterface,

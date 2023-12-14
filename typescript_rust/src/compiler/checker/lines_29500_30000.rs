@@ -26,7 +26,7 @@ use crate::{
     set_text_range_pos_end, skip_outer_expressions, some, try_maybe_for_each, try_some,
     BaseDiagnostic, BaseDiagnosticRelatedInformation, Debug_, Diagnostic, DiagnosticInterface,
     DiagnosticMessage, DiagnosticMessageChain, DiagnosticMessageText, DiagnosticRelatedInformation,
-    DiagnosticRelatedInformationInterface, Diagnostics, ElementFlags, InferenceContext,
+    DiagnosticRelatedInformationInterface, Diagnostics, ElementFlags, HasArena, InferenceContext,
     InferenceFlags, Node, NodeArray, NodeInterface, ReadonlyTextRange, RelationComparisonResult,
     ScriptTarget, Signature, SignatureFlags, SymbolFlags, SymbolInterface, SyntaxKind, Type,
     TypeChecker, TypeInterface, UsizeOrNegativeInfinity,

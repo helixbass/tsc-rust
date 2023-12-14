@@ -22,7 +22,7 @@ use crate::{
     CheckFlags, Debug_, IndexInfo, InterfaceTypeInterface, NamedDeclarationInterface, Node,
     NodeCheckFlags, NodeFlags, NodeInterface, OptionTry, SignatureKind, Symbol, SymbolFlags,
     SymbolInterface, SyntaxKind, TransientSymbolInterface, Type, TypeChecker, TypeFlags,
-    TypeInterface, UnionOrIntersectionTypeInterface,
+    TypeInterface, UnionOrIntersectionTypeInterface, HasArena,
 };
 
 impl TypeChecker {

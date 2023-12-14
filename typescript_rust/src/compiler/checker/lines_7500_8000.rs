@@ -21,7 +21,7 @@ use crate::{
     unescape_leading_underscores, BoolExt, Debug_, InternalSymbolName, IteratorExt, Matches,
     ModifierFlags, Node, NodeArray, NodeArrayOrVec, NodeBuilder, NodeBuilderFlags, NodeFlags,
     NodeInterface, NodeWrappered, ObjectFlags, OptionTry, SignatureKind, StrOrRcNode, Symbol,
-    SymbolFlags, SymbolInterface, SyntaxKind, Ternary, Type, TypeChecker, TypeInterface,
+    SymbolFlags, SymbolInterface, SyntaxKind, Ternary, Type, TypeChecker, TypeInterface, HasArena,
 };
 
 impl SymbolTableToDeclarationStatements {

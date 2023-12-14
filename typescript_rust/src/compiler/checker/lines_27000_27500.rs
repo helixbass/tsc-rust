@@ -10,9 +10,9 @@ use crate::{
     get_jsx_runtime_import, get_jsx_transform_enabled, get_object_flags, get_source_file_of_node,
     id_text, is_identifier, is_intrinsic_jsx_name, is_jsx_attribute, maybe_get_source_file_of_node,
     set_parent, string_contains, try_every, unescape_leading_underscores, Debug_, Diagnostics,
-    IndexInfo, JsxFlags, ModuleResolutionKind, Node, NodeArray, NodeInterface, ObjectFlags,
-    OptionTry, PragmaName, Symbol, SymbolFlags, SymbolInterface, SymbolTable, SyntaxKind,
-    TransientSymbolInterface, Type, TypeChecker, TypeFlags, TypeInterface,
+    HasArena, IndexInfo, JsxFlags, ModuleResolutionKind, Node, NodeArray, NodeInterface,
+    ObjectFlags, OptionTry, PragmaName, Symbol, SymbolFlags, SymbolInterface, SymbolTable,
+    SyntaxKind, TransientSymbolInterface, Type, TypeChecker, TypeFlags, TypeInterface,
 };
 
 impl TypeChecker {

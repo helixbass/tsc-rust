@@ -15,7 +15,7 @@ use crate::{
     is_binary_expression, is_constructor_declaration, is_identifier, is_in_js_file,
     is_parameter_property_declaration, is_property_declaration, is_static, length, maybe_filter,
     maybe_for_each, some, symbol_name, try_for_each, unescape_leading_underscores, CheckFlags,
-    Debug_, DiagnosticMessage, DiagnosticMessageChain, Diagnostics, GcHashMap,
+    Debug_, DiagnosticMessage, DiagnosticMessageChain, Diagnostics, GcHashMap, HasArena,
     HasInitializerInterface, InterfaceTypeInterface, Matches, MemberOverrideStatus, ModifierFlags,
     NamedDeclarationInterface, Node, NodeFlags, NodeInterface, OptionTry,
     SignatureDeclarationInterface, SignatureKind, Symbol, SymbolFlags, SymbolInterface, SyntaxKind,

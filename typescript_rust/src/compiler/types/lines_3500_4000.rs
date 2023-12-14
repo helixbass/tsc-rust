@@ -24,7 +24,8 @@ use crate::{
     ProjectReference, RawSourceMap, ReadFileCallback, RedirectTargetsMap, ResolvedProjectReference,
     SourceOfProjectReferenceRedirect, StructureIsReused, SymlinkCache, Type,
     TypeCheckerHostDebuggable, TypeFlags, TypeInterface, TypeReferenceDirectiveResolutionCache,
-    __String, get_line_and_character_of_position, AllArenas, LineAndCharacter, ProgramBuildInfo,
+    __String, get_line_and_character_of_position, AllArenas, HasArena, LineAndCharacter,
+    ProgramBuildInfo,
 };
 
 #[derive(Clone, Debug, Trace, Finalize)]

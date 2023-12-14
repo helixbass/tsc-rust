@@ -19,7 +19,7 @@ use crate::{
     Diagnostics, ElementFlags, FunctionLikeDeclarationInterface, HasInitializerInterface,
     ModifierFlags, Node, NodeArray, NodeCheckFlags, NodeFlags, NodeInterface, ObjectFlags,
     ReadonlyTextRange, ScriptTarget, SignatureDeclarationInterface, Symbol, SymbolFlags,
-    SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface, TypeMapper,
+    SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface, TypeMapper, HasArena,
 };
 
 impl TypeChecker {

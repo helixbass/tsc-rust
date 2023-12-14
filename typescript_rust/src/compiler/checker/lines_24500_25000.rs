@@ -23,7 +23,7 @@ use crate::{
     HasTypeInterface, ModifierFlags, Node, NodeArray, NodeCheckFlags, NodeFlags, NodeInterface,
     ObjectFlags, OptionTry, ScriptTarget, Signature, SignatureKind, Symbol, SymbolFlags,
     SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface, TypePredicate,
-    TypePredicateKind, TypeSystemPropertyName, UnionOrIntersectionTypeInterface,
+    TypePredicateKind, TypeSystemPropertyName, UnionOrIntersectionTypeInterface, HasArena,
 };
 
 impl GetFlowTypeOfReference {

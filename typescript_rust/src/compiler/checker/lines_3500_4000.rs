@@ -17,9 +17,9 @@ use crate::{
     is_type_literal_node, is_variable_declaration, length, mangle_scoped_package_name,
     node_is_synthesized, push_if_unique_eq, push_if_unique_gc, return_ok_default_if_none,
     return_ok_none_if_none, try_for_each_entry, try_map_defined, unescape_leading_underscores,
-    Diagnostics, HasInitializerInterface, HasTypeInterface, InternalSymbolName, ModuleKind, Node,
-    NodeInterface, ObjectFlags, OptionTry, ResolvedModuleFull, SignatureKind, Symbol, SymbolFlags,
-    SymbolInterface, SymbolTable,
+    Diagnostics, HasArena, HasInitializerInterface, HasTypeInterface, InternalSymbolName,
+    ModuleKind, Node, NodeInterface, ObjectFlags, OptionTry, ResolvedModuleFull, SignatureKind,
+    Symbol, SymbolFlags, SymbolInterface, SymbolTable,
 };
 
 impl TypeChecker {

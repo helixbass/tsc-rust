@@ -10,7 +10,7 @@ use crate::{
     append, is_class_static_block_declaration, some, ObjectTypeInterface, Signature, SignatureKind,
     SymbolFlags, SymbolInterface, SyntaxKind, __String, escape_leading_underscores,
     get_containing_function_or_class_static_block, get_function_flags, try_map, Diagnostics,
-    FunctionFlags, IterationTypeCacheKey, IterationTypes, IterationTypesResolver, Node,
+    FunctionFlags, HasArena, IterationTypeCacheKey, IterationTypes, IterationTypesResolver, Node,
     NodeInterface, OptionTry, Symbol, Type, TypeChecker, TypeFlags, TypeInterface,
 };
 

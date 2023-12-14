@@ -30,7 +30,7 @@ use crate::{
     HasTypeArgumentsInterface, InternalSymbolName, IteratorExt, MapOrDefault, ModifierFlags,
     NamedDeclarationInterface, Node, NodeArray, NodeBuilderFlags, NodeFlags, NodeInterface,
     OptionTry, Signature, SignatureKind, StringOrNumber, Symbol, SymbolFlags, SymbolInterface,
-    SyntaxKind, SynthesizedComment, Type, TypeInterface,
+    SyntaxKind, SynthesizedComment, Type, TypeInterface, HasArena,
 };
 
 impl SymbolTableToDeclarationStatements {

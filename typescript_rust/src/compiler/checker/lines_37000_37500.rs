@@ -10,9 +10,9 @@ use crate::{
     append, filter, get_containing_function_or_class_static_block, get_function_flags,
     is_binary_expression, is_binding_pattern, is_class_static_block_declaration, is_identifier,
     try_for_each, try_for_each_child_bool, DiagnosticMessage, Diagnostics, ExternalEmitHelpers,
-    FunctionFlags, IterationTypeCacheKey, IterationTypes, NamedDeclarationInterface, Node,
-    NodeArray, NodeInterface, OptionTry, ScriptTarget, Symbol, SymbolInterface, SyntaxKind, Type,
-    TypeChecker, TypeFlags, TypeInterface, UnionOrIntersectionTypeInterface, UnionReduction,
+    FunctionFlags, HasArena, IterationTypeCacheKey, IterationTypes, NamedDeclarationInterface,
+    Node, NodeArray, NodeInterface, OptionTry, ScriptTarget, Symbol, SymbolInterface, SyntaxKind,
+    Type, TypeChecker, TypeFlags, TypeInterface, UnionOrIntersectionTypeInterface, UnionReduction,
 };
 
 impl TypeChecker {

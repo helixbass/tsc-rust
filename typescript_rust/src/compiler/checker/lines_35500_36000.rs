@@ -12,7 +12,7 @@ use crate::{
     get_jsdoc_tags, get_parameter_symbol_from_jsdoc, get_rest_parameter_element_type, id_text,
     is_binding_pattern, is_entity_name, is_identifier, is_jsdoc_construct_signature,
     is_jsdoc_parameter_tag, is_qualified_name, is_rest_parameter, node_can_be_decorated,
-    try_for_each, Debug_, DiagnosticMessageChain, Diagnostics, ExternalEmitHelpers,
+    try_for_each, Debug_, DiagnosticMessageChain, Diagnostics, ExternalEmitHelpers, HasArena,
     HasTypeInterface, NamedDeclarationInterface, Node, NodeInterface, OptionTry, ScriptTarget,
     Symbol, SymbolFlags, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
 };

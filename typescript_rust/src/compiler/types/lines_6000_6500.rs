@@ -2150,6 +2150,8 @@ pub use _CreateProgramOptionsDeriveTraceScope::{
     CreateProgramOptions, CreateProgramOptionsBuilder,
 };
 
+use crate::HasArena;
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum CommandLineOptionMapTypeValue {
     StaticStr(&'static str),

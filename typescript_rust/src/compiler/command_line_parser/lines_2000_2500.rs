@@ -19,7 +19,7 @@ use crate::{
     is_computed_non_literal_name, is_string_double_quoted, is_string_literal, maybe_map,
     unescape_leading_underscores, CommandLineOption, CommandLineOptionInterface,
     CommandLineOptionMapTypeValue, CommandLineOptionType, CompilerOptions, CompilerOptionsValue,
-    Diagnostic, Diagnostics, DidYouMeanOptionsDiagnostics, FileMatcherPatterns,
+    Diagnostic, Diagnostics, DidYouMeanOptionsDiagnostics, FileMatcherPatterns, HasArena,
     JsonConversionNotifier, MultiMapOrdered, NamedDeclarationInterface, Node, NodeArray,
     NodeInterface, Number, OptionsNameMap, ParsedCommandLine, ProjectReference, Push, SyntaxKind,
     ToHashMapOfCompilerOptionsValues, WatchOptions,

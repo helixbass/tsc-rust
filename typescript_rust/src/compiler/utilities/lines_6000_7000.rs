@@ -29,11 +29,11 @@ use crate::{
     CommandLineOptionType, Comparison, CompilerOptions, CompilerOptionsValue, Debug_, Diagnostic,
     DiagnosticInterface, DiagnosticMessage, DiagnosticMessageChain, DiagnosticMessageText,
     DiagnosticRelatedInformation, DiagnosticRelatedInformationInterface, Extension,
-    FileExtensionInfo, GetCanonicalFileName, GetOrInsertDefault, JsxEmit, LanguageVariant, MapLike,
-    Matches, ModuleKind, ModuleResolutionKind, MultiMap, Node, NodeArray, NodeInterface, Path,
-    Pattern, PluginImport, PragmaArgumentName, PragmaName, ReadonlyTextRange, ResolvedModuleFull,
-    ResolvedTypeReferenceDirective, ScriptKind, ScriptTarget, SourceFileLike, TypeAcquisition,
-    WatchOptions,
+    FileExtensionInfo, GetCanonicalFileName, GetOrInsertDefault, HasArena, JsxEmit,
+    LanguageVariant, MapLike, Matches, ModuleKind, ModuleResolutionKind, MultiMap, Node, NodeArray,
+    NodeInterface, Path, Pattern, PluginImport, PragmaArgumentName, PragmaName, ReadonlyTextRange,
+    ResolvedModuleFull, ResolvedTypeReferenceDirective, ScriptKind, ScriptTarget, SourceFileLike,
+    TypeAcquisition, WatchOptions,
 };
 
 pub fn create_compiler_diagnostic_from_message_chain(

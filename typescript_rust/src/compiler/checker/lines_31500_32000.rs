@@ -12,9 +12,10 @@ use crate::{
     get_effective_type_annotation_node, get_function_flags, is_import_call, is_omitted_expression,
     is_transient_symbol, last, node_is_missing, push_if_unique_eq, push_if_unique_gc, some,
     try_for_each_return_statement, try_for_each_yield_expression, CheckFlags, Diagnostics,
-    FunctionFlags, HasTypeInterface, InferenceContext, NamedDeclarationInterface, Node, NodeFlags,
-    NodeInterface, OptionTry, Signature, Symbol, SymbolFlags, SymbolInterface, SyntaxKind,
-    TransientSymbolInterface, Type, TypeChecker, TypeFlags, TypeInterface, UnionReduction,
+    FunctionFlags, HasArena, HasTypeInterface, InferenceContext, NamedDeclarationInterface, Node,
+    NodeFlags, NodeInterface, OptionTry, Signature, Symbol, SymbolFlags, SymbolInterface,
+    SyntaxKind, TransientSymbolInterface, Type, TypeChecker, TypeFlags, TypeInterface,
+    UnionReduction,
 };
 
 impl TypeChecker {

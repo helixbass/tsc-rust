@@ -18,7 +18,7 @@ use crate::{
     supported_ts_extensions_flat, validate_locale_and_set_language, version, BuildOptions,
     CommandLineOption, CommandLineOptionInterface, CommandLineOptionType, CompilerOptions,
     DiagnosticMessage, DiagnosticReporter, Diagnostics, ExitStatus, ExtendedConfigCacheEntry,
-    Extension, Node, ParsedCommandLine, Program, StringOrDiagnosticMessage, System,
+    Extension, HasArena, Node, ParsedCommandLine, Program, StringOrDiagnosticMessage, System,
 };
 
 #[allow(dead_code)]

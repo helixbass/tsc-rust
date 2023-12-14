@@ -15,7 +15,7 @@ use crate::{
     HasTypeArgumentsInterface, HasTypeInterface, HasTypeParametersInterface,
     InterfaceOrClassLikeDeclarationInterface, LineAndCharacter, NamedDeclarationInterface,
     NodeArray, NodeFlags, ReadonlyTextRange, ScriptTarget, SourceFileLike, SyntaxKind, TypeFlags,
-    TypeInterface, __String, for_each, Node, NodeInterface, Type, TypeChecker,
+    TypeInterface, __String, for_each, HasArena, Node, NodeInterface, Type, TypeChecker,
 };
 
 impl TypeChecker {

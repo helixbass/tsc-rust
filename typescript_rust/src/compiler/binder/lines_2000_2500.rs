@@ -20,7 +20,7 @@ use crate::{
     is_identifier, is_identifier_name, is_in_top_level_context, is_jsdoc_enum_tag,
     is_left_hand_side_expression, is_property_access_entity_name_expression,
     is_property_access_expression, is_variable_statement, set_parent, AssignmentDeclarationKind,
-    Debug_, DiagnosticCategory, DiagnosticMessage, Diagnostics, FlowFlags, FlowStart,
+    Debug_, DiagnosticCategory, DiagnosticMessage, Diagnostics, FlowFlags, FlowStart, HasArena,
     InternalSymbolName, NamedDeclarationInterface, Node, NodeFlags, NodeInterface,
     ReadonlyTextRange, ScriptTarget, Symbol, SymbolFlags, SymbolInterface, SyntaxKind,
 };

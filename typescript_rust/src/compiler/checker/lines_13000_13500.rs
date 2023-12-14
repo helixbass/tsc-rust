@@ -15,11 +15,11 @@ use crate::{
     is_in_js_file, is_jsdoc_augments_tag, is_jsdoc_index_signature, is_jsdoc_template_tag,
     is_statement, is_type_alias, length, maybe_concatenate, skip_parentheses, try_map,
     walk_up_parenthesized_types_and_get_parent_and_child, AsDoubleDeref, BaseObjectType,
-    CheckFlags, Diagnostics, GetOrInsertDefault, HasTypeArgumentsInterface, InterfaceTypeInterface,
-    Node, NodeFlags, NodeInterface, ObjectFlags, ObjectFlagsTypeInterface, OptionTry,
-    SubstitutionType, Symbol, SymbolFlags, SymbolInterface, SyntaxKind, TransientSymbolInterface,
-    Type, TypeChecker, TypeFlags, TypeFormatFlags, TypeId, TypeInterface, TypeMapper,
-    TypeReference, TypeReferenceInterface, TypeSystemPropertyName,
+    CheckFlags, Diagnostics, GetOrInsertDefault, HasArena, HasTypeArgumentsInterface,
+    InterfaceTypeInterface, Node, NodeFlags, NodeInterface, ObjectFlags, ObjectFlagsTypeInterface,
+    OptionTry, SubstitutionType, Symbol, SymbolFlags, SymbolInterface, SyntaxKind,
+    TransientSymbolInterface, Type, TypeChecker, TypeFlags, TypeFormatFlags, TypeId, TypeInterface,
+    TypeMapper, TypeReference, TypeReferenceInterface, TypeSystemPropertyName,
 };
 
 impl TypeChecker {

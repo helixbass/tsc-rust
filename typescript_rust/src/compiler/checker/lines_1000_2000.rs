@@ -41,7 +41,7 @@ use crate::{
     unescape_leading_underscores, BaseTransientSymbol, CheckFlags, Debug_, Diagnostic,
     DiagnosticMessage, Node, NodeInterface, NodeLinks, Symbol, SymbolFlags, SymbolInterface,
     SymbolLinks, SymbolTable, SyntaxKind, TransientSymbol, TransientSymbolInterface, TypeChecker,
-    _d,
+    _d, HasArena,
 };
 
 impl TypeChecker {

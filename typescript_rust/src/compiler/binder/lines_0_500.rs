@@ -26,8 +26,8 @@ use crate::{
     SignatureDeclarationInterface, Symbol, SymbolTable, SyntaxKind, __String, append_if_unique_gc,
     create_symbol_table, get_escaped_text_of_identifier_or_literal, get_name_of_declaration,
     is_property_name_literal, object_allocator, set_parent, set_value_declaration, static_arena,
-    AllArenas, BaseSymbol, InternalSymbolName, NamedDeclarationInterface, Node, NodeArray,
-    NodeInterface, SymbolFlags, SymbolInterface,
+    AllArenas, BaseSymbol, HasArena, InternalSymbolName, NamedDeclarationInterface, Node,
+    NodeArray, NodeInterface, SymbolFlags, SymbolInterface,
 };
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
@@ -407,7 +407,7 @@ impl BinderType {
 
     #[track_caller]
     pub fn alloc_symbol(&self, symbol: Symbol) -> Id<Symbol> {
-        self.arena().create_symbol(symbol)
+        self.arena().alloc_symbol(symbol)
     }
 
     pub(super) fn rc_wrapper(&self) -> Gc<Self> {

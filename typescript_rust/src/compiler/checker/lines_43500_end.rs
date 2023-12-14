@@ -26,7 +26,7 @@ use crate::{
     ReadonlyTextRange, ReadonlyTextRangeConcrete, ScriptTarget, Signature, SignatureFlags,
     SignatureKind, SourceFileLike, StringOrNumber, Symbol, SymbolAccessibilityResult, SymbolFlags,
     SymbolInterface, SymbolTracker, SymbolVisibilityResult, SyntaxKind, Ternary, TokenFlags, Type,
-    TypeChecker, TypeFlags, TypeInterface, TypeReferenceSerializationKind,
+    TypeChecker, TypeFlags, TypeInterface, TypeReferenceSerializationKind, HasArena,
 };
 
 impl TypeChecker {

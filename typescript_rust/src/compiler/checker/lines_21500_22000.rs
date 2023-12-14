@@ -12,8 +12,8 @@ use super::{ExpandingFlags, RecursionIdentity};
 use crate::{
     append_if_unique_eq, append_if_unique_gc, arrays_equal, contains, contains_gc, create_scanner,
     filter, get_check_flags, get_object_flags, some, try_every, try_map, try_some, CheckFlags,
-    ElementFlags, InferenceInfo, InferencePriority, Node, ObjectFlags, ScriptTarget, Symbol,
-    SymbolFlags, SymbolInterface, SyntaxKind, TokenFlags, Type, TypeChecker, TypeFlags,
+    ElementFlags, HasArena, InferenceInfo, InferencePriority, Node, ObjectFlags, ScriptTarget,
+    Symbol, SymbolFlags, SymbolInterface, SyntaxKind, TokenFlags, Type, TypeChecker, TypeFlags,
     TypeInterface, UnionReduction, VarianceFlags,
 };
 

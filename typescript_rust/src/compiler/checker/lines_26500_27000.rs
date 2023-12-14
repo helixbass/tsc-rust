@@ -13,11 +13,11 @@ use crate::{
     is_property_declaration, is_type_literal_node, length, maybe_is_class_like,
     parameter_is_this_keyword, return_ok_default_if_none, try_filter, try_map,
     try_reduce_left_no_initial_value_optional, unescape_leading_underscores, CheckFlags,
-    ContextFlags, Debug_, Diagnostics, ElementFlags, ExternalEmitHelpers, HasInitializerInterface,
-    IndexInfo, InterfaceTypeInterface, NamedDeclarationInterface, Node, NodeCheckFlags,
-    NodeInterface, ObjectFlags, ObjectFlagsTypeInterface, OptionTry, ScriptTarget, Signature,
-    SignatureFlags, SignatureKind, Symbol, SymbolFlags, SymbolInterface, SyntaxKind, Ternary,
-    TransientSymbolInterface, Type, TypeChecker, TypeFlags, TypeInterface, TypeMapper,
+    ContextFlags, Debug_, Diagnostics, ElementFlags, ExternalEmitHelpers, HasArena,
+    HasInitializerInterface, IndexInfo, InterfaceTypeInterface, NamedDeclarationInterface, Node,
+    NodeCheckFlags, NodeInterface, ObjectFlags, ObjectFlagsTypeInterface, OptionTry, ScriptTarget,
+    Signature, SignatureFlags, SignatureKind, Symbol, SymbolFlags, SymbolInterface, SyntaxKind,
+    Ternary, TransientSymbolInterface, Type, TypeChecker, TypeFlags, TypeInterface, TypeMapper,
     UnionReduction,
 };
 

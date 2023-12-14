@@ -10,8 +10,8 @@ use crate::{
     is_element_access_expression, is_identifier, is_jsdoc_typedef_tag, is_jsx_self_closing_element,
     is_object_literal_expression, is_parenthesized_expression, is_property_access_expression,
     token_to_string, unescape_leading_underscores, AssignmentDeclarationKind, Diagnostic,
-    DiagnosticMessage, Diagnostics, ExternalEmitHelpers, FunctionFlags, InferenceContext, Node,
-    NodeFlags, NodeInterface, OptionTry, ScriptTarget, Symbol, SymbolFlags, SymbolInterface,
+    DiagnosticMessage, Diagnostics, ExternalEmitHelpers, FunctionFlags, HasArena, InferenceContext,
+    Node, NodeFlags, NodeInterface, OptionTry, ScriptTarget, Symbol, SymbolFlags, SymbolInterface,
     SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface, UnionReduction,
 };
 

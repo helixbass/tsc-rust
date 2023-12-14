@@ -11,7 +11,7 @@ use crate::{
     is_type_parameter_declaration, maybe_for_each, maybe_for_each_bool, Diagnostics, IteratorExt,
     Node, NodeInterface, ObjectFlags, ObjectFlagsTypeInterface, ObjectTypeInterface, OptionTry,
     Symbol, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
-    TypeSystemPropertyName, __String, _d, try_map_defined,
+    TypeSystemPropertyName, __String, _d, try_map_defined, HasArena,
 };
 
 impl TypeChecker {

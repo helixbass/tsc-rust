@@ -12,7 +12,7 @@ use crate::{
     is_valid_es_symbol_declaration, map, maybe_add_range, maybe_is_class_like,
     pseudo_big_int_to_string, return_ok_none_if_none, some, try_map, try_maybe_filter, try_some,
     AssignmentDeclarationKind, BaseLiteralType, BigIntLiteralType, CheckFlags, Diagnostics,
-    FunctionLikeDeclarationInterface, IndexInfo, InferenceContext, InferenceInfo,
+    FunctionLikeDeclarationInterface, HasArena, IndexInfo, InferenceContext, InferenceInfo,
     InterfaceTypeInterface, IntrinsicType, LiteralType, LiteralTypeInterface, Node, NodeFlags,
     NodeInterface, Number, NumberLiteralType, ObjectFlags, ObjectFlagsTypeInterface,
     ObjectTypeInterface, OptionTry, PseudoBigInt, Signature, SignatureFlags, StringLiteralType,

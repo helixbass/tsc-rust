@@ -23,7 +23,7 @@ use crate::{
     remove_trailing_directory_separator, resolve_path, return_ok_default_if_none, some,
     starts_with, starts_with_directory, to_path, try_get_extension_from_path, try_map_defined,
     CharacterCodes, Comparison, CompilerOptions, CompilerOptionsBuilder, Debug_, Extension,
-    FileExtensionInfo, FileIncludeKind, FileIncludeReason, GetOrInsertDefault, JsxEmit,
+    FileExtensionInfo, FileIncludeKind, FileIncludeReason, GetOrInsertDefault, HasArena, JsxEmit,
     LiteralLikeNodeInterface, ModuleKind, ModulePath, ModuleResolutionHost,
     ModuleResolutionHostOverrider, ModuleResolutionKind, ModuleSpecifierCache,
     ModuleSpecifierResolutionHost, Node, NodeFlags, NodeInterface, NonEmpty, OptionTry, Path,

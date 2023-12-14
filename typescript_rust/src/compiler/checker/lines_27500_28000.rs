@@ -19,9 +19,9 @@ use crate::{
     is_this_property, some, unescape_leading_underscores, AssignmentDeclarationKind, CheckFlags,
     Debug_, DiagnosticMessageChain, Diagnostics, HasTypeInterface, JsxEmit, JsxFlags,
     JsxReferenceKind, ModifierFlags, NodeFlags, ScriptTarget, Signature, SignatureKind,
-    SymbolFlags, UnionOrIntersectionTypeInterface, __String, get_object_flags, try_map, Node,
-    NodeInterface, ObjectFlags, OptionTry, Symbol, SymbolInterface, SyntaxKind, Type, TypeChecker,
-    TypeFlags, TypeInterface,
+    SymbolFlags, UnionOrIntersectionTypeInterface, __String, get_object_flags, try_map, HasArena,
+    Node, NodeInterface, ObjectFlags, OptionTry, Symbol, SymbolInterface, SyntaxKind, Type,
+    TypeChecker, TypeFlags, TypeInterface,
 };
 
 impl TypeChecker {

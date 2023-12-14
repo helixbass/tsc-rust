@@ -22,7 +22,7 @@ use crate::{
     maybe_get_source_file_of_node, no_truncation_maximum_truncation_length,
     pseudo_big_int_to_string, ref_mut_unwrapped, ref_unwrapped, set_emit_flags, symbol_name,
     try_map, try_using_single_line_string_writer, using_single_line_string_writer, Debug_,
-    EmitFlags, EmitHint, EmitTextWriter, FileIncludeReason, IndexInfo, KeywordTypeNode,
+    EmitFlags, EmitHint, EmitTextWriter, FileIncludeReason, HasArena, IndexInfo, KeywordTypeNode,
     ModifierFlags, ModuleSpecifierResolutionHost,
     ModuleSpecifierResolutionHostAndGetCommonSourceDirectory, MultiMap, Node, NodeArray,
     NodeBuilderFlags, NodeFlags, NodeInterface, ObjectFlags, Path, PrinterOptionsBuilder,

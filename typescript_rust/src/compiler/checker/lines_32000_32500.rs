@@ -16,11 +16,11 @@ use crate::{
     is_property_access_expression, is_property_assignment, parse_pseudo_big_int,
     skip_outer_expressions, skip_parentheses, token_to_string, try_every, try_some, AssignmentKind,
     CheckFlags, Debug_, Diagnostic, DiagnosticMessage, DiagnosticRelatedInformation, Diagnostics,
-    ExternalEmitHelpers, FunctionFlags, LiteralLikeNodeInterface, ModifierFlags, ModuleKind, Node,
-    NodeCheckFlags, NodeFlags, NodeInterface, Number, ObjectFlags, OptionTry, OuterExpressionKinds,
-    PseudoBigInt, ReadonlyTextRange, ScriptTarget, SignatureFlags, SignatureKind, Symbol,
-    SymbolFlags, SymbolInterface, SyntaxKind, TextSpan, Type, TypeChecker, TypeFlags,
-    TypeInterface, UnionOrIntersectionTypeInterface,
+    ExternalEmitHelpers, FunctionFlags, HasArena, LiteralLikeNodeInterface, ModifierFlags,
+    ModuleKind, Node, NodeCheckFlags, NodeFlags, NodeInterface, Number, ObjectFlags, OptionTry,
+    OuterExpressionKinds, PseudoBigInt, ReadonlyTextRange, ScriptTarget, SignatureFlags,
+    SignatureKind, Symbol, SymbolFlags, SymbolInterface, SyntaxKind, TextSpan, Type, TypeChecker,
+    TypeFlags, TypeInterface, UnionOrIntersectionTypeInterface,
 };
 
 impl TypeChecker {

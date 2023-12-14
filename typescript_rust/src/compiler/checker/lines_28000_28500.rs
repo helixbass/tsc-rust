@@ -17,9 +17,9 @@ use crate::{
     is_write_access, maybe_for_each, maybe_get_source_file_of_node, should_preserve_const_enums,
     symbol_name, unescape_leading_underscores, AssignmentDeclarationKind, AssignmentKind, Debug_,
     Diagnostic, DiagnosticMessageChain, DiagnosticRelatedInformation, Diagnostics,
-    ExternalEmitHelpers, FindAncestorCallbackReturn, Node, NodeFlags, NodeInterface, OptionTry,
-    ScriptKind, ScriptTarget, Symbol, SymbolFlags, SymbolInterface, SyntaxKind, Type, TypeChecker,
-    TypeFlags, TypeInterface, UnionOrIntersectionTypeInterface,
+    ExternalEmitHelpers, FindAncestorCallbackReturn, HasArena, Node, NodeFlags, NodeInterface,
+    OptionTry, ScriptKind, ScriptTarget, Symbol, SymbolFlags, SymbolInterface, SyntaxKind, Type,
+    TypeChecker, TypeFlags, TypeInterface, UnionOrIntersectionTypeInterface,
 };
 
 impl TypeChecker {

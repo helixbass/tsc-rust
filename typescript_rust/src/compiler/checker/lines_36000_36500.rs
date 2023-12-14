@@ -21,7 +21,7 @@ use crate::{
     is_private_identifier_class_element_declaration, is_type_only_import_or_export_declaration,
     is_variable_declaration, last, node_is_missing, node_is_present, parameter_is_this_keyword,
     range_of_node, range_of_type_parameters, symbol_name, try_add_to_set, try_cast, try_for_each,
-    CharacterCodes, Debug_, Diagnostic, Diagnostics, FunctionFlags, JSDocTagInterface,
+    CharacterCodes, Debug_, Diagnostic, Diagnostics, FunctionFlags, HasArena, JSDocTagInterface,
     ModifierFlags, NamedDeclarationInterface, Node, NodeFlags, NodeInterface, OptionTry,
     ScriptTarget, SignatureDeclarationInterface, SymbolFlags, SymbolInterface, SyntaxKind,
     TextRange, TypeChecker,

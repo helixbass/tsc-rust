@@ -15,9 +15,10 @@ use crate::{
     get_property_name_for_property_name_node, get_text_of_node, has_syntactic_modifier, id_text,
     is_binding_pattern, is_identifier, is_omitted_expression, is_parameter_property_declaration,
     is_private_identifier, is_static, node_is_present, return_ok_default_if_none, try_for_each,
-    DiagnosticMessageChain, Diagnostics, ExternalEmitHelpers, FunctionFlags, ModifierFlags,
-    NamedDeclarationInterface, Node, NodeInterface, ScriptTarget, SignatureDeclarationInterface,
-    SymbolInterface, SyntaxKind, Type, TypeChecker, TypeInterface, TypePredicateKind,
+    DiagnosticMessageChain, Diagnostics, ExternalEmitHelpers, FunctionFlags, HasArena,
+    ModifierFlags, NamedDeclarationInterface, Node, NodeInterface, ScriptTarget,
+    SignatureDeclarationInterface, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeInterface,
+    TypePredicateKind,
 };
 
 impl TypeChecker {

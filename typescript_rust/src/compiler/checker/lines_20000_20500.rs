@@ -15,7 +15,7 @@ use crate::{
     get_declaration_modifier_flags_from_symbol, get_object_flags, try_every, ConditionalRoot,
     OutofbandVarianceMarkerHandler, SymbolLinks, TransientSymbolInterface, __String, every,
     get_check_flags, get_selected_effective_modifier_flags, maybe_map, some, try_filter,
-    try_for_each_bool, try_some, CheckFlags, Diagnostics, IndexInfo, ModifierFlags, Node,
+    try_for_each_bool, try_some, CheckFlags, Diagnostics, HasArena, IndexInfo, ModifierFlags, Node,
     ObjectFlags, ObjectFlagsTypeInterface, OptionTry, RelationComparisonResult, Signature, Symbol,
     SymbolFlags, SymbolInterface, Ternary, Type, TypeChecker, TypeFlags, TypeInterface,
     UnionOrIntersectionTypeInterface, VarianceFlags,

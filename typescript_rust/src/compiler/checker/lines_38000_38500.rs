@@ -15,11 +15,11 @@ use crate::{
     is_private_identifier, is_private_identifier_class_element_declaration, is_static, length,
     some, try_for_each, try_for_each_bool, try_for_each_child, try_some, AsDoubleDeref,
     ClassLikeDeclarationInterface, DiagnosticMessage, Diagnostics, ExternalEmitHelpers,
-    FindAncestorCallbackReturn, HasInitializerInterface, HasTypeArgumentsInterface, IndexInfo,
-    InterfaceTypeInterface, ModifierFlags, ModuleKind, NamedDeclarationInterface, Node, NodeArray,
-    NodeFlags, NodeInterface, ObjectFlags, OptionTry, ReadonlyTextRange, ScriptTarget, Signature,
-    SignatureFlags, SignatureKind, Symbol, SymbolFlags, SymbolInterface, SyntaxKind, TypeFlags,
-    TypeInterface,
+    FindAncestorCallbackReturn, HasArena, HasInitializerInterface, HasTypeArgumentsInterface,
+    IndexInfo, InterfaceTypeInterface, ModifierFlags, ModuleKind, NamedDeclarationInterface, Node,
+    NodeArray, NodeFlags, NodeInterface, ObjectFlags, OptionTry, ReadonlyTextRange, ScriptTarget,
+    Signature, SignatureFlags, SignatureKind, Symbol, SymbolFlags, SymbolInterface, SyntaxKind,
+    TypeFlags, TypeInterface,
 };
 
 impl TypeChecker {

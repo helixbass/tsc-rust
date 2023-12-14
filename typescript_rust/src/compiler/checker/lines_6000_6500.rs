@@ -27,7 +27,7 @@ use crate::{
     InternalSymbolName, LiteralType, Matches, NamedDeclarationInterface, Node, NodeArray,
     NodeBuilder, NodeBuilderFlags, NodeInterface, Number, ObjectFlags, OptionTry,
     ReadonlyTextRange, Signature, SignatureDeclarationInterface, Symbol, SymbolAccessibility,
-    SymbolFlags,
+    SymbolFlags, HasArena,
 };
 
 impl NodeBuilder {

@@ -9,10 +9,10 @@ use super::{
 };
 use crate::{
     are_gc_slices_equal, are_option_rcs_equal, get_object_flags, try_map, AccessFlags,
-    DiagnosticMessageChain, InferenceFlags, InferencePriority, Node, NodeInterface, ObjectFlags,
-    ObjectTypeInterface, OutofbandVarianceMarkerHandler, RelationComparisonResult, SignatureKind,
-    Symbol, SymbolInterface, Ternary, Type, TypeChecker, TypeComparer, TypeFlags, TypeInterface,
-    TypeMapper, TypeMapperCallback, UnionOrIntersectionTypeInterface, VarianceFlags,
+    DiagnosticMessageChain, HasArena, InferenceFlags, InferencePriority, Node, NodeInterface,
+    ObjectFlags, ObjectTypeInterface, OutofbandVarianceMarkerHandler, RelationComparisonResult,
+    SignatureKind, Symbol, SymbolInterface, Ternary, Type, TypeChecker, TypeComparer, TypeFlags,
+    TypeInterface, TypeMapper, TypeMapperCallback, UnionOrIntersectionTypeInterface, VarianceFlags,
 };
 
 impl CheckTypeRelatedTo {

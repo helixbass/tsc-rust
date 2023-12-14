@@ -17,7 +17,7 @@ use crate::{
     is_super_property, length, maybe_is_class_like, node_starts_new_lexical_environment,
     push_if_unique_eq, push_if_unique_gc, text_range_contains_position_inclusive, AsDoubleDeref,
     AssignmentDeclarationKind, DiagnosticMessage, Diagnostics, FindAncestorCallbackReturn,
-    HasTypeInterface, InterfaceTypeInterface, InternalSymbolName, ModifierFlags,
+    HasArena, HasTypeInterface, InterfaceTypeInterface, InternalSymbolName, ModifierFlags,
     NamedDeclarationInterface, Node, NodeArray, NodeCheckFlags, NodeInterface, OptionTry,
     ReadonlyTextRange, ScriptTarget, SignatureDeclarationInterface, Symbol, SymbolFlags,
     SymbolInterface, SyntaxKind, Type, TypeChecker, TypeInterface,

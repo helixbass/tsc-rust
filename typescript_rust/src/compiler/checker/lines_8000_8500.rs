@@ -21,7 +21,7 @@ use crate::{
     is_source_file, map, maybe_get_source_file_of_node, parse_node_factory, push_if_unique_gc,
     return_ok_default_if_none, return_ok_none_if_none, set_parent, set_text_range, starts_with,
     symbol_name, try_add_to_set, try_map, try_maybe_for_each, try_using_single_line_string_writer,
-    walk_up_parenthesized_types, CharacterCodes, CheckFlags, EmitHint, EmitTextWriter,
+    walk_up_parenthesized_types, CharacterCodes, CheckFlags, EmitHint, EmitTextWriter, HasArena,
     InterfaceTypeInterface, InternalSymbolName, LiteralType, ModifierFlags,
     NamedDeclarationInterface, Node, NodeBuilderFlags, NodeFlags, NodeInterface, ObjectFlags,
     ObjectFlagsTypeInterface, OptionTry, PrinterOptionsBuilder, Symbol, SymbolFlags, SymbolId,

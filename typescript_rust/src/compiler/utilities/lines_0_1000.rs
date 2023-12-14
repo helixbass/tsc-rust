@@ -37,13 +37,13 @@ use crate::{
     options_affecting_program_structure, skip_trivia, starts_with_use_strict, text_char_at_index,
     text_substring, trim_string_start, AllArenas, CharacterCodes, CommandLineOption,
     CommentDirective, CommentDirectiveType, CommentDirectivesMap, CompilerOptions, Debug_,
-    EmitFlags, EmitTextWriter, HasStatementsInterface, IndexInfo, LiteralLikeNodeInterface,
-    ModeAwareCache, ModuleKind, NamedDeclarationInterface, Node, NodeArray, NodeFlags,
-    NodeInterface, PackageId, ProjectReference, ReadonlyCollection, ReadonlyTextRange,
-    ResolvedModuleFull, ResolvedTypeReferenceDirective, ScriptKind, SignatureDeclarationInterface,
-    SourceFileLike, SourceTextAsChars, StringOrNumber, Symbol, SymbolFlags, SymbolInterface,
-    SymbolTable, SymbolTracker, SymbolWriter, SyntaxKind, TextRange, TokenFlags, Type,
-    UnderscoreEscapedMap,
+    EmitFlags, EmitTextWriter, HasArena, HasStatementsInterface, IndexInfo,
+    LiteralLikeNodeInterface, ModeAwareCache, ModuleKind, NamedDeclarationInterface, Node,
+    NodeArray, NodeFlags, NodeInterface, PackageId, ProjectReference, ReadonlyCollection,
+    ReadonlyTextRange, ResolvedModuleFull, ResolvedTypeReferenceDirective, ScriptKind,
+    SignatureDeclarationInterface, SourceFileLike, SourceTextAsChars, StringOrNumber, Symbol,
+    SymbolFlags, SymbolInterface, SymbolTable, SymbolTracker, SymbolWriter, SyntaxKind, TextRange,
+    TokenFlags, Type, UnderscoreEscapedMap,
 };
 
 thread_local! {

@@ -8,8 +8,8 @@ use crate::{
     are_gc_slices_equal, contains_gc, escape_leading_underscores, every, find_index,
     has_static_modifier, id_text, is_element_access_expression, is_private_identifier,
     is_property_access_expression, is_string_literal_like, Debug_, SymbolFlags, SymbolInterface,
-    SyntaxKind, __String, contains, is_access_expression, is_optional_chain, map, try_map, Node,
-    NodeInterface, OptionTry, Symbol, Type, TypeFlags, TypeInterface,
+    SyntaxKind, __String, contains, is_access_expression, is_optional_chain, map, try_map,
+    HasArena, Node, NodeInterface, OptionTry, Symbol, Type, TypeFlags, TypeInterface,
     UnionOrIntersectionTypeInterface, UnionReduction,
 };
 

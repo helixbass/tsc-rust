@@ -14,7 +14,7 @@ use crate::{
     is_identifier, is_known_symbol, is_private_identifier, map, ordered_remove_item_at,
     reduce_left, replace_element, some, symbol_name, try_find_index, try_map,
     unescape_leading_underscores, walk_up_parenthesized_types, BaseUnionOrIntersectionType, Debug_,
-    Diagnostics, IndexType, InternalSymbolName, IntersectionType, ModifierFlags, Node,
+    Diagnostics, HasArena, IndexType, InternalSymbolName, IntersectionType, ModifierFlags, Node,
     NodeInterface, ObjectFlags, ObjectTypeInterface, Symbol, SymbolInterface, SyntaxKind, Type,
     TypeChecker, TypeFlags, TypeId, TypeInterface, UnionOrIntersectionTypeInterface,
     UnionReduction, VecExt,

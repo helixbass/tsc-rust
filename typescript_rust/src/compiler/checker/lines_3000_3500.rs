@@ -24,7 +24,7 @@ use crate::{
     resolution_extension_is_ts_or_json, return_ok_default_if_none, return_ok_none_if_none,
     starts_with, try_extract_ts_extension, unescape_leading_underscores, AssignmentDeclarationKind,
     CheckFlags, Debug_, DiagnosticMessage, Diagnostics, Extension, FindAncestorCallbackReturn,
-    HasInitializerInterface, InternalSymbolName, ModuleKind, ModuleResolutionKind,
+    HasArena, HasInitializerInterface, InternalSymbolName, ModuleKind, ModuleResolutionKind,
     NamedDeclarationInterface, Node, NodeFlags, NodeInterface, Symbol, SymbolFlags,
     SymbolFormatFlags, SymbolInterface, SymbolLinks, SyntaxKind, TypeChecker, TypeCheckerHost,
 };

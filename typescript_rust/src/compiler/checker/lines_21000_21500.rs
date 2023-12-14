@@ -12,9 +12,9 @@ use crate::{
     TypeMapper, TypeMapperCallback, __String, declaration_name_to_string, get_name_of_declaration,
     get_object_flags, get_source_file_of_node, is_call_signature_declaration,
     is_check_js_enabled_for_file, is_in_js_file, is_type_node_kind, try_for_each_bool, try_map,
-    try_some, DiagnosticMessage, Diagnostics, InferenceContext, InferenceFlags, InferenceInfo,
-    IteratorExt, Node, NodeInterface, ObjectFlags, Signature, Symbol, SymbolFlags, Ternary, Type,
-    TypeChecker, TypeFlags, TypeInterface, UnionReduction, WideningContext,
+    try_some, DiagnosticMessage, Diagnostics, HasArena, InferenceContext, InferenceFlags,
+    InferenceInfo, IteratorExt, Node, NodeInterface, ObjectFlags, Signature, Symbol, SymbolFlags,
+    Ternary, Type, TypeChecker, TypeFlags, TypeInterface, UnionReduction, WideningContext,
 };
 
 impl TypeChecker {

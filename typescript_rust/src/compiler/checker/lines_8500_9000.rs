@@ -24,7 +24,7 @@ use crate::{
     ModifierFlags, NamedDeclarationInterface, Node, NodeFlags, NodeInterface, Number, ObjectFlags,
     ObjectFlagsTypeInterface, OptionTry, StrOrRcNode, Symbol, SymbolFlags, SymbolInterface,
     SyntaxKind, TransientSymbolInterface, Type, TypeChecker, TypeFlags, TypeInterface,
-    UnionReduction,
+    UnionReduction, HasArena,
 };
 
 impl TypeChecker {

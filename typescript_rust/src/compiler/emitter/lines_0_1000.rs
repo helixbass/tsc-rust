@@ -32,7 +32,7 @@ use crate::{
     Comparison, CompilerOptions, CurrentParenthesizerRule, Debug_, DetachedCommentInfo,
     DiagnosticCollection, EmitBinaryExpression, EmitFileNames, EmitHint, EmitHost,
     EmitHostWriteFileCallback, EmitResolver, EmitResult, EmitTextWriter, EmitTransformers,
-    ExportedModulesFromDeclarationEmit, Extension, JsxEmit, ListFormat,
+    ExportedModulesFromDeclarationEmit, Extension, HasArena, JsxEmit, ListFormat,
     ModuleSpecifierResolutionHostAndGetCommonSourceDirectory, Node, NodeArray, NodeId,
     NodeInterface, NonEmpty, ParenthesizerRules, ParsedCommandLine, PrintHandlers, Printer,
     PrinterOptions, RelativeToBuildInfo, ScriptReferenceHost, SourceMapEmitResult,

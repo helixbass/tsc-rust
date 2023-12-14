@@ -15,11 +15,12 @@ use crate::{
     is_property_signature, is_push_or_unshift_identifier, is_string_literal_like,
     is_variable_declaration, skip_parentheses, try_every, try_filter, try_for_each, try_map,
     try_some, CheckFlags, Diagnostic, Diagnostics, EvolvingArrayType, FlowFlags, FlowNode,
-    FlowNodeBase, FlowType, HasInitializerInterface, IncompleteType, NamedDeclarationInterface,
-    Node, NodeFlags, NodeInterface, ObjectFlags, ObjectFlagsTypeInterface, OptionTry,
-    ReadonlyTextRange, Signature, SignatureKind, Symbol, SymbolFlags, SymbolInterface, SyntaxKind,
-    TransientSymbolInterface, Type, TypeChecker, TypeFlags, TypeInterface, TypePredicate,
-    TypePredicateKind, UnionOrIntersectionTypeInterface, UnionReduction,
+    FlowNodeBase, FlowType, HasArena, HasInitializerInterface, IncompleteType,
+    NamedDeclarationInterface, Node, NodeFlags, NodeInterface, ObjectFlags,
+    ObjectFlagsTypeInterface, OptionTry, ReadonlyTextRange, Signature, SignatureKind, Symbol,
+    SymbolFlags, SymbolInterface, SyntaxKind, TransientSymbolInterface, Type, TypeChecker,
+    TypeFlags, TypeInterface, TypePredicate, TypePredicateKind, UnionOrIntersectionTypeInterface,
+    UnionReduction,
 };
 
 impl TypeChecker {

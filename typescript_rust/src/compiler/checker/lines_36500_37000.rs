@@ -16,7 +16,7 @@ use crate::{
     is_object_binding_pattern, is_object_literal_expression, is_parameter_declaration,
     is_property_access_expression, is_prototype_access, is_require_variable_declaration,
     is_variable_like, node_is_missing, some, try_for_each, try_for_each_child_bool,
-    ClassLikeDeclarationInterface, Debug_, Diagnostics, ExternalEmitHelpers,
+    ClassLikeDeclarationInterface, Debug_, Diagnostics, ExternalEmitHelpers, HasArena,
     HasInitializerInterface, ModifierFlags, ModuleInstanceState, ModuleKind, Node, NodeArray,
     NodeCheckFlags, NodeFlags, NodeInterface, OptionTry, ScriptTarget, SignatureKind, Symbol,
     SymbolFlags, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,

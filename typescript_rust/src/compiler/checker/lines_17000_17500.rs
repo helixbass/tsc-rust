@@ -20,11 +20,11 @@ use crate::{
     is_identifier_type_predicate, is_jsx_element, is_jsx_opening_element, is_jsx_spread_attribute,
     is_omitted_expression, is_spread_assignment, length, some, try_flat_map, try_map, try_some,
     unescape_leading_underscores, Debug_, Diagnostic, DiagnosticMessage, DiagnosticMessageChain,
-    Diagnostics, FunctionFlags, FunctionLikeDeclarationInterface, HasInitializerInterface,
-    NamedDeclarationInterface, Node, NodeInterface, Number, OptionTry, RelationComparisonResult,
-    Signature, SignatureDeclarationInterface, SignatureKind, Symbol, SymbolFlags, SymbolInterface,
-    SyntaxKind, Ternary, Type, TypeChecker, TypeComparer, TypeFlags, TypeInterface, TypeMapper,
-    UnionOrIntersectionTypeInterface,
+    Diagnostics, FunctionFlags, FunctionLikeDeclarationInterface, HasArena,
+    HasInitializerInterface, NamedDeclarationInterface, Node, NodeInterface, Number, OptionTry,
+    RelationComparisonResult, Signature, SignatureDeclarationInterface, SignatureKind, Symbol,
+    SymbolFlags, SymbolInterface, SyntaxKind, Ternary, Type, TypeChecker, TypeComparer, TypeFlags,
+    TypeInterface, TypeMapper, UnionOrIntersectionTypeInterface,
 };
 
 impl TypeChecker {

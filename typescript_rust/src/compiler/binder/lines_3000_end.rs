@@ -21,7 +21,7 @@ use crate::{
     is_prototype_access, is_require_call, is_require_variable_declaration, is_source_file,
     is_statement, is_statement_but_not_declaration, is_variable_declaration, is_variable_statement,
     maybe_is_function_like_declaration, set_parent, should_preserve_const_enums, slice_after, some,
-    symbol_name, unreachable_code_is_error, Debug_, Diagnostics, FlowFlags, FlowNodeBase,
+    symbol_name, unreachable_code_is_error, Debug_, Diagnostics, FlowFlags, FlowNodeBase, HasArena,
     HasInitializerInterface, InternalSymbolName, ModifierFlags, NamedDeclarationInterface, Node,
     NodeFlags, NodeInterface, Symbol, SymbolFlags, SymbolInterface, SyntaxKind,
 };

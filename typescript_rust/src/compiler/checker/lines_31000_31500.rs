@@ -16,7 +16,7 @@ use crate::{
     NodeFlags, Number, ObjectFlags, ScriptTarget, Signature, SignatureFlags, SymbolFlags,
     TransientSymbolInterface, __String, has_initializer, maybe_get_source_file_of_node, Node,
     NodeInterface, OptionTry, Symbol, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags,
-    TypeInterface,
+    TypeInterface, HasArena,
 };
 
 impl TypeChecker {
