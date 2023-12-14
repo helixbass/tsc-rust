@@ -304,7 +304,8 @@ impl TypeChecker {
         }
 
         let symbol = self.get_symbol_of_node(node)?.unwrap();
-        if symbol
+        if self
+            .symbol(symbol)
             .flags()
             .intersects(SymbolFlags::FunctionScopedVariable)
         {
@@ -322,21 +323,20 @@ impl TypeChecker {
                 None,
             )?;
             if let Some(local_declaration_symbol) =
-                local_declaration_symbol
-                    .as_ref()
-                    .filter(|local_declaration_symbol| {
-                        !Gc::ptr_eq(local_declaration_symbol, &symbol)
-                            && local_declaration_symbol
-                                .flags()
-                                .intersects(SymbolFlags::BlockScopedVariable)
-                    })
+                local_declaration_symbol.filter(|&local_declaration_symbol| {
+                    local_declaration_symbol != symbol
+                        && self
+                            .symbol(local_declaration_symbol)
+                            .flags()
+                            .intersects(SymbolFlags::BlockScopedVariable)
+                })
             {
                 if self
                     .get_declaration_node_flags_from_symbol(local_declaration_symbol)
                     .intersects(NodeFlags::BlockScoped)
                 {
                     let var_decl_list = get_ancestor(
-                        local_declaration_symbol.maybe_value_declaration(),
+                        self.symbol(local_declaration_symbol).maybe_value_declaration(),
                         SyntaxKind::VariableDeclarationList,
                     )
                     .unwrap();
@@ -446,7 +446,7 @@ impl TypeChecker {
                     if self.is_type_usable_as_property_name(expr_type) {
                         let name_text = self.get_property_name_from_type(expr_type);
                         let property = self.get_property_of_type_(parent_type, &name_text, None)?;
-                        if let Some(property) = property.as_ref() {
+                        if let Some(property) = property {
                             self.mark_property_as_referenced(
                                 property,
                                 Option::<&Node>::None,
@@ -542,14 +542,16 @@ impl TypeChecker {
             return Ok(());
         }
         let symbol = self.get_symbol_of_node(node)?.unwrap();
-        if symbol.flags().intersects(SymbolFlags::Alias) && is_require_variable_declaration(node) {
+        if self.symbol(symbol).flags().intersects(SymbolFlags::Alias)
+            && is_require_variable_declaration(node)
+        {
             self.check_alias_symbol(node)?;
             return Ok(());
         }
 
-        let type_ = self.convert_auto_to_any(self.get_type_of_symbol(&symbol)?);
+        let type_ = self.convert_auto_to_any(self.get_type_of_symbol(symbol)?);
         if matches!(
-            symbol.maybe_value_declaration().as_ref(),
+            self.symbol(symbol).maybe_value_declaration().as_ref(),
             Some(symbol_value_declaration) if ptr::eq(
                 node,
                 &**symbol_value_declaration
@@ -565,7 +567,7 @@ impl TypeChecker {
                         .is_empty()
                         || is_prototype_access(&node_name))
                     && matches!(
-                        symbol.maybe_exports().as_ref(),
+                        self.symbol(symbol).maybe_exports().as_ref(),
                         Some(symbol_exports) if !(**symbol_exports).borrow().is_empty()
                     );
                 if !is_js_object_literal_initializer
@@ -581,8 +583,8 @@ impl TypeChecker {
                     )?;
                 }
             }
-            if let Some(symbol_declarations) = symbol
-                .maybe_declarations()
+            if let Some(symbol_declarations) = self.symbol(symbol
+                ).maybe_declarations()
                 .as_ref()
                 .filter(|symbol_declarations| symbol_declarations.len() > 1)
             {
@@ -611,10 +613,10 @@ impl TypeChecker {
             if !self.is_error_type(type_)
                 && !self.is_error_type(declaration_type)
                 && !self.is_type_identical_to(type_, declaration_type)?
-                && !symbol.flags().intersects(SymbolFlags::Assignment)
+                && !self.symbol(symbol).flags().intersects(SymbolFlags::Assignment)
             {
                 self.error_next_variable_or_property_declaration_must_have_same_type(
-                    symbol.maybe_value_declaration(),
+                    self.symbol(symbol).maybe_value_declaration(),
                     type_,
                     node,
                     declaration_type,
@@ -631,7 +633,7 @@ impl TypeChecker {
                 )?;
             }
             if matches!(
-                symbol.maybe_value_declaration().as_ref(),
+                self.symbol(symbol).maybe_value_declaration().as_ref(),
                 Some(symbol_value_declaration) if !self.are_declaration_flags_identical(
                     node,
                     symbol_value_declaration
@@ -870,11 +872,11 @@ impl TypeChecker {
 
         let body = body.map(|body| body.borrow().node_wrapper());
         let is_used = matches!(
-            tested_symbol.as_ref(),
+            tested_symbol,
             Some(tested_symbol) if is_binary_expression(&cond_expr.parent()) &&
                 self.is_symbol_used_in_binary_expression_chain(&cond_expr.parent(), tested_symbol)?
         ) || matches!(
-            (tested_symbol.as_ref(), body.as_ref()),
+            (tested_symbol, body.as_ref()),
             (Some(tested_symbol), Some(body)) if self.is_symbol_used_in_condition_body(
                 cond_expr,
                 body,
@@ -935,8 +937,8 @@ impl TypeChecker {
         if is_identifier(child_node) {
             let child_symbol = self.get_symbol_at_location_(child_node, None)?;
             if matches!(
-                child_symbol.as_ref(),
-                Some(child_symbol) if ptr::eq(&**child_symbol, tested_symbol)
+                child_symbol,
+                Some(child_symbol) if child_symbol == tested_symbol
             ) {
                 if is_identifier(expr) {
                     return Ok(true);
@@ -951,12 +953,10 @@ impl TypeChecker {
                         || tested_expression_present.kind() == SyntaxKind::ThisKeyword
                             && child_expression_present.kind() == SyntaxKind::ThisKeyword
                     {
-                        return Ok(are_option_gcs_equal(
-                            self.get_symbol_at_location_(tested_expression_present, None)?
-                                .as_ref(),
+                        return Ok(
+                            self.get_symbol_at_location_(tested_expression_present, None)? ==
                             self.get_symbol_at_location_(child_expression_present, None)?
-                                .as_ref(),
-                        ));
+                        );
                     } else if is_property_access_expression(tested_expression_present)
                         && is_property_access_expression(child_expression_present)
                     {
@@ -964,18 +964,15 @@ impl TypeChecker {
                             tested_expression_present.as_property_access_expression();
                         let child_expression_present_as_property_access_expression =
                             child_expression_present.as_property_access_expression();
-                        if !are_option_gcs_equal(
-                            self.get_symbol_at_location_(
+                        if self.get_symbol_at_location_(
                                 &tested_expression_present_as_property_access_expression.name,
                                 None,
-                            )?
-                            .as_ref(),
+                            )? !=
                             self.get_symbol_at_location_(
                                 &child_expression_present_as_property_access_expression.name,
                                 None,
                             )?
-                            .as_ref(),
-                        ) {
+                        {
                             return Ok(false);
                         }
                         child_expression = Some(

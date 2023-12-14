@@ -133,7 +133,7 @@ impl TypeChecker {
             try_get_class_implementing_or_extending_expression_with_type_arguments(node);
         let class_type = class_decl.as_ref().try_map(|class_decl| {
             self.get_declared_type_of_class_or_interface(
-                &self.get_symbol_of_node(&class_decl.class)?.unwrap(),
+                self.get_symbol_of_node(&class_decl.class)?.unwrap(),
             )
         })?;
         if is_part_of_type_node(node) {
@@ -170,13 +170,13 @@ impl TypeChecker {
         }
 
         if self.is_type_declaration(node) {
-            let ref symbol = self.get_symbol_of_node(node)?.unwrap();
+            let symbol = self.get_symbol_of_node(node)?.unwrap();
             return self.get_declared_type_of_symbol(symbol);
         }
 
         if self.is_type_declaration_name(node) {
             let symbol = self.get_symbol_at_location_(node, None)?;
-            return Ok(if let Some(symbol) = symbol.as_ref() {
+            return Ok(if let Some(symbol) = symbol {
                 self.get_declared_type_of_symbol(symbol)?
             } else {
                 self.error_type()
@@ -184,13 +184,13 @@ impl TypeChecker {
         }
 
         if is_declaration(node) {
-            let ref symbol = self.get_symbol_of_node(node)?.unwrap();
+            let symbol = self.get_symbol_of_node(node)?.unwrap();
             return self.get_type_of_symbol(symbol);
         }
 
         if is_declaration_name_or_import_property_name(node) {
             let symbol = self.get_symbol_at_location_(node, None)?;
-            if let Some(symbol) = symbol.as_ref() {
+            if let Some(symbol) = symbol {
                 return self.get_type_of_symbol(symbol);
             }
             return Ok(self.error_type());
@@ -204,7 +204,7 @@ impl TypeChecker {
 
         if self.is_in_right_side_of_import_or_export_assignment(node) {
             let symbol = self.get_symbol_at_location_(node, None)?;
-            if let Some(symbol) = symbol.as_ref() {
+            if let Some(symbol) = symbol {
                 let declared_type = self.get_declared_type_of_symbol(symbol)?;
                 return Ok(if !self.is_error_type(declared_type) {
                     declared_type.clone()
@@ -333,7 +333,7 @@ impl TypeChecker {
         &self,
         node: &Node, /*ClassElement*/
     ) -> io::Result<Id<Type>> {
-        let ref class_symbol = self.get_symbol_of_node(&node.parent())?.unwrap();
+        let class_symbol = self.get_symbol_of_node(&node.parent())?.unwrap();
         Ok(if is_static(node) {
             self.get_type_of_symbol(class_symbol)?
         } else {
@@ -385,9 +385,9 @@ impl TypeChecker {
         if let Some(function_type) = function_type {
             for_each(
                 self.get_properties_of_type(function_type)?,
-                |ref p: Id<Symbol>, _| -> Option<()> {
-                    if !props_by_name.contains_key(p.escaped_name()) {
-                        props_by_name.insert(p.escaped_name().to_owned(), p.clone());
+                |p: Id<Symbol>, _| -> Option<()> {
+                    if !props_by_name.contains_key(self.symbol(p).escaped_name()) {
+                        props_by_name.insert(self.symbol(p).escaped_name().to_owned(), p.clone());
                     }
                     None
                 },
@@ -406,11 +406,11 @@ impl TypeChecker {
     pub fn get_root_symbols(&self, symbol: Id<Symbol>) -> io::Result<Vec<Id<Symbol>>> {
         let roots = self.get_immediate_root_symbols(symbol)?;
         Ok(if let Some(roots) = roots.as_ref() {
-            try_flat_map(Some(roots), |root: &Id<Symbol>, _| {
+            try_flat_map(Some(roots), |&root: &Id<Symbol>, _| {
                 self.get_root_symbols(root)
             })?
         } else {
-            vec![symbol.symbol_wrapper()]
+            vec![symbol]
         })
     }
 
@@ -431,12 +431,12 @@ impl TypeChecker {
                     .types(),
                 ),
                 |&type_: &Id<Type>, _| {
-                    self.get_property_of_type_(type_, symbol.escaped_name(), None)
+                    self.get_property_of_type_(type_, self.symbol(symbol).escaped_name(), None)
                 },
             )?));
-        } else if symbol.flags().intersects(SymbolFlags::Transient) {
+        } else if self.symbol(symbol).flags().intersects(SymbolFlags::Transient) {
             let (left_spread, right_spread, synthetic_origin) = {
-                let symbol_links = symbol.as_transient_symbol().symbol_links();
+                let symbol_links = self.symbol(symbol).as_transient_symbol().symbol_links();
                 let symbol_links = (*symbol_links).borrow();
                 (
                     symbol_links.left_spread.clone(),
@@ -457,7 +457,7 @@ impl TypeChecker {
 
     pub(super) fn try_get_alias_target(&self, symbol: Id<Symbol>) -> Option<Id<Symbol>> {
         let mut target: Option<Id<Symbol>> = None;
-        let mut next: Option<Id<Symbol>> = Some(symbol.symbol_wrapper());
+        let mut next = Some(symbol);
         while {
             next = (*self.get_symbol_links(next.as_ref().unwrap()))
                 .borrow()
@@ -495,11 +495,8 @@ impl TypeChecker {
                 self.get_referenced_value_symbol(
                     node,
                     None,
-                )?.as_ref(),
-                Some(referenced_value_symbol) if Gc::ptr_eq(
-                    referenced_value_symbol,
-                    &self.arguments_symbol()
-                )
+                )?,
+                Some(referenced_value_symbol) if referenced_value_symbol == self.arguments_symbol()
             ))
     }
 
@@ -512,27 +509,27 @@ impl TypeChecker {
             module_reference_expression,
             None,
         )?;
-        if match module_symbol.as_ref() {
+        if match module_symbol {
             None => true,
-            Some(module_symbol) => is_shorthand_ambient_module_symbol(module_symbol),
+            Some(module_symbol) => is_shorthand_ambient_module_symbol(&self.symbol(module_symbol)),
         } {
             return Ok(true);
         }
-        let module_symbol = module_symbol.as_ref().unwrap();
+        let module_symbol = module_symbol.unwrap();
 
         let has_export_assignment = self.has_export_assignment_symbol(module_symbol);
-        let ref module_symbol = self
-            .resolve_external_module_symbol(Some(&**module_symbol), None)?
+        let module_symbol = self
+            .resolve_external_module_symbol(Some(module_symbol), None)?
             .unwrap();
 
         let symbol_links = self.get_symbol_links(module_symbol);
         if (*symbol_links).borrow().exports_some_value.is_none() {
             symbol_links.borrow_mut().exports_some_value = Some(if has_export_assignment {
-                module_symbol.flags().intersects(SymbolFlags::Value)
+                self.symbol(module_symbol).flags().intersects(SymbolFlags::Value)
             } else {
                 try_for_each_entry_bool(
                     &*(*self.get_exports_of_module_(module_symbol)?).borrow(),
-                    |s: &Id<Symbol>, _| self.is_value(s),
+                    |&s: &Id<Symbol>, _| self.is_value(s),
                 )?
             });
         }
@@ -543,8 +540,8 @@ impl TypeChecker {
     pub(super) fn is_value(&self, s: Id<Symbol>) -> io::Result<bool> {
         let s = self.resolve_symbol(Some(s), None)?;
         Ok(matches!(
-            s.as_ref(),
-            Some(s) if s.flags().intersects(SymbolFlags::Value)
+            s,
+            Some(s) if self.symbol(s).flags().intersects(SymbolFlags::Value)
         ))
     }
 
@@ -569,24 +566,24 @@ impl TypeChecker {
             )?;
             if let Some(mut symbol) = symbol {
                 if symbol.flags().intersects(SymbolFlags::ExportValue) {
-                    let ref export_symbol = self
+                    let export_symbol = self
                         .get_merged_symbol(symbol.maybe_export_symbol())
                         .unwrap();
                     if prefix_locals != Some(true)
-                        && export_symbol
-                            .flags()
+                        && self.symbol(export_symbol
+                            ).flags()
                             .intersects(SymbolFlags::ExportHasLocal)
-                        && !export_symbol.flags().intersects(SymbolFlags::Variable)
+                        && !self.symbol(export_symbol).flags().intersects(SymbolFlags::Variable)
                     {
                         return Ok(None);
                     }
                     symbol = export_symbol.clone();
                 }
-                let parent_symbol = self.get_parent_of_symbol(&symbol)?;
-                if let Some(parent_symbol) = parent_symbol.as_ref() {
-                    if parent_symbol.flags().intersects(SymbolFlags::ValueModule) {
-                        if let Some(parent_symbol_value_declaration) = parent_symbol
-                            .maybe_value_declaration()
+                let parent_symbol = self.get_parent_of_symbol(symbol)?;
+                if let Some(parent_symbol) = parent_symbol {
+                    if self.symbol(parent_symbol).flags().intersects(SymbolFlags::ValueModule) {
+                        if let Some(parent_symbol_value_declaration) = self.symbol(parent_symbol
+                            ).maybe_value_declaration()
                             .as_ref()
                             .filter(|parent_symbol_value_declaration| {
                                 parent_symbol_value_declaration.kind() == SyntaxKind::SourceFile
@@ -605,11 +602,8 @@ impl TypeChecker {
                     return try_find_ancestor(node.maybe_parent(), |n| -> io::Result<_> {
                         Ok(is_module_or_enum_declaration(n)
                             && matches!(
-                                self.get_symbol_of_node(n)?.as_ref(),
-                                Some(symbol) if Gc::ptr_eq(
-                                    symbol,
-                                    parent_symbol
-                                )
+                                self.get_symbol_of_node(n)?,
+                                Some(symbol) if symbol == parent_symbol
                             ))
                     });
                 }
@@ -632,12 +626,12 @@ impl TypeChecker {
         let node = get_parse_tree_node(Some(node_in), Some(is_identifier));
         if let Some(node) = node.as_ref() {
             let symbol = self.get_referenced_value_symbol(node, None)?;
-            if self.is_non_local_alias(symbol.as_deref(), Some(SymbolFlags::Value))
+            if self.is_non_local_alias(symbol, Some(SymbolFlags::Value))
                 && self
-                    .get_type_only_alias_declaration(symbol.as_ref().unwrap())
+                    .get_type_only_alias_declaration(symbol.unwrap())
                     .is_none()
             {
-                return self.get_declaration_of_alias_symbol(symbol.as_ref().unwrap());
+                return self.get_declaration_of_alias_symbol(symbol.unwrap());
             }
         }
 
@@ -649,7 +643,7 @@ impl TypeChecker {
         symbol: Id<Symbol>,
     ) -> bool {
         matches!(
-            symbol.maybe_value_declaration().as_ref(),
+            self.symbol(symbol).maybe_value_declaration().as_ref(),
             Some(symbol_value_declaration) if is_binding_element(symbol_value_declaration) &&
                 walk_up_binding_elements_and_patterns(symbol_value_declaration).parent().kind() == SyntaxKind::CatchClause
         )
@@ -659,9 +653,9 @@ impl TypeChecker {
         &self,
         symbol: Id<Symbol>,
     ) -> io::Result<bool> {
-        if symbol.flags().intersects(SymbolFlags::BlockScoped) {
-            if let Some(symbol_value_declaration) = symbol
-                .maybe_value_declaration()
+        if self.symbol(symbol).flags().intersects(SymbolFlags::BlockScoped) {
+            if let Some(symbol_value_declaration) = self.symbol(symbol
+                ).maybe_value_declaration()
                 .as_ref()
                 .filter(|symbol_value_declaration| !is_source_file(symbol_value_declaration))
             {
@@ -680,7 +674,7 @@ impl TypeChecker {
                         if self
                             .resolve_name_(
                                 container.maybe_parent(),
-                                symbol.escaped_name(),
+                                self.symbol(symbol).escaped_name(),
                                 SymbolFlags::Value,
                                 None,
                                 Option::<Gc<Node>>::None,
@@ -727,7 +721,7 @@ impl TypeChecker {
             let node = get_parse_tree_node(Some(node_in), Some(is_identifier));
             if let Some(node) = node.as_ref() {
                 let symbol = self.get_referenced_value_symbol(node, None)?;
-                if let Some(symbol) = symbol.as_ref().try_filter(|symbol| {
+                if let Some(symbol) = symbol.try_filter(|&symbol| {
                     self.is_symbol_of_declaration_with_colliding_name(symbol)
                 })? {
                     return Ok(symbol.maybe_value_declaration());
@@ -745,7 +739,7 @@ impl TypeChecker {
         let node = get_parse_tree_node(Some(node_in), Some(is_declaration));
         if let Some(node) = node.as_ref() {
             let symbol = self.get_symbol_of_node(node)?;
-            if let Some(symbol) = symbol.as_ref() {
+            if let Some(symbol) = symbol {
                 return self.is_symbol_of_declaration_with_colliding_name(symbol);
             }
         }
@@ -764,8 +758,8 @@ impl TypeChecker {
             | SyntaxKind::ExportSpecifier => {
                 let symbol = self.get_symbol_of_node(node)?;
                 matches!(
-                    symbol.as_ref(),
-                    Some(symbol) if self.is_alias_resolved_to_value(Some(&**symbol))? &&
+                    symbol,
+                    Some(symbol) if self.is_alias_resolved_to_value(Some(symbol))? &&
                         self.get_type_only_alias_declaration(
                             symbol
                         ).is_none()

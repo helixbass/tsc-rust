@@ -20,7 +20,7 @@ use crate::{
     HasTypeInterface, InterfaceTypeInterface, InternalSymbolName, ModifierFlags,
     NamedDeclarationInterface, Node, NodeArray, NodeCheckFlags, NodeInterface, OptionTry,
     ReadonlyTextRange, ScriptTarget, SignatureDeclarationInterface, Symbol, SymbolFlags,
-    SymbolInterface, SyntaxKind, Type, TypeChecker, TypeInterface,
+    SymbolInterface, SyntaxKind, Type, TypeChecker, TypeInterface, push_if_unique_eq, contains,
 };
 
 impl TypeChecker {
@@ -94,10 +94,11 @@ impl TypeChecker {
         symbol: Id<Symbol>,
     ) {
         if self.language_version >= ScriptTarget::ES2015
-            || !symbol
+            || !self
+                .symbol(symbol)
                 .flags()
                 .intersects(SymbolFlags::BlockScopedVariable | SymbolFlags::Class)
-            || match symbol.maybe_value_declaration().as_deref() {
+            || match self.symbol(symbol).maybe_value_declaration().as_deref() {
                 None => true,
                 Some(symbol_value_declaration) => {
                     is_source_file(symbol_value_declaration)
@@ -107,7 +108,7 @@ impl TypeChecker {
         {
             return;
         }
-        let symbol_value_declaration = symbol.maybe_value_declaration().unwrap();
+        let symbol_value_declaration = self.symbol(symbol).maybe_value_declaration().unwrap();
 
         let container = get_enclosing_block_scope_container(&symbol_value_declaration).unwrap();
         let is_captured =
@@ -143,7 +144,7 @@ impl TypeChecker {
                                 let mut links = links.borrow_mut();
                                 let captured_bindings =
                                     links.captured_block_scope_bindings.as_mut().unwrap();
-                                push_if_unique_gc(captured_bindings, &symbol.symbol_wrapper());
+                                push_if_unique_eq(captured_bindings, &symbol);
                             }
 
                             if matches!(
@@ -202,7 +203,7 @@ impl TypeChecker {
     ) -> io::Result<bool> {
         let links = self.get_node_links(node);
         /* !!links &&*/
-        let ret = contains_gc(
+        let ret = contains(
             (*links).borrow().captured_block_scope_bindings.as_deref(),
             &self.get_symbol_of_node(decl)?.unwrap(),
         );
@@ -280,7 +281,7 @@ impl TypeChecker {
         class_decl: &Node, /*ClassDeclaration*/
     ) -> io::Result<bool> {
         let class_symbol = self.get_symbol_of_node(class_decl)?.unwrap();
-        let class_instance_type = self.get_declared_type_of_symbol(&class_symbol)?;
+        let class_instance_type = self.get_declared_type_of_symbol(class_symbol)?;
         let base_constructor_type = self.get_base_constructor_type_of_class(class_instance_type)?;
 
         Ok(base_constructor_type == self.null_widening_type())
@@ -388,7 +389,7 @@ impl TypeChecker {
 
         let type_ = self.try_get_this_type_at_(node, Some(true), Some(&*container))?;
         if self.no_implicit_this {
-            let global_this_type = self.get_type_of_symbol(&self.global_this_symbol())?;
+            let global_this_type = self.get_type_of_symbol(self.global_this_symbol())?;
             if matches!(
                 type_,
                 Some(type_) if type_ == global_this_type
@@ -462,9 +463,9 @@ impl TypeChecker {
                     let class_symbol = self
                         .type_(self.check_expression(class_name, None, None)?)
                         .maybe_symbol();
-                    if let Some(class_symbol) = class_symbol.as_ref().filter(|class_symbol| {
-                        class_symbol.maybe_members().is_some()
-                            && class_symbol.flags().intersects(SymbolFlags::Function)
+                    if let Some(class_symbol) = class_symbol.filter(|&class_symbol| {
+                        self.symbol(class_symbol).maybe_members().is_some()
+                            && self.symbol(class_symbol).flags().intersects(SymbolFlags::Function)
                     }) {
                         this_type = self
                             .type_(self.get_declared_type_of_symbol(class_symbol)?)
@@ -474,7 +475,7 @@ impl TypeChecker {
                 } else if self.is_js_constructor(Some(&*container))? {
                     this_type = self
                         .type_(self.get_declared_type_of_symbol(
-                            &self.get_merged_symbol(Some(container.symbol())).unwrap(),
+                            self.get_merged_symbol(Some(container.symbol())).unwrap(),
                         )?)
                         .maybe_as_interface_type()
                         .and_then(|interface_type| interface_type.maybe_this_type());
@@ -497,9 +498,9 @@ impl TypeChecker {
         if maybe_is_class_like(container.maybe_parent()) {
             let symbol = self.get_symbol_of_node(&container.parent())?.unwrap();
             let type_ = if is_static(&container) {
-                self.get_type_of_symbol(&symbol)?
+                self.get_type_of_symbol(symbol)?
             } else {
-                self.type_(self.get_declared_type_of_symbol(&symbol)?)
+                self.type_(self.get_declared_type_of_symbol(symbol)?)
                     .as_interface_type()
                     .maybe_this_type()
                     .unwrap()
@@ -520,7 +521,6 @@ impl TypeChecker {
             {
                 let file_symbol = self.get_symbol_of_node(&container)?;
                 return file_symbol
-                    .as_ref()
                     .try_map(|file_symbol| self.get_type_of_symbol(file_symbol));
             } else if container_as_source_file
                 .maybe_external_module_indicator()
@@ -528,7 +528,7 @@ impl TypeChecker {
             {
                 return Ok(Some(self.undefined_type()));
             } else if include_global_this {
-                return Ok(Some(self.get_type_of_symbol(&self.global_this_symbol())?));
+                return Ok(Some(self.get_type_of_symbol(self.global_this_symbol())?));
             }
         }
         Ok(None)
@@ -542,16 +542,16 @@ impl TypeChecker {
         if is_function_like(Some(&*container)) {
             let signature = self.get_signature_from_declaration_(&container)?;
             let signature_this_parameter = signature.maybe_this_parameter().clone();
-            if let Some(signature_this_parameter) = signature_this_parameter.as_ref() {
+            if let Some(signature_this_parameter) = signature_this_parameter {
                 return self.get_explicit_type_of_symbol(signature_this_parameter, None);
             }
         }
         if maybe_is_class_like(container.maybe_parent()) {
             let symbol = self.get_symbol_of_node(&container.parent())?.unwrap();
             return Ok(if is_static(&container) {
-                Some(self.get_type_of_symbol(&symbol)?)
+                Some(self.get_type_of_symbol(symbol)?)
             } else {
-                self.type_(self.get_declared_type_of_symbol(&symbol)?)
+                self.type_(self.get_declared_type_of_symbol(symbol)?)
                     .as_interface_type()
                     .maybe_this_type()
             });
@@ -895,7 +895,7 @@ impl TypeChecker {
         }
 
         let class_type = self.get_declared_type_of_symbol(
-            &self.get_symbol_of_node(&class_like_declaration)?.unwrap(),
+            self.get_symbol_of_node(&class_like_declaration)?.unwrap(),
         )?;
         let base_class_type = /*classType &&*/
             self.get_base_types(class_type)?.get(0).cloned();

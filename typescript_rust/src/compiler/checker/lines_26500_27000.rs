@@ -29,10 +29,10 @@ impl TypeChecker {
         attributes_type: Id<Type>,
     ) -> io::Result<Id<Type>> {
         let managed_sym = self.get_jsx_library_managed_attributes(ns)?;
-        if let Some(managed_sym) = managed_sym.as_ref() {
+        if let Some(managed_sym) = managed_sym {
             let declared_managed_type = self.get_declared_type_of_symbol(managed_sym)?;
             let ctor_type = self.get_static_type_of_referenced_jsx_constructor(context)?;
-            if managed_sym.flags().intersects(SymbolFlags::TypeAlias) {
+            if self.symbol(managed_sym).flags().intersects(SymbolFlags::TypeAlias) {
                 let params = (*self.get_symbol_links(managed_sym))
                     .borrow()
                     .type_parameters
@@ -78,7 +78,7 @@ impl TypeChecker {
         context: &Node, /*JsxOpeningLikeElement*/
     ) -> io::Result<Id<Type>> {
         let ns = self.get_jsx_namespace_at(Some(context))?;
-        let forced_lookup_location = self.get_jsx_element_properties_name(ns.as_deref())?;
+        let forced_lookup_location = self.get_jsx_element_properties_name(ns)?;
         let attributes_type = match forced_lookup_location.as_ref() {
             None => Some(self.get_type_of_first_parameter_of_signature_with_fallback(
                 &sig,
@@ -121,7 +121,7 @@ impl TypeChecker {
 
         attributes_type = self.get_jsx_managed_attributes_from_located_attributes(
             context,
-            ns.as_deref(),
+            ns,
             attributes_type,
         )?;
 
@@ -134,7 +134,7 @@ impl TypeChecker {
             if !self.is_error_type(intrinsic_class_attribs) {
                 let type_params = self
                     .get_local_type_parameters_of_class_or_interface_or_type_alias(
-                        &self.type_(intrinsic_class_attribs).symbol(),
+                        self.type_(intrinsic_class_attribs).symbol(),
                     )?;
                 let host_class_type = self.get_return_type_of_signature(sig.clone())?;
                 apparent_attributes_type = self
@@ -212,8 +212,6 @@ impl TypeChecker {
         right: Option<Id<Symbol>>,
         mapper: Option<Id<TypeMapper>>,
     ) -> io::Result<Option<Id<Symbol>>> {
-        let left = left.map(|left| left.borrow().symbol_wrapper());
-        let right = right.map(|right| right.borrow().symbol_wrapper());
         if left.is_none() || right.is_none() {
             return Ok(left.or(right));
         }
@@ -299,7 +297,7 @@ impl TypeChecker {
             } else {
                 None
             };
-            let param_symbol: Id<Symbol> = self
+            let param_symbol = self.alloc_symbol(self
                 .create_symbol(
                     SymbolFlags::FunctionScopedVariable
                         | if is_optional && !is_rest_param {
@@ -310,9 +308,9 @@ impl TypeChecker {
                     param_name.unwrap_or_else(|| format!("arg{}", i)),
                     None,
                 )
-                .into();
-            param_symbol
-                .as_transient_symbol()
+                .into());
+            self.symbol(param_symbol
+                ).as_transient_symbol()
                 .symbol_links()
                 .borrow_mut()
                 .type_ = Some(if is_rest_param {
@@ -323,19 +321,19 @@ impl TypeChecker {
             params.push(param_symbol);
         }
         if needs_extra_rest_element {
-            let rest_param_symbol: Id<Symbol> = self
+            let rest_param_symbol = self.alloc_symbol(self
                 .create_symbol(SymbolFlags::FunctionScopedVariable, "args".to_owned(), None)
-                .into();
+                .into());
             let rest_param_symbol_type =
                 self.create_array_type(self.get_type_at_position(shorter, longest_count)?, None);
-            rest_param_symbol
-                .as_transient_symbol()
+            self.symbol(rest_param_symbol
+                ).as_transient_symbol()
                 .symbol_links()
                 .borrow_mut()
                 .type_ = Some(rest_param_symbol_type.clone());
             if ptr::eq(shorter, right) {
-                rest_param_symbol
-                    .as_transient_symbol()
+                self.symbol(rest_param_symbol
+                    ).as_transient_symbol()
                     .symbol_links()
                     .borrow_mut()
                     .type_ = Some(self.instantiate_type(rest_param_symbol_type, mapper.clone())?);
@@ -364,8 +362,8 @@ impl TypeChecker {
         let declaration = left.declaration.as_ref();
         let params = self.combine_intersection_parameters(&left, &right, param_mapper.clone())?;
         let this_param = self.combine_intersection_this_param(
-            left.maybe_this_parameter().as_deref(),
-            right.maybe_this_parameter().as_deref(),
+            left.maybe_this_parameter(),
+            right.maybe_this_parameter(),
             param_mapper.clone(),
         )?;
         let min_arg_count = cmp::max(left.min_argument_count(), right.min_argument_count());
@@ -846,11 +844,11 @@ impl TypeChecker {
     }
 
     pub(super) fn is_symbol_with_numeric_name(&self, symbol: Id<Symbol>) -> io::Result<bool> {
-        let first_decl = symbol
-            .maybe_declarations()
+        let first_decl = self.symbol(symbol
+            ).maybe_declarations()
             .as_ref()
             .and_then(|symbol_declarations| symbol_declarations.get(0).cloned());
-        Ok(self.is_numeric_literal_name(&symbol.escaped_name())
+        Ok(self.is_numeric_literal_name(&self.symbol(symbol).escaped_name())
             || matches!(
                 first_decl.as_ref(),
                 Some(first_decl) if is_named_declaration(first_decl)
@@ -859,8 +857,8 @@ impl TypeChecker {
     }
 
     pub(super) fn is_symbol_with_symbol_name(&self, symbol: Id<Symbol>) -> io::Result<bool> {
-        let first_decl = symbol
-            .maybe_declarations()
+        let first_decl = self.symbol(symbol
+            ).maybe_declarations()
             .as_ref()
             .and_then(|symbol_declarations| symbol_declarations.get(0).cloned());
         Ok(is_known_symbol(symbol)
@@ -884,12 +882,12 @@ impl TypeChecker {
     ) -> io::Result<IndexInfo> {
         let mut prop_types: Vec<Id<Type>> = vec![];
         for i in offset..properties.len() {
-            let prop = &properties[i];
+            let prop = properties[i];
             if key_type == self.string_type() && !self.is_symbol_with_symbol_name(prop)?
                 || key_type == self.number_type() && self.is_symbol_with_numeric_name(prop)?
                 || key_type == self.es_symbol_type() && self.is_symbol_with_symbol_name(prop)?
             {
-                prop_types.push(self.get_type_of_symbol(&properties[i])?);
+                prop_types.push(self.get_type_of_symbol(properties[i])?);
             }
         }
         let union_type = if !prop_types.is_empty() {
@@ -911,7 +909,7 @@ impl TypeChecker {
         symbol: Id<Symbol>,
     ) -> io::Result<Option<Id<Symbol>>> {
         Debug_.assert(
-            symbol.flags().intersects(SymbolFlags::Alias),
+            self.symbol(symbol).flags().intersects(SymbolFlags::Alias),
             Some("Should only get Alias here."),
         );
         let links = self.get_symbol_links(symbol);
@@ -997,7 +995,7 @@ impl TypeChecker {
                 SyntaxKind::PropertyAssignment | SyntaxKind::ShorthandPropertyAssignment
             ) || is_object_literal_method(member_decl)
             {
-                let member_present = member.as_ref().unwrap();
+                let member_present = member.unwrap();
                 let mut type_: Id<Type> = if member_decl.kind() == SyntaxKind::PropertyAssignment {
                     self.check_property_assignment(member_decl, check_mode)?
                 } else if member_decl.kind() == SyntaxKind::ShorthandPropertyAssignment {
@@ -1060,7 +1058,7 @@ impl TypeChecker {
                 let name_type = computed_name_type.filter(|&computed_name_type| {
                     self.is_type_usable_as_property_name(computed_name_type)
                 });
-                let prop: Id<Symbol> = if let Some(name_type) = name_type {
+                let prop = self.alloc_symbol(if let Some(name_type) = name_type {
                     self.create_symbol(
                         SymbolFlags::Property | member_present.flags(),
                         self.get_property_name_from_type(name_type),
@@ -1070,13 +1068,13 @@ impl TypeChecker {
                 } else {
                     self.create_symbol(
                         SymbolFlags::Property | member_present.flags(),
-                        member_present.escaped_name().to_owned(),
+                        self.symbol(member_present).escaped_name().to_owned(),
                         Some(check_flags | CheckFlags::Late),
                     )
                     .into()
-                };
+                });
                 if let Some(name_type) = name_type {
-                    prop.as_transient_symbol()
+                    self.symbol(prop).as_transient_symbol()
                         .symbol_links()
                         .borrow_mut()
                         .name_type = Some(name_type.clone());
@@ -1096,7 +1094,7 @@ impl TypeChecker {
                                 .object_assignment_initializer
                                 .is_some();
                     if is_optional {
-                        prop.set_flags(prop.flags() | SymbolFlags::Optional);
+                        self.symbol(prop).set_flags(self.symbol(prop).flags() | SymbolFlags::Optional);
                     }
                 } else if contextual_type_has_pattern
                     && !get_object_flags(&self.type_(contextual_type.unwrap()))
@@ -1104,12 +1102,12 @@ impl TypeChecker {
                 {
                     let implied_prop = self.get_property_of_type_(
                         contextual_type.unwrap(),
-                        member_present.escaped_name(),
+                        self.symbol(member_present).escaped_name(),
                         None,
                     )?;
                     if let Some(implied_prop) = implied_prop.as_ref() {
-                        prop.set_flags(
-                            prop.flags() | (implied_prop.flags() & SymbolFlags::Optional),
+                        self.symbol(prop).set_flags(
+                            self.symbol(prop).flags() | (self.symbol(implied_prop).flags() & SymbolFlags::Optional),
                         );
                     } else if self.compiler_options.suppress_excess_property_errors != Some(true)
                         && self
@@ -1121,7 +1119,7 @@ impl TypeChecker {
                             &Diagnostics::Object_literal_may_only_specify_known_properties_and_0_does_not_exist_in_type_1,
                             Some(vec![
                                 self.symbol_to_string_(
-                                    &member_present,
+                                    member_present,
                                     Option::<&Node>::None,
                                     None, None, None,
                                 )?,
@@ -1135,23 +1133,23 @@ impl TypeChecker {
                     }
                 }
 
-                if let Some(member_declarations) = member_present.maybe_declarations().clone() {
-                    prop.set_declarations(member_declarations);
+                if let Some(member_declarations) = self.symbol(member_present).maybe_declarations().clone() {
+                    self.symbol(prop).set_declarations(member_declarations);
                 }
-                prop.set_parent(member_present.maybe_parent());
-                if let Some(member_value_declaration) = member_present.maybe_value_declaration() {
-                    prop.set_value_declaration(member_value_declaration);
+                self.symbol(prop).set_parent(self.symbol(member_present).maybe_parent());
+                if let Some(member_value_declaration) = self.symbol(member_present).maybe_value_declaration() {
+                    self.symbol(prop).set_value_declaration(member_value_declaration);
                 }
 
                 {
-                    let prop_links = prop.as_transient_symbol().symbol_links();
+                    let prop_links = self.symbol(prop).as_transient_symbol().symbol_links();
                     let mut prop_links = prop_links.borrow_mut();
                     prop_links.type_ = Some(type_);
                     prop_links.target = Some(member_present.clone());
                 }
                 member = Some(prop.clone());
                 if let Some(all_properties_table) = all_properties_table.as_mut() {
-                    all_properties_table.insert(prop.escaped_name().to_owned(), prop.clone());
+                    all_properties_table.insert(self.symbol(prop).escaped_name().to_owned(), prop.clone());
                 };
             } else if member_decl.kind() == SyntaxKind::SpreadAssignment {
                 if self.language_version < ScriptTarget::ES2015 {
@@ -1253,28 +1251,28 @@ impl TypeChecker {
                     }
                 }
             } else {
-                properties_table.insert(member.escaped_name().to_owned(), member.clone());
+                properties_table.insert(self.symbol(member).escaped_name().to_owned(), member.clone());
             }
             properties_array.push(member);
         }
 
         if contextual_type_has_pattern && node.parent().kind() != SyntaxKind::SpreadAssignment {
             for ref prop in self.get_properties_of_type(contextual_type.unwrap())? {
-                if !properties_table.contains_key(prop.escaped_name())
+                if !properties_table.contains_key(self.symbol(prop).escaped_name())
                     && self
-                        .get_property_of_type_(spread, prop.escaped_name(), None)?
+                        .get_property_of_type_(spread, self.symbol(prop).escaped_name(), None)?
                         .is_none()
                 {
-                    if !prop.flags().intersects(SymbolFlags::Optional) {
+                    if !self.symbol(prop).flags().intersects(SymbolFlags::Optional) {
                         self.error(
-                            prop.maybe_value_declaration().or_else(|| {
-                                (*prop.as_transient_symbol().symbol_links()).borrow().binding_element.clone()
+                            self.symbol(prop).maybe_value_declaration().or_else(|| {
+                                (*self.symbol(prop).as_transient_symbol().symbol_links()).borrow().binding_element.clone()
                             }),
                             &Diagnostics::Initializer_provides_no_value_for_this_binding_element_and_the_binding_element_has_no_default_value,
                             None,
                         );
                     }
-                    properties_table.insert(prop.escaped_name().to_owned(), prop.clone());
+                    properties_table.insert(self.symbol(prop).escaped_name().to_owned(), prop.clone());
                     properties_array.push(prop.clone());
                 }
             }

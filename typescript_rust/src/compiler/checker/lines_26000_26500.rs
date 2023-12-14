@@ -33,8 +33,7 @@ impl TypeChecker {
                 let lhs_symbol =
                     self.get_symbol_for_expression(&binary_expression_as_binary_expression.left)?;
                 let decl = lhs_symbol
-                    .as_ref()
-                    .and_then(|lhs_symbol| lhs_symbol.maybe_value_declaration());
+                    .and_then(|lhs_symbol| self.symbol(lhs_symbol).maybe_value_declaration());
                 if let Some(decl) = decl
                     .as_ref()
                     .filter(|decl| is_property_declaration(decl) || is_property_signature(decl))
@@ -82,9 +81,9 @@ impl TypeChecker {
                 {
                     Some(self.get_type_of_expression(&binary_expression_as_binary_expression.left)?)
                 } else {
-                    let decl = return_ok_default_if_none!(binary_expression_as_binary_expression
+                    let decl = return_ok_default_if_none!(self.symbol(binary_expression_as_binary_expression
                         .left
-                        .symbol()
+                        .symbol())
                         .maybe_value_declaration());
                     let lhs = cast(
                         Some(&*binary_expression_as_binary_expression.left),
@@ -142,16 +141,14 @@ impl TypeChecker {
                 let mut value_declaration = binary_expression_as_binary_expression
                     .left
                     .maybe_symbol()
-                    .as_ref()
                     .and_then(|binary_expression_left_symbol| {
-                        binary_expression_left_symbol.maybe_value_declaration()
+                        self.symbol(binary_expression_left_symbol).maybe_value_declaration()
                     });
                 value_declaration = value_declaration.or_else(|| {
                     binary_expression_as_binary_expression
                         .maybe_symbol()
-                        .as_ref()
                         .and_then(|binary_expression_symbol| {
-                            binary_expression_symbol.maybe_value_declaration()
+                            self.symbol(binary_expression_symbol).maybe_value_declaration()
                         })
                 });
                 let annotated = value_declaration.as_ref().and_then(|value_declaration| {
@@ -166,9 +163,8 @@ impl TypeChecker {
                 value_declaration = value_declaration.or_else(|| {
                     binary_expression_as_binary_expression
                         .maybe_symbol()
-                        .as_ref()
                         .and_then(|binary_expression_symbol| {
-                            binary_expression_symbol.maybe_value_declaration()
+                            self.symbol(binary_expression_symbol).maybe_value_declaration()
                         })
                 });
                 let annotated = value_declaration.as_ref().and_then(|value_declaration| {
@@ -243,7 +239,7 @@ impl TypeChecker {
         }
         let binary_expression_symbol = binary_expression_symbol.unwrap();
         if let Some(binary_expression_symbol_value_declaration) =
-            binary_expression_symbol.maybe_value_declaration()
+            self.symbol(binary_expression_symbol).maybe_value_declaration()
         {
             let annotated =
                 get_effective_type_annotation_node(&binary_expression_symbol_value_declaration);
@@ -274,12 +270,12 @@ impl TypeChecker {
 
     pub(super) fn is_circular_mapped_property(&self, symbol: Id<Symbol>) -> bool {
         get_check_flags(symbol).intersects(CheckFlags::Mapped)
-            && (*symbol.as_mapped_symbol().symbol_links())
+            && (*self.symbol(symbol).as_mapped_symbol().symbol_links())
                 .borrow()
                 .type_
                 .is_none()
             && self.find_resolution_cycle_start_index(
-                &symbol.symbol_wrapper().into(),
+                &symbol.into(),
                 TypeSystemPropertyName::Type,
             ) >= 0
     }
@@ -306,7 +302,7 @@ impl TypeChecker {
                     }
                 } else if self.type_(t).flags().intersects(TypeFlags::StructuredType) {
                     let prop = self.get_property_of_type_(t, name, None)?;
-                    if let Some(prop) = prop.as_ref() {
+                    if let Some(prop) = prop {
                         return Ok(if self.is_circular_mapped_property(prop) {
                             None
                         } else {
@@ -366,7 +362,7 @@ impl TypeChecker {
             if self.has_bindable_name(element)? {
                 return self.get_type_of_property_of_contextual_type(
                     type_,
-                    self.get_symbol_of_node(element)?.unwrap().escaped_name(),
+                    self.symbol(self.get_symbol_of_node(element)?.unwrap()).escaped_name(),
                 );
             }
             if let Some(element_name) = element.as_named_declaration().maybe_name() {
@@ -572,7 +568,7 @@ impl TypeChecker {
                             Ok(p.maybe_symbol().is_some() &&
                                 p.kind() == SyntaxKind::PropertyAssignment &&
                                 self.is_possibly_discriminant_value(&p.as_has_initializer().maybe_initializer().unwrap()) &&
-                                self.is_discriminant_property(Some(contextual_type), p.symbol().escaped_name())?)
+                                self.is_discriminant_property(Some(contextual_type), self.symbol(p.symbol()).escaped_name())?)
                         }
                     )?,
                     |prop, _| {
@@ -584,25 +580,25 @@ impl TypeChecker {
                                     type_checker.get_context_free_type_of_expression(&prop_clone.as_has_initializer().maybe_initializer().unwrap())
                                 }
                             }) as Box<dyn Fn() -> io::Result<Id<Type>>>,
-                            prop.symbol().escaped_name().to_owned(),
+                            self.symbol(prop.symbol()).escaped_name().to_owned(),
                         )
                     }
                 ).into_iter().chain(
                     map(
                         &try_filter(
                             &self.get_properties_of_type(contextual_type)?.collect_vec(),
-                            |s: &Id<Symbol>| -> io::Result<_> {
-                                Ok(s.flags().intersects(SymbolFlags::Optional) &&
+                            |&s: &Id<Symbol>| -> io::Result<_> {
+                                Ok(self.symbol(s).flags().intersects(SymbolFlags::Optional) &&
                                     matches!(
-                                        node.maybe_symbol().as_ref(),
+                                        node.maybe_symbol(),
                                         Some(node_symbol) if matches!(
-                                            node_symbol.maybe_members().clone(),
-                                            Some(node_symbol_members) if !(*node_symbol_members).borrow().contains_key(s.escaped_name())
+                                            self.symbol(node_symbol).maybe_members().clone(),
+                                            Some(node_symbol_members) if !(*node_symbol_members).borrow().contains_key(self.symbol(s).escaped_name())
                                         )
                                     ) &&
                                     self.is_discriminant_property(
                                         Some(contextual_type),
-                                        s.escaped_name()
+                                        self.symbol(s).escaped_name()
                                     )?)
                             }
                         )?,
@@ -639,7 +635,7 @@ impl TypeChecker {
                     |p: &Gc<Node>| -> io::Result<_> {
                         Ok(p.maybe_symbol().is_some() &&
                             p.kind() == SyntaxKind::JsxAttribute &&
-                            self.is_discriminant_property(Some(contextual_type), p.symbol().escaped_name())? &&
+                            self.is_discriminant_property(Some(contextual_type), self.symbol(p.symbol()).escaped_name())? &&
                             match p.as_jsx_attribute().initializer.as_ref() {
                                 None => true,
                                 Some(p_initializer) => self.is_possibly_discriminant_value(p_initializer)
@@ -664,7 +660,7 @@ impl TypeChecker {
                                 })
                             }
                         }) as Box<dyn Fn() -> io::Result<Id<Type>>>,
-                        prop.symbol().escaped_name().to_owned(),
+                        self.symbol(prop.symbol()).escaped_name().to_owned(),
                     )
                 }
             ).into_iter()
@@ -672,18 +668,18 @@ impl TypeChecker {
                     map(
                         &try_filter(
                             &self.get_properties_of_type(contextual_type)?.collect_vec(),
-                            |s: &Id<Symbol>| -> io::Result<_> {
-                                Ok(s.flags().intersects(SymbolFlags::Optional) &&
+                            |&s: &Id<Symbol>| -> io::Result<_> {
+                                Ok(self.symbol(s).flags().intersects(SymbolFlags::Optional) &&
                                     matches!(
-                                        node.maybe_symbol().as_ref(),
+                                        node.maybe_symbol(),
                                         Some(node_symbol) if matches!(
-                                            node_symbol.maybe_members().clone(),
-                                            Some(node_symbol_members) if !(*node_symbol_members).borrow().contains_key(s.escaped_name())
+                                            self.symbol(node_symbol).maybe_members().clone(),
+                                            Some(node_symbol_members) if !(*node_symbol_members).borrow().contains_key(self.symbol(s).escaped_name())
                                         )
                                     ) &&
                                     self.is_discriminant_property(
                                         Some(contextual_type),
-                                        s.escaped_name()
+                                        self.symbol(s).escaped_name()
                                     )?)
                             }
                         )?,

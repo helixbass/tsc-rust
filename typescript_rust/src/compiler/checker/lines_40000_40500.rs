@@ -383,11 +383,8 @@ impl TypeChecker {
         if match host.as_ref() {
             None => true,
             Some(host) => !matches!(
-                last(&host.as_signature_declaration().parameters()).maybe_symbol().as_ref(),
-                Some(symbol) if Gc::ptr_eq(
-                    symbol,
-                    param
-                )
+                last(&host.as_signature_declaration().parameters()).maybe_symbol(),
+                Some(symbol) if symbol == param
             ),
         } {
             self.error(
@@ -438,13 +435,10 @@ impl TypeChecker {
                     None => true,
                     Some(last_param_declaration) => {
                         matches!(
-                            symbol.as_ref(),
+                            symbol,
                             Some(symbol) if matches!(
-                                last_param_declaration.maybe_symbol().as_ref(),
-                                Some(last_param_declaration_symbol) if Gc::ptr_eq(
-                                    last_param_declaration_symbol,
-                                    symbol
-                                )
+                                last_param_declaration.maybe_symbol(),
+                                Some(last_param_declaration_symbol) if last_param_declaration_symbol == symbol
                             )
                         ) && is_rest_parameter(last_param_declaration)
                     }

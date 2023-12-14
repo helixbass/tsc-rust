@@ -856,7 +856,7 @@ impl TypeChecker {
         }
         let factory_symbol = factory_symbol.unwrap();
 
-        let factory_type = self.get_type_of_symbol(&factory_symbol)?;
+        let factory_type = self.get_type_of_symbol(factory_symbol)?;
         let call_signatures = self.get_signatures_of_type(factory_type, SignatureKind::Call)?;
         if length(Some(&*call_signatures)) == 0 {
             return Ok(true);
@@ -913,7 +913,7 @@ impl TypeChecker {
             );
             let tag_name_declaration = self
                 .get_symbol_at_location_(&node_as_jsx_opening_like_element.tag_name(), None)?
-                .and_then(|symbol| symbol.maybe_value_declaration());
+                .and_then(|symbol| self.symbol(symbol).maybe_value_declaration());
             if let Some(tag_name_declaration) = tag_name_declaration.as_ref() {
                 add_related_info(
                     &diag,

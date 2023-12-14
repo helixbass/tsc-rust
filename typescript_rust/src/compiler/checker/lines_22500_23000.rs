@@ -68,7 +68,7 @@ impl TypeChecker {
             SyntaxKind::Identifier => {
                 if !is_this_in_type_query(node) {
                     let symbol = self.get_resolved_symbol(node)?;
-                    return Ok(if !Gc::ptr_eq(&symbol, &self.unknown_symbol()) {
+                    return Ok(if symbol != self.unknown_symbol() {
                         Some(format!(
                             "{}|{}|{}|{}",
                             if let Some(flow_container) = flow_container.as_ref() {
@@ -78,7 +78,7 @@ impl TypeChecker {
                             },
                             self.get_type_id(declared_type),
                             self.get_type_id(initial_type),
-                            get_symbol_id(&symbol)
+                            get_symbol_id(&self.symbol(symbol))
                         ))
                     } else {
                         None
@@ -181,20 +181,15 @@ impl TypeChecker {
                     target.kind() == SyntaxKind::ThisKeyword
                 } else {
                     target.kind() == SyntaxKind::Identifier
-                        && Gc::ptr_eq(
-                            &self.get_resolved_symbol(source)?,
-                            &self.get_resolved_symbol(target)?,
-                        )
+                        && self.get_resolved_symbol(source)? == self.get_resolved_symbol(target)?
                         || matches!(
                             target.kind(),
                             SyntaxKind::VariableDeclaration | SyntaxKind::BindingElement
-                        ) && are_option_gcs_equal(
+                        ) && 
                             self.get_export_symbol_of_value_symbol_if_exported(Some(
                                 self.get_resolved_symbol(source)?,
-                            ))
-                            .as_ref(),
-                            self.get_symbol_of_node(target)?.as_ref(),
-                        )
+                            )) ==
+                            self.get_symbol_of_node(target)?
                 });
             }
             SyntaxKind::ThisKeyword => {
@@ -249,8 +244,8 @@ impl TypeChecker {
         }
         if is_identifier(expr) {
             let symbol = self.get_resolved_symbol(expr)?;
-            if self.is_const_variable(&symbol) {
-                let declaration = symbol.maybe_value_declaration().unwrap();
+            if self.is_const_variable(symbol) {
+                let declaration = self.symbol(symbol).maybe_value_declaration().unwrap();
                 if is_variable_declaration(&declaration) {
                     let declaration_as_variable_declaration = declaration.as_variable_declaration();
                     if declaration_as_variable_declaration.maybe_type().is_none() {
@@ -366,10 +361,9 @@ impl TypeChecker {
             if self.type_(type_).flags().intersects(TypeFlags::Union) {
                 let prop = self.get_union_or_intersection_property(type_, name, None)?;
                 if let Some(prop) = prop
-                    .as_ref()
-                    .filter(|prop| get_check_flags(prop).intersects(CheckFlags::SyntheticProperty))
+                    .filter(|&prop| get_check_flags(&self.symbol(prop)).intersects(CheckFlags::SyntheticProperty))
                 {
-                    let prop_as_transient_symbol = prop.as_transient_symbol();
+                    let prop_as_transient_symbol = self.symbol(prop).as_transient_symbol();
                     let prop_symbol_links = prop_as_transient_symbol.symbol_links();
                     if (*prop_symbol_links)
                         .borrow()
@@ -379,7 +373,7 @@ impl TypeChecker {
                         prop_symbol_links.borrow_mut().is_discriminant_property = Some(
                             prop_as_transient_symbol.check_flags() & CheckFlags::Discriminant
                                 == CheckFlags::Discriminant
-                                && !self.is_generic_type(self.get_type_of_symbol(&prop)?)?,
+                                && !self.is_generic_type(self.get_type_of_symbol(prop)?)?,
                         );
                     }
                     return Ok((*prop_symbol_links)
@@ -399,8 +393,10 @@ impl TypeChecker {
     ) -> io::Result<Option<Vec<Id<Symbol>>>> {
         let mut result: Option<Vec<Id<Symbol>>> = None;
         for source_property in source_properties {
-            let source_property: &Id<Symbol> = source_property.borrow();
-            if self.is_discriminant_property(Some(target), source_property.escaped_name())? {
+            if self.is_discriminant_property(
+                Some(target),
+                self.symbol(source_property).escaped_name(),
+            )? {
                 if result.is_some() {
                     result.as_mut().unwrap().push(source_property.clone());
                     continue;
@@ -488,9 +484,9 @@ impl TypeChecker {
                     {
                         try_for_each(
                             self.get_properties_of_type(t)?,
-                            |ref p: Id<Symbol>, _| -> io::Result<_> {
+                            |p: Id<Symbol>, _| -> io::Result<_> {
                                 Ok(if self.is_unit_type(self.get_type_of_symbol(p)?) {
-                                    Some(p.escaped_name().to_owned())
+                                    Some(self.symbol(p).escaped_name().to_owned())
                                 } else {
                                     None
                                 })
@@ -584,7 +580,7 @@ impl TypeChecker {
                     if p.kind() != SyntaxKind::PropertyAssignment {
                         return false;
                     }
-                    p_symbol.escaped_name() == key_property_name
+                    self.symbol(p_symbol).escaped_name() == key_property_name
                         && self.is_possibly_discriminant_value(
                             &p.as_has_initializer().maybe_initializer().unwrap(),
                         )

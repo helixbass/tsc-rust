@@ -30,8 +30,6 @@ impl TypeChecker {
         name_of_attrib_prop_container: &str, /*__String*/
         jsx_namespace: Option<Id<Symbol>>,
     ) -> io::Result<Option<__String>> {
-        let jsx_namespace =
-            jsx_namespace.map(|jsx_namespace| jsx_namespace.borrow().symbol_wrapper());
         let jsx_element_attrib_prop_interface_sym =
             jsx_namespace.as_ref().try_and_then(|jsx_namespace| {
                 self.get_symbol(
@@ -98,7 +96,7 @@ impl TypeChecker {
         let jsx_namespace = jsx_namespace.unwrap();
         let jsx_namespace = jsx_namespace.borrow();
         let ret = self.get_symbol(
-            &(**jsx_namespace.maybe_exports().as_ref().unwrap()).borrow(),
+            &(**self.symbol(jsx_namespace).maybe_exports().as_ref().unwrap()).borrow(),
             &JsxNames::LibraryManagedAttributes,
             SymbolFlags::Type,
         )?;
@@ -200,7 +198,7 @@ impl TypeChecker {
                 &escape_leading_underscores(string_literal_type_name),
                 None,
             )?;
-            if let Some(intrinsic_prop) = intrinsic_prop.as_ref() {
+            if let Some(intrinsic_prop) = intrinsic_prop {
                 return Ok(Some(self.get_type_of_symbol(intrinsic_prop)?));
             }
             let index_signature_type =
@@ -321,7 +319,7 @@ impl TypeChecker {
                 .jsx_flags
                 .intersects(JsxFlags::IntrinsicNamedElement)
             {
-                let ret = self.get_type_of_symbol(&symbol)?; /*|| errorType*/
+                let ret = self.get_type_of_symbol(symbol)?; /*|| errorType*/
                 links.borrow_mut().resolved_jsx_element_attributes_type = Some(ret.clone());
                 return Ok(ret);
             } else if (*links)
@@ -450,10 +448,10 @@ impl TypeChecker {
                 )?;
             }
 
-            if let Some(jsx_factory_sym) = jsx_factory_sym.as_ref() {
-                jsx_factory_sym.set_is_referenced(Some(SymbolFlags::All));
+            if let Some(jsx_factory_sym) = jsx_factory_sym {
+                self.symbol(jsx_factory_sym).set_is_referenced(Some(SymbolFlags::All));
 
-                if jsx_factory_sym.flags().intersects(SymbolFlags::Alias)
+                if self.symbol(jsx_factory_sym).flags().intersects(SymbolFlags::Alias)
                     && self
                         .get_type_only_alias_declaration(jsx_factory_sym)
                         .is_none()
@@ -591,7 +589,7 @@ impl TypeChecker {
     }
 
     pub(super) fn get_declaration_node_flags_from_symbol(&self, s: Id<Symbol>) -> NodeFlags {
-        if let Some(s_value_declaration) = s.maybe_value_declaration() {
+        if let Some(s_value_declaration) = self.symbol(s).maybe_value_declaration() {
             get_combined_node_flags(&s_value_declaration)
         } else {
             NodeFlags::None
@@ -599,13 +597,13 @@ impl TypeChecker {
     }
 
     pub(super) fn is_prototype_property(&self, symbol: Id<Symbol>) -> bool {
-        if symbol.flags().intersects(SymbolFlags::Method)
-            || get_check_flags(symbol).intersects(CheckFlags::SyntheticMethod)
+        if self.symbol(symbol).flags().intersects(SymbolFlags::Method)
+            || get_check_flags(&self.symbol(symbol)).intersects(CheckFlags::SyntheticMethod)
         {
             return true;
         }
-        if is_in_js_file(symbol.maybe_value_declaration()) {
-            let parent = symbol.maybe_value_declaration().unwrap().maybe_parent();
+        if is_in_js_file(self.symbol(symbol).maybe_value_declaration()) {
+            let parent = self.symbol(symbol).maybe_value_declaration().unwrap().maybe_parent();
             return matches!(
                 parent.as_ref(),
                 Some(parent) if is_binary_expression(parent) &&
@@ -700,7 +698,7 @@ impl TypeChecker {
                     && is_this_initialized_declaration(location.parent().maybe_parent()))
         {
             let declaring_class_declaration =
-                get_class_like_declaration_of_symbol(&self.get_parent_of_symbol(prop)?.unwrap());
+                get_class_like_declaration_of_symbol(&self.symbol(self.get_parent_of_symbol(prop)?.unwrap()));
             if let Some(declaring_class_declaration) = declaring_class_declaration.as_ref() {
                 if self.is_node_used_during_class_initialization(location) {
                     if error_node.is_some() {
@@ -727,7 +725,7 @@ impl TypeChecker {
 
         if flags.intersects(ModifierFlags::Private) {
             let declaring_class_declaration =
-                get_class_like_declaration_of_symbol(&self.get_parent_of_symbol(prop)?.unwrap())
+                get_class_like_declaration_of_symbol(self.get_parent_of_symbol(prop)?.unwrap())
                     .unwrap();
             if !self.is_node_within_class(location, &declaring_class_declaration) {
                 if error_node.is_some() {
@@ -757,7 +755,7 @@ impl TypeChecker {
         let mut enclosing_class =
             self.try_for_each_enclosing_class(location, |enclosing_declaration: &Node| {
                 let enclosing_class = self.get_declared_type_of_symbol(
-                    &self.get_symbol_of_node(enclosing_declaration)?.unwrap(),
+                    self.get_symbol_of_node(enclosing_declaration)?.unwrap(),
                 )?;
                 Ok(
                     if self

@@ -82,7 +82,7 @@ impl TypeChecker {
                 Option::<&Node>::None,
             )?;
             let promise_constructor_type =
-                if let Some(promise_constructor_symbol) = promise_constructor_symbol.as_ref() {
+                if let Some(promise_constructor_symbol) = promise_constructor_symbol {
                     self.get_type_of_symbol(promise_constructor_symbol)?
                 } else {
                     self.error_type()
@@ -175,7 +175,7 @@ impl TypeChecker {
         match node.parent().kind() {
             SyntaxKind::ClassDeclaration => {
                 let class_symbol = self.get_symbol_of_node(&node.parent())?.unwrap();
-                let class_constructor_type = self.get_type_of_symbol(&class_symbol)?;
+                let class_constructor_type = self.get_type_of_symbol(class_symbol)?;
                 expected_return_type = self.get_union_type(
                     &[class_constructor_type, self.void_type()],
                     None,
@@ -279,7 +279,7 @@ impl TypeChecker {
                     Ok(root_symbol.flags().intersects(SymbolFlags::Alias)
                         && self.symbol_is_value(root_symbol)?
                         && !self.is_const_enum_or_const_enum_only_module(
-                            &*self.resolve_alias(root_symbol)?,
+                            self.resolve_alias(root_symbol)?,
                         )
                         && self.get_type_only_alias_declaration(root_symbol).is_none())
                 })?
@@ -434,7 +434,7 @@ impl TypeChecker {
                         SyntaxKind::GetAccessor
                     };
                     let other_accessor = get_declaration_of_kind(
-                        &self.get_symbol_of_node(node)?.unwrap(),
+                        self.get_symbol_of_node(node)?.unwrap(),
                         other_kind,
                     );
                     self.mark_decorator_medata_data_type_node_as_referenced(

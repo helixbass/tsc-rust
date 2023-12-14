@@ -79,9 +79,9 @@ impl TypeChecker {
                     if is_external_module(location_present) {
                         self.copy_locally_visible_export_symbols(
                             symbols,
-                            &(*self
+                            &(*self.symbol(self
                                 .get_symbol_of_node(location_present)?
-                                .unwrap()
+                                .unwrap())
                                 .exports())
                             .borrow(),
                             meaning & SymbolFlags::ModuleMember,
@@ -91,9 +91,9 @@ impl TypeChecker {
                 SyntaxKind::ModuleDeclaration => {
                     self.copy_locally_visible_export_symbols(
                         symbols,
-                        &(*self
+                        &(*self.symbol(self
                             .get_symbol_of_node(location_present)?
-                            .unwrap()
+                            .unwrap())
                             .exports())
                         .borrow(),
                         meaning & SymbolFlags::ModuleMember,
@@ -102,9 +102,9 @@ impl TypeChecker {
                 SyntaxKind::EnumDeclaration => {
                     self.copy_symbols(
                         symbols,
-                        &(*self
+                        &(*self.symbol(self
                             .get_symbol_of_node(location_present)?
-                            .unwrap()
+                            .unwrap())
                             .exports())
                         .borrow(),
                         meaning & SymbolFlags::EnumMember,
@@ -113,14 +113,14 @@ impl TypeChecker {
                 SyntaxKind::ClassExpression => {
                     let class_name = location_present.as_class_expression().maybe_name();
                     if class_name.is_some() {
-                        self.copy_symbol(symbols, &location_present.symbol(), meaning);
+                        self.copy_symbol(symbols, location_present.symbol(), meaning);
                     }
 
                     if !*is_static_symbol {
                         self.copy_symbols(
                             symbols,
                             &(*self.get_members_of_symbol(
-                                &self.get_symbol_of_node(location_present)?.unwrap(),
+                                self.get_symbol_of_node(location_present)?.unwrap(),
                             )?)
                             .borrow(),
                             meaning & SymbolFlags::Type,
@@ -132,7 +132,7 @@ impl TypeChecker {
                         self.copy_symbols(
                             symbols,
                             &(*self.get_members_of_symbol(
-                                &self.get_symbol_of_node(location_present)?.unwrap(),
+                                self.get_symbol_of_node(location_present)?.unwrap(),
                             )?)
                             .borrow(),
                             meaning & SymbolFlags::Type,
@@ -142,14 +142,14 @@ impl TypeChecker {
                 SyntaxKind::FunctionExpression => {
                     let func_name = location_present.as_function_expression().maybe_name();
                     if func_name.is_some() {
-                        self.copy_symbol(symbols, &location_present.symbol(), meaning);
+                        self.copy_symbol(symbols, location_present.symbol(), meaning);
                     }
                 }
                 _ => (),
             }
 
             if introduces_arguments_exotic_object(location_present) {
-                self.copy_symbol(symbols, &self.arguments_symbol(), meaning);
+                self.copy_symbol(symbols, self.arguments_symbol(), meaning);
             }
 
             *is_static_symbol = is_static(location_present);
@@ -168,9 +168,9 @@ impl TypeChecker {
         meaning: SymbolFlags,
     ) {
         if get_combined_local_and_export_symbol_flags(symbol).intersects(meaning) {
-            let id = symbol.escaped_name();
+            let id = self.symbol(symbol).escaped_name();
             if !symbols.contains_key(id) {
-                symbols.insert(id.to_owned(), symbol.symbol_wrapper());
+                symbols.insert(id.to_owned(), symbol);
             }
         }
     }
@@ -182,7 +182,7 @@ impl TypeChecker {
         meaning: SymbolFlags,
     ) {
         if meaning != SymbolFlags::None {
-            for symbol in source.values() {
+            for &symbol in source.values() {
                 self.copy_symbol(symbols, symbol, meaning);
             }
         }
@@ -195,9 +195,9 @@ impl TypeChecker {
         meaning: SymbolFlags,
     ) {
         if meaning != SymbolFlags::None {
-            for symbol in source.values() {
-                if get_declaration_of_kind(symbol, SyntaxKind::ExportSpecifier).is_none()
-                    && get_declaration_of_kind(symbol, SyntaxKind::NamespaceExport).is_none()
+            for &symbol in source.values() {
+                if get_declaration_of_kind(&self.symbol(symbol), SyntaxKind::ExportSpecifier).is_none()
+                    && get_declaration_of_kind(&self.symbol(symbol), SyntaxKind::NamespaceExport).is_none()
                 {
                     self.copy_symbol(symbols, symbol, meaning);
                 }
@@ -463,11 +463,8 @@ impl TypeChecker {
                 Option::<&Node>::None,
             )?;
             if matches!(
-                success.as_ref(),
-                Some(success) if !Gc::ptr_eq(
-                    success,
-                    &self.unknown_symbol()
-                )
+                success,
+                Some(success) if success != self.unknown_symbol()
             ) {
                 return Ok(success);
             }
@@ -487,7 +484,7 @@ impl TypeChecker {
                     .borrow()
                     .resolved_symbol
                     .clone();
-                return Ok(sym.filter(|sym| !Gc::ptr_eq(sym, &self.unknown_symbol())));
+                return Ok(sym.filter(|&sym| sym != self.unknown_symbol()));
             }
         }
 
@@ -551,7 +548,7 @@ impl TypeChecker {
             if name.kind() == SyntaxKind::Identifier {
                 if is_jsx_tag_name(name) && self.is_jsx_intrinsic_identifier(name) {
                     let symbol = self.get_intrinsic_tag_symbol(&name.parent())?;
-                    return Ok(if Gc::ptr_eq(&symbol, &self.unknown_symbol()) {
+                    return Ok(if symbol == self.unknown_symbol() {
                         None
                     } else {
                         Some(symbol)
@@ -616,11 +613,8 @@ impl TypeChecker {
             )?;
             return Ok(
                 if matches!(
-                    symbol.as_ref(),
-                    Some(symbol) if !Gc::ptr_eq(
-                        symbol,
-                        &self.unknown_symbol()
-                    )
+                    symbol,
+                    Some(symbol) if symbol != self.unknown_symbol()
                 ) {
                     symbol
                 } else {
@@ -646,7 +640,6 @@ impl TypeChecker {
         name: &Node, /*EntityName | JSDocMemberName*/
         container: Option<Id<Symbol>>,
     ) -> io::Result<Option<Id<Symbol>>> {
-        let container = container.map(|container| container.borrow().symbol_wrapper());
         if is_entity_name(name) {
             let meaning = SymbolFlags::Type | SymbolFlags::Namespace | SymbolFlags::Value;
             let mut symbol = self.resolve_entity_name(
@@ -733,7 +726,7 @@ impl TypeChecker {
                         )
                     )
                 {
-                    self.get_immediate_aliased_symbol(&parent_symbol.unwrap())?
+                    self.get_immediate_aliased_symbol(parent_symbol.unwrap())?
                 } else {
                     parent_symbol
                 },

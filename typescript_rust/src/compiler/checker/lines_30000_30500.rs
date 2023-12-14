@@ -56,7 +56,7 @@ impl TypeChecker {
                     &this_parameters,
                     &this_parameters
                         .iter()
-                        .map(|parameter: &Id<Symbol>| self.get_type_of_parameter(parameter))
+                        .map(|&parameter: &Id<Symbol>| self.get_type_of_parameter(parameter))
                         .collect::<Result<Vec<_>, _>>()?,
                 )?,
             );
@@ -178,7 +178,7 @@ impl TypeChecker {
         sources: &[Id<Symbol>],
         type_: Id<Type>,
     ) -> Id<Symbol> {
-        self.create_symbol_with_type(&*first(sources), Some(type_))
+        self.create_symbol_with_type(*first(sources), Some(type_))
     }
 
     pub(super) fn pick_longest_candidate_signature(
@@ -584,9 +584,8 @@ impl TypeChecker {
             let value_decl = self
                 .type_(expression_type)
                 .maybe_symbol()
-                .as_ref()
                 .and_then(|expression_type_symbol| {
-                    get_class_like_declaration_of_symbol(expression_type_symbol)
+                    get_class_like_declaration_of_symbol(&self.symbol(expression_type_symbol))
                 });
             if value_decl
                 .as_ref()
@@ -684,11 +683,8 @@ impl TypeChecker {
                         .intersects(ObjectFlags::Class | ObjectFlags::Interface)
                     {
                         if matches!(
-                            self.type_(intersection_member).maybe_symbol().as_ref(),
-                            Some(intersection_member_symbol) if ptr::eq(
-                                &**intersection_member_symbol,
-                                target
-                            )
+                            self.type_(intersection_member).maybe_symbol(),
+                            Some(intersection_member_symbol) if intersection_member_symbol == target
                         ) {
                             return Ok(true);
                         }
@@ -702,11 +698,8 @@ impl TypeChecker {
             return Ok(false);
         }
         if matches!(
-            self.type_(first_base).maybe_symbol().as_ref(),
-            Some(first_base_symbol) if ptr::eq(
-                &**first_base_symbol,
-                target
-            )
+            self.type_(first_base).maybe_symbol(),
+            Some(first_base_symbol) if first_base_symbol == target
         ) {
             return Ok(true);
         }
@@ -735,8 +728,9 @@ impl TypeChecker {
         }
 
         let declaring_class_declaration =
-            get_class_like_declaration_of_symbol(&declaration.parent().symbol()).unwrap();
-        let declaring_class = self.get_declared_type_of_symbol(&declaration.parent().symbol())?;
+            get_class_like_declaration_of_symbol(&self.symbol(declaration.parent().symbol()))
+                .unwrap();
+        let declaring_class = self.get_declared_type_of_symbol(declaration.parent().symbol())?;
 
         if !self.is_node_within_class(node, &declaring_class_declaration) {
             let containing_class = get_containing_class(node);
@@ -744,7 +738,7 @@ impl TypeChecker {
                 if modifiers.intersects(ModifierFlags::Protected) {
                     let containing_type = self.get_type_of_node(containing_class)?;
                     if self.type_has_protected_accessible_base(
-                        &declaration.parent().symbol(),
+                        declaration.parent().symbol(),
                         containing_type,
                     )? {
                         return Ok(true);
@@ -914,8 +908,8 @@ impl TypeChecker {
                 .resolved_symbol
                 .clone();
             if matches!(
-                resolved_symbol.as_ref(),
-                Some(resolved_symbol) if resolved_symbol.flags().intersects(SymbolFlags::GetAccessor)
+                resolved_symbol,
+                Some(resolved_symbol) if self.symbol(resolved_symbol).flags().intersects(SymbolFlags::GetAccessor)
             ) {
                 head_message = &*Diagnostics::This_expression_is_not_callable_because_it_is_a_get_accessor_Did_you_mean_to_use_it_without;
             }

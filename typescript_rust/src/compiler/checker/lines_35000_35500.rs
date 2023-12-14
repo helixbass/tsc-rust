@@ -134,15 +134,15 @@ impl TypeChecker {
         let mut symbol = node.maybe_local_symbol();
         if symbol.is_none() {
             symbol = self.get_symbol_of_node(node)?;
-            let symbol = symbol.as_ref().unwrap();
-            if symbol.maybe_export_symbol().is_none() {
+            let symbol = symbol.unwrap();
+            if self.symbol(symbol).maybe_export_symbol().is_none() {
                 return Ok(());
             }
         }
         let symbol = symbol.unwrap();
 
         if !matches!(
-            get_declaration_of_kind(&symbol, node.kind()).as_ref(),
+            get_declaration_of_kind(&self.symbol(symbol), node.kind()).as_ref(),
             Some(declaration) if ptr::eq(&**declaration, node)
         ) {
             return Ok(());
@@ -151,7 +151,7 @@ impl TypeChecker {
         let mut exported_declaration_spaces = DeclarationSpaces::None;
         let mut non_exported_declaration_spaces = DeclarationSpaces::None;
         let mut default_exported_declaration_spaces = DeclarationSpaces::None;
-        for d in symbol.maybe_declarations().as_ref().unwrap() {
+        for d in self.symbol(symbol).maybe_declarations().as_ref().unwrap() {
             let declaration_spaces = self.get_declaration_spaces(d)?;
             let effective_declaration_flags = self
                 .get_effective_declaration_flags(d, ModifierFlags::Export | ModifierFlags::Default);
@@ -178,7 +178,7 @@ impl TypeChecker {
         if common_declaration_spaces_for_exports_and_locals != DeclarationSpaces::None
             || common_declaration_spaces_for_default_and_non_default != DeclarationSpaces::None
         {
-            for d in symbol.maybe_declarations().as_ref().unwrap() {
+            for d in self.symbol(symbol).maybe_declarations().as_ref().unwrap() {
                 let declaration_spaces = self.get_declaration_spaces(d)?;
 
                 let name = get_name_of_declaration(Some(&**d));
@@ -250,9 +250,9 @@ impl TypeChecker {
 
                 let d = expression;
                 let mut result = DeclarationSpaces::None;
-                let target = self.resolve_alias(&self.get_symbol_of_node(&d)?.unwrap())?;
+                let target = self.resolve_alias(self.get_symbol_of_node(&d)?.unwrap())?;
                 try_maybe_for_each(
-                    target.maybe_declarations().as_deref(),
+                    self.symbol(target).maybe_declarations().as_deref(),
                     |d: &Gc<Node>, _| -> io::Result<Option<()>> {
                         result |= self.get_declaration_spaces(d)?;
                         Ok(None)
@@ -264,9 +264,9 @@ impl TypeChecker {
             | SyntaxKind::NamespaceImport
             | SyntaxKind::ImportClause => {
                 let mut result = DeclarationSpaces::None;
-                let target = self.resolve_alias(&self.get_symbol_of_node(&d)?.unwrap())?;
+                let target = self.resolve_alias(self.get_symbol_of_node(&d)?.unwrap())?;
                 try_maybe_for_each(
-                    target.maybe_declarations().as_deref(),
+                    self.symbol(target).maybe_declarations().as_deref(),
                     |d: &Gc<Node>, _| -> io::Result<Option<()>> {
                         result |= self.get_declaration_spaces(d)?;
                         Ok(None)
@@ -432,13 +432,10 @@ impl TypeChecker {
         if self.type_(type_).flags().intersects(TypeFlags::Conditional) {
             let awaited_symbol = self.get_global_awaited_symbol(false)?;
             return Ok(matches!(
-                awaited_symbol.as_ref(),
+                awaited_symbol,
                 Some(awaited_symbol) if matches!(
-                    self.type_(type_).maybe_alias_symbol().as_ref(),
-                    Some(type_alias_symbol) if Gc::ptr_eq(
-                        type_alias_symbol,
-                        awaited_symbol
-                    )
+                    self.type_(type_).maybe_alias_symbol(),
+                    Some(type_alias_symbol) if type_alias_symbol == awaited_symbol
                 )
             ) && matches!(
                 self.type_(type_).maybe_alias_type_arguments().as_ref(),
@@ -489,7 +486,7 @@ impl TypeChecker {
                 }
             } {
                 let awaited_symbol = self.get_global_awaited_symbol(true)?;
-                if let Some(awaited_symbol) = awaited_symbol.as_ref() {
+                if let Some(awaited_symbol) = awaited_symbol {
                     return self.get_type_alias_instantiation(
                         awaited_symbol,
                         Some(&[self.unwrap_awaited_type(type_)?]),

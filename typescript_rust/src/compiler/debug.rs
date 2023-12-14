@@ -235,10 +235,10 @@ impl DebugType {
     pub fn format_symbol(&self, symbol: Id<Symbol>) -> String {
         format!(
             "{{ name: {}; flags: {}; declarations: {:?} }}",
-            unescape_leading_underscores(symbol.escaped_name()),
-            self.format_symbol_flags(Some(symbol.flags())),
+            unescape_leading_underscores(self.symbol(symbol).escaped_name()),
+            self.format_symbol_flags(Some(self.symbol(symbol).flags())),
             maybe_map(
-                symbol.maybe_declarations().as_deref(),
+                self.symbol(symbol).maybe_declarations().as_deref(),
                 |node: &Gc<Node>, _| self.format_syntax_kind(Some(node.kind()))
             )
         )

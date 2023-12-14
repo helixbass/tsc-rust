@@ -33,7 +33,7 @@ impl TypeChecker {
         self.check_source_element(node_as_type_parameter_declaration.constraint.as_deref())?;
         self.check_source_element(node_as_type_parameter_declaration.default.as_deref())?;
         let type_parameter =
-            self.get_declared_type_of_type_parameter(&self.get_symbol_of_node(node)?.unwrap());
+            self.get_declared_type_of_type_parameter(self.get_symbol_of_node(node)?.unwrap());
         self.get_base_constraint_of_type(type_parameter)?;
         if !self.has_non_circular_type_parameter_default(type_parameter)? {
             self.error(
@@ -179,7 +179,7 @@ impl TypeChecker {
         if node_as_parameter_declaration.dot_dot_dot_token.is_some()
             && !is_binding_pattern(node_as_parameter_declaration.maybe_name())
             && !self.is_type_assignable_to(
-                self.get_reduced_type(self.get_type_of_symbol(&node.symbol())?)?,
+                self.get_reduced_type(self.get_type_of_symbol(node.symbol())?)?,
                 self.any_readonly_array_type(),
             )?
         {
@@ -239,7 +239,7 @@ impl TypeChecker {
                         self.check_type_assignable_to(
                             type_predicate_type,
                             self.get_type_of_symbol(
-                                &signature.parameters()[type_predicate_parameter_index],
+                                signature.parameters()[type_predicate_parameter_index],
                             )?,
                             node_as_type_predicate_node.type_.as_deref(),
                             None,
@@ -638,7 +638,7 @@ impl TypeChecker {
                             let message = &Diagnostics::Static_property_0_conflicts_with_built_in_property_Function_0_of_constructor_function_1;
                             let class_name = self
                                 .get_name_of_symbol_as_written(
-                                    &self.get_symbol_of_node(node)?.unwrap(),
+                                    self.get_symbol_of_node(node)?.unwrap(),
                                     None,
                                 )
                                 .into_owned();
@@ -679,7 +679,9 @@ impl TypeChecker {
 
                 if names.get(&member_name).cloned() == Some(true) {
                     self.error(
-                        get_name_of_declaration(member.symbol().maybe_value_declaration()),
+                        get_name_of_declaration(
+                            self.symbol(member.symbol()).maybe_value_declaration(),
+                        ),
                         &Diagnostics::Duplicate_identifier_0,
                         Some(vec![member_name.clone()]),
                     );
@@ -699,7 +701,7 @@ impl TypeChecker {
         if node.kind() == SyntaxKind::InterfaceDeclaration {
             let node_symbol = self.get_symbol_of_node(node)?.unwrap();
             if matches!(
-                node_symbol.maybe_declarations().as_ref(),
+                self.symbol(node_symbol).maybe_declarations().as_ref(),
                 Some(node_symbol_declarations) if !node_symbol_declarations.is_empty() &&
                     !ptr::eq(
                         &*node_symbol_declarations[0],
@@ -710,10 +712,9 @@ impl TypeChecker {
             }
         }
 
-        let index_symbol = self.get_index_symbol(&self.get_symbol_of_node(node)?.unwrap());
+        let index_symbol = self.get_index_symbol(self.get_symbol_of_node(node)?.unwrap());
         if let Some(index_symbol_declarations) = index_symbol
-            .as_ref()
-            .and_then(|index_symbol| index_symbol.maybe_declarations().clone())
+            .and_then(|index_symbol| self.symbol(index_symbol).maybe_declarations().clone())
             .as_ref()
         {
             let mut index_signature_map: HashMap<TypeId, IndexSignatureMapValue> = HashMap::new();

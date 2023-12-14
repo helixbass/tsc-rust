@@ -131,7 +131,7 @@ impl TypeChecker {
             let contextual_signature = self.get_contextual_signature(func)?;
             if let Some(contextual_signature) = contextual_signature.as_ref() {
                 let this_parameter = contextual_signature.maybe_this_parameter();
-                if let Some(this_parameter) = this_parameter.as_ref() {
+                if let Some(this_parameter) = this_parameter {
                     return Ok(Some(self.get_type_of_symbol(this_parameter)?));
                 }
             }
@@ -182,11 +182,9 @@ impl TypeChecker {
                                 .maybe_common_js_module_indicator()
                                 .is_some()
                                 && matches!(
-                                    source_file.maybe_symbol().as_ref(),
-                                    Some(source_file_symbol) if Gc::ptr_eq(
-                                        &self.get_resolved_symbol(&expression)?,
-                                        source_file_symbol,
-                                    )
+                                    source_file.maybe_symbol(),
+                                    Some(source_file_symbol) if self.get_resolved_symbol(&expression)? ==
+                                        source_file_symbol
                                 )
                             {
                                 return Ok(None);
@@ -371,8 +369,8 @@ impl TypeChecker {
         });
         self.get_type_of_property_of_contextual_type(
             parent_type,
-            self.get_symbol_of_node(declaration)?
-                .unwrap()
+            self.symbol(self.get_symbol_of_node(declaration)?
+                .unwrap())
                 .escaped_name(),
         )
     }
@@ -644,7 +642,7 @@ impl TypeChecker {
             {
                 let rest_index: usize = rest_index.try_into().unwrap();
                 self.get_indexed_access_type(
-                    self.get_type_of_symbol(&signature.parameters()[rest_index])?,
+                    self.get_type_of_symbol(signature.parameters()[rest_index])?,
                     self.get_number_literal_type(Number::new((arg_index - rest_index) as f64)),
                     Some(AccessFlags::Contextual),
                     Option::<&Node>::None,
@@ -759,10 +757,8 @@ impl TypeChecker {
             &id.as_private_identifier().escaped_text,
             id,
         );
-        lexically_scoped_symbol
-            .as_ref()
-            .try_and_then(|lexically_scoped_symbol| {
-                self.get_private_identifier_property_of_type_(type_, lexically_scoped_symbol)
-            })
+        lexically_scoped_symbol.try_and_then(|lexically_scoped_symbol| {
+            self.get_private_identifier_property_of_type_(type_, lexically_scoped_symbol)
+        })
     }
 }

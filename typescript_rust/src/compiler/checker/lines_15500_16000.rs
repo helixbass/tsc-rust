@@ -38,8 +38,8 @@ impl TypeChecker {
                 index_type,
                 Some(AccessFlags::None),
                 Some(node),
-                potential_alias.as_deref(),
-                self.get_type_arguments_for_alias_symbol(potential_alias.as_deref())?
+                potential_alias,
+                self.get_type_arguments_for_alias_symbol(potential_alias)?
                     .as_deref(),
             )?;
             links.borrow_mut().resolved_type = Some(
@@ -171,15 +171,13 @@ impl TypeChecker {
         &self,
         root: Gc<GcCell<ConditionalRoot>>,
         mut mapper: Option<Id<TypeMapper>>,
-        alias_symbol: Option<Id<Symbol>>,
+        mut alias_symbol: Option<Id<Symbol>>,
         mut alias_type_arguments: Option<&[Id<Type>]>,
     ) -> io::Result<Id<Type>> {
         let result: Id<Type>;
         let mut extra_types: Option<Vec<Id<Type>>> = None;
         let mut tail_count = 0;
         let mut root = root.clone();
-        let mut alias_symbol =
-            alias_symbol.map(|alias_symbol| alias_symbol.borrow().symbol_wrapper());
         loop {
             if tail_count == 1000 {
                 self.error(
@@ -577,8 +575,8 @@ impl TypeChecker {
         let mut result: Option<Vec<Id<Type>>> = None;
         if let Some(node_locals) = node.maybe_locals().clone() {
             (*node_locals).borrow().values().try_for_each(
-                |symbol: &Id<Symbol>| -> io::Result<_> {
-                    if symbol.flags().intersects(SymbolFlags::TypeParameter) {
+                |&symbol: &Id<Symbol>| -> io::Result<_> {
+                    if self.symbol(symbol).flags().intersects(SymbolFlags::TypeParameter) {
                         if result.is_none() {
                             result = Some(vec![]);
                         }
@@ -617,7 +615,7 @@ impl TypeChecker {
                 self.get_type_from_type_node_(&node_as_conditional_type_node.check_type)?;
             let alias_symbol = self.get_alias_symbol_for_type_node(node)?;
             let alias_type_arguments =
-                self.get_type_arguments_for_alias_symbol(alias_symbol.as_deref())?;
+                self.get_type_arguments_for_alias_symbol(alias_symbol)?;
             let all_outer_type_parameters = self.get_outer_type_parameters(node, Some(true))?;
             let outer_type_parameters = if alias_type_arguments.is_some() {
                 all_outer_type_parameters
@@ -667,7 +665,7 @@ impl TypeChecker {
         if (*links).borrow().resolved_type.is_none() {
             links.borrow_mut().resolved_type = Some(
                 self.get_declared_type_of_type_parameter(
-                    &self
+                    self
                         .get_symbol_of_node(&node.as_infer_type_node().type_parameter)?
                         .unwrap(),
                 ),
@@ -748,7 +746,7 @@ impl TypeChecker {
             }
             let inner_module_symbol = inner_module_symbol.unwrap();
             let module_symbol = self
-                .resolve_external_module_symbol(Some(&*inner_module_symbol), Some(false))?
+                .resolve_external_module_symbol(Some(inner_module_symbol), Some(false))?
                 .unwrap();
             if !node_is_missing(node_as_import_type_node.qualifier.as_deref()) {
                 let mut name_stack: Vec<Gc<Node /*Identifier*/>> =
@@ -770,17 +768,17 @@ impl TypeChecker {
                         target_meaning
                     };
                     let merged_resolved_symbol = self
-                        .get_merged_symbol(self.resolve_symbol(Some(&*current_namespace), None)?)
+                        .get_merged_symbol(self.resolve_symbol(Some(current_namespace), None)?)
                         .unwrap();
                     let next = if node_as_import_type_node.is_type_of() {
                         self.get_property_of_type_(
-                            self.get_type_of_symbol(&merged_resolved_symbol)?,
+                            self.get_type_of_symbol(merged_resolved_symbol)?,
                             &current.as_identifier().escaped_text,
                             None,
                         )?
                     } else {
                         self.get_symbol(
-                            &(*self.get_exports_of_symbol(&merged_resolved_symbol)?).borrow(),
+                            &(*self.get_exports_of_symbol(merged_resolved_symbol)?).borrow(),
                             &current.as_identifier().escaped_text,
                             meaning,
                         )?
@@ -791,7 +789,7 @@ impl TypeChecker {
                             &Diagnostics::Namespace_0_has_no_exported_member_1,
                             Some(vec![
                                 self.get_fully_qualified_name(
-                                    &current_namespace,
+                                    current_namespace,
                                     Option::<&Node>::None,
                                 )?,
                                 declaration_name_to_string(Some(&*current)).into_owned(),
@@ -811,15 +809,15 @@ impl TypeChecker {
                 links.borrow_mut().resolved_type = Some(self.resolve_import_symbol_type(
                     node,
                     &links,
-                    &current_namespace,
+                    current_namespace,
                     target_meaning,
                 )?);
             } else {
-                if module_symbol.flags().intersects(target_meaning) {
+                if self.symbol(module_symbol).flags().intersects(target_meaning) {
                     links.borrow_mut().resolved_type = Some(self.resolve_import_symbol_type(
                         node,
                         &links,
-                        &module_symbol,
+                        module_symbol,
                         target_meaning,
                     )?);
                 } else {
@@ -863,7 +861,7 @@ impl TypeChecker {
         Ok(if meaning == SymbolFlags::Value {
             self.get_type_of_symbol(symbol)?
         } else {
-            self.get_type_reference_type(node, &resolved_symbol)?
+            self.get_type_reference_type(node, resolved_symbol)?
         })
     }
 
@@ -874,7 +872,7 @@ impl TypeChecker {
         let links = self.get_node_links(node);
         if (*links).borrow().resolved_type.is_none() {
             let alias_symbol = self.get_alias_symbol_for_type_node(node)?;
-            if (*self.get_members_of_symbol(&node.symbol())?)
+            if (*self.get_members_of_symbol(node.symbol())?)
                 .borrow()
                 .is_empty()
                 && alias_symbol.is_none()
@@ -887,7 +885,7 @@ impl TypeChecker {
                 );
                 *self.type_(type_).maybe_alias_symbol_mut() = alias_symbol.clone();
                 *self.type_(type_).maybe_alias_type_arguments_mut() =
-                    self.get_type_arguments_for_alias_symbol(alias_symbol.as_deref())?;
+                    self.get_type_arguments_for_alias_symbol(alias_symbol)?;
                 if is_jsdoc_type_literal(node) && node.as_jsdoc_type_literal().is_array_type {
                     type_ = self.create_array_type(type_, None);
                 }
@@ -922,7 +920,7 @@ impl TypeChecker {
         symbol: Option<Id<Symbol>>,
     ) -> io::Result<Option<Vec<Id<Type>>>> {
         symbol.try_and_then(|symbol| {
-            self.get_local_type_parameters_of_class_or_interface_or_type_alias(symbol.borrow())
+            self.get_local_type_parameters_of_class_or_interface_or_type_alias(symbol)
         })
     }
 
@@ -1000,19 +998,19 @@ impl TypeChecker {
     ) -> io::Result<Id<Type>> {
         let mut members = create_symbol_table(self.arena(), Option::<&[Id<Symbol>]>::None);
         for prop in self.get_properties_of_type(type_)? {
-            if get_declaration_modifier_flags_from_symbol(self.arena(), &prop, None)
+            if get_declaration_modifier_flags_from_symbol(self.arena(), &self.symbol(prop), None)
                 .intersects(ModifierFlags::Private | ModifierFlags::Protected)
             {
-            } else if self.is_spreadable_property(&prop) {
-                let is_setonly_accessor = prop.flags().intersects(SymbolFlags::SetAccessor)
-                    && !prop.flags().intersects(SymbolFlags::GetAccessor);
+            } else if self.is_spreadable_property(prop) {
+                let is_setonly_accessor = self.symbol(prop).flags().intersects(SymbolFlags::SetAccessor)
+                    && !self.symbol(prop).flags().intersects(SymbolFlags::GetAccessor);
                 let flags = SymbolFlags::Property | SymbolFlags::Optional;
-                let result: Id<Symbol> = self
+                let result = self.alloc_symbol(self
                     .create_symbol(
                         flags,
-                        prop.escaped_name().to_owned(),
+                        self.symbol(prop).escaped_name().to_owned(),
                         Some(
-                            self.get_is_late_check_flag(&prop)
+                            self.get_is_late_check_flag(prop)
                                 | if readonly {
                                     CheckFlags::Readonly
                                 } else {
@@ -1020,21 +1018,21 @@ impl TypeChecker {
                                 },
                         ),
                     )
-                    .into();
-                let result_links = result.as_transient_symbol().symbol_links();
+                    .into());
+                let result_links = self.symbol(result).as_transient_symbol().symbol_links();
                 let mut result_links = result_links.borrow_mut();
                 result_links.type_ = Some(if is_setonly_accessor {
                     self.undefined_type()
                 } else {
-                    self.add_optionality(self.get_type_of_symbol(&prop)?, Some(true), None)?
+                    self.add_optionality(self.get_type_of_symbol(prop)?, Some(true), None)?
                 });
-                let prop_declarations = prop.maybe_declarations();
+                let prop_declarations = self.symbol(prop).maybe_declarations();
                 if let Some(prop_declarations) = prop_declarations.as_ref() {
-                    result.set_declarations(prop_declarations.clone());
+                    self.symbol(result).set_declarations(prop_declarations.clone());
                 }
                 result_links.name_type = (*self.get_symbol_links(&prop)).borrow().name_type.clone();
                 result_links.synthetic_origin = Some(prop.clone());
-                members.insert(prop.escaped_name().to_owned(), result);
+                members.insert(self.symbol(prop).escaped_name().to_owned(), result);
             }
         }
         let spread = self.create_anonymous_type(
@@ -1077,7 +1075,6 @@ impl TypeChecker {
             return Ok(left);
         }
         let left = self.try_merge_union_of_object_type_and_empty_object(left, readonly)?;
-        let symbol = symbol.map(|symbol| symbol.borrow().symbol_wrapper());
         if self.type_(left).flags().intersects(TypeFlags::Union) {
             return Ok(if self.check_cross_product_union(&[left.clone(), right]) {
                 self.try_map_type(
@@ -1176,41 +1173,41 @@ impl TypeChecker {
         };
 
         for right_prop in self.get_properties_of_type(right)? {
-            if get_declaration_modifier_flags_from_symbol(self.arena(), &right_prop, None)
+            if get_declaration_modifier_flags_from_symbol(self.arena(), &self.symbol(right_prop), None)
                 .intersects(ModifierFlags::Private | ModifierFlags::Protected)
             {
-                skipped_private_members.insert(right_prop.escaped_name().to_owned());
-            } else if self.is_spreadable_property(&right_prop) {
+                skipped_private_members.insert(self.symbol(right_prop).escaped_name().to_owned());
+            } else if self.is_spreadable_property(right_prop) {
                 members.insert(
-                    right_prop.escaped_name().to_owned(),
-                    self.get_spread_symbol(&right_prop, readonly)?,
+                    self.symbol(right_prop).escaped_name().to_owned(),
+                    self.get_spread_symbol(right_prop, readonly)?,
                 );
             }
         }
 
         for left_prop in self.get_properties_of_type(left)? {
-            if skipped_private_members.contains(left_prop.escaped_name())
-                || !self.is_spreadable_property(&left_prop)
+            if skipped_private_members.contains(self.symbol(left_prop).escaped_name())
+                || !self.is_spreadable_property(left_prop)
             {
                 continue;
             }
-            if members.contains_key(left_prop.escaped_name()) {
-                let right_prop = members.get(left_prop.escaped_name()).unwrap();
+            if members.contains_key(self.symbol(left_prop).escaped_name()) {
+                let right_prop = *members.get(self.symbol(left_prop).escaped_name()).unwrap();
                 let right_type = self.get_type_of_symbol(right_prop)?;
-                if right_prop.flags().intersects(SymbolFlags::Optional) {
+                if self.symbol(right_prop).flags().intersects(SymbolFlags::Optional) {
                     let declarations = maybe_concatenate(
-                        left_prop.maybe_declarations().clone(),
-                        right_prop.maybe_declarations().clone(),
+                        self.symbol(left_prop).maybe_declarations().clone(),
+                        self.symbol(right_prop).maybe_declarations().clone(),
                     );
-                    let flags = SymbolFlags::Property | (left_prop.flags() & SymbolFlags::Optional);
-                    let result: Id<Symbol> = self
-                        .create_symbol(flags, left_prop.escaped_name().to_owned(), None)
-                        .into();
-                    let result_links = result.as_transient_symbol().symbol_links();
+                    let flags = SymbolFlags::Property | (self.symbol(left_prop).flags() & SymbolFlags::Optional);
+                    let result = self.alloc_symbol(self
+                        .create_symbol(flags, self.symbol(left_prop).escaped_name().to_owned(), None)
+                        .into());
+                    let result_links = self.symbol(result).as_transient_symbol().symbol_links();
                     let mut result_links = result_links.borrow_mut();
                     result_links.type_ = Some(self.get_union_type(
                         &[
-                            self.get_type_of_symbol(&left_prop)?,
+                            self.get_type_of_symbol(left_prop)?,
                             self.remove_missing_or_undefined_type(right_type)?,
                         ],
                         None,
@@ -1221,18 +1218,18 @@ impl TypeChecker {
                     result_links.left_spread = Some(left_prop.clone());
                     result_links.right_spread = Some(right_prop.clone());
                     if let Some(declarations) = declarations {
-                        result.set_declarations(declarations);
+                        self.symbol(result).set_declarations(declarations);
                     }
                     result_links.name_type = (*self.get_symbol_links(&left_prop))
                         .borrow()
                         .name_type
                         .clone();
-                    members.insert(left_prop.escaped_name().to_owned(), result);
+                    members.insert(self.symbol(left_prop).escaped_name().to_owned(), result);
                 }
             } else {
                 members.insert(
-                    left_prop.escaped_name().to_owned(),
-                    self.get_spread_symbol(&left_prop, readonly)?,
+                    self.symbol(left_prop).escaped_name().to_owned(),
+                    self.get_spread_symbol(left_prop, readonly)?,
                 );
             }
         }

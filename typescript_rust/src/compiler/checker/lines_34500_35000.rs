@@ -51,13 +51,13 @@ impl TypeChecker {
         self.check_source_element(node_as_constructor_declaration.maybe_body())?;
 
         let symbol = self.get_symbol_of_node(node)?.unwrap();
-        let first_declaration = get_declaration_of_kind(&symbol, node.kind());
+        let first_declaration = get_declaration_of_kind(&self.symbol(symbol), node.kind());
 
         if matches!(
             first_declaration.as_ref(),
             Some(first_declaration) if ptr::eq(node, &**first_declaration)
         ) {
-            self.check_function_or_constructor_symbol(&symbol)?;
+            self.check_function_or_constructor_symbol(symbol)?;
         }
 
         if node_is_missing(node_as_constructor_declaration.maybe_body()) {
@@ -181,8 +181,8 @@ impl TypeChecker {
 
             if self.has_bindable_name(node)? {
                 let symbol = self.get_symbol_of_node(node)?.unwrap();
-                let getter = get_declaration_of_kind(&symbol, SyntaxKind::GetAccessor);
-                let setter = get_declaration_of_kind(&symbol, SyntaxKind::SetAccessor);
+                let getter = get_declaration_of_kind(&self.symbol(symbol), SyntaxKind::GetAccessor);
+                let setter = get_declaration_of_kind(&self.symbol(symbol), SyntaxKind::SetAccessor);
                 if let Some(getter) = getter.as_ref() {
                     if let Some(setter) = setter.as_ref() {
                         if !self
@@ -243,7 +243,7 @@ impl TypeChecker {
                 }
             }
             let return_type =
-                self.get_type_of_accessors(&self.get_symbol_of_node(node)?.unwrap())?;
+                self.get_type_of_accessors(self.get_symbol_of_node(node)?.unwrap())?;
             if node.kind() == SyntaxKind::GetAccessor {
                 self.check_all_code_paths_in_non_void_function_return_or_throw(
                     node,
@@ -330,8 +330,8 @@ impl TypeChecker {
                 .borrow()
                 .resolved_symbol
                 .clone();
-            if let Some(symbol) = symbol.as_ref() {
-                return Ok(if symbol.flags().intersects(SymbolFlags::TypeAlias) {
+            if let Some(symbol) = symbol {
+                return Ok(if self.symbol(symbol).flags().intersects(SymbolFlags::TypeAlias) {
                     (*self.get_symbol_links(symbol))
                         .borrow()
                         .type_parameters
@@ -404,19 +404,19 @@ impl TypeChecker {
                 .clone();
             if let Some(symbol) = symbol.as_ref() {
                 if some(
-                    symbol.maybe_declarations().as_deref(),
+                    self.symbol(symbol).maybe_declarations().as_deref(),
                     Some(|d: &Gc<Node>| {
                         self.is_type_declaration(d) && d.flags().intersects(NodeFlags::Deprecated)
                     }),
                 ) {
                     self.add_deprecated_suggestion(
                         &self.get_deprecated_suggestion_node(node),
-                        symbol.maybe_declarations().as_ref().unwrap(),
-                        symbol.escaped_name(),
+                        self.symbol(symbol).maybe_declarations().as_ref().unwrap(),
+                        self.symbol(symbol).escaped_name(),
                     );
                 }
                 if self.type_(type_).flags().intersects(TypeFlags::Enum)
-                    && symbol.flags().intersects(SymbolFlags::EnumMember)
+                    && self.symbol(symbol).flags().intersects(SymbolFlags::EnumMember)
                 {
                     self.error(
                         Some(node),
@@ -491,7 +491,7 @@ impl TypeChecker {
         if self.produce_diagnostics {
             let type_ =
                 self.get_type_from_type_literal_or_function_or_constructor_type_node(node)?;
-            self.check_index_constraints(type_, &self.type_(type_).symbol(), None)?;
+            self.check_index_constraints(type_, self.type_(type_).symbol(), None)?;
             self.check_type_for_duplicate_index_signatures(node)?;
             self.check_object_type_for_duplicate_declarations(node);
         }
@@ -662,9 +662,9 @@ impl TypeChecker {
                         self.get_property_of_type_(t, property_name, None)
                     })?;
                 if matches!(
-                    property_symbol.as_ref(),
+                    property_symbol,
                     Some(property_symbol) if get_declaration_modifier_flags_from_symbol(
-                        self.arena(), property_symbol,
+                        self.arena(), &self.symbol(property_symbol),
                         None,
                     ).intersects(ModifierFlags::NonPublicAccessibilityModifier)
                 ) {
@@ -930,8 +930,8 @@ impl TypeChecker {
             None;
         let mut previous_declaration: Option<Gc<Node /*SignatureDeclaration*/>> = None;
 
-        let declarations = symbol.maybe_declarations();
-        let is_constructor = symbol.flags().intersects(SymbolFlags::Constructor);
+        let declarations = self.symbol(symbol).maybe_declarations();
+        let is_constructor = self.symbol(symbol).flags().intersects(SymbolFlags::Constructor);
 
         let mut duplicate_function_declaration = false;
         let mut multiple_constructor_implementation = false;
@@ -1049,7 +1049,7 @@ impl TypeChecker {
 
         if has_non_ambient_class
             && !is_constructor
-            && symbol.flags().intersects(SymbolFlags::Function)
+            && self.symbol(symbol).flags().intersects(SymbolFlags::Function)
         {
             if let Some(declarations) = declarations.as_ref() {
                 let related_diagnostics: Vec<Gc<DiagnosticRelatedInformation>> =

@@ -299,12 +299,11 @@ impl TypeChecker {
     ) -> io::Result<Gc<Signature>> {
         let namespace = self.get_jsx_namespace_at(Some(node))?;
         let exports = namespace
-            .as_ref()
             .try_map(|namespace| self.get_exports_of_symbol(namespace))?;
         let type_symbol = exports.as_ref().try_and_then(|exports| {
             self.get_symbol(&(**exports).borrow(), &JsxNames::Element, SymbolFlags::Type)
         })?;
-        let return_node = type_symbol.as_ref().try_and_then(|type_symbol| {
+        let return_node = type_symbol.try_and_then(|type_symbol| {
             self.node_builder().symbol_to_entity_name(
                 type_symbol,
                 Some(SymbolFlags::Type),
@@ -331,15 +330,15 @@ impl TypeChecker {
                 get_factory().create_keyword_type_node(SyntaxKind::AnyKeyword)
             }),
         );
-        let parameter_symbol: Id<Symbol> = self
+        let parameter_symbol = self.alloc_symbol(self
             .create_symbol(
                 SymbolFlags::FunctionScopedVariable,
                 "props".to_owned(),
                 None,
             )
-            .into();
-        parameter_symbol
-            .as_transient_symbol()
+            .into());
+        self.symbol(parameter_symbol
+            ).as_transient_symbol()
             .symbol_links()
             .borrow_mut()
             .type_ = Some(result);
@@ -348,7 +347,7 @@ impl TypeChecker {
             None,
             None,
             vec![parameter_symbol],
-            Some(if let Some(type_symbol) = type_symbol.as_ref() {
+            Some(if let Some(type_symbol) = type_symbol {
                 self.get_declared_type_of_symbol(type_symbol)?
             } else {
                 self.error_type()
@@ -559,7 +558,7 @@ impl TypeChecker {
 
             let symbol = self.get_symbol_of_node(func)?;
             return Ok(matches!(
-                symbol.as_ref().and_then(|symbol| symbol.maybe_members().clone()).as_ref(),
+                symbol.as_ref().and_then(|symbol| self.symbol(symbol).maybe_members().clone()).as_ref(),
                 Some(symbol_members) if !(**symbol_members).borrow().is_empty(),
             ));
         }
@@ -576,10 +575,10 @@ impl TypeChecker {
         let links = self.get_symbol_links(source);
         if !matches!(
             (*links).borrow().inferred_class_symbol.as_ref(),
-            Some(links_inferred_class_symbol) if links_inferred_class_symbol.contains_key(&get_symbol_id(target))
+            Some(links_inferred_class_symbol) if links_inferred_class_symbol.contains_key(&get_symbol_id(&self.symbol(target)))
         ) {
-            let inferred = if is_transient_symbol(self.symbol(target)) {
-                target.symbol_wrapper()
+            let inferred = if is_transient_symbol(&self.symbol(target)) {
+                target
             } else {
                 self.clone_symbol(target)
             };
@@ -601,24 +600,24 @@ impl TypeChecker {
                     ))));
                 }
             }
-            inferred.set_flags(inferred.flags() | (source.flags() & SymbolFlags::Class));
+            inferred.set_flags(inferred.flags() | (self.symbol(source).flags() & SymbolFlags::Class));
             if matches!(
-                source.maybe_exports().as_ref(),
+                self.symbol(source).maybe_exports().as_ref(),
                 Some(source_exports) if !(**source_exports).borrow().is_empty()
             ) {
                 self.merge_symbol_table(
                     inferred.maybe_exports().clone().unwrap(),
-                    &(*source.maybe_exports().clone().unwrap()).borrow(),
+                    &(*self.symbol(source).maybe_exports().clone().unwrap()).borrow(),
                     None,
                 )?;
             }
             if matches!(
-                source.maybe_members().as_ref(),
+                self.symbol(source).maybe_members().as_ref(),
                 Some(source_members) if !(**source_members).borrow().is_empty()
             ) {
                 self.merge_symbol_table(
-                    inferred.maybe_members().clone().unwrap(),
-                    &(*source.maybe_members().clone().unwrap()).borrow(),
+                    self.symbol(inferred).maybe_members().clone().unwrap(),
+                    &(*self.symbol(source).maybe_members().clone().unwrap()).borrow(),
                     None,
                 )?;
             }
@@ -640,7 +639,7 @@ impl TypeChecker {
             .inferred_class_symbol
             .as_ref()
             .unwrap()
-            .get(&get_symbol_id(target))
+            .get(&get_symbol_id(&self.symbol(target)))
             .cloned();
         Ok(ret)
     }
@@ -651,8 +650,7 @@ impl TypeChecker {
     ) -> io::Result<Option<Id<Symbol>>> {
         let assignment_symbol = /*decl &&*/ self.get_symbol_of_expando(decl, true)?;
         let prototype = assignment_symbol
-            .as_ref()
-            .and_then(|assignment_symbol| assignment_symbol.maybe_exports().clone())
+            .and_then(|assignment_symbol| self.symbol(assignment_symbol).maybe_exports().clone())
             .and_then(|assignment_symbol_exports| {
                 (*assignment_symbol_exports)
                     .borrow()
@@ -882,12 +880,11 @@ impl TypeChecker {
         if is_in_js_file(Some(node)) {
             let js_symbol = self.get_symbol_of_expando(node, false)?;
             if let Some(js_symbol_exports) = js_symbol
-                .as_ref()
-                .and_then(|js_symbol| js_symbol.maybe_exports().clone())
+                .and_then(|js_symbol| self.symbol(js_symbol).maybe_exports().clone())
                 .filter(|js_symbol_exports| !(**js_symbol_exports).borrow().is_empty())
             {
                 let js_assignment_type = self.create_anonymous_type(
-                    js_symbol.as_deref(),
+                    js_symbol,
                     js_symbol_exports,
                     vec![],
                     vec![],

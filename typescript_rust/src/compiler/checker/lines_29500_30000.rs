@@ -232,7 +232,7 @@ impl TypeChecker {
             SyntaxKind::ClassDeclaration | SyntaxKind::ClassExpression => {
                 vec![self.create_synthetic_expression(
                     expr,
-                    self.get_type_of_symbol(&self.get_symbol_of_node(&parent)?.unwrap())?,
+                    self.get_type_of_symbol(self.get_symbol_of_node(&parent)?.unwrap())?,
                     None,
                     Option::<&Node>::None,
                 )]
@@ -243,7 +243,7 @@ impl TypeChecker {
                     self.create_synthetic_expression(
                         expr,
                         if parent.parent().kind() == SyntaxKind::Constructor {
-                            self.get_type_of_symbol(&self.get_symbol_of_node(&func)?.unwrap())?
+                            self.get_type_of_symbol(self.get_symbol_of_node(&func)?.unwrap())?
                         } else {
                             self.error_type()
                         },
@@ -427,11 +427,8 @@ impl TypeChecker {
             Some(true),
         )?;
         Ok(matches!(
-            constructor_symbol.as_ref(),
-            Some(constructor_symbol) if Gc::ptr_eq(
-                constructor_symbol,
-                &global_promise_symbol
-            )
+            constructor_symbol,
+            Some(constructor_symbol) if constructor_symbol == global_promise_symbol
         ))
     }
 
@@ -1047,7 +1044,7 @@ impl TypeChecker {
             .as_ref()
             .and_then(|failed_declaration| failed_declaration.maybe_symbol())
             .and_then(|failed_declaration_symbol| {
-                failed_declaration_symbol.maybe_declarations().clone()
+                self.symbol(failed_declaration_symbol).maybe_declarations().clone()
             })
             .unwrap_or_else(|| vec![]);
         let is_overload = failed_signature_declarations.len() > 1;

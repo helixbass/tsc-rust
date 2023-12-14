@@ -9,6 +9,7 @@ use std::{
 use bitflags::bitflags;
 use derive_builder::Builder;
 use gc::{Finalize, Gc, GcCell, Trace};
+use id_arena::Id;
 use local_macros::{ast_type, enum_unwrapped};
 use serde::Serialize;
 
@@ -17,11 +18,13 @@ use crate::{
     BaseNodeFactorySynthetic, CommentRange, EmitBinaryExpression, EmitHint, FileIncludeReason,
     LineAndCharacter, ModuleKind, MultiMap, NewLineKind, NodeArray, NodeId, ParenthesizerRules,
     Path, ProgramBuildInfo, RedirectTargetsMap, ScriptTarget, SortedArray, SourceMapSource,
-    SymlinkCache, SyntaxKind, TempFlags, TextRange,
+    SymlinkCache, SyntaxKind, TempFlags, TextRange, AllArenas,
 };
 
 #[derive(Trace, Finalize)]
 pub struct Printer {
+    #[unsafe_ignore_trace]
+    pub arena: *const AllArenas,
     pub _rc_wrapper: GcCell<Option<Gc<Printer>>>,
     pub printer_options: PrinterOptions,
     pub handlers: Gc<Box<dyn PrintHandlers>>,
@@ -718,7 +721,6 @@ mod _PrinterOptionsDeriveTraceScope {
     }
 }
 pub use _PrinterOptionsDeriveTraceScope::{PrinterOptions, PrinterOptionsBuilder};
-use id_arena::Id;
 
 pub trait RelativeToBuildInfo: Trace + Finalize {
     fn call(&self, file_name: &str) -> String;

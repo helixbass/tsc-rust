@@ -60,7 +60,7 @@ impl Printer {
                     .cloned();
                 if matches!(
                     local,
-                    Some(local) if local.flags().intersects(
+                    Some(local) if self.symbol(local).flags().intersects(
                         SymbolFlags::Value | SymbolFlags::ExportValue | SymbolFlags::Alias
                     )
                 ) {

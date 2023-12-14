@@ -15,8 +15,7 @@ use crate::{
     parse_pseudo_big_int, skip_parentheses, some, try_some, ContextFlags, Diagnostics,
     ElementFlags, InferenceContext, InferenceFlags, InferenceInfo, InferencePriority, Matches,
     NamedDeclarationInterface, Node, NodeFlags, NodeInterface, OptionTry, PseudoBigInt,
-    SignatureKind, Symbol, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags,
-    TypeInterface,
+    SignatureKind, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
 };
 
 impl TypeChecker {
@@ -475,7 +474,7 @@ impl TypeChecker {
         let mut new_type_parameters: Option<Vec<Id<Type /*TypeParameter*/>>> = None;
         for &tp in type_parameters {
             let tp_symbol = self.type_(tp).symbol();
-            let name = tp_symbol.escaped_name();
+            let name = self.symbol(tp_symbol).escaped_name();
             if self.has_type_parameter_by_name(
                 context.maybe_inferred_type_parameters().as_deref(),
                 name,
@@ -491,9 +490,10 @@ impl TypeChecker {
                     ),
                     name,
                 );
-                let symbol: Id<Symbol> = self
-                    .create_symbol(SymbolFlags::TypeParameter, new_name, None)
-                    .into();
+                let symbol = self.alloc_symbol(
+                    self.create_symbol(SymbolFlags::TypeParameter, new_name, None)
+                        .into(),
+                );
                 let mut new_type_parameter = self.create_type_parameter(Some(&*symbol));
                 new_type_parameter.target = Some(tp.clone());
                 let new_type_parameter: Id<Type> = self.alloc_type(new_type_parameter.into());
@@ -534,7 +534,7 @@ impl TypeChecker {
     ) -> bool {
         some(
             type_parameters,
-            Some(|&tp: &Id<Type>| self.type_(tp).symbol().escaped_name() == name),
+            Some(|&tp: &Id<Type>| self.symbol(self.type_(tp).symbol()).escaped_name() == name),
         )
     }
 
@@ -738,15 +738,15 @@ impl TypeChecker {
 
         if self.compiler_options.isolated_modules == Some(true) {
             Debug_.assert(
-                self.type_(type_)
-                    .symbol()
+                self.symbol(self.type_(type_)
+                    .symbol())
                     .flags()
                     .intersects(SymbolFlags::ConstEnum),
                 None,
             );
-            let const_enum_declaration = self
+            let const_enum_declaration = self.symbol(self
                 .type_(type_)
-                .symbol()
+                .symbol())
                 .maybe_value_declaration()
                 .unwrap();
             if const_enum_declaration

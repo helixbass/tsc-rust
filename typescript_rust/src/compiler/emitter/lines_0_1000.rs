@@ -26,7 +26,7 @@ use crate::{
     is_json_source_file, is_option_str_empty, is_source_file, is_source_file_not_json,
     last_or_undefined, length, no_emit_notification, no_emit_substitution, normalize_path,
     normalize_slashes, out_file, remove_file_extension, resolve_path, supported_js_extensions_flat,
-    transform_nodes, try_for_each_child, version, write_file, AllAccessorDeclarations,
+    transform_nodes, try_for_each_child, version, write_file, AllAccessorDeclarations, AllArenas,
     BaseNodeFactorySynthetic, BuildInfo, BundleBuildInfo, BundleFileInfo, BundleFileSection,
     BundleFileSectionInterface, BundleFileSectionKind, Comparison, CompilerOptions,
     CurrentParenthesizerRule, Debug_, DetachedCommentInfo, DiagnosticCollection,
@@ -1849,6 +1849,14 @@ impl Printer {
             parenthesizer: factory.with(|factory_| factory_.parenthesizer()),
             emit_binary_expression: Default::default(),
         }
+    }
+
+    pub(super) fn arena(&self) -> &AllArenas {
+        unsafe { &*self.arena }
+    }
+
+    pub(super) fn symbol(&self, symbol: Id<Symbol>) -> debug_cell::Ref<Symbol> {
+        self.arena().symbol(symbol)
     }
 
     pub(super) fn rc_wrapper(&self) -> Gc<Printer> {

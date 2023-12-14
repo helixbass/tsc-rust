@@ -117,7 +117,7 @@ impl TypeChecker {
                         type_,
                         (*context).borrow().property_name.as_ref().unwrap(),
                     )?;
-                    if let Some(prop) = prop.as_ref() {
+                    if let Some(prop) = prop {
                         self.for_each_type(self.get_type_of_symbol(prop)?, |t: Id<Type>| {
                             siblings.push(t);
                             Option::<()>::None
@@ -141,7 +141,7 @@ impl TypeChecker {
                     && !get_object_flags(&self.type_(t)).intersects(ObjectFlags::ContainsSpread)
                 {
                     for prop in self.get_properties_of_type(t)? {
-                        names.insert(prop.escaped_name().to_owned(), prop);
+                        names.insert(self.symbol(prop).escaped_name().to_owned(), prop);
                     }
                 }
             }
@@ -156,20 +156,20 @@ impl TypeChecker {
         prop: Id<Symbol>,
         context: Option<Rc<RefCell<WideningContext>>>,
     ) -> io::Result<Id<Symbol>> {
-        if !prop.flags().intersects(SymbolFlags::Property) {
-            return Ok(prop.symbol_wrapper());
+        if !self.symbol(prop).flags().intersects(SymbolFlags::Property) {
+            return Ok(prop);
         }
         let original = self.get_type_of_symbol(prop)?;
         let prop_context = context.map(|context| {
             Rc::new(RefCell::new(self.create_widening_context(
                 Some(context),
-                Some(prop.escaped_name().to_owned()),
+                Some(self.symbol(prop).escaped_name().to_owned()),
                 None,
             )))
         });
         let widened = self.get_widened_type_with_context(original, prop_context)?;
         Ok(if widened == original {
-            prop.symbol_wrapper()
+            prop
         } else {
             self.create_symbol_with_type(prop, Some(widened))
         })
@@ -178,15 +178,15 @@ impl TypeChecker {
     pub(super) fn get_undefined_property(&self, prop: Id<Symbol>) -> Id<Symbol> {
         let cached = self
             .undefined_properties()
-            .get(prop.escaped_name())
+            .get(self.symbol(prop).escaped_name())
             .map(Clone::clone);
         if let Some(cached) = cached {
             return cached;
         }
         let result = self.create_symbol_with_type(prop, Some(self.missing_type()));
-        result.set_flags(result.flags() | SymbolFlags::Optional);
+        self.symbol(result).set_flags(self.symbol(result).flags() | SymbolFlags::Optional);
         self.undefined_properties()
-            .insert(prop.escaped_name().to_owned(), result.clone());
+            .insert(self.symbol(prop).escaped_name().to_owned(), result.clone());
         result
     }
 
@@ -196,17 +196,17 @@ impl TypeChecker {
         context: Option<Rc<RefCell<WideningContext>>>,
     ) -> io::Result<Id<Type>> {
         let mut members = create_symbol_table(self.arena(), Option::<&[Id<Symbol>]>::None);
-        for ref prop in self.get_properties_of_object_type(type_)? {
+        for prop in self.get_properties_of_object_type(type_)? {
             members.insert(
-                prop.escaped_name().to_owned(),
+                self.symbol(prop).escaped_name().to_owned(),
                 self.get_widened_property(prop, context.clone())?,
             );
         }
         if let Some(context) = context {
-            for prop in &self.get_properties_of_context(context)? {
-                if !members.contains_key(prop.escaped_name()) {
+            for &prop in &self.get_properties_of_context(context)? {
+                if !members.contains_key(self.symbol(prop).escaped_name()) {
                     members.insert(
-                        prop.escaped_name().to_owned(),
+                        self.symbol(prop).escaped_name().to_owned(),
                         self.get_undefined_property(prop),
                     );
                 }
@@ -378,14 +378,14 @@ impl TypeChecker {
                 }
             }
             if self.is_object_literal_type(type_) {
-                for ref p in self.get_properties_of_object_type(type_)? {
+                for p in self.get_properties_of_object_type(type_)? {
                     let t = self.get_type_of_symbol(p)?;
                     if get_object_flags(&self.type_(t))
                         .intersects(ObjectFlags::ContainsWideningType)
                     {
                         if !self.report_widening_errors_in_type(t)? {
                             self.error(
-                                p.maybe_value_declaration(),
+                                self.symbol(p).maybe_value_declaration(),
                                 &Diagnostics::Object_literal_s_property_0_implicitly_has_an_1_type,
                                 Some(vec![
                                     self.symbol_to_string_(
@@ -878,9 +878,9 @@ impl TypeChecker {
                         )?)
                     || object_flags.intersects(ObjectFlags::Anonymous)
                         && matches!(
-                            self.type_(type_).maybe_symbol().as_ref(),
-                            Some(type_symbol) if type_symbol.flags().intersects(SymbolFlags::Function | SymbolFlags::Method | SymbolFlags::Class | SymbolFlags::TypeLiteral | SymbolFlags::ObjectLiteral) &&
-                                type_symbol.maybe_declarations().is_some()
+                            self.type_(type_).maybe_symbol(),
+                            Some(type_symbol) if self.symbol(type_symbol).flags().intersects(SymbolFlags::Function | SymbolFlags::Method | SymbolFlags::Class | SymbolFlags::TypeLiteral | SymbolFlags::ObjectLiteral) &&
+                                self.symbol(type_symbol).maybe_declarations().is_some()
                         )
                     || object_flags.intersects(
                         ObjectFlags::Mapped
@@ -920,10 +920,10 @@ impl TypeChecker {
     }
 
     pub(super) fn is_non_generic_top_level_type(&self, type_: Id<Type>) -> bool {
-        if let Some(ref type_alias_symbol) = self.type_(type_).maybe_alias_symbol() {
+        if let Some(type_alias_symbol) = self.type_(type_).maybe_alias_symbol() {
             if self.type_(type_).maybe_alias_type_arguments().is_none() {
                 let declaration =
-                    get_declaration_of_kind(type_alias_symbol, SyntaxKind::TypeAliasDeclaration);
+                    get_declaration_of_kind(&self.symbol(type_alias_symbol), SyntaxKind::TypeAliasDeclaration);
                 return matches!(
                     declaration.as_ref(),
                     Some(declaration) if find_ancestor(
@@ -978,20 +978,20 @@ impl TypeChecker {
             }
             let name = escape_leading_underscores(&self.type_(t).as_string_literal_type().value)
                 .into_owned();
-            let literal_prop: Id<Symbol> = self
+            let literal_prop = self.alloc_symbol(self
                 .create_symbol(SymbolFlags::Property, name.clone(), None)
-                .into();
-            literal_prop
-                .as_transient_symbol()
+                .into());
+            self.symbol(literal_prop
+                ).as_transient_symbol()
                 .symbol_links()
                 .borrow_mut()
                 .type_ = Some(self.any_type());
-            if let Some(ref t_symbol) = self.type_(t).maybe_symbol() {
-                if let Some(t_symbol_declarations) = t_symbol.maybe_declarations().clone() {
-                    literal_prop.set_declarations(t_symbol_declarations);
+            if let Some(t_symbol) = self.type_(t).maybe_symbol() {
+                if let Some(t_symbol_declarations) = self.symbol(t_symbol).maybe_declarations().clone() {
+                    self.symbol(literal_prop).set_declarations(t_symbol_declarations);
                 }
-                if let Some(t_symbol_value_declaration) = t_symbol.maybe_value_declaration() {
-                    literal_prop.set_value_declaration(t_symbol_value_declaration);
+                if let Some(t_symbol_value_declaration) = self.symbol(t_symbol).maybe_value_declaration() {
+                    self.symbol(literal_prop).set_value_declaration(t_symbol_value_declaration);
                 }
             }
             members.insert(name, literal_prop);
@@ -1051,7 +1051,7 @@ impl TypeChecker {
                 || self.is_object_literal_type(type_)
                     && self
                         .get_properties_of_type(type_)?
-                        .try_any(|ref prop: Id<Symbol>| {
+                        .try_any(|prop: Id<Symbol>| {
                             self.is_partially_inferable_type(self.get_type_of_symbol(prop)?)
                         })?
                 || self.is_tuple_type(type_)
@@ -1146,7 +1146,7 @@ impl TypeChecker {
     ) -> io::Result<Id<Type>> {
         let links = self.get_symbol_links(symbol);
         if (*links).borrow().type_.is_none() {
-            let symbol_as_reverse_mapped_symbol = symbol.as_reverse_mapped_symbol();
+            let symbol_as_reverse_mapped_symbol = self.symbol(symbol).as_reverse_mapped_symbol();
             links.borrow_mut().type_ = Some(self.infer_reverse_mapped_type(
                 symbol_as_reverse_mapped_symbol.property_type,
                 symbol_as_reverse_mapped_symbol.mapped_type,

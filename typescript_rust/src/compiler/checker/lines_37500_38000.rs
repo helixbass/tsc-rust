@@ -237,7 +237,7 @@ impl TypeChecker {
         symbol_name: &str,
     ) -> io::Result<__String> {
         let ctor_type = self.get_global_es_symbol_constructor_symbol(false)?;
-        let unique_type = ctor_type.as_ref().try_and_then(|ctor_type| {
+        let unique_type = ctor_type.try_and_then(|ctor_type| {
             self.get_type_of_property_of_type_(
                 self.get_type_of_symbol(ctor_type)?,
                 &escape_leading_underscores(symbol_name),
@@ -266,8 +266,7 @@ impl TypeChecker {
             None,
         )?;
         let method_type = method
-            .as_ref()
-            .filter(|method| !method.flags().intersects(SymbolFlags::Optional))
+            .filter(|method| !self.symbol(method).flags().intersects(SymbolFlags::Optional))
             .try_map(|method| self.get_type_of_symbol(method))?;
         if self.is_type_any(method_type) {
             return Ok(self.set_cached_iteration_types(
@@ -527,9 +526,8 @@ impl TypeChecker {
         }
 
         let method_type = method
-            .as_ref()
-            .filter(|method| {
-                !(method_name == "next" && method.flags().intersects(SymbolFlags::Optional))
+            .filter(|&method| {
+                !(method_name == "next" && self.symbol(method).flags().intersects(SymbolFlags::Optional))
             })
             .try_map(|method| -> io::Result<_> {
                 Ok(if method_name == "next" {
@@ -573,33 +571,26 @@ impl TypeChecker {
 
         if let Some(method_type_symbol) = method_type
             .and_then(|method_type| self.type_(method_type).maybe_symbol())
-            .as_ref()
         {
             if method_signatures.len() == 1 {
                 let global_generator_type = (resolver.get_global_generator_type)(self, false)?;
                 let global_iterator_type = (resolver.get_global_iterator_type)(self, false)?;
                 let is_generator_method = matches!(
                     self.type_(global_generator_type).maybe_symbol().and_then(|global_generator_type_symbol| {
-                        global_generator_type_symbol.maybe_members().clone()
+                        self.symbol(global_generator_type_symbol).maybe_members().clone()
                     }).and_then(|global_generator_type_symbol_members| {
                         (*global_generator_type_symbol_members).borrow().get(method_name).cloned()
-                    }).as_ref(),
-                    Some(global_generator_type_symbol_member) if Gc::ptr_eq(
-                        global_generator_type_symbol_member,
-                        method_type_symbol
-                    )
+                    }),
+                    Some(global_generator_type_symbol_member) if global_generator_type_symbol_member == method_type_symbol
                 );
                 let is_iterator_method = !is_generator_method
                     && matches!(
                         self.type_(global_iterator_type).maybe_symbol().and_then(|global_iterator_type_symbol| {
-                            global_iterator_type_symbol.maybe_members().clone()
+                            self.symbol(global_iterator_type_symbol).maybe_members().clone()
                         }).and_then(|global_iterator_type_symbol_members| {
                             (*global_iterator_type_symbol_members).borrow().get(method_name).cloned()
-                        }).as_ref(),
-                        Some(global_iterator_type_symbol_member) if Gc::ptr_eq(
-                            global_iterator_type_symbol_member,
-                            method_type_symbol
-                        )
+                        }),
+                        Some(global_iterator_type_symbol_member) if global_iterator_type_symbol_member == method_type_symbol
                     );
                 if is_generator_method || is_iterator_method {
                     let global_type = if is_generator_method {

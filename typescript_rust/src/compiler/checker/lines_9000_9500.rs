@@ -162,9 +162,9 @@ impl TypeChecker {
                     } else {
                         SymbolFlags::None
                     };
-                let symbol: Id<Symbol> = self.create_symbol(flags, text, None).into();
-                symbol
-                    .as_transient_symbol()
+                let symbol = self.alloc_symbol(self.create_symbol(flags, text, None).into());
+                self.symbol(symbol
+                    ).as_transient_symbol()
                     .symbol_links()
                     .borrow_mut()
                     .type_ = Some(self.get_type_from_binding_element(
@@ -172,12 +172,12 @@ impl TypeChecker {
                     Some(include_pattern_in_type),
                     Some(report_errors),
                 )?);
-                symbol
-                    .as_transient_symbol()
+                self.symbol(symbol
+                    ).as_transient_symbol()
                     .symbol_links()
                     .borrow_mut()
                     .binding_element = Some(e.clone());
-                members.insert(symbol.escaped_name().to_owned(), symbol);
+                members.insert(self.symbol(symbol).escaped_name().to_owned(), symbol);
                 Ok(Option::<()>::None)
             },
         )?;
@@ -311,7 +311,7 @@ impl TypeChecker {
         let global_symbol = self.get_global_es_symbol_constructor_type_symbol(false)?;
         Ok(matches!(
             (global_symbol, symbol),
-            (Some(global_symbol), Some(symbol)) if Gc::ptr_eq(&symbol, &global_symbol)
+            (Some(global_symbol), Some(symbol)) if symbol == global_symbol
         ))
     }
 
@@ -338,10 +338,7 @@ impl TypeChecker {
                 .intersects(TypeFlags::UniqueESSymbol)
                 && (is_binding_element(declaration)
                     || declaration.as_has_type().maybe_type().is_none())
-                && !are_option_gcs_equal(
-                    self.type_(type_).maybe_symbol().as_ref(),
-                    self.get_symbol_of_node(declaration)?.as_ref(),
-                )
+                && self.type_(type_).maybe_symbol() != self.get_symbol_of_node(declaration)?
             {
                 type_ = self.es_symbol_type();
             }
@@ -410,42 +407,42 @@ impl TypeChecker {
         &self,
         symbol: Id<Symbol>,
     ) -> io::Result<Id<Type>> {
-        if symbol.flags().intersects(SymbolFlags::Prototype) {
+        if self.symbol(symbol).flags().intersects(SymbolFlags::Prototype) {
             return self.get_type_of_prototype_property(symbol);
         }
-        if ptr::eq(symbol, &*self.require_symbol()) {
+        if symbol == self.require_symbol() {
             return Ok(self.any_type());
         }
-        if symbol.flags().intersects(SymbolFlags::ModuleExports) {
-            if let Some(symbol_value_declaration) = symbol.maybe_value_declaration() {
+        if self.symbol(symbol).flags().intersects(SymbolFlags::ModuleExports) {
+            if let Some(symbol_value_declaration) = self.symbol(symbol).maybe_value_declaration() {
                 let file_symbol = self
                     .get_symbol_of_node(&get_source_file_of_node(&symbol_value_declaration))?
                     .unwrap();
-                let result: Id<Symbol> = self
-                    .create_symbol(file_symbol.flags(), "exports".to_owned(), None)
-                    .into();
-                result.set_declarations(
-                    file_symbol
-                        .maybe_declarations()
+                let result = self.alloc_symbol(self
+                    .create_symbol(self.symbol(file_symbol).flags(), "exports".to_owned(), None)
+                    .into());
+                self.symbol(result).set_declarations(
+                    self.symbol(file_symbol
+                        ).maybe_declarations()
                         .as_ref()
                         .map_or_else(|| vec![], Clone::clone),
                 );
-                result.set_parent(Some(symbol.symbol_wrapper()));
-                result
-                    .as_transient_symbol()
+                self.symbol(result).set_parent(Some(symbol));
+                self.symbol(result
+                    ).as_transient_symbol()
                     .symbol_links()
                     .borrow_mut()
                     .target = Some(file_symbol.clone());
-                if let Some(file_symbol_value_declaration) = file_symbol.maybe_value_declaration() {
-                    result.set_value_declaration(file_symbol_value_declaration);
+                if let Some(file_symbol_value_declaration) = self.symbol(file_symbol).maybe_value_declaration() {
+                    self.symbol(result).set_value_declaration(file_symbol_value_declaration);
                 }
-                if let Some(file_symbol_members) = file_symbol.maybe_members().as_ref() {
-                    *result.maybe_members_mut() = Some(Gc::new(GcCell::new(
+                if let Some(file_symbol_members) = self.symbol(file_symbol).maybe_members().as_ref() {
+                    *self.symbol(result).maybe_members_mut() = Some(Gc::new(GcCell::new(
                         (**file_symbol_members).borrow().clone(),
                     )));
                 }
-                if let Some(file_symbol_exports) = file_symbol.maybe_exports().as_ref() {
-                    *result.maybe_exports_mut() = Some(Gc::new(GcCell::new(
+                if let Some(file_symbol_exports) = self.symbol(file_symbol).maybe_exports().as_ref() {
+                    *self.symbol(result).maybe_exports_mut() = Some(Gc::new(GcCell::new(
                         (**file_symbol_exports).borrow().clone(),
                     )));
                 }
@@ -460,8 +457,8 @@ impl TypeChecker {
                 );
             }
         }
-        Debug_.assert_is_defined(&symbol.maybe_value_declaration(), None);
-        let declaration = symbol.maybe_value_declaration();
+        Debug_.assert_is_defined(&self.symbol(symbol).maybe_value_declaration(), None);
+        let declaration = self.symbol(symbol).maybe_value_declaration();
         let declaration = declaration.as_deref().unwrap();
         if is_catch_clause_variable_declaration_or_binding_element(declaration) {
             let type_node = get_effective_type_annotation_node(declaration);
@@ -501,11 +498,11 @@ impl TypeChecker {
         }
 
         if !self.push_type_resolution(
-            &symbol.symbol_wrapper().into(),
+            &symbol.into(),
             TypeSystemPropertyName::Type,
         ) {
-            if symbol.flags().intersects(SymbolFlags::ValueModule)
-                && !symbol.flags().intersects(SymbolFlags::Assignment)
+            if self.symbol(symbol).flags().intersects(SymbolFlags::ValueModule)
+                && !self.symbol(symbol).flags().intersects(SymbolFlags::Assignment)
             {
                 return self.get_type_of_func_class_enum_module(symbol);
             }
@@ -546,7 +543,7 @@ impl TypeChecker {
             || is_method_signature(declaration)
             || is_source_file(declaration)
         {
-            if symbol.flags().intersects(
+            if self.symbol(symbol).flags().intersects(
                 SymbolFlags::Function
                     | SymbolFlags::Method
                     | SymbolFlags::Class
@@ -618,8 +615,8 @@ impl TypeChecker {
         }
 
         if !self.pop_type_resolution() {
-            if symbol.flags().intersects(SymbolFlags::ValueModule)
-                && !symbol.flags().intersects(SymbolFlags::Assignment)
+            if self.symbol(symbol).flags().intersects(SymbolFlags::ValueModule)
+                && !self.symbol(symbol).flags().intersects(SymbolFlags::Assignment)
             {
                 return self.get_type_of_func_class_enum_module(symbol);
             }
@@ -699,7 +696,7 @@ impl TypeChecker {
         writing: Option<bool>,
     ) -> io::Result<Option<Id<Type>>> {
         if !self.push_type_resolution(
-            &symbol.symbol_wrapper().into(),
+            &symbol.into(),
             TypeSystemPropertyName::Type,
         ) {
             return Ok(Some(self.error_type()));

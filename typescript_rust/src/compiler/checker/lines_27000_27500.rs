@@ -278,34 +278,34 @@ impl TypeChecker {
                     get_object_flags(&self.type_(expr_type)) & ObjectFlags::PropagatingFlags;
 
                 let member = member.unwrap();
-                let attribute_symbol: Id<Symbol> = self
+                let attribute_symbol = self.alloc_symbol(self
                     .create_symbol(
-                        SymbolFlags::Property | member.flags(),
-                        member.escaped_name().to_owned(),
+                        SymbolFlags::Property | self.symbol(member).flags(),
+                        self.symbol(member).escaped_name().to_owned(),
                         None,
                     )
-                    .into();
-                if let Some(member_declarations) = member.maybe_declarations().clone() {
-                    attribute_symbol.set_declarations(member_declarations);
+                    .into());
+                if let Some(member_declarations) = self.symbol(member).maybe_declarations().clone() {
+                    self.symbol(attribute_symbol).set_declarations(member_declarations);
                 }
-                attribute_symbol.set_parent(member.maybe_parent());
-                if let Some(member_value_declaration) = member.maybe_value_declaration() {
-                    attribute_symbol.set_value_declaration(member_value_declaration);
+                self.symbol(attribute_symbol).set_parent(self.symbol(member).maybe_parent());
+                if let Some(member_value_declaration) = self.symbol(member).maybe_value_declaration() {
+                    self.symbol(attribute_symbol).set_value_declaration(member_value_declaration);
                 }
                 {
                     let attribute_symbol_links =
-                        attribute_symbol.as_transient_symbol().symbol_links();
+                        self.symbol(attribute_symbol).as_transient_symbol().symbol_links();
                     let mut attribute_symbol_links = attribute_symbol_links.borrow_mut();
                     attribute_symbol_links.type_ = Some(expr_type.clone());
                     attribute_symbol_links.target = Some(member.clone());
                 }
                 attributes_table.borrow_mut().insert(
-                    attribute_symbol.escaped_name().to_owned(),
+                    self.symbol(attribute_symbol).escaped_name().to_owned(),
                     attribute_symbol.clone(),
                 );
                 if let Some(all_attributes_table) = all_attributes_table.as_mut() {
                     all_attributes_table.insert(
-                        attribute_symbol.escaped_name().to_owned(),
+                        self.symbol(attribute_symbol).escaped_name().to_owned(),
                         attribute_symbol.clone(),
                     );
                 }
@@ -435,15 +435,15 @@ impl TypeChecker {
                                 jsx_children_property_name,
                             )
                         })?;
-                    let children_prop_symbol: Id<Symbol> = self
+                    let children_prop_symbol = self.alloc_symbol(self
                         .create_symbol(
                             SymbolFlags::Property,
                             jsx_children_property_name.clone(),
                             None,
                         )
-                        .into();
-                    children_prop_symbol
-                        .as_transient_symbol()
+                        .into());
+                    self.symbol(children_prop_symbol
+                        ).as_transient_symbol()
                         .symbol_links()
                         .borrow_mut()
                         .type_ = Some(if children_types.len() == 1 {
@@ -468,7 +468,7 @@ impl TypeChecker {
                             None,
                         )
                     });
-                    children_prop_symbol.set_value_declaration(
+                    self.symbol(children_prop_symbol).set_value_declaration(
                         get_factory().create_property_signature(
                             Option::<Gc<NodeArray>>::None,
                             unescape_leading_underscores(jsx_children_property_name),
@@ -477,14 +477,14 @@ impl TypeChecker {
                         ),
                     );
                     set_parent(
-                        children_prop_symbol
-                            .maybe_value_declaration()
+                        self.symbol(children_prop_symbol
+                            ).maybe_value_declaration()
                             .as_ref()
                             .unwrap(),
                         Some(&*attributes),
                     );
-                    children_prop_symbol
-                        .maybe_value_declaration()
+                    self.symbol(children_prop_symbol
+                        ).maybe_value_declaration()
                         .unwrap()
                         .set_symbol(children_prop_symbol.clone());
                     let mut child_prop_map = create_symbol_table(self.arena(), Option::<&[Id<Symbol>]>::None);
@@ -587,15 +587,15 @@ impl TypeChecker {
         props: &SymbolTable,
         spread: &Node, /*SpreadAssignment | JsxSpreadAttribute*/
     ) -> io::Result<()> {
-        for ref right in self.get_properties_of_type(type_)? {
-            if !right.flags().intersects(SymbolFlags::Optional) {
-                let left = props.get(right.escaped_name());
+        for right in self.get_properties_of_type(type_)? {
+            if !self.symbol(right).flags().intersects(SymbolFlags::Optional) {
+                let left = props.get(self.symbol(right).escaped_name());
                 if let Some(left) = left {
                     let diagnostic = self.error(
-                        left.maybe_value_declaration(),
+                        self.symbol(left).maybe_value_declaration(),
                         &Diagnostics::_0_is_specified_more_than_once_so_this_usage_will_be_overwritten,
                         Some(vec![
-                            unescape_leading_underscores(left.escaped_name()).to_owned()
+                            unescape_leading_underscores(self.symbol(left).escaped_name()).to_owned()
                         ])
                     );
                     add_related_info(
@@ -632,12 +632,11 @@ impl TypeChecker {
         let location = location.map(|location| location.borrow().node_wrapper());
         let namespace = self.get_jsx_namespace_at(location.as_deref())?;
         let exports = namespace
-            .as_ref()
             .try_map(|namespace| self.get_exports_of_symbol(namespace))?;
         let type_symbol = exports.as_ref().try_and_then(|exports| {
             self.get_symbol(&(**exports).borrow(), name, SymbolFlags::Type)
         })?;
-        Ok(if let Some(type_symbol) = type_symbol.as_ref() {
+        Ok(if let Some(type_symbol) = type_symbol {
             self.get_declared_type_of_symbol(type_symbol)?
         } else {
             self.error_type()
@@ -754,11 +753,10 @@ impl TypeChecker {
             None,
         )?;
         let result = mod_
-            .as_ref()
-            .filter(|mod_| !Gc::ptr_eq(mod_, &self.unknown_symbol()))
+            .filter(|mod_| mod_ != self.unknown_symbol())
             .try_map(|mod_| -> io::Result<_> {
                 Ok(self
-                    .get_merged_symbol(self.resolve_symbol(Some(&**mod_), None)?)
+                    .get_merged_symbol(self.resolve_symbol(Some(mod_), None)?)
                     .unwrap())
             })?;
         if let Some(links) = links.as_ref() {
@@ -792,9 +790,9 @@ impl TypeChecker {
             let mut resolved_namespace =
                 self.get_jsx_namespace_container_for_implicit_import(location.as_deref())?;
 
-            if match resolved_namespace.as_ref() {
+            if match resolved_namespace {
                 None => true,
-                Some(resolved_namespace) => Gc::ptr_eq(resolved_namespace, &self.unknown_symbol()),
+                Some(resolved_namespace) => resolved_namespace == self.unknown_symbol(),
             } {
                 let namespace_name = self.get_jsx_namespace_(location.as_deref());
                 resolved_namespace = self.resolve_name_(
@@ -808,12 +806,12 @@ impl TypeChecker {
                 )?;
             }
 
-            if let Some(resolved_namespace) = resolved_namespace.as_ref() {
+            if let Some(resolved_namespace) = resolved_namespace {
                 let candidate = self.resolve_symbol(
                     self.get_symbol(
                         &(*self.get_exports_of_symbol(
-                            &self
-                                .resolve_symbol(Some(&**resolved_namespace), None)?
+                            self
+                                .resolve_symbol(Some(resolved_namespace), None)?
                                 .unwrap(),
                         )?)
                         .borrow(),
@@ -823,8 +821,7 @@ impl TypeChecker {
                     None,
                 )?;
                 if let Some(candidate) = candidate
-                    .as_ref()
-                    .filter(|candidate| !Gc::ptr_eq(candidate, &self.unknown_symbol()))
+                    .filter(|&candidate| candidate != self.unknown_symbol())
                 {
                     if let Some(links) = links.as_ref() {
                         links.borrow_mut().jsx_namespace = Some(Some(candidate.clone()));
@@ -841,11 +838,8 @@ impl TypeChecker {
             None,
         )?;
         if matches!(
-            s.as_ref(),
-            Some(s) if Gc::ptr_eq(
-                s,
-                &self.unknown_symbol()
-            )
+            s,
+            Some(s) if s == self.unknown_symbol()
         ) {
             return Ok(None);
         }

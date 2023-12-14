@@ -29,8 +29,10 @@ impl TypeChecker {
     ) -> io::Result<Option<Id<Type>>> {
         let mut inferences: Option<Vec<Id<Type>>> = None;
         if let Some(type_parameter_symbol) = self.type_(type_parameter).maybe_symbol() {
-            if let Some(type_parameter_symbol_declarations) =
-                type_parameter_symbol.maybe_declarations().as_deref()
+            if let Some(type_parameter_symbol_declarations) = self
+                .symbol(type_parameter_symbol)
+                .maybe_declarations()
+                .as_deref()
             {
                 for declaration in type_parameter_symbol_declarations {
                     if declaration.parent().kind() == SyntaxKind::InferType {
@@ -159,11 +161,10 @@ impl TypeChecker {
                                         Some(
                                             self.make_unary_type_mapper(
                                                 self.get_declared_type_of_type_parameter(
-                                                    &self
-                                                        .get_symbol_of_node(
-                                                            &check_mapped_type.type_parameter,
-                                                        )?
-                                                        .unwrap(),
+                                                    self.get_symbol_of_node(
+                                                        &check_mapped_type.type_parameter,
+                                                    )?
+                                                    .unwrap(),
                                                 ),
                                                 if let Some(
                                                     check_mapped_type_type_parameter_constraint,
@@ -272,7 +273,7 @@ impl TypeChecker {
         type_parameter: Id<Type>, /*TypeParameter*/
     ) -> io::Result<Option<Id<Symbol>>> {
         let tp = get_declaration_of_kind(
-            &self.type_(type_parameter).symbol(),
+            &self.symbol(self.type_(type_parameter).symbol()),
             SyntaxKind::TypeParameter,
         )
         .unwrap();
@@ -317,10 +318,9 @@ impl TypeChecker {
         alias_type_arguments: Option<&[Id<Type>]>,
     ) -> String {
         if let Some(alias_symbol) = alias_symbol {
-            let alias_symbol = alias_symbol.borrow();
             format!(
                 "@{}{}",
-                get_symbol_id(alias_symbol),
+                get_symbol_id(&self.symbol(alias_symbol)),
                 if let Some(alias_type_arguments) = alias_type_arguments {
                     format!(":{}", self.get_type_list_id(Some(alias_type_arguments)))
                 } else {
@@ -414,11 +414,9 @@ impl TypeChecker {
         target: Id<Type>, /*GenericType*/
         node: &Node,      /*TypeReferenceNode | ArrayTypeNode | TupleTypeNode*/
         mapper: Option<Id<TypeMapper>>,
-        alias_symbol: Option<Id<Symbol>>,
+        mut alias_symbol: Option<Id<Symbol>>,
         alias_type_arguments: Option<&[Id<Type>]>,
     ) -> io::Result<Id<Type /*DeferredTypeReference*/>> {
-        let mut alias_symbol =
-            alias_symbol.map(|alias_symbol| alias_symbol.borrow().symbol_wrapper());
         let mut alias_type_arguments = alias_type_arguments.map(ToOwned::to_owned);
         if alias_symbol.is_none() {
             alias_symbol = self.get_alias_symbol_for_type_node(node)?;
@@ -562,7 +560,7 @@ impl TypeChecker {
                         .maybe_symbol()
                     {
                         Some(vec![self.symbol_to_string_(
-                            &type_target_symbol,
+                            type_target_symbol,
                             Option::<&Node>::None,
                             None,
                             None,
@@ -596,7 +594,7 @@ impl TypeChecker {
         symbol: Id<Symbol>,
     ) -> io::Result<Id<Type>> {
         let type_ =
-            self.get_declared_type_of_symbol(&self.get_merged_symbol(Some(symbol)).unwrap())?;
+            self.get_declared_type_of_symbol(self.get_merged_symbol(Some(symbol)).unwrap())?;
         let type_parameters = self
             .type_(type_)
             .as_interface_type()
@@ -705,14 +703,13 @@ impl TypeChecker {
     ) -> io::Result<Id<Type>> {
         let type_ = self.get_declared_type_of_symbol(symbol)?;
         if type_ == self.intrinsic_marker_type()
-            && intrinsic_type_kinds.contains_key(symbol.escaped_name())
+            && intrinsic_type_kinds.contains_key(self.symbol(symbol).escaped_name())
             && matches!(type_arguments, Some(type_arguments) if type_arguments.len() == 1)
         {
             return self.get_string_mapping_type(symbol, type_arguments.unwrap()[0]);
         }
         let links = self.get_symbol_links(symbol);
         let type_parameters = (*links).borrow().type_parameters.clone().unwrap();
-        let alias_symbol = alias_symbol.map(|alias_symbol| alias_symbol.borrow().symbol_wrapper());
         let id = format!(
             "{}{}",
             self.get_type_list_id(type_arguments),
@@ -734,7 +731,7 @@ impl TypeChecker {
                         type_arguments.map(ToOwned::to_owned),
                         Some(&type_parameters),
                         self.get_min_type_argument_count(Some(&type_parameters)),
-                        is_in_js_file(symbol.maybe_value_declaration()),
+                        is_in_js_file(self.symbol(symbol).maybe_value_declaration()),
                     )?,
                 ),
                 alias_symbol.as_deref(),
@@ -767,7 +764,7 @@ impl TypeChecker {
                     ),
                 );
                 let error_type = error_type.unwrap();
-                *self.type_(error_type).maybe_alias_symbol_mut() = Some(symbol.symbol_wrapper());
+                *self.type_(error_type).maybe_alias_symbol_mut() = Some(symbol);
                 *self.type_(error_type).maybe_alias_type_arguments_mut() = type_arguments;
                 self.error_types().insert(id, error_type.clone());
             }
@@ -804,15 +801,15 @@ impl TypeChecker {
                 return Ok(self.error_type());
             }
             let alias_symbol = self.get_alias_symbol_for_type_node(node)?;
-            let new_alias_symbol = alias_symbol.filter(|alias_symbol| {
+            let new_alias_symbol = alias_symbol.filter(|&alias_symbol| {
                 self.is_local_type_alias(symbol) || !self.is_local_type_alias(alias_symbol)
             });
             return self.get_type_alias_instantiation(
                 symbol,
                 self.type_arguments_from_type_reference_node(node)?
                     .as_deref(),
-                new_alias_symbol.as_deref(),
-                self.get_type_arguments_for_alias_symbol(new_alias_symbol.as_deref())?
+                new_alias_symbol,
+                self.get_type_arguments_for_alias_symbol(new_alias_symbol)?
                     .as_deref(),
             );
         }
@@ -824,7 +821,7 @@ impl TypeChecker {
     }
 
     pub(super) fn is_local_type_alias(&self, symbol: Id<Symbol>) -> bool {
-        let symbol_declarations = symbol.maybe_declarations();
+        let symbol_declarations = self.symbol(symbol).maybe_declarations();
         let declaration = symbol_declarations.as_ref().and_then(|declarations| {
             declarations
                 .iter()
@@ -856,14 +853,14 @@ impl TypeChecker {
     }
 
     pub(super) fn get_symbol_path<'symbol>(&self, symbol: Id<Symbol>) -> Cow<'symbol, str> {
-        match symbol.maybe_parent() {
+        match self.symbol(symbol).maybe_parent() {
             Some(symbol_parent) => format!(
                 "{}.{}",
-                self.get_symbol_path(&symbol_parent),
-                symbol.escaped_name()
+                self.get_symbol_path(symbol_parent),
+                self.symbol(symbol).escaped_name()
             )
             .into(),
-            None => symbol.escaped_name().into(),
+            None => self.symbol(symbol).escaped_name().into(),
         }
     }
 
@@ -889,7 +886,7 @@ impl TypeChecker {
             } else {
                 None
             };
-            let path = if let Some(parent_symbol) = parent_symbol.as_ref() {
+            let path = if let Some(parent_symbol) = parent_symbol {
                 format!("{}.{}", self.get_symbol_path(parent_symbol), &**text)
             } else {
                 (&**text).to_owned()
@@ -897,18 +894,20 @@ impl TypeChecker {
             let mut result = self.unresolved_symbols().get(&path).map(Clone::clone);
             if result.is_none() {
                 result = Some(
-                    self.create_symbol(
-                        SymbolFlags::TypeAlias,
-                        text.clone(),
-                        Some(CheckFlags::Unresolved),
-                    )
-                    .into(),
+                    self.alloc_symbol(
+                        self.create_symbol(
+                            SymbolFlags::TypeAlias,
+                            text.clone(),
+                            Some(CheckFlags::Unresolved),
+                        )
+                        .into(),
+                    ),
                 );
-                let result = result.as_ref().unwrap();
+                let result = result.unwrap();
                 self.unresolved_symbols().insert(path, result.clone());
-                result.set_parent(parent_symbol);
-                result
-                    .as_transient_symbol()
+                self.symbol(result).set_parent(parent_symbol);
+                self.symbol(result
+                    ).as_transient_symbol()
                     .symbol_links()
                     .borrow_mut()
                     .declared_type = Some(self.unresolved_type());
@@ -940,7 +939,7 @@ impl TypeChecker {
             Option::<&Node>::None,
         )?;
         Ok(
-            if symbol.is_some() && !Gc::ptr_eq(symbol.as_ref().unwrap(), &self.unknown_symbol()) {
+            if symbol.is_some() && symbol.unwrap() != self.unknown_symbol() {
                 symbol.unwrap()
             } else if ignore_errors {
                 self.unknown_symbol()
@@ -955,36 +954,42 @@ impl TypeChecker {
         node: &Node,
         symbol: Id<Symbol>,
     ) -> io::Result<Id<Type>> {
-        if ptr::eq(symbol, &*self.unknown_symbol()) {
+        if symbol == self.unknown_symbol() {
             return Ok(self.error_type());
         }
         let symbol = self
             .get_expando_symbol(symbol)?
-            .unwrap_or_else(|| symbol.symbol_wrapper());
-        if symbol
-            .flags()
+            .unwrap_or_else(|| symbol);
+        if self.symbol(symbol
+            ).flags()
             .intersects(SymbolFlags::Class | SymbolFlags::Interface)
         {
-            return self.get_type_from_class_or_interface_reference(node, &symbol);
+            return self.get_type_from_class_or_interface_reference(node, symbol);
         }
-        if symbol.flags().intersects(SymbolFlags::TypeAlias) {
-            return self.get_type_from_type_alias_reference(node, &symbol);
+        if self
+            .symbol(symbol)
+            .flags()
+            .intersects(SymbolFlags::TypeAlias)
+        {
+            return self.get_type_from_type_alias_reference(node, symbol);
         }
-        let res = self.try_get_declared_type_of_symbol(&symbol)?;
+        let res = self.try_get_declared_type_of_symbol(symbol)?;
         if let Some(res) = res {
-            return Ok(if self.check_no_type_arguments(node, Some(&*symbol))? {
+            return Ok(if self.check_no_type_arguments(node, Some(symbol))? {
                 self.get_regular_type_of_literal_type(res)
             } else {
                 self.error_type()
             });
         }
-        if symbol.flags().intersects(SymbolFlags::Value) && self.is_jsdoc_type_reference(node) {
-            let jsdoc_type = self.get_type_from_jsdoc_value_reference(node, &symbol)?;
+        if self.symbol(symbol).flags().intersects(SymbolFlags::Value)
+            && self.is_jsdoc_type_reference(node)
+        {
+            let jsdoc_type = self.get_type_from_jsdoc_value_reference(node, symbol)?;
             if let Some(jsdoc_type) = jsdoc_type {
                 return Ok(jsdoc_type);
             } else {
                 self.resolve_type_reference_name(node, SymbolFlags::Type, None)?;
-                return self.get_type_of_symbol(&symbol);
+                return self.get_type_of_symbol(symbol);
             }
         }
         Ok(self.error_type())
@@ -999,17 +1004,17 @@ impl TypeChecker {
         if (*links).borrow().resolved_jsdoc_type.is_none() {
             let value_type = self.get_type_of_symbol(symbol)?;
             let mut type_type = value_type.clone();
-            if symbol.maybe_value_declaration().is_some() {
+            if self.symbol(symbol).maybe_value_declaration().is_some() {
                 let is_import_type_with_qualifier = node.kind() == SyntaxKind::ImportType
                     && node.as_import_type_node().qualifier.is_some();
                 if let Some(value_type_symbol) =
                     self.type_(value_type)
                         .maybe_symbol()
-                        .filter(|value_type_symbol| {
-                            !ptr::eq(&**value_type_symbol, symbol) && is_import_type_with_qualifier
+                        .filter(|&value_type_symbol| {
+                            value_type_symbol != symbol && is_import_type_with_qualifier
                         })
                 {
-                    type_type = self.get_type_reference_type(node, &value_type_symbol)?;
+                    type_type = self.get_type_reference_type(node, value_type_symbol)?;
                 }
             }
             links.borrow_mut().resolved_jsdoc_type = Some(type_type);
@@ -1146,7 +1151,6 @@ impl TypeChecker {
                 Some(node),
                 &Diagnostics::Type_0_is_not_generic,
                 Some(vec![if let Some(symbol) = symbol {
-                    let symbol = symbol.borrow();
                     self.symbol_to_string_(symbol, Option::<&Node>::None, None, None, None)?
                 } else if node.kind() == SyntaxKind::TypeReference
                 /*&& node.as_type_reference_node().type_name.is_some()*/

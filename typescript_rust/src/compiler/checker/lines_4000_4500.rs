@@ -80,19 +80,19 @@ impl TypeChecker {
     ) -> Option<Id<Symbol>> {
         self.get_merged_symbol(symbol.and_then(|symbol| {
             let symbol = symbol.borrow();
-            if symbol.flags().intersects(SymbolFlags::ExportValue) {
-                symbol.maybe_export_symbol()
+            if self.symbol(symbol).flags().intersects(SymbolFlags::ExportValue) {
+                self.symbol(symbol).maybe_export_symbol()
             } else {
-                Some(symbol.symbol_wrapper())
+                Some(symbol)
             }
         }))
     }
 
     pub(super) fn symbol_is_value(&self, symbol: Id<Symbol>) -> io::Result<bool> {
-        Ok(symbol.flags().intersects(SymbolFlags::Value)
-            || symbol.flags().intersects(SymbolFlags::Alias)
-                && self
-                    .resolve_alias(symbol)?
+        Ok(self.symbol(symbol).flags().intersects(SymbolFlags::Value)
+            || self.symbol(symbol).flags().intersects(SymbolFlags::Alias)
+                && self.symbol(self
+                    .resolve_alias(symbol)?)
                     .flags()
                     .intersects(SymbolFlags::Value)
                 && self.get_type_only_alias_declaration(symbol).is_none())
@@ -145,7 +145,7 @@ impl TypeChecker {
         symbol: Option<Id<Symbol>>,
     ) -> BaseObjectType {
         let type_ = self.create_type(TypeFlags::Object);
-        type_.set_symbol(symbol.map(|symbol| symbol.borrow().symbol_wrapper()));
+        type_.set_symbol(symbol);
         let type_ = BaseObjectType::new(type_, object_flags);
         type_
     }
@@ -166,8 +166,7 @@ impl TypeChecker {
     pub(super) fn create_type_parameter(&self, symbol: Option<Id<Symbol>>) -> TypeParameter {
         let type_ = self.create_type(TypeFlags::TypeParameter);
         if let Some(symbol) = symbol {
-            let symbol = symbol.borrow();
-            type_.set_symbol(Some(symbol.symbol_wrapper()));
+            type_.set_symbol(Some(symbol));
         }
         let type_ = TypeParameter::new(type_);
         type_
@@ -207,7 +206,7 @@ impl TypeChecker {
 
     pub(super) fn get_named_members(&self, members: &SymbolTable) -> io::Result<Vec<Id<Symbol>>> {
         let mut results = vec![];
-        for (id, symbol) in members {
+        for (id, &symbol) in members {
             if self.is_named_member(symbol, id)? {
                 results.push(symbol.clone());
             }
@@ -403,7 +402,7 @@ impl TypeChecker {
                     {
                         let sym = self.get_symbol_of_node(&location_unwrapped)?;
                         result = callback(
-                            sym.and_then(|sym| sym.maybe_exports().clone())
+                            sym.and_then(|sym| self.symbol(sym).maybe_exports().clone())
                                 .unwrap_or_else(|| self.empty_symbols()),
                             None,
                             Some(true),
@@ -418,9 +417,9 @@ impl TypeChecker {
                 | SyntaxKind::ClassExpression
                 | SyntaxKind::InterfaceDeclaration => {
                     let mut table: Option<SymbolTable> = None;
-                    for (key, member_symbol) in &*(*self
+                    for (key, member_symbol) in &*(self.symbol(*self
                         .get_symbol_of_node(&location_unwrapped)?
-                        .unwrap()
+                        .unwrap())
                         .maybe_members()
                         .clone()
                         .unwrap_or_else(|| self.empty_symbols()))
@@ -485,7 +484,6 @@ impl TypeChecker {
             return Ok(None);
         }
         let symbol = symbol.unwrap();
-        let symbol = symbol.borrow();
         if self.is_property_or_method_declaration_symbol(symbol) {
             return Ok(None);
         }
@@ -517,7 +515,7 @@ impl TypeChecker {
             }
         }
 
-        let id = get_symbol_id(symbol);
+        let id = get_symbol_id(&self.symbol(symbol));
         if !visited_symbol_tables_map.contains_key(&id) {
             visited_symbol_tables_map.insert(id, Gc::new(GcCell::new(vec![])));
         }
@@ -590,7 +588,7 @@ impl TypeChecker {
             !self.needs_qualification(symbol_from_symbol_table, enclosing_declaration, meaning)?
                 || self
                     .get_accessible_symbol_chain(
-                        symbol_from_symbol_table.maybe_parent(),
+                        self.symbol(symbol_from_symbol_table).maybe_parent(),
                         enclosing_declaration,
                         self.get_qualified_left_meaning(meaning),
                         use_only_external_aliasing,
@@ -611,29 +609,16 @@ impl TypeChecker {
         resolved_alias_symbol: Option<Id<Symbol>>,
         ignore_qualification: Option<bool>,
     ) -> io::Result<bool> {
-        let symbol_from_symbol_table = symbol_from_symbol_table
-            .map(|symbol_from_symbol_table| symbol_from_symbol_table.borrow().symbol_wrapper());
-        let resolved_alias_symbol = resolved_alias_symbol
-            .map(|resolved_alias_symbol| resolved_alias_symbol.borrow().symbol_wrapper());
         Ok((matches!(
-            resolved_alias_symbol
-                .as_deref()
-                .or_else(|| symbol_from_symbol_table.as_deref()),
-            Some(value) if ptr::eq(
-                symbol,
-                value
-            )
+            resolved_alias_symbol.or(symbol_from_symbol_table),
+            Some(value) if symbol == value
         ) || matches!(
             self
                 .get_merged_symbol(
                     resolved_alias_symbol
-                        .as_deref()
-                        .or_else(|| symbol_from_symbol_table.as_deref()),
-                ).as_ref(),
-            Some(value) if Gc::ptr_eq(
-                &self.get_merged_symbol(Some(symbol)).unwrap(),
-                value,
-            )
+                        .or_else(|| symbol_from_symbol_table),
+                ),
+            Some(value) if self.get_merged_symbol(Some(symbol)).unwrap() == value
         )) && !some(
             symbol_from_symbol_table
                 .as_ref()
@@ -648,7 +633,7 @@ impl TypeChecker {
                 enclosing_declaration,
                 use_only_external_aliasing,
                 visited_symbol_tables_map,
-                &self.get_merged_symbol(symbol_from_symbol_table).unwrap(),
+                self.get_merged_symbol(symbol_from_symbol_table).unwrap(),
                 meaning,
             )?))
     }
@@ -671,33 +656,33 @@ impl TypeChecker {
             enclosing_declaration,
             use_only_external_aliasing,
             visited_symbol_tables_map,
-            (*symbols).borrow().get(symbol.escaped_name()).cloned(),
+            (*symbols).borrow().get(self.symbol(symbol).escaped_name()).cloned(),
             Option::<Id<Symbol>>::None,
             ignore_qualification,
         )? {
-            return Ok(Some(vec![symbol.symbol_wrapper()]));
+            return Ok(Some(vec![symbol]));
         }
 
         let result: Option<Vec<Id<Symbol>>> = try_for_each_entry(
             &*(*symbols).borrow(),
-            |symbol_from_symbol_table, _| -> io::Result<_> {
-                if symbol_from_symbol_table
-                    .flags()
+            |&symbol_from_symbol_table, _| -> io::Result<_> {
+                if self.symbol(symbol_from_symbol_table
+                    ).flags()
                     .intersects(SymbolFlags::Alias)
-                    && symbol_from_symbol_table.escaped_name() != InternalSymbolName::ExportEquals
-                    && symbol_from_symbol_table.escaped_name() != InternalSymbolName::Default
-                    && !(is_umd_export_symbol(Some(&**symbol_from_symbol_table))
+                    && self.symbol(symbol_from_symbol_table).escaped_name() != InternalSymbolName::ExportEquals
+                    && self.symbol(symbol_from_symbol_table).escaped_name() != InternalSymbolName::Default
+                    && !(is_umd_export_symbol(Some(&self.symbol(symbol_from_symbol_table)))
                         && matches!(enclosing_declaration, Some(enclosing_declaration) if is_external_module(&get_source_file_of_node(enclosing_declaration))))
                     && (!use_only_external_aliasing
                         || some(
-                            symbol_from_symbol_table.maybe_declarations().as_deref(),
+                            self.symbol(symbol_from_symbol_table).maybe_declarations().as_deref(),
                             Some(|declaration: &Gc<Node>| {
                                 is_external_module_import_equals_declaration(declaration)
                             }),
                         ))
                     && if matches!(is_local_name_lookup, Some(true)) {
                         !some(
-                            symbol_from_symbol_table.maybe_declarations().as_deref(),
+                            self.symbol(symbol_from_symbol_table).maybe_declarations().as_deref(),
                             Some(|declaration: &Gc<Node>| {
                                 is_namespace_reexport_declaration(declaration)
                             }),
@@ -707,7 +692,7 @@ impl TypeChecker {
                     }
                     && (matches!(ignore_qualification, Some(true))
                         || get_declaration_of_kind(
-                            symbol_from_symbol_table,
+                            &self.symbol(symbol_from_symbol_table),
                             SyntaxKind::ExportSpecifier,
                         )
                         .is_none())
@@ -728,9 +713,9 @@ impl TypeChecker {
                         return Ok(candidate);
                     }
                 }
-                if symbol_from_symbol_table.escaped_name() == symbol.escaped_name() {
+                if self.symbol(symbol_from_symbol_table).escaped_name() == self.symbol(symbol).escaped_name() {
                     if let Some(symbol_from_symbol_table_export_symbol) =
-                        symbol_from_symbol_table.maybe_export_symbol()
+                        self.symbol(symbol_from_symbol_table).maybe_export_symbol()
                     {
                         if self.is_accessible(
                             symbol,
@@ -742,7 +727,7 @@ impl TypeChecker {
                             Option::<Id<Symbol>>::None,
                             ignore_qualification,
                         )? {
-                            return Ok(Some(vec![symbol.symbol_wrapper()]));
+                            return Ok(Some(vec![symbol]));
                         }
                     }
                 }
@@ -791,7 +776,7 @@ impl TypeChecker {
             Some(resolved_import_symbol),
             ignore_qualification,
         )? {
-            return Ok(Some(vec![symbol_from_symbol_table.symbol_wrapper()]));
+            return Ok(Some(vec![symbol_from_symbol_table]));
         }
 
         let candidate_table = self.get_exports_of_symbol(resolved_import_symbol)?;
@@ -815,7 +800,7 @@ impl TypeChecker {
                 symbol_from_symbol_table,
                 self.get_qualified_left_meaning(meaning),
             )? {
-                let mut ret = vec![symbol_from_symbol_table.symbol_wrapper()];
+                let mut ret = vec![symbol_from_symbol_table];
                 ret.append(&mut accessible_symbols_from_exports);
                 return Ok(Some(ret));
             }
@@ -834,30 +819,30 @@ impl TypeChecker {
             enclosing_declaration,
             |symbol_table, _, _, _| -> io::Result<_> {
                 let symbol_from_symbol_table = self.get_merged_symbol(
-                    (*symbol_table).borrow().get(symbol.escaped_name()).cloned(),
+                    (*symbol_table).borrow().get(self.symbol(symbol).escaped_name()).cloned(),
                 );
                 if symbol_from_symbol_table.is_none() {
                     return Ok(None);
                 }
                 let mut symbol_from_symbol_table = symbol_from_symbol_table.unwrap();
-                if ptr::eq(&*symbol_from_symbol_table, symbol) {
+                if symbol_from_symbol_table == symbol {
                     return Ok(Some(()));
                 }
 
-                symbol_from_symbol_table = if symbol_from_symbol_table
-                    .flags()
+                symbol_from_symbol_table = if self.symbol(symbol_from_symbol_table
+                    ).flags()
                     .intersects(SymbolFlags::Alias)
                     && get_declaration_of_kind(
-                        &symbol_from_symbol_table,
+                        &self.symbol(symbol_from_symbol_table),
                         SyntaxKind::ExportSpecifier,
                     )
                     .is_none()
                 {
-                    self.resolve_alias(&symbol_from_symbol_table)?
+                    self.resolve_alias(symbol_from_symbol_table)?
                 } else {
                     symbol_from_symbol_table
                 };
-                if symbol_from_symbol_table.flags().intersects(meaning) {
+                if self.symbol(symbol_from_symbol_table).flags().intersects(meaning) {
                     qualify = true;
                     return Ok(Some(()));
                 }
@@ -870,7 +855,7 @@ impl TypeChecker {
     }
 
     pub(super) fn is_property_or_method_declaration_symbol(&self, symbol: Id<Symbol>) -> bool {
-        if let Some(symbol_declarations) = symbol.maybe_declarations().as_deref() {
+        if let Some(symbol_declarations) = self.symbol(symbol).maybe_declarations().as_deref() {
             if !symbol_declarations.is_empty() {
                 for declaration in symbol_declarations {
                     match declaration.kind() {
@@ -957,9 +942,9 @@ impl TypeChecker {
         let mut early_module_bail = false;
         let enclosing_declaration = enclosing_declaration
             .map(|enclosing_declaration| enclosing_declaration.borrow().node_wrapper());
-        for symbol in symbols {
+        for &symbol in symbols {
             let accessible_symbol_chain = self.get_accessible_symbol_chain(
-                Some(&**symbol),
+                Some(symbol),
                 enclosing_declaration.as_deref(),
                 meaning,
                 false,
@@ -968,7 +953,7 @@ impl TypeChecker {
             if let Some(accessible_symbol_chain) = accessible_symbol_chain {
                 had_accessible_chain = Some(symbol.clone());
                 let has_accessible_declarations = self.has_visible_declarations(
-                    &accessible_symbol_chain[0],
+                    accessible_symbol_chain[0],
                     should_compute_aliases_to_make_visible,
                 );
                 if let Some(has_accessible_declarations) = has_accessible_declarations {
@@ -979,7 +964,7 @@ impl TypeChecker {
             }
             if allow_modules {
                 if some(
-                    symbol.maybe_declarations().as_deref(),
+                    self.symbol(symbol).maybe_declarations().as_deref(),
                     Some(|declaration: &Gc<Node>| {
                         self.has_non_global_augmentation_external_module_symbol(declaration)
                     }),
@@ -1004,7 +989,7 @@ impl TypeChecker {
                 containers.as_deref(),
                 enclosing_declaration.as_deref(),
                 initial_symbol,
-                if ptr::eq(initial_symbol, &**symbol) {
+                if initial_symbol == symbol {
                     self.get_qualified_left_meaning(meaning)
                 } else {
                     meaning
@@ -1039,9 +1024,9 @@ impl TypeChecker {
                     None,
                 )?),
                 error_node: None,
-                error_module_name: if !ptr::eq(&*had_accessible_chain, initial_symbol) {
+                error_module_name: if had_accessible_chain != initial_symbol {
                     Some(self.symbol_to_string_(
-                        &had_accessible_chain,
+                        had_accessible_chain,
                         enclosing_declaration.as_deref(),
                         Some(SymbolFlags::Namespace),
                         None,
@@ -1081,11 +1066,10 @@ impl TypeChecker {
         allow_modules: bool,
     ) -> io::Result<SymbolAccessibilityResult> {
         if let Some(symbol) = symbol {
-            let symbol = symbol.borrow();
             if let Some(enclosing_declaration) = enclosing_declaration {
                 let enclosing_declaration = enclosing_declaration.borrow();
                 let result = self.is_any_symbol_accessible(
-                    Some(&vec![symbol.symbol_wrapper()]),
+                    Some(&vec![symbol]),
                     Some(enclosing_declaration),
                     symbol,
                     meaning,
@@ -1097,7 +1081,7 @@ impl TypeChecker {
                 }
 
                 let symbol_external_module = try_maybe_for_each(
-                    symbol.maybe_declarations().as_deref(),
+                    self.symbol(symbol).maybe_declarations().as_deref(),
                     |declaration: &Gc<Node>, _| self.get_external_module_container(declaration),
                 )?;
                 if let Some(symbol_external_module) = symbol_external_module {
@@ -1105,10 +1089,7 @@ impl TypeChecker {
                         self.get_external_module_container(enclosing_declaration)?;
                     if !matches!(
                         enclosing_external_module,
-                        Some(enclosing_external_module) if Gc::ptr_eq(
-                            &symbol_external_module,
-                            &enclosing_external_module
-                        )
+                        Some(enclosing_external_module) if symbol_external_module == enclosing_external_module
                     ) {
                         return Ok(SymbolAccessibilityResult {
                             accessibility: SymbolAccessibility::CannotBeNamed,
@@ -1121,7 +1102,7 @@ impl TypeChecker {
                                 None,
                             )?),
                             error_module_name: Some(self.symbol_to_string_(
-                                &symbol_external_module,
+                                symbol_external_module,
                                 Option::<&Node>::None,
                                 None,
                                 None,

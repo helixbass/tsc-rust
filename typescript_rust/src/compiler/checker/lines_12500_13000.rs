@@ -124,13 +124,13 @@ impl TypeChecker {
                     param.as_has_type().maybe_type()
                 };
                 if matches!(
-                    param_symbol.as_ref(),
-                    Some(param_symbol) if param_symbol.flags().intersects(SymbolFlags::Property)
+                    param_symbol,
+                    Some(param_symbol) if self.symbol(param_symbol).flags().intersects(SymbolFlags::Property)
                 ) && !is_binding_pattern(param.as_named_declaration().maybe_name())
                 {
                     let resolved_symbol = self.resolve_name_(
                         Some(&**param),
-                        param_symbol.as_ref().unwrap().escaped_name(),
+                        self.symbol(param_symbol.unwrap()).escaped_name(),
                         SymbolFlags::Value,
                         None,
                         Option::<Gc<Node>>::None,
@@ -140,7 +140,7 @@ impl TypeChecker {
                     param_symbol = resolved_symbol;
                 }
                 let param_symbol = param_symbol.unwrap();
-                if i == 0 && param_symbol.escaped_name() == InternalSymbolName::This {
+                if i == 0 && self.symbol(param_symbol).escaped_name() == InternalSymbolName::This {
                     has_this_parameter = true;
                     this_parameter = param.maybe_symbol();
                 } else {
@@ -181,7 +181,7 @@ impl TypeChecker {
                     SyntaxKind::GetAccessor
                 };
                 let other = get_declaration_of_kind(
-                    &self.get_symbol_of_node(declaration)?.unwrap(),
+                    &self.symbol(self.get_symbol_of_node(declaration)?.unwrap()),
                     other_kind,
                 );
                 if let Some(other) = other {
@@ -192,7 +192,7 @@ impl TypeChecker {
             let class_type: Option<Id<Type>> = if declaration.kind() == SyntaxKind::Constructor {
                 Some(
                     self.get_declared_type_of_class_or_interface(
-                        &self
+                        self
                             .get_merged_symbol(declaration.parent().maybe_symbol())
                             .unwrap(),
                     )?,
@@ -263,15 +263,15 @@ impl TypeChecker {
                 })
                 .map(|type_expression| type_expression.as_jsdoc_type_expression().type_.clone())
         });
-        let synthetic_args_symbol: Id<Symbol> = self
+        let synthetic_args_symbol = self.alloc_symbol(self
             .create_symbol(
                 SymbolFlags::Variable,
                 "args".to_owned(),
                 Some(CheckFlags::RestParameter),
             )
-            .into();
-        synthetic_args_symbol
-            .as_transient_symbol()
+            .into());
+        self.symbol(synthetic_args_symbol
+            ).as_transient_symbol()
             .symbol_links()
             .borrow_mut()
             .type_ = Some(
@@ -358,10 +358,10 @@ impl TypeChecker {
         let node = node.borrow();
         Ok(match node.kind() {
             SyntaxKind::Identifier => {
-                &node.as_identifier().escaped_text == self.arguments_symbol().escaped_name()
+                &node.as_identifier().escaped_text == self.symbol(self.arguments_symbol()).escaped_name()
                     && matches!(
                         self.get_referenced_value_symbol(node, None)?,
-                        Some(symbol) if Gc::ptr_eq(&symbol, &self.arguments_symbol())
+                        Some(symbol) if symbol == self.arguments_symbol()
                     )
             }
 
@@ -396,8 +396,7 @@ impl TypeChecker {
         symbol: Option<Id<Symbol>>,
     ) -> io::Result<Vec<Gc<Signature>>> {
         let symbol = return_ok_default_if_none!(symbol);
-        let symbol = symbol.borrow();
-        let symbol_declarations = symbol.maybe_declarations();
+        let symbol_declarations = self.symbol(symbol).maybe_declarations();
         if symbol_declarations.is_none() {
             return Ok(vec![]);
         }
@@ -435,7 +434,7 @@ impl TypeChecker {
             let resolved_module_symbol =
                 self.resolve_external_module_symbol(Some(module_sym), None)?;
             if let Some(resolved_module_symbol) = resolved_module_symbol {
-                return self.get_type_of_symbol(&resolved_module_symbol);
+                return self.get_type_of_symbol(resolved_module_symbol);
             }
         }
 
@@ -448,7 +447,6 @@ impl TypeChecker {
     ) -> io::Result<Option<Id<Type>>> {
         signature
             .maybe_this_parameter()
-            .as_ref()
             .try_map(|this_parameter| self.get_type_of_symbol(this_parameter))
     }
 
@@ -551,8 +549,8 @@ impl TypeChecker {
                 Some(parameter_name_as_identifier.escaped_text.to_owned()),
                 find_index(
                     signature.parameters(),
-                    |p: &Id<Symbol>, _| {
-                        p.escaped_name() == &parameter_name_as_identifier.escaped_text
+                    |&p: &Id<Symbol>, _| {
+                        self.symbol(p).escaped_name() == &parameter_name_as_identifier.escaped_text
                     },
                     None,
                 ),
@@ -679,7 +677,7 @@ impl TypeChecker {
         if declaration.kind() == SyntaxKind::Constructor {
             return Ok(Some(
                 self.get_declared_type_of_class_or_interface(
-                    &self
+                    self
                         .get_merged_symbol(declaration.parent().maybe_symbol())
                         .unwrap(),
                 )?,
@@ -709,7 +707,7 @@ impl TypeChecker {
                 return Ok(js_doc_type);
             }
             let setter = get_declaration_of_kind(
-                &self.get_symbol_of_node(declaration)?.unwrap(),
+                &self.symbol(self.get_symbol_of_node(declaration)?.unwrap()),
                 SyntaxKind::SetAccessor,
             );
             let setter_type = self.get_annotated_accessor_type(setter)?;
@@ -742,7 +740,7 @@ impl TypeChecker {
         if signature_has_rest_parameter(signature) {
             let signature_parameters = signature.parameters();
             let sig_rest_type =
-                self.get_type_of_symbol(&signature_parameters[signature_parameters.len() - 1])?;
+                self.get_type_of_symbol(signature_parameters[signature_parameters.len() - 1])?;
             let rest_type = if self.is_tuple_type(sig_rest_type) {
                 self.get_rest_type_of_tuple_type(sig_rest_type)?
             } else {
@@ -990,8 +988,8 @@ impl TypeChecker {
     }
 
     pub(super) fn get_index_symbol(&self, symbol: Id<Symbol>) -> Option<Id<Symbol>> {
-        symbol
-            .maybe_members()
+        self.symbol(symbol
+            ).maybe_members()
             .clone()
             .and_then(|members| self.get_index_symbol_from_symbol_table(&(*members).borrow()))
     }
@@ -1024,7 +1022,7 @@ impl TypeChecker {
     ) -> io::Result<Vec<Gc<IndexInfo>>> {
         let index_symbol = self.get_index_symbol(symbol);
         Ok(if let Some(index_symbol) = index_symbol {
-            self.get_index_infos_of_index_symbol(&index_symbol)?
+            self.get_index_infos_of_index_symbol(index_symbol)?
         } else {
             vec![]
         })
@@ -1034,7 +1032,9 @@ impl TypeChecker {
         &self,
         index_symbol: Id<Symbol>,
     ) -> io::Result<Vec<Gc<IndexInfo>>> {
-        if let Some(index_symbol_declarations) = index_symbol.maybe_declarations().as_ref() {
+        if let Some(index_symbol_declarations) =
+            self.symbol(index_symbol).maybe_declarations().as_ref()
+        {
             let mut index_infos: Vec<Gc<IndexInfo>> = vec![];
             for declaration in index_symbol_declarations {
                 let declaration_as_index_signature_declaration =
@@ -1109,7 +1109,7 @@ impl TypeChecker {
             maybe_filter(
                 self.type_(type_)
                     .maybe_symbol()
-                    .and_then(|symbol| symbol.maybe_declarations().clone())
+                    .and_then(|symbol| self.symbol(symbol).maybe_declarations().clone())
                     .as_deref(),
                 |node: &Gc<Node>| is_type_parameter_declaration(node),
             ),

@@ -63,7 +63,7 @@ impl GetFlowTypeOfReference {
         }
         let prototype_property = prototype_property.unwrap();
 
-        let prototype_type = self.type_checker.get_type_of_symbol(&prototype_property)?;
+        let prototype_type = self.type_checker.get_type_of_symbol(prototype_property)?;
         let candidate = if !self.type_checker.is_type_any(Some(prototype_type)) {
             Some(prototype_type)
         } else {
@@ -98,10 +98,10 @@ impl GetFlowTypeOfReference {
                     && get_object_flags(&self.type_checker.type_(target))
                         .intersects(ObjectFlags::Class)
             {
-                return Ok(are_option_gcs_equal(
-                    self.type_checker.type_(source).maybe_symbol().as_ref(),
-                    self.type_checker.type_(target).maybe_symbol().as_ref(),
-                ));
+                return Ok(
+                    self.type_checker.type_(source).maybe_symbol() ==
+                    self.type_checker.type_(target).maybe_symbol()
+                );
             }
 
             self.type_checker.is_type_subtype_of(source, target)
@@ -152,7 +152,7 @@ impl GetFlowTypeOfReference {
         let prototype_property =
             self.type_checker
                 .get_property_of_type_(right_type, "prototype", None)?;
-        if let Some(prototype_property) = prototype_property.as_ref() {
+        if let Some(prototype_property) = prototype_property {
             let prototype_property_type =
                 self.type_checker.get_type_of_symbol(prototype_property)?;
             if !self.type_checker.is_type_any(Some(prototype_property_type)) {
@@ -428,8 +428,8 @@ impl GetFlowTypeOfReference {
                     && self.type_checker.inline_level() < 5
                 {
                     let symbol = self.type_checker.get_resolved_symbol(expr)?;
-                    if self.type_checker.is_const_variable(&symbol) {
-                        let declaration = symbol.maybe_value_declaration();
+                    if self.type_checker.is_const_variable(symbol) {
+                        let declaration = self.type_checker.symbol(symbol).maybe_value_declaration();
                         if let Some(declaration) =
                             declaration
                                 .as_ref()
@@ -541,9 +541,9 @@ impl TypeChecker {
         symbol: Id<Symbol>,
         location: &Node,
     ) -> io::Result<Id<Type>> {
-        let symbol = symbol
-            .maybe_export_symbol()
-            .unwrap_or_else(|| symbol.symbol_wrapper());
+        let symbol = self.symbol(symbol
+            ).maybe_export_symbol()
+            .unwrap_or_else(|| symbol);
 
         let mut location = location.node_wrapper();
         if matches!(
@@ -560,11 +560,8 @@ impl TypeChecker {
                 if matches!(
                     self.get_export_symbol_of_value_symbol_if_exported(
                         (*self.get_node_links(&location)).borrow().resolved_symbol.clone()
-                    ).as_ref(),
-                    Some(export_symbol) if Gc::ptr_eq(
-                        export_symbol,
-                        &symbol
-                    )
+                    ),
+                    Some(export_symbol) if export_symbol == symbol
                 ) {
                     return Ok(type_);
                 }
@@ -577,10 +574,10 @@ impl TypeChecker {
                 .is_some()
         {
             return Ok(self
-                .resolve_type_of_accessors(&location.parent().symbol(), Some(true))?
+                .resolve_type_of_accessors(location.parent().symbol(), Some(true))?
                 .unwrap());
         }
-        self.get_non_missing_type_of_symbol(&symbol)
+        self.get_non_missing_type_of_symbol(symbol)
     }
 
     pub(super) fn maybe_get_control_flow_container(&self, node: &Node) -> Option<Gc<Node>> {
@@ -601,7 +598,7 @@ impl TypeChecker {
     }
 
     pub(super) fn is_symbol_assigned(&self, symbol: Id<Symbol>) -> io::Result<bool> {
-        let symbol_value_declaration = symbol.maybe_value_declaration();
+        let symbol_value_declaration = self.symbol(symbol).maybe_value_declaration();
         if symbol_value_declaration.is_none() {
             return Ok(false);
         }
@@ -621,7 +618,7 @@ impl TypeChecker {
                 self.mark_node_assignments(&parent)?;
             }
         }
-        Ok(symbol.maybe_is_assigned().unwrap_or(false))
+        Ok(self.symbol(symbol).maybe_is_assigned().unwrap_or(false))
     }
 
     pub(super) fn has_parent_with_assignments_marked(&self, node: &Node) -> bool {
@@ -640,7 +637,7 @@ impl TypeChecker {
             if is_assignment_target(node) {
                 let symbol = self.get_resolved_symbol(node)?;
                 if is_parameter_or_catch_clause_variable(&symbol) {
-                    symbol.set_is_assigned(Some(true));
+                    self.symbol(symbol).set_is_assigned(Some(true));
                 }
             }
         } else {
@@ -655,7 +652,7 @@ impl TypeChecker {
     }
 
     pub(super) fn is_const_variable(&self, symbol: Id<Symbol>) -> bool {
-        symbol.flags().intersects(SymbolFlags::Variable)
+        self.symbol(symbol).flags().intersects(SymbolFlags::Variable)
             && self
                 .get_declaration_node_flags_from_symbol(symbol)
                 .intersects(NodeFlags::Const)
@@ -687,7 +684,7 @@ impl TypeChecker {
                     declared_type
                 }
             } else {
-                self.report_circularity_error(&declaration.symbol())?;
+                self.report_circularity_error(declaration.symbol())?;
                 declared_type
             },
         )
@@ -826,15 +823,15 @@ impl TypeChecker {
             && self.get_type_only_alias_declaration(symbol).is_none()
         {
             let target = self.resolve_alias(symbol)?;
-            if target.flags().intersects(SymbolFlags::Value) {
+            if self.symbol(target).flags().intersects(SymbolFlags::Value) {
                 if self.compiler_options.isolated_modules == Some(true)
                     || should_preserve_const_enums(&self.compiler_options)
                         && self.is_export_or_export_expression(location)
-                    || !self.is_const_enum_or_const_enum_only_module(&target)
+                    || !self.is_const_enum_or_const_enum_only_module(target)
                 {
-                    self.mark_alias_symbol_as_referenced(&symbol)?;
+                    self.mark_alias_symbol_as_referenced(symbol)?;
                 } else {
-                    self.mark_const_enum_alias_as_referenced(&symbol);
+                    self.mark_const_enum_alias_as_referenced(symbol);
                 }
             }
         }
@@ -848,11 +845,11 @@ impl TypeChecker {
         check_mode: Option<CheckMode>,
     ) -> io::Result<Id<Type>> {
         let symbol = self.get_resolved_symbol(node)?;
-        if Gc::ptr_eq(&symbol, &self.unknown_symbol()) {
+        if symbol == self.unknown_symbol() {
             return Ok(self.error_type());
         }
 
-        if Gc::ptr_eq(&symbol, &self.arguments_symbol()) {
+        if symbol == self.arguments_symbol() {
             if self.is_in_property_initializer_or_class_static_block(node) {
                 self.error(
                     Some(node),
@@ -880,7 +877,7 @@ impl TypeChecker {
             }
 
             self.get_node_links(&container).borrow_mut().flags |= NodeCheckFlags::CaptureArguments;
-            return self.get_type_of_symbol(&symbol);
+            return self.get_type_of_symbol(symbol);
         }
 
         if !matches!(
@@ -890,17 +887,17 @@ impl TypeChecker {
                 node
             )
         ) {
-            self.mark_alias_referenced(&symbol, node)?;
+            self.mark_alias_referenced(symbol, node)?;
         }
 
         let local_or_export_symbol = self
-            .get_export_symbol_of_value_symbol_if_exported(Some(&*symbol))
+            .get_export_symbol_of_value_symbol_if_exported(Some(symbol))
             .unwrap();
-        let source_symbol = if local_or_export_symbol
-            .flags()
+        let source_symbol = if self.symbol(local_or_export_symbol
+            ).flags()
             .intersects(SymbolFlags::Alias)
         {
-            self.resolve_alias(&local_or_export_symbol)?
+            self.resolve_alias(local_or_export_symbol)?
         } else {
             local_or_export_symbol.clone()
         };
@@ -918,10 +915,10 @@ impl TypeChecker {
             }
         }
 
-        let mut declaration = local_or_export_symbol.maybe_value_declaration();
+        let mut declaration = self.symbol(local_or_export_symbol).maybe_value_declaration();
         if let Some(declaration) = declaration.as_ref() {
-            if local_or_export_symbol
-                .flags()
+            if self.symbol(local_or_export_symbol
+                ).flags()
                 .intersects(SymbolFlags::Class)
             {
                 if declaration.kind() == SyntaxKind::ClassDeclaration
@@ -968,40 +965,40 @@ impl TypeChecker {
             }
         }
 
-        self.check_nested_block_scoped_binding(node, &symbol);
+        self.check_nested_block_scoped_binding(node, symbol);
 
-        let mut type_ = self.get_type_of_symbol(&local_or_export_symbol)?;
+        let mut type_ = self.get_type_of_symbol(local_or_export_symbol)?;
         let assignment_kind = get_assignment_target_kind(node);
 
         if assignment_kind != AssignmentKind::None {
-            if !local_or_export_symbol
-                .flags()
+            if !self.symbol(local_or_export_symbol
+                ).flags()
                 .intersects(SymbolFlags::Variable)
                 && !(is_in_js_file(Some(node))
-                    && local_or_export_symbol
-                        .flags()
+                    && self.symbol(local_or_export_symbol
+                        ).flags()
                         .intersects(SymbolFlags::ValueModule))
             {
                 let assignment_error =
-                    if local_or_export_symbol.flags().intersects(SymbolFlags::Enum) {
+                    if self.symbol(local_or_export_symbol).flags().intersects(SymbolFlags::Enum) {
                         &*Diagnostics::Cannot_assign_to_0_because_it_is_an_enum
-                    } else if local_or_export_symbol
-                        .flags()
+                    } else if self.symbol(local_or_export_symbol
+                        ).flags()
                         .intersects(SymbolFlags::Class)
                     {
                         &*Diagnostics::Cannot_assign_to_0_because_it_is_a_class
-                    } else if local_or_export_symbol
-                        .flags()
+                    } else if self.symbol(local_or_export_symbol
+                        ).flags()
                         .intersects(SymbolFlags::Module)
                     {
                         &*Diagnostics::Cannot_assign_to_0_because_it_is_a_namespace
-                    } else if local_or_export_symbol
-                        .flags()
+                    } else if self.symbol(local_or_export_symbol
+                        ).flags()
                         .intersects(SymbolFlags::Function)
                     {
                         &*Diagnostics::Cannot_assign_to_0_because_it_is_a_function
-                    } else if local_or_export_symbol
-                        .flags()
+                    } else if self.symbol(local_or_export_symbol
+                        ).flags()
                         .intersects(SymbolFlags::Alias)
                     {
                         &*Diagnostics::Cannot_assign_to_0_because_it_is_an_import
@@ -1013,7 +1010,7 @@ impl TypeChecker {
                     Some(node),
                     assignment_error,
                     Some(vec![self.symbol_to_string_(
-                        &symbol,
+                        symbol,
                         Option::<&Node>::None,
                         None,
                         None,
@@ -1022,16 +1019,16 @@ impl TypeChecker {
                 );
                 return Ok(self.error_type());
             }
-            if self.is_readonly_symbol(&local_or_export_symbol)? {
-                if local_or_export_symbol
-                    .flags()
+            if self.is_readonly_symbol(local_or_export_symbol)? {
+                if self.symbol(local_or_export_symbol
+                    ).flags()
                     .intersects(SymbolFlags::Variable)
                 {
                     self.error(
                         Some(node),
                         &Diagnostics::Cannot_assign_to_0_because_it_is_a_constant,
                         Some(vec![self.symbol_to_string_(
-                            &symbol,
+                            symbol,
                             Option::<&Node>::None,
                             None,
                             None,
@@ -1043,7 +1040,7 @@ impl TypeChecker {
                         Some(node),
                         &Diagnostics::Cannot_assign_to_0_because_it_is_a_read_only_property,
                         Some(vec![self.symbol_to_string_(
-                            &symbol,
+                            symbol,
                             Option::<&Node>::None,
                             None,
                             None,
@@ -1055,19 +1052,19 @@ impl TypeChecker {
             }
         }
 
-        let is_alias = local_or_export_symbol
-            .flags()
+        let is_alias = self.symbol(local_or_export_symbol
+            ).flags()
             .intersects(SymbolFlags::Alias);
 
-        if local_or_export_symbol
-            .flags()
+        if self.symbol(local_or_export_symbol
+            ).flags()
             .intersects(SymbolFlags::Variable)
         {
             if assignment_kind == AssignmentKind::Definite {
                 return Ok(type_);
             }
         } else if is_alias {
-            declaration = self.get_declaration_of_alias_symbol(&symbol)?;
+            declaration = self.get_declaration_of_alias_symbol(symbol)?;
         } else {
             return Ok(type_);
         }
@@ -1093,7 +1090,7 @@ impl TypeChecker {
                 Some(node_parent_parent) if is_spread_assignment(node_parent) && self.is_destructuring_assignment_target(node_parent_parent)
             )
         );
-        let is_module_exports = symbol.flags().intersects(SymbolFlags::ModuleExports);
+        let is_module_exports = self.symbol(symbol).flags().intersects(SymbolFlags::ModuleExports);
         while !matches!(
             declaration_container.as_ref(),
             Some(declaration_container) if Gc::ptr_eq(&flow_container, declaration_container)
@@ -1101,8 +1098,8 @@ impl TypeChecker {
             flow_container.kind(),
             SyntaxKind::FunctionExpression | SyntaxKind::ArrowFunction
         ) || is_object_literal_or_class_expression_method_or_accessor(&flow_container))
-            && (self.is_const_variable(&local_or_export_symbol) && type_ != self.auto_array_type()
-                || is_parameter && !self.is_symbol_assigned(&local_or_export_symbol)?)
+            && (self.is_const_variable(local_or_export_symbol) && type_ != self.auto_array_type()
+                || is_parameter && !self.is_symbol_assigned(local_or_export_symbol)?)
         {
             flow_container = self.get_control_flow_container(&flow_container);
         }
@@ -1155,7 +1152,7 @@ impl TypeChecker {
                         &Diagnostics::Variable_0_implicitly_has_type_1_in_some_locations_where_its_type_cannot_be_determined,
                         Some(vec![
                             self.symbol_to_string_(
-                                &symbol,
+                                symbol,
                                 Option::<&Node>::None,
                                 None, None, None,
                             )?,
@@ -1171,7 +1168,7 @@ impl TypeChecker {
                         &Diagnostics::Variable_0_implicitly_has_an_1_type,
                         Some(vec![
                             self.symbol_to_string_(
-                                &symbol,
+                                symbol,
                                 Option::<&Node>::None,
                                 None,
                                 None,
@@ -1193,7 +1190,7 @@ impl TypeChecker {
                 Some(node),
                 &Diagnostics::Variable_0_is_used_before_being_assigned,
                 Some(vec![self.symbol_to_string_(
-                    &symbol,
+                    symbol,
                     Option::<&Node>::None,
                     None,
                     None,
