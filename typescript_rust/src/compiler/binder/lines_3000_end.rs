@@ -292,10 +292,10 @@ impl BinderType {
         }
         let namespace_symbol = namespace_symbol.unwrap();
 
+        let namespace_symbol_ref = self.symbol(namespace_symbol);
         let symbol_table = {
             let symbol_table =
                 if is_prototype_property {
-                    let namespace_symbol_ref = self.symbol(namespace_symbol);
                     let mut namespace_symbol_members = namespace_symbol_ref.maybe_members_mut();
                     if namespace_symbol_members.is_none() {
                         *namespace_symbol_members = Some(Gc::new(GcCell::new(
@@ -304,7 +304,6 @@ impl BinderType {
                     }
                     namespace_symbol_members
                 } else {
-                    let namespace_symbol_ref = self.symbol(namespace_symbol);
                     let mut namespace_symbol_exports = namespace_symbol_ref.maybe_exports_mut();
                     if namespace_symbol_exports.is_none() {
                         *namespace_symbol_exports = Some(Gc::new(GcCell::new(

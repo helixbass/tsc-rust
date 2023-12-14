@@ -665,6 +665,7 @@ impl NodeBuilder {
             None
         };
         let parameter_symbol_name: Option<Cow<'_, str>>;
+        let parameter_symbol_ref = self.type_checker.symbol(parameter_symbol);
         let name: StrOrRcNode<'_> =
             if let Some(parameter_declaration) = parameter_declaration.as_ref() {
                 if let Some(parameter_declaration_name) = parameter_declaration
@@ -686,12 +687,10 @@ impl NodeBuilder {
                     }
                     .into()
                 } else {
-                    let parameter_symbol_ref = self.type_checker.symbol(parameter_symbol);
                     parameter_symbol_name = Some(symbol_name(&parameter_symbol_ref));
                     parameter_symbol_name.as_deref().unwrap().into()
                 }
             } else {
-                let parameter_symbol_ref = self.type_checker.symbol(parameter_symbol);
                 parameter_symbol_name = Some(symbol_name(&parameter_symbol_ref));
                 parameter_symbol_name.as_deref().unwrap().into()
             };
