@@ -10,7 +10,7 @@ pub fn rewrite_self_arena_method_to_ref_method_rule() -> Arc<dyn Rule> {
         listeners => [
             r#"
               (call_expression
-                 function: (field_expression) @method (#eq? @method "self.type_")
+                 function: (field_expression) @method (#eq? @method "self.symbol")
                  arguments: (arguments
                    (_) @arg
                  )
@@ -18,7 +18,7 @@ pub fn rewrite_self_arena_method_to_ref_method_rule() -> Arc<dyn Rule> {
             "# => |captures, context| {
                 context.report(
                     violation! {
-                        message => "self.type_(arg) -> arg.ref_(self)",
+                        message => "self.symbol(arg) -> arg.ref_(self)",
                         node => captures["call"],
                         fix => |fixer| {
                             fixer.replace_text(

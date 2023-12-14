@@ -62,7 +62,7 @@ impl HasArena for AllArenas {
 
     fn alloc_type(&self, type_: Type) -> Id<Type> {
         let id = self.types.borrow_mut().alloc(type_);
-        id.ref_(self).set_arena_id(id);
+        self.type_(id).set_arena_id(id);
         id
     }
 

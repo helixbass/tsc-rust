@@ -562,7 +562,7 @@ impl TypeChecker {
                                     access_expression,
                                     &Diagnostics::Property_0_does_not_exist_on_type_1,
                                     Some(vec![
-                                        match &*self.type_(index_type) {
+                                        match &*index_type.ref_(self) {
                                             Type::LiteralType(LiteralType::StringLiteralType(
                                                 index_type,
                                             )) => index_type.value.clone(),
@@ -856,7 +856,7 @@ impl TypeChecker {
                     &Diagnostics::Property_0_does_not_exist_on_type_1,
                     Some(vec![
                         // TODO: put this in a shared helper?
-                        match &*self.type_(index_type) {
+                        match &*index_type.ref_(self) {
                             Type::LiteralType(LiteralType::NumberLiteralType(index_type)) => {
                                 index_type.value.to_string()
                             }

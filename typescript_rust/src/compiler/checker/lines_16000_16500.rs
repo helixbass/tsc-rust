@@ -173,7 +173,7 @@ impl TypeChecker {
             {
                 return type_.fresh_type();
             }
-            assert!(matches!(&*self.type_(type_), Type::LiteralType(_)));
+            assert!(matches!(&*type_.ref_(self), Type::LiteralType(_)));
             return LiteralType::get_or_initialize_fresh_type(type_, self);
         }
         type_
@@ -783,15 +783,15 @@ impl TypeChecker {
         mapper: Id<TypeMapper>,
     ) -> io::Result<Id<Type>> {
         Ok(
-            if matches!(&*self.type_mapper(mapper), TypeMapper::Simple(mapper)) {
-                let mapper_ref = self.type_mapper(mapper);
+            if matches!(&*mapper.ref_(self), TypeMapper::Simple(mapper)) {
+                let mapper_ref = mapper.ref_(self);
                 if type_ == mapper_ref.as_simple().source {
                     mapper_ref.as_simple().target.clone()
                 } else {
                     type_
                 }
-            } else if matches!(&*self.type_mapper(mapper), TypeMapper::Array(mapper)) {
-                let mapper_ref = self.type_mapper(mapper);
+            } else if matches!(&*mapper.ref_(self), TypeMapper::Array(mapper)) {
+                let mapper_ref = mapper.ref_(self);
                 let sources = &mapper_ref.as_array().sources;
                 let targets = &mapper_ref.as_array().targets;
                 for (i, source) in sources.iter().enumerate() {
@@ -802,11 +802,11 @@ impl TypeChecker {
                     }
                 }
                 type_
-            } else if matches!(&*self.type_mapper(mapper), TypeMapper::Function(mapper)) {
-                let func = self.type_mapper(mapper).as_function().func.clone();
+            } else if matches!(&*mapper.ref_(self), TypeMapper::Function(mapper)) {
+                let func = mapper.ref_(self).as_function().func.clone();
                 func.call(self, type_)?
             } else {
-                let (mapper_mapper1, mapper_mapper2) = match &*self.type_mapper(mapper) {
+                let (mapper_mapper1, mapper_mapper2) = match &*mapper.ref_(self) {
                     TypeMapper::Composite(composite_or_merged_mapper)
                     | TypeMapper::Merged(composite_or_merged_mapper) => (
                         composite_or_merged_mapper.mapper1,
@@ -815,7 +815,7 @@ impl TypeChecker {
                     _ => unreachable!(),
                 };
                 let t1 = self.get_mapped_type(type_, mapper_mapper1)?;
-                if t1 != type_ && matches!(&*self.type_mapper(mapper), TypeMapper::Composite(_)) {
+                if t1 != type_ && matches!(&*mapper.ref_(self), TypeMapper::Composite(_)) {
                     self.instantiate_type(t1, Some(mapper_mapper2.clone()))?
                 } else {
                     self.get_mapped_type(t1, mapper_mapper2)?
