@@ -502,8 +502,7 @@ impl NodeBuilder {
             return Ok(from_name_type);
         }
         let symbol_ref = self.type_checker.symbol(symbol);
-        let raw_name =
-            unescape_leading_underscores(symbol_ref.escaped_name());
+        let raw_name = unescape_leading_underscores(symbol_ref.escaped_name());
         let string_named = length(
             self.type_checker
                 .symbol(symbol)

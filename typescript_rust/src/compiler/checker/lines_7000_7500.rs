@@ -408,9 +408,7 @@ impl SymbolTableToDeclarationStatements {
                         })),
                         |&s: &Id<Symbol>, _| -> io::Result<Option<Gc<Node>>> {
                             let s_ref = self.type_checker.symbol(s);
-                            let name = unescape_leading_underscores(
-                                s_ref.escaped_name(),
-                            );
+                            let name = unescape_leading_underscores(s_ref.escaped_name());
                             let local_name = self.get_internal_symbol_name(s, name);
                             let alias_decl = self
                                 .type_checker

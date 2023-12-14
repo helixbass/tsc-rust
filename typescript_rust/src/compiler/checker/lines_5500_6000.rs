@@ -665,38 +665,36 @@ impl NodeBuilder {
             None
         };
         let parameter_symbol_name: Option<Cow<'_, str>>;
-        let name: StrOrRcNode<'_> = if let Some(parameter_declaration) =
-            parameter_declaration.as_ref()
-        {
-            if let Some(parameter_declaration_name) = parameter_declaration
-                .as_named_declaration()
-                .maybe_name()
-                .as_ref()
-            {
-                match parameter_declaration_name.kind() {
-                    SyntaxKind::Identifier => set_emit_flags(
-                        get_factory().clone_node(parameter_declaration_name),
-                        EmitFlags::NoAsciiEscaping,
-                    ),
-                    SyntaxKind::QualifiedName => set_emit_flags(
-                        get_factory()
-                            .clone_node(&parameter_declaration_name.as_qualified_name().right),
-                        EmitFlags::NoAsciiEscaping,
-                    ),
-                    _ => self.clone_binding_name(context, parameter_declaration_name)?,
+        let name: StrOrRcNode<'_> =
+            if let Some(parameter_declaration) = parameter_declaration.as_ref() {
+                if let Some(parameter_declaration_name) = parameter_declaration
+                    .as_named_declaration()
+                    .maybe_name()
+                    .as_ref()
+                {
+                    match parameter_declaration_name.kind() {
+                        SyntaxKind::Identifier => set_emit_flags(
+                            get_factory().clone_node(parameter_declaration_name),
+                            EmitFlags::NoAsciiEscaping,
+                        ),
+                        SyntaxKind::QualifiedName => set_emit_flags(
+                            get_factory()
+                                .clone_node(&parameter_declaration_name.as_qualified_name().right),
+                            EmitFlags::NoAsciiEscaping,
+                        ),
+                        _ => self.clone_binding_name(context, parameter_declaration_name)?,
+                    }
+                    .into()
+                } else {
+                    let parameter_symbol_ref = self.type_checker.symbol(parameter_symbol);
+                    parameter_symbol_name = Some(symbol_name(&parameter_symbol_ref));
+                    parameter_symbol_name.as_deref().unwrap().into()
                 }
-                .into()
             } else {
                 let parameter_symbol_ref = self.type_checker.symbol(parameter_symbol);
-                parameter_symbol_name =
-                    Some(symbol_name(&parameter_symbol_ref));
+                parameter_symbol_name = Some(symbol_name(&parameter_symbol_ref));
                 parameter_symbol_name.as_deref().unwrap().into()
-            }
-        } else {
-            let parameter_symbol_ref = self.type_checker.symbol(parameter_symbol);
-            parameter_symbol_name = Some(symbol_name(&parameter_symbol_ref));
-            parameter_symbol_name.as_deref().unwrap().into()
-        };
+            };
         let is_optional = matches!(
             parameter_declaration.as_ref(),
             Some(parameter_declaration) if self.type_checker.is_optional_parameter_(parameter_declaration)?

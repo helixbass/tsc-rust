@@ -305,8 +305,7 @@ impl BinderType {
                     namespace_symbol_members
                 } else {
                     let namespace_symbol_ref = self.symbol(namespace_symbol);
-                    let mut namespace_symbol_exports =
-                        namespace_symbol_ref.maybe_exports_mut();
+                    let mut namespace_symbol_exports = namespace_symbol_ref.maybe_exports_mut();
                     if namespace_symbol_exports.is_none() {
                         *namespace_symbol_exports = Some(Gc::new(GcCell::new(
                             create_symbol_table(self.arena(), Option::<&[Id<Symbol>]>::None),
