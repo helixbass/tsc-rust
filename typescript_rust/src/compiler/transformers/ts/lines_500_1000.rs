@@ -16,7 +16,7 @@ use crate::{
     try_visit_nodes, AsDoubleDeref, BoolExt, ClassLikeDeclarationInterface, EmitFlags,
     HasStatementsInterface, InterfaceOrClassLikeDeclarationInterface, Matches, ModifierFlags,
     ModuleKind, NamedDeclarationInterface, Node, NodeArray, NodeArrayExt, NodeArrayOrVec, NodeExt,
-    NodeFlags, NodeInterface, NodeWrappered, ReadonlyTextRange, ScriptTarget,
+    NodeFlags, NodeInterface, ReadonlyTextRange, ScriptTarget,
     SignatureDeclarationInterface, SourceFileLike, SyntaxKind, TextRange, TransformFlags,
     VisitResult,
 };

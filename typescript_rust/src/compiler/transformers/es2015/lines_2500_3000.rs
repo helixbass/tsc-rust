@@ -13,7 +13,7 @@ use crate::{
     start_on_new_line, try_maybe_visit_node, try_maybe_visit_nodes, try_visit_each_child,
     try_visit_node, BoolExt, Debug_, EmitFlags, GetOrInsertDefault, Matches,
     NamedDeclarationInterface, Node, NodeArray, NodeCheckFlags, NodeExt, NodeFlags, NodeInterface,
-    NodeWrappered, OptionTry, SyntaxKind, TransformFlags,
+    OptionTry, SyntaxKind, TransformFlags,
 };
 
 impl TransformES2015 {

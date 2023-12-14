@@ -24,7 +24,7 @@ use crate::{
     set_emit_flags, set_original_node, skip_outer_expressions, unescape_leading_underscores,
     visit_each_child, visit_function_body, visit_nodes, visit_parameter_list, Debug_, EmitFlags,
     FunctionLikeDeclarationInterface, GeneratedIdentifierFlags, HasInitializerInterface,
-    ModifierFlags, NodeArray, NodeArrayExt, NodeArrayOrVec, NodeCheckFlags, NodeExt, NodeWrappered,
+    ModifierFlags, NodeArray, NodeArrayExt, NodeArrayOrVec, NodeCheckFlags, NodeExt,
     PrivateIdentifierKind, PropertyDescriptorAttributesBuilder, ScriptTarget, SyntaxKind,
 };
 

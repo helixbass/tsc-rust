@@ -7,6 +7,7 @@ use std::{
 };
 
 use gc::{Finalize, Gc, GcCell, GcCellRef, GcCellRefMut, Trace};
+use id_arena::Id;
 use local_macros::enum_unwrapped;
 
 use super::{

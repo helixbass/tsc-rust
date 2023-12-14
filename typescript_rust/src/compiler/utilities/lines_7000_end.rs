@@ -1,6 +1,7 @@
 use std::{borrow::Borrow, convert::TryInto, ptr};
 
 use gc::Gc;
+use id_arena::Id;
 
 use crate::{
     find_ancestor, first_or_undefined, for_each_child_recursively,

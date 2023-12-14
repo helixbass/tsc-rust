@@ -16,7 +16,7 @@ use crate::{
     try_maybe_visit_nodes, try_visit_node, try_visit_parameter_list, unescape_leading_underscores,
     AllAccessorDeclarations, AsDoubleDeref, Debug_, EmitFlags, FunctionLikeDeclarationInterface,
     GeneratedIdentifierFlags, Matches, NamedDeclarationInterface, Node, NodeArray, NodeArrayExt,
-    NodeExt, NodeInterface, NodeWrappered, PropertyDescriptorAttributesBuilder, ReadonlyTextRange,
+    NodeExt, NodeInterface, PropertyDescriptorAttributesBuilder, ReadonlyTextRange,
     ReadonlyTextRangeConcrete, SignatureDeclarationInterface, SyntaxKind, TransformFlags,
     VisitResult,
 };

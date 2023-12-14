@@ -1,6 +1,7 @@
 use std::{borrow::Borrow, io, ptr};
 
 use gc::Gc;
+use id_arena::Id;
 
 use super::{declaration_emit_node_builder_flags, is_processed_component, TransformDeclarations};
 use crate::{

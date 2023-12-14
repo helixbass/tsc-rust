@@ -2,6 +2,7 @@ use std::{borrow::Cow, cell::RefCell, cmp, collections::HashMap, io, iter::FromI
 
 use bitflags::bitflags;
 use gc::{Finalize, Gc, GcCell, Trace};
+use id_arena::Id;
 
 use crate::{
     combine_paths, compare_paths, contains, contains_path, create_get_canonical_file_name,

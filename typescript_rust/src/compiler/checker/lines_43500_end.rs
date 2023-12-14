@@ -1430,13 +1430,13 @@ impl EmitResolver for EmitResolverCreateResolver {
         self.type_checker.is_literal_const_declaration(node)
     }
 
-    fn get_jsx_factory_entity(&self, location: Option<Id<Node>) -> Option<Id<Node /*EntityName*/>> {
+    fn get_jsx_factory_entity(&self, location: Option<Id<Node>>) -> Option<Id<Node /*EntityName*/>> {
         self.type_checker.get_jsx_factory_entity(location.unwrap())
     }
 
     fn get_jsx_fragment_factory_entity(
         &self,
-        location: Option<Id<Node>,
+        location: Option<Id<Node>>,
     ) -> Option<Id<Node /*EntityName*/>> {
         self.type_checker
             .get_jsx_fragment_factory_entity(location.unwrap())

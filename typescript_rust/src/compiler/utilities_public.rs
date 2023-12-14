@@ -541,7 +541,7 @@ pub fn unescape_leading_underscores(identifier: &str /*__String*/) -> &str {
     }
 }
 
-pub fn id_text(identifier_or_private_name: Id<Node>, /*Identifier | PrivateIdentifier*/) -> &str {
+pub fn id_text(identifier_or_private_name: &Node /*Identifier | PrivateIdentifier*/) -> &str {
     unescape_leading_underscores(identifier_or_private_name.as_member_name().escaped_text())
 }
 
@@ -1501,9 +1501,7 @@ pub fn is_function_like(node: Option<Id<Node>>) -> bool {
     node.map_or(false, |node| is_function_like_kind(node.borrow().kind()))
 }
 
-pub(crate) fn is_function_like_or_class_static_block_declaration(
-    node: Option<Id<Node>>,
-) -> bool {
+pub(crate) fn is_function_like_or_class_static_block_declaration(node: Option<Id<Node>>) -> bool {
     node.map_or(false, |node| {
         let node = node.borrow();
         is_function_like_kind(node.kind()) || is_class_static_block_declaration(node)

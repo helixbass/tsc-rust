@@ -841,7 +841,7 @@ pub use rust_helpers::{
     last_index_of, last_index_of_returns_isize,
     number::{is_finite, is_nan, Number},
     option::{
-        BoolExt, GetOrInsertDefault, MapOrDefault, Matches, NodeWrappered, NonEmpty, OptionTry,
+        BoolExt, GetOrInsertDefault, MapOrDefault, Matches, NonEmpty, OptionTry,
         UnwrapOrEmpty,
     },
     push_or_replace,

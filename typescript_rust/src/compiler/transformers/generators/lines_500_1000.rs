@@ -11,7 +11,7 @@ use crate::{
     is_binary_expression, is_compound_assignment, is_expression, is_left_hand_side_expression,
     is_logical_operator, map, maybe_visit_node, reduce_left, visit_node, visit_nodes,
     Associativity, EmitFlags, IntoA, NamedDeclarationInterface, NodeArray, NodeArrayOrVec,
-    NodeWrappered, ReadonlyTextRange, SyntaxKind, TransformFlags, VecExt,
+    ReadonlyTextRange, SyntaxKind, TransformFlags, VecExt,
 };
 
 impl TransformGenerators {

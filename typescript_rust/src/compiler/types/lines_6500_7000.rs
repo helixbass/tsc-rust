@@ -587,13 +587,13 @@ impl TextRange for SourceMapRange {
     }
 }
 
-impl From<Id<Node>> for SourceMapRange {
-    fn from(value: Id<Node>) -> Self {
+impl From<&Node> for SourceMapRange {
+    fn from(value: &Node) -> Self {
         Self::new(value.pos(), value.end(), None)
     }
 }
 
-impl From<Id<Node>> for Gc<SourceMapRange> {
+impl From<&Node> for Gc<SourceMapRange> {
     fn from(value: Id<Node>) -> Self {
         Gc::new(value.into())
     }

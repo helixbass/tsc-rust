@@ -18,7 +18,7 @@ use crate::{
     is_string_literal, is_type_alias_declaration, is_variable_like, is_variable_statement, last,
     last_or_undefined, maybe_filter, skip_outer_expressions, try_cast, try_for_each_bool,
     AsDoubleDeref, AssignmentDeclarationKind, Debug_, HasQuestionTokenInterface, HasTypeInterface,
-    NamedDeclarationInterface, Node, NodeInterface, NodeWrappered, OuterExpressionKinds,
+    NamedDeclarationInterface, Node, NodeInterface, OuterExpressionKinds,
     SignatureDeclarationInterface, Symbol, SyntaxKind,
 };
 

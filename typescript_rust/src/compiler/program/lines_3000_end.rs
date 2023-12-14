@@ -46,7 +46,7 @@ use crate::{
     FilePreprocessingFileExplainingDiagnostic, FilePreprocessingReferencedDiagnostic,
     FileReference, GetCanonicalFileName, GetOrInsertDefault, HasArena, JsxEmit, ModuleKind,
     ModuleResolutionHost, ModuleResolutionHostOverrider, ModuleResolutionKind,
-    NamedDeclarationInterface, Node, NodeFlags, NodeInterface, NodeWrappered, ParseConfigFileHost,
+    NamedDeclarationInterface, Node, NodeFlags, NodeInterface, ParseConfigFileHost,
     ParseConfigHost, ParsedCommandLine, Path, PeekableExt, Program, ProjectReference,
     ReadFileCallback, ReferencedFile, ResolvedModuleFull, ResolvedProjectReference,
     ResolvedProjectReferenceBuilder, ScriptKind, ScriptReferenceHost, ScriptTarget, SymlinkCache,

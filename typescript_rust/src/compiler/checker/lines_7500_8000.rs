@@ -20,7 +20,7 @@ use crate::{
     maybe_get_source_file_of_node, set_text_range_rc_node, some, strip_quotes, symbol_name,
     unescape_leading_underscores, AllArenas, BoolExt, Debug_, HasArena, InArena,
     InternalSymbolName, IteratorExt, Matches, ModifierFlags, Node, NodeArray, NodeArrayOrVec,
-    NodeBuilder, NodeBuilderFlags, NodeFlags, NodeInterface, NodeWrappered, ObjectFlags, OptionTry,
+    NodeBuilder, NodeBuilderFlags, NodeFlags, NodeInterface, ObjectFlags, OptionTry,
     SignatureKind, StrOrRcNode, Symbol, SymbolFlags, SymbolInterface, SyntaxKind, Ternary, Type,
     TypeChecker, TypeInterface,
 };

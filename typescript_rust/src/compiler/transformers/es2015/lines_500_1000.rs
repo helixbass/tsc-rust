@@ -13,7 +13,7 @@ use crate::{
     try_visit_each_child, try_visit_node, try_visit_nodes, try_visit_parameter_list, EmitFlags,
     FunctionLikeDeclarationInterface, GeneratedIdentifierFlags, GetOrInsertDefault,
     HasStatementsInterface, MapOrDefault, Matches, ModifierFlags, Node, NodeArray, NodeArrayExt,
-    NodeArrayOrVec, NodeExt, NodeInterface, NodeWrappered, OptionTry, ReadonlyTextRange,
+    NodeArrayOrVec, NodeExt, NodeInterface, OptionTry, ReadonlyTextRange,
     ReadonlyTextRangeConcrete, SignatureDeclarationInterface, SyntaxKind, TextRange,
     TransformFlags, VisitResult,
 };

@@ -25,7 +25,7 @@ use crate::{
     is_parenthesized_expression, is_property_access_expression, is_statement, is_string_literal,
     is_super_keyword, is_super_property, reduce_left_no_initial_value, return_ok_default_if_none,
     set_emit_flags, set_text_range, skip_outer_expressions, skip_parentheses, try_visit_node,
-    EmitFlags, MapOrDefault, Matches, NodeWrappered, NumberOrRcNode, OptionTry,
+    EmitFlags, MapOrDefault, Matches, NumberOrRcNode, OptionTry,
     ReadonlyTextRangeConcrete, SyntheticReferenceExpression, VecExt,
 };
 

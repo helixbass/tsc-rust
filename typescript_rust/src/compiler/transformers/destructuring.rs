@@ -10,7 +10,7 @@ use id_arena::Id;
 use itertools::Itertools;
 
 use crate::{
-    GetOrInsertDefault, Node, NodeExt, NodeInterface, NodeWrappered, NonEmpty, ReadonlyTextRange,
+    GetOrInsertDefault, Node, NodeExt, NodeInterface, NonEmpty, ReadonlyTextRange,
     TransformationContext, VisitResult, _d, get_elements_of_binding_or_assignment_pattern,
     get_factory, get_initializer_of_binding_or_assignment_element,
     get_property_name_of_binding_or_assignment_element,
