@@ -872,12 +872,12 @@ impl TypeChecker {
         let module_symbol_exports = self.symbol(module_symbol).exports();
         let module_symbol_exports = (*module_symbol_exports).borrow();
         let export_value = module_symbol_exports.get(InternalSymbolName::ExportEquals);
-        let export_symbol = if let Some(export_value) = export_value {
+        let export_symbol = if let Some(&export_value) = export_value {
             self.get_property_of_type(self.get_type_of_symbol(export_value)?, name)?
         } else {
             module_symbol_exports.get(name).cloned()
         };
-        let resolved = self.resolve_symbol(export_symbol.as_deref(), Some(dont_resolve_alias))?;
+        let resolved = self.resolve_symbol(export_symbol, Some(dont_resolve_alias))?;
         self.mark_symbol_of_alias_declaration_if_type_only(
             source_node,
             export_symbol,
@@ -1016,7 +1016,7 @@ impl TypeChecker {
             None,
         )?);
         let export_default_symbol: Option<Id<Symbol>>;
-        if is_shorthand_ambient_module_symbol(module_symbol) {
+        if is_shorthand_ambient_module_symbol(&self.symbol(module_symbol)) {
             export_default_symbol = Some(module_symbol.clone());
         } else {
             export_default_symbol = self.resolve_export_by_name(
@@ -1054,10 +1054,10 @@ impl TypeChecker {
                 };
                 let module_symbol_exports = self.symbol(module_symbol).exports();
                 let module_symbol_exports = (*module_symbol_exports).borrow();
-                let export_equals_symbol = module_symbol_exports
+                let export_equals_symbol = *module_symbol_exports
                     .get(InternalSymbolName::ExportEquals)
                     .unwrap();
-                let export_assignment = export_equals_symbol.maybe_value_declaration();
+                let export_assignment = self.symbol(export_equals_symbol).maybe_value_declaration();
                 let err = self.error(
                     node.as_import_clause().name.as_deref(),
                     &Diagnostics::Module_0_can_only_be_default_imported_using_the_1_flag,
@@ -1156,7 +1156,7 @@ impl TypeChecker {
                         .cloned()
                 });
             if let Some(export_star) = export_star {
-                let default_export = export_star.maybe_declarations().as_deref().try_and_then(|declarations| -> io::Result<_> {
+                let default_export = self.symbol(export_star).maybe_declarations().as_deref().try_and_then(|declarations| -> io::Result<_> {
                     Ok(declarations.iter().try_find_(|decl| -> io::Result<_> {
                         Ok(is_export_declaration(decl) && matches!(
                             decl.as_export_declaration().module_specifier.as_ref(),
@@ -1381,15 +1381,15 @@ impl TypeChecker {
         let target_symbol = target_symbol.unwrap();
         let module_symbol = module_symbol.unwrap();
         if !(&*name_as_identifier.escaped_text).is_empty() {
-            if is_shorthand_ambient_module_symbol(module_symbol) {
+            if is_shorthand_ambient_module_symbol(&self.symbol(module_symbol)) {
                 return Ok(Some(module_symbol));
             }
 
             let mut symbol_from_variable: Option<Id<Symbol>>;
             if
             /*moduleSymbol &&*/
-            modulself
-                .symbol(e_symbol)
+            self
+                .symbol(module_symbol)
                 .maybe_exports()
                 .as_ref()
                 .and_then(|exports| {
@@ -1606,7 +1606,7 @@ impl TypeChecker {
                     )
                 };
                 if let Some(local_symbol_declarations) =
-                    local_symbol.maybe_declarations().as_deref()
+                    self.symbol(local_symbol).maybe_declarations().as_deref()
                 {
                     add_related_info(
                         &diagnostic,

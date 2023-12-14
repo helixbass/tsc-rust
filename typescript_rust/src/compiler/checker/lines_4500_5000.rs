@@ -216,8 +216,10 @@ impl TypeChecker {
             false,
             None,
         )?;
-        if matches!(symbol.as_ref(), Some(symbol) if symbol.flags().intersects(SymbolFlags::TypeParameter) && meaning.intersects(SymbolFlags::Type))
-        {
+        if matches!(
+            symbol,
+            Some(symbol) if self.symbol(symbol).flags().intersects(SymbolFlags::TypeParameter) && meaning.intersects(SymbolFlags::Type)
+        ) {
             return Ok(SymbolVisibilityResult {
                 accessibility: SymbolAccessibility::Accessible,
                 aliases_to_make_visible: None,
@@ -1358,7 +1360,7 @@ impl NodeBuilder {
                 && contains((*context.infer_type_parameters).borrow().as_deref(), &type_)
             {
                 context.increment_approximate_length_by(
-                    symbol_name(self.type_checker.type_(type_).symbol()).len() + 6,
+                    symbol_name(&self.type_checker.symbol(self.type_checker.type_(type_).symbol())).len() + 6,
                 );
                 return Ok(Some(get_factory().create_infer_type_node(
                     self.type_parameter_to_declaration_with_constraint(type_, context, None)?,

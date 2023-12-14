@@ -339,7 +339,7 @@ impl SymbolTableToDeclarationStatements {
                 (**symbol_exports)
                     .borrow()
                     .values()
-                    .filter(|value| self.is_namespace_member(value))
+                    .filter(|&&value| self.is_namespace_member(value))
                     .cloned()
                     .collect::<Vec<_>>()
             })
@@ -454,7 +454,7 @@ impl SymbolTableToDeclarationStatements {
                                     .get_target_of_alias_declaration(alias_decl, Some(true))
                             })?;
                             self.include_private_symbol(target.unwrap_or(s));
-                            let target_name = target.as_ref().map_or_else(
+                            let target_name = target.map_or_else(
                                 || local_name.clone(),
                                 |target| {
                                     self.get_internal_symbol_name(
@@ -685,7 +685,7 @@ impl SymbolTableToDeclarationStatements {
             );
             set_parent(&fakespace, Some(&*self.enclosing_declaration));
             fakespace.set_locals(Some(Gc::new(GcCell::new(create_symbol_table(
-                self.arena(),
+                self.type_checker.arena(),
                 Some(props),
             )))));
             if let Some(props_0_parent) = self.type_checker.symbol(props[0]).maybe_parent() {
@@ -703,7 +703,7 @@ impl SymbolTableToDeclarationStatements {
             self.set_context(subcontext);
             self.visit_symbol_table(
                 Gc::new(GcCell::new(create_symbol_table(
-                    self.arena(),
+                    self.type_checker.arena(),
                     Some(&local_props),
                 ))),
                 Some(suppress_new_private_context),
@@ -1154,7 +1154,6 @@ impl SymbolTableToDeclarationStatements {
                         self.type_checker
                             .symbol(target)
                             .maybe_parent()
-                            .as_ref()
                             .unwrap_or(target),
                         &self.context(),
                     )?;
@@ -1225,7 +1224,6 @@ impl SymbolTableToDeclarationStatements {
                         self.type_checker
                             .symbol(target)
                             .maybe_parent()
-                            .as_ref()
                             .unwrap_or(target),
                         &self.context(),
                     )?;
@@ -1380,7 +1378,6 @@ impl SymbolTableToDeclarationStatements {
                                 self.type_checker
                                     .symbol(target)
                                     .maybe_parent()
-                                    .as_ref()
                                     .unwrap_or(target),
                                 &self.context(),
                             )?,
@@ -1462,7 +1459,6 @@ impl SymbolTableToDeclarationStatements {
                                 self.type_checker
                                     .symbol(target)
                                     .maybe_parent()
-                                    .as_ref()
                                     .unwrap_or(target),
                                 &self.context(),
                             )?,

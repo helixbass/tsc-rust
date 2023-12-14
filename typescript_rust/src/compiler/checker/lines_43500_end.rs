@@ -925,7 +925,7 @@ impl TypeChecker {
             if let Some(source_properties_filtered) = source_properties_filtered.as_ref() {
                 return self.discriminate_type_by_discriminable_items(
                     target,
-                    source_properties_filtered.into_iter().map(|p| {
+                    source_properties_filtered.into_iter().map(|&p| {
                         let p_clone = p.clone();
                         let type_checker = self.rc_wrapper();
                         (
@@ -1007,7 +1007,7 @@ impl EmitResolverCreateResolver {
         &self,
         symbol: Id<Symbol>,
     ) -> io::Result<bool> {
-        let symbol_declarations = self.symbol(symbol).maybe_declarations();
+        let symbol_declarations = self.type_checker.symbol(symbol).maybe_declarations();
         if symbol_declarations.is_none() {
             return Ok(false);
         }
@@ -1015,7 +1015,7 @@ impl EmitResolverCreateResolver {
 
         let mut current = symbol;
         loop {
-            let parent = self.type_checker.get_parent_of_symbol(&current)?;
+            let parent = self.type_checker.get_parent_of_symbol(current)?;
             if let Some(parent) = parent {
                 current = parent;
             } else {
@@ -1024,9 +1024,9 @@ impl EmitResolverCreateResolver {
         }
 
         if matches!(
-            current.maybe_value_declaration(),
+            self.type_checker.symbol(current).maybe_value_declaration(),
             Some(current_value_declaration) if current_value_declaration.kind() == SyntaxKind::SourceFile
-        ) && current.flags().intersects(SymbolFlags::ValueModule)
+        ) && self.type_checker.symbol(current).flags().intersects(SymbolFlags::ValueModule)
         {
             return Ok(false);
         }
@@ -1391,10 +1391,10 @@ impl EmitResolver for EmitResolverCreateResolver {
         {
             if decl
                 .maybe_symbol()
-                .filter(|decl_symbol| {
+                .filter(|&decl_symbol| {
                     matches!(
                         meaning,
-                        Some(meaning) if decl_symbol.flags().intersects(meaning)
+                        Some(meaning) if self.type_checker.symbol(decl_symbol).flags().intersects(meaning)
                     )
                 })
                 .is_some()

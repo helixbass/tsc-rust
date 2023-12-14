@@ -182,7 +182,7 @@ impl TypeChecker {
 
     pub(super) fn is_from_inference_blocked_source(&self, type_: Id<Type>) -> bool {
         matches!(
-            self.type_(type_).maybe_symbol().as_ref(),
+            self.type_(type_).maybe_symbol(),
             Some(type_symbol) if some(
                 self.symbol(type_symbol).maybe_declarations().as_deref(),
                 Some(|declaration: &Gc<Node>| self.has_skip_direct_inference_flag(declaration))

@@ -106,7 +106,11 @@ impl TypeChecker {
                 let prop =
                     self.get_property_of_type_(type_, name, skip_object_function_property_augment)?;
                 let modifiers = if let Some(prop) = prop {
-                    get_declaration_modifier_flags_from_symbol(self.arena(), prop, None)
+                    get_declaration_modifier_flags_from_symbol(
+                        self.arena(),
+                        &self.symbol(prop),
+                        None,
+                    )
                 } else {
                     ModifierFlags::None
                 };
@@ -125,7 +129,7 @@ impl TypeChecker {
                             self.get_target_symbol(single_prop) /*|| singleProp*/
                         ;
                         if is_instantiation
-                            && self.compare_properties(single_prop, &prop, |a, b| {
+                            && self.compare_properties(single_prop, prop, |a, b| {
                                 Ok(if a == b {
                                     Ternary::True
                                 } else {
@@ -148,7 +152,7 @@ impl TypeChecker {
                                 );
                             }
                             let prop_set = prop_set.as_mut().unwrap();
-                            let id = get_symbol_id(&prop);
+                            let id = get_symbol_id(&self.symbol(prop));
                             if !prop_set.contains_key(&id) {
                                 prop_set.insert(id, prop.clone());
                             }
@@ -246,7 +250,7 @@ impl TypeChecker {
                     self.symbol(single_prop)
                         .maybe_value_declaration()
                         .and_then(|value_declaration| value_declaration.maybe_symbol())
-                        .and_then(|symbol| symbol.maybe_parent()),
+                        .and_then(|symbol| self.symbol(symbol).maybe_parent()),
                 );
                 let clone_symbol_links = self.symbol(clone).as_transient_symbol().symbol_links();
                 let mut clone_symbol_links = clone_symbol_links.borrow_mut();
@@ -296,7 +300,7 @@ impl TypeChecker {
             let type_ = self.get_type_of_symbol(prop)?;
             if first_type.is_none() {
                 first_type = Some(type_.clone());
-                name_type = (*self.get_symbol_links(&prop)).borrow().name_type.clone();
+                name_type = (*self.get_symbol_links(prop)).borrow().name_type.clone();
             } else if type_ != first_type.unwrap() {
                 check_flags |= CheckFlags::HasNonUniformType;
             }
@@ -535,7 +539,7 @@ impl TypeChecker {
 
     pub(super) fn is_discriminant_with_never_type(&self, prop: Id<Symbol>) -> io::Result<bool> {
         Ok(!self.symbol(prop).flags().intersects(SymbolFlags::Optional)
-            && get_check_flags(prop) & (CheckFlags::Discriminant | CheckFlags::HasNeverType)
+            && get_check_flags(&self.symbol(prop)) & (CheckFlags::Discriminant | CheckFlags::HasNeverType)
                 == CheckFlags::Discriminant
             && self
                 .type_(self.get_type_of_symbol(prop)?)

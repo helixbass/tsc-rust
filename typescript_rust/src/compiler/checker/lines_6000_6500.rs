@@ -107,7 +107,7 @@ impl NodeBuilder {
                 Ok(matches!(
                     (*self.type_checker.get_members_of_symbol(parent)?)
                         .borrow()
-                        .get(self.symbol(symbol).escaped_name()),
+                        .get(self.type_checker.symbol(symbol).escaped_name()),
                     Some(&got_member_of_symbol) if self.type_checker.get_symbol_if_same_reference(
                         got_member_of_symbol,
                         symbol,

@@ -327,7 +327,8 @@ impl TypeChecker {
                 Some(declaration) if has_effective_modifier(declaration, ModifierFlags::Private)
             ) {
                 let type_class_declaration =
-                    get_class_like_declaration_of_symbol(self.type_(type_).symbol()).unwrap();
+                    get_class_like_declaration_of_symbol(&self.symbol(self.type_(type_).symbol()))
+                        .unwrap();
                 if !self.is_node_within_class(node, &type_class_declaration) {
                     self.error(
                         Some(node),
@@ -406,7 +407,7 @@ impl TypeChecker {
     }
 
     pub(super) fn get_target_symbol(&self, s: Id<Symbol>) -> Id<Symbol> {
-        if get_check_flags(s).intersects(CheckFlags::Instantiated) {
+        if get_check_flags(&self.symbol(s)).intersects(CheckFlags::Instantiated) {
             (*self.symbol(s).as_transient_symbol().symbol_links())
                 .borrow()
                 .target
@@ -449,13 +450,13 @@ impl TypeChecker {
             );
             let derived = self.get_target_symbol(base_symbol);
             let base_declaration_flags =
-                get_declaration_modifier_flags_from_symbol(self.arena(), base, None);
+                get_declaration_modifier_flags_from_symbol(self.arena(), &self.symbol(base), None);
 
             // Debug.assert(!!derived, "derived should point at something, even if it is the base class' declaration.");
 
             if derived == base {
                 let derived_class_decl =
-                    get_class_like_declaration_of_symbol(self.type_(type_).symbol()).unwrap();
+                    get_class_like_declaration_of_symbol(&self.symbol(self.type_(type_).symbol())).unwrap();
 
                 if base_declaration_flags.intersects(ModifierFlags::Abstract) && /* !derivedClassDecl ||*/ !has_syntactic_modifier(&derived_class_decl, ModifierFlags::Abstract)
                 {
@@ -520,7 +521,7 @@ impl TypeChecker {
                 }
             } else {
                 let derived_declaration_flags =
-                    get_declaration_modifier_flags_from_symbol(self.arena(), derived, None);
+                    get_declaration_modifier_flags_from_symbol(self.arena(), &self.symbol(derived), None);
                 if base_declaration_flags.intersects(ModifierFlags::Private)
                     || derived_declaration_flags.intersects(ModifierFlags::Private)
                 {
@@ -608,7 +609,7 @@ impl TypeChecker {
                             {
                                 let constructor = self.find_constructor_declaration(
                                     &get_class_like_declaration_of_symbol(
-                                        self.type_(type_).symbol(),
+                                        &self.symbol(self.type_(type_).symbol()),
                                     )
                                     .unwrap(),
                                 );
@@ -714,6 +715,7 @@ impl TypeChecker {
         }
         let mut seen: HashMap<__String, Id<Symbol>> = Default::default();
         for_each(properties, |p, _| -> Option<()> {
+            let &p = p.borrow();
             seen.insert(self.symbol(p).escaped_name().to_owned(), p.clone());
             None
         });

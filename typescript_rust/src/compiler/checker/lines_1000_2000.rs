@@ -475,80 +475,79 @@ impl TypeChecker {
     }
 
     pub(super) fn record_merged_symbol(&self, target: Id<Symbol>, source: Id<Symbol>) {
-        if source.maybe_merge_id().is_none() {
-            source.set_merge_id(get_next_merge_id());
+        if self.symbol(source).maybe_merge_id().is_none() {
+            self.symbol(source).set_merge_id(get_next_merge_id());
             increment_next_merge_id();
         }
         self.merged_symbols()
-            .insert(source.maybe_merge_id().unwrap(), target.symbol_wrapper());
+            .insert(self.symbol(source).maybe_merge_id().unwrap(), target);
     }
 
     pub(super) fn clone_symbol(&self, symbol: Id<Symbol>) -> Id<Symbol> {
-        let result: Id<Symbol> = self
-            .create_symbol(symbol.flags(), symbol.escaped_name().to_owned(), None)
-            .into();
-        result.set_declarations(
-            if let Some(symbol_declarations) = symbol.maybe_declarations().as_ref() {
+        let result = self.alloc_symbol(self
+            .create_symbol(self.symbol(symbol).flags(), self.symbol(symbol).escaped_name().to_owned(), None)
+            .into());
+        self.symbol(result).set_declarations(
+            if let Some(symbol_declarations) = self.symbol(symbol).maybe_declarations().as_ref() {
                 symbol_declarations.clone()
             } else {
                 vec![]
             },
         );
-        result.set_parent(symbol.maybe_parent().clone());
-        if let Some(symbol_value_declaration) = symbol.maybe_value_declaration().as_ref() {
-            result.set_value_declaration(symbol_value_declaration.clone());
+        self.symbol(result).set_parent(self.symbol(symbol).maybe_parent().clone());
+        if let Some(symbol_value_declaration) = self.symbol(symbol).maybe_value_declaration().as_ref() {
+            self.symbol(result).set_value_declaration(symbol_value_declaration.clone());
         }
-        if matches!(symbol.maybe_const_enum_only_module(), Some(true)) {
-            result.set_const_enum_only_module(Some(true));
+        if matches!(self.symbol(symbol).maybe_const_enum_only_module(), Some(true)) {
+            self.symbol(result).set_const_enum_only_module(Some(true));
         }
-        if let Some(symbol_members) = symbol.maybe_members().as_ref() {
-            *result.maybe_members_mut() =
+        if let Some(symbol_members) = self.symbol(symbol).maybe_members().as_ref() {
+            *self.symbol(result).maybe_members_mut() =
                 Some(Gc::new(GcCell::new((**symbol_members).borrow().clone())));
         }
-        if let Some(symbol_exports) = symbol.maybe_exports().as_ref() {
-            *result.maybe_exports_mut() =
+        if let Some(symbol_exports) = self.symbol(symbol).maybe_exports().as_ref() {
+            *self.symbol(result).maybe_exports_mut() =
                 Some(Gc::new(GcCell::new((**symbol_exports).borrow().clone())));
         }
-        self.record_merged_symbol(&result, symbol);
+        self.record_merged_symbol(result, symbol);
         result
     }
 
     pub(super) fn merge_symbol(
         &self,
-        target: Id<Symbol>,
+        mut target: Id<Symbol>,
         source: Id<Symbol>,
         unidirectional: Option<bool>,
     ) -> io::Result<Id<Symbol>> {
         let unidirectional = unidirectional.unwrap_or(false);
-        let mut target = target.symbol_wrapper();
-        if !target
-            .flags()
-            .intersects(self.get_excluded_symbol_flags(source.flags()))
-            || (source.flags() | target.flags()).intersects(SymbolFlags::Assignment)
+        if !self.symbol(target
+            ).flags()
+            .intersects(self.get_excluded_symbol_flags(self.symbol(source).flags()))
+            || (self.symbol(source).flags() | self.symbol(target).flags()).intersects(SymbolFlags::Assignment)
         {
-            if ptr::eq(source, &*target) {
+            if source == target {
                 return Ok(target);
             }
-            if !target.flags().intersects(SymbolFlags::Transient) {
-                let resolved_target = self.resolve_symbol(Some(&*target), None)?.unwrap();
-                if Gc::ptr_eq(&resolved_target, &self.unknown_symbol()) {
-                    return Ok(source.symbol_wrapper());
+            if !self.symbol(target).flags().intersects(SymbolFlags::Transient) {
+                let resolved_target = self.resolve_symbol(Some(target), None)?.unwrap();
+                if resolved_target == self.unknown_symbol() {
+                    return Ok(source);
                 }
-                target = self.clone_symbol(&resolved_target);
+                target = self.clone_symbol(resolved_target);
             }
-            if source.flags().intersects(SymbolFlags::ValueModule)
-                && target.flags().intersects(SymbolFlags::ValueModule)
-                && matches!(target.maybe_const_enum_only_module(), Some(true))
-                && !matches!(source.maybe_const_enum_only_module(), Some(true))
+            if self.symbol(source).flags().intersects(SymbolFlags::ValueModule)
+                && self.symbol(target).flags().intersects(SymbolFlags::ValueModule)
+                && matches!(self.symbol(target).maybe_const_enum_only_module(), Some(true))
+                && !matches!(self.symbol(source).maybe_const_enum_only_module(), Some(true))
             {
-                target.set_const_enum_only_module(Some(true));
+                self.symbol(target).set_const_enum_only_module(Some(true));
             }
-            target.set_flags(target.flags() | source.flags());
-            if let Some(source_value_declaration) = source.maybe_value_declaration().as_ref() {
-                set_value_declaration(&target, source_value_declaration);
+            self.symbol(target).set_flags(self.symbol(target).flags() | self.symbol(source).flags());
+            if let Some(source_value_declaration) = self.symbol(source).maybe_value_declaration().as_ref() {
+                set_value_declaration(&self.symbol(target), source_value_declaration);
             }
-            if let Some(source_declarations) = source.maybe_declarations().as_deref() {
-                let mut target_declarations = target.maybe_declarations_mut();
+            if let Some(source_declarations) = self.symbol(source).maybe_declarations().as_deref() {
+                let mut target_declarations = self.symbol(target).maybe_declarations_mut();
                 if target_declarations.is_none() {
                     *target_declarations = Some(vec![]);
                 }
@@ -559,8 +558,8 @@ impl TypeChecker {
                     None,
                 );
             }
-            if let Some(source_members) = source.maybe_members().as_ref() {
-                let mut target_members = target.maybe_members_mut();
+            if let Some(source_members) = self.symbol(source).maybe_members().as_ref() {
+                let mut target_members = self.symbol(target).maybe_members_mut();
                 if target_members.is_none() {
                     *target_members = Some(Gc::new(GcCell::new(create_symbol_table(
                         self.arena(),
@@ -573,8 +572,8 @@ impl TypeChecker {
                     Some(unidirectional),
                 )?;
             }
-            if let Some(source_exports) = source.maybe_exports().as_ref() {
-                let mut target_exports = target.maybe_exports_mut();
+            if let Some(source_exports) = self.symbol(source).maybe_exports().as_ref() {
+                let mut target_exports = self.symbol(target).maybe_exports_mut();
                 if target_exports.is_none() {
                     *target_exports = Some(Gc::new(GcCell::new(create_symbol_table(
                         self.arena(),
@@ -588,22 +587,22 @@ impl TypeChecker {
                 )?;
             }
             if !unidirectional {
-                self.record_merged_symbol(&target, source);
+                self.record_merged_symbol(target, source);
             }
-        } else if target.flags().intersects(SymbolFlags::NamespaceModule) {
-            if !Gc::ptr_eq(&target, &self.global_this_symbol()) {
+        } else if self.symbol(target).flags().intersects(SymbolFlags::NamespaceModule) {
+            if target != self.global_this_symbol() {
                 self.error(
-                    source.maybe_declarations().as_ref().and_then(|source_declarations| get_name_of_declaration(source_declarations.get(0).map(Clone::clone))),
+                    self.symbol(source).maybe_declarations().as_ref().and_then(|source_declarations| get_name_of_declaration(source_declarations.get(0).map(Clone::clone))),
                     &Diagnostics::Cannot_augment_module_0_with_value_exports_because_it_resolves_to_a_non_module_entity,
                     Some(vec![self.symbol_to_string_(&target, Option::<&Node>::None, None, None, None)?])
                 );
             }
         } else {
-            let is_either_enum = target.flags().intersects(SymbolFlags::Enum)
-                || source.flags().intersects(SymbolFlags::Enum);
+            let is_either_enum = self.symbol(target).flags().intersects(SymbolFlags::Enum)
+                || self.symbol(source).flags().intersects(SymbolFlags::Enum);
             let is_either_block_scoped =
-                target.flags().intersects(SymbolFlags::BlockScopedVariable)
-                    || source.flags().intersects(SymbolFlags::BlockScopedVariable);
+                self.symbol(target).flags().intersects(SymbolFlags::BlockScopedVariable)
+                    || self.symbol(source).flags().intersects(SymbolFlags::BlockScopedVariable);
             let message = if is_either_enum {
                 &*Diagnostics::Enum_declarations_can_only_merge_with_namespace_or_other_enum_declarations
             } else if is_either_block_scoped {
@@ -612,8 +611,8 @@ impl TypeChecker {
                 &*Diagnostics::Duplicate_identifier_0
             };
             let source_symbol_file =
-                source
-                    .maybe_declarations()
+                self.symbol(source
+                    ).maybe_declarations()
                     .as_ref()
                     .and_then(|source_declarations| {
                         maybe_get_source_file_of_node(source_declarations.get(0).cloned())
@@ -710,7 +709,7 @@ impl TypeChecker {
         locs: &mut Vec<Gc<Node /*Declaration*/>>,
         symbol: Id<Symbol>,
     ) {
-        if let Some(symbol_declarations) = symbol.maybe_declarations().as_ref() {
+        if let Some(symbol_declarations) = self.symbol(symbol).maybe_declarations().as_ref() {
             for decl in symbol_declarations {
                 push_if_unique_gc(locs, &decl);
             }
@@ -724,12 +723,12 @@ impl TypeChecker {
         symbol_name: &str,
         source: Id<Symbol>,
     ) {
-        maybe_for_each(target.maybe_declarations().as_deref(), |node, _| {
+        maybe_for_each(self.symbol(target).maybe_declarations().as_deref(), |node, _| {
             self.add_duplicate_declaration_error(
                 node,
                 message,
                 symbol_name,
-                source.maybe_declarations().as_deref(),
+                self.symbol(source).maybe_declarations().as_deref(),
             );
             Option::<()>::None
         });
@@ -837,12 +836,12 @@ impl TypeChecker {
         unidirectional: Option<bool>,
     ) -> io::Result<()> {
         let unidirectional = unidirectional.unwrap_or(false);
-        for (id, source_symbol) in source {
+        for (id, &source_symbol) in source {
             let target_symbol = {
                 let value = (*target).borrow().get(id).cloned();
                 value
             };
-            let value = if let Some(target_symbol) = target_symbol.as_ref() {
+            let value = if let Some(target_symbol) = target_symbol {
                 self.merge_symbol(target_symbol, source_symbol, Some(unidirectional))?
             } else {
                 source_symbol.clone()
@@ -859,17 +858,17 @@ impl TypeChecker {
     ) -> io::Result<()> {
         let module_augmentation = module_name.parent();
         if !matches!(
-            module_augmentation.symbol().maybe_declarations().as_ref().and_then(|declarations| declarations.get(0)),
+            self.symbol(module_augmentation.symbol()).maybe_declarations().as_ref().and_then(|declarations| declarations.get(0)),
             Some(declaration) if Gc::ptr_eq(declaration, &module_augmentation)
         ) {
-            Debug_.assert(matches!(module_augmentation.symbol().maybe_declarations().as_ref(), Some(declarations) if declarations.len() > 1), None);
+            Debug_.assert(matches!(self.symbol(module_augmentation.symbol()).maybe_declarations().as_ref(), Some(declarations) if declarations.len() > 1), None);
             return Ok(());
         }
 
         if is_global_scope_augmentation(&module_augmentation) {
             self.merge_symbol_table(
                 self.globals_rc(),
-                &mut module_augmentation.symbol().exports().borrow_mut(),
+                &mut self.symbol(module_augmentation.symbol()).exports().borrow_mut(),
                 None,
             )?;
         } else {
@@ -891,17 +890,17 @@ impl TypeChecker {
                     Some(true),
                 )?);
             let main_module = self
-                .resolve_external_module_symbol(Some(&*main_module), None)?
+                .resolve_external_module_symbol(Some(main_module), None)?
                 .unwrap();
-            if main_module.flags().intersects(SymbolFlags::Namespace) {
+            if self.symbol(main_module).flags().intersects(SymbolFlags::Namespace) {
                 if some(
                     self.maybe_pattern_ambient_modules().as_deref(),
                     Some(|module: &Gc<PatternAmbientModule>| {
-                        Gc::ptr_eq(&main_module, &module.symbol)
+                        main_module == module.symbol
                     }),
                 ) {
                     let merged =
-                        self.merge_symbol(&module_augmentation.symbol(), &main_module, Some(true))?;
+                        self.merge_symbol(module_augmentation.symbol(), main_module, Some(true))?;
                     let mut pattern_ambient_module_augmentations =
                         self.maybe_pattern_ambient_module_augmentations();
                     if pattern_ambient_module_augmentations.is_none() {
@@ -912,8 +911,8 @@ impl TypeChecker {
                         .unwrap()
                         .insert(module_name.as_literal_like_node().text().clone(), merged);
                 } else {
-                    if main_module
-                        .maybe_exports()
+                    if self.symbol(main_module
+                        ).maybe_exports()
                         .as_ref()
                         .and_then(|exports| {
                             (**exports)
@@ -923,26 +922,26 @@ impl TypeChecker {
                         })
                         .is_some()
                         && matches!(
-                            module_augmentation.symbol().maybe_exports().as_ref(),
+                            self.symbol(module_augmentation.symbol()).maybe_exports().as_ref(),
                             Some(exports) if !(**exports).borrow().is_empty()
                         )
                     {
                         let resolved_exports = self.get_resolved_members_or_exports_of_symbol(
-                            &main_module,
+                            main_module,
                             MembersOrExportsResolutionKind::resolved_exports,
                         )?;
                         let resolved_exports = (*resolved_exports).borrow();
-                        let main_module_exports = main_module.exports();
+                        let main_module_exports = self.symbol(main_module).exports();
                         let main_module_exports = (*main_module_exports).borrow();
-                        for (key, value) in &*(*module_augmentation.symbol().exports()).borrow() {
+                        for (key, value) in &*(*self.symbol(module_augmentation.symbol()).exports()).borrow() {
                             if resolved_exports.contains_key(key)
                                 && !main_module_exports.contains_key(key)
                             {
-                                self.merge_symbol(resolved_exports.get(key).unwrap(), value, None)?;
+                                self.merge_symbol(*resolved_exports.get(key).unwrap(), value, None)?;
                             }
                         }
                     }
-                    self.merge_symbol(&main_module, &module_augmentation.symbol(), None)?;
+                    self.merge_symbol(main_module, module_augmentation.symbol(), None)?;
                 }
             } else {
                 self.error(
@@ -966,7 +965,7 @@ impl TypeChecker {
             let target_symbol = target.get(id);
             if let Some(target_symbol) = target_symbol {
                 maybe_for_each(
-                    target_symbol.maybe_declarations().as_deref(),
+                    self.symbol(target_symbol).maybe_declarations().as_deref(),
                     |declaration: &Gc<Node /*Declaration*/>, _| {
                         self.diagnostics().add(
                             create_diagnostic_for_node(
@@ -986,10 +985,10 @@ impl TypeChecker {
     }
 
     pub(super) fn get_symbol_links(&self, symbol: Id<Symbol>) -> Gc<GcCell<SymbolLinks>> {
-        if let Symbol::TransientSymbol(symbol) = symbol {
+        if let Symbol::TransientSymbol(symbol) = &*self.symbol(symbol ){
             return symbol.symbol_links();
         }
-        let id = get_symbol_id(symbol);
+        let id = get_symbol_id(&self.symbol(symbol));
         let mut symbol_links_table = self.symbol_links.borrow_mut();
         if let Some(symbol_links) = symbol_links_table.get(&id) {
             return symbol_links.clone();
@@ -1024,16 +1023,16 @@ impl TypeChecker {
             let symbol = self.get_merged_symbol(symbols.get(name).map(Clone::clone));
             if let Some(symbol) = symbol {
                 Debug_.assert(
-                    !get_check_flags(&symbol).intersects(CheckFlags::Instantiated),
+                    !get_check_flags(&self.symbol(symbol)).intersects(CheckFlags::Instantiated),
                     Some("Should never get an instantiated symbol here."),
                 );
-                if symbol.flags().intersects(meaning) {
+                if self.symbol(symbol).flags().intersects(meaning) {
                     return Ok(Some(symbol));
                 }
-                if symbol.flags().intersects(SymbolFlags::Alias) {
-                    let target = self.resolve_alias(&symbol)?;
-                    if Gc::ptr_eq(&target, &self.unknown_symbol())
-                        || target.flags().intersects(meaning)
+                if self.symbol(symbol).flags().intersects(SymbolFlags::Alias) {
+                    let target = self.resolve_alias(symbol)?;
+                    if target == self.unknown_symbol()
+                        || self.symbol(target).flags().intersects(meaning)
                     {
                         return Ok(Some(symbol));
                     }
@@ -1057,7 +1056,7 @@ impl TypeChecker {
             SymbolFlags::Value,
         )?;
         let property_symbol = self.get_symbol(
-            &(*self.get_members_of_symbol(&class_declaration.symbol())?).borrow(),
+            &(*self.get_members_of_symbol(class_declaration.symbol())?).borrow(),
             parameter_name,
             SymbolFlags::Value,
         )?;
@@ -1271,7 +1270,7 @@ impl TypeChecker {
                             let prop_name = declaration.as_property_declaration().name();
                             if is_identifier(&prop_name) || is_private_identifier(&prop_name) {
                                 let type_ = self.get_type_of_symbol(
-                                    &self.get_symbol_of_node(declaration)?.unwrap(),
+                                    self.get_symbol_of_node(declaration)?.unwrap(),
                                 )?;
                                 let static_blocks = declaration
                                     .parent()
@@ -1366,7 +1365,7 @@ impl TypeChecker {
         if is_parameter(last_location)
             && match (
                 function_location.and_then(|function_location| function_location.maybe_body()),
-                result.maybe_value_declaration().as_ref(),
+                self.symbol(result).maybe_value_declaration().as_ref(),
             ) {
                 (Some(function_location_body), Some(result_value_declaration)) => {
                     result_value_declaration.pos() >= function_location_body.pos()
@@ -1517,12 +1516,12 @@ impl TypeChecker {
                                 )
                             {
                                 let last_location_unwrapped = last_location.as_ref().unwrap();
-                                if meaning & result_unwrapped.flags() & SymbolFlags::Type
+                                if meaning & self.symbol(result_unwrapped).flags() & SymbolFlags::Type
                                     != SymbolFlags::None
                                     && last_location_unwrapped.kind() != SyntaxKind::JSDocComment
                                 {
-                                    use_result = if result_unwrapped
-                                        .flags()
+                                    use_result = if self.symbol(result_unwrapped
+                                        ).flags()
                                         .intersects(SymbolFlags::TypeParameter)
                                     {
                                         are_option_gcs_equal(
@@ -1541,17 +1540,17 @@ impl TypeChecker {
                                         false
                                     };
                                 }
-                                if meaning & result_unwrapped.flags() & SymbolFlags::Variable
+                                if meaning & self.symbol(result_unwrapped).flags() & SymbolFlags::Variable
                                     != SymbolFlags::None
                                 {
                                     if self.use_outer_variable_scope_in_parameter(
-                                        &result_unwrapped,
+                                        result_unwrapped,
                                         &location_unwrapped,
                                         &last_location_unwrapped,
                                     ) {
                                         use_result = false;
-                                    } else if result_unwrapped
-                                        .flags()
+                                    } else if self.symbol(result_unwrapped
+                                        ).flags()
                                         .intersects(SymbolFlags::FunctionScopedVariable)
                                     {
                                         use_result = last_location_unwrapped.kind()
@@ -1563,7 +1562,7 @@ impl TypeChecker {
                                                     .maybe_type()
                                                     .as_ref(),
                                             ) && find_ancestor(
-                                                result_unwrapped.maybe_value_declaration(),
+                                                self.symbol(result_unwrapped).maybe_value_declaration(),
                                                 is_parameter,
                                             )
                                             .is_some()
@@ -1597,7 +1596,7 @@ impl TypeChecker {
                         }
                         let module_exports: Gc<GcCell<SymbolTable>> = self
                             .get_symbol_of_node(&location_unwrapped)?
-                            .and_then(|symbol| symbol.maybe_exports().clone())
+                            .and_then(|symbol| self.symbol(symbol).maybe_exports().clone())
                             .unwrap_or_else(|| self.empty_symbols());
                         let module_exports = (*module_exports).borrow();
                         let mut should_skip_rest_of_match_arm = false;
@@ -1612,8 +1611,8 @@ impl TypeChecker {
                                     &self.symbol(result_unwrapped),
                                 );
                                 if local_symbol.is_some()
-                                    && result_unwrapped.flags().intersects(meaning)
-                                    && local_symbol.unwrap().escaped_name() == name
+                                    && self.symbol(result_unwrapped).flags().intersects(meaning)
+                                    && self.symbol(local_symbol.unwrap()).escaped_name() == name
                                 {
                                     break;
                                 }
@@ -1623,8 +1622,8 @@ impl TypeChecker {
                             let module_export = module_exports.get(name);
                             if matches!(
                                 module_export,
-                                Some(module_export) if module_export.flags() == SymbolFlags::Alias &&
-                                    (get_declaration_of_kind(module_export, SyntaxKind::ExportSpecifier).is_some() || get_declaration_of_kind(module_export, SyntaxKind::NamespaceExport).is_some())
+                                Some(module_export) if self.symbol(module_export).flags() == SymbolFlags::Alias &&
+                                    (get_declaration_of_kind(&self.symbol(module_export), SyntaxKind::ExportSpecifier).is_some() || get_declaration_of_kind(&self.symbol(module_export), SyntaxKind::NamespaceExport).is_some())
                             ) {
                                 should_skip_rest_of_match_arm = true;
                             }
@@ -1644,7 +1643,7 @@ impl TypeChecker {
                                             .maybe_common_js_module_indicator()
                                             .is_some()
                                         && !some(
-                                            result_unwrapped.maybe_declarations().as_deref(),
+                                            self.symbol(result_unwrapped).maybe_declarations().as_deref(),
                                             Some(|node: &Gc<Node>| is_jsdoc_type_alias(node)),
                                         )
                                     {
@@ -1661,7 +1660,7 @@ impl TypeChecker {
                     result = lookup(
                         &(*self
                             .get_symbol_of_node(&location_unwrapped)?
-                            .and_then(|symbol| symbol.maybe_exports().clone())
+                            .and_then(|symbol| self.symbol(symbol).maybe_exports().clone())
                             .unwrap_or_else(|| self.empty_symbols()))
                         .borrow(),
                         name,
@@ -1694,9 +1693,9 @@ impl TypeChecker {
                 | SyntaxKind::ClassExpression
                 | SyntaxKind::InterfaceDeclaration => {
                     result = lookup(
-                        &*(*self
+                        &*(*self.symbol(self
                             .get_symbol_of_node(&*location_unwrapped)?
-                            .unwrap()
+                            .unwrap())
                             .maybe_members()
                             .clone()
                             .unwrap_or_else(|| self.empty_symbols()))
@@ -1707,7 +1706,7 @@ impl TypeChecker {
                     let mut should_skip_rest_of_match_arm = false;
                     if let Some(result_unwrapped) = result.as_ref() {
                         if !self.is_type_parameter_symbol_declared_in_container(
-                            &result_unwrapped,
+                            result_unwrapped,
                             &location_unwrapped,
                         ) {
                             result = None;
@@ -1754,7 +1753,7 @@ impl TypeChecker {
                         let container = location_unwrapped.parent().parent();
                         if is_class_like(&container) {
                             result = lookup(
-                                &(*self.get_symbol_of_node(&container)?.unwrap().members())
+                                &(*self.symbol(self.get_symbol_of_node(&container)?.unwrap()).members())
                                     .borrow(),
                                 name,
                                 meaning & SymbolFlags::Type,
@@ -1774,7 +1773,7 @@ impl TypeChecker {
                         || grandparent.kind() == SyntaxKind::InterfaceDeclaration
                     {
                         result = lookup(
-                            &(*self.get_symbol_of_node(&grandparent)?.unwrap().members()).borrow(),
+                            &(*self.symbol(self.get_symbol_of_node(&grandparent)?.unwrap()).members()).borrow(),
                             name,
                             meaning & SymbolFlags::Type,
                         )?;
@@ -1894,15 +1893,15 @@ impl TypeChecker {
         }
 
         if is_use {
-            if let Some(result) = result.as_ref() {
+            if let Some(result) = result {
                 if match last_self_reference_location.as_ref() {
                     None => true,
                     Some(last_self_reference_location) => {
-                        !Gc::ptr_eq(result, &last_self_reference_location.symbol())
+                        result != last_self_reference_location.symbol()
                     }
                 } {
-                    result.set_is_referenced(Some(
-                        result.maybe_is_referenced().unwrap_or(SymbolFlags::None) | meaning,
+                    self.symbol(result).set_is_referenced(Some(
+                        self.symbol(result).maybe_is_referenced().unwrap_or(SymbolFlags::None) | meaning,
                     ));
                 }
             }
@@ -1916,7 +1915,7 @@ impl TypeChecker {
                     .maybe_common_js_module_indicator()
                     .is_some()
                     && name == "exports"
-                    && meaning.intersects(last_location.symbol().flags())
+                    && meaning.intersects(self.symbol(last_location.symbol()).flags())
                 {
                     return Ok(Some(last_location.symbol()));
                 }
@@ -1979,13 +1978,13 @@ impl TypeChecker {
                             meaning,
                         )?;
                         let is_global_scope_augmentation_declaration = matches!(
-                            suggestion.as_ref().and_then(|suggestion| suggestion.maybe_value_declaration()),
+                            suggestion.and_then(|suggestion| self.symbol(suggestion).maybe_value_declaration()),
                             Some(value_declaration) if is_ambient_module(&value_declaration) && is_global_scope_augmentation(&value_declaration)
                         );
                         if is_global_scope_augmentation_declaration {
                             suggestion = None;
                         }
-                        if let Some(suggestion) = suggestion.as_ref() {
+                        if let Some(suggestion) = suggestion {
                             let suggestion_name = self.symbol_to_string_(
                                 suggestion,
                                 Option::<&Node>::None,
@@ -1995,7 +1994,7 @@ impl TypeChecker {
                             )?;
                             let is_unchecked_js = self.is_unchecked_js_suggestion(
                                 original_location.as_deref(),
-                                Some(&**suggestion),
+                                Some(suggestion),
                                 false,
                             );
                             let message = if meaning == SymbolFlags::Namespace
@@ -2018,7 +2017,7 @@ impl TypeChecker {
                             );
                             self.add_error_or_suggestion(!is_unchecked_js, diagnostic.clone());
                             if let Some(suggestion_value_declaration) =
-                                suggestion.maybe_value_declaration()
+                                self.symbol(suggestion).maybe_value_declaration()
                             {
                                 add_related_info(
                                     &diagnostic,
@@ -2085,18 +2084,18 @@ impl TypeChecker {
                         && meaning & SymbolFlags::Value == SymbolFlags::Value
                 {
                     let export_or_local_symbol = self
-                        .get_export_symbol_of_value_symbol_if_exported(Some(&*result))
+                        .get_export_symbol_of_value_symbol_if_exported(Some(result))
                         .unwrap();
-                    if export_or_local_symbol
-                        .flags()
+                    if self.symbol(export_or_local_symbol
+                        ).flags()
                         .intersects(SymbolFlags::BlockScopedVariable)
-                        || export_or_local_symbol
-                            .flags()
+                        || self.symbol(export_or_local_symbol
+                            ).flags()
                             .intersects(SymbolFlags::Class)
-                        || export_or_local_symbol.flags().intersects(SymbolFlags::Enum)
+                        || self.symbol(export_or_local_symbol).flags().intersects(SymbolFlags::Enum)
                     {
                         self.check_resolved_block_scoped_variable(
-                            &export_or_local_symbol,
+                            export_or_local_symbol,
                             error_location,
                         )?;
                     }
@@ -2113,11 +2112,11 @@ impl TypeChecker {
                     .flags()
                     .intersects(NodeFlags::JSDoc)
             {
-                let merged = self.get_merged_symbol(Some(&*result)).unwrap();
-                if length(merged.maybe_declarations().as_deref()) > 0
-                    && every(merged.maybe_declarations().as_deref().unwrap(), |d, _| {
+                let merged = self.get_merged_symbol(Some(result)).unwrap();
+                if length(self.symbol(merged).maybe_declarations().as_deref()) > 0
+                    && every(self.symbol(merged).maybe_declarations().as_deref().unwrap(), |d, _| {
                         is_namespace_export_declaration(d)
-                            || is_source_file(d) && d.symbol().maybe_global_exports().is_some()
+                            || is_source_file(d) && self.symbol(d.symbol()).maybe_global_exports().is_some()
                     })
                 {
                     self.error_or_suggestion(
@@ -2136,18 +2135,15 @@ impl TypeChecker {
             {
                 if !within_deferred_context && meaning & SymbolFlags::Value == SymbolFlags::Value {
                     let candidate = self
-                        .get_merged_symbol(Some(self.get_late_bound_symbol(&result)?))
+                        .get_merged_symbol(Some(self.get_late_bound_symbol(result)?))
                         .unwrap();
                     let root = get_root_declaration(
                         associated_declaration_for_containing_initializer_or_binding_name,
                     );
-                    if are_option_gcs_equal(
-                        Some(&candidate),
+                    if Some(candidate) ==
                         self.get_symbol_of_node(
                             &associated_declaration_for_containing_initializer_or_binding_name,
-                        )?
-                        .as_ref(),
-                    ) {
+                        )? {
                         self.error(
                             error_location.as_deref(),
                             &Diagnostics::Parameter_0_cannot_reference_itself,
@@ -2159,11 +2155,11 @@ impl TypeChecker {
                             .into_owned()]),
                         );
                     } else if matches!(
-                        candidate.maybe_value_declaration(),
+                        self.symbol(candidate).maybe_value_declaration(),
                         Some(value_declaration) if value_declaration.pos() > associated_declaration_for_containing_initializer_or_binding_name.pos() &&
                             matches!(
                                 root.parent().maybe_locals().as_ref(),
-                                Some(locals) if are_option_gcs_equal(lookup(&(**locals).borrow(), candidate.escaped_name(), meaning)?.as_ref(), Some(&candidate))
+                                Some(locals) if lookup(&(**locals).borrow(), self.symbol(candidate).escaped_name(), meaning)? == Some(candidate)
                             )
                     ) {
                         self.error(
@@ -2182,9 +2178,9 @@ impl TypeChecker {
             /*result &&*/
             let Some(error_location) = error_location.as_ref() {
                 if meaning.intersects(SymbolFlags::Value)
-                    && result.flags().intersects(SymbolFlags::Alias)
+                    && self.symbol(result).flags().intersects(SymbolFlags::Alias)
                 {
-                    self.check_symbol_usage_in_expression_context(&result, name, error_location);
+                    self.check_symbol_usage_in_expression_context(result, name, error_location);
                 }
             }
         }

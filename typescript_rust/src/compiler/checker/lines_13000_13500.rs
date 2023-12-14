@@ -421,7 +421,7 @@ impl TypeChecker {
         if alias_symbol.is_none() {
             alias_symbol = self.get_alias_symbol_for_type_node(node)?;
             let local_alias_type_arguments =
-                self.get_type_arguments_for_alias_symbol(alias_symbol.as_deref())?;
+                self.get_type_arguments_for_alias_symbol(alias_symbol)?;
             alias_type_arguments = if let Some(mapper) = mapper.as_ref() {
                 self.instantiate_types(local_alias_type_arguments.as_deref(), Some(mapper.clone()))?
             } else {
@@ -713,7 +713,7 @@ impl TypeChecker {
         let id = format!(
             "{}{}",
             self.get_type_list_id(type_arguments),
-            self.get_alias_id(alias_symbol.as_deref(), alias_type_arguments)
+            self.get_alias_id(alias_symbol, alias_type_arguments)
         );
         let mut instantiation = (*links)
             .borrow()
@@ -734,7 +734,7 @@ impl TypeChecker {
                         is_in_js_file(self.symbol(symbol).maybe_value_declaration()),
                     )?,
                 ),
-                alias_symbol.as_deref(),
+                alias_symbol,
                 alias_type_arguments,
             )?);
             links
@@ -752,7 +752,7 @@ impl TypeChecker {
         node: &Node, /*NodeWithTypeArguments*/
         symbol: Id<Symbol>,
     ) -> io::Result<Id<Type>> {
-        if get_check_flags(symbol).intersects(CheckFlags::Unresolved) {
+        if get_check_flags(&self.symbol(symbol)).intersects(CheckFlags::Unresolved) {
             let type_arguments = self.type_arguments_from_type_reference_node(node)?;
             let id = self.get_alias_id(Some(symbol), type_arguments.as_deref());
             let mut error_type = self.error_types().get(&id).map(Clone::clone);

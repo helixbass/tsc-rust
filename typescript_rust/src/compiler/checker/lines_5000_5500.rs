@@ -1169,8 +1169,12 @@ impl NodeBuilder {
                 {
                     continue;
                 }
-                if get_declaration_modifier_flags_from_symbol(self.arena(), property_symbol, None)
-                    .intersects(ModifierFlags::Private | ModifierFlags::Protected)
+                if get_declaration_modifier_flags_from_symbol(
+                    self.arena(),
+                    &self.type_checker.symbol(property_symbol),
+                    None,
+                )
+                .intersects(ModifierFlags::Private | ModifierFlags::Protected)
                 /*&& context.tracker.reportPrivateInBaseOfClassExpression*/
                 {
                     context
@@ -1231,7 +1235,7 @@ impl NodeBuilder {
         property_symbol: Id<Symbol>,
         context: &NodeBuilderContext,
     ) -> bool {
-        get_check_flags(property_symbol).intersects(CheckFlags::ReverseMapped)
+        get_check_flags(&self.type_checker.symbol(property_symbol)).intersects(CheckFlags::ReverseMapped)
             && (contains(
                 context.reverse_mapped_stack.borrow().as_deref(),
                 &property_symbol,
@@ -1241,7 +1245,7 @@ impl NodeBuilder {
             ) && !get_object_flags(
                 &self.type_checker.type_(
                     self.type_checker
-                        .symbol(last(
+                        .symbol(*last(
                             context.reverse_mapped_stack.borrow().as_deref().unwrap(),
                         ))
                         .as_reverse_mapped_symbol()
@@ -1258,7 +1262,8 @@ impl NodeBuilder {
         type_elements: &mut Vec<Gc<Node /*TypeElement*/>>,
     ) -> io::Result<()> {
         let property_is_reverse_mapped =
-            get_check_flags(property_symbol).intersects(CheckFlags::ReverseMapped);
+            get_check_flags(&self.type_checker.symbol(property_symbol))
+                .intersects(CheckFlags::ReverseMapped);
         let property_type = if self.should_use_placeholder_for_property(property_symbol, context) {
             self.type_checker.any_type()
         } else {
@@ -1268,7 +1273,7 @@ impl NodeBuilder {
         let save_enclosing_declaration = context.maybe_enclosing_declaration();
         context.set_enclosing_declaration(None);
         if context.tracker().is_track_symbol_supported()
-            && get_check_flags(property_symbol).intersects(CheckFlags::Late)
+            && get_check_flags(&self.type_checker.symbol(property_symbol)).intersects(CheckFlags::Late)
             && self
                 .type_checker
                 .is_late_bound_name(self.type_checker.symbol(property_symbol).escaped_name())
@@ -1323,10 +1328,10 @@ impl NodeBuilder {
             }
         }
         context.set_enclosing_declaration(
-            property_symbol
+            self.type_checker.symbol(property_symbol)
                 .maybe_value_declaration()
                 .or_else(|| {
-                    property_symbol.maybe_declarations().as_ref().and_then(
+                    self.type_checker.symbol(property_symbol).maybe_declarations().as_ref().and_then(
                         |property_symbol_declarations| property_symbol_declarations.get(0).cloned(),
                     )
                 })
@@ -1334,14 +1339,16 @@ impl NodeBuilder {
         );
         let property_name = self.get_property_name_node_for_symbol(property_symbol, context)?;
         context.set_enclosing_declaration(save_enclosing_declaration.clone());
-        context.increment_approximate_length_by(symbol_name(property_symbol).len() + 1);
+        context.increment_approximate_length_by(
+            symbol_name(&self.type_checker.symbol(property_symbol)).len() + 1,
+        );
         let optional_token: Option<Gc<Node>> =
-            if property_symbol.flags().intersects(SymbolFlags::Optional) {
+            if self.type_checker.symbol(property_symbol).flags().intersects(SymbolFlags::Optional) {
                 Some(get_factory().create_token(SyntaxKind::QuestionToken))
             } else {
                 None
             };
-        if property_symbol
+        if self.type_checker.symbol(property_symbol)
             .flags()
             .intersects(SymbolFlags::Function | SymbolFlags::Method)
             && self
@@ -1385,7 +1392,7 @@ impl NodeBuilder {
                         .reverse_mapped_stack
                         .borrow_mut()
                         .get_or_insert_default_()
-                        .push(property_symbol.symbol_wrapper());
+                        .push(property_symbol);
                 }
                 property_type_node = if true
                 /*propertyType*/

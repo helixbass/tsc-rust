@@ -253,7 +253,7 @@ impl TypeChecker {
                             &*(*catch_clause.maybe_locals().clone().unwrap()).borrow(),
                             |caught_name: &__String| -> Option<()> {
                                 let block_local = block_locals.get(caught_name);
-                                if let Some(block_local) = block_local {
+                                if let Some(&block_local) = block_local {
                                     if let Some(block_local_value_declaration) =
                                         self.symbol(block_local).maybe_value_declaration().as_ref()
                                     {
@@ -366,7 +366,7 @@ impl TypeChecker {
         let interface_declaration = if get_object_flags(&self.type_(type_))
             .intersects(ObjectFlags::Interface)
         {
-            get_declaration_of_kind(self.type_(type_).symbol(), SyntaxKind::InterfaceDeclaration)
+            get_declaration_of_kind(&self.symbol(self.type_(type_).symbol()), SyntaxKind::InterfaceDeclaration)
         } else {
             None
         };

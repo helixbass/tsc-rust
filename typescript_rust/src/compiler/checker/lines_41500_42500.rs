@@ -58,21 +58,21 @@ impl TypeChecker {
     ) -> io::Result<bool> {
         if self.is_alias_symbol_declaration(node)? {
             let symbol = self.get_symbol_of_node(node)?;
-            let links = symbol.as_ref().map(|symbol| self.get_symbol_links(symbol));
+            let links = symbol.map(|symbol| self.get_symbol_links(symbol));
             if matches!(
                 links.as_ref(),
                 Some(links) if (**links).borrow().referenced == Some(true)
             ) {
                 return Ok(true);
             }
-            let target = (*self.get_symbol_links(symbol.as_ref().unwrap()))
+            let target = (*self.get_symbol_links(symbol.unwrap()))
                 .borrow()
                 .target
                 .clone();
             if matches!(
-                target.as_ref(),
+                target,
                 Some(target) if get_effective_modifier_flags(node).intersects(ModifierFlags::Export) &&
-                    target.flags().intersects(SymbolFlags::Value) && (
+                    self.symbol(target).flags().intersects(SymbolFlags::Value) && (
                         should_preserve_const_enums(&self.compiler_options) ||
                         !self.is_const_enum_or_const_enum_only_module(target)
                     )
@@ -296,7 +296,7 @@ impl TypeChecker {
                 location.as_deref(),
             )?;
             is_type_only = matches!(
-                root_value_symbol.as_ref(),
+                root_value_symbol,
                 Some(root_value_symbol) if matches!(
                     self.symbol(root_value_symbol).maybe_declarations().as_ref(),
                     Some(root_value_symbol_declarations) if root_value_symbol_declarations.into_iter().all(
@@ -312,7 +312,7 @@ impl TypeChecker {
             Some(true),
             location.as_deref(),
         )?;
-        let resolved_symbol = if let Some(value_symbol) = value_symbol.filter(|value_symbol| {
+        let resolved_symbol = if let Some(value_symbol) = value_symbol.filter(|&value_symbol| {
             self.symbol(value_symbol)
                 .flags()
                 .intersects(SymbolFlags::Alias)
@@ -430,7 +430,7 @@ impl TypeChecker {
         }
         let declaration = declaration.as_ref().unwrap();
         let symbol = self.get_symbol_of_node(declaration)?;
-        let mut type_ = if let Some(symbol) = symbol.filter(|symbol| {
+        let mut type_ = if let Some(symbol) = symbol.filter(|&symbol| {
             !self
                 .symbol(symbol)
                 .flags()
@@ -712,7 +712,7 @@ impl TypeChecker {
             None,
         )?);
         Ok(get_declaration_of_kind(
-            module_symbol,
+            &self.symbol(module_symbol),
             SyntaxKind::SourceFile,
         ))
     }
@@ -822,16 +822,16 @@ impl TypeChecker {
             &Diagnostics::Declaration_name_conflicts_with_built_in_global_identifier_0,
         );
 
-        self.get_symbol_links(&self.undefined_symbol())
+        self.get_symbol_links(self.undefined_symbol())
             .borrow_mut()
             .type_ = Some(self.undefined_widening_type());
-        self.get_symbol_links(&self.arguments_symbol())
+        self.get_symbol_links(self.arguments_symbol())
             .borrow_mut()
             .type_ = self.get_global_type("IArguments", 0, true)?;
-        self.get_symbol_links(&self.unknown_symbol())
+        self.get_symbol_links(self.unknown_symbol())
             .borrow_mut()
             .type_ = Some(self.error_type());
-        self.get_symbol_links(&self.global_this_symbol())
+        self.get_symbol_links(self.global_this_symbol())
             .borrow_mut()
             .type_ = Some(
             self.alloc_type(
@@ -1024,7 +1024,7 @@ impl TypeChecker {
                         if unchecked_helpers.intersects(helper) {
                             let name = self.get_helper_name(helper);
                             let symbol = self.get_symbol(
-                                &(*helpers_module.maybe_exports().clone().unwrap()).borrow(),
+                                &(*self.symbol(helpers_module).maybe_exports().clone().unwrap()).borrow(),
                                 &escape_leading_underscores(name),
                                 SymbolFlags::Value,
                             )?;
@@ -1043,7 +1043,7 @@ impl TypeChecker {
                                     if helper.intersects(ExternalEmitHelpers::ClassPrivateFieldGet)
                                     {
                                         if !try_some(
-                                            Some(&*self.get_signatures_of_symbol(Some(&**symbol))?),
+                                            Some(&*self.get_signatures_of_symbol(Some(symbol))?),
                                             Some(|signature: &Gc<Signature>| -> io::Result<_> {
                                                 Ok(self.get_parameter_count(signature)? > 3)
                                             }),
@@ -1062,7 +1062,7 @@ impl TypeChecker {
                                         .intersects(ExternalEmitHelpers::ClassPrivateFieldSet)
                                     {
                                         if !try_some(
-                                            Some(&*self.get_signatures_of_symbol(Some(&**symbol))?),
+                                            Some(&*self.get_signatures_of_symbol(Some(symbol))?),
                                             Some(|signature: &Gc<Signature>| -> io::Result<_> {
                                                 Ok(self.get_parameter_count(signature)? > 4)
                                             }),
@@ -1079,7 +1079,7 @@ impl TypeChecker {
                                         }
                                     } else if helper.intersects(ExternalEmitHelpers::SpreadArray) {
                                         if !try_some(
-                                            Some(&*self.get_signatures_of_symbol(Some(&**symbol))?),
+                                            Some(&*self.get_signatures_of_symbol(Some(symbol))?),
                                             Some(|signature: &Gc<Signature>| -> io::Result<_> {
                                                 Ok(self.get_parameter_count(signature)? > 2)
                                             }),

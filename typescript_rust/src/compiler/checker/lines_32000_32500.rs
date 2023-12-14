@@ -291,7 +291,7 @@ impl TypeChecker {
                 return Ok(true);
             }
             if let Some(ref writable_prop_value_declaration) = writable_prop
-                .and_then(|writable_prop| writable_prop.maybe_value_declaration())
+                .and_then(|writable_prop| self.symbol(writable_prop).maybe_value_declaration())
                 .filter(|writable_prop_value_declaration| {
                     is_property_assignment(writable_prop_value_declaration)
                 })
@@ -313,12 +313,12 @@ impl TypeChecker {
     }
 
     pub(super) fn is_readonly_symbol(&self, symbol: Id<Symbol>) -> io::Result<bool> {
-        Ok(get_check_flags(symbol).intersects(CheckFlags::Readonly)
+        Ok(get_check_flags(&self.symbol(symbol)).intersects(CheckFlags::Readonly)
             || self
                 .symbol(symbol)
                 .flags()
                 .intersects(SymbolFlags::Property)
-                && get_declaration_modifier_flags_from_symbol(self.arena(), symbol, None)
+                && get_declaration_modifier_flags_from_symbol(self.arena(), &self.symbol(symbol), None)
                     .intersects(ModifierFlags::Readonly)
             || self
                 .symbol(symbol)
@@ -389,14 +389,14 @@ impl TypeChecker {
                         && are_option_gcs_equal(
                             self.symbol(symbol)
                                 .maybe_parent()
-                                .and_then(|symbol_parent| symbol_parent.maybe_value_declaration())
+                                .and_then(|symbol_parent| self.symbol(symbol_parent).maybe_value_declaration())
                                 .as_ref(),
                             ctor.maybe_parent().as_ref(),
                         );
                     let is_local_this_property_assignment_constructor_function =
                         is_assignment_declaration
                             && matches!(
-                                self.symbol(symbol).maybe_parent().and_then(|symbol_parent| symbol_parent.maybe_value_declaration()).as_ref(),
+                                self.symbol(symbol).maybe_parent().and_then(|symbol_parent| self.symbol(symbol_parent).maybe_value_declaration()).as_ref(),
                                 Some(symbol_parent_value_declaration) if Gc::ptr_eq(
                                     symbol_parent_value_declaration,
                                     &ctor,

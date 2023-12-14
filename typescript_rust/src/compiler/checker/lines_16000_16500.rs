@@ -363,7 +363,7 @@ impl TypeChecker {
     pub(super) fn get_es_symbol_like_type_for_node(&self, node: &Node) -> io::Result<Id<Type>> {
         if is_valid_es_symbol_declaration(node) {
             let symbol = self.get_symbol_of_node(node)?.unwrap();
-            let links = self.get_symbol_links(&symbol);
+            let links = self.get_symbol_links(symbol);
             if (*links).borrow().unique_es_symbol_type.is_none() {
                 links.borrow_mut().unique_es_symbol_type =
                     Some(self.create_unique_es_symbol_type(symbol));
@@ -405,7 +405,7 @@ impl TypeChecker {
             return Ok(self
                 .type_(
                     self.get_declared_type_of_class_or_interface(
-                        &self
+                        self
                             .symbol(
                                 self.get_symbol_of_node(
                                     &parent.parent().as_binary_expression().left,
@@ -434,7 +434,7 @@ impl TypeChecker {
             return Ok(self
                 .type_(
                     self.get_declared_type_of_class_or_interface(
-                        &self
+                        self
                             .symbol(
                                 self.get_symbol_of_node(
                                     &host.parent().as_binary_expression().left,
@@ -1025,7 +1025,7 @@ impl TypeChecker {
             self.try_instantiate_list_non_gc(
                 Some(signature.parameters()),
                 Some(mapper.clone()),
-                |parameter, mapper| self.instantiate_symbol(parameter, mapper.unwrap()),
+                |&parameter, mapper| self.instantiate_symbol(parameter, mapper.unwrap()),
             )?
             .unwrap(),
             None,
@@ -1043,7 +1043,7 @@ impl TypeChecker {
         mut symbol: Id<Symbol>,
         mut mapper: Id<TypeMapper>,
     ) -> io::Result<Id<Symbol>> {
-        let links = self.get_symbol_links(&symbol);
+        let links = self.get_symbol_links(symbol);
         {
             let links = (*links).borrow();
             if let Some(type_) = links.type_ {
@@ -1052,32 +1052,32 @@ impl TypeChecker {
                 }
             }
         }
-        if get_check_flags(&symbol).intersects(CheckFlags::Instantiated) {
+        if get_check_flags(&self.symbol(symbol)).intersects(CheckFlags::Instantiated) {
             let links = (*links).borrow();
             symbol = links.target.clone().unwrap();
             mapper = self.combine_type_mappers(links.mapper.clone(), mapper);
         }
         let result = self.create_symbol(
-            symbol.flags(),
-            symbol.escaped_name().to_owned(),
+            self.symbol(symbol).flags(),
+            self.symbol(symbol).escaped_name().to_owned(),
             Some(
                 CheckFlags::Instantiated
-                    | get_check_flags(&symbol)
+                    | get_check_flags(&self.symbol(symbol))
                         & (CheckFlags::Readonly
                             | CheckFlags::Late
                             | CheckFlags::OptionalParameter
                             | CheckFlags::RestParameter),
             ),
         );
-        if let Some(declarations) = &*symbol.maybe_declarations() {
+        if let Some(declarations) = &*self.symbol(symbol).maybe_declarations() {
             result.set_declarations(declarations.clone());
         }
-        result.set_parent(symbol.maybe_parent());
+        result.set_parent(self.symbol(symbol).maybe_parent());
         let result_links = result.symbol_links();
         let mut result_links = result_links.borrow_mut();
         result_links.target = Some(symbol.clone());
         result_links.mapper = Some(mapper);
-        if let Some(symbol_value_declaration) = symbol.maybe_value_declaration() {
+        if let Some(symbol_value_declaration) = self.symbol(symbol).maybe_value_declaration() {
             result.set_value_declaration(symbol_value_declaration);
         }
         if let Some(links_name_type) = (*links).borrow().name_type.clone() {
@@ -1208,7 +1208,7 @@ impl TypeChecker {
                 "{}{}",
                 self.get_type_list_id(Some(&*type_arguments)),
                 self.get_alias_id(
-                    new_alias_symbol.as_deref(),
+                    new_alias_symbol,
                     new_alias_type_arguments.as_deref()
                 )
             );

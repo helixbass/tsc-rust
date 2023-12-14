@@ -307,10 +307,10 @@ impl TypeChecker {
                         if is_call_expression(declaration)
                             && is_bindable_object_define_property_call(declaration)
                         {
-                            return symbol_name(symbol);
+                            return symbol_name(&self.symbol(symbol));
                         }
                         if is_computed_property_name(&name)
-                            && !get_check_flags(symbol).intersects(CheckFlags::Late)
+                            && !get_check_flags(&self.symbol(symbol)).intersects(CheckFlags::Late)
                         {
                             let name_type =
                                 (*self.get_symbol_links(symbol)).borrow().name_type.clone();
@@ -365,7 +365,7 @@ impl TypeChecker {
         if let Some(name) = name {
             name.into()
         } else {
-            symbol_name(symbol)
+            symbol_name(&self.symbol(symbol))
         }
     }
 
@@ -553,12 +553,12 @@ impl TypeChecker {
                 if let Some(import_symbol) = import_symbol
                 /*&& visited*/
                 {
-                    if try_add_to_set(visited, get_symbol_id(&import_symbol)) {
+                    if try_add_to_set(visited, get_symbol_id(&self.symbol(import_symbol))) {
                         self.build_visible_node_list(
                             set_visibility,
                             result,
                             visited,
-                            import_symbol.maybe_declarations().as_deref(),
+                            self.symbol(import_symbol).maybe_declarations().as_deref(),
                         )?;
                     }
                 }
@@ -749,7 +749,6 @@ impl TypeChecker {
     ) -> io::Result<Option<Id<Type>>> {
         let symbol = self.get_symbol_of_node(node)?;
         symbol
-            .as_ref()
             .and_then(|symbol| (*self.get_symbol_links(symbol)).borrow().type_.clone())
             .try_or_else(|| self.get_type_for_variable_like_declaration(node, false))
     }
@@ -774,7 +773,7 @@ impl TypeChecker {
                         Ok(Some(self.get_rest_type(
                             t,
                             properties,
-                            symbol.as_deref(),
+                            symbol,
                         )?))
                     },
                     None,
@@ -826,7 +825,7 @@ impl TypeChecker {
                 None,
             )
             .intersects(ModifierFlags::Private | ModifierFlags::Protected)
-                && self.is_spreadable_property(&prop)
+                && self.is_spreadable_property(prop)
             {
                 members.insert(
                     self.symbol(prop).escaped_name().to_owned(),

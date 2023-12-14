@@ -88,12 +88,12 @@ impl TypeChecker {
         symbol_flags: SymbolFlags,
     ) {
         Debug_.assert(
-            get_check_flags(symbol).intersects(CheckFlags::Late),
+            get_check_flags(&self.symbol(symbol)).intersects(CheckFlags::Late),
             Some("Expected a late-bound symbol."),
         );
         self.symbol(symbol)
             .set_flags(self.symbol(symbol).flags() | symbol_flags);
-        self.get_symbol_links(&member.symbol())
+        self.get_symbol_links(member.symbol())
             .borrow_mut()
             .late_symbol = Some(symbol);
         if self.symbol(symbol).maybe_declarations().is_none() {

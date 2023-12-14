@@ -303,20 +303,20 @@ impl TypeChecker {
         if resolved_require == self.require_symbol() {
             return Ok(true);
         }
-        if resolved_require.flags().intersects(SymbolFlags::Alias) {
+        if self.symbol(resolved_require).flags().intersects(SymbolFlags::Alias) {
             return Ok(false);
         }
 
-        let target_declaration_kind = if resolved_require.flags().intersects(SymbolFlags::Function)
+        let target_declaration_kind = if self.symbol(resolved_require).flags().intersects(SymbolFlags::Function)
         {
             SyntaxKind::FunctionDeclaration
-        } else if resolved_require.flags().intersects(SymbolFlags::Variable) {
+        } else if self.symbol(resolved_require).flags().intersects(SymbolFlags::Variable) {
             SyntaxKind::VariableDeclaration
         } else {
             SyntaxKind::Unknown
         };
         if target_declaration_kind != SyntaxKind::Unknown {
-            let decl = get_declaration_of_kind(&resolved_require, target_declaration_kind);
+            let decl = get_declaration_of_kind(&self.symbol(resolved_require), target_declaration_kind);
             return Ok(matches!(
                 decl.as_ref(),
                 Some(decl) if decl.flags().intersects(NodeFlags::Ambient)

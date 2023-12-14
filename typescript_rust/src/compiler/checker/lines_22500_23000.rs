@@ -391,6 +391,7 @@ impl TypeChecker {
     ) -> io::Result<Option<Vec<Id<Symbol>>>> {
         let mut result: Option<Vec<Id<Symbol>>> = None;
         for source_property in source_properties {
+            let &source_property = source_property.borrow();
             if self.is_discriminant_property(
                 Some(target),
                 self.symbol(source_property).escaped_name(),

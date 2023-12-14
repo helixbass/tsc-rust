@@ -101,9 +101,9 @@ impl TypeChecker {
                 return Ok(());
             }
         }
-        if let Some(context_this_parameter) = context.maybe_this_parameter() {
+        if let Some(context_this_parameter) = *context.maybe_this_parameter() {
             let parameter = signature.maybe_this_parameter().clone();
-            if match parameter.as_ref() {
+            if match parameter {
                 None => true,
                 Some(parameter) => matches!(
                     self.symbol(parameter).maybe_value_declaration().as_ref(),
@@ -157,7 +157,7 @@ impl TypeChecker {
         &self,
         signature: &Signature,
     ) -> io::Result<()> {
-        if let Some(signature_this_parameter) = signature.maybe_this_parameter() {
+        if let Some(signature_this_parameter) = *signature.maybe_this_parameter() {
             self.assign_parameter_type(signature_this_parameter, None)?;
         }
         for &parameter in signature.parameters() {
@@ -199,7 +199,7 @@ impl TypeChecker {
             if !is_omitted_expression(element) {
                 let element_as_binding_element = element.as_binding_element();
                 if element_as_binding_element.name().kind() == SyntaxKind::Identifier {
-                    self.get_symbol_links(&self.get_symbol_of_node(element)?.unwrap())
+                    self.get_symbol_links(self.get_symbol_of_node(element)?.unwrap())
                         .borrow_mut()
                         .type_ = self.get_type_for_binding_element(element)?;
                 } else {

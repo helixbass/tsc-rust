@@ -288,7 +288,7 @@ impl TypeChecker {
                         error_reporter(
                             Cow::Borrowed(&Diagnostics::Property_0_is_missing_in_type_1),
                             Some(vec![
-                                symbol_name(property).into_owned(),
+                                symbol_name(&self.symbol(property)).into_owned(),
                                 self.type_to_string_(
                                     self.get_declared_type_of_symbol(target_symbol)?,
                                     Option::<&Node>::None,

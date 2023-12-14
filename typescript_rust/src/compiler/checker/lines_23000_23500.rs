@@ -874,13 +874,13 @@ impl TypeChecker {
             .flags()
             .intersects(SymbolFlags::Variable | SymbolFlags::Property)
         {
-            if get_check_flags(symbol).intersects(CheckFlags::Mapped) {
+            if get_check_flags(&self.symbol(symbol)).intersects(CheckFlags::Mapped) {
                 let origin = (*self.symbol(symbol).as_mapped_symbol().symbol_links())
                     .borrow()
                     .synthetic_origin
                     .clone();
                 if matches!(
-                    origin.as_ref(),
+                    origin,
                     Some(origin) if self.get_explicit_type_of_symbol(origin, None)?.is_some()
                 ) {
                     return Ok(Some(self.get_type_of_symbol(symbol)?));
@@ -950,7 +950,7 @@ impl TypeChecker {
                         ))
                         .unwrap();
                     return Ok(self.get_explicit_type_of_symbol(
-                        &*if self.symbol(symbol).flags().intersects(SymbolFlags::Alias) {
+                        if self.symbol(symbol).flags().intersects(SymbolFlags::Alias) {
                             self.resolve_alias(symbol)?
                         } else {
                             symbol
@@ -980,7 +980,7 @@ impl TypeChecker {
                             prop = self.get_property_of_type_(
                                 type_,
                                 &get_symbol_name_for_private_identifier(
-                                    self.type_(type_).symbol(),
+                                    &self.symbol(self.type_(type_).symbol()),
                                     &name.as_private_identifier().escaped_text,
                                 ),
                                 None,

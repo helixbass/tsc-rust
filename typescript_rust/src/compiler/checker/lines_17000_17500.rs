@@ -628,7 +628,7 @@ impl TypeChecker {
 
                         if !issued_elaboration
                             && (matches!(
-                                target_prop.as_ref(),
+                                target_prop,
                                 Some(target_prop) if length(self.symbol(target_prop).maybe_declarations().as_deref()) > 0
                             ) || matches!(
                                 self.type_(target).maybe_symbol(),
@@ -1192,7 +1192,7 @@ impl TypeChecker {
     pub(super) fn is_any_signature(&self, s: Gc<Signature>) -> io::Result<bool> {
         let s_type_parameters_is_none = s.maybe_type_parameters().is_none();
         Ok(s_type_parameters_is_none
-            && match s.maybe_this_parameter() {
+            && match *s.maybe_this_parameter() {
                 None => true,
                 Some(s_this_parameter) => {
                     self.is_type_any(Some(self.get_type_of_parameter(s_this_parameter)?))

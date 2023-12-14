@@ -88,7 +88,7 @@ pub fn create_symbol_table(
     let mut result = SymbolTable::new();
     if let Some(symbols) = symbols {
         for symbol in symbols {
-            let symbol: &Id<Symbol> = symbol.borrow();
+            let &symbol: &Id<Symbol> = symbol.borrow();
             result.insert(
                 arena.symbol(symbol).escaped_name().to_owned(),
                 symbol.clone(),

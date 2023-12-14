@@ -156,9 +156,10 @@ impl TypeChecker {
         } else {
             self.clone_symbol(exported)
         };
-        merged.set_flags(merged.flags() | SymbolFlags::ValueModule);
-        let merged_exports = merged
-            .maybe_exports_mut()
+        self.symbol(merged)
+            .set_flags(self.symbol(merged).flags() | SymbolFlags::ValueModule);
+        let merged_exports = self.symbol(merged
+            ).maybe_exports_mut()
             .get_or_insert_with(|| {
                 Gc::new(GcCell::new(create_symbol_table(
                     self.arena(),
@@ -166,18 +167,18 @@ impl TypeChecker {
                 )))
             })
             .clone();
-        for (name, s) in &*(*self.symbol(module_symbol).exports()).borrow() {
+        for (name, &s) in &*(*self.symbol(module_symbol).exports()).borrow() {
             if name == InternalSymbolName::ExportEquals {
                 continue;
             }
             let value = if (*merged_exports).borrow().contains_key(name) {
                 self.merge_symbol((*merged_exports).borrow().get(name).unwrap(), s, None)?
             } else {
-                s.symbol_wrapper()
+                s
             };
             merged_exports.borrow_mut().insert(name.clone(), value);
         }
-        self.get_symbol_links(&merged)
+        self.get_symbol_links(merged)
             .borrow_mut()
             .cjs_export_merged = Some(merged.clone());
         links.borrow_mut().cjs_export_merged = Some(merged.clone());
@@ -191,8 +192,8 @@ impl TypeChecker {
         dont_resolve_alias: bool,
         suppress_interop_error: bool,
     ) -> io::Result<Option<Id<Symbol>>> {
-        let symbol = self
-            .resolve_external_module_symbol(module_symbol.as_deref(), Some(dont_resolve_alias))?;
+        let symbol =
+            self.resolve_external_module_symbol(module_symbol, Some(dont_resolve_alias))?;
         if symbol.is_none() {
             return Ok(None);
         }
@@ -235,7 +236,7 @@ impl TypeChecker {
                 let default_only_type = self.get_type_with_synthetic_default_only(
                     type_,
                     symbol,
-                    module_symbol.as_ref().unwrap(),
+                    module_symbol.unwrap(),
                     reference,
                 )?;
                 if let Some(default_only_type) = default_only_type {
@@ -265,7 +266,7 @@ impl TypeChecker {
                         let module_type = self.get_type_with_synthetic_default_import_type(
                             type_,
                             symbol,
-                            module_symbol.as_ref().unwrap(),
+                            module_symbol.unwrap(),
                             reference,
                         )?;
                         return Ok(Some(self.clone_type_as_module_type(
@@ -595,11 +596,13 @@ impl TypeChecker {
         let symbol_exports = (**symbol_exports).borrow();
         let mut symbols = symbol_exports.clone();
         let export_stars = symbol_exports.get(InternalSymbolName::ExportStar);
-        if let Some(export_stars) = export_stars {
+        if let Some(&export_stars) = export_stars {
             let mut nested_symbols =
                 create_symbol_table(self.arena(), Option::<&[Id<Symbol>]>::None);
             let mut lookup_table = ExportCollisionTrackerTable::new();
-            if let Some(export_stars_declarations) = export_stars.maybe_declarations().as_ref() {
+            if let Some(export_stars_declarations) =
+                self.symbol(export_stars).maybe_declarations().as_ref()
+            {
                 for node in export_stars_declarations {
                     let resolved_module = self.resolve_external_module_name_(
                         node,

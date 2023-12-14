@@ -777,7 +777,7 @@ impl BinderType {
             None,
             None,
         );
-        set_value_declaration(symbol, node);
+        set_value_declaration(&self.symbol(symbol), node);
     }
 
     pub(super) fn bind_export_assigned_object_member_alias(
@@ -974,7 +974,7 @@ impl BinderType {
     ) {
         if let Some(symbol) = symbol {
             let mut symbol_assignment_declaration_members =
-                symbol.maybe_assignment_declaration_members();
+                self.symbol(symbol).maybe_assignment_declaration_members();
             if symbol_assignment_declaration_members.is_none() {
                 *symbol_assignment_declaration_members = Some(HashMap::new());
             }

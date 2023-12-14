@@ -592,10 +592,10 @@ impl NodeBuilder {
     ) -> io::Result<Gc<Node /*ParameterDeclaration*/>> {
         let mut parameter_declaration: Option<
             Gc<Node /*ParameterDeclaration | JSDocParameterTag*/>,
-        > = get_declaration_of_kind(parameter_symbol, SyntaxKind::Parameter);
-        if parameter_declaration.is_none() && !is_transient_symbol(&self.symbol(parameter_symbol)) {
+        > = get_declaration_of_kind(&self.type_checker.symbol(parameter_symbol), SyntaxKind::Parameter);
+        if parameter_declaration.is_none() && !is_transient_symbol(&self.type_checker.symbol(parameter_symbol)) {
             parameter_declaration =
-                get_declaration_of_kind(parameter_symbol, SyntaxKind::JSDocParameterTag);
+                get_declaration_of_kind(&self.type_checker.symbol(parameter_symbol), SyntaxKind::JSDocParameterTag);
         }
 
         let mut parameter_type = self.type_checker.get_type_of_symbol(parameter_symbol)?;
@@ -650,7 +650,7 @@ impl NodeBuilder {
         let is_rest = matches!(
             parameter_declaration.as_ref(),
             Some(parameter_declaration) if is_rest_parameter(parameter_declaration)
-        ) || get_check_flags(parameter_symbol).intersects(CheckFlags::RestParameter);
+        ) || get_check_flags(&self.type_checker.symbol(parameter_symbol)).intersects(CheckFlags::RestParameter);
         let dot_dot_dot_token: Option<Gc<Node>> = if is_rest {
             Some(get_factory().create_token(SyntaxKind::DotDotDotToken))
         } else {
@@ -678,17 +678,17 @@ impl NodeBuilder {
                     }
                     .into()
                 } else {
-                    parameter_symbol_name = Some(symbol_name(parameter_symbol));
+                    parameter_symbol_name = Some(symbol_name(&self.type_checker.symbol(parameter_symbol)));
                     parameter_symbol_name.as_deref().unwrap().into()
                 }
             } else {
-                parameter_symbol_name = Some(symbol_name(parameter_symbol));
+                parameter_symbol_name = Some(symbol_name(&self.type_checker.symbol(parameter_symbol)));
                 parameter_symbol_name.as_deref().unwrap().into()
             };
         let is_optional = matches!(
             parameter_declaration.as_ref(),
             Some(parameter_declaration) if self.type_checker.is_optional_parameter_(parameter_declaration)?
-        ) || get_check_flags(parameter_symbol)
+        ) || get_check_flags(&self.type_checker.symbol(parameter_symbol))
             .intersects(CheckFlags::OptionalParameter);
         let question_token = if is_optional {
             Some(get_factory().create_token(SyntaxKind::QuestionToken))
@@ -704,7 +704,7 @@ impl NodeBuilder {
             Some(parameter_type_node),
             None,
         );
-        context.increment_approximate_length_by(symbol_name(parameter_symbol).len() + 3);
+        context.increment_approximate_length_by(symbol_name(&self.type_checker.symbol(parameter_symbol)).len() + 3);
         Ok(parameter_node)
     }
 
@@ -779,7 +779,7 @@ impl NodeBuilder {
             true,
             None,
         )?;
-        if let Some(name) = name.as_ref() {
+        if let Some(name) = name {
             context.tracker().track_symbol(
                 name,
                 enclosing_declaration
@@ -931,7 +931,7 @@ impl NodeBuilder {
                             self.type_checker.symbol(parent).maybe_exports().as_ref(),
                             Some(parent_exports) if matches!(
                                 (**parent_exports).borrow().get(InternalSymbolName::ExportEquals),
-                                Some(parent_exports_get) if self.type_checker.get_symbol_if_same_reference(
+                                Some(&parent_exports_get) if self.type_checker.get_symbol_if_same_reference(
                                     parent_exports_get,
                                     symbol,
                                 )?.is_some()
@@ -1089,7 +1089,7 @@ impl NodeBuilder {
             {
                 let params = self
                     .type_checker
-                    .get_type_parameters_of_class_or_interface(&*if self
+                    .get_type_parameters_of_class_or_interface(if self
                         .type_checker
                         .symbol(parent_symbol)
                         .flags()
@@ -1144,7 +1144,7 @@ impl NodeBuilder {
         symbol: Id<Symbol>,
         context: &NodeBuilderContext,
     ) -> io::Result<String> {
-        let mut file = get_declaration_of_kind(symbol, SyntaxKind::SourceFile);
+        let mut file = get_declaration_of_kind(&self.type_checker.symbol(symbol), SyntaxKind::SourceFile);
         if file.is_none() {
             let equivalent_file_symbol = try_maybe_first_defined(
                 self.type_checker
@@ -1206,7 +1206,7 @@ impl NodeBuilder {
                     .to_owned());
             }
             return Ok(get_source_file_of_node(
-                &get_non_augmentation_declaration(&self.symbol(symbol)).unwrap(),
+                &get_non_augmentation_declaration(&self.type_checker.symbol(symbol)).unwrap(),
             )
             .as_source_file()
             .file_name()

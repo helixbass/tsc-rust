@@ -212,12 +212,12 @@ impl TypeChecker {
 
         let source_symbol = self.get_symbol_of_node(alias_declaration)?.unwrap();
         if is_type_only_import_or_export_declaration(alias_declaration) {
-            let links = self.get_symbol_links(&source_symbol);
+            let links = self.get_symbol_links(source_symbol);
             links.borrow_mut().type_only_declaration = Some(Some(alias_declaration.node_wrapper()));
             return Ok(true);
         }
 
-        let links = self.get_symbol_links(&source_symbol);
+        let links = self.get_symbol_links(source_symbol);
         Ok(self.mark_symbol_of_alias_declaration_if_type_only_worker(
             &links,
             immediate_target,
@@ -236,7 +236,6 @@ impl TypeChecker {
         overwrite_empty: bool,
     ) -> bool {
         if let Some(target) = target {
-            let target = target.borrow();
             if alias_declaration_links
                 .borrow()
                 .type_only_declaration
@@ -259,8 +258,8 @@ impl TypeChecker {
                     })
                     .unwrap_or_else(|| target);
                 let type_only =
-                    export_symbol
-                        .maybe_declarations()
+                    self.symbol(export_symbol
+                        ).maybe_declarations()
                         .as_deref()
                         .and_then(|declarations| {
                             find(declarations, |declaration: &Gc<Node>, _| {
@@ -270,7 +269,7 @@ impl TypeChecker {
                         });
                 alias_declaration_links.borrow_mut().type_only_declaration =
                     Some(type_only.or_else(|| {
-                        match (*self.get_symbol_links(&export_symbol))
+                        match (*self.get_symbol_links(export_symbol))
                             .borrow()
                             .type_only_declaration
                             .clone()
@@ -771,9 +770,7 @@ impl TypeChecker {
         symbol: Id<Symbol>,
     ) -> Option<Gc<Node>> {
         let decl = self
-            .symbol(symbol)
-            .maybe_parent()
-            .unwrap()
+            .symbol(self.symbol(symbol).maybe_parent().unwrap())
             .maybe_value_declaration()?;
         let initializer = if is_assignment_declaration(&decl) {
             get_assigned_expando_initializer(Some(&*decl))

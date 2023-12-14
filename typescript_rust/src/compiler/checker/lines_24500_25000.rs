@@ -636,7 +636,7 @@ impl TypeChecker {
         if node.kind() == SyntaxKind::Identifier {
             if is_assignment_target(node) {
                 let symbol = self.get_resolved_symbol(node)?;
-                if is_parameter_or_catch_clause_variable(&symbol) {
+                if is_parameter_or_catch_clause_variable(&self.symbol(symbol)) {
                     self.symbol(symbol).set_is_assigned(Some(true));
                 }
             }
@@ -908,11 +908,11 @@ impl TypeChecker {
         } else {
             local_or_export_symbol.clone()
         };
-        if let Some(source_symbol_declarations) = source_symbol.maybe_declarations().as_ref() {
+        if let Some(source_symbol_declarations) = self.symbol(source_symbol).maybe_declarations().as_ref() {
             if self
-                .get_declaration_node_flags_from_symbol(&source_symbol)
+                .get_declaration_node_flags_from_symbol(source_symbol)
                 .intersects(NodeFlags::Deprecated)
-                && self.is_uncalled_function_reference(node, &source_symbol)?
+                && self.is_uncalled_function_reference(node, source_symbol)?
             {
                 self.add_deprecated_suggestion(
                     node,

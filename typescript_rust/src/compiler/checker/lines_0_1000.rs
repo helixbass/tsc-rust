@@ -548,7 +548,7 @@ pub fn create_type_checker(
         inline_level: Default::default(),
         current_node: Default::default(),
 
-        empty_symbols: Gc::new(GcCell::new(create_symbol_table(self.arena(), Option::<&[Id<Symbol>]>::None))),
+        empty_symbols: Gc::new(GcCell::new(create_symbol_table(unsafe { &*arena }, Option::<&[Id<Symbol>]>::None))),
 
         compiler_options: compiler_options.clone(),
         language_version: get_emit_script_target(&compiler_options),
@@ -583,7 +583,7 @@ pub fn create_type_checker(
         emit_resolver: Default::default(),
         node_builder: Default::default(),
 
-        globals: Gc::new(GcCell::new(create_symbol_table(self.arena(), Option::<&[Id<Symbol>]>::None))),
+        globals: Gc::new(GcCell::new(create_symbol_table(unsafe { &*arena }, Option::<&[Id<Symbol>]>::None))),
         undefined_symbol: Default::default(),
         global_this_symbol: Default::default(),
 

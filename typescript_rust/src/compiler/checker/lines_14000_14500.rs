@@ -990,7 +990,7 @@ impl TypeChecker {
         let id = format!(
             "{}{}",
             type_key,
-            self.get_alias_id(alias_symbol.as_deref(), alias_type_arguments)
+            self.get_alias_id(alias_symbol, alias_type_arguments)
         );
         let mut type_: Option<Id<Type>> = self.union_types().get(&id).map(Clone::clone);
         if type_.is_none() {

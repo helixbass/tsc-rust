@@ -467,7 +467,7 @@ impl TypeChecker {
             let id = format!(
                 "{}{}",
                 self.get_type_list_id(Some(&type_arguments)),
-                self.get_alias_id(alias_symbol.as_deref(), alias_type_arguments)
+                self.get_alias_id(alias_symbol, alias_type_arguments)
             );
             let mut result = (*root)
                 .borrow()

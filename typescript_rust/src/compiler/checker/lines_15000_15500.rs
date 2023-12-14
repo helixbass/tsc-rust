@@ -613,9 +613,8 @@ impl TypeChecker {
                                 .unwrap();
                             let global_this_symbol_exports = (*global_this_symbol_exports).borrow();
                             if global_this_symbol_exports.contains_key(&**prop_name)
-                                && global_this_symbol_exports
-                                    .get(&**prop_name)
-                                    .unwrap()
+                                && self
+                                    .symbol(global_this_symbol_exports.get(&**prop_name).unwrap())
                                     .flags()
                                     .intersects(SymbolFlags::BlockScoped)
                             {
@@ -1481,7 +1480,7 @@ impl TypeChecker {
                 self.type_(object_type).id(),
                 self.type_(index_type).id(),
                 persistent_access_flags.bits(),
-                self.get_alias_id(alias_symbol.as_deref(), alias_type_arguments)
+                self.get_alias_id(alias_symbol, alias_type_arguments)
             );
             let mut type_ = self.indexed_access_types().get(&id).map(Clone::clone);
             if type_.is_none() {
@@ -1489,7 +1488,7 @@ impl TypeChecker {
                     object_type,
                     index_type,
                     persistent_access_flags,
-                    alias_symbol.as_deref(),
+                    alias_symbol,
                     alias_type_arguments,
                 ));
                 self.indexed_access_types()
@@ -1535,14 +1534,14 @@ impl TypeChecker {
             return Ok(Some(if access_flags.intersects(AccessFlags::Writing) {
                 self.get_intersection_type(
                     &prop_types,
-                    alias_symbol.as_deref(),
+                    alias_symbol,
                     alias_type_arguments,
                 )?
             } else {
                 self.get_union_type(
                     &prop_types,
                     Some(UnionReduction::Literal),
-                    alias_symbol.as_deref(),
+                    alias_symbol,
                     alias_type_arguments,
                     None,
                 )?

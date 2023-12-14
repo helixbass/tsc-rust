@@ -61,19 +61,19 @@ impl TypeChecker {
         let mut links = self.get_symbol_links(symbol);
         let original_links = links.clone();
         if (*links).borrow().type_.is_none() {
-            let expando = symbol
-                .maybe_value_declaration()
+            let expando = self.symbol(symbol
+                ).maybe_value_declaration()
                 .try_and_then(|value_declaration| {
                     self.get_symbol_of_expando(&value_declaration, false)
                 })?;
             if let Some(expando) = expando {
-                let merged = self.merge_js_symbols(&symbol, Some(expando))?;
+                let merged = self.merge_js_symbols(symbol, Some(expando))?;
                 if let Some(merged) = merged {
                     symbol = merged.clone();
                     links = self.symbol(merged).as_transient_symbol().symbol_links();
                 }
             }
-            let type_ = self.get_type_of_func_class_enum_module_worker(&symbol)?;
+            let type_ = self.get_type_of_func_class_enum_module_worker(symbol)?;
             original_links.borrow_mut().type_ = Some(type_.clone());
             links.borrow_mut().type_ = Some(type_);
         }
@@ -87,7 +87,7 @@ impl TypeChecker {
     ) -> io::Result<Id<Type>> {
         let declaration = self.symbol(symbol).maybe_value_declaration();
         if self.symbol(symbol).flags().intersects(SymbolFlags::Module)
-            && is_shorthand_ambient_module_symbol(symbol)
+            && is_shorthand_ambient_module_symbol(&self.symbol(symbol))
         {
             return Ok(self.any_type());
         } else if matches!(
@@ -193,7 +193,7 @@ impl TypeChecker {
                 })?;
             let declared_type = export_symbol.as_ref().try_and_then(|export_symbol| {
                 try_maybe_first_defined(
-                    export_symbol.maybe_declarations().as_deref(),
+                    self.symbol(export_symbol).maybe_declarations().as_deref(),
                     |d: &Gc<Node>, _| -> io::Result<_> {
                         Ok(if is_export_assignment(d) {
                             self.try_get_type_from_effective_type_node(d)?
@@ -204,9 +204,9 @@ impl TypeChecker {
                 )
             })?;
             links.borrow_mut().type_ = Some(
-                if let Some(export_symbol) = export_symbol.as_ref().filter(|export_symbol| {
+                if let Some(export_symbol) = export_symbol.filter(|&export_symbol| {
                     matches!(
-                        export_symbol.maybe_declarations().as_deref(),
+                        self.symbol(export_symbol).maybe_declarations().as_deref(),
                         Some(export_symbol_declarations) if self.is_duplicated_common_js_export(Some(export_symbol_declarations))
                     ) && !self.symbol(symbol).maybe_declarations().as_ref().unwrap().is_empty()
                 }) {
@@ -237,7 +237,7 @@ impl TypeChecker {
                 return Ok(self.error_type());
             }
             let mut type_ = self.instantiate_type(
-                self.get_type_of_symbol(&*{
+                self.get_type_of_symbol({
                     let target = (*links).borrow().target.clone().unwrap();
                     target
                 })?,
@@ -341,7 +341,7 @@ impl TypeChecker {
     }
 
     pub(super) fn get_type_of_symbol(&self, symbol: Id<Symbol>) -> io::Result<Id<Type>> {
-        let check_flags = get_check_flags(symbol);
+        let check_flags = get_check_flags(&self.symbol(symbol));
         if check_flags.intersects(CheckFlags::DeferredType) {
             return self.get_type_of_symbol_with_deferred_type(symbol);
         }
@@ -494,12 +494,12 @@ impl TypeChecker {
                             self.get_symbol_of_node(&node_present.as_binary_expression().left)?;
                         if let Some(symbol) = symbol {
                             if let Some(symbol_parent) = self.symbol(symbol).maybe_parent() {
-                                if find_ancestor(symbol_parent.maybe_value_declaration(), |d| {
+                                if find_ancestor(self.symbol(symbol_parent).maybe_value_declaration(), |d| {
                                     ptr::eq(&**node_present, d)
                                 })
                                 .is_none()
                                 {
-                                    node = symbol_parent.maybe_value_declaration();
+                                    node = self.symbol(symbol_parent).maybe_value_declaration();
                                 }
                             }
                         }
@@ -630,7 +630,7 @@ impl TypeChecker {
         let declaration = if self.symbol(symbol).flags().intersects(SymbolFlags::Class) {
             self.symbol(symbol).maybe_value_declaration()
         } else {
-            get_declaration_of_kind(symbol, SyntaxKind::InterfaceDeclaration)
+            get_declaration_of_kind(&self.symbol(symbol), SyntaxKind::InterfaceDeclaration)
         };
         Debug_.assert(
             declaration.is_some(),
@@ -1132,7 +1132,7 @@ impl TypeChecker {
             let symbol = self.type_(base_constructor_type).maybe_symbol();
             symbol
         }
-        .try_filter(|base_constructor_type_symbol| -> io::Result<_> {
+        .try_filter(|&base_constructor_type_symbol| -> io::Result<_> {
             Ok(self
                 .symbol(base_constructor_type_symbol)
                 .flags()

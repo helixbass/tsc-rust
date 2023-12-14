@@ -698,7 +698,7 @@ impl TypeChecker {
             .maybe_deferred_global_awaited_symbol()
             .as_ref()
             .map(Clone::clone)
-            .filter(|deferred_global_awaited_symbol| {
+            .filter(|&deferred_global_awaited_symbol| {
                 deferred_global_awaited_symbol != self.unknown_symbol()
             }))
     }

@@ -275,7 +275,7 @@ impl CheckTypeRelatedTo {
                 if result == Ternary::False {
                     if let Some(source_symbol) = self.type_checker.type_(self.source).maybe_symbol()
                     {
-                        let links = self.type_checker.get_symbol_links(&source_symbol);
+                        let links = self.type_checker.get_symbol_links(source_symbol);
                         if let Some(links_originating_import) =
                             (*links).borrow().originating_import.clone().filter(
                                 |links_originating_import| {
@@ -285,7 +285,7 @@ impl CheckTypeRelatedTo {
                         {
                             let helpful_retry = self.type_checker.check_type_related_to(
                                 self.type_checker.get_type_of_symbol(
-                                    (*links).borrow().target.as_ref().unwrap(),
+                                    (*links).borrow().target.unwrap(),
                                 )?,
                                 self.target,
                                 self.relation.clone(),
@@ -1795,8 +1795,8 @@ impl CheckTypeRelatedTo {
                 if matches!(
                     check_types.as_ref(),
                     Some(check_types) if self.is_related_to(
-                        self.type_checker.get_type_of_symbol(&prop)?,
-                        self.get_type_of_property_in_types(check_types, prop.escaped_name())?,
+                        self.type_checker.get_type_of_symbol(prop)?,
+                        self.get_type_of_property_in_types(check_types, self.type_checker.symbol(prop).escaped_name())?,
                         Some(RecursionFlags::Both),
                         Some(report_errors),
                         None, None,

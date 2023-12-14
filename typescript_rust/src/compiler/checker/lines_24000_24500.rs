@@ -662,10 +662,10 @@ impl GetFlowTypeOfReference {
                 Some("should always have a declaration"),
             ),
         ) {
-            self.type_checker.get_type_of_symbol(&class_symbol)?
+            self.type_checker.get_type_of_symbol(class_symbol)?
         } else {
             self.type_checker
-                .get_declared_type_of_symbol(&class_symbol)?
+                .get_declared_type_of_symbol(class_symbol)?
         };
         self.get_narrowed_type(
             type_,

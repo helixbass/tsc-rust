@@ -50,11 +50,11 @@ impl TypeChecker {
                         None,
                     )?;
                     if matches!(
-                        symbol.as_ref().and_then(|symbol| symbol.maybe_declarations().clone()).as_ref(),
+                        symbol.and_then(|symbol| self.symbol(symbol).maybe_declarations().clone()).as_ref(),
                         Some(symbol_declarations) if symbol_declarations.iter().any(|symbol_declaration| is_jsdoc_typedef_tag(symbol_declaration))
                     ) {
                         self.add_duplicate_declaration_errors_for_symbols(
-                            symbol.as_ref().unwrap(),
+                            symbol.unwrap(),
                             &Diagnostics::Duplicate_identifier_0,
                             &unescape_leading_underscores(name),
                             prop,
@@ -63,7 +63,7 @@ impl TypeChecker {
                             prop,
                             &Diagnostics::Duplicate_identifier_0,
                             &unescape_leading_underscores(name),
-                            symbol.as_ref().unwrap(),
+                            symbol.unwrap(),
                         );
                     }
                 }

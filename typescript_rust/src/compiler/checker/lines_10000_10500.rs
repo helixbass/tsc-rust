@@ -206,25 +206,27 @@ impl TypeChecker {
         let mut links = self.get_symbol_links(symbol);
         let original_links = links.clone();
         if (*links).borrow().declared_type.is_none() {
-            let kind = if symbol.flags().intersects(SymbolFlags::Class) {
+            let kind = if self.symbol(symbol).flags().intersects(SymbolFlags::Class) {
                 ObjectFlags::Class
             } else {
                 ObjectFlags::Interface
             };
-            let merged =
-                self.merge_js_symbols(
-                    &symbol,
-                    symbol.maybe_value_declaration().as_ref().try_and_then(
-                        |value_declaration| self.get_assigned_class_symbol(value_declaration),
-                    )?,
-                )?;
+            let merged = self.merge_js_symbols(
+                symbol,
+                self.symbol(symbol)
+                    .maybe_value_declaration()
+                    .as_ref()
+                    .try_and_then(|value_declaration| {
+                        self.get_assigned_class_symbol(value_declaration)
+                    })?,
+            )?;
             if let Some(merged) = merged {
                 symbol = merged.clone();
                 links = self.symbol(merged).as_transient_symbol().symbol_links();
             }
 
             let temporary_type_to_avoid_infinite_recursion_in_is_thisless_interface =
-                self.create_object_type(kind, Some(&*symbol));
+                self.create_object_type(kind, Some(symbol));
             let temporary_type_to_avoid_infinite_recursion_in_is_thisless_interface = self
                 .alloc_type(
                     BaseInterfaceType::new(
@@ -240,17 +242,17 @@ impl TypeChecker {
                 Some(temporary_type_to_avoid_infinite_recursion_in_is_thisless_interface.clone());
             links.borrow_mut().declared_type =
                 Some(temporary_type_to_avoid_infinite_recursion_in_is_thisless_interface.clone());
-            let type_ = self.create_object_type(kind, Some(&*symbol));
+            let type_ = self.create_object_type(kind, Some(symbol));
             let outer_type_parameters =
-                self.get_outer_type_parameters_of_class_or_interface(&symbol)?;
+                self.get_outer_type_parameters_of_class_or_interface(symbol)?;
             let local_type_parameters =
-                self.get_local_type_parameters_of_class_or_interface_or_type_alias(&symbol)?;
+                self.get_local_type_parameters_of_class_or_interface_or_type_alias(symbol)?;
             let mut need_to_set_constraint = false;
             let type_ = self.alloc_type(
                 if outer_type_parameters.is_some()
                     || local_type_parameters.is_some()
                     || kind == ObjectFlags::Class
-                    || !self.is_thisless_interface(&symbol)?
+                    || !self.is_thisless_interface(symbol)?
                 {
                     need_to_set_constraint = true;
                     type_.set_object_flags(type_.object_flags() | ObjectFlags::Reference);
@@ -518,7 +520,7 @@ impl TypeChecker {
                                     self.enum_count(),
                                     self.get_symbol_of_node(member)?.unwrap(),
                                 ));
-                            self.get_symbol_links(&self.get_symbol_of_node(member)?.unwrap())
+                            self.get_symbol_links(self.get_symbol_of_node(member)?.unwrap())
                                 .borrow_mut()
                                 .declared_type = Some(member_type.clone());
                             member_type_list
@@ -741,6 +743,7 @@ impl TypeChecker {
     ) -> io::Result<SymbolTable> {
         let mut result = create_symbol_table(self.arena(), Option::<&[Id<Symbol>]>::None);
         for symbol in symbols {
+            let &symbol: &Id<Symbol> = symbol.borrow();
             result.insert(
                 self.symbol(symbol).escaped_name().to_owned(),
                 if mapping_this_only && self.is_thisless(symbol) {

@@ -32,7 +32,7 @@ use crate::{
     RedirectTargetsMap, ResolveModuleNameResolutionHost, ResolvedModuleFull,
     ResolvedProjectReference, ResolvedTypeReferenceDirective, ScriptReferenceHost, SourceFileLike,
     SourceFileMayBeEmittedHost, SourceOfProjectReferenceRedirect, StringOrRcNode,
-    StructureIsReused, SymlinkCache, TypeChecker, WriteFileCallback,
+    StructureIsReused, SymlinkCache, TypeChecker, WriteFileCallback, AllArenas,
 };
 
 impl Program {
@@ -1427,6 +1427,10 @@ impl ProgramEmitHost {
 }
 
 impl EmitHost for ProgramEmitHost {
+    fn arena(&self) -> &AllArenas {
+        unimplemented!()
+    }
+
     fn get_prepend_nodes(&self) -> Vec<Gc<Node /*InputFiles | UnparsedSource*/>> {
         self.program.get_prepend_nodes()
     }

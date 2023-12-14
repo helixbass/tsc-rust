@@ -84,7 +84,6 @@ impl TypeChecker {
         symbol: Option<Id<Symbol>>,
     ) -> Option<Id<Symbol>> {
         self.get_merged_symbol(symbol.and_then(|symbol| {
-            let symbol = symbol.borrow();
             if self
                 .symbol(symbol)
                 .flags()
@@ -426,8 +425,8 @@ impl TypeChecker {
                 | SyntaxKind::ClassExpression
                 | SyntaxKind::InterfaceDeclaration => {
                     let mut table: Option<SymbolTable> = None;
-                    for (key, member_symbol) in &*(self
-                        .symbol(*self.get_symbol_of_node(&location_unwrapped)?.unwrap())
+                    for (key, member_symbol) in &*(*self
+                        .symbol(self.get_symbol_of_node(&location_unwrapped)?.unwrap())
                         .maybe_members()
                         .clone()
                         .unwrap_or_else(|| self.empty_symbols()))
@@ -631,9 +630,8 @@ impl TypeChecker {
                 ),
             Some(value) if self.get_merged_symbol(Some(symbol)).unwrap() == value
         )) && !some(
-            symbol_from_symbol_table
-                .as_ref()
-                .unwrap()
+            self.symbol(symbol_from_symbol_table
+                .unwrap())
                 .maybe_declarations()
                 .as_deref(),
             Some(|declaration: &Gc<Node>| {
@@ -727,7 +725,7 @@ impl TypeChecker {
                         visited_symbol_tables_map,
                         visited_symbol_tables.clone(),
                         symbol_from_symbol_table,
-                        &resolved_import_symbol,
+                        resolved_import_symbol,
                         ignore_qualification,
                     )?;
                     if candidate.is_some() {
@@ -746,7 +744,7 @@ impl TypeChecker {
                             enclosing_declaration,
                             use_only_external_aliasing,
                             visited_symbol_tables_map,
-                            self.get_merged_symbol(Some(&*symbol_from_symbol_table_export_symbol)),
+                            self.get_merged_symbol(Some(symbol_from_symbol_table_export_symbol)),
                             Option::<Id<Symbol>>::None,
                             ignore_qualification,
                         )? {
@@ -767,8 +765,8 @@ impl TypeChecker {
                     use_only_external_aliasing,
                     visited_symbol_tables_map,
                     visited_symbol_tables,
-                    &self.global_this_symbol(),
-                    &self.global_this_symbol(),
+                    self.global_this_symbol(),
+                    self.global_this_symbol(),
                     ignore_qualification,
                 )?
             } else {

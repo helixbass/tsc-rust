@@ -126,7 +126,9 @@ impl BinderType {
                     self.maybe_block_scope_container(),
                 )
             });
-        if !is_in_js_file(Some(node)) && !is_function_symbol(parent_symbol.clone()) {
+        if !is_in_js_file(Some(node))
+            && !is_function_symbol(parent_symbol.map(|parent_symbol| self.symbol(parent_symbol)))
+        {
             return;
         }
         let root_expr = get_leftmost_access_expression(&node_as_binary_expression.left);
@@ -205,7 +207,7 @@ impl BinderType {
     ) -> Option<Id<Symbol>> {
         if matches!(
             namespace_symbol,
-            Some(namespace_symbol) if namespace_symbol.flags().intersects(SymbolFlags::Alias)
+            Some(namespace_symbol) if self.symbol(namespace_symbol).flags().intersects(SymbolFlags::Alias)
         ) {
             return Some(namespace_symbol.unwrap());
         }
@@ -257,9 +259,9 @@ impl BinderType {
             );
         }
         if container_is_class {
-            if let Some(namespace_symbol) = namespace_symbol.as_ref() {
+            if let Some(namespace_symbol) = namespace_symbol {
                 if let Some(namespace_symbol_value_declaration) =
-                    namespace_symbol.maybe_value_declaration()
+                    self.symbol(namespace_symbol).maybe_value_declaration()
                 {
                     self.add_declaration_to_symbol(
                         namespace_symbol,
@@ -289,7 +291,7 @@ impl BinderType {
         let symbol_table = {
             let symbol_table =
                 if is_prototype_property {
-                    let mut namespace_symbol_members = namespace_symbol.maybe_members_mut();
+                    let mut namespace_symbol_members = self.symbol(namespace_symbol).maybe_members_mut();
                     if namespace_symbol_members.is_none() {
                         *namespace_symbol_members = Some(Gc::new(GcCell::new(
                             create_symbol_table(self.arena(), Option::<&[Id<Symbol>]>::None),
@@ -297,7 +299,7 @@ impl BinderType {
                     }
                     namespace_symbol_members
                 } else {
-                    let mut namespace_symbol_exports = namespace_symbol.maybe_exports_mut();
+                    let mut namespace_symbol_exports = self.symbol(namespace_symbol).maybe_exports_mut();
                     if namespace_symbol_exports.is_none() {
                         *namespace_symbol_exports = Some(Gc::new(GcCell::new(
                             create_symbol_table(self.arena(), Option::<&[Id<Symbol>]>::None),
@@ -586,7 +588,7 @@ impl BinderType {
                 .bind_diagnostics_mut()
                 .push(Gc::new(
                     self.create_diagnostic_for_node(
-                        &symbol_export.maybe_declarations().as_ref().unwrap()[0],
+                        &self.symbol(symbol_export).maybe_declarations().as_ref().unwrap()[0],
                         &Diagnostics::Duplicate_identifier_0,
                         Some(vec![
                             symbol_name(&self.symbol(prototype_symbol)).into_owned()

@@ -352,7 +352,8 @@ impl CheckTypeRelatedTo {
         intersection_state: IntersectionState,
     ) -> io::Result<Ternary> {
         let target_is_optional = self.type_checker.strict_null_checks
-            && get_check_flags(target_prop).intersects(CheckFlags::Partial);
+            && get_check_flags(&self.type_checker.symbol(target_prop))
+                .intersects(CheckFlags::Partial);
         let effective_target = self.type_checker.add_optionality(
             self.type_checker
                 .get_non_missing_type_of_symbol(target_prop)?,
@@ -381,10 +382,16 @@ impl CheckTypeRelatedTo {
         intersection_state: IntersectionState,
         skip_optional: bool,
     ) -> io::Result<Ternary> {
-        let source_prop_flags =
-            get_declaration_modifier_flags_from_symbol(self.arena(), source_prop, None);
-        let target_prop_flags =
-            get_declaration_modifier_flags_from_symbol(self.arena(), target_prop, None);
+        let source_prop_flags = get_declaration_modifier_flags_from_symbol(
+            self.type_checker.arena(),
+            &self.type_checker.symbol(source_prop),
+            None,
+        );
+        let target_prop_flags = get_declaration_modifier_flags_from_symbol(
+            self.type_checker.arena(),
+            &self.type_checker.symbol(target_prop),
+            None,
+        );
         if source_prop_flags.intersects(ModifierFlags::Private)
             || target_prop_flags.intersects(ModifierFlags::Private)
         {
@@ -619,7 +626,7 @@ impl CheckTypeRelatedTo {
                     .as_private_identifier()
                     .escaped_text;
                 let symbol_table_key = get_symbol_name_for_private_identifier(
-                    source_symbol,
+                    &self.type_checker.symbol(source_symbol),
                     private_identifier_description,
                 );
                 if

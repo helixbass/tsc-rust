@@ -272,7 +272,7 @@ impl TypeChecker {
         let id = format!(
             "{}{}",
             self.get_type_list_id(Some(&type_set)),
-            self.get_alias_id(alias_symbol.as_deref(), alias_type_arguments)
+            self.get_alias_id(alias_symbol, alias_type_arguments)
         );
         let mut result = self.intersection_types().get(&id).map(Clone::clone);
         if result.is_none() {
@@ -280,7 +280,7 @@ impl TypeChecker {
                 if self.intersect_unions_of_primitive_types(&mut type_set) {
                     result = Some(self.get_intersection_type(
                         &type_set,
-                        alias_symbol.as_deref(),
+                        alias_symbol,
                         alias_type_arguments,
                     )?);
                 } else if self.each_is_union_containing(&type_set, TypeFlags::Undefined) {
@@ -311,7 +311,7 @@ impl TypeChecker {
                             undefined_or_missing_type,
                         ],
                         Some(UnionReduction::Literal),
-                        alias_symbol.as_deref(),
+                        alias_symbol,
                         alias_type_arguments,
                         None,
                     )?);
@@ -327,7 +327,7 @@ impl TypeChecker {
                             self.null_type(),
                         ],
                         Some(UnionReduction::Literal),
-                        alias_symbol.as_deref(),
+                        alias_symbol,
                         alias_type_arguments,
                         None,
                     )?);
@@ -352,7 +352,7 @@ impl TypeChecker {
                     result = Some(self.get_union_type(
                         &constituents,
                         Some(UnionReduction::Literal),
-                        alias_symbol.as_deref(),
+                        alias_symbol,
                         alias_type_arguments,
                         origin,
                     )?);
@@ -744,7 +744,7 @@ impl TypeChecker {
     ) -> io::Result<Id<Type>> {
         let include_non_public = include_non_public.unwrap_or(false);
         if include_non_public
-            || !get_declaration_modifier_flags_from_symbol(self.arena(), prop, None)
+            || !get_declaration_modifier_flags_from_symbol(self.arena(), &self.symbol(prop), None)
                 .intersects(ModifierFlags::NonPublicAccessibilityModifier)
         {
             let mut type_ = (*self.get_symbol_links(self.get_late_bound_symbol(prop)?))
@@ -758,8 +758,8 @@ impl TypeChecker {
                 } else if let Some(name) = name {
                     Some(self.get_literal_type_from_property_name(&name)?)
                 } else {
-                    if !is_known_symbol(prop) {
-                        Some(self.get_string_literal_type(&symbol_name(prop)))
+                    if !is_known_symbol(&self.symbol(prop)) {
+                        Some(self.get_string_literal_type(&symbol_name(&self.symbol(prop))))
                     } else {
                         None
                     }

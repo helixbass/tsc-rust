@@ -58,20 +58,17 @@ impl BinderType {
         &self,
         node: &Node, /*SignatureDeclaration | JSDocSignature*/
     ) {
-        let symbol = self
-            .create_symbol(
-                SymbolFlags::Signature,
-                self.get_declaration_name(node).unwrap().into_owned(),
-            )
-            .wrap();
+        let symbol = self.alloc_symbol(self.create_symbol(
+            SymbolFlags::Signature,
+            self.get_declaration_name(node).unwrap().into_owned(),
+        ));
         self.add_declaration_to_symbol(symbol, node, SymbolFlags::Signature);
 
-        let type_literal_symbol = self
+        let type_literal_symbol = self.alloc_symbol(self
             .create_symbol(
                 SymbolFlags::TypeLiteral,
                 InternalSymbolName::Type.to_owned(),
-            )
-            .wrap();
+            ));
         self.add_declaration_to_symbol(type_literal_symbol, node, SymbolFlags::TypeLiteral);
         let mut type_literal_symbol_members = self.symbol(type_literal_symbol).maybe_members_mut();
         *type_literal_symbol_members = Some(Gc::new(GcCell::new(create_symbol_table(
@@ -169,7 +166,7 @@ impl BinderType {
         symbol_flags: SymbolFlags,
         name: __String,
     ) -> Id<Symbol> {
-        let symbol = self.create_symbol(symbol_flags, name).wrap();
+        let symbol = self.alloc_symbol(self.create_symbol(symbol_flags, name));
         if symbol_flags.intersects(SymbolFlags::EnumMember | SymbolFlags::ClassMember) {
             self.symbol(symbol)
                 .set_parent(self.container().maybe_symbol());

@@ -731,7 +731,7 @@ impl TypeChecker {
         if !self.pop_type_resolution() {
             type_ = Some(self.any_type());
             if self.no_implicit_any {
-                let getter = get_declaration_of_kind(symbol, SyntaxKind::GetAccessor);
+                let getter = get_declaration_of_kind(&self.symbol(symbol), SyntaxKind::GetAccessor);
                 self.error(
                     getter,
                     &Diagnostics::_0_implicitly_has_return_type_any_because_it_does_not_have_a_return_type_annotation_and_is_referenced_directly_or_indirectly_in_one_of_its_return_expressions,
@@ -750,8 +750,8 @@ impl TypeChecker {
         writing: Option<bool>,
     ) -> io::Result<Option<Id<Type>>> {
         let writing = writing.unwrap_or(false);
-        let getter = get_declaration_of_kind(symbol, SyntaxKind::GetAccessor);
-        let setter = get_declaration_of_kind(symbol, SyntaxKind::SetAccessor);
+        let getter = get_declaration_of_kind(&self.symbol(symbol), SyntaxKind::GetAccessor);
+        let setter = get_declaration_of_kind(&self.symbol(symbol), SyntaxKind::SetAccessor);
 
         let setter_type = self.get_annotated_accessor_type(setter.as_deref())?;
 
@@ -822,7 +822,7 @@ impl TypeChecker {
         type_: Id<Type>,
         symbol: Id<Symbol>,
     ) -> io::Result<Id<Type>> {
-        if get_check_flags(symbol).intersects(CheckFlags::Instantiated) {
+        if get_check_flags(&self.symbol(symbol)).intersects(CheckFlags::Instantiated) {
             let links = self.get_symbol_links(symbol);
             return self.instantiate_type(type_, (*links).borrow().mapper.clone());
         }

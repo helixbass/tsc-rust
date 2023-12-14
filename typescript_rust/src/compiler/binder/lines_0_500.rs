@@ -27,7 +27,7 @@ use crate::{
     create_symbol_table, get_escaped_text_of_identifier_or_literal, get_name_of_declaration,
     is_property_name_literal, object_allocator, set_parent, set_value_declaration, AllArenas,
     BaseSymbol, InternalSymbolName, NamedDeclarationInterface, Node, NodeArray, NodeInterface,
-    SymbolFlags, SymbolInterface,
+    SymbolFlags, SymbolInterface, static_arena,
 };
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
@@ -287,7 +287,7 @@ pub fn bind_source_file(file: &Node /*SourceFile*/, options: Gc<CompilerOptions>
     // performance.mark("beforeBind");
     // perfLogger.logStartBindFile("" + file.fileName);
     // binder.call(file, options);
-    create_binder().call(file, options);
+    create_binder(&*static_arena()).call(file, options);
     // perfLogger.logStopBindFile();
     // performance.mark("afterBind");
     // performance.measure("Bind", "beforeBind", "afterBind");
@@ -833,7 +833,7 @@ impl BinderType {
         }
 
         if symbol_flags.intersects(SymbolFlags::Value) {
-            set_value_declaration(symbol, node);
+            set_value_declaration(&self.symbol(symbol), node);
         }
     }
 
@@ -896,7 +896,7 @@ impl BinderType {
                 let containing_class_symbol = containing_class.symbol();
                 return Some(
                     get_symbol_name_for_private_identifier(
-                        containing_class_symbol,
+                        &self.symbol(containing_class_symbol),
                         &name.as_private_identifier().escaped_text,
                     )
                     .into(),
@@ -998,8 +998,7 @@ impl BinderType {
         match name {
             None => {
                 symbol = Some(
-                    self.create_symbol(SymbolFlags::None, InternalSymbolName::Missing.to_owned())
-                        .wrap(),
+                    self.alloc_symbol(self.create_symbol(SymbolFlags::None, InternalSymbolName::Missing.to_owned()))
                 );
             }
             Some(name) => {
@@ -1014,8 +1013,7 @@ impl BinderType {
                 match symbol {
                     None => {
                         symbol = Some(
-                            self.create_symbol(SymbolFlags::None, (*name).to_owned())
-                                .wrap(),
+                            self.alloc_symbol(self.create_symbol(SymbolFlags::None, (*name).to_owned()))
                         );
                         symbol_table.insert(name.into_owned(), symbol.as_ref().unwrap().clone());
                         if is_replaceable_by_method {
@@ -1040,8 +1038,7 @@ impl BinderType {
                             Some(true)
                         ) {
                             symbol = Some(
-                                self.create_symbol(SymbolFlags::None, (*name).to_owned())
-                                    .wrap(),
+                                self.alloc_symbol(self.create_symbol(SymbolFlags::None, (*name).to_owned()))
                             );
                             symbol_table
                                 .insert(name.into_owned(), symbol.as_ref().unwrap().clone());
@@ -1206,8 +1203,7 @@ impl BinderType {
                                 .push(diag);
 
                             symbol = Some(
-                                self.create_symbol(SymbolFlags::None, name.into_owned())
-                                    .wrap(),
+                                self.alloc_symbol(self.create_symbol(SymbolFlags::None, name.into_owned()))
                             );
                         }
                     }
