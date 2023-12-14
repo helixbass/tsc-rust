@@ -1170,7 +1170,7 @@ impl NodeBuilder {
                     continue;
                 }
                 if get_declaration_modifier_flags_from_symbol(
-                    self.arena(),
+                    self.type_checker.arena(),
                     &self.type_checker.symbol(property_symbol),
                     None,
                 )

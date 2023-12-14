@@ -90,7 +90,7 @@ impl TypeChecker {
             SyntaxKind::Identifier => {
                 let symbol = self.get_resolved_symbol(node)?;
                 return Ok(self.is_const_variable(symbol)
-                    || is_parameter_or_catch_clause_variable(symbol)
+                    || is_parameter_or_catch_clause_variable(&self.symbol(symbol))
                         && !self.is_symbol_assigned(symbol)?);
             }
             SyntaxKind::PropertyAccessExpression | SyntaxKind::ElementAccessExpression => {

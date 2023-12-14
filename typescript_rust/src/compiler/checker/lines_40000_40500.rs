@@ -377,7 +377,7 @@ impl TypeChecker {
         if param.is_none() {
             return Ok(());
         }
-        let param = param.as_ref().unwrap();
+        let param = param.unwrap();
 
         let host = get_host_signature_from_jsdoc(param_tag);
         if match host.as_ref() {

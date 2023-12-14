@@ -173,7 +173,7 @@ impl TypeChecker {
                 continue;
             }
             let value = if (*merged_exports).borrow().contains_key(name) {
-                self.merge_symbol((*merged_exports).borrow().get(name).unwrap(), s, None)?
+                self.merge_symbol(*(*merged_exports).borrow().get(name).unwrap(), s, None)?
             } else {
                 s
             };

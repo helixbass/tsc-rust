@@ -37,7 +37,7 @@ use crate::{
     ScriptReferenceHost, SourceFileLike, Symbol, SymbolAccessibility,
     SymbolAccessibilityDiagnostic, SymbolAccessibilityResult, SymbolFlags, SymbolInterface,
     SymbolTracker, SyntaxKind, TextRange, TransformationContext, TransformationResult, Transformer,
-    TransformerFactory, TransformerFactoryInterface, TransformerInterface, VisitResult,
+    TransformerFactory, TransformerFactoryInterface, TransformerInterface, VisitResult, static_arena,
 };
 
 pub fn get_declaration_diagnostics(
@@ -1637,7 +1637,7 @@ impl TransformDeclarationsFactory {
 
 impl TransformerFactoryInterface for TransformDeclarationsFactory {
     fn call(&self, context: Gc<Box<dyn TransformationContext>>) -> Transformer {
-        TransformDeclarations::new(context).as_transformer()
+        TransformDeclarations::new(&*static_arena(), context).as_transformer()
     }
 }
 

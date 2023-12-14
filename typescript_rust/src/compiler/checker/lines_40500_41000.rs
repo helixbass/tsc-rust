@@ -684,7 +684,7 @@ impl TypeChecker {
             } else {
                 None
             };
-            let t = if let Some(proto) = proto.as_ref() {
+            let t = if let Some(proto) = proto {
                 self.get_type_of_symbol(proto)?
             } else {
                 self.get_declared_type_of_symbol(left)?

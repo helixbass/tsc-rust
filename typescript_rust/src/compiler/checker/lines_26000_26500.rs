@@ -102,7 +102,7 @@ impl TypeChecker {
                             true,
                             None,
                         )?;
-                        if let Some(parent_symbol) = parent_symbol.as_ref() {
+                        if let Some(parent_symbol) = parent_symbol {
                             let annotated = self
                                 .symbol(parent_symbol)
                                 .maybe_value_declaration()
@@ -223,7 +223,7 @@ impl TypeChecker {
             Some(true),
         )?;
         Ok(is_this_initialized_declaration(
-            symbol.and_then(|symbol| symbol.maybe_value_declaration()),
+            symbol.and_then(|symbol| self.symbol(symbol).maybe_value_declaration()),
         ))
     }
 

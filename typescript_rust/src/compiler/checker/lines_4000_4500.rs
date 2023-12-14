@@ -425,14 +425,15 @@ impl TypeChecker {
                 | SyntaxKind::ClassExpression
                 | SyntaxKind::InterfaceDeclaration => {
                     let mut table: Option<SymbolTable> = None;
-                    for (key, member_symbol) in &*(*self
+                    for (key, &member_symbol) in &*(*self
                         .symbol(self.get_symbol_of_node(&location_unwrapped)?.unwrap())
                         .maybe_members()
                         .clone()
                         .unwrap_or_else(|| self.empty_symbols()))
                     .borrow()
                     {
-                        if member_symbol
+                        if self
+                            .symbol(member_symbol)
                             .flags()
                             .intersects(SymbolFlags::Type & !SymbolFlags::Assignment)
                         {

@@ -127,7 +127,11 @@ impl BinderType {
                 )
             });
         if !is_in_js_file(Some(node))
-            && !is_function_symbol(parent_symbol.map(|parent_symbol| self.symbol(parent_symbol)))
+            && !is_function_symbol(
+                parent_symbol
+                    .map(|parent_symbol| self.symbol(parent_symbol))
+                    .as_deref(),
+            )
         {
             return;
         }
@@ -581,7 +585,7 @@ impl BinderType {
         let symbol_exports = self.symbol(symbol).exports();
         let mut symbol_exports = symbol_exports.borrow_mut();
         let symbol_export = symbol_exports.get(self.symbol(prototype_symbol).escaped_name());
-        if let Some(symbol_export) = symbol_export {
+        if let Some(&symbol_export) = symbol_export {
             if let Some(name) = node.as_named_declaration().maybe_name() {
                 set_parent(&name, Some(node));
             }

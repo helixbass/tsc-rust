@@ -189,7 +189,7 @@ impl TypeChecker {
                         Some(true),
                     )
                 })?;
-            let declared_type = export_symbol.as_ref().try_and_then(|export_symbol| {
+            let declared_type = export_symbol.try_and_then(|export_symbol| {
                 try_maybe_first_defined(
                     self.symbol(export_symbol).maybe_declarations().as_deref(),
                     |d: &Gc<Node>, _| -> io::Result<_> {
@@ -594,7 +594,7 @@ impl TypeChecker {
                 SyntaxKind::JSDocParameterTag => {
                     let param_symbol = get_parameter_symbol_from_jsdoc(node_present);
                     if let Some(param_symbol) = param_symbol {
-                        node = param_symbol.maybe_value_declaration();
+                        node = self.symbol(param_symbol).maybe_value_declaration();
                     }
                 }
                 SyntaxKind::JSDocComment => {

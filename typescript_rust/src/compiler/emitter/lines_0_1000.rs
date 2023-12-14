@@ -38,7 +38,7 @@ use crate::{
     SourceMapEmitResult, SourceMapGenerator, SourceMapSource, StringOrNumber, Symbol,
     SymbolAccessibilityResult, SymbolVisibilityResult, SyntaxKind, TextRange,
     TransformNodesTransformationResult, TransformationResult, TransformerFactory,
-    TypeReferenceSerializationKind,
+    TypeReferenceSerializationKind, static_arena,
 };
 
 lazy_static! {
@@ -1756,7 +1756,7 @@ pub fn create_printer(
     handlers: Option<Gc<Box<dyn PrintHandlers>>>,
 ) -> Gc<Printer> {
     let handlers = handlers.unwrap_or_else(|| Gc::new(Box::new(DummyPrintHandlers)));
-    let printer = Gc::new(Printer::new(printer_options, handlers));
+    let printer = Gc::new(Printer::new(&*static_arena(), printer_options, handlers));
     *printer._rc_wrapper.borrow_mut() = Some(printer.clone());
     printer.reset();
     *printer.emit_binary_expression.borrow_mut() =

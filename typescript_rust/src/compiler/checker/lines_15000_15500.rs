@@ -614,7 +614,7 @@ impl TypeChecker {
                             let global_this_symbol_exports = (*global_this_symbol_exports).borrow();
                             if global_this_symbol_exports.contains_key(&**prop_name)
                                 && self
-                                    .symbol(global_this_symbol_exports.get(&**prop_name).unwrap())
+                                    .symbol(*global_this_symbol_exports.get(&**prop_name).unwrap())
                                     .flags()
                                     .intersects(SymbolFlags::BlockScoped)
                             {

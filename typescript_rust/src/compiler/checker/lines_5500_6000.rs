@@ -326,7 +326,7 @@ impl NodeBuilder {
             )
         })
         .collect::<io::Result<Vec<_>>>()?;
-        if let Some(signature_this_parameter) = signature.maybe_this_parameter() {
+        if let Some(signature_this_parameter) = *signature.maybe_this_parameter() {
             let this_parameter = self.symbol_to_parameter_declaration_(
                 signature_this_parameter,
                 context,

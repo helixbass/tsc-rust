@@ -631,7 +631,7 @@ impl TypeChecker {
                 self.error(
                     self.symbol(source).maybe_declarations().as_ref().and_then(|source_declarations| get_name_of_declaration(source_declarations.get(0).map(Clone::clone))),
                     &Diagnostics::Cannot_augment_module_0_with_value_exports_because_it_resolves_to_a_non_module_entity,
-                    Some(vec![self.symbol_to_string_(&target, Option::<&Node>::None, None, None, None)?])
+                    Some(vec![self.symbol_to_string_(target, Option::<&Node>::None, None, None, None)?])
                 );
             }
         } else {
@@ -660,8 +660,8 @@ impl TypeChecker {
                         maybe_get_source_file_of_node(source_declarations.get(0).cloned())
                     });
             let target_symbol_file =
-                target
-                    .maybe_declarations()
+                self.symbol(target
+                    ).maybe_declarations()
                     .as_ref()
                     .and_then(|target_declarations| {
                         maybe_get_source_file_of_node(target_declarations.get(0).cloned())
@@ -726,17 +726,17 @@ impl TypeChecker {
                 );
                 self.add_duplicate_locations(
                     &mut conflicting_symbol_info.second_file_locations,
-                    &target,
+                    target,
                 );
             } else {
                 self.add_duplicate_declaration_errors_for_symbols(
                     source,
                     message,
                     &symbol_name,
-                    &target,
+                    target,
                 );
                 self.add_duplicate_declaration_errors_for_symbols(
-                    &target,
+                    target,
                     message,
                     &symbol_name,
                     source,
@@ -984,7 +984,7 @@ impl TypeChecker {
                         let resolved_exports = (*resolved_exports).borrow();
                         let main_module_exports = self.symbol(main_module).exports();
                         let main_module_exports = (*main_module_exports).borrow();
-                        for (key, value) in
+                        for (key, &value) in
                             &*(*self.symbol(module_augmentation.symbol()).exports()).borrow()
                         {
                             if resolved_exports.contains_key(key)
@@ -1020,7 +1020,7 @@ impl TypeChecker {
     ) {
         for (id, source_symbol) in source {
             let target_symbol = target.get(id);
-            if let Some(target_symbol) = target_symbol {
+            if let Some(&target_symbol) = target_symbol {
                 maybe_for_each(
                     self.symbol(target_symbol).maybe_declarations().as_deref(),
                     |declaration: &Gc<Node /*Declaration*/>, _| {
@@ -1558,7 +1558,7 @@ impl TypeChecker {
                 if let Some(location_locals) = location_maybe_locals.as_ref() {
                     if !self.is_global_source_file(&*location_unwrapped) {
                         result = lookup(&(**location_locals).borrow(), name, meaning)?;
-                        if let Some(result_unwrapped) = result.as_ref() {
+                        if let Some(result_unwrapped) = result {
                             let mut use_result = true;
                             if is_function_like(Some(&*location_unwrapped))
                                 && last_location.is_some()
@@ -1686,7 +1686,7 @@ impl TypeChecker {
                             let module_export = module_exports.get(name);
                             if matches!(
                                 module_export,
-                                Some(module_export) if self.symbol(module_export).flags() == SymbolFlags::Alias &&
+                                Some(&module_export) if self.symbol(module_export).flags() == SymbolFlags::Alias &&
                                     (get_declaration_of_kind(&self.symbol(module_export), SyntaxKind::ExportSpecifier).is_some() || get_declaration_of_kind(&self.symbol(module_export), SyntaxKind::NamespaceExport).is_some())
                             ) {
                                 should_skip_rest_of_match_arm = true;
@@ -1700,7 +1700,7 @@ impl TypeChecker {
                                     name,
                                     meaning & SymbolFlags::ModuleMember,
                                 )?;
-                                if let Some(result_unwrapped) = result.as_ref() {
+                                if let Some(result_unwrapped) = result {
                                     if is_source_file(&location_unwrapped)
                                         && location_unwrapped
                                             .as_source_file()
@@ -1769,7 +1769,7 @@ impl TypeChecker {
                         meaning & SymbolFlags::Type,
                     )?;
                     let mut should_skip_rest_of_match_arm = false;
-                    if let Some(result_unwrapped) = result.as_ref() {
+                    if let Some(result_unwrapped) = result {
                         if !self.is_type_parameter_symbol_declared_in_container(
                             result_unwrapped,
                             &location_unwrapped,

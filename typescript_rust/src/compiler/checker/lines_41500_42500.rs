@@ -1029,7 +1029,7 @@ impl TypeChecker {
                                 &escape_leading_underscores(name),
                                 SymbolFlags::Value,
                             )?;
-                            match symbol.as_ref() {
+                            match symbol {
                                 None => {
                                     self.error(
                                         Some(location),

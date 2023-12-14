@@ -634,7 +634,7 @@ impl TypeChecker {
                             .contains_key(right.as_member_name().escaped_text())
                             && self
                                 .symbol(
-                                    (*global_this_symbol_exports)
+                                    *(*global_this_symbol_exports)
                                         .borrow()
                                         .get(right.as_member_name().escaped_text())
                                         .unwrap(),

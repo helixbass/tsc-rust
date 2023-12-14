@@ -74,7 +74,7 @@ impl SymbolTableToDeclarationStatements {
                 .get_target_of_alias_declaration(alias_decl, Some(true))
         })?;
         Ok(
-            if let Some(target) = target.filter(|target| {
+            if let Some(target) = target.filter(|&target| {
                 length(
                     self.type_checker
                         .symbol(target)
@@ -723,7 +723,7 @@ impl MakeSerializePropertySymbol {
     ) -> io::Result<Vec<Gc<Node>>> {
         let modifier_flags = get_declaration_modifier_flags_from_symbol(
             self.type_checker.arena(),
-            self.type_checker.symbol(p),
+            &self.type_checker.symbol(p),
             None,
         );
         let is_private = modifier_flags.intersects(ModifierFlags::Private);
@@ -745,13 +745,13 @@ impl MakeSerializePropertySymbol {
                 base_type,
                 Some(base_type) if self.type_checker.get_property_of_type_(
                     base_type,
-                    self.type_checker.symbol(p.)escaped_name(),
+                    self.type_checker.symbol(p).escaped_name(),
                     None
                 )?.is_some() &&
                     self.type_checker.is_readonly_symbol(
                         self.type_checker.get_property_of_type_(base_type, self.type_checker.symbol(p).escaped_name(), None)?.unwrap()
                     )? == self.type_checker.is_readonly_symbol(p)? &&
-                    self.type_checker.symbol(p.)flags() & SymbolFlags::Optional ==
+                    self.type_checker.symbol(p).flags() & SymbolFlags::Optional ==
                         self.type_checker.symbol(self.type_checker.get_property_of_type_(base_type, self.type_checker.symbol(p).escaped_name(), None)?.unwrap()).flags() & SymbolFlags::Optional &&
                     self.type_checker.is_type_identical_to(
                         self.type_checker.get_type_of_symbol(p)?,
