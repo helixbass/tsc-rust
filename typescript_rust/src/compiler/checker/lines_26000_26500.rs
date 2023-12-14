@@ -222,9 +222,9 @@ impl TypeChecker {
             true,
             Some(true),
         )?;
-        Ok(is_this_initialized_declaration(
-            symbol.and_then(|symbol| self.symbol(symbol).maybe_value_declaration()),
-        ))
+        Ok(is_this_initialized_declaration(symbol.and_then(|symbol| {
+            self.symbol(symbol).maybe_value_declaration()
+        })))
     }
 
     pub(super) fn get_contextual_type_for_this_property_assignment(

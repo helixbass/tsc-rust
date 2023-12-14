@@ -660,8 +660,8 @@ impl TypeChecker {
                         maybe_get_source_file_of_node(source_declarations.get(0).cloned())
                     });
             let target_symbol_file =
-                self.symbol(target
-                    ).maybe_declarations()
+                self.symbol(target)
+                    .maybe_declarations()
                     .as_ref()
                     .and_then(|target_declarations| {
                         maybe_get_source_file_of_node(target_declarations.get(0).cloned())
