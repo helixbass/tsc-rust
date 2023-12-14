@@ -26,10 +26,11 @@ use crate::{
     is_string_a_non_contextual_keyword, is_string_literal, is_variable_declaration,
     is_variable_declaration_list, is_variable_statement, length, map, map_defined,
     needs_scope_marker, node_has_name, ordered_remove_item_at, set_text_range_rc_node,
-    unescape_leading_underscores, HasArena, InArena, InternalSymbolName, LiteralLikeNodeInterface,
-    ModifierFlags, Node, NodeArray, NodeArrayOrVec, NodeBuilder, NodeBuilderFlags, NodeFlags,
-    NodeInterface, StrOrRcNode, Symbol, SymbolAccessibility, SymbolFlags, SymbolId,
-    SymbolInterface, SymbolTable, SymbolTracker, SyntaxKind, TypeChecker, TypeInterface, AllArenas,
+    unescape_leading_underscores, AllArenas, HasArena, InArena, InternalSymbolName,
+    LiteralLikeNodeInterface, ModifierFlags, Node, NodeArray, NodeArrayOrVec, NodeBuilder,
+    NodeBuilderFlags, NodeFlags, NodeInterface, StrOrRcNode, Symbol, SymbolAccessibility,
+    SymbolFlags, SymbolId, SymbolInterface, SymbolTable, SymbolTracker, SyntaxKind, TypeChecker,
+    TypeInterface,
 };
 
 impl NodeBuilder {
@@ -232,9 +233,8 @@ impl SymbolTableToDeclarationStatements {
             .cloned();
         if let Some(export_equals) = export_equals.filter(|&export_equals| {
             (*self.symbol_table()).borrow().len() > 1
-                && self
-                    .type_checker
-                    .symbol(export_equals)
+                && export_equals
+                    .ref_(self)
                     .flags()
                     .intersects(SymbolFlags::Alias)
         }) {
@@ -700,23 +700,17 @@ impl SymbolTableToDeclarationStatements {
         let visited_sym = self.type_checker.get_merged_symbol(Some(symbol)).unwrap();
         if self
             .visited_symbols()
-            .contains(&get_symbol_id(&self.type_checker.symbol(visited_sym)))
+            .contains(&get_symbol_id(&visited_sym.ref_(self)))
         {
             return Ok(());
         }
         self.visited_symbols_mut()
-            .insert(get_symbol_id(&self.type_checker.symbol(visited_sym)));
+            .insert(get_symbol_id(&visited_sym.ref_(self)));
         let skip_membership_check = !is_private;
         if skip_membership_check
-            || length(
-                self.type_checker
-                    .symbol(symbol)
-                    .maybe_declarations()
-                    .as_deref(),
-            ) > 0
-                && self
-                    .type_checker
-                    .symbol(symbol)
+            || length(symbol.ref_(self).maybe_declarations().as_deref()) > 0
+                && symbol
+                    .ref_(self)
                     .maybe_declarations()
                     .as_ref()
                     .unwrap()
@@ -749,10 +743,9 @@ impl SymbolTableToDeclarationStatements {
         mut is_private: bool,
         property_as_alias: bool,
     ) -> io::Result<()> {
-        let symbol_ref = self.type_checker.symbol(symbol);
+        let symbol_ref = symbol.ref_(self);
         let symbol_name = unescape_leading_underscores(symbol_ref.escaped_name());
-        let is_default =
-            self.type_checker.symbol(symbol).escaped_name() == InternalSymbolName::Default;
+        let is_default = symbol.ref_(self).escaped_name() == InternalSymbolName::Default;
         if is_private
             && self
                 .context()
@@ -765,26 +758,17 @@ impl SymbolTableToDeclarationStatements {
             return Ok(());
         }
         let mut needs_post_export_default = is_default
-            && (self
-                .type_checker
-                .symbol(symbol)
+            && (symbol
+                .ref_(self)
                 .flags()
                 .intersects(SymbolFlags::ExportDoesNotSupportDefaultModifier)
-                || self
-                    .type_checker
-                    .symbol(symbol)
-                    .flags()
-                    .intersects(SymbolFlags::Function)
+                || symbol.ref_(self).flags().intersects(SymbolFlags::Function)
                     && self
                         .type_checker
                         .get_properties_of_type(self.type_checker.get_type_of_symbol(symbol)?)?
                         .len()
                         > 0)
-            && !self
-                .type_checker
-                .symbol(symbol)
-                .flags()
-                .intersects(SymbolFlags::Alias);
+            && !symbol.ref_(self).flags().intersects(SymbolFlags::Alias);
         let mut needs_export_declaration = !needs_post_export_default
             && !is_private
             && is_string_a_non_contextual_keyword(symbol_name)
@@ -801,25 +785,20 @@ impl SymbolTableToDeclarationStatements {
         } else {
             ModifierFlags::None
         });
-        let is_const_merged_with_ns = self
-            .type_checker
-            .symbol(symbol)
-            .flags()
-            .intersects(SymbolFlags::Module)
-            && self.type_checker.symbol(symbol).flags().intersects(
+        let is_const_merged_with_ns = symbol.ref_(self).flags().intersects(SymbolFlags::Module)
+            && symbol.ref_(self).flags().intersects(
                 SymbolFlags::BlockScopedVariable
                     | SymbolFlags::FunctionScopedVariable
                     | SymbolFlags::Property,
             )
-            && self.type_checker.symbol(symbol).escaped_name() != InternalSymbolName::ExportEquals;
+            && symbol.ref_(self).escaped_name() != InternalSymbolName::ExportEquals;
         let is_const_merged_with_ns_printable_as_signature_merge = is_const_merged_with_ns
             && self.is_type_representable_as_function_namespace_merge(
                 self.type_checker.get_type_of_symbol(symbol)?,
                 symbol,
             )?;
-        if self
-            .type_checker
-            .symbol(symbol)
+        if symbol
+            .ref_(self)
             .flags()
             .intersects(SymbolFlags::Function | SymbolFlags::Method)
             || is_const_merged_with_ns_printable_as_signature_merge
@@ -831,29 +810,16 @@ impl SymbolTableToDeclarationStatements {
                 modifier_flags,
             )?;
         }
-        if self
-            .type_checker
-            .symbol(symbol)
-            .flags()
-            .intersects(SymbolFlags::TypeAlias)
-        {
+        if symbol.ref_(self).flags().intersects(SymbolFlags::TypeAlias) {
             self.serialize_type_alias(symbol, symbol_name, modifier_flags)?;
         }
-        if self.type_checker.symbol(symbol).flags().intersects(
+        if symbol.ref_(self).flags().intersects(
             SymbolFlags::BlockScopedVariable
                 | SymbolFlags::FunctionScopedVariable
                 | SymbolFlags::Property,
-        ) && self.type_checker.symbol(symbol).escaped_name() != InternalSymbolName::ExportEquals
-            && !self
-                .type_checker
-                .symbol(symbol)
-                .flags()
-                .intersects(SymbolFlags::Prototype)
-            && !self
-                .type_checker
-                .symbol(symbol)
-                .flags()
-                .intersects(SymbolFlags::Class)
+        ) && symbol.ref_(self).escaped_name() != InternalSymbolName::ExportEquals
+            && !symbol.ref_(self).flags().intersects(SymbolFlags::Prototype)
+            && !symbol.ref_(self).flags().intersects(SymbolFlags::Class)
             && !is_const_merged_with_ns_printable_as_signature_merge
         {
             if property_as_alias {
@@ -865,11 +831,7 @@ impl SymbolTableToDeclarationStatements {
             } else {
                 let type_ = self.type_checker.get_type_of_symbol(symbol)?;
                 let local_name = self.get_internal_symbol_name(symbol, symbol_name);
-                if !self
-                    .type_checker
-                    .symbol(symbol)
-                    .flags()
-                    .intersects(SymbolFlags::Function)
+                if !symbol.ref_(self).flags().intersects(SymbolFlags::Function)
                     && self.is_type_representable_as_function_namespace_merge(type_, symbol)?
                 {
                     self.serialize_as_function_namespace_merge(
@@ -879,9 +841,8 @@ impl SymbolTableToDeclarationStatements {
                         modifier_flags,
                     )?;
                 } else {
-                    let flags = if !self
-                        .type_checker
-                        .symbol(symbol)
+                    let flags = if !symbol
+                        .ref_(self)
                         .flags()
                         .intersects(SymbolFlags::BlockScopedVariable)
                     {
@@ -892,27 +853,20 @@ impl SymbolTableToDeclarationStatements {
                         Some(NodeFlags::Let)
                     };
                     let name = if needs_post_export_default
-                        || !self
-                            .type_checker
-                            .symbol(symbol)
-                            .flags()
-                            .intersects(SymbolFlags::Property)
+                        || !symbol.ref_(self).flags().intersects(SymbolFlags::Property)
                     {
                         local_name.clone()
                     } else {
                         self.get_unused_name(&local_name, Some(symbol))
                     };
-                    let mut text_range = self
-                        .type_checker
-                        .symbol(symbol)
-                        .maybe_declarations()
-                        .as_ref()
-                        .and_then(|symbol_declarations| {
+                    let mut text_range = symbol.ref_(self).maybe_declarations().as_ref().and_then(
+                        |symbol_declarations| {
                             symbol_declarations
                                 .iter()
                                 .find(|d| is_variable_declaration(d))
                                 .cloned()
-                        });
+                        },
+                    );
                     if let Some(text_range_present) = text_range.as_ref().filter(|text_range| {
                         is_variable_declaration_list(&text_range.parent())
                             && text_range
@@ -924,22 +878,20 @@ impl SymbolTableToDeclarationStatements {
                     }) {
                         text_range = text_range_present.parent().maybe_parent();
                     }
-                    let property_access_require = self
-                        .type_checker
-                        .symbol(symbol)
-                        .maybe_declarations()
-                        .as_ref()
-                        .and_then(|symbol_declarations| {
-                            symbol_declarations
-                                .iter()
-                                .find(|declaration| is_property_access_expression(declaration))
-                                .cloned()
-                        });
+                    let property_access_require =
+                        symbol.ref_(self).maybe_declarations().as_ref().and_then(
+                            |symbol_declarations| {
+                                symbol_declarations
+                                    .iter()
+                                    .find(|declaration| is_property_access_expression(declaration))
+                                    .cloned()
+                            },
+                        );
                     if let Some(property_access_require) = property_access_require.as_ref().filter(|property_access_require| {
                         let property_access_require_parent = property_access_require.parent();
                         is_binary_expression(&property_access_require_parent) && is_identifier(&property_access_require_parent.as_binary_expression().right) &&
                             matches!(
-                                type_.ref_(self).maybe_symbol().and_then(|type_symbol| self.type_checker.symbol(type_symbol).maybe_value_declaration()),
+                                type_.ref_(self).maybe_symbol().and_then(|type_symbol| type_symbol.ref_(self).maybe_value_declaration()),
                                 Some(type_symbol_value_declaration) if is_source_file(&type_symbol_value_declaration)
                             )
                     }) {
@@ -1031,27 +983,13 @@ impl SymbolTableToDeclarationStatements {
                 }
             }
         }
-        if self
-            .type_checker
-            .symbol(symbol)
-            .flags()
-            .intersects(SymbolFlags::Enum)
-        {
+        if symbol.ref_(self).flags().intersects(SymbolFlags::Enum) {
             self.serialize_enum(symbol, symbol_name, modifier_flags)?;
         }
-        if self
-            .type_checker
-            .symbol(symbol)
-            .flags()
-            .intersects(SymbolFlags::Class)
-        {
-            if self
-                .type_checker
-                .symbol(symbol)
-                .flags()
-                .intersects(SymbolFlags::Property)
+        if symbol.ref_(self).flags().intersects(SymbolFlags::Class) {
+            if symbol.ref_(self).flags().intersects(SymbolFlags::Property)
                 && matches!(
-                    self.type_checker.symbol(symbol).maybe_value_declaration().as_ref(),
+                    symbol.ref_(self).maybe_value_declaration().as_ref(),
                     Some(symbol_value_declaration) if is_binary_expression(&symbol_value_declaration.parent()) &&
                         is_class_expression(&symbol_value_declaration.parent().as_binary_expression().right)
                 )
@@ -1069,9 +1007,8 @@ impl SymbolTableToDeclarationStatements {
                 )?;
             }
         }
-        if self
-            .type_checker
-            .symbol(symbol)
+        if symbol
+            .ref_(self)
             .flags()
             .intersects(SymbolFlags::ValueModule | SymbolFlags::NamespaceModule)
             && (!is_const_merged_with_ns || self.is_type_only_namespace(symbol)?)
@@ -1079,52 +1016,29 @@ impl SymbolTableToDeclarationStatements {
         {
             self.serialize_module(symbol, symbol_name, modifier_flags)?;
         }
-        if self
-            .type_checker
-            .symbol(symbol)
-            .flags()
-            .intersects(SymbolFlags::Interface)
-            && !self
-                .type_checker
-                .symbol(symbol)
-                .flags()
-                .intersects(SymbolFlags::Class)
+        if symbol.ref_(self).flags().intersects(SymbolFlags::Interface)
+            && !symbol.ref_(self).flags().intersects(SymbolFlags::Class)
         {
             self.serialize_interface(symbol, symbol_name, modifier_flags)?;
         }
-        if self
-            .type_checker
-            .symbol(symbol)
-            .flags()
-            .intersects(SymbolFlags::Alias)
-        {
+        if symbol.ref_(self).flags().intersects(SymbolFlags::Alias) {
             self.serialize_as_alias(
                 symbol,
                 &self.get_internal_symbol_name(symbol, symbol_name),
                 modifier_flags,
             )?;
         }
-        if self
-            .type_checker
-            .symbol(symbol)
-            .flags()
-            .intersects(SymbolFlags::Property)
-            && self.type_checker.symbol(symbol).escaped_name() == InternalSymbolName::ExportEquals
+        if symbol.ref_(self).flags().intersects(SymbolFlags::Property)
+            && symbol.ref_(self).escaped_name() == InternalSymbolName::ExportEquals
         {
             self.serialize_maybe_alias_assignment(symbol)?;
         }
-        if self
-            .type_checker
-            .symbol(symbol)
+        if symbol
+            .ref_(self)
             .flags()
             .intersects(SymbolFlags::ExportStar)
         {
-            if let Some(symbol_declarations) = self
-                .type_checker
-                .symbol(symbol)
-                .maybe_declarations()
-                .as_ref()
-            {
+            if let Some(symbol_declarations) = symbol.ref_(self).maybe_declarations().as_ref() {
                 for node in symbol_declarations {
                     let resolved_module =
                         continue_if_none!(self.type_checker.resolve_external_module_name_(
@@ -1202,6 +1116,12 @@ struct SymbolTableToDeclarationStatementsSymbolTracker {
     symbol_table_to_declaration_statements: Gc<SymbolTableToDeclarationStatements>,
 }
 
+impl HasArena for SymbolTableToDeclarationStatementsSymbolTracker {
+    fn arena(&self) -> &AllArenas {
+        self.type_checker.arena()
+    }
+}
+
 impl SymbolTableToDeclarationStatementsSymbolTracker {
     fn new(
         oldcontext_tracker: Gc<Box<dyn SymbolTracker>>,
@@ -1252,12 +1172,7 @@ impl SymbolTracker for SymbolTableToDeclarationStatementsSymbolTracker {
                 Err(err) => return Some(Err(err)),
                 Ok(chain) => chain,
             };
-            if !self
-                .type_checker
-                .symbol(sym)
-                .flags()
-                .intersects(SymbolFlags::Property)
-            {
+            if !sym.ref_(self).flags().intersects(SymbolFlags::Property) {
                 self.symbol_table_to_declaration_statements
                     .include_private_symbol(chain[0]);
             }

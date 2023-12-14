@@ -328,12 +328,7 @@ impl GetFlowTypeOfReference {
             .get_property_of_type_(type_, prop_name, None)?;
         if let Some(prop) = prop {
             return Ok(
-                if self
-                    .type_checker
-                    .symbol(prop)
-                    .flags()
-                    .intersects(SymbolFlags::Optional)
-                {
+                if prop.ref_(self).flags().intersects(SymbolFlags::Optional) {
                     true
                 } else {
                     assume_true
@@ -611,16 +606,11 @@ impl GetFlowTypeOfReference {
             return Ok(type_);
         }
         let symbol = symbol.unwrap();
-        let class_symbol = self.type_checker.symbol(symbol).maybe_parent().unwrap();
-        let target_type = if has_static_modifier(
-            Debug_.check_defined::<&Gc<Node>>(
-                self.type_checker
-                    .symbol(symbol)
-                    .maybe_value_declaration()
-                    .as_ref(),
-                Some("should always have a declaration"),
-            ),
-        ) {
+        let class_symbol = symbol.ref_(self).maybe_parent().unwrap();
+        let target_type = if has_static_modifier(Debug_.check_defined::<&Gc<Node>>(
+            symbol.ref_(self).maybe_value_declaration().as_ref(),
+            Some("should always have a declaration"),
+        )) {
             self.type_checker.get_type_of_symbol(class_symbol)?
         } else {
             self.type_checker

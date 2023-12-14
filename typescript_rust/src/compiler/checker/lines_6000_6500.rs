@@ -107,7 +107,7 @@ impl NodeBuilder {
                 Ok(matches!(
                     (*self.type_checker.get_members_of_symbol(parent)?)
                         .borrow()
-                        .get(self.type_checker.symbol(symbol).escaped_name()),
+                        .get(symbol.ref_(self).escaped_name()),
                     Some(&got_member_of_symbol) if self.type_checker.get_symbol_if_same_reference(
                         got_member_of_symbol,
                         symbol,
@@ -179,9 +179,7 @@ impl NodeBuilder {
             None,
         )?;
         if let Some(result) = result {
-            if self
-                .type_checker
-                .symbol(result)
+            if result.ref_(self)
                 .flags()
                 .intersects(SymbolFlags::TypeParameter)
                 && matches!(
@@ -364,8 +362,7 @@ impl NodeBuilder {
 
         if is_single_or_double_quote(first_char)
             && some(
-                self.type_checker
-                    .symbol(symbol)
+                symbol.ref_(self)
                     .maybe_declarations()
                     .as_deref(),
                 Some(|declaration: &Gc<Node>| {
@@ -480,14 +477,12 @@ impl NodeBuilder {
         context: &NodeBuilderContext,
     ) -> io::Result<Gc<Node>> {
         let single_quote = length(
-            self.type_checker
-                .symbol(symbol)
+            symbol.ref_(self)
                 .maybe_declarations()
                 .as_deref(),
         ) > 0
             && every(
-                self.type_checker
-                    .symbol(symbol)
+                symbol.ref_(self)
                     .maybe_declarations()
                     .as_deref()
                     .unwrap(),
@@ -501,17 +496,15 @@ impl NodeBuilder {
         if let Some(from_name_type) = from_name_type {
             return Ok(from_name_type);
         }
-        let symbol_ref = self.type_checker.symbol(symbol);
+        let symbol_ref = symbol.ref_(self);
         let raw_name = unescape_leading_underscores(symbol_ref.escaped_name());
         let string_named = length(
-            self.type_checker
-                .symbol(symbol)
+            symbol.ref_(self)
                 .maybe_declarations()
                 .as_deref(),
         ) > 0
             && every(
-                self.type_checker
-                    .symbol(symbol)
+                symbol.ref_(self)
                     .maybe_declarations()
                     .as_deref()
                     .unwrap(),
@@ -653,8 +646,7 @@ impl NodeBuilder {
     ) -> Option<Gc<Node>> {
         let enclosing_declaration = enclosing_declaration
             .map(|enclosing_declaration| enclosing_declaration.borrow().node_wrapper());
-        self.type_checker
-            .symbol(symbol)
+        symbol.ref_(self)
             .maybe_declarations()
             .as_deref()
             .and_then(|symbol_declarations| {
@@ -746,8 +738,7 @@ impl NodeBuilder {
             && match context.maybe_enclosing_declaration().as_ref() {
                 None => true,
                 Some(context_enclosing_declaration) => some(
-                    self.type_checker
-                        .symbol(symbol)
+                    symbol.ref_(self)
                         .maybe_declarations()
                         .as_deref(),
                     Some(|d: &Gc<Node>| {
@@ -885,9 +876,7 @@ impl NodeBuilder {
                 }
             }
             if is_identifier(node) {
-                let name = if self
-                    .type_checker
-                    .symbol(sym)
+                let name = if sym.ref_(self)
                     .flags()
                     .intersects(SymbolFlags::TypeParameter)
                 {
@@ -1366,7 +1355,7 @@ impl NodeBuilder {
                 && matches!(
                     node_symbol,
                     Some(node_symbol) if !node_as_import_type_node.is_type_of() &&
-                        !self.type_checker.symbol(node_symbol).flags().intersects(SymbolFlags::Type) ||
+                        !node_symbol.ref_(self).flags().intersects(SymbolFlags::Type) ||
                         !(length(node_as_import_type_node.maybe_type_arguments().as_double_deref()) >=
                             self.type_checker.get_min_type_argument_count(
                                 self.type_checker.get_local_type_parameters_of_class_or_interface_or_type_alias(

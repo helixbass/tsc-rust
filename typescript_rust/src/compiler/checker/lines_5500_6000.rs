@@ -37,15 +37,12 @@ impl NodeBuilder {
         node: Gc<Node>,
     ) -> Gc<Node> {
         if some(
-            self.type_checker
-                .symbol(property_symbol)
+            property_symbol.ref_(self)
                 .maybe_declarations()
                 .as_deref(),
             Some(|d: &Gc<Node>| d.kind() == SyntaxKind::JSDocPropertyTag),
         ) {
-            let d: Gc<Node> = self
-                .type_checker
-                .symbol(property_symbol)
+            let d: Gc<Node> = property_symbol.ref_(self)
                 .maybe_declarations()
                 .as_ref()
                 .unwrap()
@@ -75,9 +72,7 @@ impl NodeBuilder {
                     })]),
                 );
             }
-        } else if let Some(property_symbol_value_declaration) = self
-            .type_checker
-            .symbol(property_symbol)
+        } else if let Some(property_symbol_value_declaration) = property_symbol.ref_(self)
             .maybe_value_declaration()
             .as_ref()
         {
@@ -305,7 +300,7 @@ impl NodeBuilder {
             Some(&*expanded_params),
             Some(|&p: &Id<Symbol>| {
                 p != expanded_params[expanded_params.len() - 1]
-                    && get_check_flags(&self.type_checker.symbol(p))
+                    && get_check_flags(&p.ref_(self))
                         .intersects(CheckFlags::RestParameter)
             }),
         ) {
@@ -593,14 +588,14 @@ impl NodeBuilder {
         let mut parameter_declaration: Option<
             Gc<Node /*ParameterDeclaration | JSDocParameterTag*/>,
         > = get_declaration_of_kind(
-            &self.type_checker.symbol(parameter_symbol),
+            &parameter_symbol.ref_(self),
             SyntaxKind::Parameter,
         );
         if parameter_declaration.is_none()
-            && !is_transient_symbol(&self.type_checker.symbol(parameter_symbol))
+            && !is_transient_symbol(&parameter_symbol.ref_(self))
         {
             parameter_declaration = get_declaration_of_kind(
-                &self.type_checker.symbol(parameter_symbol),
+                &parameter_symbol.ref_(self),
                 SyntaxKind::JSDocParameterTag,
             );
         }
@@ -657,7 +652,7 @@ impl NodeBuilder {
         let is_rest = matches!(
             parameter_declaration.as_ref(),
             Some(parameter_declaration) if is_rest_parameter(parameter_declaration)
-        ) || get_check_flags(&self.type_checker.symbol(parameter_symbol))
+        ) || get_check_flags(&parameter_symbol.ref_(self))
             .intersects(CheckFlags::RestParameter);
         let dot_dot_dot_token: Option<Gc<Node>> = if is_rest {
             Some(get_factory().create_token(SyntaxKind::DotDotDotToken))
@@ -665,7 +660,7 @@ impl NodeBuilder {
             None
         };
         let parameter_symbol_name: Option<Cow<'_, str>>;
-        let parameter_symbol_ref = self.type_checker.symbol(parameter_symbol);
+        let parameter_symbol_ref = parameter_symbol.ref_(self);
         let name: StrOrRcNode<'_> =
             if let Some(parameter_declaration) = parameter_declaration.as_ref() {
                 if let Some(parameter_declaration_name) = parameter_declaration
@@ -697,7 +692,7 @@ impl NodeBuilder {
         let is_optional = matches!(
             parameter_declaration.as_ref(),
             Some(parameter_declaration) if self.type_checker.is_optional_parameter_(parameter_declaration)?
-        ) || get_check_flags(&self.type_checker.symbol(parameter_symbol))
+        ) || get_check_flags(&parameter_symbol.ref_(self))
             .intersects(CheckFlags::OptionalParameter);
         let question_token = if is_optional {
             Some(get_factory().create_token(SyntaxKind::QuestionToken))
@@ -714,7 +709,7 @@ impl NodeBuilder {
             None,
         );
         context.increment_approximate_length_by(
-            symbol_name(&self.type_checker.symbol(parameter_symbol)).len() + 3,
+            symbol_name(&parameter_symbol.ref_(self)).len() + 3,
         );
         Ok(parameter_node)
     }
@@ -828,9 +823,7 @@ impl NodeBuilder {
         yield_module_symbol: Option<bool>,
     ) -> io::Result<Vec<Id<Symbol>>> {
         let chain: Vec<Id<Symbol>>;
-        let is_type_parameter = self
-            .type_checker
-            .symbol(symbol)
+        let is_type_parameter = symbol.ref_(self)
             .flags()
             .intersects(SymbolFlags::TypeParameter);
         if !is_type_parameter
@@ -904,8 +897,7 @@ impl NodeBuilder {
                     .map(|&symbol| -> io::Result<_> {
                         Ok(
                             if some(
-                                self.type_checker
-                                    .symbol(symbol)
+                                symbol.ref_(self)
                                     .maybe_declarations()
                                     .as_deref(),
                                 Some(|declaration: &Gc<Node>| {
@@ -939,7 +931,7 @@ impl NodeBuilder {
                     )?;
                     if let Some(mut parent_chain) = parent_chain {
                         if matches!(
-                            self.type_checker.symbol(parent).maybe_exports().as_ref(),
+                            parent.ref_(self).maybe_exports().as_ref(),
                             Some(parent_exports) if matches!(
                                 (**parent_exports).borrow().get(InternalSymbolName::ExportEquals),
                                 Some(&parent_exports_get) if self.type_checker.get_symbol_if_same_reference(
@@ -970,17 +962,14 @@ impl NodeBuilder {
             return Ok(accessible_symbol_chain);
         }
         if end_of_chain
-            || !self
-                .type_checker
-                .symbol(symbol)
+            || !symbol.ref_(self)
                 .flags()
                 .intersects(SymbolFlags::TypeLiteral | SymbolFlags::ObjectLiteral)
         {
             if !end_of_chain
                 && yield_module_symbol != Some(true)
                 && maybe_for_each_bool(
-                    self.type_checker
-                        .symbol(symbol)
+                    symbol.ref_(self)
                         .maybe_declarations()
                         .as_ref(),
                     |declaration: &Gc<Node>, _| {
@@ -1041,9 +1030,7 @@ impl NodeBuilder {
     ) -> io::Result<Option<Gc<NodeArray> /*<TypeParameterDeclaration>*/>> {
         let mut type_parameter_nodes: Option<Gc<NodeArray> /*TypeParameterDeclaration*/> = None;
         let target_symbol = self.type_checker.get_target_symbol(symbol);
-        if self
-            .type_checker
-            .symbol(target_symbol)
+        if target_symbol.ref_(self)
             .flags()
             .intersects(SymbolFlags::Class | SymbolFlags::Interface | SymbolFlags::TypeAlias)
         {
@@ -1071,7 +1058,7 @@ impl NodeBuilder {
     ) -> io::Result<Option<Vec<Gc<Node>>>> {
         Debug_.assert(/*chain && 0 <= index &&*/ index < chain.len(), None);
         let symbol = chain[index];
-        let symbol_id = get_symbol_id(&self.type_checker.symbol(symbol));
+        let symbol_id = get_symbol_id(&symbol.ref_(self));
         if matches!(
             (*context.type_parameter_symbol_list).borrow().as_ref(),
             Some(context_type_parameter_symbol_list) if context_type_parameter_symbol_list.contains(
@@ -1095,15 +1082,13 @@ impl NodeBuilder {
         {
             let parent_symbol = symbol;
             let next_symbol = chain[index + 1];
-            if get_check_flags(&self.type_checker.symbol(next_symbol))
+            if get_check_flags(&next_symbol.ref_(self))
                 .intersects(CheckFlags::Instantiated)
             {
                 let params = self
                     .type_checker
                     .get_type_parameters_of_class_or_interface(
-                        if self
-                            .type_checker
-                            .symbol(parent_symbol)
+                        if parent_symbol.ref_(self)
                             .flags()
                             .intersects(SymbolFlags::Alias)
                         {
@@ -1116,9 +1101,7 @@ impl NodeBuilder {
                     try_maybe_map(params.as_ref(), |&t: &Id<Type>, _| {
                         self.type_checker.get_mapped_type(
                             t,
-                            (*self
-                                .type_checker
-                                .symbol(next_symbol)
+                            (*next_symbol.ref_(self)
                                 .as_transient_symbol()
                                 .symbol_links())
                             .borrow()
@@ -1158,11 +1141,10 @@ impl NodeBuilder {
         context: &NodeBuilderContext,
     ) -> io::Result<String> {
         let mut file =
-            get_declaration_of_kind(&self.type_checker.symbol(symbol), SyntaxKind::SourceFile);
+            get_declaration_of_kind(&symbol.ref_(self), SyntaxKind::SourceFile);
         if file.is_none() {
             let equivalent_file_symbol = try_maybe_first_defined(
-                self.type_checker
-                    .symbol(symbol)
+                symbol.ref_(self)
                     .maybe_declarations()
                     .as_ref(),
                 |d: &Gc<Node>, _| {
@@ -1172,7 +1154,7 @@ impl NodeBuilder {
             )?;
             if let Some(equivalent_file_symbol) = equivalent_file_symbol {
                 file = get_declaration_of_kind(
-                    &self.type_checker.symbol(equivalent_file_symbol),
+                    &equivalent_file_symbol.ref_(self),
                     SyntaxKind::SourceFile,
                 );
             }
@@ -1189,8 +1171,7 @@ impl NodeBuilder {
                 .is_track_referenced_ambient_module_supported()
             {
                 let ambient_decls = maybe_filter(
-                    self.type_checker
-                        .symbol(symbol)
+                    symbol.ref_(self)
                         .maybe_declarations()
                         .as_deref(),
                     |declaration: &Gc<Node>| is_ambient_module(declaration),
@@ -1203,9 +1184,9 @@ impl NodeBuilder {
                     }
                 }
             }
-            if ambient_module_symbol_regex.is_match(self.type_checker.symbol(symbol).escaped_name())
+            if ambient_module_symbol_regex.is_match(symbol.ref_(self).escaped_name())
             {
-                return Ok(self.type_checker.symbol(symbol).escaped_name()
+                return Ok(symbol.ref_(self).escaped_name()
                     [1..self.type_checker.symbol(symbol).escaped_name().len() - 1]
                     .to_owned());
             }
@@ -1213,14 +1194,14 @@ impl NodeBuilder {
         if context.maybe_enclosing_declaration().is_none()
             || !context.tracker().is_module_resolver_host_supported()
         {
-            if ambient_module_symbol_regex.is_match(self.type_checker.symbol(symbol).escaped_name())
+            if ambient_module_symbol_regex.is_match(symbol.ref_(self).escaped_name())
             {
-                return Ok(self.type_checker.symbol(symbol).escaped_name()
+                return Ok(symbol.ref_(self).escaped_name()
                     [1..self.type_checker.symbol(symbol).escaped_name().len() - 1]
                     .to_owned());
             }
             return Ok(get_source_file_of_node(
-                &get_non_augmentation_declaration(&self.type_checker.symbol(symbol)).unwrap(),
+                &get_non_augmentation_declaration(&symbol.ref_(self)).unwrap(),
             )
             .as_source_file()
             .file_name()
@@ -1291,9 +1272,9 @@ impl NodeBuilder {
 
     pub(super) fn symbol_to_entity_name_node(&self, symbol: Id<Symbol>) -> Gc<Node /*EntityName*/> {
         let identifier = get_factory().create_identifier(&unescape_leading_underscores(
-            self.type_checker.symbol(symbol).escaped_name(),
+            symbol.ref_(self).escaped_name(),
         ));
-        if let Some(symbol_parent) = self.type_checker.symbol(symbol).maybe_parent() {
+        if let Some(symbol_parent) = symbol.ref_(self).maybe_parent() {
             get_factory()
                 .create_qualified_name(self.symbol_to_entity_name_node(symbol_parent), identifier)
         } else {
@@ -1321,8 +1302,7 @@ impl NodeBuilder {
 
         let is_type_of = meaning == SymbolFlags::Value;
         if some(
-            self.type_checker
-                .symbol(chain[0])
+            chain[0].ref_(self)
                 .maybe_declarations()
                 .as_deref(),
             Some(|declaration: &Gc<Node>| {

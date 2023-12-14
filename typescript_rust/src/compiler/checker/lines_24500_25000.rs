@@ -418,7 +418,7 @@ impl GetFlowTypeOfReference {
                     let symbol = self.type_checker.get_resolved_symbol(expr)?;
                     if self.type_checker.is_const_variable(symbol) {
                         let declaration =
-                            self.type_checker.symbol(symbol).maybe_value_declaration();
+                            symbol.ref_(self).maybe_value_declaration();
                         if let Some(declaration) =
                             declaration
                                 .as_ref()

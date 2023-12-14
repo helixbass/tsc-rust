@@ -15,7 +15,7 @@ pub fn rewrite_self_arena_method_to_ref_method_rule() -> Arc<dyn Rule> {
                      value: (self)
                      field: (field_identifier) @type_checker (#eq? @type_checker "type_checker")
                    )
-                   field: (field_identifier) @method (#eq? @method "type_mapper")
+                   field: (field_identifier) @method (#eq? @method "symbol")
                  )
                  arguments: (arguments
                    (_) @arg
@@ -24,7 +24,7 @@ pub fn rewrite_self_arena_method_to_ref_method_rule() -> Arc<dyn Rule> {
             "# => |captures, context| {
                 context.report(
                     violation! {
-                        message => "self.type_checker.type_mapper(arg) -> arg.ref_(self)",
+                        message => "self.type_checker.symbol(arg) -> arg.ref_(self)",
                         node => captures["call"],
                         fix => |fixer| {
                             fixer.replace_text(

@@ -601,7 +601,7 @@ impl InferTypes {
         for target_prop in properties {
             let source_prop = self.type_checker.get_property_of_type_(
                 source,
-                self.type_checker.symbol(target_prop).escaped_name(),
+                target_prop.ref_(self).escaped_name(),
                 None,
             )?;
             if let Some(source_prop) = source_prop {
@@ -713,12 +713,7 @@ impl InferTypes {
                     )? {
                         let prop_type = self.type_checker.get_type_of_symbol(prop)?;
                         prop_types.push(
-                            if self
-                                .type_checker
-                                .symbol(prop)
-                                .flags()
-                                .intersects(SymbolFlags::Optional)
-                            {
+                            if prop.ref_(self).flags().intersects(SymbolFlags::Optional) {
                                 self.type_checker
                                     .remove_missing_or_undefined_type(prop_type)?
                             } else {

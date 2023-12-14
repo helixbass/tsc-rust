@@ -21,7 +21,7 @@ use crate::{
     unescape_leading_underscores, BoolExt, Debug_, InternalSymbolName, IteratorExt, Matches,
     ModifierFlags, Node, NodeArray, NodeArrayOrVec, NodeBuilder, NodeBuilderFlags, NodeFlags,
     NodeInterface, NodeWrappered, ObjectFlags, OptionTry, SignatureKind, StrOrRcNode, Symbol,
-    SymbolFlags, SymbolInterface, SyntaxKind, Ternary, Type, TypeChecker, TypeInterface, HasArena, InArena,
+    SymbolFlags, SymbolInterface, SyntaxKind, Ternary, Type, TypeChecker, TypeInterface, HasArena, InArena, AllArenas,
 };
 
 impl SymbolTableToDeclarationStatements {
@@ -51,22 +51,18 @@ impl SymbolTableToDeclarationStatements {
     }
 
     pub(super) fn serialize_maybe_alias_assignment(&self, symbol: Id<Symbol>) -> io::Result<bool> {
-        if self
-            .type_checker
-            .symbol(symbol)
+        if symbol.ref_(self)
             .flags()
             .intersects(SymbolFlags::Prototype)
         {
             return Ok(false);
         }
-        let symbol_ref = self.type_checker.symbol(symbol);
+        let symbol_ref = symbol.ref_(self);
         let name = unescape_leading_underscores(symbol_ref.escaped_name());
         let is_export_equals = name == InternalSymbolName::ExportEquals;
         let is_default = name == InternalSymbolName::Default;
         let is_export_assignment_compatible_symbol_name = is_export_equals || is_default;
-        let alias_decl = self
-            .type_checker
-            .symbol(symbol)
+        let alias_decl = symbol.ref_(self)
             .maybe_declarations()
             .is_some()
             .try_then_and(|| self.type_checker.get_declaration_of_alias_symbol(symbol))?;
@@ -77,14 +73,12 @@ impl SymbolTableToDeclarationStatements {
         Ok(
             if let Some(target) = target.filter(|&target| {
                 length(
-                    self.type_checker
-                        .symbol(target)
+                    target.ref_(self)
                         .maybe_declarations()
                         .as_deref(),
                 ) > 0
                     && some(
-                        self.type_checker
-                            .symbol(target)
+                        target.ref_(self)
                             .maybe_declarations()
                             .as_deref(),
                         Some(|d: &Gc<Node>| {
@@ -151,7 +145,7 @@ impl SymbolTableToDeclarationStatements {
                             name,
                             &self.get_internal_symbol_name(
                                 target,
-                                &symbol_name(&self.type_checker.symbol(target)),
+                                &symbol_name(&target.ref_(self)),
                             ),
                             Option::<&Node>::None,
                         );
@@ -223,8 +217,8 @@ impl SymbolTableToDeclarationStatements {
                         &statement,
                         if matches!(
                             target,
-                            Some(target) if self.type_checker.symbol(target).flags().intersects(SymbolFlags::Property) &&
-                                self.type_checker.symbol(target).escaped_name() == InternalSymbolName::ExportEquals
+                            Some(target) if target.ref_(self).flags().intersects(SymbolFlags::Property) &&
+                                target.ref_(self).escaped_name() == InternalSymbolName::ExportEquals
                         ) {
                             ModifierFlags::Ambient
                         } else if name == var_name {
@@ -292,7 +286,7 @@ impl SymbolTableToDeclarationStatements {
                 && !matches!(
                     type_to_serialize.ref_(self).maybe_symbol(),
                     Some(type_to_serialize_symbol) if some(
-                        self.type_checker.symbol(type_to_serialize_symbol).maybe_declarations().as_deref(),
+                        type_to_serialize_symbol.ref_(self).maybe_declarations().as_deref(),
                         Some(|d: &Gc<Node>| !are_option_gcs_equal(
                             maybe_get_source_file_of_node(Some(&**d)).as_ref(),
                             ctx_src.as_ref()
@@ -304,14 +298,14 @@ impl SymbolTableToDeclarationStatements {
                     .get_properties_of_type(type_to_serialize)?
                     .any(|p| {
                         self.type_checker
-                            .is_late_bound_name(self.type_checker.symbol(p).escaped_name())
+                            .is_late_bound_name(p.ref_(self).escaped_name())
                     })
                 && !self
                     .type_checker
                     .get_properties_of_type(type_to_serialize)?
                     .any(|p| {
                         some(
-                            self.type_checker.symbol(p).maybe_declarations().as_deref(),
+                            p.ref_(self).maybe_declarations().as_deref(),
                             Some(|d: &Gc<Node>| {
                                 !are_option_gcs_equal(
                                     maybe_get_source_file_of_node(Some(&**d)).as_ref(),
@@ -325,7 +319,7 @@ impl SymbolTableToDeclarationStatements {
                     .get_properties_of_type(type_to_serialize)?
                     .all(|p| {
                         is_identifier_text(
-                            &symbol_name(&self.type_checker.symbol(p)),
+                            &symbol_name(&p.ref_(self)),
                             Some(self.type_checker.language_version),
                             None,
                         )
@@ -580,7 +574,7 @@ impl SymbolTableToDeclarationStatements {
     }
 
     pub(super) fn get_unused_name(&self, input: &str, symbol: Option<Id<Symbol>>) -> String {
-        let id = symbol.map(|symbol| get_symbol_id(&self.type_checker.symbol(symbol)));
+        let id = symbol.map(|symbol| get_symbol_id(&symbol.ref_(self)));
         if let Some(id) = id {
             if self.context().remapped_symbol_names().contains_key(&id) {
                 return self
@@ -663,7 +657,7 @@ impl SymbolTableToDeclarationStatements {
     }
 
     pub(super) fn get_internal_symbol_name(&self, symbol: Id<Symbol>, local_name: &str) -> String {
-        let id = get_symbol_id(&self.type_checker.symbol(symbol));
+        let id = get_symbol_id(&symbol.ref_(self));
         if self.context().remapped_symbol_names().contains_key(&id) {
             return self
                 .context()
@@ -689,6 +683,12 @@ pub(super) struct MakeSerializePropertySymbol {
     create_property: Gc<Box<dyn MakeSerializePropertySymbolCreateProperty>>,
     method_kind: SyntaxKind,
     use_accessors: bool,
+}
+
+impl HasArena for MakeSerializePropertySymbol {
+    fn arena(&self) -> &AllArenas {
+        self.type_checker.arena()
+    }
 }
 
 impl MakeSerializePropertySymbol {
@@ -720,41 +720,37 @@ impl MakeSerializePropertySymbol {
     ) -> io::Result<Vec<Gc<Node>>> {
         let modifier_flags = get_declaration_modifier_flags_from_symbol(
             self.type_checker.arena(),
-            &self.type_checker.symbol(p),
+            &p.ref_(self),
             None,
         );
         let is_private = modifier_flags.intersects(ModifierFlags::Private);
         if is_static
-            && self
-                .type_checker
-                .symbol(p)
+            && p.ref_(self)
                 .flags()
                 .intersects(SymbolFlags::Type | SymbolFlags::Namespace | SymbolFlags::Alias)
         {
             return Ok(vec![]);
         }
-        if self
-            .type_checker
-            .symbol(p)
+        if p.ref_(self)
             .flags()
             .intersects(SymbolFlags::Prototype)
             || matches!(
                 base_type,
                 Some(base_type) if self.type_checker.get_property_of_type_(
                     base_type,
-                    self.type_checker.symbol(p).escaped_name(),
+                    p.ref_(self).escaped_name(),
                     None
                 )?.is_some() &&
                     self.type_checker.is_readonly_symbol(
-                        self.type_checker.get_property_of_type_(base_type, self.type_checker.symbol(p).escaped_name(), None)?.unwrap()
+                        self.type_checker.get_property_of_type_(base_type, p.ref_(self).escaped_name(), None)?.unwrap()
                     )? == self.type_checker.is_readonly_symbol(p)? &&
-                    self.type_checker.symbol(p).flags() & SymbolFlags::Optional ==
-                        self.type_checker.symbol(self.type_checker.get_property_of_type_(base_type, self.type_checker.symbol(p).escaped_name(), None)?.unwrap()).flags() & SymbolFlags::Optional &&
+                    p.ref_(self).flags() & SymbolFlags::Optional ==
+                        self.type_checker.get_property_of_type_(base_type, p.ref_(self).escaped_name(), None)?.unwrap().ref_(self).flags() & SymbolFlags::Optional &&
                     self.type_checker.is_type_identical_to(
                         self.type_checker.get_type_of_symbol(p)?,
                         self.type_checker.get_type_of_property_of_type_(
                             base_type,
-                            self.type_checker.symbol(p).escaped_name()
+                            p.ref_(self).escaped_name()
                         )?.unwrap()
                     )?
             )
@@ -770,9 +766,7 @@ impl MakeSerializePropertySymbol {
         let ref name = self
             .node_builder
             .get_property_name_node_for_symbol(p, &self.context)?;
-        let first_property_like_decl = self
-            .type_checker
-            .symbol(p)
+        let first_property_like_decl = p.ref_(self)
             .maybe_declarations()
             .as_ref()
             .and_then(|p_declarations| {
@@ -796,9 +790,7 @@ impl MakeSerializePropertySymbol {
             && self.use_accessors
         {
             let mut result: Vec<Gc<Node /*AccessorDeclaration*/>> = Default::default();
-            if self
-                .type_checker
-                .symbol(p)
+            if p.ref_(self)
                 .flags()
                 .intersects(SymbolFlags::SetAccessor)
             {
@@ -838,8 +830,7 @@ impl MakeSerializePropertySymbol {
                         )],
                         None,
                     ),
-                    self.type_checker
-                        .symbol(p)
+                    p.ref_(self)
                         .maybe_declarations()
                         .as_ref()
                         .and_then(|p_declarations| {
@@ -852,9 +843,7 @@ impl MakeSerializePropertySymbol {
                         .as_deref(),
                 ));
             }
-            if self
-                .type_checker
-                .symbol(p)
+            if p.ref_(self)
                 .flags()
                 .intersects(SymbolFlags::GetAccessor)
             {
@@ -888,8 +877,7 @@ impl MakeSerializePropertySymbol {
                         },
                         None,
                     ),
-                    self.type_checker
-                        .symbol(p)
+                    p.ref_(self)
                         .maybe_declarations()
                         .as_ref()
                         .and_then(|p_declarations| {
@@ -903,9 +891,7 @@ impl MakeSerializePropertySymbol {
                 ));
             }
             return Ok(result);
-        } else if self
-            .type_checker
-            .symbol(p)
+        } else if p.ref_(self)
             .flags()
             .intersects(SymbolFlags::Property | SymbolFlags::Variable | SymbolFlags::Accessor)
         {
@@ -924,8 +910,7 @@ impl MakeSerializePropertySymbol {
                             .into(),
                     ),
                     name.clone().into(),
-                    self.type_checker
-                        .symbol(p)
+                    p.ref_(self)
                         .flags()
                         .intersects(SymbolFlags::Optional)
                         .then(|| get_factory().create_token(SyntaxKind::QuestionToken)),
@@ -952,8 +937,7 @@ impl MakeSerializePropertySymbol {
                     },
                     None,
                 ),
-                self.type_checker
-                    .symbol(p)
+                p.ref_(self)
                     .maybe_declarations()
                     .as_ref()
                     .and_then(|p_declarations| {
@@ -969,9 +953,7 @@ impl MakeSerializePropertySymbol {
                     .as_deref(),
             )]);
         }
-        if self
-            .type_checker
-            .symbol(p)
+        if p.ref_(self)
             .flags()
             .intersects(SymbolFlags::Method | SymbolFlags::Function)
         {
@@ -995,16 +977,14 @@ impl MakeSerializePropertySymbol {
                                 .into(),
                         ),
                         name.clone().into(),
-                        self.type_checker
-                            .symbol(p)
+                        p.ref_(self)
                             .flags()
                             .intersects(SymbolFlags::Optional)
                             .then(|| get_factory().create_token(SyntaxKind::QuestionToken)),
                         None,
                         None,
                     ),
-                    self.type_checker
-                        .symbol(p)
+                    p.ref_(self)
                         .maybe_declarations()
                         .as_ref()
                         .and_then(|p_declarations| {
@@ -1018,8 +998,7 @@ impl MakeSerializePropertySymbol {
                                         .and_then(|signatures_0| signatures_0.declaration.clone())
                                 })
                                 .or_else(|| {
-                                    self.type_checker
-                                        .symbol(p)
+                                    p.ref_(self)
                                         .maybe_declarations()
                                         .as_ref()
                                         .and_then(|p_declarations| p_declarations.get(0).cloned())
@@ -1039,9 +1018,7 @@ impl MakeSerializePropertySymbol {
                         &self.context,
                         Some(SignatureToSignatureDeclarationOptions {
                             name: Some(name.clone()),
-                            question_token: self
-                                .type_checker
-                                .symbol(p)
+                            question_token: p.ref_(self)
                                 .flags()
                                 .intersects(SymbolFlags::Optional)
                                 .then(|| get_factory().create_token(SyntaxKind::QuestionToken)),
@@ -1065,7 +1042,7 @@ impl MakeSerializePropertySymbol {
         }
         Debug_.fail(Some(&format!(
             "Unhandled class member kind! {:?}",
-            /*(p as any).__debugFlags ||*/ self.type_checker.symbol(p).flags()
+            /*(p as any).__debugFlags ||*/ p.ref_(self).flags()
         )))
     }
 }

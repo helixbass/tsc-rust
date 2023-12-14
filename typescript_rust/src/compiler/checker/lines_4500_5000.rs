@@ -21,15 +21,15 @@ use crate::{
     is_type_reference_node, is_variable_declaration, is_variable_statement, maybe_filter,
     maybe_get_source_file_of_node, no_truncation_maximum_truncation_length,
     pseudo_big_int_to_string, ref_mut_unwrapped, ref_unwrapped, set_emit_flags, symbol_name,
-    try_map, try_using_single_line_string_writer, using_single_line_string_writer, Debug_,
-    EmitFlags, EmitHint, EmitTextWriter, FileIncludeReason, HasArena, InArena, IndexInfo,
+    try_map, try_using_single_line_string_writer, using_single_line_string_writer, AllArenas,
+    Debug_, EmitFlags, EmitHint, EmitTextWriter, FileIncludeReason, HasArena, InArena, IndexInfo,
     KeywordTypeNode, ModifierFlags, ModuleSpecifierResolutionHost,
     ModuleSpecifierResolutionHostAndGetCommonSourceDirectory, MultiMap, Node, NodeArray,
     NodeBuilderFlags, NodeFlags, NodeInterface, ObjectFlags, Path, PrinterOptionsBuilder,
     RedirectTargetsMap, ScriptTarget, Signature, SignatureKind, Symbol, SymbolAccessibility,
     SymbolFlags, SymbolFormatFlags, SymbolId, SymbolInterface, SymbolTable, SymbolTracker,
     SymbolVisibilityResult, SymlinkCache, SyntaxKind, Type, TypeChecker, TypeCheckerHostDebuggable,
-    TypeFlags, TypeFormatFlags, TypeId, TypeInterface, AllArenas,
+    TypeFlags, TypeFormatFlags, TypeId, TypeInterface,
 };
 
 impl TypeChecker {
@@ -961,7 +961,7 @@ impl NodeBuilder {
                 return Ok(Some(parent_name));
             }
             let type_symbol = type_.ref_(self).symbol();
-            let type_symbol_ref = self.type_checker.symbol(type_symbol);
+            let type_symbol_ref = type_symbol.ref_(self);
             let member_name = symbol_name(&type_symbol_ref);
             if is_identifier_text(&member_name, Some(ScriptTarget::ES3), None) {
                 return Ok(Some(
@@ -1204,13 +1204,13 @@ impl NodeBuilder {
                         context,
                         None,
                     )?;
-                    if self.type_checker.is_reserved_member_name(
-                        self.type_checker.symbol(type_alias_symbol).escaped_name(),
-                    ) && !self
+                    if self
                         .type_checker
-                        .symbol(type_alias_symbol)
-                        .flags()
-                        .intersects(SymbolFlags::Class)
+                        .is_reserved_member_name(type_alias_symbol.ref_(self).escaped_name())
+                        && !type_alias_symbol
+                            .ref_(self)
+                            .flags()
+                            .intersects(SymbolFlags::Class)
                     {
                         return Ok(Some(get_factory().create_type_reference_node(
                             get_factory().create_identifier(""),
@@ -1259,7 +1259,7 @@ impl NodeBuilder {
                 && contains((*context.infer_type_parameters).borrow().as_deref(), &type_)
             {
                 context.increment_approximate_length_by(
-                    symbol_name(&self.type_checker.symbol(type_.ref_(self).symbol())).len() + 6,
+                    symbol_name(&type_.ref_(self).symbol().ref_(self)).len() + 6,
                 );
                 return Ok(Some(get_factory().create_infer_type_node(
                     self.type_parameter_to_declaration_with_constraint(type_, context, None)?,

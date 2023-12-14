@@ -26,7 +26,7 @@ use crate::{
     ReadonlyTextRange, ReadonlyTextRangeConcrete, ScriptTarget, Signature, SignatureFlags,
     SignatureKind, SourceFileLike, StringOrNumber, Symbol, SymbolAccessibilityResult, SymbolFlags,
     SymbolInterface, SymbolTracker, SymbolVisibilityResult, SyntaxKind, Ternary, TokenFlags, Type,
-    TypeChecker, TypeFlags, TypeInterface, TypeReferenceSerializationKind, HasArena, InArena,
+    TypeChecker, TypeFlags, TypeInterface, TypeReferenceSerializationKind, HasArena, InArena, AllArenas,
 };
 
 impl TypeChecker {
@@ -947,6 +947,12 @@ pub(super) struct EmitResolverCreateResolver {
     file_to_directive: Option<HashMap<String, String>>,
 }
 
+impl HasArena for EmitResolverCreateResolver {
+    fn arena(&self) -> &AllArenas {
+        self.type_checker.arena()
+    }
+}
+
 impl EmitResolverCreateResolver {
     pub(super) fn new(type_checker: Gc<TypeChecker>) -> Self {
         let resolved_type_reference_directives =
@@ -1001,7 +1007,7 @@ impl EmitResolverCreateResolver {
         &self,
         symbol: Id<Symbol>,
     ) -> io::Result<bool> {
-        let symbol_ref = self.type_checker.symbol(symbol);
+        let symbol_ref = symbol.ref_(self);
         let symbol_declarations = symbol_ref.maybe_declarations();
         if symbol_declarations.is_none() {
             return Ok(false);
@@ -1019,11 +1025,9 @@ impl EmitResolverCreateResolver {
         }
 
         if matches!(
-            self.type_checker.symbol(current).maybe_value_declaration(),
+            current.ref_(self).maybe_value_declaration(),
             Some(current_value_declaration) if current_value_declaration.kind() == SyntaxKind::SourceFile
-        ) && self
-            .type_checker
-            .symbol(current)
+        ) && current.ref_(self)
             .flags()
             .intersects(SymbolFlags::ValueModule)
         {
@@ -1155,7 +1159,7 @@ impl EmitResolver for EmitResolverCreateResolver {
             .try_and_then(|node| self.type_checker.get_symbol_of_node(node))?;
         Ok(matches!(
             symbol,
-            Some(symbol) if get_check_flags(&self.type_checker.symbol(symbol)).intersects(CheckFlags::Late)
+            Some(symbol) if get_check_flags(&symbol.ref_(self)).intersects(CheckFlags::Late)
         ))
     }
 
@@ -1381,9 +1385,7 @@ impl EmitResolver for EmitResolverCreateResolver {
             return Ok(None);
         }
         let mut type_reference_directives: Option<Vec<String>> = Default::default();
-        for decl in self
-            .type_checker
-            .symbol(symbol)
+        for decl in symbol.ref_(self)
             .maybe_declarations()
             .as_ref()
             .unwrap()
@@ -1393,7 +1395,7 @@ impl EmitResolver for EmitResolverCreateResolver {
                 .filter(|&decl_symbol| {
                     matches!(
                         meaning,
-                        Some(meaning) if self.type_checker.symbol(decl_symbol).flags().intersects(meaning)
+                        Some(meaning) if decl_symbol.ref_(self).flags().intersects(meaning)
                     )
                 })
                 .is_some()
@@ -1444,9 +1446,7 @@ impl EmitResolver for EmitResolverCreateResolver {
             SyntaxKind::SetAccessor
         };
         let other_accessor = get_declaration_of_kind(
-            &self
-                .type_checker
-                .symbol(self.type_checker.get_symbol_of_node(accessor)?.unwrap()),
+            &self.type_checker.get_symbol_of_node(accessor)?.unwrap().ref_(self),
             other_kind,
         );
         let first_accessor = other_accessor
@@ -1535,7 +1535,7 @@ impl EmitResolver for EmitResolverCreateResolver {
             });
         }
         let sym = sym.unwrap();
-        let ret = match self.type_checker.symbol(sym).maybe_exports().as_ref() {
+        let ret = match sym.ref_(self).maybe_exports().as_ref() {
             None => Some(vec![]),
             Some(sym_exports) => self
                 .type_checker
@@ -1569,11 +1569,9 @@ impl EmitResolver for EmitResolverCreateResolver {
         }
         let exports = self.type_checker.get_exports_of_module_(file_symbol)?;
         for &s in (*exports).borrow().values() {
-            if self.type_checker.symbol(s).maybe_merge_id().is_some() {
+            if s.ref_(self).maybe_merge_id().is_some() {
                 let merged = self.type_checker.get_merged_symbol(Some(s)).unwrap();
-                if let Some(merged_declarations) = self
-                    .type_checker
-                    .symbol(merged)
+                if let Some(merged_declarations) = merged.ref_(self)
                     .maybe_declarations()
                     .as_ref()
                 {

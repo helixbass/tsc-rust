@@ -675,8 +675,7 @@ impl CheckTypeRelatedTo {
             )? {
             self.type_checker.type_to_string_(
                 source,
-                self.type_checker
-                    .symbol(source.ref_(self).symbol())
+                source.ref_(self).symbol().ref_(self)
                     .maybe_value_declaration(),
                 None,
                 None,
@@ -692,8 +691,7 @@ impl CheckTypeRelatedTo {
             )? {
             self.type_checker.type_to_string_(
                 target,
-                self.type_checker
-                    .symbol(target.ref_(self).symbol())
+                target.ref_(self).symbol().ref_(self)
                     .maybe_value_declaration(),
                 None,
                 None,
@@ -1531,7 +1529,7 @@ impl CheckTypeRelatedTo {
             {
                 if !self.type_checker.is_known_property(
                     reduced_target,
-                    self.type_checker.symbol(prop).escaped_name(),
+                    prop.ref_(self).escaped_name(),
                     is_comparing_jsx_attributes,
                 )? {
                     if report_errors {
@@ -1546,9 +1544,7 @@ impl CheckTypeRelatedTo {
                             || is_jsx_opening_like_element(error_node_present)
                             || is_jsx_opening_like_element(&error_node_present.parent())
                         {
-                            if let Some(prop_value_declaration) = self
-                                .type_checker
-                                .symbol(prop)
+                            if let Some(prop_value_declaration) = prop.ref_(self)
                                 .maybe_value_declaration()
                                 .filter(|prop_value_declaration| {
                                     is_jsx_attribute(prop_value_declaration)
@@ -1624,7 +1620,7 @@ impl CheckTypeRelatedTo {
                                 source.ref_(self).maybe_symbol()
                             {
                                 if let Some(declarations) =
-                                    &*self.type_checker.symbol(symbol).maybe_declarations()
+                                    &*symbol.ref_(self).maybe_declarations()
                                 {
                                     first_or_undefined(declarations).map(Clone::clone)
                                 } else {
@@ -1634,7 +1630,7 @@ impl CheckTypeRelatedTo {
                                 None
                             };
                             let mut suggestion: Option<String> = None;
-                            if let Some(prop_value_declaration) = self.type_checker.symbol(prop).maybe_value_declaration().filter(|prop_value_declaration|
+                            if let Some(prop_value_declaration) = prop.ref_(self).maybe_value_declaration().filter(|prop_value_declaration|
                                 find_ancestor(
                                     Some(&**prop_value_declaration),
                                     |d| matches!(
@@ -1696,7 +1692,7 @@ impl CheckTypeRelatedTo {
                     check_types.as_ref(),
                     Some(check_types) if self.is_related_to(
                         self.type_checker.get_type_of_symbol(prop)?,
-                        self.get_type_of_property_in_types(check_types, self.type_checker.symbol(prop).escaped_name())?,
+                        self.get_type_of_property_in_types(check_types, prop.ref_(self).escaped_name())?,
                         Some(RecursionFlags::Both),
                         Some(report_errors),
                         None, None,

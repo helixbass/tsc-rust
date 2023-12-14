@@ -22,17 +22,9 @@ impl CheckTypeRelatedTo {
         prop: Id<Symbol>,
         container: Id<Symbol>,
     ) -> bool {
-        if let Some(prop_value_declaration) = self
-            .type_checker
-            .symbol(prop)
-            .maybe_value_declaration()
-            .as_ref()
-        {
-            if let Some(container_value_declaration) = self
-                .type_checker
-                .symbol(container)
-                .maybe_value_declaration()
-                .as_ref()
+        if let Some(prop_value_declaration) = prop.ref_(self).maybe_value_declaration().as_ref() {
+            if let Some(container_value_declaration) =
+                container.ref_(self).maybe_value_declaration().as_ref()
             {
                 return Gc::ptr_eq(
                     &prop_value_declaration.parent(),
