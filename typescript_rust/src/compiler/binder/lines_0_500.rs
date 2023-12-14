@@ -296,7 +296,7 @@ pub fn bind_source_file(file: &Node /*SourceFile*/, options: Gc<CompilerOptions>
 
 #[allow(non_snake_case)]
 #[derive(Trace, Finalize)]
-pub(crate) struct BinderType {
+pub struct BinderType {
     #[unsafe_ignore_trace]
     pub(crate) arena: *const AllArenas,
     pub(super) _rc_wrapper: GcCell<Option<Gc<BinderType>>>,
