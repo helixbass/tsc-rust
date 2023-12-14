@@ -1023,10 +1023,10 @@ impl TypeChecker {
         );
     }
 
-    pub(super) fn need_collision_check_for_identifier<TIdentifier: Borrow<Node>>(
+    pub(super) fn need_collision_check_for_identifier(
         &self,
         node: Id<Node>,
-        identifier: Option<TIdentifier /*Identifier*/>,
+        identifier: Option<Id<Node> /*Identifier*/>,
         name: &str,
     ) -> bool {
         if identifier.is_none() {

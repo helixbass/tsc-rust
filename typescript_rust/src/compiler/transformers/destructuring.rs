@@ -40,7 +40,7 @@ trait FlattenContext {
         target: Id<Node>, /*BindingOrAssignmentElementTarget*/
         value: Id<Node>,  /*Expression*/
         location: &(impl ReadonlyTextRange + ?Sized),
-        original: Option<impl Borrow<Node>>,
+        original: Option<Id<Node>>,
     ) -> io::Result<()>;
     fn create_array_binding_or_assignment_pattern(
         &self,
@@ -184,7 +184,7 @@ impl FlattenContext for FlattenDestructuringAssignmentFlattenContext<'_, '_> {
         target: Id<Node>, /*BindingOrAssignmentElementTarget*/
         value: Id<Node>,  /*Expression*/
         location: &(impl ReadonlyTextRange + ?Sized),
-        original: Option<impl Borrow<Node>>,
+        original: Option<Id<Node>>,
     ) -> io::Result<()> {
         Debug_.assert_node(
             Some(target),
@@ -630,7 +630,7 @@ fn emit_binding_or_assignment(
     target: Id<Node>, /*BindingOrAssignmentElementTarget*/
     value: Id<Node>,  /*Expression*/
     location: Option<&(impl ReadonlyTextRange + ?Sized)>,
-    original: Option<impl Borrow<Node>>,
+    original: Option<Id<Node>>,
 ) {
     Debug_.assert_node(Some(target), Some(is_binding_name), None);
     let mut value = value.node_wrapper();
@@ -713,7 +713,7 @@ impl FlattenContext for FlattenDestructuringBindingFlattenContext<'_> {
         target: Id<Node>, /*BindingOrAssignmentElementTarget*/
         value: Id<Node>,  /*Expression*/
         location: &(impl ReadonlyTextRange + ?Sized),
-        original: Option<impl Borrow<Node>>,
+        original: Option<Id<Node>>,
     ) -> io::Result<()> {
         emit_binding_or_assignment(
             &mut self.pending_expressions.borrow_mut(),

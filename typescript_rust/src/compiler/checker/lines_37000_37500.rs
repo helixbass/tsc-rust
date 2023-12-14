@@ -355,7 +355,7 @@ impl TypeChecker {
         use_: IterationUse,
         input_type: Id<Type>,
         sent_type: Id<Type>,
-        error_node: Option<impl Borrow<Node>>,
+        error_node: Option<Id<Node>>,
     ) -> io::Result<Id<Type>> {
         if self.is_type_any(Some(input_type)) {
             return Ok(input_type);
@@ -370,7 +370,7 @@ impl TypeChecker {
         use_: IterationUse,
         input_type: Id<Type>,
         sent_type: Id<Type>,
-        error_node: Option<impl Borrow<Node>>,
+        error_node: Option<Id<Node>>,
         check_assignability: bool,
     ) -> io::Result<Option<Id<Type>>> {
         let allow_async_iterables = use_.intersects(IterationUse::AllowsAsyncIterablesFlag);
@@ -648,7 +648,7 @@ impl TypeChecker {
         use_: IterationUse,
         type_kind: IterationTypeKind,
         input_type: Id<Type>,
-        error_node: Option<impl Borrow<Node>>,
+        error_node: Option<Id<Node>>,
     ) -> io::Result<Option<Id<Type>>> {
         if self.is_type_any(Some(input_type)) {
             return Ok(None);
@@ -782,7 +782,7 @@ impl TypeChecker {
         &self,
         type_: Id<Type>,
         use_: IterationUse,
-        error_node: Option<impl Borrow<Node>>,
+        error_node: Option<Id<Node>>,
     ) -> io::Result<Option<Gc<IterationTypes>>> {
         if self.is_type_any(Some(type_)) {
             return Ok(Some(self.any_iteration_types()));

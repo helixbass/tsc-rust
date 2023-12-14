@@ -436,7 +436,7 @@ impl TypeChecker {
         &self,
         node: Id<Node>,
         include_global_this: Option<bool>,
-        container: Option<impl Borrow<Node>>,
+        container: Option<Id<Node>>,
     ) -> io::Result<Option<Id<Type>>> {
         let include_global_this = include_global_this.unwrap_or(true);
         let container = container.map_or_else(

@@ -130,8 +130,8 @@ pub fn get_property_array_element_value(
     )
 }
 
-pub fn get_ts_config_object_literal_expression<TTsConfigSourceFile: Borrow<Node>>(
-    ts_config_source_file: Option<TTsConfigSourceFile /*TsConfigSourceFile*/>,
+pub fn get_ts_config_object_literal_expression(
+    ts_config_source_file: Option<Id<Node> /*TsConfigSourceFile*/>,
 ) -> Option<Id<Node /*ObjectLiteralExpression*/>> {
     if ts_config_source_file.is_none() {
         return None;
@@ -152,8 +152,8 @@ pub fn get_ts_config_object_literal_expression<TTsConfigSourceFile: Borrow<Node>
     None
 }
 
-pub fn get_ts_config_prop_array_element_value<TTsConfigSourceFile: Borrow<Node>>(
-    ts_config_source_file: Option<TTsConfigSourceFile /*TsConfigSourceFile*/>,
+pub fn get_ts_config_prop_array_element_value(
+    ts_config_source_file: Option<Id<Node> /*TsConfigSourceFile*/>,
     prop_key: &str,
     element_value: &str,
 ) -> Option<Id<Node /*StringLiteral*/>> {
@@ -184,7 +184,7 @@ pub fn get_ts_config_prop_array_element_value<TTsConfigSourceFile: Borrow<Node>>
 }
 
 pub fn get_ts_config_prop_array<'prop_key>(
-    ts_config_source_file: Option<impl Borrow<Node> /*TsConfigSourceFile*/>,
+    ts_config_source_file: Option<Id<Node> /*TsConfigSourceFile*/>,
     prop_key: &'prop_key str,
 ) -> impl Iterator<Item = Id<Node /*PropertyAssignment*/>> + 'prop_key {
     let json_object_literal = get_ts_config_object_literal_expression(ts_config_source_file);
@@ -398,7 +398,7 @@ pub fn is_this_property(node: Id<Node>) -> bool {
     ) && node.as_has_expression().expression().kind() == SyntaxKind::ThisKeyword
 }
 
-pub fn is_this_initialized_declaration<TNode: Borrow<Node>>(node: Option<TNode>) -> bool {
+pub fn is_this_initialized_declaration(node: Option<Id<Node>>) -> bool {
     if node.is_none() {
         return false;
     }
@@ -408,8 +408,8 @@ pub fn is_this_initialized_declaration<TNode: Borrow<Node>>(node: Option<TNode>)
         && matches!(node.as_variable_declaration().maybe_initializer(), Some(initializer) if initializer.kind() == SyntaxKind::ThisKeyword)
 }
 
-pub fn is_this_initialized_object_binding_expression<TNode: Borrow<Node>>(
-    node: Option<TNode>,
+pub fn is_this_initialized_object_binding_expression(
+    node: Option<Id<Node>>,
 ) -> bool {
     if node.is_none() {
         return false;
@@ -466,10 +466,10 @@ pub fn get_invoked_expression(node: Id<Node>, /*CallLikeExpression*/) -> Id<Node
     }
 }
 
-pub fn node_can_be_decorated<TParent: Borrow<Node>, TGrandparent: Borrow<Node>>(
+pub fn node_can_be_decorated(
     node: Id<Node>,
-    parent: Option<TParent>,
-    grandparent: Option<TGrandparent>,
+    parent: Option<Id<Node>>,
+    grandparent: Option<Id<Node>>,
 ) -> bool {
     if is_named_declaration(node) && is_private_identifier(&node.as_named_declaration().name()) {
         return false;
@@ -513,23 +513,23 @@ pub fn node_can_be_decorated<TParent: Borrow<Node>, TGrandparent: Borrow<Node>>(
     }
 }
 
-pub fn node_is_decorated<TParent: Borrow<Node>, TGrandparent: Borrow<Node>>(
+pub fn node_is_decorated(
     node: Id<Node>,
-    parent: Option<TParent>,
-    grandparent: Option<TGrandparent>,
+    parent: Option<Id<Node>>,
+    grandparent: Option<Id<Node>>,
 ) -> bool {
     node.maybe_decorators().is_some() && node_can_be_decorated(node, parent, grandparent)
 }
 
 pub fn node_or_child_is_decorated(
     node: Id<Node>,
-    parent: Option<impl Borrow<Node> + Clone>,
-    grandparent: Option<impl Borrow<Node>>,
+    parent: Option<Id<Node>>,
+    grandparent: Option<Id<Node>>,
 ) -> bool {
     node_is_decorated(node, parent.clone(), grandparent) || child_is_decorated(node, parent)
 }
 
-pub fn child_is_decorated(node: Id<Node>, parent: Option<impl Borrow<Node> + Clone>) -> bool {
+pub fn child_is_decorated(node: Id<Node>, parent: Option<Id<Node>>) -> bool {
     match node.kind() {
         SyntaxKind::ClassDeclaration => some(
             Some(&node.as_class_declaration().members()),

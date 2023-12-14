@@ -195,7 +195,7 @@ impl TypeChecker {
         &self,
         index_type: Id<Type>,
         access_node: Option<
-            impl Borrow<Node>, /*StringLiteral | Identifier | PrivateIdentifier | ObjectBindingPattern | ArrayBindingPattern | ComputedPropertyName | NumericLiteral | IndexedAccessTypeNode | ElementAccessExpression | SyntheticExpression*/
+            Id<Node>, /*StringLiteral | Identifier | PrivateIdentifier | ObjectBindingPattern | ArrayBindingPattern | ComputedPropertyName | NumericLiteral | IndexedAccessTypeNode | ElementAccessExpression | SyntheticExpression*/
         >,
     ) -> Option<String /*__String*/> {
         if self.is_type_usable_as_property_name(index_type) {
@@ -244,7 +244,7 @@ impl TypeChecker {
         index_type: Id<Type>,
         full_index_type: Id<Type>,
         access_node: Option<
-            impl Borrow<Node>, /*ElementAccessExpression | IndexedAccessTypeNode | PropertyName | BindingName | SyntheticExpression*/
+            Id<Node>, /*ElementAccessExpression | IndexedAccessTypeNode | PropertyName | BindingName | SyntheticExpression*/
         >,
         access_flags: AccessFlags,
     ) -> io::Result<Option<Id<Type>>> {
@@ -1374,7 +1374,7 @@ impl TypeChecker {
         index_type: Id<Type>,
         access_flags: Option<AccessFlags>,
         access_node: Option<
-            impl Borrow<Node>, /*ElementAccessExpression | IndexedAccessTypeNode | PropertyName | BindingName | SyntheticExpression*/
+            Id<Node>, /*ElementAccessExpression | IndexedAccessTypeNode | PropertyName | BindingName | SyntheticExpression*/
         >,
         alias_symbol: Option<Id<Symbol>>,
         alias_type_arguments: Option<&[Id<Type>]>,
@@ -1421,7 +1421,7 @@ impl TypeChecker {
         mut index_type: Id<Type>,
         access_flags: Option<AccessFlags>,
         access_node: Option<
-            impl Borrow<Node>, /*ElementAccessExpression | IndexedAccessTypeNode | PropertyName | BindingName | SyntheticExpression*/
+            Id<Node>, /*ElementAccessExpression | IndexedAccessTypeNode | PropertyName | BindingName | SyntheticExpression*/
         >,
         alias_symbol: Option<Id<Symbol>>,
         alias_type_arguments: Option<&[Id<Type>]>,

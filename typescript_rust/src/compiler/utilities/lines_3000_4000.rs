@@ -232,8 +232,8 @@ pub fn get_heritage_clause(clauses: Option<&NodeArray>, kind: SyntaxKind) -> Opt
     None
 }
 
-pub fn get_ancestor<TNode: Borrow<Node>>(
-    node: Option<TNode>,
+pub fn get_ancestor(
+    node: Option<Id<Node>>,
     kind: SyntaxKind,
 ) -> Option<Id<Node>> {
     let node = node?;
@@ -293,8 +293,8 @@ bitflags! {
     }
 }
 
-pub fn get_function_flags<TNode: Borrow<Node>>(
-    node: Option<TNode /*SignatureDeclaration*/>,
+pub fn get_function_flags(
+    node: Option<Id<Node> /*SignatureDeclaration*/>,
 ) -> FunctionFlags {
     if node.is_none() {
         return FunctionFlags::Invalid;

@@ -91,10 +91,10 @@ impl TypeChecker {
         diagnostic
     }
 
-    pub(super) fn get_is_deferred_context<TLastLocation: Borrow<Node>>(
+    pub(super) fn get_is_deferred_context(
         &self,
         location: Id<Node>,
-        last_location: Option<TLastLocation>,
+        last_location: Option<Id<Node>>,
     ) -> bool {
         let last_location =
             last_location.map(|last_location| last_location.borrow().node_wrapper());
@@ -663,10 +663,10 @@ impl TypeChecker {
         Ok(())
     }
 
-    pub(super) fn is_same_scope_descendent_of<TParent: Borrow<Node>>(
+    pub(super) fn is_same_scope_descendent_of(
         &self,
         initial: Id<Node>,
-        parent: Option<TParent>,
+        parent: Option<Id<Node>>,
         stop_at: Id<Node>,
     ) -> bool {
         if parent.is_none() {
@@ -866,7 +866,7 @@ impl TypeChecker {
         &self,
         module_symbol: Id<Symbol>,
         name: &str, /*__String*/
-        source_node: Option<impl Borrow<Node> /*TypeOnlyCompatibleAliasDeclaration*/>,
+        source_node: Option<Id<Node> /*TypeOnlyCompatibleAliasDeclaration*/>,
         dont_resolve_alias: bool,
     ) -> io::Result<Option<Id<Symbol>>> {
         let module_symbol_exports = module_symbol.ref_(self).exports();
@@ -930,7 +930,7 @@ impl TypeChecker {
 
     pub(super) fn can_have_synthetic_default(
         &self,
-        file: Option<impl Borrow<Node> /*SourceFile*/>,
+        file: Option<Id<Node> /*SourceFile*/>,
         module_symbol: Id<Symbol>,
         dont_resolve_alias: bool,
         usage: Id<Node>, /*Expression*/

@@ -499,7 +499,7 @@ impl TypeChecker {
         operator_token: Id<Node>,
         right: Id<Node>, /*Expression*/
         check_mode: Option<CheckMode>,
-        error_node: Option<impl Borrow<Node>>,
+        error_node: Option<Id<Node>>,
     ) -> io::Result<Id<Type>> {
         let operator = operator_token.kind();
         if operator == SyntaxKind::EqualsToken
@@ -545,7 +545,7 @@ impl TypeChecker {
         right: Id<Node>, /*Expression*/
         mut left_type: Id<Type>,
         mut right_type: Id<Type>,
-        error_node: Option<impl Borrow<Node>>,
+        error_node: Option<Id<Node>>,
     ) -> io::Result<Id<Type>> {
         let operator = operator_token.kind();
         let error_node = error_node.map(|error_node| error_node.borrow().node_wrapper());

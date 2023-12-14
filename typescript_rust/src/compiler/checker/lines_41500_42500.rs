@@ -268,7 +268,7 @@ impl TypeChecker {
     pub(super) fn get_type_reference_serialization_kind(
         &self,
         type_name_in: Id<Node>, /*EntityName*/
-        location: Option<impl Borrow<Node>>,
+        location: Option<Id<Node>>,
     ) -> io::Result<TypeReferenceSerializationKind> {
         let type_name = get_parse_tree_node(Some(type_name_in), Some(is_entity_name));
         if type_name.is_none() {

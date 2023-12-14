@@ -588,7 +588,7 @@ impl TypeChecker {
         source: Id<Type>,
         target: Id<Type>,
         relation: Rc<RefCell<HashMap<String, RelationComparisonResult>>>,
-        error_node: Option<impl Borrow<Node>>,
+        error_node: Option<Id<Node>>,
         head_message: Option<Cow<'static, DiagnosticMessage>>,
         containing_message_chain: Option<Gc<Box<dyn CheckTypeContainingMessageChain>>>,
         error_output_container: Option<Gc<Box<dyn CheckTypeErrorOutputContainer>>>,

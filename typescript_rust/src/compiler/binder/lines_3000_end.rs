@@ -476,10 +476,10 @@ impl BinderType {
         expr.parent()
     }
 
-    pub(super) fn lookup_symbol_for_property_access<TLookupContainer: Borrow<Node>>(
+    pub(super) fn lookup_symbol_for_property_access(
         &self,
         node: Id<Node>, /*BindableStaticNameExpression*/
-        lookup_container: Option<TLookupContainer>,
+        lookup_container: Option<Id<Node>>,
     ) -> Option<Id<Symbol>> {
         let lookup_container =
             lookup_container.map(|lookup_container| lookup_container.borrow().node_wrapper());

@@ -78,7 +78,7 @@ impl TypeChecker {
     pub(super) fn check_collision_with_require_exports_in_generated_code(
         &self,
         node: Id<Node>,
-        name: Option<impl Borrow<Node> /*Identifier*/>,
+        name: Option<Id<Node> /*Identifier*/>,
     ) {
         if self.module_kind >= ModuleKind::ES2015
             && !(self.module_kind >= ModuleKind::Node12
@@ -124,7 +124,7 @@ impl TypeChecker {
     pub(super) fn check_collision_with_global_promise_in_generated_code(
         &self,
         node: Id<Node>,
-        name: Option<impl Borrow<Node> /*Identifier*/>,
+        name: Option<Id<Node> /*Identifier*/>,
     ) {
         if name.is_none() {
             return;
@@ -202,7 +202,7 @@ impl TypeChecker {
     pub(super) fn record_potential_collision_with_reflect_in_generated_code(
         &self,
         node: Id<Node>,
-        name: Option<impl Borrow<Node> /*Identifier*/>,
+        name: Option<Id<Node> /*Identifier*/>,
     ) {
         if name.is_none() {
             return;
@@ -266,7 +266,7 @@ impl TypeChecker {
     pub(super) fn check_collisions_for_declaration_name(
         &self,
         node: Id<Node>,
-        name: Option<impl Borrow<Node> /*Identifier*/>,
+        name: Option<Id<Node> /*Identifier*/>,
     ) {
         if name.is_none() {
             return;
@@ -673,7 +673,7 @@ impl TypeChecker {
 
     pub(super) fn error_next_variable_or_property_declaration_must_have_same_type(
         &self,
-        first_declaration: Option<impl Borrow<Node> /*Declaration*/>,
+        first_declaration: Option<Id<Node> /*Declaration*/>,
         first_type: Id<Type>,
         next_declaration: Id<Node>, /*Declaration*/
         next_type: Id<Type>,
@@ -829,7 +829,7 @@ impl TypeChecker {
         &self,
         cond_expr: Id<Node>, /*Expression*/
         type_: Id<Type>,
-        body: Option<impl Borrow<Node> /*Statement | Expression*/>,
+        body: Option<Id<Node> /*Statement | Expression*/>,
     ) -> io::Result<()> {
         if !self.strict_null_checks {
             return Ok(());

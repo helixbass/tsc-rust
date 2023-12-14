@@ -650,7 +650,7 @@ impl TypeChecker {
 
     pub(super) fn get_annotated_accessor_type_node(
         &self,
-        accessor: Option<impl Borrow<Node> /*AccessorDeclaration*/>,
+        accessor: Option<Id<Node> /*AccessorDeclaration*/>,
     ) -> Option<Id<Node /*TypeNode*/>> {
         let accessor = accessor?;
         let accessor = accessor.borrow();
@@ -665,7 +665,7 @@ impl TypeChecker {
 
     pub(super) fn get_annotated_accessor_type(
         &self,
-        accessor: Option<impl Borrow<Node> /*AccessorDeclaration*/>,
+        accessor: Option<Id<Node> /*AccessorDeclaration*/>,
     ) -> io::Result<Option<Id<Type>>> {
         let node = return_ok_none_if_none!(self.get_annotated_accessor_type_node(accessor));
         Ok(Some(self.get_type_from_type_node_(&node)?))

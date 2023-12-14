@@ -44,7 +44,7 @@ pub fn visit_each_child(
 
 #[inline(always)]
 pub fn maybe_visit_each_child(
-    node: Option<impl Borrow<Node>>,
+    node: Option<Id<Node>>,
     visitor: impl FnMut(Id<Node>) -> VisitResult,
     context: &(impl TransformationContext + ?Sized),
 ) -> Option<Id<Node>> {
@@ -74,7 +74,7 @@ pub fn maybe_visit_each_child(
 }
 
 pub fn maybe_visit_each_child_full(
-    node: Option<impl Borrow<Node>>,
+    node: Option<Id<Node>>,
     mut visitor: impl FnMut(Id<Node>) -> VisitResult,
     context: &(impl TransformationContext + ?Sized),
     mut nodes_visitor: Option<

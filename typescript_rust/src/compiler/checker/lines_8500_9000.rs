@@ -1003,7 +1003,7 @@ impl TypeChecker {
         &self,
         decl: Id<Node>,
         symbol: Option<Id<Symbol>>,
-        init: Option<impl Borrow<Node>>,
+        init: Option<Id<Node>>,
     ) -> io::Result<Option<Id<Type>>> {
         if !is_in_js_file(Some(decl)) {
             return Ok(None);

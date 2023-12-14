@@ -514,7 +514,7 @@ impl TransformGenerators {
         }
     }
 
-    pub(super) fn contains_yield(&self, node: Option<impl Borrow<Node>>) -> bool {
+    pub(super) fn contains_yield(&self, node: Option<Id<Node>>) -> bool {
         node.matches(|node| {
             let node = node.borrow();
             node.transform_flags()

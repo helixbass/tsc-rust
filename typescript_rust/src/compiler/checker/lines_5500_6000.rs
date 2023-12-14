@@ -192,7 +192,7 @@ impl NodeBuilder {
         &self,
         index_info: &IndexInfo,
         context: &NodeBuilderContext,
-        type_node: Option<impl Borrow<Node> /*TypeNode*/>,
+        type_node: Option<Id<Node> /*TypeNode*/>,
     ) -> io::Result<Id<Node /*IndexSignatureDeclaration*/>> {
         let name = get_name_from_index_info(index_info).unwrap_or_else(|| Cow::Borrowed("x"));
         let indexer_type_node =
@@ -760,7 +760,7 @@ impl NodeBuilder {
     pub(super) fn track_computed_name(
         &self,
         access_expression: Id<Node>, /*EntityNameOrEntityNameExpression*/
-        enclosing_declaration: Option<impl Borrow<Node>>,
+        enclosing_declaration: Option<Id<Node>>,
         context: &NodeBuilderContext,
     ) -> io::Result<()> {
         if !context.tracker().is_track_symbol_supported() {

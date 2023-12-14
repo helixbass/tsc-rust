@@ -592,8 +592,8 @@ impl TransformES2015 {
         &self,
         node: Id<Node>, /*FunctionLikeDeclaration*/
         location: Option<&impl ReadonlyTextRange>,
-        name: Option<impl Borrow<Node /*Identifier*/>>,
-        container: Option<impl Borrow<Node>>,
+        name: Option<Id<Node /*Identifier*/>>,
+        container: Option<Id<Node>>,
     ) -> io::Result<Id<Node /*FunctionExpression*/>> {
         let node_as_function_like_declaration = node.as_function_like_declaration();
         let saved_converted_loop_state = self.maybe_converted_loop_state();

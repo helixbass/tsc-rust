@@ -507,7 +507,7 @@ pub(super) fn propagate_property_name_flags_of_child(
     transform_flags | (node.transform_flags() & TransformFlags::PropertyNamePropagatingFlags)
 }
 
-pub(super) fn propagate_child_flags(child: Option<impl Borrow<Node>>) -> TransformFlags {
+pub(super) fn propagate_child_flags(child: Option<Id<Node>>) -> TransformFlags {
     if child.is_none() {
         return TransformFlags::None;
     }
@@ -784,7 +784,7 @@ impl From<Gc<Box<dyn ReadFileCallback>>> for StringOrReadFileCallback {
     }
 }
 
-pub fn set_original_node<TNode: Borrow<Node>>(node: TNode, original: Option<Id<Node>>) -> TNode {
+pub fn set_original_node(node: Id<Node>, original: Option<Id<Node>>) -> Id<Node> {
     let node_as_node = node.borrow();
     node_as_node.set_original(original.clone());
     if let Some(original) = original {

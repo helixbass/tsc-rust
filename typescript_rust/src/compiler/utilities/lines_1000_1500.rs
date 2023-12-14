@@ -79,8 +79,8 @@ pub fn create_diagnostic_for_node_from_message_chain(
     )
 }
 
-fn assert_diagnostic_location<TFile: Borrow<Node>>(
-    file: Option<TFile /*SourceFile*/>,
+fn assert_diagnostic_location(
+    file: Option<Id<Node> /*SourceFile*/>,
     start: isize,
     length: isize,
 ) {
@@ -803,7 +803,7 @@ fn try_for_each_yield_expression_traverse<TError>(
 }
 
 pub fn get_rest_parameter_element_type(
-    node: Option<impl Borrow<Node> /*TypeNode*/>,
+    node: Option<Id<Node> /*TypeNode*/>,
 ) -> Option<Id<Node /*TypeNode*/>> {
     if node.is_none() {
         return None;

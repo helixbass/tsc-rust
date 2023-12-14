@@ -483,7 +483,7 @@ impl TransformES2015 {
     pub(super) fn transform_class_body(
         &self,
         node: Id<Node>, /*ClassExpression | ClassDeclaration*/
-        extends_clause_element: Option<impl Borrow<Node>>, /*ExpressionWithTypeArguments*/
+        extends_clause_element: Option<Id<Node>>, /*ExpressionWithTypeArguments*/
     ) -> io::Result<Id<Node /*Block*/>> {
         let node_as_class_like_declaration = node.as_class_like_declaration();
         let mut statements: Vec<Id<Node /*Statement*/>> = Default::default();
@@ -548,7 +548,7 @@ impl TransformES2015 {
         &self,
         statements: &mut Vec<Id<Node /*Statement*/>>,
         node: Id<Node>, /*ClassExpression | ClassDeclaration*/
-        extends_clause_element: Option<impl Borrow<Node>>, /*ExpressionWithTypeArguments*/
+        extends_clause_element: Option<Id<Node>>, /*ExpressionWithTypeArguments*/
     ) {
         if let Some(extends_clause_element) = extends_clause_element {
             let extends_clause_element: Id<Node> = extends_clause_element.borrow();
@@ -569,7 +569,7 @@ impl TransformES2015 {
         statements: &mut Vec<Id<Node /*Statement*/>>,
         node: Id<Node>, /*ClassExpression | ClassDeclaration*/
         name: Id<Node>, /*Identifier*/
-        extends_clause_element: Option<impl Borrow<Node>>, /*ExpressionWithTypeArguments*/
+        extends_clause_element: Option<Id<Node>>, /*ExpressionWithTypeArguments*/
     ) -> io::Result<()> {
         let saved_converted_loop_state = self.maybe_converted_loop_state();
         self.set_converted_loop_state(None);
@@ -621,7 +621,7 @@ impl TransformES2015 {
 
     pub(super) fn transform_constructor_parameters(
         &self,
-        constructor: Option<impl Borrow<Node>>, /*ConstructorDeclaration*/
+        constructor: Option<Id<Node>>, /*ConstructorDeclaration*/
         has_synthesized_super: bool,
     ) -> io::Result<NodeArrayOrVec> {
         let constructor = constructor.node_wrappered();
@@ -671,9 +671,9 @@ impl TransformES2015 {
 
     pub(super) fn transform_constructor_body(
         &self,
-        constructor: Option<impl Borrow<Node>>, /*ConstructorDeclaration & { body: FunctionBody } */
+        constructor: Option<Id<Node>>, /*ConstructorDeclaration & { body: FunctionBody } */
         node: Id<Node>,                         /*ClassExpression | ClassDeclaration*/
-        extends_clause_element: Option<impl Borrow<Node>>, /*ExpressionWithTypeArguments*/
+        extends_clause_element: Option<Id<Node>>, /*ExpressionWithTypeArguments*/
         has_synthesized_super: bool,
     ) -> io::Result<Id<Node>> {
         let extends_clause_element = extends_clause_element.node_wrappered();

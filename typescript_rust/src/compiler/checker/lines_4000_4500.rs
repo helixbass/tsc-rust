@@ -363,7 +363,7 @@ impl TypeChecker {
 
     pub(super) fn for_each_symbol_table_in_scope<TReturn>(
         &self,
-        enclosing_declaration: Option<impl Borrow<Node>>,
+        enclosing_declaration: Option<Id<Node>>,
         mut callback: impl FnMut(
             Gc<GcCell<SymbolTable>>,
             Option<bool>,
@@ -382,7 +382,7 @@ impl TypeChecker {
 
     pub(super) fn try_for_each_symbol_table_in_scope<TReturn>(
         &self,
-        enclosing_declaration: Option<impl Borrow<Node>>,
+        enclosing_declaration: Option<Id<Node>>,
         mut callback: impl FnMut(
             Gc<GcCell<SymbolTable>>,
             Option<bool>,
@@ -487,7 +487,7 @@ impl TypeChecker {
     pub(super) fn get_accessible_symbol_chain(
         &self,
         symbol: Option<Id<Symbol>>,
-        enclosing_declaration: Option<impl Borrow<Node>>,
+        enclosing_declaration: Option<Id<Node>>,
         meaning: SymbolFlags,
         use_only_external_aliasing: bool,
         visited_symbol_tables_map: Option<
@@ -842,7 +842,7 @@ impl TypeChecker {
     pub(super) fn needs_qualification(
         &self,
         symbol: Id<Symbol>,
-        enclosing_declaration: Option<impl Borrow<Node>>,
+        enclosing_declaration: Option<Id<Node>>,
         meaning: SymbolFlags,
     ) -> io::Result<bool> {
         let mut qualify = false;
@@ -918,7 +918,7 @@ impl TypeChecker {
     pub(super) fn is_type_symbol_accessible(
         &self,
         type_symbol: Id<Symbol>,
-        enclosing_declaration: Option<impl Borrow<Node>>,
+        enclosing_declaration: Option<Id<Node>>,
     ) -> io::Result<bool> {
         let enclosing_declaration = enclosing_declaration
             .map(|enclosing_declaration| enclosing_declaration.borrow().node_wrapper());
@@ -935,7 +935,7 @@ impl TypeChecker {
     pub(super) fn is_value_symbol_accessible(
         &self,
         type_symbol: Id<Symbol>,
-        enclosing_declaration: Option<impl Borrow<Node>>,
+        enclosing_declaration: Option<Id<Node>>,
     ) -> io::Result<bool> {
         let access = self.is_symbol_accessible_worker(
             Some(type_symbol),
@@ -950,7 +950,7 @@ impl TypeChecker {
     pub(super) fn is_symbol_accessible_by_flags(
         &self,
         type_symbol: Id<Symbol>,
-        enclosing_declaration: Option<impl Borrow<Node>>,
+        enclosing_declaration: Option<Id<Node>>,
         flags: SymbolFlags,
     ) -> io::Result<bool> {
         let access = self.is_symbol_accessible_worker(
@@ -966,7 +966,7 @@ impl TypeChecker {
     pub(super) fn is_any_symbol_accessible(
         &self,
         symbols: Option<&[Id<Symbol>]>,
-        enclosing_declaration: Option<impl Borrow<Node>>,
+        enclosing_declaration: Option<Id<Node>>,
         initial_symbol: Id<Symbol>,
         meaning: SymbolFlags,
         should_compute_aliases_to_make_visible: bool,
@@ -1083,7 +1083,7 @@ impl TypeChecker {
     pub(super) fn is_symbol_accessible(
         &self,
         symbol: Option<Id<Symbol>>,
-        enclosing_declaration: Option<impl Borrow<Node>>,
+        enclosing_declaration: Option<Id<Node>>,
         meaning: SymbolFlags,
         should_compute_aliases_to_make_visible: bool,
     ) -> io::Result<SymbolAccessibilityResult> {
@@ -1099,7 +1099,7 @@ impl TypeChecker {
     pub(super) fn is_symbol_accessible_worker(
         &self,
         symbol: Option<Id<Symbol>>,
-        enclosing_declaration: Option<impl Borrow<Node>>,
+        enclosing_declaration: Option<Id<Node>>,
         meaning: SymbolFlags,
         should_compute_aliases_to_make_visible: bool,
         allow_modules: bool,

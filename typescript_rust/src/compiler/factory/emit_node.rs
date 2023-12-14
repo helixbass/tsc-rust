@@ -63,7 +63,7 @@ pub(crate) fn get_or_create_emit_node(node: Id<Node>) -> Gc<GcCell<EmitNode>> {
     node.maybe_emit_node().unwrap()
 }
 
-pub fn dispose_emit_nodes(source_file: Option<impl Borrow<Node> /*SourceFile*/>) {
+pub fn dispose_emit_nodes(source_file: Option<Id<Node> /*SourceFile*/>) {
     let annotated_nodes = maybe_get_source_file_of_node(get_parse_tree_node(
         source_file,
         Option::<fn(Id<Node>) -> _>::None,
@@ -77,7 +77,7 @@ pub fn dispose_emit_nodes(source_file: Option<impl Borrow<Node> /*SourceFile*/>)
     }
 }
 
-pub fn remove_all_comments<TNode: Borrow<Node>>(node: TNode) -> TNode {
+pub fn remove_all_comments(node: Id<Node>) -> Id<Node> {
     let emit_node = get_or_create_emit_node(node.borrow());
     let mut emit_node = emit_node.borrow_mut();
     emit_node.flags = Some(emit_node.flags.unwrap_or_default() | EmitFlags::NoComments);
@@ -86,12 +86,12 @@ pub fn remove_all_comments<TNode: Borrow<Node>>(node: TNode) -> TNode {
     node
 }
 
-pub fn set_emit_flags<TNode: Borrow<Node>>(node: TNode, emit_flags: EmitFlags) -> TNode {
+pub fn set_emit_flags(node: Id<Node>, emit_flags: EmitFlags) -> Id<Node> {
     get_or_create_emit_node(node.borrow()).borrow_mut().flags = Some(emit_flags);
     node
 }
 
-pub fn add_emit_flags<TNode: Borrow<Node>>(node: TNode, emit_flags: EmitFlags) -> TNode {
+pub fn add_emit_flags(node: Id<Node>, emit_flags: EmitFlags) -> Id<Node> {
     let emit_node = get_or_create_emit_node(node.borrow());
     let mut emit_node = emit_node.borrow_mut();
     emit_node.flags = Some(emit_node.flags.unwrap_or(EmitFlags::None) | emit_flags);
@@ -104,21 +104,21 @@ pub fn get_source_map_range(node: Id<Node>) -> Gc<SourceMapRange> {
         .unwrap_or_else(|| node.into())
 }
 
-pub fn set_source_map_range<TNode: Borrow<Node>>(
-    node: TNode,
+pub fn set_source_map_range(
+    node: Id<Node>,
     range: Option<Gc<SourceMapRange>>,
-) -> TNode {
+) -> Id<Node> {
     get_or_create_emit_node(node.borrow())
         .borrow_mut()
         .source_map_range = range;
     node
 }
 
-pub fn set_token_source_map_range<TNode: Borrow<Node>>(
-    node: TNode,
+pub fn set_token_source_map_range(
+    node: Id<Node>,
     token: SyntaxKind,
     range: Option<Gc<SourceMapRange>>,
-) -> TNode {
+) -> Id<Node> {
     let emit_node = get_or_create_emit_node(node.borrow());
     emit_node
         .borrow_mut()
@@ -244,7 +244,7 @@ pub fn add_synthetic_trailing_comment(
     set_synthetic_trailing_comments(node, synthetic_trailing_comments);
 }
 
-pub fn move_synthetic_comments<TNode: Borrow<Node>>(node: TNode, original: Id<Node>) -> TNode {
+pub fn move_synthetic_comments(node: Id<Node>, original: Id<Node>) -> Id<Node> {
     let node_ref = node.borrow();
     set_synthetic_leading_comments(node_ref, get_synthetic_leading_comments(original));
     set_synthetic_trailing_comments(node_ref, get_synthetic_trailing_comments(original));

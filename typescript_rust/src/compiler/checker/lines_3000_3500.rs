@@ -197,7 +197,7 @@ impl TypeChecker {
 
     pub(super) fn mark_symbol_of_alias_declaration_if_type_only(
         &self,
-        alias_declaration: Option<impl Borrow<Node> /*Declaration*/>,
+        alias_declaration: Option<Id<Node> /*Declaration*/>,
         immediate_target: Option<Id<Symbol>>,
         final_target: Option<Id<Symbol>>,
         overwrite_empty: bool,
@@ -398,7 +398,7 @@ impl TypeChecker {
     pub(super) fn get_fully_qualified_name(
         &self,
         symbol: Id<Symbol>,
-        containing_location: Option<impl Borrow<Node>>,
+        containing_location: Option<Id<Node>>,
     ) -> io::Result<String> {
         Ok(
             if let Some(symbol_parent) = symbol.ref_(self).maybe_parent() {
@@ -470,7 +470,7 @@ impl TypeChecker {
         meaning: SymbolFlags,
         ignore_errors: Option<bool>,
         dont_resolve_alias: Option<bool>,
-        location: Option<impl Borrow<Node>>,
+        location: Option<Id<Node>>,
     ) -> io::Result<Option<Id<Symbol>>> {
         let ignore_errors_unwrapped = ignore_errors.unwrap_or(false);
         let dont_resolve_alias = dont_resolve_alias.unwrap_or(false);

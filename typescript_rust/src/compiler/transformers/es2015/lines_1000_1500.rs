@@ -177,7 +177,7 @@ impl TransformES2015 {
         statements: &mut Vec<Id<Node /*Statement*/>>,
         parameter: Id<Node>,                    /*ParameterDeclaration*/
         name: Id<Node>,                         /*BindingPattern*/
-        initializer: Option<impl Borrow<Node>>, /*Expression*/
+        initializer: Option<Id<Node>>, /*Expression*/
     ) -> io::Result<bool> {
         let name_as_has_elements = name.as_has_elements();
         if !name_as_has_elements.elements().is_empty() {

@@ -554,10 +554,10 @@ impl BinderType {
         is_identifier(node) && matches!(&*node.as_identifier().escaped_text, "eval" | "arguments")
     }
 
-    pub(super) fn check_strict_mode_eval_or_arguments<TName: Borrow<Node>>(
+    pub(super) fn check_strict_mode_eval_or_arguments(
         &self,
         context_node: Id<Node>,
-        name: Option<TName>,
+        name: Option<Id<Node>>,
     ) {
         if name.is_none() {
             return;
@@ -827,7 +827,7 @@ impl BinderType {
         }
     }
 
-    pub(super) fn bind(&self, node: Option<impl Borrow<Node>>) {
+    pub(super) fn bind(&self, node: Option<Id<Node>>) {
         if node.is_none() {
             return;
         }

@@ -33,7 +33,7 @@ impl TypeChecker {
         )
     }
 
-    pub(super) fn check_source_element(&self, node: Option<impl Borrow<Node>>) -> io::Result<()> {
+    pub(super) fn check_source_element(&self, node: Option<Id<Node>>) -> io::Result<()> {
         if let Some(node) = node {
             let node = node.borrow();
             let save_current_node = self.maybe_current_node();
@@ -724,7 +724,7 @@ impl TypeChecker {
 
     pub fn get_diagnostics(
         &self,
-        source_file: Option<impl Borrow<Node> /*SourceFile*/>,
+        source_file: Option<Id<Node> /*SourceFile*/>,
         ct: Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
     ) -> io::Result<Vec<Gc<Diagnostic>>> {
         // try {
@@ -739,7 +739,7 @@ impl TypeChecker {
 
     pub(super) fn get_diagnostics_worker(
         &self,
-        source_file: Option<impl Borrow<Node> /*SourceFile*/>,
+        source_file: Option<Id<Node> /*SourceFile*/>,
     ) -> io::Result<Vec<Gc<Diagnostic>>> {
         self.throw_if_non_diagnostics_producing();
         if let Some(source_file) = source_file {

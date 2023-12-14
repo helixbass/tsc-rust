@@ -629,7 +629,7 @@ impl NodeBuilder {
     pub(super) fn get_declaration_with_type_annotation(
         &self,
         symbol: Id<Symbol>,
-        enclosing_declaration: Option<impl Borrow<Node>>,
+        enclosing_declaration: Option<Id<Node>>,
     ) -> Option<Id<Node>> {
         let enclosing_declaration = enclosing_declaration
             .map(|enclosing_declaration| enclosing_declaration.borrow().node_wrapper());
@@ -680,7 +680,7 @@ impl NodeBuilder {
         context: &NodeBuilderContext,
         type_: Id<Type>,
         symbol: Id<Symbol>,
-        enclosing_declaration: Option<impl Borrow<Node>>,
+        enclosing_declaration: Option<Id<Node>>,
         include_private_symbol: Option<&impl Fn(Id<Symbol>)>,
         bundled: Option<bool>,
     ) -> io::Result<Id<Node>> {

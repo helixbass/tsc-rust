@@ -38,7 +38,7 @@ impl TypeChecker {
         report_errors: bool,
         error_output_container: Gc<Box<dyn CheckTypeErrorOutputContainer>>,
         relation: Rc<RefCell<HashMap<String, RelationComparisonResult>>>,
-        error_node: Option<impl Borrow<Node>>,
+        error_node: Option<Id<Node>>,
         source: Id<Type>,
         target: Id<Type>,
     ) -> io::Result<()> {
@@ -99,14 +99,12 @@ impl TypeChecker {
         None
     }
 
-    pub(super) fn create_synthetic_expression<TTupleNameSource: Borrow<Node>>(
+    pub(super) fn create_synthetic_expression(
         &self,
         parent: Id<Node>,
         type_: Id<Type>,
         is_spread: Option<bool>,
-        tuple_name_source: Option<
-            TTupleNameSource, /*ParameterDeclaration | NamedTupleMember*/
-        >,
+        tuple_name_source: Option<Id<Node> /*ParameterDeclaration | NamedTupleMember*/>,
     ) -> Id<Node> {
         let result = parse_node_factory.with(|parse_node_factory_| {
             parse_node_factory_.create_synthetic_expression(

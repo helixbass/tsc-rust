@@ -205,7 +205,7 @@ impl TypeChecker {
 
     pub(super) fn get_suggested_symbol_for_nonexistent_symbol_(
         &self,
-        location: Option<impl Borrow<Node>>,
+        location: Option<Id<Node>>,
         outer_name: &str, /*__String*/
         meaning: SymbolFlags,
     ) -> io::Result<Option<Id<Symbol>>> {
@@ -269,7 +269,7 @@ impl TypeChecker {
 
     pub(super) fn get_suggestion_for_nonexistent_symbol_(
         &self,
-        location: Option<impl Borrow<Node>>,
+        location: Option<Id<Node>>,
         outer_name: &str, /*__String*/
         meaning: SymbolFlags,
     ) -> io::Result<Option<String>> {
@@ -412,7 +412,7 @@ impl TypeChecker {
     pub(super) fn mark_property_as_referenced(
         &self,
         prop: Id<Symbol>,
-        node_for_check_write_only: Option<impl Borrow<Node>>,
+        node_for_check_write_only: Option<Id<Node>>,
         is_self_type_access: bool,
     ) {
         let value_declaration = /*prop &&*/ if prop.ref_(self).flags().intersects(SymbolFlags::ClassMember) {

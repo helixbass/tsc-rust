@@ -531,7 +531,7 @@ impl TypeChecker {
         Ok(result)
     }
 
-    pub(super) fn is_js_constructor(&self, node: Option<impl Borrow<Node>>) -> io::Result<bool> {
+    pub(super) fn is_js_constructor(&self, node: Option<Id<Node>>) -> io::Result<bool> {
         if node.is_none() {
             return Ok(false);
         }

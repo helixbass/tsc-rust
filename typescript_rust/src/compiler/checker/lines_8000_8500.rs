@@ -34,7 +34,7 @@ impl TypeChecker {
     pub fn type_predicate_to_string_(
         &self,
         type_predicate: &TypePredicate,
-        enclosing_declaration: Option<impl Borrow<Node>>,
+        enclosing_declaration: Option<Id<Node>>,
         flags: Option<TypeFormatFlags>,
         writer: Option<Gc<Box<dyn EmitTextWriter>>>,
     ) -> io::Result<String> {
@@ -62,7 +62,7 @@ impl TypeChecker {
     pub(super) fn type_predicate_to_string_worker(
         &self,
         type_predicate: &TypePredicate,
-        enclosing_declaration: Option<impl Borrow<Node>>,
+        enclosing_declaration: Option<Id<Node>>,
         flags: TypeFormatFlags,
         writer: Gc<Box<dyn EmitTextWriter>>,
     ) -> io::Result<()> {

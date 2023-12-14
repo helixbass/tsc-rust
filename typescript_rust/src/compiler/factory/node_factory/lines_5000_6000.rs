@@ -933,7 +933,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn restore_outer_expressions(
         &self,
-        outer_expression: Option<impl Borrow<Node> /*Expression*/>,
+        outer_expression: Option<Id<Node> /*Expression*/>,
         inner_expression: Id<Node>, /*Expression*/
         kinds: Option<OuterExpressionKinds>,
     ) -> Id<Node /*Expression*/> {
@@ -1230,7 +1230,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn get_declaration_name(
         &self,
-        node: Option<impl Borrow<Node> /*Declaration*/>,
+        node: Option<Id<Node> /*Declaration*/>,
         allow_comments: Option<bool>,
         allow_source_maps: Option<bool>,
     ) -> Id<Node /*Identifier*/> {
@@ -1269,7 +1269,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn get_external_module_or_namespace_export_name(
         &self,
-        ns: Option<impl Borrow<Node> /*Identifier*/>,
+        ns: Option<Id<Node> /*Identifier*/>,
         node: Id<Node>, /*Declaration*/
         allow_comments: Option<bool>,
         allow_source_maps: Option<bool>,

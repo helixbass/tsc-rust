@@ -61,7 +61,7 @@ impl TypeChecker {
         node: Id<Node>,
         declared_type: Id<Type>,
         initial_type: Id<Type>,
-        flow_container: Option<impl Borrow<Node>>,
+        flow_container: Option<Id<Node>>,
     ) -> io::Result<Option<String>> {
         let flow_container =
             flow_container.map(|flow_container| flow_container.borrow().node_wrapper());

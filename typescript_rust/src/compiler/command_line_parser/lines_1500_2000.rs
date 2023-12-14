@@ -1101,7 +1101,7 @@ pub fn convert_to_object(
 
 pub(crate) fn convert_to_object_worker(
     source_file: Id<Node>, /*JsonSourceFile*/
-    root_expression: Option<impl Borrow<Node>>,
+    root_expression: Option<Id<Node>>,
     errors: Gc<GcCell<Push<Gc<Diagnostic>>>>,
     return_value: bool,
     known_root_options: Option<&CommandLineOption>,

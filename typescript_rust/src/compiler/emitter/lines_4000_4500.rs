@@ -230,7 +230,7 @@ impl Printer {
 
     pub(super) fn emit_type_annotation(
         &self,
-        node: Option<impl Borrow<Node> /*TypeNode*/>,
+        node: Option<Id<Node> /*TypeNode*/>,
     ) -> io::Result<()> {
         Ok(if let Some(node) = node {
             let node = node.borrow();
@@ -242,7 +242,7 @@ impl Printer {
 
     pub(super) fn emit_initializer(
         &self,
-        node: Option<impl Borrow<Node> /*Expression*/>,
+        node: Option<Id<Node> /*Expression*/>,
         equal_comment_start_pos: isize,
         container: Id<Node>,
         parenthesizer_rule: Option<Gc<Box<dyn CurrentParenthesizerRule>>>,
@@ -517,7 +517,7 @@ impl Printer {
 
     pub(super) fn emit_list(
         &self,
-        parent_node: Option<impl Borrow<Node>>,
+        parent_node: Option<Id<Node>>,
         children: Option<&NodeArray>,
         format: ListFormat,
         parenthesizer_rule: Option<Gc<Box<dyn CurrentParenthesizerRule>>>,
@@ -539,7 +539,7 @@ impl Printer {
 
     pub(super) fn emit_expression_list(
         &self,
-        parent_node: Option<impl Borrow<Node>>,
+        parent_node: Option<Id<Node>>,
         children: Option<&NodeArray>,
         format: ListFormat,
         parenthesizer_rule: Option<Gc<Box<dyn CurrentParenthesizerRule>>>,
@@ -566,7 +566,7 @@ impl Printer {
             Option<Id<Node>>,
             Option<Gc<Box<dyn CurrentParenthesizerRule>>>,
         ) -> io::Result<()>,
-        parent_node: Option<impl Borrow<Node>>,
+        parent_node: Option<Id<Node>>,
         children: Option<&NodeArray>,
         format: ListFormat,
         parenthesizer_rule: Option<Gc<Box<dyn CurrentParenthesizerRule>>>,

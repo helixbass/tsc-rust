@@ -32,8 +32,8 @@ impl TypeChecker {
         &self,
         source: Id<Type>,
         target: Id<Type>,
-        error_node: Option<impl Borrow<Node>>,
-        expr: Option<impl Borrow<Node>>,
+        error_node: Option<Id<Node>>,
+        expr: Option<Id<Node>>,
         head_message: Option<&'static DiagnosticMessage>,
         containing_message_chain: Option<Gc<Box<dyn CheckTypeContainingMessageChain>>>,
     ) -> io::Result<bool> {
@@ -54,8 +54,8 @@ impl TypeChecker {
         source: Id<Type>,
         target: Id<Type>,
         relation: Rc<RefCell<HashMap<String, RelationComparisonResult>>>,
-        error_node: Option<impl Borrow<Node>>,
-        expr: Option<impl Borrow<Node>>,
+        error_node: Option<Id<Node>>,
+        expr: Option<Id<Node>>,
         head_message: Option<&'static DiagnosticMessage>,
         containing_message_chain: Option<Gc<Box<dyn CheckTypeContainingMessageChain>>>,
         error_output_container: Option<Gc<Box<dyn CheckTypeErrorOutputContainer>>>,
@@ -98,7 +98,7 @@ impl TypeChecker {
 
     pub(super) fn elaborate_error(
         &self,
-        node: Option<impl Borrow<Node>>,
+        node: Option<Id<Node>>,
         source: Id<Type>,
         target: Id<Type>,
         relation: Rc<RefCell<HashMap<String, RelationComparisonResult>>>,

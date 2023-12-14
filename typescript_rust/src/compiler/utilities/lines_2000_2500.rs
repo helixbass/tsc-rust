@@ -85,13 +85,13 @@ pub fn is_source_file_not_js(file: Id<Node> /*SourceFile*/) -> bool {
     !is_in_js_file(Some(file))
 }
 
-pub fn is_in_js_file(node: Option<impl Borrow<Node>>) -> bool {
+pub fn is_in_js_file(node: Option<Id<Node>>) -> bool {
     node.map_or(false, |node| {
         node.borrow().flags().intersects(NodeFlags::JavaScriptFile)
     })
 }
 
-pub fn is_in_json_file(node: Option<impl Borrow<Node>>) -> bool {
+pub fn is_in_json_file(node: Option<Id<Node>>) -> bool {
     node.map_or(false, |node| {
         node.borrow().flags().intersects(NodeFlags::JsonFile)
     })
@@ -101,7 +101,7 @@ pub fn is_source_file_not_json(file: Id<Node> /*SourceFile*/) -> bool {
     !is_json_source_file(file)
 }
 
-pub fn is_in_jsdoc<TNode: Borrow<Node>>(node: Option<TNode>) -> bool {
+pub fn is_in_jsdoc(node: Option<Id<Node>>) -> bool {
     node.map_or(false, |node| {
         node.borrow().flags().intersects(NodeFlags::JSDoc)
     })
@@ -274,8 +274,8 @@ pub fn has_expando_value_property(
     })
 }
 
-pub fn get_assigned_expando_initializer<TNode: Borrow<Node>>(
-    node: Option<TNode>,
+pub fn get_assigned_expando_initializer(
+    node: Option<Id<Node>>,
 ) -> Option<Id<Node /*Expression*/>> {
     if node.is_none() {
         return None;

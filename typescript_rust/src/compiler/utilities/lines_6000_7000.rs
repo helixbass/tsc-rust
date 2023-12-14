@@ -771,7 +771,7 @@ pub fn get_compiler_option_value(
 
 pub fn get_jsx_implicit_import_base(
     compiler_options: &CompilerOptions,
-    file: Option<impl Borrow<Node> /*SourceFile*/>,
+    file: Option<Id<Node> /*SourceFile*/>,
 ) -> Option<String> {
     let file: Option<Id<Node>> = file.map(|file| file.borrow().node_wrapper());
     let jsx_import_source_pragmas = file.as_ref().and_then(|file| {

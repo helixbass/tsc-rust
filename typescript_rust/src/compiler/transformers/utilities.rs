@@ -24,7 +24,7 @@ pub fn get_original_node_id(node: Id<Node>) -> NodeId {
     get_node_id(&node)
 }
 
-pub fn maybe_get_original_node_id(node: Option<impl Borrow<Node>>) -> NodeId {
+pub fn maybe_get_original_node_id(node: Option<Id<Node>>) -> NodeId {
     let node = maybe_get_original_node(node);
     if let Some(node) = node {
         get_node_id(&node)

@@ -286,7 +286,7 @@ impl TypeChecker {
     pub(super) fn get_awaited_type_of_promise(
         &self,
         type_: Id<Type>,
-        error_node: Option<impl Borrow<Node>>,
+        error_node: Option<Id<Node>>,
         diagnostic_message: Option<&DiagnosticMessage>,
         args: Option<Vec<String>>,
     ) -> io::Result<Option<Id<Type>>> {
@@ -300,7 +300,7 @@ impl TypeChecker {
     pub(super) fn get_promised_type_of_promise(
         &self,
         type_: Id<Type>,
-        error_node: Option<impl Borrow<Node>>,
+        error_node: Option<Id<Node>>,
     ) -> io::Result<Option<Id<Type>>> {
         if self.is_type_any(Some(type_)) {
             return Ok(None);
@@ -510,7 +510,7 @@ impl TypeChecker {
     pub(super) fn get_awaited_type_(
         &self,
         type_: Id<Type>,
-        error_node: Option<impl Borrow<Node>>,
+        error_node: Option<Id<Node>>,
         diagnostic_message: Option<&DiagnosticMessage>,
         args: Option<Vec<String>>,
     ) -> io::Result<Option<Id<Type>>> {
@@ -522,7 +522,7 @@ impl TypeChecker {
     pub(super) fn get_awaited_type_no_alias(
         &self,
         type_: Id<Type>,
-        error_node: Option<impl Borrow<Node>>,
+        error_node: Option<Id<Node>>,
         diagnostic_message: Option<&DiagnosticMessage>,
         args: Option<Vec<String>>,
     ) -> io::Result<Option<Id<Type>>> {

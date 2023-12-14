@@ -1157,7 +1157,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn get_generated_name_for_node(
         &self,
-        node: Option<impl Borrow<Node>>,
+        node: Option<Id<Node>>,
         flags: Option<GeneratedIdentifierFlags>,
     ) -> Id<Node /*Identifier*/> {
         let flags = flags.unwrap_or_default();

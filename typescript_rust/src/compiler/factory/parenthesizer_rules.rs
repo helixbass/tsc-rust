@@ -36,12 +36,12 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>
         Self { factory }
     }
 
-    fn binary_operand_needs_parentheses<TLeftOperand: Borrow<Node>>(
+    fn binary_operand_needs_parentheses(
         &self,
         binary_operator: SyntaxKind,
         operand: Id<Node>, /*Expression*/
         is_left_side_of_binary: bool,
-        left_operand: Option<TLeftOperand>,
+        left_operand: Option<Id<Node>>,
     ) -> bool {
         let binary_operator_precedence =
             get_operator_precedence(SyntaxKind::BinaryExpression, binary_operator, None);
@@ -156,12 +156,12 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>
         SyntaxKind::Unknown
     }
 
-    fn parenthesize_binary_operand<TLeftOperand: Borrow<Node>>(
+    fn parenthesize_binary_operand(
         &self,
         binary_operator: SyntaxKind,
         operand: Id<Node>, /*Expression*/
         is_left_side_of_binary: bool,
-        left_operand: Option<TLeftOperand /*Expression*/>,
+        left_operand: Option<Id<Node> /*Expression*/>,
     ) -> Id<Node /*Expression*/> {
         let skipped = skip_partially_emitted_expressions(operand);
 

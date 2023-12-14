@@ -635,11 +635,11 @@ impl BinderType {
         }
     }
 
-    pub(super) fn create_flow_condition<TExpression: Borrow<Node>>(
+    pub(super) fn create_flow_condition(
         &self,
         flags: FlowFlags,
         antecedent: Gc<FlowNode>,
-        expression: Option<TExpression>,
+        expression: Option<Id<Node>>,
     ) -> Gc<FlowNode> {
         if antecedent.flags().intersects(FlowFlags::Unreachable) {
             return antecedent;

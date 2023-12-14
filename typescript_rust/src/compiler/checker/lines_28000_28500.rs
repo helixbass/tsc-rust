@@ -786,7 +786,7 @@ impl TypeChecker {
 
     pub(super) fn is_unchecked_js_suggestion(
         &self,
-        node: Option<impl Borrow<Node>>,
+        node: Option<Id<Node>>,
         suggestion: Option<Id<Symbol>>,
         exclude_classes: bool,
     ) -> bool {

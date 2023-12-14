@@ -418,12 +418,12 @@ pub fn get_original_node(node: Id<Node>) -> Id<Node> {
     maybe_get_original_node(Some(node)).unwrap()
 }
 
-pub fn maybe_get_original_node(node: Option<impl Borrow<Node>>) -> Option<Id<Node>> {
+pub fn maybe_get_original_node(node: Option<Id<Node>>) -> Option<Id<Node>> {
     maybe_get_original_node_full(node, Option::<fn(Option<Id<Node>>) -> bool>::None)
 }
 
 pub fn maybe_get_original_node_full(
-    node: Option<impl Borrow<Node>>,
+    node: Option<Id<Node>>,
     node_test: Option<impl FnOnce(Option<Id<Node>>) -> bool>,
 ) -> Option<Id<Node>> {
     let mut node = node.map(|node| node.borrow().node_wrapper());
@@ -457,7 +457,7 @@ impl From<bool> for FindAncestorCallbackReturn {
 }
 
 pub fn find_ancestor<TCallbackReturn: Into<FindAncestorCallbackReturn>>(
-    node: Option<impl Borrow<Node>>,
+    node: Option<Id<Node>>,
     mut callback: impl FnMut(Id<Node>) -> TCallbackReturn,
 ) -> Option<Id<Node>> {
     try_find_ancestor(node, |node: Id<Node>| -> Result<_, ()> {
@@ -467,7 +467,7 @@ pub fn find_ancestor<TCallbackReturn: Into<FindAncestorCallbackReturn>>(
 }
 
 pub fn try_find_ancestor<TCallbackReturn: Into<FindAncestorCallbackReturn>, TError>(
-    node: Option<impl Borrow<Node>>,
+    node: Option<Id<Node>>,
     mut callback: impl FnMut(Id<Node>) -> Result<TCallbackReturn, TError>,
 ) -> Result<Option<Id<Node>>, TError> {
     let mut node = node.map(|node| node.borrow().node_wrapper());
@@ -492,7 +492,7 @@ pub fn is_parse_tree_node(node: Id<Node>) -> bool {
 }
 
 pub fn get_parse_tree_node(
-    node: Option<impl Borrow<Node>>,
+    node: Option<Id<Node>>,
     node_test: Option<impl FnOnce(Id<Node>) -> bool>,
 ) -> Option<Id<Node>> {
     let node = node.map(|node| node.borrow().node_wrapper());
@@ -737,7 +737,7 @@ pub(crate) fn get_non_assigned_name_of_declaration(
 }
 
 pub fn get_name_of_declaration(
-    declaration: Option<impl Borrow<Node> /*Declaration | Expression*/>,
+    declaration: Option<Id<Node> /*Declaration | Expression*/>,
 ) -> Option<Id<Node /*DeclarationName*/>> {
     if declaration.is_none() {
         return None;
@@ -1497,12 +1497,12 @@ pub fn is_binding_name(node: Id<Node>) -> bool {
     )
 }
 
-pub fn is_function_like(node: Option<impl Borrow<Node>>) -> bool {
+pub fn is_function_like(node: Option<Id<Node>>) -> bool {
     node.map_or(false, |node| is_function_like_kind(node.borrow().kind()))
 }
 
 pub(crate) fn is_function_like_or_class_static_block_declaration(
-    node: Option<impl Borrow<Node>>,
+    node: Option<Id<Node>>,
 ) -> bool {
     node.map_or(false, |node| {
         let node = node.borrow();
@@ -1583,7 +1583,7 @@ pub fn is_class_like(node: Id<Node>) -> bool {
     )
 }
 
-pub fn maybe_is_class_like<TNode: Borrow<Node>>(node: Option<TNode>) -> bool {
+pub fn maybe_is_class_like(node: Option<Id<Node>>) -> bool {
     node.is_some()
         && matches!(
             node.unwrap().borrow().kind(),

@@ -151,7 +151,7 @@ impl TransformDeclarations {
     pub(super) fn ensure_type_cleanup(
         &self,
         old_diag: Option<GetSymbolAccessibilityDiagnostic>,
-        return_value: Option<impl Borrow<Node> /*TypeNode*/>,
+        return_value: Option<Id<Node> /*TypeNode*/>,
     ) -> Id<Node> {
         self.set_error_name_node(None);
         if self.maybe_suppress_new_diagnostic_contexts() != Some(true) {

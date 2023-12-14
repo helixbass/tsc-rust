@@ -206,7 +206,7 @@ impl DebugType {
 
     pub fn assert_node(
         &self,
-        node: Option<impl Borrow<Node>>,
+        node: Option<Id<Node>>,
         test: Option<impl FnOnce(Id<Node>) -> bool>,
         message: Option<&str>,
     ) {
@@ -220,7 +220,7 @@ impl DebugType {
 
     pub fn assert_not_node(
         &self,
-        node: Option<impl Borrow<Node>>,
+        node: Option<Id<Node>>,
         test: Option<impl FnOnce(Id<Node>) -> bool>,
         message: Option<&str>,
     ) {

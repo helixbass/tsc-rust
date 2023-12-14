@@ -45,7 +45,7 @@ use crate::{
 };
 
 impl TypeChecker {
-    pub(super) fn get_jsx_namespace_(&self, location: Option<impl Borrow<Node>>) -> __String {
+    pub(super) fn get_jsx_namespace_(&self, location: Option<Id<Node>>) -> __String {
         if let Some(location) = location {
             let location = location.borrow();
             let file = maybe_get_source_file_of_node(Some(location));
@@ -219,7 +219,7 @@ impl TypeChecker {
 
     pub(super) fn lookup_or_issue_error(
         &self,
-        location: Option<impl Borrow<Node>>,
+        location: Option<Id<Node>>,
         message: &DiagnosticMessage,
         args: Option<Vec<String>>,
     ) -> Gc<Diagnostic> {
@@ -240,7 +240,7 @@ impl TypeChecker {
     pub(super) fn error_skipped_on(
         &self,
         key: String, /*keyof CompilerOptions*/
-        location: Option<impl Borrow<Node>>,
+        location: Option<Id<Node>>,
         message: &DiagnosticMessage,
         args: Option<Vec<String>>,
     ) -> Gc<Diagnostic> {
@@ -251,7 +251,7 @@ impl TypeChecker {
 
     pub(super) fn create_error(
         &self,
-        location: Option<impl Borrow<Node>>,
+        location: Option<Id<Node>>,
         message: &DiagnosticMessage,
         args: Option<Vec<String>>,
     ) -> Gc<Diagnostic> {
@@ -265,7 +265,7 @@ impl TypeChecker {
 
     pub(super) fn error(
         &self,
-        location: Option<impl Borrow<Node>>,
+        location: Option<Id<Node>>,
         message: &DiagnosticMessage,
         args: Option<Vec<String>>,
     ) -> Gc<Diagnostic> {
@@ -1499,7 +1499,7 @@ impl TypeChecker {
 
     pub(super) fn resolve_name_<'name_arg>(
         &self,
-        location: Option<impl Borrow<Node>>,
+        location: Option<Id<Node>>,
         name: &str, /*__String*/
         meaning: SymbolFlags,
         name_not_found_message: Option<&DiagnosticMessage>,
@@ -1524,7 +1524,7 @@ impl TypeChecker {
 
     pub(super) fn resolve_name_helper<'name_arg>(
         &self,
-        location: Option<impl Borrow<Node>>,
+        location: Option<Id<Node>>,
         name: &str, /*__String*/
         meaning: SymbolFlags,
         name_not_found_message: Option<&DiagnosticMessage>,

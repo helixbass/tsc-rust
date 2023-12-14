@@ -19,7 +19,7 @@ impl TypeChecker {
     pub(super) fn get_async_from_sync_iteration_types(
         &self,
         iteration_types: &IterationTypes,
-        error_node: Option<impl Borrow<Node>>,
+        error_node: Option<Id<Node>>,
     ) -> io::Result<Gc<IterationTypes>> {
         if ptr::eq(iteration_types, &*self.no_iteration_types()) {
             return Ok(self.no_iteration_types());
@@ -51,7 +51,7 @@ impl TypeChecker {
         &self,
         type_: Id<Type>,
         use_: IterationUse,
-        error_node: Option<impl Borrow<Node>>,
+        error_node: Option<Id<Node>>,
     ) -> io::Result<Gc<IterationTypes>> {
         if self.is_type_any(Some(type_)) {
             return Ok(self.any_iteration_types());
@@ -259,7 +259,7 @@ impl TypeChecker {
         &self,
         type_: Id<Type>,
         resolver: &IterationTypesResolver,
-        error_node: Option<impl Borrow<Node>>,
+        error_node: Option<Id<Node>>,
     ) -> io::Result<Gc<IterationTypes>> {
         let method = self.get_property_of_type_(
             type_,
@@ -335,7 +335,7 @@ impl TypeChecker {
         &self,
         type_: Id<Type>,
         resolver: &IterationTypesResolver,
-        error_node: Option<impl Borrow<Node>>,
+        error_node: Option<Id<Node>>,
     ) -> io::Result<Option<Gc<IterationTypes>>> {
         if self.is_type_any(Some(type_)) {
             return Ok(Some(self.any_iteration_types()));
@@ -518,7 +518,7 @@ impl TypeChecker {
         type_: Id<Type>,
         resolver: &IterationTypesResolver,
         method_name: &str, /*"next" | "return" | "throw"*/
-        error_node: Option<impl Borrow<Node>>,
+        error_node: Option<Id<Node>>,
     ) -> io::Result<Option<Gc<IterationTypes>>> {
         let method = self.get_property_of_type_(type_, method_name, None)?;
 
@@ -758,7 +758,7 @@ impl TypeChecker {
         &self,
         type_: Id<Type>,
         resolver: &IterationTypesResolver,
-        error_node: Option<impl Borrow<Node>>,
+        error_node: Option<Id<Node>>,
     ) -> io::Result<Gc<IterationTypes>> {
         let error_node = error_node.map(|error_node| error_node.borrow().node_wrapper());
         let iteration_types = self.combine_iteration_types(&[

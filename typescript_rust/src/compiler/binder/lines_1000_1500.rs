@@ -152,9 +152,9 @@ impl BinderType {
         self.set_current_false_target(saved_false_target);
     }
 
-    pub(super) fn bind_condition<TNode: Borrow<Node> + Clone>(
+    pub(super) fn bind_condition(
         &self,
-        node: Option<TNode>,
+        node: Option<Id<Node>>,
         true_target: Gc<FlowNode /*FlowLabel*/>,
         false_target: Gc<FlowNode /*FlowLabel*/>,
     ) {

@@ -642,7 +642,7 @@ impl TypeChecker {
     pub(super) fn get_jsx_type(
         &self,
         name: &str, /*__String*/
-        location: Option<impl Borrow<Node>>,
+        location: Option<Id<Node>>,
     ) -> io::Result<Id<Type>> {
         let location = location.map(|location| location.borrow().node_wrapper());
         let namespace = self.get_jsx_namespace_at(location.as_deref())?;
@@ -722,7 +722,7 @@ impl TypeChecker {
 
     pub(super) fn get_jsx_namespace_container_for_implicit_import(
         &self,
-        location: Option<impl Borrow<Node>>,
+        location: Option<Id<Node>>,
     ) -> io::Result<Option<Id<Symbol>>> {
         let location = location.map(|location| location.borrow().node_wrapper());
         let file = location
@@ -781,7 +781,7 @@ impl TypeChecker {
 
     pub(super) fn get_jsx_namespace_at(
         &self,
-        location: Option<impl Borrow<Node>>,
+        location: Option<Id<Node>>,
     ) -> io::Result<Option<Id<Symbol>>> {
         let location = location.map(|location| location.borrow().node_wrapper());
         let links = location

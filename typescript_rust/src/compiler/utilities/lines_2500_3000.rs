@@ -825,13 +825,13 @@ pub fn is_delete_target(node: Id<Node>) -> bool {
     matches!(node, Some(node) if node.kind() == SyntaxKind::DeleteExpression)
 }
 
-pub fn is_node_descendant_of(node: Id<Node>, ancestor: Option<impl Borrow<Node>>) -> bool {
+pub fn is_node_descendant_of(node: Id<Node>, ancestor: Option<Id<Node>>) -> bool {
     maybe_is_node_descendant_of(Some(node), ancestor)
 }
 
 pub fn maybe_is_node_descendant_of(
-    node: Option<impl Borrow<Node>>,
-    ancestor: Option<impl Borrow<Node>>,
+    node: Option<Id<Node>>,
+    ancestor: Option<Id<Node>>,
 ) -> bool {
     if ancestor.is_none() {
         return false;

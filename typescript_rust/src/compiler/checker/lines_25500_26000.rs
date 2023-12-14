@@ -19,10 +19,10 @@ use crate::{
 };
 
 impl TypeChecker {
-    pub(super) fn is_legal_usage_of_super_expression<TContainer: Borrow<Node>>(
+    pub(super) fn is_legal_usage_of_super_expression(
         &self,
         is_call_expression: bool,
-        container: Option<TContainer>,
+        container: Option<Id<Node>>,
     ) -> bool {
         if container.is_none() {
             return false;

@@ -115,7 +115,7 @@ impl TypeChecker {
         reference: Id<Node>,
         declared_type: Id<Type>,
         initial_type: Option<Id<Type>>,
-        flow_container: Option<impl Borrow<Node>>,
+        flow_container: Option<Id<Node>>,
     ) -> io::Result<Id<Type>> {
         let initial_type = initial_type.unwrap_or(declared_type);
         GetFlowTypeOfReference::new(

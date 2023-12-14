@@ -662,7 +662,7 @@ pub fn skip_outer_expressions(node: Id<Node>, kinds: Option<OuterExpressionKinds
     node
 }
 
-pub fn start_on_new_line<TNode: Borrow<Node>>(node: TNode) -> TNode {
+pub fn start_on_new_line(node: Id<Node>) -> Id<Node> {
     set_starts_on_new_line(node.borrow(), true);
     node
 }
@@ -1167,7 +1167,7 @@ fn is_string_or_numeric_literal(node: Id<Node>) -> bool {
 }
 
 pub(crate) fn get_jsdoc_type_alias_name(
-    full_name: Option<impl Borrow<Node> /*JSDocNamespaceBody*/>,
+    full_name: Option<Id<Node> /*JSDocNamespaceBody*/>,
 ) -> Option<Id<Node /*Identifier*/>> {
     full_name.map(|full_name| {
         let full_name = full_name.borrow();

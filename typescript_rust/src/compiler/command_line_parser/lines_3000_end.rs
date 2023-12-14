@@ -37,7 +37,7 @@ pub struct ExtendedConfigCacheEntry {
 }
 
 pub(crate) fn get_extended_config(
-    source_file: Option<impl Borrow<Node>>,
+    source_file: Option<Id<Node>>,
     extended_config_path: &str,
     host: &(impl ParseConfigHost + ?Sized),
     resolution_stack: &[&str],
@@ -887,7 +887,7 @@ pub(super) fn validate_specs(
     specs: &[String],
     errors: &mut Vec<Gc<Diagnostic>>,
     disallow_trailing_recursion: bool,
-    json_source_file: Option<impl Borrow<Node> + Clone /*TsConfigSourceFile*/>,
+    json_source_file: Option<Id<Node> /*TsConfigSourceFile*/>,
     spec_key: &str,
 ) -> Vec<String> {
     specs
@@ -910,8 +910,8 @@ pub(super) fn validate_specs(
         .collect()
 }
 
-fn create_diagnostic<TJsonSourceFile: Borrow<Node> + Clone>(
-    json_source_file: Option<TJsonSourceFile /*TsConfigSourceFile*/>,
+fn create_diagnostic(
+    json_source_file: Option<Id<Node> /*TsConfigSourceFile*/>,
     spec_key: &str,
     message: &DiagnosticMessage,
     spec: String,

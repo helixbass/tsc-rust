@@ -203,7 +203,7 @@ impl TypeChecker {
         left_type: Id<Type>,
         right_type: Id<Type>,
         operator_token: Id<Node>,
-        error_node: Option<impl Borrow<Node>>,
+        error_node: Option<Id<Node>>,
         mut types_are_compatible: impl FnMut(Id<Type>, Id<Type>) -> io::Result<bool>,
     ) -> io::Result<bool> {
         if !types_are_compatible(left_type, right_type)? {
@@ -221,7 +221,7 @@ impl TypeChecker {
 
     pub(super) fn report_operator_error(
         &self,
-        error_node: Option<impl Borrow<Node>>,
+        error_node: Option<Id<Node>>,
         operator_token: Id<Node>,
         left_type: Id<Type>,
         right_type: Id<Type>,

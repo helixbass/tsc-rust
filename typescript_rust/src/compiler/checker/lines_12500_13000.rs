@@ -353,7 +353,7 @@ impl TypeChecker {
 
     pub(super) fn contains_arguments_reference_traverse(
         &self,
-        node: Option<impl Borrow<Node>>,
+        node: Option<Id<Node>>,
     ) -> io::Result<bool> {
         let node = return_ok_false_if_none!(node);
         let node = node.borrow();

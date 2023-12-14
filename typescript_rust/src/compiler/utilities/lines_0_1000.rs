@@ -607,7 +607,7 @@ pub fn get_full_width(node: Id<Node>) -> isize {
 }
 
 pub fn get_resolved_module(
-    source_file: Option<impl Borrow<Node>>, /*SourceFile*/
+    source_file: Option<Id<Node>>, /*SourceFile*/
     module_name_text: &str,
     mode: Option<ModuleKind /*ModuleKind.CommonJS | ModuleKind.ESNext*/>,
 ) -> Option<Gc<ResolvedModuleFull>> {
@@ -723,7 +723,7 @@ pub fn has_changes_in_resolutions<TValue: Clone + Trace + Finalize>(
     new_resolutions: &[TValue],
     old_resolutions: Option<&ModeAwareCache<TValue>>,
     old_source_file: Option<
-        impl Borrow<Node>,
+        Id<Node>,
         /*SourceFile*/
     >,
     mut comparer: impl FnMut(&TValue, &TValue) -> bool,
@@ -794,7 +794,7 @@ pub fn get_source_file_of_node(node: Id<Node>) -> Id<Node /*SourceFile*/> {
 }
 
 pub fn maybe_get_source_file_of_node(
-    node: Option<impl Borrow<Node>>,
+    node: Option<Id<Node>>,
 ) -> Option<Id<Node /*SourceFile*/>> {
     // node.map(|node| get_source_file_of_node(node.borrow()))
     let mut node = node.map(|node| {
@@ -878,7 +878,7 @@ pub fn is_file_level_unique_name(
         .contains_key(name)
 }
 
-pub fn node_is_missing(node: Option<impl Borrow<Node>>) -> bool {
+pub fn node_is_missing(node: Option<Id<Node>>) -> bool {
     if node.is_none() {
         return true;
     }
@@ -888,7 +888,7 @@ pub fn node_is_missing(node: Option<impl Borrow<Node>>) -> bool {
     node.pos() == node.end() && node.pos() >= 0 && node.kind() != SyntaxKind::EndOfFileToken
 }
 
-pub fn node_is_present(node: Option<impl Borrow<Node>>) -> bool {
+pub fn node_is_present(node: Option<Id<Node>>) -> bool {
     !node_is_missing(node)
 }
 
@@ -1039,9 +1039,9 @@ impl CommentDirectivesMap {
 // pub fn get_token_pos_of_node<TSourceFile: SourceFileLike>(
 //     node: Id<Node>,
 //     source_file: Option<TSourceFile>,
-pub fn get_token_pos_of_node<TSourceFile: Borrow<Node>>(
+pub fn get_token_pos_of_node(
     node: Id<Node>,
-    source_file: Option<TSourceFile>,
+    source_file: Option<Id<Node>>,
     include_js_doc: Option<bool>,
 ) -> isize {
     if node_is_missing(Some(node)) {
@@ -1098,7 +1098,7 @@ pub fn get_token_pos_of_node<TSourceFile: Borrow<Node>>(
 
 pub fn get_non_decorator_token_pos_of_node(
     node: Id<Node>,
-    source_file: Option<impl Borrow<Node>>,
+    source_file: Option<Id<Node>>,
 ) -> isize {
     if node_is_missing(Some(node)) || node.maybe_decorators().is_none() {
         return get_token_pos_of_node(node, source_file, None);
@@ -1425,9 +1425,9 @@ bitflags! {
     }
 }
 
-pub fn get_literal_text<TSourceFile: Borrow<Node>>(
+pub fn get_literal_text(
     node: Id<Node>, /*LiteralLikeNode*/
-    source_file: Option<TSourceFile /*SourceFile*/>,
+    source_file: Option<Id<Node> /*SourceFile*/>,
     flags: GetLiteralTextFlags,
 ) -> Cow<'static, str> {
     if can_use_original_text(node, flags) {
@@ -1584,7 +1584,7 @@ pub fn is_shorthand_ambient_module_symbol(module_symbol: &Symbol) -> bool {
     is_shorthand_ambient_module(module_symbol.maybe_value_declaration())
 }
 
-fn is_shorthand_ambient_module<TNode: Borrow<Node>>(node: Option<TNode>) -> bool {
+fn is_shorthand_ambient_module(node: Option<Id<Node>>) -> bool {
     match node {
         None => false,
         Some(node) => {
@@ -1686,9 +1686,9 @@ pub fn is_effective_strict_mode_source_file(
     false
 }
 
-pub fn is_block_scope<TParentNode: Borrow<Node>>(
+pub fn is_block_scope(
     node: Id<Node>,
-    parent_node: Option<TParentNode>,
+    parent_node: Option<Id<Node>>,
 ) -> bool {
     match node.kind() {
         SyntaxKind::SourceFile
@@ -1802,7 +1802,7 @@ pub fn for_each_enclosing_block_scope_container<TCallback: FnMut(Id<Node>)>(
     }
 }
 
-pub fn declaration_name_to_string(name: Option<impl Borrow<Node>>) -> Cow<'static, str> {
+pub fn declaration_name_to_string(name: Option<Id<Node>>) -> Cow<'static, str> {
     match name {
         None => "(Missing)".into(),
         Some(name) => {

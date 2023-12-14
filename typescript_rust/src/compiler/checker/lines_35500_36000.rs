@@ -250,7 +250,7 @@ impl TypeChecker {
 
     pub(super) fn mark_entity_name_or_entity_expression_as_reference(
         &self,
-        type_name: Option<impl Borrow<Node> /*EntityNameOrEntityNameExpression*/>,
+        type_name: Option<Id<Node> /*EntityNameOrEntityNameExpression*/>,
     ) -> io::Result<()> {
         if type_name.is_none() {
             return Ok(());
@@ -290,7 +290,7 @@ impl TypeChecker {
 
     pub(super) fn mark_decorator_medata_data_type_node_as_referenced(
         &self,
-        node: Option<impl Borrow<Node> /*TypeNode*/>,
+        node: Option<Id<Node> /*TypeNode*/>,
     ) -> io::Result<()> {
         let entity_name = self.get_entity_name_for_decorator_metadata(node);
         if let Some(entity_name) = entity_name
@@ -303,9 +303,9 @@ impl TypeChecker {
         Ok(())
     }
 
-    pub(super) fn get_entity_name_for_decorator_metadata<TNode: Borrow<Node>>(
+    pub(super) fn get_entity_name_for_decorator_metadata(
         &self,
-        node: Option<TNode /*TypeNode*/>,
+        node: Option<Id<Node> /*TypeNode*/>,
     ) -> Option<Id<Node /*EntityName*/>> {
         let node = node?;
         let node: Id<Node> = node.borrow();

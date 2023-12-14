@@ -908,14 +908,11 @@ impl ParserType {
         None
     }
 
-    pub(super) fn parse_semicolon_after_property_name<
-        TType: Borrow<Node>,
-        TInitializer: Borrow<Node>,
-    >(
+    pub(super) fn parse_semicolon_after_property_name(
         &self,
         name: Id<Node>, /*PropertyName*/
-        type_: Option<TType /*TypeNode*/>,
-        initializer: Option<TInitializer /*Expression*/>,
+        type_: Option<Id<Node> /*TypeNode*/>,
+        initializer: Option<Id<Node> /*Expression*/>,
     ) {
         if self.token() == SyntaxKind::AtToken && !self.scanner().has_preceding_line_break() {
             self.parse_error_at_current_token(&Diagnostics::Decorators_must_precede_the_name_and_all_keywords_of_property_declarations, None);

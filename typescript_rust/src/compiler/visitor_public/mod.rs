@@ -33,7 +33,7 @@ pub fn visit_node(
 
 #[inline(always)]
 pub fn maybe_visit_node(
-    node: Option<impl Borrow<Node>>,
+    node: Option<Id<Node>>,
     visitor: Option<impl FnMut(Id<Node>) -> VisitResult>,
     test: Option<impl Fn(Id<Node>) -> bool>,
     lift: Option<impl Fn(&[Id<Node>]) -> Id<Node>>,
@@ -58,7 +58,7 @@ pub fn try_visit_node(
 }
 
 pub fn try_maybe_visit_node(
-    node: Option<impl Borrow<Node>>,
+    node: Option<Id<Node>>,
     visitor: Option<impl FnMut(Id<Node>) -> io::Result<VisitResult>>,
     test: Option<impl Fn(Id<Node>) -> bool>,
     lift: Option<impl Fn(&[Id<Node>]) -> Id<Node>>,

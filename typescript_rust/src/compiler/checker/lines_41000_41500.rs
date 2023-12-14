@@ -60,7 +60,7 @@ impl TypeChecker {
 
     pub(super) fn get_shorthand_assignment_value_symbol_(
         &self,
-        location: Option<impl Borrow<Node>>,
+        location: Option<Id<Node>>,
     ) -> io::Result<Option<Id<Symbol>>> {
         if let Some(location) = location {
             let location: Id<Node> = location.borrow();

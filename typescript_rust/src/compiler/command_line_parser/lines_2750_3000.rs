@@ -24,8 +24,8 @@ use crate::{
     Path, TypeAcquisition, WatchOptions,
 };
 
-pub(super) fn create_compiler_diagnostic_only_if_json<TSourceFile: Borrow<Node>>(
-    source_file: Option<TSourceFile /*TsConfigSourceFile*/>,
+pub(super) fn create_compiler_diagnostic_only_if_json(
+    source_file: Option<Id<Node> /*TsConfigSourceFile*/>,
     errors: &mut Vec<Gc<Diagnostic>>,
     message: &DiagnosticMessage,
     args: Option<Vec<String>>,
@@ -114,7 +114,7 @@ pub(super) fn is_successful_parsed_tsconfig(value: &ParsedTsconfig) -> bool {
 
 pub(super) fn parse_config(
     json: Option<serde_json::Value>,
-    source_file: Option<impl Borrow<Node> + Clone /*TsConfigSourceFile*/>,
+    source_file: Option<Id<Node> /*TsConfigSourceFile*/>,
     host: &(impl ParseConfigHost + ?Sized),
     base_path: &str,
     config_file_name: Option<&str>,

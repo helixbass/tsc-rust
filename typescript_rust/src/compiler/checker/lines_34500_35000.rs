@@ -1189,10 +1189,10 @@ impl TypeChecker {
         Ok(())
     }
 
-    pub(super) fn get_canonical_overload<TImplementation: Borrow<Node>>(
+    pub(super) fn get_canonical_overload(
         &self,
         overloads: &[Id<Node /*Declaration*/>],
-        implementation: Option<TImplementation /*FunctionLikeDeclaration*/>,
+        implementation: Option<Id<Node> /*FunctionLikeDeclaration*/>,
     ) -> Id<Node /*Declaration*/> {
         let implementation =
             implementation.map(|implementation| implementation.borrow().node_wrapper());
@@ -1210,10 +1210,10 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn check_flag_agreement_between_overloads<TImplementation: Borrow<Node>>(
+    pub(super) fn check_flag_agreement_between_overloads(
         &self,
         overloads: &[Id<Node /*Declaration*/>],
-        implementation: Option<TImplementation /*FunctionLikeDeclaration*/>,
+        implementation: Option<Id<Node> /*FunctionLikeDeclaration*/>,
         flags_to_check: ModifierFlags,
         some_overload_flags: ModifierFlags,
         all_overload_flags: ModifierFlags,
@@ -1257,12 +1257,10 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn check_question_token_agreement_between_overloads<
-        TImplementation: Borrow<Node>,
-    >(
+    pub(super) fn check_question_token_agreement_between_overloads(
         &self,
         overloads: &[Id<Node /*Declaration*/>],
-        implementation: Option<TImplementation /*FunctionLikeDeclaration*/>,
+        implementation: Option<Id<Node> /*FunctionLikeDeclaration*/>,
         some_have_question_token: bool,
         all_have_question_token: bool,
     ) {

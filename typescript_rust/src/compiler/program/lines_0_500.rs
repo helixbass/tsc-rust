@@ -873,7 +873,7 @@ pub trait GetSourceFile: Trace + Finalize {
 
 pub fn get_pre_emit_diagnostics(
     program: &ProgramOrBuilderProgram,
-    source_file: Option<impl Borrow<Node>>,
+    source_file: Option<Id<Node>>,
     cancellation_token: Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
 ) -> io::Result<Vec<Gc<Diagnostic>>> {
     let program = match program {

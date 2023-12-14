@@ -143,7 +143,7 @@ impl TypeChecker {
         member_is_static: bool,
         member_is_parameter_property: bool,
         member_name: &str,
-        error_node: Option<impl Borrow<Node>>,
+        error_node: Option<Id<Node>>,
     ) -> io::Result<MemberOverrideStatus> {
         let is_js = is_in_js_file(Some(node));
         let node_in_ambient_context = node.flags().intersects(NodeFlags::Ambient);

@@ -131,9 +131,9 @@ pub fn parse_json_source_file_config_file_content(
     )
 }
 
-pub(crate) fn set_config_file_in_options<TConfigFile: Borrow<Node>>(
+pub(crate) fn set_config_file_in_options(
     options: &mut CompilerOptions,
-    config_file: Option<TConfigFile /*TsConfigSourceFile*/>,
+    config_file: Option<Id<Node> /*TsConfigSourceFile*/>,
 ) {
     if let Some(config_file) = config_file {
         let config_file = config_file.borrow();
@@ -151,10 +151,7 @@ pub(super) fn directory_of_combined_path(file_name: &str, base_path: &str) -> St
 
 pub(super) fn parse_json_config_file_content_worker(
     json: Option<serde_json::Value>,
-    source_file: Option<
-        impl Borrow<Node> + Clone,
-        /*TsConfigSourceFile*/
-    >,
+    source_file: Option<Id<Node> /*TsConfigSourceFile*/>,
     host: &(impl ParseConfigHost + ?Sized),
     base_path: &str,
     existing_options: Option<Gc<CompilerOptions>>,
@@ -282,7 +279,7 @@ pub(super) fn parse_json_config_file_content_worker(
 
 pub(super) fn get_config_file_specs(
     raw: Option<&serde_json::Value>,
-    source_file: Option<impl Borrow<Node> + Clone /*TsConfigSourceFile*/>,
+    source_file: Option<Id<Node> /*TsConfigSourceFile*/>,
     errors: &mut Vec<Gc<Diagnostic>>,
     config_file_name: Option<&str>,
 ) -> ConfigFileSpecs {
@@ -463,7 +460,7 @@ pub(super) fn get_file_names(
 
 pub(super) fn get_project_references(
     raw: Option<&serde_json::Value>,
-    source_file: Option<impl Borrow<Node> + Clone /*TsConfigSourceFile*/>,
+    source_file: Option<Id<Node> /*TsConfigSourceFile*/>,
     errors: &mut Vec<Gc<Diagnostic>>,
     base_path: &str,
 ) -> Option<Vec<Rc<ProjectReference>>> {
@@ -545,9 +542,9 @@ pub(super) fn to_prop_value(spec_result: PropOfRaw) -> Option<Vec<String>> {
     }
 }
 
-pub(super) fn get_specs_from_raw<TSourceFile: Borrow<Node>>(
+pub(super) fn get_specs_from_raw(
     raw: Option<&serde_json::Value>,
-    source_file: Option<TSourceFile /*TsConfigSourceFile*/>,
+    source_file: Option<Id<Node> /*TsConfigSourceFile*/>,
     errors: &mut Vec<Gc<Diagnostic>>,
     prop: &str, /*"files" | "include" | "exclude"*/
 ) -> PropOfRaw {
@@ -561,12 +558,9 @@ pub(super) fn get_specs_from_raw<TSourceFile: Borrow<Node>>(
     )
 }
 
-pub(super) fn get_prop_from_raw<
-    TValidateElement: Fn(&serde_json::Value) -> bool,
-    TSourceFile: Borrow<Node>,
->(
+pub(super) fn get_prop_from_raw<TValidateElement: Fn(&serde_json::Value) -> bool>(
     raw: Option<&serde_json::Value>,
-    source_file: Option<TSourceFile /*TsConfigSourceFile*/>,
+    source_file: Option<Id<Node> /*TsConfigSourceFile*/>,
     errors: &mut Vec<Gc<Diagnostic>>,
     prop: &str, /*"files" | "include" | "exclude" | "references"*/
     validate_element: TValidateElement,

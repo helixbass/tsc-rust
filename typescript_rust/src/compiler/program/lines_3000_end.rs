@@ -1146,7 +1146,7 @@ impl Program {
 
     pub fn create_diagnostic_explaining_file(
         &self,
-        file: Option<impl Borrow<Node>>,
+        file: Option<Id<Node>>,
         mut file_processing_reason: Option<Gc<FileIncludeReason>>,
         diagnostic: &'static DiagnosticMessage,
         args: Option<Vec<String>>,
@@ -1281,7 +1281,7 @@ impl Program {
 
     pub fn add_file_preprocessing_file_explaining_diagnostic(
         &self,
-        file: Option<impl Borrow<Node>>,
+        file: Option<Id<Node>>,
         file_processing_reason: Gc<FileIncludeReason>,
         diagnostic: &'static DiagnosticMessage,
         args: Option<Vec<String>>,
@@ -1761,7 +1761,7 @@ impl Program {
 
     pub fn create_diagnostic_for_reference(
         &self,
-        source_file: Option<impl Borrow<Node> /*JsonSourceFile*/>,
+        source_file: Option<Id<Node> /*JsonSourceFile*/>,
         index: usize,
         message: &DiagnosticMessage,
         args: Option<Vec<String>>,

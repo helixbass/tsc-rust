@@ -254,7 +254,7 @@ impl SymbolTableToDeclarationStatements {
         }))
     }
 
-    pub(super) fn is_identifier_and_not_undefined(&self, node: Option<impl Borrow<Node>>) -> bool {
+    pub(super) fn is_identifier_and_not_undefined(&self, node: Option<Id<Node>>) -> bool {
         matches!(
             node,
             Some(node) if node.borrow().kind() == SyntaxKind::Identifier

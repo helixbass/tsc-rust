@@ -1021,7 +1021,7 @@ pub struct EmitFileNames {
 
 pub fn get_source_files_to_emit(
     host: &dyn EmitHost,
-    target_source_file: Option<impl Borrow<Node> /*SourceFile*/>,
+    target_source_file: Option<Id<Node> /*SourceFile*/>,
     force_dts_emit: Option<bool>,
 ) -> Vec<Id<Node /*SourceFile*/>> {
     let options = ScriptReferenceHost::get_compiler_options(host);
@@ -1236,7 +1236,7 @@ pub fn parameter_is_this_keyword(parameter: Id<Node> /*ParameterDeclaration*/) -
     is_this_identifier(Some(parameter.as_parameter_declaration().name()))
 }
 
-pub fn is_this_identifier<TNode: Borrow<Node>>(node: Option<TNode>) -> bool {
+pub fn is_this_identifier(node: Option<Id<Node>>) -> bool {
     if node.is_none() {
         return false;
     }

@@ -649,7 +649,7 @@ impl TypeChecker {
         writing: bool,
         containing_type: Id<Type>,
         prop: Id<Symbol>,
-        error_node: Option<impl Borrow<Node>>,
+        error_node: Option<Id<Node>>,
     ) -> io::Result<bool> {
         let flags = get_declaration_modifier_flags_from_symbol(
             self.arena(),

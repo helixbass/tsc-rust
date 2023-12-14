@@ -574,7 +574,7 @@ impl Program {
 
     pub(super) fn add_file_include_reason(
         &self,
-        file: Option<impl Borrow<Node> /*SourceFile*/>,
+        file: Option<Id<Node> /*SourceFile*/>,
         reason: Gc<FileIncludeReason>,
     ) {
         if let Some(file) = file {
@@ -587,7 +587,7 @@ impl Program {
 
     pub(super) fn add_file_to_files_by_name(
         &self,
-        file: Option<impl Borrow<Node> /*SourceFile*/>,
+        file: Option<Id<Node> /*SourceFile*/>,
         path: &Path,
         redirected_path: Option<&Path>,
     ) {

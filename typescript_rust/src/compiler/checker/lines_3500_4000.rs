@@ -502,7 +502,7 @@ impl TypeChecker {
         target: &mut SymbolTable,
         source: Option<impl Borrow<SymbolTable>>,
         mut lookup_table: Option<&mut ExportCollisionTrackerTable>,
-        export_node: Option<impl Borrow<Node>>,
+        export_node: Option<Id<Node>>,
     ) -> io::Result<()> {
         if source.is_none() {
             return Ok(());
@@ -762,7 +762,7 @@ impl TypeChecker {
     pub(super) fn get_containers_of_symbol(
         &self,
         symbol: Id<Symbol>,
-        enclosing_declaration: Option<impl Borrow<Node>>,
+        enclosing_declaration: Option<Id<Node>>,
         meaning: SymbolFlags,
     ) -> io::Result<Option<Vec<Id<Symbol>>>> {
         let container = self.get_parent_of_symbol(symbol)?;

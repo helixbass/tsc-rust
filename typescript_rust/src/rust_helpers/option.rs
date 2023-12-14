@@ -153,16 +153,6 @@ impl BoolExt for bool {
     }
 }
 
-pub trait NodeWrappered {
-    fn node_wrappered(self) -> Option<Id<Node>>;
-}
-
-impl<TValue: Borrow<Node>> NodeWrappered for Option<TValue> {
-    fn node_wrappered(self) -> Option<Id<Node>> {
-        self.map(|node| node.borrow().node_wrapper())
-    }
-}
-
 pub trait Matches {
     type Unwrapped;
 

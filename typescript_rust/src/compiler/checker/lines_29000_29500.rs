@@ -28,7 +28,7 @@ use crate::{
 };
 
 impl TypeChecker {
-    pub(super) fn is_spread_argument<TArg: Borrow<Node>>(&self, arg: Option<TArg>) -> bool {
+    pub(super) fn is_spread_argument(&self, arg: Option<Id<Node>>) -> bool {
         if arg.is_none() {
             return false;
         }
@@ -353,7 +353,7 @@ impl TypeChecker {
 
     pub(super) fn get_this_argument_type(
         &self,
-        this_argument_node: Option<impl Borrow<Node> /*LeftHandSideExpression*/>,
+        this_argument_node: Option<Id<Node> /*LeftHandSideExpression*/>,
     ) -> io::Result<Id<Type>> {
         if this_argument_node.is_none() {
             return Ok(self.void_type());

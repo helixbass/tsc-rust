@@ -795,9 +795,9 @@ impl TypeChecker {
         false
     }
 
-    pub(super) fn check_grammar_for_invalid_question_mark<TQuestionToken: Borrow<Node>>(
+    pub(super) fn check_grammar_for_invalid_question_mark(
         &self,
-        question_token: Option<TQuestionToken /*QuestionToken*/>,
+        question_token: Option<Id<Node> /*QuestionToken*/>,
         message: &DiagnosticMessage,
     ) -> bool {
         if let Some(question_token) = question_token {
@@ -807,9 +807,9 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn check_grammar_for_invalid_exclamation_token<TExclamationToken: Borrow<Node>>(
+    pub(super) fn check_grammar_for_invalid_exclamation_token(
         &self,
-        exclamation_token: Option<TExclamationToken /*ExclamationToken*/>,
+        exclamation_token: Option<Id<Node> /*ExclamationToken*/>,
         message: &DiagnosticMessage,
     ) -> bool {
         if let Some(exclamation_token) = exclamation_token {

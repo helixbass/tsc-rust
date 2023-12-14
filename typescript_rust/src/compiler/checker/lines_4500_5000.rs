@@ -241,7 +241,7 @@ impl TypeChecker {
     pub(super) fn symbol_to_string_(
         &self,
         symbol: Id<Symbol>,
-        enclosing_declaration: Option<impl Borrow<Node>>,
+        enclosing_declaration: Option<Id<Node>>,
         meaning: Option<SymbolFlags>,
         flags: Option<SymbolFormatFlags>,
         writer: Option<Gc<Box<dyn EmitTextWriter>>>,
@@ -325,7 +325,7 @@ impl TypeChecker {
     pub(super) fn signature_to_string_(
         &self,
         signature: Gc<Signature>,
-        enclosing_declaration: Option<impl Borrow<Node>>,
+        enclosing_declaration: Option<Id<Node>>,
         flags: Option<TypeFormatFlags>,
         kind: Option<SignatureKind>,
         writer: Option<Gc<Box<dyn EmitTextWriter>>>,
@@ -356,7 +356,7 @@ impl TypeChecker {
     pub(super) fn signature_to_string_worker(
         &self,
         signature: Gc<Signature>,
-        enclosing_declaration: Option<impl Borrow<Node>>,
+        enclosing_declaration: Option<Id<Node>>,
         flags: TypeFormatFlags,
         kind: Option<SignatureKind>,
         writer: Gc<Box<dyn EmitTextWriter>>,
@@ -415,7 +415,7 @@ impl TypeChecker {
     pub(super) fn type_to_string_(
         &self,
         type_: Id<Type>,
-        enclosing_declaration: Option<impl Borrow<Node>>,
+        enclosing_declaration: Option<Id<Node>>,
         flags: Option<TypeFormatFlags>,
         writer: Option<Gc<Box<dyn EmitTextWriter>>>,
     ) -> io::Result<String> {
@@ -579,7 +579,7 @@ impl NodeBuilder {
     pub fn type_to_type_node(
         &self,
         type_: Id<Type>,
-        enclosing_declaration: Option<impl Borrow<Node>>,
+        enclosing_declaration: Option<Id<Node>>,
         flags: Option<NodeBuilderFlags>,
         tracker: Option<Gc<Box<dyn SymbolTracker>>>,
     ) -> io::Result<Option<Id<Node>>> {
@@ -591,7 +591,7 @@ impl NodeBuilder {
     pub fn index_info_to_index_signature_declaration(
         &self,
         index_info: &IndexInfo,
-        enclosing_declaration: Option<impl Borrow<Node>>,
+        enclosing_declaration: Option<Id<Node>>,
         flags: Option<NodeBuilderFlags>,
         tracker: Option<Gc<Box<dyn SymbolTracker>>>,
     ) -> io::Result<Option<Id<Node>>> {
@@ -610,7 +610,7 @@ impl NodeBuilder {
         &self,
         signature: Gc<Signature>,
         kind: SyntaxKind,
-        enclosing_declaration: Option<impl Borrow<Node>>,
+        enclosing_declaration: Option<Id<Node>>,
         flags: Option<NodeBuilderFlags>,
         tracker: Option<Gc<Box<dyn SymbolTracker>>>,
     ) -> io::Result<Option<Id<Node /*SignatureDeclaration & {typeArguments?: NodeArray<TypeNode>}*/>>>
@@ -629,7 +629,7 @@ impl NodeBuilder {
         &self,
         symbol: Id<Symbol>,
         meaning: /*SymbolFlags*/ Option<SymbolFlags>,
-        enclosing_declaration: Option<impl Borrow<Node>>,
+        enclosing_declaration: Option<Id<Node>>,
         flags: Option<NodeBuilderFlags>,
         tracker: Option<Gc<Box<dyn SymbolTracker>>>,
     ) -> io::Result<Option<Id<Node /*EntityName*/>>> {
@@ -642,7 +642,7 @@ impl NodeBuilder {
         &self,
         symbol: Id<Symbol>,
         meaning: /*SymbolFlags*/ Option<SymbolFlags>,
-        enclosing_declaration: Option<impl Borrow<Node>>,
+        enclosing_declaration: Option<Id<Node>>,
         flags: Option<NodeBuilderFlags>,
         tracker: Option<Gc<Box<dyn SymbolTracker>>>,
     ) -> io::Result<Option<Id<Node>>> {
@@ -654,7 +654,7 @@ impl NodeBuilder {
     pub fn symbol_to_type_parameter_declarations(
         &self,
         symbol: Id<Symbol>,
-        enclosing_declaration: Option<impl Borrow<Node>>,
+        enclosing_declaration: Option<Id<Node>>,
         flags: Option<NodeBuilderFlags>,
         tracker: Option<Gc<Box<dyn SymbolTracker>>>,
     ) -> io::Result<Option<Gc<NodeArray> /*<TypeParameterDeclaration>*/>> {
@@ -666,7 +666,7 @@ impl NodeBuilder {
     pub fn symbol_to_parameter_declaration(
         &self,
         symbol: Id<Symbol>,
-        enclosing_declaration: Option<impl Borrow<Node>>,
+        enclosing_declaration: Option<Id<Node>>,
         flags: Option<NodeBuilderFlags>,
         tracker: Option<Gc<Box<dyn SymbolTracker>>>,
     ) -> io::Result<Option<Id<Node /*ParameterDeclaration*/>>> {
@@ -684,7 +684,7 @@ impl NodeBuilder {
     pub fn type_parameter_to_declaration(
         &self,
         parameter: Id<Type>, /*TypeParameter*/
-        enclosing_declaration: Option<impl Borrow<Node>>,
+        enclosing_declaration: Option<Id<Node>>,
         flags: Option<NodeBuilderFlags>,
         tracker: Option<Gc<Box<dyn SymbolTracker>>>,
     ) -> io::Result<Option<Id<Node /*TypeParameterDeclaration*/>>> {
@@ -698,7 +698,7 @@ impl NodeBuilder {
     pub fn symbol_table_to_declaration_statements(
         &self,
         symbol_table: Gc<GcCell<SymbolTable>>,
-        enclosing_declaration: Option<impl Borrow<Node>>,
+        enclosing_declaration: Option<Id<Node>>,
         flags: Option<NodeBuilderFlags>,
         tracker: Option<Gc<Box<dyn SymbolTracker>>>,
         bundled: Option<bool>,
@@ -715,7 +715,7 @@ impl NodeBuilder {
     #[allow(dead_code)]
     pub(super) fn with_context<TReturn>(
         &self,
-        enclosing_declaration: Option<impl Borrow<Node>>,
+        enclosing_declaration: Option<Id<Node>>,
         flags: Option<NodeBuilderFlags>,
         tracker: Option<Gc<Box<dyn SymbolTracker>>>,
         cb: impl FnOnce(&NodeBuilderContext) -> Option<TReturn>,
@@ -763,7 +763,7 @@ impl NodeBuilder {
 
     pub(super) fn try_with_context<TReturn>(
         &self,
-        enclosing_declaration: Option<impl Borrow<Node>>,
+        enclosing_declaration: Option<Id<Node>>,
         flags: Option<NodeBuilderFlags>,
         tracker: Option<Gc<Box<dyn SymbolTracker>>>,
         cb: impl FnOnce(&NodeBuilderContext) -> io::Result<Option<TReturn>>,

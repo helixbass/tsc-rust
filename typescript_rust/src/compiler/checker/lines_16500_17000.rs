@@ -1225,7 +1225,7 @@ impl TypeChecker {
         &self,
         source: Id<Type>,
         target: Id<Type>,
-        error_node: Option<impl Borrow<Node>>,
+        error_node: Option<Id<Node>>,
         head_message: Option<&'static DiagnosticMessage>,
         containing_message_chain: Option<Gc<Box<dyn CheckTypeContainingMessageChain>>>,
         error_output_object: Option<Gc<Box<dyn CheckTypeErrorOutputContainer>>>,

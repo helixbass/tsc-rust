@@ -228,7 +228,7 @@ pub fn set_text_range_pos_width(range: &impl ReadonlyTextRange, pos: isize, widt
     set_text_range_pos_end(range, pos, pos + width);
 }
 
-pub fn set_node_flags(node: Option<impl Borrow<Node>>, new_flags: NodeFlags) -> Option<Id<Node>> {
+pub fn set_node_flags(node: Option<Id<Node>>, new_flags: NodeFlags) -> Option<Id<Node>> {
     node.map(|node| {
         let node = node.borrow();
         node.set_flags(new_flags);
@@ -236,7 +236,7 @@ pub fn set_node_flags(node: Option<impl Borrow<Node>>, new_flags: NodeFlags) -> 
     })
 }
 
-pub fn set_parent(child: Id<Node>, parent: Option<impl Borrow<Node>>) -> Id<Node> {
+pub fn set_parent(child: Id<Node>, parent: Option<Id<Node>>) -> Id<Node> {
     if let Some(parent) = parent {
         let parent = parent.borrow();
         child.set_parent(Some(parent.node_wrapper()));
@@ -244,10 +244,10 @@ pub fn set_parent(child: Id<Node>, parent: Option<impl Borrow<Node>>) -> Id<Node
     child
 }
 
-pub fn maybe_set_parent<TChild: Borrow<Node>>(
-    child: Option<TChild>,
+pub fn maybe_set_parent(
+    child: Option<Id<Node>>,
     parent: Option<Id<Node>>,
-) -> Option<TChild> {
+) -> Option<Id<Node>> {
     if let Some(child) = child.as_ref() {
         let child = child.borrow();
         if let Some(parent) = parent {
@@ -257,7 +257,7 @@ pub fn maybe_set_parent<TChild: Borrow<Node>>(
     child
 }
 
-pub fn set_parent_recursive(root_node: Option<impl Borrow<Node>>, incremental: bool) {
+pub fn set_parent_recursive(root_node: Option<Id<Node>>, incremental: bool) {
     if root_node.is_none() {
         return /*rootNode*/;
     }

@@ -1900,7 +1900,7 @@ impl TypeChecker {
     pub fn type_to_type_node(
         &self,
         type_: Id<Type>,
-        enclosing_declaration: Option<impl Borrow<Node>>,
+        enclosing_declaration: Option<Id<Node>>,
         flags: Option<NodeBuilderFlags>,
         tracker: Option<Gc<Box<dyn SymbolTracker>>>,
     ) -> io::Result<Option<Id<Node /*TypeNode*/>>> {
@@ -1911,7 +1911,7 @@ impl TypeChecker {
     pub fn index_info_to_index_signature_declaration(
         &self,
         index_info: &IndexInfo,
-        enclosing_declaration: Option<impl Borrow<Node>>,
+        enclosing_declaration: Option<Id<Node>>,
         flags: Option<NodeBuilderFlags>,
         tracker: Option<Gc<Box<dyn SymbolTracker>>>,
     ) -> io::Result<Option<Id<Node /*IndexSignatureDeclaration*/>>> {
@@ -1928,7 +1928,7 @@ impl TypeChecker {
         &self,
         signature: Gc<Signature>,
         kind: SyntaxKind,
-        enclosing_declaration: Option<impl Borrow<Node>>,
+        enclosing_declaration: Option<Id<Node>>,
         flags: Option<NodeBuilderFlags>,
         tracker: Option<Gc<Box<dyn SymbolTracker>>>,
     ) -> io::Result<Option<Id<Node /*SignatureDeclaration & {typeArguments?: NodeArray<TypeNode>}*/>>>
@@ -1946,7 +1946,7 @@ impl TypeChecker {
         &self,
         symbol: Id<Symbol>,
         meaning: SymbolFlags,
-        enclosing_declaration: Option<impl Borrow<Node>>,
+        enclosing_declaration: Option<Id<Node>>,
         flags: Option<NodeBuilderFlags>,
     ) -> io::Result<Option<Id<Node /*EntityName*/>>> {
         self.node_builder().symbol_to_entity_name(
@@ -1962,7 +1962,7 @@ impl TypeChecker {
         &self,
         symbol: Id<Symbol>,
         meaning: SymbolFlags,
-        enclosing_declaration: Option<impl Borrow<Node>>,
+        enclosing_declaration: Option<Id<Node>>,
         flags: Option<NodeBuilderFlags>,
     ) -> io::Result<Option<Id<Node /*Expression*/>>> {
         self.node_builder().symbol_to_expression(
@@ -1977,7 +1977,7 @@ impl TypeChecker {
     pub fn symbol_to_type_parameter_declarations(
         &self,
         symbol: Id<Symbol>,
-        enclosing_declaration: Option<impl Borrow<Node>>,
+        enclosing_declaration: Option<Id<Node>>,
         flags: Option<NodeBuilderFlags>,
     ) -> io::Result<Option<Gc<NodeArray> /*<TypeParameterDeclaration>*/>> {
         self.node_builder().symbol_to_type_parameter_declarations(
@@ -1991,7 +1991,7 @@ impl TypeChecker {
     pub fn symbol_to_parameter_declaration(
         &self,
         symbol: Id<Symbol>,
-        enclosing_declaration: Option<impl Borrow<Node>>,
+        enclosing_declaration: Option<Id<Node>>,
         flags: Option<NodeBuilderFlags>,
     ) -> io::Result<Option<Id<Node /*ParameterDeclaration*/>>> {
         self.node_builder().symbol_to_parameter_declaration(
@@ -2005,7 +2005,7 @@ impl TypeChecker {
     pub fn type_parameter_to_declaration(
         &self,
         parameter: Id<Type>, /*TypeParameter*/
-        enclosing_declaration: Option<impl Borrow<Node>>,
+        enclosing_declaration: Option<Id<Node>>,
         flags: Option<NodeBuilderFlags>,
     ) -> io::Result<Option<Id<Node /*TypeParameterDeclaration*/>>> {
         self.node_builder().type_parameter_to_declaration(
@@ -2049,7 +2049,7 @@ impl TypeChecker {
 
     pub fn get_shorthand_assignment_value_symbol(
         &self,
-        node_in: Option<impl Borrow<Node>>,
+        node_in: Option<Id<Node>>,
     ) -> io::Result<Option<Id<Symbol>>> {
         let node = return_ok_none_if_none!(get_parse_tree_node(
             node_in,
@@ -2112,10 +2112,10 @@ impl TypeChecker {
         self.get_property_symbol_of_destructuring_assignment_(&location)
     }
 
-    pub fn signature_to_string<TEnclosingDeclaration: Borrow<Node>>(
+    pub fn signature_to_string(
         &self,
         signature: Gc<Signature>,
-        enclosing_declaration: Option<TEnclosingDeclaration>,
+        enclosing_declaration: Option<Id<Node>>,
         flags: Option<TypeFormatFlags>,
         kind: Option<SignatureKind>,
     ) -> io::Result<String> {
@@ -2131,7 +2131,7 @@ impl TypeChecker {
     pub fn type_to_string(
         &self,
         type_: Id<Type>,
-        enclosing_declaration: Option<impl Borrow<Node>>,
+        enclosing_declaration: Option<Id<Node>>,
         flags: Option<TypeFormatFlags>,
     ) -> io::Result<String> {
         self.type_to_string_(
@@ -2145,7 +2145,7 @@ impl TypeChecker {
     pub fn symbol_to_string(
         &self,
         symbol: Id<Symbol>,
-        enclosing_declaration: Option<impl Borrow<Node>>,
+        enclosing_declaration: Option<Id<Node>>,
         meaning: Option<SymbolFlags>,
         flags: Option<SymbolFormatFlags>,
     ) -> io::Result<String> {
@@ -2161,7 +2161,7 @@ impl TypeChecker {
     pub fn type_predicate_to_string(
         &self,
         predicate: &TypePredicate,
-        enclosing_declaration: Option<impl Borrow<Node>>,
+        enclosing_declaration: Option<Id<Node>>,
         flags: Option<TypeFormatFlags>,
     ) -> io::Result<String> {
         self.type_predicate_to_string_(
@@ -2175,7 +2175,7 @@ impl TypeChecker {
     pub fn write_signature(
         &self,
         signature: Gc<Signature>,
-        enclosing_declaration: Option<impl Borrow<Node>>,
+        enclosing_declaration: Option<Id<Node>>,
         flags: Option<TypeFormatFlags>,
         kind: Option<SignatureKind>,
         writer: Option<Gc<Box<dyn EmitTextWriter>>>,
@@ -2192,7 +2192,7 @@ impl TypeChecker {
     pub fn write_type(
         &self,
         type_: Id<Type>,
-        enclosing_declaration: Option<impl Borrow<Node>>,
+        enclosing_declaration: Option<Id<Node>>,
         flags: Option<TypeFormatFlags>,
         writer: Option<Gc<Box<dyn EmitTextWriter>>>,
     ) -> io::Result<String> {
@@ -2207,7 +2207,7 @@ impl TypeChecker {
     pub fn write_symbol(
         &self,
         symbol: Id<Symbol>,
-        enclosing_declaration: Option<impl Borrow<Node>>,
+        enclosing_declaration: Option<Id<Node>>,
         meaning: Option<SymbolFlags>,
         flags: Option<SymbolFormatFlags>,
         writer: Option<Gc<Box<dyn EmitTextWriter>>>,
@@ -2224,7 +2224,7 @@ impl TypeChecker {
     pub fn write_type_predicate(
         &self,
         predicate: &TypePredicate,
-        enclosing_declaration: Option<impl Borrow<Node>>,
+        enclosing_declaration: Option<Id<Node>>,
         flags: Option<TypeFormatFlags>,
         writer: Option<Gc<Box<dyn EmitTextWriter>>>,
     ) -> io::Result<String> {
@@ -2586,7 +2586,7 @@ impl TypeChecker {
     pub fn resolve_name(
         &self,
         name: &str,
-        location: Option<impl Borrow<Node>>,
+        location: Option<Id<Node>>,
         meaning: SymbolFlags,
         exclude_globals: bool,
     ) -> io::Result<Option<Id<Symbol>>> {
@@ -2601,7 +2601,7 @@ impl TypeChecker {
         )
     }
 
-    pub fn get_jsx_namespace(&self, location: Option<impl Borrow<Node>>) -> String {
+    pub fn get_jsx_namespace(&self, location: Option<Id<Node>>) -> String {
         unescape_leading_underscores(&self.get_jsx_namespace_(location)).to_owned()
     }
 
