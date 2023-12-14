@@ -687,12 +687,14 @@ impl NodeBuilder {
                 }
                 .into()
             } else {
+                let parameter_symbol_ref = self.type_checker.symbol(parameter_symbol);
                 parameter_symbol_name =
-                    Some(symbol_name(&self.type_checker.symbol(parameter_symbol)));
+                    Some(symbol_name(&parameter_symbol_ref));
                 parameter_symbol_name.as_deref().unwrap().into()
             }
         } else {
-            parameter_symbol_name = Some(symbol_name(&self.type_checker.symbol(parameter_symbol)));
+            let parameter_symbol_ref = self.type_checker.symbol(parameter_symbol);
+            parameter_symbol_name = Some(symbol_name(&parameter_symbol_ref));
             parameter_symbol_name.as_deref().unwrap().into()
         };
         let is_optional = matches!(

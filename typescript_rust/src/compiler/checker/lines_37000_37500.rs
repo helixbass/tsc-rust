@@ -604,7 +604,9 @@ impl TypeChecker {
         if self.is_es2015_or_later_iterable(
             self.type_(input_type)
                 .maybe_symbol()
-                .map(|input_type_symbol| self.symbol(input_type_symbol).escaped_name()),
+                .map(|input_type_symbol| self.symbol(input_type_symbol))
+                .as_ref()
+                .map(|input_type_symbol| input_type_symbol.escaped_name()),
         ) {
             return Ok((
                 &Diagnostics::Type_0_can_only_be_iterated_through_when_using_the_downlevelIteration_flag_or_with_a_target_of_es2015_or_higher,

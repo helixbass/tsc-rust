@@ -442,7 +442,8 @@ impl TypeChecker {
         add_diagnostic: &mut impl FnMut(&Node, UnusedKind, Gc<Diagnostic>),
     ) -> io::Result<()> {
         let symbol = self.get_symbol_of_node(node)?.unwrap();
-        let declarations = self.symbol(symbol).maybe_declarations();
+        let symbol_ref = self.symbol(symbol);
+        let declarations = symbol_ref.maybe_declarations();
         if match declarations.as_ref() {
             None => true,
             Some(declarations) => !ptr::eq(&**last(declarations), node),

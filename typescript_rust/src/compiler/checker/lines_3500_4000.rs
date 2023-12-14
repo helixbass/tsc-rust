@@ -102,7 +102,8 @@ impl TypeChecker {
             return Ok(None);
         }
         let module_symbol = module_symbol.unwrap();
-        let module_symbol_exports = self.symbol(module_symbol).maybe_exports();
+        let module_symbol_ref = self.symbol(module_symbol);
+        let module_symbol_exports = module_symbol_ref.maybe_exports();
         let module_symbol_exports = module_symbol_exports.as_ref();
         if module_symbol_exports.is_none() {
             return Ok(None);
@@ -590,7 +591,8 @@ impl TypeChecker {
         {
             return Ok(None);
         }
-        let symbol_exports = self.symbol(symbol).maybe_exports();
+        let symbol_ref = self.symbol(symbol);
+        let symbol_exports = symbol_ref.maybe_exports();
         let symbol_exports = symbol_exports.as_ref().unwrap();
         let symbol_exports = (**symbol_exports).borrow();
         let mut symbols = symbol_exports.clone();

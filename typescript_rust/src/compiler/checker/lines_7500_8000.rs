@@ -59,7 +59,8 @@ impl SymbolTableToDeclarationStatements {
         {
             return Ok(false);
         }
-        let name = unescape_leading_underscores(self.type_checker.symbol(symbol).escaped_name());
+        let symbol_ref = self.type_checker.symbol(symbol);
+        let name = unescape_leading_underscores(symbol_ref.escaped_name());
         let is_export_equals = name == InternalSymbolName::ExportEquals;
         let is_default = name == InternalSymbolName::Default;
         let is_export_assignment_compatible_symbol_name = is_export_equals || is_default;

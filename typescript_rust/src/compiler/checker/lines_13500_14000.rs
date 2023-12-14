@@ -160,7 +160,8 @@ impl TypeChecker {
         &self,
         symbol: Id<Symbol>,
     ) -> Option<Gc<Node /*Declaration*/>> {
-        let declarations = self.symbol(symbol).maybe_declarations();
+        let symbol_ref = self.symbol(symbol);
+        let declarations = symbol_ref.maybe_declarations();
         declarations.as_ref().and_then(|declarations| {
             for declaration in declarations {
                 match declaration.kind() {
@@ -232,7 +233,8 @@ impl TypeChecker {
                     .as_deref(),
             ) != arity
             {
-                let symbol_declarations = self.symbol(symbol).maybe_declarations();
+                let symbol_ref = self.symbol(symbol);
+                let symbol_declarations = symbol_ref.maybe_declarations();
                 let decl = symbol_declarations
                     .as_deref()
                     .and_then(|symbol_declarations| {

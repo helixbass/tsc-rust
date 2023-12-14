@@ -105,7 +105,8 @@ impl TypeChecker {
         let lib_targets = all_features.keys();
         for lib_target in lib_targets {
             let features_of_lib = all_features.get(lib_target).unwrap();
-            let container_name = symbol_name(&self.symbol(container));
+            let container_ref = self.symbol(container);
+            let container_name = symbol_name(&container_ref);
             let features_of_containing_type = features_of_lib.get(&&*container_name);
             if matches!(
                 features_of_containing_type,
@@ -383,7 +384,8 @@ impl TypeChecker {
         meaning: SymbolFlags,
     ) -> io::Result<Option<Id<Symbol>>> {
         let get_candidate_name = |&candidate: &Id<Symbol>| -> io::Result<_> {
-            let candidate_name = symbol_name(&self.symbol(candidate));
+            let candidate_ref = self.symbol(candidate);
+            let candidate_name = symbol_name(&candidate_ref);
             if starts_with(&candidate_name, "\"") {
                 return Ok(None);
             }

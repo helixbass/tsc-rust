@@ -349,8 +349,8 @@ impl TypeChecker {
             )?;
             if result_obj.errors_len() > 0 {
                 if let Some(target_symbol) = self.type_(target).maybe_symbol() {
-                    let target_symbol_declarations =
-                        self.symbol(target_symbol).maybe_declarations();
+                    let target_symbol_ref = self.symbol(target_symbol);
+                    let target_symbol_declarations = target_symbol_ref.maybe_declarations();
                     if let Some(target_symbol_declarations) = target_symbol_declarations
                         .as_ref()
                         .filter(|target_symbol_declarations| !target_symbol_declarations.is_empty())

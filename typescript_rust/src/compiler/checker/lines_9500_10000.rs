@@ -643,7 +643,8 @@ impl TypeChecker {
         &self,
         symbol: Id<Symbol>,
     ) -> io::Result<Option<Vec<Id<Type /*TypeParameter*/>>>> {
-        let symbol_declarations = self.symbol(symbol).maybe_declarations();
+        let symbol_ref = self.symbol(symbol);
+        let symbol_declarations = symbol_ref.maybe_declarations();
         let symbol_declarations = return_ok_default_if_none!(symbol_declarations.as_ref());
         let mut result: Option<Vec<Id<Type /*TypeParameter*/>>> = None;
         for node in symbol_declarations {

@@ -466,7 +466,8 @@ impl TypeChecker {
         let mut props = create_symbol_table(self.arena(), Option::<&[Id<Symbol>]>::None);
         for &member_type in types {
             for augmented_property in self.get_augmented_properties_of_type(member_type)? {
-                let escaped_name = self.symbol(augmented_property).escaped_name();
+                let augmented_property_ref = self.symbol(augmented_property);
+                let escaped_name = augmented_property_ref.escaped_name();
                 if !props.contains_key(escaped_name) {
                     let prop =
                         self.create_union_or_intersection_property(union_type, escaped_name, None)?;

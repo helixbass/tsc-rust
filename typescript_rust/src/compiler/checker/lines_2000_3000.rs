@@ -582,7 +582,8 @@ impl TypeChecker {
         {
             return Ok(());
         }
-        let result_declarations = self.symbol(result).maybe_declarations();
+        let result_ref = self.symbol(result);
+        let result_declarations = result_ref.maybe_declarations();
         let declaration = result_declarations.as_ref().and_then(|declarations| {
             declarations.iter().find(|d| {
                 is_block_or_catch_scoped(d)
@@ -1543,7 +1544,8 @@ impl TypeChecker {
                             .cloned()
                     })
             });
-        let exports = self.symbol(module_symbol).maybe_exports();
+        let module_symbol_ref = self.symbol(module_symbol);
+        let exports = module_symbol_ref.maybe_exports();
         if let Some(local_symbol) = local_symbol {
             let exported_equals_symbol = exports.as_ref().and_then(|exports| {
                 (**exports)

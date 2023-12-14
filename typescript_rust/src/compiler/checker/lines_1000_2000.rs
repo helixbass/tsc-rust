@@ -580,7 +580,8 @@ impl TypeChecker {
                 set_value_declaration(&self.symbol(target), source_value_declaration);
             }
             if let Some(source_declarations) = self.symbol(source).maybe_declarations().as_deref() {
-                let mut target_declarations = self.symbol(target).maybe_declarations_mut();
+                let target_ref = self.symbol(target);
+                let mut target_declarations = target_ref.maybe_declarations_mut();
                 if target_declarations.is_none() {
                     *target_declarations = Some(vec![]);
                 }
@@ -592,7 +593,8 @@ impl TypeChecker {
                 );
             }
             if let Some(source_members) = self.symbol(source).maybe_members().as_ref() {
-                let mut target_members = self.symbol(target).maybe_members_mut();
+                let target_ref = self.symbol(target);
+                let mut target_members = target_ref.maybe_members_mut();
                 if target_members.is_none() {
                     *target_members = Some(Gc::new(GcCell::new(create_symbol_table(
                         self.arena(),
@@ -606,7 +608,8 @@ impl TypeChecker {
                 )?;
             }
             if let Some(source_exports) = self.symbol(source).maybe_exports().as_ref() {
-                let mut target_exports = self.symbol(target).maybe_exports_mut();
+                let target_ref = self.symbol(target);
+                let mut target_exports = target_ref.maybe_exports_mut();
                 if target_exports.is_none() {
                     *target_exports = Some(Gc::new(GcCell::new(create_symbol_table(
                         self.arena(),

@@ -552,7 +552,8 @@ impl BinderType {
                 ));
         } else {
             let file_symbol = self.file().symbol();
-            let mut global_exports = self.symbol(file_symbol).maybe_global_exports();
+            let file_symbol_ref = self.symbol(file_symbol);
+            let mut global_exports = file_symbol_ref.maybe_global_exports();
             if global_exports.is_none() {
                 *global_exports = Some(Gc::new(GcCell::new(create_symbol_table(
                     self.arena(),
@@ -847,8 +848,9 @@ impl BinderType {
                         self.symbol(constructor_symbol).maybe_value_declaration()
                     {
                         let constructor_symbol_members = {
+                            let constructor_symbol_ref = self.symbol(constructor_symbol);
                             let mut constructor_symbol_members =
-                                self.symbol(constructor_symbol).maybe_members_mut();
+                                constructor_symbol_ref.maybe_members_mut();
                             if constructor_symbol_members.is_none() {
                                 *constructor_symbol_members =
                                     Some(Gc::new(GcCell::new(create_symbol_table(
@@ -973,8 +975,9 @@ impl BinderType {
         symbol: Option<Id<Symbol>>,
     ) {
         if let Some(symbol) = symbol {
+            let symbol_ref = self.symbol(symbol);
             let mut symbol_assignment_declaration_members =
-                self.symbol(symbol).maybe_assignment_declaration_members();
+                symbol_ref.maybe_assignment_declaration_members();
             if symbol_assignment_declaration_members.is_none() {
                 *symbol_assignment_declaration_members = Some(HashMap::new());
             }

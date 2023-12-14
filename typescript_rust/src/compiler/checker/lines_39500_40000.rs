@@ -983,7 +983,8 @@ impl TypeChecker {
             // if (exports) {
             let exports = (*exports).borrow();
             for (id, &symbol) in &*exports {
-                let declarations = self.symbol(symbol).maybe_declarations();
+                let symbol_ref = self.symbol(symbol);
+                let declarations = symbol_ref.maybe_declarations();
                 let flags = self.symbol(symbol).flags();
                 if id == "__export" {
                     continue;

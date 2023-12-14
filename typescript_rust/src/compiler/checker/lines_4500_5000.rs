@@ -1001,7 +1001,8 @@ impl NodeBuilder {
                 return Ok(Some(parent_name));
             }
             let type_symbol = self.type_checker.type_(type_).symbol();
-            let member_name = symbol_name(&self.type_checker.symbol(type_symbol));
+            let type_symbol_ref = self.type_checker.symbol(type_symbol);
+            let member_name = symbol_name(&type_symbol_ref);
             if is_identifier_text(&member_name, Some(ScriptTarget::ES3), None) {
                 return Ok(Some(
                     self.append_reference_to_type(

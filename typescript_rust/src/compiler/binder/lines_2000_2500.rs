@@ -69,7 +69,8 @@ impl BinderType {
             InternalSymbolName::Type.to_owned(),
         ));
         self.add_declaration_to_symbol(type_literal_symbol, node, SymbolFlags::TypeLiteral);
-        let mut type_literal_symbol_members = self.symbol(type_literal_symbol).maybe_members_mut();
+        let type_literal_symbol_ref = self.symbol(type_literal_symbol);
+        let mut type_literal_symbol_members = type_literal_symbol_ref.maybe_members_mut();
         *type_literal_symbol_members = Some(Gc::new(GcCell::new(create_symbol_table(
             self.arena(),
             Option::<&[Id<Symbol>]>::None,

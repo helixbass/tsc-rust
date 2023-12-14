@@ -343,7 +343,8 @@ impl TypeChecker {
         }
         result_links.name_type = name_type;
         if prop_types.len() > 2 {
-            let result_as_transient_symbol = self.symbol(result).as_transient_symbol();
+            let result_ref = self.symbol(result);
+            let result_as_transient_symbol = result_ref.as_transient_symbol();
             result_as_transient_symbol.set_check_flags(
                 result_as_transient_symbol.check_flags() | CheckFlags::DeferredType,
             );

@@ -39,7 +39,8 @@ impl TypeChecker {
                     self.type_(prop_type).maybe_symbol(),
                     Some(prop_type_symbol) if self.symbol(prop_type_symbol).flags().intersects(SymbolFlags::Class)
                 ) {
-                    let name = self.symbol(prop).escaped_name();
+                    let prop_ref = self.symbol(prop);
+                    let name = prop_ref.escaped_name();
                     let symbol = self.resolve_name_(
                         self.symbol(prop).maybe_value_declaration(),
                         name,

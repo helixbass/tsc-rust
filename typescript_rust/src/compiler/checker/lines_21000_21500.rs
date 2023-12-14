@@ -1156,7 +1156,8 @@ impl TypeChecker {
     ) -> io::Result<Id<Type>> {
         let links = self.get_symbol_links(symbol);
         if (*links).borrow().type_.is_none() {
-            let symbol_as_reverse_mapped_symbol = self.symbol(symbol).as_reverse_mapped_symbol();
+            let symbol_ref = self.symbol(symbol);
+            let symbol_as_reverse_mapped_symbol = symbol_ref.as_reverse_mapped_symbol();
             links.borrow_mut().type_ = Some(self.infer_reverse_mapped_type(
                 symbol_as_reverse_mapped_symbol.property_type,
                 symbol_as_reverse_mapped_symbol.mapped_type,

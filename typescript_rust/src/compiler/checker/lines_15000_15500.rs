@@ -277,7 +277,8 @@ impl TypeChecker {
             if let Some(prop) = prop {
                 if access_flags.intersects(AccessFlags::ReportDeprecated) {
                     if let Some(access_node) = access_node.as_ref() {
-                        let prop_declarations = self.symbol(prop).maybe_declarations();
+                        let prop_ref = self.symbol(prop);
+                        let prop_declarations = prop_ref.maybe_declarations();
                         if let Some(prop_declarations) = prop_declarations.as_deref() {
                             if self
                                 .get_declaration_node_flags_from_symbol(prop)

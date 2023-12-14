@@ -821,7 +821,8 @@ impl TypeChecker {
     }
 
     pub(super) fn is_local_type_alias(&self, symbol: Id<Symbol>) -> bool {
-        let symbol_declarations = self.symbol(symbol).maybe_declarations();
+        let symbol_ref = self.symbol(symbol);
+        let symbol_declarations = symbol_ref.maybe_declarations();
         let declaration = symbol_declarations.as_ref().and_then(|declarations| {
             declarations
                 .iter()
@@ -852,15 +853,14 @@ impl TypeChecker {
         None
     }
 
-    pub(super) fn get_symbol_path<'symbol>(&self, symbol: Id<Symbol>) -> Cow<'symbol, str> {
+    pub(super) fn get_symbol_path(&self, symbol: Id<Symbol>) -> String {
         match self.symbol(symbol).maybe_parent() {
             Some(symbol_parent) => format!(
                 "{}.{}",
                 self.get_symbol_path(symbol_parent),
                 self.symbol(symbol).escaped_name()
-            )
-            .into(),
-            None => self.symbol(symbol).escaped_name().into(),
+            ),
+            None => self.symbol(symbol).escaped_name().into_owned(),
         }
     }
 

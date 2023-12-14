@@ -390,8 +390,8 @@ impl TransformDeclarations {
                                 None,
                             )?;
                             self.set_get_symbol_accessibility_diagnostic(old_diag.clone());
-                            let name_str =
-                                unescape_leading_underscores(self.symbol(p).escaped_name());
+                            let p_ref = self.symbol(p);
+                            let name_str = unescape_leading_underscores(p_ref.escaped_name());
                             let is_non_contextual_keyword_name =
                                 is_string_a_non_contextual_keyword(name_str);
                             let name = if is_non_contextual_keyword_name {

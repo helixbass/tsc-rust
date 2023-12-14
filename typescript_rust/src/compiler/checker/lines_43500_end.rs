@@ -1007,7 +1007,8 @@ impl EmitResolverCreateResolver {
         &self,
         symbol: Id<Symbol>,
     ) -> io::Result<bool> {
-        let symbol_declarations = self.type_checker.symbol(symbol).maybe_declarations();
+        let symbol_ref = self.type_checker.symbol(symbol);
+        let symbol_declarations = symbol_ref.maybe_declarations();
         if symbol_declarations.is_none() {
             return Ok(false);
         }

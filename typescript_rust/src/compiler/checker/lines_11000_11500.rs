@@ -649,7 +649,8 @@ impl TypeChecker {
             }
             if self.symbol(symbol).flags().intersects(SymbolFlags::Class) {
                 let class_type = self.get_declared_type_of_class_or_interface(symbol)?;
-                let symbol_members = self.symbol(symbol).maybe_members();
+                let symbol_ref = self.symbol(symbol);
+                let symbol_members = symbol_ref.maybe_members();
                 let mut construct_signatures = if let Some(symbol_members) = symbol_members.as_ref()
                 {
                     self.get_signatures_of_symbol(
@@ -1110,7 +1111,8 @@ impl TypeChecker {
             let prop_name = self.get_property_name_from_type(prop_name_type);
             let existing_prop = members.get(&*prop_name);
             if let Some(&existing_prop) = existing_prop {
-                let existing_prop_as_mapped_symbol = self.symbol(existing_prop).as_mapped_symbol();
+                let existing_prop_ref = self.symbol(existing_prop);
+                let existing_prop_as_mapped_symbol = existing_prop_ref.as_mapped_symbol();
                 let existing_prop_name_type = (*existing_prop_as_mapped_symbol.symbol_links())
                     .borrow()
                     .name_type
@@ -1192,7 +1194,8 @@ impl TypeChecker {
                     ),
                 );
                 let prop = self.alloc_symbol(prop.into_mapped_symbol(type_, key_type).into());
-                let prop_as_mapped_symbol = self.symbol(prop).as_mapped_symbol();
+                let prop_ref = self.symbol(prop);
+                let prop_as_mapped_symbol = prop_ref.as_mapped_symbol();
                 prop_as_mapped_symbol.symbol_links().borrow_mut().name_type = Some(prop_name_type);
                 if let Some(modifiers_prop) = modifiers_prop {
                     prop_as_mapped_symbol
@@ -1255,7 +1258,8 @@ impl TypeChecker {
         &self,
         symbol: Id<Symbol>, /*MappedSymbol*/
     ) -> io::Result<Id<Type>> {
-        let symbol_as_mapped_symbol = self.symbol(symbol).as_mapped_symbol();
+        let symbol_ref = self.symbol(symbol);
+        let symbol_as_mapped_symbol = symbol_ref.as_mapped_symbol();
         if (*symbol_as_mapped_symbol.symbol_links())
             .borrow()
             .type_

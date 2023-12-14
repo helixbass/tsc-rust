@@ -608,7 +608,8 @@ impl TypeChecker {
         &self,
         symbol: Id<Symbol>,
     ) -> io::Result<Option<Gc<Node>>> {
-        let symbol_declarations = self.symbol(symbol).maybe_declarations();
+        let symbol_ref = self.symbol(symbol);
+        let symbol_declarations = symbol_ref.maybe_declarations();
         let symbol_declarations = return_ok_default_if_none!(symbol_declarations.as_deref());
         for declaration in symbol_declarations {
             let container = get_this_container(&declaration, false);
@@ -635,7 +636,8 @@ impl TypeChecker {
                 .get(0)
                 .unwrap(),
         );
-        let access_name = unescape_leading_underscores(self.symbol(symbol).escaped_name());
+        let symbol_ref = self.symbol(symbol);
+        let access_name = unescape_leading_underscores(symbol_ref.escaped_name());
         let are_all_module_exports = every(
             self.symbol(symbol).maybe_declarations().as_deref().unwrap(),
             |d: &Gc<Node>, _| {
@@ -691,6 +693,7 @@ impl TypeChecker {
         symbol: Id<Symbol>,
         static_blocks: &[Gc<Node /*ClassStaticBlockDeclaration*/>],
     ) -> io::Result<Option<Id<Type>>> {
+        let symbol_ref = self.symbol(symbol);
         let access_name: StrOrRcNode<'_> = if starts_with(self.symbol(symbol).escaped_name(), "__#")
         {
             factory.with(|factory_| {
@@ -704,7 +707,7 @@ impl TypeChecker {
                     .into()
             })
         } else {
-            unescape_leading_underscores(self.symbol(symbol).escaped_name()).into()
+            unescape_leading_underscores(symbol_ref.escaped_name()).into()
         };
         for static_block in static_blocks {
             let reference = factory.with(|factory_| {
@@ -747,6 +750,7 @@ impl TypeChecker {
         symbol: Id<Symbol>,
         constructor: &Node, /*ConstructorDeclaration*/
     ) -> io::Result<Option<Id<Type>>> {
+        let symbol_ref = self.symbol(symbol);
         let access_name: StrOrRcNode<'_> = if starts_with(self.symbol(symbol).escaped_name(), "__#")
         {
             factory.with(|factory_| {
@@ -760,7 +764,7 @@ impl TypeChecker {
                     .into()
             })
         } else {
-            unescape_leading_underscores(self.symbol(symbol).escaped_name()).into()
+            unescape_leading_underscores(symbol_ref.escaped_name()).into()
         };
         let reference = factory.with(|factory_| {
             factory_.create_property_access_expression(factory_.create_this(), access_name)
@@ -1150,7 +1154,8 @@ impl TypeChecker {
             );
             let initial_size = members.len();
             if let Some(resolved_symbol) = resolved_symbol {
-                let mut resolved_symbol_exports = self.symbol(resolved_symbol).maybe_exports_mut();
+                let resolved_symbol_ref = self.symbol(resolved_symbol);
+                let mut resolved_symbol_exports = resolved_symbol_ref.maybe_exports_mut();
                 if resolved_symbol_exports.is_none() {
                     *resolved_symbol_exports = Some(Gc::new(GcCell::new(create_symbol_table(
                         self.arena(),
@@ -1179,8 +1184,9 @@ impl TypeChecker {
                                     &get_source_file_of_node(&s_value_declaration),
                                     &get_source_file_of_node(&exported_member_value_declaration),
                                 ) {
+                                    let s_ref = self.symbol(s);
                                     let unescaped_name =
-                                        unescape_leading_underscores(self.symbol(s).escaped_name());
+                                        unescape_leading_underscores(s_ref.escaped_name());
                                     let exported_member_name = try_cast(
                                         &exported_member_value_declaration,
                                         |node: &&Gc<Node>| is_named_declaration(node),

@@ -1177,7 +1177,8 @@ impl CheckTypeRelatedTo {
             self.type_checker.is_tuple_type(source) && self.type_checker.is_tuple_type(target);
         for &target_prop in &self.exclude_properties(&properties.collect_vec(), excluded_properties)
         {
-            let name = self.type_checker.symbol(target_prop).escaped_name();
+            let target_prop_ref = self.type_checker.symbol(target_prop);
+            let name = target_prop_ref.escaped_name();
             if !self
                 .type_checker
                 .symbol(target_prop)

@@ -743,8 +743,8 @@ impl SymbolTableToDeclarationStatements {
         mut is_private: bool,
         property_as_alias: bool,
     ) -> io::Result<()> {
-        let symbol_name =
-            unescape_leading_underscores(self.type_checker.symbol(symbol).escaped_name());
+        let symbol_ref = self.type_checker.symbol(symbol);
+        let symbol_name = unescape_leading_underscores(symbol_ref.escaped_name());
         let is_default =
             self.type_checker.symbol(symbol).escaped_name() == InternalSymbolName::Default;
         if is_private

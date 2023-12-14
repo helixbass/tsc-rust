@@ -264,11 +264,11 @@ impl TypeChecker {
         None
     }
 
-    pub(super) fn get_name_of_symbol_as_written<'symbol>(
+    pub(super) fn get_name_of_symbol_as_written(
         &self,
         symbol: Id<Symbol>,
         context: Option<&NodeBuilderContext>,
-    ) -> Cow<'symbol, str> {
+    ) -> Cow<'static, str> {
         if let Some(context) = context {
             if self.symbol(symbol).escaped_name() == InternalSymbolName::Default
                 && !context
@@ -307,7 +307,7 @@ impl TypeChecker {
                         if is_call_expression(declaration)
                             && is_bindable_object_define_property_call(declaration)
                         {
-                            return symbol_name(&self.symbol(symbol));
+                            return symbol_name(&self.symbol(symbol)).into_owned().into();
                         }
                         if is_computed_property_name(&name)
                             && !get_check_flags(&self.symbol(symbol)).intersects(CheckFlags::Late)
@@ -365,7 +365,7 @@ impl TypeChecker {
         if let Some(name) = name {
             name.into()
         } else {
-            symbol_name(&self.symbol(symbol))
+            symbol_name(&self.symbol(symbol)).into_owned().into()
         }
     }
 

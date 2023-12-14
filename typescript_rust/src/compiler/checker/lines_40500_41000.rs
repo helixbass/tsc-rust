@@ -165,7 +165,8 @@ impl TypeChecker {
         meaning: SymbolFlags,
     ) {
         if get_combined_local_and_export_symbol_flags(symbol).intersects(meaning) {
-            let id = self.symbol(symbol).escaped_name();
+            let symbol_ref = self.symbol(symbol);
+            let id = symbol_ref.escaped_name();
             if !symbols.contains_key(id) {
                 symbols.insert(id.to_owned(), symbol);
             }

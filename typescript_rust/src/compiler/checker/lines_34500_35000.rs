@@ -939,7 +939,8 @@ impl TypeChecker {
             None;
         let mut previous_declaration: Option<Gc<Node /*SignatureDeclaration*/>> = None;
 
-        let declarations = self.symbol(symbol).maybe_declarations();
+        let symbol_ref = self.symbol(symbol);
+        let declarations = symbol_ref.maybe_declarations();
         let is_constructor = self
             .symbol(symbol)
             .flags()

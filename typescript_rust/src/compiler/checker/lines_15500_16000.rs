@@ -1039,7 +1039,8 @@ impl TypeChecker {
                 } else {
                     self.add_optionality(self.get_type_of_symbol(prop)?, Some(true), None)?
                 });
-                let prop_declarations = self.symbol(prop).maybe_declarations();
+                let prop_ref = self.symbol(prop);
+                let prop_declarations = prop_ref.maybe_declarations();
                 if let Some(prop_declarations) = prop_declarations.as_ref() {
                     self.symbol(result)
                         .set_declarations(prop_declarations.clone());

@@ -746,7 +746,8 @@ impl TypeChecker {
         &self,
         symbol: Id<Symbol>,
     ) -> Option<Gc<Node /*Declaration*/>> {
-        let declarations = self.symbol(symbol).maybe_declarations();
+        let symbol_ref = self.symbol(symbol);
+        let declarations = symbol_ref.maybe_declarations();
         if let Some(declarations) = declarations.as_ref() {
             for declaration in declarations {
                 if (declaration.kind() == SyntaxKind::ClassDeclaration

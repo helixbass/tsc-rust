@@ -288,7 +288,8 @@ impl TypeChecker {
                         }
                     }
                 }
-                let assignments = self.symbol(symbol).maybe_assignment_declaration_members();
+                let symbol_ref = self.symbol(symbol);
+                let assignments = symbol_ref.maybe_assignment_declaration_members();
                 if let Some(assignments) = assignments.as_ref() {
                     let decls = assignments.values();
                     for member in decls {

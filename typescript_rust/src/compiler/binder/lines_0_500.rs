@@ -790,7 +790,8 @@ impl BinderType {
             .set_flags(self.symbol(symbol).flags() | symbol_flags);
 
         node.set_symbol(symbol);
-        let mut symbol_declarations = self.symbol(symbol).maybe_declarations_mut();
+        let symbol_ref = self.symbol(symbol);
+        let mut symbol_declarations = symbol_ref.maybe_declarations_mut();
         if symbol_declarations.is_none() {
             *symbol_declarations = Some(vec![]);
         }
@@ -799,7 +800,8 @@ impl BinderType {
         if symbol_flags.intersects(
             SymbolFlags::Class | SymbolFlags::Enum | SymbolFlags::Module | SymbolFlags::Variable,
         ) {
-            let mut exports = self.symbol(symbol).maybe_exports_mut();
+            let symbol_ref = self.symbol(symbol);
+            let mut exports = symbol_ref.maybe_exports_mut();
             if exports.is_none() {
                 *exports = Some(Gc::new(GcCell::new(create_symbol_table(
                     self.arena(),
@@ -814,7 +816,8 @@ impl BinderType {
                 | SymbolFlags::TypeLiteral
                 | SymbolFlags::ObjectLiteral,
         ) {
-            let mut members = self.symbol(symbol).maybe_members_mut();
+            let symbol_ref = self.symbol(symbol);
+            let mut members = symbol_ref.maybe_members_mut();
             if members.is_none() {
                 *members = Some(Gc::new(GcCell::new(create_symbol_table(
                     self.arena(),
